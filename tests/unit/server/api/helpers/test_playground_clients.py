@@ -1,10 +1,16 @@
 import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
 from openai import AsyncOpenAI, AuthenticationError
+from openai.types.chat import ChatCompletion, ChatCompletionMessage
+from openai.types.chat.chat_completion import Choice as ChatCompletionChoice
+from openai.types.chat.chat_completion_chunk import ChatCompletionChunk, ChoiceDelta
+from openai.types.chat.chat_completion_chunk import Choice as ChunkChoice
+from openai.types.completion_usage import CompletionUsage
 from openinference.semconv.trace import (
     MessageAttributes,
     OpenInferenceMimeTypeValues,
@@ -182,7 +188,12 @@ class TestOpenAIBaseStreamingClient:
         attributes: dict[str, Any] = dict(span.attributes)
 
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
-        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o-mini"
+        # The cassette records the provider-reported snapshot model, which differs from
+        # the requested alias, so llm.model_name is the snapshot and the request/response
+        # model name attributes are set.
+        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o-mini-2024-07-18"
+        assert attributes.pop(LLM_REQUEST_MODEL_NAME) == "gpt-4o-mini"
+        assert attributes.pop(LLM_RESPONSE_MODEL_NAME) == "gpt-4o-mini-2024-07-18"
 
         invocation_params = attributes.pop(LLM_INVOCATION_PARAMETERS)
         assert isinstance(invocation_params, str)
@@ -318,7 +329,9 @@ class TestOpenAIBaseStreamingClient:
         attributes: dict[str, Any] = dict(span.attributes)
 
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
-        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o-mini"
+        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o-mini-2024-07-18"
+        assert attributes.pop(LLM_REQUEST_MODEL_NAME) == "gpt-4o-mini"
+        assert attributes.pop(LLM_RESPONSE_MODEL_NAME) == "gpt-4o-mini-2024-07-18"
 
         invocation_params = attributes.pop(LLM_INVOCATION_PARAMETERS)
         assert isinstance(invocation_params, str)
@@ -518,6 +531,206 @@ class TestOpenAIBaseStreamingClient:
         assert attributes.pop(INPUT_MIME_TYPE) == JSON
 
         assert not attributes
+
+
+class TestOpenAIResponseModelName:
+    """
+    When the provider reports a different model than the configured one (an alias
+    resolving to a dated snapshot), llm.model_name is the reported model and
+    llm.request.model_name / llm.response.model_name record both values.
+    """
+
+    @pytest.fixture
+    def in_memory_span_exporter(self) -> InMemorySpanExporter:
+        return InMemorySpanExporter()
+
+    @pytest.fixture
+    def tracer(self, in_memory_span_exporter: InMemorySpanExporter) -> Tracer:
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(in_memory_span_exporter))
+        return provider.get_tracer(__name__)
+
+    @pytest.fixture
+    def fake_openai_client_factory(self) -> Any:
+        @asynccontextmanager
+        async def factory() -> AsyncIterator[Any]:
+            yield SimpleNamespace(_client=None)
+
+        return factory
+
+    @pytest.fixture
+    def playground_messages(self) -> list[PlaygroundMessage]:
+        return [
+            create_playground_message(
+                ChatCompletionMessageRole.USER,
+                "What is the capital of France? Answer in one word",
+            )
+        ]
+
+    async def test_streamed_snapshot_model_recorded_on_span(
+        self,
+        fake_openai_client_factory: Any,
+        playground_messages: list[PlaygroundMessage],
+        tracer: Tracer,
+        in_memory_span_exporter: InMemorySpanExporter,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        client = OpenAICompatibleClient(
+            client_factory=fake_openai_client_factory,
+            model_name="gpt-4o",
+            provider="openai",
+        )
+
+        chunks = [
+            ChatCompletionChunk(
+                id="chatcmpl-test",
+                choices=[
+                    ChunkChoice(
+                        index=0,
+                        delta=ChoiceDelta(content="France"),
+                        finish_reason=None,
+                    )
+                ],
+                created=0,
+                model="gpt-4o-2024-08-06",
+                object="chat.completion.chunk",
+            ),
+            ChatCompletionChunk(
+                id="chatcmpl-test",
+                choices=[
+                    ChunkChoice(
+                        index=0,
+                        delta=ChoiceDelta(),
+                        finish_reason="stop",
+                    )
+                ],
+                created=0,
+                model="gpt-4o-2024-08-06",
+                object="chat.completion.chunk",
+                usage=CompletionUsage(completion_tokens=1, prompt_tokens=5, total_tokens=6),
+            ),
+        ]
+
+        async def fake_stream(**kwargs: Any) -> AsyncIterator[ChatCompletionChunk]:
+            async def _gen() -> AsyncIterator[ChatCompletionChunk]:
+                for chunk in chunks:
+                    yield chunk
+
+            return _gen()
+
+        monkeypatch.setattr(client, "_openai_chat_completion_create_stream", fake_stream)
+
+        async for _ in client.chat_completion_create(
+            messages=playground_messages,
+            tools=None,
+            tracer=tracer,
+        ):
+            pass
+
+        spans = in_memory_span_exporter.get_finished_spans()
+        assert len(spans) == 1
+        attributes: dict[str, Any] = dict(spans[0].attributes or {})
+        assert attributes[LLM_MODEL_NAME] == "gpt-4o-2024-08-06"
+        assert attributes[LLM_REQUEST_MODEL_NAME] == "gpt-4o"
+        assert attributes[LLM_RESPONSE_MODEL_NAME] == "gpt-4o-2024-08-06"
+
+    async def test_non_streamed_snapshot_model_recorded_on_span(
+        self,
+        fake_openai_client_factory: Any,
+        playground_messages: list[PlaygroundMessage],
+        tracer: Tracer,
+        in_memory_span_exporter: InMemorySpanExporter,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        client = OpenAICompatibleClient(
+            client_factory=fake_openai_client_factory,
+            model_name="gpt-4o",
+            provider="openai",
+        )
+
+        completion = ChatCompletion(
+            id="chatcmpl-test",
+            choices=[
+                ChatCompletionChoice(
+                    index=0,
+                    finish_reason="stop",
+                    message=ChatCompletionMessage(role="assistant", content="France"),
+                )
+            ],
+            created=0,
+            model="gpt-4o-2024-08-06",
+            object="chat.completion",
+            usage=CompletionUsage(completion_tokens=1, prompt_tokens=5, total_tokens=6),
+        )
+
+        async def fake_non_stream(**kwargs: Any) -> ChatCompletion:
+            return completion
+
+        monkeypatch.setattr(client, "_openai_chat_completion_create_non_stream", fake_non_stream)
+
+        async for _ in client.chat_completion_create(
+            messages=playground_messages,
+            tools=None,
+            tracer=tracer,
+            stream_model_output=False,
+        ):
+            pass
+
+        spans = in_memory_span_exporter.get_finished_spans()
+        assert len(spans) == 1
+        attributes: dict[str, Any] = dict(spans[0].attributes or {})
+        assert attributes[LLM_MODEL_NAME] == "gpt-4o-2024-08-06"
+        assert attributes[LLM_REQUEST_MODEL_NAME] == "gpt-4o"
+        assert attributes[LLM_RESPONSE_MODEL_NAME] == "gpt-4o-2024-08-06"
+
+    async def test_matching_model_leaves_request_response_attributes_unset(
+        self,
+        fake_openai_client_factory: Any,
+        playground_messages: list[PlaygroundMessage],
+        tracer: Tracer,
+        in_memory_span_exporter: InMemorySpanExporter,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        client = OpenAICompatibleClient(
+            client_factory=fake_openai_client_factory,
+            model_name="gpt-4o",
+            provider="openai",
+        )
+
+        completion = ChatCompletion(
+            id="chatcmpl-test",
+            choices=[
+                ChatCompletionChoice(
+                    index=0,
+                    finish_reason="stop",
+                    message=ChatCompletionMessage(role="assistant", content="France"),
+                )
+            ],
+            created=0,
+            model="gpt-4o",
+            object="chat.completion",
+            usage=CompletionUsage(completion_tokens=1, prompt_tokens=5, total_tokens=6),
+        )
+
+        async def fake_non_stream(**kwargs: Any) -> ChatCompletion:
+            return completion
+
+        monkeypatch.setattr(client, "_openai_chat_completion_create_non_stream", fake_non_stream)
+
+        async for _ in client.chat_completion_create(
+            messages=playground_messages,
+            tools=None,
+            tracer=tracer,
+            stream_model_output=False,
+        ):
+            pass
+
+        spans = in_memory_span_exporter.get_finished_spans()
+        assert len(spans) == 1
+        attributes: dict[str, Any] = dict(spans[0].attributes or {})
+        assert attributes[LLM_MODEL_NAME] == "gpt-4o"
+        assert LLM_REQUEST_MODEL_NAME not in attributes
+        assert LLM_RESPONSE_MODEL_NAME not in attributes
 
 
 class TestAnthropicStreamingClient:
@@ -770,6 +983,8 @@ OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
 LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
 LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
+LLM_REQUEST_MODEL_NAME = SpanAttributes.LLM_REQUEST_MODEL_NAME
+LLM_RESPONSE_MODEL_NAME = SpanAttributes.LLM_RESPONSE_MODEL_NAME
 LLM_INVOCATION_PARAMETERS = SpanAttributes.LLM_INVOCATION_PARAMETERS
 LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT

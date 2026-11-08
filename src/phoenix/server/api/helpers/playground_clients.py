@@ -735,6 +735,10 @@ class OpenAICompatibleClient(PlaygroundClient["AsyncOpenAI"]):
                     invocation_parameters=invocation_parameters,
                     span=span,
                 )
+                if (response_model := completion.model) and response_model != self.model_name:
+                    span.set_attributes(
+                        dict(llm_response_model_name(self.model_name, response_model))
+                    )
                 if completion.usage is not None:
                     span.set_attributes(dict(self._llm_token_counts(completion.usage)))
                 span.set_attribute(OUTPUT_VALUE, completion.model_dump_json(exclude_none=True))
@@ -751,6 +755,7 @@ class OpenAICompatibleClient(PlaygroundClient["AsyncOpenAI"]):
 
         tool_call_ids: dict[int, str] = {}
         token_usage: CompletionUsage | None = None
+        response_model: str | None = None
         async with AsyncExitStack() as stack:
             client = await stack.enter_async_context(self._client_factory())
             client._client = _HttpxClient(client._client, span=span)
@@ -763,6 +768,8 @@ class OpenAICompatibleClient(PlaygroundClient["AsyncOpenAI"]):
                 span=span,
             )
             async for oai_chunk in openai_stream:
+                if response_model is None and (chunk_model := oai_chunk.model):
+                    response_model = chunk_model
                 if (usage := oai_chunk.usage) is not None:
                     token_usage = usage
                 if not oai_chunk.choices:
@@ -796,6 +803,8 @@ class OpenAICompatibleClient(PlaygroundClient["AsyncOpenAI"]):
 
             if token_usage is not None:
                 span.set_attributes(dict(self._llm_token_counts(token_usage)))
+            if response_model is not None and response_model != self.model_name:
+                span.set_attributes(dict(llm_response_model_name(self.model_name, response_model)))
         if text_chunks or tool_call_chunks:
             span.set_attributes(dict(_llm_output_messages(text_chunks, tool_call_chunks)))
             if output_attrs := _output_attributes(text_chunks, tool_call_chunks):
@@ -4248,6 +4257,21 @@ def llm_model_name(model_name: str) -> Iterator[tuple[str, Any]]:
     yield LLM_MODEL_NAME, model_name
 
 
+def llm_response_model_name(
+    request_model_name: str, response_model_name: str
+) -> Iterator[tuple[str, Any]]:
+    """
+    Attributes for when the provider reports a different model than the one the caller
+    requested (e.g. an alias resolving to a dated snapshot). Per the OpenInference
+    semantic conventions, llm.model_name is the model that actually generated the
+    response, and llm.request.model_name / llm.response.model_name record the two
+    distinct values.
+    """
+    yield LLM_MODEL_NAME, response_model_name
+    yield LLM_REQUEST_MODEL_NAME, request_model_name
+    yield LLM_RESPONSE_MODEL_NAME, response_model_name
+
+
 def llm_input_messages(
     messages: Iterable[PlaygroundMessage],
 ) -> Iterator[tuple[str, Any]]:
@@ -4369,6 +4393,8 @@ OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
 LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
 LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
+LLM_REQUEST_MODEL_NAME = SpanAttributes.LLM_REQUEST_MODEL_NAME
+LLM_RESPONSE_MODEL_NAME = SpanAttributes.LLM_RESPONSE_MODEL_NAME
 LLM_INVOCATION_PARAMETERS = SpanAttributes.LLM_INVOCATION_PARAMETERS
 LLM_TOOLS = SpanAttributes.LLM_TOOLS
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT

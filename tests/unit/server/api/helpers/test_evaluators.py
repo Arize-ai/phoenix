@@ -2763,7 +2763,12 @@ class TestLLMEvaluator:
         assert llm_span.cumulative_llm_token_count_completion > 0
         attributes = dict(flatten(llm_span.attributes, recurse_on_sequence=True))
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "LLM"
-        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o-mini"
+        # The cassette records the provider-reported snapshot model, which differs from
+        # the requested alias, so llm.model_name is the snapshot and the request/response
+        # model name attributes are set.
+        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o-mini-2024-07-18"
+        assert attributes.pop(LLM_REQUEST_MODEL_NAME) == "gpt-4o-mini"
+        assert attributes.pop(LLM_RESPONSE_MODEL_NAME) == "gpt-4o-mini-2024-07-18"
         assert attributes.pop(LLM_PROVIDER) == "openai"
         assert attributes.pop(LLM_SYSTEM) == "openai"
         assert attributes.pop(f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_ROLE}") == "system"
@@ -4371,6 +4376,8 @@ MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
 # span attributes
 OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
 LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
+LLM_REQUEST_MODEL_NAME = SpanAttributes.LLM_REQUEST_MODEL_NAME
+LLM_RESPONSE_MODEL_NAME = SpanAttributes.LLM_RESPONSE_MODEL_NAME
 LLM_SYSTEM = SpanAttributes.LLM_SYSTEM
 LLM_PROVIDER = SpanAttributes.LLM_PROVIDER
 LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES

@@ -349,7 +349,9 @@ class TestChatCompletionSubscription:
         assert not span
 
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
-        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
+        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4-0613"
+        assert attributes.pop(LLM_REQUEST_MODEL_NAME) == "gpt-4"
+        assert attributes.pop(LLM_RESPONSE_MODEL_NAME) == "gpt-4-0613"
         assert isinstance(invocation_parameters := attributes.pop("llm.invocation_parameters"), str)
         assert json.loads(invocation_parameters) == {
             "temperature": 0.1,
@@ -668,7 +670,9 @@ class TestChatCompletionSubscription:
         assert not span
 
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
-        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
+        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4-0613"
+        assert attributes.pop(LLM_REQUEST_MODEL_NAME) == "gpt-4"
+        assert attributes.pop(LLM_RESPONSE_MODEL_NAME) == "gpt-4-0613"
         assert isinstance(invocation_paramaters := attributes.pop(LLM_INVOCATION_PARAMETERS), str)
         assert json.loads(invocation_paramaters) == {
             "tool_choice": "auto",
@@ -851,7 +855,9 @@ class TestChatCompletionSubscription:
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
         assert isinstance(invocation_paramaters := attributes.pop(LLM_INVOCATION_PARAMETERS), str)
         assert json.loads(invocation_paramaters) == {}
-        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
+        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4-0613"
+        assert attributes.pop(LLM_REQUEST_MODEL_NAME) == "gpt-4"
+        assert attributes.pop(LLM_RESPONSE_MODEL_NAME) == "gpt-4-0613"
         assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
         assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION) == token_count_completion
@@ -1359,7 +1365,9 @@ class TestChatCompletionOverDatasetSubscription:
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
         assert isinstance(invocation_paramaters := attributes.pop(LLM_INVOCATION_PARAMETERS), str)
         assert json.loads(invocation_paramaters) == {}
-        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
+        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4-0613"
+        assert attributes.pop(LLM_REQUEST_MODEL_NAME) == "gpt-4"
+        assert attributes.pop(LLM_RESPONSE_MODEL_NAME) == "gpt-4-0613"
         assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
         assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION) == token_count_completion
@@ -1449,7 +1457,9 @@ class TestChatCompletionOverDatasetSubscription:
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
         assert isinstance(invocation_paramaters := attributes.pop(LLM_INVOCATION_PARAMETERS), str)
         assert json.loads(invocation_paramaters) == {}
-        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
+        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4-0613"
+        assert attributes.pop(LLM_REQUEST_MODEL_NAME) == "gpt-4"
+        assert attributes.pop(LLM_RESPONSE_MODEL_NAME) == "gpt-4-0613"
         assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
         assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION) == token_count_completion
@@ -2383,7 +2393,9 @@ class TestChatCompletionOverDatasetSubscription:
             assert llm_llm_span.cumulative_llm_token_count_completion > 0
             attributes = dict(flatten(llm_llm_span.attributes, recurse_on_sequence=True))
             assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "LLM"
-            assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
+            assert attributes.pop(LLM_MODEL_NAME) == "gpt-4-0613"
+            assert attributes.pop(LLM_REQUEST_MODEL_NAME) == "gpt-4"
+            assert attributes.pop(LLM_RESPONSE_MODEL_NAME) == "gpt-4-0613"
             assert attributes.pop(LLM_PROVIDER) == "openai"
             assert attributes.pop(LLM_SYSTEM) == "openai"
             assert attributes.pop(URL_FULL) == "https://api.openai.com/v1/chat/completions"
@@ -2913,6 +2925,8 @@ MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
 # span attributes
 OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
 LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
+LLM_REQUEST_MODEL_NAME = SpanAttributes.LLM_REQUEST_MODEL_NAME
+LLM_RESPONSE_MODEL_NAME = SpanAttributes.LLM_RESPONSE_MODEL_NAME
 LLM_SYSTEM = SpanAttributes.LLM_SYSTEM
 LLM_INVOCATION_PARAMETERS = SpanAttributes.LLM_INVOCATION_PARAMETERS
 LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
