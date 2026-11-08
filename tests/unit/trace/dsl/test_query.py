@@ -6,8 +6,10 @@ import numpy as np
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
+from sqlalchemy import insert
 from sqlalchemy.engine.base import Engine
 
+from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanQuery
 
@@ -145,8 +147,8 @@ async def test_select_parent_id_as_span_id(
     async with db() as session:
         actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
-        actual.sort_index().sort_index(axis=1),
-        expected.sort_index().sort_index(axis=1),
+        actual.sort_index().sort_index(axis=1).sort_values("name"),
+        expected.sort_index().sort_index(axis=1).sort_values("name"),
     )
 
 
@@ -312,7 +314,7 @@ async def test_limit_with_select_statement(
     sq = SpanQuery().select("context.span_id")
     expected = pd.DataFrame(
         {
-            "context.span_id": ["234", "345"],
+            "context.span_id": ["567", "456"],
         }
     ).set_index("context.span_id")
     async with db() as session:
@@ -321,6 +323,81 @@ async def test_limit_with_select_statement(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
+
+
+async def test_limit_with_concat_statement(
+    db: DbSessionFactory,
+    default_project: Any,
+    abc_project: Any,
+) -> None:
+    sq = SpanQuery().concat(
+        "llm.input_messages",
+        content="message.content",
+    )
+    expected = pd.DataFrame(
+        {
+            "context.span_id": ["171819", "131415"],
+            "content": ["test invalid tool", "test empty output"],
+        }
+    ).set_index("context.span_id")
+    async with db() as session:
+        actual = await session.run_sync(sq, limit=2)
+    assert_frame_equal(
+        actual.sort_index().sort_index(axis=1),
+        expected.sort_index().sort_index(axis=1),
+    )
+
+
+async def test_explode_keeps_array_order_within_each_span(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project_rowid = await session.scalar(
+            insert(models.Project).values(name="explode-order").returning(models.Project.id)
+        )
+        trace_rowid = await session.scalar(
+            insert(models.Trace)
+            .values(
+                trace_id="0123",
+                project_rowid=project_rowid,
+                start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:02:00.000+00:00"),
+            )
+            .returning(models.Trace.id)
+        )
+        for span_id, start_time in (
+            ("older", datetime.fromisoformat("2021-01-01T00:00:00.000+00:00")),
+            ("newer", datetime.fromisoformat("2021-01-01T00:01:00.000+00:00")),
+        ):
+            await session.execute(
+                insert(models.Span).values(
+                    trace_rowid=trace_rowid,
+                    span_id=span_id,
+                    parent_id=None,
+                    name=span_id,
+                    span_kind="RETRIEVER",
+                    start_time=start_time,
+                    end_time=start_time,
+                    attributes={
+                        "retrieval": {
+                            "documents": [
+                                {"document": {"content": f"{span_id}-{i}"}} for i in range(10)
+                            ],
+                        },
+                    },
+                    events=[],
+                    status_code="OK",
+                    status_message="okay",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+            )
+    sq = SpanQuery().explode("retrieval.documents", content="document.content")
+    async with db() as session:
+        actual = await session.run_sync(sq, project_name="explode-order")
+    positions = actual.reset_index().groupby("context.span_id")["document_position"].agg(list)
+    assert positions.to_dict() == {"newer": list(range(10)), "older": list(range(10))}
 
 
 async def test_filter_for_none(
