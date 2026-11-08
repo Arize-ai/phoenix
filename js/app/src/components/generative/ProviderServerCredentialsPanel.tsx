@@ -1,7 +1,13 @@
 import { css } from "@emotion/react";
 import { Suspense, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
+import {
+  fetchQuery,
+  graphql,
+  useLazyLoadQuery,
+  useMutation,
+  useRelayEnvironment,
+} from "react-relay";
 
 import {
   Alert,
@@ -20,7 +26,48 @@ import type { ProviderServerCredentialsPanelUpsertOrDeleteSecretsMutation } from
 type ProviderCredentialRequirement = {
   readonly envVarName: string;
   readonly isRequired: boolean;
+  readonly isSetInServerEnvironment: boolean;
 };
+
+const SET_IN_SERVER_ENVIRONMENT_PLACEHOLDER =
+  "•••••••• (set via server environment variable)";
+
+/**
+ * Where a credential's effective server-side value comes from. A stored secret
+ * takes precedence over an environment variable of the same name.
+ */
+type ServerCredentialSource =
+  | "none"
+  | "environment"
+  | "stored"
+  | "storedOverridingEnvironment";
+
+const SERVER_CREDENTIAL_SOURCE_DESCRIPTIONS: Partial<
+  Record<ServerCredentialSource, string>
+> = {
+  environment:
+    "Set via a server environment variable. A value saved here overrides it.",
+  storedOverridingEnvironment:
+    "Overrides the server environment variable. Clear to go back to it.",
+};
+
+/**
+ * Describes env vars as set on the server, e.g. "A is set via a server
+ * environment variable" or "A, B are now set via server environment variables".
+ */
+function formatSetViaServerEnvironment(
+  envVarNames: string[],
+  { now = false }: { now?: boolean } = {}
+) {
+  const isSingle = envVarNames.length === 1;
+  return [
+    envVarNames.join(", "),
+    isSingle ? "is" : "are",
+    ...(now ? ["now"] : []),
+    "set via",
+    isSingle ? "a server environment variable" : "server environment variables",
+  ].join(" ");
+}
 
 export type ProviderServerCredentialsPanelProvider = {
   readonly name: string;
@@ -31,6 +78,27 @@ export type ProviderServerCredentialsPanelProvider = {
 
 // Form values type for react-hook-form
 type ServerCredentialsFormValues = Record<string, string>;
+
+const secretsQuery = graphql`
+  query ProviderServerCredentialsPanelSecretsQuery($secretKeys: [String!]!) {
+    secrets(keys: $secretKeys) {
+      edges {
+        node {
+          key
+          value {
+            __typename
+            ... on DecryptedSecret {
+              value
+            }
+            ... on UnparsableSecret {
+              parseError
+            }
+          }
+        }
+      }
+    }
+  }
+`;
 
 export function ProviderServerCredentialsPanel({
   provider,
@@ -80,36 +148,25 @@ function ServerCredentials({
   // Lazy load secrets only when this component mounts (admin opens secrets tab)
   const secretKeys = provider.credentialRequirements.map((c) => c.envVarName);
 
-  // Used to trigger refetch after mutations
-  const [fetchKey, setFetchKey] = useState(0);
-
+  const environment = useRelayEnvironment();
   const secretsData =
     useLazyLoadQuery<ProviderServerCredentialsPanelSecretsQuery>(
-      graphql`
-        query ProviderServerCredentialsPanelSecretsQuery(
-          $secretKeys: [String!]!
-        ) {
-          secrets(keys: $secretKeys) {
-            edges {
-              node {
-                key
-                value {
-                  __typename
-                  ... on DecryptedSecret {
-                    value
-                  }
-                  ... on UnparsableSecret {
-                    parseError
-                  }
-                }
-              }
-            }
-          }
-        }
-      `,
+      secretsQuery,
       { secretKeys },
-      { fetchKey, fetchPolicy: "store-and-network" }
+      { fetchPolicy: "store-and-network" }
     );
+
+  // A fetchKey would restart at 0 on each mount and can collide with a query
+  // Relay still caches from an earlier mount, skipping the request, so fetch
+  // into the store directly instead
+  const refreshSecrets = () => {
+    fetchQuery<ProviderServerCredentialsPanelSecretsQuery>(
+      environment,
+      secretsQuery,
+      { secretKeys },
+      { fetchPolicy: "network-only" }
+    ).subscribe({});
+  };
 
   // Process secrets from query
   const serverSecretMap = new Map<string, string>();
@@ -184,7 +241,7 @@ function ServerCredentials({
     commit({
       variables: { input: { secrets: secretsToUpsert } },
       onCompleted: () => {
-        setFetchKey((k) => k + 1);
+        refreshSecrets();
         onCredentialsUpdated?.();
         notifySuccess({
           title: "Secrets updated",
@@ -216,16 +273,26 @@ function ServerCredentials({
     commit({
       variables: { input: { secrets: secretsToDelete } },
       onCompleted: () => {
-        setFetchKey((k) => k + 1);
+        refreshSecrets();
         onCredentialsUpdated?.();
         const emptyValues: ServerCredentialsFormValues = {};
         provider.credentialRequirements.forEach(({ envVarName }) => {
           emptyValues[envVarName] = "";
         });
         reset(emptyValues);
+        const restoredEnvVarNames = provider.credentialRequirements
+          .filter(
+            ({ envVarName, isSetInServerEnvironment }) =>
+              isSetInServerEnvironment &&
+              existingSecretKeys.includes(envVarName)
+          )
+          .map(({ envVarName }) => envVarName);
         notifySuccess({
           title: "Secrets deleted",
-          message: `${existingSecretKeys.length} secret(s) removed`,
+          message:
+            restoredEnvVarNames.length > 0
+              ? `${existingSecretKeys.length} secret(s) removed. ${formatSetViaServerEnvironment(restoredEnvVarNames, { now: true })}.`
+              : `${existingSecretKeys.length} secret(s) removed`,
         });
       },
       onError: (error) => {
@@ -249,18 +316,36 @@ function ServerCredentials({
     );
   }
 
-  const setViaServerEnvironment =
-    provider.credentialsSet &&
-    existingSecretKeys.length === 0 &&
-    providerUnparsableSecrets.length === 0;
+  const getServerCredentialSource = ({
+    envVarName,
+    isSetInServerEnvironment,
+  }: ProviderCredentialRequirement): ServerCredentialSource => {
+    if (unparsableSecrets.has(envVarName)) {
+      // The unparsable-secret alert already explains this field's state
+      return "none";
+    }
+    if (serverSecretMap.has(envVarName)) {
+      return isSetInServerEnvironment
+        ? "storedOverridingEnvironment"
+        : "stored";
+    }
+    return isSetInServerEnvironment ? "environment" : "none";
+  };
+
+  const environmentOnlyEnvVarNames = provider.credentialRequirements
+    .filter(
+      (credentialConfig) =>
+        getServerCredentialSource(credentialConfig) === "environment"
+    )
+    .map(({ envVarName }) => envVarName);
 
   return (
     <Flex direction="column" gap="size-100">
       {error && <Alert variant="danger">{error}</Alert>}
-      {setViaServerEnvironment && (
+      {environmentOnlyEnvVarNames.length > 0 && (
         <Alert variant="info">
-          Set via a server environment variable. This can only be cleared by
-          removing the environment variable on the server.
+          {formatSetViaServerEnvironment(environmentOnlyEnvVarNames)} and can
+          only be removed on the server.
         </Alert>
       )}
       {providerUnparsableSecrets.map(({ envVarName, parseError }) => (
@@ -268,34 +353,43 @@ function ServerCredentials({
           {parseError}
         </Alert>
       ))}
-      {provider.credentialRequirements.map((credentialConfig) => (
-        <Controller
-          key={credentialConfig.envVarName}
-          name={credentialConfig.envVarName}
-          control={control}
-          rules={{
-            validate: credentialConfig.isRequired
-              ? (value) =>
-                  !!value?.trim() ||
-                  `${credentialConfig.envVarName} is required`
-              : undefined,
-          }}
-          render={({
-            field: { name, onChange, onBlur, value },
-            fieldState: { error },
-          }) => (
-            <RedactedCredentialField
-              label={credentialConfig.envVarName}
-              isRequired={credentialConfig.isRequired}
-              name={name}
-              value={value ?? ""}
-              onChange={onChange}
-              onBlur={onBlur}
-              errorMessage={error?.message}
-            />
-          )}
-        />
-      ))}
+      {provider.credentialRequirements.map((credentialConfig) => {
+        const source = getServerCredentialSource(credentialConfig);
+        return (
+          <Controller
+            key={credentialConfig.envVarName}
+            name={credentialConfig.envVarName}
+            control={control}
+            rules={{
+              validate: credentialConfig.isRequired
+                ? (value) =>
+                    !!value?.trim() ||
+                    `${credentialConfig.envVarName} is required`
+                : undefined,
+            }}
+            render={({
+              field: { name, onChange, onBlur, value },
+              fieldState: { error },
+            }) => (
+              <RedactedCredentialField
+                label={credentialConfig.envVarName}
+                isRequired={credentialConfig.isRequired}
+                name={name}
+                value={value ?? ""}
+                onChange={onChange}
+                onBlur={onBlur}
+                placeholder={
+                  source === "environment"
+                    ? SET_IN_SERVER_ENVIRONMENT_PLACEHOLDER
+                    : undefined
+                }
+                description={SERVER_CREDENTIAL_SOURCE_DESCRIPTIONS[source]}
+                errorMessage={error?.message}
+              />
+            )}
+          />
+        );
+      })}
       <Flex
         direction="row"
         gap="size-100"

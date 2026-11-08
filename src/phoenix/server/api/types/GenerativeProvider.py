@@ -165,6 +165,15 @@ class GenerativeProviderCredentialConfig:
     env_var_name: str
     is_required: bool
 
+    @strawberry.field(
+        description=(
+            "Whether the environment variable is set to a non-empty value on the server. "
+            "Reports presence only and never exposes the value."
+        )
+    )  # type: ignore
+    def is_set_in_server_environment(self) -> bool:
+        return bool(getenv(self.env_var_name))
+
 
 @strawberry.type
 class GenerativeProvider:
@@ -308,10 +317,7 @@ class GenerativeProvider:
             return True
         secret_keys = []
         for credential_config in credential_requirements:
-            if (
-                not credential_config.is_required
-                or getenv(credential_config.env_var_name) is not None
-            ):
+            if not credential_config.is_required or getenv(credential_config.env_var_name):
                 continue
             secret_keys.append(credential_config.env_var_name)
         if not secret_keys:

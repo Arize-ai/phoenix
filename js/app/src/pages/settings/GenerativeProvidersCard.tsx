@@ -1,8 +1,14 @@
 import { css } from "@emotion/react";
 import { flexRender, useTable } from "@tanstack/react-table";
-import { useCallback, useContext, useMemo, useState } from "react";
+import {
+  startTransition,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+} from "react";
 import { OverlayTriggerStateContext } from "react-aria-components";
-import { graphql, useFragment } from "react-relay";
+import { graphql, useRefetchableFragment } from "react-relay";
 
 import {
   Button,
@@ -46,15 +52,20 @@ import type {
   GenerativeProvidersCard_data$data,
   GenerativeProvidersCard_data$key,
 } from "./__generated__/GenerativeProvidersCard_data.graphql";
+import type { GenerativeProvidersCardRefetchQuery } from "./__generated__/GenerativeProvidersCardRefetchQuery.graphql";
 
 export function GenerativeProvidersCard({
   query,
 }: {
   query: GenerativeProvidersCard_data$key;
 }) {
-  const data = useFragment<GenerativeProvidersCard_data$key>(
+  const [data, refetch] = useRefetchableFragment<
+    GenerativeProvidersCardRefetchQuery,
+    GenerativeProvidersCard_data$key
+  >(
     graphql`
-      fragment GenerativeProvidersCard_data on Query {
+      fragment GenerativeProvidersCard_data on Query
+      @refetchable(queryName: "GenerativeProvidersCardRefetchQuery") {
         modelProviders {
           name
           key
@@ -63,6 +74,7 @@ export function GenerativeProvidersCard({
           credentialRequirements {
             envVarName
             isRequired
+            isSetInServerEnvironment
           }
           credentialsSet
         }
@@ -70,6 +82,12 @@ export function GenerativeProvidersCard({
     `,
     query
   );
+
+  const refreshProviders = useCallback(() => {
+    startTransition(() => {
+      refetch({}, { fetchPolicy: "store-and-network" });
+    });
+  }, [refetch]);
 
   const tableData = useMemo(() => [...data.modelProviders], [data]);
   type DataRow = (typeof tableData)[number];
@@ -206,7 +224,10 @@ export function GenerativeProvidersCard({
       >
         <ViewportModal size="M">
           {editingProvider ? (
-            <ProviderCredentialsDialog provider={editingProvider} />
+            <ProviderCredentialsDialog
+              provider={editingProvider}
+              onCredentialsUpdated={refreshProviders}
+            />
           ) : null}
         </ViewportModal>
       </ViewportModalOverlay>
@@ -297,8 +318,13 @@ function CredentialsSetIndicator() {
 
 function ProviderCredentialsDialog({
   provider,
+  onCredentialsUpdated,
 }: {
   provider: GenerativeProvidersCard_data$data["modelProviders"][number];
+  /**
+   * Called after server credentials are saved or cleared
+   */
+  onCredentialsUpdated: () => void;
 }) {
   const { viewer } = useViewer();
   const isAdmin = !viewer || viewer.role?.name === "ADMIN";
@@ -361,6 +387,7 @@ function ProviderCredentialsDialog({
                 <View padding="size-200">
                   <ProviderServerCredentialsPanel
                     provider={provider}
+                    onCredentialsUpdated={onCredentialsUpdated}
                     onSaved={closeDialog}
                   />
                 </View>

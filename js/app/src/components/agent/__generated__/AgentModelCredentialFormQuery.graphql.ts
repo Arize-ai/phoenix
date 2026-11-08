@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<721eb4316132d80bf859d1c6c620a2b1>>
+ * @generated SignedSource<<e87ca01462118ccfe1d233873e046a34>>
  * @lightSyntaxTransform
  */
 
@@ -15,6 +15,7 @@ export type AgentModelCredentialFormQuery$data = {
     readonly credentialRequirements: ReadonlyArray<{
       readonly envVarName: string;
       readonly isRequired: boolean;
+      readonly isSetInServerEnvironment: boolean;
     }>;
     readonly credentialsSet: boolean;
     readonly key: GenerativeProviderKey;
@@ -71,6 +72,13 @@ var v0 = [
             "kind": "ScalarField",
             "name": "isRequired",
             "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "isSetInServerEnvironment",
+            "storageKey": null
           }
         ],
         "storageKey": null
@@ -104,16 +112,16 @@ return {
     "selections": (v0/*:: as any*/)
   },
   "params": {
-    "cacheID": "a6916c8120d35f25c7f0b7f43da14a0e",
+    "cacheID": "e6d67b46d4509cbd5a4ab38bdf378145",
     "id": null,
     "metadata": {},
     "name": "AgentModelCredentialFormQuery",
     "operationKind": "query",
-    "text": "query AgentModelCredentialFormQuery {\n  modelProviders {\n    key\n    name\n    credentialRequirements {\n      envVarName\n      isRequired\n    }\n    credentialsSet\n  }\n}\n"
+    "text": "query AgentModelCredentialFormQuery {\n  modelProviders {\n    key\n    name\n    credentialRequirements {\n      envVarName\n      isRequired\n      isSetInServerEnvironment\n    }\n    credentialsSet\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a81978bba5774466471be375e4f1ff68";
+(node as any).hash = "3ebe81a4db64215ecb9fd800423c6cea";
 
 export default node;
