@@ -27,7 +27,9 @@ import type {
   AnthropicFormData,
   AWSBedrockFormData,
   AzureOpenAIFormData,
+  DecisionModelsFormData,
   GoogleGenAIFormData,
+  LLMModelsFormData,
   OpenAIFormData,
   ProviderFormData,
   TypeSafeFormData,
@@ -39,6 +41,28 @@ type CustomProviderNode = Extract<
   { readonly __typename: "GenerativeModelCustomProvider" }
 >;
 type ProviderConfig = NonNullable<CustomProviderNode["config"]>;
+
+/** Splits a suggested model names field: one per line or comma separated. */
+export function parseModelNames(value: string | undefined): string[] {
+  const names = (value ?? "")
+    .split(/[\n,]/)
+    .map((name) => name.trim())
+    .filter(Boolean);
+  return [...new Set(names)];
+}
+
+/** Suggested model names as the form edits them. */
+function formatModelNames(
+  modelNames: readonly string[] | null | undefined
+): string | undefined {
+  return modelNames?.join(", ") || undefined;
+}
+
+/** The LLM model names to send; none lists the SDK's built-in models. */
+function buildModelNames(formData: LLMModelsFormData) {
+  const modelNames = parseModelNames(formData.model_names);
+  return modelNames.length > 0 ? { modelNames } : {};
+}
 
 // =============================================================================
 // Form Default Values
@@ -55,6 +79,12 @@ export function createDefaultFormData(
     name: "",
     description: "",
   };
+  const noDecisionModels: DecisionModelsFormData = {
+    decision_enabled: false,
+    decision_sdk: "OPENAI",
+    decision_base_url: undefined,
+    decision_model_names: undefined,
+  };
 
   switch (sdk) {
     case "OPENAI":
@@ -68,6 +98,8 @@ export function createDefaultFormData(
         openai_organization: undefined,
         openai_project: undefined,
         openai_default_headers: undefined,
+        model_names: undefined,
+        ...noDecisionModels,
       } satisfies OpenAIFormData;
 
     case "AZURE_OPENAI":
@@ -84,6 +116,8 @@ export function createDefaultFormData(
         azure_client_secret: undefined,
         azure_scope: undefined,
         azure_default_headers: undefined,
+        model_names: undefined,
+        ...noDecisionModels,
       } satisfies AzureOpenAIFormData;
 
     case "ANTHROPIC":
@@ -94,6 +128,7 @@ export function createDefaultFormData(
         anthropic_api_key: "",
         anthropic_base_url: undefined,
         anthropic_default_headers: undefined,
+        model_names: undefined,
       } satisfies AnthropicFormData;
 
     case "AWS_BEDROCK":
@@ -107,6 +142,7 @@ export function createDefaultFormData(
         aws_secret_access_key: undefined,
         aws_session_token: undefined,
         aws_endpoint_url: undefined,
+        model_names: undefined,
       } satisfies AWSBedrockFormData;
 
     case "GOOGLE_GENAI":
@@ -117,6 +153,7 @@ export function createDefaultFormData(
         google_api_key: "",
         google_base_url: undefined,
         google_headers: undefined,
+        model_names: undefined,
       } satisfies GoogleGenAIFormData;
 
     case "TYPESAFE":
@@ -127,6 +164,10 @@ export function createDefaultFormData(
         typesafe_api_key: "",
         typesafe_base_url: undefined,
         typesafe_default_headers: undefined,
+        decision_enabled: true,
+        decision_sdk: "TYPESAFE",
+        decision_base_url: undefined,
+        decision_model_names: undefined,
       } satisfies TypeSafeFormData;
 
     default: {
@@ -179,6 +220,30 @@ export function transformConfigToFormValues(
   }
 }
 
+/**
+ * Decision settings as the form edits them. The decision base URL is the one
+ * stored, if any; empty follows the chat base URL.
+ */
+function getDecisionModelsFormValues(
+  decisionModels: ProviderConfig["decisionModels"]
+): DecisionModelsFormData {
+  if (!decisionModels) {
+    return {
+      decision_enabled: false,
+      decision_sdk: "OPENAI",
+      decision_base_url: undefined,
+      decision_model_names: undefined,
+    };
+  }
+  return {
+    decision_enabled: true,
+    decision_sdk:
+      decisionModels.decisionSdk === "TYPESAFE" ? "TYPESAFE" : "OPENAI",
+    decision_base_url: decisionModels.baseUrl ?? undefined,
+    decision_model_names: formatModelNames(decisionModels.modelNames),
+  };
+}
+
 function getBaseFormValues(provider: CustomProviderNode) {
   return {
     name: provider.name,
@@ -196,12 +261,26 @@ function transformOpenAIConfig(provider: CustomProviderNode): OpenAIFormData {
       (config?.openaiApiType as OpenAIFormData["openai_api_type"]) ??
       "RESPONSES",
     openai_api_key: config?.openaiAuthenticationMethod?.apiKey || "",
-    openai_base_url: config?.openaiClientKwargs?.baseUrl ?? undefined,
-    openai_organization: config?.openaiClientKwargs?.organization ?? undefined,
-    openai_project: config?.openaiClientKwargs?.project ?? undefined,
-    openai_default_headers: safelyJSONStringify(
-      config?.openaiClientKwargs?.defaultHeaders
-    ),
+    ...getOpenAIClientFormValues(config?.openaiClientKwargs),
+    model_names: formatModelNames(config?.modelNames),
+    ...getDecisionModelsFormValues(config?.decisionModels),
+  };
+}
+
+function getOpenAIClientFormValues(
+  kwargs: ProviderConfig["openaiClientKwargs"]
+): Pick<
+  OpenAIFormData,
+  | "openai_base_url"
+  | "openai_organization"
+  | "openai_project"
+  | "openai_default_headers"
+> {
+  return {
+    openai_base_url: kwargs?.baseUrl ?? undefined,
+    openai_organization: kwargs?.organization ?? undefined,
+    openai_project: kwargs?.project ?? undefined,
+    openai_default_headers: safelyJSONStringify(kwargs?.defaultHeaders),
   };
 }
 
@@ -219,6 +298,8 @@ function transformAzureOpenAIConfig(
       config?.azureOpenaiAuthenticationMethod
     ),
     ...getAzureClientFormValues(config?.azureOpenaiClientKwargs),
+    model_names: formatModelNames(config?.modelNames),
+    ...getDecisionModelsFormValues(config?.decisionModels),
   };
 }
 
@@ -269,6 +350,7 @@ function transformAnthropicConfig(
     anthropic_default_headers: safelyJSONStringify(
       config?.anthropicClientKwargs?.defaultHeaders
     ),
+    model_names: formatModelNames(config?.modelNames),
   };
 }
 
@@ -289,6 +371,7 @@ function transformAwsBedrockConfig(
       authMethod?.accessKeys?.awsSecretAccessKey ?? undefined,
     aws_session_token: authMethod?.accessKeys?.awsSessionToken ?? undefined,
     aws_endpoint_url: config?.awsBedrockClientKwargs?.endpointUrl ?? undefined,
+    model_names: formatModelNames(config?.modelNames),
   };
 }
 
@@ -303,6 +386,7 @@ function transformGoogleGenAIConfig(
     google_api_key: config?.googleGenaiAuthenticationMethod?.apiKey || "",
     google_base_url: httpOptions?.baseUrl ?? undefined,
     google_headers: safelyJSONStringify(httpOptions?.headers),
+    model_names: formatModelNames(config?.modelNames),
   };
 }
 
@@ -318,12 +402,34 @@ function transformTypeSafeConfig(
     typesafe_default_headers: safelyJSONStringify(
       config?.typesafeClientKwargs?.defaultHeaders
     ),
+    decision_enabled: true,
+    decision_sdk: "TYPESAFE",
+    decision_base_url: undefined,
+    decision_model_names: formatModelNames(config?.decisionModels?.modelNames),
   };
 }
 
 // =============================================================================
 // Form → GraphQL Transformation
 // =============================================================================
+
+/**
+ * The decision settings to send: none when decision models are off, so the
+ * provider stops serving them. An empty base URL is left out, so runs follow
+ * the chat base URL.
+ */
+function buildDecisionModels(formData: DecisionModelsFormData) {
+  if (!formData.decision_enabled) {
+    return undefined;
+  }
+  const modelNames = parseModelNames(formData.decision_model_names);
+  const baseUrl = formData.decision_base_url?.trim().replace(/\/+$/, "");
+  return {
+    decisionSdk: formData.decision_sdk,
+    ...(baseUrl && { baseUrl }),
+    ...(modelNames.length > 0 && { modelNames }),
+  };
+}
 
 /**
  * Builds the nested clientConfig structure for GraphQL mutations.
@@ -352,6 +458,8 @@ export function buildClientConfig(
                 ? safelyParseJSONObjectString(formData.openai_default_headers)
                 : undefined,
           }),
+          ...buildModelNames(formData),
+          decisionModels: buildDecisionModels(formData),
         },
       };
     case "AZURE_OPENAI": {
@@ -429,6 +537,8 @@ export function buildClientConfig(
             azureEndpoint: formData.azure_endpoint,
             ...(defaultHeaders !== undefined && { defaultHeaders }),
           },
+          ...buildModelNames(formData),
+          decisionModels: buildDecisionModels(formData),
         },
       };
     }
@@ -447,6 +557,7 @@ export function buildClientConfig(
                   )
                 : undefined,
           }),
+          ...buildModelNames(formData),
         },
       };
     case "AWS_BEDROCK": {
@@ -502,6 +613,7 @@ export function buildClientConfig(
               endpointUrl: formData.aws_endpoint_url,
             }),
           },
+          ...buildModelNames(formData),
         },
       };
     }
@@ -521,6 +633,7 @@ export function buildClientConfig(
           },
           // Only include googleGenaiClientKwargs if there are httpOptions to send
           ...(httpOptions && { googleGenaiClientKwargs: { httpOptions } }),
+          ...buildModelNames(formData),
         },
       };
     }
@@ -536,6 +649,13 @@ export function buildClientConfig(
               typeof formData.typesafe_default_headers === "string"
                 ? safelyParseJSONObjectString(formData.typesafe_default_headers)
                 : undefined,
+          }),
+          // Always System One; a TypeSafe provider's own base URL is its endpoint.
+          decisionModels: buildDecisionModels({
+            ...formData,
+            decision_enabled: true,
+            decision_sdk: "TYPESAFE",
+            decision_base_url: undefined,
           }),
         },
       };
@@ -601,6 +721,13 @@ export function transformToPatchInput(
  * Checks if any SDK-specific configuration fields have changed.
  * Returns true if any field in the config section differs from the original.
  */
+const DECISION_FIELDS = [
+  "decision_enabled",
+  "decision_sdk",
+  "decision_base_url",
+  "decision_model_names",
+] as const;
+
 const CONFIG_FIELDS_BY_SDK: Record<GenerativeModelSDK, readonly string[]> = {
   OPENAI: [
     "openai_api_type",
@@ -609,6 +736,8 @@ const CONFIG_FIELDS_BY_SDK: Record<GenerativeModelSDK, readonly string[]> = {
     "openai_organization",
     "openai_project",
     "openai_default_headers",
+    "model_names",
+    ...DECISION_FIELDS,
   ],
   AZURE_OPENAI: [
     "openai_api_type",
@@ -620,11 +749,14 @@ const CONFIG_FIELDS_BY_SDK: Record<GenerativeModelSDK, readonly string[]> = {
     "azure_client_secret",
     "azure_scope",
     "azure_default_headers",
+    "model_names",
+    ...DECISION_FIELDS,
   ],
   ANTHROPIC: [
     "anthropic_api_key",
     "anthropic_base_url",
     "anthropic_default_headers",
+    "model_names",
   ],
   AWS_BEDROCK: [
     "aws_region",
@@ -633,12 +765,19 @@ const CONFIG_FIELDS_BY_SDK: Record<GenerativeModelSDK, readonly string[]> = {
     "aws_secret_access_key",
     "aws_session_token",
     "aws_endpoint_url",
+    "model_names",
   ],
-  GOOGLE_GENAI: ["google_api_key", "google_base_url", "google_headers"],
+  GOOGLE_GENAI: [
+    "google_api_key",
+    "google_base_url",
+    "google_headers",
+    "model_names",
+  ],
   TYPESAFE: [
     "typesafe_api_key",
     "typesafe_base_url",
     "typesafe_default_headers",
+    "decision_model_names",
   ],
 };
 
