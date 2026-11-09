@@ -24,6 +24,7 @@ import {
 import type { Annotation } from "@phoenix/components/annotation";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import { JSONBlock } from "@phoenix/components/code";
+import { useEvaluatorPreviewOutputConfigs } from "@phoenix/components/evaluators/EvaluatorPreviewOutputConfigsContext";
 import {
   type EvaluatorPreview,
   type EvaluatorPreviewRequest,
@@ -32,6 +33,7 @@ import {
 import {
   createLLMEvaluatorPayload,
   getOutputConfigOptimizationValue,
+  getTypedOutputConfigOptimizationValue,
 } from "@phoenix/components/evaluators/utils";
 import { ExperimentAnnotationButton } from "@phoenix/components/experiment/ExperimentAnnotationButton";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
@@ -250,8 +252,9 @@ export function EvaluatorPreviewSection({
 
 /**
  * The annotation chip that opens the annotation's details in a popover, with
- * the positive/negative optimization direction derived from the evaluator
- * store's output configs.
+ * the positive/negative optimization direction derived from the output
+ * configs a form provides (a decision evaluator's, derived from its draft),
+ * else the evaluator store's.
  */
 export function AnnotationPreviewPopoverButton(props: {
   annotation: Annotation;
@@ -259,23 +262,30 @@ export function AnnotationPreviewPopoverButton(props: {
   compact?: boolean;
 }) {
   const { annotation, compact } = props;
-  const outputConfigs = useEvaluatorStore((state) => state.outputConfigs);
-  const evaluatorName = useEvaluatorStore(
+  const provided = useEvaluatorPreviewOutputConfigs();
+  const storeOutputConfigs = useEvaluatorStore((state) => state.outputConfigs);
+  const storeEvaluatorName = useEvaluatorStore(
     (state) => state.evaluator.name || state.evaluator.globalName
   );
+  const optimizationValue = provided
+    ? getTypedOutputConfigOptimizationValue({
+        annotationName: annotation.name,
+        score: annotation.score,
+        evaluatorName: provided.evaluatorName ?? storeEvaluatorName,
+        outputConfigs: provided.outputConfigs,
+      })
+    : getOutputConfigOptimizationValue({
+        annotationName: annotation.name,
+        score: annotation.score,
+        evaluatorName: storeEvaluatorName,
+        outputConfigs: storeOutputConfigs,
+      });
   return (
     <DialogTrigger>
       <ExperimentAnnotationButton
         annotation={annotation}
         compact={compact}
-        optimizationValue={
-          getOutputConfigOptimizationValue({
-            annotationName: annotation.name,
-            score: annotation.score,
-            evaluatorName,
-            outputConfigs,
-          }) ?? undefined
-        }
+        optimizationValue={optimizationValue ?? undefined}
       />
       <Popover>
         <Dialog style={{ width: 400 }}>

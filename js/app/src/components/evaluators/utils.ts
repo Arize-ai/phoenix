@@ -1,6 +1,10 @@
 import { graphql, readInlineData } from "relay-runtime";
 
-import { getOptimizationValue } from "@phoenix/components/annotation/optimizationUtils";
+import {
+  getOptimizationValue,
+  getOptimizationValueFromConfig,
+} from "@phoenix/components/annotation/optimizationUtils";
+import type { AnnotationConfig as TypedAnnotationConfig } from "@phoenix/components/annotation/types";
 import type {
   AnnotationConfigInput,
   CreateDatasetLLMEvaluatorInput,
@@ -538,6 +542,57 @@ export const getOutputConfigValidationErrors = (
 };
 
 /**
+ * The output config an evaluator's annotation came from: its only config, or
+ * for a multi-output evaluator the one its `evaluatorName.configName` name
+ * points at.
+ */
+export function matchOutputConfigForAnnotation<T extends { name: string }>({
+  annotationName,
+  evaluatorName,
+  outputConfigs,
+}: {
+  annotationName: string;
+  evaluatorName: string;
+  outputConfigs: readonly T[];
+}): T | undefined {
+  if (outputConfigs.length === 1) {
+    return outputConfigs[0];
+  }
+  const prefix = evaluatorName + ".";
+  if (!annotationName.startsWith(prefix)) {
+    return undefined;
+  }
+  const configName = annotationName.slice(prefix.length);
+  return outputConfigs.find((config) => config.name === configName);
+}
+
+/**
+ * Maps an evaluator preview's annotation score onto the optimization value of
+ * a typed output config it came from, such as a decision evaluator's derived
+ * outputs.
+ */
+export function getTypedOutputConfigOptimizationValue({
+  annotationName,
+  score,
+  evaluatorName,
+  outputConfigs,
+}: {
+  annotationName: string;
+  score: number | null | undefined;
+  evaluatorName: string;
+  outputConfigs: readonly TypedAnnotationConfig[];
+}): number | null {
+  const config = matchOutputConfigForAnnotation({
+    annotationName,
+    evaluatorName,
+    outputConfigs,
+  });
+  return config == null
+    ? null
+    : getOptimizationValueFromConfig({ config, score });
+}
+
+/**
  * Maps an evaluator preview's annotation score onto the optimization value of
  * the output config it came from. Multi-output evaluators name annotations
  * `evaluatorName.configName`.
@@ -553,21 +608,11 @@ export function getOutputConfigOptimizationValue({
   evaluatorName: string;
   outputConfigs: AnnotationConfig[];
 }): number | null {
-  if (outputConfigs.length === 0) {
-    return null;
-  }
-
-  let matchedConfig: AnnotationConfig | undefined;
-  if (outputConfigs.length === 1) {
-    matchedConfig = outputConfigs[0];
-  } else {
-    // Multi-output: annotation name is "evaluatorName.configName"
-    const prefix = evaluatorName + ".";
-    if (annotationName.startsWith(prefix)) {
-      const configName = annotationName.slice(prefix.length);
-      matchedConfig = outputConfigs.find((c) => c.name === configName);
-    }
-  }
+  const matchedConfig = matchOutputConfigForAnnotation({
+    annotationName,
+    evaluatorName,
+    outputConfigs,
+  });
 
   if (matchedConfig == null) {
     return null;

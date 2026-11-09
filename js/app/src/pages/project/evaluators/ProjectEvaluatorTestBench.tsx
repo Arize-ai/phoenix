@@ -22,6 +22,7 @@ import {
   Text,
 } from "@phoenix/components";
 import { SelectChevronUpDownIcon } from "@phoenix/components/core/icon";
+import { withoutOptimizationDirections } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
 import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
 import {
   buildOutputConfigsInput,
@@ -622,7 +623,21 @@ function fingerprintDefinition(
   evaluator: PreviewEvaluatorInput | null,
   inputMapping: EvaluatorInputMapping
 ): string {
-  return JSON.stringify({ evaluator, inputMapping });
+  // A decision's optimization direction only says which answer is good, so
+  // a result stays current across a direction edit; the bench recolours it.
+  const decision =
+    evaluator != null && "inlineDecisionEvaluator" in evaluator
+      ? evaluator.inlineDecisionEvaluator
+      : null;
+  const fingerprinted = decision?.scoringPolicy
+    ? {
+        inlineDecisionEvaluator: {
+          ...decision,
+          scoringPolicy: withoutOptimizationDirections(decision.scoringPolicy),
+        },
+      }
+    : evaluator;
+  return JSON.stringify({ evaluator: fingerprinted, inputMapping });
 }
 
 const subscribeToNothing = () => () => {};
