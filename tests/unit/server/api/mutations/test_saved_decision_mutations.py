@@ -357,7 +357,35 @@ async def test_a_custom_provider_must_speak_the_versions_api(
             "version": version_input(modelProvider="OPENAI", customProviderId=typesafe_id),
         },
     )
-    assert "speaks the TYPESAFE API, not OPENAI" in message
+    assert "runs decisions through the TYPESAFE API, not OPENAI" in message
+
+    # What counts is the decision client, not the SDK: an OpenAI-SDK provider that runs
+    # System One serves TYPESAFE versions only.
+    openai_system_one_id = await provider(
+        "OpenAI SDK, System One",
+        "openai",
+        {
+            "openai": {
+                "openaiAuthenticationMethod": {"apiKey": "sk-custom"},
+                "decisionModels": {"decisionSdk": "TYPESAFE"},
+            }
+        },
+    )
+    decision = await create(
+        gql_client,
+        name="system-one-on-openai",
+        version=version_input(customProviderId=openai_system_one_id),
+    )
+    assert decision["versionCount"] == 1
+    message = await error_of(
+        gql_client,
+        CREATE,
+        {
+            "name": "other",
+            "version": version_input(modelProvider="OPENAI", customProviderId=openai_system_one_id),
+        },
+    )
+    assert "runs decisions through the TYPESAFE API, not OPENAI" in message
 
     message = await error_of(
         gql_client,
@@ -396,7 +424,7 @@ async def test_a_custom_provider_must_serve_decision_models(
         CREATE,
         {"name": "other", "version": version_input(customProviderId=provider_id)},
     )
-    assert "Custom provider 'Chat only' does not serve decision models." in message
+    assert "Custom provider 'Chat only' is not set up for decision models." in message
 
 
 async def test_clone_preserves_history_and_provenance(

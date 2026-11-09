@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from secrets import token_hex
-from typing import Iterator, Mapping, Sequence
+from typing import Any, Iterator, Mapping, Sequence
 
 import anyio
 import sqlalchemy as sa
@@ -27,11 +27,14 @@ from phoenix.db.types.model_provider import (
     GoogleGenAICustomProviderConfig,
     OpenAICustomProviderConfig,
     TypeSafeCustomProviderConfig,
-    sdk_offers_decisions,
 )
 from phoenix.server.api.auth import IsAdminIfAuthEnabled, IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
+from phoenix.server.api.helpers.decision_clients import (
+    DecisionConnection,
+    custom_provider_decision_connection,
+)
 from phoenix.server.api.input_types.GenerativeModelCustomerProviderConfigInput import (
     GenerativeModelCustomerProviderConfigInput,
 )
@@ -41,11 +44,23 @@ from phoenix.server.api.types.GenerativeModelCustomProvider import (
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.decisions.endpoints import decision_endpoint_url, resolve_decision_base_url
+from phoenix.utilities.env_vars import without_env_vars
 
 
 @strawberry.type
 class TestGenerativeModelCustomProviderCredentialsResult:
     error: str | None = None
+
+
+@strawberry.type
+class TestGenerativeModelCustomProviderDecisionEndpointResult:
+    error: str | None = strawberry.field(
+        default=None, description="Why the endpoint failed the check; null when it passed."
+    )
+    url: str | None = strawberry.field(
+        default=None, description="The exact URL the check posted to, as a run would."
+    )
 
 
 def _iter_secret_values(
@@ -138,46 +153,200 @@ def _are_sdks_compatible(
 _CREDENTIAL_CHECK_MODEL = "test-credential-check"
 
 
-async def _test_typesafe_credentials(config: TypeSafeCustomProviderConfig) -> Exception | None:
-    """Ask a System One endpoint about a model that does not exist.
+def _rejects_model(decision_sdk: models.DecisionSDK, body: Any, model: str) -> bool:
+    """Whether a JSON error body is the client's own rejection of ``model``.
 
-    The endpoint authenticates before it resolves the model, so a client error
-    other than 401 or 403 (the model is rejected) means the key was accepted. A
-    rate limit or a server error says nothing about the key, so it is reported.
-    No model runs, so nothing is billed.
+    Only the client's error field counts, so a body that merely echoes the request (a
+    validation error, a router's "no route" message) doesn't pass:
+
+    - OpenAI Decisions: ``{"error": {"code": "model_not_found"}}``, or an
+      ``error.message`` that names the model.
+    - System One: a ``detail`` string, or ``detail.message``, that names the model.
+    """
+    if not isinstance(body, Mapping):
+        return False
+    if decision_sdk == "openai":
+        error = body.get("error")
+        if not isinstance(error, Mapping):
+            return False
+        message = error.get("message")
+        return error.get("code") == "model_not_found" or (
+            isinstance(message, str) and model in message
+        )
+    detail = body.get("detail")
+    if isinstance(detail, Mapping):
+        detail = detail.get("message")
+    return isinstance(detail, str) and model in detail
+
+
+def _describe_endpoint_rejection(
+    *, decision_sdk: models.DecisionSDK, url: str, status: int, body: Any
+) -> str | None:
+    """Why an error response fails the decision endpoint check; None if it passes.
+
+    Only a client error that the decision client itself raised about the sentinel model
+    shows that the request reached a decision endpoint that authenticated it and then
+    looked the model up. A wrong path also answers 404 (or 405, or an HTML page), and a
+    422 can echo the request before authenticating, so a status alone proves nothing.
+    """
+    if status in (401, 403):
+        return f"POST {url} rejected the API key (HTTP {status})."
+    if status == 405:
+        return (
+            f"POST {url} does not accept decision requests (HTTP 405). Check the base URL "
+            "and the decision client."
+        )
+    if status in (408, 429) or status >= 500:
+        return f"POST {url} failed with HTTP {status}, which says nothing about the setup. Retry."
+    if 400 <= status < 500 and status != 422:
+        if _rejects_model(decision_sdk, body, _CREDENTIAL_CHECK_MODEL):
+            return None
+    if isinstance(body, str) and body.lstrip().startswith("<"):
+        what = "an HTML page"
+    elif body is None or body == "":
+        what = "an empty response"
+    else:
+        what = "a response that is not a decision API's"
+    return (
+        f"POST {url} answered HTTP {status} with {what}. Check the base URL and the "
+        "decision client."
+    )
+
+
+async def _test_decision_endpoint(
+    decision_sdk: models.DecisionSDK,
+    config: GenerativeModelCustomerProviderConfig,
+) -> tuple[str | None, str | None]:
+    """Ask the exact decision URL a run would call about a model that does not exist.
+
+    Endpoints authenticate before they resolve the model, so a rejection that names the
+    unknown model shows the URL, client and key all work. Anything else, including a
+    success, means the URL is not a decision endpoint of that style. No model runs, so
+    nothing is billed.
+
+    Returns:
+        The URL posted to (None if the config can't be resolved) and why the check
+        failed, or None if it passed. The reason may echo secrets; redact it.
     """
     try:
-        from typesafe_sdk import TypeSafeAPIError
-
-        client_factory = config.get_client_factory(timeout=10)
-    except ImportError as error:
-        return RuntimeError(str(error))
+        client_class, connection = custom_provider_decision_connection(
+            decision_sdk=decision_sdk,
+            config=config.root,
+            provider_name="This provider",
+        )
+    except BadRequest as error:
+        return None, str(error)
+    url = decision_endpoint_url(decision_sdk, resolve_decision_base_url(decision_sdk, config.root))
+    if not client_class.dependencies_are_installed():
+        return url, f"Install {client_class.sdk_import_name.replace('_', '-')} to run decisions."
     try:
         with anyio.move_on_after(10) as scope:
-            async with client_factory() as client:
-                await client.system_one(
-                    "Credential check",
-                    {"check": {"type": "noul", "instructions": "Is this a credential check?"}},
-                    model=_CREDENTIAL_CHECK_MODEL,
-                )
+            if decision_sdk == "typesafe":
+                reason = await _post_system_one_check(connection, url)
+            else:
+                reason = await _post_openai_decisions_check(connection, url)
         if scope.cancelled_caught:
-            return TimeoutError("Request timed out after 10 seconds")
-    except TypeSafeAPIError as error:
-        # TODO: A wrong path also answers 404, which reads as an accepted key; telling it
-        # from an unknown model needs the error body's shape.
-        if error.status in (401, 403, 408, 429) or error.status >= 500:
-            return error
+            return url, f"POST {url} timed out after 10 seconds."
     except Exception as error:
-        return error
-    return None
+        return url, f"POST {url} failed: {error}"
+    return url, reason
+
+
+async def _post_system_one_check(connection: DecisionConnection, url: str) -> str | None:
+    from typesafe_sdk import (
+        AsyncTypeSafeClient,
+        RetryPolicy,
+        TypeSafeAPIConnectionError,
+        TypeSafeAPIError,
+        TypeSafeAPIResponseValidationError,
+    )
+
+    try:
+        async with AsyncTypeSafeClient(
+            api_key=connection.api_key,
+            base_url=connection.base_url,
+            headers=connection.headers,
+            retry=RetryPolicy(max_retries=0),
+            timeout=10,
+        ) as client:
+            await client.system_one(
+                "Credential check",
+                {"check": {"type": "noul", "instructions": "Is this a credential check?"}},
+                model=_CREDENTIAL_CHECK_MODEL,
+            )
+    except TypeSafeAPIResponseValidationError as error:
+        return (
+            f"POST {url} answered HTTP {error.status} with a body that is not a System One "
+            "response. Check the base URL and the decision client."
+        )
+    except TypeSafeAPIError as error:
+        return _describe_endpoint_rejection(
+            decision_sdk="typesafe", url=url, status=error.status, body=error.body
+        )
+    except TypeSafeAPIConnectionError as error:
+        return f"Could not connect to {url}: {error}"
+    return _accepted_unknown_model(url)
+
+
+async def _post_openai_decisions_check(connection: DecisionConnection, url: str) -> str | None:
+    import httpx2
+    from openai import APIConnectionError, APIStatusError, AsyncOpenAI
+
+    with without_env_vars("OPENAI_*"):
+        openai_client = AsyncOpenAI(
+            api_key=connection.api_key,
+            base_url=connection.base_url,
+            organization=connection.organization,
+            project=connection.project,
+            default_headers=connection.headers,
+            timeout=10,
+            max_retries=0,
+            http_client=httpx2.AsyncClient(follow_redirects=False),
+        )
+    try:
+        async with openai_client as client:
+            await client.decisions.with_raw_response.create(
+                model=_CREDENTIAL_CHECK_MODEL,
+                input="Credential check",
+                questions=[
+                    {
+                        "name": "check",
+                        "type": "predicate",
+                        "instructions": "Is this a credential check?",
+                    }
+                ],
+            )
+    except APIStatusError as error:
+        # `error.body` has OpenAI's `error` object unwrapped; read the body as sent.
+        body: Any
+        try:
+            body = error.response.json()
+        except ValueError:
+            body = error.response.text
+        return _describe_endpoint_rejection(
+            decision_sdk="openai", url=url, status=error.status_code, body=body
+        )
+    except APIConnectionError as error:
+        return f"Could not connect to {url}: {error}"
+    return _accepted_unknown_model(url)
+
+
+def _accepted_unknown_model(url: str) -> str:
+    return (
+        f"POST {url} accepted the unknown model '{_CREDENTIAL_CHECK_MODEL}', so it is not a "
+        "decision endpoint of this kind. Check the base URL and the decision client."
+    )
 
 
 async def _check_decision_references(
     session: AsyncSession,
     provider_id: int,
     *,
-    new_sdk: models.GenerativeModelSDK | None = None,
+    changing_decision_client: bool = False,
 ) -> None:
+    """Refuse to delete a provider, or change or turn off its decision client, while saved
+    decisions or decision experiment tasks use it."""
+    action = "change or turn off its decision models" if changing_decision_client else "delete it"
     if decision_names := (
         await session.scalars(
             sa.select(models.Decision.name)
@@ -188,28 +357,17 @@ async def _check_decision_references(
         )
     ).all():
         names = ", ".join(str(name) for name in decision_names)
-        if new_sdk is not None:
-            raise BadRequest(
-                f"Cannot change the SDK to '{new_sdk}': this provider is referenced "
-                f"by saved decision versions ({names}) and that SDK cannot serve "
-                "decision models"
-            )
         raise BadRequest(
-            f"This provider is referenced by saved decision versions ({names}) "
-            "and cannot be deleted"
+            f"This provider is referenced by saved decision versions ({names}), so you "
+            f"cannot {action}"
         )
     if await session.scalar(
         sa.select(models.ExperimentDecisionTask.id)
         .where(models.ExperimentDecisionTask.custom_provider_id == provider_id)
         .limit(1)
     ):
-        if new_sdk is not None:
-            raise BadRequest(
-                f"Cannot change the SDK to '{new_sdk}': this provider is referenced "
-                "by decision experiment tasks and that SDK cannot serve decision models"
-            )
         raise BadRequest(
-            "This provider is referenced by decision experiment tasks and cannot be deleted"
+            f"This provider is referenced by decision experiment tasks, so you cannot {action}"
         )
 
 
@@ -235,6 +393,7 @@ class CreateGenerativeModelCustomProviderMutationInput:
             description=self.description or None,
             provider=self.provider,
             sdk=config.root.type,
+            decision_sdk=self.client_config.decision_sdk(),
             config=config,
         )
 
@@ -299,6 +458,7 @@ class GenerativeModelCustomProviderMutationMixin:
             config_obj = input.client_config.to_orm()
         except ValidationError as e:
             raise BadRequest(f"Invalid client config: {e}") from e
+        decision_sdk = input.client_config.decision_sdk()
         # Serialize and encrypt the config
         config_json = config_obj.model_dump_json().encode("utf-8")
         encrypted_config = info.context.encrypt(config_json)
@@ -314,6 +474,7 @@ class GenerativeModelCustomProviderMutationMixin:
             description=input.description or None,
             provider=input.provider,
             sdk=config_obj.root.type,
+            decision_sdk=decision_sdk,
             config=encrypted_config,
             user_id=user_id,
         )
@@ -379,11 +540,16 @@ class GenerativeModelCustomProviderMutationMixin:
                         f"Please create a new provider with the desired SDK instead."
                     )
 
-                if not sdk_offers_decisions(new_sdk):
-                    await _check_decision_references(session, provider.id, new_sdk=new_sdk)
+                new_decision_sdk = input.client_config.decision_sdk()
+                if provider.decision_sdk is not None and new_decision_sdk != provider.decision_sdk:
+                    await _check_decision_references(
+                        session, provider.id, changing_decision_client=True
+                    )
 
                 if new_sdk != provider.sdk:
                     provider.sdk = new_sdk
+                if new_decision_sdk != provider.decision_sdk:
+                    provider.decision_sdk = new_decision_sdk
                 # Serialize and encrypt the config
                 config_json = new_config.model_dump_json().encode("utf-8")
                 provider.config = info.context.encrypt(config_json)
@@ -514,14 +680,38 @@ class GenerativeModelCustomProviderMutationMixin:
                     error=_redact_provider_error(e, config)
                 )
         elif config.root.type == "typesafe":
-            error = await _test_typesafe_credentials(config.root)
-            if error is not None:
+            _, reason = await _test_decision_endpoint("typesafe", config)
+            if reason is not None:
                 return TestGenerativeModelCustomProviderCredentialsResult(
-                    error=_redact_provider_error(error, config)
+                    error=_redact_provider_error(RuntimeError(reason), config)
                 )
         else:
             raise BadRequest("Invalid input")
         return TestGenerativeModelCustomProviderCredentialsResult(error=None)
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsAdminIfAuthEnabled])  # type: ignore
+    async def test_generative_model_custom_provider_decision_endpoint(
+        self,
+        info: Info[Context, None],
+        input: GenerativeModelCustomerProviderConfigInput,
+    ) -> TestGenerativeModelCustomProviderDecisionEndpointResult:
+        """
+        Check the provider's decision endpoint by posting to the exact URL a decision run
+        would, asking for a model that does not exist. It passes only when the endpoint
+        rejects that model by name.
+        """
+        try:
+            config = input.to_orm()
+        except ValidationError as e:
+            raise BadRequest(f"Invalid client config: {e}") from e
+        decision_sdk = input.decision_sdk()
+        if decision_sdk is None:
+            raise BadRequest("Turn on decision models to test the decision endpoint.")
+        url, reason = await _test_decision_endpoint(decision_sdk, config)
+        return TestGenerativeModelCustomProviderDecisionEndpointResult(
+            error=_redact_provider_error(RuntimeError(reason), config) if reason else None,
+            url=url,
+        )
 
     @strawberry.mutation(
         permission_classes=[IsNotReadOnly, IsNotViewer, IsAdminIfAuthEnabled, IsLocked]
