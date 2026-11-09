@@ -36,7 +36,7 @@ class CostModelLookup:
     def _add_or_update_model(self, model: models.GenerativeModel) -> None:
         """Add or update a single model in the lookup."""
         if model.type not in _PRICED_MODEL_TYPES:
-            # A type no span kind is priced against.
+            # Only LLM, DECISION and EMBEDDING models are priced.
             self._remove_model(model.id)
             return
         self._models_by_id[model.id] = model
@@ -100,8 +100,8 @@ class CostModelLookup:
                 `decision.*` or legacy `llm.*` on DECISION spans and `llm.*` otherwise;
                 `embedding.model_name` on EMBEDDING spans). The provider
                 (`decision.provider`, `decision.system` or `llm.provider` on DECISION
-                spans, `llm.provider` otherwise) is optional. EMBEDDING spans
-                usually have none, so they match by name alone.
+                spans, `llm.provider` otherwise) is optional; EMBEDDING spans usually
+                have none.
 
         Raises:
             TypeError: If start_time is not timezone-aware (tzinfo is None)
@@ -124,8 +124,6 @@ class CostModelLookup:
             5. **Provider Filtering**: Within each tier, if provider is specified:
                - Prefer models with matching provider
                - Fall back to provider-agnostic models if no provider-specific matches exist
-               Without a provider (as on EMBEDDING spans), every model in the tier stays a
-               candidate, whatever its provider, and step 6 picks one deterministically.
             6. **Priority Selection**: Select the model with the highest priority tuple:
                (regex_specificity_score, start_time.timestamp, tie_breaker)
 

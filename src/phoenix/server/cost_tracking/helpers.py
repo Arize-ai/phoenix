@@ -80,9 +80,8 @@ def get_provider(attributes: Optional[Mapping[str, Any]]) -> str:
 
     DECISION spans read `decision.provider`, then `decision.system` (the spec sets the provider
     only when it differs from the system, and their well-known values are the same strings),
-    then the legacy `llm.provider`. Other spans read `llm.provider`. The embedding spec says
-    EMBEDDING spans don't set it, so they usually have no provider and are matched by name
-    alone; see `CostModelLookup.find_model` for how ties are broken then.
+    then the legacy `llm.provider`. Other spans read `llm.provider`, which the embedding spec
+    doesn't set, so EMBEDDING spans usually match by name alone.
     """
     if get_priced_model_type(attributes) == "DECISION":
         return _get_str(

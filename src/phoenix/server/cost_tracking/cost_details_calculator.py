@@ -98,8 +98,8 @@ class SpanCostDetailsCalculator:
         2. **Aggregated token processing**: For default token types ("input"/"output") that
            weren't found in detailed processing, calculates remaining tokens by subtracting
            detailed counts from total aggregated tokens (`decision.token_count.input` /
-           `.output` on DECISION spans that report them, `llm.token_count.*` otherwise, and
-           input tokens only on EMBEDDING spans; see `get_aggregated_tokens`).
+           `.output` on DECISION spans that report them, input tokens only on EMBEDDING
+           spans, `llm.token_count.*` otherwise; see `get_aggregated_tokens`).
 
         **Fallback Calculation Logic:**
         - For each token type in detailed processing:
