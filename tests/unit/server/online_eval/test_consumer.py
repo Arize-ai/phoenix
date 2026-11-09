@@ -157,7 +157,7 @@ def _patch_playground_client(monkeypatch: pytest.MonkeyPatch, client: _StubLLMCl
     async def _get_client(**_: Any) -> _StubLLMClient:
         return client
 
-    monkeypatch.setattr("phoenix.server.evaluators.resolution.get_playground_client", _get_client)
+    monkeypatch.setattr("phoenix.server.evaluators.resolution.get_chat_client", _get_client)
 
 
 class _StubSandboxBackend:

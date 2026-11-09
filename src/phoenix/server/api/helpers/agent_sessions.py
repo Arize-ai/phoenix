@@ -19,7 +19,7 @@ from phoenix.server.agents.model_selection import (
     CustomProviderModelSelection,
 )
 from phoenix.server.api.exceptions import BadRequest
-from phoenix.server.api.helpers.playground_registry import require_chat_provider
+from phoenix.server.api.helpers.client_registry import require_chat_provider
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 

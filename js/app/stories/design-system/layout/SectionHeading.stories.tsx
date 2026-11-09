@@ -44,7 +44,7 @@ const Body = () => (
 
 export const Default: StoryFn = () => (
   <View width={WIDTH}>
-    <SectionHeading>LLM models</SectionHeading>
+    <SectionHeading>Chat models</SectionHeading>
     <Body />
   </View>
 );

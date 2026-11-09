@@ -35,7 +35,7 @@ from phoenix.server.api.helpers.agent_sessions import (
     require_chat_custom_provider,
     require_chat_model_provider,
 )
-from phoenix.server.api.helpers.playground_clients import _resolve_secrets
+from phoenix.server.api.helpers.builtin_providers import _resolve_secrets
 from phoenix.server.types import DbSessionFactory
 from phoenix.utilities.env_vars import without_env_vars
 

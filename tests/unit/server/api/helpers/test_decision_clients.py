@@ -12,10 +12,10 @@ from phoenix.db.types.decisions import (
     ScaleQuestion,
 )
 from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.helpers.builtin_providers import checked_base_url
 from phoenix.server.api.helpers.decision_clients import (
     ChoiceAnswer,
     DecisionAnswer,
-    DecisionConnection,
     DecisionRequest,
     DecisionTransientError,
     OllamaDecisionClient,
@@ -24,13 +24,14 @@ from phoenix.server.api.helpers.decision_clients import (
     RefusalAnswer,
     ScaleAnswer,
     TypeSafeDecisionClient,
-    _validated_base_url,
     describe_http_failure,
     get_decision_client,
     validate_answers,
 )
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
+from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import Tracer
+from tests.unit.server.decision_client_factories import built_in_factory, resolved_base_url
 
 REQUEST = DecisionRequest(
     state="hello",
@@ -210,14 +211,14 @@ class TestValidatedBaseUrl:
         "base_url", ["https://api.example.com", "http://localhost:11434/v1", "https://host/v1/"]
     )
     def test_accepts_plain_http_urls(self, base_url: str) -> None:
-        assert _validated_base_url(base_url) == base_url
+        assert checked_base_url(base_url) == base_url
 
     @pytest.mark.parametrize(
         "base_url", ["http://[::1", "https://host:badport"], ids=["bad-ipv6", "bad-port"]
     )
     def test_rejects_a_malformed_url(self, base_url: str) -> None:
         with pytest.raises(BadRequest, match="Base URL must be a valid HTTP"):
-            _validated_base_url(base_url)
+            checked_base_url(base_url)
 
     @pytest.mark.parametrize(
         "base_url",
@@ -235,7 +236,7 @@ class TestValidatedBaseUrl:
         with pytest.raises(
             BadRequest, match="without embedded credentials, a query, or a fragment"
         ):
-            _validated_base_url(base_url)
+            checked_base_url(base_url)
 
 
 class TestOllamaBaseUrl:
@@ -250,28 +251,34 @@ class TestOllamaBaseUrl:
             pytest.param("http://localhost:11434", "http://localhost:11434", id="bare"),
         ],
     )
-    def test_environment_value_is_reduced_to_the_server_root(
-        self, monkeypatch: pytest.MonkeyPatch, configured: str, expected: str
+    async def test_environment_value_is_reduced_to_the_server_root(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch, configured: str, expected: str
     ) -> None:
         monkeypatch.setenv("OLLAMA_BASE_URL", configured)
-        assert OllamaDecisionClient.resolve_base_url(None) == expected
+        assert await resolved_base_url(db, OllamaDecisionClient) == expected
 
-    def test_the_run_overrides_the_environment(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def test_the_run_overrides_the_environment(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         monkeypatch.setenv("OLLAMA_BASE_URL", "http://env-box:11434/v1")
         assert (
-            OllamaDecisionClient.resolve_base_url("http://gpu-box:11434/v1")
+            await resolved_base_url(db, OllamaDecisionClient, base_url="http://gpu-box:11434/v1")
             == "http://gpu-box:11434"
         )
 
-    def test_there_is_no_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def test_there_is_no_default(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The SDK's own default is TypeSafe's, so Ollama never falls back to it.
         monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
-        assert OllamaDecisionClient.resolve_base_url(None) is None
+        with pytest.raises(BadRequest, match="base URL is required"):
+            await resolved_base_url(db, OllamaDecisionClient)
 
     async def test_a_missing_base_url_names_the_variable(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
-        with pytest.raises(BadRequest, match="Set OLLAMA_BASE_URL"):
+        with pytest.raises(BadRequest, match="Set the OLLAMA_BASE_URL environment variable"):
             await get_decision_client(
                 provider=GenerativeProviderKey.OLLAMA,
                 model_name="nimble",
@@ -315,7 +322,7 @@ async def test_timeouts_and_connection_failures_are_transient(
     monkeypatch.setattr(httpx2.AsyncHTTPTransport, "handle_async_request", fail)
     client = client_class(
         model_name="model",
-        connection=DecisionConnection(api_key="key", base_url=base_url),
+        client_factory=built_in_factory(client_class, api_key="key", base_url=base_url),
     )
     with pytest.raises(DecisionTransientError) as raised:
         await client.create(

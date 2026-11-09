@@ -401,10 +401,10 @@ describe("stripBedrockRegionPrefix", () => {
 
 describe("getChatModelProviders", () => {
   it("leaves out providers that serve decision models only", () => {
-    const providers = [
-      { key: "OPENAI", modelTypes: ["LLM", "DECISION"] },
+    const providers: { key: string; modelTypes: ModelType[] }[] = [
+      { key: "OPENAI", modelTypes: ["CHAT", "DECISION"] },
       { key: "TYPESAFE", modelTypes: ["DECISION"] },
-      { key: "ANTHROPIC", modelTypes: ["LLM"] },
+      { key: "ANTHROPIC", modelTypes: ["CHAT"] },
     ];
     expect(getChatModelProviders(providers).map(({ key }) => key)).toEqual([
       "OPENAI",

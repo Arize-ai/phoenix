@@ -2,12 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import type {
   AWSBedrockFormData,
+  AzureOpenAIFormData,
   OpenAIFormData,
   TypeSafeFormData,
 } from "../CustomProviderForm";
-import { providerFormSchema } from "../customProviderFormSchema";
 import {
   buildClientConfig,
+  buildProviderModels,
   createDefaultFormData,
   parseModelNames,
   type ProviderNode,
@@ -24,108 +25,111 @@ function openai(overrides: Partial<OpenAIFormData> = {}): OpenAIFormData {
   };
 }
 
-describe("decision models in the client config", () => {
-  it("sends none while decision models are off", () => {
-    const config = buildClientConfig(openai());
-    expect(config.openai?.decisionModels).toBeUndefined();
-  });
-
-  it("sends the client, base URL, and suggested names when on", () => {
-    const config = buildClientConfig(
-      openai({
-        decision_enabled: true,
-        decision_sdk: "TYPESAFE",
-        decision_base_url: " https://system-one.example ",
-        decision_model_names: "jev-latest, jev-1.14.0",
-      })
-    );
-    expect(config.openai?.decisionModels).toEqual({
-      decisionSdk: "TYPESAFE",
-      baseUrl: "https://system-one.example",
-      modelNames: ["jev-latest", "jev-1.14.0"],
+describe("provider models", () => {
+  it("serves chat models only while decision models are off", () => {
+    expect(buildProviderModels(openai())).toEqual({
+      chat: { names: [] },
     });
   });
 
-  it("always runs a TypeSafe provider through System One at its own base URL", () => {
+  it("serves decision models, with their suggested names, when on", () => {
+    expect(
+      buildProviderModels(
+        openai({
+          decision_enabled: true,
+          decision_model_names: "gpt-6-luna, gpt-6-luna-mini",
+        })
+      )
+    ).toEqual({
+      chat: { names: [] },
+      decision: { names: ["gpt-6-luna", "gpt-6-luna-mini"] },
+    });
+  });
+
+  it("always serves decision models, and only them, on TypeSafe", () => {
     const typesafe: TypeSafeFormData = {
       ...(createDefaultFormData("TYPESAFE") as TypeSafeFormData),
       name: "ts",
       typesafe_api_key: "ts-key",
-      typesafe_base_url: "https://system-one.example",
       decision_enabled: false,
-      decision_sdk: "OPENAI",
-      decision_base_url: "https://ignored.example",
       decision_model_names: "jev-latest",
     };
-    expect(buildClientConfig(typesafe).typesafe?.decisionModels).toEqual({
-      decisionSdk: "TYPESAFE",
-      modelNames: ["jev-latest"],
+    expect(buildProviderModels(typesafe)).toEqual({
+      decision: { names: ["jev-latest"] },
     });
+  });
+
+  it("serves chat models only on Azure OpenAI", () => {
+    const azure: AzureOpenAIFormData = {
+      ...(createDefaultFormData("AZURE_OPENAI") as AzureOpenAIFormData),
+      name: "azure",
+      azure_endpoint: "https://res.openai.azure.com",
+      azure_api_key: "az-key",
+      model_names: "gpt-6",
+    };
+    expect(buildProviderModels(azure)).toEqual({
+      chat: { names: ["gpt-6"] },
+    });
+  });
+
+  it("sends the suggested chat model names, which replace the built-in list", () => {
+    expect(
+      buildProviderModels(openai({ model_names: "qwen3-coder, llama-5-70b" }))
+        .chat
+    ).toEqual({ names: ["qwen3-coder", "llama-5-70b"] });
+    expect(
+      buildProviderModels({
+        ...(createDefaultFormData("AWS_BEDROCK") as AWSBedrockFormData),
+        name: "bedrock",
+        aws_region: "us-east-1",
+        model_names: "us.anthropic.claude-gateway",
+      })
+    ).toEqual({
+      chat: { names: ["us.anthropic.claude-gateway"] },
+    });
+    expect(buildProviderModels(openai({ model_names: " , " })).chat).toEqual({
+      names: [],
+    });
+  });
+
+  it("stays out of the connection", () => {
+    const config = buildClientConfig(
+      openai({ decision_enabled: true, model_names: "qwen3-coder" })
+    );
+    expect(Object.keys(config.openai ?? {}).sort()).toEqual([
+      "openaiApiType",
+      "openaiAuthenticationMethod",
+      "openaiClientKwargs",
+    ]);
   });
 
   it("defaults decision models off, except for TypeSafe", () => {
     expect(createDefaultFormData("OPENAI")).toMatchObject({
       decision_enabled: false,
     });
-    expect(createDefaultFormData("AZURE_OPENAI")).toMatchObject({
-      decision_enabled: false,
-    });
     expect(createDefaultFormData("TYPESAFE")).toMatchObject({
       decision_enabled: true,
-      decision_sdk: "TYPESAFE",
     });
-    expect(createDefaultFormData("ANTHROPIC")).not.toHaveProperty(
-      "decision_enabled"
-    );
+    for (const sdk of ["AZURE_OPENAI", "ANTHROPIC"] as const) {
+      expect(createDefaultFormData(sdk)).not.toHaveProperty("decision_enabled");
+    }
   });
 
-  it("patches the config when only the decision settings change", () => {
+  it("patches only the models when only they change", () => {
     const original = openai();
     const patch = transformToPatchInput(
-      openai({ decision_enabled: true, decision_sdk: "OPENAI" }),
+      openai({ decision_enabled: true, model_names: "qwen3-coder" }),
       "provider-id",
       original
     );
-    expect(patch.clientConfig?.openai?.decisionModels).toEqual({
-      decisionSdk: "OPENAI",
+    expect(patch.clientConfig).toBeUndefined();
+    expect(patch.models).toEqual({
+      chat: { names: ["qwen3-coder"] },
+      decision: { names: [] },
     });
-    expect(
-      transformToPatchInput(original, "provider-id", original).clientConfig
-    ).toBeUndefined();
-  });
-});
-
-describe("suggested LLM model names in the client config", () => {
-  it("sends the names, which replace the SDK's built-in list", () => {
-    expect(
-      buildClientConfig(openai({ model_names: "qwen3-coder, llama-5-70b" }))
-        .openai?.modelNames
-    ).toEqual(["qwen3-coder", "llama-5-70b"]);
-    expect(
-      buildClientConfig({
-        ...(createDefaultFormData("AWS_BEDROCK") as AWSBedrockFormData),
-        name: "bedrock",
-        aws_region: "us-east-1",
-        model_names: "us.anthropic.claude-gateway",
-      }).awsBedrock?.modelNames
-    ).toEqual(["us.anthropic.claude-gateway"]);
-  });
-
-  it("sends none when the field is empty, so the built-in list is used", () => {
-    expect(buildClientConfig(openai()).openai).not.toHaveProperty("modelNames");
-    expect(
-      buildClientConfig(openai({ model_names: " , " })).openai
-    ).not.toHaveProperty("modelNames");
-  });
-
-  it("patches the config when only the names change", () => {
-    const original = openai();
-    const patch = transformToPatchInput(
-      openai({ model_names: "qwen3-coder" }),
-      "provider-id",
-      original
-    );
-    expect(patch.clientConfig?.openai?.modelNames).toEqual(["qwen3-coder"]);
+    const unchanged = transformToPatchInput(original, "provider-id", original);
+    expect(unchanged.clientConfig).toBeUndefined();
+    expect(unchanged.models).toBeUndefined();
   });
 });
 
@@ -139,7 +143,7 @@ describe("parseModelNames", () => {
   });
 });
 
-function savedOpenAIProvider(decisionBaseUrl: string | null) {
+function savedOpenAIProvider(decisionModelNames: string[] | null) {
   return {
     __typename: "GenerativeModelCustomProvider",
     id: "provider-id",
@@ -147,15 +151,14 @@ function savedOpenAIProvider(decisionBaseUrl: string | null) {
     description: null,
     sdk: "OPENAI",
     provider: "openai",
+    models: {
+      chat: { names: [] },
+      decision:
+        decisionModelNames === null ? null : { names: decisionModelNames },
+    },
     config: {
       __typename: "OpenAICustomProviderConfig",
       openaiApiType: "RESPONSES",
-      modelNames: [],
-      decisionModels: {
-        decisionSdk: "OPENAI",
-        baseUrl: decisionBaseUrl,
-        modelNames: [],
-      },
       openaiAuthenticationMethod: { apiKey: "sk-old" },
       openaiClientKwargs: {
         baseUrl: "https://proxy.example/v1",
@@ -167,7 +170,6 @@ function savedOpenAIProvider(decisionBaseUrl: string | null) {
   } as unknown as ProviderNode;
 }
 
-/** Edits the API key only, then builds the patch a save sends. */
 function saveUnrelatedEdit(node: ProviderNode) {
   const original = transformConfigToFormValues(node) as OpenAIFormData;
   return {
@@ -180,92 +182,24 @@ function saveUnrelatedEdit(node: ProviderNode) {
   };
 }
 
-describe("the decision base URL", () => {
-  it.each([undefined, "", "   "])(
-    "leaves out an empty base URL (%j), so runs follow the chat base URL",
-    (decisionBaseUrl) => {
-      const config = buildClientConfig(
-        openai({
-          openai_base_url: "https://proxy.example/v1",
-          decision_enabled: true,
-          decision_sdk: "OPENAI",
-          decision_base_url: decisionBaseUrl,
-        })
-      );
-      expect(config.openai?.decisionModels).toEqual({ decisionSdk: "OPENAI" });
-    }
-  );
+describe("a saved provider's models", () => {
+  it("load into the form", () => {
+    const values = transformConfigToFormValues(
+      savedOpenAIProvider(["gpt-6-luna"])
+    ) as OpenAIFormData;
+    expect(values.decision_enabled).toBe(true);
+    expect(values.decision_model_names).toBe("gpt-6-luna");
+    expect(
+      (transformConfigToFormValues(savedOpenAIProvider(null)) as OpenAIFormData)
+        .decision_enabled
+    ).toBe(false);
+  });
 
-  it("stores a base URL the user changed", () => {
-    const config = buildClientConfig(
-      openai({
-        openai_base_url: "https://proxy.example/v1",
-        decision_enabled: true,
-        decision_sdk: "OPENAI",
-        decision_base_url: "https://decisions.example/v1/",
-      })
-    );
-    expect(config.openai?.decisionModels).toEqual({
-      decisionSdk: "OPENAI",
-      baseUrl: "https://decisions.example/v1",
+  it("are not resent when only the connection changes", () => {
+    const { patch } = saveUnrelatedEdit(savedOpenAIProvider(["gpt-6-luna"]));
+    expect(patch.clientConfig?.openai?.openaiAuthenticationMethod).toEqual({
+      apiKey: "sk-new",
     });
-  });
-
-  it("stores a base URL the user typed even when it equals the chat base URL", () => {
-    const config = buildClientConfig(
-      openai({
-        openai_base_url: "https://proxy.example/v1",
-        decision_enabled: true,
-        decision_sdk: "OPENAI",
-        decision_base_url: "https://proxy.example/v1",
-      })
-    );
-    expect(config.openai?.decisionModels).toEqual({
-      decisionSdk: "OPENAI",
-      baseUrl: "https://proxy.example/v1",
-    });
-  });
-
-  it("stays unset when a provider saved without one is edited and saved", () => {
-    const { original, patch } = saveUnrelatedEdit(savedOpenAIProvider(null));
-    expect(original.decision_base_url).toBeUndefined();
-    expect(patch.clientConfig?.openai?.decisionModels).toEqual({
-      decisionSdk: "OPENAI",
-    });
-  });
-
-  it("stays pinned when a stored base URL equal to the chat base URL is edited and saved", () => {
-    const { original, patch } = saveUnrelatedEdit(
-      savedOpenAIProvider("https://proxy.example/v1")
-    );
-    expect(original.decision_base_url).toBe("https://proxy.example/v1");
-    expect(patch.clientConfig?.openai?.decisionModels).toEqual({
-      decisionSdk: "OPENAI",
-      baseUrl: "https://proxy.example/v1",
-    });
-  });
-});
-
-describe("decision base URL validation", () => {
-  it("ignores an invalid base URL while decision models are off", () => {
-    const result = providerFormSchema.safeParse(
-      openai({ decision_enabled: false, decision_base_url: "foo" })
-    );
-    expect(result.success).toBe(true);
-  });
-
-  it("rejects an invalid base URL while decision models are on", () => {
-    const result = providerFormSchema.safeParse(
-      openai({ decision_enabled: true, decision_base_url: "foo" })
-    );
-    expect(result.success).toBe(false);
-    expect(result.error?.issues[0]?.path).toEqual(["decision_base_url"]);
-  });
-
-  it("accepts an empty base URL while decision models are on", () => {
-    const result = providerFormSchema.safeParse(
-      openai({ decision_enabled: true, decision_base_url: "" })
-    );
-    expect(result.success).toBe(true);
+    expect(patch.models).toBeUndefined();
   });
 });

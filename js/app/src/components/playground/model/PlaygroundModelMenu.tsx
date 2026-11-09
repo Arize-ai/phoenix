@@ -129,7 +129,7 @@ export function PlaygroundModelMenu({
         dirty: true,
         patch: {
           task: { type: "prompt" },
-          model: { ...restoredModel, modelType: "LLM" },
+          model: { ...restoredModel, modelType: "CHAT" },
           repetitions: {},
         },
       });
@@ -153,7 +153,7 @@ export function PlaygroundModelMenu({
       patch: {
         modelName: model.modelName,
         customProvider: model.customProvider ?? null,
-        modelType: "LLM",
+        modelType: "CHAT",
         ...(chat ? { responseFormat: chat.responseFormat } : {}),
       },
     });
@@ -178,7 +178,7 @@ export function PlaygroundModelMenu({
       onChange={handleChange}
       supportsDecisionModels={supportsDecisionModels}
       // A decision task with no model picked yet opens on the Decision tab.
-      defaultModelType={isDecisionInstance(instance) ? "DECISION" : "LLM"}
+      defaultModelType={isDecisionInstance(instance) ? "DECISION" : "CHAT"}
       decisionTabNotice={decisionTabNotice}
       fixedModelType={fixedModelType}
       credentialSource={credentialSource}

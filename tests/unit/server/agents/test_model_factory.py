@@ -187,7 +187,7 @@ class TestCustomProviderModels:
 
 class TestSecretResolutionErrorTranslation:
     """Regression: a stored secret that cannot be decrypted used to bubble up
-    as ``BadRequest`` from ``playground_clients._resolve_secrets`` and reach
+    as ``BadRequest`` from ``builtin_providers._resolve_secrets`` and reach
     FastAPI as an unhandled exception (500). It must surface as
     ``ProviderConfigError`` so the chat router maps it to a 400."""
 

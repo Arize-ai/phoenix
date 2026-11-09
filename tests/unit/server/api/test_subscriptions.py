@@ -3373,7 +3373,7 @@ class TestExperimentsOverDatasetSubscription:
 
         with (
             patch(
-                "phoenix.server.evaluators.resolution.get_playground_client",
+                "phoenix.server.evaluators.resolution.get_chat_client",
                 AsyncMock(return_value=MagicMock()),
             ),
             pytest.raises(RuntimeError, match="At least one output config is required."),

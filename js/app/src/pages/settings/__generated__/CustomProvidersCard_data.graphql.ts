@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<aaa6504055961d1fbdbc0cbb77f594e8>>
+ * @generated SignedSource<<74782b817b727ede6650ffa11d500843>>
  * @lightSyntaxTransform
  */
 
@@ -9,7 +9,7 @@
 
 import { ReaderFragment } from 'relay-runtime';
 export type GenerativeModelSDK = "ANTHROPIC" | "AWS_BEDROCK" | "AZURE_OPENAI" | "GOOGLE_GENAI" | "OPENAI" | "TYPESAFE";
-export type ModelType = "DECISION" | "LLM";
+export type ModelType = "CHAT" | "DECISION";
 import { FragmentRefs } from "relay-runtime";
 export type CustomProvidersCard_data$data = {
   readonly generativeModelCustomProviders: {

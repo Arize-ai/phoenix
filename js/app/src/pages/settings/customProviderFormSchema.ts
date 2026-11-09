@@ -50,15 +50,11 @@ const urlFieldSchema = z
 // Decision model settings shared by the SDKs that can serve decision models
 const decisionModelsSchema = {
   decision_enabled: z.boolean(),
-  decision_sdk: z.enum(["OPENAI", "TYPESAFE"]),
-  // Checked below only while decision models are on, since the field is hidden
-  // when they are off.
-  decision_base_url: z.string().optional(),
   decision_model_names: z.string().optional(),
 };
 
-// Suggested LLM model names, shared by the SDKs that serve LLMs
-const llmModelsSchema = {
+// Suggested chat model names, shared by the SDKs that serve chat models
+const chatModelsSchema = {
   model_names: z.string().optional(),
 };
 
@@ -78,7 +74,7 @@ const openAISchema = baseProviderSchema.extend({
   openai_organization: z.string().optional(),
   openai_project: z.string().optional(),
   openai_default_headers: httpHeadersFieldSchema,
-  ...llmModelsSchema,
+  ...chatModelsSchema,
   ...decisionModelsSchema,
 });
 
@@ -113,8 +109,7 @@ const azureOpenAISchema = baseProviderSchema.extend({
   azure_client_secret: z.string().optional(),
   azure_scope: z.string().optional(),
   azure_default_headers: httpHeadersFieldSchema,
-  ...llmModelsSchema,
-  ...decisionModelsSchema,
+  ...chatModelsSchema,
 });
 
 // Anthropic schema
@@ -123,7 +118,7 @@ const anthropicSchema = baseProviderSchema.extend({
   anthropic_api_key: z.string().min(1, "API key is required"),
   anthropic_base_url: urlFieldSchema,
   anthropic_default_headers: httpHeadersFieldSchema,
-  ...llmModelsSchema,
+  ...chatModelsSchema,
 });
 
 // AWS Bedrock schema
@@ -135,7 +130,7 @@ const awsBedrockSchema = baseProviderSchema.extend({
   aws_secret_access_key: z.string().optional(),
   aws_session_token: z.string().optional(),
   aws_endpoint_url: urlFieldSchema,
-  ...llmModelsSchema,
+  ...chatModelsSchema,
 });
 
 // Google GenAI schema
@@ -144,16 +139,15 @@ const googleGenAISchema = baseProviderSchema.extend({
   google_api_key: z.string().min(1, "API key is required"),
   google_base_url: urlFieldSchema,
   google_headers: httpHeadersFieldSchema,
-  ...llmModelsSchema,
+  ...chatModelsSchema,
 });
 
-// TypeSafe schema: a System One-compatible endpoint, decision models only
+// TypeSafe schema
 const typeSafeSchema = baseProviderSchema.extend({
   sdk: z.literal("TYPESAFE"),
   typesafe_api_key: z.string().min(1, "API key is required"),
   typesafe_base_url: urlFieldSchema,
   typesafe_default_headers: httpHeadersFieldSchema,
-  // Always on and System One; the form shows them fixed.
   ...decisionModelsSchema,
 });
 
@@ -168,35 +162,8 @@ const baseProviderFormSchema = z.discriminatedUnion("sdk", [
 ]);
 
 // Add conditional validation for auth methods on top of the discriminated union
-export const providerFormSchema = baseProviderFormSchema
-  .superRefine((data, ctx) => {
-    // Decision models on Azure run with the provider's API key
-    if (
-      data.sdk === "AZURE_OPENAI" &&
-      data.decision_enabled &&
-      data.azure_auth_method !== "api_key"
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Decision models need API key authentication",
-        path: ["decision_enabled"],
-      });
-    }
-  })
-  .superRefine((data, ctx) => {
-    // A TypeSafe provider ignores the decision base URL and uses its own.
-    if (!("decision_enabled" in data) || !data.decision_enabled) return;
-    if (data.sdk === "TYPESAFE") return;
-    const result = urlFieldSchema.safeParse(data.decision_base_url);
-    if (!result.success) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: result.error.issues[0]?.message ?? "Must be a valid URL",
-        path: ["decision_base_url"],
-      });
-    }
-  })
-  .superRefine((data, ctx) => {
+export const providerFormSchema = baseProviderFormSchema.superRefine(
+  (data, ctx) => {
     // Azure OpenAI conditional validation
     if (data.sdk === "AZURE_OPENAI") {
       if (data.azure_auth_method === "api_key") {
@@ -267,4 +234,5 @@ export const providerFormSchema = baseProviderFormSchema
       }
       // No validation needed for "default_credentials" - it has no required fields
     }
-  });
+  }
+);
