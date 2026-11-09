@@ -13,7 +13,7 @@ def find_head_problem(*, pr: dict[str, Any], expected_sha: str) -> Optional[str]
 
 
 def stop_on_checkout_error(*, client: anthropic.Anthropic, session_id: str) -> None:
-    for event in client.beta.sessions.events.list(session_id, type="session.error"):
+    for event in client.beta.sessions.events.list(session_id, types=["session.error"]):
         if event.error.type in ("repository_checkout_error", "repository_clone_error"):
             client.beta.sessions.events.send(session_id, events=[{"type": "user.interrupt"}])
             raise RuntimeError("The pinned repository could not be mounted; session interrupted")
