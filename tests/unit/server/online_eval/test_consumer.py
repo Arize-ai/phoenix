@@ -4,7 +4,7 @@ from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from queue import SimpleQueue
 from secrets import token_hex
-from typing import Any, AsyncIterator, Mapping, Optional, Sequence, cast
+from typing import Any, AsyncIterator, Callable, Mapping, Optional, Sequence, cast
 from unittest.mock import ANY, AsyncMock, Mock, call, patch
 
 import httpx
@@ -2627,14 +2627,21 @@ _EVALUATOR_SECONDS = 0.05
 
 
 class _SlowEvaluator(_StubEvaluator):
+    def __init__(self, results: list[dict[str, Any]], advance_clock: Callable[[], None]) -> None:
+        super().__init__(results)
+        self._advance_clock = advance_clock
+
     async def evaluate(self, **kwargs: Any) -> list[dict[str, Any]]:
-        await asyncio.sleep(_EVALUATOR_SECONDS)
+        self._advance_clock()
         return await super().evaluate(**kwargs)
 
 
 class _SlowRaisingEvaluator:
+    def __init__(self, advance_clock: Callable[[], None]) -> None:
+        self._advance_clock = advance_clock
+
     async def evaluate(self, **_: Any) -> Never:
-        await asyncio.sleep(_EVALUATOR_SECONDS)
+        self._advance_clock()
         raise RuntimeError("evaluator crashed")
 
 
@@ -2651,7 +2658,13 @@ class _HangingEvaluator:
 async def test_evaluator_run_time_is_observed_whatever_its_result(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    clock = [0.0]
+
+    def advance_clock() -> None:
+        clock[0] += _EVALUATOR_SECONDS
+
     duration = Mock()
+    monkeypatch.setattr(executor_module, "perf_counter", lambda: clock[0])
     monkeypatch.setattr(executor_module, "get_env_enable_prometheus", lambda: True)
     monkeypatch.setattr(executor_module, "ONLINE_EVAL_EVALUATOR_DURATION_SECONDS", duration)
     async with db() as session:
@@ -2668,9 +2681,9 @@ async def test_evaluator_run_time_is_observed_whatever_its_result(
             evaluator_kind="CODE",
             output_configs=[_output_config("quality"), _output_config("relevance")],
         ),
-        evaluator=cast(Any, _SlowEvaluator(results)),
+        evaluator=cast(Any, _SlowEvaluator(results, advance_clock)),
     )
-    raising = replace(succeeding, evaluator=cast(Any, _SlowRaisingEvaluator()))
+    raising = replace(succeeding, evaluator=cast(Any, _SlowRaisingEvaluator(advance_clock)))
     hanging_evaluator = _HangingEvaluator()
     hanging = replace(succeeding, evaluator=cast(Any, hanging_evaluator))
     executor = _executor(db)
@@ -2693,7 +2706,7 @@ async def test_evaluator_run_time_is_observed_whatever_its_result(
         )
     )
     await hanging_evaluator.started.wait()
-    await asyncio.sleep(_EVALUATOR_SECONDS)
+    advance_clock()
     cut_off.cancel()
     with pytest.raises(asyncio.CancelledError):
         await cut_off
@@ -2702,7 +2715,7 @@ async def test_evaluator_run_time_is_observed_whatever_its_result(
     observed = [args[0] for args, _ in duration.labels.return_value.observe.call_args_list]
     assert len(observed) == 3
     # Each value covers the evaluator's whole run, not just the time around it.
-    assert all(seconds >= _EVALUATOR_SECONDS for seconds in observed)
+    assert observed == pytest.approx([_EVALUATOR_SECONDS] * 3)
 
 
 async def test_deleted_criteria_cannot_publish_annotation(db: DbSessionFactory) -> None:
