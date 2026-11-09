@@ -1,4 +1,5 @@
 import asyncio
+import json
 import re
 from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
@@ -11,10 +12,11 @@ from unittest.mock import AsyncMock, MagicMock
 
 import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 import pytest
-from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
+from opentelemetry.proto.common.v1.common_pb2 import AnyValue, ArrayValue, KeyValue
 from sqlalchemy import NullPool, delete, func, select, text
 from sqlalchemy.exc import DBAPIError, StatementError
 from sqlalchemy.ext.asyncio import AsyncSession, AsyncSessionTransaction, create_async_engine
+from sqlalchemy.orm import joinedload
 
 from phoenix.db import bulk_inserter, models
 from phoenix.db.bulk_inserter import BulkInserter
@@ -709,6 +711,91 @@ async def test_decision_span_gets_a_cost_row(db: DbSessionFactory) -> None:
     assert cost is not None
     assert cost.model_id == decision_model.id
     assert cost.total_cost == pytest.approx(1000 * 1e-7)
+
+
+def _otlp_embedding_span() -> otlp.Span:
+    """The embedding spec's text input example, as an instrumentor exports it."""
+    attributes: dict[str, Any] = {
+        "openinference.span.kind": "EMBEDDING",
+        "embedding.model_name": "text-embedding-3-small",
+        "embedding.invocation_parameters": json.dumps(
+            {"model": "text-embedding-3-small", "encoding_format": "float"}
+        ),
+        "input.value": json.dumps(
+            {"input": "hello world", "model": "text-embedding-3-small", "encoding_format": "float"}
+        ),
+        "input.mime_type": "application/json",
+        "output.value": json.dumps(
+            {
+                "data": [{"embedding": [0.1, 0.2, 0.3], "index": 0}],
+                "model": "text-embedding-3-small",
+                "usage": {"prompt_tokens": 2, "total_tokens": 2},
+            }
+        ),
+        "output.mime_type": "application/json",
+        "embedding.embeddings.0.embedding.text": "hello world",
+        "embedding.embeddings.0.embedding.vector": [0.1, 0.2, 0.3],
+        "llm.token_count.prompt": 2,
+        "llm.token_count.total": 2,
+    }
+
+    def any_value(value: Any) -> AnyValue:
+        if isinstance(value, str):
+            return AnyValue(string_value=value)
+        if isinstance(value, int):
+            return AnyValue(int_value=value)
+        return AnyValue(array_value=ArrayValue(values=[AnyValue(double_value=v) for v in value]))
+
+    start = int(_START.timestamp() * 1e9)
+    return otlp.Span(
+        trace_id=bytes(range(16)),
+        span_id=bytes(range(8)),
+        name="CreateEmbeddings",
+        kind=otlp.Span.SpanKind.SPAN_KIND_INTERNAL,
+        start_time_unix_nano=start,
+        end_time_unix_nano=start + 200_000_000,
+        attributes=[KeyValue(key=k, value=any_value(v)) for k, v in attributes.items()],
+        status=otlp.Status(code=otlp.Status.StatusCode.STATUS_CODE_OK),
+    )
+
+
+async def test_embedding_span_from_otlp_is_priced_against_its_embedding_model(
+    db: DbSessionFactory,
+) -> None:
+    # An LLM row with the same pattern must not price the embedding span.
+    rows = {
+        model_type: models.GenerativeModel(
+            name=f"text-embedding-3-small-{model_type.lower()}",
+            provider="openai",
+            name_pattern=re.compile("text-embedding-3-small"),
+            is_built_in=True,
+            type=model_type,
+            token_prices=[models.TokenPrice(token_type="input", is_prompt=True, base_rate=rate)],
+        )
+        for model_type, rate in (("LLM", 1e-6), ("EMBEDDING", 2e-8))
+    }
+    async with db() as session:
+        session.add_all(rows.values())
+    store = GenerativeModelStore(db=db)
+    await store._fetch_models()
+    span = decode_otlp_span(_otlp_embedding_span())
+    assert span.span_kind is SpanKind.EMBEDDING
+    inserter = _inserter(db, span)
+    inserter._span_cost_calculator = SpanCostCalculator(model_store=store)
+    await inserter._insert_spans(1)
+    async with db() as session:
+        cost = await session.scalar(
+            select(models.SpanCost).options(joinedload(models.SpanCost.span_cost_details))
+        )
+    assert cost is not None
+    assert cost.model_id == rows["EMBEDDING"].id
+    assert (cost.prompt_tokens, cost.completion_tokens, cost.total_tokens) == (2, None, 2)
+    assert cost.prompt_cost == pytest.approx(2 * 2e-8)
+    assert cost.completion_cost is None
+    assert cost.total_cost == pytest.approx(2 * 2e-8)
+    assert [(d.token_type, d.is_prompt, d.tokens) for d in cost.span_cost_details] == [
+        ("input", True, 2)
+    ]
 
 
 @pytest.mark.parametrize("sqlstate", ["40P01", "40001", "08006"])
