@@ -40,6 +40,7 @@ px session delete <session-id>
 px session-annotations delete
 px dataset list
 px dataset get <name>
+px dataset-versions list <dataset-identifier>
 px dataset delete <dataset-identifier>
 px experiment list
 px experiment get <id>
@@ -386,12 +387,18 @@ px dataset list --format raw --no-progress | jq '.[].name'
 px dataset get <name> --format raw | jq '.examples[] | {input, output: .expected_output}'
 px dataset get <name> --split train --format raw | jq .    # filter by split
 px dataset get <name> --version <version-id> --format raw | jq .
+px dataset-versions list <name-or-id> --format raw --no-progress | jq '.[].version_id'
 px experiment list --dataset <name> --format raw --no-progress | jq '.[] | {id, name, failed_run_count}'
 px experiment get <id> --format raw --no-progress | jq '.[] | select(.error != null) | {input, error}'
 px prompt list --format raw --no-progress | jq '.[].name'
 px prompt get <name> --format text --no-progress   # plain text, ideal for piping to AI
 px prompt-versions list <name-or-id> --limit 10 --format raw --no-progress | jq '.[].id'
 ```
+
+`dataset-versions list` fetches all pages unless `--limit` is set. JSON/raw output
+is an array of full version objects (`version_id`, `description`, `metadata`,
+`created_at`). A dataset with no versions yet returns `[]`; unknown dataset names
+exit nonzero. Use the IDs with `dataset get --version`.
 
 `prompt-versions list` fetches all pages unless `--limit` is set. JSON/raw output is
 an array of full version objects. `created_at` is absent on older servers (blank
