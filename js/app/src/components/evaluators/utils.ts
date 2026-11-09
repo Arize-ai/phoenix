@@ -569,7 +569,7 @@ export function matchOutputConfigForAnnotation<T extends { name: string }>({
 /**
  * Maps an evaluator preview's annotation score onto the optimization value of
  * a typed output config it came from, such as a decision evaluator's derived
- * outputs.
+ * outputs: a Yes / No question's pivots on its threshold.
  */
 export function getTypedOutputConfigOptimizationValue({
   annotationName,

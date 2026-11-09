@@ -373,10 +373,10 @@ export function isPolicyValid(validation: DecisionPolicyValidation): boolean {
  * The output configs a decision evaluator's results are scored against,
  * derived from its questions and policy the way the server's
  * `derive_decision_output_configs` derives them: a Yes / No question scores
- * its probability of true on 0..1 against its threshold, a scale question its
- * expected level on
- * 0..levels-1, and a choice question its choices' scores. Lets a form colour
- * preview results by the draft's direction without saving or re-running.
+ * its probability of true on 0..1 and turns good or bad at its threshold, a
+ * scale question its expected level on 0..levels-1, and a choice question
+ * its choices' scores. Lets a form colour preview results by the draft's
+ * direction and threshold without saving or re-running.
  */
 export function deriveDecisionOutputConfigs(
   questions: readonly DecisionQuestionDefinition[],

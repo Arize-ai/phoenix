@@ -9,8 +9,9 @@ import { getTypedOutputConfigOptimizationValue } from "@phoenix/components/evalu
 
 /**
  * A decision evaluator's preview chips colour against outputs derived from
- * the draft (#17632): the direction marks which answer is good, so a
- * direction flip recolours a result without re-running it.
+ * the draft (#17632): the direction marks which answer is good and the
+ * threshold is where a Yes / No answer turns, so a direction flip recolours
+ * a result without re-running it.
  */
 describe("decision preview colouring", () => {
   const predicateOnly: DecisionQuestionDefinition[] = [
@@ -61,6 +62,11 @@ describe("decision preview colouring", () => {
 
   it("leaves results neutral when neither answer is good", () => {
     expect(valueOf(draft("NONE"), 0.86)).toBeNull();
+  });
+
+  it("splits at the threshold, not at 0.5", () => {
+    expect(valueOf(draft("MAXIMIZE", 0.8), 0.7)).toBeLessThan(0);
+    expect(valueOf(draft("MAXIMIZE", 0.8), 0.85)).toBeGreaterThan(0);
   });
 
   it("matches a multi-question result by its evaluatorName.question name", () => {
