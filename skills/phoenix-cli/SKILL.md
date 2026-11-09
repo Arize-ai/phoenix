@@ -46,6 +46,7 @@ px experiment get <id>
 px experiment delete <experiment-id>
 px prompt list
 px prompt get <prompt-identifier>
+px prompt create --name <name> --template <text>
 px prompt-versions list <prompt-identifier>
 px prompt delete <prompt-identifier>
 px project list
@@ -390,6 +391,7 @@ px experiment list --dataset <name> --format raw --no-progress | jq '.[] | {id, 
 px experiment get <id> --format raw --no-progress | jq '.[] | select(.error != null) | {input, error}'
 px prompt list --format raw --no-progress | jq '.[].name'
 px prompt get <name> --format text --no-progress   # plain text, ideal for piping to AI
+px prompt create --name <name> --template-file - --if-not-exists --format raw --no-progress | jq -r .id   # template from stdin; without --if-not-exists, adds a version if the name exists
 px prompt-versions list <name-or-id> --limit 10 --format raw --no-progress | jq '.[].id'
 ```
 
