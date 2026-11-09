@@ -220,6 +220,53 @@ describe("getOptimizationValue", () => {
 });
 
 describe("getOptimizationValueFromConfig", () => {
+  describe("a decision Yes / No output pivots on its threshold", () => {
+    // The probability of true, labelled true at or above 0.8.
+    const predicate = (
+      optimizationDirection: "MAXIMIZE" | "MINIMIZE" | "NONE"
+    ): AnnotationConfigContinuous => ({
+      ...continuousConfig,
+      optimizationDirection,
+      threshold: 0.8,
+    });
+
+    it("marks a 0.7 bad when true is good, though it is above the midpoint", () => {
+      const config = predicate("MAXIMIZE");
+      expect(getOptimizationBounds(config).threshold).toBe(0.8);
+      expect(
+        getOptimizationValueFromConfig({ config, score: 0.7 })
+      ).toBeLessThan(0);
+      expect(
+        getOptimizationValueFromConfig({ config, score: 0.9 })
+      ).toBeGreaterThan(0);
+    });
+
+    it("marks a 0.7 good when false is good", () => {
+      const config = predicate("MINIMIZE");
+      expect(
+        getOptimizationValueFromConfig({ config, score: 0.7 })
+      ).toBeGreaterThan(0);
+      expect(
+        getOptimizationValueFromConfig({ config, score: 0.9 })
+      ).toBeLessThan(0);
+    });
+
+    it("is neutral without a direction", () => {
+      expect(
+        getOptimizationValueFromConfig({
+          config: predicate("NONE"),
+          score: 0.7,
+        })
+      ).toBeNull();
+    });
+
+    it("leaves a continuous config without a threshold on its midpoint", () => {
+      expect(
+        getOptimizationValueFromConfig({ config: continuousConfig, score: 0.7 })
+      ).toBeGreaterThan(0);
+    });
+  });
+
   it("grades a categorical score between its lowest and highest value scores", () => {
     expect(
       getOptimizationValueFromConfig({

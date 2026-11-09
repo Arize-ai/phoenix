@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6b2c32655b0410063fd4b09734f2a835>>
+ * @generated SignedSource<<be6705f85f80e22be5a3fc1fdb619f7b>>
  * @lightSyntaxTransform
  */
 
@@ -49,6 +49,7 @@ export type ExperimentsTableFragment$data = {
           readonly lowerBound: number | null;
           readonly name: string;
           readonly optimizationDirection: OptimizationDirection;
+          readonly threshold: number | null;
           readonly upperBound: number | null;
         } | {
           readonly __typename: "FreeformAnnotationConfig";
@@ -255,7 +256,14 @@ v13 = {
   "name": "upperBound",
   "storageKey": null
 },
-v14 = [
+v14 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "threshold",
+  "storageKey": null
+},
+v15 = [
   (v1/*:: as any*/)
 ];
 return {
@@ -467,7 +475,8 @@ return {
                         (v9/*:: as any*/),
                         (v11/*:: as any*/),
                         (v12/*:: as any*/),
-                        (v13/*:: as any*/)
+                        (v13/*:: as any*/),
+                        (v14/*:: as any*/)
                       ],
                       "type": "ContinuousAnnotationConfig",
                       "abstractKey": null
@@ -477,13 +486,7 @@ return {
                       "selections": [
                         (v9/*:: as any*/),
                         (v11/*:: as any*/),
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "threshold",
-                          "storageKey": null
-                        },
+                        (v14/*:: as any*/),
                         (v12/*:: as any*/),
                         (v13/*:: as any*/)
                       ],
@@ -587,7 +590,7 @@ return {
                   "kind": "LinkedField",
                   "name": "project",
                   "plural": false,
-                  "selections": (v14/*:: as any*/),
+                  "selections": (v15/*:: as any*/),
                   "storageKey": null
                 },
                 {
@@ -742,13 +745,13 @@ return {
                         (v10/*:: as any*/),
                         {
                           "kind": "InlineFragment",
-                          "selections": (v14/*:: as any*/),
+                          "selections": (v15/*:: as any*/),
                           "type": "DecisionTaskConfig",
                           "abstractKey": null
                         },
                         {
                           "kind": "InlineFragment",
-                          "selections": (v14/*:: as any*/),
+                          "selections": (v15/*:: as any*/),
                           "type": "PromptTaskConfig",
                           "abstractKey": null
                         }
@@ -817,6 +820,6 @@ return {
 };
 })();
 
-(node as any).hash = "993043fa8b6c933d0cb942a0c4ae8710";
+(node as any).hash = "579dd762f3dd03e8d6ceaa865a151a3e";
 
 export default node;

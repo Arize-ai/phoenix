@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fdcec64787f4546ca1519646e7cfe2a8>>
+ * @generated SignedSource<<9370d1f9a93c7dbea3d0f63a9d67e28f>>
  * @lightSyntaxTransform
  */
 
@@ -33,6 +33,7 @@ export type ExperimentCompareListPage_aggregateData$data = {
             readonly lowerBound: number | null;
             readonly name: string;
             readonly optimizationDirection: OptimizationDirection;
+            readonly threshold: number | null;
             readonly upperBound: number | null;
           } | {
             readonly __typename: "FreeformAnnotationConfig";
@@ -161,6 +162,13 @@ v10 = {
   "args": null,
   "kind": "ScalarField",
   "name": "upperBound",
+  "storageKey": null
+},
+v11 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "threshold",
   "storageKey": null
 };
 return {
@@ -581,7 +589,8 @@ return {
                                 (v4/*:: as any*/),
                                 (v8/*:: as any*/),
                                 (v9/*:: as any*/),
-                                (v10/*:: as any*/)
+                                (v10/*:: as any*/),
+                                (v11/*:: as any*/)
                               ],
                               "type": "ContinuousAnnotationConfig",
                               "abstractKey": null
@@ -591,13 +600,7 @@ return {
                               "selections": [
                                 (v4/*:: as any*/),
                                 (v8/*:: as any*/),
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "threshold",
-                                  "storageKey": null
-                                },
+                                (v11/*:: as any*/),
                                 (v9/*:: as any*/),
                                 (v10/*:: as any*/)
                               ],
@@ -629,6 +632,6 @@ return {
 };
 })();
 
-(node as any).hash = "30f200cdab86ac889e0e40e8040c712c";
+(node as any).hash = "8025ea060b427930d3ed27281bf4b8ad";
 
 export default node;

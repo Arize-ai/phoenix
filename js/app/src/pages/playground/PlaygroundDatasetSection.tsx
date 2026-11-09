@@ -131,6 +131,7 @@ export function PlaygroundDatasetSection({
                     optimizationDirection
                     lowerBound
                     upperBound
+                    threshold
                   }
                   ... on FreeformAnnotationConfig {
                     name

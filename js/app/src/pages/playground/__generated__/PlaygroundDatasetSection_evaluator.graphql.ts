@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c92d9da2f3afbef49efa0a2800cb8fb1>>
+ * @generated SignedSource<<54092fa6f387a610b9903635273e1820>>
  * @lightSyntaxTransform
  */
 
@@ -36,6 +36,7 @@ export type PlaygroundDatasetSection_evaluator$data = {
     readonly lowerBound: number | null;
     readonly name: string;
     readonly optimizationDirection: OptimizationDirection;
+    readonly threshold: number | null;
     readonly upperBound: number | null;
   } | {
     readonly __typename: "FreeformAnnotationConfig";
@@ -61,6 +62,6 @@ const node: ReaderInlineDataFragment = {
   "name": "PlaygroundDatasetSection_evaluator"
 };
 
-(node as any).hash = "b0f1e302292c35fa4c0dd8cddc798e0d";
+(node as any).hash = "3277b616b7f66a0b18aee14d69f7a896";
 
 export default node;

@@ -131,6 +131,7 @@ const evaluatorFragment = graphql`
           optimizationDirection
           lowerBound
           upperBound
+          threshold
         }
         ... on FreeformAnnotationConfig {
           optimizationDirection

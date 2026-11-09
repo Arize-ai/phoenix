@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<280d08e2addf321780f16b1d2d934987>>
+ * @generated SignedSource<<7094bb771af83aacc8028221546d3a41>>
  * @lightSyntaxTransform
  */
 
@@ -61,6 +61,13 @@ v3 = {
   "args": null,
   "kind": "ScalarField",
   "name": "upperBound",
+  "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "threshold",
   "storageKey": null
 };
 return {
@@ -139,7 +146,8 @@ return {
               "selections": [
                 (v1/*:: as any*/),
                 (v2/*:: as any*/),
-                (v3/*:: as any*/)
+                (v3/*:: as any*/),
+                (v4/*:: as any*/)
               ],
               "type": "ContinuousAnnotationConfig",
               "abstractKey": null
@@ -148,13 +156,7 @@ return {
               "kind": "InlineFragment",
               "selections": [
                 (v1/*:: as any*/),
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "threshold",
-                  "storageKey": null
-                },
+                (v4/*:: as any*/),
                 (v2/*:: as any*/),
                 (v3/*:: as any*/)
               ],
@@ -173,6 +175,6 @@ return {
 };
 })();
 
-(node as any).hash = "7089c6d8c2afeb8dab5f060854f0fd68";
+(node as any).hash = "76e146100a5d37caeba19a3a47dedae2";
 
 export default node;

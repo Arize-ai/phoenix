@@ -39,6 +39,7 @@ export function AnnotationConfigurationCard({
               optimizationDirection
               lowerBound
               upperBound
+              threshold
             }
             ... on FreeformAnnotationConfig {
               name
