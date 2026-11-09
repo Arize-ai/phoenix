@@ -73,6 +73,10 @@ class Builder(build_ext):
 
         # gcc optimization level
         ext.extra_compile_args.append("-O1")
+        if sys.platform == "win32":
+            # MSVC defaults to legacy C89, where C11 keywords used by sqlean
+            # (_Static_assert, _Alignof) are not enabled.
+            ext.extra_compile_args.append("/std:c11")
 
         self._setup_defines(ext)
         self._setup_sources(ext)
