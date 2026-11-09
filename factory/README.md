@@ -108,7 +108,7 @@ Each part does one job, so it can be changed and tested on its own:
 | `factory-preview.yml` | Runs when a PR gains the `factory-preview` label, which `dispatch.py watch` adds to a bug or feature lane's PR as it leaves draft, and on every push while it stays on. Lays the PR's source over the published image of the `main` commit its dependencies match, with the seed script from the PR body, pushes `ghcr.io/arize-ai/phoenix-preview:pr-N`, and deploys it as the `pr-N` service in the `phoenix-pr-previews` Railway project. A push cancels the build in progress. See [Previewing a PR](#previewing-a-pr) |
 | `factory-preview-sweep.yml` | Hourly, deletes the Railway service and image tags of every preview whose PR is closed or no longer labeled `factory-preview`, and says so on the preview comment |
 | `factory-review.yml` | Runs when a maintainer labels a PR `factory-review` or dispatches it by number. `review.py` checks that the PR is open and the requester has write access, starts a `pr-reviewer` session pinned to the head commit, then edits its status comment on the PR into the review's verdict and labels it `factory-approved`, `factory-request-changes` or `factory-close`, or says why there is no verdict. See [Reviewing a PR](#reviewing-a-pr) |
-| `pr-reviewer` | Checks out the pinned commit from `pull/N/head`, runs the format, lint, typecheck and test targets for the touched areas, judges each added test, sends the diff to the area reviewers, verifies their findings, and submits one `COMMENT` review with inline findings and a summary that recommends approve, request changes or close |
+| `pr-reviewer` | Verifies the repository is mounted at the admitted SHA before bootstrap, runs the format, lint, typecheck and test targets for the touched areas, judges each added test, sends the diff to the area reviewers, verifies their findings, and submits one `COMMENT` review with inline findings and a summary that recommends approve, request changes or close |
 | `factory-finish.yml` | Runs when a maintainer labels a PR `factory-finish` or dispatches it by number. `finish.py` checks that the requester has write access, the PR is open and, for a fork PR, its CLA is signed, copies a fork PR to a `factory/pr-N` branch here and closes the original, starts a `pr-finisher` session on the PR's branch, then follows it the way `dispatch.py` does. See [Finishing a PR](#finishing-a-pr) |
 | `pr-finisher` | Links or files the PR's issue from the issue template, grades it by the `pr-reviewer` verdict rules with the area reviewers, closes it and labels the issue `factory` when the approach is not sound, otherwise has the reproducer or analyst verify the claim, fixes every finding in the project's style with appended commits, and posts one comment to the author on what changed and why |
 | `factory-guard.yml` | Fails factory PRs that touch `.github/`, `.cursor/`, `.claude/`, `.agents/`, `factory/`, `plugins/`, `AGENTS.md` or `CLAUDE.md` |
@@ -193,9 +193,9 @@ sequenceDiagram
     review->>github: comment why, remove factory-review
   else admitted
     review->>github: remove any old verdict label
-    review->>session: create with pr-reviewer, the repo mounted on the base branch, the commit to review
+    review->>session: create with pr-reviewer, the repo mounted at the admitted SHA
     review->>github: post the run's status comment with the session link
-    session->>session: bootstrap, fetch pull/N/head, check out the commit, run checks, area review, verify findings
+    session->>session: verify the admitted SHA, prepare local base refs, bootstrap, run checks, area review, verify findings
     session->>github: submit one COMMENT review with inline findings and the summary
     review->>github: read the verdict from the review heading
     review->>github: edit the status comment into the verdict, add its label, remove factory-review
@@ -203,7 +203,7 @@ sequenceDiagram
   maintainer->>github: act on the verdict label at the review's depth
 ```
 
-The workflow runs on `pull_request_target` so it has the factory secrets for a fork PR. It is safe for the same reason the other factory jobs are: the Actions runner checks out the base branch and runs `review.py` from it, never the PR's code. The PR's code runs only in the sandbox, as [Trust boundaries](#trust-boundaries) describes. The session is pinned to the head commit at the time of the label. It reviews the current head only if that commit is gone, and the PR comment names the commit the review is on. `review.py` finds the review as the first one the factory submitted after the session started, so a review from an earlier run is never reported as this one's. Each review session has a spend cap of $10 at list price, and the job waits up to 100 minutes for it.
+The workflow runs on `pull_request_target` so it has the factory secrets for a fork PR. It is safe for the same reason the other factory jobs are: the Actions runner checks out the base branch and runs `review.py` from it, never the PR's code. The PR's code runs only in the sandbox, as [Trust boundaries](#trust-boundaries) describes. The session is pinned to the head commit at the time of the label. If that commit is unavailable or the head changed before admission, the run stops instead of selecting another commit. The PR comment names the admitted commit. `review.py` finds the review as the first one the factory submitted after the session started, so a review from an earlier run is never reported as this one's. Each review session has a spend cap of $10 at list price, and the job waits up to 100 minutes for it.
 
 The review's body follows the summary template in `agents/pr-reviewer.md`: a heading with the verdict (**Approve**, **Request changes** or **Close**), one sentence that names the criterion that decided it, and a one-row scorecard that grades Fit, Checks, Tests, the finding counts, Risk and Depth. Under it, **Needs attention** lists only what isn't clean: each finding once, linked to its line, and a short note for any column that isn't a pass, so a clean PR shows only the scorecard. Every cell, bullet and the heading start with a marker that differs in shape and color as well as by the word beside it: ✅ nothing to do, ⚠️ read before acting, ❌ the author must fix it, 🚫 close. The full intent, verification and risk notes are collapsed under Details. The verdict follows fixed rules in [`agents/pr-reviewer.md` § Verdict](agents/pr-reviewer.md#verdict). It is only a recommendation, and the review is always a `COMMENT`, never a GitHub approval or change request; the verdict label is the machine-readable copy of the heading. Findings go inline on the lines they concern, each verified, each marked **Blocking** or **Non-blocking**. The stop reason and cost go to the job log. The lane has no graded outcome: a posted review can't be taken back, so a grader's revision cycles could only edit or repost it.
 
@@ -251,11 +251,11 @@ sequenceDiagram
   alt not admissible
     finish->>github: comment why, remove factory-finish
   else fork PR
-    finish->>github: push pull/N/head to factory/pr-N, open a PR from it, close the original with a pointer
+    finish->>github: push the admitted SHA to factory/pr-N, open a PR from it, close the original with a pointer
   end
-  finish->>session: create with pr-finisher, the repo mounted on the PR's branch
+  finish->>session: create with pr-finisher, the repo mounted at the admitted SHA
   finish->>github: post the run's status comment with the session link
-  session->>session: bootstrap, link or file the issue, run checks, area review, grade the verdict
+  session->>session: verify the SHA, create the local work branch, bootstrap, link or file the issue, run checks, area review, grade the verdict
   alt Close verdict
     session->>github: comment the reason, close the PR, label the issue factory
   else
@@ -267,7 +267,7 @@ sequenceDiagram
   maintainer->>github: review at the assessment's depth, then merge
 ```
 
-The factory cannot push to a fork, so a fork PR is first copied: the Actions job fetches `pull/N/head` and pushes it to `factory/pr-N` as objects, with the app token passed in a header rather than on the command line, opens a draft PR from that branch with the contributor's title and body plus a provenance line, and closes the original with a comment that links the copy. The commits keep the contributor's authorship, and the session only ever appends commits, so what they wrote stays theirs in the history. Re-adding the label to the closed original continues the open copy instead of making another. A same-repo PR is finished on its own branch.
+The factory cannot push to a fork, so a fork PR is first copied: the Actions job fetches the admitted head SHA and pushes that exact commit to `factory/pr-N` as objects, with the app token passed in a header rather than on the command line, opens a draft PR from that branch with the contributor's title and body plus a provenance line, and closes the original with a comment that links the copy. The commits keep the contributor's authorship, and the session only ever appends commits, so what they wrote stays theirs in the history. Re-adding the label to the closed original continues the open copy instead of making another. A same-repo PR starts from the admitted commit too. After verifying HEAD, the finisher creates its local work branch at that SHA with `git switch -C`, appends commits and uses ordinary pushes; it never force-pushes over a divergent branch.
 
 Before the session starts, `finish.py` labels the PR `factory-finished`, and the label stays, so Factory Guard treats every later head of the PR as factory work. The copy is a same-repo branch, so its `pull_request` workflows get repository secrets and a write-scoped `GITHUB_TOKEN`, which the fork PR never had, and on a same-repo PR the session's commits land on a branch whose CI already has them; the jobs that run PR code with those (`pxi-evals.yml`, `plugin-evals.yml`, `integration-docs.yml`, `typescript-packages-publish-experimental.yml`) do not yet skip finished PRs, so read the diff of a finished PR before those jobs matter. A fork PR that changes a path Factory Guard protects (`.github/`, `.cursor/`, `.claude/`, `.agents/`, `factory/`, `plugins/`, `AGENTS.md`, `CLAUDE.md`) is skipped with a comment before copying: the copy could never pass the guard, the app token cannot push workflow files, and fork-written `factory/` config must not reach the sync plan, which holds the workspace key.
 
