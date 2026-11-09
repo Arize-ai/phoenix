@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3bc1219fd5ceaea8ea8c4c67a581bd81>>
+ * @generated SignedSource<<28f9c30f722fe5471e8d001979af02cd>>
  * @lightSyntaxTransform
  */
 
@@ -55,11 +55,6 @@ return {
     {
       "defaultValue": null,
       "kind": "LocalArgument",
-      "name": "kinds"
-    },
-    {
-      "defaultValue": null,
-      "kind": "LocalArgument",
       "name": "sort"
     }
   ],
@@ -95,11 +90,6 @@ return {
           "kind": "Variable",
           "name": "filter",
           "variableName": "filter"
-        },
-        {
-          "kind": "Variable",
-          "name": "kinds",
-          "variableName": "kinds"
         },
         {
           "kind": "Variable",
@@ -235,6 +225,6 @@ return {
 };
 })();
 
-(node as any).hash = "8fbd89b3b2cea4266c196483bca184e9";
+(node as any).hash = "d4c6c361639eeba67a41568089bf699a";
 
 export default node;

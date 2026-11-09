@@ -132,22 +132,23 @@ function ProjectsPageQueryContent() {
   // we only want to trigger the initial query when the component mounts
   // so we want to cache the initial state of the query params
   // this prevents full page reloads when the sort order changes
-  const [queryParams] = useState(() => ({ ..._queryParams, kinds: _kinds }));
+  const [queryParams] = useState(() => ({
+    ..._queryParams,
+    filter: { value: "", col: "name" as const, kinds: _kinds },
+  }));
   const data = useLazyLoadQuery<ProjectsPageQuery>(
     graphql`
       query ProjectsPageQuery(
         $first: Int
         $sort: ProjectSort
         $filter: ProjectFilter
-        $kinds: [ProjectKind!]
       ) {
         ...ProjectsPageProjectsFragment
-          @arguments(first: $first, sort: $sort, filter: $filter, kinds: $kinds)
+          @arguments(first: $first, sort: $sort, filter: $filter)
       }
     `,
     {
       first: PAGE_SIZE,
-      filter: { value: "", col: "name" },
       ...queryParams,
     },
     { fetchPolicy: "store-and-network" }
@@ -247,15 +248,9 @@ export function ProjectsPageContent({
         first: { type: "Int", defaultValue: 50 }
         sort: { type: "ProjectSort", defaultValue: null }
         filter: { type: "ProjectFilter", defaultValue: null }
-        kinds: { type: "[ProjectKind!]", defaultValue: null }
       ) {
-        projects(
-          first: $first
-          after: $after
-          sort: $sort
-          filter: $filter
-          kinds: $kinds
-        ) @connection(key: "ProjectsPage_projects") {
+        projects(first: $first, after: $after, sort: $sort, filter: $filter)
+          @connection(key: "ProjectsPage_projects") {
           edges {
             project: node {
               id
@@ -275,8 +270,11 @@ export function ProjectsPageContent({
   const queryArgs = useMemo(
     () => ({
       ...sortQueryParams,
-      filter: { value: filter, col: "name" as const },
-      kinds: visibleProjectKinds,
+      filter: {
+        value: filter,
+        col: "name" as const,
+        kinds: visibleProjectKinds,
+      },
     }),
     [sortQueryParams, filter, visibleProjectKinds]
   );
@@ -422,7 +420,11 @@ export function ProjectsPageContent({
               setFilter(newSearch);
               refetch({
                 vars: {
-                  filter: { value: newSearch, col: "name" },
+                  filter: {
+                    value: newSearch,
+                    col: "name",
+                    kinds: visibleProjectKinds,
+                  },
                 },
               });
             }}
@@ -453,7 +455,9 @@ export function ProjectsPageContent({
                       : visibleProjectKinds.includes(optionKind)
                   );
                   setVisibleProjectKinds(kinds);
-                  refetch({ vars: { kinds } });
+                  refetch({
+                    vars: { filter: { value: filter, col: "name", kinds } },
+                  });
                 },
               }))}
             />

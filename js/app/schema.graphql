@@ -5243,10 +5243,15 @@ type ProjectEvaluatorRunSummary {
   lastError: String
 }
 
-"""The filter key and value for project connections"""
+"""A filter for project connections"""
 input ProjectFilter {
-  col: ProjectFilterColumn!
-  value: String!
+  col: ProjectFilterColumn = null
+  value: String = null
+
+  """
+  Return only projects of these kinds. Defaults to standard and playground projects.
+  """
+  kinds: [ProjectKind!]
 }
 
 enum ProjectFilterColumn {
@@ -5974,19 +5979,7 @@ type Query {
   userApiKeys: [UserApiKey!]!
   oauth2Grants: [OAuth2Grant!]!
   systemApiKeys: [SystemApiKey!]!
-  projects(
-    first: Int = 50
-    last: Int
-    after: String
-    before: String
-    sort: ProjectSort
-    filter: ProjectFilter
-
-    """
-    Return only projects of these kinds. Defaults to standard and playground projects.
-    """
-    kinds: [ProjectKind!]
-  ): ProjectConnection!
+  projects(first: Int = 50, last: Int, after: String, before: String, sort: ProjectSort, filter: ProjectFilter): ProjectConnection!
   projectsLastUpdatedAt: DateTime
   datasets(first: Int = 50, last: Int, after: String, before: String, sort: DatasetSort, filter: DatasetFilter): DatasetConnection!
   datasetsLastUpdatedAt: DateTime

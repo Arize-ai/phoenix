@@ -597,15 +597,6 @@ class Query:
         before: Optional[CursorString] = UNSET,
         sort: Optional[ProjectSort] = UNSET,
         filter: Optional[ProjectFilter] = UNSET,
-        kinds: Annotated[
-            Optional[list[ProjectKind]],
-            strawberry.argument(
-                description=(
-                    "Return only projects of these kinds. Defaults to standard and "
-                    "playground projects."
-                )
-            ),
-        ] = UNSET,
     ) -> Connection[Project]:
         args = ConnectionArgs(
             first=first,
@@ -635,12 +626,13 @@ class Query:
             projects_query = projects_query.order_by(
                 sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc()
             )
-        if filter:
+        if filter and filter.col and filter.value:
             projects_query = projects_query.where(
                 getattr(models.Project, filter.col.value).ilike(f"%{filter.value}%")
             )
-        if not isinstance(kinds, list):
-            kinds = [ProjectKind.STANDARD, ProjectKind.PLAYGROUND]
+        kinds = [ProjectKind.STANDARD, ProjectKind.PLAYGROUND]
+        if filter and isinstance(filter.kinds, list):
+            kinds = filter.kinds
         projects_query = projects_query.where(
             project_kind_expression().in_([kind.value for kind in kinds])
         )

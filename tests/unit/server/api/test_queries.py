@@ -1439,7 +1439,7 @@ async def playground_project_with_an_experiment(
 
 
 @pytest.mark.parametrize(
-    "kinds, expected_names",
+    "project_filter, expected_names",
     [
         pytest.param(
             None,
@@ -1447,19 +1447,29 @@ async def playground_project_with_an_experiment(
             id="default",
         ),
         pytest.param(
-            ["STANDARD"],
+            {"kinds": ["STANDARD"]},
             ["evaluated-project-name", "non-experiment-project-name"],
             id="standard",
         ),
-        pytest.param(["PLAYGROUND"], [PLAYGROUND_PROJECT_NAME], id="playground"),
-        pytest.param(["EXPERIMENT"], ["experiment-project-name"], id="experiment"),
-        pytest.param(["EVALUATOR"], ["trace-sink-name"], id="evaluator"),
+        pytest.param({"kinds": ["PLAYGROUND"]}, [PLAYGROUND_PROJECT_NAME], id="playground"),
+        pytest.param({"kinds": ["EXPERIMENT"]}, ["experiment-project-name"], id="experiment"),
+        pytest.param({"kinds": ["EVALUATOR"]}, ["trace-sink-name"], id="evaluator"),
         pytest.param(
-            ["EXPERIMENT", "EVALUATOR"],
+            {"kinds": ["EXPERIMENT", "EVALUATOR"]},
             ["experiment-project-name", "trace-sink-name"],
             id="experiment-and-evaluator",
         ),
-        pytest.param([], [], id="none"),
+        pytest.param({"kinds": []}, [], id="none"),
+        pytest.param(
+            {"col": "name", "value": "experiment"},
+            ["non-experiment-project-name"],
+            id="name-with-default-kinds",
+        ),
+        pytest.param(
+            {"col": "name", "value": "experiment", "kinds": ["STANDARD", "EXPERIMENT"]},
+            ["experiment-project-name", "non-experiment-project-name"],
+            id="name-and-kinds",
+        ),
     ],
 )
 async def test_projects_filters_by_kind(
@@ -1467,12 +1477,12 @@ async def test_projects_filters_by_kind(
     projects_with_and_without_experiments: Any,
     project_with_a_project_evaluator_trace_project: Any,
     playground_project_with_an_experiment: Any,
-    kinds: Optional[list[str]],
+    project_filter: Optional[dict[str, Any]],
     expected_names: list[str],
 ) -> None:
     query = """
-      query ($kinds: [ProjectKind!]) {
-        projects(kinds: $kinds) {
+      query ($filter: ProjectFilter) {
+        projects(filter: $filter) {
           edges {
             project: node {
               name
@@ -1481,7 +1491,7 @@ async def test_projects_filters_by_kind(
         }
       }
     """
-    variables = {} if kinds is None else {"kinds": kinds}
+    variables = {} if project_filter is None else {"filter": project_filter}
     response = await gql_client.execute(query=query, variables=variables)
     assert not response.errors
     assert response.data is not None
@@ -1495,7 +1505,7 @@ async def test_projects_filters_dataset_evaluator_projects_as_evaluators(
 ) -> None:
     query = """
       query {
-        projects(kinds: [EVALUATOR]) {
+        projects(filter: {kinds: [EVALUATOR]}) {
           edges {
             project: node {
               name

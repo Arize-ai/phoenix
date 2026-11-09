@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9d52deafcb28c070da4852747bd79515>>
+ * @generated SignedSource<<6e5a9a057c68705fd73028f0184805c7>>
  * @lightSyntaxTransform
  */
 
@@ -14,8 +14,9 @@ export type ProjectFilterColumn = "name";
 export type ProjectKind = "EVALUATOR" | "EXPERIMENT" | "PLAYGROUND" | "STANDARD";
 export type SortDir = "asc" | "desc";
 export type ProjectFilter = {
-  col: ProjectFilterColumn;
-  value: string;
+  col?: ProjectFilterColumn | null;
+  kinds?: ReadonlyArray<ProjectKind> | null;
+  value?: string | null;
 };
 export type ProjectSort = {
   col: ProjectColumn;
@@ -25,7 +26,6 @@ export type ProjectsPageProjectsQuery$variables = {
   after?: string | null;
   filter?: ProjectFilter | null;
   first?: number | null;
-  kinds?: ReadonlyArray<ProjectKind> | null;
   sort?: ProjectSort | null;
 };
 export type ProjectsPageProjectsQuery$data = {
@@ -56,11 +56,6 @@ var v0 = [
   {
     "defaultValue": null,
     "kind": "LocalArgument",
-    "name": "kinds"
-  },
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
     "name": "sort"
   }
 ],
@@ -79,11 +74,6 @@ v1 = [
     "kind": "Variable",
     "name": "first",
     "variableName": "first"
-  },
-  {
-    "kind": "Variable",
-    "name": "kinds",
-    "variableName": "kinds"
   },
   {
     "kind": "Variable",
@@ -245,8 +235,7 @@ return {
         "args": (v1/*:: as any*/),
         "filters": [
           "sort",
-          "filter",
-          "kinds"
+          "filter"
         ],
         "handle": "connection",
         "key": "ProjectsPage_projects",
@@ -256,16 +245,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9f78b8fc0ae79489c7b4c3de09d16c98",
+    "cacheID": "4ce729574f508383c8126b9947ee799c",
     "id": null,
     "metadata": {},
     "name": "ProjectsPageProjectsQuery",
     "operationKind": "query",
-    "text": "query ProjectsPageProjectsQuery(\n  $after: String = null\n  $filter: ProjectFilter = null\n  $first: Int = 50\n  $kinds: [ProjectKind!] = null\n  $sort: ProjectSort = null\n) {\n  ...ProjectsPageProjectsFragment_2wjCqz\n}\n\nfragment ProjectsPageProjectsFragment_2wjCqz on Query {\n  projects(first: $first, after: $after, sort: $sort, filter: $filter, kinds: $kinds) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        endTime\n        startTime\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ProjectsPageProjectsQuery(\n  $after: String = null\n  $filter: ProjectFilter = null\n  $first: Int = 50\n  $sort: ProjectSort = null\n) {\n  ...ProjectsPageProjectsFragment_3JsJJ3\n}\n\nfragment ProjectsPageProjectsFragment_3JsJJ3 on Query {\n  projects(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        endTime\n        startTime\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "8fbd89b3b2cea4266c196483bca184e9";
+(node as any).hash = "d4c6c361639eeba67a41568089bf699a";
 
 export default node;
