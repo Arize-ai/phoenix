@@ -46,6 +46,7 @@ from dispatch import (
     write_github_outputs,
 )
 from github_app import GitHubAppToken
+from pr_input import find_head_problem
 
 REVIEW_LABEL = "factory-review"
 REVIEW_AGENT_LOCK_KEY = "./agents/pr-reviewer.md"
@@ -218,9 +219,10 @@ def start_session(
     kickoff_text = (
         f"Review pull request #{pr['number']} in {repo}. Review commit {head_sha}, the head of "
         f"{describe_head(pr=pr)}, against base branch {pr['baseRefName']}. "
-        f"Read the PR with pull_request_read. Fetch its commits with "
-        f"`git fetch origin {pr['baseRefName']} pull/{pr['number']}/head` and check out "
-        f"{head_sha} before you run anything." + format_open_threads(threads=open_threads)
+        f"The repository mount is pinned to {head_sha}. Before bootstrap or any other work, "
+        f"verify `git rev-parse HEAD` equals {head_sha}; stop if it differs or the mount "
+        f"is missing. Never fall back to another commit. Read the PR with pull_request_read."
+        + format_open_threads(threads=open_threads)
     )
     session = client.beta.sessions.create(
         agent=read_lock_id(lock=lock, lock_key=REVIEW_AGENT_LOCK_KEY),
@@ -237,8 +239,7 @@ def start_session(
                 "type": "github_repository",
                 "url": f"https://github.com/{repo}",
                 "authorization_token": github_token,
-                # The PR may come from a fork, so the agent fetches pull/N/head itself.
-                "checkout": {"type": "branch", "name": pr["baseRefName"]},
+                "checkout": {"type": "commit", "sha": pr["headRefOid"]},
             }
         ],
         # No graded outcome: a posted review can't be taken back, so a grader's revision
@@ -541,6 +542,7 @@ def run_start(*, args: argparse.Namespace) -> None:
     admission_problem = find_admission_problem(
         pr=pr, requester_login=requester_login, requester_permission=requester_permission
     )
+    admission_problem = admission_problem or find_head_problem(pr=pr, expected_sha=args.head_sha)
     print(f"head_sha={pr['headRefOid']} admission_problem={admission_problem}")
     if args.dry_run:
         return
@@ -644,6 +646,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", required=True, help="owner/name, e.g. Arize-ai/phoenix")
     parser.add_argument("--pr", type=int, required=True)
+    parser.add_argument("--head-sha", default="", help="Head SHA captured by the label event")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     start_parser = subparsers.add_parser("start", help="Check the PR and start its review")

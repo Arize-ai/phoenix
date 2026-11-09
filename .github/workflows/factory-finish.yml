@@ -52,8 +52,9 @@ jobs:
           FACTORY_APP_CLIENT_ID: ${{ vars.FACTORY_APP_CLIENT_ID }}
           FACTORY_APP_PRIVATE_KEY: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
           FACTORY_GITHUB_LOGIN: ${{ vars.FACTORY_GITHUB_LOGIN }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           REQUESTED_BY: ${{ github.event.sender.login }}
-        run: uv run --script factory/finish.py --repo "$GH_REPO" --pr "$PR_NUMBER" start --requested-by "$REQUESTED_BY"
+        run: uv run --script factory/finish.py --repo "$GH_REPO" --pr "$PR_NUMBER" --head-sha "$PR_HEAD_SHA" start --requested-by "$REQUESTED_BY"
 
       - name: Watch session
         if: steps.start.outputs.started == 'true'

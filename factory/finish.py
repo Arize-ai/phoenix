@@ -36,6 +36,7 @@ from dispatch import (
     write_github_outputs,
 )
 from github_app import GitHubAppToken
+from pr_input import find_head_problem
 from review import comment_on_pr, read_factory_login
 
 FINISH_LABEL = "factory-finish"
@@ -215,8 +216,10 @@ def copy_fork_pr(*, repo: str, pr: dict[str, Any], token: str) -> dict[str, Any]
     pr_number = pr["number"]
     branch = copy_branch_name(pr_number=pr_number)
     remote = f"https://github.com/{repo}.git"
-    run_git_as_app("fetch", "--quiet", remote, f"pull/{pr_number}/head", token=token)
-    run_git_as_app("push", "--quiet", remote, f"FETCH_HEAD:refs/heads/{branch}", token=token)
+    run_git_as_app("fetch", "--quiet", remote, pr["headRefOid"], token=token)
+    run_git_as_app(
+        "push", "--quiet", remote, f"{pr['headRefOid']}:refs/heads/{branch}", token=token
+    )
     body = (pr["body"] or "").rstrip() + (
         f"\n\n---\nContinued from #{pr_number} by the factory. The commits are "
         f"@{pr['author']['login']}'s; the factory adds its own on top."
@@ -247,7 +250,10 @@ def copy_fork_pr(*, repo: str, pr: dict[str, Any], token: str) -> dict[str, Any]
         "kept there, and the factory adds its own on top. Follow along on that pull request.",
         token=token,
     )
-    return read_pr(pr_number=copy_number, token=token)
+    copied = read_pr(pr_number=copy_number, token=token)
+    if copied["headRefOid"] != pr["headRefOid"]:
+        raise RuntimeError("The fork copy does not match the admitted commit")
+    return copied
 
 
 def start_session(
@@ -273,7 +279,11 @@ def start_session(
     # reads the untrusted PR text itself through the GitHub MCP server.
     kickoff_text = (
         f"Finish pull request #{pr['number']} in {repo}. {issue_text} The repo is checked out "
-        f"on its branch {pr['headRefName']}, which targets {pr['baseRefName']}. Read it with "
+        f"at commit {pr['headRefOid']}, targeting {pr['baseRefName']}. Before bootstrap or "
+        f"any other work, verify `git rev-parse HEAD` equals {pr['headRefOid']}; stop if "
+        f"it differs or the mount is missing. Never fall back to another commit. "
+        f"Create the local work branch with `git switch -C {pr['headRefName']} "
+        f"{pr['headRefOid']}`; push only normally, never force-push. Read it with "
         f"pull_request_read. `{requester_login}` asked for this run. "
         f"Commit as {git_author_name} <{git_author_email}>: before your first commit, run "
         f'`git config user.name "{git_author_name}"` and '
@@ -284,7 +294,7 @@ def start_session(
         environment_id=read_lock_id(lock=lock, lock_key=ENVIRONMENT_LOCK_KEY),
         vault_ids=read_vault_ids(lock=lock),
         title=f"finish: {repo}#{pr['number']}",
-        metadata={"repo": repo, "pr": str(pr["number"]), "lane": "finish"},
+        metadata={"repo": repo, "pr": str(pr["number"]), "lane": "finish", "sha": pr["headRefOid"]},
         budget={
             "type": "limit",
             "max_list_cost": {"amount": str(budget_cents), "currency": "USD"},
@@ -294,7 +304,7 @@ def start_session(
                 "type": "github_repository",
                 "url": f"https://github.com/{repo}",
                 "authorization_token": github_token,
-                "checkout": {"type": "branch", "name": pr["headRefName"]},
+                "checkout": {"type": "commit", "sha": pr["headRefOid"]},
             }
         ],
         initial_events=[
@@ -324,6 +334,7 @@ def run_start(*, args: argparse.Namespace) -> None:
         requester_login=requester_login,
         requester_permission=requester_permission,
     )
+    admission_problem = admission_problem or find_head_problem(pr=pr, expected_sha=args.head_sha)
     print(
         f"head_sha={pr['headRefOid']} fork={pr['isCrossRepository']} "
         f"copy={copy['number'] if copy else None} admission_problem={admission_problem}"
@@ -430,6 +441,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Finish a labeled pull request")
     parser.add_argument("--repo", required=True, help="owner/name, e.g. Arize-ai/phoenix")
     parser.add_argument("--pr", type=int, required=True)
+    parser.add_argument("--head-sha", default="", help="Head SHA captured by the label event")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     start_parser = subparsers.add_parser("start", help="Check the PR and start its session")

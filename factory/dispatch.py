@@ -27,6 +27,7 @@ from typing import Any, Callable, Optional
 
 import anthropic
 from github_app import GitHubAppToken
+from pr_input import stop_on_checkout_error
 
 FACTORY_DIR = Path(__file__).resolve().parent
 LOCK_FILE_PATH = FACTORY_DIR / "claude-lock.json"
@@ -404,6 +405,8 @@ def wait_for_session(
     while time.monotonic() < deadline:
         app_token.refresh()
         session = client.beta.sessions.retrieve(session_id)
+        if session.metadata.get("sha"):
+            stop_on_checkout_error(client=client, session_id=session_id)
         if session.status == "terminated":
             return session, None
         if session.status == "idle":
