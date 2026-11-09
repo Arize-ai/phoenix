@@ -93,7 +93,7 @@ Under the scorecard, **Needs attention** explains only what isn't clean, one bul
 - One for Checks when it is Not run or Fail, naming the targets that failed or couldn't run, then the ones that passed.
 - One for Tests when it is Fail, saying which added test passes without the change, or what has no test.
 - One per finding, Blocking first, as a short label linking to `https://github.com/<owner>/<repo>/blob/<reviewed sha>/<path>#L<line>`, followed by `path:line`. Write "no diff line" for a finding that has none; its full text goes under Details.
-- One for Risk when it is Low, Medium or High, naming which of side effects, performance and backwards compatibility rates highest, and why.
+- One for Risk when it is Low, Medium or High, naming which of side effects, performance, backwards compatibility and security rates highest, and why.
 - One for Depth when it is Deep because the change touches a public API, a GraphQL or OpenAPI schema, a migration, auth or permissions, naming which. Depth gets no bullet when another bullet already explains it.
 
 When nothing needs attention, leave out the heading and the list, so a clean PR shows only the scorecard. Full sentences go in Details, one per line.
@@ -145,7 +145,7 @@ Grade each criterion with the first result whose condition holds, so every score
 | | Not needed | The change adds no tests, and alters no behavior or only what the repo cannot test: workflows under `.github/` and factory code under `factory/` |
 | | Pass | Otherwise |
 | Risk | High, Medium, Low or None | The highest of the area reviewers' side effects, performance and backwards compatibility ratings and the security reviewer's security rating |
-| Depth | Deep | The change touches a public API, a GraphQL or OpenAPI schema, a migration, auth or permissions; the security reviewer reported a finding; Risk is Medium or High; or Checks is Not run |
+| Depth | Deep | The change touches a public API, a GraphQL or OpenAPI schema, a migration, auth or permissions; the security reviewer reported a finding you verified; Risk is Medium or High; or Checks is Not run |
 | | Glance | Only docs, tests or comments change |
 | | Focused | Otherwise |
 
