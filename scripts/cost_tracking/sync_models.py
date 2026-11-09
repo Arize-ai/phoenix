@@ -382,7 +382,7 @@ def serialize_manifest(manifest: ModelCostManifest) -> str:
     return manifest.model_dump_json(indent=2, exclude_none=True)
 
 
-def _has_pricing(model_info: dict[str, Any], model_type: GenerativeModelType = "LLM") -> bool:
+def _has_pricing(model_info: dict[str, Any], model_type: GenerativeModelType) -> bool:
     """
     Both an input and an output rate are required for pricing, except for embedding models,
     which are priced on input tokens alone.
@@ -423,7 +423,7 @@ def _decisions_pricing(model_info: dict[str, Any]) -> Optional[dict[str, Any]]:
         for field, value in model_info.items()
         if field.endswith(DECISIONS_FIELD_SUFFIX)
     }
-    return pricing if _has_pricing(pricing) else None
+    return pricing if _has_pricing(pricing, "DECISION") else None
 
 
 def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
