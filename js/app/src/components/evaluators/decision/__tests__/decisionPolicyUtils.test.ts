@@ -319,7 +319,10 @@ describe("deriveDecisionOutputConfigs", () => {
 
   it("fills defaults for questions the policy does not mention", () => {
     const [predicate] = deriveDecisionOutputConfigs(questions, null);
-    expect(predicate).toMatchObject({ optimizationDirection: "NONE" });
+    expect(predicate).toMatchObject({
+      optimizationDirection: "NONE",
+      threshold: 0.5,
+    });
   });
 });
 
