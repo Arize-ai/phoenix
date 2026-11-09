@@ -253,6 +253,43 @@ async def test_claim_and_publish_happy_path(db: DbSessionFactory) -> None:
         )
 
 
+async def test_a_publication_that_fails_partway_writes_nothing(db: DbSessionFactory) -> None:
+    """Publishing is all or nothing: a write that fails after inserting an annotation
+    leaves no annotation, and the unit stays running under its claim."""
+    (unit_id,) = await _seed_work_units(db, 1)
+    coordinator = EvalWorkCoordinator(db)
+    (claimed,) = await coordinator.claim(claimed_by="consumer", limit=1)
+
+    class _WriteFailed(Exception):
+        pass
+
+    async def annotate_then_fail(session: AsyncSession) -> None:
+        session.add(
+            models.SpanAnnotation(
+                span_rowid=claimed.target_rowid,
+                name="quality",
+                label="good",
+                score=1.0,
+                explanation=None,
+                metadata_={},
+                annotator_kind="CODE",
+                source="API",
+            )
+        )
+        await session.flush()
+        raise _WriteFailed
+
+    with pytest.raises(_WriteFailed):
+        await coordinator.publish(
+            work_unit_id=unit_id, claimed_by="consumer", write=annotate_then_fail
+        )
+
+    async with db() as session:
+        assert await session.scalar(select(func.count()).select_from(models.SpanAnnotation)) == 0
+    unit = await _get_unit(db, unit_id)
+    assert (unit.status, unit.claimed_by) == ("RUNNING", "consumer")
+
+
 async def test_heartbeat_keeps_lapsed_unit_unavailable_to_competing_consumer(
     db: DbSessionFactory,
 ) -> None:

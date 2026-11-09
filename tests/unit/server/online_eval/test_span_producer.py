@@ -632,28 +632,44 @@ async def test_tick_advances_at_most_one_id_chunk(
     assert (await _get_cursor(db)).produced_through_id == spans[-1].id
 
 
-async def test_cut_span_window_starts_the_next_tick_without_the_interval(
-    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+async def test_waiting_work_does_not_stop_the_span_producer_queuing_new_spans(
+    db: DbSessionFactory,
 ) -> None:
+    """Overload shows as waiting work, never as a producer that fell behind."""
+    window = 5
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
-        spans = [await _add_span(session, trace) for _ in range(3)]
-    await _seed_criteria(db, project.id)
-    await _seed_cursor(
-        db,
-        produced_through_id=spans[0].id - 1,
-        observed_high_water_id=spans[-1].id,
-        observed_at=_now() - timedelta(seconds=120),
-    )
-    producer = SpanEvaluationProducer(db, tick_interval_seconds=3600, max_span_ids_per_tick=1)
-    sleeps = _stop_at_the_first_interval_sleep(producer, monkeypatch, span_producer_module)
+        backlog = [await _add_span(session, trace) for _ in range(2 * window)]
+    _, project_evaluator_id = await _seed_criteria(db, project.id)
+    async with db() as session:
+        session.add_all(
+            models.EvalWorkUnit(span_rowid=span.id, project_evaluator_id=project_evaluator_id)
+            for span in backlog
+        )
+    producer = SpanEvaluationProducer(db, visibility_lag_seconds=0, max_span_ids_per_tick=window)
+    await producer._tick()
 
-    producer._running = True
-    await producer._run()
+    arrivals: list[int] = []
+    newest_at_the_previous_tick = backlog[-1].id
+    for _ in range(4):
+        async with db() as session:
+            arrivals += [(await _add_span(session, trace)).id for _ in range(2)]
+        await producer._tick()
+        assert (await _get_cursor(db)).produced_through_id == newest_at_the_previous_tick
+        newest_at_the_previous_tick = arrivals[-1]
+    await producer._tick()
 
-    assert sleeps == [0, 0, 3600]
-    assert sorted(await _work_unit_span_rowids(db)) == [span.id for span in spans]
+    assert (await _get_cursor(db)).produced_through_id == arrivals[-1]
+    async with db() as session:
+        waiting = set(
+            await session.scalars(
+                select(models.EvalWorkUnit.span_rowid).where(
+                    models.EvalWorkUnit.status == "PENDING"
+                )
+            )
+        )
+    assert waiting == {span.id for span in backlog} | set(arrivals)
 
 
 def _stop_at_the_first_interval_sleep(

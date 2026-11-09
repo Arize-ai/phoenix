@@ -31,7 +31,7 @@ from phoenix.server.api.types.Evaluator import (
     LLMEvaluator,
 )
 from phoenix.server.types import DbSessionFactory
-from tests.unit._helpers import _user_role_id
+from tests.unit._helpers import _add_project, _add_span, _add_trace, _user_role_id
 from tests.unit.graphql import AsyncGraphQLClient
 
 
@@ -1900,6 +1900,82 @@ async def test_project_evaluator_run_summary(
     # not a failure, and not a lifecycle expiry's.
     assert run_summary["lastError"] == "execution deadline exceeded"
     assert datetime.fromisoformat(run_summary["lastRunAt"]) == now - timedelta(minutes=1)
+
+
+async def test_a_cleared_evaluation_is_not_a_failure(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    """An evaluator whose newest evaluation was cleared after a success reads healthy."""
+    now = datetime.now(timezone.utc)
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        evaluated_span, cleared_span = [await _add_span(session, trace) for _ in range(2)]
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(f"evaluator-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        session.add(evaluator)
+        await session.flush()
+        project_evaluator = models.ProjectEvaluator(
+            trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
+            project_id=project.id,
+            evaluator_id=evaluator.id,
+            name=Identifier(f"project-evaluator-name-{token_hex(4)}"),
+            evaluation_target="SPAN",
+            filter_condition="",
+            sampling_rate=1.0,
+        )
+        session.add(project_evaluator)
+        await session.flush()
+        session.add_all(
+            [
+                models.EvalWorkUnit(
+                    span_rowid=evaluated_span.id,
+                    project_evaluator_id=project_evaluator.id,
+                    status="DONE",
+                    created_at=now - timedelta(minutes=2),
+                    updated_at=now - timedelta(minutes=1),
+                ),
+                models.EvalWorkUnit(
+                    span_rowid=cleared_span.id,
+                    project_evaluator_id=project_evaluator.id,
+                    created_at=now - timedelta(seconds=30),
+                ),
+            ]
+        )
+    project_evaluator_id = str(GlobalID("ProjectEvaluator", str(project_evaluator.id)))
+
+    cleared = await gql_client.execute(
+        """mutation ($input: ClearProjectEvaluatorQueuedEvaluationsInput!) {
+            clearProjectEvaluatorQueuedEvaluations(input: $input) { clearedCount }
+        }""",
+        variables={"input": {"projectEvaluatorId": project_evaluator_id}},
+    )
+    assert not cleared.errors and cleared.data
+    assert cleared.data["clearProjectEvaluatorQueuedEvaluations"]["clearedCount"] == 1
+
+    response = await gql_client.execute(
+        """query ($id: ID!) {
+            node(id: $id) {
+                ... on ProjectEvaluator {
+                    runSummary { status failedCount clearedCount lastError }
+                }
+            }
+        }""",
+        variables={"id": project_evaluator_id},
+    )
+    assert not response.errors and response.data
+    assert response.data["node"]["runSummary"] == {
+        "status": "HEALTHY",
+        "failedCount": 0,
+        "clearedCount": 1,
+        "lastError": None,
+    }
 
 
 async def test_project_evaluator_run_summary_counts_trace_work(

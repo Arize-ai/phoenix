@@ -287,6 +287,40 @@ async def test_patch_rename_to_taken_name_is_already_exists(
     assert problem["existing_id"] == holder["id"]
 
 
+async def test_patch_checks_the_filter_against_the_stored_evaluation_target(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    correctness_llm_evaluator: models.LLMEvaluator,
+) -> None:
+    project = await _project(db)
+    created = (
+        await httpx_client.post(
+            f"v1/projects/{GlobalID('Project', str(project.id))}/evaluators",
+            json={
+                "name": "trace-evaluator",
+                "evaluator_id": str(GlobalID("LLMEvaluator", str(correctness_llm_evaluator.id))),
+                "evaluation_target": "TRACE",
+                "sampling_rate": 1.0,
+            },
+        )
+    ).json()["data"]
+
+    response = await httpx_client.patch(
+        f"v1/project_evaluators/{created['id']}",
+        json={"filter_condition": "span_kind == 'LLM'"},
+    )
+
+    assert response.status_code == 422, response.text
+    assert response.json()["code"] == "invalid_argument"
+    async with db() as session:
+        stored = await session.scalar(
+            select(models.ProjectEvaluator.filter_condition).where(
+                models.ProjectEvaluator.project_id == project.id
+            )
+        )
+    assert stored == ""
+
+
 async def test_malformed_ids_are_invalid_argument_not_a_crash(
     httpx_client: httpx.AsyncClient,
 ) -> None:

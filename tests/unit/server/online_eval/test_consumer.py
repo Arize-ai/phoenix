@@ -56,6 +56,10 @@ from phoenix.server.dml_event import (
 )
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.evaluators.runtime.code import SandboxPayloadTooLargeError
+from phoenix.server.evaluators.services.project_bindings import (
+    ProjectEvaluatorPatch,
+    apply_project_evaluator_patch,
+)
 from phoenix.server.online_eval import consumer as consumer_module
 from phoenix.server.online_eval import executor as executor_module
 from phoenix.server.online_eval import session_policy as session_policy_module
@@ -302,27 +306,6 @@ def _claimed_trace_unit(
         attempts=0,
         claimed_by="consumer",
     )
-
-
-async def _config_fingerprint(
-    db: DbSessionFactory,
-    evaluator_id: int,
-    project_evaluator_id: int,
-) -> str:
-    async with db() as session:
-        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
-        assert project_evaluator is not None
-        polymorphic = with_polymorphic(
-            models.Evaluator,
-            [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator],
-        )
-        evaluator = await session.scalar(select(polymorphic).where(polymorphic.id == evaluator_id))
-        assert evaluator is not None
-        resolved = (
-            await resolve_project_evaluators_bulk(session, [(project_evaluator, evaluator)])
-        )[0]
-        assert resolved is not None
-        return config_fingerprint(resolved)
 
 
 async def _claim_queued_unit(
@@ -1783,42 +1766,45 @@ async def test_work_queued_before_an_edit_runs_under_the_new_configuration(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Queued work runs under the evaluator's configuration when it runs, not when it was
+    queued."""
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         spans = [await _add_span(session, trace) for _ in range(2)]
-    evaluator_id, project_evaluator_id = await _seed_llm_criteria(db, project.id)
-    unit_ids = [
-        (await _queue_unit(db, span.id, evaluator_id, project_evaluator_id))[0] for span in spans
-    ]
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(
+        db,
+        project.id,
+        template_content="Answer: {{answer}}",
+        criteria_input_mapping=InputMapping(
+            literal_mapping={"answer": "before the edit"}, path_mapping={}
+        ),
+    )
+    for span in spans:
+        await _queue_unit(db, span.id, evaluator_id, project_evaluator_id)
     client = _StubLLMClient()
     _patch_playground_client(monkeypatch, client)
-    consumer = EvaluationConsumer(
-        db,
-        decrypt=lambda value: value,
-        claim_batch_size=1,
-    )
+    consumer = EvaluationConsumer(db, decrypt=lambda value: value, claim_batch_size=1)
 
     await _cycle_to_completion(consumer)
     async with db() as session:
-        await session.execute(
-            update(models.ProjectEvaluator)
-            .where(models.ProjectEvaluator.id == project_evaluator_id)
-            .values(sampling_rate=0.5)
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+        assert project_evaluator is not None
+        await apply_project_evaluator_patch(
+            session,
+            project_evaluator,
+            ProjectEvaluatorPatch(
+                input_mapping=InputMapping(
+                    literal_mapping={"answer": "after the edit"}, path_mapping={}
+                )
+            ),
         )
     await _cycle_to_completion(consumer)
 
-    units = [await _get_unit(db, unit_id) for unit_id in unit_ids]
-    assert [unit.status for unit in units] == ["DONE", "DONE"]
-    assert len(client.requests) == 2
-    edited_identifier = annotation_identifier(
-        await _config_fingerprint(db, evaluator_id, project_evaluator_id)
-    )
-    identifiers = {
-        annotation.span_rowid: annotation.identifier for annotation in await _annotations(db)
-    }
-    assert identifiers[spans[1].id] == edited_identifier
-    assert identifiers[spans[0].id] != edited_identifier
+    assert [request["messages"][0]["content"] for request in client.requests] == [
+        "Answer: before the edit",
+        "Answer: after the edit",
+    ]
 
 
 async def test_session_happy_path_builds_context_annotates_and_emits_insert_event(
@@ -2523,30 +2509,38 @@ async def test_evaluation_is_traced_into_the_evaluator_own_project(db: DbSession
     assert annotation.metadata_["phoenix.evaluator_trace_id"] == evaluator_trace_id
 
 
-async def test_evaluation_with_tracing_disabled_writes_its_annotation_but_no_trace(
-    db: DbSessionFactory,
+async def test_an_evaluation_cut_off_at_its_deadline_still_leaves_its_trace(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """An evaluation cut off at its deadline still leaves its trace in the evaluator's trace
+    project."""
+
+    class _UnansweredLLMClient(_StubLLMClient):
+        async def chat_completion_create(self, **kwargs: Any) -> AsyncIterator[Any]:
+            await asyncio.Event().wait()
+            yield
+
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
-        span = await _add_span(session, trace)
-    unit = await _claim_queued_unit(db, project_id=project.id, span_rowid=span.id)
-    async with db() as session:
-        await session.execute(
-            update(models.ProjectEvaluator)
-            .where(models.ProjectEvaluator.id == unit.project_evaluator_id)
-            .values(tracing_enabled=False)
+        span = await _add_span(
+            session,
+            trace,
+            attributes={"input": {"value": "hi"}, "output": {"value": "there"}},
         )
-    executor = _executor(db, tracer_factory=lambda: Tracer(span_cost_calculator=Mock()))
-    hydrated = await executor.hydrate(unit)
-    assert isinstance(hydrated, HydratedWorkUnit)
-    assert hydrated.tracing_enabled is False
-
-    await executor.evaluate_and_annotate(
-        unit,
-        replace(hydrated, evaluator=cast(Any, _StubEvaluator([_evaluation_result("criterion")]))),
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(db, project.id)
+    unit_id, _ = await _queue_unit(db, span.id, evaluator_id, project_evaluator_id)
+    _patch_playground_client(monkeypatch, _UnansweredLLMClient())
+    consumer = EvaluationConsumer(
+        db,
+        decrypt=lambda value: value,
+        execution_deadline_seconds=0.05,
+        tracer_factory=lambda: Tracer(span_cost_calculator=Mock()),
     )
 
+    await _cycle_to_completion(consumer)
+
+    assert (await _get_unit(db, unit_id)).status == "ERROR"
     async with db() as session:
         traced_span_count = await session.scalar(
             select(func.count(models.Span.id))
@@ -2555,12 +2549,9 @@ async def test_evaluation_with_tracing_disabled_writes_its_annotation_but_no_tra
                 models.ProjectEvaluator,
                 models.Trace.project_rowid == models.ProjectEvaluator.trace_project_id,
             )
-            .where(models.ProjectEvaluator.id == unit.project_evaluator_id)
+            .where(models.ProjectEvaluator.id == project_evaluator_id)
         )
-    assert traced_span_count == 0
-    (annotation,) = await _annotations(db)
-    assert annotation.label == "good"
-    assert "phoenix.evaluator_trace_id" not in annotation.metadata_
+    assert traced_span_count
 
 
 async def test_llm_incomplete_result_set_writes_nothing(db: DbSessionFactory) -> None:
@@ -2824,6 +2815,40 @@ async def test_evaluator_error_fails_unit_with_cooldown_and_no_annotation(
     assert "provider is down" in unit.error
     assert unit.cooldown_until is not None
     assert unit.cooldown_until > before
+    assert await _annotations(db) == []
+
+
+async def test_a_failing_evaluation_is_tried_three_times_then_marked_failed(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A failing evaluation is tried three times and then marked failed, with no
+    annotation."""
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(
+            session,
+            trace,
+            attributes={"input": {"value": "hi"}, "output": {"value": "there"}},
+        )
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(db, project.id)
+    unit_id, _ = await _queue_unit(db, span.id, evaluator_id, project_evaluator_id)
+    _patch_playground_client(monkeypatch, _StubLLMClient(error=RuntimeError("provider is down")))
+    consumer = EvaluationConsumer(db, decrypt=lambda value: value)
+
+    statuses: list[str] = []
+    for _ in range(3):
+        await _cycle_to_completion(consumer)
+        statuses.append((await _get_unit(db, unit_id)).status)
+        async with db() as session:
+            await session.execute(
+                update(models.EvalWorkUnit)
+                .where(models.EvalWorkUnit.id == unit_id)
+                .values(cooldown_until=datetime.now(timezone.utc))
+            )
+
+    assert statuses == ["ERROR", "ERROR", "FAILED"]
+    assert (await _get_unit(db, unit_id)).attempts == 3
     assert await _annotations(db) == []
 
 

@@ -2,11 +2,11 @@ import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
-from typing import Any, Sequence
+from typing import Any, Literal, Optional, Sequence
 from unittest.mock import Mock
 
 import pytest
-from sqlalchemy import delete, event, func, select, text, update
+from sqlalchemy import delete, event, func, insert, select, text, update
 from sqlalchemy.engine import Engine
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
@@ -21,6 +21,7 @@ from phoenix.server.online_eval.derivation import (
 )
 from phoenix.server.online_eval.leases import SCAN_LEASE_TTL_SECONDS
 from phoenix.server.online_eval.project_evaluator_state import start_at_database_time
+from phoenix.server.online_eval.span_producer import SpanEvaluationProducer
 from phoenix.server.online_eval.sweeping_producer import (
     SessionEvaluationProducer,
     SweepingEvaluationProducer,
@@ -29,7 +30,7 @@ from phoenix.server.online_eval.sweeping_producer import (
 from phoenix.server.types import DbSessionFactory
 
 from ..._helpers import _add_project, _add_project_session, _add_span, _add_trace
-from .test_span_producer import _seed_code_criteria, _stop_at_the_first_interval_sleep
+from .test_span_producer import _seed_code_criteria
 from .test_span_producer import _seed_criteria as _seed_criteria_raw
 
 
@@ -544,24 +545,184 @@ async def test_retained_long_delay_pairs_do_not_block_later_due_pair(
     }
 
 
-async def test_full_sweeper_page_starts_the_next_tick_without_the_interval(
+_WORK_UNITS: dict[str, tuple[Any, Any]] = {
+    "SPAN": (models.EvalWorkUnit, models.EvalWorkUnit.span_rowid),
+    "TRACE": (models.EvalTraceWorkUnit, models.EvalTraceWorkUnit.trace_rowid),
+    "SESSION": (models.EvalSessionWorkUnit, models.EvalSessionWorkUnit.project_session_rowid),
+}
+
+
+async def _add_quiet_targets(
     db: DbSessionFactory,
-    monkeypatch: pytest.MonkeyPatch,
+    project_id: int,
+    evaluation_target: Literal["TRACE", "SESSION"],
+    count: int,
+    *,
+    age_seconds: float,
+) -> list[int]:
+    """Add ``count`` traces or sessions, each holding one span last ingested ``age_seconds``
+    ago, returning their row ids."""
+    ingested_at = _now() - timedelta(seconds=age_seconds)
+    async with db() as session:
+        session_rowids: list[Optional[int]] = [None] * count
+        if evaluation_target == "SESSION":
+            session_rowids = list(
+                await session.scalars(
+                    insert(models.ProjectSession).returning(models.ProjectSession.id),
+                    [
+                        {
+                            "session_id": token_hex(8),
+                            "project_id": project_id,
+                            "start_time": ingested_at,
+                            "end_time": ingested_at,
+                            "last_span_ingested_at": ingested_at,
+                        }
+                        for _ in range(count)
+                    ],
+                )
+            )
+        trace_rowids = list(
+            await session.scalars(
+                insert(models.Trace).returning(models.Trace.id),
+                [
+                    {
+                        "trace_id": token_hex(16),
+                        "project_rowid": project_id,
+                        "project_session_rowid": session_rowid,
+                        "start_time": ingested_at,
+                        "end_time": ingested_at,
+                        "last_span_ingested_at": ingested_at,
+                    }
+                    for session_rowid in session_rowids
+                ],
+            )
+        )
+        await session.execute(
+            insert(models.Span),
+            [
+                {
+                    "trace_rowid": trace_rowid,
+                    "span_id": token_hex(8),
+                    "name": "root",
+                    "span_kind": "CHAIN",
+                    "start_time": ingested_at,
+                    "end_time": ingested_at,
+                    "attributes": {},
+                    "events": [],
+                    "status_code": "OK",
+                    "status_message": "",
+                    "cumulative_error_count": 0,
+                    "cumulative_llm_token_count_prompt": 0,
+                    "cumulative_llm_token_count_completion": 0,
+                }
+                for trace_rowid in trace_rowids
+            ],
+        )
+    if evaluation_target == "SESSION":
+        return [session_rowid for session_rowid in session_rowids if session_rowid is not None]
+    return trace_rowids
+
+
+async def _queued_targets(
+    db: DbSessionFactory, evaluation_target: str, project_evaluator_id: int
+) -> set[int]:
+    work_unit_model, target_column = _WORK_UNITS[evaluation_target]
+    async with db() as session:
+        return set(
+            await session.scalars(
+                select(target_column).where(
+                    work_unit_model.project_evaluator_id == project_evaluator_id,
+                    work_unit_model.status == "PENDING",
+                )
+            )
+        )
+
+
+@pytest.mark.parametrize("evaluation_target", ["TRACE", "SESSION"])
+async def test_waiting_work_does_not_stop_the_sweeping_producers_queuing_newly_quiet_targets(
+    db: DbSessionFactory,
+    evaluation_target: Literal["TRACE", "SESSION"],
 ) -> None:
-    monkeypatch.setattr(sweeping_producer_module, "_MAX_EVALUATIONS_PER_TICK", 1)
-    project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
-    for _ in range(2):
-        await _add_session_liveness(db, age_seconds=600, project_id=project_id)
-    await _seed_criteria(db, project_id, evaluation_target="SESSION")
-    sweeper = SessionEvaluationProducer(db, tick_interval_seconds=3600)
-    sleeps = _stop_at_the_first_interval_sleep(sweeper, monkeypatch, sweeping_producer_module)
+    """Overload shows as waiting work, never as a producer that fell behind."""
+    async with db() as session:
+        project = await _add_project(session)
+    _, project_evaluator_id = await _seed_criteria(
+        db, project.id, evaluation_target=evaluation_target
+    )
+    delay = timedelta(seconds=models.DEFAULT_EVALUATION_DELAY_SECONDS)
+    producer = (
+        TraceEvaluationProducer(db)
+        if evaluation_target == "TRACE"
+        else SessionEvaluationProducer(db)
+    )
+    backlog = await _add_quiet_targets(
+        db,
+        project.id,
+        evaluation_target,
+        sweeping_producer_module._MAX_EVALUATIONS_PER_TICK + 1,
+        age_seconds=2 * delay.total_seconds(),
+    )
+    while await producer._tick():
+        pass
+    assert await _queued_targets(db, evaluation_target, project_evaluator_id) == set(backlog)
 
-    sweeper._running = True
-    await sweeper._run()
+    arrivals: list[int] = []
+    for _ in range(3):
+        arrivals += await _add_quiet_targets(
+            db, project.id, evaluation_target, 1, age_seconds=delay.total_seconds() + 1
+        )
+        async with db() as session:
+            before = await current_database_time(session, db.dialect)
+        await producer._tick()
+        async with db() as session:
+            after = await current_database_time(session, db.dialect)
+            sweep_position = await session.scalar(
+                select(models.ProjectEvaluatorState.swept_through_at).where(
+                    models.ProjectEvaluatorState.project_evaluator_id == project_evaluator_id
+                )
+            )
+        assert await _queued_targets(db, evaluation_target, project_evaluator_id) == set(
+            backlog
+        ) | set(arrivals)
+        assert sweep_position is not None
+        assert before - delay <= sweep_position <= after - delay
 
-    # Three full pages that each decided a session, then a short page.
-    assert sleeps == [0, 0, 0, 3600]
-    assert await _work_statuses(db) == ["PENDING"] * 3
+
+@pytest.mark.parametrize("evaluation_target", ["SPAN", "TRACE", "SESSION"])
+async def test_a_lower_sampling_rate_queues_a_subset_of_what_a_higher_one_queues(
+    db: DbSessionFactory,
+    evaluation_target: models.EvaluationTarget,
+) -> None:
+    """Sampling nests: a target a lower rate queues, any higher rate on it queues too."""
+    async with db() as session:
+        project = await _add_project(session)
+    _, lower_rate_id = await _seed_criteria(
+        db, project.id, evaluation_target=evaluation_target, sampling_rate=0.3
+    )
+    _, higher_rate_id = await _seed_criteria(
+        db, project.id, evaluation_target=evaluation_target, sampling_rate=0.7
+    )
+    if evaluation_target == "SPAN":
+        span_producer = SpanEvaluationProducer(db, visibility_lag_seconds=0)
+        await span_producer._tick()
+        async with db() as session:
+            trace = await _add_trace(session, project)
+            for _ in range(50):
+                await _add_span(session, trace)
+        await span_producer._tick()
+        await span_producer._tick()
+    else:
+        await _add_quiet_targets(db, project.id, evaluation_target, 50, age_seconds=600)
+        await (
+            TraceEvaluationProducer(db)
+            if evaluation_target == "TRACE"
+            else SessionEvaluationProducer(db)
+        )._tick()
+
+    lower = await _queued_targets(db, evaluation_target, lower_rate_id)
+    higher = await _queued_targets(db, evaluation_target, higher_rate_id)
+    assert lower and higher
+    assert lower <= higher
 
 
 async def test_full_sweeper_page_that_decides_nothing_waits_the_interval(
