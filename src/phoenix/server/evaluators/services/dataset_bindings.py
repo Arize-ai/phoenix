@@ -742,7 +742,11 @@ def dataset_binding_overrides(
     None inherits the evaluator's. A decision evaluator's outputs follow its questions and
     scoring policy, so its binding stores None and is refused any other outputs."""
     if isinstance(evaluator, models.DecisionEvaluator):
-        if output_configs is None or list(output_configs) != evaluator.output_configs:
+        # Compared as serialized, which leaves out the derived predicate threshold a
+        # caller's copy of the configs cannot carry.
+        if output_configs is None or [config.model_dump() for config in output_configs] != [
+            config.model_dump() for config in evaluator.output_configs
+        ]:
             raise BadRequest(
                 "Decision outputs are derived from the questions and scoring policy; "
                 "edit the scoring policy to change scoring"

@@ -146,6 +146,9 @@ def derive_decision_output_configs(
                     upper_bound=1
                     if isinstance(question, PredicateQuestion)
                     else len(question.levels) - 1,
+                    # A predicate's label flips at its threshold, so that is where its
+                    # results turn from bad to good, not the middle of 0..1.
+                    threshold=scoring.threshold if isinstance(scoring, PredicateScoring) else None,
                 )
             )
     return configs

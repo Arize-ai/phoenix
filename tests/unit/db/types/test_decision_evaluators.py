@@ -4,7 +4,11 @@ from typing import Any
 
 import pytest
 
-from phoenix.db.types.annotation_configs import CategoricalOutputConfig, ContinuousOutputConfig
+from phoenix.db.types.annotation_configs import (
+    CategoricalOutputConfig,
+    ContinuousOutputConfig,
+    OptimizationDirection,
+)
 from phoenix.db.types.decision_evaluators import (
     ChoiceScoring,
     DecisionScoringPolicy,
@@ -60,6 +64,28 @@ def test_output_shapes_and_default_policy_roundtrip() -> None:
     assert configs[0].lower_bound == 0 and configs[0].upper_bound == 1
     assert [value.label for value in configs[1].values] == ["accept", "review"]
     assert configs[2].lower_bound == 0 and configs[2].upper_bound == 2
+
+
+def test_predicate_output_carries_its_threshold_but_never_serializes_it() -> None:
+    policy = DecisionScoringPolicy(
+        questions={
+            "correct": PredicateScoring(
+                type="predicate",
+                threshold=0.8,
+                optimization_direction=OptimizationDirection.MAXIMIZE,
+            )
+        }
+    )
+    predicate, _, scale = derive_decision_output_configs(questions(), policy)
+    assert isinstance(predicate, ContinuousOutputConfig)
+    assert isinstance(scale, ContinuousOutputConfig)
+    assert predicate.threshold == 0.8
+    assert predicate.optimization_direction is OptimizationDirection.MAXIMIZE
+    assert scale.threshold is None
+    # Derived for display and binning only: stored snapshots and online-eval
+    # fingerprints serialize the configs, and must not change with it.
+    assert "threshold" not in predicate.model_dump()
+    assert "threshold" not in predicate.model_dump_json()
 
 
 @pytest.mark.parametrize(

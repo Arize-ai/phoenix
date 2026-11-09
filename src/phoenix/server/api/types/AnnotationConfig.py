@@ -84,6 +84,15 @@ class ContinuousAnnotationConfig(Node, AnnotationConfigBase):
     optimization_direction: OptimizationDirection
     lower_bound: Optional[float]
     upper_bound: Optional[float]
+    threshold: Optional[float] = strawberry.field(
+        default=None,
+        description=(
+            "The score separating good from bad results, when it is not the midpoint of the "
+            "bounds: a decision evaluator's Yes / No question sets it to the question's "
+            "threshold, where its label flips from false to true. Null for annotation "
+            "configs and other evaluators' outputs."
+        ),
+    )
 
     @strawberry.field
     def shape_examples(

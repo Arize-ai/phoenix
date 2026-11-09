@@ -75,9 +75,9 @@ def make_side_binning(
     """Build the binning for one comparison side from its evaluator output config.
 
     The flag threshold is the caller's override when given, else the pivot the
-    config pins down (a freeform config's first declared threshold, or the
-    midpoint of the config's bounds — value-score bounds for categorical
-    configs), else 0.5. A categorical label sitting exactly at the pivot is
+    config pins down (a freeform config's first declared threshold, a decision
+    predicate's threshold, or the midpoint of the config's bounds — value-score
+    bounds for categorical configs), else 0.5. A categorical label sitting exactly at the pivot is
     neither good nor bad and never flagged; without a MAXIMIZE/MINIMIZE
     direction or with unscored labels a categorical side has no flag semantics
     at all (None).
@@ -124,13 +124,16 @@ def make_side_binning(
 def _pivot(output_config: Optional[OutputConfig], threshold_override: Optional[float]) -> float:
     """The score separating flagged from unflagged, per optimizationUtils.ts.
 
-    Override first, then a freeform config's first declared threshold, then
+    Override first, then a freeform config's first declared threshold or a
+    continuous config's derived one (a decision predicate's threshold), then
     the midpoint of the config's bounds when both are pinned down, then 0.5.
     """
     if threshold_override is not None:
         return threshold_override
     if isinstance(output_config, FreeformOutputConfig) and output_config.thresholds:
         return output_config.thresholds[0]
+    if isinstance(output_config, ContinuousOutputConfig) and output_config.threshold is not None:
+        return output_config.threshold
     if isinstance(output_config, CategoricalOutputConfig):
         scores = [value.score for value in output_config.values if value.score is not None]
         if len(scores) == len(output_config.values) and scores:
