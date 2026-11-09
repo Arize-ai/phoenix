@@ -41,6 +41,7 @@ import {
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
 import type { CodeEvaluatorLanguage } from "@phoenix/types";
+import { getMutationErrorMessage } from "@phoenix/utils/errorUtils";
 
 export const CreateProjectCodeEvaluatorDialogContent = ({
   title,
@@ -241,7 +242,8 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
             )
           );
       },
-      onError: (mutationError) => setError(mutationError.message),
+      onError: (mutationError) =>
+        setError(getMutationErrorMessage(mutationError)),
     });
   };
 
