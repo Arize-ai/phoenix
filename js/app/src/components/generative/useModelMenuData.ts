@@ -30,16 +30,6 @@ export type CustomProviderInfo = {
 type CustomProviderEdge =
   useModelMenuDataQuery["response"]["generativeModelCustomProviders"]["edges"][number];
 
-/**
- * The custom providers a model picker lists for a model type.
- *
- * Chat pickers list the providers that serve chat models, with their chat
- * model names, so a provider that serves decision models only (a TypeSafe
- * endpoint) is left out. The Decision tab lists the providers that serve
- * decision models, with their decision model names. Their SDK is their
- * decision client's, which decides the provider a decision is saved with: an
- * OpenAI-SDK provider that runs System One makes TypeSafe decisions.
- */
 export function getCustomProviders({
   edges,
   modelType,
@@ -54,7 +44,7 @@ export function getCustomProviders({
         ? {
             id: node.id,
             name: node.name,
-            sdk: node.decisionSdk ?? node.sdk,
+            sdk: node.sdk,
             modelNames: node.decisionModelNames ?? [],
           }
         : {
@@ -176,7 +166,7 @@ const NO_LOCAL_CREDENTIALS: LocalProviderCredentials = {};
 export function useModelMenuData({
   fetchPolicy,
   credentialSource = "any",
-  modelType = "LLM",
+  modelType = "CHAT",
   includeDecisionModels = false,
 }: {
   fetchPolicy?: FetchPolicy;
@@ -199,7 +189,6 @@ export function useModelMenuData({
               modelNames
               decisionModelNames: modelNames(modelType: DECISION)
                 @include(if: $includeDecisionModels)
-              decisionSdk @include(if: $includeDecisionModels)
             }
           }
         }
@@ -240,7 +229,7 @@ export function useModelMenuData({
     () =>
       getCustomProviders({
         edges: data.generativeModelCustomProviders.edges,
-        modelType: "LLM",
+        modelType: "CHAT",
       }),
     [data.generativeModelCustomProviders]
   );
@@ -378,7 +367,7 @@ export function useModelMenuData({
     }
     if (hasProvisionedProvider) {
       return readyProviders.filter((provider) =>
-        provider.modelTypes.includes("LLM")
+        provider.modelTypes.includes("CHAT")
       );
     }
     const providersByKey = new Map(

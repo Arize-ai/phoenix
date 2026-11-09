@@ -9,14 +9,12 @@ function provider({
   sdk,
   modelTypes,
   modelNames = [],
-  decisionSdk,
   decisionModelNames,
 }: {
   id: string;
   sdk: Edges[number]["node"]["sdk"];
   modelTypes: Edges[number]["node"]["modelTypes"];
   modelNames?: string[];
-  decisionSdk: Edges[number]["node"]["decisionSdk"];
   decisionModelNames: string[];
 }): Edges[number] {
   return {
@@ -27,7 +25,6 @@ function provider({
       modelTypes,
       modelNames,
       decisionModelNames,
-      decisionSdk,
     },
   };
 }
@@ -36,47 +33,29 @@ const EDGES: Edges = [
   provider({
     id: "chat-only",
     sdk: "OPENAI",
-    modelTypes: ["LLM"],
+    modelTypes: ["CHAT"],
     modelNames: ["gateway-gpt"],
-    decisionSdk: null,
     decisionModelNames: [],
   }),
   provider({
-    id: "openai-on-system-one",
-    sdk: "OPENAI",
-    modelTypes: ["LLM", "DECISION"],
-    modelNames: ["gateway-gpt"],
-    decisionSdk: "TYPESAFE",
-    decisionModelNames: ["jev-latest"],
-  }),
-  provider({
     id: "openai-decisions",
-    sdk: "AZURE_OPENAI",
-    modelTypes: ["LLM", "DECISION"],
-    decisionSdk: "OPENAI",
+    sdk: "OPENAI",
+    modelTypes: ["CHAT", "DECISION"],
+    modelNames: ["gateway-gpt"],
     decisionModelNames: ["gpt-6-luna"],
   }),
   provider({
     id: "typesafe",
     sdk: "TYPESAFE",
     modelTypes: ["DECISION"],
-    decisionSdk: "TYPESAFE",
     decisionModelNames: ["jev-custom"],
   }),
 ];
 
 describe("getCustomProviders", () => {
-  it("lists providers with a decision client, under that client's SDK", () => {
-    // The SDK decides the provider a decision is saved with, so an OpenAI-SDK
-    // provider that runs System One is listed as TypeSafe.
+  it("lists providers with decisions on, under their own SDK", () => {
     expect(getCustomProviders({ edges: EDGES, modelType: "DECISION" })).toEqual(
       [
-        {
-          id: "openai-on-system-one",
-          name: "openai-on-system-one",
-          sdk: "TYPESAFE",
-          modelNames: ["jev-latest"],
-        },
         {
           id: "openai-decisions",
           name: "openai-decisions",
@@ -94,7 +73,7 @@ describe("getCustomProviders", () => {
   });
 
   it("lists chat providers under their own SDK with their chat model names", () => {
-    expect(getCustomProviders({ edges: EDGES, modelType: "LLM" })).toEqual([
+    expect(getCustomProviders({ edges: EDGES, modelType: "CHAT" })).toEqual([
       {
         id: "chat-only",
         name: "chat-only",
@@ -102,16 +81,10 @@ describe("getCustomProviders", () => {
         modelNames: ["gateway-gpt"],
       },
       {
-        id: "openai-on-system-one",
-        name: "openai-on-system-one",
-        sdk: "OPENAI",
-        modelNames: ["gateway-gpt"],
-      },
-      {
         id: "openai-decisions",
         name: "openai-decisions",
-        sdk: "AZURE_OPENAI",
-        modelNames: [],
+        sdk: "OPENAI",
+        modelNames: ["gateway-gpt"],
       },
     ]);
   });
@@ -121,7 +94,6 @@ describe("getCustomProviders", () => {
     const withoutDecisionFields: Edges[number] = {
       node: {
         ...edge.node,
-        decisionSdk: undefined,
         decisionModelNames: undefined,
       },
     };
@@ -132,8 +104,8 @@ describe("getCustomProviders", () => {
       })
     ).toEqual([
       {
-        id: "openai-on-system-one",
-        name: "openai-on-system-one",
+        id: "openai-decisions",
+        name: "openai-decisions",
         sdk: "OPENAI",
         modelNames: [],
       },

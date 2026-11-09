@@ -21,7 +21,11 @@ from pydantic import SecretStr
 
 from phoenix.db import models
 from phoenix.db.types.db_helper_types import UNDEFINED
-from phoenix.db.types.experiment_config import OpenAIConnectionConfig
+from phoenix.db.types.experiment_config import (
+    AnthropicConnectionConfig,
+    AzureOpenAIConnectionConfig,
+    OpenAIConnectionConfig,
+)
 from phoenix.db.types.model_provider import LLMClientFactory, ModelProvider
 from phoenix.db.types.prompts import (
     PromptAnthropicInvocationParameters,
@@ -40,8 +44,13 @@ from phoenix.db.types.prompts import (
     PromptTools,
 )
 from phoenix.server.api.exceptions import BadRequest
-from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
-from phoenix.server.api.helpers.playground_clients import (
+from phoenix.server.api.helpers.builtin_providers import (
+    PLACEHOLDER_API_KEY,
+    credential_env_vars,
+    resolve_provider_api_key,
+)
+from phoenix.server.api.helpers.chat_clients import (
+    CHAT_ENDPOINTS,
     OPENAI_CHAT_COMPLETIONS_MODELS,
     OPENAI_REASONING_MODELS,
     AnthropicClient,
@@ -56,13 +65,14 @@ from phoenix.server.api.helpers.playground_clients import (
     _get_builtin_provider_client,
     _get_custom_provider_client,
     anthropic_model_supports_forced_tool_choice,
+    get_chat_client,
     get_openai_client_class,
-    resolve_provider_api_key,
 )
-from phoenix.server.api.helpers.playground_registry import (
-    PLAYGROUND_CLIENT_REGISTRY,
+from phoenix.server.api.helpers.client_registry import (
+    CLIENT_REGISTRY,
     PROVIDER_DEFAULT,
 )
+from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
@@ -1115,7 +1125,7 @@ class TestReasoningModelClientRouting:
 class TestDefaultApiTypeRouting:
     """``get_openai_client_class`` decides the client when no API type is configured.
 
-    The playground registry carries the model catalog, not routing.
+    The client registry carries the model catalog, not routing.
     """
 
     @pytest.mark.parametrize(
@@ -1148,10 +1158,10 @@ class TestDefaultApiTypeRouting:
             pass
 
         provider_key = GenerativeProviderKey.from_model_provider(model_provider)
-        poisoned = dict(PLAYGROUND_CLIENT_REGISTRY._registry[provider_key])
+        poisoned = dict(CLIENT_REGISTRY._registry["chat"][provider_key])
         poisoned[model_name] = WrongClient
         poisoned[PROVIDER_DEFAULT] = WrongClient
-        monkeypatch.setitem(PLAYGROUND_CLIENT_REGISTRY._registry, provider_key, poisoned)
+        monkeypatch.setitem(CLIENT_REGISTRY._registry["chat"], provider_key, poisoned)
 
         async with db() as session:
             client = await _get_builtin_provider_client(
@@ -1240,10 +1250,10 @@ class TestDefaultApiTypeRouting:
         class WrongClient(OpenAIChatCompletionsClient):
             pass
 
-        provider_registry = dict(PLAYGROUND_CLIENT_REGISTRY._registry[provider_key])
+        provider_registry = dict(CLIENT_REGISTRY._registry["chat"][provider_key])
         provider_registry[model_name] = WrongClient
         provider_registry[PROVIDER_DEFAULT] = WrongClient
-        monkeypatch.setitem(PLAYGROUND_CLIENT_REGISTRY._registry, provider_key, provider_registry)
+        monkeypatch.setitem(CLIENT_REGISTRY._registry["chat"], provider_key, provider_registry)
 
         assert get_openai_client_class(provider_key, model_name, None) is expected_class
 
@@ -1279,7 +1289,7 @@ class TestCurrentLineupIsOfferedInThePlayground:
         provider_key: GenerativeProviderKey,
         model_name: str,
     ) -> None:
-        assert model_name in PLAYGROUND_CLIENT_REGISTRY.list_models(provider_key)
+        assert model_name in CLIENT_REGISTRY.list_models(provider_key, model_type="chat")
 
 
 class TestChatCompletionsMessageRoles:
@@ -1355,7 +1365,7 @@ def _identity_decrypt(value: bytes) -> bytes:
 
 class TestMiniMaxProvider:
     def test_registry_includes_target_models(self) -> None:
-        assert PLAYGROUND_CLIENT_REGISTRY.list_models(GenerativeProviderKey.MINIMAX) == [
+        assert CLIENT_REGISTRY.list_models(GenerativeProviderKey.MINIMAX, model_type="chat") == [
             "MiniMax-M3.1-Flash",
             "MiniMax-M3",
         ]
@@ -1365,7 +1375,7 @@ class TestMiniMaxProvider:
     )
     def test_registry_preserves_custom_model_support(self, model_name: str) -> None:
         assert (
-            PLAYGROUND_CLIENT_REGISTRY.get_client(GenerativeProviderKey.MINIMAX, model_name)
+            CLIENT_REGISTRY.get_client(GenerativeProviderKey.MINIMAX, model_name, model_type="chat")
             is MiniMaxClient
         )
 
@@ -1429,7 +1439,7 @@ class TestResolveProviderApiKey:
                 credentials=credentials,
                 session=session,
                 decrypt=_identity_decrypt,
-                env_var_name="OPENAI_API_KEY",
+                env_var_names=("OPENAI_API_KEY",),
                 client_base_url="https://attacker.example",
                 provider_label="OpenAI",
             )
@@ -1452,7 +1462,7 @@ class TestResolveProviderApiKey:
                 credentials=None,
                 session=session,
                 decrypt=encryption.decrypt,
-                env_var_name="OPENAI_API_KEY",
+                env_var_names=("OPENAI_API_KEY",),
                 client_base_url="https://my-proxy.example",
                 provider_label="OpenAI",
             )
@@ -1468,7 +1478,7 @@ class TestResolveProviderApiKey:
                     credentials=None,
                     session=session,
                     decrypt=_identity_decrypt,
-                    env_var_name="OPENAI_API_KEY",
+                    env_var_names=("OPENAI_API_KEY",),
                     client_base_url="https://attacker.example",
                     provider_label="OpenAI",
                 )
@@ -1482,7 +1492,7 @@ class TestResolveProviderApiKey:
                 credentials=None,
                 session=session,
                 decrypt=_identity_decrypt,
-                env_var_name="OPENAI_API_KEY",
+                env_var_names=("OPENAI_API_KEY",),
                 client_base_url=None,
                 provider_label="OpenAI",
             )
@@ -1497,7 +1507,7 @@ class TestResolveProviderApiKey:
                 credentials=None,
                 session=session,
                 decrypt=_identity_decrypt,
-                env_var_name="OPENAI_API_KEY",
+                env_var_names=("OPENAI_API_KEY",),
                 client_base_url="https://my-endpoint.example",
                 provider_label="OpenAI",
             )
@@ -1612,3 +1622,184 @@ def test_supports_forced_tool_choice(
         provider=provider,
     )
     assert client.supports_forced_tool_choice is expected
+
+
+@pytest.mark.parametrize(
+    ("model_provider", "env_var_name"),
+    [
+        pytest.param(ModelProvider.OPENAI, "OPENAI_API_KEY", id="openai"),
+        pytest.param(ModelProvider.ANTHROPIC, "ANTHROPIC_API_KEY", id="anthropic"),
+        pytest.param(ModelProvider.DEEPSEEK, "DEEPSEEK_API_KEY", id="deepseek"),
+        pytest.param(ModelProvider.XAI, "XAI_API_KEY", id="xai"),
+        pytest.param(ModelProvider.OLLAMA, "OLLAMA_BASE_URL", id="ollama"),
+        pytest.param(ModelProvider.CEREBRAS, "CEREBRAS_API_KEY", id="cerebras"),
+        pytest.param(ModelProvider.FIREWORKS, "FIREWORKS_API_KEY", id="fireworks"),
+        pytest.param(ModelProvider.GROQ, "GROQ_API_KEY", id="groq"),
+        pytest.param(ModelProvider.MOONSHOT, "MOONSHOT_API_KEY", id="moonshot"),
+        pytest.param(ModelProvider.MINIMAX, "MINIMAX_API_KEY", id="minimax"),
+        pytest.param(ModelProvider.PERPLEXITY, "PERPLEXITY_API_KEY", id="perplexity"),
+        pytest.param(ModelProvider.TOGETHER, "TOGETHER_API_KEY", id="together"),
+        pytest.param(ModelProvider.ZAI, "ZAI_API_KEY", id="zai"),
+        pytest.param(ModelProvider.META, "META_API_KEY", id="meta"),
+    ],
+)
+async def test_built_in_chat_clients_leave_retries_to_phoenix_and_do_not_follow_redirects(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+    model_provider: ModelProvider,
+    env_var_name: str,
+) -> None:
+    value = "http://localhost:11434/v1" if model_provider is ModelProvider.OLLAMA else "test-key"
+    monkeypatch.setenv(env_var_name, value)
+    async with db() as session:
+        llm_client = await get_chat_client(
+            model_provider=model_provider,
+            model_name="model",
+            session=session,
+            decrypt=lambda value: value,
+        )
+    async with llm_client._client_factory() as sdk_client:
+        assert sdk_client.max_retries == 0
+        assert sdk_client._client.follow_redirects is False
+
+
+class TestBuiltInProvidersResolveToProviderConfigs:
+    """A built-in provider is the config a custom provider would store, resolved from
+    the run, secrets, and environment, so its client is built the same way."""
+
+    async def test_a_key_is_required_only_at_the_providers_own_host(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("ZAI_API_KEY", raising=False)
+        monkeypatch.delenv("ZAI_BASE_URL", raising=False)
+        async with db() as session:
+            with pytest.raises(BadRequest, match="An API key is required for Z.ai models"):
+                await get_chat_client(
+                    model_provider=ModelProvider.ZAI,
+                    model_name="model",
+                    session=session,
+                    decrypt=lambda value: value,
+                )
+            # Elsewhere, such as a local proxy, the server may need no key.
+            monkeypatch.setenv("ZAI_BASE_URL", "http://localhost:4000/v1")
+            client = await get_chat_client(
+                model_provider=ModelProvider.ZAI,
+                model_name="model",
+                session=session,
+                decrypt=lambda value: value,
+            )
+        async with client._client_factory() as sdk_client:
+            assert sdk_client.api_key == PLACEHOLDER_API_KEY
+            assert str(sdk_client.base_url) == "http://localhost:4000/v1/"
+
+    async def test_a_run_base_url_reaches_anthropic(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        async with db() as session:
+            client = await get_chat_client(
+                model_provider=ModelProvider.ANTHROPIC,
+                model_name="claude",
+                session=session,
+                decrypt=lambda value: value,
+                credentials=[
+                    GenerativeCredentialInput(
+                        env_var_name="ANTHROPIC_API_KEY", value=SecretStr("from-run")
+                    )
+                ],
+                connection=AnthropicConnectionConfig(
+                    type="anthropic", base_url="https://proxy.example"
+                ),
+            )
+        async with client._client_factory() as sdk_client:
+            assert str(sdk_client.base_url) == "https://proxy.example"
+
+    @pytest.mark.parametrize(
+        ("model_provider", "env_var_name", "connection"),
+        [
+            pytest.param(
+                ModelProvider.ANTHROPIC,
+                "ANTHROPIC_API_KEY",
+                AnthropicConnectionConfig(type="anthropic", base_url="https://attacker.example"),
+                id="anthropic",
+            ),
+            pytest.param(
+                ModelProvider.AZURE_OPENAI,
+                "AZURE_OPENAI_API_KEY",
+                AzureOpenAIConnectionConfig(
+                    type="azure_openai",
+                    azure_endpoint="https://attacker.example",
+                    openai_api_type="chat_completions",
+                ),
+                id="azure",
+            ),
+        ],
+    )
+    async def test_a_server_key_never_goes_to_a_run_url(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+        model_provider: ModelProvider,
+        env_var_name: str,
+        connection: Any,
+    ) -> None:
+        monkeypatch.setenv(env_var_name, "server-key")
+        async with db() as session:
+            with pytest.raises(BadRequest, match="custom base URL cannot be used"):
+                await get_chat_client(
+                    model_provider=model_provider,
+                    model_name="model",
+                    session=session,
+                    decrypt=lambda value: value,
+                    connection=connection,
+                )
+
+    async def test_a_run_url_must_be_a_plain_http_url(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("OPENAI_API_KEY", "server-key")
+        async with db() as session:
+            with pytest.raises(BadRequest, match="Base URL must be"):
+                await get_chat_client(
+                    model_provider=ModelProvider.OPENAI,
+                    model_name="gpt-4o",
+                    session=session,
+                    decrypt=lambda value: value,
+                    credentials=[
+                        GenerativeCredentialInput(
+                            env_var_name="OPENAI_API_KEY", value=SecretStr("from-run")
+                        )
+                    ],
+                    connection=OpenAIConnectionConfig(
+                        type="openai",
+                        base_url="https://user:pw@proxy.example",
+                        openai_api_type="chat_completions",
+                    ),
+                )
+
+    async def test_openai_reads_its_organization_and_project(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("OPENAI_API_KEY", "server-key")
+        monkeypatch.setenv("OPENAI_ORG_ID", "org-1")
+        monkeypatch.setenv("OPENAI_PROJECT_ID", "proj-1")
+        async with db() as session:
+            client = await get_chat_client(
+                model_provider=ModelProvider.OPENAI,
+                model_name="gpt-4o",
+                session=session,
+                decrypt=lambda value: value,
+            )
+        async with client._client_factory() as sdk_client:
+            assert (sdk_client.organization, sdk_client.project) == ("org-1", "proj-1")
+
+
+def test_the_catalog_lists_each_providers_model_types() -> None:
+    assert CLIENT_REGISTRY.model_types(GenerativeProviderKey.FIREWORKS) == ["chat", "decision"]
+    assert CLIENT_REGISTRY.model_types(GenerativeProviderKey.TYPESAFE) == ["decision"]
+    assert CLIENT_REGISTRY.model_types(GenerativeProviderKey.ANTHROPIC) == ["chat"]
+
+
+def test_endpoint_key_names_come_from_the_providers_credentials() -> None:
+    for provider_key, endpoint in CHAT_ENDPOINTS.items():
+        assert endpoint.api_key_env_vars[:1] == credential_env_vars(provider_key)[:1]

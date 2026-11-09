@@ -1,6 +1,6 @@
 from enum import Enum
 from types import MappingProxyType
-from typing import Any, ClassVar, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Any, ClassVar, Mapping, Optional, Union
 
 import strawberry
 from openinference.semconv.trace import OpenInferenceLLMProviderValues, SpanAttributes
@@ -15,6 +15,9 @@ from phoenix.db.types.model_provider import (
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.ModelType import ModelType
 from phoenix.trace.attributes import get_attribute_value
+
+if TYPE_CHECKING:
+    from phoenix.server.api.helpers.model_clients import ModelClient
 
 MINIMAX_MODEL_NAMES = ("MiniMax-M3.1-Flash", "MiniMax-M3")
 
@@ -281,53 +284,37 @@ class GenerativeProvider:
         ],
     }
 
+    def _default_client(self) -> Optional[type["ModelClient[Any]"]]:
+        from phoenix.server.api.helpers.client_registry import CLIENT_REGISTRY
+
+        for model_type in CLIENT_REGISTRY.model_types(self.key):
+            if client := CLIENT_REGISTRY.get_client(self.key, model_type=model_type):
+                return client
+        return None
+
     @strawberry.field
     async def dependencies(self) -> list[str]:
-        from phoenix.server.api.helpers.playground_registry import (
-            PLAYGROUND_CLIENT_REGISTRY,
-            PROVIDER_DEFAULT,
-        )
-
-        default_client = PLAYGROUND_CLIENT_REGISTRY.get_client(self.key, PROVIDER_DEFAULT)
-        if default_client:
-            return [dependency.name for dependency in default_client.dependencies()]
-        return []
+        client = self._default_client()
+        return [dependency.name for dependency in client.dependencies()] if client else []
 
     @strawberry.field
     async def dependencies_installed(self) -> bool:
-        from phoenix.server.api.helpers.decision_clients import DECISION_CLIENTS
-        from phoenix.server.api.helpers.playground_registry import (
-            PLAYGROUND_CLIENT_REGISTRY,
-            PROVIDER_DEFAULT,
-        )
-
-        default_client = PLAYGROUND_CLIENT_REGISTRY.get_client(self.key, PROVIDER_DEFAULT)
-        if default_client:
-            return default_client.dependencies_are_installed()
-        # Decision-only providers: their client declares its own dependency check.
-        decision_client = DECISION_CLIENTS.get(self.key)
-        if decision_client:
-            return decision_client.dependencies_are_installed()
-        return False
+        client = self._default_client()
+        return client.dependencies_are_installed() if client else False
 
     @strawberry.field(
         description=(
-            "The model types this provider offers: chat (LLM) models, decision models, or both. "
+            "The model types this provider offers: chat models, decision models, or both. "
             "Derived from which clients serve the provider, not from its name."
         )
     )  # type: ignore
     async def model_types(self) -> list[ModelType]:
-        from phoenix.server.api.helpers.decision_clients import DECISION_CLIENTS
-        from phoenix.server.api.helpers.playground_registry import (
-            provider_supports_chat_completions,
-        )
+        from phoenix.server.api.helpers.client_registry import CLIENT_REGISTRY
 
-        model_types: list[ModelType] = []
-        if provider_supports_chat_completions(self.key):
-            model_types.append(ModelType.LLM)
-        if self.key in DECISION_CLIENTS:
-            model_types.append(ModelType.DECISION)
-        return model_types
+        return [
+            ModelType.CHAT if model_type == "chat" else ModelType.DECISION
+            for model_type in CLIENT_REGISTRY.model_types(self.key)
+        ]
 
     @strawberry.field(description="The credential requirements for the provider")  # type: ignore
     async def credential_requirements(self) -> list[GenerativeProviderCredentialConfig]:

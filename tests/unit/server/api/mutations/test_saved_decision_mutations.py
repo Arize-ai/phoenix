@@ -338,10 +338,8 @@ async def test_a_custom_provider_must_speak_the_versions_api(
     gql_client: AsyncGraphQLClient,
 ) -> None:
     async def provider(name: str, sdk: str, config: dict[str, Any]) -> str:
-        result = await gql_client.execute(
-            CREATE_CUSTOM_PROVIDER,
-            variables={"input": {"name": name, "provider": sdk, "clientConfig": config}},
-        )
+        input: dict[str, Any] = {"name": name, "provider": sdk, "clientConfig": config}
+        result = await gql_client.execute(CREATE_CUSTOM_PROVIDER, variables={"input": input})
         assert result.data and not result.errors, result.errors
         return str(result.data["createGenerativeModelCustomProvider"]["provider"]["id"])
 
@@ -357,35 +355,7 @@ async def test_a_custom_provider_must_speak_the_versions_api(
             "version": version_input(modelProvider="OPENAI", customProviderId=typesafe_id),
         },
     )
-    assert "runs decisions through the TYPESAFE API, not OPENAI" in message
-
-    # What counts is the decision client, not the SDK: an OpenAI-SDK provider that runs
-    # System One serves TYPESAFE versions only.
-    openai_system_one_id = await provider(
-        "OpenAI SDK, System One",
-        "openai",
-        {
-            "openai": {
-                "openaiAuthenticationMethod": {"apiKey": "sk-custom"},
-                "decisionModels": {"decisionSdk": "TYPESAFE"},
-            }
-        },
-    )
-    decision = await create(
-        gql_client,
-        name="system-one-on-openai",
-        version=version_input(customProviderId=openai_system_one_id),
-    )
-    assert decision["versionCount"] == 1
-    message = await error_of(
-        gql_client,
-        CREATE,
-        {
-            "name": "other",
-            "version": version_input(modelProvider="OPENAI", customProviderId=openai_system_one_id),
-        },
-    )
-    assert "runs decisions through the TYPESAFE API, not OPENAI" in message
+    assert "saves decisions with model provider TYPESAFE, not OPENAI" in message
 
     message = await error_of(
         gql_client,
@@ -425,6 +395,32 @@ async def test_a_custom_provider_must_serve_decision_models(
         {"name": "other", "version": version_input(customProviderId=provider_id)},
     )
     assert "Custom provider 'Chat only' is not set up for decision models." in message
+
+
+async def test_an_openai_custom_provider_must_be_declared_to_serve_decisions(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    result = await gql_client.execute(
+        CREATE_CUSTOM_PROVIDER,
+        variables={
+            "input": {
+                "name": "Gateway",
+                "provider": "openai",
+                "clientConfig": {"openai": {"openaiAuthenticationMethod": {"apiKey": "sk"}}},
+            }
+        },
+    )
+    assert result.data and not result.errors, result.errors
+    provider_id = result.data["createGenerativeModelCustomProvider"]["provider"]["id"]
+    message = await error_of(
+        gql_client,
+        CREATE,
+        {
+            "name": "other",
+            "version": version_input(modelProvider="OPENAI", customProviderId=provider_id),
+        },
+    )
+    assert "Custom provider 'Gateway' is not set up for decision models." in message
 
 
 async def test_clone_preserves_history_and_provenance(

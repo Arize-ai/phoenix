@@ -10,9 +10,7 @@ from typing import Any
 
 import pytest
 import respx
-from strawberry.relay import GlobalID
 
-from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 from tests.unit.server.api.mutations.test_decision_mutations import (
@@ -24,10 +22,15 @@ from tests.unit.server.api.mutations.test_decision_mutations import (
 API_KEY = "sk-decision-secret-123"
 
 TEST_ENDPOINT = """
-mutation ($input: GenerativeModelCustomerProviderConfigInput!) {
-  testGenerativeModelCustomProviderDecisionEndpoint(input: $input) { error url }
+mutation ($input: GenerativeModelCustomerProviderConfigInput!, $served: ProviderModelsInput) {
+  testGenerativeModelCustomProviderCredentials(input: $input, models: $served) {
+    error
+    chat { error }
+    decision { error }
+  }
 }
 """
+DECISIONS_ONLY: dict[str, Any] = {"decision": {}}
 
 CREATE = """
 mutation ($input: CreateGenerativeModelCustomProviderMutationInput!) {
@@ -39,20 +42,11 @@ PROVIDER = """
 query ($id: ID!) {
   node(id: $id) {
     ... on GenerativeModelCustomProvider {
-      decisionSdk
       modelTypes
       decision: modelNames(modelType: DECISION)
-      config {
-        __typename
-        ... on OpenAICustomProviderConfig {
-          decisionModels { decisionSdk baseUrl modelNames }
-        }
-        ... on AzureOpenAICustomProviderConfig {
-          decisionModels { decisionSdk baseUrl modelNames }
-        }
-        ... on TypeSafeCustomProviderConfig {
-          decisionModels { decisionSdk baseUrl modelNames }
-        }
+      models {
+        chat { names }
+        decision { names }
       }
     }
   }
@@ -80,36 +74,80 @@ OPENAI_UNKNOWN_MODEL = {
 }
 
 
-def openai_config(
-    *, base_url: str | None = None, decision: dict[str, Any] | None = None
-) -> dict[str, Any]:
+def openai_config(*, base_url: str | None = None) -> dict[str, Any]:
     config: dict[str, Any] = {
         "openaiAuthenticationMethod": {"apiKey": API_KEY},
         "openaiClientKwargs": {"defaultHeaders": {"X-Team": "decisions"}},
     }
     if base_url:
         config["openaiClientKwargs"]["baseUrl"] = base_url
-    if decision is not None:
-        config["decisionModels"] = decision
     return {"openai": config}
 
 
+def typesafe_config(base_url: str) -> dict[str, Any]:
+    return {
+        "typesafe": {
+            "typesafeAuthenticationMethod": {"apiKey": API_KEY},
+            "typesafeClientKwargs": {
+                "baseUrl": base_url,
+                "defaultHeaders": {"X-Team": "decisions"},
+            },
+        }
+    }
+
+
+def decisions_config(decision_sdk: str) -> dict[str, Any]:
+    if decision_sdk == "TYPESAFE":
+        return typesafe_config("https://api.typesafe.ai")
+    return openai_config(base_url="https://proxy.example/v1")
+
+
 async def check(gql_client: AsyncGraphQLClient, config: dict[str, Any]) -> dict[str, Any]:
-    result = await gql_client.execute(TEST_ENDPOINT, variables={"input": config})
-    assert result.data and not result.errors, result.errors
-    payload: dict[str, Any] = result.data["testGenerativeModelCustomProviderDecisionEndpoint"]
-    return payload
-
-
-async def create(gql_client: AsyncGraphQLClient, name: str, config: dict[str, Any]) -> str:
     result = await gql_client.execute(
-        CREATE, variables={"input": {"name": name, "provider": "proxy", "clientConfig": config}}
+        TEST_ENDPOINT, variables={"input": config, "served": DECISIONS_ONLY}
     )
+    assert result.data and not result.errors, result.errors
+    payload: dict[str, Any] = result.data["testGenerativeModelCustomProviderCredentials"]
+    assert payload["chat"] is None
+    assert payload["error"] == payload["decision"]["error"]
+    decision: dict[str, Any] = payload["decision"]
+    return decision
+
+
+LLM_AND_DECISIONS: dict[str, Any] = {"chat": {}, "decision": {}}
+
+
+async def create(
+    gql_client: AsyncGraphQLClient,
+    name: str,
+    config: dict[str, Any],
+    served: dict[str, Any] | None = None,
+) -> str:
+    input: dict[str, Any] = {"name": name, "provider": "proxy", "clientConfig": config}
+    if served is not None:
+        input["models"] = served
+    result = await gql_client.execute(CREATE, variables={"input": input})
     assert result.data and not result.errors, result.errors
     return str(result.data["createGenerativeModelCustomProvider"]["provider"]["id"])
 
 
 SYSTEM_ONE_URL = "https://api.typesafe.ai/v1/systemone"
+OPENAI_DECISION: dict[str, Any] = {
+    "model": "local-model",
+    "answers": [{"name": "check", "type": "predicate", "probability": 0.5}],
+    "usage": {
+        "input_tokens": 3,
+        "output_tokens": 0,
+        "total_tokens": 3,
+        "input_tokens_details": {"cached_tokens": 0, "cache_write_tokens": 0},
+        "output_tokens_details": {"reasoning_tokens": 0},
+    },
+}
+SYSTEM_ONE_DECISION: dict[str, Any] = {
+    "model": "local-model",
+    "answers": {"check": {"type": "noul", "noul": 0.5}},
+    "usage": {"input_tokens": 3, "output_tokens": 0},
+}
 DECISIONS_URL = "https://proxy.example/v1/decisions"
 
 
@@ -145,8 +183,32 @@ DECISIONS_URL = "https://proxy.example/v1/decisions"
             DECISIONS_URL,
             {"status_code": 200, "json": {"hello": "world"}},
             False,
-            "accepted the unknown model",
-            id="openai-200",
+            "with a body that is not a decisions response",
+            id="openai-invalid-200",
+        ),
+        pytest.param(
+            "OPENAI",
+            DECISIONS_URL,
+            {"status_code": 200, "text": "<!doctype html><html></html>"},
+            False,
+            "with a body that is not a decisions response",
+            id="openai-html-200",
+        ),
+        pytest.param(
+            "OPENAI",
+            DECISIONS_URL,
+            {"status_code": 200, "json": OPENAI_DECISION},
+            True,
+            None,
+            id="openai-ignores-the-model-name",
+        ),
+        pytest.param(
+            "TYPESAFE",
+            SYSTEM_ONE_URL,
+            {"status_code": 200, "json": SYSTEM_ONE_DECISION},
+            True,
+            None,
+            id="system-one-ignores-the-model-name",
         ),
         pytest.param(
             "TYPESAFE",
@@ -284,7 +346,7 @@ DECISIONS_URL = "https://proxy.example/v1/decisions"
         ),
     ],
 )
-async def test_the_endpoint_check_accepts_only_a_rejection_of_its_model(
+async def test_the_endpoint_check_accepts_a_rejection_of_its_model_or_a_decision(
     gql_client: AsyncGraphQLClient,
     decision_sdk: str,
     url: str,
@@ -292,11 +354,7 @@ async def test_the_endpoint_check_accepts_only_a_rejection_of_its_model(
     passes: bool,
     reason: str | None,
 ) -> None:
-    base_url = "https://api.typesafe.ai" if decision_sdk == "TYPESAFE" else None
-    config = openai_config(
-        base_url="https://proxy.example/v1",
-        decision={"decisionSdk": decision_sdk, "baseUrl": base_url},
-    )
+    config = decisions_config(decision_sdk)
     with respx.mock:
         route = respx.post(url).respond(**response)
         payload = await check(gql_client, config)
@@ -305,7 +363,6 @@ async def test_the_endpoint_check_accepts_only_a_rejection_of_its_model(
     assert sent.headers["authorization"] == f"Bearer {API_KEY}"
     assert sent.headers["x-team"] == "decisions"
     assert json.loads(sent.content)["model"] == "test-credential-check"
-    assert payload["url"] == url
     if passes:
         assert payload["error"] is None
     else:
@@ -324,25 +381,48 @@ async def test_the_endpoint_check_accepts_only_a_rejection_of_its_model(
 async def test_the_check_redacts_the_api_key_from_an_unexpected_error(
     gql_client: AsyncGraphQLClient, decision_sdk: str, url: str
 ) -> None:
-    # An error the clients don't wrap reaches the reason with its text, key included.
-    base_url = "https://api.typesafe.ai" if decision_sdk == "TYPESAFE" else None
-    config = openai_config(
-        base_url="https://proxy.example/v1",
-        decision={"decisionSdk": decision_sdk, "baseUrl": base_url},
-    )
+    config = decisions_config(decision_sdk)
     with respx.mock:
         respx.post(url).mock(side_effect=RuntimeError(f"proxy rejected {API_KEY}"))
         payload = await check(gql_client, config)
-    assert payload["error"] == f"POST {url} failed: proxy rejected [REDACTED]"
+    assert payload == {"error": "The decision request failed: proxy rejected [REDACTED]"}
+
+
+@pytest.mark.parametrize(
+    ("decision_sdk", "env_var", "url"),
+    [
+        pytest.param("TYPESAFE", "TYPESAFE_BASE_URL", SYSTEM_ONE_URL, id="system-one"),
+        pytest.param(
+            "OPENAI", "OPENAI_BASE_URL", "https://api.openai.com/v1/decisions", id="openai"
+        ),
+    ],
+)
+async def test_without_a_base_url_the_check_goes_to_the_sdks_default(
+    gql_client: AsyncGraphQLClient,
+    monkeypatch: pytest.MonkeyPatch,
+    decision_sdk: str,
+    env_var: str,
+    url: str,
+) -> None:
+    monkeypatch.setenv(env_var, "https://server.example")
+    config = decisions_config(decision_sdk)
+    connection = next(iter(config.values()))
+    connection[f"{decision_sdk.lower()}ClientKwargs"].pop("baseUrl", None)
+    with respx.mock:
+        respx.post(url).respond(
+            400 if decision_sdk == "TYPESAFE" else 404,
+            json=SYSTEM_ONE_UNKNOWN_MODEL if decision_sdk == "TYPESAFE" else OPENAI_UNKNOWN_MODEL,
+        )
+        payload = await check(gql_client, config)
+    assert payload == {"error": None}
 
 
 @pytest.mark.parametrize(
     ("base_url", "url"),
     [
         pytest.param("https://api.typesafe.ai", SYSTEM_ONE_URL, id="root"),
-        pytest.param("https://api.typesafe.ai/v1", SYSTEM_ONE_URL, id="v1-is-dropped-once"),
         pytest.param(
-            "https://api.typesafe.ai/v1/v1", "https://api.typesafe.ai/v1/v1/systemone", id="v1-v1"
+            "https://proxy.example/v1", "https://proxy.example/v1/v1/systemone", id="v1-is-kept"
         ),
         pytest.param("https://example.com", "https://example.com/v1/systemone", id="elsewhere"),
     ],
@@ -350,11 +430,11 @@ async def test_the_check_redacts_the_api_key_from_an_unexpected_error(
 async def test_the_check_posts_to_the_url_a_run_would(
     gql_client: AsyncGraphQLClient, db: DbSessionFactory, base_url: str, url: str
 ) -> None:
-    config = openai_config(decision={"decisionSdk": "TYPESAFE", "baseUrl": base_url})
+    config = typesafe_config(base_url)
     with respx.mock:
         route = respx.post(url).respond(400, json=SYSTEM_ONE_UNKNOWN_MODEL)
         payload = await check(gql_client, config)
-        assert payload == {"error": None, "url": url}
+        assert payload == {"error": None}
         provider_id = await create(gql_client, f"System One at {base_url}", config)
         route.respond(
             200,
@@ -385,9 +465,7 @@ async def test_the_check_posts_to_the_url_a_run_would(
 
 
 async def test_a_wrong_base_url_fails_the_check(gql_client: AsyncGraphQLClient) -> None:
-    config = openai_config(
-        decision={"decisionSdk": "TYPESAFE", "baseUrl": "https://api.typesafe.ai/v1/v1"}
-    )
+    config = typesafe_config("https://api.typesafe.ai/v1")
     with respx.mock:
         respx.post("https://api.typesafe.ai/v1/v1/systemone").respond(
             404, json={"detail": "Not Found"}
@@ -396,159 +474,173 @@ async def test_a_wrong_base_url_fails_the_check(gql_client: AsyncGraphQLClient) 
     assert payload["error"].startswith("POST https://api.typesafe.ai/v1/v1/systemone answered")
 
 
-async def test_the_check_needs_decision_models_turned_on(gql_client: AsyncGraphQLClient) -> None:
-    result = await gql_client.execute(TEST_ENDPOINT, variables={"input": openai_config()})
-    assert result.errors
-    assert "Turn on decision models" in result.errors[0].message
-
-
-async def test_azure_runs_openai_decisions_on_its_v1_api(gql_client: AsyncGraphQLClient) -> None:
-    config = {
-        "azureOpenai": {
-            "azureOpenaiAuthenticationMethod": {"apiKey": API_KEY},
-            "azureOpenaiClientKwargs": {"azureEndpoint": "https://res.openai.azure.com"},
-            "decisionModels": {"decisionSdk": "OPENAI"},
-        }
+AZURE = {
+    "azureOpenai": {
+        "azureOpenaiAuthenticationMethod": {"apiKey": API_KEY},
+        "azureOpenaiClientKwargs": {"azureEndpoint": "https://res.openai.azure.com"},
     }
-    with respx.mock:
-        route = respx.post("https://res.openai.azure.com/openai/v1/decisions").respond(
-            404, json=OPENAI_UNKNOWN_MODEL
-        )
-        payload = await check(gql_client, config)
-    assert payload == {"error": None, "url": "https://res.openai.azure.com/openai/v1/decisions"}
-    assert route.calls[0].request.headers["authorization"] == f"Bearer {API_KEY}"
-
-
-async def test_azure_decisions_need_an_api_key(gql_client: AsyncGraphQLClient) -> None:
-    config = {
-        "azureOpenai": {
-            "azureOpenaiAuthenticationMethod": {"defaultCredentials": True},
-            "azureOpenaiClientKwargs": {"azureEndpoint": "https://res.openai.azure.com"},
-            "decisionModels": {"decisionSdk": "OPENAI"},
-        }
-    }
-    result = await gql_client.execute(TEST_ENDPOINT, variables={"input": config})
-    assert result.errors
-    assert "need API key authentication" in result.errors[0].message
+}
 
 
 @pytest.mark.parametrize(
-    "auth",
+    "config",
     [
-        pytest.param({"defaultCredentials": True}, id="default-credentials"),
         pytest.param(
-            {
-                "azureAdTokenProvider": {
-                    "azureTenantId": "tenant",
-                    "azureClientId": "client",
-                    "azureClientSecret": "secret",
-                }
-            },
-            id="ad-token-provider",
+            {"anthropic": {"anthropicAuthenticationMethod": {"apiKey": API_KEY}}}, id="anthropic"
         ),
+        pytest.param(AZURE, id="azure"),
     ],
 )
-async def test_azure_decisions_without_an_api_key_are_refused_on_save(
-    gql_client: AsyncGraphQLClient, auth: dict[str, Any]
+async def test_the_check_refuses_an_sdk_without_decisions(
+    gql_client: AsyncGraphQLClient, config: dict[str, Any]
 ) -> None:
-    config = {
-        "azureOpenai": {
-            "azureOpenaiAuthenticationMethod": auth,
-            "azureOpenaiClientKwargs": {"azureEndpoint": "https://res.openai.azure.com"},
-            "decisionModels": {"decisionSdk": "OPENAI"},
-        }
-    }
     result = await gql_client.execute(
-        CREATE, variables={"input": {"name": "azure", "provider": "azure", "clientConfig": config}}
+        TEST_ENDPOINT, variables={"input": config, "served": DECISIONS_ONLY}
     )
-    assert result.errors and "need API key authentication" in result.errors[0].message
-
-    # Switching a decision provider from an API key to Entra ID is refused too.
-    provider_id = await create(
-        gql_client,
-        "azure with key",
-        {
-            "azureOpenai": {
-                **config["azureOpenai"],
-                "azureOpenaiAuthenticationMethod": {"apiKey": API_KEY},
-            }
-        },
-    )
-    result = await gql_client.execute(
-        """mutation ($input: PatchGenerativeModelCustomProviderMutationInput!) {
-          patchGenerativeModelCustomProvider(input: $input) { provider { id } }
-        }""",
-        variables={"input": {"id": provider_id, "clientConfig": config}},
-    )
-    assert result.errors and "need API key authentication" in result.errors[0].message
+    assert result.errors
+    assert "can't serve decision models" in result.errors[0].message
 
 
-async def test_the_decision_client_and_names_round_trip(
+async def test_models_and_names_round_trip(
     gql_client: AsyncGraphQLClient, db: DbSessionFactory
 ) -> None:
     provider_id = await create(
         gql_client,
-        "OpenAI SDK, System One",
-        openai_config(
-            decision={
-                "decisionSdk": "TYPESAFE",
-                "baseUrl": "https://api.typesafe.ai",
-                "modelNames": ["jev-latest", " ", "jev-1.14.0", "jev-latest"],
-            }
-        ),
+        "OpenAI decisions",
+        openai_config(),
+        {
+            "chat": {},
+            "decision": {"names": ["gpt-6-luna", " ", "gpt-6-luna-mini", "gpt-6-luna"]},
+        },
     )
     result = await gql_client.execute(PROVIDER, variables={"id": provider_id})
     assert result.data and not result.errors, result.errors
     node = result.data["node"]
-    assert node["decisionSdk"] == "TYPESAFE"
-    assert node["modelTypes"] == ["LLM", "DECISION"]
-    assert node["decision"] == ["jev-latest", "jev-1.14.0"]
-    assert node["config"] == {
-        "__typename": "OpenAICustomProviderConfig",
-        "decisionModels": {
-            "decisionSdk": "TYPESAFE",
-            "baseUrl": "https://api.typesafe.ai",
-            "modelNames": ["jev-latest", "jev-1.14.0"],
-        },
+    assert node["modelTypes"] == ["CHAT", "DECISION"]
+    assert node["decision"] == ["gpt-6-luna", "gpt-6-luna-mini"]
+    assert node["models"] == {
+        "chat": {"names": []},
+        "decision": {"names": ["gpt-6-luna", "gpt-6-luna-mini"]},
     }
-    async with db() as session:
-        record = await session.get(
-            models.GenerativeModelCustomProvider, int(GlobalID.from_id(provider_id).node_id)
-        )
-        assert record is not None and record.decision_sdk == "typesafe"
-
-    # Turning decision models off clears the column; nothing uses the provider yet.
     result = await gql_client.execute(
         """mutation ($input: PatchGenerativeModelCustomProviderMutationInput!) {
           patchGenerativeModelCustomProvider(input: $input) { provider { modelTypes } }
         }""",
-        variables={"input": {"id": provider_id, "clientConfig": openai_config()}},
+        variables={"input": {"id": provider_id, "models": {"chat": {}}}},
     )
     assert result.data and not result.errors, result.errors
-    assert result.data["patchGenerativeModelCustomProvider"]["provider"]["modelTypes"] == ["LLM"]
+    assert result.data["patchGenerativeModelCustomProvider"]["provider"]["modelTypes"] == ["CHAT"]
 
 
-async def test_a_typesafe_provider_always_runs_system_one(gql_client: AsyncGraphQLClient) -> None:
+async def test_a_provider_serves_what_its_sdk_serves_by_default(
+    gql_client: AsyncGraphQLClient,
+) -> None:
     typesafe = {"typesafeAuthenticationMethod": {"apiKey": API_KEY}}
     provider_id = await create(gql_client, "TypeSafe", {"typesafe": typesafe})
     result = await gql_client.execute(PROVIDER, variables={"id": provider_id})
     assert result.data and not result.errors, result.errors
-    assert result.data["node"]["config"]["decisionModels"] == {
-        "decisionSdk": "TYPESAFE",
-        "baseUrl": None,
-        "modelNames": [],
+    assert result.data["node"]["modelTypes"] == ["DECISION"]
+    assert result.data["node"]["models"] == {
+        "chat": None,
+        "decision": {"names": []},
     }
+    provider_id = await create(gql_client, "OpenAI", openai_config())
+    result = await gql_client.execute(PROVIDER, variables={"id": provider_id})
+    assert result.data and not result.errors, result.errors
+    assert result.data["node"]["modelTypes"] == ["CHAT"]
+    assert result.data["node"]["decision"] == []
+
+
+@pytest.mark.parametrize(
+    ("config", "served", "message"),
+    [
+        pytest.param(
+            {"anthropic": {"anthropicAuthenticationMethod": {"apiKey": API_KEY}}},
+            LLM_AND_DECISIONS,
+            "anthropic SDK can't serve decision models",
+            id="anthropic-decisions",
+        ),
+        pytest.param(
+            {"typesafe": {"typesafeAuthenticationMethod": {"apiKey": API_KEY}}},
+            LLM_AND_DECISIONS,
+            "typesafe SDK can't serve chat models",
+            id="typesafe-chat",
+        ),
+        pytest.param(
+            openai_config(),
+            {"decision": {}},
+            "openai SDK always serves chat models",
+            id="openai-without-chat",
+        ),
+        pytest.param(
+            AZURE,
+            LLM_AND_DECISIONS,
+            "azure_openai SDK can't serve decision models",
+            id="azure-decision",
+        ),
+        pytest.param(
+            {"typesafe": {"typesafeAuthenticationMethod": {"apiKey": API_KEY}}},
+            {},
+            "at least one model type",
+            id="nothing",
+        ),
+    ],
+)
+async def test_a_provider_serves_only_what_its_sdk_can(
+    gql_client: AsyncGraphQLClient,
+    config: dict[str, Any],
+    served: dict[str, Any],
+    message: str,
+) -> None:
     result = await gql_client.execute(
         CREATE,
         variables={
             "input": {
-                "name": "TypeSafe on OpenAI",
-                "provider": "typesafe",
-                "clientConfig": {
-                    "typesafe": {**typesafe, "decisionModels": {"decisionSdk": "OPENAI"}}
-                },
+                "name": "p",
+                "provider": "p",
+                "clientConfig": config,
+                "models": served,
             }
         },
     )
-    assert result.errors
-    assert "runs decision models through typesafe" in result.errors[0].message
+    assert result.errors and message in result.errors[0].message, result.errors
+
+
+async def test_one_check_covers_each_model_type_the_provider_serves(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    config = openai_config(base_url="https://proxy.example/v1")
+    with respx.mock:
+        respx.get("https://proxy.example/v1/models").respond(200, json={"data": []})
+        respx.post("https://proxy.example/v1/decisions").respond(404, json={"detail": "Not Found"})
+        result = await gql_client.execute(
+            TEST_ENDPOINT, variables={"input": config, "served": LLM_AND_DECISIONS}
+        )
+        assert result.data and not result.errors, result.errors
+        payload = result.data["testGenerativeModelCustomProviderCredentials"]
+        assert payload["chat"] == {"error": None}
+        assert payload["decision"]["error"].startswith(
+            "POST https://proxy.example/v1/decisions answered"
+        )
+        assert payload["error"] == payload["decision"]["error"]
+
+        result = await gql_client.execute(TEST_ENDPOINT, variables={"input": config})
+        assert result.data and not result.errors, result.errors
+        payload = result.data["testGenerativeModelCustomProviderCredentials"]
+        assert payload == {"error": None, "chat": {"error": None}, "decision": None}
+
+
+@pytest.mark.parametrize(
+    "config",
+    [
+        pytest.param(openai_config(base_url="https://user:pw@proxy.example/v1"), id="openai"),
+        pytest.param(typesafe_config("ftp://system-one.example"), id="typesafe"),
+    ],
+)
+async def test_a_provider_whose_base_url_is_not_a_plain_http_url_is_not_saved(
+    gql_client: AsyncGraphQLClient, config: dict[str, Any]
+) -> None:
+    """The rule is the same for chat and decision models, built-in and custom."""
+    input = {"name": "bad-url", "provider": "proxy", "clientConfig": config}
+    result = await gql_client.execute(CREATE, variables={"input": input})
+    assert result.errors and "Base URL must be" in result.errors[0].message

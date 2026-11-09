@@ -604,7 +604,7 @@ export function getInitialInstances(initialProps: InitialPlaygroundState): {
       ...savedConfigToUse,
       // A saved default configures the provider; it never turns a chat
       // instance into a decision instance.
-      modelType: "LLM",
+      modelType: "CHAT",
       invocationParameters: parseInvocationConfig(
         savedConfigToUse.provider,
         savedConfigToUse.invocationParameters
@@ -988,7 +988,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             ...resetFields,
             ...(savedProviderConfig || {}),
             // A saved default never changes the instance's model type.
-            modelType: instance.model.modelType ?? "LLM",
+            modelType: instance.model.modelType ?? "CHAT",
             invocationParameters,
             // responseFormat is canonical (provider-agnostic) — carry through if present
             ...(instance.model.responseFormat != null

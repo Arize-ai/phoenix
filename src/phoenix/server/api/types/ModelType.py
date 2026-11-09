@@ -7,8 +7,8 @@ import strawberry
 
 @strawberry.enum(description="The kind of model a playground instance runs.")
 class ModelType(Enum):
-    LLM = strawberry.enum_value(
-        "LLM", description="Chat completion models that generate text from messages."
+    CHAT = strawberry.enum_value(
+        "CHAT", description="Chat models that generate text from messages."
     )
     DECISION = strawberry.enum_value(
         "DECISION",

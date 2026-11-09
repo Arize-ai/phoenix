@@ -56,7 +56,7 @@ from phoenix.db.types.prompts import (
     TextContentPart,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
-from phoenix.server.api.helpers.playground_clients import (
+from phoenix.server.api.helpers.chat_clients import (
     AnthropicClient,
     OpenAIChatCompletionsClient,
 )

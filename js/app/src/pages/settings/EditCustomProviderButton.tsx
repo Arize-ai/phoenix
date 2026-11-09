@@ -53,18 +53,20 @@ const ProviderQuery = graphql`
           username
           profilePictureUrl
         }
+        models {
+          chat {
+            names
+          }
+          decision {
+            names
+          }
+        }
         config {
           ... on UnparsableConfig {
             parseError
           }
           ... on OpenAICustomProviderConfig {
             openaiApiType
-            modelNames
-            decisionModels {
-              decisionSdk
-              baseUrl
-              modelNames
-            }
             openaiAuthenticationMethod {
               apiKey
             }
@@ -77,12 +79,6 @@ const ProviderQuery = graphql`
           }
           ... on AzureOpenAICustomProviderConfig {
             openaiApiType
-            modelNames
-            decisionModels {
-              decisionSdk
-              baseUrl
-              modelNames
-            }
             azureOpenaiAuthenticationMethod {
               apiKey
               azureAdTokenProvider {
@@ -99,7 +95,6 @@ const ProviderQuery = graphql`
             }
           }
           ... on AnthropicCustomProviderConfig {
-            modelNames
             anthropicAuthenticationMethod {
               apiKey
             }
@@ -109,11 +104,6 @@ const ProviderQuery = graphql`
             }
           }
           ... on TypeSafeCustomProviderConfig {
-            decisionModels {
-              decisionSdk
-              baseUrl
-              modelNames
-            }
             typesafeAuthenticationMethod {
               apiKey
             }
@@ -123,7 +113,6 @@ const ProviderQuery = graphql`
             }
           }
           ... on AWSBedrockCustomProviderConfig {
-            modelNames
             awsBedrockAuthenticationMethod {
               accessKeys {
                 awsAccessKeyId
@@ -138,7 +127,6 @@ const ProviderQuery = graphql`
             }
           }
           ... on GoogleGenAICustomProviderConfig {
-            modelNames
             googleGenaiAuthenticationMethod {
               apiKey
             }

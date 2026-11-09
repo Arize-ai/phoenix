@@ -1,19 +1,18 @@
 from __future__ import annotations
 
-import importlib.util
 import re
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from collections import defaultdict
 from collections.abc import AsyncIterator, Callable, Iterator
-from contextlib import AbstractAsyncContextManager, AsyncExitStack, asynccontextmanager
+from contextlib import AsyncExitStack
 from itertools import chain
 from secrets import token_hex
 from typing import (
     TYPE_CHECKING,
     Any,
-    Generic,
     Hashable,
     Iterable,
+    Literal,
     Mapping,
     NamedTuple,
     Optional,
@@ -24,7 +23,6 @@ from typing import (
 )
 
 import openinference.instrumentation as oi
-import sqlalchemy as sa
 import wrapt
 from openinference.instrumentation import (
     get_llm_provider_attributes,
@@ -57,16 +55,18 @@ from phoenix.config import getenv
 from phoenix.db import models
 from phoenix.db.types.experiment_config import ConnectionConfig
 from phoenix.db.types.model_provider import (
+    AuthenticationMethodApiKey,
+    AuthenticationMethodDefaultCredentials,
+    AWSBedrockAuthenticationMethodAccessKeys,
+    AWSBedrockClientKwargs,
+    AWSBedrockCustomProviderConfig,
+    AzureOpenAIClientKwargs,
+    AzureOpenAICustomProviderConfig,
     ClientFactory,
     GenerativeModelCustomerProviderConfig,
-    LLMClientFactory,
+    GenerativeModelCustomerProviderConfigType,
     ModelProvider,
-    anthropic_rate_limit_key,
-    azure_rate_limit_key,
-    bedrock_rate_limit_key,
-    google_rate_limit_key,
     is_sdk_compatible_with_model_provider,
-    openai_rate_limit_key,
 )
 from phoenix.db.types.prompts import (
     PromptAnthropicInvocationParameters,
@@ -83,12 +83,23 @@ from phoenix.db.types.prompts import (
     PromptTools,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
-from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, PlaygroundToolCall
-from phoenix.server.api.helpers.playground_registry import (
+from phoenix.server.api.helpers.builtin_providers import (
+    BuiltInEndpoint,
+    _get_credential_from_input,
+    _resolve_secrets,
+    check_provider_base_urls,
+    checked_base_url,
+    credential_env_vars,
+    resolve_builtin_config,
+    resolve_provider_api_key,
+)
+from phoenix.server.api.helpers.client_registry import (
     PROVIDER_DEFAULT,
-    register_llm_client,
+    register_client,
     require_chat_provider,
 )
+from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, PlaygroundToolCall
+from phoenix.server.api.helpers.model_clients import Dependency, ModelClient
 from phoenix.server.api.input_types.ConnectionConfigInput import OPENAI_SDK_STYLE_PROVIDER_KEYS
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
@@ -154,34 +165,7 @@ ChatCompletionChunk: TypeAlias = Union[TextChunk, ToolCallChunk]
 ToolCallID: TypeAlias = str
 
 
-class Dependency:
-    """
-    Set the module_name to the import name if it is different from the install name
-    """
-
-    def __init__(self, name: str, module_name: Optional[str] = None):
-        self.name = name
-        self.module_name = module_name
-
-    @property
-    def import_name(self) -> str:
-        return self.module_name or self.name
-
-
-class PlaygroundClient(ABC, Generic[ClientT]):
-    _client_factory: ClientFactory[ClientT]
-
-    def __init__(
-        self,
-        *,
-        client_factory: ClientFactory[ClientT],
-        model_name: str,
-        provider: str,
-    ) -> None:
-        self.provider = provider
-        self.model_name = model_name
-        self._client_factory = client_factory
-
+class ChatClient(ModelClient[ClientT]):
     @property
     @abstractmethod
     def llm_system(self) -> str: ...
@@ -190,12 +174,6 @@ class PlaygroundClient(ABC, Generic[ClientT]):
     def supports_forced_tool_choice(self) -> bool:
         """True if the model accepts a tool choice that requires a tool call; false otherwise."""
         return True
-
-    @classmethod
-    @abstractmethod
-    def dependencies(cls) -> list[Dependency]:
-        # A list of dependencies this client needs to run
-        ...
 
     async def chat_completion_create(
         self,
@@ -260,50 +238,6 @@ class PlaygroundClient(ABC, Generic[ClientT]):
         stream_model_output: bool = True,
     ) -> AsyncIterator[ChatCompletionChunk]: ...
 
-    @classmethod
-    def dependencies_are_installed(cls) -> bool:
-        try:
-            for dependency in cls.dependencies():
-                import_name = dependency.import_name
-                if importlib.util.find_spec(import_name) is None:
-                    return False
-            return True
-        except ValueError:
-            # happens in some cases if the spec is None
-            return False
-
-    def get_rate_limit_key(self) -> Hashable:
-        """Return a hashable key for rate limit bucketing.
-
-        Clients sharing the same key will share rate limit capacity.
-        Delegates to the client factory which has the full context.
-        """
-        return self._client_factory.rate_limit_key
-
-    def is_rate_limit_error(self, e: Exception) -> bool:
-        """Check if the exception is a rate limit error for this provider.
-
-        Subclasses should override this method with provider-specific logic.
-        Default implementation uses class name heuristics.
-        """
-        error_name = type(e).__name__.lower()
-        return "ratelimit" in error_name or "throttl" in error_name
-
-    def is_transient_error(self, e: Exception) -> bool:
-        """Check if the exception is a transient error that should be retried.
-
-        Subclasses should override this method with provider-specific logic.
-        Default implementation checks for common transient patterns.
-        """
-        error_name = type(e).__name__.lower()
-        if "timeout" in error_name or "connection" in error_name:
-            return True
-        # Check HTTP status code if available
-        status_code = getattr(e, "status_code", None)
-        if status_code and 500 <= status_code < 600:
-            return True
-        return False
-
     def get_retry_after_seconds(self, e: Exception) -> Optional[float]:
         """Extract retry-after duration from the error response, if available.
 
@@ -337,7 +271,7 @@ class PlaygroundClient(ABC, Generic[ClientT]):
         return None
 
 
-class OpenAICompatibleClient(PlaygroundClient["AsyncOpenAI"]):
+class OpenAICompatibleClient(ChatClient["AsyncOpenAI"]):
     @property
     def llm_system(self) -> str:
         return OpenInferenceLLMSystemValues.OPENAI.value
@@ -730,7 +664,7 @@ class OpenAICompatibleClient(PlaygroundClient["AsyncOpenAI"]):
         if not stream_model_output:
             async with AsyncExitStack() as stack:
                 client = await stack.enter_async_context(self._client_factory())
-                client._client = _HttpxClient(client._client, span=span)
+                client._client = _HttpxClient(client._client, span=span, base_url=client.base_url)
                 completion = await self._openai_chat_completion_create_non_stream(
                     client=client,
                     messages=messages,
@@ -757,7 +691,7 @@ class OpenAICompatibleClient(PlaygroundClient["AsyncOpenAI"]):
         token_usage: CompletionUsage | None = None
         async with AsyncExitStack() as stack:
             client = await stack.enter_async_context(self._client_factory())
-            client._client = _HttpxClient(client._client, span=span)
+            client._client = _HttpxClient(client._client, span=span, base_url=client.base_url)
             openai_stream = await self._openai_chat_completion_create_stream(
                 client=client,
                 messages=messages,
@@ -913,7 +847,7 @@ class OpenAICompatibleClient(PlaygroundClient["AsyncOpenAI"]):
         if not stream_model_output:
             async with AsyncExitStack() as stack:
                 client = await stack.enter_async_context(self._client_factory())
-                client._client = _HttpxClient(client._client, span=span)
+                client._client = _HttpxClient(client._client, span=span, base_url=client.base_url)
                 params, extra_body = self._openai_response_build_params(
                     messages=messages,
                     tools=tools,
@@ -943,7 +877,7 @@ class OpenAICompatibleClient(PlaygroundClient["AsyncOpenAI"]):
 
         async with AsyncExitStack() as stack:
             client = await stack.enter_async_context(self._client_factory())
-            client._client = _HttpxClient(client._client, span=span)
+            client._client = _HttpxClient(client._client, span=span, base_url=client.base_url)
             stream_manager = self._to_openai_response_stream_manager(
                 client=client,
                 messages=messages,
@@ -1273,7 +1207,8 @@ class OpenAICompatibleClient(PlaygroundClient["AsyncOpenAI"]):
                 yield LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO, completion_details.audio_tokens
 
 
-@register_llm_client(
+@register_client(
+    model_type="chat",
     provider_key=GenerativeProviderKey.DEEPSEEK,
     model_names=[
         PROVIDER_DEFAULT,
@@ -1283,7 +1218,8 @@ class DeepSeekClient(OpenAICompatibleClient):
     pass
 
 
-@register_llm_client(
+@register_client(
+    model_type="chat",
     provider_key=GenerativeProviderKey.XAI,
     model_names=[
         PROVIDER_DEFAULT,
@@ -1299,7 +1235,8 @@ class XAIClient(OpenAICompatibleClient):
     pass
 
 
-@register_llm_client(
+@register_client(
+    model_type="chat",
     provider_key=GenerativeProviderKey.OLLAMA,
     model_names=[
         PROVIDER_DEFAULT,
@@ -1320,7 +1257,8 @@ class OllamaClient(OpenAICompatibleClient):
     pass
 
 
-@register_llm_client(
+@register_client(
+    model_type="chat",
     provider_key=GenerativeProviderKey.CEREBRAS,
     model_names=[
         PROVIDER_DEFAULT,
@@ -1333,7 +1271,8 @@ class CerebrasClient(OpenAICompatibleClient):
     pass
 
 
-@register_llm_client(
+@register_client(
+    model_type="chat",
     provider_key=GenerativeProviderKey.FIREWORKS,
     model_names=[
         PROVIDER_DEFAULT,
@@ -1343,7 +1282,8 @@ class FireworksClient(OpenAICompatibleClient):
     pass
 
 
-@register_llm_client(
+@register_client(
+    model_type="chat",
     provider_key=GenerativeProviderKey.GROQ,
     model_names=[
         PROVIDER_DEFAULT,
@@ -1356,7 +1296,8 @@ class GroqClient(OpenAICompatibleClient):
     pass
 
 
-@register_llm_client(
+@register_client(
+    model_type="chat",
     provider_key=GenerativeProviderKey.MOONSHOT,
     model_names=[
         PROVIDER_DEFAULT,
@@ -1377,7 +1318,8 @@ class MoonshotClient(OpenAICompatibleClient):
     pass
 
 
-@register_llm_client(
+@register_client(
+    model_type="chat",
     provider_key=GenerativeProviderKey.MINIMAX,
     model_names=[
         PROVIDER_DEFAULT,
@@ -1388,7 +1330,8 @@ class MiniMaxClient(OpenAICompatibleClient):
     pass
 
 
-@register_llm_client(
+@register_client(
+    model_type="chat",
     provider_key=GenerativeProviderKey.PERPLEXITY,
     model_names=[
         PROVIDER_DEFAULT,
@@ -1402,7 +1345,8 @@ class PerplexityClient(OpenAICompatibleClient):
     pass
 
 
-@register_llm_client(
+@register_client(
+    model_type="chat",
     provider_key=GenerativeProviderKey.TOGETHER,
     model_names=[
         PROVIDER_DEFAULT,
@@ -1419,7 +1363,8 @@ class TogetherClient(OpenAICompatibleClient):
     pass
 
 
-@register_llm_client(
+@register_client(
+    model_type="chat",
     provider_key=GenerativeProviderKey.ZAI,
     model_names=[
         PROVIDER_DEFAULT,
@@ -1438,7 +1383,8 @@ class ZAIClient(OpenAICompatibleClient):
     pass
 
 
-@register_llm_client(
+@register_client(
+    model_type="chat",
     provider_key=GenerativeProviderKey.META,
     model_names=[
         PROVIDER_DEFAULT,
@@ -1454,7 +1400,8 @@ class MetaClient(OpenAICompatibleClient):
     pass
 
 
-@register_llm_client(
+@register_client(
+    model_type="chat",
     provider_key=GenerativeProviderKey.AWS,
     model_names=[
         PROVIDER_DEFAULT,
@@ -1499,7 +1446,7 @@ class MetaClient(OpenAICompatibleClient):
         "meta.llama4-maverick-17b-instruct-v1:0",
     ],
 )
-class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
+class BedrockClient(ChatClient["BedrockRuntimeClient"]):
     @property
     def llm_system(self) -> str:
         return "aws"
@@ -1980,7 +1927,8 @@ OPENAI_CHAT_COMPLETIONS_MODELS = [
 not, defaults to the Responses API. See ``get_openai_client_class``."""
 
 
-@register_llm_client(
+@register_client(
+    model_type="chat",
     provider_key=GenerativeProviderKey.OPENAI,
     model_names=[
         PROVIDER_DEFAULT,
@@ -2024,7 +1972,8 @@ OPENAI_REASONING_MODELS = [
 ]
 
 
-@register_llm_client(
+@register_client(
+    model_type="chat",
     provider_key=GenerativeProviderKey.OPENAI,
     model_names=[
         PROVIDER_DEFAULT,
@@ -2064,7 +2013,8 @@ class OpenAIResponsesClient(OpenAIChatCompletionsClient):
             yield chunk
 
 
-@register_llm_client(
+@register_client(
+    model_type="chat",
     provider_key=GenerativeProviderKey.AZURE_OPENAI,
     model_names=[
         PROVIDER_DEFAULT,
@@ -2082,7 +2032,8 @@ class AzureOpenAIChatCompletionsClient(OpenAICompatibleClient):
         self.provider = OpenInferenceLLMProviderValues.AZURE.value
 
 
-@register_llm_client(
+@register_client(
+    model_type="chat",
     provider_key=GenerativeProviderKey.AZURE_OPENAI,
     model_names=OPENAI_REASONING_MODELS,
 )
@@ -2225,7 +2176,8 @@ def anthropic_model_supports_forced_tool_choice(model_name: str) -> bool:
     return _ANTHROPIC_MODEL_WITH_FORCED_TOOL_CHOICE.search(model_name) is not None
 
 
-@register_llm_client(
+@register_client(
+    model_type="chat",
     provider_key=GenerativeProviderKey.ANTHROPIC,
     model_names=[
         PROVIDER_DEFAULT,
@@ -2233,7 +2185,7 @@ def anthropic_model_supports_forced_tool_choice(model_name: str) -> bool:
         *ANTHROPIC_EXTENDED_THINKING_MODELS,
     ],
 )
-class AnthropicClient(PlaygroundClient["AsyncAnthropic"]):
+class AnthropicClient(ChatClient["AsyncAnthropic"]):
     @property
     def llm_system(self) -> str:
         return OpenInferenceLLMSystemValues.ANTHROPIC.value
@@ -2499,7 +2451,7 @@ class AnthropicClient(PlaygroundClient["AsyncAnthropic"]):
         if not stream_model_output:
             async with AsyncExitStack() as stack:
                 client = await stack.enter_async_context(self._client_factory())
-                client._client = _HttpxClient(client._client, span=span)
+                client._client = _HttpxClient(client._client, span=span, base_url=client.base_url)
                 params, extra_body, extra_headers = self._anthropic_message_params(
                     messages=messages,
                     tools=tools,
@@ -2537,7 +2489,7 @@ class AnthropicClient(PlaygroundClient["AsyncAnthropic"]):
         async with AsyncExitStack() as stack:
             client = await stack.enter_async_context(self._client_factory())
             # Wrap httpx client for instrumentation (fresh client each request)
-            client._client = _HttpxClient(client._client, span=span)
+            client._client = _HttpxClient(client._client, span=span, base_url=client.base_url)
             stream_manager = self._get_anthropic_message_stream_manager(
                 client=client,
                 messages=messages,
@@ -2688,14 +2640,15 @@ GEMINI_2_5_MODELS = [
 ]
 
 
-@register_llm_client(
+@register_client(
+    model_type="chat",
     provider_key=GenerativeProviderKey.GOOGLE,
     model_names=[
         PROVIDER_DEFAULT,
         *GEMINI_2_5_MODELS,
     ],
 )
-class GoogleClient(PlaygroundClient["GoogleAsyncClient"]):
+class GoogleClient(ChatClient["GoogleAsyncClient"]):
     @property
     def llm_system(self) -> str:
         return OpenInferenceLLMSystemValues.VERTEXAI.value
@@ -2726,7 +2679,9 @@ class GoogleClient(PlaygroundClient["GoogleAsyncClient"]):
 
         if isinstance(e, APIError):
             return 500 <= e.code < 600
-        return super().is_transient_error(e)
+        # The SDK raises its HTTP library's own errors for timeouts and failed connections.
+        error_name = type(e).__name__.lower()
+        return "timeout" in error_name or "connection" in error_name
 
     @override
     def get_rate_limit_key(self) -> Hashable:
@@ -3061,7 +3016,8 @@ GEMINI_3_MODELS = [
 ]
 
 
-@register_llm_client(
+@register_client(
+    model_type="chat",
     provider_key=GenerativeProviderKey.GOOGLE,
     model_names=[*GEMINI_4_MODELS, *GEMINI_3_MODELS],
 )
@@ -3093,9 +3049,9 @@ class GoogleGemini3Client(GoogleClient):
             yield chunk
 
 
-def initialize_playground_clients() -> None:
+def initialize_chat_clients() -> None:
     """
-    Ensure that all playground clients are registered at import time.
+    Ensure that all chat clients are registered at import time.
     """
     pass
 
@@ -3124,26 +3080,32 @@ else:
 
 
 class _HttpxClient(_HttpxClientBase):
-    """Records the outgoing request URL on the span without altering the request."""
+    """Records the outgoing request URL on the span without altering the request.
+
+    Takes ``base_url`` from the SDK client because a custom ``http_client`` passed to the
+    SDK does not have ``base_url`` set on the wrapped ``httpx.AsyncClient``.
+    """
 
     def __init__(
         self,
         wrapped: httpx2.AsyncClient,
         span: OTelSpan,
+        base_url: "httpx2.URL",
     ):
         super().__init__(wrapped)
         self._self_span = span
+        self._self_base_path: str = base_url.path
 
     async def send(self, request: httpx2.Request, **kwargs: Any) -> httpx2.Response:
         self._self_span.set_attribute(URL_FULL, str(request.url))
-        self._self_span.set_attribute(URL_PATH, request.url.path.removeprefix(self.base_url.path))
+        self._self_span.set_attribute(URL_PATH, request.url.path.removeprefix(self._self_base_path))
         return await self.__wrapped__.send(request, **kwargs)
 
 
 CustomProviderId: TypeAlias = int
 
 
-async def get_playground_client(
+async def get_chat_client(
     *,
     model_provider: ModelProvider,
     model_name: str,
@@ -3152,9 +3114,9 @@ async def get_playground_client(
     credentials: Sequence[GenerativeCredentialInput] | None = None,
     connection: CustomProviderId | ConnectionConfig | None = None,
     headers: dict[str, str] | None = None,
-) -> "PlaygroundClient[Any]":
+) -> "ChatClient[Any]":
     """
-    Create a playground client for the given model configuration.
+    Create a chat client for the given model configuration.
 
     Resolves credentials and configuration, then returns a client ready for
     chat completions.  This is the single public entry point; callers should
@@ -3205,96 +3167,16 @@ async def get_playground_client(
     )
 
 
-async def _resolve_secrets(
-    session: AsyncSession,
-    decrypt: Callable[[bytes], bytes],
-    *keys: str,
-) -> dict[str, str]:
-    """
-    Resolve secrets from the database.
-
-    Args:
-        db: Database session factory.
-        decrypt: Decryption function.
-        *keys: Secret keys to look up.
-
-    Returns:
-        Dictionary mapping key names to their decrypted values.
-        Keys not found in the database are omitted.
-
-    Raises:
-        BadRequest: If a secret exists but cannot be decrypted.
-    """
-    secrets = (
-        await session.scalars(sa.select(models.Secret).where(models.Secret.key.in_(keys)))
-    ).all()
-    result: dict[str, str] = {}
-    for secret in secrets:
-        try:
-            result[secret.key] = decrypt(secret.value).decode("utf-8")
-        except Exception:
-            raise BadRequest(f"Failed to decrypt secret: {secret.key}")
-    return result
-
-
-def _get_credential_from_input(
-    credentials: Sequence[GenerativeCredentialInput] | None,
-    env_var_name: str,
-) -> str | None:
-    """Extract a credential value from the input credentials list."""
-    if not credentials:
-        return None
-    return next(
-        (c.value.get_secret_value() for c in credentials if c.env_var_name == env_var_name),
-        None,
-    )
-
-
-async def resolve_provider_api_key(
-    *,
-    credentials: Sequence[GenerativeCredentialInput] | None,
-    session: AsyncSession,
-    decrypt: Callable[[bytes], bytes],
-    env_var_name: str,
-    client_base_url: str | None,
-    provider_label: str,
-) -> str | None:
-    """Resolve a provider API key and enforce the custom-base-URL guard.
-
-    Resolution priority: client-supplied credential -> DB-encrypted secret ->
-    process environment variable.
-
-    Security: a server-configured (environment variable) API key must never be
-    sent to a client-supplied base URL — doing so would leak that credential to
-    the client-controlled host (SSRF / credential exfiltration). When the key
-    would fall through to an environment variable and the caller also supplied a
-    custom ``base_url``, the request is rejected. A key from the request itself or
-    from a DB secret is allowed with a custom base URL.
-    """
-    if from_input := _get_credential_from_input(credentials, env_var_name):
-        return from_input
-    if from_secret := (await _resolve_secrets(session, decrypt, env_var_name)).get(env_var_name):
-        return from_secret
-    from_env = getenv(env_var_name)
-    if from_env and client_base_url:
-        raise BadRequest(
-            f"A custom base URL cannot be used with the server-configured "
-            f"{provider_label} API key. Provide an API key with the request, "
-            f"or store one as a Phoenix secret, to use a custom base URL."
-        )
-    return from_env
-
-
 def get_openai_client_class(
     provider_key: "GenerativeProviderKey",
     model_name: str,
     openai_api_type: Optional["OpenAIApiType"] = None,
-) -> Optional[type["PlaygroundClient[Any]"]]:
+) -> Optional[type["ChatClient[Any]"]]:
     """
     Select the OpenAI/Azure client class for a provider, model, and API type.
 
     The source of truth for the builtin-provider path, including the default when no
-    API type is configured. The playground registry is not consulted: it carries the
+    API type is configured. The client registry is not consulted: it carries the
     model catalog, not routing.
 
     Custom providers do not resolve through here -- their SDK type does not identify
@@ -3373,6 +3255,181 @@ def _builtin_sdk_fields_from_connection(
     return _BuiltinSDKFields()
 
 
+def _endpoint(
+    provider_key: GenerativeProviderKey,
+    sdk: Literal["openai", "anthropic", "google_genai"],
+    *,
+    other_api_key_env_vars: tuple[str, ...] = (),
+    **settings: Any,
+) -> tuple[GenerativeProviderKey, BuiltInEndpoint]:
+    return provider_key, BuiltInEndpoint(
+        label=provider_key.value,
+        sdk=sdk,
+        api_key_env_vars=credential_env_vars(provider_key) + other_api_key_env_vars,
+        **settings,
+    )
+
+
+def _openai_compatible(
+    provider_key: GenerativeProviderKey, default_base_url: str
+) -> tuple[GenerativeProviderKey, BuiltInEndpoint]:
+    (api_key_env_var,) = credential_env_vars(provider_key)
+    return _endpoint(
+        provider_key,
+        "openai",
+        base_url_env_var=api_key_env_var.removesuffix("_API_KEY") + "_BASE_URL",
+        default_base_url=default_base_url,
+    )
+
+
+CHAT_ENDPOINTS: Mapping[GenerativeProviderKey, BuiltInEndpoint] = dict(
+    [
+        _endpoint(
+            GenerativeProviderKey.OPENAI,
+            "openai",
+            base_url_env_var="OPENAI_BASE_URL",
+            organization_env_var="OPENAI_ORG_ID",
+            project_env_var="OPENAI_PROJECT_ID",
+        ),
+        _endpoint(
+            GenerativeProviderKey.ANTHROPIC, "anthropic", base_url_env_var="ANTHROPIC_BASE_URL"
+        ),
+        _endpoint(
+            GenerativeProviderKey.GOOGLE,
+            "google_genai",
+            other_api_key_env_vars=("GOOGLE_API_KEY",),
+        ),
+        _endpoint(
+            GenerativeProviderKey.OLLAMA,
+            "openai",
+            base_url_env_var="OLLAMA_BASE_URL",
+            base_url_required=True,
+            base_url_example="http://localhost:11434/v1",
+        ),
+        _openai_compatible(GenerativeProviderKey.DEEPSEEK, "https://api.deepseek.com"),
+        _openai_compatible(GenerativeProviderKey.XAI, "https://api.x.ai/v1"),
+        _openai_compatible(GenerativeProviderKey.CEREBRAS, "https://api.cerebras.ai/v1"),
+        _openai_compatible(
+            GenerativeProviderKey.FIREWORKS,
+            "https://api.fireworks.ai/inference/v1",
+        ),
+        _openai_compatible(GenerativeProviderKey.GROQ, "https://api.groq.com/openai/v1"),
+        _openai_compatible(GenerativeProviderKey.MOONSHOT, "https://api.moonshot.ai/v1"),
+        _openai_compatible(GenerativeProviderKey.MINIMAX, "https://api.minimax.io/v1"),
+        _openai_compatible(GenerativeProviderKey.PERPLEXITY, "https://api.perplexity.ai"),
+        _openai_compatible(GenerativeProviderKey.TOGETHER, "https://api.together.xyz/v1"),
+        _openai_compatible(GenerativeProviderKey.ZAI, "https://api.z.ai/api/paas/v4"),
+        _openai_compatible(GenerativeProviderKey.META, "https://api.meta.ai/v1"),
+    ]
+)
+
+
+async def _builtin_chat_config(
+    provider_key: GenerativeProviderKey,
+    connection: _BuiltinSDKFields,
+    *,
+    credentials: Sequence[GenerativeCredentialInput] | None,
+    session: AsyncSession,
+    decrypt: Callable[[bytes], bytes],
+) -> GenerativeModelCustomerProviderConfigType:
+    if endpoint := CHAT_ENDPOINTS.get(provider_key):
+        return await resolve_builtin_config(
+            endpoint,
+            base_url=connection.base_url,
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+        )
+    if provider_key is GenerativeProviderKey.AZURE_OPENAI:
+        endpoint_override = connection.endpoint or None
+        api_key = await resolve_provider_api_key(
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            env_var_names=("AZURE_OPENAI_API_KEY",),
+            client_base_url=endpoint_override,
+            provider_label=provider_key.value,
+        )
+        azure_endpoint = endpoint_override or getenv("AZURE_OPENAI_ENDPOINT")
+        if not azure_endpoint:
+            raise BadRequest(
+                "An Azure endpoint is required for Azure OpenAI models. "
+                "Set the AZURE_OPENAI_ENDPOINT environment variable or use a custom provider."
+            )
+        return AzureOpenAICustomProviderConfig(
+            azure_openai_authentication_method=AuthenticationMethodApiKey(api_key=api_key)
+            if api_key
+            else AuthenticationMethodDefaultCredentials(),
+            azure_openai_client_kwargs=AzureOpenAIClientKwargs(
+                azure_endpoint=checked_base_url(azure_endpoint)
+            ),
+        )
+    if provider_key is GenerativeProviderKey.AWS:
+        names = ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN")
+        values = {name: _get_credential_from_input(credentials, name) for name in names}
+        if not values["AWS_ACCESS_KEY_ID"] or not values["AWS_SECRET_ACCESS_KEY"]:
+            secrets = await _resolve_secrets(session, decrypt, *names)
+            values = {name: values[name] or secrets.get(name) for name in names}
+        values = {name: values[name] or getenv(name) for name in names}
+        access_key_id = values["AWS_ACCESS_KEY_ID"]
+        secret_access_key = values["AWS_SECRET_ACCESS_KEY"]
+        return AWSBedrockCustomProviderConfig(
+            aws_bedrock_authentication_method=AWSBedrockAuthenticationMethodAccessKeys(
+                aws_access_key_id=access_key_id,
+                aws_secret_access_key=secret_access_key,
+                aws_session_token=values["AWS_SESSION_TOKEN"],
+            )
+            if access_key_id and secret_access_key
+            else AuthenticationMethodDefaultCredentials(),
+            aws_bedrock_client_kwargs=AWSBedrockClientKwargs(
+                region_name=connection.region or getenv("AWS_REGION") or "us-east-1"
+            ),
+        )
+    raise BadRequest(f"{provider_key.value} offers no chat models.")
+
+
+def _client_factory(
+    config: GenerativeModelCustomerProviderConfigType, headers: dict[str, str] | None
+) -> ClientFactory[Any]:
+    try:
+        return config.get_client_factory(extra_headers=headers)
+    except ImportError as e:
+        raise BadRequest(str(e))
+    except Exception as e:
+        raise BadRequest(f"Failed to create {config.type} client factory: {e}")
+
+
+def _chat_client_class(
+    config: GenerativeModelCustomerProviderConfigType, model_name: str
+) -> type[ChatClient[Any]]:
+    """The chat client for a config's SDK.
+
+    The openai/azure_openai SDK configs serve any OpenAI-compatible endpoint --
+    DeepSeek, xAI, Ollama, Groq, Together and others (see
+    is_sdk_compatible_with_model_provider). A model name matching an OpenAI model
+    does not mean OpenAI is behind it, so the reasoning-model specializations,
+    which rewrite `system` to `developer`, apply only to the built-in OpenAI and Azure
+    providers (see ``get_openai_client_class``).
+    """
+    if config.type == "openai":
+        if config.openai_api_type == "responses":
+            return OpenAIResponsesClient
+        return OpenAIChatCompletionsClient
+    if config.type == "azure_openai":
+        if config.openai_api_type == "responses":
+            return AzureOpenAIResponsesClient
+        return AzureOpenAIChatCompletionsClient
+    if config.type == "anthropic":
+        return AnthropicClient
+    if config.type == "aws_bedrock":
+        return BedrockClient
+    if config.type == "google_genai":
+        return GoogleClient if model_name in GEMINI_2_5_MODELS else GoogleGemini3Client
+    if config.type == "typesafe":
+        raise BadRequest("This provider serves decision models only.")
+    assert_never(config)
+
+
 async def _get_builtin_provider_client(
     model_provider: ModelProvider,
     model_name: str,
@@ -3381,760 +3438,30 @@ async def _get_builtin_provider_client(
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
     credentials: Sequence[GenerativeCredentialInput] | None = None,
-) -> "PlaygroundClient[Any]":
+) -> "ChatClient[Any]":
     """
-    Create a playground client from a builtin provider configuration.
+    Create a chat client from a builtin provider configuration.
 
     Credentials are resolved in priority order:
     1. Explicitly provided credentials
     2. Encrypted secrets in the database
     3. Environment variables
     """
-    headers = dict(headers) if headers else None
     provider_key = GenerativeProviderKey.from_model_provider(model_provider)
-    provider = GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING[provider_key]
-
     # Chat completion needs a registered chat client; decision-only providers have none.
     require_chat_provider(provider_key)
-
     sdk = _builtin_sdk_fields_from_connection(model_provider, connection)
-    base_url = sdk.base_url
-    # The client-supplied base URL, captured before any environment-variable fallback.
-    # Used to reject pairing a server-owned env-var API key with a client-controlled URL.
-    client_base_url = sdk.base_url or None
-    endpoint = sdk.endpoint
-    region = sdk.region
-    openai_api_type = sdk.openai_api_type
-
-    if provider_key == GenerativeProviderKey.OPENAI:
-        try:
-            from openai import AsyncOpenAI
-        except ImportError:
-            raise BadRequest("OpenAI package not installed. Run: pip install openai")
-
-        api_key = await resolve_provider_api_key(
-            credentials=credentials,
-            session=session,
-            decrypt=decrypt,
-            env_var_name="OPENAI_API_KEY",
-            client_base_url=client_base_url,
-            provider_label="OpenAI",
-        )
-        base_url = base_url or getenv("OPENAI_BASE_URL")
-
-        if not api_key:
-            if not base_url:
-                raise BadRequest(
-                    "An API key is required for OpenAI models. "
-                    "Set the OPENAI_API_KEY environment variable or use a custom provider."
-                )
-            api_key = "sk-placeholder"  # Some OpenAI-compatible APIs don't need a key
-
-        # Create factory that returns fresh OpenAI client (native async context manager)
-        def create_openai_client() -> AsyncOpenAI:
-            return AsyncOpenAI(
-                api_key=api_key,
-                base_url=base_url,
-                default_headers=headers,
-                timeout=30,
-            )
-
-        client_factory: ClientFactory[AsyncOpenAI] = LLMClientFactory(
-            create_openai_client, openai_rate_limit_key(api_key, base_url)
-        )
-        client_class = get_openai_client_class(provider_key, model_name, openai_api_type)
-        if client_class is None:
-            raise BadRequest(f"No client found for OpenAI model: {model_name}")
-        return client_class(
-            client_factory=client_factory,
-            model_name=model_name,
-            provider=provider,
-        )
-
-    elif provider_key == GenerativeProviderKey.AZURE_OPENAI:
-        try:
-            from openai import AsyncOpenAI
-        except ImportError:
-            raise BadRequest("OpenAI package not installed. Run: pip install openai")
-
-        api_key = (
-            _get_credential_from_input(credentials, "AZURE_OPENAI_API_KEY")
-            or (await _resolve_secrets(session, decrypt, "AZURE_OPENAI_API_KEY")).get(
-                "AZURE_OPENAI_API_KEY"
-            )
-            or getenv("AZURE_OPENAI_API_KEY")
-        )
-        endpoint = endpoint or getenv("AZURE_OPENAI_ENDPOINT")
-
-        if not endpoint:
-            raise BadRequest(
-                "An Azure endpoint is required for Azure OpenAI models. "
-                "Set the AZURE_OPENAI_ENDPOINT environment variable or use a custom provider."
-            )
-
-        # Construct the v1 API base URL
-        endpoint = endpoint.rstrip("/")
-        base_url = (endpoint if endpoint.endswith("/openai/v1") else f"{endpoint}/openai/v1") + "/"
-
-        # Create factory that returns fresh Azure OpenAI client (native async context manager)
-        # Uses AsyncOpenAI with base_url (cleaner than AsyncAzureOpenAI)
-        rate_limit_key = azure_rate_limit_key(endpoint, api_key)
-        if api_key:
-
-            def create_azure_client() -> AsyncOpenAI:
-                return AsyncOpenAI(
-                    api_key=api_key,
-                    base_url=base_url,
-                    default_headers=headers,
-                )
-
-            client_factory = LLMClientFactory(create_azure_client, rate_limit_key)
-        else:
-            try:
-                from azure.identity.aio import DefaultAzureCredential, get_bearer_token_provider
-            except ImportError:
-                raise BadRequest(
-                    "Provide an API key for Azure OpenAI models or install azure-identity"
-                )
-            # Capture token provider in closure for fresh client creation
-            # Passing token_provider as api_key requires openai>=1.106.0
-            token_provider = get_bearer_token_provider(
-                DefaultAzureCredential(),
-                "https://cognitiveservices.azure.com/.default",
-            )
-
-            def create_client_with_token() -> AsyncOpenAI:
-                return AsyncOpenAI(
-                    api_key=token_provider,
-                    base_url=base_url,
-                    default_headers=headers,
-                )
-
-            client_factory = LLMClientFactory(
-                create_client_with_token, azure_rate_limit_key(endpoint, None)
-            )
-        client_class = get_openai_client_class(provider_key, model_name, openai_api_type)
-        if client_class is None:
-            raise BadRequest(f"No client found for Azure OpenAI model: {model_name}")
-        return client_class(
-            client_factory=client_factory,
-            model_name=model_name,
-            provider=provider,
-        )
-
-    elif provider_key == GenerativeProviderKey.ANTHROPIC:
-        try:
-            import anthropic
-        except ImportError:
-            raise BadRequest("Anthropic package not installed. Run: pip install anthropic")
-
-        api_key = (
-            _get_credential_from_input(credentials, "ANTHROPIC_API_KEY")
-            or (await _resolve_secrets(session, decrypt, "ANTHROPIC_API_KEY")).get(
-                "ANTHROPIC_API_KEY"
-            )
-            or getenv("ANTHROPIC_API_KEY")
-        )
-        if not api_key:
-            raise BadRequest(
-                "An API key is required for Anthropic models. "
-                "Set the ANTHROPIC_API_KEY environment variable or use a custom provider."
-            )
-
-        # Create factory that returns fresh Anthropic client (native async context manager)
-        # AsyncAnthropic implements __aenter__/__aexit__ so it IS a context manager
-        def create_anthropic_client() -> AbstractAsyncContextManager["AsyncAnthropic"]:
-            return anthropic.AsyncAnthropic(api_key=api_key, default_headers=headers)
-
-        anthropic_client_factory: ClientFactory["AsyncAnthropic"] = LLMClientFactory(
-            create_anthropic_client, anthropic_rate_limit_key(api_key, None)
-        )
-        return AnthropicClient(
-            client_factory=anthropic_client_factory,
-            model_name=model_name,
-            provider=provider,
-        )
-
-    elif provider_key == GenerativeProviderKey.GOOGLE:
-        try:
-            from google.genai.client import Client as GoogleGenAIClient
-        except ImportError:
-            raise BadRequest("Google GenAI package not installed. Run: pip install google-genai")
-
-        # Try input credentials first
-        api_key = _get_credential_from_input(
-            credentials, "GEMINI_API_KEY"
-        ) or _get_credential_from_input(credentials, "GOOGLE_API_KEY")
-
-        # Fall back to database secrets
-        if not api_key:
-            secrets = await _resolve_secrets(session, decrypt, "GEMINI_API_KEY", "GOOGLE_API_KEY")
-            api_key = secrets.get("GEMINI_API_KEY") or secrets.get("GOOGLE_API_KEY")
-
-        # Fall back to environment variables
-        if not api_key:
-            api_key = getenv("GEMINI_API_KEY") or getenv("GOOGLE_API_KEY")
-
-        if not api_key:
-            raise BadRequest(
-                "An API key is required for Google GenAI models. "
-                "Set the GEMINI_API_KEY environment variable or use a custom provider."
-            )
-
-        # Wrapped with @asynccontextmanager because Google's AsyncClient has
-        # a non-standard __aexit__ signature that doesn't conform to
-        # AbstractAsyncContextManager (returns None instead of bool | None).
-        @asynccontextmanager
-        async def create_google_client() -> "AsyncIterator[GoogleAsyncClient]":
-            async with GoogleGenAIClient(api_key=api_key).aio as client:
-                yield client
-
-        google_client_factory = cast(
-            "LLMClientFactory[GoogleAsyncClient]",
-            LLMClientFactory(create_google_client, google_rate_limit_key(api_key, None)),
-        )
-        if model_name in GEMINI_2_5_MODELS:
-            return GoogleClient(
-                client_factory=google_client_factory,
-                model_name=model_name,
-                provider=provider,
-            )
-        return GoogleGemini3Client(
-            client_factory=google_client_factory,
-            model_name=model_name,
-            provider=provider,
-        )
-
-    elif provider_key == GenerativeProviderKey.AWS:
-        try:
-            import aioboto3  # type: ignore[import-untyped]
-        except ImportError:
-            raise BadRequest("aioboto3 package not installed. Run: pip install aioboto3")
-
-        region = region or getenv("AWS_REGION") or "us-east-1"
-
-        # Collect credentials from input
-        aws_access_key_id = _get_credential_from_input(credentials, "AWS_ACCESS_KEY_ID")
-        aws_secret_access_key = _get_credential_from_input(credentials, "AWS_SECRET_ACCESS_KEY")
-        aws_session_token = _get_credential_from_input(credentials, "AWS_SESSION_TOKEN")
-
-        # Fall back to database secrets for missing credentials
-        if not aws_access_key_id or not aws_secret_access_key:
-            secrets = await _resolve_secrets(
-                session, decrypt, "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN"
-            )
-            aws_access_key_id = aws_access_key_id or secrets.get("AWS_ACCESS_KEY_ID")
-            aws_secret_access_key = aws_secret_access_key or secrets.get("AWS_SECRET_ACCESS_KEY")
-            aws_session_token = aws_session_token or secrets.get("AWS_SESSION_TOKEN")
-
-        # Fall back to environment variables
-        aws_access_key_id = aws_access_key_id or getenv("AWS_ACCESS_KEY_ID")
-        aws_secret_access_key = aws_secret_access_key or getenv("AWS_SECRET_ACCESS_KEY")
-        aws_session_token = aws_session_token or getenv("AWS_SESSION_TOKEN")
-
-        aioboto3_session = aioboto3.Session(
-            aws_access_key_id=aws_access_key_id,
-            aws_secret_access_key=aws_secret_access_key,
-            aws_session_token=aws_session_token,
-            region_name=region,
-        )
-
-        # Create factory that returns aioboto3's ClientCreatorContext (async context manager)
-        def create_bedrock_client() -> AbstractAsyncContextManager["BedrockRuntimeClient"]:
-            return aioboto3_session.client(service_name="bedrock-runtime")  # type: ignore[no-any-return]
-
-        bedrock_client_factory: ClientFactory["BedrockRuntimeClient"] = LLMClientFactory(
-            create_bedrock_client, bedrock_rate_limit_key(region, aws_access_key_id)
-        )
-
-        return BedrockClient(
-            client_factory=bedrock_client_factory,
-            model_name=model_name,
-            provider=provider,
-        )
-
-    elif provider_key == GenerativeProviderKey.DEEPSEEK:
-        try:
-            from openai import AsyncOpenAI
-        except ImportError:
-            raise BadRequest("OpenAI package not installed. Run: pip install openai")
-
-        api_key = await resolve_provider_api_key(
-            credentials=credentials,
-            session=session,
-            decrypt=decrypt,
-            env_var_name="DEEPSEEK_API_KEY",
-            client_base_url=client_base_url,
-            provider_label="DeepSeek",
-        )
-        base_url = base_url or getenv("DEEPSEEK_BASE_URL") or "https://api.deepseek.com"
-
-        if not api_key:
-            if base_url == "https://api.deepseek.com":
-                raise BadRequest(
-                    "An API key is required for DeepSeek models. "
-                    "Set the DEEPSEEK_API_KEY environment variable or use a custom provider."
-                )
-            api_key = "sk-placeholder"  # Custom endpoints may not need a key
-
-        # Create factory that returns fresh OpenAI client (native async context manager)
-        def create_deepseek_client() -> AsyncOpenAI:
-            return AsyncOpenAI(
-                api_key=api_key,
-                base_url=base_url,
-                default_headers=headers,
-            )
-
-        client_factory = LLMClientFactory(
-            create_deepseek_client, openai_rate_limit_key(api_key, base_url)
-        )
-        return OpenAIChatCompletionsClient(
-            client_factory=client_factory,
-            model_name=model_name,
-            provider=provider,
-        )
-
-    elif provider_key == GenerativeProviderKey.XAI:
-        try:
-            from openai import AsyncOpenAI
-        except ImportError:
-            raise BadRequest("OpenAI package not installed. Run: pip install openai")
-
-        api_key = await resolve_provider_api_key(
-            credentials=credentials,
-            session=session,
-            decrypt=decrypt,
-            env_var_name="XAI_API_KEY",
-            client_base_url=client_base_url,
-            provider_label="xAI",
-        )
-        base_url = base_url or getenv("XAI_BASE_URL") or "https://api.x.ai/v1"
-
-        if not api_key:
-            if base_url == "https://api.x.ai/v1":
-                raise BadRequest(
-                    "An API key is required for xAI models. "
-                    "Set the XAI_API_KEY environment variable or use a custom provider."
-                )
-            api_key = "sk-placeholder"  # Custom endpoints may not need a key
-
-        # Create factory that returns fresh OpenAI client (native async context manager)
-        def create_xai_client() -> AsyncOpenAI:
-            return AsyncOpenAI(
-                api_key=api_key,
-                base_url=base_url,
-                default_headers=headers,
-            )
-
-        client_factory = LLMClientFactory(
-            create_xai_client, openai_rate_limit_key(api_key, base_url)
-        )
-        return OpenAIChatCompletionsClient(
-            client_factory=client_factory,
-            model_name=model_name,
-            provider=provider,
-        )
-
-    elif provider_key == GenerativeProviderKey.OLLAMA:
-        try:
-            from openai import AsyncOpenAI
-        except ImportError:
-            raise BadRequest("OpenAI package not installed. Run: pip install openai")
-
-        base_url = base_url or getenv("OLLAMA_BASE_URL")
-        if not base_url:
-            raise BadRequest(
-                "A base URL is required for Ollama models. "
-                "Set the OLLAMA_BASE_URL environment variable (e.g., http://localhost:11434/v1) "
-                "or use a custom provider."
-            )
-
-        # Create factory that returns fresh OpenAI client (native async context manager)
-        def create_ollama_client() -> AsyncOpenAI:
-            return AsyncOpenAI(
-                api_key="ollama",
-                base_url=base_url,
-                default_headers=headers,
-            )
-
-        client_factory = LLMClientFactory(
-            create_ollama_client, openai_rate_limit_key(None, base_url)
-        )
-        return OpenAIChatCompletionsClient(
-            client_factory=client_factory,
-            model_name=model_name,
-            provider=provider,
-        )
-
-    elif provider_key == GenerativeProviderKey.CEREBRAS:
-        try:
-            from openai import AsyncOpenAI
-        except ImportError:
-            raise BadRequest("OpenAI package not installed. Run: pip install openai")
-
-        api_key = await resolve_provider_api_key(
-            credentials=credentials,
-            session=session,
-            decrypt=decrypt,
-            env_var_name="CEREBRAS_API_KEY",
-            client_base_url=client_base_url,
-            provider_label="Cerebras",
-        )
-        base_url = base_url or getenv("CEREBRAS_BASE_URL") or "https://api.cerebras.ai/v1"
-
-        if not api_key:
-            if base_url == "https://api.cerebras.ai/v1":
-                raise BadRequest(
-                    "An API key is required for Cerebras models. "
-                    "Set the CEREBRAS_API_KEY environment variable or use a custom provider."
-                )
-            api_key = "sk-placeholder"
-
-        def create_cerebras_client() -> AsyncOpenAI:
-            return AsyncOpenAI(
-                api_key=api_key,
-                base_url=base_url,
-                default_headers=headers,
-            )
-
-        client_factory = LLMClientFactory(
-            create_cerebras_client, openai_rate_limit_key(api_key, base_url)
-        )
-        return OpenAIChatCompletionsClient(
-            client_factory=client_factory,
-            model_name=model_name,
-            provider=provider,
-        )
-
-    elif provider_key == GenerativeProviderKey.FIREWORKS:
-        try:
-            from openai import AsyncOpenAI
-        except ImportError:
-            raise BadRequest("OpenAI package not installed. Run: pip install openai")
-
-        api_key = await resolve_provider_api_key(
-            credentials=credentials,
-            session=session,
-            decrypt=decrypt,
-            env_var_name="FIREWORKS_API_KEY",
-            client_base_url=client_base_url,
-            provider_label="Fireworks",
-        )
-        base_url = (
-            base_url or getenv("FIREWORKS_BASE_URL") or "https://api.fireworks.ai/inference/v1"
-        )
-
-        if not api_key:
-            if base_url == "https://api.fireworks.ai/inference/v1":
-                raise BadRequest(
-                    "An API key is required for Fireworks models. "
-                    "Set the FIREWORKS_API_KEY environment variable or use a custom provider."
-                )
-            api_key = "sk-placeholder"
-
-        def create_fireworks_client() -> AsyncOpenAI:
-            return AsyncOpenAI(
-                api_key=api_key,
-                base_url=base_url,
-                default_headers=headers,
-            )
-
-        client_factory = LLMClientFactory(
-            create_fireworks_client, openai_rate_limit_key(api_key, base_url)
-        )
-        return OpenAIChatCompletionsClient(
-            client_factory=client_factory,
-            model_name=model_name,
-            provider=provider,
-        )
-
-    elif provider_key == GenerativeProviderKey.GROQ:
-        try:
-            from openai import AsyncOpenAI
-        except ImportError:
-            raise BadRequest("OpenAI package not installed. Run: pip install openai")
-
-        api_key = await resolve_provider_api_key(
-            credentials=credentials,
-            session=session,
-            decrypt=decrypt,
-            env_var_name="GROQ_API_KEY",
-            client_base_url=client_base_url,
-            provider_label="Groq",
-        )
-        base_url = base_url or getenv("GROQ_BASE_URL") or "https://api.groq.com/openai/v1"
-
-        if not api_key:
-            if base_url == "https://api.groq.com/openai/v1":
-                raise BadRequest(
-                    "An API key is required for Groq models. "
-                    "Set the GROQ_API_KEY environment variable or use a custom provider."
-                )
-            api_key = "sk-placeholder"
-
-        def create_groq_client() -> AsyncOpenAI:
-            return AsyncOpenAI(
-                api_key=api_key,
-                base_url=base_url,
-                default_headers=headers,
-            )
-
-        client_factory = LLMClientFactory(
-            create_groq_client, openai_rate_limit_key(api_key, base_url)
-        )
-        return OpenAIChatCompletionsClient(
-            client_factory=client_factory,
-            model_name=model_name,
-            provider=provider,
-        )
-
-    elif provider_key == GenerativeProviderKey.MOONSHOT:
-        try:
-            from openai import AsyncOpenAI
-        except ImportError:
-            raise BadRequest("OpenAI package not installed. Run: pip install openai")
-
-        api_key = await resolve_provider_api_key(
-            credentials=credentials,
-            session=session,
-            decrypt=decrypt,
-            env_var_name="MOONSHOT_API_KEY",
-            client_base_url=client_base_url,
-            provider_label="Moonshot",
-        )
-        base_url = base_url or getenv("MOONSHOT_BASE_URL") or "https://api.moonshot.ai/v1"
-
-        if not api_key:
-            if base_url == "https://api.moonshot.ai/v1":
-                raise BadRequest(
-                    "An API key is required for Moonshot models. "
-                    "Set the MOONSHOT_API_KEY environment variable or use a custom provider."
-                )
-            api_key = "sk-placeholder"
-
-        def create_moonshot_client() -> AsyncOpenAI:
-            return AsyncOpenAI(
-                api_key=api_key,
-                base_url=base_url,
-                default_headers=headers,
-            )
-
-        client_factory = LLMClientFactory(
-            create_moonshot_client, openai_rate_limit_key(api_key, base_url)
-        )
-        return OpenAIChatCompletionsClient(
-            client_factory=client_factory,
-            model_name=model_name,
-            provider=provider,
-        )
-
-    elif provider_key == GenerativeProviderKey.MINIMAX:
-        try:
-            from openai import AsyncOpenAI
-        except ImportError:
-            raise BadRequest("OpenAI package not installed. Run: pip install openai")
-
-        api_key = await resolve_provider_api_key(
-            credentials=credentials,
-            session=session,
-            decrypt=decrypt,
-            env_var_name="MINIMAX_API_KEY",
-            client_base_url=client_base_url,
-            provider_label="MiniMax",
-        )
-        base_url = base_url or getenv("MINIMAX_BASE_URL") or "https://api.minimax.io/v1"
-
-        if not api_key:
-            if base_url == "https://api.minimax.io/v1":
-                raise BadRequest(
-                    "An API key is required for MiniMax models. "
-                    "Set the MINIMAX_API_KEY environment variable or use a custom provider."
-                )
-            api_key = "sk-placeholder"
-
-        def create_minimax_client() -> AsyncOpenAI:
-            return AsyncOpenAI(
-                api_key=api_key,
-                base_url=base_url,
-                default_headers=headers,
-            )
-
-        client_factory = LLMClientFactory(
-            create_minimax_client, openai_rate_limit_key(api_key, base_url)
-        )
-        return OpenAIChatCompletionsClient(
-            client_factory=client_factory,
-            model_name=model_name,
-            provider=provider,
-        )
-
-    elif provider_key == GenerativeProviderKey.PERPLEXITY:
-        try:
-            from openai import AsyncOpenAI
-        except ImportError:
-            raise BadRequest("OpenAI package not installed. Run: pip install openai")
-
-        api_key = await resolve_provider_api_key(
-            credentials=credentials,
-            session=session,
-            decrypt=decrypt,
-            env_var_name="PERPLEXITY_API_KEY",
-            client_base_url=client_base_url,
-            provider_label="Perplexity",
-        )
-        base_url = base_url or getenv("PERPLEXITY_BASE_URL") or "https://api.perplexity.ai"
-
-        if not api_key:
-            if base_url == "https://api.perplexity.ai":
-                raise BadRequest(
-                    "An API key is required for Perplexity models. "
-                    "Set the PERPLEXITY_API_KEY environment variable or use a custom provider."
-                )
-            api_key = "sk-placeholder"
-
-        def create_perplexity_client() -> AsyncOpenAI:
-            return AsyncOpenAI(
-                api_key=api_key,
-                base_url=base_url,
-                default_headers=headers,
-            )
-
-        client_factory = LLMClientFactory(
-            create_perplexity_client, openai_rate_limit_key(api_key, base_url)
-        )
-        return OpenAIChatCompletionsClient(
-            client_factory=client_factory,
-            model_name=model_name,
-            provider=provider,
-        )
-
-    elif provider_key == GenerativeProviderKey.TOGETHER:
-        try:
-            from openai import AsyncOpenAI
-        except ImportError:
-            raise BadRequest("OpenAI package not installed. Run: pip install openai")
-
-        api_key = await resolve_provider_api_key(
-            credentials=credentials,
-            session=session,
-            decrypt=decrypt,
-            env_var_name="TOGETHER_API_KEY",
-            client_base_url=client_base_url,
-            provider_label="Together",
-        )
-        base_url = base_url or getenv("TOGETHER_BASE_URL") or "https://api.together.xyz/v1"
-
-        if not api_key:
-            if base_url == "https://api.together.xyz/v1":
-                raise BadRequest(
-                    "An API key is required for Together AI models. "
-                    "Set the TOGETHER_API_KEY environment variable or use a custom provider."
-                )
-            api_key = "sk-placeholder"
-
-        def create_together_client() -> AsyncOpenAI:
-            return AsyncOpenAI(
-                api_key=api_key,
-                base_url=base_url,
-                default_headers=headers,
-            )
-
-        client_factory = LLMClientFactory(
-            create_together_client, openai_rate_limit_key(api_key, base_url)
-        )
-        return OpenAIChatCompletionsClient(
-            client_factory=client_factory,
-            model_name=model_name,
-            provider=provider,
-        )
-
-    elif provider_key == GenerativeProviderKey.ZAI:
-        try:
-            from openai import AsyncOpenAI
-        except ImportError:
-            raise BadRequest("OpenAI package not installed. Run: pip install openai")
-
-        api_key = await resolve_provider_api_key(
-            credentials=credentials,
-            session=session,
-            decrypt=decrypt,
-            env_var_name="ZAI_API_KEY",
-            client_base_url=client_base_url,
-            provider_label="Z.ai",
-        )
-        base_url = base_url or getenv("ZAI_BASE_URL") or "https://api.z.ai/api/paas/v4"
-
-        if not api_key:
-            if base_url.startswith("https://api.z.ai/"):
-                raise BadRequest(
-                    "An API key is required for Z.ai models. "
-                    "Set the ZAI_API_KEY environment variable or use a custom provider."
-                )
-            api_key = "sk-placeholder"
-
-        def create_zai_client() -> AsyncOpenAI:
-            return AsyncOpenAI(
-                api_key=api_key,
-                base_url=base_url,
-                default_headers=headers,
-            )
-
-        client_factory = LLMClientFactory(
-            create_zai_client, openai_rate_limit_key(api_key, base_url)
-        )
-        return OpenAIChatCompletionsClient(
-            client_factory=client_factory,
-            model_name=model_name,
-            provider=provider,
-        )
-
-    elif provider_key == GenerativeProviderKey.META:
-        try:
-            from openai import AsyncOpenAI
-        except ImportError:
-            raise BadRequest("OpenAI package not installed. Run: pip install openai")
-
-        api_key = await resolve_provider_api_key(
-            credentials=credentials,
-            session=session,
-            decrypt=decrypt,
-            env_var_name="META_API_KEY",
-            client_base_url=client_base_url,
-            provider_label="Meta",
-        )
-        base_url = base_url or getenv("META_BASE_URL") or "https://api.meta.ai/v1"
-
-        if not api_key:
-            if base_url.startswith("https://api.meta.ai/"):
-                raise BadRequest(
-                    "An API key is required for Meta models. "
-                    "Set the META_API_KEY environment variable or use a custom provider."
-                )
-            api_key = "sk-placeholder"
-
-        def create_meta_client() -> AsyncOpenAI:
-            return AsyncOpenAI(
-                api_key=api_key,
-                base_url=base_url,
-                default_headers=headers,
-            )
-
-        client_factory = LLMClientFactory(
-            create_meta_client, openai_rate_limit_key(api_key, base_url)
-        )
-        return OpenAIChatCompletionsClient(
-            client_factory=client_factory,
-            model_name=model_name,
-            provider=provider,
-        )
-
-    elif provider_key is GenerativeProviderKey.TYPESAFE:
-        # Decision-only provider: rejected by require_chat_provider above. The
-        # branch exists only so the dispatch stays exhaustive over the enum.
-        raise AssertionError("decision-only provider reached chat client dispatch")
-
-    else:
-        assert_never(provider_key)
+    config = await _builtin_chat_config(
+        provider_key, sdk, credentials=credentials, session=session, decrypt=decrypt
+    )
+    client_class = get_openai_client_class(
+        provider_key, model_name, sdk.openai_api_type
+    ) or _chat_client_class(config, model_name)
+    return client_class(
+        client_factory=_client_factory(config, dict(headers) if headers else None),
+        model_name=model_name,
+        provider=GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING[provider_key],
+    )
 
 
 async def _get_custom_provider_client(
@@ -4142,25 +3469,16 @@ async def _get_custom_provider_client(
     model_name: str,
     extra_headers: dict[str, str] | None,
     decrypt: Callable[[bytes], bytes],
-) -> "PlaygroundClient[Any]":
+) -> "ChatClient[Any]":
     """
-    Create a playground client from a custom provider stored in the database.
+    Create a chat client from a custom provider stored in the database.
 
     Decrypts the provider configuration and creates the appropriate SDK client.
 
-    Args:
-        provider_record: The custom provider DB record (already fetched).
-        model_name: The model name to use.
-        extra_headers: Optional extra HTTP headers for the client.
-        decrypt: Decryption function for the stored config.
-
-    Returns:
-        A configured PlaygroundClient.
-
     Raises:
-        BadRequest: If decryption or parsing fails, or client creation fails.
+        BadRequest: If decryption or parsing fails, the provider serves no chat models,
+            or client creation fails.
     """
-
     try:
         decrypted_data = decrypt(provider_record.config)
     except Exception:
@@ -4171,90 +3489,18 @@ async def _get_custom_provider_client(
     except ValidationError:
         raise BadRequest("Failed to parse custom provider config")
 
-    provider = provider_record.provider
-    headers = dict(extra_headers) if extra_headers else None
     cfg = config.root
-
-    # The openai/azure_openai SDK configs serve any OpenAI-compatible endpoint --
-    # DeepSeek, xAI, Ollama, Groq, Together and others (see
-    # is_sdk_compatible_with_model_provider). A model name matching an OpenAI model
-    # does not mean OpenAI is behind it, so the reasoning-model specializations,
-    # which rewrite `system` to `developer`, are deliberately not applied here.
-    if cfg.type == "openai":
-        try:
-            openai_client_factory = cfg.get_client_factory(extra_headers=headers)
-        except Exception as e:
-            raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
-        if cfg.openai_api_type == "responses":
-            return OpenAIResponsesClient(
-                client_factory=openai_client_factory,
-                model_name=model_name,
-                provider=provider,
-            )
-        return OpenAIChatCompletionsClient(
-            client_factory=openai_client_factory,
-            model_name=model_name,
-            provider=provider,
-        )
-    elif cfg.type == "azure_openai":
-        try:
-            azure_openai_client_factory = cfg.get_client_factory(extra_headers=headers)
-        except Exception as e:
-            raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
-        if cfg.openai_api_type == "responses":
-            return AzureOpenAIResponsesClient(
-                client_factory=azure_openai_client_factory,
-                model_name=model_name,
-                provider=provider,
-            )
-        return AzureOpenAIChatCompletionsClient(
-            client_factory=azure_openai_client_factory,
-            model_name=model_name,
-            provider=provider,
-        )
-    elif cfg.type == "anthropic":
-        try:
-            anthropic_client_factory = cfg.get_client_factory(extra_headers=headers)
-        except Exception as e:
-            raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
-        return AnthropicClient(
-            client_factory=anthropic_client_factory,
-            model_name=model_name,
-            provider=provider,
-        )
-    elif cfg.type == "aws_bedrock":
-        try:
-            aws_bedrock_client_factory = cfg.get_client_factory(extra_headers=headers)
-        except Exception as e:
-            raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
-        return BedrockClient(
-            client_factory=aws_bedrock_client_factory,
-            model_name=model_name,
-            provider=provider,
-        )
-    elif cfg.type == "google_genai":
-        try:
-            google_genai_client_factory = cfg.get_client_factory(extra_headers=headers)
-        except Exception as e:
-            raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
-        if model_name in GEMINI_2_5_MODELS:
-            return GoogleClient(
-                client_factory=google_genai_client_factory,
-                model_name=model_name,
-                provider=provider,
-            )
-        return GoogleGemini3Client(
-            client_factory=google_genai_client_factory,
-            model_name=model_name,
-            provider=provider,
-        )
-    elif cfg.type == "typesafe":
+    if cfg.type == "typesafe":
         raise BadRequest(
             f"Custom provider '{provider_record.name}' serves decision models only; "
             "choose a provider with chat models."
         )
-    else:
-        assert_never(cfg)
+    check_provider_base_urls(cfg)
+    return _chat_client_class(cfg, model_name)(
+        client_factory=_client_factory(cfg, dict(extra_headers) if extra_headers else None),
+        model_name=model_name,
+        provider=provider_record.provider,
+    )
 
 
 def llm_span_kind() -> Iterator[tuple[str, Any]]:

@@ -24,8 +24,8 @@ from phoenix.db.types.prompts import (
     RoleConversion,
     TextContentPart,
 )
+from phoenix.server.api.helpers.chat_clients import ChatClient
 from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
-from phoenix.server.api.helpers.playground_clients import PlaygroundClient
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
 from phoenix.server.evaluators.input_mapping import (
@@ -88,7 +88,7 @@ class LLMEvaluator(BaseEvaluator):
         tools: PromptTools,
         invocation_parameters: PromptInvocationParameters,
         model_provider: ModelProvider,
-        llm_client: PlaygroundClient[Any],
+        llm_client: ChatClient[Any],
         output_configs: Sequence[CategoricalOutputConfig],
         prompt_name: str,
         max_message_bytes: Optional[int] = None,

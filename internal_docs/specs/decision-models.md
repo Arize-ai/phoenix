@@ -1366,7 +1366,7 @@ by where a judge runs:
 
 - **A decision judge in an experiment or online evaluation:** `DecisionClient`
   always disables provider SDK retries (`max_retries=0`, matching
-  `PlaygroundClient`), and the runner or online-eval executor owns retry backoff
+  `ChatClient`), and the runner or online-eval executor owns retry backoff
   so retries never stack. As for any retried work, a retried attempt's trace is
   not kept.
 - **A decision judge in a preview:** `DecisionClient` still runs with

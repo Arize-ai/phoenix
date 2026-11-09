@@ -1,21 +1,10 @@
-"""Decision invocation, request validation, and OpenInference tracing.
-
-Decision models are a second model type alongside chat (LLM) models. A provider may
-offer either or both: OpenAI serves ``gpt-6-luna`` through both its chat and its
-Decisions APIs, while TypeSafe serves decision models only. ``DECISION_CLIENTS`` is the
-single source of truth for which providers and models support decision execution, and
-each client class declares how it reaches its provider: the OpenInference ``system`` and
-``provider`` values, the SDK, the default base URL and its environment override,
-and the credential it authenticates with. Nothing outside this module should special-case
-a provider.
-"""
+"""Decision model clients, answer validation, and OpenInference tracing."""
 
 from __future__ import annotations
 
 import asyncio
-import importlib.util
 import json
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -31,7 +20,6 @@ from typing import (
     TypedDict,
 )
 
-import httpx
 from openinference.semconv.trace import (
     OpenInferenceDecisionProviderValues,
     OpenInferenceDecisionSystemValues,
@@ -44,7 +32,6 @@ from opentelemetry.trace import Status, StatusCode, Tracer
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from phoenix.config import getenv
 from phoenix.db import models
 from phoenix.db.types.decisions import (
     ChoiceQuestion,
@@ -53,9 +40,7 @@ from phoenix.db.types.decisions import (
     ScaleQuestion,
 )
 from phoenix.db.types.model_provider import (
-    OPENAI_DEFAULT_BASE_URL,
-    TYPESAFE_DEFAULT_BASE_URL,
-    AzureOpenAICustomProviderConfig,
+    ClientFactory,
     GenerativeModelCustomerProviderConfig,
     GenerativeModelCustomerProviderConfigType,
     ModelProvider,
@@ -63,18 +48,22 @@ from phoenix.db.types.model_provider import (
     TypeSafeCustomProviderConfig,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
-from phoenix.server.api.helpers.playground_clients import resolve_provider_api_key
-from phoenix.server.api.helpers.playground_registry import (
-    filter_allowed_providers,
+from phoenix.server.api.helpers.builtin_providers import (
+    BuiltInEndpoint,
+    check_provider_base_urls,
+    credential_env_vars,
+    resolve_builtin_config,
 )
+from phoenix.server.api.helpers.chat_clients import CHAT_ENDPOINTS
+from phoenix.server.api.helpers.client_registry import (
+    CLIENT_REGISTRY,
+    PROVIDER_DEFAULT,
+    register_client,
+)
+from phoenix.server.api.helpers.model_clients import Dependency, ModelClient
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
-from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
-from phoenix.server.decisions.endpoints import (
-    decision_client_base_url,
-    resolve_decision_base_url,
-)
+from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.decisions.validation import custom_provider_without_decisions_error
-from phoenix.utilities.env_vars import without_env_vars
 
 if TYPE_CHECKING:
     from openai.types.decision import Answer as OpenAIAnswer
@@ -93,7 +82,6 @@ if TYPE_CHECKING:
 
 
 JSONValue = str | dict[str, Any] | list[Any]
-"""Text, a JSON object, or an array. Used only where structure is the point."""
 
 
 @dataclass(frozen=True)
@@ -269,97 +257,22 @@ def _fail(span: OtelSpan, message: str, error_class: type[BadRequest] = BadReque
     return error_class(message)
 
 
-@dataclass(frozen=True)
-class DecisionConnection:
-    """How a decision client reaches its endpoint, resolved before it is built."""
-
-    api_key: str
-    base_url: str
-    headers: Optional[Mapping[str, str]] = None
-    organization: Optional[str] = None
-    """OpenAI only."""
-    project: Optional[str] = None
-    """OpenAI only."""
-    provider_name: Optional[str] = None
-    """The span's ``decision.provider``; the client's own provider when unset. A custom
-    provider names who hosts it."""
-    ignore_environment: bool = False
-    """Keep the SDK from reading the server's environment (organization, project), so
-    a custom provider, or a built-in one on another host, sends only what it configures."""
-
-
-class DecisionClient(ABC):
-    """Execute a non-streaming decision request without chat/tool emulation.
-
-    Subclasses declare how to reach their provider through class attributes, so the
-    resolver in :func:`get_decision_client` never needs to know which provider it is
-    building for. ``api_key_env_var`` defaults to the provider's first required
-    credential from :class:`GenerativeProvider`'s credential requirements, which keeps
-    one source of truth for credential names across chat and decision execution.
-    """
+class DecisionClient(ModelClient[Any]):
+    """A model client whose call is a decision: a non-streaming request answered
+    without chat/tool emulation."""
 
     provider_key: ClassVar[GenerativeProviderKey]
     system: ClassVar[OpenInferenceDecisionSystemValues]
-    provider: ClassVar[str]
-    """The span's ``decision.provider``: who hosts the model, which may differ from the
-    API family in ``system``."""
-    model_names: ClassVar[tuple[str, ...]]
-    """The decision models offered in the catalog, in order."""
-    sdk_import_name: ClassVar[str]
-    default_base_url: ClassVar[Optional[str]]
-    """None when there is no sensible default, so a base URL must be configured."""
-    base_url_env_var: ClassVar[str]
-    api_key_env_var: ClassVar[Optional[str]] = None
-    requires_api_key: ClassVar[bool] = True
-    """False for servers that ignore the key; a placeholder is sent, since the SDK
-    requires one."""
-    ignore_environment: ClassVar[bool] = False
-    """True when the SDK's environment variables belong to another host, so a built-in
-    connection must not read them (see :attr:`DecisionConnection.ignore_environment`)."""
-
-    def __init__(self, *, model_name: str, connection: DecisionConnection) -> None:
-        self.model_name = model_name
-        self._connection = connection
-        self._api_key = connection.api_key
-        self._base_url = connection.base_url.rstrip("/")
-
-    @classmethod
-    def credential_env_var(cls) -> str:
-        """The environment variable (and secret name) holding this client's API key."""
-        if cls.api_key_env_var:
-            return cls.api_key_env_var
-        requirements = GenerativeProvider.model_provider_to_credential_requirements_map.get(
-            cls.provider_key, []
-        )
-        for requirement in requirements:
-            if requirement.is_required:
-                return requirement.env_var_name
-        raise RuntimeError(
-            f"{cls.__name__} declares no api_key_env_var and {cls.provider_key.value} "
-            "has no required credential."
-        )
-
-    @classmethod
-    def resolve_base_url(cls, override: Optional[str]) -> Optional[str]:
-        return override or getenv(cls.base_url_env_var) or cls.default_base_url
+    built_in_endpoint: ClassVar[BuiltInEndpoint]
 
     def get_rate_limit_key(self) -> Hashable:
-        """Requests with the same key share rate-limit capacity: same API, endpoint, key."""
-        return ("decision", self.system.value, hash(self._base_url), hash(self._api_key))
+        return ("decision", self.system.value, self._client_factory.rate_limit_key)
 
-    def is_rate_limit_error(self, error: Exception) -> bool:
-        return isinstance(error, DecisionRateLimitError)
+    def is_rate_limit_error(self, e: Exception) -> bool:
+        return isinstance(e, DecisionRateLimitError)
 
-    def is_transient_error(self, error: Exception) -> bool:
-        return isinstance(error, DecisionTransientError)
-
-    @classmethod
-    def dependencies_are_installed(cls) -> bool:
-        """Whether the optional provider SDK is available."""
-        try:
-            return importlib.util.find_spec(cls.sdk_import_name) is not None
-        except (ImportError, ValueError):
-            return False
+    def is_transient_error(self, e: Exception) -> bool:
+        return isinstance(e, DecisionTransientError)
 
     @abstractmethod
     async def invoke(self, request: DecisionRequest, span: OtelSpan) -> DecisionResponse:
@@ -401,7 +314,7 @@ class DecisionClient(ABC):
             attributes={
                 SpanAttributes.OPENINFERENCE_SPAN_KIND: OpenInferenceSpanKindValues.DECISION.value,
                 SpanAttributes.DECISION_SYSTEM: self.system.value,
-                SpanAttributes.DECISION_PROVIDER: (self._connection.provider_name or self.provider),
+                SpanAttributes.DECISION_PROVIDER: self.provider,
                 SpanAttributes.DECISION_MODEL_NAME: self.model_name,
                 SpanAttributes.DECISION_REQUEST_MODEL_NAME: self.model_name,
                 SpanAttributes.INPUT_MIME_TYPE: "application/json",
@@ -450,6 +363,11 @@ TYPESAFE_DECISION_MODELS: tuple[str, ...] = (
 )
 
 
+@register_client(
+    GenerativeProviderKey.TYPESAFE,
+    (PROVIDER_DEFAULT, *TYPESAFE_DECISION_MODELS),
+    model_type="decision",
+)
 class TypeSafeDecisionClient(DecisionClient):
     """TypeSafe System One. Any System One-compatible host (OpenRouter, a LiteLLM
     proxy, self-hosted vLLM Decision models) works through ``TYPESAFE_BASE_URL``."""
@@ -457,10 +375,16 @@ class TypeSafeDecisionClient(DecisionClient):
     provider_key = GenerativeProviderKey.TYPESAFE
     system = OpenInferenceDecisionSystemValues.TYPESAFE
     provider = OpenInferenceDecisionProviderValues.TYPESAFE.value
-    model_names = TYPESAFE_DECISION_MODELS
-    sdk_import_name = "typesafe_sdk"
-    default_base_url: ClassVar[Optional[str]] = TYPESAFE_DEFAULT_BASE_URL
-    base_url_env_var = "TYPESAFE_BASE_URL"
+    built_in_endpoint = BuiltInEndpoint(
+        label=GenerativeProviderKey.TYPESAFE.value,
+        sdk="typesafe",
+        api_key_env_vars=credential_env_vars(GenerativeProviderKey.TYPESAFE),
+        base_url_env_var="TYPESAFE_BASE_URL",
+    )
+
+    @classmethod
+    def dependencies(cls) -> list[Dependency]:
+        return [Dependency(name="typesafe-sdk", module_name="typesafe_sdk")]
 
     def _build_request(self, request: DecisionRequest) -> SystemOneRequest:
         """Translate Phoenix questions into System One's: a predicate is a ``noul``, a
@@ -498,8 +422,6 @@ class TypeSafeDecisionClient(DecisionClient):
 
     async def invoke(self, request: DecisionRequest, span: OtelSpan) -> DecisionResponse:
         from typesafe_sdk import (
-            AsyncTypeSafeClient,
-            RetryPolicy,
             TypeSafeAPIConnectionError,
             TypeSafeAPIError,
             TypeSafeAPIResponseValidationError,
@@ -510,14 +432,8 @@ class TypeSafeDecisionClient(DecisionClient):
         parameters = self._build_request(request)
         _record_input(span, parameters)
         try:
-            async with AsyncTypeSafeClient(
-                api_key=self._api_key,
-                base_url=self._base_url,
-                headers=self._connection.headers,
-                retry=RetryPolicy(max_retries=0),
-                timeout=60,
-            ) as client:
-                response = await client.system_one(**parameters)
+            async with self._client_factory() as client:
+                response = await client.system_one(**parameters, timeout=60)
             _record_output(span, response.raw_http_response.json())
         except TypeSafeAPIResponseValidationError as error:
             _record_output(span, error.body)
@@ -569,16 +485,22 @@ class TypeSafeDecisionClient(DecisionClient):
 OPENAI_DECISION_MODELS: tuple[str, ...] = ("gpt-6-luna",)
 
 
+@register_client(
+    GenerativeProviderKey.OPENAI,
+    (PROVIDER_DEFAULT, *OPENAI_DECISION_MODELS),
+    model_type="decision",
+)
 class OpenAIDecisionClient(DecisionClient):
-    """OpenAI Decisions API. Shares OpenAI's credential and base URL with chat."""
+    """OpenAI Decisions API client."""
 
     provider_key = GenerativeProviderKey.OPENAI
     system = OpenInferenceDecisionSystemValues.OPENAI
     provider = OpenInferenceDecisionProviderValues.OPENAI.value
-    model_names = OPENAI_DECISION_MODELS
-    sdk_import_name = "openai"
-    default_base_url: ClassVar[Optional[str]] = OPENAI_DEFAULT_BASE_URL
-    base_url_env_var = "OPENAI_BASE_URL"
+    built_in_endpoint = CHAT_ENDPOINTS[GenerativeProviderKey.OPENAI]
+
+    @classmethod
+    def dependencies(cls) -> list[Dependency]:
+        return [Dependency(name="openai")]
 
     def _build_request(self, request: DecisionRequest) -> DecisionCreateParams:
         """Translate Phoenix questions into the SDK's discriminated request types.
@@ -634,33 +556,18 @@ class OpenAIDecisionClient(DecisionClient):
         return {"model": self.model_name, "input": _as_text(request.state), "questions": questions}
 
     async def invoke(self, request: DecisionRequest, span: OtelSpan) -> DecisionResponse:
-        import httpx2
         from openai import (
             APIConnectionError,
             APIStatusError,
             APITimeoutError,
-            AsyncOpenAI,
         )
         from openai.types import Decision
 
         parameters = self._build_request(request)
         _record_input(span, parameters)
-        connection = self._connection
         try:
-            ignored = ("OPENAI_*",) if connection.ignore_environment else ()
-            with without_env_vars(*ignored):
-                openai_client = AsyncOpenAI(
-                    api_key=self._api_key,
-                    base_url=self._base_url,
-                    organization=connection.organization,
-                    project=connection.project,
-                    default_headers=connection.headers,
-                    timeout=60,
-                    max_retries=0,
-                    http_client=httpx2.AsyncClient(follow_redirects=False),
-                )
-            async with openai_client as client:
-                response = await client.decisions.with_raw_response.create(**parameters)
+            async with self._client_factory() as client:
+                response = await client.decisions.with_raw_response.create(**parameters, timeout=60)
                 raw = response.http_response.json()
                 _record_output(span, raw)
                 decision = Decision.model_validate(raw)
@@ -718,60 +625,28 @@ class OpenAIDecisionClient(DecisionClient):
         )
 
 
-class AzureOpenAIDecisionClient(OpenAIDecisionClient):
-    """OpenAI's Decisions API on Azure OpenAI, at ``{endpoint}/openai/v1/decisions``.
-
-    Configured the way Azure OpenAI chat is: ``AZURE_OPENAI_API_KEY`` and the resource
-    endpoint from the run or ``AZURE_OPENAI_ENDPOINT``. Like chat, it calls Azure's v1
-    API through the plain OpenAI client, which needs no ``api-version``; the SDK's
-    ``AsyncAzureOpenAI`` would require one. The model name is the deployment name, which
-    the user chooses, so the catalog suggests none. The SDK is kept from reading
-    ``OPENAI_*`` variables, so the server's OpenAI organization and project never reach
-    Azure.
-    """
-
-    provider_key = GenerativeProviderKey.AZURE_OPENAI
-    system = OpenInferenceDecisionSystemValues.OPENAI
-    provider = "azure"  # OpenInference has no Azure decision provider value yet.
-    model_names = ()
-    default_base_url = None
-    base_url_env_var = "AZURE_OPENAI_ENDPOINT"
-    ignore_environment = True
-
-    @classmethod
-    def resolve_base_url(cls, override: Optional[str]) -> Optional[str]:
-        endpoint = super().resolve_base_url(override)
-        if endpoint is None:
-            return None
-        endpoint = endpoint.rstrip("/")
-        return endpoint if endpoint.endswith("/openai/v1") else f"{endpoint}/openai/v1"
-
-
 FIREWORKS_DECISION_MODELS: tuple[str, ...] = ("accounts/fireworks/models/rune",)
 
 
+@register_client(
+    GenerativeProviderKey.FIREWORKS,
+    (PROVIDER_DEFAULT, *FIREWORKS_DECISION_MODELS),
+    model_type="decision",
+)
 class FireworksDecisionClient(TypeSafeDecisionClient):
-    """Fireworks' decision models, which it serves through System One at
-    ``/inference/v1/systemone``.
-
-    ``FIREWORKS_BASE_URL`` names the OpenAI-compatible root (``.../inference/v1``) for
-    chat, while System One's path starts one level up, so a trailing ``/v1`` is dropped
-    and one variable serves both.
-    """
+    """Fireworks System One decision client (``/inference/v1/systemone``)."""
 
     provider_key = GenerativeProviderKey.FIREWORKS
     system = OpenInferenceDecisionSystemValues.TYPESAFE
     provider = "fireworks"  # OpenInference has no Fireworks decision provider value yet.
-    model_names = FIREWORKS_DECISION_MODELS
-    default_base_url = "https://api.fireworks.ai/inference"
-    base_url_env_var = "FIREWORKS_BASE_URL"
-
-    @classmethod
-    def resolve_base_url(cls, override: Optional[str]) -> Optional[str]:
-        base_url = super().resolve_base_url(override)
-        if base_url is None:
-            return None
-        return base_url.rstrip("/").removesuffix("/v1")
+    built_in_endpoint = BuiltInEndpoint(
+        label=GenerativeProviderKey.FIREWORKS.value,
+        sdk="typesafe",
+        api_key_env_vars=credential_env_vars(GenerativeProviderKey.FIREWORKS),
+        base_url_env_var="FIREWORKS_BASE_URL",
+        default_base_url="https://api.fireworks.ai/inference",
+        base_url_drops_v1=True,
+    )
 
 
 OLLAMA_DECISION_MODELS: tuple[str, ...] = (
@@ -794,56 +669,32 @@ category (ollama.com/search?c=decision). ``clef`` runs locally or, as ``clef:clo
 on Ollama's cloud."""
 
 
+@register_client(
+    GenerativeProviderKey.OLLAMA,
+    (PROVIDER_DEFAULT, *OLLAMA_DECISION_MODELS),
+    model_type="decision",
+)
 class OllamaDecisionClient(TypeSafeDecisionClient):
-    """Ollama's decision models, which it serves through System One at ``/v1/systemone``.
-
-    Configured the way Ollama chat is: no credentials, and a base URL from the run or
-    ``OLLAMA_BASE_URL`` with no default. That variable names the OpenAI-compatible root
-    (``http://localhost:11434/v1``) for chat, while System One's path starts at the
-    server root, so the System One rule drops a trailing ``/v1`` and one variable
-    serves both.
-    """
+    """Ollama System One decision client (``/v1/systemone``)."""
 
     provider_key = GenerativeProviderKey.OLLAMA
     system = OpenInferenceDecisionSystemValues.TYPESAFE
     provider = "ollama"  # OpenInference has no Ollama decision provider value yet.
-    model_names = OLLAMA_DECISION_MODELS
-    default_base_url = None
-    base_url_env_var = "OLLAMA_BASE_URL"
-    requires_api_key = False
-
-    @classmethod
-    def resolve_base_url(cls, override: Optional[str]) -> Optional[str]:
-        base_url = super().resolve_base_url(override)
-        if base_url is None:
-            return None
-        return decision_client_base_url("typesafe", base_url)
-
-
-DECISION_CLIENTS: Mapping[GenerativeProviderKey, type[DecisionClient]] = {
-    client.provider_key: client
-    for client in (
-        TypeSafeDecisionClient,
-        OpenAIDecisionClient,
-        AzureOpenAIDecisionClient,
-        FireworksDecisionClient,
-        OllamaDecisionClient,
+    built_in_endpoint = BuiltInEndpoint(
+        label=GenerativeProviderKey.OLLAMA.value,
+        sdk="typesafe",
+        api_key_env_vars=(),
+        base_url_env_var="OLLAMA_BASE_URL",
+        base_url_required=True,
+        base_url_example="http://localhost:11434/v1",
+        base_url_drops_v1=True,
     )
-}
-"""The client for each provider that offers decision models. A provider here and not in
-the playground registry is decision-only, which is what the chat-path guards in
-prompts, agents, and the playground check for."""
 
 
-def allowed_decision_providers(
-    allowed_provider_names: Optional[frozenset[str]],
-) -> list[GenerativeProviderKey]:
-    """The decision providers this deployment permits (see ``PHOENIX_ALLOWED_PROVIDERS``)."""
-    return filter_allowed_providers(list(DECISION_CLIENTS), allowed_provider_names)
-
-
-_PLACEHOLDER_API_KEY = "ollama"
-"""Sent to servers that ignore the key, as Ollama chat does."""
+def decision_client_class(provider_key: GenerativeProviderKey) -> Optional[type[DecisionClient]]:
+    client_class = CLIENT_REGISTRY.get_client(provider_key, model_type="decision")
+    assert client_class is None or issubclass(client_class, DecisionClient)
+    return client_class
 
 
 def _require_model_name(model_name: str) -> None:
@@ -853,33 +704,8 @@ def _require_model_name(model_name: str) -> None:
 
 def _require_dependencies(client_class: type[DecisionClient]) -> None:
     if not client_class.dependencies_are_installed():
-        raise BadRequest(
-            f"Install {client_class.sdk_import_name.replace('_', '-')} to run decision models."
-        )
-
-
-def _validated_base_url(base_url: str) -> str:
-    """``base_url`` if it is a plain HTTP(S) URL.
-
-    Raises:
-        BadRequest: The URL is malformed, not HTTP(S), or carries credentials, a
-            query, or a fragment.
-    """
-    try:
-        url = httpx.URL(base_url)
-    except httpx.InvalidURL as error:
-        raise BadRequest("Base URL must be a valid HTTP(S) URL.") from error
-    if (
-        url.scheme not in ("http", "https")
-        or not url.host
-        or url.userinfo
-        or url.query
-        or url.fragment
-    ):
-        raise BadRequest(
-            "Base URL must be an HTTP(S) URL without embedded credentials, a query, or a fragment."
-        )
-    return base_url
+        names = ", ".join(dependency.name for dependency in client_class.dependencies())
+        raise BadRequest(f"Install {names} to run decision models.")
 
 
 async def get_decision_client(
@@ -892,118 +718,40 @@ async def get_decision_client(
     decrypt: Callable[[bytes], bytes],
     allowed_provider_names: Optional[frozenset[str]] = None,
 ) -> DecisionClient:
-    """Resolve the client for a built-in ``provider`` and its credentials.
-
-    The credential name, default endpoint, and endpoint override all come from the
-    client class, so adding a provider is one subclass in :data:`DECISION_CLIENTS`. The
-    server-key endpoint guard in ``resolve_provider_api_key`` still applies: a
-    server-configured key is never sent to a caller-supplied base URL.
-    """
+    """Resolve the decision client for a built-in ``provider``."""
     if allowed_provider_names is not None and provider.name not in allowed_provider_names:
         raise BadRequest("This decision provider is not permitted by the server configuration.")
-    client_class = DECISION_CLIENTS.get(provider)
+    client_class = decision_client_class(provider)
     if client_class is None:
         raise BadRequest(f"{provider.value} does not offer decision models.")
     _require_model_name(model_name)
     _require_dependencies(client_class)
-    configured_base_url = client_class.resolve_base_url(base_url)
-    if configured_base_url is None:
-        raise BadRequest(
-            f"A base URL is required for {provider.value} decision models. "
-            f"Set {client_class.base_url_env_var} or pass a base URL."
-        )
-    resolved_base_url = _validated_base_url(configured_base_url)
-    if not client_class.requires_api_key:
-        return client_class(
-            model_name=model_name,
-            connection=DecisionConnection(
-                api_key=_PLACEHOLDER_API_KEY,
-                base_url=resolved_base_url,
-                ignore_environment=client_class.ignore_environment,
-            ),
-        )
-    env_var_name = client_class.credential_env_var()
-    api_key = await resolve_provider_api_key(
+    config = await resolve_builtin_config(
+        client_class.built_in_endpoint,
+        base_url=base_url,
         credentials=credentials,
         session=session,
         decrypt=decrypt,
-        env_var_name=env_var_name,
-        client_base_url=base_url,
-        provider_label=provider.value,
+        models_label="decision models",
     )
-    if not api_key:
-        raise BadRequest(
-            f"An API key is required. Configure {env_var_name} to run decision models."
-        )
-    return client_class(
-        model_name=model_name,
-        connection=DecisionConnection(
-            api_key=api_key,
-            base_url=resolved_base_url,
-            ignore_environment=client_class.ignore_environment,
-        ),
-    )
+    return client_class(client_factory=config.get_client_factory(), model_name=model_name)
 
 
-def custom_provider_decision_connection(
-    *,
-    decision_sdk: models.DecisionSDK,
-    config: GenerativeModelCustomerProviderConfigType,
-    provider_name: str,
-    provider: Optional[str] = None,
-) -> tuple[type[DecisionClient], DecisionConnection]:
-    """The client class and connection a custom provider's decision models run through.
-
-    The decision client reuses the provider's key and headers and posts to the URL
-    :func:`~phoenix.server.decisions.endpoints.decision_endpoint_url` names.
-
-    Raises:
-        BadRequest: The provider's SDK can't serve decisions, its credentials aren't an
-            API key, or the decision base URL is not a plain HTTP(S) URL.
-    """
-    api_key: str
-    headers: Optional[Mapping[str, str]] = None
-    organization: Optional[str] = None
-    project: Optional[str] = None
+def custom_provider_decision_client_class(
+    config: GenerativeModelCustomerProviderConfigType, *, provider_name: str
+) -> type[DecisionClient]:
     if isinstance(config, OpenAICustomProviderConfig):
-        api_key = config.openai_authentication_method.api_key
-        openai_kwargs = config.openai_client_kwargs
-        if openai_kwargs is not None:
-            headers = openai_kwargs.default_headers
-            if decision_sdk == "openai":
-                organization = openai_kwargs.organization
-                project = openai_kwargs.project
-    elif isinstance(config, AzureOpenAICustomProviderConfig):
-        method = config.azure_openai_authentication_method
-        if method.type != "api_key":
-            raise BadRequest(
-                f"Custom provider '{provider_name}' needs API key authentication to serve "
-                "decision models. Edit it under Settings > AI Providers."
-            )
-        api_key = method.api_key
-        headers = config.azure_openai_client_kwargs.default_headers
-    elif isinstance(config, TypeSafeCustomProviderConfig):
-        api_key = config.typesafe_authentication_method.api_key
-        typesafe_kwargs = config.typesafe_client_kwargs
-        headers = typesafe_kwargs.default_headers if typesafe_kwargs else None
-    else:
-        raise custom_provider_without_decisions_error(provider_name)
-    client_class: type[DecisionClient] = (
-        OpenAIDecisionClient if decision_sdk == "openai" else TypeSafeDecisionClient
-    )
-    base_url = decision_client_base_url(
-        decision_sdk, resolve_decision_base_url(decision_sdk, config)
-    )
-    connection = DecisionConnection(
-        api_key=api_key,
-        base_url=_validated_base_url(base_url),
-        headers=headers,
-        organization=organization,
-        project=project,
-        provider_name=provider,
-        ignore_environment=True,
-    )
-    return client_class, connection
+        return OpenAIDecisionClient
+    if isinstance(config, TypeSafeCustomProviderConfig):
+        return TypeSafeDecisionClient
+    raise custom_provider_without_decisions_error(provider_name)
+
+
+def custom_provider_decision_client_factory(
+    config: OpenAICustomProviderConfig | TypeSafeCustomProviderConfig,
+) -> ClientFactory[Any]:
+    check_provider_base_urls(config)
+    return config.get_client_factory()
 
 
 async def get_custom_provider_decision_client(
@@ -1013,25 +761,19 @@ async def get_custom_provider_decision_client(
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
 ) -> DecisionClient:
-    """Resolve the client for a custom provider from its stored configuration.
-
-    The provider brings its own key, endpoint, and headers; neither the server's
-    environment nor its stored secrets are consulted. Its ``decision_sdk`` picks the
-    client: ``openai`` runs OpenAI's Decisions API and ``typesafe`` runs System One.
+    """Resolve the decision client for a custom provider.
 
     Raises:
         NotFound: No custom provider has this ID.
-        BadRequest: The provider has no decision client or its endpoint is not a
-            plain HTTP(S) URL.
-        UnreadableCustomProviderError: Its stored configuration can't be read.
+        BadRequest: The provider does not serve decision models or has an invalid base URL.
+        UnreadableCustomProviderError: Stored configuration cannot be decrypted or parsed.
     """
     record = await session.get(models.GenerativeModelCustomProvider, custom_provider_id)
     if record is None:
         raise NotFound("Custom provider not found.")
-    if (decision_sdk := record.decision_sdk) is None:
+    if record.models.decision is None:
         raise custom_provider_without_decisions_error(record.name)
     _require_model_name(model_name)
-    # The reasons name what failed, never the configuration's values.
     try:
         decrypted = decrypt(record.config)
     except Exception as error:
@@ -1044,6 +786,7 @@ async def get_custom_provider_decision_client(
     try:
         config = GenerativeModelCustomerProviderConfig.model_validate_json(decrypted).root
     except ValidationError as error:
+        # Include only field paths, never secret values.
         fields = sorted(
             {".".join(str(part) for part in detail["loc"]) or "(root)" for detail in error.errors()}
         )
@@ -1052,14 +795,14 @@ async def get_custom_provider_decision_client(
             f"invalid ({', '.join(fields)}). Edit it under Settings > AI Providers.",
             provider_name=record.name,
         ) from error
-    client_class, connection = custom_provider_decision_connection(
-        decision_sdk=decision_sdk,
-        config=config,
-        provider_name=record.name,
+    client_class = custom_provider_decision_client_class(config, provider_name=record.name)
+    _require_dependencies(client_class)
+    assert isinstance(config, (OpenAICustomProviderConfig, TypeSafeCustomProviderConfig))
+    return client_class(
+        model_name=model_name,
+        client_factory=custom_provider_decision_client_factory(config),
         provider=record.provider,
     )
-    _require_dependencies(client_class)
-    return client_class(model_name=model_name, connection=connection)
 
 
 async def resolve_decision_client(

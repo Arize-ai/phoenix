@@ -14,10 +14,11 @@ from phoenix.db import models
 from phoenix.db.types import model_provider as mp
 from phoenix.db.types.decisions import PredicateCriteria, PredicateQuestion
 from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.helpers.builtin_providers import PLACEHOLDER_API_KEY
+from phoenix.server.api.helpers.client_registry import CLIENT_REGISTRY
 from phoenix.server.api.helpers.decision_clients import (
-    DECISION_CLIENTS,
-    AzureOpenAIDecisionClient,
-    DecisionConnection,
+    OPENAI_DECISION_MODELS,
+    TYPESAFE_DECISION_MODELS,
     DecisionRateLimitError,
     DecisionRequest,
     DecisionTransientError,
@@ -30,6 +31,7 @@ from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import Tracer
 from tests.unit.graphql import AsyncGraphQLClient
+from tests.unit.server.decision_client_factories import built_in_factory
 
 
 @pytest.fixture(autouse=True)
@@ -507,9 +509,8 @@ async def test_catalog_keeps_same_name_types_distinct(gql_client: AsyncGraphQLCl
       modelProviders { key dependenciesInstalled }
     }""")
     assert result.data and not result.errors
-    assert all(model["modelType"] == "LLM" for model in result.data["llm"])
+    assert all(model["modelType"] == "CHAT" for model in result.data["llm"])
     assert all(model["modelType"] == "DECISION" for model in result.data["decision"])
-    # Azure suggests no decision models: they are named by the user's deployment.
     assert {model["providerKey"] for model in result.data["decision"]} == {
         "OPENAI",
         "TYPESAFE",
@@ -553,7 +554,9 @@ def test_predicate_criteria_translate_for_each_provider() -> None:
     )
     openai_body = OpenAIDecisionClient(
         model_name="gpt-6-luna",
-        connection=DecisionConnection(api_key="test", base_url="https://api.openai.com/v1"),
+        client_factory=built_in_factory(
+            OpenAIDecisionClient, api_key="test", base_url="https://api.openai.com/v1"
+        ),
     )._build_request(request)
     urgent, spam = list(openai_body["questions"])
     assert urgent["type"] == "predicate"
@@ -561,7 +564,9 @@ def test_predicate_criteria_translate_for_each_provider() -> None:
     assert spam["instructions"] == "Spam?"
     typesafe_body = TypeSafeDecisionClient(
         model_name="jev-latest",
-        connection=DecisionConnection(api_key="test", base_url="https://api.typesafe.ai"),
+        client_factory=built_in_factory(
+            TypeSafeDecisionClient, api_key="test", base_url="https://api.typesafe.ai"
+        ),
     )._build_request(request)
     assert typesafe_body["questions"] == {
         "urgent": {
@@ -695,13 +700,12 @@ def test_chat_guard_is_capability_based_not_provider_based() -> None:
     a decision client, so it is rejected with a provider-agnostic message. No
     code path names TypeSafe to get this result.
     """
-    from phoenix.server.api.helpers.playground_registry import (
-        provider_supports_chat_completions,
+    from phoenix.server.api.helpers.client_registry import (
         require_chat_provider,
     )
 
-    assert provider_supports_chat_completions(GenerativeProviderKey.OPENAI)
-    assert not provider_supports_chat_completions(GenerativeProviderKey.TYPESAFE)
+    assert CLIENT_REGISTRY.offers(GenerativeProviderKey.OPENAI, "chat")
+    assert not CLIENT_REGISTRY.offers(GenerativeProviderKey.TYPESAFE, "chat")
     require_chat_provider(GenerativeProviderKey.OPENAI)
     with pytest.raises(BadRequest, match="decision models only"):
         require_chat_provider(GenerativeProviderKey.TYPESAFE)
@@ -711,25 +715,27 @@ def test_decision_clients_declare_capability_credentials_and_endpoints() -> None
     """Each client carries everything the resolver needs; the resolver itself never
     branches on which provider it is building for."""
     # One client per provider: a second claiming the same provider would replace the first.
-    assert DECISION_CLIENTS == {
+    assert {
+        provider_key: CLIENT_REGISTRY.get_client(provider_key, model_type="decision")
+        for provider_key in CLIENT_REGISTRY.list_all_providers(model_type="decision")
+    } == {
         GenerativeProviderKey.TYPESAFE: TypeSafeDecisionClient,
         GenerativeProviderKey.OPENAI: OpenAIDecisionClient,
-        GenerativeProviderKey.AZURE_OPENAI: AzureOpenAIDecisionClient,
         GenerativeProviderKey.FIREWORKS: FireworksDecisionClient,
         GenerativeProviderKey.OLLAMA: OllamaDecisionClient,
     }
-    assert TypeSafeDecisionClient.model_names == (
+    assert CLIENT_REGISTRY.list_models(GenerativeProviderKey.TYPESAFE, model_type="decision") == [
         "jev-latest",
         "jev-1.14.0",
         "jev-1.13.0",
         "jev-preview",
-    )
+    ]
     typesafe, openai = TypeSafeDecisionClient, OpenAIDecisionClient
-    # Credential names come from the provider's declared credential requirements.
-    assert typesafe.credential_env_var() == "TYPESAFE_API_KEY"
-    assert openai.credential_env_var() == "OPENAI_API_KEY"
-    assert typesafe.resolve_base_url(None) == "https://api.typesafe.ai"
-    assert typesafe.resolve_base_url("https://proxy.example/v1") == "https://proxy.example/v1"
+    assert typesafe.built_in_endpoint.api_key_env_vars == ("TYPESAFE_API_KEY",)
+    assert openai.built_in_endpoint.api_key_env_vars == ("OPENAI_API_KEY",)
+    assert openai.built_in_endpoint.base_url_env_var == "OPENAI_BASE_URL"
+    assert typesafe.built_in_endpoint.default_base_url is None
+    assert openai.built_in_endpoint.default_base_url is None
     assert openai.dependencies_are_installed()
 
 
@@ -752,8 +758,8 @@ async def test_decision_only_provider_is_listed_and_installed(
     assert [provider["key"] for provider in result.data["modelProviders"]].count("OPENAI") == 1
     # Capability comes from registration, so the UI never names a provider.
     assert by_key["TYPESAFE"]["modelTypes"] == ["DECISION"]
-    assert by_key["OPENAI"]["modelTypes"] == ["LLM", "DECISION"]
-    assert by_key["ANTHROPIC"]["modelTypes"] == ["LLM"]
+    assert by_key["OPENAI"]["modelTypes"] == ["CHAT", "DECISION"]
+    assert by_key["ANTHROPIC"]["modelTypes"] == ["CHAT"]
 
 
 @pytest.fixture
@@ -1096,13 +1102,20 @@ TYPESAFE_PROVIDER_CONFIG = {
 }
 
 
+LLM_AND_DECISIONS: dict[str, Any] = {"chat": {}, "decision": {}}
+
+
 async def create_custom_provider(
-    gql_client: AsyncGraphQLClient, name: str, provider: str, client_config: dict[str, Any]
+    gql_client: AsyncGraphQLClient,
+    name: str,
+    provider: str,
+    client_config: dict[str, Any],
+    models: dict[str, Any] | None = None,
 ) -> str:
-    result = await gql_client.execute(
-        CREATE_CUSTOM_PROVIDER,
-        variables={"input": {"name": name, "provider": provider, "clientConfig": client_config}},
-    )
+    input: dict[str, Any] = {"name": name, "provider": provider, "clientConfig": client_config}
+    if models is not None:
+        input["models"] = models
+    result = await gql_client.execute(CREATE_CUSTOM_PROVIDER, variables={"input": input})
     assert result.data and not result.errors, result.errors
     return str(result.data["createGenerativeModelCustomProvider"]["provider"]["id"])
 
@@ -1110,8 +1123,6 @@ async def create_custom_provider(
 async def test_custom_providers_declare_the_model_types_they_serve(
     gql_client: AsyncGraphQLClient,
 ) -> None:
-    """A TypeSafe provider serves decisions only. An OpenAI one serves chat, and decisions
-    only once it names a decision client."""
     typesafe_id = await create_custom_provider(
         gql_client, "System One proxy", "typesafe", TYPESAFE_PROVIDER_CONFIG
     )
@@ -1123,14 +1134,10 @@ async def test_custom_providers_declare_the_model_types_they_serve(
     )
     both_id = await create_custom_provider(
         gql_client,
-        "OpenAI and System One",
+        "OpenAI chat and decisions",
         "openai",
-        {
-            "openai": {
-                "openaiAuthenticationMethod": {"apiKey": "sk-custom"},
-                "decisionModels": {"decisionSdk": "TYPESAFE"},
-            }
-        },
+        {"openai": {"openaiAuthenticationMethod": {"apiKey": "sk-custom"}}},
+        LLM_AND_DECISIONS,
     )
     result = await gql_client.execute(CUSTOM_PROVIDER_MODELS, variables={"id": typesafe_id})
     assert result.data and not result.errors, result.errors
@@ -1138,7 +1145,7 @@ async def test_custom_providers_declare_the_model_types_they_serve(
     assert typesafe["sdk"] == "TYPESAFE"
     assert typesafe["modelTypes"] == ["DECISION"]
     assert typesafe["chat"] == []
-    assert typesafe["decision"] == list(TypeSafeDecisionClient.model_names)
+    assert typesafe["decision"] == list(TYPESAFE_DECISION_MODELS)
     assert typesafe["config"] == {
         "__typename": "TypeSafeCustomProviderConfig",
         "typesafeClientKwargs": {
@@ -1149,13 +1156,13 @@ async def test_custom_providers_declare_the_model_types_they_serve(
     result = await gql_client.execute(CUSTOM_PROVIDER_MODELS, variables={"id": openai_id})
     assert result.data and not result.errors, result.errors
     openai = result.data["node"]
-    assert openai["modelTypes"] == ["LLM"]
+    assert openai["modelTypes"] == ["CHAT"]
     assert openai["chat"] and openai["decision"] == []
     result = await gql_client.execute(CUSTOM_PROVIDER_MODELS, variables={"id": both_id})
     assert result.data and not result.errors, result.errors
     both = result.data["node"]
-    assert both["modelTypes"] == ["LLM", "DECISION"]
-    assert both["chat"] and both["decision"] == list(TypeSafeDecisionClient.model_names)
+    assert both["modelTypes"] == ["CHAT", "DECISION"]
+    assert both["chat"] and both["decision"] == list(OPENAI_DECISION_MODELS)
 
 
 @pytest.mark.parametrize(
@@ -1219,15 +1226,10 @@ async def test_typesafe_credentials_without_a_base_url_go_to_typesafe(
 
 
 def test_custom_provider_capabilities_come_from_the_sdk() -> None:
-    """Prompts are chat templates, so no prompt provider accepts a TypeSafe provider.
-    Which SDKs may serve decisions is fixed; whether one does is its decision client."""
-    assert not mp.sdk_offers_chat("typesafe") and mp.sdk_can_serve_decisions("typesafe")
-    assert mp.sdk_offers_chat("openai") and mp.sdk_can_serve_decisions("openai")
-    assert mp.sdk_can_serve_decisions("azure_openai")
-    for sdk in ("anthropic", "google_genai", "aws_bedrock"):
-        assert not mp.sdk_can_serve_decisions(sdk)
-    assert mp.required_decision_sdk("typesafe") == "typesafe"
-    assert mp.required_decision_sdk("openai") is None
+    assert not mp.sdk_offers_chat("typesafe") and mp.sdk_offers_decisions("typesafe")
+    assert mp.sdk_offers_chat("openai") and mp.sdk_offers_decisions("openai")
+    for sdk in ("azure_openai", "anthropic", "google_genai", "aws_bedrock"):
+        assert mp.sdk_offers_chat(sdk) and not mp.sdk_offers_decisions(sdk)
     assert not any(
         mp.is_sdk_compatible_with_model_provider("typesafe", provider)
         for provider in mp.ModelProvider
@@ -1295,9 +1297,9 @@ async def test_openai_custom_provider_runs_the_decisions_api(
                     "project": "proj-decisions",
                     "defaultHeaders": {"X-Team": "decisions"},
                 },
-                "decisionModels": {"decisionSdk": "OPENAI"},
             }
         },
+        LLM_AND_DECISIONS,
     )
     with respx.mock:
         route = respx.post("https://openai-proxy.example/v1/decisions").respond(
@@ -1430,7 +1432,8 @@ async def test_ollama_runs_decisions_with_the_chat_base_url(
         result = await gql_client.execute(MUTATION, variables={"input": ollama_run()})
     assert result.data and not result.errors, result.errors
     assert result.data["runDecision"]["error"] is None
-    assert route.calls[0].request.headers["authorization"] == "Bearer ollama"
+    # A server that takes no key gets the placeholder chat sends too.
+    assert route.calls[0].request.headers["authorization"] == f"Bearer {PLACEHOLDER_API_KEY}"
     async with db() as session:
         span = await session.scalar(select(models.Span).where(models.Span.span_kind == "DECISION"))
         assert span is not None
@@ -1459,7 +1462,7 @@ async def test_failures_are_classified_for_a_retrying_caller(
     endpoint = f"{base_url}/decisions" if provider == "OPENAI" else f"{base_url}/v1/systemone"
     client = client_class(
         model_name="model",
-        connection=DecisionConnection(api_key="key", base_url=base_url),
+        client_factory=built_in_factory(client_class, api_key="key", base_url=base_url),
     )
     request = DecisionRequest(
         state="hello",

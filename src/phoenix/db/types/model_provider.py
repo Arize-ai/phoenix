@@ -21,9 +21,8 @@ from pydantic import (
     ConfigDict,
     Field,
     RootModel,
-    field_validator,
 )
-from typing_extensions import TypeAlias, assert_never
+from typing_extensions import TypeAlias, TypeGuard, assert_never
 
 from phoenix.utilities.env_vars import without_env_vars
 
@@ -34,10 +33,9 @@ if TYPE_CHECKING:
     from types_aiobotocore_bedrock_runtime import BedrockRuntimeClient
     from typesafe_sdk import AsyncTypeSafeClient
 
-    from phoenix.db.models import DecisionSDK, GenerativeModelSDK
+    from phoenix.db.models import GenerativeModelSDK
 
-TYPESAFE_DEFAULT_BASE_URL = "https://api.typesafe.ai"
-OPENAI_DEFAULT_BASE_URL = "https://api.openai.com/v1"
+DecisionSDK: TypeAlias = Literal["openai", "typesafe"]
 
 # Covariant type for Protocol (output position only)
 ClientT_co = TypeVar("ClientT_co", covariant=True)
@@ -79,6 +77,50 @@ class LLMClientFactory(ClientFactory[ClientT]):
 
 
 # =============================================================================
+# HTTP client helpers
+# =============================================================================
+
+
+def validate_base_url(base_url: str) -> str:
+    """Validate that ``base_url`` is an HTTP(S) URL without userinfo, query, or fragment.
+
+    Userinfo would be recorded on spans, and a query or fragment does not survive the
+    SDK appending its path.
+    """
+    import httpx
+
+    try:
+        url = httpx.URL(base_url.strip())
+    except httpx.InvalidURL as error:
+        raise ValueError("Base URL must be a valid HTTP(S) URL.") from error
+    if (
+        url.scheme not in ("http", "https")
+        or not url.host
+        or url.userinfo
+        or url.query
+        or url.fragment
+    ):
+        raise ValueError(
+            "Base URL must be an HTTP(S) URL without embedded credentials, a query, or a fragment."
+        )
+    return base_url.strip()
+
+
+def openai_http_client() -> Any:
+    """Default OpenAI HTTP client with redirects disabled so API keys are not forwarded."""
+    from openai import DefaultAsyncHttpxClient
+
+    return DefaultAsyncHttpxClient(follow_redirects=False)
+
+
+def anthropic_http_client() -> Any:
+    """Default Anthropic HTTP client with redirects disabled so API keys are not forwarded."""
+    from anthropic import DefaultAsyncHttpxClient
+
+    return DefaultAsyncHttpxClient(follow_redirects=False)
+
+
+# =============================================================================
 # Rate limit key helpers
 # =============================================================================
 
@@ -108,7 +150,7 @@ def google_rate_limit_key(api_key: str, base_url: str | None) -> tuple[str, int,
     return ("google", hash(api_key), hash(base_url))
 
 
-def typesafe_rate_limit_key(api_key: str, base_url: str) -> tuple[str, int, int]:
+def typesafe_rate_limit_key(api_key: str, base_url: str | None) -> tuple[str, int, int]:
     """Rate limit key for TypeSafe System One."""
     return ("typesafe", hash(api_key), hash(base_url))
 
@@ -204,14 +246,19 @@ _SDK_COMPATIBLE_PROVIDERS: Mapping["GenerativeModelSDK", frozenset[ModelProvider
 )
 
 _CHAT_SDKS: frozenset["GenerativeModelSDK"] = frozenset(
-    {"openai", "azure_openai", "anthropic", "google_genai", "aws_bedrock"}
+    {
+        "openai",
+        "azure_openai",
+        "anthropic",
+        "google_genai",
+        "aws_bedrock",
+    }
 )
-_DECISION_MODEL_SDKS: frozenset["GenerativeModelSDK"] = frozenset(
-    {"openai", "azure_openai", "typesafe"}
-)
-
-DECISION_SDK_TO_MODEL_PROVIDER: Mapping["DecisionSDK", ModelProvider] = MappingProxyType(
-    {"openai": ModelProvider.OPENAI, "typesafe": ModelProvider.TYPESAFE}
+_DECISION_SDKS: frozenset["GenerativeModelSDK"] = frozenset(
+    {
+        "openai",
+        "typesafe",
+    }
 )
 
 
@@ -230,66 +277,58 @@ def is_sdk_compatible_with_model_provider(
 
 
 def sdk_offers_chat(sdk: "GenerativeModelSDK") -> bool:
-    """Whether a custom provider with this SDK can serve chat (LLM) models."""
     return sdk in _CHAT_SDKS
 
 
-def sdk_can_serve_decisions(sdk: "GenerativeModelSDK") -> bool:
-    """Whether a custom provider with this SDK may be given a decision client.
-
-    Whether it does is its ``decision_sdk``, not its SDK.
-    """
-    return sdk in _DECISION_MODEL_SDKS
-
-
-def required_decision_sdk(sdk: "GenerativeModelSDK") -> "DecisionSDK | None":
-    """The decision client a provider with this SDK must use, if it has no choice.
-
-    A TypeSafe provider exists to serve System One, so it always does.
-    """
-    return "typesafe" if sdk == "typesafe" else None
+def sdk_offers_decisions(sdk: "GenerativeModelSDK") -> TypeGuard[DecisionSDK]:
+    return sdk in _DECISION_SDKS
 
 
 def _clean_model_names(value: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(dict.fromkeys(name.strip() for name in value if name.strip()))
 
 
-SuggestedModelNames: TypeAlias = Annotated[tuple[str, ...], AfterValidator(_clean_model_names)]
-"""Model names listed in the model menu, trimmed and without duplicates."""
+ModelNames: TypeAlias = Annotated[tuple[str, ...], AfterValidator(_clean_model_names)]
 
-LLM_MODEL_NAMES_DESCRIPTION = (
-    "Suggested LLM model names, listed in the model menu in place of the SDK's built-in "
-    "list; empty lists the built-in models. Any name the endpoint accepts works."
-)
+ModelTypeKey: TypeAlias = Literal["chat", "decision"]
 
 
-class DecisionModelsConfig(BaseModel):
-    """Where a custom provider's decision models run, beside its chat settings.
-
-    The decision client reuses the provider's API key and headers. Which client it is
-    (``decision_sdk``) is stored in its own column, so it can be read without decrypting.
-    """
-
-    model_config = ConfigDict(
-        frozen=True,
-        str_strip_whitespace=True,
-    )
-    base_url: str | None = Field(
-        default=None,
+class ModelsOfType(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    names: ModelNames = Field(
+        default=(),
         description=(
-            "Base URL of the decision API. None uses a best guess from the chat base URL. "
-            "A TypeSafe provider always uses its own base URL."
+            "Model names the model menu suggests in place of the built-in list; empty "
+            "suggests the built-in models. Not an allowlist: any name the endpoint accepts works."
         ),
     )
-    model_names: SuggestedModelNames = Field(
-        default=(),
-        description="Suggested decision model names; any name the endpoint accepts works.",
-    )
 
-    @field_validator("base_url", mode="after")
-    @classmethod
-    def _empty_base_url_is_none(cls, value: str | None) -> str | None:
-        return value or None
+
+class ProviderModels(BaseModel):
+    """Model types a custom provider serves (`None` when not served) and their suggested names."""
+
+    model_config = ConfigDict(frozen=True)
+    chat: ModelsOfType | None = None
+    decision: ModelsOfType | None = None
+
+    def types(self) -> frozenset[ModelTypeKey]:
+        keys: tuple[ModelTypeKey, ...] = ("chat", "decision")
+        return frozenset(key for key in keys if getattr(self, key) is not None)
+
+
+def servable_model_types(sdk: "GenerativeModelSDK") -> frozenset[ModelTypeKey]:
+    servable: set[ModelTypeKey] = set()
+    if sdk_offers_chat(sdk):
+        servable.add("chat")
+    if sdk_offers_decisions(sdk):
+        servable.add("decision")
+    return frozenset(servable)
+
+
+def default_provider_models(sdk: "GenerativeModelSDK") -> ProviderModels:
+    if sdk_offers_chat(sdk):
+        return ProviderModels(chat=ModelsOfType())
+    return ProviderModels(decision=ModelsOfType())
 
 
 class AuthenticationMethodApiKey(BaseModel):
@@ -362,14 +401,6 @@ class OpenAICustomProviderConfig(BaseModel):
         default="responses",
         description="Which OpenAI API to use: chat_completions or responses",
     )
-    model_names: SuggestedModelNames = Field(
-        default=(),
-        description=LLM_MODEL_NAMES_DESCRIPTION,
-    )
-    decision_models: DecisionModelsConfig | None = Field(
-        default=None,
-        description="Decision endpoint settings; used when the provider has a decision client",
-    )
 
     def get_client_factory(
         self,
@@ -408,6 +439,7 @@ class OpenAICustomProviderConfig(BaseModel):
                     project=project,
                     default_headers=merged_headers,
                     max_retries=0,
+                    http_client=openai_http_client(),
                 )
 
         return LLMClientFactory(create_client, openai_rate_limit_key(api_key, base_url))
@@ -480,14 +512,6 @@ class AzureOpenAICustomProviderConfig(BaseModel):
         default="responses",
         description="Which OpenAI API to use: chat_completions or responses",
     )
-    model_names: SuggestedModelNames = Field(
-        default=(),
-        description=LLM_MODEL_NAMES_DESCRIPTION,
-    )
-    decision_models: DecisionModelsConfig | None = Field(
-        default=None,
-        description="Decision endpoint settings; used when the provider has a decision client",
-    )
 
     def get_client_factory(
         self,
@@ -532,6 +556,7 @@ class AzureOpenAICustomProviderConfig(BaseModel):
                         base_url=base_url,
                         default_headers=merged_headers,
                         max_retries=0,
+                        http_client=openai_http_client(),
                     )
 
             return LLMClientFactory(
@@ -565,6 +590,7 @@ class AzureOpenAICustomProviderConfig(BaseModel):
                         base_url=base_url,
                         default_headers=merged_headers,
                         max_retries=0,
+                        http_client=openai_http_client(),
                     )
 
             return LLMClientFactory(
@@ -591,6 +617,7 @@ class AzureOpenAICustomProviderConfig(BaseModel):
                     base_url=base_url,
                     default_headers=merged_headers,
                     max_retries=0,
+                    http_client=openai_http_client(),
                 )
 
             # Default credentials use managed identity, keyed by endpoint
@@ -636,10 +663,6 @@ class AnthropicCustomProviderConfig(BaseModel):
         default=None,
         description="Anthropic client kwargs",
     )
-    model_names: SuggestedModelNames = Field(
-        default=(),
-        description=LLM_MODEL_NAMES_DESCRIPTION,
-    )
 
     def get_client_factory(
         self,
@@ -675,6 +698,7 @@ class AnthropicCustomProviderConfig(BaseModel):
                     base_url=base_url,
                     default_headers=merged_headers,
                     max_retries=0,
+                    http_client=anthropic_http_client(),
                 )
 
         return LLMClientFactory(
@@ -741,10 +765,6 @@ class AWSBedrockCustomProviderConfig(BaseModel):
     aws_bedrock_client_kwargs: AWSBedrockClientKwargs = Field(
         ...,
         description="AWS Bedrock client kwargs",
-    )
-    model_names: SuggestedModelNames = Field(
-        default=(),
-        description=LLM_MODEL_NAMES_DESCRIPTION,
     )
 
     def get_client_factory(
@@ -878,10 +898,6 @@ class GoogleGenAICustomProviderConfig(BaseModel):
         default=None,
         description="Google GenAI client kwargs",
     )
-    model_names: SuggestedModelNames = Field(
-        default=(),
-        description=LLM_MODEL_NAMES_DESCRIPTION,
-    )
 
     def get_client_factory(
         self,
@@ -968,10 +984,6 @@ class TypeSafeCustomProviderConfig(BaseModel):
         default=None,
         description="TypeSafe client kwargs",
     )
-    decision_models: DecisionModelsConfig | None = Field(
-        default=None,
-        description="Decision endpoint settings; used when the provider has a decision client",
-    )
 
     def get_client_factory(
         self,
@@ -985,8 +997,7 @@ class TypeSafeCustomProviderConfig(BaseModel):
             raise ImportError("Install typesafe-sdk to use a TypeSafe provider.")
 
         kwargs = self.typesafe_client_kwargs
-        # Never the server's TYPESAFE_BASE_URL: the key goes only where it's configured.
-        base_url = (kwargs.base_url if kwargs else None) or TYPESAFE_DEFAULT_BASE_URL
+        base_url = kwargs.base_url if kwargs else None
         default_headers = kwargs.default_headers if kwargs else None
         api_key = self.typesafe_authentication_method.api_key
 
@@ -996,13 +1007,14 @@ class TypeSafeCustomProviderConfig(BaseModel):
         merged_headers = headers or None
 
         def create_client() -> AsyncTypeSafeClient:
-            return AsyncTypeSafeClient(
-                api_key=api_key,
-                base_url=base_url,
-                headers=merged_headers,
-                retry=RetryPolicy(max_retries=0),
-                timeout=timeout,
-            )
+            with without_env_vars("TYPESAFE_*"):
+                return AsyncTypeSafeClient(
+                    api_key=api_key,
+                    base_url=base_url,
+                    headers=merged_headers,
+                    retry=RetryPolicy(max_retries=0),
+                    timeout=timeout,
+                )
 
         return LLMClientFactory(create_client, typesafe_rate_limit_key(api_key, base_url))
 
@@ -1022,3 +1034,28 @@ GenerativeModelCustomerProviderConfigType = Annotated[
 
 class GenerativeModelCustomerProviderConfig(RootModel[GenerativeModelCustomerProviderConfigType]):
     root: GenerativeModelCustomerProviderConfigType
+
+
+def validate_provider_base_urls(config: GenerativeModelCustomerProviderConfigType) -> None:
+    urls: list[str | None]
+    if isinstance(config, OpenAICustomProviderConfig):
+        urls = [config.openai_client_kwargs.base_url if config.openai_client_kwargs else None]
+    elif isinstance(config, AzureOpenAICustomProviderConfig):
+        urls = [config.azure_openai_client_kwargs.azure_endpoint]
+    elif isinstance(config, AnthropicCustomProviderConfig):
+        kwargs = config.anthropic_client_kwargs
+        urls = [kwargs.base_url if kwargs else None]
+    elif isinstance(config, AWSBedrockCustomProviderConfig):
+        urls = [config.aws_bedrock_client_kwargs.endpoint_url]
+    elif isinstance(config, GoogleGenAICustomProviderConfig):
+        google_kwargs = config.google_genai_client_kwargs
+        http_options = google_kwargs.http_options if google_kwargs else None
+        urls = [http_options.base_url if http_options else None]
+    elif isinstance(config, TypeSafeCustomProviderConfig):
+        typesafe_kwargs = config.typesafe_client_kwargs
+        urls = [typesafe_kwargs.base_url if typesafe_kwargs else None]
+    else:
+        assert_never(config)
+    for url in urls:
+        if url and url.strip():
+            validate_base_url(url)

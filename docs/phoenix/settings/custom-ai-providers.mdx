@@ -15,9 +15,9 @@ To create a custom provider:
 2. In **Custom Providers**, select **New Provider**.
 3. In the **Provider** section, enter a **Name** and a **Provider String**, and choose the **SDK**.
 4. In the **Connection** section, fill in the required fields for the SDK.
-5. Optional: in the **LLM models** section, enter suggested model names. See [Suggested LLM Models](#suggested-llm-models).
+5. Optional: in the **Chat models** section, enter suggested model names. See [Suggested Chat Models](#suggested-chat-models).
 6. Optional: in the **Decision models** section, turn on decision models. See [Decision Models](#decision-models).
-7. Click **Test credentials** in the **Connection** section to validate the credentials, then click **Create Provider**.
+7. Click **Test connection** in the **Connection** section, then click **Create Provider**. The test checks each model type that the provider serves and shows a result for each one. No model runs.
 
 ## Supported SDKs and Fields
 
@@ -53,9 +53,9 @@ To create a custom provider:
 
 Optional fields that you do not often change (for example, organization, project, and headers) are folded under a toggle. The toggle opens when one of these fields has a value.
 
-## Suggested LLM Models
+## Suggested Chat Models
 
-Custom providers for the OpenAI, Azure OpenAI, Anthropic, AWS Bedrock, and Google GenAI SDKs have an **LLM models** section.
+Custom providers for the OpenAI, Azure OpenAI, Anthropic, AWS Bedrock, and Google GenAI SDKs have a **Chat models** section.
 
 *   Enter model names in **Suggested model names**, separated by commas.
 *   When you enter names, the model menu shows only those names for the provider, instead of the built-in model list for the SDK.
@@ -64,25 +64,30 @@ Custom providers for the OpenAI, Azure OpenAI, Anthropic, AWS Bedrock, and Googl
 
 ## Decision Models
 
-Custom providers for the OpenAI, Azure OpenAI, and TypeSafe SDKs can serve decision models. Decision models use the provider's API key and headers.
+Custom providers for the OpenAI and TypeSafe SDKs can serve decision models. Decision models use the provider's base URL, API key, and headers. Each provider serves decisions through the decision API of its SDK:
 
-To turn on decision models:
+| SDK | Decision API | Request |
+| :--- | :--- | :--- |
+| OpenAI | OpenAI Decisions API | `POST {base URL}/decisions` |
+| TypeSafe | System One | `POST {base URL}/v1/systemone` |
+
+The provider's SDK adds the path to the base URL as you enter it, and uses its default base URL when you leave it empty. For a TypeSafe provider, do not end the base URL in `/v1`, because System One adds `/v1` itself. For example, for a self-hosted Ollama, enter `http://localhost:11434`, not `http://localhost:11434/v1`.
+
+To turn on decision models for an OpenAI provider:
 
 1.  In the **Decision models** section, turn on the switch.
-2.  Choose a **Decision client**:
-    *   **OpenAI Decisions API**: sends `POST {base URL}/decisions`.
-    *   **System One**: sends `POST {base URL}/v1/systemone`. If the base URL ends in `/v1`, Phoenix removes it once, because System One adds `/v1`.
-3.  Optional: enter a **Decision base URL** if the endpoint serves decisions at a different URL. If you leave it empty, decision runs use the provider's base URL. The field shows that URL as a placeholder. The form shows the exact URL that a run sends to.
-4.  Optional: enter **Suggested model names** for decision models, separated by commas.
-5.  Click **Test decision endpoint**. The test sends a request for a model that does not exist to the exact URL. The test passes only when the endpoint rejects that model by name, which shows that the URL, the decision client, and the API key are correct. No model runs.
+2.  Optional: enter **Suggested model names** for decision models, separated by commas. If you leave the field empty, the model menu shows the built-in decision models.
+3.  Click **Test connection** in the **Connection** section. For decision models, the test sends a request for a model that does not exist to the URL that a run uses. If the test fails, the error shows that URL. The test passes when the endpoint rejects that model by name, which shows that the URL and the API key are correct. No model runs. Some servers, such as a server that runs one model, ignore the model name and send an answer. The test also passes when that answer is a valid decision response.
 
 <Note>
-An empty decision base URL follows the provider's base URL, also when you change the provider's base URL later. To stop decision runs from following it, enter a decision base URL. To follow it again, clear the field.
+If the endpoint serves decisions at a different base URL than chat, add a second provider with that base URL and turn on only its decision models.
 </Note>
 
-*   A TypeSafe provider always serves decision models through System One, at its own base URL.
-*   Azure OpenAI providers need **API Key** authentication to serve decision models.
-*   Providers that existed before decision clients were added do not serve decision models until you turn them on, except TypeSafe providers.
+*   A TypeSafe provider always serves decision models through System One, at its own base URL. You can enter suggested model names in its **Decision models** section. **Test connection** checks its decision endpoint.
+*   If a host serves OpenAI-compatible chat and System One decisions, for example a self-hosted Ollama or a proxy in front of Fireworks, add two providers: an OpenAI provider for chat and a TypeSafe provider for decisions.
+*   Azure OpenAI, Anthropic, AWS Bedrock, and Google GenAI providers do not serve decision models.
+*   Saved decisions record the provider's SDK, as saved prompts do. While saved decisions use a provider, you cannot turn off its decision models.
+*   Providers that existed before decision models were added do not serve decision models until you turn them on. Exceptions: TypeSafe providers, and OpenAI providers that saved decisions already use.
 
 ## Example: Azure OpenAI Configuration
 
@@ -155,13 +160,13 @@ This method automatically discovers credentials from the environment in the foll
 *   **Azure OpenAI Endpoints**: You only need to provide the base resource URL (e.g., `https://my-resource.openai.azure.com/`). Phoenix automatically appends the necessary `/openai/v1` path.
 *   **Azure AD Scope**: The default scope for Azure AD Token Provider is `https://cognitiveservices.azure.com/.default`. This works for most Azure OpenAI resources.
 *   **Environment Isolation**: Custom providers (except "Default Credentials") are isolated from the server's local environment variables. This ensures that the credentials you save are exactly what is used, preventing accidental leakage from server-side environment configurations.
-*   **Encryption**: API keys and secrets stored in custom provider configurations are encrypted at rest in the database. Note that if the server's `PHOENIX_SECRET` environment variable is changed, previously stored entries will become unreadable and will need to be updated.
+*   **Encryption**: API keys and secrets stored in custom provider configurations are encrypted at rest in the database. Note that if the server's `PHOENIX_SECRET` environment variable is changed, previously stored entries will become unreadable and will need to be updated. The model types that a provider serves and their suggested model names are not secret, so they are not encrypted.
 
 ## Usage
 
 Once configured, custom providers appear in model selection menus in the Playground as their own provider group.
 
-*   The model list shows the provider's suggested LLM model names. If the provider has none, the model list shows the built-in model list for that SDK.
+*   The model list shows the provider's suggested chat model names. If the provider has none, the model list shows the built-in model list for that SDK.
 *   Providers with decision models turned on also appear in the **Decision** tab of the model menu.
 *   Routing fields (base URL, Azure endpoint, AWS region) are pulled from the custom provider configuration.
 *   Prompt versions saved with a custom provider will use that provider's configuration.

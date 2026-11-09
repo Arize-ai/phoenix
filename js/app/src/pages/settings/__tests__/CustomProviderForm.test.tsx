@@ -1,7 +1,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { RelayEnvironmentProvider } from "react-relay";
-import { createMockEnvironment, MockPayloadGenerator } from "relay-test-utils";
+import { createMockEnvironment } from "relay-test-utils";
 import { userEvent } from "storybook/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -56,15 +56,6 @@ describe("CustomProviderForm decision models", () => {
     if (!input) throw new Error("no decision models switch");
     return input;
   };
-  const preview = () =>
-    container.querySelector('[data-testid="decision-endpoint"]')?.textContent;
-  const decisionBaseUrlInput = () => {
-    const element = container.querySelector<HTMLInputElement>(
-      'input[name="decision_base_url"]'
-    );
-    if (!element) throw new Error("no decision base URL input");
-    return element;
-  };
   const input = (placeholder: string) => {
     const element = container.querySelector<HTMLInputElement>(
       `input[placeholder="${placeholder}"]`
@@ -73,47 +64,22 @@ describe("CustomProviderForm decision models", () => {
     return element;
   };
 
-  it("shows the chat base URL as the decision base URL's placeholder and previews the exact POST URL", async () => {
+  it("turns decision models on without a URL of their own", async () => {
     const user = userEvent.setup();
     render();
     expect(decisionSwitch().checked).toBe(false);
-    expect(preview()).toBeUndefined();
-
-    await act(() =>
-      user.type(input("https://api.openai.com/v1"), "https://proxy.example/v1")
-    );
     await act(() => user.click(decisionSwitch()));
     expect(decisionSwitch().checked).toBe(true);
-    // The guess is only shown; an empty field follows the chat base URL.
-    expect(input("https://proxy.example/v1").value).toBe("");
-    expect(preview()).toBe("POST https://proxy.example/v1/decisions");
+    expect(container.textContent).not.toContain("Decision base URL");
+    expect(container.textContent).not.toContain("POST ");
   });
 
-  it("keeps an empty decision base URL in step with the chat base URL", async () => {
+  it("runs an OpenAI provider's decisions over its own protocol, with no other choice", async () => {
     const user = userEvent.setup();
     render();
     await act(() => user.click(decisionSwitch()));
-    expect(preview()).toBe("POST https://api.openai.com/v1/decisions");
-    await act(() =>
-      user.type(input("https://api.openai.com/v1"), "https://proxy.example/v1")
-    );
-    expect(preview()).toBe("POST https://proxy.example/v1/decisions");
-    expect(input("https://proxy.example/v1").value).toBe("");
-    expect(container.textContent).not.toContain("Must be a valid URL");
-  });
-
-  it("keeps a typed decision base URL when the chat base URL changes", async () => {
-    const user = userEvent.setup();
-    render();
-    await act(() => user.click(decisionSwitch()));
-    await act(() =>
-      user.type(decisionBaseUrlInput(), "https://decisions.example/v1")
-    );
-    await act(() =>
-      user.type(input("https://api.openai.com/v1"), "https://proxy.example/v1")
-    );
-    expect(decisionBaseUrlInput().value).toBe("https://decisions.example/v1");
-    expect(preview()).toBe("POST https://decisions.example/v1/decisions");
+    expect(container.textContent).toContain("OpenAI Decisions API");
+    expect(container.textContent).not.toContain("Decision client");
   });
 
   it("shows only the decision heading while decision models are off", () => {
@@ -124,80 +90,85 @@ describe("CustomProviderForm decision models", () => {
     expect(section?.querySelector(".provider-form-section__body")).toBeNull();
   });
 
-  it("previews System One's URL and sends the decision settings to the endpoint test", async () => {
+  it("checks a TypeSafe provider's System One endpoint in the connection test", async () => {
     const user = userEvent.setup();
     render({
-      ...(createDefaultFormData("OPENAI") as ProviderFormData),
-      name: "proxy",
-      openai_api_key: "sk-test",
-      decision_enabled: true,
-      decision_sdk: "TYPESAFE",
-      decision_base_url: "https://api.typesafe.ai/v1",
+      ...(createDefaultFormData("TYPESAFE") as ProviderFormData),
+      name: "ollama-system-one",
+      typesafe_api_key: "ts-key",
+      typesafe_base_url: "https://ollama.example",
     } as ProviderFormData);
-    // System One adds its own /v1, so a trailing one is dropped.
-    expect(preview()).toBe("POST https://api.typesafe.ai/v1/systemone");
-
     const button = [...container.querySelectorAll("button")].find(
-      (candidate) => candidate.textContent === "Test decision endpoint"
+      (candidate) => candidate.textContent === "Test connection"
     );
     if (!button) throw new Error("no test button");
     await act(() => user.click(button));
     const operation = environment.mock.getMostRecentOperation();
     expect(operation.request.variables.input).toMatchObject({
-      openai: {
-        decisionModels: {
-          decisionSdk: "TYPESAFE",
-          baseUrl: "https://api.typesafe.ai/v1",
-        },
+      typesafe: {
+        typesafeClientKwargs: { baseUrl: "https://ollama.example" },
       },
     });
-    act(() =>
-      environment.mock.resolve(
-        operation,
-        MockPayloadGenerator.generate(operation, {
-          TestGenerativeModelCustomProviderDecisionEndpointResult: () => ({
-            error: null,
-            url: "https://api.typesafe.ai/v1/systemone",
-          }),
-        })
-      )
+    expect(operation.request.variables.input.typesafe).not.toHaveProperty(
+      "decisionModels"
     );
-    expect(container.textContent).toContain("Decision endpoint works");
+    expect(operation.request.variables.models).toEqual({
+      decision: { names: [] },
+    });
+    await act(async () =>
+      environment.mock.resolve(operation, {
+        data: {
+          testGenerativeModelCustomProviderCredentials: {
+            error: null,
+            chat: null,
+            decision: { error: null },
+          },
+        },
+      })
+    );
+    expect(container.textContent).toContain("Connection works");
+    expect(container.textContent).toContain("Decision models: connected");
   });
 
-  it("shows why the endpoint test failed", async () => {
+  it("shows which model type failed the connection test", async () => {
     const user = userEvent.setup();
     render({
       ...(createDefaultFormData("OPENAI") as ProviderFormData),
       name: "proxy",
       openai_api_key: "sk-test",
       decision_enabled: true,
-      decision_sdk: "OPENAI",
     } as ProviderFormData);
     const button = [...container.querySelectorAll("button")].find(
-      (candidate) => candidate.textContent === "Test decision endpoint"
+      (candidate) => candidate.textContent === "Test connection"
     );
     if (!button) throw new Error("no test button");
     await act(() => user.click(button));
     const operation = environment.mock.getMostRecentOperation();
-    act(() =>
-      environment.mock.resolve(
-        operation,
-        MockPayloadGenerator.generate(operation, {
-          TestGenerativeModelCustomProviderDecisionEndpointResult: () => ({
+    expect(operation.request.variables.models).toEqual({
+      chat: { names: [] },
+      decision: { names: [] },
+    });
+    await act(async () =>
+      environment.mock.resolve(operation, {
+        data: {
+          testGenerativeModelCustomProviderCredentials: {
             error: "HTTP 401 from the endpoint. Check the API key.",
-            url: "https://api.openai.com/v1/decisions",
-          }),
-        })
-      )
+            chat: { error: null },
+            decision: {
+              error: "HTTP 401 from the endpoint. Check the API key.",
+            },
+          },
+        },
+      })
     );
-    expect(container.textContent).toContain("Decision endpoint check failed");
+    expect(container.textContent).toContain("Connection check failed");
+    expect(container.textContent).toContain("Chat models: connected");
     expect(container.textContent).toContain(
       "HTTP 401 from the endpoint. Check the API key."
     );
   });
 
-  it("keeps a TypeSafe provider on System One at its own base URL", () => {
+  it("keeps a TypeSafe provider's decision models on", () => {
     render({
       ...(createDefaultFormData("TYPESAFE") as ProviderFormData),
       name: "ts",
@@ -205,9 +176,7 @@ describe("CustomProviderForm decision models", () => {
     } as ProviderFormData);
     expect(decisionSwitch().checked).toBe(true);
     expect(decisionSwitch().disabled).toBe(true);
-    expect(preview()).toBe("POST https://system-one.example/v1/systemone");
-    // Its credential test is its decision endpoint test.
-    expect(container.textContent).not.toContain("Test credentials");
+    expect(container.textContent).toContain("Test connection");
   });
 
   it("offers no decision section on SDKs that cannot serve decisions", () => {
@@ -216,10 +185,10 @@ describe("CustomProviderForm decision models", () => {
       name: "anthropic",
     });
     expect(container.querySelector('input[role="switch"]')).toBeNull();
-    expect(container.textContent).toContain("Test credentials");
+    expect(container.textContent).toContain("Test connection");
   });
 
-  it("offers suggested LLM model names on chat SDKs", () => {
+  it("offers suggested chat model names on chat SDKs", () => {
     render({
       ...(createDefaultFormData("ANTHROPIC") as ProviderFormData),
       name: "anthropic",
@@ -233,7 +202,6 @@ describe("CustomProviderForm decision models", () => {
 
   it("folds optional fields away unless they have a value", () => {
     render();
-    // A collapsed panel stays mounted but hidden.
     const organization = container.querySelector(
       'input[name="openai_organization"]'
     );
@@ -266,7 +234,6 @@ describe("CustomProviderForm decision models", () => {
     const user = userEvent.setup();
     render();
     const chooseSdk = async (label: string) => {
-      // The SDK select is the form's first select.
       const trigger = container.querySelector<HTMLButtonElement>(
         'button[aria-haspopup="listbox"]'
       );
@@ -292,7 +259,6 @@ describe("CustomProviderForm decision models", () => {
   it("saves an edit without retyping the stored API key", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
-    // A stored key comes back as a server-issued redaction token.
     render(
       {
         ...(createDefaultFormData("OPENAI") as ProviderFormData),
@@ -309,7 +275,7 @@ describe("CustomProviderForm decision models", () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 
-  it("offers no LLM model names on TypeSafe, which serves decisions only", () => {
+  it("offers no chat model names on TypeSafe, which serves decisions only", () => {
     render({
       ...(createDefaultFormData("TYPESAFE") as ProviderFormData),
       name: "ts",
