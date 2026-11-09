@@ -67,6 +67,7 @@ import type {
   CodeEvaluatorLanguage,
   EvaluatorInputMapping,
 } from "@phoenix/types";
+import { getMutationErrorMessage } from "@phoenix/utils/errorUtils";
 
 type SeededLlmEvaluatorInitialState = {
   name: string;
@@ -633,10 +634,7 @@ function CreateLlmProjectEvaluatorDialog({
       onSuccess();
       return { ok: true, acceptedBy: "user", evaluator };
     } catch (submissionError) {
-      const message =
-        submissionError instanceof Error
-          ? submissionError.message
-          : "Failed to create evaluator";
+      const message = getMutationErrorMessage(submissionError);
       setError(message);
       return { ok: false, error: message };
     } finally {
