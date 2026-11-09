@@ -305,6 +305,35 @@ def test_current_lineup_resolves_to_its_own_manifest_entry(
     assert model.name == expected_entry
 
 
+@pytest.mark.parametrize(
+    "span_model_name, expected_entry, provider, input_rate",
+    [
+        # embedding.model_name as OpenAI's instrumentors record it.
+        ("text-embedding-3-small", "text-embedding-3-small", None, 2e-8),
+        ("text-embedding-3-large", "text-embedding-3-large", None, 1.3e-7),
+        ("text-embedding-ada-002", "text-embedding-ada-002", None, 1e-7),
+        ("gemini-embedding-001", "gemini-embedding-001", None, 1.5e-7),
+        ("mistral-embed", "mistral/mistral-embed", "mistralai", 1e-7),
+        ("codestral-embed", "mistral/codestral-embed", "mistralai", 1.5e-7),
+    ],
+)
+def test_embedding_models_carry_only_an_input_rate(
+    manifest: dict[str, Any],
+    span_model_name: str,
+    expected_entry: str,
+    provider: str | None,
+    input_rate: float,
+) -> None:
+    embeddings = {
+        model["name"]: model for model in manifest["non_llm_models"] if model["type"] == "EMBEDDING"
+    }
+    model = embeddings[expected_entry]
+    assert model.get("provider") == provider
+    assert re.search(model["name_pattern"], span_model_name)
+    assert [(p["token_type"], p["is_prompt"]) for p in model["token_prices"]] == [("input", True)]
+    assert model["token_prices"][0]["base_rate"] == pytest.approx(input_rate, rel=1e-9)
+
+
 def test_checked_in_manifest_parses_without_skipping_entries(
     manifest: dict[str, Any],
 ) -> None:
