@@ -15,6 +15,7 @@ export function ExperimentAnnotationButton({
   extra,
   optimizationValue,
   compact = false,
+  displayName,
 }: {
   annotation: Annotation;
   /**
@@ -33,6 +34,8 @@ export function ExperimentAnnotationButton({
    * width from the wrapper.
    */
   compact?: boolean;
+  /** The name to show in place of the annotation's own; null shows no name. */
+  displayName?: string | null;
 }) {
   return (
     <Pressable>
@@ -76,14 +79,17 @@ export function ExperimentAnnotationButton({
           gap={compact ? "size-100" : "size-600"}
           alignItems="center"
           justifyContent="space-between"
+          minWidth={compact ? 0 : undefined}
         >
           <AnnotationNameAndValue
             optimizationValue={optimizationValue}
             annotation={annotation}
             displayPreference="score-and-label"
             maxWidth="unset"
-            minWidth={compact ? "unset" : undefined}
+            minWidth={compact ? 0 : undefined}
             showColorSwatch={false}
+            truncateNameFirst={compact}
+            displayName={displayName}
           />
           {extra}
         </Flex>

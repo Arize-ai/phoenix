@@ -260,8 +260,14 @@ export function AnnotationPreviewPopoverButton(props: {
   annotation: Annotation;
   /** Hug the annotation content; see {@link ExperimentAnnotationButton}. */
   compact?: boolean;
+  /**
+   * Leave out the evaluator's own name, where every chip belongs to the same
+   * evaluator: a single-output annotation shows no name, and a multi-output
+   * one shows only its output's name.
+   */
+  omitEvaluatorName?: boolean;
 }) {
-  const { annotation, compact } = props;
+  const { annotation, compact, omitEvaluatorName = false } = props;
   const provided = useEvaluatorPreviewOutputConfigs();
   const storeOutputConfigs = useEvaluatorStore((state) => state.outputConfigs);
   const storeEvaluatorName = useEvaluatorStore(
@@ -280,12 +286,20 @@ export function AnnotationPreviewPopoverButton(props: {
         evaluatorName: storeEvaluatorName,
         outputConfigs: storeOutputConfigs,
       });
+  const evaluatorName = provided?.evaluatorName ?? storeEvaluatorName;
+  const displayName = omitEvaluatorName
+    ? getNameWithoutEvaluator({
+        annotationName: annotation.name,
+        evaluatorName,
+      })
+    : undefined;
   return (
     <DialogTrigger>
       <ExperimentAnnotationButton
         annotation={annotation}
         compact={compact}
         optimizationValue={optimizationValue ?? undefined}
+        displayName={displayName}
       />
       <Popover>
         <Dialog style={{ width: 400 }}>
@@ -296,6 +310,30 @@ export function AnnotationPreviewPopoverButton(props: {
       </Popover>
     </DialogTrigger>
   );
+}
+
+/**
+ * An annotation's name less its evaluator's: null when the annotation is
+ * named after the evaluator, the output's name when it is
+ * `evaluatorName.outputName`, else the annotation's own name.
+ */
+export function getNameWithoutEvaluator({
+  annotationName,
+  evaluatorName,
+}: {
+  annotationName: string;
+  evaluatorName: string;
+}): string | null {
+  if (!evaluatorName) {
+    return annotationName;
+  }
+  if (annotationName === evaluatorName) {
+    return null;
+  }
+  const prefix = `${evaluatorName}.`;
+  return annotationName.startsWith(prefix)
+    ? annotationName.slice(prefix.length)
+    : annotationName;
 }
 
 /** The annotation preview card shown while a test is in flight. */
