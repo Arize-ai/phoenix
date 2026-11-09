@@ -11,7 +11,7 @@ import { generateClassification } from "../../src/llm/generateClassification";
 
 const exporter = new InMemorySpanExporter();
 const provider = new TracerProvider({
-  spanProcessors: [new SimpleSpanProcessor({ exporter: exporter })],
+  spanProcessors: [new SimpleSpanProcessor({ exporter })],
 });
 
 beforeEach(() => {

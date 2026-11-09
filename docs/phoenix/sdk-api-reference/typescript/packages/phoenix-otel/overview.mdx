@@ -13,6 +13,8 @@ Install the package and any OpenTelemetry instrumentations you want to use with 
 npm install @arizeai/phoenix-otel
 ```
 
+Requires Node.js 22.15 or newer and OpenTelemetry JS 3. Upgrading from 2.x? Read [Upgrade From Version 2](#upgrade-from-version-2).
+
 ### Add Instrumentations
 
 ```bash
@@ -128,6 +130,7 @@ const provider = register({
 |--------|-----|
 | `PHOENIX_COLLECTOR_ENDPOINT` | Base Phoenix collector URL or full OTLP trace endpoint. |
 | `PHOENIX_API_KEY` | API key used when you do not pass `apiKey` explicitly. |
+| `OTEL_TRACES_SAMPLER`, `OTEL_SPAN_*`, `OTEL_ATTRIBUTE_*`, `OTEL_BSP_*` | Standard OpenTelemetry sampler, span limit, and batch settings. `OTEL_BSP_*` applies only to the default processor. |
 
 ## Instrumentation
 
@@ -229,6 +232,31 @@ const provider = register({
   spanProcessors: [new BatchSpanProcessor({ exporter })],
 });
 ```
+
+## Upgrade From Version 2
+
+Version 3 moves to OpenTelemetry JS 3 and requires Node.js 22.15 or newer. The returned provider has no `register()` method, and processors come from `@opentelemetry/sdk-trace` with an options object:
+
+```ts
+// 2.x
+import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
+const provider = register({
+  spanProcessors: [new BatchSpanProcessor(exporter)],
+  global: false,
+});
+provider.register();
+
+// 3.x
+import { BatchSpanProcessor } from "@opentelemetry/sdk-trace";
+import { attachGlobalTracerProvider, register } from "@arizeai/phoenix-otel";
+const provider = register({
+  spanProcessors: [new BatchSpanProcessor({ exporter })],
+  global: false,
+});
+attachGlobalTracerProvider(provider);
+```
+
+A `tracerProvider` passed to `@arizeai/phoenix-client` experiments must also be an `@opentelemetry/sdk-trace` 3.x `TracerProvider`.
 
 ## Troubleshooting
 

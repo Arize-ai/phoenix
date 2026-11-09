@@ -9,7 +9,7 @@
 
 When `spanProcessors` is provided, those are used directly. Otherwise `getDefaultSpanProcessor()` creates an OTLP-backed processor.
 
-Processors come from `@arizeai/openinference-vercel` (`OpenInferenceBatchSpanProcessor` / `OpenInferenceSimpleSpanProcessor`), not from `@opentelemetry/sdk-trace-base`.
+The default processor lazily loads `@arizeai/openinference-vercel` processors (still on `sdk-trace-base` 2.x; duck-typed, so they work in the 3.x provider). Custom processors come from `@opentelemetry/sdk-trace` 3.x.
 
 ## Environment Variable Fallbacks
 

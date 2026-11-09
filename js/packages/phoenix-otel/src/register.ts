@@ -29,7 +29,12 @@ import { resourceFromAttributes } from "@opentelemetry/resources";
 import type { SpanProcessor } from "@opentelemetry/sdk-trace";
 import { TracerProvider as SdkTracerProvider } from "@opentelemetry/sdk-trace";
 
-import { getEnvConfig, getEnvProjectName } from "./config";
+import {
+  getEnvConfig,
+  getEnvProjectName,
+  getEnvSampler,
+  getEnvSpanLimits,
+} from "./config";
 import { LazyOpenInferenceSpanProcessor } from "./lazyOpenInferenceSpanProcessor";
 
 /**
@@ -144,7 +149,7 @@ export type RegisterParams = {
    * import { BatchSpanProcessor } from '@opentelemetry/sdk-trace';
    *
    * const customProcessors = [
-   *   new BatchSpanProcessor({ exporter: exporter }),
+   *   new BatchSpanProcessor({ exporter }),
    *   new MyCustomSpanProcessor()
    * ];
    * ```
@@ -200,7 +205,7 @@ type OpenTelemetryGlobalState = {
 
 type GlobalTracerProviderMount = {
   id: number;
-  provider: SdkTracerProvider;
+  provider: TracerProvider;
 };
 
 let nextGlobalTracerProviderMountId = 0;
@@ -264,7 +269,7 @@ function restoreGlobalTelemetrySnapshot(
  * different module identity). By routing all global-state mutations through **our** copy of
  * the OTEL API, snapshot/restore stays consistent.
  */
-function setGlobalProvider(provider: SdkTracerProvider): void {
+function setGlobalProvider(provider: TracerProvider): void {
   trace.setGlobalTracerProvider(provider);
 
   const contextManager = new AsyncLocalStorageContextManager();
@@ -340,7 +345,7 @@ export function detachGlobalTracerProvider(): void {
  * be attached in the same process.
  */
 export function attachGlobalTracerProvider(
-  provider: SdkTracerProvider
+  provider: TracerProvider
 ): GlobalTracerProviderRegistration {
   if (managedGlobalTracerProviderMounts.length === 0) {
     managedGlobalBaseSnapshot = getGlobalTelemetrySnapshot();
@@ -446,7 +451,7 @@ function bindGlobalTracerProviderRegistrationToShutdown({
  *
  * const provider = register({
  *   projectName: 'my-app',
- *   spanProcessors: [new BatchSpanProcessor({ exporter: exporter })],
+ *   spanProcessors: [new BatchSpanProcessor({ exporter })],
  *   global: false // Manual provider management
  * });
  * ```
@@ -481,6 +486,8 @@ export function register(params: RegisterParams): SdkTracerProvider {
     resource: resourceFromAttributes({
       [SEMRESATTRS_PROJECT_NAME]: projectName,
     }),
+    sampler: getEnvSampler(),
+    spanLimits: getEnvSpanLimits(),
     spanProcessors: spanProcessors || [getDefaultSpanProcessor(params)],
   });
 
@@ -517,7 +524,7 @@ export function register(params: RegisterParams): SdkTracerProvider {
  * @param params.apiKey - The API key for authenticating with the Phoenix instance
  * @param params.headers - Additional headers to include in OTLP requests
  * @param params.batch - Whether to use batching for span processing (recommended for production)
- * @returns A configured SpanProcessor instance ready for use with a SdkTracerProvider
+ * @returns A configured SpanProcessor instance ready for use with an OpenTelemetry tracer provider
  *
  * @example
  * Basic usage with environment variables:

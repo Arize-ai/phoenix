@@ -1,6 +1,11 @@
 import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
-import { context, trace } from "@opentelemetry/api";
-import type { Span, SpanProcessor } from "@opentelemetry/sdk-trace";
+import { context, trace, type TracerProvider } from "@opentelemetry/api";
+import type {
+  ReadableSpan,
+  Span,
+  SpanProcessor,
+} from "@opentelemetry/sdk-trace";
+import { TracerProvider as SdkTracerProvider } from "@opentelemetry/sdk-trace";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { DiagLogLevel } from "../src";
@@ -99,6 +104,70 @@ describe("register", () => {
       global: false,
     });
     expect(provider).toBeDefined();
+  });
+
+  test("should apply the sampler and span limits from OTEL_* environment variables", async () => {
+    const endedSpans: ReadableSpan[] = [];
+    const processor: SpanProcessor = {
+      onStart: () => {},
+      onEnd: (span) => {
+        endedSpans.push(span);
+      },
+      forceFlush: async () => {},
+      shutdown: async () => {},
+    };
+    process.env.OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT = "2";
+    try {
+      const provider = register({
+        spanProcessors: [processor],
+        global: false,
+      });
+      provider
+        .getTracer("env-test")
+        .startSpan("limited", { attributes: { a: 1, b: 2, c: 3 } })
+        .end();
+      expect(Object.keys(endedSpans[0]?.attributes ?? {})).toHaveLength(2);
+      await provider.shutdown();
+
+      process.env.OTEL_TRACES_SAMPLER = "always_off";
+      const sampledOutProvider = register({
+        spanProcessors: [processor],
+        global: false,
+      });
+      const span = sampledOutProvider.getTracer("env-test").startSpan("off");
+      expect(span.isRecording()).toBe(false);
+      span.end();
+      await sampledOutProvider.shutdown();
+    } finally {
+      delete process.env.OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT;
+      delete process.env.OTEL_TRACES_SAMPLER;
+    }
+  });
+
+  test("should attach any OpenTelemetry API tracer provider", async () => {
+    let starts = 0;
+    const sdkProvider = new SdkTracerProvider({
+      spanProcessors: [
+        {
+          onStart: () => {
+            starts += 1;
+          },
+          onEnd: () => {},
+          forceFlush: async () => {},
+          shutdown: async () => {},
+        },
+      ],
+    });
+    const apiProvider: TracerProvider = {
+      getTracer: (...args) => sdkProvider.getTracer(...args),
+    };
+
+    const registration = attachGlobalTracerProvider(apiProvider);
+    trace.getTracer("api-provider").startSpan("span").end();
+    registration.detach();
+
+    expect(starts).toBe(1);
+    await sdkProvider.shutdown();
   });
 
   test("should detach the global tracer provider so a new one can be attached", async () => {
