@@ -5,6 +5,7 @@ import { devtools, persist } from "zustand/middleware";
 import type { LastNTimeRangeKey } from "@phoenix/components/datetime/types";
 import type { AIQueryModelConfig } from "@phoenix/components/filter/ai/types";
 import { PREFERENCES_STORAGE_KEY } from "@phoenix/constants/storageConstants";
+import type { ProjectKind } from "@phoenix/pages/projects/types";
 import type { PackageManager, ProgrammingLanguage } from "@phoenix/types/code";
 import {
   pythonPackageManagers,
@@ -66,12 +67,6 @@ export type ModelConfigByProvider = Partial<
 >;
 
 export type ProjectViewMode = "table" | "grid";
-
-export type ProjectKind =
-  | "STANDARD"
-  | "PLAYGROUND"
-  | "EXPERIMENT"
-  | "EVALUATOR";
 
 export type ProjectSortOrder = {
   column: "name" | "endTime";

@@ -65,10 +65,7 @@ import type {
   ProjectsPageProjectMetricsQuery$data,
 } from "@phoenix/pages/projects/__generated__/ProjectsPageProjectMetricsQuery.graphql";
 import { ProjectViewModeToggle } from "@phoenix/pages/projects/ProjectViewModeToggle";
-import type {
-  ProjectKind,
-  ProjectSortOrder,
-} from "@phoenix/store/preferencesStore";
+import type { ProjectSortOrder } from "@phoenix/store/preferencesStore";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import type {
@@ -79,19 +76,24 @@ import type {
   ProjectSort,
   ProjectsPageProjectsQuery,
 } from "./__generated__/ProjectsPageProjectsQuery.graphql";
-import type { ProjectsPageQuery } from "./__generated__/ProjectsPageQuery.graphql";
+import type {
+  ProjectKind,
+  ProjectsPageQuery,
+} from "./__generated__/ProjectsPageQuery.graphql";
 import { NewProjectButton } from "./NewProjectButton";
 import { ProjectActionMenu } from "./ProjectActionMenu";
 
 const PAGE_SIZE = 10;
 const PROJECTS_POLL_INTERVAL_MS = 60_000;
 
-const PROJECT_KIND_OPTIONS = [
-  { kind: "STANDARD", label: "Projects" },
-  { kind: "PLAYGROUND", label: "Playground projects" },
-  { kind: "EXPERIMENT", label: "Experiment projects" },
-  { kind: "EVALUATOR", label: "Evaluator projects" },
-] satisfies { kind: ProjectKind; label: string }[];
+const PROJECT_KIND_LABELS = {
+  STANDARD: "Projects",
+  PLAYGROUND: "Playground projects",
+  EXPERIMENT: "Experiment projects",
+  EVALUATOR: "Evaluator projects",
+} satisfies Record<ProjectKind, string>;
+
+const PROJECT_KINDS = Object.keys(PROJECT_KIND_LABELS) as ProjectKind[];
 
 const useVisibleProjectKinds = () =>
   usePreferencesContext((state) => state.visibleProjectKinds);
@@ -442,14 +444,12 @@ export function ProjectsPageContent({
           >
             <ProjectViewModeToggle />
             <TableViewSettingsButton
-              settings={PROJECT_KIND_OPTIONS.map(({ kind, label }) => ({
+              settings={PROJECT_KINDS.map((kind) => ({
                 id: kind,
-                label,
+                label: PROJECT_KIND_LABELS[kind],
                 isEnabled: visibleProjectKinds.includes(kind),
                 onChange: (isEnabled) => {
-                  const kinds = PROJECT_KIND_OPTIONS.map(
-                    (option) => option.kind
-                  ).filter((optionKind) =>
+                  const kinds = PROJECT_KINDS.filter((optionKind) =>
                     optionKind === kind
                       ? isEnabled
                       : visibleProjectKinds.includes(optionKind)
