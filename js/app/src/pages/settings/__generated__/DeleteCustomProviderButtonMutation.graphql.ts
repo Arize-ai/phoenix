@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<09bd721639559343f98c4af335217d83>>
+ * @generated SignedSource<<0b90ef7c49086e812d06487832f3ea5b>>
  * @lightSyntaxTransform
  */
 
@@ -215,6 +215,13 @@ return {
                             "alias": null,
                             "args": null,
                             "kind": "ScalarField",
+                            "name": "modelTypes",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
                             "name": "createdAt",
                             "storageKey": null
                           },
@@ -337,12 +344,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f9e6a6a12696ab87c70910b2f6573186",
+    "cacheID": "2eb4e7b0bbfcf91ffe33d6d81f8a04e8",
     "id": null,
     "metadata": {},
     "name": "DeleteCustomProviderButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation DeleteCustomProviderButtonMutation(\n  $input: DeleteGenerativeModelCustomProviderMutationInput!\n) {\n  deleteGenerativeModelCustomProvider(input: $input) {\n    id\n    query {\n      ...CustomProvidersCard_data\n    }\n  }\n}\n\nfragment CustomProvidersCard_data on Query {\n  generativeModelCustomProviders(first: 50) {\n    edges {\n      node {\n        id\n        name\n        description\n        sdk\n        provider\n        createdAt\n        updatedAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n        config {\n          __typename\n          ... on UnparsableConfig {\n            parseError\n          }\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "mutation DeleteCustomProviderButtonMutation(\n  $input: DeleteGenerativeModelCustomProviderMutationInput!\n) {\n  deleteGenerativeModelCustomProvider(input: $input) {\n    id\n    query {\n      ...CustomProvidersCard_data\n    }\n  }\n}\n\nfragment CustomProvidersCard_data on Query {\n  generativeModelCustomProviders(first: 50) {\n    edges {\n      node {\n        id\n        name\n        description\n        sdk\n        provider\n        modelTypes\n        createdAt\n        updatedAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n        config {\n          __typename\n          ... on UnparsableConfig {\n            parseError\n          }\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
