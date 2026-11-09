@@ -120,7 +120,10 @@ def scan(*, bundle: bytes, lock: dict[str, Any]) -> dict[str, str]:
                     ),
                     None,
                 )
-                if idle is None or idle.stop_reason.type != "end_turn":
+                if idle is None:
+                    time.sleep(5)
+                    continue
+                if idle.stop_reason.type != "end_turn":
                     raise RuntimeError("The security session stopped before completing its scan")
                 for event in client.beta.sessions.events.list(
                     session.id,

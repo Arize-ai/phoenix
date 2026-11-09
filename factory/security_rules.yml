@@ -1,6 +1,8 @@
 rules:
   - id: factory-execution
     languages: [python]
+    paths:
+      include: ["**/*.py"]
     message: Execution or unsafe deserialization needs admission review
     severity: WARNING
     pattern-either:

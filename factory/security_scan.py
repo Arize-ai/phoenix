@@ -14,7 +14,7 @@ from typing import Any, Literal, Optional
 FACTORY_DIR = Path(__file__).resolve().parent
 MAX_INPUT_BYTES = 512 * 1024
 MAX_DIFF_BYTES = 256 * 1024
-MAX_FILE_BYTES = 1024 * 1024
+MAX_FILE_BYTES = 8 * 1024 * 1024
 MAX_ARCHIVE_BYTES = 32 * 1024 * 1024
 CONTEXT_BYTES = 8 * 1024
 MAX_FILES = 100
@@ -105,8 +105,10 @@ def read_thread(*, number: int, kind: str) -> dict[str, Any]:
         "number": number,
         "title": issue["title"],
         "body": issue["body"] or "",
+        "user": {key: issue["user"][key] for key in ("login", "id", "type")},
+        "author_association": issue["author_association"],
         "comments": sorted(
-            [{"id": c["id"], "body": c["body"] or ""} for page in comments for c in page],
+            [snapshot_comment(c) for page in comments for c in page],
             key=lambda c: c["id"],
         ),
     }
@@ -121,12 +123,37 @@ def read_thread(*, number: int, kind: str) -> dict[str, Any]:
                 )
             )
             snapshot[key] = sorted(
-                [{"id": c["id"], "body": c["body"] or ""} for page in pages for c in page],
+                [snapshot_comment(c) for page in pages for c in page],
                 key=lambda c: c["id"],
             )
     if len(canonical_json(snapshot)) > MAX_INPUT_BYTES:
         raise ValueError("too-large-to-scan: thread exceeds 512 KiB")
     return snapshot
+
+
+def snapshot_comment(comment: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": comment["id"],
+        "body": comment["body"] or "",
+        "user": {key: (comment.get("user") or {}).get(key) for key in ("login", "id", "type")},
+        **{
+            key: comment[key]
+            for key in (
+                "author_association",
+                "created_at",
+                "updated_at",
+                "state",
+                "node_id",
+                "path",
+                "line",
+                "original_line",
+                "in_reply_to_id",
+                "commit_id",
+                "original_commit_id",
+            )
+            if key in comment
+        },
+    }
 
 
 def text_findings(*, path: str, text: str) -> list[Finding]:
@@ -219,7 +246,7 @@ def code_bundle(*, pr: dict[str, Any], destination: Path) -> tuple[dict[str, Any
                         "Unsupported archive entry: links and special files are not admitted"
                     )
                 if member.size > MAX_FILE_BYTES:
-                    raise ValueError("too-large-to-scan: changed file exceeds 1 MiB")
+                    raise ValueError("too-large-to-scan: changed file exceeds 8 MiB")
                 target = destination / member.name
                 target.parent.mkdir(parents=True, exist_ok=True)
                 stream = tar.extractfile(member)
@@ -472,6 +499,10 @@ def find_admission_problem(
                         )
                     )
                 )
+            )
+            return (
+                "the input exceeds security scan limits; split or reduce it "
+                "(see the workflow summary)"
             )
         write_summary(
             f"Admission scan unavailable ({type(error).__name__}): {str(error)[:300]}; "
