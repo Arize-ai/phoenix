@@ -107,6 +107,7 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Install PostgreSQL (product floor)
         if: matrix.db == 'postgresql' && runner.os == 'Linux'
         # Floor version from PGDG; see the note in python-CI.yml. The macOS
@@ -192,6 +193,7 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Sync dependencies
         run: uv sync --frozen
       # Return the next major version in response headers so all client methods
@@ -236,6 +238,7 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - run: uv sync --frozen --no-editable --package arize-phoenix-client --all-extras
       - run: uv run --no-sync pyright .
         working-directory: packages/phoenix-client
@@ -269,6 +272,7 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - run: uv sync --frozen --no-editable --package arize-phoenix-evals --all-extras
       - run: uv run --no-sync mypy .
         working-directory: packages/phoenix-evals
@@ -300,6 +304,7 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - run: uv sync --frozen --no-editable --package arize-phoenix-otel --all-extras
       - run: uv run --no-sync mypy .
         working-directory: packages/phoenix-otel

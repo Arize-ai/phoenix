@@ -163,15 +163,14 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
           cache-dependency-glob: "uv.lock"
       - name: Install dependencies
         if: ${{ github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' }}
         run: uv sync --extra container
       - name: Install dependencies (with upgrade)
         if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
-        run: |
-          echo ${{ matrix.py }} > ../../.python-version
-          uv sync --upgrade --extra container
+        run: uv sync --upgrade --extra container
       # Sandbox providers used by the Playwright suite (Deno for TypeScript
       # code evaluators, CPython WASM for Python). The Phoenix container image
       # bundles these (see Dockerfile); the e2e runner is bare so we pin the
