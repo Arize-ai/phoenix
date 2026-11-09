@@ -23,7 +23,6 @@ import {
   Loading,
   ViewportModal,
   ViewportModalOverlay,
-  View,
 } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -60,6 +59,12 @@ const ProviderQuery = graphql`
           }
           ... on OpenAICustomProviderConfig {
             openaiApiType
+            modelNames
+            decisionModels {
+              decisionSdk
+              baseUrl
+              modelNames
+            }
             openaiAuthenticationMethod {
               apiKey
             }
@@ -72,6 +77,12 @@ const ProviderQuery = graphql`
           }
           ... on AzureOpenAICustomProviderConfig {
             openaiApiType
+            modelNames
+            decisionModels {
+              decisionSdk
+              baseUrl
+              modelNames
+            }
             azureOpenaiAuthenticationMethod {
               apiKey
               azureAdTokenProvider {
@@ -88,6 +99,7 @@ const ProviderQuery = graphql`
             }
           }
           ... on AnthropicCustomProviderConfig {
+            modelNames
             anthropicAuthenticationMethod {
               apiKey
             }
@@ -97,6 +109,11 @@ const ProviderQuery = graphql`
             }
           }
           ... on TypeSafeCustomProviderConfig {
+            decisionModels {
+              decisionSdk
+              baseUrl
+              modelNames
+            }
             typesafeAuthenticationMethod {
               apiKey
             }
@@ -106,6 +123,7 @@ const ProviderQuery = graphql`
             }
           }
           ... on AWSBedrockCustomProviderConfig {
+            modelNames
             awsBedrockAuthenticationMethod {
               accessKeys {
                 awsAccessKeyId
@@ -120,6 +138,7 @@ const ProviderQuery = graphql`
             }
           }
           ... on GoogleGenAICustomProviderConfig {
+            modelNames
             googleGenaiAuthenticationMethod {
               apiKey
             }
@@ -166,6 +185,7 @@ function EditCustomProviderDialogContent({
             description
             sdk
             provider
+            modelTypes
             createdAt
             updatedAt
             user {
@@ -256,21 +276,24 @@ function EditCustomProviderDialogContent({
     : transformConfigToFormValues(providerData);
 
   return (
-    <View padding="size-200">
+    <>
       {hasParseError && (
-        <View paddingBottom="size-200">
-          <Alert variant="warning">
-            This provider&apos;s configuration could not be parsed. Please enter
-            a new configuration below.
-            {providerData.config?.parseError && (
-              <div style={{ marginTop: 8, fontSize: "0.875em" }}>
-                Error: {providerData.config.parseError}
-              </div>
-            )}
-          </Alert>
-        </View>
+        <Alert variant="warning" banner>
+          This provider&apos;s configuration could not be parsed. Please enter a
+          new configuration below.
+          {providerData.config?.parseError && (
+            <div style={{ marginTop: 8, fontSize: "0.875em" }}>
+              Error: {providerData.config.parseError}
+            </div>
+          )}
+        </Alert>
       )}
-      {error && <Alert variant="danger">{error}</Alert>}
+      {error && (
+        <Alert variant="danger" banner>
+          {error}
+        </Alert>
+      )}
+      {/* The form's sections run edge to edge, so it brings its own padding. */}
       <ProviderForm
         onSubmit={handleSubmit}
         onCancel={handleCancel}
@@ -278,7 +301,7 @@ function EditCustomProviderDialogContent({
         isSubmitting={isCommitting}
         onDirtyChange={setShouldShowConfirmation}
       />
-    </View>
+    </>
   );
 }
 
