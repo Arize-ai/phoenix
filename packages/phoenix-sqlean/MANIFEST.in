@@ -9,21 +9,17 @@ include src/*.patch
 
 include sqlite/*.h
 include sqlite/*.c
-include sqlite/crypto/*.h
-include sqlite/define/*.h
-include sqlite/fileio/*.h
-include sqlite/fuzzy/*.h
-include sqlite/init.h/*.h
-include sqlite/ipaddr/*.h
-include sqlite/math/*.h
-include sqlite/regexp/*.h
-include sqlite/regexp/pcre2/*.h
-include sqlite/stats/*.h
-include sqlite/text/*.h
-include sqlite/text/utf8/*.h
-include sqlite/time/*.h
-include sqlite/unicode/*.h
-include sqlite/uuid/*.h
-include sqlite/vsv/*.h
+include sqlite/crypto/*.[ch]
+include sqlite/define/*.[ch]
+include sqlite/fileio/*.[ch]
+include sqlite/fuzzy/*.[ch]
+include sqlite/ipaddr/*.[ch]
+include sqlite/regexp/*.[ch]
+include sqlite/regexp/pcre2/*.[ch]
+include sqlite/stats/*.[ch]
+include sqlite/text/*.[ch]
+include sqlite/time/*.[ch]
+include sqlite/uuid/*.[ch]
+include sqlite/vsv/*.[ch]
 
 global-exclude *~ *.pyc

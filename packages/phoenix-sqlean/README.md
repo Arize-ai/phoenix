@@ -12,8 +12,10 @@ This package provides an SQLite Python wrapper bundled with [sqlean](https://git
 > The `src/` directory contains code derived from CPython's `sqlite3` module
 > (PSF License 2.0). Builds download the SQLite amalgamation (public domain) and
 > [sqlean](https://github.com/nalgeon/sqlean) extension sources (MIT License), which
-> include PCRE2 (BSD 3-Clause), STC (MIT), and code based on Go's time package
-> (BSD 3-Clause). Full notices and the CPython change summary are in
+> include PCRE2 (BSD 3-Clause), STC (MIT), and code based on Go's standard library
+> (BSD 3-Clause), `zeebo/xxh3` (BSD 2-Clause), `cespare/xxhash` (MIT), `google/uuid`
+> (BSD 3-Clause), `go-edlib` (MIT), `cryptii` (MIT), and `libstrcmp` (MIT). Full
+> notices and the CPython change summary are in
 > [THIRD_PARTY_LICENSES](https://github.com/Arize-ai/phoenix/blob/main/packages/phoenix-sqlean/THIRD_PARTY_LICENSES).
 
 ```
