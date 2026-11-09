@@ -19,10 +19,12 @@ from phoenix.server.cost_tracking.manifest import (
 )
 
 # The span attribute that LiteLLM's whole-prompt tiers (``..._above_NNNk_tokens``) are keyed on,
-# by model type: decision spans report their input tokens under their own attribute.
+# by model type: decision spans report their input tokens under their own attribute, and
+# embedding spans under the LLM one.
 PROMPT_TOKEN_ATTRIBUTES: dict[GenerativeModelType, str] = {
     "LLM": "llm.token_count.prompt",
     "DECISION": "decision.token_count.input",
+    "EMBEDDING": "llm.token_count.prompt",
 }
 
 # LiteLLM's ``mode`` values that aren't priced as LLMs. Every other mode (chat, responses,
@@ -141,6 +143,8 @@ def filter_models(model_ids: list[str]) -> list[str]:
         r"o1",
         r"o3",
         r"o4",
+        # OpenAI's embedding models, whose names don't carry the gpt family name.
+        r"^text-embedding-(3|ada)-",
     ]
     exclude_patterns = [
         r"/",
@@ -148,7 +152,6 @@ def filter_models(model_ids: list[str]) -> list[str]:
         r"anthropic\.",
         r"mistral\.",
         r"claude-2.*",
-        r"embedding",
         r"gemini-1.*",
         r"claude-instant.*",
         r"gemini-pro",
@@ -167,9 +170,6 @@ def filter_models(model_ids: list[str]) -> list[str]:
             # Perplexity: only include sonar models (skip proxied models like
             # perplexity/openai/... and deprecated models)
             if model_id.startswith("perplexity/") and not stripped_name.startswith("sonar"):
-                continue
-            # Together: skip embedding models
-            if model_id.startswith("together_ai/") and "bge" in stripped_name.lower():
                 continue
             filtered_models.append(model_id)
             continue
@@ -382,12 +382,29 @@ def serialize_manifest(manifest: ModelCostManifest) -> str:
     return manifest.model_dump_json(indent=2, exclude_none=True)
 
 
-def _has_pricing(model_info: dict[str, Any]) -> bool:
-    """Both an input and an output rate are required for pricing."""
+def _has_pricing(model_info: dict[str, Any], model_type: GenerativeModelType = "LLM") -> bool:
+    """
+    Both an input and an output rate are required for pricing, except for embedding models,
+    which are priced on input tokens alone.
+    """
+    if model_type == "EMBEDDING":
+        return _embedding_input_rate(model_info) is not None
     return (
         _is_non_negative_number(model_info.get("input_cost_per_token"))
         and _output_rate_field(model_info) is not None
     )
+
+
+def _embedding_input_rate(model_info: dict[str, Any]) -> Optional[float]:
+    """
+    An embedding model's price per input token. Embedding spans report no output tokens, so
+    LiteLLM's output rate (0 when published at all) isn't used. As with ``output``, a 0 rate
+    means free unless the model publishes a positive non-token price, such as per image.
+    """
+    rate = _to_finite_float(model_info.get("input_cost_per_token"))
+    if rate is None or rate < 0 or (rate == 0 and _has_positive_non_token_price(model_info)):
+        return None
+    return rate
 
 
 def model_type_for_mode(mode: Any) -> GenerativeModelType:
@@ -411,7 +428,9 @@ def _decisions_pricing(model_info: dict[str, Any]) -> Optional[dict[str, Any]]:
 
 def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
     models_with_pricing = [
-        model_id for model_id, model_info in data.items() if _has_pricing(model_info)
+        model_id
+        for model_id, model_info in data.items()
+        if _has_pricing(model_info, model_type_for_mode(model_info.get("mode")))
     ]
 
     filtered_model_ids = filter_models(models_with_pricing)
@@ -426,15 +445,12 @@ def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
     for model_id in filtered_model_ids:
         model_info = data[model_id]
         model_type = model_type_for_mode(model_info.get("mode"))
-        if model_type == "EMBEDDING":
-            # Embedding spans aren't priced yet (#17305).
-            continue
         pricings: list[tuple[GenerativeModelType, dict[str, Any]]] = [(model_type, model_info)]
         if model_type == "LLM" and (decisions := _decisions_pricing(model_info)) is not None:
             pricings.append(("DECISION", decisions))
         _, provider, stripped_name = parse_provider_prefix(model_id)
         for priced_type, pricing in pricings:
-            if token_prices := _token_prices(pricing, PROMPT_TOKEN_ATTRIBUTES[priced_type]):
+            if token_prices := _token_prices(pricing, priced_type):
                 pricing_entries.append(
                     LiteLLMPricingEntry(
                         name=model_id,
@@ -448,7 +464,22 @@ def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
     return pricing_entries
 
 
-def _token_prices(model_info: dict[str, Any], prompt_token_attribute: str) -> list[TokenPrice]:
+def _token_prices(model_info: dict[str, Any], model_type: GenerativeModelType) -> list[TokenPrice]:
+    prompt_token_attribute = PROMPT_TOKEN_ATTRIBUTES[model_type]
+    if model_type == "EMBEDDING":
+        if (input_rate := _embedding_input_rate(model_info)) is None:
+            return []
+        return [
+            TokenPrice(
+                token_type="input",
+                base_rate=input_rate,
+                is_prompt=True,
+                customization=_tier_customization(
+                    model_info, "input_cost_per_token", prompt_token_attribute
+                ),
+            )
+        ]
+
     token_prices: list[TokenPrice] = []
 
     if _is_non_negative_number(raw_input_cost := model_info.get("input_cost_per_token")):

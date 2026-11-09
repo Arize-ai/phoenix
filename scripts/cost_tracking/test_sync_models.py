@@ -242,7 +242,7 @@ LITELLM_DATA: dict[str, Any] = {
         "input_cost_per_token": 3e-8,
         "output_cost_per_token": 0.0,
     },
-    "together_ai/some-embed-model": {
+    "together_ai/BAAI/bge-base-en-v1.5": {
         "litellm_provider": "together_ai",
         "mode": "embedding",
         "input_cost_per_token": 8e-9,
@@ -265,10 +265,10 @@ def _tiers(entry: LiteLLMPricingEntry) -> dict[str, tuple[str, float, float] | N
 def test_extract_litellm_entries_assigns_types_by_mode() -> None:
     entries = extract_litellm_entries(LITELLM_DATA)
     by_key = {(entry.name, entry.type): entry for entry in entries}
-    # The embedding model is skipped: embedding spans aren't priced yet.
     assert sorted(by_key) == [
         ("gpt-6-luna", "DECISION"),
         ("gpt-6-luna", "LLM"),
+        ("together_ai/BAAI/bge-base-en-v1.5", "EMBEDDING"),
         ("typesafe/jev-decider", "DECISION"),
         ("typesafe/jev-latest", "DECISION"),
     ]
@@ -311,6 +311,61 @@ def test_extract_litellm_entries_assigns_types_by_mode() -> None:
     assert (jev.provider, jev.name_pattern) == ("typesafe", "jev-latest")
     assert _rates([jev])["typesafe/jev-latest"] == {("input", True): 4.2e-8, ("output", False): 0.0}
     assert _tiers(jev) == {"input": None, "output": None}
+
+
+def _embedding(input_rate: Any = 1e-7, **fields: Any) -> dict[str, Any]:
+    return {"mode": "embedding", "input_cost_per_token": input_rate, **fields}
+
+
+def test_extract_litellm_entries_prices_embedding_models_on_input_only() -> None:
+    entries = extract_litellm_entries(
+        {
+            # LiteLLM publishes a 0 output rate for most embedding models; it isn't used.
+            "text-embedding-3-small": _embedding(2e-8, output_cost_per_token=0.0),
+            "text-embedding-ada-002": _embedding(1e-7, output_cost_per_token=0.0),
+            "gemini-embedding-001": _embedding(1.5e-7, output_cost_per_token=0),
+            # No output rate at all, which an LLM entry would need.
+            "mistral/mistral-embed": _embedding(1e-7),
+            "together_ai/BAAI/bge-base-en-v1.5": _embedding(8e-9, output_cost_per_token=0.0),
+            # A 0 input rate means free...
+            "mistral/free-embed": _embedding(0),
+            # ...unless the model is priced some other way.
+            "mistral/image-embed": _embedding(0, input_cost_per_image=1e-4),
+            "mistral/unpriced-embed": _embedding(None),
+            "mistral/negative-embed": _embedding(-1e-7),
+            # The LLM filters still apply: no unknown provider prefixes, perplexity's sonar
+            # models only, and only the unprefixed families Phoenix knows.
+            "azure/text-embedding-3-small": _embedding(2.2e-8, output_cost_per_token=0.0),
+            "perplexity/pplx-embed-v1-4b": _embedding(3e-8, output_cost_per_token=0.0),
+            "text-embedding-005": _embedding(1e-7, output_cost_per_token=0),
+            "voyage/voyage-3.5": _embedding(6e-8, output_cost_per_token=0.0),
+        }
+    )
+    assert {entry.type for entry in entries} == {"EMBEDDING"}
+    assert _rates(entries) == {
+        "text-embedding-3-small": {("input", True): 2e-8},
+        "text-embedding-ada-002": {("input", True): 1e-7},
+        "gemini-embedding-001": {("input", True): 1.5e-7},
+        "mistral/mistral-embed": {("input", True): 1e-7},
+        "together_ai/BAAI/bge-base-en-v1.5": {("input", True): 8e-9},
+        "mistral/free-embed": {("input", True): 0.0},
+    }
+    by_name = {entry.name: entry for entry in entries}
+    assert (
+        by_name["mistral/mistral-embed"].provider,
+        by_name["mistral/mistral-embed"].name_pattern,
+    ) == (
+        "mistralai",
+        "mistral-embed",
+    )
+    assert by_name["text-embedding-3-small"].provider is None
+
+    # Embedding entries go in non_llm_models and parse as EMBEDDING models.
+    manifest = update_manifest(ModelCostManifest(generated_at=PREVIOUS, models=[]), entries)
+    assert manifest.models == []
+    parsed = parse_manifest(serialize_manifest(manifest))
+    assert {model.key for model in parsed.models} == {(name, "EMBEDDING") for name in by_name}
+    assert parsed.skipped_models == frozenset()
 
 
 def test_extract_litellm_entries_decision_entry_does_not_borrow_chat_rates() -> None:
