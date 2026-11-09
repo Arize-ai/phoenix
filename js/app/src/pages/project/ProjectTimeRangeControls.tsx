@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useRef } from "react";
+import { startTransition } from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
 import { useParams } from "react-router";
 
@@ -8,20 +8,26 @@ import {
 } from "@phoenix/components/datetime";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useInterval } from "@phoenix/hooks/useInterval";
+import { useOnTimestampAdvance } from "@phoenix/hooks/useOnTimestampAdvance";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
+import { EVALUATORS_LIVE_REFRESH_INTERVAL_MS } from "@phoenix/pages/project/constants";
 import { useSelectedTraceSlots } from "@phoenix/pages/project/useSelectedTraceSlots";
 
 import type { ProjectTimeRangeControls_data$key } from "./__generated__/ProjectTimeRangeControls_data.graphql";
 
 /**
- * Check every few seconds for new data
+ * How often each streamable project tab checks for new data. The span, trace
+ * and session tables poll every few seconds. The evaluators tab polls less
+ * often: its rows aggregate costs, failures, lag and scores over the time
+ * range, so each refresh costs more, and results land in steady batches
+ * rather than one span at a time.
  */
-const REFRESH_INTERVAL_MS = 2000;
-
-/**
- * Project tabs where live streaming is available.
- */
-const STREAMING_ENABLED_TABS = ["spans", "traces", "sessions"];
+const REFRESH_INTERVAL_MS_BY_TAB: ReadonlyMap<string, number> = new Map([
+  ["spans", 2000],
+  ["traces", 2000],
+  ["sessions", 2000],
+  ["evaluators", EVALUATORS_LIVE_REFRESH_INTERVAL_MS],
+]);
 
 /**
  * The project page's time range control strip: pan/zoom buttons around a
@@ -45,7 +51,8 @@ export function ProjectTimeRangeControls(props: {
   // is open; the trace and compare drawers are known from the selected traces
   const { sessionId } = useParams();
   const isDetailOpen = useSelectedTraceSlots().length > 0 || sessionId != null;
-  const isStreamingTab = STREAMING_ENABLED_TABS.includes(tab);
+  const refreshIntervalMs = REFRESH_INTERVAL_MS_BY_TAB.get(tab) ?? null;
+  const isStreamingTab = refreshIntervalMs != null;
   const isLiveStreaming = isStreamingTab && !isDetailOpen && isStreamingState;
 
   const [lastUpdatedAt, refetchLastUpdatedAt] = useRefetchableFragment(
@@ -57,36 +64,26 @@ export function ProjectTimeRangeControls(props: {
     `,
     props.project
   );
-  // Keep track of the loaded lastUpdatedAt, so we can detect when it changes
-  const loadedLastUpdatedAtRef = useRef<string | null>(
-    lastUpdatedAt.streamingLastUpdatedAt
-  );
-
   useInterval(
     () => {
       startTransition(() => {
         refetchLastUpdatedAt({}, { fetchPolicy: "store-and-network" });
       });
     },
-    isLiveStreaming ? REFRESH_INTERVAL_MS : null
+    isLiveStreaming ? refreshIntervalMs : null
   );
 
-  // We want to refetch higher up the render tree when lastUpdatedAt changes
-  const currentLastUpdatedAt = lastUpdatedAt.streamingLastUpdatedAt;
-  useEffect(() => {
-    if (
-      currentLastUpdatedAt != null &&
-      (loadedLastUpdatedAtRef.current == null ||
-        loadedLastUpdatedAtRef.current < currentLastUpdatedAt)
-    ) {
-      // Update the loaded lastUpdatedAt so the effect doesn't fire again
-      loadedLastUpdatedAtRef.current = currentLastUpdatedAt;
+  // New data landed: slide a live time range forward and refetch the tables
+  // below, keeping the current rows up while they load
+  useOnTimestampAdvance(
+    lastUpdatedAt.streamingLastUpdatedAt,
+    (currentLastUpdatedAt) => {
       startTransition(() => {
         refreshLiveTimeRange();
         setFetchKey(`fetch-traces-${currentLastUpdatedAt}`);
       });
     }
-  }, [setFetchKey, currentLastUpdatedAt, refreshLiveTimeRange]);
+  );
 
   return (
     <ConnectedTimeRangeControls
