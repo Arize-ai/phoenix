@@ -1248,8 +1248,11 @@ class TestCostModelLookupMerge:
         assert result is not None
         assert result.id == 1
 
-    def test_embedding_models_are_ignored(self) -> None:
-        """LLM spans price against LLM models only, and EMBEDDING models are never priced."""
+    def test_lookup_follows_model_type_through_merge(self) -> None:
+        """
+        Each span kind finds only its own model type, including after `merge` changes a model's
+        type. EMBEDDING models are never priced.
+        """
 
         def model(id: int, type: models.GenerativeModelType) -> models.GenerativeModel:
             return models.GenerativeModel(
