@@ -671,10 +671,14 @@ class Project(Node):
                     stmt = stmt.where(sort_config.orm_expression.is_(None))
                     stmt = stmt.where(compare(models.Span.id, cursor.rowid))
                 else:
+                    # NULLs sort last in both directions, so they all follow a non-NULL cursor.
                     stmt = stmt.where(
-                        compare(
-                            tuple_(sort_config.orm_expression, models.Span.id),
-                            (sort_column.value, cursor.rowid),
+                        or_(
+                            compare(
+                                tuple_(sort_config.orm_expression, models.Span.id),
+                                (sort_column.value, cursor.rowid),
+                            ),
+                            sort_config.orm_expression.is_(None),
                         )
                     )
             else:
@@ -762,10 +766,14 @@ class Project(Node):
                     stmt = stmt.where(sort_config.orm_expression.is_(None))
                     stmt = stmt.where(compare(table.id, cursor.rowid))
                 else:
+                    # NULLs sort last in both directions, so they all follow a non-NULL cursor.
                     stmt = stmt.where(
-                        compare(
-                            tuple_(sort_config.orm_expression, table.id),
-                            (sort_column.value, cursor.rowid),
+                        or_(
+                            compare(
+                                tuple_(sort_config.orm_expression, table.id),
+                                (sort_column.value, cursor.rowid),
+                            ),
+                            sort_config.orm_expression.is_(None),
                         )
                     )
             else:
