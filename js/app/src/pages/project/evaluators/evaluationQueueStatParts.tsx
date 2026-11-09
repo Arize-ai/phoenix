@@ -34,7 +34,7 @@ const QUEUE_STATS_POLL_INTERVAL_MS = 30_000;
  * Polls the queue stats: a fetch key that changes on every poll or refresh.
  * Call it once per page, so the stats and charts refresh together.
  */
-export function useQueueStatsPoll(refreshKey: number) {
+export function useQueueStatsPoll(refreshKey: string | number) {
   const [pollCount, setPollCount] = useState(0);
   useEffect(() => {
     const interval = setInterval(() => {

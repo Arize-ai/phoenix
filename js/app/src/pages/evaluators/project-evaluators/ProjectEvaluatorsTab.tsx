@@ -20,8 +20,10 @@ import {
   ServerEvaluationQueueStrip,
   ServerEvaluationQueueStripSkeleton,
 } from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluationQueueStrip";
+import { ServerEvaluatorsTimeRangeControls } from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluatorsTimeRangeControls";
 import { normalizePickedProjectIds } from "@phoenix/pages/evaluators/project-evaluators/serverProjectSeries";
 import { ServerProjectsFilterButton } from "@phoenix/pages/evaluators/project-evaluators/ServerProjectsFilterButton";
+import { useServerEvaluatorsRefreshKey } from "@phoenix/pages/evaluators/project-evaluators/useServerEvaluatorsRefreshKey";
 import { SearchBarSkeleton } from "@phoenix/pages/evaluators/SearchBarSkeleton";
 import { useQueueStatsPoll } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
 import { QueueStatsRefreshContext } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueStats";
@@ -56,10 +58,7 @@ export function ProjectEvaluatorsTab() {
 
 function ProjectEvaluatorsTabContent() {
   const [filter, setFilter] = useState("");
-  // Bumped when something on this page changes the queue, so the strip and
-  // the table refetch at once instead of on their next poll.
-  const [refreshKey, setRefreshKey] = useState(0);
-  const refresh = () => setRefreshKey((key) => key + 1);
+  const { refreshKey, refresh } = useServerEvaluatorsRefreshKey();
   // One poll keeps the strip and the charts in step.
   const { fetchKey } = useQueueStatsPoll(refreshKey);
   const [sorting, setSorting] = useState<SortingState>([
@@ -85,6 +84,9 @@ function ProjectEvaluatorsTabContent() {
     <QueueStatsRefreshContext.Provider value={refresh}>
       <TopNavActions>
         <ConnectedTimeRangeSelector size="S" />
+      </TopNavActions>
+      <TopNavActions order={1}>
+        <ServerEvaluatorsTimeRangeControls onNewData={refresh} />
       </TopNavActions>
       <div css={pageCSS}>
         <ServerEvaluationQueueStrip
