@@ -155,7 +155,7 @@ function getProjectEvaluatorCreationTitle(
     return `Copy LLM evaluator “${creationMode.initialState.name}”`;
   }
   if (creationMode.kind === "copyCode") {
-    return `Duplicate code evaluator “${creationMode.initialState.name}”`;
+    return `Copy code evaluator “${creationMode.initialState.name}”`;
   }
   if (creationMode.kind === "template") {
     return `Create “${creationMode.initialState.name}” evaluator`;
