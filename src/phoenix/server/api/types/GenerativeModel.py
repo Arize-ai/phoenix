@@ -32,6 +32,42 @@ class GenerativeModelKind(Enum):
     BUILT_IN = "BUILT_IN"
 
 
+@strawberry.enum(
+    description=(
+        "The kind of span a model is priced for, named after the OpenInference span kinds. "
+        "The same model name can be priced differently per type."
+    ),
+)
+class GenerativeModelType(Enum):
+    LLM = "LLM"
+    DECISION = "DECISION"
+    EMBEDDING = "EMBEDDING"
+
+
+def to_gql_generative_model_type(
+    model_type: models.GenerativeModelType,
+) -> GenerativeModelType:
+    if model_type == "LLM":
+        return GenerativeModelType.LLM
+    if model_type == "DECISION":
+        return GenerativeModelType.DECISION
+    if model_type == "EMBEDDING":
+        return GenerativeModelType.EMBEDDING
+    assert_never(model_type)
+
+
+def to_db_generative_model_type(
+    model_type: GenerativeModelType,
+) -> models.GenerativeModelType:
+    if model_type is GenerativeModelType.LLM:
+        return "LLM"
+    if model_type is GenerativeModelType.DECISION:
+        return "DECISION"
+    if model_type is GenerativeModelType.EMBEDDING:
+        return "EMBEDDING"
+    assert_never(model_type)
+
+
 ProjectId: TypeAlias = int
 TimeRangeKey: TypeAlias = tuple[Optional[datetime], Optional[datetime]]
 CachedCostSummaryKey: TypeAlias = tuple[Optional[ProjectId], TimeRangeKey]
@@ -90,6 +126,18 @@ class GenerativeModel(Node, ModelInterface):
                 (self.id, models.GenerativeModel.is_built_in),
             )
         return GenerativeModelKind.BUILT_IN if is_built_in else GenerativeModelKind.CUSTOM
+
+    @strawberry.field(
+        description="The kind of span this model is priced for.",
+    )  # type: ignore
+    async def model_type(self, info: Info[Context, None]) -> GenerativeModelType:
+        if self.db_record:
+            model_type = self.db_record.type
+        else:
+            model_type = await info.context.data_loaders.generative_model_fields.load(
+                (self.id, models.GenerativeModel.type),
+            )
+        return to_gql_generative_model_type(model_type)
 
     @strawberry.field
     async def created_at(self, info: Info[Context, None]) -> datetime:

@@ -22,6 +22,7 @@ class TestModelMutations:
             provider
             namePattern
             kind
+            modelType
             createdAt
             updatedAt
             tokenPrices {
@@ -42,6 +43,7 @@ class TestModelMutations:
             provider
             namePattern
             kind
+            modelType
             createdAt
             updatedAt
             tokenPrices {
@@ -107,6 +109,7 @@ class TestModelMutations:
         assert created_model.pop("provider") == "openai"
         assert created_model.pop("namePattern") == "gpt-*"
         assert created_model.pop("kind") == "CUSTOM"
+        assert created_model.pop("modelType") == "LLM"
         assert isinstance(created_model.pop("createdAt"), str)
         assert isinstance(created_model.pop("updatedAt"), str)
         token_prices = created_model.pop("tokenPrices")
@@ -161,6 +164,7 @@ class TestModelMutations:
         assert updated_model.pop("provider") == "anthropic"
         assert updated_model.pop("namePattern") == "claude-*"
         assert updated_model.pop("kind") == "CUSTOM"
+        assert updated_model.pop("modelType") == "LLM"
         assert isinstance(updated_model.pop("createdAt"), str)
         assert isinstance(updated_model.pop("updatedAt"), str)
         token_prices = updated_model.pop("tokenPrices")
@@ -988,6 +992,274 @@ class TestModelMutations:
         assert result.data is not None
         assert result.data["createModel"]["model"]["provider"] == "acmeai"
 
+    @pytest.mark.parametrize(
+        "model_type,expected_model_type",
+        [
+            pytest.param(None, "LLM", id="omitted-defaults-to-llm"),
+            pytest.param("LLM", "LLM", id="llm"),
+            pytest.param("DECISION", "DECISION", id="decision"),
+            pytest.param("EMBEDDING", "EMBEDDING", id="embedding"),
+        ],
+    )
+    async def test_create_model_sets_model_type(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        model_type: Optional[str],
+        expected_model_type: str,
+    ) -> None:
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=_create_model_variables(model_type=model_type),
+            operation_name="CreateModelMutation",
+        )
+        assert not result.errors
+        assert result.data is not None
+        model = result.data["createModel"]["model"]
+        assert model["modelType"] == expected_model_type
+        assert model["kind"] == "CUSTOM"
+        async with db() as session:
+            stored_type = await session.scalar(
+                sa.select(models.GenerativeModel.type).where(
+                    models.GenerativeModel.name == "my-model"
+                )
+            )
+        assert stored_type == expected_model_type
+
+    async def test_create_model_with_same_name_and_different_type_succeeds(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Type is part of both unique indexes, so one name can be priced per span kind."""
+        first = await gql_client.execute(
+            query=self.QUERY,
+            variables=_create_model_variables(provider="AcmeAI"),
+            operation_name="CreateModelMutation",
+        )
+        assert not first.errors
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=_create_model_variables(provider="AcmeAI", model_type="DECISION"),
+            operation_name="CreateModelMutation",
+        )
+        assert not result.errors
+        assert result.data is not None
+        assert result.data["createModel"]["model"]["modelType"] == "DECISION"
+
+    async def test_create_model_with_case_only_provider_difference_and_different_type_succeeds(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Spans are only priced by models of their own type, so the spellings can't compete."""
+        first = await gql_client.execute(
+            query=self.QUERY,
+            variables=_create_model_variables(name="first-model", provider="AcmeAI"),
+            operation_name="CreateModelMutation",
+        )
+        assert not first.errors
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=_create_model_variables(
+                name="second-model", provider="acmeai", model_type="EMBEDDING"
+            ),
+            operation_name="CreateModelMutation",
+        )
+        assert not result.errors
+        assert result.data is not None
+        assert result.data["createModel"]["model"]["provider"] == "acmeai"
+
+    @pytest.mark.parametrize(
+        "initial_provider,initial_type,update_provider,update_type,rejected",
+        [
+            pytest.param("acmeai", "DECISION", "acmeai", "LLM", True, id="type-into-collision"),
+            pytest.param("other", "EMBEDDING", "ACMEAI", "LLM", True, id="type-and-provider"),
+            pytest.param("other", "LLM", "acmeai", "EMBEDDING", False, id="type-away"),
+        ],
+    )
+    async def test_update_model_checks_case_only_provider_collision_in_new_type(
+        self,
+        gql_client: AsyncGraphQLClient,
+        initial_provider: str,
+        initial_type: str,
+        update_provider: str,
+        update_type: str,
+        rejected: bool,
+    ) -> None:
+        existing = await gql_client.execute(
+            query=self.QUERY,
+            variables=_create_model_variables(name="first-model", provider="AcmeAI"),
+            operation_name="CreateModelMutation",
+        )
+        assert not existing.errors
+        created = await gql_client.execute(
+            query=self.QUERY,
+            variables=_create_model_variables(
+                name="second-model", provider=initial_provider, model_type=initial_type
+            ),
+            operation_name="CreateModelMutation",
+        )
+        assert not created.errors
+        assert created.data is not None
+        variables = _create_model_variables(
+            name="second-model", provider=update_provider, model_type=update_type
+        )
+        variables["input"]["id"] = created.data["createModel"]["model"]["id"]
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="UpdateModelMutation",
+        )
+        if rejected:
+            assert result.errors
+            assert "already uses name pattern" in result.errors[0].message
+        else:
+            assert not result.errors
+
+    @pytest.mark.parametrize(
+        "model_type_input,expected_model_type",
+        [
+            pytest.param({}, "DECISION", id="omitted-keeps-stored-type"),
+            pytest.param({"modelType": None}, "DECISION", id="null-keeps-stored-type"),
+            pytest.param({"modelType": "EMBEDDING"}, "EMBEDDING", id="changes-type"),
+            pytest.param({"modelType": "LLM"}, "LLM", id="changes-type-back-to-llm"),
+        ],
+    )
+    async def test_update_model_model_type(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        model_type_input: dict[str, Any],
+        expected_model_type: str,
+    ) -> None:
+        created = await gql_client.execute(
+            query=self.QUERY,
+            variables=_create_model_variables(model_type="DECISION"),
+            operation_name="CreateModelMutation",
+        )
+        assert created.data is not None
+        variables = _create_model_variables()
+        variables["input"]["id"] = created.data["createModel"]["model"]["id"]
+        variables["input"].update(model_type_input)
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="UpdateModelMutation",
+        )
+        assert not result.errors
+        assert result.data is not None
+        assert result.data["updateModel"]["model"]["modelType"] == expected_model_type
+        async with db() as session:
+            stored_type = await session.scalar(
+                sa.select(models.GenerativeModel.type).where(
+                    models.GenerativeModel.name == "my-model"
+                )
+            )
+        assert stored_type == expected_model_type
+
+    async def test_updating_built_in_model_type_fails(
+        self,
+        gql_client: AsyncGraphQLClient,
+        default_model: models.GenerativeModel,
+    ) -> None:
+        variables = _create_model_variables(
+            name=default_model.name,
+            provider=default_model.provider,
+            name_pattern=default_model.name_pattern.pattern,
+            model_type="DECISION",
+        )
+        variables["input"]["id"] = str(GlobalID(GenerativeModel.__name__, str(default_model.id)))
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="UpdateModelMutation",
+        )
+        assert len(result.errors) == 1
+        assert result.errors[0].message == "Cannot update built-in model"
+
+
+class TestGenerativeModelModelType:
+    LIST_QUERY = """
+      query {
+        generativeModels {
+          edges {
+            node {
+              name
+              kind
+              modelType
+            }
+          }
+        }
+      }
+    """
+    NODE_QUERY = """
+      query ($id: ID!) {
+        node(id: $id) {
+          ... on GenerativeModel {
+            name
+            kind
+            modelType
+          }
+        }
+      }
+    """
+
+    async def test_generative_models_query_returns_model_type(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        default_model: models.GenerativeModel,
+        custom_model: models.GenerativeModel,
+    ) -> None:
+        async with db() as session:
+            await session.execute(
+                sa.update(models.GenerativeModel)
+                .where(models.GenerativeModel.id == custom_model.id)
+                .values(type="EMBEDDING")
+            )
+        result = await gql_client.execute(query=self.LIST_QUERY)
+        assert not result.errors
+        assert result.data is not None
+        nodes = {
+            edge["node"]["name"]: edge["node"] for edge in result.data["generativeModels"]["edges"]
+        }
+        assert nodes["default-model"] == {
+            "name": "default-model",
+            "kind": "BUILT_IN",
+            "modelType": "LLM",
+        }
+        assert nodes["custom-model"] == {
+            "name": "custom-model",
+            "kind": "CUSTOM",
+            "modelType": "EMBEDDING",
+        }
+
+    @pytest.mark.parametrize("model_type", ["LLM", "DECISION", "EMBEDDING"])
+    async def test_node_query_returns_model_type(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        custom_model: models.GenerativeModel,
+        model_type: str,
+    ) -> None:
+        """The node resolver has no db record, so this goes through the dataloader."""
+        async with db() as session:
+            await session.execute(
+                sa.update(models.GenerativeModel)
+                .where(models.GenerativeModel.id == custom_model.id)
+                .values(type=model_type)
+            )
+        result = await gql_client.execute(
+            query=self.NODE_QUERY,
+            variables={"id": str(GlobalID(GenerativeModel.__name__, str(custom_model.id)))},
+        )
+        assert not result.errors
+        assert result.data is not None
+        assert result.data["node"] == {
+            "name": "custom-model",
+            "kind": "CUSTOM",
+            "modelType": model_type,
+        }
+
 
 def _create_model_variables(
     *,
@@ -995,20 +1267,23 @@ def _create_model_variables(
     provider: str = "",
     name_pattern: str = "^my-model$",
     costs: Optional[list[tuple[str, str]]] = None,
+    model_type: Optional[str] = None,
 ) -> dict[str, Any]:
+    """Builds create (or, with an added id, update) variables; `modelType` is sent only if set."""
     if costs is None:
         costs = [("input", "PROMPT"), ("output", "COMPLETION")]
-    return {
-        "input": {
-            "name": name,
-            "provider": provider,
-            "namePattern": name_pattern,
-            "costs": [
-                {"tokenType": token_type, "kind": kind, "costPerMillionTokens": 1.0}
-                for token_type, kind in costs
-            ],
-        }
+    input: dict[str, Any] = {
+        "name": name,
+        "provider": provider,
+        "namePattern": name_pattern,
+        "costs": [
+            {"tokenType": token_type, "kind": kind, "costPerMillionTokens": 1.0}
+            for token_type, kind in costs
+        ],
     }
+    if model_type is not None:
+        input["modelType"] = model_type
+    return {"input": input}
 
 
 @pytest.fixture

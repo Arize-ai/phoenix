@@ -987,6 +987,9 @@ input CreateModelMutationInput {
   namePattern: String!
   costs: [TokenPriceInput!]!
   startTime: DateTime = null
+
+  """The kind of span the model is priced for. Defaults to LLM."""
+  modelType: GenerativeModelType! = LLM
 }
 
 type CreateModelMutationPayload {
@@ -2380,6 +2383,9 @@ type GenerativeModel implements Node & ModelInterface {
   provider: String
   namePattern: String!
   kind: GenerativeModelKind!
+
+  """The kind of span this model is priced for."""
+  modelType: GenerativeModelType!
   createdAt: DateTime!
   updatedAt: DateTime!
   startTime: DateTime
@@ -2484,6 +2490,15 @@ enum GenerativeModelSDK {
   ANTHROPIC
   AWS_BEDROCK
   GOOGLE_GENAI
+}
+
+"""
+The kind of span a model is priced for, named after the OpenInference span kinds. The same model name can be priced differently per type.
+"""
+enum GenerativeModelType {
+  LLM
+  DECISION
+  EMBEDDING
 }
 
 type GenerativeProvider {
@@ -5160,6 +5175,11 @@ input UpdateModelMutationInput {
   namePattern: String!
   costs: [TokenPriceInput!]!
   startTime: DateTime = null
+
+  """
+  The kind of span the model is priced for. Omit or pass null to keep it.
+  """
+  modelType: GenerativeModelType = null
 }
 
 type UpdateModelMutationPayload {

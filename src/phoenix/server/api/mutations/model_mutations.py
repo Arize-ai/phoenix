@@ -17,7 +17,11 @@ from phoenix.server.api.auth import IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.queries import Query
-from phoenix.server.api.types.GenerativeModel import GenerativeModel
+from phoenix.server.api.types.GenerativeModel import (
+    GenerativeModel,
+    GenerativeModelType,
+    to_db_generative_model_type,
+)
 from phoenix.server.api.types.GenerativeProvider import KNOWN_LLM_PROVIDER_STRINGS
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.TokenPrice import TokenKind
@@ -51,6 +55,10 @@ class CreateModelMutationInput:
     name_pattern: str
     costs: list[TokenPriceInput]
     start_time: Optional[datetime] = None
+    model_type: GenerativeModelType = strawberry.field(
+        default=GenerativeModelType.LLM,
+        description="The kind of span the model is priced for. Defaults to LLM.",
+    )
 
 
 @strawberry.type
@@ -67,6 +75,10 @@ class UpdateModelMutationInput:
     name_pattern: str
     costs: list[TokenPriceInput]
     start_time: Optional[datetime] = None
+    model_type: Optional[GenerativeModelType] = strawberry.field(
+        default=None,
+        description="The kind of span the model is priced for. Omit or pass null to keep it.",
+    )
 
 
 @strawberry.type
@@ -104,10 +116,11 @@ class ModelMutationMixin:
             is_built_in=False,
             token_prices=token_prices,
             start_time=input.start_time,
+            type=to_db_generative_model_type(input.model_type),
         )
         async with info.context.db() as session:
             await _raise_on_case_only_provider_collision(
-                session, name_pattern=name_pattern, provider=provider
+                session, name_pattern=name_pattern, provider=provider, model_type=model.type
             )
             try:
                 # The savepoint keeps the session usable after a rejected write, so the
@@ -154,10 +167,16 @@ class ModelMutationMixin:
                 raise NotFound(f'Model "{input.id}" not found')
             if model.is_built_in:
                 raise BadRequest("Cannot update built-in model")
+            model_type = (
+                model.type
+                if input.model_type is None
+                else to_db_generative_model_type(input.model_type)
+            )
             await _raise_on_case_only_provider_collision(
                 session,
                 name_pattern=name_pattern,
                 provider=provider,
+                model_type=model_type,
                 exclude_model_id=model_id,
             )
 
@@ -172,6 +191,7 @@ class ModelMutationMixin:
             model.name_pattern = name_pattern
             model.token_prices = token_prices
             model.start_time = input.start_time
+            model.type = model_type
             # Explicitly set updated_at so the GenerativeModelStore daemon picks up this
             # change (SQLAlchemy's onupdate may not trigger for relationship-only changes).
             model.updated_at = datetime.now(timezone.utc)
@@ -322,12 +342,13 @@ async def _raise_on_case_only_provider_collision(
     *,
     name_pattern: re.Pattern[str],
     provider: str,
+    model_type: models.GenerativeModelType,
     exclude_model_id: Optional[int] = None,
 ) -> None:
     """
     Reject a provider that differs only in case from the provider of another
-    custom model with the same name pattern, since a span whose provider matches
-    neither spelling would be priced by an arbitrary one of them.
+    custom model of the same type with the same name pattern, since a span whose
+    provider matches neither spelling would be priced by an arbitrary one of them.
 
     Case is compared in Python because SQLite's lower() only folds ASCII. Without
     a case-insensitive index the check is not atomic, so concurrent writes could
@@ -339,6 +360,7 @@ async def _raise_on_case_only_provider_collision(
         sa.select(models.GenerativeModel.name, models.GenerativeModel.provider)
         .where(models.GenerativeModel.deleted_at.is_(None))
         .where(models.GenerativeModel.is_built_in.is_(False))
+        .where(models.GenerativeModel.type == model_type)
         .where(models.GenerativeModel.name_pattern == name_pattern)
     )
     if exclude_model_id is not None:

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<567f28be2759a6ff27694d7aac720189>>
+ * @generated SignedSource<<920196c002689c1aa4a835d06f63b691>>
  * @lightSyntaxTransform
  */
 
@@ -9,9 +9,11 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
+export type GenerativeModelType = "DECISION" | "EMBEDDING" | "LLM";
 export type TokenKind = "COMPLETION" | "PROMPT";
 export type CreateModelMutationInput = {
   costs: ReadonlyArray<TokenPriceInput>;
+  modelType?: GenerativeModelType;
   name: string;
   namePattern: string;
   provider?: string | null;
