@@ -1,10 +1,11 @@
 """Shared evaluator validation, naming, and cleanup helpers."""
 
+from datetime import datetime, timezone
 from secrets import token_hex
 from typing import Callable, Iterable, Optional
 
 from pydantic import ValidationError
-from sqlalchemy import and_, delete, func, select
+from sqlalchemy import and_, delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 from typing_extensions import assert_never
@@ -46,6 +47,51 @@ EVALUATOR_MODEL_BY_KIND: dict[EvaluatorKind, type[models.Evaluator]] = {
 }
 
 
+async def get_live_dataset_evaluator(
+    session: AsyncSession, dataset_evaluator_id: int
+) -> Optional[models.DatasetEvaluators]:
+    """The binding, or None when it is missing or deleted."""
+    binding = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
+    return binding if binding is not None and binding.deleted_at is None else None
+
+
+async def get_live_project_evaluator(
+    session: AsyncSession, project_evaluator_id: int
+) -> Optional[models.ProjectEvaluator]:
+    """The binding, or None when it is missing or deleted."""
+    binding = await session.get(models.ProjectEvaluator, project_evaluator_id)
+    return binding if binding is not None and binding.deleted_at is None else None
+
+
+async def mark_bindings_deleted(
+    session: AsyncSession,
+    model: type[models.DatasetEvaluators] | type[models.ProjectEvaluator],
+    binding_ids: Iterable[int],
+    *,
+    delete_unused_evaluator: bool,
+    delete_associated_prompt: bool,
+) -> list[int]:
+    """Mark bindings deleted for the evaluator purger, returning the ids marked now.
+
+    Bindings that are missing or already marked are skipped.
+    """
+    ids = set(binding_ids)
+    live = (model.id.in_(ids), model.deleted_at.is_(None))
+    await lock_evaluators(session, await session.scalars(select(model.evaluator_id).where(*live)))
+    return sorted(
+        await session.scalars(
+            update(model)
+            .where(*live)
+            .values(
+                deleted_at=datetime.now(timezone.utc),
+                delete_unused_evaluator=delete_unused_evaluator,
+                delete_associated_prompt=delete_associated_prompt,
+            )
+            .returning(model.id)
+        )
+    )
+
+
 async def is_sole_evaluator_binding(
     session: AsyncSession,
     evaluator_id: int,
@@ -57,13 +103,19 @@ async def is_sole_evaluator_binding(
     dataset_binding_count = (
         select(func.count())
         .select_from(models.DatasetEvaluators)
-        .where(models.DatasetEvaluators.evaluator_id == evaluator_id)
+        .where(
+            models.DatasetEvaluators.evaluator_id == evaluator_id,
+            models.DatasetEvaluators.deleted_at.is_(None),
+        )
         .scalar_subquery()
     )
     project_binding_count = (
         select(func.count())
         .select_from(models.ProjectEvaluator)
-        .where(models.ProjectEvaluator.evaluator_id == evaluator_id)
+        .where(
+            models.ProjectEvaluator.evaluator_id == evaluator_id,
+            models.ProjectEvaluator.deleted_at.is_(None),
+        )
         .scalar_subquery()
     )
     binding_count = await session.scalar(select(dataset_binding_count + project_binding_count))

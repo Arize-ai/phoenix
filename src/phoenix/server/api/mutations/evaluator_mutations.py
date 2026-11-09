@@ -1,3 +1,4 @@
+from functools import partial
 from typing import Optional
 
 import strawberry
@@ -38,6 +39,7 @@ from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.SandboxConfig import (
     Language,
 )
+from phoenix.server.daemons.evaluator_purger import wake_evaluator_purger
 from phoenix.server.evaluators.services import (
     dataset_bindings,
     definitions,
@@ -58,6 +60,7 @@ def _evaluator_service_context(context: Context) -> definitions.EvaluatorService
         db=context.db,
         sandbox_runtime=context.sandbox_runtime,
         user_id=int(request.user.identity) if "user" in request.scope else None,
+        wake_evaluator_purger=partial(wake_evaluator_purger, request.app.state),
     )
 
 

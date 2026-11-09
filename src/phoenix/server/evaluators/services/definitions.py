@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from secrets import token_hex
-from typing import Any, Literal, Optional, Sequence, Union, cast, overload
+from typing import Any, Callable, Literal, Optional, Sequence, Union, cast, overload
 
 from pydantic import ValidationError
 from sqlalchemy import func, select
@@ -25,6 +25,7 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import AlreadyExists, BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.prompts.validation import validate_custom_provider
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.daemons.evaluator_purger import purge_deleted_bindings_of_evaluator
 from phoenix.server.evaluators.input_descriptions import (
     apply_code_input_schema,
     apply_llm_input_schema,
@@ -56,6 +57,7 @@ class EvaluatorServiceContext:
     db: DbSessionFactory
     sandbox_runtime: SandboxRuntimeContext
     user_id: int | None = None
+    wake_evaluator_purger: Callable[[], None] = lambda: None
 
 
 def require_output_configs(configs: list[OutputConfigType]) -> None:
@@ -550,6 +552,7 @@ async def delete_llm_evaluator(context: EvaluatorServiceContext, evaluator_id: G
         row_id = from_global_id_with_expected_type(evaluator_id, "LLMEvaluator")
     except ValueError as error:
         raise BadRequest(str(error)) from error
+    await purge_deleted_bindings_of_evaluator(context.db, row_id)
     async with context.db() as session:
         row = await session.get(models.LLMEvaluator, row_id, with_for_update=True)
         if row is None:
@@ -566,15 +569,11 @@ async def delete_llm_evaluator(context: EvaluatorServiceContext, evaluator_id: G
 async def refuse_bound_evaluator(
     session: AsyncSession, row_id: int, evaluator_id: GlobalID
 ) -> None:
-    project_bindings = await session.scalar(
-        select(func.count(models.ProjectEvaluator.id)).where(
-            models.ProjectEvaluator.evaluator_id == row_id
-        )
+    project_bindings, deleted_project_bindings = await _count_bindings(
+        session, models.ProjectEvaluator, row_id
     )
-    dataset_bindings = await session.scalar(
-        select(func.count(models.DatasetEvaluators.id)).where(
-            models.DatasetEvaluators.evaluator_id == row_id
-        )
+    dataset_bindings, deleted_dataset_bindings = await _count_bindings(
+        session, models.DatasetEvaluators, row_id
     )
     if project_bindings or dataset_bindings:
         raise Conflict(
@@ -583,6 +582,30 @@ async def refuse_bound_evaluator(
             reason="still_bound",
             binding_counts={"project": project_bindings, "dataset": dataset_bindings},
         )
+    # Deleting the definition would cascade to these bindings before their trace projects
+    # are purged, leaving those projects behind.
+    if deleted_project_bindings or deleted_dataset_bindings:
+        raise Conflict(
+            f"Evaluator {evaluator_id} has bindings that are still being deleted; retry shortly",
+            reason="bindings_being_deleted",
+        )
+
+
+async def _count_bindings(
+    session: AsyncSession,
+    model: type[models.DatasetEvaluators] | type[models.ProjectEvaluator],
+    evaluator_id: int,
+) -> tuple[int, int]:
+    """How many of the evaluator's bindings are live and how many are deleted."""
+    live, deleted = (
+        await session.execute(
+            select(
+                func.count(model.id).filter(model.deleted_at.is_(None)),
+                func.count(model.id).filter(model.deleted_at.is_not(None)),
+            ).where(model.evaluator_id == evaluator_id)
+        )
+    ).one()
+    return live, deleted
 
 
 async def delete_code_evaluator(context: EvaluatorServiceContext, evaluator_id: GlobalID) -> None:
@@ -591,6 +614,7 @@ async def delete_code_evaluator(context: EvaluatorServiceContext, evaluator_id: 
         row_id = from_global_id_with_expected_type(evaluator_id, "CodeEvaluator")
     except ValueError as error:
         raise BadRequest(str(error)) from error
+    await purge_deleted_bindings_of_evaluator(context.db, row_id)
     async with context.db() as session:
         row = await session.get(models.CodeEvaluator, row_id, with_for_update=True)
         if row is None:

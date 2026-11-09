@@ -885,9 +885,10 @@ CREATE TABLE public.dataset_evaluators (
     project_id BIGINT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMP WITH TIME ZONE,
+    delete_unused_evaluator BOOLEAN NOT NULL DEFAULT false,
+    delete_associated_prompt BOOLEAN NOT NULL DEFAULT false,
     CONSTRAINT pk_dataset_evaluators PRIMARY KEY (id),
-    CONSTRAINT uq_dataset_evaluators_dataset_id_name
-        UNIQUE (dataset_id, name),
     CONSTRAINT fk_dataset_evaluators_dataset_id_datasets
         FOREIGN KEY (dataset_id)
         REFERENCES public.datasets (id)
@@ -906,6 +907,10 @@ CREATE TABLE public.dataset_evaluators (
         ON DELETE SET NULL
 );
 
+CREATE UNIQUE INDEX ix_dataset_evaluators_dataset_id_name ON public.dataset_evaluators
+    USING btree (dataset_id, name) WHERE (deleted_at IS NULL);
+CREATE INDEX ix_dataset_evaluators_deleted_at ON public.dataset_evaluators
+    USING btree (deleted_at) WHERE (deleted_at IS NOT NULL);
 CREATE INDEX ix_dataset_evaluators_evaluator_id ON public.dataset_evaluators
     USING btree (evaluator_id);
 CREATE INDEX ix_dataset_evaluators_project_id ON public.dataset_evaluators
@@ -1618,9 +1623,10 @@ CREATE TABLE public.project_evaluators (
     tracing_enabled BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMP WITH TIME ZONE,
+    delete_unused_evaluator BOOLEAN NOT NULL DEFAULT false,
+    delete_associated_prompt BOOLEAN NOT NULL DEFAULT false,
     CONSTRAINT pk_project_evaluators PRIMARY KEY (id),
-    CONSTRAINT uq_project_evaluators_project_id_name
-        UNIQUE (project_id, name),
     CONSTRAINT "ck_project_evaluators_`valid_evaluation_delay_seconds`" CHECK (((((evaluation_target)::text = 'SPAN'::text) AND (evaluation_delay_seconds = 0)) OR (((evaluation_target)::text <> 'SPAN'::text) AND (evaluation_delay_seconds >= 10)))),
     CONSTRAINT "ck_project_evaluators_`valid_evaluation_target`"
         CHECK (((evaluation_target)::text = ANY ((ARRAY[
@@ -1643,10 +1649,14 @@ CREATE TABLE public.project_evaluators (
         ON DELETE RESTRICT
 );
 
+CREATE INDEX ix_project_evaluators_deleted_at ON public.project_evaluators
+    USING btree (deleted_at) WHERE (deleted_at IS NOT NULL);
 CREATE INDEX ix_project_evaluators_evaluator_id ON public.project_evaluators
     USING btree (evaluator_id);
 CREATE INDEX ix_project_evaluators_project_id ON public.project_evaluators
     USING btree (project_id);
+CREATE UNIQUE INDEX ix_project_evaluators_project_id_name ON public.project_evaluators
+    USING btree (project_id, name) WHERE (deleted_at IS NULL);
 CREATE INDEX ix_project_evaluators_trace_project_id ON public.project_evaluators
     USING btree (trace_project_id);
 

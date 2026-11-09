@@ -129,6 +129,7 @@ from phoenix.server.bearer_auth import BearerTokenAuthBackend, PhoenixUser, is_a
 from phoenix.server.cost_tracking.span_cost_calculator import SpanCostCalculator
 from phoenix.server.daemons.agent_session_sweeper import AgentSessionSweeper
 from phoenix.server.daemons.db_disk_usage_monitor import DbDiskUsageMonitor
+from phoenix.server.daemons.evaluator_purger import EvaluatorPurger
 from phoenix.server.daemons.experiment_runner import ExperimentRunner
 from phoenix.server.daemons.experiment_sweeper import ExperimentSweeper
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
@@ -689,6 +690,7 @@ def _lifespan(
     online_eval_trace_consumer: Optional[EvaluationConsumer] = None,
     online_eval_session_producer: Optional[SessionEvaluationProducer] = None,
     online_eval_trace_producer: Optional[TraceEvaluationProducer] = None,
+    evaluator_purger: Optional[EvaluatorPurger] = None,
     token_store: Optional[TokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
@@ -789,6 +791,8 @@ def _lifespan(
                 await stack.enter_async_context(online_eval_session_producer)
             if online_eval_trace_producer is not None:
                 await stack.enter_async_context(online_eval_trace_producer)
+            if evaluator_purger is not None:
+                await stack.enter_async_context(evaluator_purger)
             if docs_mcp_server is not None:
                 # The docs MCP server connects to an external host during
                 # startup. Never let its initialization (which can hang until a
@@ -1170,6 +1174,7 @@ def create_app(
     online_eval_trace_consumer: Optional[EvaluationConsumer] = None
     online_eval_session_producer: Optional[SessionEvaluationProducer] = None
     online_eval_trace_producer: Optional[TraceEvaluationProducer] = None
+    evaluator_purger = None if read_only else EvaluatorPurger(db)
     if not read_only:
         get_env_online_eval_max_llm_message_bytes()
         get_env_online_eval_max_sandbox_payload_bytes()
@@ -1271,6 +1276,7 @@ def create_app(
             online_eval_trace_consumer=online_eval_trace_consumer,
             online_eval_session_producer=online_eval_session_producer,
             online_eval_trace_producer=online_eval_trace_producer,
+            evaluator_purger=evaluator_purger,
             grpc_interceptors=grpc_interceptors,
             token_store=token_store,
             tracer_provider=tracer_provider,
@@ -1513,6 +1519,7 @@ def create_app(
     app.state.online_eval_trace_consumer = online_eval_trace_consumer
     app.state.online_eval_session_producer = online_eval_session_producer
     app.state.online_eval_trace_producer = online_eval_trace_producer
+    app.state.evaluator_purger = evaluator_purger
     app.state.graphql_schema = graphql_schema
     # Snapshot the provider allow-list once at app creation so the REST and
     # GraphQL surfaces answer from the same (startup-validated) value.

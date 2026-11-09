@@ -34,6 +34,7 @@ from phoenix.server.api.exceptions import Conflict
 from phoenix.server.api.routers.v1.evaluators import router
 from phoenix.server.api.routers.v1.sandbox_configs import router as sandbox_configs_router
 from phoenix.server.app import _db
+from phoenix.server.daemons.evaluator_purger import EvaluatorPurger
 from phoenix.server.evaluators.services.definitions import (
     CreateCodeEvaluatorVersionInput,
     EvaluatorServiceContext,
@@ -832,6 +833,45 @@ async def test_delete_still_bound_llm_evaluator_reports_binding_counts(
     assert problem["title"] == "Conflict"
     assert problem["reason"] == "still_bound"
     assert problem["binding_counts"] == {"project": 0, "dataset": 1}
+
+
+async def test_delete_right_after_detaching_its_last_binding_succeeds(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _hold(_: EvaluatorPurger) -> None:
+        return None
+
+    monkeypatch.setattr(EvaluatorPurger, "purge_deleted_bindings", _hold)
+    async with db() as session:
+        evaluator = await _add_llm_evaluator(session, f"detached-{token_hex(4)}", tagged=False)
+        dataset = models.Dataset(name=f"detached-{token_hex(4)}", description=None, metadata_={})
+        session.add(dataset)
+        await session.flush()
+        binding = models.DatasetEvaluators(
+            dataset_id=dataset.id,
+            evaluator_id=evaluator.id,
+            name=IdentifierModel.model_validate(f"binding-{token_hex(4)}"),
+            input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+            project=models.Project(name=f"detached-project-{token_hex(4)}"),
+        )
+        session.add(binding)
+        await session.flush()
+        binding_id, trace_project_id = binding.id, binding.project_id
+
+    detach = await httpx_client.delete(
+        f"v1/dataset_evaluators/{GlobalID('DatasetEvaluator', str(binding_id))}"
+    )
+    assert detach.status_code == 204, detach.text
+    response = await httpx_client.delete(
+        f"v1/evaluators/{GlobalID('LLMEvaluator', str(evaluator.id))}"
+    )
+    assert response.status_code == 204, response.text
+    async with db() as session:
+        assert await session.get(models.LLMEvaluator, evaluator.id) is None
+        assert await session.get(models.DatasetEvaluators, binding_id) is None
+        assert await session.get(models.Project, trace_project_id) is None
 
 
 async def test_wrong_typed_ids_are_invalid_argument_not_a_crash(

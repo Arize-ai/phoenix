@@ -573,7 +573,8 @@ class Dataset(Node):
         info: Info[Context, None],
     ) -> int:
         stmt = select(count(models.DatasetEvaluators.id)).where(
-            models.DatasetEvaluators.dataset_id == self.id
+            models.DatasetEvaluators.dataset_id == self.id,
+            models.DatasetEvaluators.deleted_at.is_(None),
         )
         async with info.context.db.read() as session:
             return (await session.scalar(stmt)) or 0
@@ -592,6 +593,7 @@ class Dataset(Node):
         stmt = select(models.DatasetEvaluators).where(
             models.DatasetEvaluators.id == dataset_evaluator_rowid,
             models.DatasetEvaluators.dataset_id == self.id,
+            models.DatasetEvaluators.deleted_at.is_(None),
         )
 
         async with info.context.db.read() as session:
@@ -643,9 +645,13 @@ async def dataset_evaluator_connection(
     Dataset evaluators of one dataset, or of every dataset when dataset_id is None. Across
     datasets the name filter also matches the dataset's name.
     """
-    stmt = select(models.DatasetEvaluators.id).join(
-        models.Evaluator,
-        models.DatasetEvaluators.evaluator_id == models.Evaluator.id,
+    stmt = (
+        select(models.DatasetEvaluators.id)
+        .join(
+            models.Evaluator,
+            models.DatasetEvaluators.evaluator_id == models.Evaluator.id,
+        )
+        .where(models.DatasetEvaluators.deleted_at.is_(None))
     )
     if dataset_id is not None:
         stmt = stmt.where(models.DatasetEvaluators.dataset_id == dataset_id)

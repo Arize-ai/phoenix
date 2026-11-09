@@ -1262,11 +1262,18 @@ class Query:
         elif type_name == BuiltInEvaluator.__name__:
             return BuiltInEvaluator(id=node_id)
         elif type_name == DatasetEvaluator.__name__:
-            return DatasetEvaluator(id=node_id)
+            if dataset_evaluator_record := (
+                await info.context.data_loaders.dataset_evaluators_by_id.load(node_id)
+            ):
+                return DatasetEvaluator(id=node_id, db_record=dataset_evaluator_record)
+            raise NotFound(f"Unknown dataset evaluator: {id}")
         elif type_name == ProjectEvaluator.__name__:
             async with info.context.db.read() as session:
                 if project_evaluator_record := await session.scalar(
-                    select(models.ProjectEvaluator).where(models.ProjectEvaluator.id == node_id)
+                    select(models.ProjectEvaluator).where(
+                        models.ProjectEvaluator.id == node_id,
+                        models.ProjectEvaluator.deleted_at.is_(None),
+                    )
                 ):
                     return ProjectEvaluator(id=node_id, db_record=project_evaluator_record)
                 else:
@@ -1641,7 +1648,8 @@ class Query:
 
         has_dataset_association = exists(
             select(models.DatasetEvaluators.id).where(
-                models.DatasetEvaluators.evaluator_id == PolymorphicEvaluator.id
+                models.DatasetEvaluators.evaluator_id == PolymorphicEvaluator.id,
+                models.DatasetEvaluators.deleted_at.is_(None),
             )
         )
         query = select(PolymorphicEvaluator).where(
@@ -1659,6 +1667,7 @@ class Query:
                 select(models.ProjectEvaluator.id).where(
                     models.ProjectEvaluator.evaluator_id == PolymorphicEvaluator.id,
                     models.ProjectEvaluator.project_id == project_rowid,
+                    models.ProjectEvaluator.deleted_at.is_(None),
                 )
             )
             query = query.where(~has_project_association)
@@ -1670,6 +1679,7 @@ class Query:
                 child_name_exists = exists(
                     select(models.DatasetEvaluators.id)
                     .where(models.DatasetEvaluators.evaluator_id == PolymorphicEvaluator.id)
+                    .where(models.DatasetEvaluators.deleted_at.is_(None))
                     .where(cast(models.DatasetEvaluators.name, String).ilike(f"%{filter.value}%"))
                 )
                 query = query.where(
@@ -2242,7 +2252,8 @@ class Query:
     async def evaluator_count(self, info: Info[Context, None]) -> int:
         has_dataset_association = exists(
             select(models.DatasetEvaluators.id).where(
-                models.DatasetEvaluators.evaluator_id == models.Evaluator.id
+                models.DatasetEvaluators.evaluator_id == models.Evaluator.id,
+                models.DatasetEvaluators.deleted_at.is_(None),
             )
         )
         stmt = select(func.count(models.Evaluator.id)).where(
@@ -2257,12 +2268,26 @@ class Query:
     @strawberry.field(description="Number of project evaluators across all projects.")  # type: ignore
     async def project_evaluator_count(self, info: Info[Context, None]) -> int:
         async with info.context.db.read() as session:
-            return await session.scalar(select(func.count(models.ProjectEvaluator.id))) or 0
+            return (
+                await session.scalar(
+                    select(func.count(models.ProjectEvaluator.id)).where(
+                        models.ProjectEvaluator.deleted_at.is_(None)
+                    )
+                )
+                or 0
+            )
 
     @strawberry.field(description="Number of dataset evaluators across all datasets.")  # type: ignore
     async def dataset_evaluator_count(self, info: Info[Context, None]) -> int:
         async with info.context.db.read() as session:
-            return await session.scalar(select(func.count(models.DatasetEvaluators.id))) or 0
+            return (
+                await session.scalar(
+                    select(func.count(models.DatasetEvaluators.id)).where(
+                        models.DatasetEvaluators.deleted_at.is_(None)
+                    )
+                )
+                or 0
+            )
 
     @strawberry.field
     async def sandbox_backends(self, info: Info[Context, None]) -> list[SandboxBackendInfo]:

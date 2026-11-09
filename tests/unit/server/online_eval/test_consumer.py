@@ -3572,6 +3572,31 @@ async def test_disabled_criteria_drops_unit_without_failing_it(db: DbSessionFact
     assert (counts.failed, counts.cleared) == (0, 1)
 
 
+async def test_deleted_criteria_runs_nothing_and_writes_no_annotation(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(db, project.id)
+    unit_id, _ = await _queue_unit(db, span.id, evaluator_id, project_evaluator_id)
+
+    async with db() as session:
+        await session.execute(
+            update(models.ProjectEvaluator)
+            .where(models.ProjectEvaluator.id == project_evaluator_id)
+            .values(deleted_at=datetime.now(timezone.utc))
+        )
+
+    consumer = EvaluationConsumer(db, decrypt=lambda b: b)
+    await _cycle_to_completion(consumer)
+
+    unit = await _get_unit(db, unit_id)
+    assert (unit.status, unit.error) == ("EXPIRED", "PROJECT_EVALUATOR_MISSING")
+    assert await _annotations(db) == []
+
+
 async def test_evaluator_disabled_while_running_drops_its_unit_without_failing_it(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
