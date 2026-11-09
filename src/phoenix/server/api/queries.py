@@ -33,6 +33,7 @@ from phoenix.db.helpers import (
     exclude_experiment_projects,
     exclude_project_evaluator_trace_projects,
     pg_table_sizes_stmt,
+    project_kind_expression,
 )
 from phoenix.db.models import LatencyMs
 from phoenix.db.types.annotation_configs import OptimizationDirection
@@ -146,6 +147,7 @@ from phoenix.server.api.types.pagination import (
 )
 from phoenix.server.api.types.PlaygroundModel import PlaygroundModel
 from phoenix.server.api.types.Project import Project, project_evaluator_connection
+from phoenix.server.api.types.ProjectKind import ProjectKind
 from phoenix.server.api.types.ProjectSession import ProjectSession
 from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
 from phoenix.server.api.types.Prompt import Prompt
@@ -595,6 +597,15 @@ class Query:
         before: Optional[CursorString] = UNSET,
         sort: Optional[ProjectSort] = UNSET,
         filter: Optional[ProjectFilter] = UNSET,
+        kinds: Annotated[
+            Optional[list[ProjectKind]],
+            strawberry.argument(
+                description=(
+                    "Return only projects of these kinds. Defaults to standard and "
+                    "playground projects."
+                )
+            ),
+        ] = UNSET,
     ) -> Connection[Project]:
         args = ConnectionArgs(
             first=first,
@@ -628,9 +639,11 @@ class Query:
             projects_query = projects_query.where(
                 getattr(models.Project, filter.col.value).ilike(f"%{filter.value}%")
             )
-        projects_query = exclude_experiment_projects(projects_query)
-        projects_query = exclude_dataset_evaluator_projects(projects_query)
-        projects_query = exclude_project_evaluator_trace_projects(projects_query)
+        if not isinstance(kinds, list):
+            kinds = [ProjectKind.STANDARD, ProjectKind.PLAYGROUND]
+        projects_query = projects_query.where(
+            project_kind_expression().in_([kind.value for kind in kinds])
+        )
         async with info.context.db.read() as session:
             projects = await session.stream_scalars(projects_query)
             data = [Project(id=project.id, db_record=project) async for project in projects]

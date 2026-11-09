@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dccfa3acbd332804f61079303746e0a9>>
+ * @generated SignedSource<<01d44c47ebe3f62a995f88366fffcb5b>>
  * @lightSyntaxTransform
  */
 
@@ -11,6 +11,7 @@ import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ProjectColumn = "endTime" | "name";
 export type ProjectFilterColumn = "name";
+export type ProjectKind = "EVALUATOR" | "EXPERIMENT" | "PLAYGROUND" | "STANDARD";
 export type SortDir = "asc" | "desc";
 export type ProjectSort = {
   col: ProjectColumn;
@@ -23,6 +24,7 @@ export type ProjectFilter = {
 export type ProjectsPageQuery$variables = {
   filter?: ProjectFilter | null;
   first?: number | null;
+  kinds?: ReadonlyArray<ProjectKind> | null;
   sort?: ProjectSort | null;
 };
 export type ProjectsPageQuery$data = {
@@ -47,9 +49,14 @@ v1 = {
 v2 = {
   "defaultValue": null,
   "kind": "LocalArgument",
+  "name": "kinds"
+},
+v3 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
   "name": "sort"
 },
-v3 = [
+v4 = [
   {
     "kind": "Variable",
     "name": "filter",
@@ -62,11 +69,16 @@ v3 = [
   },
   {
     "kind": "Variable",
+    "name": "kinds",
+    "variableName": "kinds"
+  },
+  {
+    "kind": "Variable",
     "name": "sort",
     "variableName": "sort"
   }
 ],
-v4 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -78,14 +90,15 @@ return {
     "argumentDefinitions": [
       (v0/*:: as any*/),
       (v1/*:: as any*/),
-      (v2/*:: as any*/)
+      (v2/*:: as any*/),
+      (v3/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
     "name": "ProjectsPageQuery",
     "selections": [
       {
-        "args": (v3/*:: as any*/),
+        "args": (v4/*:: as any*/),
         "kind": "FragmentSpread",
         "name": "ProjectsPageProjectsFragment"
       }
@@ -97,15 +110,16 @@ return {
   "operation": {
     "argumentDefinitions": [
       (v1/*:: as any*/),
-      (v2/*:: as any*/),
-      (v0/*:: as any*/)
+      (v3/*:: as any*/),
+      (v0/*:: as any*/),
+      (v2/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "ProjectsPageQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v3/*:: as any*/),
+        "args": (v4/*:: as any*/),
         "concreteType": "ProjectConnection",
         "kind": "LinkedField",
         "name": "projects",
@@ -127,7 +141,7 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v4/*:: as any*/),
+                  (v5/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -188,7 +202,7 @@ return {
                     "name": "__typename",
                     "storageKey": null
                   },
-                  (v4/*:: as any*/)
+                  (v5/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -225,10 +239,11 @@ return {
       },
       {
         "alias": null,
-        "args": (v3/*:: as any*/),
+        "args": (v4/*:: as any*/),
         "filters": [
           "sort",
-          "filter"
+          "filter",
+          "kinds"
         ],
         "handle": "connection",
         "key": "ProjectsPage_projects",
@@ -238,16 +253,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ca0df034be070fca2025c4f8922b9932",
+    "cacheID": "e33781593fc2eba3defc0c16a9c59f0f",
     "id": null,
     "metadata": {},
     "name": "ProjectsPageQuery",
     "operationKind": "query",
-    "text": "query ProjectsPageQuery(\n  $first: Int\n  $sort: ProjectSort\n  $filter: ProjectFilter\n) {\n  ...ProjectsPageProjectsFragment_1bvy9D\n}\n\nfragment ProjectsPageProjectsFragment_1bvy9D on Query {\n  projects(first: $first, sort: $sort, filter: $filter) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        endTime\n        startTime\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ProjectsPageQuery(\n  $first: Int\n  $sort: ProjectSort\n  $filter: ProjectFilter\n  $kinds: [ProjectKind!]\n) {\n  ...ProjectsPageProjectsFragment_19EE7f\n}\n\nfragment ProjectsPageProjectsFragment_19EE7f on Query {\n  projects(first: $first, sort: $sort, filter: $filter, kinds: $kinds) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        endTime\n        startTime\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c85f2b2ff3b9697931cca71426ea0b59";
+(node as any).hash = "949c94853505f3430da5879f5252c8e9";
 
 export default node;

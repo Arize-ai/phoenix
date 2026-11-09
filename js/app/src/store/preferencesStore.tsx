@@ -67,6 +67,12 @@ export type ModelConfigByProvider = Partial<
 
 export type ProjectViewMode = "table" | "grid";
 
+export type ProjectKind =
+  | "STANDARD"
+  | "PLAYGROUND"
+  | "EXPERIMENT"
+  | "EVALUATOR";
+
 export type ProjectSortOrder = {
   column: "name" | "endTime";
   direction: "asc" | "desc";
@@ -136,6 +142,11 @@ export interface PreferencesProps {
    * The sort order for projects
    */
   projectSortOrder: ProjectSortOrder;
+  /**
+   * The kinds of projects listed on the projects page
+   * @default ["STANDARD", "PLAYGROUND"]
+   */
+  visibleProjectKinds: ProjectKind[];
   /**
    * The last project selected on the dashboards page.
    */
@@ -261,6 +272,10 @@ export interface PreferencesState extends PreferencesProps {
    * Setter for the project sort order
    */
   setProjectSortOrder: (projectSortOrder: ProjectSortOrder) => void;
+  /**
+   * Setter for the kinds of projects listed on the projects page
+   */
+  setVisibleProjectKinds: (visibleProjectKinds: ProjectKind[]) => void;
   /**
    * Setter for the last project selected on the dashboards page.
    */
@@ -420,6 +435,10 @@ export const createPreferencesStore = (
     },
     setProjectSortOrder: (projectSortOrder) => {
       set({ projectSortOrder }, false, { type: "setProjectSortOrder" });
+    },
+    visibleProjectKinds: ["STANDARD", "PLAYGROUND"],
+    setVisibleProjectKinds: (visibleProjectKinds) => {
+      set({ visibleProjectKinds }, false, { type: "setVisibleProjectKinds" });
     },
     lastSelectedDashboardProjectId: undefined,
     setLastSelectedDashboardProjectId: (projectId) => {
