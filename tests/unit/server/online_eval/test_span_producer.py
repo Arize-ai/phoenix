@@ -246,6 +246,31 @@ async def test_tick_queues_matching_spans_and_advances_the_cursor(
     assert len(await _work_unit_span_rowids(db)) == len(llm_spans)
 
 
+async def test_tick_queues_nothing_for_a_deleted_project_evaluator(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace, span_kind="LLM")
+    _, project_evaluator_id = await _seed_criteria(db, project.id)
+    async with db() as session:
+        await session.execute(
+            update(models.ProjectEvaluator)
+            .where(models.ProjectEvaluator.id == project_evaluator_id)
+            .values(deleted_at=_now())
+        )
+    await _seed_cursor(
+        db,
+        observed_high_water_id=span.id,
+        observed_at=_now() - timedelta(seconds=120),
+    )
+
+    await SpanEvaluationProducer(db)._tick()
+
+    assert await _work_unit_span_rowids(db) == []
+
+
 async def test_tick_queues_a_root_span_persisted_by_pxi(
     db: DbSessionFactory,
 ) -> None:

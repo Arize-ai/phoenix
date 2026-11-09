@@ -646,7 +646,10 @@ class OnlineEvalExecutor:
                     PolymorphicEvaluator,
                     models.ProjectEvaluator.evaluator_id == PolymorphicEvaluator.id,
                 )
-                .where(models.ProjectEvaluator.id.in_(project_evaluator_ids))
+                .where(
+                    models.ProjectEvaluator.id.in_(project_evaluator_ids),
+                    models.ProjectEvaluator.deleted_at.is_(None),
+                )
             )
         ).all()
         rows_by_project_evaluator_id = {

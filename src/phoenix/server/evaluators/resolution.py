@@ -124,7 +124,10 @@ async def get_evaluators(
                 PolymorphicEvaluator,
                 models.DatasetEvaluators.evaluator_id == PolymorphicEvaluator.id,
             )
-            .where(models.DatasetEvaluators.id.in_(dataset_evaluator_ids))
+            .where(
+                models.DatasetEvaluators.id.in_(dataset_evaluator_ids),
+                models.DatasetEvaluators.deleted_at.is_(None),
+            )
         )
     ).all()
     bindings_by_id: dict[int, tuple[models.DatasetEvaluators, models.Evaluator]] = {

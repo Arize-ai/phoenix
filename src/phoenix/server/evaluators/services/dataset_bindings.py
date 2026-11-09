@@ -4,17 +4,15 @@ from dataclasses import dataclass
 from typing import Any, Optional, Sequence, TypedDict, Union
 
 from pydantic import ValidationError
-from sqlalchemy import delete, select, update
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.helpers import (
-    delete_projects_and_evaluator_trace_projects,
     is_foreign_key_violation,
 )
 from phoenix.db.types.annotation_configs import OutputConfigType, as_output_configs
@@ -34,11 +32,11 @@ from phoenix.server.evaluators.services.definitions import (
 )
 from phoenix.server.evaluators.services.management import (
     EVALUATOR_MODEL_BY_KIND,
-    garbage_collect_evaluators,
     generate_unique_evaluator_name,
+    get_live_dataset_evaluator,
     get_project_for_dataset_evaluator,
     is_sole_evaluator_binding,
-    lock_evaluators,
+    mark_bindings_deleted,
     parse_evaluator_id,
 )
 from phoenix.server.evaluators.services.prompt_source import CreatePromptSource
@@ -175,11 +173,15 @@ async def write_dataset_evaluator(
     """
     row: models.DatasetEvaluators | None = await session.scalar(
         update(models.DatasetEvaluators)
-        .where(models.DatasetEvaluators.id == dataset_evaluator_id)
+        .where(
+            models.DatasetEvaluators.id == dataset_evaluator_id,
+            models.DatasetEvaluators.deleted_at.is_(None),
+        )
         .values(**values)
         .returning(models.DatasetEvaluators)
     )
-    assert row is not None
+    if row is None:
+        raise NotFound(f"Dataset evaluator not found: {dataset_evaluator_id}")
     return row
 
 
@@ -207,7 +209,8 @@ async def update_dataset_llm_evaluator(
             # Edits and deletes take the evaluator row first, so they queue instead of deadlocking.
             evaluator_id = await session.scalar(
                 select(models.DatasetEvaluators.evaluator_id).where(
-                    models.DatasetEvaluators.id == dataset_evaluator_rowid
+                    models.DatasetEvaluators.id == dataset_evaluator_rowid,
+                    models.DatasetEvaluators.deleted_at.is_(None),
                 )
             )
             if evaluator_id is not None:
@@ -219,7 +222,10 @@ async def update_dataset_llm_evaluator(
                         models.LLMEvaluator,
                         models.DatasetEvaluators.evaluator_id == models.LLMEvaluator.id,
                     )
-                    .where(models.DatasetEvaluators.id == dataset_evaluator_rowid)
+                    .where(
+                        models.DatasetEvaluators.id == dataset_evaluator_rowid,
+                        models.DatasetEvaluators.deleted_at.is_(None),
+                    )
                 )
             ).one_or_none()
             if pair is None:
@@ -269,10 +275,12 @@ async def update_dataset_llm_evaluator(
 async def delete_dataset_evaluators(
     context: EvaluatorServiceContext, input: DeleteDatasetEvaluatorsInput
 ) -> list[GlobalID]:
-    """Delete bindings and trace projects; collect unreferenced LLM/code definitions.
+    """Delete bindings, returning those deleted now; missing or already deleted ones are skipped.
 
-    Built-ins are retained. Associated prompts are collected only when requested
-    and no LLM evaluator references them.
+    A deleted binding disappears at once, and its trace project and traces are removed in the
+    background. LLM and code definitions that nothing else binds are removed with them;
+    built-ins are retained. Associated prompts are removed only when requested and no LLM
+    evaluator references them.
     """
     dataset_evaluator_rowids: list[int] = []
     for dataset_evaluator_gid in input.dataset_evaluator_ids:
@@ -288,73 +296,17 @@ async def delete_dataset_evaluators(
     if not dataset_evaluator_rowids:
         return []
 
-    deleted_gids: list[GlobalID] = []
-
     async with context.db() as session:
-        # Edits lock their evaluator before writing its binding; take rows in the same order.
-        await lock_evaluators(
+        deleted_rowids = await mark_bindings_deleted(
             session,
-            await session.scalars(
-                select(models.DatasetEvaluators.evaluator_id).where(
-                    models.DatasetEvaluators.id.in_(dataset_evaluator_rowids)
-                )
-            ),
-        )
-
-        # Flat aliasing prevents SQLAlchemy from rewriting the base kind discriminator.
-        llm_evaluator_alias = aliased(models.LLMEvaluator, flat=True)
-        rows = (
-            await session.execute(
-                select(
-                    models.DatasetEvaluators.id,
-                    models.DatasetEvaluators.evaluator_id,
-                    models.DatasetEvaluators.project_id,
-                    models.Evaluator.kind,
-                    llm_evaluator_alias.prompt_id,
-                )
-                .join(
-                    models.Evaluator,
-                    models.DatasetEvaluators.evaluator_id == models.Evaluator.id,
-                )
-                .outerjoin(
-                    llm_evaluator_alias,
-                    models.DatasetEvaluators.evaluator_id == llm_evaluator_alias.id,
-                )
-                .where(models.DatasetEvaluators.id.in_(dataset_evaluator_rowids))
-            )
-        ).all()
-
-        link_ids: list[int] = []
-        project_ids: list[int] = []
-        gc_candidate_evaluator_ids: set[int] = set()
-        candidate_prompt_ids: set[int] = set()
-
-        for link_id, evaluator_id, project_id, kind, prompt_id in rows:
-            link_ids.append(link_id)
-            project_ids.append(project_id)
-            deleted_gids.append(GlobalID("DatasetEvaluator", str(link_id)))
-            if kind != "BUILTIN":
-                gc_candidate_evaluator_ids.add(evaluator_id)
-                if prompt_id is not None:
-                    candidate_prompt_ids.add(prompt_id)
-
-        if not link_ids:
-            return []
-
-        # Remove bindings before trace projects to satisfy the RESTRICT foreign key.
-        await session.execute(
-            delete(models.DatasetEvaluators).where(models.DatasetEvaluators.id.in_(link_ids))
-        )
-        await delete_projects_and_evaluator_trace_projects(session, project_ids)
-
-        await garbage_collect_evaluators(
-            session,
-            evaluator_ids=gc_candidate_evaluator_ids,
-            prompt_ids=candidate_prompt_ids,
+            models.DatasetEvaluators,
+            dataset_evaluator_rowids,
+            delete_unused_evaluator=True,
             delete_associated_prompt=input.delete_associated_prompt,
         )
-
-    return deleted_gids
+    if deleted_rowids:
+        context.wake_evaluator_purger()
+    return [GlobalID("DatasetEvaluator", str(rowid)) for rowid in deleted_rowids]
 
 
 async def create_dataset_builtin_evaluator(
@@ -425,12 +377,15 @@ async def update_dataset_builtin_evaluator(
                     models.BuiltinEvaluator,
                     models.DatasetEvaluators.evaluator_id == models.BuiltinEvaluator.id,
                 )
-                .where(models.DatasetEvaluators.id == dataset_evaluator_rowid)
+                .where(
+                    models.DatasetEvaluators.id == dataset_evaluator_rowid,
+                    models.DatasetEvaluators.deleted_at.is_(None),
+                )
             )
             dataset_evaluator_pair = dataset_evaluator_row.one_or_none()
             if dataset_evaluator_pair is None:
-                dataset_evaluator = await session.get(
-                    models.DatasetEvaluators, dataset_evaluator_rowid
+                dataset_evaluator = await get_live_dataset_evaluator(
+                    session, dataset_evaluator_rowid
                 )
                 if dataset_evaluator is None:
                     raise NotFound(
@@ -569,12 +524,15 @@ async def update_dataset_code_evaluator(
                     models.CodeEvaluator,
                     models.DatasetEvaluators.evaluator_id == models.CodeEvaluator.id,
                 )
-                .where(models.DatasetEvaluators.id == dataset_evaluator_rowid)
+                .where(
+                    models.DatasetEvaluators.id == dataset_evaluator_rowid,
+                    models.DatasetEvaluators.deleted_at.is_(None),
+                )
             )
             dataset_evaluator_pair = dataset_evaluator_row.one_or_none()
             if dataset_evaluator_pair is None:
-                dataset_evaluator = await session.get(
-                    models.DatasetEvaluators, dataset_evaluator_rowid
+                dataset_evaluator = await get_live_dataset_evaluator(
+                    session, dataset_evaluator_rowid
                 )
                 if dataset_evaluator is None:
                     raise NotFound(
@@ -779,7 +737,10 @@ async def dataset_binding_error(
     existing_id: Optional[int] = None
     if name is not UNSET and name is not None:
         name = Identifier.model_validate(name)
-        query = select(models.DatasetEvaluators.id).where(models.DatasetEvaluators.name == name)
+        query = select(models.DatasetEvaluators.id).where(
+            models.DatasetEvaluators.name == name,
+            models.DatasetEvaluators.deleted_at.is_(None),
+        )
         if binding_rowid is not None:
             query = query.where(
                 models.DatasetEvaluators.dataset_id
@@ -812,10 +773,11 @@ async def detach_dataset_evaluators(
     *,
     dataset_id: Optional[GlobalID] = None,
 ) -> None:
-    """Delete bindings and their trace projects while preserving shared definitions and prompts.
+    """Delete bindings while preserving shared definitions and prompts.
 
-    Missing bindings are ignored. With a dataset, a binding of another dataset is refused
-    before any change.
+    A deleted binding disappears at once, and its trace project and traces are removed in the
+    background. Missing or already deleted bindings are ignored. With a dataset, a binding of
+    another dataset is refused before any change.
     """
     rowids = [
         _decode_id(binding_id, "DatasetEvaluator", "dataset evaluator")
@@ -830,6 +792,7 @@ async def detach_dataset_evaluators(
                     select(models.DatasetEvaluators.id).where(
                         models.DatasetEvaluators.id.in_(rowids),
                         models.DatasetEvaluators.dataset_id != dataset_rowid,
+                        models.DatasetEvaluators.deleted_at.is_(None),
                     )
                 )
             ).all()
@@ -837,15 +800,15 @@ async def detach_dataset_evaluators(
             listed = ", ".join(str(GlobalID("DatasetEvaluator", str(i))) for i in elsewhere)
             raise BadRequest(f"These bindings belong to another dataset: {listed}")
 
-        trace_project_ids = (
-            await session.scalars(
-                delete(models.DatasetEvaluators)
-                .where(models.DatasetEvaluators.id.in_(rowids))
-                .returning(models.DatasetEvaluators.project_id)
-            )
-        ).all()
-        if trace_project_ids:
-            await delete_projects_and_evaluator_trace_projects(session, trace_project_ids)
+        deleted_rowids = await mark_bindings_deleted(
+            session,
+            models.DatasetEvaluators,
+            rowids,
+            delete_unused_evaluator=False,
+            delete_associated_prompt=False,
+        )
+    if deleted_rowids:
+        context.wake_evaluator_purger()
 
 
 async def patch_dataset_evaluator(
@@ -860,7 +823,7 @@ async def patch_dataset_evaluator(
         raise BadRequest(f"Invalid dataset evaluator id: {dataset_evaluator_id}") from error
     try:
         async with context.db() as session:
-            row = await session.get(models.DatasetEvaluators, row_id)
+            row = await get_live_dataset_evaluator(session, row_id)
             if row is None:
                 raise NotFound(f"Dataset evaluator not found: {dataset_evaluator_id}")
             kind = await session.scalar(

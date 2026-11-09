@@ -663,7 +663,8 @@ class Project(Node):
         info: Info[Context, None],
     ) -> int:
         stmt = select(func.count(models.ProjectEvaluator.id)).where(
-            models.ProjectEvaluator.project_id == self.id
+            models.ProjectEvaluator.project_id == self.id,
+            models.ProjectEvaluator.deleted_at.is_(None),
         )
         async with info.context.db.read() as session:
             return (await session.scalar(stmt)) or 0
@@ -3307,6 +3308,7 @@ async def project_evaluator_connection(
     filter: Optional[ProjectEvaluatorFilter],
     args: ConnectionArgs,
 ) -> Connection[ProjectEvaluator]:
+    stmt = stmt.where(models.ProjectEvaluator.deleted_at.is_(None))
     if filter and filter.col and filter.value and (value := filter.value.strip()):
         column = getattr(models.ProjectEvaluator, filter.col.value)
         # `name` is an Identifier-typed column; compare it as text so LIKE applies.

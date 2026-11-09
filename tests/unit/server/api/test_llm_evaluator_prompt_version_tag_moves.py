@@ -33,6 +33,7 @@ from phoenix.db.types.prompts import (
     PromptTools,
     TextContentPart,
 )
+from phoenix.server.daemons.evaluator_purger import purge_deleted_bindings
 from phoenix.server.evaluators.services.dataset_bindings import (
     DeleteDatasetEvaluatorsInput,
     delete_dataset_evaluators,
@@ -236,6 +237,7 @@ async def test_last_binding_gc_preserves_a_tag_used_by_another_evaluator(
             delete_associated_prompt=False,
         ),
     )
+    await purge_deleted_bindings(db)
 
     async with db() as session:
         assert await session.get(models.LLMEvaluator, pinned.evaluator.id) is None

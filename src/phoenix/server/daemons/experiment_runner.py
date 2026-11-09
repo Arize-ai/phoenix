@@ -3277,7 +3277,10 @@ class ExperimentRunner(DaemonTask):
                 models.DatasetEvaluators.id
                 == models.ExperimentDatasetEvaluator.dataset_evaluator_id,
             )
-            .where(models.ExperimentDatasetEvaluator.experiment_id == experiment_id)
+            .where(
+                models.ExperimentDatasetEvaluator.experiment_id == experiment_id,
+                models.DatasetEvaluators.deleted_at.is_(None),
+            )
         )
         dataset_evaluators = dataset_evaluators_result.all()
 

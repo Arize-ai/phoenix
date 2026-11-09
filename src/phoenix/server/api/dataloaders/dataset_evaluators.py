@@ -35,7 +35,9 @@ class DatasetEvaluatorsDataLoader(DataLoader[Key, Result]):
                 )
             if conditions:
                 for junction in await session.scalars(
-                    select(models.DatasetEvaluators).where(or_(*conditions))
+                    select(models.DatasetEvaluators).where(
+                        or_(*conditions), models.DatasetEvaluators.deleted_at.is_(None)
+                    )
                 ):
                     key = (junction.dataset_id, junction.evaluator_id, junction.name.root)
                     dataset_evaluators_by_key[key] = junction

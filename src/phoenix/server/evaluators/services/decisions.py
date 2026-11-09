@@ -20,6 +20,7 @@ from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.daemons.evaluator_purger import purge_deleted_bindings_of_evaluator
 from phoenix.server.decisions.validation import validate_decision_custom_provider
 from phoenix.server.evaluators.services.dataset_bindings import (
     DatasetEvaluatorWriteValues,
@@ -35,6 +36,8 @@ from phoenix.server.evaluators.services.definitions import (
 )
 from phoenix.server.evaluators.services.management import (
     generate_unique_evaluator_name,
+    get_live_dataset_evaluator,
+    get_live_project_evaluator,
     validate_project_evaluator_project,
     validate_project_evaluator_target_update,
 )
@@ -216,12 +219,10 @@ async def delete_decision_evaluator(
     context: EvaluatorServiceContext, evaluator_id: GlobalID
 ) -> None:
     """Delete an unbound judge with the tag it runs through; the decision is kept."""
+    row_id = _id(evaluator_id, "DecisionEvaluator")
+    await purge_deleted_bindings_of_evaluator(context.db, row_id)
     async with context.db() as session:
-        evaluator = await session.get(
-            models.DecisionEvaluator,
-            _id(evaluator_id, "DecisionEvaluator"),
-            with_for_update=True,
-        )
+        evaluator = await session.get(models.DecisionEvaluator, row_id, with_for_update=True)
         if evaluator is None:
             return
         await refuse_bound_evaluator(session, evaluator.id, evaluator_id)
@@ -476,8 +477,8 @@ async def update_dataset_decision_evaluator(
     assert name is not None and input_mapping is not None
     try:
         async with context.db() as session:
-            binding = await session.get(
-                models.DatasetEvaluators, _id(dataset_evaluator_id, "DatasetEvaluator")
+            binding = await get_live_dataset_evaluator(
+                session, _id(dataset_evaluator_id, "DatasetEvaluator")
             )
             if binding is None:
                 raise NotFound("Dataset evaluator not found")
@@ -589,7 +590,7 @@ async def update_project_decision_evaluator(
     await clear_queue_before_enabling(context.db, project_evaluator_id, input.enabled)
     try:
         async with context.db() as session:
-            binding = await session.get(models.ProjectEvaluator, project_evaluator_id)
+            binding = await get_live_project_evaluator(session, project_evaluator_id)
             if binding is None:
                 raise NotFound("Project evaluator not found")
             evaluator = await session.get(

@@ -4,10 +4,9 @@ from dataclasses import dataclass
 from typing import Any, Mapping, Optional, Sequence, TypedDict, Union
 
 from pydantic import ValidationError
-from sqlalchemy import delete, select, text, update
+from sqlalchemy import select, text, update
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay import GlobalID
@@ -17,7 +16,6 @@ from phoenix.db import models
 from phoenix.db.eval_work import queued_index_predicate
 from phoenix.db.helpers import (
     code_evaluator_with_latest_version,
-    delete_projects_and_evaluator_trace_projects,
 )
 from phoenix.db.types.annotation_configs import OutputConfigType
 from phoenix.db.types.evaluators import InputMapping
@@ -36,11 +34,11 @@ from phoenix.server.evaluators.services.definitions import (
 )
 from phoenix.server.evaluators.services.management import (
     EVALUATOR_MODEL_BY_KIND,
-    garbage_collect_evaluators,
     generate_unique_evaluator_name,
+    get_live_project_evaluator,
     get_trace_project_for_project_evaluator,
     is_sole_evaluator_binding,
-    lock_evaluators,
+    mark_bindings_deleted,
     materialize_project_evaluator_evaluation_delay,
     parse_evaluator_id,
     validate_project_evaluator_filter,
@@ -209,7 +207,8 @@ async def update_project_llm_evaluator(
             # Edits and deletes take the evaluator row first, so they queue instead of deadlocking.
             evaluator_id = await session.scalar(
                 select(models.ProjectEvaluator.evaluator_id).where(
-                    models.ProjectEvaluator.id == project_evaluator_id
+                    models.ProjectEvaluator.id == project_evaluator_id,
+                    models.ProjectEvaluator.deleted_at.is_(None),
                 )
             )
             if evaluator_id is not None:
@@ -221,7 +220,10 @@ async def update_project_llm_evaluator(
                         models.LLMEvaluator,
                         models.ProjectEvaluator.evaluator_id == models.LLMEvaluator.id,
                     )
-                    .where(models.ProjectEvaluator.id == project_evaluator_id)
+                    .where(
+                        models.ProjectEvaluator.id == project_evaluator_id,
+                        models.ProjectEvaluator.deleted_at.is_(None),
+                    )
                 )
             ).one_or_none()
             if pair is None:
@@ -415,6 +417,7 @@ async def project_binding_name_taken(
         query = select(models.ProjectEvaluator.id).where(
             models.ProjectEvaluator.project_id == project_id,
             models.ProjectEvaluator.name == name,
+            models.ProjectEvaluator.deleted_at.is_(None),
         )
         if binding_id is not None:
             query = query.where(models.ProjectEvaluator.id != binding_id)
@@ -437,10 +440,12 @@ async def detach_project_evaluators(
     *,
     project_id: Optional[GlobalID] = None,
 ) -> None:
-    """Delete bindings and their trace projects while preserving shared definitions and prompts.
+    """Delete bindings while preserving shared definitions and prompts.
 
-    Missing bindings are ignored. With a project, a binding of another project is refused
-    before any change.
+    A deleted binding disappears and stops queueing evaluations at once, and its queued work,
+    trace project and traces are removed in the background. Missing or already deleted
+    bindings are ignored. With a project, a binding of another project is refused before any
+    change.
     """
     rowids: list[int] = []
     for global_id in project_evaluator_ids:
@@ -455,6 +460,7 @@ async def detach_project_evaluators(
                     select(models.ProjectEvaluator.id).where(
                         models.ProjectEvaluator.id.in_(rowids),
                         models.ProjectEvaluator.project_id != _decode_project_id(project_id),
+                        models.ProjectEvaluator.deleted_at.is_(None),
                     )
                 )
             ).all()
@@ -462,15 +468,15 @@ async def detach_project_evaluators(
                 listed = ", ".join(str(GlobalID("ProjectEvaluator", str(i))) for i in elsewhere)
                 raise BadRequest(f"These bindings belong to another project: {listed}")
 
-        trace_project_ids = (
-            await session.scalars(
-                delete(models.ProjectEvaluator)
-                .where(models.ProjectEvaluator.id.in_(rowids))
-                .returning(models.ProjectEvaluator.trace_project_id)
-            )
-        ).all()
-        if trace_project_ids:
-            await delete_projects_and_evaluator_trace_projects(session, trace_project_ids)
+        deleted_rowids = await mark_bindings_deleted(
+            session,
+            models.ProjectEvaluator,
+            rowids,
+            delete_unused_evaluator=False,
+            delete_associated_prompt=False,
+        )
+    if deleted_rowids:
+        context.wake_evaluator_purger()
 
 
 async def create_project_code_evaluator(
@@ -544,7 +550,10 @@ async def update_project_code_evaluator(
                     models.ProjectEvaluator,
                     models.ProjectEvaluator.evaluator_id == models.CodeEvaluator.id,
                 )
-                .where(models.ProjectEvaluator.id == project_evaluator_id)
+                .where(
+                    models.ProjectEvaluator.id == project_evaluator_id,
+                    models.ProjectEvaluator.deleted_at.is_(None),
+                )
             )
             if current is None:
                 raise NotFound(f"CODE project evaluator not found: {input.project_evaluator_id}")
@@ -581,7 +590,10 @@ async def update_project_code_evaluator(
                         models.CodeEvaluator,
                         models.ProjectEvaluator.evaluator_id == models.CodeEvaluator.id,
                     )
-                    .where(models.ProjectEvaluator.id == project_evaluator_id)
+                    .where(
+                        models.ProjectEvaluator.id == project_evaluator_id,
+                        models.ProjectEvaluator.deleted_at.is_(None),
+                    )
                 )
             ).one_or_none()
             if pair is None:
@@ -649,16 +661,21 @@ async def write_project_evaluator(
     such as updated_at must come back with the write instead of being loaded lazily.
     """
     project_evaluator = models.ProjectEvaluator
-    enabled, filter_condition, sampling_rate, evaluation_target = (
+    current = (
         await session.execute(
             select(
                 project_evaluator.enabled,
                 project_evaluator.filter_condition,
                 project_evaluator.sampling_rate,
                 project_evaluator.evaluation_target,
-            ).where(project_evaluator.id == project_evaluator_id)
+            ).where(
+                project_evaluator.id == project_evaluator_id, project_evaluator.deleted_at.is_(None)
+            )
         )
-    ).one()
+    ).one_or_none()
+    if current is None:
+        raise NotFound(f"Project evaluator not found: {project_evaluator_id}")
+    enabled, filter_condition, sampling_rate, evaluation_target = current
     enabling = not enabled and values.get("enabled", enabled)
     selection_changed = (
         values.get("filter_condition", filter_condition) != filter_condition
@@ -666,11 +683,12 @@ async def write_project_evaluator(
     )
     row: models.ProjectEvaluator | None = await session.scalar(
         update(project_evaluator)
-        .where(project_evaluator.id == project_evaluator_id)
+        .where(project_evaluator.id == project_evaluator_id, project_evaluator.deleted_at.is_(None))
         .values(**values)
         .returning(project_evaluator)
     )
-    assert row is not None
+    if row is None:
+        raise NotFound(f"Project evaluator not found: {project_evaluator_id}")
     if evaluation_target == "SPAN":
         if enabling or selection_changed:
             await start_at_span_cursor(session, project_evaluator_id)
@@ -697,7 +715,8 @@ async def clear_queue_before_enabling(
     async with db() as session:
         currently_enabled = await session.scalar(
             select(models.ProjectEvaluator.enabled).where(
-                models.ProjectEvaluator.id == project_evaluator_id
+                models.ProjectEvaluator.id == project_evaluator_id,
+                models.ProjectEvaluator.deleted_at.is_(None),
             )
         )
     if currently_enabled is not False:
@@ -733,7 +752,7 @@ async def set_project_evaluator_enabled(
         raise BadRequest(str(error))
     await clear_queue_before_enabling(context.db, project_evaluator_id, input.enabled)
     async with context.db() as session:
-        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+        project_evaluator = await get_live_project_evaluator(session, project_evaluator_id)
         if project_evaluator is None:
             raise NotFound(f"Project evaluator not found: {input.project_evaluator_id}")
         project_evaluator = await write_project_evaluator(
@@ -757,7 +776,7 @@ async def clear_project_evaluator_queued_evaluations(
     except ValueError as error:
         raise BadRequest(str(error))
     async with context.db() as session:
-        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_rowid)
+        project_evaluator = await get_live_project_evaluator(session, project_evaluator_rowid)
         if project_evaluator is None:
             raise NotFound(f"Project evaluator not found: {project_evaluator_id}")
         cleared = await clear_queued_work(session, [project_evaluator.id])
@@ -783,7 +802,8 @@ async def clear_project_queued_evaluations(
         project_evaluator_ids = list(
             await session.scalars(
                 select(models.ProjectEvaluator.id).where(
-                    models.ProjectEvaluator.project_id == project_rowid
+                    models.ProjectEvaluator.project_id == project_rowid,
+                    models.ProjectEvaluator.deleted_at.is_(None),
                 )
             )
         )
@@ -870,7 +890,12 @@ def count_cleared_work(cleared: Mapping[models.EvaluationTarget, int]) -> None:
 async def delete_project_evaluators(
     context: EvaluatorServiceContext, input: DeleteProjectEvaluatorsInput
 ) -> list[GlobalID]:
-    """Delete bindings and their trace projects, collecting unreferenced definitions."""
+    """Delete bindings, returning those deleted now; missing or already deleted ones are skipped.
+
+    A deleted binding disappears and stops queueing evaluations at once, and its queued work,
+    trace project and traces are removed in the background, along with definitions that
+    nothing else binds.
+    """
     project_evaluator_ids: list[int] = []
     for global_id in input.project_evaluator_ids:
         try:
@@ -882,66 +907,17 @@ async def delete_project_evaluators(
     if not project_evaluator_ids:
         return []
 
-    deleted_ids: list[GlobalID] = []
     async with context.db() as session:
-        evaluator_ids_to_lock = set(
-            await session.scalars(
-                select(models.ProjectEvaluator.evaluator_id).where(
-                    models.ProjectEvaluator.id.in_(project_evaluator_ids)
-                )
-            )
+        deleted_rowids = await mark_bindings_deleted(
+            session,
+            models.ProjectEvaluator,
+            project_evaluator_ids,
+            delete_unused_evaluator=True,
+            delete_associated_prompt=input.delete_associated_prompt,
         )
-        await lock_evaluators(session, evaluator_ids_to_lock)
-        llm_evaluator_alias = aliased(models.LLMEvaluator, flat=True)
-        rows = (
-            await session.execute(
-                select(
-                    models.ProjectEvaluator.id,
-                    models.ProjectEvaluator.evaluator_id,
-                    models.ProjectEvaluator.trace_project_id,
-                    models.Evaluator.kind,
-                    llm_evaluator_alias.prompt_id,
-                )
-                .join(
-                    models.Evaluator,
-                    models.ProjectEvaluator.evaluator_id == models.Evaluator.id,
-                )
-                .outerjoin(
-                    llm_evaluator_alias,
-                    models.ProjectEvaluator.evaluator_id == llm_evaluator_alias.id,
-                )
-                .where(models.ProjectEvaluator.id.in_(project_evaluator_ids))
-            )
-        ).all()
-        evaluator_ids: set[int] = set()
-        prompt_ids: set[int] = set()
-        trace_project_ids: list[int] = []
-        actual_project_evaluator_ids: list[int] = []
-        for project_evaluator_id, evaluator_id, trace_project_id, kind, prompt_id in rows:
-            actual_project_evaluator_ids.append(project_evaluator_id)
-            trace_project_ids.append(trace_project_id)
-            deleted_ids.append(GlobalID("ProjectEvaluator", str(project_evaluator_id)))
-            if kind != "BUILTIN":
-                evaluator_ids.add(evaluator_id)
-                if prompt_id is not None:
-                    prompt_ids.add(prompt_id)
-        if actual_project_evaluator_ids:
-            await session.execute(
-                delete(models.ProjectEvaluator).where(
-                    models.ProjectEvaluator.id.in_(actual_project_evaluator_ids)
-                )
-            )
-            await session.execute(
-                delete(models.Project).where(models.Project.id.in_(trace_project_ids))
-            )
-            await garbage_collect_evaluators(
-                session,
-                evaluator_ids=evaluator_ids,
-                prompt_ids=prompt_ids,
-                delete_associated_prompt=input.delete_associated_prompt,
-            )
-
-    return deleted_ids
+    if deleted_rowids:
+        context.wake_evaluator_purger()
+    return [GlobalID("ProjectEvaluator", str(rowid)) for rowid in deleted_rowids]
 
 
 async def patch_project_evaluator(
@@ -957,7 +933,7 @@ async def patch_project_evaluator(
     await clear_queue_before_enabling(context.db, row_id, patch.enabled)
     try:
         async with context.db() as session:
-            row = await session.get(models.ProjectEvaluator, row_id)
+            row = await get_live_project_evaluator(session, row_id)
             if row is None:
                 raise NotFound(f"Project evaluator not found: {project_evaluator_id}")
             project_rowid = row.project_id
