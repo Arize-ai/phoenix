@@ -22,7 +22,13 @@ async function login({
   await page.goto(`${baseURL}/login`);
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);
+  const loginResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/auth/login") &&
+      response.request().method() === "POST"
+  );
   await page.getByRole("button", { name: "Log In", exact: true }).click();
+  return await loginResponse;
 }
 
 async function resetPassword({
@@ -59,7 +65,17 @@ async function resetDefaultPasswordAndReLogin({
   currentPassword: string;
   newPassword: string;
 }) {
-  await login({ page, baseURL, email, password: currentPassword });
+  const response = await login({
+    page,
+    baseURL,
+    email,
+    password: currentPassword,
+  });
+  if (response.status() === 401) {
+    await login({ page, baseURL, email, password: newPassword });
+    await page.waitForURL(/\/projects(\?|$)/);
+    return;
+  }
   await page.waitForURL(/\/reset-password-with-token\?/);
   await page.getByLabel("New Password").fill(newPassword);
   await page.getByLabel("Confirm Password").fill(newPassword);
@@ -117,71 +133,90 @@ setup(
     });
     await page.goto(`${baseURL}/settings/users`);
     await page.waitForURL("**/settings/users");
+    await expect(
+      page.getByText("admin@localhost", { exact: true })
+    ).toBeVisible();
 
     // Add member user
-    await page.getByRole("button", { name: "Add User" }).click();
-    await page.getByLabel("Email").fill("member@localhost.com");
-    await page.getByLabel("Username").fill("member");
-    await page.getByLabel("Password", { exact: true }).fill("member");
-    await page.getByLabel("Confirm Password").fill("member");
-    await page
-      .getByRole("dialog")
-      .getByLabel("member", { exact: true })
-      .click();
-    await page.getByRole("option", { name: "member" }).click();
-    await page
-      .getByRole("dialog")
-      .getByRole("button", { name: "Add User" })
-      .click();
-    await expect(page.getByTestId("dialog")).not.toBeVisible();
+    if (
+      !(await page
+        .getByText("member@localhost.com", { exact: true })
+        .isVisible())
+    ) {
+      await page.getByRole("button", { name: "Add User" }).click();
+      await page.getByLabel("Email").fill("member@localhost.com");
+      await page.getByLabel("Username").fill("member");
+      await page.getByLabel("Password", { exact: true }).fill("member");
+      await page.getByLabel("Confirm Password").fill("member");
+      await page
+        .getByRole("dialog")
+        .getByLabel("member", { exact: true })
+        .click();
+      await page.getByRole("option", { name: "member" }).click();
+      await page
+        .getByRole("dialog")
+        .getByRole("button", { name: "Add User" })
+        .click();
+      await expect(page.getByTestId("dialog")).not.toBeVisible();
+    }
 
     // Add viewer user
-    await page.getByRole("button", { name: "Add User" }).click();
-    await page.getByLabel("Email").fill("viewer@localhost.com");
-    await page.getByLabel("Username").fill("viewer");
-    await page.getByLabel("Password", { exact: true }).fill("viewer");
-    await page.getByLabel("Confirm Password").fill("viewer");
-    await page
-      .getByRole("dialog")
-      .getByLabel("member", { exact: true })
-      .click();
-    await page.getByRole("option", { name: "viewer" }).click();
-    await page
-      .getByRole("dialog")
-      .getByRole("button", { name: "Add User" })
-      .click();
-    await expect(page.getByTestId("dialog")).not.toBeVisible();
+    if (
+      !(await page
+        .getByText("viewer@localhost.com", { exact: true })
+        .isVisible())
+    ) {
+      await page.getByRole("button", { name: "Add User" }).click();
+      await page.getByLabel("Email").fill("viewer@localhost.com");
+      await page.getByLabel("Username").fill("viewer");
+      await page.getByLabel("Password", { exact: true }).fill("viewer");
+      await page.getByLabel("Confirm Password").fill("viewer");
+      await page
+        .getByRole("dialog")
+        .getByLabel("member", { exact: true })
+        .click();
+      await page.getByRole("option", { name: "viewer" }).click();
+      await page
+        .getByRole("dialog")
+        .getByRole("button", { name: "Add User" })
+        .click();
+      await expect(page.getByTestId("dialog")).not.toBeVisible();
+    }
 
     await logout({ page });
 
-    await login({
+    const memberLoginResponse = await login({
       page,
       baseURL,
       email: "member@localhost.com",
       password: "member",
     });
-    await resetPasswordAndReLogin({
-      page,
-      baseURL,
-      email: "member@localhost.com",
-      oldPassword: "member",
-      newPassword: "member123",
-    });
-    await logout({ page });
+    if (memberLoginResponse.status() !== 401) {
+      await resetPasswordAndReLogin({
+        page,
+        baseURL,
+        email: "member@localhost.com",
+        oldPassword: "member",
+        newPassword: "member123",
+      });
+      await logout({ page });
+    }
 
-    await login({
+    const viewerLoginResponse = await login({
       page,
       baseURL,
       email: "viewer@localhost.com",
       password: "viewer",
     });
-    await resetPasswordAndReLogin({
-      page,
-      baseURL,
-      email: "viewer@localhost.com",
-      oldPassword: "viewer",
-      newPassword: "viewer123",
-    });
+    if (viewerLoginResponse.status() !== 401) {
+      await resetPasswordAndReLogin({
+        page,
+        baseURL,
+        email: "viewer@localhost.com",
+        oldPassword: "viewer",
+        newPassword: "viewer123",
+      });
+    }
     await bootstrapContext.close();
 
     const saveStorageStateForUser = async ({
