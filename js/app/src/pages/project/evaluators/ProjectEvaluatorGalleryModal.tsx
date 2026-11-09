@@ -1078,7 +1078,7 @@ function LlmCustomEvaluatorDetails({
       <EvaluatorInputSummary inputs={evaluator.inputs} />
       <EvaluatorPromptPreview messages={messages} />
       <EvaluatorDetailsAction onPress={onDuplicateEvaluator}>
-        Duplicate this evaluator
+        Copy and edit
       </EvaluatorDetailsAction>
     </Flex>
   );
@@ -1113,7 +1113,7 @@ function CodeCustomEvaluatorDetails({
       <EvaluatorDetailsAction
         onPress={onAttachEvaluator}
         secondaryAction={{
-          label: "Duplicate this evaluator",
+          label: "Copy and edit",
           onPress: onDuplicateEvaluator,
         }}
       >

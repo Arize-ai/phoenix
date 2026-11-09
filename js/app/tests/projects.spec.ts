@@ -396,15 +396,13 @@ test.describe.serial("Projects", () => {
     await expect(
       page.getByRole("menuitem", { name: "Browse eval gallery" })
     ).toHaveCount(0);
-    await page
-      .getByRole("menuitem", { name: "Create new LLM evaluator" })
-      .click();
+    await page.getByRole("menuitem", { name: "New LLM evaluator" }).click();
 
     // The slideover is a route of its own, so it is linkable and closable with
     // the browser's back button.
     await expect(page).toHaveURL(NEW_LLM_EVALUATOR_URL);
     const createDialog = page.getByRole("dialog", {
-      name: "Create new LLM evaluator",
+      name: "New LLM evaluator",
     });
     await expect(createDialog).toBeVisible();
     // The test bench's inspector reads the evaluator's inputs off a record:
@@ -593,7 +591,7 @@ test.describe.serial("Projects", () => {
     const copyName = `${evaluatorName}_copy`;
     await page.getByRole("button", { name: "Add evaluator" }).click();
     await page
-      .getByRole("menuitem", { name: "Duplicate existing LLM evaluator" })
+      .getByRole("menuitem", { name: "Copy existing LLM evaluator" })
       .click();
     await page.getByRole("menuitem", { name: evaluatorName }).click();
     const copyDialog = page.getByRole("dialog", {
