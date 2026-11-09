@@ -223,6 +223,7 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - run: uv sync --frozen --no-editable --package arize-phoenix-client --all-extras
       - run: uv run --no-sync pyright .
         working-directory: packages/phoenix-client
@@ -254,6 +255,7 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - run: uv sync --frozen --no-editable --package arize-phoenix-evals --all-extras
       - run: uv run --no-sync mypy .
         working-directory: packages/phoenix-evals
@@ -282,6 +284,7 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - run: uv sync --frozen --no-editable --package arize-phoenix-otel --all-extras
       - run: uv run --no-sync mypy .
         working-directory: packages/phoenix-otel
@@ -326,6 +329,7 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Install make (Windows)
         if: runner.os == 'Windows'
         run: choco install make --no-progress -y
@@ -361,6 +365,7 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Clean Jupyter notebooks
         run: make clean-notebooks
       - run: git diff --exit-code
@@ -388,6 +393,7 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Build GraphQL schema
         run: make schema-graphql
       - run: git diff --exit-code
@@ -414,6 +420,8 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Compile the Harbor GraphQL queries against the exported schema
         run: make codegen-harbor-graphql
       - run: git diff --exit-code
@@ -448,6 +456,7 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Check UI filter DSL snippets against the Python filters
         run: make check-filter-dsl-snippets
 
@@ -492,6 +501,7 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Check skill GraphQL examples against the exported schema
         run: make check-skill-graphql-examples
       - name: Check skill filter conditions against the Python filters
@@ -516,6 +526,7 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: "3.15"
       - name: Install PNPM
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
         with:
@@ -571,6 +582,7 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Test the model cost manifest sync script
         run: make test-sync-models
 
@@ -597,6 +609,7 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Run doctests
         run: make doctest
 
@@ -623,6 +636,7 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Build OpenAPI schema
         run: make schema-openapi
       - run: git diff --exit-code
@@ -650,6 +664,7 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Create virtual environment
         # `make schema-ddl` installs its dependencies with `uv pip install`,
         # which requires an existing environment.
@@ -681,6 +696,7 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Compile Prompts
         run: make codegen-prompts
       - name: Check for changes
@@ -727,6 +743,7 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Check lockfile is up to date
         run: uv lock --check
 
@@ -752,6 +769,7 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Run formatter and linter
         run: |
           make format-python
@@ -789,6 +807,7 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Sync dependencies
         run: uv sync --frozen
       - name: Type check all Python code
@@ -836,6 +855,7 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Install PostgreSQL (product floor)
         if: matrix.db == 'postgresql'
         # The floor version from the PGDG repository, not whatever the
@@ -919,6 +939,7 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Sync dependencies
         run: uv sync --frozen
       # Return the next major version in response headers so all client methods
@@ -977,6 +998,7 @@ jobs:
           # to read. Keep equal to the lower bound of [tool.uv] required-version in
           # pyproject.toml.
           version: "0.13.7"
+          python-version: "3.11"
       - name: Install arize-phoenix and database dependencies
         run: |
           uv pip install --system -qU 'arize-phoenix[pg]'
