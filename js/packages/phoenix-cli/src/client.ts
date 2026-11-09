@@ -113,24 +113,40 @@ export interface ResolveDatasetIdOptions {
   /**
    * Dataset identifier to resolve.
    *
-   * Phoenix dataset IDs are hex-encoded strings. If `datasetIdentifier` looks like a hex string,
-   * it's treated as an ID; otherwise it's treated as a name and resolved via the API.
+   * Phoenix dataset IDs are Relay GlobalIDs: base64-encoded `"<Type>:<id>"` strings
+   * (e.g. `"RGF0YXNldDox"` for `Dataset:1`). Hex strings are also treated as IDs for
+   * backwards compatibility. Anything else is treated as a name and resolved via the API.
    */
   datasetIdentifier: string;
 }
 
 function looksLikePhoenixDatasetId(datasetIdentifier: string): boolean {
-  // Dataset IDs are hex-encoded strings (e.g., "a1b2c3d4e5f6...")
   const trimmed = datasetIdentifier.trim();
   if (!trimmed) return false;
 
-  // Check if the string is a valid hex string (only 0-9, a-f, A-F)
-  return /^[0-9a-fA-F]+$/.test(trimmed);
+  // Legacy hex-encoded IDs (e.g., "a1b2c3d4e5f6...")
+  if (/^[0-9a-fA-F]+$/.test(trimmed)) return true;
+
+  // Server-side dataset IDs are Relay GlobalIDs: base64("<Type>:<id>")
+  return isBase64GlobalId(trimmed);
+}
+
+function isBase64GlobalId(value: string): boolean {
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(value) || value.length % 4 !== 0) {
+    return false;
+  }
+  try {
+    const decoded = Buffer.from(value, "base64").toString("utf8");
+    return /^[A-Za-z][A-Za-z0-9]*:.+$/.test(decoded);
+  } catch {
+    return false;
+  }
 }
 
 /**
  * Resolve dataset identifier to dataset ID
- * If the identifier looks like a Phoenix dataset ID (hex string), returns it as-is; otherwise fetches by name.
+ * If the identifier looks like a Phoenix dataset ID (a base64 GlobalID or a legacy hex string),
+ * returns it as-is; otherwise fetches by name.
  */
 export async function resolveDatasetId({
   client,

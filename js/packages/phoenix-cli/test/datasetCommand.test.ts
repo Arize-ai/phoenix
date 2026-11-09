@@ -258,6 +258,42 @@ describe("dataset get", () => {
     expect(parsed.examples).toEqual([EXAMPLE_ONE]);
   });
 
+  it("skips name resolution when the identifier is a base64 GlobalID", async () => {
+    // base64("Dataset:1") - the shape the server returns for dataset IDs.
+    const GLOBAL_ID = "RGF0YXNldDox";
+    let resolutionCalls = 0;
+    mock.server.use(
+      http.get("/v1/datasets", ({ response }) => {
+        resolutionCalls += 1;
+        return response(200).json({ data: [], next_cursor: null });
+      }),
+      http.get("/v1/datasets/{id}", ({ response }) =>
+        response(200).json({ data: { ...DATASET_GOLDEN, id: GLOBAL_ID } })
+      ),
+      http.get("/v1/datasets/{id}/examples", ({ params, response }) =>
+        response(200).json({
+          data: {
+            dataset_id: params.id,
+            version_id: "version-latest",
+            examples: [EXAMPLE_ONE],
+          },
+        })
+      )
+    );
+    const io = captureCliOutput();
+
+    await createDatasetCommand().parseAsync(
+      ["get", GLOBAL_ID, "--format", "raw", ...BASE_ARGS],
+      { from: "user" }
+    );
+
+    expect(resolutionCalls).toBe(0);
+    const output = io.stdout.mock.calls[0]?.[0];
+    const parsed = JSON.parse(String(output));
+    expect(parsed.dataset_id).toBe(GLOBAL_ID);
+    expect(parsed.examples).toEqual([EXAMPLE_ONE]);
+  });
+
   it("exits FAILURE with an error on stderr when the name matches no dataset", async () => {
     mock.server.use(
       http.get("/v1/datasets", ({ response }) =>
