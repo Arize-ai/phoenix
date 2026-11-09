@@ -131,4 +131,8 @@ def should_calculate_span_cost(
     spans, and `llm.model_name` on LLM spans.
     """
     span_kind = get_attribute_value(attributes, SpanAttributes.OPENINFERENCE_SPAN_KIND)
-    return span_kind in _COST_SPAN_KINDS and bool(get_model_name(attributes))
+    return (
+        isinstance(span_kind, str)
+        and span_kind in _COST_SPAN_KINDS
+        and bool(get_model_name(attributes))
+    )
