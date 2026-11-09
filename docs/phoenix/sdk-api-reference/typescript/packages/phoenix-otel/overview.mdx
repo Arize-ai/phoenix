@@ -216,7 +216,7 @@ If you need full control over export, pass your own `spanProcessors`. This repla
 
 ```ts
 import { register } from "@arizeai/phoenix-otel";
-import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
+import { BatchSpanProcessor } from "@opentelemetry/sdk-trace";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
 
 const exporter = new OTLPTraceExporter({
@@ -226,7 +226,7 @@ const exporter = new OTLPTraceExporter({
 
 const provider = register({
   projectName: "support-bot",
-  spanProcessors: [new BatchSpanProcessor(exporter)],
+  spanProcessors: [new BatchSpanProcessor({ exporter })],
 });
 ```
 

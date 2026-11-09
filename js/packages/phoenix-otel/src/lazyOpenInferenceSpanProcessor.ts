@@ -5,11 +5,11 @@ import type {
   Span,
   SpanExporter,
   SpanProcessor,
-} from "@opentelemetry/sdk-trace-base";
+} from "@opentelemetry/sdk-trace";
 import {
   BatchSpanProcessor,
   SimpleSpanProcessor,
-} from "@opentelemetry/sdk-trace-base";
+} from "@opentelemetry/sdk-trace";
 
 type PendingStart = {
   span: Span;
@@ -60,8 +60,8 @@ export class LazyOpenInferenceSpanProcessor implements SpanProcessor {
         );
         this.setDelegate(
           batch
-            ? new BatchSpanProcessor(exporter)
-            : new SimpleSpanProcessor(exporter)
+            ? new BatchSpanProcessor({ exporter })
+            : new SimpleSpanProcessor({ exporter })
         );
       });
   }

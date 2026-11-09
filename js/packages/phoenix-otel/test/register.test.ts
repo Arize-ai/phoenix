@@ -1,6 +1,6 @@
 import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
 import { context, trace } from "@opentelemetry/api";
-import type { Span, SpanProcessor } from "@opentelemetry/sdk-trace-node";
+import type { Span, SpanProcessor } from "@opentelemetry/sdk-trace";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { DiagLogLevel } from "../src";
@@ -186,7 +186,7 @@ describe("register", () => {
       global: false,
     });
 
-    externalProvider.register();
+    trace.setGlobalTracerProvider(externalProvider);
     trace.getTracer("global-test").startSpan("external-before").end();
 
     const mountedRegistration = attachGlobalTracerProvider(mountedProvider);
