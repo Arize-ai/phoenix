@@ -30,7 +30,16 @@ export function describeQuestionScoring(
           : "; no optimization direction";
   if ("predicate" in question) {
     const { threshold, optimizationDirection } = question.predicate;
-    return `Yes / No: true at probability >= ${threshold}${direction(optimizationDirection)}`;
+    // The score is the probability of true, so the direction says which
+    // answer is good rather than whether a higher number is.
+    const goodAnswer = !includeDirection
+      ? ""
+      : optimizationDirection === "MAXIMIZE"
+        ? "; true is good"
+        : optimizationDirection === "MINIMIZE"
+          ? "; false is good"
+          : "; neither answer is marked good";
+    return `Yes / No: true at probability >= ${threshold}${goodAnswer}`;
   }
   if ("choice" in question) {
     const { scores, optimizationDirection } = question.choice;
