@@ -1002,6 +1002,38 @@ class TestApplyManifestModelTypes:
             ("decision-a", "DECISION"): r"(?i)^(model-a)$",
         }
 
+    async def test_embedding_entry_with_only_an_input_price_is_applied(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        # Embedding models are priced on input tokens alone, so their entries have no output.
+        await _ensure_enums(db)
+        embedding = {
+            "name": "text-embedding-3-small",
+            "name_pattern": "text-embedding-3-small",
+            "type": "EMBEDDING",
+            "token_prices": [{"base_rate": 2e-8, "is_prompt": True, "token_type": "input"}],
+        }
+        manifest = _manifest_of(
+            [_manifest_model("text-embedding-3-small")], non_llm_models=[embedding], day=1
+        )
+        assert manifest.skipped_models == frozenset()
+        assert await _apply(db, manifest)
+        assert await _active_built_in_prices_by_type(db) == {
+            ("text-embedding-3-small", "LLM"): 1e-6,
+            ("text-embedding-3-small", "EMBEDDING"): 2e-8,
+        }
+        async with db() as session:
+            embedding_model = await session.scalar(
+                select(models.GenerativeModel)
+                .where(models.GenerativeModel.type == "EMBEDDING")
+                .options(joinedload(models.GenerativeModel.token_prices))
+            )
+        assert embedding_model is not None
+        assert [(tp.token_type, tp.is_prompt) for tp in embedding_model.token_prices] == [
+            ("input", True)
+        ]
+
     async def test_upgrade_adds_decision_next_to_existing_llm(self, db: DbSessionFactory) -> None:
         # A database synced from a manifest without types gets a same-name decision model.
         await _ensure_enums(db)
