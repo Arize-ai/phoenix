@@ -8323,7 +8323,7 @@ class TestEvaluatorComparison:
         assert sum(map(sum, comparison["confusionMatrix"])) == 1
         assert data["evaluatorA"]["distribution"]["meanScore"] == pytest.approx(0.4)
 
-    async def test_same_evaluator_twice_is_rejected(
+    async def test_comparing_an_output_with_itself_is_rejected(
         self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
     ) -> None:
         message = await self._compare_expecting_error(

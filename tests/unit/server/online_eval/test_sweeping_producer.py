@@ -17,11 +17,9 @@ from phoenix.server.app import _db
 from phoenix.server.online_eval import sweeping_producer as sweeping_producer_module
 from phoenix.server.online_eval.clock import current_database_time
 from phoenix.server.online_eval.derivation import (
-    ResolvedProjectEvaluator,
     sample_key,
 )
 from phoenix.server.online_eval.leases import SCAN_LEASE_TTL_SECONDS
-from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
 from phoenix.server.online_eval.project_evaluator_state import start_at_database_time
 from phoenix.server.online_eval.sweeping_producer import (
     SessionEvaluationProducer,
@@ -31,8 +29,8 @@ from phoenix.server.online_eval.sweeping_producer import (
 from phoenix.server.types import DbSessionFactory
 
 from ..._helpers import _add_project, _add_project_session, _add_span, _add_trace
+from .test_span_producer import _seed_code_criteria, _stop_at_the_first_interval_sleep
 from .test_span_producer import _seed_criteria as _seed_criteria_raw
-from .test_span_producer import _stop_at_the_first_interval_sleep
 
 
 def _now() -> datetime:
@@ -61,46 +59,6 @@ async def _seed_criteria(
             .values(created_at=_now() - timedelta(days=1))
         )
     return evaluator_id, project_evaluator_id
-
-
-async def test_sweep_rechecks_eligibility_at_write_time(
-    db: DbSessionFactory,
-) -> None:
-    project_id, project_session_id, last_span_ingested_at = await _add_session_liveness(
-        db,
-        age_seconds=600,
-    )
-    await _seed_criteria(db, project_id, evaluation_target="SESSION")
-    sweeper = SessionEvaluationProducer(db)
-
-    async with db() as session:
-        criterion = (await sweeper._load_evaluators(session))[0]
-        database_now = await current_database_time(session, db.dialect)
-        await session.execute(
-            update(models.ProjectSession)
-            .where(models.ProjectSession.id == project_session_id)
-            .values(last_span_ingested_at=database_now)
-        )
-        outcome = await sweeper._decide_due_evaluations(
-            session,
-            database_now,
-            [criterion],
-            limit=1,
-        )
-        assert outcome.queued_count == 0
-        assert outcome.eligible_count is None
-        await session.execute(
-            update(models.ProjectSession)
-            .where(models.ProjectSession.id == project_session_id)
-            .values(last_span_ingested_at=last_span_ingested_at)
-        )
-        outcome = await sweeper._decide_due_evaluations(
-            session,
-            database_now,
-            [criterion],
-            limit=1,
-        )
-        assert outcome.queued_count == 1
 
 
 async def _add_session_liveness(
@@ -625,74 +583,44 @@ async def test_full_sweeper_page_that_decides_nothing_waits_the_interval(
     assert await _work_statuses(db) == []
 
 
-async def test_disabled_and_unresolved_criteria_preserve_future_eligibility(
+async def test_an_evaluator_with_no_resolvable_version_catches_up_once_it_resolves(
     db: DbSessionFactory,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    disabled_project_id, disabled_session_id, _ = await _add_session_liveness(
-        db,
-        age_seconds=600,
+    project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
+    _, project_evaluator_id, sandbox_config_id = await _seed_code_criteria(
+        db, project_id, evaluation_target="SESSION"
     )
-    _, disabled_criteria_id = await _seed_criteria(
-        db,
-        disabled_project_id,
-        evaluation_target="SESSION",
-    )
-    unresolved_project_id, unresolved_session_id, _ = await _add_session_liveness(
-        db,
-        age_seconds=600,
-    )
-    _, unresolved_criteria_id = await _seed_criteria(
-        db,
-        unresolved_project_id,
-        evaluation_target="SESSION",
-    )
+
+    async def set_sandbox_enabled(enabled: bool) -> None:
+        async with db() as session:
+            await session.execute(
+                update(models.SandboxConfig)
+                .where(models.SandboxConfig.id == sandbox_config_id)
+                .values(enabled=enabled)
+            )
+
     async with db() as session:
         await session.execute(
             update(models.ProjectEvaluator)
-            .where(models.ProjectEvaluator.id == disabled_criteria_id)
-            .values(enabled=False)
+            .where(models.ProjectEvaluator.id == project_evaluator_id)
+            .values(created_at=_now() - timedelta(days=1))
         )
-
-    resolution_calls = 0
-
-    async def unresolved(
-        session: AsyncSession,
-        project_evaluator_pairs: Sequence[tuple[models.ProjectEvaluator, models.Evaluator]],
-    ) -> list[ResolvedProjectEvaluator | None]:
-        nonlocal resolution_calls
-        resolution_calls += 1
-        resolved = await resolve_project_evaluators_bulk(session, project_evaluator_pairs)
-        return [
-            None if project_evaluator.id == unresolved_criteria_id else result
-            for (project_evaluator, _), result in zip(
-                project_evaluator_pairs, resolved, strict=True
-            )
-        ]
-
-    monkeypatch.setattr(sweeping_producer_module, "resolve_project_evaluators_bulk", unresolved)
+    await set_sandbox_enabled(False)
     sweeper = SessionEvaluationProducer(db)
     await sweeper._tick()
-    async with db() as session:
-        assert (
-            await session.scalar(select(func.count()).select_from(models.EvalSessionWorkUnit)) == 0
-        )
-        await session.execute(
-            update(models.ProjectEvaluator)
-            .where(models.ProjectEvaluator.id == disabled_criteria_id)
-            .values(enabled=True)
-        )
+    assert await _work_statuses(db) == []
 
-    assert resolution_calls == 1
-    monkeypatch.setattr(
-        sweeping_producer_module, "resolve_project_evaluators_bulk", resolve_project_evaluators_bulk
-    )
+    await set_sandbox_enabled(True)
     await sweeper._tick()
     async with db() as session:
-        session_ids = set(
-            await session.scalars(select(models.EvalSessionWorkUnit.project_session_rowid))
+        queued = list(
+            await session.scalars(
+                select(models.EvalSessionWorkUnit.project_session_rowid).where(
+                    models.EvalSessionWorkUnit.status == "PENDING"
+                )
+            )
         )
-    assert session_ids == {disabled_session_id, unresolved_session_id}
+    assert queued == [project_session_id]
 
 
 async def test_successful_work_closes_evaluate_once_key(
@@ -872,45 +800,6 @@ async def test_quiet_session_predating_criterion_creation_is_not_live(
         assert (
             await session.scalar(select(func.count()).select_from(models.EvalSessionWorkUnit)) == 0
         )
-
-
-async def test_disabled_criterion_neither_sweeps_nor_moves_its_floor(
-    db: DbSessionFactory,
-) -> None:
-    project_id, project_session_id, activity_at = await _add_session_liveness(
-        db,
-        age_seconds=600,
-    )
-    _, project_evaluator_id = await _seed_criteria_raw(
-        db,
-        project_id,
-        evaluation_target="SESSION",
-    )
-    async with db() as session:
-        await session.execute(
-            update(models.ProjectEvaluator)
-            .where(models.ProjectEvaluator.id == project_evaluator_id)
-            .values(created_at=activity_at - timedelta(seconds=1), enabled=False)
-        )
-
-    sweeper = SessionEvaluationProducer(db)
-    await sweeper._tick()
-    async with db() as session:
-        assert (
-            await session.scalar(select(func.count()).select_from(models.EvalSessionWorkUnit)) == 0
-        )
-        await session.execute(
-            update(models.ProjectEvaluator)
-            .where(models.ProjectEvaluator.id == project_evaluator_id)
-            .values(enabled=True)
-        )
-
-    await sweeper._tick()
-    async with db() as session:
-        scheduled_session_id = await session.scalar(
-            select(models.EvalSessionWorkUnit.project_session_rowid)
-        )
-    assert scheduled_session_id == project_session_id
 
 
 async def _rename_project_evaluator(

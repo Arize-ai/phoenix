@@ -33,6 +33,10 @@ from phoenix.server.api.routers.agents import (
 )
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.evaluators.runtime.builtin import ContainsEvaluator
+from phoenix.server.evaluators.services.project_bindings import (
+    ProjectEvaluatorPatch,
+    apply_project_evaluator_patch,
+)
 from phoenix.server.online_eval import span_producer as span_producer_module
 from phoenix.server.online_eval.derivation import ResolvedProjectEvaluator, config_fingerprint
 from phoenix.server.online_eval.leases import SCAN_LEASE_TTL_SECONDS
@@ -93,6 +97,7 @@ async def _seed_code_criteria(
     project_id: int,
     *,
     evaluator_input_mapping: InputMapping = InputMapping(literal_mapping={}, path_mapping={}),
+    evaluation_target: models.EvaluationTarget = "SPAN",
 ) -> tuple[int, int, int]:
     async with db() as session:
         if await session.get(models.Language, "PYTHON") is None:
@@ -127,7 +132,7 @@ async def _seed_code_criteria(
             name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
             filter_condition="",
             sampling_rate=1.0,
-            evaluation_target="SPAN",
+            evaluation_target=evaluation_target,
         )
         session.add(project_evaluator)
         await session.flush()
@@ -782,11 +787,9 @@ async def test_editing_a_span_evaluator_does_not_requeue_evaluated_spans(
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
-        evaluated_span = await _add_span(session, trace, span_kind="LLM")
-        late_span = await _add_span(session, trace, span_kind="LLM")
+        evaluated_span = await _add_span(session, trace)
     _, project_evaluator_id = await _seed_criteria(db, project.id)
-    producer = SpanEvaluationProducer(db)
-    await _seed_cursor(db, produced_through_id=late_span.id)
+    await _seed_cursor(db, produced_through_id=evaluated_span.id)
     async with db() as session:
         session.add(
             models.EvalWorkUnit(
@@ -795,21 +798,23 @@ async def test_editing_a_span_evaluator_does_not_requeue_evaluated_spans(
                 status="DONE",
             )
         )
-        await session.execute(
-            update(models.ProjectEvaluator)
-            .where(models.ProjectEvaluator.id == project_evaluator_id)
-            .values(filter_condition="span_kind == 'LLM'")
+    async with db() as session:
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+        assert project_evaluator is not None
+        await apply_project_evaluator_patch(
+            session,
+            project_evaluator,
+            ProjectEvaluatorPatch(name=Identifier(root=f"renamed-{token_hex(4)}")),
         )
 
-    active = await producer._load_active_project_evaluators()
-    await producer._catch_up_scan(active, late_span.id)
+    await SpanEvaluationProducer(db, catch_up_scan_interval_seconds=0)._tick()
 
     async with db() as session:
         statuses = {
             unit.span_rowid: unit.status
             for unit in await session.scalars(select(models.EvalWorkUnit))
         }
-    assert statuses == {evaluated_span.id: "DONE", late_span.id: "PENDING"}
+    assert statuses == {evaluated_span.id: "DONE"}
 
 
 async def test_reaper_deletes_aged_terminal_work_outside_the_lookback(

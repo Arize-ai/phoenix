@@ -245,35 +245,31 @@ async def test_oldest_wait_is_the_earliest_queued_not_the_lowest_id(
     assert queue.status == "DEGRADED"
 
 
-_WAITING_BRIEFLY = ProjectEvaluatorQueue(
-    queued_count=1, oldest_waiting_or_retrying_at=datetime.now(timezone.utc)
-)
-_WAITING_LONG = ProjectEvaluatorQueue(
-    queued_count=1,
-    oldest_waiting_or_retrying_at=datetime.now(timezone.utc) - timedelta(hours=1),
-)
-
-
 @pytest.mark.parametrize(
-    ("enabled", "evaluated_ago", "failed_ago", "queued", "expected"),
+    ("enabled", "evaluated_ago", "failed_ago", "waited", "expected"),
     [
-        (False, timedelta(seconds=5), timedelta(seconds=1), _WAITING_LONG, "DISABLED"),
-        (True, timedelta(minutes=5), timedelta(seconds=1), _WAITING_LONG, "ERROR"),
+        (False, timedelta(seconds=5), timedelta(seconds=1), timedelta(hours=1), "DISABLED"),
+        (True, timedelta(minutes=5), timedelta(seconds=1), timedelta(hours=1), "ERROR"),
         # Its own oldest queued evaluation, a retry, has waited an hour.
-        (True, timedelta(seconds=5), None, _WAITING_LONG, "DEGRADED"),
-        (True, timedelta(seconds=5), timedelta(minutes=5), _WAITING_BRIEFLY, "HEALTHY"),
-        (True, None, None, _WAITING_BRIEFLY, "STARTING"),
-        (True, None, None, ProjectEvaluatorQueue(), "NEVER_RUN"),
+        (True, timedelta(seconds=5), None, timedelta(hours=1), "DEGRADED"),
+        (True, timedelta(seconds=5), timedelta(minutes=5), timedelta(0), "HEALTHY"),
+        (True, None, None, timedelta(0), "STARTING"),
+        (True, None, None, None, "NEVER_RUN"),
     ],
 )
 def test_project_evaluator_run_status_precedence(
     enabled: bool,
     evaluated_ago: Optional[timedelta],
     failed_ago: Optional[timedelta],
-    queued: ProjectEvaluatorQueue,
+    waited: Optional[timedelta],
     expected: ProjectEvaluatorRunStatus,
 ) -> None:
     now = datetime.now(timezone.utc)
+    queued = (
+        ProjectEvaluatorQueue()
+        if waited is None
+        else ProjectEvaluatorQueue(queued_count=1, oldest_waiting_or_retrying_at=now - waited)
+    )
     status = project_evaluator_run_status(
         enabled=enabled,
         last_evaluated_at=None if evaluated_ago is None else now - evaluated_ago,

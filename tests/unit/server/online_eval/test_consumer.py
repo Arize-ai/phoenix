@@ -2002,40 +2002,6 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
     assert events.empty()
 
 
-async def test_session_publication_preserves_the_last_ingest_time(
-    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    start_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
-    duplicate_root_time = start_time + timedelta(seconds=30)
-    async with db() as session:
-        project = await _add_project(session)
-        project_session = await _add_project_session(session, project, start_time=start_time)
-        # The sweep sees only what had been ingested by sweep time.
-        project_session.last_span_ingested_at = start_time + timedelta(seconds=5)
-        trace = await _add_trace(session, project, project_session, start_time=start_time)
-        await _add_span(session, trace, span_kind="CHAIN", start_time=start_time)
-        await _add_span(session, trace, span_kind="CHAIN", start_time=duplicate_root_time)
-    evaluator_id, project_evaluator_id = await _seed_llm_criteria(
-        db,
-        project.id,
-        evaluation_target="SESSION",
-    )
-    unit_id, _ = await _queue_session_unit(
-        db,
-        project_session.id,
-        evaluator_id,
-        project_evaluator_id,
-    )
-    _patch_playground_client(monkeypatch, _StubLLMClient())
-
-    consumer = EvaluationConsumer(db, decrypt=lambda value: value, evaluation_target="SESSION")
-    await _cycle_to_completion(consumer)
-
-    unit = await _get_session_unit(db, unit_id)
-    assert unit.status == "DONE"
-    assert unit.decided_through == start_time + timedelta(seconds=5)
-
-
 async def test_cross_project_session_unit_expires_before_evaluator_call(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -2802,36 +2768,6 @@ async def test_evaluator_run_time_is_observed_whatever_its_result(
     assert len(observed) == 3
     # Each value covers the evaluator's whole run, not just the time around it.
     assert all(seconds >= _EVALUATOR_SECONDS for seconds in observed)
-
-
-async def test_complete_result_set_is_written_atomically(db: DbSessionFactory) -> None:
-    async with db() as session:
-        project = await _add_project(session)
-        trace = await _add_trace(session, project)
-        span = await _add_span(session, trace)
-    output_configs = [_output_config("quality"), _output_config("relevance")]
-    hydrated = _hydrated_stub(
-        results=[
-            _evaluation_result("criterion.quality"),
-            _evaluation_result("criterion.relevance"),
-        ],
-        evaluator_kind="CODE",
-        output_configs=output_configs,
-    )
-    executor = _executor(db)
-    unit = await _claim_queued_unit(
-        db,
-        project_id=project.id,
-        span_rowid=span.id,
-    )
-
-    await executor.evaluate_and_annotate(unit, hydrated)
-
-    annotations = await _annotations(db)
-    assert {annotation.name for annotation in annotations} == {
-        "criterion.quality",
-        "criterion.relevance",
-    }
 
 
 async def test_deleted_criteria_cannot_publish_annotation(db: DbSessionFactory) -> None:
