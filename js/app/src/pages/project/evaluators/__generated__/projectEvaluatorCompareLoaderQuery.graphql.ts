@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bca57cc06eb204261c89f340204852f5>>
+ * @generated SignedSource<<ea4931f5e8b7b08d9a212224accfe80c>>
  * @lightSyntaxTransform
  */
 
@@ -233,7 +233,14 @@ v16 = {
   "name": "upperBound",
   "storageKey": null
 },
-v17 = [
+v17 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "threshold",
+  "storageKey": null
+},
+v18 = [
   (v4/*:: as any*/),
   (v5/*:: as any*/),
   {
@@ -297,7 +304,8 @@ v17 = [
                 "selections": [
                   (v14/*:: as any*/),
                   (v15/*:: as any*/),
-                  (v16/*:: as any*/)
+                  (v16/*:: as any*/),
+                  (v17/*:: as any*/)
                 ],
                 "type": "ContinuousAnnotationConfig",
                 "abstractKey": null
@@ -306,13 +314,7 @@ v17 = [
                 "kind": "InlineFragment",
                 "selections": [
                   (v14/*:: as any*/),
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "threshold",
-                    "storageKey": null
-                  },
+                  (v17/*:: as any*/),
                   (v15/*:: as any*/),
                   (v16/*:: as any*/)
                 ],
@@ -431,7 +433,7 @@ return {
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
-        "selections": (v17/*:: as any*/),
+        "selections": (v18/*:: as any*/),
         "storageKey": null
       },
       {
@@ -441,18 +443,18 @@ return {
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
-        "selections": (v17/*:: as any*/),
+        "selections": (v18/*:: as any*/),
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "e6ad3982757d5196f0c061c50c3db9f5",
+    "cacheID": "8152484c61580382ac5ae49b9ba8316f",
     "id": null,
     "metadata": {},
     "name": "projectEvaluatorCompareLoaderQuery",
     "operationKind": "query",
-    "text": "query projectEvaluatorCompareLoaderQuery(\n  $projectId: ID!\n  $evaluatorAId: ID!\n  $evaluatorBId: ID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluators(first: 100) {\n        edges {\n          evaluator: node {\n            id\n            name\n            evaluationTarget\n          }\n        }\n      }\n    }\n    id\n  }\n  evaluatorA: node(id: $evaluatorAId) {\n    __typename\n    ... on ProjectEvaluator {\n      id\n      name\n      evaluationTarget\n      ...ProjectEvaluatorCompareContent_evaluator\n      project {\n        id\n      }\n    }\n    id\n  }\n  evaluatorB: node(id: $evaluatorBId) {\n    __typename\n    ... on ProjectEvaluator {\n      id\n      name\n      evaluationTarget\n      ...ProjectEvaluatorCompareContent_evaluator\n      project {\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorCompareContent_evaluator on ProjectEvaluator {\n  id\n  name\n  ...ProjectEvaluatorCompareStats_evaluator\n  ...ProjectEvaluatorCompareMatrix_evaluator\n  ...ProjectEvaluatorCompareTargets_evaluator\n  ...ProjectEvaluatorCompareTimeSeries_evaluator\n}\n\nfragment ProjectEvaluatorCompareMatrix_evaluator on ProjectEvaluator {\n  name\n  evaluator {\n    __typename\n    outputConfigs {\n      __typename\n      ... on CategoricalAnnotationConfig {\n        optimizationDirection\n      }\n      ... on ContinuousAnnotationConfig {\n        optimizationDirection\n      }\n      ... on FreeformAnnotationConfig {\n        optimizationDirection\n      }\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorCompareStats_evaluator on ProjectEvaluator {\n  name\n  evaluator {\n    __typename\n    outputConfigs {\n      __typename\n      ... on CategoricalAnnotationConfig {\n        optimizationDirection\n      }\n      ... on ContinuousAnnotationConfig {\n        optimizationDirection\n      }\n      ... on FreeformAnnotationConfig {\n        optimizationDirection\n      }\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorCompareTargets_evaluator on ProjectEvaluator {\n  evaluator {\n    __typename\n    outputConfigs {\n      __typename\n      ... on CategoricalAnnotationConfig {\n        optimizationDirection\n      }\n      ... on ContinuousAnnotationConfig {\n        optimizationDirection\n      }\n      ... on FreeformAnnotationConfig {\n        optimizationDirection\n      }\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorCompareTimeSeries_evaluator on ProjectEvaluator {\n  name\n  evaluator {\n    __typename\n    outputConfigs {\n      __typename\n      ... on AnnotationConfigBase {\n        __isAnnotationConfigBase: __typename\n        annotationType\n      }\n      ... on CategoricalAnnotationConfig {\n        optimizationDirection\n        values {\n          label\n          score\n        }\n      }\n      ... on ContinuousAnnotationConfig {\n        optimizationDirection\n        lowerBound\n        upperBound\n      }\n      ... on FreeformAnnotationConfig {\n        optimizationDirection\n        threshold\n        lowerBound\n        upperBound\n      }\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query projectEvaluatorCompareLoaderQuery(\n  $projectId: ID!\n  $evaluatorAId: ID!\n  $evaluatorBId: ID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluators(first: 100) {\n        edges {\n          evaluator: node {\n            id\n            name\n            evaluationTarget\n          }\n        }\n      }\n    }\n    id\n  }\n  evaluatorA: node(id: $evaluatorAId) {\n    __typename\n    ... on ProjectEvaluator {\n      id\n      name\n      evaluationTarget\n      ...ProjectEvaluatorCompareContent_evaluator\n      project {\n        id\n      }\n    }\n    id\n  }\n  evaluatorB: node(id: $evaluatorBId) {\n    __typename\n    ... on ProjectEvaluator {\n      id\n      name\n      evaluationTarget\n      ...ProjectEvaluatorCompareContent_evaluator\n      project {\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorCompareContent_evaluator on ProjectEvaluator {\n  id\n  name\n  ...ProjectEvaluatorCompareStats_evaluator\n  ...ProjectEvaluatorCompareMatrix_evaluator\n  ...ProjectEvaluatorCompareTargets_evaluator\n  ...ProjectEvaluatorCompareTimeSeries_evaluator\n}\n\nfragment ProjectEvaluatorCompareMatrix_evaluator on ProjectEvaluator {\n  name\n  evaluator {\n    __typename\n    outputConfigs {\n      __typename\n      ... on CategoricalAnnotationConfig {\n        optimizationDirection\n      }\n      ... on ContinuousAnnotationConfig {\n        optimizationDirection\n      }\n      ... on FreeformAnnotationConfig {\n        optimizationDirection\n      }\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorCompareStats_evaluator on ProjectEvaluator {\n  name\n  evaluator {\n    __typename\n    outputConfigs {\n      __typename\n      ... on CategoricalAnnotationConfig {\n        optimizationDirection\n      }\n      ... on ContinuousAnnotationConfig {\n        optimizationDirection\n      }\n      ... on FreeformAnnotationConfig {\n        optimizationDirection\n      }\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorCompareTargets_evaluator on ProjectEvaluator {\n  evaluator {\n    __typename\n    outputConfigs {\n      __typename\n      ... on CategoricalAnnotationConfig {\n        optimizationDirection\n      }\n      ... on ContinuousAnnotationConfig {\n        optimizationDirection\n      }\n      ... on FreeformAnnotationConfig {\n        optimizationDirection\n      }\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorCompareTimeSeries_evaluator on ProjectEvaluator {\n  name\n  evaluator {\n    __typename\n    outputConfigs {\n      __typename\n      ... on AnnotationConfigBase {\n        __isAnnotationConfigBase: __typename\n        annotationType\n      }\n      ... on CategoricalAnnotationConfig {\n        optimizationDirection\n        values {\n          label\n          score\n        }\n      }\n      ... on ContinuousAnnotationConfig {\n        optimizationDirection\n        lowerBound\n        upperBound\n        threshold\n      }\n      ... on FreeformAnnotationConfig {\n        optimizationDirection\n        threshold\n        lowerBound\n        upperBound\n      }\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();

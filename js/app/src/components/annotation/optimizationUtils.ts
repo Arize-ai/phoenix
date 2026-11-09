@@ -70,7 +70,8 @@ function normalizeOptimizationDirection(
 
 /**
  * Gets the optimization bounds from an annotation config.
- * For continuous configs, uses the lower/upper bounds directly.
+ * For continuous configs, uses the lower/upper bounds directly, and the threshold
+ * a decision evaluator's Yes / No output carries.
  * For categorical configs, calculates bounds from the min/max scores of the values.
  * For freeform configs, returns an optional threshold that overrides the midpoint computation.
  */
@@ -110,7 +111,9 @@ export function getOptimizationBounds(
     return {
       lowerBound: config.lowerBound ?? undefined,
       upperBound: config.upperBound ?? undefined,
-      threshold: undefined,
+      // Only a decision evaluator's Yes / No output carries one: its
+      // threshold, where its label flips, rather than the bounds' midpoint.
+      threshold: config.threshold ?? undefined,
       optimizationDirection,
     };
   }

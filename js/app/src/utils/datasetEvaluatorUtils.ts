@@ -58,6 +58,8 @@ function outputConfigToAnnotationConfig(
         optimizationDirection,
         lowerBound: outputConfig.lowerBound,
         upperBound: outputConfig.upperBound,
+        // A decision's Yes / No output pivots on its threshold.
+        threshold: outputConfig.threshold ?? null,
         annotationType: "CONTINUOUS",
       };
     case "FreeformAnnotationConfig":

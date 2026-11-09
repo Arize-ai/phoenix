@@ -122,6 +122,13 @@ export function OutputConfigBlock({
             label="Upper bound"
             value={formatBound(config.upperBound)}
           />
+          {/* Only a decision's Yes / No output has one: where good turns bad. */}
+          {config.threshold != null && (
+            <AnnotationCell
+              label="Threshold"
+              value={String(config.threshold)}
+            />
+          )}
         </>
       )}
       {type === "freeform" && (

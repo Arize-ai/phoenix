@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<01cd05664436b2941a36323b040657f0>>
+ * @generated SignedSource<<5f49c698636ae1eac4faa152c31af6b3>>
  * @lightSyntaxTransform
  */
 
@@ -27,6 +27,7 @@ export type AnnotationConfigurationCard_projectEvaluator$data = {
       readonly lowerBound: number | null;
       readonly name: string;
       readonly optimizationDirection: OptimizationDirection;
+      readonly threshold: number | null;
       readonly upperBound: number | null;
     } | {
       readonly __typename: "FreeformAnnotationConfig";
@@ -80,6 +81,13 @@ v2 = {
   "args": null,
   "kind": "ScalarField",
   "name": "optimizationDirection",
+  "storageKey": null
+},
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "threshold",
   "storageKey": null
 };
 return {
@@ -164,7 +172,8 @@ return {
                   "kind": "ScalarField",
                   "name": "upperBound",
                   "storageKey": null
-                }
+                },
+                (v3/*:: as any*/)
               ],
               "type": "ContinuousAnnotationConfig",
               "abstractKey": null
@@ -174,13 +183,7 @@ return {
               "selections": [
                 (v1/*:: as any*/),
                 (v2/*:: as any*/),
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "threshold",
-                  "storageKey": null
-                }
+                (v3/*:: as any*/)
               ],
               "type": "FreeformAnnotationConfig",
               "abstractKey": null
@@ -263,6 +266,6 @@ return {
 };
 })();
 
-(node as any).hash = "70f512adaea5f4891477ce43f47e5346";
+(node as any).hash = "fbd2921b8a1fdade0683718477ffd6da";
 
 export default node;
