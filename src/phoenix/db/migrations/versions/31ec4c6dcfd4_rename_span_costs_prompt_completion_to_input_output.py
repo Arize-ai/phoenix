@@ -8,8 +8,9 @@ Create Date: 2026-11-03 12:00:00.000000
 EMBEDDING spans also have costs, so the columns get kind-neutral names: `prompt_*` becomes
 `input_*` and `completion_*` becomes `output_*`. The `total_*` columns are unchanged.
 
-`op.alter_column` with `new_column_name`, outside a batch, emits `ALTER TABLE ... RENAME COLUMN`
-on both PostgreSQL and SQLite, so `span_costs` is not copied. No index or constraint names
+`op.alter_column` with `new_column_name`, outside a batch, emits an in-place rename on both
+dialects (`ALTER TABLE ... RENAME <old> TO <new>` on PostgreSQL, `RENAME COLUMN` on SQLite), so
+`span_costs` is not copied. No index or constraint names
 include these columns.
 """
 

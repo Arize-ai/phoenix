@@ -182,13 +182,6 @@ def _span_cost_binding(member: str) -> str:
 
 # Cost scalars are bound from `span_costs` at evaluation time and are intentionally absent
 # from `_FLOAT_NAMES`, whose columns are also available to `Projector`. Missing values are 0.
-_SPAN_COST_SCALARS: typing.Mapping[str, "FilterValueType"] = MappingProxyType(
-    {
-        "total_cost": "number",
-        "prompt_cost": "number",
-        "completion_cost": "number",
-    }
-)
 # The filter names predate the generic column names, so each is mapped to its column.
 _SPAN_COST_COLUMNS: typing.Mapping[str, str] = MappingProxyType(
     {
@@ -196,6 +189,10 @@ _SPAN_COST_COLUMNS: typing.Mapping[str, str] = MappingProxyType(
         "prompt_cost": "input_cost",
         "completion_cost": "output_cost",
     }
+)
+# Derived from `_SPAN_COST_COLUMNS` so the two can't drift apart. Every cost scalar is a number.
+_SPAN_COST_SCALARS: typing.Mapping[str, "FilterValueType"] = MappingProxyType(
+    {name: "number" for name in _SPAN_COST_COLUMNS}
 )
 _SPAN_COST_DETAILS = "cost_details"
 # Detail fields remain nullable; a missing element value fails every comparison.
