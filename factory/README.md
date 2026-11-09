@@ -107,6 +107,7 @@ Each part does one job, so it can be changed and tested on its own:
 | `dispatch.py watch` | Sends failing required checks, then Claude Code Review findings, back to the session for up to 3 rounds. Marks the PR ready once CI passes, labels it `factory-preview` for the bug and feature lanes (creating the label on first use), and reports the run outcome on the issue, naming whoever the run answers to so they are notified |
 | `factory-preview.yml` | Runs when a PR gains the `factory-preview` label, which `dispatch.py watch` adds to a bug or feature lane's PR as it leaves draft, and on every push while it stays on. Lays the PR's source over the published image of the `main` commit its dependencies match, with the seed script from the PR body, pushes `ghcr.io/arize-ai/phoenix-preview:pr-N`, and deploys it as the `pr-N` service in the `phoenix-pr-previews` Railway project. A push cancels the build in progress. See [Previewing a PR](#previewing-a-pr) |
 | `factory-preview-sweep.yml` | Hourly, deletes the Railway service and image tags of every preview whose PR is closed or no longer labeled `factory-preview`, and says so on the preview comment |
+| Admission gate | `security_scan.py`, `security_rules.yml` and `security_scan_agent.py`: frozen inputs, static evidence, restricted-agent verdict and trusted decision cache |
 | `factory-review.yml` | Runs when a maintainer labels a PR `factory-review` or dispatches it by number. `review.py` checks that the PR is open and the requester has write access, starts a `pr-reviewer` session pinned to the head commit, then edits its status comment on the PR into the review's verdict and labels it `factory-approved`, `factory-request-changes` or `factory-close`, or says why there is no verdict. See [Reviewing a PR](#reviewing-a-pr) |
 | `pr-reviewer` | Verifies the repository is mounted at the admitted SHA before bootstrap, runs the format, lint, typecheck and test targets for the touched areas, judges each added test, sends the diff to the area reviewers, verifies their findings, and submits one `COMMENT` review with inline findings and a summary that recommends approve, request changes or close |
 | `factory-finish.yml` | Runs when a maintainer labels a PR `factory-finish` or dispatches it by number. `finish.py` checks that the requester has write access, the PR is open and, for a fork PR, its CLA is signed, copies a fork PR to a `factory/pr-N` branch here and closes the original, starts a `pr-finisher` session on the PR's branch, then follows it the way `dispatch.py` does. See [Finishing a PR](#finishing-a-pr) |
@@ -118,6 +119,18 @@ Each part does one job, so it can be changed and tested on its own:
 | `factory-cla-check.yml` | Hourly, reads every open, non-draft PR at least an hour old. One whose CLA Assistant comment says the CLA is unsigned gets the `cla-unsigned` label and one reminder, and is closed if still unsigned a day after the reminder; a signed one loses the label. See [CLA check](#cla-check) |
 
 ### Trust boundaries
+
+Before admitting an issue, review or finish run, the runner scans its issue/PR title, body and all comments (including PR review bodies and inline comments). Review and finish also scan the exact admitted diff against its merge base. Git fetch and archive only move bytes; the runner never checks out, installs, imports or executes contributor code. It extracts regular changed files only, rejecting links and special entries. Trusted Python entrypoints run with `-I`.
+
+`security_scan.py` runs local Semgrep 1.144.0 (with Pydantic 2.11.9 for its MCP dependency) with `security_rules.yml`, inline suppressions disabled and metrics/version checks off. Plain checks inspect hidden Markdown/HTML, invisible Unicode, reviewer instructions, credential access, execution hooks, encoded/binary content, manifests and registries. These static signals are supplied to the security agent for context: an ordinary fixture, install hook, product prompt, quoted attack example or HTML comment does not alone prove an attack. Credential **values** are not scanned.
+
+A separate `admission-scanner` Managed Agents session reads the frozen JSON bundle with only `read`, `glob` and `grep`. Runtime overrides remove MCP servers and skills and disable all other tools. It gets a dedicated environment, no repository mount, no vaults and no credentials. Its binary `pass`/`fail` and evidence-based reason are enforced before any work session or fork copy. There is no report mode, confidence score or waiver. API failures, malformed/missing verdicts, incomplete static scans and size limits refuse admission as scanner failures rather than accusing the contributor.
+
+The runner hashes canonical JSON, code identities, scanner policy and the resource lock. Actions caches decisions on the trusted base branch; contributor code cannot write that cache. The working agent receives the same thread JSON that was scanned, including when a fork is copied. New/edited/deleted comments change the hash. This is a **pre-admission** screen: working agents retain normal tools, so later comments, linked threads and fetched pages are not guaranteed to be screened. Their prompts treat those as untrusted evidence, not instructions. The existing in-session security reviewer remains a separate product/security review.
+
+Limits: 100 changed files; 256 KiB diff; 1 MiB per changed file; 32 MiB archive; 8 KiB surrounding context per file; 512 KiB combined JSON. The complete diff is included; context windows are marked when truncated. The security session has a five-minute deadline and a $1 list-cost budget (in-flight usage can exceed the cap). The step summary records the input hash, static findings, verdict, reason and session cost. Cache hits reuse the verdict without a new model session. A rejected input or technical failure leaves the existing skipped-run comment; details are escaped in the workflow summary.
+
+Factory Sync creates `agents/admission-scanner.md` and `environments/security-scan.yaml` after merge. Until those IDs appear in `factory-state`'s lock, admission fails closed; run Factory Sync if that apply fails.
 
 Review and finish runs capture the label event's head SHA (manual dispatch selects the current head). If it changed before admission, reapply the label. Fork copies push that exact commit and sessions mount it with a commit checkout. A missing checkout stops work; agents never fall back to a newer contributor head. Finishing commits build on that SHA and use ordinary pushes, which cannot overwrite a divergent branch.
 
@@ -149,7 +162,7 @@ Claude Code Review runs on the `pull_request` event, which carries no secrets fo
 ### The maintainer's loop
 
 1. **Ask for a review.** Add the `factory-review` label to an open PR, or run **Factory Review** from the Actions tab with the PR's number. You need write access; a request from anyone else gets a comment saying why it was skipped.
-2. **Wait for the report.** The factory posts one status comment that says it is reviewing, with a link to the session. A review takes up to 100 minutes, and `factory-review` stays on the PR while it runs.
+2. **Wait for the report.** Admission first scans the pinned code and discussion. A rejected or unavailable scan leaves a skipped-run comment with details in the workflow summary; it starts no review session. After admission, the factory posts one status comment that says it is reviewing, with a link to the session. A review takes up to 100 minutes, and `factory-review` stays on the PR while it runs.
 3. **Read the result.** When the session ends, the PR has one `COMMENT` review with inline findings and a summary scorecard, and one verdict label. The status comment changes to name the verdict and the commit it is for, and links the review. `factory-review` comes off.
 4. **Act on the verdict label.** The label is a recommendation. You make the decision, at the depth the review's Depth column says:
 
@@ -236,7 +249,7 @@ A closed pull request that is reopened without a signature is closed again on th
 
 ## Finishing a PR
 
-A review tells a maintainer what a pull request needs. The finish lane does it. A maintainer labels an open PR `factory-finish`, or runs **Factory Finish** from the Actions tab with its number, and the factory takes the PR the rest of the way: a linked issue, every review finding fixed in the project's style, CI green, with one comment to the author saying what changed and why. The PR may be a draft. The requester needs write access, and a fork PR's CLA must be signed per the CLA Assistant's check on the head commit, falling back to its comment when the check is missing; otherwise the factory comments why it skipped and removes the label.
+A review tells a maintainer what a pull request needs. The finish lane does it. A maintainer labels an open PR `factory-finish`, or runs **Factory Finish** from the Actions tab with its number, and the factory takes the PR the rest of the way: a linked issue, every review finding fixed in the project's style, CI green, with one comment to the author saying what changed and why. Before copying or starting a finisher, the admission gate scans the selected commit and discussion. A rejected or unavailable scan leaves a skipped-run comment; no fork copy or work session is created. The PR may be a draft. The requester needs write access, and a fork PR's CLA must be signed per the CLA Assistant's check on the head commit, falling back to its comment when the check is missing; otherwise the factory comments why it skipped and removes the label.
 
 ```mermaid
 sequenceDiagram
@@ -287,6 +300,8 @@ Every report on the issue names how the run ended. Only `success` asks for a hum
 | `manual` | A boundary drawn on purpose: `NEEDS_DECISION`, not reproduced, or a closed PR | Decide whether the factory should handle it next time |
 
 ## Layout
+
+Admission: `security_scan.py` collects and hashes input and runs static checks; `security_rules.yml` is trusted Semgrep policy; `security_scan_agent.py` runs the restricted `agents/admission-scanner.md` in `environments/security-scan.yaml`. `run.py` launches the three entrypoints in Python isolated mode.
 
 ```
 agents/          one file per agent: frontmatter = config, body = system prompt; the triage agents' procedure is in .agents/skills/

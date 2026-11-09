@@ -66,9 +66,18 @@ jobs:
           git fetch --quiet --depth=1 origin factory-state
           git show FETCH_HEAD:claude-lock.json > factory/claude-lock.json
 
+      - name: Cache admission decisions
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          path: ${{ runner.temp }}/factory-admission-cache
+          key: ${{ runner.os }}-factory-admission-v1-${{ hashFiles('factory/security*', 'factory/agents/admission-scanner.md', 'factory/environments/security-scan.yaml', 'factory/claude-lock.json') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            ${{ runner.os }}-factory-admission-v1-${{ hashFiles('factory/security*', 'factory/agents/admission-scanner.md', 'factory/environments/security-scan.yaml', 'factory/claude-lock.json') }}-
+
       - name: Start session
         id: start
         env:
+          FACTORY_SCAN_CACHE_DIR: ${{ runner.temp }}/factory-admission-cache
           ANTHROPIC_API_KEY: ${{ secrets.FACTORY_ANTHROPIC_API_KEY }}
           # The factory's GitHub App. dispatch.py mints installation tokens limited to this repo
           # with Contents, Issues and Pull requests write, mounts them in the session and keeps
@@ -81,7 +90,7 @@ jobs:
         run: |
           LANE_ARGS=()
           if [ -n "$LANE" ] && [ "$LANE" != auto ]; then LANE_ARGS=(--lane "$LANE"); fi
-          uv run --script factory/dispatch.py --repo "$GH_REPO" --issue "$ISSUE_NUMBER" start --requested-by "$REQUESTED_BY" "${LANE_ARGS[@]}"
+          uv run --script factory/run.py dispatch --repo "$GH_REPO" --issue "$ISSUE_NUMBER" start --requested-by "$REQUESTED_BY" "${LANE_ARGS[@]}"
 
       - name: Watch session
         if: steps.start.outputs.started == 'true'
@@ -97,7 +106,7 @@ jobs:
           REQUESTED_BY: ${{ steps.start.outputs.requested_by }}
           SESSION_ID: ${{ steps.start.outputs.session_id }}
           STATUS_COMMENT_ID: ${{ steps.start.outputs.status_comment_id }}
-        run: uv run --script factory/dispatch.py --repo "$GH_REPO" --issue "$ISSUE_NUMBER" watch --session-id "$SESSION_ID" --lane "$LANE" --requested-by "$REQUESTED_BY" --status-comment-id "$STATUS_COMMENT_ID"
+        run: uv run --script factory/run.py dispatch --repo "$GH_REPO" --issue "$ISSUE_NUMBER" watch --session-id "$SESSION_ID" --lane "$LANE" --requested-by "$REQUESTED_BY" --status-comment-id "$STATUS_COMMENT_ID"
 
       # The watch step reports its own failures on the issue. This report uses GITHUB_TOKEN, so
       # it still lands when the failure is the app's credentials.

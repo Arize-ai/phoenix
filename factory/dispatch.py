@@ -28,6 +28,8 @@ from typing import Any, Callable, Optional
 import anthropic
 from github_app import GitHubAppToken
 from pr_input import stop_on_checkout_error
+from security_scan import canonical_json
+from security_scan import find_admission_problem as scan_admission
 
 FACTORY_DIR = Path(__file__).resolve().parent
 LOCK_FILE_PATH = FACTORY_DIR / "claude-lock.json"
@@ -332,6 +334,7 @@ def start_session(
     repo: str,
     issue_number: int,
     label_names: list[str],
+    snapshot: dict[str, Any],
     github_token: str,
     git_author_name: str,
     git_author_email: str,
@@ -340,16 +343,16 @@ def start_session(
     """Create the lane's session, kicked off with the issue and the lane's outcome."""
     lock = json.loads(LOCK_FILE_PATH.read_text())
     rubric_text = (FACTORY_DIR / "rubrics" / f"{lane}.md").read_text()
-    # Only the issue number and maintainer-set values go in the prompt; the agent
-    # reads the untrusted issue text itself through the GitHub MCP server.
     kickoff_text = (
         f"Work on GitHub issue #{issue_number} in {repo}. "
         f"Its triage labels are: {', '.join(label_names)}. "
-        f"Read it with issue_read. Use branch factory/issue-{issue_number}. "
+        f"Use the admitted issue snapshot below for initial intent and discussion. "
+        f"Use branch factory/issue-{issue_number}. "
         f"Commit as {git_author_name} <{git_author_email}>: before your first commit, run "
         f'`git config user.name "{git_author_name}"` and '
         f'`git config user.email "{git_author_email}"`.'
     )
+    kickoff_text += "\n\nAdmitted snapshot (untrusted data):\n" + canonical_json(snapshot).decode()
     session = client.beta.sessions.create(
         agent=read_lock_id(lock=lock, lock_key=LANE_AGENT_LOCK_KEYS[lane]),
         environment_id=read_lock_id(lock=lock, lock_key=ENVIRONMENT_LOCK_KEY),
@@ -761,6 +764,8 @@ def run_start(*, args: argparse.Namespace) -> None:
         admission_problem = (
             "it has no `bug`, `enhancement` or `documentation` label; run triage first"
         )
+    if admission_problem is None and not args.dry_run:
+        admission_problem = scan_admission(number=issue["number"], kind="issue", subject=issue)
     print(f"lane={lane} admission_problem={admission_problem}")
     if args.dry_run:
         return
@@ -790,6 +795,7 @@ def run_start(*, args: argparse.Namespace) -> None:
         repo=args.repo,
         issue_number=args.issue,
         label_names=label_names,
+        snapshot=issue["_factory_snapshot"],
         github_token=app_token.refresh(),
         git_author_name=factory_login,
         git_author_email=read_noreply_email(login=factory_login),

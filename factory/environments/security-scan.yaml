@@ -1,0 +1,8 @@
+name: factory-security-scan
+description: Isolated admission scanner. Only a JSON file is mounted; no repository, vaults, package setup or network tools.
+config:
+  type: cloud
+  networking:
+    type: limited
+    allow_package_managers: false
+    allow_mcp_servers: false

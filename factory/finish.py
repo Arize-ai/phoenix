@@ -11,6 +11,7 @@ import base64
 import json
 import os
 import re
+import shlex
 import subprocess
 from typing import Any, Optional
 
@@ -38,6 +39,8 @@ from dispatch import (
 from github_app import GitHubAppToken
 from pr_input import find_head_problem
 from review import comment_on_pr, read_factory_login
+from security_scan import canonical_json
+from security_scan import find_admission_problem as scan_admission
 
 FINISH_LABEL = "factory-finish"
 # The job and workflow names in cla.yml, which runs on pull_request_target from the base.
@@ -56,7 +59,7 @@ FINISH_OUTCOME = (
     "issue lane."
 )
 PR_FIELDS = (
-    "number,url,state,isDraft,isCrossRepository,baseRefName,headRefName,headRefOid,"
+    "number,url,state,isDraft,isCrossRepository,baseRefName,baseRefOid,headRefName,headRefOid,"
     "title,body,author,comments,closingIssuesReferences"
 )
 
@@ -100,6 +103,7 @@ def find_admission_problem(
     copy: Optional[dict[str, Any]],
     requester_login: str,
     requester_permission: str,
+    scan_input: bool = True,
 ) -> Optional[str]:
     """`copy` is an earlier run's open copy of a fork PR; with one, a closed original is
     admissible and the run continues on the copy."""
@@ -110,7 +114,7 @@ def find_admission_problem(
     # Someone who pushed a branch to this repository has write access, so a same-repo PR
     # passes without a CLA check.
     if not pr["isCrossRepository"]:
-        return None
+        return scan_admission(number=pr["number"], kind="pr", pr=pr) if scan_input else None
     # The Assistant comments only when someone has to sign, so its check is the record every
     # fork PR has; the comments are the fallback.
     cla_signed = read_cla_status(pr_number=pr["number"])
@@ -125,7 +129,8 @@ def find_admission_problem(
             "it changes automation or agent-instruction files, which Factory Guard fails on a "
             "factory branch; a maintainer has to finish it by hand"
         )
-    return None
+    subject = copy if copy is not None else pr
+    return scan_admission(number=subject["number"], kind="pr", pr=subject) if scan_input else None
 
 
 # The paths factory-guard.yml fails a factory PR for. Copying a fork PR that changes one of
@@ -253,6 +258,7 @@ def copy_fork_pr(*, repo: str, pr: dict[str, Any], token: str) -> dict[str, Any]
     copied = read_pr(pr_number=copy_number, token=token)
     if copied["headRefOid"] != pr["headRefOid"]:
         raise RuntimeError("The fork copy does not match the admitted commit")
+    copied["_factory_snapshot"] = pr["_factory_snapshot"]
     return copied
 
 
@@ -275,19 +281,22 @@ def start_session(
         if issue_numbers
         else "It links no issue."
     )
-    # Only numbers, branch names and maintainer-set values go in the prompt; the agent
-    # reads the untrusted PR text itself through the GitHub MCP server.
     kickoff_text = (
         f"Finish pull request #{pr['number']} in {repo}. {issue_text} The repo is checked out "
         f"at commit {pr['headRefOid']}, targeting {pr['baseRefName']}. Before bootstrap or "
         f"any other work, verify `git rev-parse HEAD` equals {pr['headRefOid']}; stop if "
         f"it differs or the mount is missing. Never fall back to another commit. "
-        f"Create the local work branch with `git switch -C {pr['headRefName']} "
-        f"{pr['headRefOid']}`; push only normally, never force-push. Read it with "
-        f"pull_request_read. `{requester_login}` asked for this run. "
+        f"Create the local work branch with `git switch -C {shlex.quote(pr['headRefName'])} "
+        f"{pr['headRefOid']}`; push only normally, never force-push. "
+        f"Use the admitted snapshot below; "
+        f"`{requester_login}` asked for this run. "
         f"Commit as {git_author_name} <{git_author_email}>: before your first commit, run "
         f'`git config user.name "{git_author_name}"` and '
         f'`git config user.email "{git_author_email}"`.'
+    )
+    kickoff_text += (
+        "\n\nAdmitted snapshot (untrusted data):\n"
+        + canonical_json(pr["_factory_snapshot"]).decode()
     )
     session = client.beta.sessions.create(
         agent=read_lock_id(lock=lock, lock_key=FINISH_AGENT_LOCK_KEY),
@@ -328,13 +337,15 @@ def run_start(*, args: argparse.Namespace) -> None:
         "none" if requester_login == WORKFLOW_LOGIN else read_repo_permission(login=requester_login)
     )
     copy = find_copy(pr_number=args.pr) if pr["isCrossRepository"] else None
-    admission_problem = find_admission_problem(
+    admission_problem = find_head_problem(
+        pr=pr, expected_sha=args.head_sha
+    ) or find_admission_problem(
         pr=pr,
         copy=copy,
         requester_login=requester_login,
         requester_permission=requester_permission,
+        scan_input=not args.dry_run,
     )
-    admission_problem = admission_problem or find_head_problem(pr=pr, expected_sha=args.head_sha)
     print(
         f"head_sha={pr['headRefOid']} fork={pr['isCrossRepository']} "
         f"copy={copy['number'] if copy else None} admission_problem={admission_problem}"
