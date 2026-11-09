@@ -714,3 +714,87 @@ class TestDecisionSpanAttributes:
         assert get_priced_model_type(attributes) == expected_type
         assert get_model_name(attributes) == expected_name
         assert get_provider(attributes) == expected_provider
+
+
+def _embedding_span(**attributes: Any) -> dict[str, Any]:
+    return {"openinference": {"span": {"kind": "EMBEDDING"}}, **attributes}
+
+
+class TestEmbeddingSpanAttributes:
+    """EMBEDDING spans read `embedding.model_name` and have input tokens only."""
+
+    @pytest.mark.parametrize(
+        "token_count,expected",
+        [
+            pytest.param({"prompt": 2, "total": 2}, (2, 0, 2), id="spec_example"),
+            pytest.param({"prompt": 1000}, (1000, 0, 1000), id="prompt_only"),
+            pytest.param({"total": 1000}, (1000, 0, 1000), id="total_when_prompt_is_missing"),
+            pytest.param(
+                {"prompt": 0, "total": 1000}, (1000, 0, 1000), id="total_when_prompt_is_0"
+            ),
+            pytest.param(
+                {"prompt": 900, "total": 1000}, (900, 0, 900), id="prompt_wins_over_total"
+            ),
+            pytest.param(
+                {"prompt": 1000, "completion": 5, "total": 1005},
+                (1000, 0, 1000),
+                id="completion_is_ignored",
+            ),
+            pytest.param({"prompt": "1000"}, (0, 0, 0), id="non_numeric_prompt"),
+            pytest.param({}, (0, 0, 0), id="no_counts"),
+        ],
+    )
+    def test_get_aggregated_tokens(
+        self, token_count: dict[str, Any], expected: tuple[int, int, int]
+    ) -> None:
+        attributes = _embedding_span(
+            embedding={"model_name": "text-embedding-3-small"},
+            llm={"token_count": token_count},
+        )
+        assert get_aggregated_tokens(attributes) == expected
+
+    @pytest.mark.parametrize(
+        "attributes,expected_name,expected_provider",
+        [
+            pytest.param(
+                _embedding_span(embedding={"model_name": " text-embedding-3-small "}),
+                "text-embedding-3-small",
+                "",
+                id="spec_attributes_have_no_provider",
+            ),
+            pytest.param(
+                _embedding_span(llm={"model_name": "text-embedding-3-small"}),
+                "",
+                "",
+                id="llm_model_name_is_not_read",
+            ),
+            pytest.param(
+                _embedding_span(
+                    embedding={"model_name": "text-embedding-3-small"},
+                    llm={"model_name": "ignored", "provider": "azure"},
+                ),
+                "text-embedding-3-small",
+                "azure",
+                id="llm_provider_is_read_when_set",
+            ),
+        ],
+    )
+    def test_model_type_name_and_provider(
+        self,
+        attributes: dict[str, Any],
+        expected_name: str,
+        expected_provider: str,
+    ) -> None:
+        assert get_priced_model_type(attributes) == "EMBEDDING"
+        assert get_model_name(attributes) == expected_name
+        assert get_provider(attributes) == expected_provider
+
+    def test_llm_span_ignores_embedding_model_name(self) -> None:
+        attributes = {
+            "openinference": {"span": {"kind": "LLM"}},
+            "embedding": {"model_name": "text-embedding-3-small"},
+            "llm": {"token_count": {"prompt": 10, "completion": 5}},
+        }
+        assert get_priced_model_type(attributes) == "LLM"
+        assert get_model_name(attributes) == ""
+        assert get_aggregated_tokens(attributes) == (10, 5, 15)

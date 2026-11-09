@@ -7,7 +7,7 @@ from phoenix.db import models
 from phoenix.server.cost_tracking.helpers import (
     get_aggregated_tokens,
     parse_token_count,
-    uses_decision_token_counts,
+    reads_token_count_details,
 )
 from phoenix.server.cost_tracking.token_cost_calculator import (
     TokenCostCalculator,
@@ -20,8 +20,8 @@ _TokenType: TypeAlias = str
 
 class SpanCostDetailsCalculator:
     """
-    Calculates detailed cost breakdowns for LLM and DECISION spans based on token usage and
-    pricing.
+    Calculates detailed cost breakdowns for LLM, DECISION and EMBEDDING spans based on token
+    usage and pricing.
 
     This calculator processes both detailed token counts (from span attributes) and
     aggregated token totals to provide comprehensive cost analysis for prompt and
@@ -92,12 +92,14 @@ class SpanCostDetailsCalculator:
 
            DECISION spans that report `decision.token_count.*` skip this phase: the decision
            attributes have no detail keys, and `llm.token_count.*_details` on such a span
-           would not add up against the decision counts.
+           would not add up against the decision counts. EMBEDDING spans skip it too: they
+           are priced on their input token count alone.
 
         2. **Aggregated token processing**: For default token types ("input"/"output") that
            weren't found in detailed processing, calculates remaining tokens by subtracting
            detailed counts from total aggregated tokens (`decision.token_count.input` /
-           `.output` on DECISION spans that report them, `llm.token_count.*` otherwise).
+           `.output` on DECISION spans that report them, `llm.token_count.*` otherwise, and
+           input tokens only on EMBEDDING spans; see `get_aggregated_tokens`).
 
         **Fallback Calculation Logic:**
         - For each token type in detailed processing:
@@ -128,12 +130,12 @@ class SpanCostDetailsCalculator:
 
         # Phase 1: Process detailed token counts from span attributes
         for is_prompt, prefix, calculators, results in (
-            ()
-            if uses_decision_token_counts(attributes)
-            else (
+            (
                 (True, "prompt", self._prompt, prompt_details),
                 (False, "completion", self._completion, completion_details),
             )
+            if reads_token_count_details(attributes)
+            else ()
         ):
             # Extract detailed token counts from span attributes
             details = get_attribute_value(attributes, f"llm.token_count.{prefix}_details")

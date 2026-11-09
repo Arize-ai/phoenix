@@ -117,7 +117,11 @@ def as_kv(obj: models.Base) -> Iterator[tuple[str, Any]]:
 
 
 _COST_SPAN_KINDS = frozenset(
-    (OpenInferenceSpanKindValues.LLM.value, OpenInferenceSpanKindValues.DECISION.value)
+    (
+        OpenInferenceSpanKindValues.LLM.value,
+        OpenInferenceSpanKindValues.DECISION.value,
+        OpenInferenceSpanKindValues.EMBEDDING.value,
+    )
 )
 
 
@@ -125,10 +129,11 @@ def should_calculate_span_cost(
     attributes: Optional[Mapping[str, Any]],
 ) -> bool:
     """
-    Whether the span is an LLM or DECISION span with a model name to price it by. The name is
-    picked the same way the cost lookup picks it (see `get_model_name`): `*.response.model_name`,
-    `*.model_name`, then `*.request.model_name`, from `decision.*` (falling back to legacy
-    `llm.*`) on DECISION spans and from `llm.*` on LLM spans.
+    Whether the span is an LLM, DECISION or EMBEDDING span with a model name to price it by.
+    The name is picked the same way the cost lookup picks it (see `get_model_name`):
+    `*.response.model_name`, `*.model_name`, then `*.request.model_name`, from `decision.*`
+    (falling back to legacy `llm.*`) on DECISION spans and from `llm.*` on LLM spans, and
+    `embedding.model_name` on EMBEDDING spans.
     """
     span_kind = get_attribute_value(attributes, SpanAttributes.OPENINFERENCE_SPAN_KIND)
     return (
