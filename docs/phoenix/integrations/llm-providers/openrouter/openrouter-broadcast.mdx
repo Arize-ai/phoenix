@@ -12,7 +12,7 @@ This page configures OpenRouter to broadcast traces for all of its traffic. To i
 
 ## How it works
 
-OpenRouter sends Broadcast traces from its own infrastructure using OTLP over HTTP with **JSON** encoding. Phoenix accepts OTLP over HTTP with **protobuf** encoding, so you run an [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) between the two. The collector:
+OpenRouter sends Broadcast traces from its own infrastructure using OTLP over HTTP with **JSON** encoding. Older Phoenix versions accept only **protobuf** encoding, and newer ones accept OTLP/JSON only with a `Content-Type` of exactly `application/json`, so this guide runs an [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) between the two. The collector:
 
 - receives OpenRouter's OTLP/JSON traces on a public HTTPS endpoint
 - sets the Phoenix project with the `openinference.project.name` resource attribute

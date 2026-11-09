@@ -846,6 +846,7 @@ async def test_post_traces_otlp_json_reimports_the_otlpv1_span_export(
             b'{"resourceSpans": [{"scopeSpans": [{"spans": [{"traceId": "not-hex"}]}]}]}',
             id="non-hex-trace-id",
         ),
+        pytest.param(b"[" * 100_000 + b"]" * 100_000, id="deeply-nested"),
     ],
 )
 async def test_post_traces_rejects_invalid_otlp_json(

@@ -491,7 +491,7 @@ async def post_traces(
         else:
             req = ExportTraceServiceRequest()
             await run_in_threadpool(req.ParseFromString, body)
-    except (DecodeError, json_format.ParseError, ValueError):
+    except (DecodeError, json_format.ParseError, ValueError, RecursionError):
         raise HTTPException(
             detail="Request body is invalid ExportTraceServiceRequest",
             status_code=422,
