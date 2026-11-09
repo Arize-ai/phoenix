@@ -429,7 +429,8 @@ export function ProjectEvaluatorsTabTable({
           ? (row.traceProject.costSummary.total.cost ?? undefined)
           : undefined,
       cell: ({ row }) =>
-        row.original.tracingEnabled ? (
+        row.original.tracingEnabled ||
+        row.original.evaluator.kind === "CODE" ? (
           <EvaluatorCost
             evaluatorKind={row.original.evaluator.kind}
             costSummary={row.original.traceProject.costSummary}
@@ -457,7 +458,8 @@ export function ProjectEvaluatorsTabTable({
           : undefined;
       },
       cell: ({ row }) =>
-        row.original.tracingEnabled ? (
+        row.original.tracingEnabled ||
+        row.original.evaluator.kind === "CODE" ? (
           <EvaluatorAverageCost
             evaluatorKind={row.original.evaluator.kind}
             costSummary={row.original.traceProject.costSummary}

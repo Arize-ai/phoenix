@@ -183,14 +183,25 @@ class _ActivityReader:
         bin_index = {timestamp: i for i, timestamp in enumerate(bins)}
         project_ids: dict[_GroupKey, int] = {}
         group_keys_by_evaluator: dict[int, _GroupKey] = {}
-        async for project_evaluator_id, project_id in await session.stream(
-            sa.select(models.ProjectEvaluator.id, models.ProjectEvaluator.project_id).where(
-                models.ProjectEvaluator.id.in_(self.scope)
-            )
+        excludes_untraced_evaluators = False
+        async for (
+            project_evaluator_id,
+            project_id,
+            enabled,
+            tracing_enabled,
+        ) in await session.stream(
+            sa.select(
+                models.ProjectEvaluator.id,
+                models.ProjectEvaluator.project_id,
+                models.ProjectEvaluator.enabled,
+                models.ProjectEvaluator.tracing_enabled,
+            ).where(models.ProjectEvaluator.id.in_(self.scope))
         ):
             key = project_id if self.by_project else project_evaluator_id
             project_ids[key] = project_id
             group_keys_by_evaluator[project_evaluator_id] = key
+            if enabled and not tracing_enabled:
+                excludes_untraced_evaluators = True
         groups = {key: _GroupTotals(queue_sizes=[0] * len(bins)) for key in project_ids}
 
         completed = _completed(self.scope, self.start, self.end)
@@ -245,18 +256,6 @@ class _ActivityReader:
             key=lambda key: (-(groups[key].evaluated_count + groups[key].failed_count), key),
         )
         costs = [totals.cost for totals in groups.values() if totals.cost is not None]
-        project_evaluator = models.ProjectEvaluator
-        excludes_untraced_evaluators = bool(
-            await session.scalar(
-                sa.select(
-                    sa.exists().where(
-                        project_evaluator.id.in_(self.scope),
-                        project_evaluator.enabled.is_(True),
-                        project_evaluator.tracing_enabled.is_(False),
-                    )
-                )
-            )
-        )
         return EvaluationActivity(
             excludes_untraced_evaluators=excludes_untraced_evaluators,
             evaluated_count=sum(totals.evaluated_count for totals in groups.values()),

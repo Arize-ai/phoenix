@@ -60,26 +60,17 @@ async def load_evaluation_loads(
     trace = models.Trace
     project_evaluator = models.ProjectEvaluator
     async with db.read() as session:
-        untraced_ids = set(
-            (
-                await session.scalars(
-                    sa.select(project_evaluator.id).where(
-                        project_evaluator.id.in_(project_evaluator_ids),
-                        project_evaluator.tracing_enabled.is_(False),
-                    )
-                )
-            ).all()
-        )
-        excludes_untraced_evaluators = bool(
-            await session.scalar(
-                sa.select(
-                    sa.exists().where(
-                        project_evaluator.enabled.is_(True),
-                        project_evaluator.tracing_enabled.is_(False),
-                    )
+        # One read of the evaluators with tracing off gives both the requested evaluators'
+        # state and whether the server total leaves out an enabled one.
+        untraced = (
+            await session.execute(
+                sa.select(project_evaluator.id, project_evaluator.enabled).where(
+                    project_evaluator.tracing_enabled.is_(False)
                 )
             )
-        )
+        ).all()
+        untraced_ids = {project_evaluator_id for project_evaluator_id, _ in untraced}
+        excludes_untraced_evaluators = any(enabled for _, enabled in untraced)
         rows = (
             await session.execute(
                 sa.select(

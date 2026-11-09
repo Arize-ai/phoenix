@@ -680,7 +680,8 @@ export function ProjectEvaluatorsTable({
         size: 120,
         meta: { textAlign: "right" },
         cell: ({ row }) =>
-          row.original.tracingEnabled ? (
+          row.original.tracingEnabled ||
+          row.original.evaluator.kind === "CODE" ? (
             <EvaluatorCost
               evaluatorKind={row.original.evaluator.kind}
               costSummary={row.original.traceProject.costSummary}
@@ -695,7 +696,8 @@ export function ProjectEvaluatorsTable({
         size: 200,
         meta: { textAlign: "right" },
         cell: ({ row }) =>
-          row.original.tracingEnabled ? (
+          row.original.tracingEnabled ||
+          row.original.evaluator.kind === "CODE" ? (
             <EvaluatorAverageCost
               evaluatorKind={row.original.evaluator.kind}
               costSummary={row.original.traceProject.costSummary}
