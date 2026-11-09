@@ -557,7 +557,9 @@ cat summarize.txt | px prompt create --name summarizer --template-file - --if-no
 | `--template-format <format>`  | `MUSTACHE`, `F_STRING`, or `NONE`                                                   | `MUSTACHE`                  |
 | `--format <format>`           | `pretty`, `json`, `raw`, or `text`                                                  | `pretty`                    |
 
-Pass exactly one of `--template` or `--template-file`.
+Pass exactly one of `--template` or `--template-file`. Names may contain only
+lowercase letters, digits, `-`, and `_`, and must start and end with a letter or
+digit (for example `my-prompt`).
 
 ---
 

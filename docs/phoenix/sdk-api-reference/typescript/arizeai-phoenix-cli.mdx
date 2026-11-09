@@ -761,6 +761,8 @@ cat summarize.txt | px prompt create --name summarizer --template-file - --if-no
 | `--api-key <key>` | Phoenix API key | From env |
 | `--no-progress` | Disable progress indicators | — |
 
+Pass exactly one of `--template` or `--template-file`. Names may contain only lowercase letters, digits, `-`, and `_`, and must start and end with a letter or digit (for example `my-prompt`).
+
 ### `px prompt get <prompt_identifier>`
 
 Show a Phoenix prompt.

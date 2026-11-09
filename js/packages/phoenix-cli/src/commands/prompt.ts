@@ -74,6 +74,12 @@ const TEMPLATE_FORMATS: readonly PromptTemplateFormat[] = [
  */
 const DEFAULT_OPENAI_MODEL_NAME = "gpt-5.6-luna";
 
+/**
+ * Pattern the server requires for prompt names. Mirrors `Identifier` in
+ * `src/phoenix/db/types/identifier.py`.
+ */
+const PROMPT_NAME_PATTERN = /^[a-z0-9]([_a-z0-9-]*[a-z0-9])?$/;
+
 const PROMPT_CREATE_USAGE =
   "  px prompt create --name <name> --template <text>\n" +
   "  px prompt create --name <name> --template-file <path|->";
@@ -580,6 +586,12 @@ async function promptCreateHandler(
     if (!options.name) {
       throw new InvalidArgumentError(
         `Missing required flag --name.\n${PROMPT_CREATE_USAGE}`
+      );
+    }
+    if (!PROMPT_NAME_PATTERN.test(options.name)) {
+      throw new InvalidArgumentError(
+        `Invalid --name "${options.name}": use lowercase letters, digits, - or _, starting and ending with a letter or digit.\n` +
+          "  px prompt create --name my-prompt --template <text>"
       );
     }
     const template = readPromptTemplate(options);

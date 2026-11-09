@@ -10,6 +10,14 @@ import { ExitCode } from "../src/exitCodes";
 import { http, setupMockPhoenixServer } from "./mockServer";
 import { BASE_ARGS, captureCliOutput, mockProcessExit } from "./testUtils";
 
+vi.mock("fs", async (importOriginal) => {
+  const originalModule = await importOriginal<typeof fs>();
+  return {
+    ...originalModule,
+    readFileSync: vi.fn(originalModule.readFileSync),
+  };
+});
+
 const mock = setupMockPhoenixServer();
 
 const CREATED_VERSION: componentsV1["schemas"]["PromptVersion"] = {
@@ -94,6 +102,25 @@ describe("prompt create", () => {
     });
     const parsed = JSON.parse(String(io.stdout.mock.calls[0]?.[0]));
     expect(parsed).toEqual(CREATED_VERSION);
+  });
+
+  it("reads the template from stdin when --template-file is -", async () => {
+    vi.mocked(fs.readFileSync).mockImplementationOnce((source) => {
+      expect(source).toBe(0);
+      return "Piped {{name}}";
+    });
+    const bodies = captureCreateRequests();
+    captureCliOutput();
+
+    await createPromptCommand().parseAsync(
+      ["create", "--name", "greeting", "--template-file", "-", ...BASE_ARGS],
+      { from: "user" }
+    );
+
+    expect(bodies[0]?.version.template).toEqual({
+      type: "chat",
+      messages: [{ role: "user", content: "Piped {{name}}" }],
+    });
   });
 
   it("reads --template-file and accepts lowercase provider and format values", async () => {
@@ -291,6 +318,11 @@ describe("prompt create", () => {
       message: "Missing required flag --name",
     },
     {
+      case: "--name is not a valid identifier",
+      args: ["--name", "My Prompt", "--template", "Hello"],
+      message: 'Invalid --name "My Prompt"',
+    },
+    {
       case: "no template is given",
       args: ["--name", "greeting"],
       message: "Missing required flag --template or --template-file",
@@ -374,7 +406,7 @@ describe("prompt create", () => {
 
     await expect(
       createPromptCommand().parseAsync(
-        ["create", "--name", "Bad Name", "--template", "Hi", ...BASE_ARGS],
+        ["create", "--name", "greeting", "--template", "Hi", ...BASE_ARGS],
         { from: "user" }
       )
     ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
