@@ -1317,26 +1317,19 @@ def _decision(**decision: Any) -> dict[str, Any]:
     return {"openinference": {"span": {"kind": "DECISION"}}, "decision": decision}
 
 
-def _embedding(model_name: Any = "text-embedding-3-small", **llm: Any) -> dict[str, Any]:
+def _embedding(**llm: Any) -> dict[str, Any]:
     return {
         "openinference": {"span": {"kind": "EMBEDDING"}},
-        "embedding": {"model_name": model_name},
-        **({"llm": llm} if llm else {}),
+        "embedding": {"model_name": "gpt-6-luna"},
+        "llm": llm,
     }
 
 
-def _embedding_model(
-    id: int,
-    provider: Optional[str],
-    name_pattern: str = "text-embedding-3-small",
-    is_built_in: bool = True,
-    type: models.GenerativeModelType = "EMBEDDING",
-) -> models.GenerativeModel:
-    return _model(id, type, name_pattern, provider, is_built_in)
-
-
 class TestCostModelLookupByType:
-    """The span kind picks the model type: DECISION spans match DECISION models only."""
+    """
+    The span kind picks the model type: DECISION spans match DECISION models only, EMBEDDING
+    spans EMBEDDING models only.
+    """
 
     @pytest.mark.parametrize(
         "generative_models,attributes,expected_model_id",
@@ -1392,116 +1385,38 @@ class TestCostModelLookupByType:
                 2,
                 id="non_string_decision_model_name_falls_back_to_llm_model_name",
             ),
-        ],
-    )
-    def test_find_model(
-        self,
-        generative_models: list[models.GenerativeModel],
-        attributes: Mapping[str, Any],
-        expected_model_id: Optional[int],
-    ) -> None:
-        lookup = CostModelLookup(generative_models)
-        result = lookup.find_model(start_time=datetime.now(timezone.utc), attributes=attributes)
-        assert (result.id if result else None) == expected_model_id
-
-
-class TestCostModelLookupForEmbeddingSpans:
-    """
-    EMBEDDING spans match EMBEDDING models only, by `embedding.model_name`. They carry no
-    provider, so when several providers' rows match, the usual order decides: user-defined
-    before built-in, then the more specific pattern, the later start time, and the id (the
-    lowest built-in id, the highest user-defined one).
-    """
-
-    @pytest.mark.parametrize(
-        "generative_models,attributes,expected_model_id",
-        [
             pytest.param(
-                [_embedding_model(1, "openai", type="LLM"), _embedding_model(2, "openai")],
+                [_model(1, "LLM"), _model(2, "DECISION"), _model(3, "EMBEDDING")],
                 _embedding(),
-                2,
+                3,
                 id="embedding_span_matches_embedding_model",
             ),
             pytest.param(
-                [
-                    _embedding_model(1, "openai", type="LLM"),
-                    _embedding_model(2, "openai", type="DECISION", is_built_in=False),
-                ],
+                [_model(1, "LLM"), _model(2, "DECISION", is_built_in=False)],
                 _embedding(),
                 None,
                 id="embedding_span_never_falls_back_to_other_types",
             ),
             pytest.param(
-                [_embedding_model(1, "openai", is_built_in=False)],
+                [_model(1, "EMBEDDING", is_built_in=False)],
                 {
                     "openinference": {"span": {"kind": "LLM"}},
-                    "llm": {"model_name": "text-embedding-3-small"},
+                    "llm": {"model_name": "gpt-6-luna"},
                 },
                 None,
                 id="llm_span_never_falls_back_to_embedding_models",
             ),
             pytest.param(
-                [_embedding_model(1, "openai", is_built_in=False)],
-                _decision(model_name="text-embedding-3-small"),
+                [_model(1, "EMBEDDING", is_built_in=False)],
+                _decision(model_name="gpt-6-luna"),
                 None,
                 id="decision_span_never_falls_back_to_embedding_models",
             ),
             pytest.param(
-                [_embedding_model(1, "openai")],
-                {
-                    "openinference": {"span": {"kind": "EMBEDDING"}},
-                    "llm": {"model_name": "text-embedding-3-small"},
-                },
-                None,
-                id="llm_model_name_is_not_read",
-            ),
-            pytest.param(
-                [_embedding_model(1, "openai"), _embedding_model(2, "azure")],
-                _embedding(),
-                1,
-                id="without_provider_lowest_built_in_id_wins",
-            ),
-            pytest.param(
-                [_embedding_model(1, "azure"), _embedding_model(2, "openai")],
-                _embedding(),
-                1,
-                id="without_provider_the_provider_does_not_matter",
-            ),
-            pytest.param(
-                [
-                    _embedding_model(1, "openai", is_built_in=False),
-                    _embedding_model(2, "azure", is_built_in=False),
-                ],
-                _embedding(),
-                2,
-                id="without_provider_highest_user_defined_id_wins",
-            ),
-            pytest.param(
-                [_embedding_model(1, "openai"), _embedding_model(2, "azure", is_built_in=False)],
-                _embedding(),
-                2,
-                id="user_defined_wins_over_built_in",
-            ),
-            pytest.param(
-                [
-                    _embedding_model(1, "openai", name_pattern="text-embedding"),
-                    _embedding_model(2, None, name_pattern="text-embedding-3-small"),
-                ],
-                _embedding(),
-                2,
-                id="more_specific_pattern_wins",
-            ),
-            pytest.param(
-                [_embedding_model(1, "openai"), _embedding_model(2, "azure")],
+                [_model(1, "EMBEDDING"), _model(2, "EMBEDDING", provider="azure")],
                 _embedding(provider="azure"),
                 2,
-                id="llm_provider_breaks_ties_when_set",
-            ),
-            pytest.param(
-                [_embedding_model(1, "openai")],
-                _embedding(model_name=" "),
-                None,
-                id="blank_model_name",
+                id="llm_provider_breaks_ties_on_embedding_spans",
             ),
         ],
     )

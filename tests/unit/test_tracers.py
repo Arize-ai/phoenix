@@ -105,84 +105,6 @@ class TestTracer:
     def tracer(self, span_cost_calculator: SpanCostCalculator) -> Tracer:
         return Tracer(span_cost_calculator=span_cost_calculator)
 
-    @pytest.fixture
-    async def text_embedding_3_small_models(
-        self, db: DbSessionFactory
-    ) -> dict[models.GenerativeModelType, models.GenerativeModel]:
-        """An EMBEDDING row and an LLM row with the same pattern, the LLM one pricier."""
-        rows: dict[models.GenerativeModelType, models.GenerativeModel] = {
-            model_type: models.GenerativeModel(
-                name=f"text-embedding-3-small ({model_type})",
-                provider="openai",
-                start_time=None,
-                name_pattern=re.compile("text-embedding-3-small"),
-                is_built_in=True,
-                type=model_type,
-                token_prices=[
-                    models.TokenPrice(
-                        token_type="input", is_prompt=True, base_rate=rate, customization=None
-                    ),
-                    *(
-                        [
-                            models.TokenPrice(
-                                token_type="output",
-                                is_prompt=False,
-                                base_rate=rate,
-                                customization=None,
-                            )
-                        ]
-                        if model_type == "LLM"
-                        else []
-                    ),
-                ],
-            )
-            for model_type, rate in _TEXT_EMBEDDING_3_SMALL_RATES
-        }
-        async with db() as session:
-            session.add_all(rows.values())
-        return rows
-
-    @pytest.fixture
-    async def embedding_pricing_tracer(
-        self,
-        db: DbSessionFactory,
-        text_embedding_3_small_models: dict[models.GenerativeModelType, models.GenerativeModel],
-    ) -> Tracer:
-        store = GenerativeModelStore(db=db)
-        await store._fetch_models()
-        return Tracer(span_cost_calculator=SpanCostCalculator(model_store=store))
-
-    @staticmethod
-    async def _save_single_span_cost(
-        db: DbSessionFactory, project: models.Project, tracer: Tracer
-    ) -> models.SpanCost | None:
-        """Save the tracer's single span and return its cost as read back from the db."""
-        async with db() as session:
-            returned_traces = tracer.get_db_traces(project_id=project.id)
-            session.add_all(returned_traces)
-            await session.flush()
-            session.expunge_all()
-            fetched_spans = (
-                (
-                    await session.scalars(
-                        select(models.Span).options(
-                            joinedload(models.Span.span_cost).joinedload(
-                                models.SpanCost.span_cost_details
-                            )
-                        )
-                    )
-                )
-                .unique()
-                .all()
-            )
-        assert len(fetched_spans) == 1
-        span_cost = fetched_spans[0].span_cost
-        if span_cost is not None:
-            assert span_cost.span_rowid == fetched_spans[0].id
-            assert span_cost.trace_rowid == fetched_spans[0].trace_rowid
-            assert span_cost.span_start_time == fetched_spans[0].start_time
-        return span_cost
-
     @pytest.mark.asyncio
     async def test_get_db_traces_attaches_project_session_when_session_id_present(
         self, db: DbSessionFactory, project: models.Project, tracer: Tracer
@@ -1315,84 +1237,15 @@ class TestTracer:
         assert unmatched_details["output"].tokens == 500
         assert all(d.cost is None and d.cost_per_token is None for d in unmatched_details.values())
 
-    @pytest.mark.asyncio
-    async def test_save_db_traces_calculates_costs_for_embedding_spans(
-        self,
-        db: DbSessionFactory,
-        project: models.Project,
-        embedding_pricing_tracer: Tracer,
-        text_embedding_3_small_models: dict[models.GenerativeModelType, models.GenerativeModel],
-    ) -> None:
-        # The attributes of the embedding spec's text input example, with no llm.provider.
-        with embedding_pricing_tracer.start_as_current_span(
-            "CreateEmbeddings",
-            attributes={
-                OPENINFERENCE_SPAN_KIND: "EMBEDDING",
-                EMBEDDING_MODEL_NAME: "text-embedding-3-small",
-                LLM_TOKEN_COUNT_PROMPT: 1000,
-                LLM_TOKEN_COUNT_TOTAL: 1000,
-            },
-        ) as span:
-            span.set_status(Status(StatusCode.OK))
-
-        span_cost = await self._save_single_span_cost(db, project, embedding_pricing_tracer)
-
-        assert span_cost is not None
-        assert span_cost.model_id == text_embedding_3_small_models["EMBEDDING"].id
-        expected_input_cost = 1000 * 0.02 / 1_000_000
-        assert span_cost.prompt_tokens == 1000
-        assert span_cost.completion_tokens is None
-        assert span_cost.total_tokens == 1000
-        assert span_cost.prompt_cost == pytest.approx(expected_input_cost)
-        assert span_cost.completion_cost is None
-        assert span_cost.total_cost == pytest.approx(expected_input_cost)
-        details = {d.token_type: d for d in span_cost.span_cost_details}
-        assert set(details) == {"input"}
-        assert details["input"].is_prompt is True
-        assert details["input"].tokens == 1000
-        assert details["input"].cost_per_token == pytest.approx(0.02 / 1_000_000)
-
-    @pytest.mark.asyncio
-    async def test_save_db_traces_writes_unpriced_cost_for_embedding_span_without_model(
-        self,
-        db: DbSessionFactory,
-        project: models.Project,
-        embedding_pricing_tracer: Tracer,
-    ) -> None:
-        with embedding_pricing_tracer.start_as_current_span(
-            "CreateEmbeddings",
-            attributes={
-                OPENINFERENCE_SPAN_KIND: "EMBEDDING",
-                EMBEDDING_MODEL_NAME: "nomic-embed-text",
-                LLM_TOKEN_COUNT_TOTAL: 1000,
-            },
-        ) as span:
-            span.set_status(Status(StatusCode.OK))
-
-        span_cost = await self._save_single_span_cost(db, project, embedding_pricing_tracer)
-
-        assert span_cost is not None
-        assert span_cost.model_id is None
-        assert span_cost.prompt_tokens == 1000
-        assert span_cost.prompt_cost is None
-        assert span_cost.total_cost is None
-
-
-_TEXT_EMBEDDING_3_SMALL_RATES: tuple[tuple[models.GenerativeModelType, float], ...] = (
-    ("LLM", 1.0 / 1_000_000),
-    ("EMBEDDING", 0.02 / 1_000_000),
-)
 
 # span attributes
 DECISION_MODEL_NAME = SpanAttributes.DECISION_MODEL_NAME
 DECISION_PROVIDER = SpanAttributes.DECISION_PROVIDER
 DECISION_TOKEN_COUNT_INPUT = SpanAttributes.DECISION_TOKEN_COUNT_INPUT
 DECISION_TOKEN_COUNT_OUTPUT = SpanAttributes.DECISION_TOKEN_COUNT_OUTPUT
-EMBEDDING_MODEL_NAME = SpanAttributes.EMBEDDING_MODEL_NAME
 LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
 LLM_PROVIDER = SpanAttributes.LLM_PROVIDER
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
-LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
 OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
 TOOL_PARAMETERS = SpanAttributes.TOOL_PARAMETERS

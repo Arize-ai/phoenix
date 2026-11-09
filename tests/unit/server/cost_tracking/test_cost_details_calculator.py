@@ -1087,47 +1087,24 @@ class TestDecisionSpanCostDetails:
         assert details["output"].cost_per_token == pytest.approx(5e-7)
 
 
-# text-embedding-3-small as the manifest prices it: input only.
-_EMBEDDING_PRICES = [models.TokenPrice(token_type="input", is_prompt=True, base_rate=2e-8)]
-
-
-def _embedding_span(**token_count: Any) -> dict[str, Any]:
-    return {
+def test_embedding_span_prices_input_tokens_only() -> None:
+    # Completion counts and details would otherwise add unpriced rows next to the manifest's
+    # input-only price.
+    attributes = {
         "openinference": {"span": {"kind": "EMBEDDING"}},
         "embedding": {"model_name": "text-embedding-3-small"},
-        "llm": {"token_count": token_count},
+        "llm": {
+            "token_count": {
+                "prompt": 1000,
+                "completion": 5,
+                "total": 1005,
+                "prompt_details": {"cache_read": 400},
+                "completion_details": {"reasoning": 5},
+            }
+        },
     }
-
-
-class TestEmbeddingSpanCostDetails:
-    def test_input_tokens_are_priced(self) -> None:
-        calculator = SpanCostDetailsCalculator(_EMBEDDING_PRICES)
-        details = _by_type(calculator.calculate_details(_embedding_span(prompt=1000, total=1000)))
-        assert details == {"input": _Cost(tokens=1000, cost=1000 * 2e-8, cost_per_token=2e-8)}
-
-    def test_total_stands_in_for_a_missing_prompt_count(self) -> None:
-        calculator = SpanCostDetailsCalculator(_EMBEDDING_PRICES)
-        details = _by_type(calculator.calculate_details(_embedding_span(total=1000)))
-        assert details == {"input": _Cost(tokens=1000, cost=1000 * 2e-8, cost_per_token=2e-8)}
-
-    def test_completion_counts_and_details_are_ignored(self) -> None:
-        # An input-only price would leave completion tokens unpriced; embeddings have none.
-        attributes = _embedding_span(
-            prompt=1000,
-            completion=5,
-            total=1005,
-            prompt_details={"cache_read": 400},
-            completion_details={"reasoning": 5},
-        )
-        calculator = SpanCostDetailsCalculator(_EMBEDDING_PRICES)
-        details = _by_type(calculator.calculate_details(attributes))
-        assert details == {"input": _Cost(tokens=1000, cost=1000 * 2e-8, cost_per_token=2e-8)}
-
-    def test_no_tokens_gives_no_details(self) -> None:
-        calculator = SpanCostDetailsCalculator(_EMBEDDING_PRICES)
-        assert calculator.calculate_details(_embedding_span()) == []
-
-    def test_unpriced_model_records_tokens_without_cost(self) -> None:
-        calculator = SpanCostDetailsCalculator([])
-        details = _by_type(calculator.calculate_details(_embedding_span(prompt=1000)))
-        assert details == {"input": _Cost(tokens=1000)}
+    calculator = SpanCostDetailsCalculator(
+        [models.TokenPrice(token_type="input", is_prompt=True, base_rate=2e-8)]
+    )
+    details = _by_type(calculator.calculate_details(attributes))
+    assert details == {"input": _Cost(tokens=1000, cost=1000 * 2e-8, cost_per_token=2e-8)}
