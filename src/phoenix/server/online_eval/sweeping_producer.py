@@ -143,12 +143,8 @@ def _project_evaluator_relation(
     project_evaluators: Sequence[_SweepProjectEvaluator],
     dialect: SupportedSQLDialect,
 ) -> Subquery:
-    """Return a portable inline relation for resolved project evaluators.
-
-    Bind names are keyed off ``project_evaluator_id`` rather than row position: several of these
-    relations are unioned into one statement, and ``text()`` binds are not unique, so
-    position-keyed names from different relations would silently overwrite each other.
-    """
+    """Return the resolved project evaluators as an inline ``VALUES`` relation, one row
+    each. The first row's casts give the columns their types on both dialects."""
     rows = []
     parameters: dict[str, Any] = {}
     for index, project_evaluator in enumerate(project_evaluators):
@@ -299,8 +295,8 @@ def _reoffer_values(excluded: Any) -> dict[str, Any]:
 
 
 def _reofferable(work_unit: Any, activity_through: Any) -> ColumnElement[bool]:
-    """A failed, expired, or content-lost session or trace is retried when new spans arrive
-    after it failed; spans that arrived while it was running might not trigger a retry."""
+    """Work that ended without a result is offered again once its target has spans newer
+    than the activity it was decided through."""
     reofferable: ColumnElement[bool] = and_(
         work_unit.status.in_(REOFFERED_STATUSES),
         work_unit.decided_through < activity_through,

@@ -7,8 +7,9 @@ takes the lease and runs retention cleanup, which deletes old finished work. Whe
 water is older than the visibility lag, the tick scans the window from the span cursor to
 the window end per project evaluator and adds the work it finds. A window spans at most
 ``max_span_ids_per_tick`` ids, and after a window cut at that limit the next tick starts at
-once. An hourly catch-up scan re-reads a bounded id window behind the span cursor to catch
-spans that became visible after their window was scanned.
+once. An hourly catch-up scan re-reads a bounded id window behind the span cursor for spans
+an earlier scan passed over: those of an evaluator enabled while that scan ran, those of an
+evaluator whose filter failed when run, and spans that committed later than the visibility lag.
 
 Every cursor write is compare-and-set on the position it read, and a scan commits only if
 the cursor still holds the position it scanned against. Retention cleanup deletes finished
