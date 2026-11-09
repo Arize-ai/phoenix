@@ -530,6 +530,31 @@ Use `px prompt-versions list <prompt-identifier>` to discover version IDs for
 
 ---
 
+### `px prompt tag <prompt-version-id>`
+
+Tag a prompt version. Tag names are unique within a prompt: if another version
+of the same prompt already has the tag, it moves to this version.
+
+```bash
+px prompt tag UHJvbXB0VmVyc2lvbjox --tag production --description "Current release"
+px prompt tag UHJvbXB0VmVyc2lvbjox --tag staging --format raw --no-progress
+# {"prompt_version_id":"UHJvbXB0VmVyc2lvbjox","name":"staging","description":null}
+```
+
+The description is replaced on every call, so **omitting `--description`
+clears an existing description** on the tag. Output echoes the applied tag;
+Phoenix returns no body, so it does not say whether the tag was created or moved.
+Tag names use lowercase letters, digits, `-` and `_`, and must start and end
+with a letter or digit.
+
+| Option                 | Description                | Default  |
+| ---------------------- | -------------------------- | -------- |
+| `--tag <name>`         | Tag name (required)        | —        |
+| `--description <text>` | Tag description            | cleared  |
+| `--format <format>`    | `pretty`, `json`, or `raw` | `pretty` |
+
+---
+
 ### `px project list`
 
 List all available Phoenix projects.

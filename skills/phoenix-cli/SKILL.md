@@ -47,6 +47,7 @@ px experiment delete <experiment-id>
 px prompt list
 px prompt get <prompt-identifier>
 px prompt-versions list <prompt-identifier>
+px prompt tag <prompt-version-id> --tag <name>
 px prompt delete <prompt-identifier>
 px project list
 px project get <name>
@@ -391,6 +392,7 @@ px experiment get <id> --format raw --no-progress | jq '.[] | select(.error != n
 px prompt list --format raw --no-progress | jq '.[].name'
 px prompt get <name> --format text --no-progress   # plain text, ideal for piping to AI
 px prompt-versions list <name-or-id> --limit 10 --format raw --no-progress | jq '.[].id'
+px prompt tag <version-id> --tag production --description "Current release" --format raw --no-progress
 ```
 
 `prompt-versions list` fetches all pages unless `--limit` is set. JSON/raw output is
@@ -398,6 +400,11 @@ an array of full version objects. `created_at` is absent on older servers (blank
 in pretty output); tags are not included. Use the IDs with `prompt get --version`.
 Missing prompts exit nonzero. JSON/raw errors go to stderr as
 `{ error, code, hint? }`.
+
+`prompt tag` creates the tag, or moves it if another version of the prompt has it,
+and prints `{ prompt_version_id, name, description }` (no create/move flag; the
+server returns no body). Omitting `--description` clears the tag's existing
+description. Tag names: lowercase letters, digits, `-`, `_`.
 
 ## Annotation Configs
 

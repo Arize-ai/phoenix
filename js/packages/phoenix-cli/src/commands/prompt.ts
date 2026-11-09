@@ -1,5 +1,10 @@
-import type { componentsV1, PhoenixClient } from "@arizeai/phoenix-client";
-import { Command } from "commander";
+import {
+  type componentsV1,
+  HttpError,
+  type PhoenixClient,
+} from "@arizeai/phoenix-client";
+import { upsertPromptVersionTag } from "@arizeai/phoenix-client/prompts";
+import { Command, Option } from "commander";
 
 import { createPhoenixClient } from "../client";
 import {
@@ -8,10 +13,19 @@ import {
   validateConfig,
 } from "../config";
 import { assertDeletesEnabled, confirmOrExit } from "../confirm";
-import { ExitCode, getExitCodeForError } from "../exitCodes";
+import {
+  ExitCode,
+  getExitCodeForError,
+  InvalidArgumentError,
+} from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
+import { writeStructuredError } from "../structuredError";
 import { formatPromptOutput, type OutputFormat } from "./formatPrompt";
 import { formatPromptsOutput } from "./formatPrompts";
+import {
+  type AppliedPromptVersionTag,
+  formatPromptVersionTagOutput,
+} from "./formatPromptVersionTag";
 import type { CommonOptions, DeleteOptions } from "./options";
 
 type Prompt = componentsV1["schemas"]["Prompt"];
@@ -48,6 +62,36 @@ interface PromptListOptions extends CommonOptions {
    */
   limit?: number;
 }
+
+/**
+ * Options for `px prompt tag <prompt-version-id>`.
+ */
+interface PromptTagOptions extends CommonOptions {
+  /**
+   * `--tag <name>`: Required. Prompt-scoped tag name. Must match Phoenix's
+   * identifier rule: lowercase letters, digits, `-` and `_`, starting and
+   * ending with a letter or digit.
+   *
+   * @example "production"
+   */
+  tag?: string;
+  /**
+   * `--description <text>`: Description stored on the tag. Omitting it clears
+   * any existing description on the tag.
+   *
+   * @example "Currently deployed version"
+   */
+  description?: string;
+}
+
+const PROMPT_TAG_USAGE =
+  "px prompt tag <prompt-version-id> --tag <name> [--description <text>]";
+
+/**
+ * Mirrors the server's `Identifier` constraint on tag names, so invalid names
+ * fail locally with usage instead of as an opaque 422.
+ */
+const TAG_NAME_PATTERN = /^[a-z0-9]([_a-z0-9-]*[a-z0-9])?$/;
 
 /**
  * Fetch all prompts from Phoenix
@@ -310,6 +354,147 @@ async function promptDeleteHandler(
   }
 }
 
+/**
+ * Map a failed tag request to an exit code and a resolution hint. The client
+ * middleware turns non-2xx responses into `HttpError`; anything else (network
+ * `TypeError`, validation errors) falls back to `getExitCodeForError`.
+ */
+function classifyPromptTagError(error: unknown): {
+  exitCode: ExitCode;
+  hint?: string;
+} {
+  if (error instanceof HttpError) {
+    if (error.status === 401 || error.status === 403) {
+      return { exitCode: ExitCode.AUTH_REQUIRED, hint: "px auth status" };
+    }
+    if (error.status === 404) {
+      return {
+        exitCode: ExitCode.FAILURE,
+        hint: "px prompt-versions list <prompt-identifier>",
+      };
+    }
+    if (error.status === 422) {
+      return { exitCode: ExitCode.INVALID_ARGUMENT, hint: PROMPT_TAG_USAGE };
+    }
+  }
+  return { exitCode: getExitCodeForError(error) };
+}
+
+/**
+ * Handler for `prompt tag`: create a tag on a prompt version, or move an
+ * existing tag of the same name to it.
+ */
+async function promptTagHandler({
+  promptVersionId,
+  options,
+}: {
+  promptVersionId: string;
+  options: PromptTagOptions;
+}): Promise<void> {
+  try {
+    if (!promptVersionId.trim()) {
+      throw new InvalidArgumentError(
+        `Invalid value for <prompt-version-id>: <empty>.\n  ${PROMPT_TAG_USAGE}`
+      );
+    }
+    if (options.tag === undefined) {
+      throw new InvalidArgumentError(
+        `Missing required flag --tag.\n  ${PROMPT_TAG_USAGE}`
+      );
+    }
+    if (!TAG_NAME_PATTERN.test(options.tag)) {
+      throw new InvalidArgumentError(
+        `Invalid value for --tag: "${options.tag}". Use lowercase letters, digits, "-" or "_", starting and ending with a letter or digit.\n  ${PROMPT_TAG_USAGE}`
+      );
+    }
+
+    const config = resolveConfig({ cliOptions: options });
+    const validation = validateConfig({ config, projectRequired: false });
+    if (!validation.valid) {
+      throw new InvalidArgumentError(
+        getConfigErrorMessage({ errors: validation.errors })
+      );
+    }
+    const client = createPhoenixClient({ config });
+
+    writeProgress({
+      message: `Tagging prompt version ${promptVersionId} as "${options.tag}"...`,
+      noProgress: !options.progress,
+    });
+
+    // The server upserts by (prompt, name) and overwrites the description, so
+    // omitting --description clears any description the tag had before.
+    await upsertPromptVersionTag({
+      client,
+      prompt: { versionId: promptVersionId },
+      name: options.tag,
+      description: options.description,
+    });
+
+    const tag: AppliedPromptVersionTag = {
+      prompt_version_id: promptVersionId,
+      name: options.tag,
+      description: options.description ?? null,
+    };
+    writeOutput({
+      message: formatPromptVersionTagOutput({ tag, format: options.format }),
+    });
+  } catch (error) {
+    const { exitCode, hint } = classifyPromptTagError(error);
+    writeStructuredError({
+      format: options.format,
+      message: `Error tagging prompt version: ${error instanceof Error ? error.message : String(error)}`,
+      code:
+        Object.entries(ExitCode).find(([, value]) => value === exitCode)?.[0] ??
+        "FAILURE",
+      hint,
+    });
+    process.exit(exitCode);
+  }
+}
+
+export function createPromptTagCommand(): Command {
+  return new Command("tag")
+    .description(
+      "Tag a prompt version, moving the tag if another version of the prompt has it"
+    )
+    .argument(
+      "<prompt-version-id>",
+      "Prompt version ID (discover IDs with px prompt-versions list)"
+    )
+    .option(
+      "--tag <name>",
+      "Tag name (required; lowercase letters, digits, - and _)"
+    )
+    .option(
+      "--description <text>",
+      "Tag description (omitting it clears an existing description)"
+    )
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .addOption(
+      new Option("--format <format>", "Output format")
+        .choices(["pretty", "json", "raw"])
+        .default("pretty")
+    )
+    .option("--no-progress", "Disable progress indicators")
+    .addHelpText(
+      "after",
+      `
+Examples:
+  px prompt tag UHJvbXB0VmVyc2lvbjox --tag production
+  px prompt tag UHJvbXB0VmVyc2lvbjox --tag production --description "Current release"
+  px prompt tag UHJvbXB0VmVyc2lvbjox --tag staging --format raw --no-progress
+
+If another version of the same prompt already has the tag, the tag moves to
+this version. The tag's description is replaced on every call: omitting
+--description clears an existing description.`
+    )
+    .action((promptVersionId: string, options: PromptTagOptions) =>
+      promptTagHandler({ promptVersionId, options })
+    );
+}
+
 export function createPromptGetCommand(): Command {
   return new Command("get")
     .description("Show a Phoenix prompt")
@@ -364,6 +549,7 @@ export function createPromptCommand(): Command {
   command.description("Manage Phoenix prompts");
   command.addCommand(createPromptListCommand());
   command.addCommand(createPromptGetCommand());
+  command.addCommand(createPromptTagCommand());
   command.addCommand(createPromptDeleteCommand());
   return command;
 }
