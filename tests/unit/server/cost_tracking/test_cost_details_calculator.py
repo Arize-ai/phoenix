@@ -877,25 +877,27 @@ class TestSpanCostDetailsCalculator:
         assert unpriced.total_cost is None
 
 
-def _tier(base_rate: float, new_rate: float) -> dict[str, Any]:
+def _tier(base_rate: float, new_rate: float, key: str) -> dict[str, Any]:
     return {
         "base_rate": base_rate,
         "customization": ThresholdBasedTokenPriceCustomization(
-            key="llm.token_count.prompt", threshold=272_000, new_rate=new_rate
+            key=key, threshold=272_000, new_rate=new_rate
         ),
     }
 
 
-def _luna_decision_prices() -> list[models.TokenPrice]:
+def _luna_decision_prices(tier_key: str = "llm.token_count.prompt") -> list[models.TokenPrice]:
     """
     gpt-6-luna on the Decisions API: chat input and cache rates with the 272k tier, $0 output.
-    The tier key is the one the LLM manifest entry uses.
+    The default tier key is the one the LLM manifest entry uses.
     """
     return [
-        models.TokenPrice(token_type="input", is_prompt=True, **_tier(1e-7, 2e-7)),
-        models.TokenPrice(token_type="output", is_prompt=False, **_tier(0.0, 0.0)),
-        models.TokenPrice(token_type="cache_read", is_prompt=True, **_tier(1e-8, 2e-8)),
-        models.TokenPrice(token_type="cache_write", is_prompt=True, **_tier(1.25e-7, 2.5e-7)),
+        models.TokenPrice(token_type="input", is_prompt=True, **_tier(1e-7, 2e-7, tier_key)),
+        models.TokenPrice(token_type="output", is_prompt=False, **_tier(0.0, 0.0, tier_key)),
+        models.TokenPrice(token_type="cache_read", is_prompt=True, **_tier(1e-8, 2e-8, tier_key)),
+        models.TokenPrice(
+            token_type="cache_write", is_prompt=True, **_tier(1.25e-7, 2.5e-7, tier_key)
+        ),
     ]
 
 
@@ -999,6 +1001,43 @@ class TestDecisionSpanCostDetails:
         attributes["llm"] = {"token_count": {"prompt": 300_000}}
         details = _by_type(calculator.calculate_details(attributes))
         assert details["input"].cost == pytest.approx(1000 * 1e-7)
+
+    @pytest.mark.parametrize(
+        "attributes, input_cost_per_token",
+        [
+            pytest.param(_decision_span(input=300_000, output=1), 2e-7, id="decision-span"),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "llm": {
+                        "model_name": "gpt-6-luna",
+                        "token_count": {"prompt": 300_000, "completion": 1},
+                    },
+                },
+                2e-7,
+                id="legacy-llm-keys-decision-span",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "LLM"}},
+                    "llm": {
+                        "model_name": "gpt-6-luna",
+                        "token_count": {"prompt": 300_000, "completion": 1},
+                    },
+                },
+                1e-7,
+                id="llm-span-ignores-decision-key",
+            ),
+        ],
+    )
+    def test_tier_keyed_on_decision_input(
+        self, attributes: dict[str, Any], input_cost_per_token: float
+    ) -> None:
+        calculator = SpanCostDetailsCalculator(_luna_decision_prices("decision.token_count.input"))
+        details = _by_type(calculator.calculate_details(attributes))
+        assert details["input"].tokens == 300_000
+        assert details["input"].cost_per_token == pytest.approx(input_cost_per_token)
+        assert details["input"].cost == pytest.approx(300_000 * input_cost_per_token)
 
     def test_llm_span_tier_ignores_decision_counts(self) -> None:
         calculator = SpanCostDetailsCalculator(_luna_decision_prices())
