@@ -142,6 +142,16 @@ class CategoricalOutputConfig(CategoricalAnnotationConfig):
 
 class ContinuousOutputConfig(ContinuousAnnotationConfig):
     name: str
+    threshold: Optional[float] = Field(
+        default=None,
+        exclude=True,
+        description=(
+            "The score separating good from bad results, when something other than the "
+            "bounds' midpoint pins it down: a decision predicate's threshold. Derived from "
+            "the evaluator's scoring policy, never stored or accepted as input, so it is "
+            "left out of serialization."
+        ),
+    )
 
     def shape_examples(self, language: str = _PYTHON, mode: str = "full") -> list[str]:
         """Return code snippet strings illustrating valid return shapes for this config."""

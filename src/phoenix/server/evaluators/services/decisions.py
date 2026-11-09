@@ -259,7 +259,11 @@ async def _bind_decision_to_dataset(
     )
     if dataset_name is None:
         raise NotFound("Dataset not found")
-    if output_configs is not None and list(output_configs) != evaluator.output_configs:
+    # Compared as serialized, which leaves out the derived predicate threshold a
+    # caller's copy of the configs cannot carry.
+    if output_configs is not None and [config.model_dump() for config in output_configs] != [
+        config.model_dump() for config in evaluator.output_configs
+    ]:
         raise BadRequest(
             "Decision outputs are derived from the questions and scoring policy; "
             "edit the scoring policy to change scoring"

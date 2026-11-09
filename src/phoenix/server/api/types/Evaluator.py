@@ -1251,6 +1251,7 @@ def _to_gql_continuous_annotation_config(
         description=config.description,
         lower_bound=config.lower_bound,
         upper_bound=config.upper_bound,
+        threshold=config.threshold,
     )
 
 
