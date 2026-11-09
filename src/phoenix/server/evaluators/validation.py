@@ -1,0 +1,303 @@
+"""Validate evaluator output configurations and their prompt contracts."""
+
+from typing import Literal, Optional, Sequence
+
+from pydantic import (
+    BaseModel,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
+from typing_extensions import Self
+
+from phoenix.db import models
+from phoenix.db.types.annotation_configs import (
+    CategoricalOutputConfig,
+    OutputConfigType,
+)
+from phoenix.db.types.evaluators import InputMapping
+from phoenix.db.types.prompts import (
+    PromptResponseFormat,
+    PromptToolChoiceOneOrMore,
+    PromptToolChoiceSpecificFunctionTool,
+    PromptToolFunction,
+    PromptTools,
+)
+from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.decisions.rendering import decision_variables
+
+
+def validate_evaluator_prompt_and_configs(
+    *,
+    prompt_tools: Optional[PromptTools],
+    prompt_response_format: Optional[PromptResponseFormat],
+    evaluator_output_configs: list[CategoricalOutputConfig],
+    evaluator_description: Optional[str] = None,
+) -> None:
+    """
+    Validate that prompt tool definitions are consistent with evaluator output configs.
+
+    Each output config must have a corresponding tool definition matched by name.
+    The tool's label enum must match the config's values, and the tool's label
+    description must match the config's name (annotation name).
+    """
+    if prompt_response_format is not None:
+        raise ValueError(LLMEvaluatorPromptErrorMessage.RESPONSE_FORMAT_NOT_SUPPORTED)
+    if prompt_tools is None:
+        raise ValueError(LLMEvaluatorPromptErrorMessage.TOOLS_REQUIRED)
+    if len(prompt_tools.tools) != len(evaluator_output_configs):
+        raise ValueError(LLMEvaluatorPromptErrorMessage.TOOL_COUNT_MUST_MATCH_CONFIG_COUNT)
+    if not isinstance(
+        prompt_tools.tool_choice, (PromptToolChoiceOneOrMore, PromptToolChoiceSpecificFunctionTool)
+    ):
+        raise ValueError(LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_REQUIRED)
+    if isinstance(prompt_tools.tool_choice, PromptToolChoiceSpecificFunctionTool):
+        if not prompt_tools.tools or not isinstance(prompt_tools.tools[0], PromptToolFunction):
+            raise ValueError(LLMEvaluatorPromptErrorMessage.FUNCTION_TOOLS_REQUIRED)
+        if prompt_tools.tool_choice.function_name != prompt_tools.tools[0].function.name:
+            raise ValueError(
+                LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_SPECIFIC_FUNCTION_NAME_MUST_MATCH_DEFINED_FUNCTION_NAME
+            )
+
+    # Build a lookup of tool definitions by function name
+    tools_by_name: dict[str, PromptToolFunction] = {}
+    for tool in prompt_tools.tools:
+        if not isinstance(tool, PromptToolFunction):
+            raise ValueError(LLMEvaluatorPromptErrorMessage.FUNCTION_TOOLS_REQUIRED)
+        tools_by_name[tool.function.name] = tool
+
+    # Validate each config against its matched tool
+    for config in evaluator_output_configs:
+        config_name = config.name
+        prompt_tool = tools_by_name.get(config_name)
+        if prompt_tool is None:
+            raise ValueError(
+                f"No tool definition found matching output config name '{config_name}'"
+            )
+        _validate_tool_and_config(
+            prompt_tool=prompt_tool,
+            evaluator_annotation_name=config_name,
+            evaluator_output_config=config,
+            evaluator_description=evaluator_description,
+        )
+
+
+def _validate_tool_and_config(
+    *,
+    prompt_tool: PromptToolFunction,
+    evaluator_annotation_name: str,
+    evaluator_output_config: CategoricalOutputConfig,
+    evaluator_description: Optional[str] = None,
+) -> None:
+    """Validate a single tool definition against its matched output config."""
+    prompt_tool_function_definition = prompt_tool.function
+    prompt_tool_function_definition_description = (
+        prompt_tool_function_definition.description
+        if isinstance(prompt_tool_function_definition.description, str)
+        else None
+    )
+    if (
+        # The judge model reads the tool function's description as its instruction, while the
+        # UI shows the evaluator's description as what the evaluator does, so the two must be
+        # the same string or the UI describes an instruction the judge isn't running.
+        # If the evaluator description is not None, it must match the function description.
+        # The function may have an empty string as its description, as required by the Anthropic API
+        evaluator_description is not None
+        and evaluator_description != prompt_tool_function_definition_description
+    ):
+        raise ValueError(
+            LLMEvaluatorPromptErrorMessage.EVALUATOR_DESCRIPTION_MUST_MATCH_FUNCTION_DESCRIPTION
+        )
+
+    try:
+        function_parameters = _EvaluatorPromptToolFunctionParameters.model_validate(
+            prompt_tool_function_definition.parameters
+        )
+    except ValidationError as error:
+        raise ValueError(
+            _parse_pydantic_validation_error(
+                function_name=prompt_tool_function_definition.name,
+                validation_error=error,
+            )
+        )
+    function_label_property_description = function_parameters.properties.label.description
+    if function_label_property_description != evaluator_annotation_name:
+        raise ValueError(
+            LLMEvaluatorPromptErrorMessage.EVALUATOR_ANNOTATION_NAME_MUST_MATCH_FUNCTION_LABEL_PROPERTY_DESCRIPTION
+        )
+    labels = function_parameters.properties.label.enum
+    evaluator_choices = [value.label for value in evaluator_output_config.values]
+    if set(labels) != set(evaluator_choices):
+        raise ValueError(
+            LLMEvaluatorPromptErrorMessage.EVALUATOR_CHOICES_MUST_MATCH_TOOL_FUNCTION_LABELS
+        )
+
+
+class _EvaluatorPromptToolFunctionParametersLabelProperty(BaseModel):
+    type: Literal["string"]
+    enum: list[str] = Field(
+        min_length=2,
+    )
+    description: str
+
+
+class _EvaluatorPromptToolFunctionParametersExplanationProperty(BaseModel):
+    type: Literal["string"]
+    description: str
+
+
+class _EvaluatorPromptToolFunctionParametersProperty(BaseModel):
+    label: _EvaluatorPromptToolFunctionParametersLabelProperty
+    explanation: Optional[_EvaluatorPromptToolFunctionParametersExplanationProperty] = None
+
+    @model_validator(mode="after")
+    def check_explanation_property_is_string_or_omitted(self) -> Self:
+        explanation_explicitly_set = "explanation" in self.model_fields_set
+        if explanation_explicitly_set and self.explanation is None:
+            raise ValueError(
+                LLMEvaluatorPromptErrorMessage.EXPLANATION_PROPERTIES_MUST_BE_STRING_OR_OMITTED
+            )
+        return self
+
+
+class _EvaluatorPromptToolFunctionParameters(BaseModel):
+    type: Literal["object"]
+    properties: _EvaluatorPromptToolFunctionParametersProperty
+    required: list[str]
+
+    @field_validator("required")
+    @classmethod
+    def check_required_values_are_unique(cls, values: list[str]) -> list[str]:
+        if len(values) != len(set(values)):
+            raise ValueError(LLMEvaluatorPromptErrorMessage.REQUIRED_VALUES_MUST_BE_UNIQUE)
+        return values
+
+    @model_validator(mode="after")
+    def check_all_properties_are_required(self) -> Self:
+        has_explanation = self.properties.explanation is not None
+        expected = {"label", "explanation"} if has_explanation else {"label"}
+        if unexpected := (set(self.required) - expected):
+            raise ValueError(
+                LLMEvaluatorPromptErrorMessage.UNEXPECTED_REQUIRED_PROPERTIES.format(
+                    properties=", ".join(sorted(unexpected))
+                )
+            )
+        if missing := (expected - set(self.required)):
+            raise ValueError(
+                LLMEvaluatorPromptErrorMessage.MISSING_REQUIRED_PROPERTIES.format(
+                    properties=", ".join(sorted(missing))
+                )
+            )
+
+        return self
+
+
+def _parse_pydantic_validation_error(
+    function_name: str,
+    validation_error: ValidationError,
+) -> str:
+    error_messages = [f"'{function_name}' function has errors."]
+    for error_details in validation_error.errors():
+        error_message = ""
+        if path := ".".join(map(str, error_details["loc"])):
+            error_message = f"At '{path}': "
+        error_details_message = error_details["msg"]
+        error_message += f"{error_details_message}."
+        error_messages.append(error_message)
+    return " ".join(error_messages)
+
+
+class LLMEvaluatorPromptErrorMessage:
+    RESPONSE_FORMAT_NOT_SUPPORTED = "Response format is not supported for evaluator prompts"
+    TOOLS_REQUIRED = "Evaluator prompts require tools"
+    FUNCTION_TOOLS_REQUIRED = "Evaluator prompts require function tools"
+    EXACTLY_ONE_TOOL_REQUIRED = "Evaluator prompts require exactly one tool"
+    TOOL_COUNT_MUST_MATCH_CONFIG_COUNT = (
+        "Number of prompt tool definitions must match number of output configs"
+    )
+    TOOL_CHOICE_REQUIRED = "Evaluator prompts must require a tool choice"
+    TOOL_CHOICE_SPECIFIC_FUNCTION_NAME_MUST_MATCH_DEFINED_FUNCTION_NAME = (
+        "Evaluator tool choice specific function name must match defined function name"
+    )
+    EVALUATOR_DESCRIPTION_MUST_MATCH_FUNCTION_DESCRIPTION = (
+        "Evaluator description must match the function description; create a prompt version "
+        "whose tool description matches, then PATCH prompt and description together"
+    )
+    REQUIRED_VALUES_MUST_BE_UNIQUE = "Required values must be unique"
+    MISSING_REQUIRED_PROPERTIES = "The following properties must be required: {properties}"
+    UNEXPECTED_REQUIRED_PROPERTIES = "Found unexpected required properties: {properties}"
+    EVALUATOR_ANNOTATION_NAME_MUST_MATCH_FUNCTION_LABEL_PROPERTY_DESCRIPTION = (
+        "Evaluator annotation name must match function parameters label property description"
+    )
+    EVALUATOR_CHOICES_MUST_MATCH_TOOL_FUNCTION_LABELS = (
+        "Evaluator choices must match tool function label property enum"
+    )
+    EXPLANATION_PROPERTIES_MUST_BE_STRING_OR_OMITTED = (
+        "The 'explanation' property must be omitted or set to a string."
+    )
+
+
+class LLMEvaluatorOutputConfigs(BaseModel):
+    """Validated output configs for LLM evaluators (categorical only)."""
+
+    configs: list[CategoricalOutputConfig] = Field(min_length=1)
+
+    @field_validator("configs")
+    @classmethod
+    def check_unique_names(
+        cls, configs: list[CategoricalOutputConfig]
+    ) -> list[CategoricalOutputConfig]:
+        names = [c.name for c in configs]
+        if len(names) != len(set(names)):
+            duplicates = [n for n in names if names.count(n) > 1]
+            raise ValueError(f"Config names must be unique. Duplicates found: {set(duplicates)}")
+        return configs
+
+
+def require_categorical_output_configs(configs: Sequence[OutputConfigType]) -> None:
+    """LLM evaluators answer through a label-choosing tool, so every output must be categorical."""
+    if any(not isinstance(config, CategoricalOutputConfig) for config in configs):
+        raise ValueError(
+            "LLM evaluators only support categorical output configs. Non-categorical config found."
+        )
+
+
+# The keys of the context a dataset evaluator judges a run with (see experiment_runner).
+EVALUATOR_CONTEXT_KEYS = ("input", "output", "reference", "metadata")
+# What online evaluation fills from a span, trace, or session; there is no reference.
+PROJECT_EVALUATOR_CONTEXT_KEYS = ("input", "output", "metadata")
+
+
+def validate_decision_input_mapping(
+    version: models.DecisionVersion,
+    input_mapping: Optional[InputMapping],
+    *,
+    context_keys: Sequence[str] = EVALUATOR_CONTEXT_KEYS,
+    context: str = "experiment run",
+) -> None:
+    """Reject a mapping that names variables the decision doesn't use, or leaves one of its
+    variables unfillable.
+
+    Keys the decision doesn't use would otherwise be silently dropped at run time. An
+    unmapped variable is filled from the context only when it is named like one of the
+    context's keys; any other would fail every run as missing.
+    """
+    declared = decision_variables(version.template_format, version.state, version.questions)
+    mapped = (
+        set(input_mapping.path_mapping) | set(input_mapping.literal_mapping)
+        if input_mapping is not None
+        else set()
+    )
+    if unknown := sorted(mapped - set(declared)):
+        raise BadRequest(
+            f"Input mapping names variables the decision doesn't use: "
+            f"{', '.join(repr(k) for k in unknown)}. "
+            f"Its variables: {', '.join(repr(n) for n in declared) or 'none'}"
+        )
+    if unfilled := [name for name in declared if name not in mapped and name not in context_keys]:
+        raise BadRequest(
+            f"Map the variables {', '.join(repr(name) for name in unfilled)}: only variables named "
+            f"{', '.join(repr(key) for key in context_keys)} are filled from the "
+            f"{context} without a mapping"
+        )

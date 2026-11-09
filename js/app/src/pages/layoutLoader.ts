@@ -8,8 +8,10 @@ export const layoutLoaderGql = graphql`
   query layoutLoaderQuery {
     projectCount
     datasetCount
+    decisionCount
     promptCount
-    evaluatorCount
+    projectEvaluatorCount
+    datasetEvaluatorCount
   }
 `;
 

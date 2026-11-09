@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { simpleParser, type ParsedMail, type AddressObject } from "mailparser";
 import {
   SMTPServer,
+  type SMTPServerAddress,
   type SMTPServerAuthentication,
   type SMTPServerAuthenticationResponse,
   type SMTPServerDataStream,
@@ -57,17 +58,17 @@ export class SMTPHandler {
   }
 
   private handleMailFrom(
-    address: { address: string; args: Record<string, string | boolean> },
+    address: SMTPServerAddress,
     session: SMTPServerSession,
-    callback: (error?: Error) => void
+    callback: (error?: Error | null) => void
   ): void {
     callback();
   }
 
   private handleRcptTo(
-    address: { address: string; args: Record<string, string | boolean> },
+    address: SMTPServerAddress,
     session: SMTPServerSession,
-    callback: (error?: Error) => void
+    callback: (error?: Error | null) => void
   ): void {
     callback();
   }

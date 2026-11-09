@@ -57,7 +57,6 @@ const tokenBaseCSS = css`
      visual's margin so the pill reads as one unit. */
   gap: var(--global-dimension-size-50);
   font-size: var(--global-dimension-font-size-75);
-  line-height: var(--global-line-height-s);
   padding: 0 var(--global-dimension-size-100);
   border-radius: var(--global-rounding-large);
   border: 1px solid transparent;
@@ -72,10 +71,14 @@ const tokenBaseCSS = css`
 
   &[data-size="S"] {
     height: var(--global-dimension-size-200);
+    /* Match line-height to height (both 16px) — otherwise the 20px "S"
+       body line-height overflows this pill's shorter box. */
+    line-height: var(--global-line-height-xs);
   }
 
   &[data-size="M"] {
     height: var(--global-dimension-size-250);
+    line-height: var(--global-line-height-s);
   }
 
   &[data-size="L"] {
@@ -83,6 +86,7 @@ const tokenBaseCSS = css`
     /* The large token scales its typography up to body size so token-heavy
        detail views stay readable; S and M keep the compact font. */
     font-size: var(--global-dimension-font-size-100);
+    line-height: var(--global-line-height-m);
   }
 
   /* Center the leading visual and the remove button inside the pill's

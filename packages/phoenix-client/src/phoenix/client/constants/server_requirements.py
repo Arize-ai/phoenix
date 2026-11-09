@@ -130,6 +130,14 @@ PATCH_PROMPT = RouteRequirement(
     min_server_version=Version(19, 18, 0),
 )
 
+CREATE_PROMPT_CUSTOM_PROVIDER = ParameterRequirement(
+    parameter_name="custom_provider_id",
+    parameter_location="body",
+    route="POST /v1/prompts",
+    min_server_version=Version(21, 0, 0),
+    description="Prompt versions that target a custom model provider",
+)
+
 DELETE_PROMPT = RouteRequirement(
     method="DELETE",
     path="/v1/prompts/{prompt_identifier}",
@@ -148,4 +156,124 @@ GET_SPANS_ORDER = ParameterRequirement(
     parameter_location="query",
     route="GET /v1/projects/{id}/spans",
     min_server_version=Version(20, 16, 0),
+)
+
+GET_EVALUATOR = RouteRequirement(
+    method="GET",
+    path="/v1/evaluators/{evaluator_id}",
+    min_server_version=Version(21, 0, 0),
+)
+
+PATCH_EVALUATOR = RouteRequirement(
+    method="PATCH",
+    path="/v1/evaluators/{evaluator_id}",
+    min_server_version=Version(21, 0, 0),
+)
+
+CREATE_EVALUATOR_VERSION = RouteRequirement(
+    method="POST",
+    path="/v1/evaluators/{evaluator_id}/versions",
+    min_server_version=Version(21, 0, 0),
+)
+
+LIST_EVALUATORS = RouteRequirement(
+    method="GET",
+    path="/v1/evaluators",
+    min_server_version=Version(21, 0, 0),
+)
+
+LIST_EVALUATOR_VERSIONS = RouteRequirement(
+    method="GET",
+    path="/v1/evaluators/{evaluator_id}/versions",
+    min_server_version=Version(21, 0, 0),
+)
+
+CREATE_EVALUATOR = RouteRequirement(
+    method="POST",
+    path="/v1/evaluators",
+    min_server_version=Version(21, 0, 0),
+)
+
+LIST_SANDBOX_CONFIGS = RouteRequirement(
+    method="GET",
+    path="/v1/sandbox_configs",
+    min_server_version=Version(21, 0, 0),
+)
+
+DELETE_EVALUATOR = RouteRequirement(
+    method="DELETE",
+    path="/v1/evaluators/{evaluator_id}",
+    min_server_version=Version(21, 0, 0),
+)
+
+CREATE_DATASET_EVALUATOR = RouteRequirement(
+    method="POST",
+    path="/v1/datasets/{dataset_identifier}/evaluators",
+    min_server_version=Version(21, 0, 0),
+)
+
+LIST_DATASET_EVALUATORS = RouteRequirement(
+    method="GET",
+    path="/v1/datasets/{dataset_identifier}/evaluators",
+    min_server_version=Version(21, 0, 0),
+)
+
+GET_DATASET_EVALUATOR = RouteRequirement(
+    method="GET",
+    path="/v1/dataset_evaluators/{dataset_evaluator_id}",
+    min_server_version=Version(21, 0, 0),
+)
+
+PATCH_DATASET_EVALUATOR = RouteRequirement(
+    method="PATCH",
+    path="/v1/dataset_evaluators/{dataset_evaluator_id}",
+    min_server_version=Version(21, 0, 0),
+)
+
+DELETE_DATASET_EVALUATOR = RouteRequirement(
+    method="DELETE",
+    path="/v1/dataset_evaluators/{dataset_evaluator_id}",
+    min_server_version=Version(21, 0, 0),
+)
+
+DELETE_DATASET_EVALUATORS = RouteRequirement(
+    method="DELETE",
+    path="/v1/datasets/{dataset_id}/evaluators",
+    min_server_version=Version(21, 0, 0),
+)
+
+CREATE_PROJECT_EVALUATOR = RouteRequirement(
+    method="POST",
+    path="/v1/projects/{project_identifier}/evaluators",
+    min_server_version=Version(21, 0, 0),
+)
+
+LIST_PROJECT_EVALUATORS = RouteRequirement(
+    method="GET",
+    path="/v1/projects/{project_identifier}/evaluators",
+    min_server_version=Version(21, 0, 0),
+)
+
+GET_PROJECT_EVALUATOR = RouteRequirement(
+    method="GET",
+    path="/v1/project_evaluators/{project_evaluator_id}",
+    min_server_version=Version(21, 0, 0),
+)
+
+PATCH_PROJECT_EVALUATOR = RouteRequirement(
+    method="PATCH",
+    path="/v1/project_evaluators/{project_evaluator_id}",
+    min_server_version=Version(21, 0, 0),
+)
+
+DELETE_PROJECT_EVALUATOR = RouteRequirement(
+    method="DELETE",
+    path="/v1/project_evaluators/{project_evaluator_id}",
+    min_server_version=Version(21, 0, 0),
+)
+
+DELETE_PROJECT_EVALUATORS = RouteRequirement(
+    method="DELETE",
+    path="/v1/projects/{project_identifier}/evaluators",
+    min_server_version=Version(21, 0, 0),
 )

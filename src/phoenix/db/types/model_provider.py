@@ -1,5 +1,6 @@
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from enum import Enum
+from types import MappingProxyType
 from typing import (
     TYPE_CHECKING,
     Annotated,
@@ -15,10 +16,12 @@ from typing import (
 )
 
 from pydantic import (
+    AfterValidator,
     BaseModel,
     ConfigDict,
     Field,
     RootModel,
+    field_validator,
 )
 from typing_extensions import TypeAlias, assert_never
 
@@ -29,8 +32,12 @@ if TYPE_CHECKING:
     from google.genai.client import AsyncClient as GoogleAsyncClient
     from openai import AsyncOpenAI
     from types_aiobotocore_bedrock_runtime import BedrockRuntimeClient
+    from typesafe_sdk import AsyncTypeSafeClient
 
-    from phoenix.db.models import GenerativeModelSDK
+    from phoenix.db.models import DecisionSDK, GenerativeModelSDK
+
+TYPESAFE_DEFAULT_BASE_URL = "https://api.typesafe.ai"
+OPENAI_DEFAULT_BASE_URL = "https://api.openai.com/v1"
 
 # Covariant type for Protocol (output position only)
 ClientT_co = TypeVar("ClientT_co", covariant=True)
@@ -101,6 +108,11 @@ def google_rate_limit_key(api_key: str, base_url: str | None) -> tuple[str, int,
     return ("google", hash(api_key), hash(base_url))
 
 
+def typesafe_rate_limit_key(api_key: str, base_url: str) -> tuple[str, int, int]:
+    """Rate limit key for TypeSafe System One."""
+    return ("typesafe", hash(api_key), hash(base_url))
+
+
 @asynccontextmanager
 async def _bedrock_client_with_headers(
     client_context: AbstractAsyncContextManager["BedrockRuntimeClient"],
@@ -140,6 +152,67 @@ class ModelProvider(Enum):
     TOGETHER = "TOGETHER"
     ZAI = "ZAI"
     META = "META"
+    TYPESAFE = "TYPESAFE"
+
+
+SDK_TO_MODEL_PROVIDER: Mapping["GenerativeModelSDK", ModelProvider] = MappingProxyType(
+    {
+        "openai": ModelProvider.OPENAI,
+        "azure_openai": ModelProvider.AZURE_OPENAI,
+        "anthropic": ModelProvider.ANTHROPIC,
+        "aws_bedrock": ModelProvider.AWS,
+        "google_genai": ModelProvider.GOOGLE,
+        "typesafe": ModelProvider.TYPESAFE,
+    }
+)
+
+
+def model_provider_from_sdk(sdk: "GenerativeModelSDK") -> ModelProvider:
+    return SDK_TO_MODEL_PROVIDER[sdk]
+
+
+_OPENAI_FAMILY_PROVIDERS: frozenset[ModelProvider] = frozenset(
+    {
+        ModelProvider.OPENAI,
+        ModelProvider.AZURE_OPENAI,
+        ModelProvider.DEEPSEEK,
+        ModelProvider.XAI,
+        ModelProvider.OLLAMA,
+        ModelProvider.CEREBRAS,
+        ModelProvider.FIREWORKS,
+        ModelProvider.GROQ,
+        ModelProvider.MOONSHOT,
+        ModelProvider.MINIMAX,
+        ModelProvider.PERPLEXITY,
+        ModelProvider.TOGETHER,
+        ModelProvider.ZAI,
+        ModelProvider.META,
+    }
+)
+
+_SDK_COMPATIBLE_PROVIDERS: Mapping["GenerativeModelSDK", frozenset[ModelProvider]] = (
+    MappingProxyType(
+        {
+            "openai": _OPENAI_FAMILY_PROVIDERS,
+            "azure_openai": _OPENAI_FAMILY_PROVIDERS,
+            "anthropic": frozenset({ModelProvider.ANTHROPIC}),
+            "google_genai": frozenset({ModelProvider.GOOGLE}),
+            "aws_bedrock": frozenset({ModelProvider.AWS}),
+            "typesafe": frozenset(),
+        }
+    )
+)
+
+_CHAT_SDKS: frozenset["GenerativeModelSDK"] = frozenset(
+    {"openai", "azure_openai", "anthropic", "google_genai", "aws_bedrock"}
+)
+_DECISION_MODEL_SDKS: frozenset["GenerativeModelSDK"] = frozenset(
+    {"openai", "azure_openai", "typesafe"}
+)
+
+DECISION_SDK_TO_MODEL_PROVIDER: Mapping["DecisionSDK", ModelProvider] = MappingProxyType(
+    {"openai": ModelProvider.OPENAI, "typesafe": ModelProvider.TYPESAFE}
+)
 
 
 def is_sdk_compatible_with_model_provider(
@@ -150,34 +223,73 @@ def is_sdk_compatible_with_model_provider(
     Check if a custom provider's SDK can be used with a prompt's model provider.
 
     This prevents misconfigurations like using an AWS Bedrock custom provider
-    with an OpenAI prompt.
+    with an OpenAI prompt. Prompts are chat templates, so an SDK without chat
+    models (see :func:`sdk_offers_chat`) is compatible with none.
     """
-    if sdk == "openai" or sdk == "azure_openai":
-        # openai and azure_openai SDKs are compatible with OpenAI-family providers
-        return model_provider in (
-            ModelProvider.OPENAI,
-            ModelProvider.AZURE_OPENAI,
-            ModelProvider.DEEPSEEK,
-            ModelProvider.XAI,
-            ModelProvider.OLLAMA,
-            ModelProvider.CEREBRAS,
-            ModelProvider.FIREWORKS,
-            ModelProvider.GROQ,
-            ModelProvider.MOONSHOT,
-            ModelProvider.MINIMAX,
-            ModelProvider.PERPLEXITY,
-            ModelProvider.TOGETHER,
-            ModelProvider.ZAI,
-            ModelProvider.META,
-        )
-    if sdk == "anthropic":
-        return model_provider is ModelProvider.ANTHROPIC
-    if sdk == "google_genai":
-        return model_provider is ModelProvider.GOOGLE
-    if sdk == "aws_bedrock":
-        return model_provider is ModelProvider.AWS
-    else:
-        assert_never(sdk)
+    return model_provider in _SDK_COMPATIBLE_PROVIDERS[sdk]
+
+
+def sdk_offers_chat(sdk: "GenerativeModelSDK") -> bool:
+    """Whether a custom provider with this SDK can serve chat (LLM) models."""
+    return sdk in _CHAT_SDKS
+
+
+def sdk_can_serve_decisions(sdk: "GenerativeModelSDK") -> bool:
+    """Whether a custom provider with this SDK may be given a decision client.
+
+    Whether it does is its ``decision_sdk``, not its SDK.
+    """
+    return sdk in _DECISION_MODEL_SDKS
+
+
+def required_decision_sdk(sdk: "GenerativeModelSDK") -> "DecisionSDK | None":
+    """The decision client a provider with this SDK must use, if it has no choice.
+
+    A TypeSafe provider exists to serve System One, so it always does.
+    """
+    return "typesafe" if sdk == "typesafe" else None
+
+
+def _clean_model_names(value: tuple[str, ...]) -> tuple[str, ...]:
+    return tuple(dict.fromkeys(name.strip() for name in value if name.strip()))
+
+
+SuggestedModelNames: TypeAlias = Annotated[tuple[str, ...], AfterValidator(_clean_model_names)]
+"""Model names listed in the model menu, trimmed and without duplicates."""
+
+LLM_MODEL_NAMES_DESCRIPTION = (
+    "Suggested LLM model names, listed in the model menu in place of the SDK's built-in "
+    "list; empty lists the built-in models. Any name the endpoint accepts works."
+)
+
+
+class DecisionModelsConfig(BaseModel):
+    """Where a custom provider's decision models run, beside its chat settings.
+
+    The decision client reuses the provider's API key and headers. Which client it is
+    (``decision_sdk``) is stored in its own column, so it can be read without decrypting.
+    """
+
+    model_config = ConfigDict(
+        frozen=True,
+        str_strip_whitespace=True,
+    )
+    base_url: str | None = Field(
+        default=None,
+        description=(
+            "Base URL of the decision API. None uses a best guess from the chat base URL. "
+            "A TypeSafe provider always uses its own base URL."
+        ),
+    )
+    model_names: SuggestedModelNames = Field(
+        default=(),
+        description="Suggested decision model names; any name the endpoint accepts works.",
+    )
+
+    @field_validator("base_url", mode="after")
+    @classmethod
+    def _empty_base_url_is_none(cls, value: str | None) -> str | None:
+        return value or None
 
 
 class AuthenticationMethodApiKey(BaseModel):
@@ -249,6 +361,14 @@ class OpenAICustomProviderConfig(BaseModel):
     openai_api_type: Literal["chat_completions", "responses"] = Field(
         default="responses",
         description="Which OpenAI API to use: chat_completions or responses",
+    )
+    model_names: SuggestedModelNames = Field(
+        default=(),
+        description=LLM_MODEL_NAMES_DESCRIPTION,
+    )
+    decision_models: DecisionModelsConfig | None = Field(
+        default=None,
+        description="Decision endpoint settings; used when the provider has a decision client",
     )
 
     def get_client_factory(
@@ -359,6 +479,14 @@ class AzureOpenAICustomProviderConfig(BaseModel):
     openai_api_type: Literal["chat_completions", "responses"] = Field(
         default="responses",
         description="Which OpenAI API to use: chat_completions or responses",
+    )
+    model_names: SuggestedModelNames = Field(
+        default=(),
+        description=LLM_MODEL_NAMES_DESCRIPTION,
+    )
+    decision_models: DecisionModelsConfig | None = Field(
+        default=None,
+        description="Decision endpoint settings; used when the provider has a decision client",
     )
 
     def get_client_factory(
@@ -508,6 +636,10 @@ class AnthropicCustomProviderConfig(BaseModel):
         default=None,
         description="Anthropic client kwargs",
     )
+    model_names: SuggestedModelNames = Field(
+        default=(),
+        description=LLM_MODEL_NAMES_DESCRIPTION,
+    )
 
     def get_client_factory(
         self,
@@ -609,6 +741,10 @@ class AWSBedrockCustomProviderConfig(BaseModel):
     aws_bedrock_client_kwargs: AWSBedrockClientKwargs = Field(
         ...,
         description="AWS Bedrock client kwargs",
+    )
+    model_names: SuggestedModelNames = Field(
+        default=(),
+        description=LLM_MODEL_NAMES_DESCRIPTION,
     )
 
     def get_client_factory(
@@ -742,6 +878,10 @@ class GoogleGenAICustomProviderConfig(BaseModel):
         default=None,
         description="Google GenAI client kwargs",
     )
+    model_names: SuggestedModelNames = Field(
+        default=(),
+        description=LLM_MODEL_NAMES_DESCRIPTION,
+    )
 
     def get_client_factory(
         self,
@@ -805,6 +945,68 @@ class GoogleGenAICustomProviderConfig(BaseModel):
         )
 
 
+TypeSafeAuthenticationMethod: TypeAlias = AuthenticationMethodApiKey
+
+
+class TypeSafeClientKwargs(AnthropicClientKwargs):
+    pass
+
+
+class TypeSafeCustomProviderConfig(BaseModel):
+    """A System One-compatible endpoint. It serves decision models only."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        str_strip_whitespace=True,
+    )
+    type: Literal["typesafe"] = "typesafe"
+    typesafe_authentication_method: TypeSafeAuthenticationMethod = Field(
+        ...,
+        description="TypeSafe authentication method",
+    )
+    typesafe_client_kwargs: TypeSafeClientKwargs | None = Field(
+        default=None,
+        description="TypeSafe client kwargs",
+    )
+    decision_models: DecisionModelsConfig | None = Field(
+        default=None,
+        description="Decision endpoint settings; used when the provider has a decision client",
+    )
+
+    def get_client_factory(
+        self,
+        *,
+        timeout: float = 60,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> "ClientFactory[AsyncTypeSafeClient]":
+        try:
+            from typesafe_sdk import AsyncTypeSafeClient, RetryPolicy
+        except ImportError:
+            raise ImportError("Install typesafe-sdk to use a TypeSafe provider.")
+
+        kwargs = self.typesafe_client_kwargs
+        # Never the server's TYPESAFE_BASE_URL: the key goes only where it's configured.
+        base_url = (kwargs.base_url if kwargs else None) or TYPESAFE_DEFAULT_BASE_URL
+        default_headers = kwargs.default_headers if kwargs else None
+        api_key = self.typesafe_authentication_method.api_key
+
+        headers = dict(default_headers) if default_headers else {}
+        if extra_headers:
+            headers.update(extra_headers)
+        merged_headers = headers or None
+
+        def create_client() -> AsyncTypeSafeClient:
+            return AsyncTypeSafeClient(
+                api_key=api_key,
+                base_url=base_url,
+                headers=merged_headers,
+                retry=RetryPolicy(max_retries=0),
+                timeout=timeout,
+            )
+
+        return LLMClientFactory(create_client, typesafe_rate_limit_key(api_key, base_url))
+
+
 GenerativeModelCustomerProviderConfigType = Annotated[
     Union[
         OpenAICustomProviderConfig,
@@ -812,6 +1014,7 @@ GenerativeModelCustomerProviderConfigType = Annotated[
         AnthropicCustomProviderConfig,
         AWSBedrockCustomProviderConfig,
         GoogleGenAICustomProviderConfig,
+        TypeSafeCustomProviderConfig,
     ],
     Field(discriminator="type"),
 ]

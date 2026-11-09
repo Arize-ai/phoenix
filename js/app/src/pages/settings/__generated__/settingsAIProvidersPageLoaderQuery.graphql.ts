@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<66ec0d1c96e1f30f4b0897e0f499a651>>
+ * @generated SignedSource<<b9b268820f6f1c52cac9a9a1da29adaf>>
  * @lightSyntaxTransform
  */
 
@@ -26,21 +26,28 @@ var v0 = {
   "name": "name",
   "storageKey": null
 },
-v1 = [
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "modelTypes",
+  "storageKey": null
+},
+v2 = [
   {
     "kind": "Literal",
     "name": "first",
     "value": 50
   }
 ],
-v2 = {
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v3 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -135,13 +142,14 @@ return {
             "kind": "ScalarField",
             "name": "credentialsSet",
             "storageKey": null
-          }
+          },
+          (v1/*:: as any*/)
         ],
         "storageKey": null
       },
       {
         "alias": null,
-        "args": (v1/*:: as any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "GenerativeModelCustomProviderConnection",
         "kind": "LinkedField",
         "name": "generativeModelCustomProviders",
@@ -163,7 +171,7 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v2/*:: as any*/),
+                  (v3/*:: as any*/),
                   (v0/*:: as any*/),
                   {
                     "alias": null,
@@ -186,6 +194,7 @@ return {
                     "name": "provider",
                     "storageKey": null
                   },
+                  (v1/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -208,7 +217,7 @@ return {
                     "name": "user",
                     "plural": false,
                     "selections": [
-                      (v2/*:: as any*/),
+                      (v3/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -234,7 +243,7 @@ return {
                     "name": "config",
                     "plural": false,
                     "selections": [
-                      (v3/*:: as any*/),
+                      (v4/*:: as any*/),
                       {
                         "kind": "InlineFragment",
                         "selections": [
@@ -252,7 +261,7 @@ return {
                     ],
                     "storageKey": null
                   },
-                  (v3/*:: as any*/)
+                  (v4/*:: as any*/)
                 ],
                 "storageKey": null
               },
@@ -296,7 +305,7 @@ return {
       },
       {
         "alias": null,
-        "args": (v1/*:: as any*/),
+        "args": (v2/*:: as any*/),
         "filters": null,
         "handle": "connection",
         "key": "CustomProvidersCard_generativeModelCustomProviders",
@@ -306,12 +315,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7d24a9b375274a1fcd4573005daf1438",
+    "cacheID": "ca672fad1627ca59c204284cf8b4d327",
     "id": null,
     "metadata": {},
     "name": "settingsAIProvidersPageLoaderQuery",
     "operationKind": "query",
-    "text": "query settingsAIProvidersPageLoaderQuery {\n  ...GenerativeProvidersCard_data\n  ...CustomProvidersCard_data\n}\n\nfragment CustomProvidersCard_data on Query {\n  generativeModelCustomProviders(first: 50) {\n    edges {\n      node {\n        id\n        name\n        description\n        sdk\n        provider\n        createdAt\n        updatedAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n        config {\n          __typename\n          ... on UnparsableConfig {\n            parseError\n          }\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment GenerativeProvidersCard_data on Query {\n  modelProviders {\n    name\n    key\n    dependenciesInstalled\n    dependencies\n    credentialRequirements {\n      envVarName\n      isRequired\n    }\n    credentialsSet\n  }\n}\n"
+    "text": "query settingsAIProvidersPageLoaderQuery {\n  ...GenerativeProvidersCard_data\n  ...CustomProvidersCard_data\n}\n\nfragment CustomProvidersCard_data on Query {\n  generativeModelCustomProviders(first: 50) {\n    edges {\n      node {\n        id\n        name\n        description\n        sdk\n        provider\n        modelTypes\n        createdAt\n        updatedAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n        config {\n          __typename\n          ... on UnparsableConfig {\n            parseError\n          }\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment GenerativeProvidersCard_data on Query {\n  modelProviders {\n    name\n    key\n    dependenciesInstalled\n    dependencies\n    credentialRequirements {\n      envVarName\n      isRequired\n    }\n    credentialsSet\n    modelTypes\n  }\n}\n"
   }
 };
 })();

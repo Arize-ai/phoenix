@@ -152,12 +152,29 @@ export type ResolvePxiRuntimeOptionsInput = {
   sessionId?: string;
 };
 
+/**
+ * Providers the schema knows but PXI cannot chat with, by display name. PXI
+ * resolves its model before it talks to a server, so this is the one place it
+ * cannot read capability from the server's registry.
+ */
+const DECISION_ONLY_PROVIDERS: Partial<Record<BuiltInProvider, string>> = {
+  TYPESAFE: "TypeSafe",
+};
+
 function getExpectedProviderMessage(): string {
   return `Expected one of: ${BUILT_IN_PROVIDERS.join(", ")}.`;
 }
 
 function isBuiltInProvider(provider: string): provider is BuiltInProvider {
-  return BUILT_IN_PROVIDERS.includes(provider as BuiltInProvider);
+  // The schema's provider union is wider than the providers PXI can chat
+  // with (decision-only providers are left out above).
+  return (BUILT_IN_PROVIDERS as readonly string[]).includes(provider);
+}
+
+function getDecisionOnlyProviderName(provider: string): string | undefined {
+  return (DECISION_ONLY_PROVIDERS as Record<string, string | undefined>)[
+    provider
+  ];
 }
 
 function normalizeBuiltInProvider({ provider }: { provider: string }): string {
@@ -204,6 +221,12 @@ export function resolveModelSelection({
     provider: rawSelectedProvider,
   });
   if (!isBuiltInProvider(selectedProvider)) {
+    const decisionOnlyName = getDecisionOnlyProviderName(selectedProvider);
+    if (decisionOnlyName) {
+      throw new InvalidArgumentError(
+        `Invalid value for --provider: ${rawSelectedProvider}. ${decisionOnlyName} offers decision models only and cannot run PXI, which needs a chat model. ${getExpectedProviderMessage()}`
+      );
+    }
     throw new InvalidArgumentError(
       `Invalid value for --provider: ${rawSelectedProvider}. ${getExpectedProviderMessage()}`
     );

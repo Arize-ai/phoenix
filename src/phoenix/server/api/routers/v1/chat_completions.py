@@ -42,6 +42,8 @@ from phoenix.server.agents.model_selection import (
     BuiltInProviderModelSelection,
     CustomProviderModelSelection,
 )
+from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
+from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
@@ -49,9 +51,19 @@ logger = logging.getLogger(__name__)
 
 _CUSTOM_PROVIDER_PREFIX = "custom"
 
+# The chat client registry is populated when the playground clients module is
+# imported; make that explicit so the provider list below is complete.
+initialize_playground_clients()
+
+# Chat completions need a chat client, so decision-only providers are not offered.
+_CHAT_PROVIDER_NAMES = sorted(
+    provider_key.to_model_provider().value.lower()
+    for provider_key in PLAYGROUND_CLIENT_REGISTRY.list_all_providers()
+)
+
 _MODEL_FORMAT_HELP = (
     "Model must be '{provider}:{model_name}' for a built-in provider "
-    f"(one of {', '.join(sorted(p.value.lower() for p in ModelProvider))}) "
+    f"(one of {', '.join(_CHAT_PROVIDER_NAMES)}) "
     "or 'custom:{provider_id}:{model_name}' for a stored custom provider, "
     "e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'."
 )

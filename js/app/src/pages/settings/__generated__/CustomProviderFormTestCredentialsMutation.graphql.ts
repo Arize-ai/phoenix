@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<46a0a98928e05ca00500b5ccffacbb05>>
+ * @generated SignedSource<<9c35b18234adf709e3f7b75443bae981>>
  * @lightSyntaxTransform
  */
 
@@ -8,6 +8,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type DecisionSDK = "OPENAI" | "TYPESAFE";
 export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
 export type GenerativeModelCustomerProviderConfigInput = {
   anthropic?: never;
@@ -15,32 +16,46 @@ export type GenerativeModelCustomerProviderConfigInput = {
   azureOpenai?: never;
   googleGenai?: never;
   openai: OpenAICustomProviderConfigInput;
+  typesafe?: never;
 } | {
   anthropic?: never;
   awsBedrock?: never;
   azureOpenai: AzureOpenAICustomProviderConfigInput;
   googleGenai?: never;
   openai?: never;
+  typesafe?: never;
 } | {
   anthropic: AnthropicCustomProviderConfigInput;
   awsBedrock?: never;
   azureOpenai?: never;
   googleGenai?: never;
   openai?: never;
+  typesafe?: never;
 } | {
   anthropic?: never;
   awsBedrock: AWSBedrockCustomProviderConfigInput;
   azureOpenai?: never;
   googleGenai?: never;
   openai?: never;
+  typesafe?: never;
 } | {
   anthropic?: never;
   awsBedrock?: never;
   azureOpenai?: never;
   googleGenai: GoogleGenAICustomProviderConfigInput;
   openai?: never;
+  typesafe?: never;
+} | {
+  anthropic?: never;
+  awsBedrock?: never;
+  azureOpenai?: never;
+  googleGenai?: never;
+  openai?: never;
+  typesafe: TypeSafeCustomProviderConfigInput;
 };
 export type OpenAICustomProviderConfigInput = {
+  decisionModels?: DecisionModelsConfigInput | null;
+  modelNames?: ReadonlyArray<string> | null;
   openaiApiType?: OpenAIApiType | null;
   openaiAuthenticationMethod: OpenAIAuthenticationMethodInput;
   openaiClientKwargs?: OpenAIClientKwargsInput | null;
@@ -54,9 +69,16 @@ export type OpenAIClientKwargsInput = {
   organization?: string | null;
   project?: string | null;
 };
+export type DecisionModelsConfigInput = {
+  baseUrl?: string | null;
+  decisionSdk: DecisionSDK;
+  modelNames?: ReadonlyArray<string> | null;
+};
 export type AzureOpenAICustomProviderConfigInput = {
   azureOpenaiAuthenticationMethod: AzureOpenAIAuthenticationMethodInput;
   azureOpenaiClientKwargs: AzureOpenAIClientKwargsInput;
+  decisionModels?: DecisionModelsConfigInput | null;
+  modelNames?: ReadonlyArray<string> | null;
   openaiApiType?: OpenAIApiType | null;
 };
 export type AzureOpenAIAuthenticationMethodInput = {
@@ -85,6 +107,7 @@ export type AzureOpenAIClientKwargsInput = {
 export type AnthropicCustomProviderConfigInput = {
   anthropicAuthenticationMethod: AnthropicAuthenticationMethodInput;
   anthropicClientKwargs?: AnthropicClientKwargsInput | null;
+  modelNames?: ReadonlyArray<string> | null;
 };
 export type AnthropicAuthenticationMethodInput = {
   apiKey: string;
@@ -96,6 +119,7 @@ export type AnthropicClientKwargsInput = {
 export type AWSBedrockCustomProviderConfigInput = {
   awsBedrockAuthenticationMethod: AWSBedrockAuthenticationMethodInput;
   awsBedrockClientKwargs: AWSBedrockClientKwargsInput;
+  modelNames?: ReadonlyArray<string> | null;
 };
 export type AWSBedrockAuthenticationMethodInput = {
   accessKeys: AWSBedrockAccessKeysInput;
@@ -116,6 +140,7 @@ export type AWSBedrockClientKwargsInput = {
 export type GoogleGenAICustomProviderConfigInput = {
   googleGenaiAuthenticationMethod: GoogleGenAIAuthenticationMethodInput;
   googleGenaiClientKwargs?: GoogleGenAIClientKwargsInput | null;
+  modelNames?: ReadonlyArray<string> | null;
 };
 export type GoogleGenAIAuthenticationMethodInput = {
   apiKey: string;
@@ -126,6 +151,18 @@ export type GoogleGenAIClientKwargsInput = {
 export type GoogleGenAIHttpOptionsInput = {
   baseUrl?: string | null;
   headers?: any | null;
+};
+export type TypeSafeCustomProviderConfigInput = {
+  decisionModels?: DecisionModelsConfigInput | null;
+  typesafeAuthenticationMethod: TypeSafeAuthenticationMethodInput;
+  typesafeClientKwargs?: TypeSafeClientKwargsInput | null;
+};
+export type TypeSafeAuthenticationMethodInput = {
+  apiKey: string;
+};
+export type TypeSafeClientKwargsInput = {
+  baseUrl?: string | null;
+  defaultHeaders?: any | null;
 };
 export type CustomProviderFormTestCredentialsMutation$variables = {
   input: GenerativeModelCustomerProviderConfigInput;

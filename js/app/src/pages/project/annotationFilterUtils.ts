@@ -22,7 +22,7 @@ export type AnnotationFilterDefinition = {
  * The filter DSL field that indexes annotations of a given target type, as in
  * `annotations['correctness'].score > 0.5`.
  */
-const ANNOTATIONS_DSL_FIELD_BY_TARGET_TYPE: Record<
+export const ANNOTATIONS_DSL_FIELD_BY_TARGET_TYPE: Record<
   AnnotationTargetType,
   string
 > = {

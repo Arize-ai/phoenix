@@ -11,7 +11,8 @@ export type CounterProps = PropsWithChildren<{
   variant?: "default" | "danger" | "quiet";
 }>;
 
-const counterCSS = css`
+/** Also badges rows outside React, such as a completion menu's. */
+export const counterCSS = css`
   display: inline-block;
   padding: 0 var(--global-dimension-size-50);
   border-radius: var(--global-rounding-large);

@@ -116,7 +116,9 @@ export function NewLabelForm({ onSubmit, isSubmitting }: NewLabelFormProps) {
                   <Label>Color</Label>
                   <ColorSwatchPicker
                     value={value}
-                    onChange={(newColor) => onChange(newColor.toString())}
+                    onChange={(newColor) =>
+                      onChange(newColor.toString("hex").toLowerCase())
+                    }
                   >
                     <ColorSwatchPickerItem color="#ff9b88">
                       <ColorSwatch size="L" />

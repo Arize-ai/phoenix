@@ -3,44 +3,66 @@ import { Suspense, useCallback, useMemo } from "react";
 
 import {
   Button,
-  CompositeField,
   DialogTrigger,
   Flex,
   Icon,
   Icons,
   Loading,
-  ViewportModal,
-  ViewportModalOverlay,
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
+  ViewportModal,
+  ViewportModalOverlay,
   View,
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
-import { InvocationParameterSpecsSync } from "@phoenix/components/playground/model/InvocationParameterSpecsSync";
-import { ModelParametersConfigButton } from "@phoenix/components/playground/model/ModelParametersConfigButton";
-import { PlaygroundModelMenu } from "@phoenix/components/playground/model/PlaygroundModelMenu";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { NUM_MAX_PLAYGROUND_INSTANCES } from "@phoenix/pages/playground/constants";
+import { DecisionPromptEditor } from "@phoenix/pages/playground/DecisionPromptEditor";
+import { DuplicateAsChatButton } from "@phoenix/pages/playground/DuplicateAsChatButton";
 import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import { PlaygroundChatTemplate } from "@phoenix/pages/playground/PlaygroundChatTemplate";
+import {
+  PlaygroundInstanceDeleteButton,
+  PlaygroundInstanceModelControls,
+} from "@phoenix/pages/playground/PlaygroundInstanceControls";
 import { PromptMenu } from "@phoenix/pages/playground/PromptMenu";
+import { SaveDecisionDialog } from "@phoenix/pages/playground/SaveDecisionDialog";
+import { TaskMenu } from "@phoenix/pages/playground/TaskMenu";
 import { UpsertPromptFromTemplateDialog } from "@phoenix/pages/playground/UpsertPromptFromTemplateDialog";
+import { isDecisionInstance } from "@phoenix/store/playground";
 
 import type { PlaygroundInstanceProps } from "./types";
 
 interface PlaygroundTemplateProps extends PlaygroundInstanceProps {
   appendedMessagesPath?: string | null;
   availablePaths: string[] | undefined;
+  /**
+   * Pick the task with the playground page's task menu (prompts, decisions,
+   * evaluators, new drafts) instead of the prompt-only menu the evaluator dialogs use.
+   */
+  taskMenu?: boolean;
+  /** Enable the Decision tab in this instance's model menu. */
+  supportsDecisionModels?: boolean;
+  /** Shown above the Decision tab's providers; see {@link ModelMenu}. */
+  decisionTabNotice?: string;
 }
 
 export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
   const instanceId = props.playgroundInstanceId;
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
-  const addMessage = usePlaygroundContext((state) => state.addMessage);
-  const setDirty = usePlaygroundContext((state) => state.setDirty);
+  const loadInstance = usePlaygroundContext((state) => state.loadInstance);
+  const setTemplateFormat = usePlaygroundContext(
+    (state) => state.setTemplateFormat
+  );
   const instances = usePlaygroundContext((state) => state.instances);
   const instance = instances.find((instance) => instance.id === instanceId);
   const index = instances.findIndex((instance) => instance.id === instanceId);
+  const isDecision = usePlaygroundContext((state) =>
+    isDecisionInstance(
+      state.instances.find((candidate) => candidate.id === instanceId)
+    )
+  );
   const prompt = instance?.prompt;
   const promptId = prompt?.id;
   const promptVersionId = prompt?.version;
@@ -71,29 +93,23 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
         tagName: promptTagName,
       });
       if (response) {
-        // delete all message references from the instance
-        updateInstance({
-          instanceId,
-          patch: {
-            ...response.instance,
-            template: {
-              __type: "chat",
-              messageIds: [],
-            },
-          },
-          dirty: false,
-        });
-        // normalize messages and add their references to the instance
-        addMessage({
-          playgroundInstanceId: instanceId,
-          messages: response.instance.template.messages,
-        });
-        // force reset the dirty state of the instance, unfortunately the addMessage
-        // will set it to true again
-        setDirty(instanceId, false);
+        if (instances.length <= 1) {
+          setTemplateFormat(
+            response.promptVersion.templateFormat as Parameters<
+              typeof setTemplateFormat
+            >[0]
+          );
+        }
+        loadInstance({ instanceId, instance: response.instance });
       }
     },
-    [instanceId, updateInstance, addMessage, setDirty]
+    [
+      instanceId,
+      instances.length,
+      updateInstance,
+      loadInstance,
+      setTemplateFormat,
+    ]
   );
 
   if (!instance) {
@@ -133,37 +149,44 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
               <AlphabeticIndexIcon index={index} />
             </View>
           ) : null}
-          {!disablePromptMenu ? (
+          {/* The task menu picks prompts and decisions alike; the prompt-only
+              menu has nothing to offer a decision. */}
+          {disablePromptMenu ? null : props.taskMenu ? (
+            // A new prompt task fetches its prompt options; without a boundary
+            // here that hides the whole playground until they arrive.
+            <Suspense fallback={<Loading size="S" />}>
+              <TaskMenu instanceId={instanceId} />
+            </Suspense>
+          ) : !isDecision ? (
             <PromptMenu value={promptMenuValue} onChange={onChangePrompt} />
           ) : null}
-          {!disablePromptSave ? (
+          {disablePromptSave ? null : isDecision ? (
+            <SaveDecisionButton dirty={dirty} instanceId={instanceId} />
+          ) : (
             <SaveButton instanceId={instanceId} dirty={dirty} />
-          ) : null}
+          )}
         </Flex>
         <Flex direction="row" gap="size-100" flex="none">
-          <Suspense
-            fallback={
-              <div>
-                <Loading size="S" />
-              </div>
-            }
-          >
-            {/* Keeps instance invocation parameters aligned with the frontend
-              spec table when model metadata or saved defaults change. */}
-            <InvocationParameterSpecsSync instanceId={instanceId} />
-          </Suspense>
-          <CompositeField>
-            <PlaygroundModelMenu playgroundInstanceId={instanceId} />
-            <ModelParametersConfigButton
-              playgroundInstanceId={instanceId}
-              disableEphemeralRouting={props.disableEphemeralRouting}
-            />
-          </CompositeField>
-          {instances.length > 1 ? <DeleteButton {...props} /> : null}
+          <PlaygroundInstanceModelControls
+            instanceId={instanceId}
+            disableEphemeralRouting={props.disableEphemeralRouting}
+            supportsDecisionModels={props.supportsDecisionModels}
+            decisionTabNotice={props.decisionTabNotice}
+          />
+          {props.disableDuplicate ? null : <DuplicateButton {...props} />}
+          {isDecision ? <DuplicateAsChatButton {...props} /> : null}
+          {instances.length > 1 ? (
+            <PlaygroundInstanceDeleteButton instanceId={instanceId} />
+          ) : null}
         </Flex>
       </Flex>
       <View paddingY="size-100">
-        {instance.template.__type === "chat" ? (
+        {isDecision ? (
+          <DecisionPromptEditor
+            playgroundInstanceId={instanceId}
+            availablePaths={props.availablePaths}
+          />
+        ) : instance.template.__type === "chat" ? (
           <Suspense>
             <PlaygroundChatTemplate {...props} />
           </Suspense>
@@ -175,21 +198,32 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
   );
 }
 
-function DeleteButton(props: PlaygroundInstanceProps) {
-  const deleteInstance = usePlaygroundContext((state) => state.deleteInstance);
+/**
+ * Add a task that starts as a copy of this one. The page's Add task button
+ * copies the first task; this one copies the task it sits on.
+ */
+function DuplicateButton(props: PlaygroundInstanceProps) {
+  const duplicateInstance = usePlaygroundContext(
+    (state) => state.duplicateInstance
+  );
+  const numInstances = usePlaygroundContext((state) => state.instances.length);
+  const isRunning = usePlaygroundContext((state) =>
+    state.instances.some((instance) => instance.activeRunId != null)
+  );
   return (
     <TooltipTrigger>
       <Button
         size="S"
-        aria-label="Delete this instance of the playground"
-        leadingVisual={<Icon svg={<Icons.Trash />} />}
+        aria-label="Duplicate this task"
+        leadingVisual={<Icon svg={<Icons.CopyPlus />} />}
+        isDisabled={numInstances >= NUM_MAX_PLAYGROUND_INSTANCES || isRunning}
         onPress={() => {
-          deleteInstance(props.playgroundInstanceId);
+          duplicateInstance(props.playgroundInstanceId);
         }}
       />
       <Tooltip>
         <TooltipArrow />
-        Delete this instance of the playground
+        Duplicate this task
       </Tooltip>
     </TooltipTrigger>
   );
@@ -223,6 +257,26 @@ function SaveButton({ instanceId, dirty }: SaveButtonProps) {
             instanceId={instanceId}
             selectedPromptId={instance.prompt?.id}
           />
+        </ViewportModal>
+      </ViewportModalOverlay>
+    </DialogTrigger>
+  );
+}
+
+function SaveDecisionButton({ instanceId, dirty }: SaveButtonProps) {
+  return (
+    <DialogTrigger>
+      <Button
+        variant={dirty ? "primary" : undefined}
+        size="S"
+        leadingVisual={<Icon svg={<Icons.Save />} />}
+        aria-label="Save decision"
+      >
+        Decision
+      </Button>
+      <ViewportModalOverlay>
+        <ViewportModal>
+          <SaveDecisionDialog instanceId={instanceId} />
         </ViewportModal>
       </ViewportModalOverlay>
     </DialogTrigger>

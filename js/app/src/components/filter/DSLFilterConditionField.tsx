@@ -16,18 +16,18 @@ import {
   StateEffect,
   StateField,
 } from "@codemirror/state";
-import { css, Global } from "@emotion/react";
+import { css } from "@emotion/react";
 import CodeMirror, {
   type BasicSetupOptions,
   Decoration,
   type DecorationSet,
   EditorView,
   keymap,
-  tooltips,
 } from "@uiw/react-codemirror";
 import type { ReactNode, Ref } from "react";
 import {
   startTransition,
+  useCallback,
   useEffect,
   useEffectEvent,
   useId,
@@ -63,8 +63,9 @@ import {
   dslFilterCodeMirrorCSS,
   dslFilterErrorTooltipCSS,
   dslFilterFieldCSS,
-  portaledTypeaheadMenuCSS,
+  toTypeaheadCompletionClass,
 } from "./styles";
+import { typeaheadTooltips } from "./typeaheadTooltip";
 
 /**
  * The result of validating a DSL filter condition expression, typically
@@ -99,6 +100,10 @@ export type DSLFilterSnippet = {
 };
 
 const pythonLanguage = python();
+
+function capitalize(text: string): string {
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
+}
 
 const warningListCSS = css`
   list-style: none;
@@ -383,7 +388,8 @@ export type DSLFilterConditionFieldProps<
   /**
    * Replaces the leading filter icon — e.g. a composition marking a mode
    * with its own glyph. Rendered in the same slot; give it the
-   * `filter-icon` class to inherit the slot's spacing.
+   * `filter-icon` class to inherit the slot's spacing. Pass `null` for a
+   * field that carries no glyph at all.
    */
   leadingVisual?: ReactNode;
   /**
@@ -410,6 +416,20 @@ export type DSLFilterConditionFieldProps<
    */
   onClear?: () => void;
   ref?: Ref<DSLFilterConditionFieldRef>;
+  /**
+   * What the field's text is called in the messages the field writes for
+   * itself — the clear button's name, the validation badge and its tooltip,
+   * the status region. Defaults to the filter DSL's own noun, so a
+   * composition holding something else (a mapping path, say) reads as that
+   * instead of as a filter that has gone wrong.
+   */
+  subjectLabel?: string;
+  /**
+   * Whether the typeahead highlights its first row as soon as it opens. Off by
+   * default: a filter applies on Enter, and a highlighted row would take that
+   * keystroke. A field with nothing to apply can turn it on.
+   */
+  selectOnOpen?: boolean;
   /**
    * Accessible name for the condition input
    */
@@ -509,6 +529,8 @@ export function DSLFilterConditionField<
     onFocusChange,
     onClear,
     ref,
+    subjectLabel = "filter condition",
+    selectOnOpen = false,
     className,
   } = props;
   const {
@@ -531,6 +553,16 @@ export function DSLFilterConditionField<
   const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
 
   const editorViewRef = useRef<EditorView | null>(null);
+  // CodeMirror reconfigures the editor, closing its dropdown, whenever
+  // onChange changes identity.
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  });
+  const handleChange = useCallback(
+    (condition: string) => onChangeRef.current(condition),
+    []
+  );
   // Caches the loadCompletions result so the dropdown doesn't refetch every
   // time it opens; invalidated on focus so names created elsewhere in the
   // app (e.g. a new annotation) appear when the user returns to filter
@@ -567,6 +599,7 @@ export function DSLFilterConditionField<
     loadedCompletionsRef.current = null;
   }, [loadCompletions]);
 
+  /* eslint-disable react/preserve-manual-memoization */
   const contentAttributes = useMemo(
     () =>
       EditorView.contentAttributes.of({
@@ -575,16 +608,6 @@ export function DSLFilterConditionField<
       }),
     [ariaLabel]
   );
-
-  // A centered modal transforms and overflow-clips its dialog. That makes
-  // CodeMirror's fixed tooltip relative to the dialog and hides the
-  // completion menu outside the input's row. Reparent all editor tooltips to
-  // the modal overlay: they stay in the modal's interaction subtree while
-  // escaping the dialog's clip. The parent is discovered once the editor
-  // mounts (see onCreateEditor) and lives in the extensions array — an
-  // appended config would be silently dropped by the root reconfigure that
-  // any extensions change dispatches.
-  const [tooltipParent, setTooltipParent] = useState<HTMLElement | null>(null);
 
   // The extensions must be referentially stable across renders — a new
   // array causes a CodeMirror reconfigure, which resets the in-flight
@@ -595,16 +618,8 @@ export function DSLFilterConditionField<
   // while the variant is on (a variant flip reconfigures the editor either
   // way).
   const extensions = useMemo(() => {
-    const tooltipReparent = tooltipParent
-      ? [tooltips({ parent: tooltipParent })]
-      : [];
     if (variant === "prose") {
-      return [
-        ...composedExtensions,
-        singleLineKeymap,
-        contentAttributes,
-        ...tooltipReparent,
-      ];
+      return [...composedExtensions, singleLineKeymap, contentAttributes];
     }
     // Fetch loaded completions at most once per focus, retrying on failure
     // the next time the dropdown opens
@@ -664,7 +679,7 @@ export function DSLFilterConditionField<
         }
       }),
       contentAttributes,
-      ...tooltipReparent,
+      typeaheadTooltips(),
       autocompletion({
         override: [
           ...completionSources,
@@ -675,13 +690,16 @@ export function DSLFilterConditionField<
               [createDSLFilterCompletionSource(loadCompletionsOnce)]
             : []),
         ],
-        selectOnOpen: false,
+        selectOnOpen,
         icons: false,
         tooltipClass: () => "dsl-filter-typeahead",
         // Suggestion rows show a prose label (and the DSL as `detail`), so
-        // they render in the UI font rather than code font
+        // they render in the UI font rather than code font. A type already
+        // spelled as a `typeahead-completion--` class styles its own row.
         optionClass: (completion) =>
-          completion.type === "text" ? "dsl-filter-suggestion" : "",
+          completion.type === "text"
+            ? "dsl-filter-suggestion"
+            : toTypeaheadCompletionClass(completion.type),
       }),
     ];
   }, [
@@ -693,8 +711,23 @@ export function DSLFilterConditionField<
     completionSources,
     getContextualCompletions,
     contentAttributes,
-    tooltipParent,
+    selectOnOpen,
   ]);
+  /* eslint-enable react/preserve-manual-memoization */
+
+  // Completion data can arrive after the user has already focused the empty
+  // field — the sampled record behind a mapping path field, a fetched name
+  // list. The focus trigger fired before there was anything to offer, and
+  // the reconfigure the new sources cause discards any open dropdown, so
+  // re-open it once the new sources are in place. Callers memoize what they
+  // pass (EvaluatorPathField) so this only fires for data that actually
+  // changed; the code editor re-opens the same way.
+  useEffect(() => {
+    const editorView = editorViewRef.current;
+    if (editorView?.hasFocus && editorView.state.doc.length === 0) {
+      startCompletion(editorView);
+    }
+  }, [extensions]);
 
   // Anchor the error to the sub-expression it came from once validation has
   // settled; a dispatched effect rather than a reconfigure, so an open
@@ -855,10 +888,11 @@ export function DSLFilterConditionField<
       className={classNames("dsl-filter-condition-field", className)}
       css={dslFilterFieldCSS}
     >
-      <Global styles={portaledTypeaheadMenuCSS} />
       <Flex direction="row" alignItems="center">
-        {leadingVisual ?? (
+        {leadingVisual === undefined ? (
           <Icon svg={<Icons.ListFilter />} className="filter-icon" />
+        ) : (
+          leadingVisual
         )}
         <CodeMirror
           css={dslFilterCodeMirrorCSS}
@@ -867,13 +901,6 @@ export function DSLFilterConditionField<
           readOnly={isReadOnly}
           onCreateEditor={(editorView) => {
             editorViewRef.current = editorView;
-            const overlay = editorView.dom.closest<HTMLElement>(
-              '[data-overlay-container="modal"]'
-            );
-            if (overlay) {
-              overlay.classList.add("dsl-filter-tooltip-root");
-              setTooltipParent(overlay);
-            }
           }}
           onFocus={() => {
             // Refresh the loaded completions each time the user returns to
@@ -887,7 +914,7 @@ export function DSLFilterConditionField<
             onFocusChange?.(false);
           }}
           value={value}
-          onChange={onChange}
+          onChange={handleChange}
           height="36px"
           width="100%"
           theme={codeMirrorTheme}
@@ -898,18 +925,18 @@ export function DSLFilterConditionField<
           {hasError || hasWarnings ? (
             <DSLFilterErrorBadge
               severity={hasError ? "danger" : "warning"}
-              ariaLabel={
-                hasError ? "Filter condition error" : "Filter condition warning"
-              }
+              ariaLabel={`${capitalize(subjectLabel)} ${
+                hasError ? "error" : "warning"
+              }`}
               badgeMessage={
                 hasError
-                  ? errorMessage || "Invalid filter condition"
+                  ? errorMessage || `Invalid ${subjectLabel}`
                   : warnings[0]
               }
               title={
                 hasError
-                  ? "Invalid filter condition"
-                  : "Filter condition warning"
+                  ? `Invalid ${subjectLabel}`
+                  : `${capitalize(subjectLabel)} warning`
               }
             >
               {hasError ? (
@@ -935,7 +962,7 @@ export function DSLFilterConditionField<
           <IconButton
             size="XS"
             className="clear-button"
-            aria-label="Clear filter condition"
+            aria-label={`Clear ${subjectLabel}`}
             onPress={() => {
               onClear?.();
               onChange("");
@@ -949,7 +976,7 @@ export function DSLFilterConditionField<
       <VisuallyHidden>
         <span id={statusId} role="status">
           {hasError
-            ? `Invalid filter condition. ${errorMessage}`.trim()
+            ? `Invalid ${subjectLabel}. ${errorMessage}`.trim()
             : warnings.join(" ")}
         </span>
         {extraStatus}

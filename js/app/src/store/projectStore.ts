@@ -15,6 +15,7 @@ import {
 } from "@phoenix/pages/project/constants";
 
 export interface ProjectState {
+  projectId: string;
   defaultTab: ProjectTab;
   setDefaultTab: (tab: ProjectTab) => void;
   /**
@@ -26,6 +27,11 @@ export interface ProjectState {
    * Set whether to show the aside panel on the spans and traces tables.
    */
   setShowTableAside: (showTableAside: boolean) => void;
+  /**
+   * Whether the tables offer metric charts above them.
+   * @default true
+   */
+  showMetricCharts: boolean;
   /**
    * The metric charts to show above each project table view.
    */
@@ -48,24 +54,33 @@ const makeProjectStoreKey = (projectId: string) =>
 
 export type CreateProjectStoreProps = {
   projectId: string;
+  /** Isolates persisted preferences for an embedded surface. */
+  scope?: string;
+  showTableAside?: boolean;
+  showMetricCharts?: boolean;
 };
 
 export function createProjectStore({
   projectId,
+  scope,
+  showTableAside = true,
+  showMetricCharts = true,
 }: CreateProjectStoreProps): ProjectStore {
   const state = create<ProjectState>()(
     persist(
       devtools((set) => ({
+        projectId,
         defaultTab: "spans",
         setDefaultTab: (tab: ProjectTab) => {
           set({ defaultTab: tab }, false, { type: "setDefaultTab" });
         },
-        showTableAside: true,
+        showTableAside,
         setShowTableAside: (showTableAside: boolean) => {
           set({ showTableAside }, false, {
             type: "setShowTableAside",
           });
         },
+        showMetricCharts,
         metricChartKeys: DEFAULT_METRIC_CHART_KEYS,
         setMetricChartKeys: (
           view: MetricChartTableView,
@@ -81,7 +96,13 @@ export function createProjectStore({
         },
       })),
       {
-        name: makeProjectStoreKey(projectId),
+        name: `${makeProjectStoreKey(projectId)}${scope ? `-${scope}` : ""}`,
+        // The mounting surface owns this layout choice; do not persist it.
+        partialize: ({ defaultTab, showTableAside, metricChartKeys }) => ({
+          defaultTab,
+          showTableAside,
+          metricChartKeys,
+        }),
         merge: (persistedState, currentState) => {
           const merged = {
             ...currentState,

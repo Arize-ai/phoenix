@@ -19,12 +19,10 @@ import {
 } from "@phoenix/components/core/overlay";
 import type { CreateCodeDatasetEvaluatorSlideover_createDatasetCodeEvaluatorMutation } from "@phoenix/components/dataset/__generated__/CreateCodeDatasetEvaluatorSlideover_createDatasetCodeEvaluatorMutation.graphql";
 import type { CreateCodeDatasetEvaluatorSlideoverQuery } from "@phoenix/components/dataset/__generated__/CreateCodeDatasetEvaluatorSlideoverQuery.graphql";
+import { createDefaultFreeformOutputConfig } from "@phoenix/components/evaluators/CodeEvaluatorAnnotationSection";
 import { mapSandboxConfigOptions } from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
 import { getDefaultCodeEvaluatorSource } from "@phoenix/components/evaluators/codeEvaluatorUtils";
-import {
-  createDefaultFreeformOutputConfig,
-  EditCodeEvaluatorDialogContent,
-} from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
+import { EditCodeEvaluatorDialogContent } from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
 import {
   buildOutputConfigsInput,
   normalizeInputMapping,
@@ -171,6 +169,11 @@ const CreateCodeEvaluatorDialog = ({
                 edgeTypeName: "DatasetEvaluatorEdge"
               ) {
               id
+              # The dataset's Evaluators tab counts its evaluators.
+              dataset {
+                id
+                evaluatorCount
+              }
               ...PlaygroundDatasetSection_evaluator
               ...DatasetEvaluatorsTable_row
             }
@@ -191,6 +194,7 @@ const CreateCodeEvaluatorDialog = ({
         kind: "CODE",
         isBuiltin: false,
         includeExplanation: false,
+        inputDescriptions: {},
       },
       outputConfigs: [createDefaultFreeformOutputConfig("")],
       dataset: {
@@ -199,13 +203,16 @@ const CreateCodeEvaluatorDialog = ({
         selectedExampleId: null,
         selectedSplitIds: [],
       },
-      evaluatorMappingSource: EVALUATOR_MAPPING_SOURCE_DEFAULT,
+      evaluatorMappingSource: {
+        recordKind: "dataset",
+        source: EVALUATOR_MAPPING_SOURCE_DEFAULT,
+      },
       showPromptPreview: false,
     };
   }, [datasetId]);
 
   const initialLanguage = "PYTHON";
-  const initialSourceCode = getDefaultCodeEvaluatorSource("PYTHON");
+  const initialSourceCode = getDefaultCodeEvaluatorSource("PYTHON", "dataset");
   const initialSandboxConfigId: string | null = null;
 
   const onSubmit = (

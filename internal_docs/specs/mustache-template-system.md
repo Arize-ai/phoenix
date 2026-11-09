@@ -39,7 +39,7 @@ This feature introduces full Mustache template support for Phoenix's server-side
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                        Substitution Expansion Layer                         │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│  src/phoenix/server/api/helpers/substitutions.py                           │
+│  src/phoenix/server/evaluators/substitutions.py                             │
 │                                                                             │
 │  At config load time:                                                       │
 │  1. Load substitution definitions from server.yaml                          │
@@ -470,7 +470,7 @@ No tools called.
 ### Python
 
 - `src/phoenix/utilities/template_formatters.py` - Core Mustache parsing/rendering with pystache
-- `src/phoenix/server/api/helpers/substitutions.py` - Substitution expansion logic
+- `src/phoenix/server/evaluators/substitutions.py` - Substitution expansion logic
 - `src/phoenix/server/api/evaluators.py` - Input schema generation, input mapping, evaluation pipeline
 - `prompts/formatters/server.yaml` - Named Mustache snippet definitions
 - `prompts/classification_evaluator_configs/*.yaml` - Evaluator templates with optional substitutions

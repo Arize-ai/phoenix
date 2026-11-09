@@ -2297,6 +2297,14 @@ def _randomize_casing(email: str) -> str:
 
 # GET endpoints that all roles can read with expected status codes
 _COMMON_RESOURCE_ENDPOINTS = (
+    (404, "GET", "v1/datasets/fake-id-{}/evaluators"),
+    (422, "GET", "v1/dataset_evaluators/fake-id-{}"),
+    (404, "GET", "v1/projects/fake-id-{}/evaluators"),
+    (422, "GET", "v1/project_evaluators/fake-id-{}"),
+    (422, "GET", "v1/evaluators/fake-id-{}"),
+    (200, "GET", "v1/evaluators"),
+    (422, "GET", "v1/evaluators/fake-id-{}/versions"),
+    (200, "GET", "v1/sandbox_configs"),
     # Projects
     (404, "GET", "v1/projects/fake-id-{}"),
     (200, "GET", "v1/projects"),
@@ -2330,6 +2338,17 @@ _COMMON_RESOURCE_ENDPOINTS = (
     (404, "GET", "v1/prompts/fake-id-{}/tags/test-tag"),
     (404, "GET", "v1/prompts/fake-id-{}/latest"),
     (422, "GET", "v1/prompt_versions/fake-id-{}/tags"),
+    # Decisions
+    (200, "GET", "v1/decisions"),
+    (404, "GET", "v1/decisions/fake-id-{}"),
+    (404, "GET", "v1/decisions/fake-id-{}/versions"),
+    (422, "GET", "v1/decision_versions/fake-id-{}"),
+    (404, "GET", "v1/decisions/fake-id-{}/tags/test-tag"),
+    (404, "GET", "v1/decisions/fake-id-{}/latest"),
+    (422, "GET", "v1/decision_versions/fake-id-{}/tags"),
+    (200, "GET", "v1/decision_labels"),
+    (422, "GET", "v1/decision_labels/fake-id-{}"),
+    (404, "GET", "v1/decisions/fake-id-{}/labels"),
     # Annotation configs
     (200, "GET", "v1/annotation_configs"),
     (404, "GET", "v1/annotation_configs/fake-id-{}"),
@@ -2377,6 +2396,18 @@ _ADMIN_ONLY_ENDPOINTS = (
 # Write operations blocked for viewers (POST/PUT/PATCH/DELETE)
 # Viewers always receive 403, non-viewers (admins/members) get expected_non_viewer_status
 _VIEWER_BLOCKED_WRITE_OPERATIONS = (
+    (422, "POST", "v1/evaluators"),
+    (422, "POST", "v1/datasets/fake-id-{}/evaluators"),
+    (422, "PATCH", "v1/dataset_evaluators/fake-id-{}"),
+    (422, "DELETE", "v1/dataset_evaluators/fake-id-{}"),
+    (422, "DELETE", "v1/datasets/fake-id-{}/evaluators"),
+    (422, "POST", "v1/projects/fake-id-{}/evaluators"),
+    (422, "PATCH", "v1/project_evaluators/fake-id-{}"),
+    (422, "DELETE", "v1/project_evaluators/fake-id-{}"),
+    (422, "DELETE", "v1/projects/fake-id-{}/evaluators"),
+    (422, "PATCH", "v1/evaluators/fake-id-{}"),
+    (422, "DELETE", "v1/evaluators/fake-id-{}"),
+    (422, "POST", "v1/evaluators/fake-id-{}/versions"),
     # POST routes
     (422, "POST", "v1/annotation_configs"),
     (422, "POST", "v1/dataset_labels"),
@@ -2392,6 +2423,11 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "POST", "v1/prompts"),
     (422, "POST", "v1/prompts/fake-id-{}/versions"),
     (422, "POST", "v1/prompt_versions/fake-id-{}/tags"),
+    (422, "POST", "v1/decisions"),
+    (422, "POST", "v1/decisions/fake-id-{}/versions"),
+    (422, "POST", "v1/decision_versions/fake-id-{}/tags"),
+    (422, "POST", "v1/decisions/fake-id-{}/clones"),
+    (422, "POST", "v1/decision_labels"),
     (422, "POST", "v1/session_annotations"),
     (422, "POST", "v1/session_notes"),
     (422, "POST", "v1/span_annotations"),
@@ -2407,10 +2443,14 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "PUT", "v1/projects/fake-id-{}/annotation_configs"),
     (422, "PUT", "v1/datasets/fake-id-{}/labels"),
     (422, "PUT", "v1/datasets/fake-id-{}/labels/test-label"),
+    (422, "PUT", "v1/decisions/fake-id-{}/labels"),
+    (422, "PUT", "v1/decisions/fake-id-{}/labels/test-label"),
     # PATCH routes
     (422, "PATCH", "v1/experiments/fake-id-{}"),
     (422, "PATCH", "v1/dataset_labels/fake-id-{}"),
     (422, "PATCH", "v1/prompts/fake-id-{}"),
+    (422, "PATCH", "v1/decisions/fake-id-{}"),
+    (422, "PATCH", "v1/decision_labels/fake-id-{}"),
     (422, "PATCH", "v1/datasets/fake-id-{}/splits/test-split"),
     # DELETE routes
     (422, "DELETE", "v1/projects/fake-id-{}/traces"),
@@ -2427,6 +2467,10 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (404, "DELETE", "v1/prompts/fake-id-{}"),
     (404, "DELETE", "v1/traces/fake-id-{}"),
     (422, "DELETE", "v1/prompt_versions/fake-id-{}/tags/test-tag"),
+    (404, "DELETE", "v1/decisions/fake-id-{}"),
+    (422, "DELETE", "v1/decision_versions/fake-id-{}/tags/test-tag"),
+    (422, "DELETE", "v1/decision_labels/fake-id-{}"),
+    (422, "DELETE", "v1/decisions/fake-id-{}/labels/test-label"),
     (422, "DELETE", "v1/projects/fake-id-{}/span_annotations"),
     (422, "DELETE", "v1/projects/fake-id-{}/trace_annotations"),
     (422, "DELETE", "v1/projects/fake-id-{}/session_annotations"),

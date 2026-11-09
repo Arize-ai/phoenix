@@ -9,15 +9,60 @@ import type { UpdateDatasetLLMEvaluatorInput } from "@phoenix/components/dataset
 import type { utils_datasetExampleToEvaluatorInput_example$key } from "@phoenix/components/evaluators/__generated__/utils_datasetExampleToEvaluatorInput_example.graphql";
 import type { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/playgroundPromptUtils";
+import {
+  evaluatorInputDescriptionsSchema,
+  type EvaluatorInputSchemaInput,
+} from "@phoenix/schemas";
 import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
 import type {
   ClassificationEvaluatorAnnotationConfig,
   ContinuousEvaluatorAnnotationConfig,
   EvaluatorInputMapping,
+  EvaluatorKind,
   EvaluatorMappingSource,
   FreeformEvaluatorAnnotationConfig,
 } from "@phoenix/types";
 import { isObject } from "@phoenix/typeUtils";
+
+/**
+ * The input schema sent with an evaluator: its declared inputs, each with the
+ * description the author wrote for it. Only the declared inputs are sent, since
+ * the server refuses a description of an input the source does not name, and
+ * every declared one is listed so a cleared description clears on the server.
+ */
+export function buildInputSchemaInput({
+  variables,
+  inputDescriptions,
+}: {
+  variables: readonly string[];
+  inputDescriptions: Record<string, string>;
+}): EvaluatorInputSchemaInput {
+  return {
+    type: "object",
+    properties: Object.fromEntries(
+      variables.map((variable) => {
+        const description = inputDescriptions[variable]?.trim();
+        return [variable, description ? { description } : {}];
+      })
+    ),
+  };
+}
+
+/**
+ * The descriptions an evaluator's input schema carries, by input name, as the
+ * form holds them. Blank descriptions and malformed entries are left out.
+ */
+export function getInputDescriptionsFromSchema(
+  inputSchema: unknown
+): Record<string, string> {
+  const parsed = evaluatorInputDescriptionsSchema.safeParse(inputSchema);
+  if (!parsed.success) return {};
+  return Object.fromEntries(
+    Object.entries(parsed.data.properties).flatMap(([name, { description }]) =>
+      description?.trim() ? [[name, description]] : []
+    )
+  );
+}
 
 /** Returns whether a mapping value survives persistence. */
 export function hasMappingValue(value: unknown): boolean {
@@ -268,7 +313,7 @@ export const datasetExampleToEvaluatorInput = ({
 }: {
   exampleRef: utils_datasetExampleToEvaluatorInput_example$key;
   taskOutput?: Record<string, unknown>;
-}): EvaluatorMappingSource => {
+}): EvaluatorMappingSource<"dataset"> => {
   const example = readInlineData(
     graphql`
       fragment utils_datasetExampleToEvaluatorInput_example on DatasetExampleRevision
@@ -421,6 +466,51 @@ const validateOutputConfigNames = (
 };
 
 /**
+ * Why an output config cannot belong to an evaluator of this kind, or null.
+ *
+ * An LLM judge chooses one of its labels; its score is the score attached to
+ * the chosen label. It has no way to emit a free number, so the server rejects
+ * continuous and freeform outputs for LLM evaluators on both run and save. Code
+ * evaluators return whatever their function returns, so any output type fits.
+ */
+export const getOutputConfigKindError = ({
+  kind,
+  config,
+}: {
+  kind: EvaluatorKind;
+  config: AnnotationConfig;
+}): string | null => {
+  if (kind !== "LLM" || "values" in config) return null;
+
+  return (
+    `LLM evaluators only support categorical outputs, but "${config.name}" is ` +
+    "continuous or freeform. Define labels with scores instead (for a 0–1 " +
+    "scale, e.g. poor=0, fair=0.5, good=1), or use a code evaluator for a " +
+    "free numeric score."
+  );
+};
+
+/**
+ * Validation errors for an evaluator's output configs: the name checks below
+ * plus the per-kind type rule, so callers that know the evaluator kind reject
+ * an impossible configuration before a run or save does.
+ */
+export const getEvaluatorOutputConfigValidationErrors = ({
+  kind,
+  configs,
+}: {
+  kind: EvaluatorKind;
+  configs: AnnotationConfig[];
+}): string[] => [
+  ...getOutputConfigValidationErrors(configs),
+  ...configs.flatMap((config) => {
+    const error = getOutputConfigKindError({ kind, config });
+
+    return error ? [error] : [];
+  }),
+];
+
+/**
  * Returns an array of validation error messages for output configs.
  *
  * @param configs - Array of annotation configs to validate
@@ -471,6 +561,7 @@ export function getOutputConfigOptimizationValue({
   if (outputConfigs.length === 1) {
     matchedConfig = outputConfigs[0];
   } else {
+    // Multi-output: annotation name is "evaluatorName.configName"
     const prefix = evaluatorName + ".";
     if (annotationName.startsWith(prefix)) {
       const configName = annotationName.slice(prefix.length);

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8ce4b372233d811b2420799e1e0c8663>>
+ * @generated SignedSource<<aaa6504055961d1fbdbc0cbb77f594e8>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,8 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type GenerativeModelSDK = "ANTHROPIC" | "AWS_BEDROCK" | "AZURE_OPENAI" | "GOOGLE_GENAI" | "OPENAI";
+export type GenerativeModelSDK = "ANTHROPIC" | "AWS_BEDROCK" | "AZURE_OPENAI" | "GOOGLE_GENAI" | "OPENAI" | "TYPESAFE";
+export type ModelType = "DECISION" | "LLM";
 import { FragmentRefs } from "relay-runtime";
 export type CustomProvidersCard_data$data = {
   readonly generativeModelCustomProviders: {
@@ -20,6 +21,7 @@ export type CustomProvidersCard_data$data = {
         readonly createdAt: string;
         readonly description: string | null;
         readonly id: string;
+        readonly modelTypes: ReadonlyArray<ModelType>;
         readonly name: string;
         readonly provider: string;
         readonly sdk: GenerativeModelSDK;
@@ -147,6 +149,13 @@ return {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
+                  "name": "modelTypes",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
                   "name": "createdAt",
                   "storageKey": null
                 },
@@ -262,6 +271,6 @@ return {
 };
 })();
 
-(node as any).hash = "c29e85fe3f8eb2ea260fdc204f7f5ada";
+(node as any).hash = "2ce45756ef1147680a38d0786c5d971b";
 
 export default node;

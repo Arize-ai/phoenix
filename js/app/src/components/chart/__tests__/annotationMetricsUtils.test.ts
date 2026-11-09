@@ -2,7 +2,10 @@ import {
   getAnnotationMetricsChartData,
   getAnnotationOtherFraction,
   getDefaultAnnotationMetricsView,
+  mergeAnnotationMetricsSeries,
   normalizeAnnotationMetrics,
+  type AnnotationMetricsChartPoint,
+  type AnnotationMetricsSeries,
 } from "../annotationMetricsUtils";
 
 describe("normalizeAnnotationMetrics", () => {
@@ -290,4 +293,62 @@ describe("getAnnotationOtherFraction", () => {
       }
     }
   );
+});
+
+describe("mergeAnnotationMetricsSeries", () => {
+  function point(
+    x: number,
+    values: Partial<AnnotationMetricsChartPoint> = {}
+  ): AnnotationMetricsChartPoint {
+    return {
+      x,
+      metadata: {},
+      hasAnnotationSummary: true,
+      fractions: [],
+      ...values,
+    };
+  }
+
+  function series(
+    data: AnnotationMetricsChartPoint[]
+  ): AnnotationMetricsSeries {
+    return { name: "name", views: ["scores"], labels: [], data };
+  }
+
+  it("aligns every series on its x values in order", () => {
+    expect(
+      mergeAnnotationMetricsSeries({
+        a: series([point(2, { meanScore: 0.5 }), point(1, { meanScore: 0.1 })]),
+        b: series([point(2, { meanScore: 0.9 })]),
+      })
+    ).toEqual([
+      {
+        x: 1,
+        values: { a: { meanScore: 0.1, fractions: [], otherFraction: 1 } },
+      },
+      {
+        x: 2,
+        values: {
+          a: { meanScore: 0.5, fractions: [], otherFraction: 1 },
+          b: { meanScore: 0.9, fractions: [], otherFraction: 1 },
+        },
+      },
+    ]);
+  });
+
+  it("leaves a series undefined in bins without a summary", () => {
+    expect(
+      mergeAnnotationMetricsSeries({
+        a: series([point(1, { hasAnnotationSummary: false })]),
+        b: undefined,
+      })
+    ).toEqual([{ x: 1, values: { a: undefined } }]);
+  });
+
+  it("keeps the unlabeled residual of each bin", () => {
+    const [row] = mergeAnnotationMetricsSeries({
+      a: series([point(1, { fractions: [0.5, 0.25] })]),
+    });
+    expect(row?.values.a?.otherFraction).toBeCloseTo(0.25);
+  });
 });

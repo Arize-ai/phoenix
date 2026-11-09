@@ -13,18 +13,12 @@ import {
   Icons,
   Input,
   Label,
-  ListBox,
   NumberField,
-  Popover,
-  Select,
-  SelectChevronUpDownIcon,
-  SelectItem,
-  SelectValue,
   Switch,
   Text,
   TextField,
 } from "@phoenix/components";
-import { optimizationDirectionOptions } from "@phoenix/components/evaluators/OptimizationDirectionField";
+import { OptimizationDirectionSelect } from "@phoenix/components/evaluators/OptimizationDirectionField";
 import {
   useEvaluatorStore,
   useEvaluatorStoreInstance,
@@ -123,30 +117,10 @@ export const EvaluatorCategoricalChoiceConfig = () => {
             control={control}
             name="outputConfig.optimizationDirection"
             render={({ field }) => (
-              <Select
+              <OptimizationDirectionSelect
                 value={field.value}
                 onChange={field.onChange}
-                aria-label="Optimization direction"
-                data-testid="optimization-direction-picker"
-                css={css`
-                  width: 100%;
-                `}
-              >
-                <Label>Optimization direction</Label>
-                <Button>
-                  <SelectValue />
-                  <SelectChevronUpDownIcon />
-                </Button>
-                <Popover>
-                  <ListBox>
-                    {optimizationDirectionOptions.map((option) => (
-                      <SelectItem key={option.value} id={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </ListBox>
-                </Popover>
-              </Select>
+              />
             )}
           />
         </Flex>

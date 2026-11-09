@@ -67,6 +67,8 @@ const EMPTY_STATE_GRAPHICS = {
     size: "large",
     icon: <Icon svg={<Icons.Experiment />} />,
   },
+  search: { size: "large", icon: <Icon svg={<Icons.Search />} /> },
+  decision: { size: "large", icon: <Icon svg={<Icons.GitBranch />} /> },
   prompt: { size: "large", icon: <Icon svg={<Icons.LLMOutput />} /> },
   project: { size: "large", icon: <Icon svg={<Icons.Folder />} /> },
   annotation: { size: "small", icon: <Icon svg={<Icons.ThumbsUp />} /> },

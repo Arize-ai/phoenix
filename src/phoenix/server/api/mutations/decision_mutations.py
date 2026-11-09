@@ -1,0 +1,318 @@
+"""Permission-protected decision playground execution."""
+
+from typing import Optional
+
+import strawberry
+from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
+from opentelemetry.context import Context as OtelContext
+from opentelemetry.trace import Status, StatusCode
+from strawberry.relay import GlobalID
+from strawberry.scalars import JSON
+from strawberry.types import Info
+
+from phoenix.db import models
+from phoenix.db.types.prompts import PromptTemplateFormat
+from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
+from phoenix.server.api.context import Context
+from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.helpers.decision_clients import (
+    DecisionClient,
+    DecisionRequest,
+    UnreadableCustomProviderError,
+    get_custom_provider_decision_client,
+    get_decision_client,
+)
+from phoenix.server.api.helpers.playground_project import get_or_create_playground_project_id
+from phoenix.server.api.input_types.DecisionConnectionInput import (
+    DecisionConnectionInput,
+)
+from phoenix.server.api.input_types.DecisionVersionInput import (
+    DecisionQuestionInput,
+    DecisionStateInput,
+    to_decision_definition,
+)
+from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
+from phoenix.server.api.types.DecisionAnswer import DecisionResult, to_gql_decision_result
+from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
+from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.Span import Span
+from phoenix.server.decisions.rendering import RenderedDecision, render_decision
+from phoenix.server.dml_event import SpanInsertEvent
+from phoenix.tracers import Tracer
+
+
+@strawberry.input(
+    description=(
+        "A decision run: where it runs, its state template and questions, and this call's "
+        "values for their variables."
+    )
+)
+class RunDecisionInput:
+    connection: DecisionConnectionInput
+    model_name: str = strawberry.field(
+        description=(
+            "The decision model to run. Any name the endpoint accepts works; the catalog "
+            "only suggests names."
+        )
+    )
+    template_format: PromptTemplateFormat = strawberry.field(
+        description="How variable tags are read in the state and the question fields."
+    )
+    state: DecisionStateInput = strawberry.field(
+        description="The state template: text, or JSON whose string leaves are templates."
+    )
+    questions: list[DecisionQuestionInput] = strawberry.field(
+        description="The questions, in order. Names must be unique; answers come back under them."
+    )
+    variables: JSON = strawberry.field(
+        description=(
+            "An object with a value for each variable the templates use, keyed by name; any "
+            "JSON (a string, number, boolean, null, object, or array). A missing variable is "
+            "rejected; extra keys are ignored."
+        )
+    )
+
+
+@strawberry.input(
+    description=(
+        "A run of a saved decision version: its definition, model, and provider as saved, "
+        "with this call's variables."
+    )
+)
+class RunDecisionVersionInput:
+    decision_version_id: GlobalID
+    variables: JSON = strawberry.field(
+        description=(
+            "An object with a value for each of the version's variables, keyed by name. A "
+            "missing variable is rejected; extra keys are ignored."
+        )
+    )
+    credentials: Optional[list[GenerativeCredentialInput]] = strawberry.field(
+        default=None,
+        description=(
+            "API keys for this request only, for a version on a built-in provider. When "
+            "omitted, a stored secret is used, then the server environment. A custom "
+            "provider brings its own key."
+        ),
+    )
+    base_url: Optional[str] = strawberry.field(
+        default=None,
+        description=(
+            "Send the request to this endpoint instead of the built-in provider's default, "
+            "such as a local Ollama. Requires an API key in `credentials` or a stored secret "
+            "where the provider needs one; the server-configured key is never sent to a "
+            "custom URL. A custom provider brings its own endpoint."
+        ),
+    )
+
+
+@strawberry.type(
+    description=(
+        "Outcome of one decision run. Problems found before the provider is called fail "
+        "the mutation with a GraphQL error."
+    )
+)
+class RunDecisionPayload:
+    result: Optional[DecisionResult] = strawberry.field(
+        default=None,
+        description=(
+            "The answers, resolved model, and usage; null when `error` is set. The provider's "
+            "own response is on the span."
+        ),
+    )
+    span: Optional[Span] = strawberry.field(
+        default=None,
+        description="The DECISION span recorded for the provider call, successful or not.",
+    )
+    error: Optional[str] = strawberry.field(
+        default=None,
+        description="Why the provider call failed; null on success.",
+    )
+
+
+def to_decision_request(input: RunDecisionInput) -> DecisionRequest:
+    """Validate the typed input, render it, and build a provider-independent request.
+
+    Raises:
+        BadRequest: The state template or questions break a write-time rule, or the
+            variables can't render them.
+    """
+    if not isinstance(input.variables, dict):
+        raise BadRequest("variables must be an object keyed by variable name")
+    try:
+        state, questions = to_decision_definition(
+            input.template_format, input.state, input.questions
+        )
+        return _request(render_decision(input.template_format, state, questions, input.variables))
+    except ValueError as error:
+        raise BadRequest(str(error)) from error
+
+
+def version_decision_request(version: models.DecisionVersion, variables: JSON) -> DecisionRequest:
+    """The request for a saved version, which passed the write-time rules when saved.
+
+    Raises:
+        BadRequest: The variables can't render the version.
+    """
+    if not isinstance(variables, dict):
+        raise BadRequest("variables must be an object keyed by variable name")
+    try:
+        return _request(
+            render_decision(version.template_format, version.state, version.questions, variables)
+        )
+    except ValueError as error:
+        raise BadRequest(str(error)) from error
+
+
+def _request(rendered: RenderedDecision) -> DecisionRequest:
+    return DecisionRequest(state=rendered.state, questions=rendered.questions)
+
+
+@strawberry.type
+class DecisionMutationMixin:
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
+        description=(
+            "Run a decision model over `state` with named `questions` and record the "
+            "call as a DECISION span in the playground project."
+        ),
+    )  # type: ignore
+    async def run_decision(
+        self, info: Info[Context, None], input: RunDecisionInput
+    ) -> RunDecisionPayload:
+        request = to_decision_request(input)
+        client_error: Optional[UnreadableCustomProviderError] = None
+        async with info.context.db() as session:
+            project_id = await get_or_create_playground_project_id(session)
+            try:
+                client = await input.connection.resolve_client(
+                    model_name=input.model_name,
+                    session=session,
+                    decrypt=info.context.decrypt,
+                    allowed_provider_names=info.context.allowed_provider_names,
+                )
+            except UnreadableCustomProviderError as error:
+                client_error = error
+        if client_error is not None:
+            return await _record_unrunnable(
+                info, error=client_error, model_name=input.model_name, project_id=project_id
+            )
+        return await _run(info, client=client, request=request, project_id=project_id)
+
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
+        description=(
+            "Run a saved decision version as saved, with this call's variables, and "
+            "record the call as a DECISION span in the playground project."
+        ),
+    )  # type: ignore
+    async def run_decision_version(
+        self, info: Info[Context, None], input: RunDecisionVersionInput
+    ) -> RunDecisionPayload:
+        version_id = from_global_id_with_expected_type(input.decision_version_id, "DecisionVersion")
+        client_error: Optional[UnreadableCustomProviderError] = None
+        async with info.context.db() as session:
+            version = await session.get(models.DecisionVersion, version_id)
+            if version is None:
+                raise NotFound(f"Decision version not found: {input.decision_version_id}")
+            request = version_decision_request(version, input.variables)
+            if version.custom_provider_id is not None:
+                if input.base_url is not None:
+                    raise BadRequest(
+                        "This version runs on a custom provider, which brings its own endpoint; "
+                        "baseUrl is for built-in providers."
+                    )
+                try:
+                    client = await get_custom_provider_decision_client(
+                        custom_provider_id=version.custom_provider_id,
+                        model_name=version.model_name,
+                        session=session,
+                        decrypt=info.context.decrypt,
+                    )
+                except UnreadableCustomProviderError as error:
+                    client_error = error
+            else:
+                client = await get_decision_client(
+                    provider=GenerativeProviderKey.from_model_provider(version.model_provider),
+                    model_name=version.model_name,
+                    base_url=input.base_url,
+                    credentials=input.credentials,
+                    session=session,
+                    decrypt=info.context.decrypt,
+                    allowed_provider_names=info.context.allowed_provider_names,
+                )
+            project_id = await get_or_create_playground_project_id(session)
+            model_name = version.model_name
+        if client_error is not None:
+            return await _record_unrunnable(
+                info, error=client_error, model_name=model_name, project_id=project_id
+            )
+        return await _run(info, client=client, request=request, project_id=project_id)
+
+
+async def _record_unrunnable(
+    info: Info[Context, None],
+    *,
+    error: UnreadableCustomProviderError,
+    model_name: str,
+    project_id: int,
+) -> RunDecisionPayload:
+    """Record a run that failed before reaching its provider as an error span, so it shows
+    with a trace like a run the provider rejected."""
+    tracer = Tracer(span_cost_calculator=info.context.span_cost_calculator)
+    with tracer.start_as_current_span(
+        "Decision",
+        context=OtelContext(),
+        attributes={
+            SpanAttributes.OPENINFERENCE_SPAN_KIND: OpenInferenceSpanKindValues.DECISION.value,
+            SpanAttributes.DECISION_PROVIDER: error.provider_name,
+            SpanAttributes.DECISION_MODEL_NAME: model_name,
+            SpanAttributes.DECISION_REQUEST_MODEL_NAME: model_name,
+        },
+    ) as span:
+        span.set_status(Status(StatusCode.ERROR, str(error)))
+    return await _save_run(
+        info, tracer=tracer, project_id=project_id, result=None, error=str(error)
+    )
+
+
+async def _run(
+    info: Info[Context, None],
+    *,
+    client: DecisionClient,
+    request: DecisionRequest,
+    project_id: int,
+) -> RunDecisionPayload:
+    """Call the provider and record the call as a span, whether it succeeds or not."""
+    tracer = Tracer(span_cost_calculator=info.context.span_cost_calculator)
+    result: DecisionResult | None = None
+    error_message: str | None = None
+    try:
+        response = await client.create(request=request, tracer=tracer, otel_context=OtelContext())
+        result = to_gql_decision_result(request, response)
+    except BadRequest as error:
+        error_message = str(error)
+    return await _save_run(
+        info, tracer=tracer, project_id=project_id, result=result, error=error_message
+    )
+
+
+async def _save_run(
+    info: Info[Context, None],
+    *,
+    tracer: Tracer,
+    project_id: int,
+    result: DecisionResult | None,
+    error: str | None,
+) -> RunDecisionPayload:
+    traces = tracer.get_db_traces(project_id=project_id)
+    async with info.context.db() as session:
+        session.add_all(traces)
+        await session.flush()
+    info.context.event_queue.put(SpanInsertEvent(ids=(project_id,)))
+    span = traces[0].spans[0] if traces and traces[0].spans else None
+    return RunDecisionPayload(
+        result=result,
+        error=error,
+        span=Span(id=span.id, db_record=span) if span else None,
+    )

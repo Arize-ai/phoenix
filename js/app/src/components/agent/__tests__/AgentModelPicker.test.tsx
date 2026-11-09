@@ -80,7 +80,10 @@ vi.mock("@phoenix/components/generative/useModelMenuData", async () => ({
   ...(await vi.importActual<object>(
     "@phoenix/components/generative/useModelMenuData"
   )),
-  useModelMenuData: () => MODEL_MENU_DATA,
+  useModelMenuData: () => ({
+    ...MODEL_MENU_DATA,
+    chatModelProviders: MODEL_MENU_DATA.data.modelProviders,
+  }),
 }));
 
 const BEDROCK_OPUS: ModelMenuValue = {
@@ -154,7 +157,7 @@ describe("AgentModelPicker", () => {
   const getItemTexts = () => getItems().map((item) => item.textContent ?? "");
   const getItemNames = () =>
     getItems().map(
-      (item) => item.querySelector(".agent-model-row__name")?.textContent
+      (item) => item.querySelector(".model-row__name")?.textContent
     );
   const getSectionTitles = () =>
     [...document.body.querySelectorAll('[role="menu"] header')].map(
@@ -187,12 +190,12 @@ describe("AgentModelPicker", () => {
   ];
   const getSubmenuNames = () =>
     getSubmenuItems().map(
-      (item) => item.querySelector(".agent-model-row__name")?.textContent
+      (item) => item.querySelector(".model-row__name")?.textContent
     );
   const findSubmenuItem = (name: string) => {
     const item = getSubmenuItems().find(
       (candidate) =>
-        candidate.querySelector(".agent-model-row__name")?.textContent === name
+        candidate.querySelector(".model-row__name")?.textContent === name
     );
     if (!item) {
       throw new Error(`no provider "${name}" in ${getSubmenuNames().join()}`);

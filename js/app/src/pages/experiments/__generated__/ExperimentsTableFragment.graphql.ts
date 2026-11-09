@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3cdf51f9ffd5d31732a274da87a0f7e6>>
+ * @generated SignedSource<<6b2c32655b0410063fd4b09734f2a835>>
  * @lightSyntaxTransform
  */
 
@@ -8,6 +8,7 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
+export type EvaluatorKind = "BUILTIN" | "CODE" | "DECISION" | "LLM";
 export type ExperimentJobStatus = "COMPLETED" | "ERROR" | "RUNNING" | "STOPPED";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
@@ -31,6 +32,9 @@ export type ExperimentsTableFragment$data = {
   readonly datasetEvaluators: {
     readonly edges: ReadonlyArray<{
       readonly node: {
+        readonly evaluator: {
+          readonly kind: EvaluatorKind;
+        };
         readonly name: string;
         readonly outputConfigs: ReadonlyArray<{
           readonly __typename: "CategoricalAnnotationConfig";
@@ -107,6 +111,17 @@ export type ExperimentsTableFragment$data = {
         readonly isBaseline: boolean;
         readonly job: {
           readonly status: ExperimentJobStatus;
+          readonly taskConfig: {
+            readonly __typename: "DecisionTaskConfig";
+            readonly id: string;
+          } | {
+            readonly __typename: "PromptTaskConfig";
+            readonly id: string;
+          } | {
+            // This will never be '%other', but we need some
+            // value in case none of the concrete values match.
+            readonly __typename: "%other";
+          } | null;
         } | null;
         readonly metadata: any;
         readonly name: string;
@@ -239,7 +254,10 @@ v13 = {
   "kind": "ScalarField",
   "name": "upperBound",
   "storageKey": null
-};
+},
+v14 = [
+  (v1/*:: as any*/)
+];
 return {
   "argumentDefinitions": [
     {
@@ -382,6 +400,24 @@ return {
               "plural": false,
               "selections": [
                 (v9/*:: as any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": null,
+                  "kind": "LinkedField",
+                  "name": "evaluator",
+                  "plural": false,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "kind",
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
+                },
                 {
                   "alias": null,
                   "args": null,
@@ -551,9 +587,7 @@ return {
                   "kind": "LinkedField",
                   "name": "project",
                   "plural": false,
-                  "selections": [
-                    (v1/*:: as any*/)
-                  ],
+                  "selections": (v14/*:: as any*/),
                   "storageKey": null
                 },
                 {
@@ -696,6 +730,30 @@ return {
                       "kind": "ScalarField",
                       "name": "status",
                       "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": null,
+                      "kind": "LinkedField",
+                      "name": "taskConfig",
+                      "plural": false,
+                      "selections": [
+                        (v10/*:: as any*/),
+                        {
+                          "kind": "InlineFragment",
+                          "selections": (v14/*:: as any*/),
+                          "type": "DecisionTaskConfig",
+                          "abstractKey": null
+                        },
+                        {
+                          "kind": "InlineFragment",
+                          "selections": (v14/*:: as any*/),
+                          "type": "PromptTaskConfig",
+                          "abstractKey": null
+                        }
+                      ],
+                      "storageKey": null
                     }
                   ],
                   "storageKey": null
@@ -759,6 +817,6 @@ return {
 };
 })();
 
-(node as any).hash = "1f43803ba5c929080ce7453a214b11cf";
+(node as any).hash = "993043fa8b6c933d0cb942a0c4ae8710";
 
 export default node;

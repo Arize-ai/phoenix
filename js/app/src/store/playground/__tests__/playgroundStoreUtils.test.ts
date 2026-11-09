@@ -15,7 +15,7 @@ type ToolCallConversionTestTuple<T extends ModelProvider> = [
 ];
 
 type ToolCallConversionTestMap = {
-  [P in ModelProvider]: ToolCallConversionTestTuple<P>[];
+  [P in Exclude<ModelProvider, "TYPESAFE">]: ToolCallConversionTestTuple<P>[];
 };
 
 describe("convertMessageToolCallsToProvider", () => {

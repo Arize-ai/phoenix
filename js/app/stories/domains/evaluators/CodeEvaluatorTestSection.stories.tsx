@@ -4,16 +4,17 @@ import { RelayEnvironmentProvider } from "react-relay";
 import { Environment, Network, RecordSource, Store } from "relay-runtime";
 import { userEvent, within } from "storybook/test";
 
-import type { CodeEvaluatorTestSectionMutation } from "@phoenix/components/evaluators/__generated__/CodeEvaluatorTestSectionMutation.graphql";
+import type { useEvaluatorPreviewMutation } from "@phoenix/components/evaluators/__generated__/useEvaluatorPreviewMutation.graphql";
 import { CodeEvaluatorTestSection } from "@phoenix/components/evaluators/CodeEvaluatorTestSection";
 import { AgentProvider } from "@phoenix/contexts/AgentContext";
+import { CredentialsProvider } from "@phoenix/contexts/CredentialsContext";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
 
 import { OptionGrid } from "../../utils/OptionGrid";
 
 type PreviewResult =
-  CodeEvaluatorTestSectionMutation["response"]["evaluatorPreviews"]["results"][number];
+  useEvaluatorPreviewMutation["response"]["evaluatorPreviews"]["results"][number];
 
 const SOURCE_CODE = `def evaluate(output, reference):
     return {"score": float(output == reference)}`;
@@ -33,7 +34,7 @@ function annotationResult({
 }): PreviewResult {
   return {
     evaluatorName: name,
-    annotation: { id, name, score, label, explanation },
+    annotation: { decision: null, id, name, score, label, explanation },
     error: null,
   };
 }
@@ -58,29 +59,32 @@ function TestedEvaluator({
   );
   return (
     <RelayEnvironmentProvider environment={environment}>
-      <AgentProvider>
-        <EvaluatorStoreProvider
-          initialState={{
-            evaluator: {
-              kind: "CODE",
-              name: evaluatorName,
-              globalName: evaluatorName,
-              description: "",
-              isBuiltin: false,
-              includeExplanation: false,
-              inputMapping: { literalMapping: {}, pathMapping: {} },
-            },
-            outputConfigs,
-          }}
-        >
-          <CodeEvaluatorTestSection
-            sourceCode={SOURCE_CODE}
-            language="PYTHON"
-            sandboxConfigId="U2FuZGJveENvbmZpZzox"
-            isDraftMounted={() => true}
-          />
-        </EvaluatorStoreProvider>
-      </AgentProvider>
+      <CredentialsProvider>
+        <AgentProvider>
+          <EvaluatorStoreProvider
+            initialState={{
+              evaluator: {
+                kind: "CODE",
+                name: evaluatorName,
+                globalName: evaluatorName,
+                description: "",
+                isBuiltin: false,
+                includeExplanation: false,
+                inputDescriptions: {},
+                inputMapping: { literalMapping: {}, pathMapping: {} },
+              },
+              outputConfigs,
+            }}
+          >
+            <CodeEvaluatorTestSection
+              sourceCode={SOURCE_CODE}
+              language="PYTHON"
+              sandboxConfigId="U2FuZGJveENvbmZpZzox"
+              isDraftMounted={() => true}
+            />
+          </EvaluatorStoreProvider>
+        </AgentProvider>
+      </CredentialsProvider>
     </RelayEnvironmentProvider>
   );
 }

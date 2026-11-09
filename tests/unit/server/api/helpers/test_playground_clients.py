@@ -39,7 +39,6 @@ from phoenix.db.types.prompts import (
     PromptToolRaw,
     PromptTools,
 )
-from phoenix.server.api.evaluators import _request_tool_call_in_prompt
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
 from phoenix.server.api.helpers.playground_clients import (
@@ -56,9 +55,9 @@ from phoenix.server.api.helpers.playground_clients import (
     OpenAIResponsesClient,
     _get_builtin_provider_client,
     _get_custom_provider_client,
-    _resolve_provider_api_key,
     anthropic_model_supports_forced_tool_choice,
     get_openai_client_class,
+    resolve_provider_api_key,
 )
 from phoenix.server.api.helpers.playground_registry import (
     PLAYGROUND_CLIENT_REGISTRY,
@@ -69,6 +68,7 @@ from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import TextChunk
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
+from phoenix.server.evaluators.runtime.llm import _request_tool_call_in_prompt
 from phoenix.server.types import DbSessionFactory
 from tests.unit.vcr import CustomVCR
 
@@ -1407,7 +1407,7 @@ class TestMiniMaxProvider:
 
 
 class TestResolveProviderApiKey:
-    """The custom-base-URL guard in ``_resolve_provider_api_key``.
+    """The custom-base-URL guard in ``resolve_provider_api_key``.
 
     A server-configured (environment variable) API key must never be sent to a
     client-supplied base URL — that would leak the credential to the
@@ -1425,7 +1425,7 @@ class TestResolveProviderApiKey:
             )
         ]
         async with db() as session:
-            api_key = await _resolve_provider_api_key(
+            api_key = await resolve_provider_api_key(
                 credentials=credentials,
                 session=session,
                 decrypt=_identity_decrypt,
@@ -1448,7 +1448,7 @@ class TestResolveProviderApiKey:
             )
             await session.commit()
         async with db() as session:
-            api_key = await _resolve_provider_api_key(
+            api_key = await resolve_provider_api_key(
                 credentials=None,
                 session=session,
                 decrypt=encryption.decrypt,
@@ -1464,7 +1464,7 @@ class TestResolveProviderApiKey:
         monkeypatch.setenv("OPENAI_API_KEY", "sk-from-env")
         async with db() as session:
             with pytest.raises(BadRequest):
-                await _resolve_provider_api_key(
+                await resolve_provider_api_key(
                     credentials=None,
                     session=session,
                     decrypt=_identity_decrypt,
@@ -1478,7 +1478,7 @@ class TestResolveProviderApiKey:
     ) -> None:
         monkeypatch.setenv("OPENAI_API_KEY", "sk-from-env")
         async with db() as session:
-            api_key = await _resolve_provider_api_key(
+            api_key = await resolve_provider_api_key(
                 credentials=None,
                 session=session,
                 decrypt=_identity_decrypt,
@@ -1493,7 +1493,7 @@ class TestResolveProviderApiKey:
     ) -> None:
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
         async with db() as session:
-            api_key = await _resolve_provider_api_key(
+            api_key = await resolve_provider_api_key(
                 credentials=None,
                 session=session,
                 decrypt=_identity_decrypt,

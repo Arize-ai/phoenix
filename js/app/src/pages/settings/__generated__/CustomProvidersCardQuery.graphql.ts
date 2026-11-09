@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<58edf2ea6208071cd90a28a0287fcf66>>
+ * @generated SignedSource<<8a810e4f39e68a53a58ddaac28f283b1>>
  * @lightSyntaxTransform
  */
 
@@ -139,6 +139,13 @@ return {
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
+                    "name": "modelTypes",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
                     "name": "createdAt",
                     "storageKey": null
                   },
@@ -255,16 +262,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "66d9810ccb60b9a79bc64a291e137be5",
+    "cacheID": "ec7fa7b63a81578c7c278deca56ec35f",
     "id": null,
     "metadata": {},
     "name": "CustomProvidersCardQuery",
     "operationKind": "query",
-    "text": "query CustomProvidersCardQuery(\n  $after: String = null\n  $first: Int = 50\n) {\n  ...CustomProvidersCard_data_2HEEH6\n}\n\nfragment CustomProvidersCard_data_2HEEH6 on Query {\n  generativeModelCustomProviders(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        name\n        description\n        sdk\n        provider\n        createdAt\n        updatedAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n        config {\n          __typename\n          ... on UnparsableConfig {\n            parseError\n          }\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query CustomProvidersCardQuery(\n  $after: String = null\n  $first: Int = 50\n) {\n  ...CustomProvidersCard_data_2HEEH6\n}\n\nfragment CustomProvidersCard_data_2HEEH6 on Query {\n  generativeModelCustomProviders(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        name\n        description\n        sdk\n        provider\n        modelTypes\n        createdAt\n        updatedAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n        config {\n          __typename\n          ... on UnparsableConfig {\n            parseError\n          }\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c29e85fe3f8eb2ea260fdc204f7f5ada";
+(node as any).hash = "2ce45756ef1147680a38d0786c5d971b";
 
 export default node;

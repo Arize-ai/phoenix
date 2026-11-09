@@ -11,7 +11,12 @@ from phoenix.server.types import DbSessionFactory
 ParentId: TypeAlias = int
 Key: TypeAlias = ParentId
 
-VersionTable = TypeVar("VersionTable", models.PromptVersion, models.DatasetVersion)
+VersionTable = TypeVar(
+    "VersionTable",
+    models.PromptVersion,
+    models.DatasetVersion,
+    models.DecisionVersion,
+)
 
 
 class VersionAuthors(NamedTuple):

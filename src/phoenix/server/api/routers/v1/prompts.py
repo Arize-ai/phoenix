@@ -1,14 +1,18 @@
+"""Manage prompts, prompt versions, and version tags over REST."""
+
 import logging
-from typing import Any, Optional, Union
+from typing import Any, Optional, Sequence, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
-from pydantic import Field, ValidationError, field_validator, model_validator
+from pydantic import Field, ValidationError, model_validator
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import Select
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from starlette.requests import Request
+from starlette.responses import Response
 from strawberry.relay import GlobalID
 from typing_extensions import Self, TypeAlias, assert_never
 
@@ -17,86 +21,38 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.db.types.identifier import Identifier
-from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.prompts import (
-    PromptInvocationParameters,
-    PromptResponseFormat,
-    PromptTemplate,
-    PromptTemplateFormat,
     PromptTemplateType,
-    PromptTools,
-    normalize_invocation_parameters_for_write,
 )
-from phoenix.server.api.exceptions import BadRequest
-from phoenix.server.api.input_types.PromptVersionInput import (
-    validate_invocation_parameters_match_provider,
+from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.helpers.prompt_version_tags import upsert_prompt_version_tag
+from phoenix.server.api.helpers.prompts.validation import validate_custom_provider
+from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
+from phoenix.server.api.routers.v1.problem_details import (
+    ProblemDetailsRoute,
+    invalid_field,
+    problem_responses,
 )
-from phoenix.server.api.mutations.prompt_version_tag_mutations import upsert_prompt_version_tag
-from phoenix.server.api.routers.v1.models import IsoDatetime, V1RoutesBaseModel
+from phoenix.server.api.routers.v1.prompt_models import (
+    Prompt,
+    PromptData,
+    PromptVersion,
+    PromptVersionData,
+    PromptVersionTag,
+    PromptVersionTagData,
+)
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
     ResponseBody,
-    add_errors_to_responses,
+    Responses,
+    location_of,
+    version_numbers,
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.types.Prompt import Prompt as PromptNodeType
-from phoenix.server.api.types.PromptVersion import PromptVersion as PromptVersionNodeType
-from phoenix.server.api.types.PromptVersionTag import PromptVersionTag as PromptVersionTagNodeType
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
 
 logger = logging.getLogger(__name__)
-
-
-class PromptData(V1RoutesBaseModel):
-    name: Identifier
-    description: Optional[str] = None
-    source_prompt_id: Optional[str] = None
-    metadata: Optional[dict[str, Any]] = None
-
-
-class Prompt(PromptData):
-    id: str
-
-
-class PromptVersionData(V1RoutesBaseModel):
-    description: Optional[str] = None
-    metadata: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Arbitrary JSON metadata for the prompt version.",
-    )
-    model_provider: ModelProvider
-    model_name: str
-    template: PromptTemplate
-    template_type: PromptTemplateType
-    template_format: PromptTemplateFormat
-    invocation_parameters: PromptInvocationParameters
-    tools: Optional[PromptTools] = None
-    response_format: Optional[PromptResponseFormat] = None
-
-    @field_validator("invocation_parameters", mode="after")
-    @classmethod
-    def normalize_openai_family_invocation_parameters(
-        cls, value: PromptInvocationParameters
-    ) -> PromptInvocationParameters:
-        return normalize_invocation_parameters_for_write(value)
-
-    @model_validator(mode="after")
-    def check_template_type_match(self) -> Self:
-        if self.template_type is PromptTemplateType.CHAT:
-            if self.template.type == "chat":
-                return self
-        elif self.template_type is PromptTemplateType.STRING:
-            if self.template.type == "string":
-                return self
-        else:
-            assert_never(self.template_type)
-        raise ValueError("Template type does not match template")
-
-
-class PromptVersion(PromptVersionData):
-    id: str
-    created_at: IsoDatetime = Field(description="The creation timestamp of the prompt version.")
 
 
 class GetPromptResponseBody(ResponseBody[PromptVersion]):
@@ -147,7 +103,13 @@ class PatchPromptResponseBody(ResponseBody[Prompt]):
     pass
 
 
-router = APIRouter(tags=["prompts"])
+router = APIRouter(tags=["prompts"], route_class=ProblemDetailsRoute)
+
+
+def _errors(status_codes: list[int]) -> Responses:
+    """Every error body on this router is problem details, 403 included (see
+    ``evaluator_error_responses``)."""
+    return problem_responses([*status_codes, 403])
 
 
 @router.get(
@@ -157,11 +119,7 @@ router = APIRouter(tags=["prompts"])
     description="Retrieve a paginated list of all prompts in the system. A prompt can have "
     "multiple versions.",
     response_description="A list of prompts with pagination information",
-    responses=add_errors_to_responses(
-        [
-            422,
-        ]
-    ),
+    responses=_errors([422]),
 )
 async def get_prompts(
     request: Request,
@@ -216,10 +174,10 @@ async def get_prompts(
         next_cursor = None
         if len(orm_prompts) == limit + 1:
             last_prompt = orm_prompts[-1]
-            next_cursor = str(GlobalID(PromptNodeType.__name__, str(last_prompt.id)))
+            next_cursor = str(GlobalID("Prompt", str(last_prompt.id)))
             orm_prompts = orm_prompts[:-1]
 
-        prompts = [_prompt_from_orm_prompt(orm_prompt) for orm_prompt in orm_prompts]
+        prompts = [Prompt.from_orm_prompt(orm_prompt) for orm_prompt in orm_prompts]
     return GetPromptsResponseBody(next_cursor=next_cursor, data=prompts)
 
 
@@ -230,7 +188,7 @@ async def get_prompts(
     description="Retrieve all versions of a specific prompt with pagination support. Each prompt "
     "can have multiple versions with different configurations.",
     response_description="A list of prompt versions with pagination information",
-    responses=add_errors_to_responses([422, 404]),
+    responses=_errors([422, 404]),
     response_model_by_alias=True,
     response_model_exclude_defaults=True,
     response_model_exclude_unset=True,
@@ -288,10 +246,10 @@ async def list_prompt_versions(
         next_cursor = None
         if len(orm_versions) == limit + 1:
             last_version = orm_versions[-1]
-            next_cursor = str(GlobalID(PromptVersionNodeType.__name__, str(last_version.id)))
+            next_cursor = str(GlobalID("PromptVersion", str(last_version.id)))
             orm_versions = orm_versions[:-1]
 
-        versions = [_prompt_version_from_orm_version(orm_version) for orm_version in orm_versions]
+        versions = await _rest_prompt_versions(session, orm_versions)
         return GetPromptVersionsResponseBody(next_cursor=next_cursor, data=versions)
 
 
@@ -302,12 +260,7 @@ async def list_prompt_versions(
     description="Retrieve a specific prompt version using its unique identifier. A prompt version "
     "contains the actual template and configuration.",
     response_description="The requested prompt version",
-    responses=add_errors_to_responses(
-        [
-            404,
-            422,
-        ]
-    ),
+    responses=_errors([404, 422]),
     response_model_by_alias=True,
     response_model_exclude_defaults=True,
     response_model_exclude_unset=True,
@@ -332,7 +285,7 @@ async def get_prompt_version_by_prompt_version_id(
     try:
         id_ = from_global_id_with_expected_type(
             GlobalID.from_id(prompt_version_id),
-            PromptVersionNodeType.__name__,
+            "PromptVersion",
         )
     except ValueError:
         raise HTTPException(422, "Invalid prompt version ID")
@@ -344,8 +297,8 @@ async def get_prompt_version_by_prompt_version_id(
         )
         prompt_version = await session.scalar(stmt)
         if prompt_version is None:
-            raise HTTPException(404)
-    data = _prompt_version_from_orm_version(prompt_version)
+            raise HTTPException(404, f"Prompt version not found: {prompt_version_id}")
+        data = await _rest_prompt_version(session, prompt_version)
     return GetPromptResponseBody(data=data)
 
 
@@ -356,12 +309,7 @@ async def get_prompt_version_by_prompt_version_id(
     description="Retrieve a specific prompt version using its tag name. Tags are used to identify "
     "specific versions of a prompt.",
     response_description="The prompt version with the specified tag",
-    responses=add_errors_to_responses(
-        [
-            404,
-            422,
-        ]
-    ),
+    responses=_errors([404, 422]),
     response_model_by_alias=True,
     response_model_exclude_unset=True,
     response_model_exclude_defaults=True,
@@ -399,8 +347,8 @@ async def get_prompt_version_by_tag_name(
     async with request.app.state.db() as session:
         prompt_version: models.PromptVersion = await session.scalar(stmt)
         if prompt_version is None:
-            raise HTTPException(404)
-    data = _prompt_version_from_orm_version(prompt_version)
+            raise HTTPException(404, "Prompt version not found")
+        data = await _rest_prompt_version(session, prompt_version)
     return GetPromptResponseBody(data=data)
 
 
@@ -410,12 +358,7 @@ async def get_prompt_version_by_tag_name(
     summary="Get latest prompt version",
     description="Retrieve the most recent version of a specific prompt.",
     response_description="The latest version of the specified prompt",
-    responses=add_errors_to_responses(
-        [
-            404,
-            422,
-        ]
-    ),
+    responses=_errors([404, 422]),
     response_model_by_alias=True,
     response_model_exclude_defaults=True,
     response_model_exclude_unset=True,
@@ -447,8 +390,8 @@ async def get_prompt_version_by_latest(
     async with request.app.state.db() as session:
         prompt_version: models.PromptVersion = await session.scalar(stmt)
         if prompt_version is None:
-            raise HTTPException(404)
-    data = _prompt_version_from_orm_version(prompt_version)
+            raise HTTPException(404, "Prompt version not found")
+        data = await _rest_prompt_version(session, prompt_version)
     return GetPromptResponseBody(data=data)
 
 
@@ -456,20 +399,21 @@ async def get_prompt_version_by_latest(
     "/prompts",
     dependencies=[Depends(is_not_locked)],
     operation_id="postPromptVersion",
-    summary="Create a new prompt",
-    description="Create a new prompt and its initial version. A prompt can have multiple versions.",
+    summary="Create a prompt or add a version",
+    description="Create a prompt with its initial version. If a prompt with `prompt.name` "
+    "already exists, add the version to it instead. Either way a version is created: the "
+    "response is 201 with its URL in `Location`, and a `version_number` of 1 means the "
+    "prompt was created too.",
     response_description="The newly created prompt version",
-    responses=add_errors_to_responses(
-        [
-            422,
-        ]
-    ),
+    status_code=201,
+    responses=_errors([404, 422]),
     response_model_by_alias=True,
     response_model_exclude_defaults=True,
     response_model_exclude_unset=True,
 )
 async def create_prompt(
     request: Request,
+    response: Response,
     request_body: CreatePromptRequestBody,
 ) -> CreatePromptResponseBody:
     """
@@ -500,42 +444,29 @@ async def create_prompt(
     if request.app.state.authentication_enabled:
         assert isinstance(user := request.user, PhoenixUser)
         user_id = int(user.identity)
+    version_orm = _version_to_orm(version, user_id=user_id)
     async with request.app.state.db() as session:
+        await _validate_custom_provider(session, version_orm)
         if not (prompt_orm := await session.scalar(select(models.Prompt).filter_by(name=name))):
             prompt_orm = models.Prompt(
                 name=name,
                 description=prompt.description,
                 metadata_=prompt.metadata or {},
             )
-        version_orm = models.PromptVersion(
-            user_id=user_id,
-            prompt=prompt_orm,
-            description=version.description,
-            model_provider=version.model_provider,
-            model_name=version.model_name,
-            template_type=version.template_type,
-            template_format=version.template_format,
-            template=version.template,
-            invocation_parameters=version.invocation_parameters,
-            tools=version.tools,
-            response_format=version.response_format,
-            metadata_=version.metadata,
-        )
+        version_orm.prompt = prompt_orm
         session.add(version_orm)
-    data = _prompt_version_from_orm_version(version_orm)
+        await session.flush()
+        await session.refresh(version_orm)
+        data = await _rest_prompt_version(session, version_orm)
+    response.headers["Location"] = location_of(request, f"/v1/prompt_versions/{data.id}")
     return CreatePromptResponseBody(data=data)
 
 
-class PromptVersionTagData(V1RoutesBaseModel):
-    name: Identifier
-    description: Optional[str] = None
-
-
-class PromptVersionTag(PromptVersionTagData):
-    id: str
-
-
 class GetPromptVersionTagsResponseBody(PaginatedResponseBody[PromptVersionTag]):
+    pass
+
+
+class CreatePromptVersionTagResponseBody(ResponseBody[PromptVersionTag]):
     pass
 
 
@@ -556,13 +487,14 @@ class CreatePromptVersionResponseBody(ResponseBody[PromptVersion]):
     description="Create a new version for an existing prompt by identifier.",
     response_description="The created prompt version",
     status_code=201,
-    responses=add_errors_to_responses([404, 422]),
+    responses=_errors([404, 422]),
     response_model_by_alias=True,
     response_model_exclude_defaults=True,
     response_model_exclude_unset=True,
 )
 async def create_prompt_version(
     request: Request,
+    response: Response,
     request_body: CreatePromptVersionRequestBody,
     prompt_identifier: str = Path(description="The identifier of the prompt, i.e. name or ID."),
 ) -> CreatePromptVersionResponseBody:
@@ -584,14 +516,6 @@ async def create_prompt_version(
     """
     version = request_body.version
     _require_chat_template(version)
-    try:
-        validate_invocation_parameters_match_provider(
-            model_provider=version.model_provider,
-            invocation_parameters=version.invocation_parameters,
-        )
-    except BadRequest as e:
-        raise HTTPException(422, str(e))
-
     identifier = _parse_prompt_identifier(prompt_identifier)
     if isinstance(identifier, _PromptId):
         where_clause = models.Prompt.id == int(identifier)
@@ -605,25 +529,15 @@ async def create_prompt_version(
         assert isinstance(user := request.user, PhoenixUser)
         user_id = int(user.identity)
 
+    version_orm = _version_to_orm(version, user_id=user_id)
+
     async with request.app.state.db() as session:
         prompt_id = await session.scalar(select(models.Prompt.id).where(where_clause))
         if prompt_id is None:
             raise HTTPException(status_code=404, detail="Prompt not found")
 
-        version_orm = models.PromptVersion(
-            user_id=user_id,
-            prompt_id=prompt_id,
-            description=version.description,
-            model_provider=version.model_provider,
-            model_name=version.model_name,
-            template_type=version.template_type,
-            template_format=version.template_format,
-            template=version.template,
-            invocation_parameters=version.invocation_parameters,
-            tools=version.tools,
-            response_format=version.response_format,
-            metadata_=version.metadata,
-        )
+        await _validate_custom_provider(session, version_orm)
+        version_orm.prompt_id = prompt_id
         session.add(version_orm)
         try:
             await session.flush()
@@ -639,8 +553,10 @@ async def create_prompt_version(
                 tag.description,
                 user_id=user_id,
             )
-
-    data = _prompt_version_from_orm_version(version_orm)
+        await session.flush()
+        await session.refresh(version_orm)
+        data = await _rest_prompt_version(session, version_orm)
+    response.headers["Location"] = location_of(request, f"/v1/prompt_versions/{data.id}")
     return CreatePromptVersionResponseBody(data=data)
 
 
@@ -651,12 +567,7 @@ async def create_prompt_version(
     description="Retrieve all tags associated with a specific prompt version. Tags are used to "
     "identify and categorize different versions of a prompt.",
     response_description="A list of tags associated with the prompt version",
-    responses=add_errors_to_responses(
-        [
-            404,
-            422,
-        ]
-    ),
+    responses=_errors([404, 422]),
     response_model_by_alias=True,
     response_model_exclude_defaults=True,
     response_model_exclude_unset=True,
@@ -691,7 +602,7 @@ async def list_prompt_version_tags(
     try:
         id_ = from_global_id_with_expected_type(
             GlobalID.from_id(prompt_version_id),
-            PromptVersionNodeType.__name__,
+            "PromptVersion",
         )
     except ValueError:
         raise HTTPException(422, "Invalid prompt version ID")
@@ -731,7 +642,7 @@ async def list_prompt_version_tags(
         raise HTTPException(404, "Prompt version not found")
 
     # Check if there are any tags
-    has_tags = any(id_ is not None for _, id_, _, _ in result)
+    has_tags = any(tag_id is not None for _, tag_id, _, _ in result)
     if not has_tags:
         return GetPromptVersionTagsResponseBody(next_cursor=None, data=[])
 
@@ -743,17 +654,18 @@ async def list_prompt_version_tags(
         # Get the ID of the last item for the next cursor
         last_tag_id = result[-1][1]  # The second element is the tag ID
         if last_tag_id is not None:
-            next_cursor = str(GlobalID(PromptVersionTagNodeType.__name__, str(last_tag_id)))
+            next_cursor = str(GlobalID("PromptVersionTag", str(last_tag_id)))
 
     # Convert to response format
     data = [
         PromptVersionTag(
-            id=str(GlobalID(PromptVersionTagNodeType.__name__, str(id_))),
+            id=str(GlobalID("PromptVersionTag", str(tag_id))),
             name=name,
             description=description,
+            prompt_version_id=prompt_version_id,
         )
-        for _, id_, name, description in result
-        if id_ is not None
+        for _, tag_id, name, description in result
+        if tag_id is not None
     ]
 
     return GetPromptVersionTagsResponseBody(next_cursor=next_cursor, data=data)
@@ -764,35 +676,33 @@ async def list_prompt_version_tags(
     dependencies=[Depends(is_not_locked)],
     operation_id="createPromptVersionTag",
     summary="Add tag to prompt version",
-    description="Add a new tag to a specific prompt version. Tags help identify and categorize "
-    "different versions of a prompt.",
-    response_description="No content returned on successful tag creation",
-    status_code=204,
-    responses=add_errors_to_responses(
-        [
-            404,
-            422,
-        ]
-    ),
+    description="Point a tag at a prompt version. Tag names are unique within a prompt: if "
+    "the version's prompt already has a tag of this name, it moves to this version. Returns "
+    "201 with the tag when it was created, or 200 when an existing tag moved.",
+    response_description="The tag was created",
+    status_code=201,
+    responses={
+        200: {
+            "description": "An existing tag moved to this version",
+            "model": CreatePromptVersionTagResponseBody,
+        },
+        **_errors([404, 422]),
+    },
     response_model_by_alias=True,
     response_model_exclude_defaults=True,
     response_model_exclude_unset=True,
 )
 async def create_prompt_version_tag(
     request: Request,
+    response: Response,
     request_body: PromptVersionTagData,
     prompt_version_id: str = Path(description="The ID of the prompt version."),
-) -> None:
+) -> CreatePromptVersionTagResponseBody:
     """
-    Add a tag to a specific prompt version.
-
-    Args:
-        request (Request): The FastAPI request object.
-        request_body (PromptVersionTagData): The tag data to be added.
-        prompt_version_id (str): The ID of the prompt version to tag.
+    Add a tag to a specific prompt version, or move the prompt's tag of that name to it.
 
     Returns:
-        None: Returns a 204 No Content response on success.
+        CreatePromptVersionTagResponseBody: The tag; 201 when created, 200 when moved.
 
     Raises:
         HTTPException: If the prompt version ID is invalid, the prompt version is not found,
@@ -801,7 +711,7 @@ async def create_prompt_version_tag(
     try:
         id_ = from_global_id_with_expected_type(
             GlobalID.from_id(prompt_version_id),
-            PromptVersionNodeType.__name__,
+            "PromptVersion",
         )
     except ValueError:
         raise HTTPException(422, "Invalid prompt version ID")
@@ -812,7 +722,15 @@ async def create_prompt_version_tag(
     async with request.app.state.db() as session:
         prompt_id = await session.scalar(select(models.PromptVersion.prompt_id).filter_by(id=id_))
         if prompt_id is None:
-            raise HTTPException(404)
+            raise HTTPException(404, f"Prompt version not found: {prompt_version_id}")
+        created = (
+            await session.scalar(
+                select(models.PromptVersionTag.id).where(
+                    models.PromptVersionTag.prompt_id == prompt_id,
+                    models.PromptVersionTag.name == request_body.name,
+                )
+            )
+        ) is None
         dialect = SupportedSQLDialect(session.get_bind().dialect.name)
         values = dict(
             name=request_body.name,
@@ -830,7 +748,27 @@ async def create_prompt_version_tag(
                 on_conflict=OnConflict.DO_UPDATE,
             )
         )
-    return None
+        tag = await session.scalar(
+            select(models.PromptVersionTag).where(
+                models.PromptVersionTag.prompt_id == prompt_id,
+                models.PromptVersionTag.name == request_body.name,
+            )
+        )
+        assert tag is not None
+        data = PromptVersionTag(
+            id=str(GlobalID("PromptVersionTag", str(tag.id))),
+            name=tag.name,
+            description=tag.description,
+            prompt_version_id=prompt_version_id,
+        )
+    if created:
+        response.headers["Location"] = location_of(
+            request,
+            f"/v1/prompts/{GlobalID('Prompt', str(prompt_id))}/tags/{request_body.name.root}",
+        )
+    else:
+        response.status_code = 200
+    return CreatePromptVersionTagResponseBody(data=data)
 
 
 @router.delete(
@@ -841,12 +779,7 @@ async def create_prompt_version_tag(
     "within the scope of the prompt linked to the version.",
     response_description="No content returned on successful tag deletion",
     status_code=204,
-    responses=add_errors_to_responses(
-        [
-            404,
-            422,
-        ]
-    ),
+    responses=_errors([404, 422]),
 )
 async def delete_prompt_version_tag(
     request: Request,
@@ -873,7 +806,7 @@ async def delete_prompt_version_tag(
     try:
         id_ = from_global_id_with_expected_type(
             GlobalID.from_id(prompt_version_id),
-            PromptVersionNodeType.__name__,
+            "PromptVersion",
         )
     except ValueError:
         raise HTTPException(422, "Invalid prompt version ID")
@@ -904,7 +837,7 @@ async def delete_prompt_version_tag(
     summary="Update prompt metadata",
     description="Update a prompt's description and metadata by identifier.",
     response_description="The updated prompt",
-    responses=add_errors_to_responses([404, 422]),
+    responses=_errors([404, 422]),
     response_model_by_alias=True,
     response_model_exclude_defaults=True,
     response_model_exclude_unset=True,
@@ -930,7 +863,7 @@ async def patch_prompt(
             prompt.description = description.strip() if description is not None else None
         if (metadata := request_body.metadata) is not UNDEFINED:
             prompt.metadata_ = metadata
-        data = _prompt_from_orm_prompt(prompt)
+        data = Prompt.from_orm_prompt(prompt)
 
     return PatchPromptResponseBody(data=data)
 
@@ -942,7 +875,7 @@ async def patch_prompt(
     summary="Delete a prompt",
     description="Delete a prompt and all its versions, tags, and labels by identifier.",
     status_code=204,
-    responses=add_errors_to_responses([404, 422]),
+    responses=_errors([404, 422]),
 )
 async def delete_prompt(
     request: Request,
@@ -977,7 +910,7 @@ def _parse_prompt_identifier(
     try:
         prompt_id = from_global_id_with_expected_type(
             GlobalID.from_id(prompt_identifier),
-            PromptNodeType.__name__,
+            "Prompt",
         )
     except ValueError:
         try:
@@ -1001,40 +934,69 @@ def _filter_by_prompt_identifier(
 
 def _require_chat_template(version: PromptVersionData) -> None:
     if version.template_type is not PromptTemplateType.CHAT:
-        raise HTTPException(422, "Only CHAT template type is supported for prompts")
+        raise invalid_field(
+            "Only CHAT template type is supported for prompts",
+            ("body", "version", "template_type"),
+            "invalid_choice",
+        )
 
 
-def _prompt_version_from_orm_version(
-    prompt_version: models.PromptVersion,
+def _version_to_orm(version: PromptVersionData, *, user_id: Optional[int]) -> models.PromptVersion:
+    """Map write-time rule failures to a 422 naming the field; the only rule ``to_orm``
+    checks is that the invocation parameters match the model provider."""
+    try:
+        return version.to_orm(user_id=user_id)
+    except BadRequest as error:
+        raise invalid_field(str(error), ("body", "version", "invocation_parameters")) from error
+
+
+async def _validate_custom_provider(session: AsyncSession, version: models.PromptVersion) -> None:
+    """Map the shared provider check to REST codes: 404 missing, 422 incompatible."""
+    try:
+        await validate_custom_provider(session, version)
+    except NotFound as error:
+        raise HTTPException(404, str(error)) from error
+    except BadRequest as error:
+        raise invalid_field(str(error), ("body", "version", "custom_provider_id")) from error
+
+
+async def _rest_prompt_version(
+    session: AsyncSession, version: models.PromptVersion
 ) -> PromptVersion:
-    prompt_template_type = PromptTemplateType(prompt_version.template_type)
-    prompt_template_format = PromptTemplateFormat(prompt_version.template_format)
-    return PromptVersion(
-        id=str(GlobalID(PromptVersionNodeType.__name__, str(prompt_version.id))),
-        created_at=prompt_version.created_at,
-        description=prompt_version.description or "",
-        model_provider=prompt_version.model_provider,
-        model_name=prompt_version.model_name,
-        template=prompt_version.template,
-        template_type=prompt_template_type,
-        template_format=prompt_template_format,
-        invocation_parameters=prompt_version.invocation_parameters,
-        tools=prompt_version.tools,
-        response_format=prompt_version.response_format,
-        metadata=prompt_version.metadata_,
-    )
+    return (await _rest_prompt_versions(session, [version]))[0]
 
 
-def _prompt_from_orm_prompt(orm_prompt: models.Prompt) -> Prompt:
-    source_prompt_id = (
-        str(GlobalID(PromptNodeType.__name__, str(orm_prompt.source_prompt_id)))
-        if orm_prompt.source_prompt_id
-        else None
+async def _rest_prompt_versions(
+    session: AsyncSession, versions: Sequence[models.PromptVersion]
+) -> list[PromptVersion]:
+    """REST versions with what a caller needs to name them: the prompt's ID and name, the
+    version's 1-based number within its prompt, and the tags pointing at it."""
+    if not versions:
+        return []
+    ids = [version.id for version in versions]
+    prompt_ids = {version.prompt_id for version in versions}
+    numbers = await version_numbers(
+        session, models.PromptVersion.id, models.PromptVersion.prompt_id, ids, prompt_ids
     )
-    return Prompt(
-        id=str(GlobalID(PromptNodeType.__name__, str(orm_prompt.id))),
-        source_prompt_id=source_prompt_id,
-        name=orm_prompt.name,
-        description=orm_prompt.description,
-        metadata=orm_prompt.metadata_,
-    )
+    names: dict[int, Identifier] = {
+        prompt_id: name
+        for prompt_id, name in await session.execute(
+            select(models.Prompt.id, models.Prompt.name).where(models.Prompt.id.in_(prompt_ids))
+        )
+    }
+    tag_names: dict[int, list[str]] = {version_id: [] for version_id in ids}
+    for version_id, tag_name in await session.execute(
+        select(models.PromptVersionTag.prompt_version_id, models.PromptVersionTag.name)
+        .where(models.PromptVersionTag.prompt_version_id.in_(ids))
+        .order_by(models.PromptVersionTag.name)
+    ):
+        tag_names[version_id].append(tag_name.root)
+    return [
+        PromptVersion.from_orm_prompt_version(
+            version,
+            prompt_name=names[version.prompt_id],
+            version_number=numbers[version.id],
+            tag_names=tag_names[version.id],
+        )
+        for version in versions
+    ]

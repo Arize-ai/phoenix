@@ -1,8 +1,10 @@
-import { css } from "@emotion/react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { Link, useResolvedPath } from "react-router";
+import { useResolvedPath } from "react-router";
 
-import { Flex, View } from "@phoenix/components";
+import {
+  VersionListItem,
+  VersionsListContainer,
+} from "@phoenix/components/versions/VersionsList";
 
 import type {
   PromptVersionsList__main$data,
@@ -18,21 +20,6 @@ export type PromptVersionItemProps = {
 type PromptVersion =
   PromptVersionsList__main$data["pagedVersions"]["edges"][number]["version"];
 
-const promptVersionItemCSS = css`
-  border-bottom: 1px solid var(--global-color-gray-300);
-  transition: background-color 0.1s ease-in;
-
-  &[data-active="true"],
-  &:hover {
-    background-color: var(--global-color-gray-200);
-  }
-
-  & > a {
-    text-decoration: none;
-    color: inherit;
-  }
-`;
-
 /**
  * A single prompt version item, displaying the version number,
  * the date it was created, and tag. Clicking the item navigates to
@@ -44,13 +31,9 @@ export const PromptVersionItem = ({
 }: PromptVersionItemProps) => {
   const basePath = useResolvedPath(".").pathname;
   return (
-    <div css={promptVersionItemCSS} data-active={active}>
-      <Link to={`${basePath}/${version.id}`}>
-        <View width="100%" paddingY="size-100" paddingX="size-200">
-          <PromptVersionSummary promptVersion={version} />
-        </View>
-      </Link>
-    </div>
+    <VersionListItem to={`${basePath}/${version.id}`} active={active}>
+      <PromptVersionSummary promptVersion={version} />
+    </VersionListItem>
   );
 };
 
@@ -59,14 +42,7 @@ type PromptVersionsListProps = {
   itemActive?: (version: PromptVersion) => boolean;
 };
 
-const PROMPT_VERSIONS_LIST_WIDTH = 400;
-
 const PAGE_SIZE = 50;
-
-const promptVersionsListScrollCSS = css`
-  height: 100%;
-  overflow: auto;
-`;
 
 /**
  * Full height, scrollable, list of prompt versions
@@ -109,27 +85,14 @@ export const PromptVersionsList = ({
     }
   };
   return (
-    <View
-      height="100%"
-      width={PROMPT_VERSIONS_LIST_WIDTH}
-      minWidth={PROMPT_VERSIONS_LIST_WIDTH}
-      borderRightWidth="thin"
-      borderColor="gray-300"
-    >
-      <div
-        css={promptVersionsListScrollCSS}
-        onScroll={(event) => fetchMoreOnBottomReached(event.currentTarget)}
-      >
-        <Flex direction="column">
-          {data.pagedVersions.edges.map(({ version }) => (
-            <PromptVersionItem
-              key={version.id}
-              version={version}
-              active={itemActive?.(version)}
-            />
-          ))}
-        </Flex>
-      </div>
-    </View>
+    <VersionsListContainer onScroll={fetchMoreOnBottomReached}>
+      {data.pagedVersions.edges.map(({ version }) => (
+        <PromptVersionItem
+          key={version.id}
+          version={version}
+          active={itemActive?.(version)}
+        />
+      ))}
+    </VersionsListContainer>
   );
 };

@@ -5,6 +5,8 @@ import { Button, Icon, Icons } from "@phoenix/components";
 import { DatasetSelectWithSplits } from "@phoenix/components/dataset";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
+import { useClearPlaygroundDataset } from "./useClearPlaygroundDataset";
+
 /**
  * This is to keep the height of the picker and the button the same
  * Our buttons have icons with size of 1.3rem, which becomes 20.8px where as the picker text has a line height of 20px with border and margins this becomes 30px
@@ -51,6 +53,7 @@ export function PlaygroundDatasetSelect({
   const datasetId = searchParams.get("datasetId");
   const splitIds = searchParams.getAll("splitId");
   const setDatasetId = usePlaygroundContext((state) => state.setDatasetId);
+  const clearDataset = useClearPlaygroundDataset();
 
   return (
     <div css={playgroundDatasetSelectCSS}>
@@ -99,16 +102,7 @@ export function PlaygroundDatasetSelect({
           size="S"
           isDisabled={isDisabled}
           leadingVisual={<Icon svg={<Icons.Close />} />}
-          onPress={() => {
-            setDatasetId(null);
-            setSearchParams((prev) => {
-              const next = new URLSearchParams(prev);
-              next.delete("datasetId");
-              next.delete("splitId");
-              next.delete("exampleId");
-              return next;
-            });
-          }}
+          onPress={clearDataset}
         />
       ) : null}
     </div>

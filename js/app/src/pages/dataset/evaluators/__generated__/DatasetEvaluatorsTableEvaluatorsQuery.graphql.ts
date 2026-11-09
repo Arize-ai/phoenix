@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<be32d4862b79565df966601d7e3d7f35>>
+ * @generated SignedSource<<5861cd7e76af9aa7ff735b9837d8a57d>>
  * @lightSyntaxTransform
  */
 
@@ -118,6 +118,28 @@ v10 = {
   "args": null,
   "kind": "ScalarField",
   "name": "updatedAt",
+  "storageKey": null
+},
+v11 = [
+  (v8/*:: as any*/),
+  (v9/*:: as any*/)
+],
+v12 = [
+  (v9/*:: as any*/),
+  (v8/*:: as any*/)
+],
+v13 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "modelName",
+  "storageKey": null
+},
+v14 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "modelProvider",
   "storageKey": null
 };
 return {
@@ -241,6 +263,16 @@ return {
                           {
                             "alias": null,
                             "args": null,
+                            "concreteType": "Dataset",
+                            "kind": "LinkedField",
+                            "name": "dataset",
+                            "plural": false,
+                            "selections": (v11/*:: as any*/),
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
                             "concreteType": null,
                             "kind": "LinkedField",
                             "name": "evaluator",
@@ -274,10 +306,7 @@ return {
                                     "kind": "LinkedField",
                                     "name": "prompt",
                                     "plural": false,
-                                    "selections": [
-                                      (v8/*:: as any*/),
-                                      (v9/*:: as any*/)
-                                    ],
+                                    "selections": (v11/*:: as any*/),
                                     "storageKey": null
                                   },
                                   {
@@ -287,10 +316,7 @@ return {
                                     "kind": "LinkedField",
                                     "name": "promptVersionTag",
                                     "plural": false,
-                                    "selections": [
-                                      (v9/*:: as any*/),
-                                      (v8/*:: as any*/)
-                                    ],
+                                    "selections": (v12/*:: as any*/),
                                     "storageKey": null
                                   },
                                   {
@@ -301,26 +327,62 @@ return {
                                     "name": "promptVersion",
                                     "plural": false,
                                     "selections": [
-                                      {
-                                        "alias": null,
-                                        "args": null,
-                                        "kind": "ScalarField",
-                                        "name": "modelName",
-                                        "storageKey": null
-                                      },
-                                      {
-                                        "alias": null,
-                                        "args": null,
-                                        "kind": "ScalarField",
-                                        "name": "modelProvider",
-                                        "storageKey": null
-                                      },
+                                      (v13/*:: as any*/),
+                                      (v14/*:: as any*/),
                                       (v8/*:: as any*/)
                                     ],
                                     "storageKey": null
                                   }
                                 ],
                                 "type": "LLMEvaluator",
+                                "abstractKey": null
+                              },
+                              {
+                                "kind": "InlineFragment",
+                                "selections": [
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": "DecisionVersionTag",
+                                    "kind": "LinkedField",
+                                    "name": "decisionVersionTag",
+                                    "plural": false,
+                                    "selections": (v12/*:: as any*/),
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": "DecisionVersion",
+                                    "kind": "LinkedField",
+                                    "name": "decisionVersion",
+                                    "plural": false,
+                                    "selections": [
+                                      (v8/*:: as any*/),
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "decisionId",
+                                        "storageKey": null
+                                      },
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "concreteType": "Decision",
+                                        "kind": "LinkedField",
+                                        "name": "decision",
+                                        "plural": false,
+                                        "selections": (v12/*:: as any*/),
+                                        "storageKey": null
+                                      },
+                                      (v13/*:: as any*/),
+                                      (v14/*:: as any*/)
+                                    ],
+                                    "storageKey": null
+                                  }
+                                ],
+                                "type": "DecisionEvaluator",
                                 "abstractKey": null
                               },
                               {
@@ -448,12 +510,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "3d0486d0c54711d5237d1b5bd2619b25",
+    "cacheID": "bab27714a815a579ab41300cd9f2f30d",
     "id": null,
     "metadata": {},
     "name": "DatasetEvaluatorsTableEvaluatorsQuery",
     "operationKind": "query",
-    "text": "query DatasetEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $filter: DatasetEvaluatorFilter = null\n  $first: Int = 100\n  $sort: DatasetEvaluatorSort = null\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...DatasetEvaluatorsTable_evaluators_3JsJJ3\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_3JsJJ3 on Dataset {\n  datasetEvaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query DatasetEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $filter: DatasetEvaluatorFilter = null\n  $first: Int = 100\n  $sort: DatasetEvaluatorSort = null\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...DatasetEvaluatorsTable_evaluators_3JsJJ3\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_3JsJJ3 on Dataset {\n  datasetEvaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  dataset {\n    id\n    name\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on DecisionEvaluator {\n      decisionVersionTag {\n        name\n        id\n      }\n      decisionVersion {\n        id\n        decisionId\n        decision {\n          name\n          id\n        }\n        modelName\n        modelProvider\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();

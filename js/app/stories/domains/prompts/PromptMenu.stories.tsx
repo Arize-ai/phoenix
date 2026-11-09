@@ -270,6 +270,7 @@ function PresetRender({
             prompts={prompts}
             selectedPrompt={selectedPrompt}
             onSelectPrompt={handleSelectPrompt}
+            hasVersionSelector
           />
           <PromptVersionSelector
             prompt={selectedPrompt}
@@ -289,6 +290,7 @@ function PresetRender({
         prompts={prompts}
         selectedPrompt={null}
         onSelectPrompt={handleSelectPrompt}
+        hasVersionSelector={false}
       />
     </div>
   );
@@ -399,6 +401,7 @@ function PlaygroundRender(args: StoryArgs) {
             prompts={prompts}
             selectedPrompt={selectedPrompt}
             onSelectPrompt={handleSelectPrompt}
+            hasVersionSelector
           />
           <PromptVersionSelector
             prompt={selectedPrompt}
@@ -418,6 +421,7 @@ function PlaygroundRender(args: StoryArgs) {
         prompts={prompts}
         selectedPrompt={null}
         onSelectPrompt={handleSelectPrompt}
+        hasVersionSelector={false}
       />
     </div>
   );

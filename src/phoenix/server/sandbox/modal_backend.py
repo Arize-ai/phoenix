@@ -54,6 +54,7 @@ class ModalSandboxBackend(SandboxBackend):
     """Sandbox backend executing code in Modal cloud sandboxes."""
 
     provider: ClassVar[str] = "MODAL"
+    supports_concurrent_session_execution: ClassVar[bool] = True
 
     def __init__(
         self,

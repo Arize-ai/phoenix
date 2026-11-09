@@ -52,7 +52,11 @@ export function SaveModelConfigButton({
     const {
       // Strip out fields that should not be saved:
       // - customProvider: custom providers are separate from built-in providers
+      // - modelType: a saved default describes the provider's configuration;
+      //   whether an instance runs chat or decisions must not follow it into
+      //   the next instance that picks this provider
       customProvider: _customProvider,
+      modelType: _modelType,
       ...modelConfigToSave
     } = instance.model;
 

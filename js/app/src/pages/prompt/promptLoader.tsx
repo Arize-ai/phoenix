@@ -2,6 +2,10 @@ import { fetchQuery, graphql, loadQuery } from "react-relay";
 import type { LoaderFunctionArgs } from "react-router";
 import invariant from "tiny-invariant";
 
+import {
+  isServerUnreachableError,
+  notFound,
+} from "@phoenix/pages/redirects/notFound";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
 import type { promptLoaderQuery as promptLoaderQueryType } from "./__generated__/promptLoaderQuery.graphql";
@@ -16,6 +20,11 @@ import type { promptLoaderQuery as promptLoaderQueryType } from "./__generated__
 export async function promptLoader(args: LoaderFunctionArgs) {
   const { promptId } = args.params;
   invariant(promptId, "promptId is required");
+  const notFoundError = notFound({
+    kind: "entity",
+    entityType: "prompt",
+    identifier: promptId,
+  });
 
   const queryRef = loadQuery<promptLoaderQueryType>(
     RelayEnvironment,
@@ -43,7 +52,17 @@ export async function promptLoader(args: LoaderFunctionArgs) {
     {
       id: promptId as string,
     }
-  ).toPromise();
+  )
+    .toPromise()
+    // The server rejects an id that names no prompt, deleted or malformed.
+    .catch((error: unknown) => {
+      queryRef.dispose();
+      throw isServerUnreachableError(error) ? error : notFoundError;
+    });
+  if (data?.prompt?.__typename !== "Prompt") {
+    queryRef.dispose();
+    throw notFoundError;
+  }
 
   return {
     queryRef,

@@ -646,7 +646,7 @@ class TestEnsureBuiltinEvaluators:
         builtin evaluator registry to the database.
         """
         from phoenix.db.facilitator import _ensure_builtin_evaluators
-        from phoenix.server.api.evaluators import get_builtin_evaluators
+        from phoenix.server.evaluators.runtime.builtin import get_builtin_evaluators
 
         # First ensure enums exist (required for evaluator kinds)
         await _ensure_enums(db)
@@ -705,7 +705,7 @@ class TestEnsureBuiltinEvaluators:
     ) -> None:
         """Test that calling _ensure_builtin_evaluators multiple times is idempotent."""
         from phoenix.db.facilitator import _ensure_builtin_evaluators
-        from phoenix.server.api.evaluators import get_builtin_evaluators
+        from phoenix.server.evaluators.runtime.builtin import get_builtin_evaluators
 
         await _ensure_enums(db)
 

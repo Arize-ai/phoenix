@@ -5,10 +5,16 @@ import sys
 import time
 from argparse import SUPPRESS, Namespace
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Callable, Mapping, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Mapping, Sequence, TextIO, TypeVar
 
 if TYPE_CHECKING:
     from argparse import ArgumentParser, _SubParsersAction
+
+    import httpx
+
+    from phoenix.client.resources.datasets import Dataset
+    from phoenix.experimental.datagen.control import ReplayControl
+    from phoenix.experimental.datagen.datasets import DatasetSource
 
 _DEFAULT_ENDPOINT = "http://localhost:6006"
 _DEFAULT_RATE = 12.0
@@ -43,6 +49,27 @@ def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
     commands = parser.add_subparsers(dest="datagen_command")
     pull_parser = commands.add_parser("pull", help="Download and cache the published corpus.")
     pull_parser.set_defaults(func=pull)
+    seed_parser = commands.add_parser(
+        "seed", help="Seed development datasets, decisions, and evaluators, then exit."
+    )
+    seed_parser.set_defaults(func=seed)
+    sources = seed_parser.add_mutually_exclusive_group()
+    sources.add_argument(
+        "--source",
+        choices=("all", "jevbench-hard", "typed-decisions", "boolq"),
+        default="typed-decisions",
+        help="Pinned source to seed (default: typed-decisions).",
+    )
+    sources.add_argument("--file", help="Local file of canonical Phoenix examples.")
+    seed_parser.add_argument("--name", help="Dataset name (required with --file).")
+    seed_parser.add_argument("--format", choices=("jsonl", "parquet"), default="jsonl")
+    seed_parser.add_argument("--endpoint", default=SUPPRESS)
+    seed_parser.add_argument("--api-key", default=SUPPRESS)
+    parser.add_argument(
+        "--no-datasets",
+        action="store_true",
+        help="Skip dataset and decision seeding before trace replay.",
+    )
     parser.add_argument(
         "--endpoint",
         help="Phoenix collector base URL (env: PHOENIX_COLLECTOR_ENDPOINT).",
@@ -69,6 +96,16 @@ def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
         type=_nonnegative_float,
         help="Interarrival variability; 0 is uniform (default: 0.5).",
     )
+    parser.add_argument(
+        "--control-port",
+        type=int,
+        help="Serve a page and API for changing the rate while replaying (default: off).",
+    )
+    parser.add_argument(
+        "--control-host",
+        default="127.0.0.1",
+        help="Interface for the control server (default: 127.0.0.1).",
+    )
 
 
 def pull(args: Namespace) -> None:
@@ -77,8 +114,108 @@ def pull(args: Namespace) -> None:
     print(fetch_corpus())
 
 
+def seed(args: Namespace) -> None:
+    from pathlib import Path
+
+    import httpx
+
+    from phoenix.client import Client
+    from phoenix.experimental.datagen.datasets import DATASET_SOURCES, load_dataset
+
+    if bool(args.file) != bool(args.name):
+        raise ValueError("--file and --name must be provided together")
+    config = _resolve_config(args, os.environ)
+    with httpx.Client(base_url=config.endpoint.rstrip("/") + "/", headers=_headers(config)) as http:
+        client = Client(http_client=http)
+        if args.file:
+            dataset = client.datasets.create_dataset(
+                name=args.name,
+                examples=load_dataset(Path(args.file).expanduser(), format=args.format),
+                timeout=120,
+            )
+            datasets = [dataset]
+        else:
+            sources = (
+                list(DATASET_SOURCES.values())
+                if args.source == "all"
+                else [DATASET_SOURCES[args.source]]
+            )
+            datasets = _seed_sources(http, client, sources=sources, stream=sys.stdout)
+        for dataset in datasets:
+            print(f"Seeded {dataset.name}: {len(dataset)} examples (version {dataset.version_id})")
+
+
+def _seed_sources(
+    http: httpx.Client,
+    client: object,
+    *,
+    sources: Sequence[DatasetSource] | None = None,
+    stream: TextIO,
+) -> list[Dataset]:
+    from phoenix.experimental.datagen.datasets import seed_datasets
+    from phoenix.experimental.datagen.decisions import seed_workflow_decisions
+    from phoenix.experimental.datagen.evaluators import (
+        seed_custom_providers,
+        seed_dataset_decision_evaluators,
+        seed_online_decision_judge,
+    )
+
+    datasets = (
+        seed_datasets(client)  # type: ignore[arg-type]
+        if sources is None
+        else seed_datasets(client, sources=sources)  # type: ignore[arg-type]
+    )
+    for name, version_id in seed_workflow_decisions(http, datasets):
+        print(f"Seeded decision {name} (version {version_id})", file=stream)
+    for name, provider_id in seed_custom_providers(http):
+        print(f"Seeded custom provider {name} ({provider_id})", file=stream)
+    for name, binding_id in seed_dataset_decision_evaluators(http, datasets):
+        print(f"Seeded dataset evaluator {name} ({binding_id})", file=stream)
+    for name, binding_id in seed_online_decision_judge(http):
+        print(f"Seeded project evaluator {name} ({binding_id})", file=stream)
+    return datasets
+
+
+def _headers(config: _Config) -> dict[str, str]:
+    headers = dict(config.headers)
+    if config.api_key:
+        headers["authorization"] = f"Bearer {config.api_key}"
+    return headers
+
+
+def _seed_when_ready(config: _Config) -> None:
+    import httpx
+
+    from phoenix.client import Client
+    from phoenix.client.resources.datasets import DatasetUploadError
+
+    with httpx.Client(base_url=config.endpoint.rstrip("/") + "/", headers=_headers(config)) as http:
+        client = Client(http_client=http)
+        while True:
+            try:
+                datasets = _seed_sources(http, client, stream=sys.stderr)
+                for dataset in datasets:
+                    print(f"Seeded {dataset.name}: {len(dataset)} examples", file=sys.stderr)
+                return
+            except (httpx.HTTPStatusError, DatasetUploadError) as error:
+                cause = error if isinstance(error, httpx.HTTPStatusError) else error.__cause__
+                if not isinstance(
+                    cause, httpx.HTTPStatusError
+                ) or cause.response.status_code not in {429, 502, 503, 504}:
+                    raise
+            except httpx.TransportError:
+                pass
+            print("Waiting for Phoenix to seed development datasets...", file=sys.stderr)
+            time.sleep(2)
+
+
 def run(args: Namespace) -> None:
     from phoenix.experimental.datagen import OTLPHTTPExporter, Replayer, load_corpus
+    from phoenix.experimental.datagen.control import (
+        ReplayControl,
+        ReplaySettings,
+        start_control_server,
+    )
 
     config = _resolve_config(args, os.environ)
     corpus = load_corpus(config.corpus)
@@ -90,23 +227,72 @@ def run(args: Namespace) -> None:
         f"Replaying into projects: {', '.join(replayer.project_names)}",
         file=sys.stderr,
     )
+    control = ReplayControl(
+        ReplaySettings(rate=config.rate, burstiness=config.burstiness),
+        project_names=tuple(replayer.project_names),
+    )
+    if args.control_port is not None:
+        start_control_server(control, host=args.control_host, port=args.control_port)
+        print(
+            f"Datagen control at http://{args.control_host}:{args.control_port}/",
+            file=sys.stderr,
+        )
 
     try:
+        if not args.no_datasets:
+            _seed_when_ready(config)
+        control.set_phase("replaying")
         with OTLPHTTPExporter(
             config.endpoint,
             api_key=config.api_key,
             headers=config.headers,
         ) as exporter:
-            while True:
-                exporter.export(replayer.emit())
-                time.sleep(
-                    replayer.interarrival_seconds(
-                        rate=config.rate,
-                        burstiness=config.burstiness,
-                    )
-                )
+            _replay(replayer, exporter, control)
     except KeyboardInterrupt:
         return
+
+
+# How long a paused loop waits before checking again; a change wakes it sooner.
+_PAUSED_POLL_SECONDS = 1.0
+
+
+def _replay(replayer: Any, exporter: Any, control: ReplayControl) -> None:
+    """Export traces on a schedule drawn from the control's current settings, forever.
+
+    A settings change wakes the wait and redraws the delay from now, so a new rate
+    takes effect immediately instead of after a long delay drawn at the old rate.
+    """
+
+    def export() -> None:
+        control.record_export(bool(exporter.export(replayer.emit())))
+
+    due_at: float | None = None
+    drawn_for = -1
+    while True:
+        for _ in range(control.take_pending_sends()):
+            export()
+        settings = control.settings()
+        if settings.paused:
+            due_at = None
+            control.wait(_PAUSED_POLL_SECONDS)
+            continue
+        version = control.version
+        now = time.monotonic()
+        if due_at is None:
+            due_at = now
+        elif version != drawn_for:
+            due_at = now + replayer.interarrival_seconds(
+                rate=settings.rate, burstiness=settings.burstiness
+            )
+            drawn_for = version
+        if (remaining := due_at - now) > 0:
+            control.wait(remaining)
+            continue
+        export()
+        due_at = time.monotonic() + replayer.interarrival_seconds(
+            rate=settings.rate, burstiness=settings.burstiness
+        )
+        drawn_for = version
 
 
 def _parse_env_headers(value: str | None) -> dict[str, str]:

@@ -20,15 +20,15 @@ export const extractVariables = ({
   text: string;
 }) => {
   const tree = parser.parse(text);
-  const variables: string[] = [];
+  const variables = new Set<string>();
   const cur = tree.cursor();
   do {
     if (cur.name === "Variable") {
       const variable = text.slice(cur.node.from, cur.node.to).trim();
-      variables.push(variable);
+      if (variable) variables.add(variable);
     }
   } while (cur.next());
-  return variables;
+  return Array.from(variables);
 };
 
 /**

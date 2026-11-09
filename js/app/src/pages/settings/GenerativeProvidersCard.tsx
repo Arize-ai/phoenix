@@ -43,6 +43,7 @@ import type {
   GenerativeProvidersCard_data$data,
   GenerativeProvidersCard_data$key,
 } from "./__generated__/GenerativeProvidersCard_data.graphql";
+import { ModelTypeBadges } from "./ModelTypeBadges";
 
 export function GenerativeProvidersCard({
   query,
@@ -62,6 +63,7 @@ export function GenerativeProvidersCard({
             isRequired
           }
           credentialsSet
+          modelTypes
         }
       }
     `,
@@ -80,6 +82,7 @@ export function GenerativeProvidersCard({
             <Flex direction="row" alignItems="center" gap="size-100">
               <GenerativeProviderIcon provider={row.original.key} height={18} />
               {row.original.name}
+              <ModelTypeBadges modelTypes={row.original.modelTypes} />
             </Flex>
           );
         },

@@ -18,7 +18,13 @@ from ._faithfulness_classification_evaluator_config import (
 from ._hallucination_classification_evaluator_config import (
     HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG,
 )
-from ._models import ClassificationEvaluatorConfig, PromptMessage
+from ._models import (
+    ClassificationEvaluatorConfig,
+    EvaluatorCategory,
+    EvaluatorInput,
+    EvaluatorScope,
+    PromptMessage,
+)
 from ._pii_detection_classification_evaluator_config import (
     PII_DETECTION_CLASSIFICATION_EVALUATOR_CONFIG,
 )
@@ -42,6 +48,9 @@ from ._user_friction_classification_evaluator_config import (
 
 __all__ = [
     "ClassificationEvaluatorConfig",
+    "EvaluatorCategory",
+    "EvaluatorInput",
+    "EvaluatorScope",
     "PromptMessage",
     "COMPLETENESS_CLASSIFICATION_EVALUATOR_CONFIG",
     "CONCISENESS_CLASSIFICATION_EVALUATOR_CONFIG",

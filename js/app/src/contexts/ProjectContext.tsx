@@ -13,11 +13,9 @@ export const ProjectContext = createContext<ProjectStore | null>(null);
 
 export function ProjectProvider({
   children,
-  projectId,
+  ...props
 }: PropsWithChildren<CreateProjectStoreProps>) {
-  const [store] = useState<ProjectStore>(() =>
-    createProjectStore({ projectId })
-  );
+  const [store] = useState<ProjectStore>(() => createProjectStore(props));
 
   return (
     <ProjectContext.Provider value={store}>{children}</ProjectContext.Provider>

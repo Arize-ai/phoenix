@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<35222588a95cb8b3906b2d1b494852eb>>
+ * @generated SignedSource<<ae970e7e4a8b2329ab444c86c6e76d5a>>
  * @lightSyntaxTransform
  */
 
@@ -45,55 +45,134 @@ v2 = {
   "storageKey": null
 },
 v3 = {
+  "kind": "Literal",
+  "name": "first",
+  "value": 100
+},
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v4 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "optimizationDirection",
   "storageKey": null
 },
-v5 = {
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "label",
   "storageKey": null
 },
-v6 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "score",
   "storageKey": null
 },
-v7 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "lowerBound",
   "storageKey": null
 },
-v8 = {
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "upperBound",
   "storageKey": null
 },
-v9 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v10 = [
+v11 = [
+  (v2/*:: as any*/),
+  {
+    "kind": "InlineFragment",
+    "selections": [
+      (v4/*:: as any*/),
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "annotationType",
+        "storageKey": null
+      },
+      {
+        "kind": "InlineFragment",
+        "selections": [
+          (v5/*:: as any*/),
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "CategoricalAnnotationValue",
+            "kind": "LinkedField",
+            "name": "values",
+            "plural": true,
+            "selections": [
+              (v6/*:: as any*/),
+              (v7/*:: as any*/)
+            ],
+            "storageKey": null
+          }
+        ],
+        "type": "CategoricalAnnotationConfig",
+        "abstractKey": null
+      },
+      {
+        "kind": "InlineFragment",
+        "selections": [
+          (v5/*:: as any*/),
+          (v8/*:: as any*/),
+          (v9/*:: as any*/)
+        ],
+        "type": "ContinuousAnnotationConfig",
+        "abstractKey": null
+      },
+      {
+        "kind": "InlineFragment",
+        "selections": [
+          (v5/*:: as any*/),
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "threshold",
+            "storageKey": null
+          },
+          (v8/*:: as any*/),
+          (v9/*:: as any*/)
+        ],
+        "type": "FreeformAnnotationConfig",
+        "abstractKey": null
+      }
+    ],
+    "type": "AnnotationConfigBase",
+    "abstractKey": "__isAnnotationConfigBase"
+  },
+  {
+    "kind": "InlineFragment",
+    "selections": [
+      (v10/*:: as any*/)
+    ],
+    "type": "Node",
+    "abstractKey": "__isNode"
+  }
+],
+v12 = [
   {
     "kind": "Literal",
     "name": "filter",
@@ -105,7 +184,35 @@ v10 = [
       }
     }
   }
-];
+],
+v13 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "value",
+  "storageKey": null
+},
+v14 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "description",
+  "storageKey": null
+},
+v15 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "probability",
+  "storageKey": null
+},
+v16 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "confidence",
+  "storageKey": null
+};
 return {
   "fragment": {
     "argumentDefinitions": (v0/*:: as any*/),
@@ -167,13 +274,80 @@ return {
                 "plural": false,
                 "selections": [
                   {
-                    "alias": "configsByName",
+                    "alias": null,
                     "args": [
                       {
-                        "kind": "Literal",
-                        "name": "first",
-                        "value": 100
+                        "fields": [
+                          {
+                            "kind": "Literal",
+                            "name": "annotationNames",
+                            "value": null
+                          }
+                        ],
+                        "kind": "ObjectValue",
+                        "name": "filter"
+                      },
+                      (v3/*:: as any*/)
+                    ],
+                    "concreteType": "ProjectEvaluatorConnection",
+                    "kind": "LinkedField",
+                    "name": "evaluators",
+                    "plural": false,
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "ProjectEvaluatorEdge",
+                        "kind": "LinkedField",
+                        "name": "edges",
+                        "plural": true,
+                        "selections": [
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "ProjectEvaluator",
+                            "kind": "LinkedField",
+                            "name": "node",
+                            "plural": false,
+                            "selections": [
+                              (v4/*:: as any*/),
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": null,
+                                "kind": "LinkedField",
+                                "name": "evaluator",
+                                "plural": false,
+                                "selections": [
+                                  (v2/*:: as any*/),
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": null,
+                                    "kind": "LinkedField",
+                                    "name": "outputConfigs",
+                                    "plural": true,
+                                    "selections": (v11/*:: as any*/),
+                                    "storageKey": null
+                                  },
+                                  (v10/*:: as any*/)
+                                ],
+                                "storageKey": null
+                              },
+                              (v10/*:: as any*/)
+                            ],
+                            "storageKey": null
+                          }
+                        ],
+                        "storageKey": null
                       }
+                    ],
+                    "storageKey": "evaluators(filter:{\"annotationNames\":null},first:100)"
+                  },
+                  {
+                    "alias": "configsByName",
+                    "args": [
+                      (v3/*:: as any*/)
                     ],
                     "concreteType": "AnnotationConfigConnection",
                     "kind": "LinkedField",
@@ -195,80 +369,7 @@ return {
                             "kind": "LinkedField",
                             "name": "node",
                             "plural": false,
-                            "selections": [
-                              (v2/*:: as any*/),
-                              {
-                                "kind": "InlineFragment",
-                                "selections": [
-                                  (v3/*:: as any*/),
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "kind": "ScalarField",
-                                    "name": "annotationType",
-                                    "storageKey": null
-                                  }
-                                ],
-                                "type": "AnnotationConfigBase",
-                                "abstractKey": "__isAnnotationConfigBase"
-                              },
-                              {
-                                "kind": "InlineFragment",
-                                "selections": [
-                                  (v4/*:: as any*/),
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "concreteType": "CategoricalAnnotationValue",
-                                    "kind": "LinkedField",
-                                    "name": "values",
-                                    "plural": true,
-                                    "selections": [
-                                      (v5/*:: as any*/),
-                                      (v6/*:: as any*/)
-                                    ],
-                                    "storageKey": null
-                                  }
-                                ],
-                                "type": "CategoricalAnnotationConfig",
-                                "abstractKey": null
-                              },
-                              {
-                                "kind": "InlineFragment",
-                                "selections": [
-                                  (v4/*:: as any*/),
-                                  (v7/*:: as any*/),
-                                  (v8/*:: as any*/)
-                                ],
-                                "type": "ContinuousAnnotationConfig",
-                                "abstractKey": null
-                              },
-                              {
-                                "kind": "InlineFragment",
-                                "selections": [
-                                  (v4/*:: as any*/),
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "kind": "ScalarField",
-                                    "name": "threshold",
-                                    "storageKey": null
-                                  },
-                                  (v7/*:: as any*/),
-                                  (v8/*:: as any*/)
-                                ],
-                                "type": "FreeformAnnotationConfig",
-                                "abstractKey": null
-                              },
-                              {
-                                "kind": "InlineFragment",
-                                "selections": [
-                                  (v9/*:: as any*/)
-                                ],
-                                "type": "Node",
-                                "abstractKey": "__isNode"
-                              }
-                            ],
+                            "selections": (v11/*:: as any*/),
                             "storageKey": null
                           }
                         ],
@@ -277,22 +378,22 @@ return {
                     ],
                     "storageKey": "annotationConfigs(first:100)"
                   },
-                  (v9/*:: as any*/)
+                  (v10/*:: as any*/)
                 ],
                 "storageKey": null
               },
               {
                 "alias": "summaryTraceAnnotations",
-                "args": (v10/*:: as any*/),
+                "args": (v12/*:: as any*/),
                 "concreteType": "TraceAnnotation",
                 "kind": "LinkedField",
                 "name": "traceAnnotations",
                 "plural": true,
                 "selections": [
-                  (v9/*:: as any*/),
-                  (v3/*:: as any*/),
-                  (v5/*:: as any*/),
+                  (v10/*:: as any*/),
+                  (v4/*:: as any*/),
                   (v6/*:: as any*/),
+                  (v7/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -343,7 +444,173 @@ return {
                         "name": "profilePictureUrl",
                         "storageKey": null
                       },
-                      (v9/*:: as any*/)
+                      (v10/*:: as any*/)
+                    ],
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "DecisionAnnotation",
+                    "kind": "LinkedField",
+                    "name": "decision",
+                    "plural": false,
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "status",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "DecisionAnnotationQuestion",
+                        "kind": "LinkedField",
+                        "name": "question",
+                        "plural": false,
+                        "selections": [
+                          (v4/*:: as any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "type",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "DecisionChoiceOption",
+                            "kind": "LinkedField",
+                            "name": "choices",
+                            "plural": true,
+                            "selections": [
+                              (v13/*:: as any*/),
+                              (v14/*:: as any*/)
+                            ],
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "DecisionScaleLevel",
+                            "kind": "LinkedField",
+                            "name": "levels",
+                            "plural": true,
+                            "selections": [
+                              (v6/*:: as any*/),
+                              (v14/*:: as any*/)
+                            ],
+                            "storageKey": null
+                          }
+                        ],
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": null,
+                        "kind": "LinkedField",
+                        "name": "answer",
+                        "plural": false,
+                        "selections": [
+                          (v2/*:: as any*/),
+                          {
+                            "kind": "InlineFragment",
+                            "selections": [
+                              (v15/*:: as any*/)
+                            ],
+                            "type": "PredicateAnswer",
+                            "abstractKey": null
+                          },
+                          {
+                            "kind": "InlineFragment",
+                            "selections": [
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "choice",
+                                "storageKey": null
+                              },
+                              (v16/*:: as any*/),
+                              {
+                                "alias": "choiceProbabilities",
+                                "args": null,
+                                "concreteType": "ChoiceProbability",
+                                "kind": "LinkedField",
+                                "name": "probabilities",
+                                "plural": true,
+                                "selections": [
+                                  (v13/*:: as any*/),
+                                  (v15/*:: as any*/)
+                                ],
+                                "storageKey": null
+                              }
+                            ],
+                            "type": "ChoiceAnswer",
+                            "abstractKey": null
+                          },
+                          {
+                            "kind": "InlineFragment",
+                            "selections": [
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "expectedLevel",
+                                "storageKey": null
+                              },
+                              (v16/*:: as any*/),
+                              {
+                                "alias": "levelProbabilities",
+                                "args": null,
+                                "concreteType": "LevelProbability",
+                                "kind": "LinkedField",
+                                "name": "probabilities",
+                                "plural": true,
+                                "selections": [
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "level",
+                                    "storageKey": null
+                                  },
+                                  (v15/*:: as any*/)
+                                ],
+                                "storageKey": null
+                              }
+                            ],
+                            "type": "ScaleAnswer",
+                            "abstractKey": null
+                          }
+                        ],
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "requestedModel",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "resolvedModel",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "modelProvider",
+                        "storageKey": null
+                      }
                     ],
                     "storageKey": null
                   }
@@ -352,7 +619,7 @@ return {
               },
               {
                 "alias": "summaryTraceAnnotationSummaries",
-                "args": (v10/*:: as any*/),
+                "args": (v12/*:: as any*/),
                 "concreteType": "AnnotationSummary",
                 "kind": "LinkedField",
                 "name": "traceAnnotationSummaries",
@@ -394,7 +661,7 @@ return {
                         "name": "fraction",
                         "storageKey": null
                       },
-                      (v5/*:: as any*/)
+                      (v6/*:: as any*/)
                     ],
                     "storageKey": null
                   },
@@ -405,7 +672,7 @@ return {
                     "name": "meanScore",
                     "storageKey": null
                   },
-                  (v3/*:: as any*/)
+                  (v4/*:: as any*/)
                 ],
                 "storageKey": "traceAnnotationSummaries(filter:{\"exclude\":{\"names\":[\"note\"]}})"
               }
@@ -413,19 +680,19 @@ return {
             "type": "Trace",
             "abstractKey": null
           },
-          (v9/*:: as any*/)
+          (v10/*:: as any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "e5e05350131a660998808129c1ac9343",
+    "cacheID": "cf59c5537ae2d9d13b4a5cd628c273f3",
     "id": null,
     "metadata": {},
     "name": "TraceHeaderTraceAnnotationsQuery",
     "operationKind": "query",
-    "text": "query TraceHeaderTraceAnnotationsQuery(\n  $traceId: ID!\n) {\n  trace: node(id: $traceId) {\n    __typename\n    ... on Trace {\n      ...TraceHeaderTraceAnnotationsFragment\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  configsByName: annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment TraceAnnotationSummaryGroup on Trace {\n  summaryTraceAnnotations: traceAnnotations(filter: {exclude: {names: [\"note\"]}}) {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  summaryTraceAnnotationSummaries: traceAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment TraceHeaderTraceAnnotationsFragment on Trace {\n  project {\n    ...ProjectAnnotationConfigsByNameFragment\n    id\n  }\n  ...TraceAnnotationSummaryGroup\n}\n"
+    "text": "query TraceHeaderTraceAnnotationsQuery(\n  $traceId: ID!\n) {\n  trace: node(id: $traceId) {\n    __typename\n    ... on Trace {\n      ...TraceHeaderTraceAnnotationsFragment\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  evaluators(first: 100, filter: {}) {\n    edges {\n      node {\n        name\n        evaluator {\n          __typename\n          outputConfigs {\n            __typename\n            ...useProjectAnnotationConfigsByName_config\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          id\n        }\n        id\n      }\n    }\n  }\n  configsByName: annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ...useProjectAnnotationConfigsByName_config\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment TraceAnnotationSummaryGroup on Trace {\n  summaryTraceAnnotations: traceAnnotations(filter: {exclude: {names: [\"note\"]}}) {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n    decision {\n      status\n      question {\n        name\n        type\n        choices {\n          value\n          description\n        }\n        levels {\n          label\n          description\n        }\n      }\n      answer {\n        __typename\n        ... on PredicateAnswer {\n          probability\n        }\n        ... on ChoiceAnswer {\n          choice\n          confidence\n          choiceProbabilities: probabilities {\n            value\n            probability\n          }\n        }\n        ... on ScaleAnswer {\n          expectedLevel\n          confidence\n          levelProbabilities: probabilities {\n            level\n            probability\n          }\n        }\n      }\n      requestedModel\n      resolvedModel\n      modelProvider\n    }\n  }\n  summaryTraceAnnotationSummaries: traceAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment TraceHeaderTraceAnnotationsFragment on Trace {\n  project {\n    ...ProjectAnnotationConfigsByNameFragment\n    id\n  }\n  ...TraceAnnotationSummaryGroup\n}\n\nfragment useProjectAnnotationConfigsByName_config on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  name\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    optimizationDirection\n    lowerBound\n    upperBound\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n    lowerBound\n    upperBound\n  }\n}\n"
   }
 };
 })();
