@@ -3,8 +3,8 @@ import { Suspense } from "react";
 import {
   Outlet,
   useLoaderData,
+  useMatches,
   useNavigate,
-  useOutletContext,
   useParams,
 } from "react-router";
 import invariant from "tiny-invariant";
@@ -34,14 +34,8 @@ import {
   TimeRangeProvider,
   useTimeRange,
 } from "@phoenix/components/datetime";
-import {
-  CodeDatasetEvaluatorVersionsSkeleton,
-  CodeEvaluatorVersions,
-} from "@phoenix/components/evaluators/CodeEvaluatorVersions";
-import {
-  evaluatorSplitContainerCSS,
-  evaluatorSplitLayoutCSS,
-} from "@phoenix/components/evaluators/EvaluatorDetailsSection";
+import { CodeDatasetEvaluatorVersionsSkeleton } from "@phoenix/components/evaluators/CodeEvaluatorVersions";
+import { evaluatorSplitLayoutCSS } from "@phoenix/components/evaluators/EvaluatorDetailsSection";
 import {
   classifyServerConnectionError,
   ErrorBoundary,
@@ -54,43 +48,21 @@ import { TableSkeleton } from "@phoenix/components/table";
 import type { OwnedPreloadedQueryRef } from "@phoenix/hooks";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { projectEvaluatorDetailsLoaderQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorDetailsLoaderQuery.graphql";
-import { AnnotationConfigurationCard } from "@phoenix/pages/project/evaluators/AnnotationConfigurationCard";
-import { CodeProjectEvaluatorConfigCards } from "@phoenix/pages/project/evaluators/CodeProjectEvaluatorConfigCards";
-import { CodeProjectEvaluatorDetails } from "@phoenix/pages/project/evaluators/CodeProjectEvaluatorDetails";
-import { DecisionProjectEvaluatorDetails } from "@phoenix/pages/project/evaluators/DecisionProjectEvaluatorDetails";
 import { getClearableCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
-import { LLMProjectEvaluatorDetails } from "@phoenix/pages/project/evaluators/LLMProjectEvaluatorDetails";
-import { ProjectEvaluatorAdvancedDetails } from "@phoenix/pages/project/evaluators/ProjectEvaluatorAdvancedDetails";
 import type { projectEvaluatorDetailsLoader } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
 import { projectEvaluatorDetailsLoaderGQL } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
+import type { ProjectEvaluatorDetailsOutletContext } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsOutletContext";
+import { overviewContainerCSS } from "@phoenix/pages/project/evaluators/ProjectEvaluatorDetailsTabs";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
-import { ProjectEvaluatorMetrics } from "@phoenix/pages/project/evaluators/ProjectEvaluatorMetrics";
-import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
-import { ProjectEvaluatorScopeDetails } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeDetails";
-import { ProjectEvaluatorStats } from "@phoenix/pages/project/evaluators/ProjectEvaluatorStats";
-import { ProjectEvaluatorTraces } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTraces";
+import {
+  isProjectEvaluatorTab,
+  PROJECT_EVALUATOR_TABS,
+  type ProjectEvaluatorTab,
+  projectEvaluatorTabRouteId,
+  useProjectEvaluatorPaths,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import { useClosedTimeRange } from "@phoenix/pages/project/metrics/useClosedTimeRange";
 import { isServerUnreachableError } from "@phoenix/pages/redirects/notFound";
-
-/**
- * Centers the overview and establishes the width queried by its responsive
- * main-and-sidebar layout. Stacks the stats strip above the split layout.
- */
-const overviewContainerCSS = css`
-  ${evaluatorSplitContainerCSS};
-  max-width: 1600px;
-  margin-inline: auto;
-  display: flex;
-  flex-direction: column;
-  gap: var(--global-dimension-size-200);
-`;
-
-const overviewColumnCSS = css`
-  display: flex;
-  flex-direction: column;
-  gap: var(--global-dimension-size-200);
-  min-width: 0;
-`;
 
 const mainCSS = css`
   display: flex;
@@ -108,19 +80,17 @@ const mainCSS = css`
   }
 `;
 
-/** What the routes nested under the details page read from it through the outlet. */
-type ProjectEvaluatorDetailsOutletContext = {
-  /** The evaluator's own trace project, where the traces its runs produce live. */
-  traceProjectId: string;
-};
-
 /**
- * The details page's outlet context, for the routes it renders over itself.
- * `useOutletContext` takes the caller's word for the type, so the one place
- * that names it is next to the outlet that provides it.
+ * The tab whose route is matched. Each tab is a nested route, so the URL
+ * selects it; the overview is the evaluator's own path.
  */
-export function useProjectEvaluatorDetailsOutletContext() {
-  return useOutletContext<ProjectEvaluatorDetailsOutletContext>();
+function useSelectedProjectEvaluatorTab(): ProjectEvaluatorTab {
+  const matches = useMatches();
+  return (
+    PROJECT_EVALUATOR_TABS.find((tab) =>
+      matches.some((match) => match.id === projectEvaluatorTabRouteId(tab))
+    ) ?? "overview"
+  );
 }
 
 export function ProjectEvaluatorDetailsPage() {
@@ -233,16 +203,12 @@ function ProjectEvaluatorDetailsPageContent({
 }) {
   const navigate = useNavigate();
   const paths = useProjectEvaluatorPaths();
-  // A shared trace link opens the drawer over this page, so the tab behind it
-  // is the one the link came from -- and the one closing the drawer returns to.
-  const { traceId } = useParams();
+  const selectedTab = useSelectedProjectEvaluatorTab();
   const data = useOwnedPreloadedQuery<projectEvaluatorDetailsLoaderQuery>({
     query: projectEvaluatorDetailsLoaderGQL,
     queryRef,
   });
-  // One closed time range shared by the overview strip and the metrics tab;
-  // independently frozen ranges would close a live range at different instants
-  // and turn identical chart queries into cache misses on tab switches.
+  // Shared by the overview strip and the metrics tab; see the outlet context.
   const timeRange = useClosedTimeRange();
   const { setCustomTimeRange } = useTimeRange();
   const projectEvaluator = data.projectEvaluator;
@@ -253,15 +219,17 @@ function ProjectEvaluatorDetailsPageContent({
     return <ProjectEvaluatorNotFound />;
   }
   const evaluator = projectEvaluator.evaluator;
-  const isLLMEvaluator = evaluator.kind === "LLM";
   const isCodeEvaluator = evaluator.kind === "CODE";
-  const isDecisionEvaluator = evaluator.kind === "DECISION";
-  const canEdit = isLLMEvaluator || isCodeEvaluator || isDecisionEvaluator;
-  const codeEvaluatorId = isCodeEvaluator ? evaluator.id : undefined;
+  const canEdit =
+    evaluator.kind === "LLM" ||
+    isCodeEvaluator ||
+    evaluator.kind === "DECISION";
   const versionCount = isCodeEvaluator ? (evaluator.versionCount ?? 0) : 0;
 
   const outletContext: ProjectEvaluatorDetailsOutletContext = {
-    traceProjectId: projectEvaluator.traceProject.id,
+    projectEvaluator,
+    timeRange,
+    onTimeRangeSelected: setCustomTimeRange,
   };
   return (
     <main css={mainCSS}>
@@ -291,7 +259,10 @@ function ProjectEvaluatorDetailsPageContent({
             {canEdit && (
               <Button
                 variant="primary"
-                onPress={() => navigate(paths.edit(projectEvaluator.id))}
+                // The slideover opens over the tab it was opened from.
+                onPress={() =>
+                  navigate(paths.edit(projectEvaluator.id, selectedTab))
+                }
                 leadingVisual={<Icon svg={<Icons.Edit />} />}
               >
                 Edit
@@ -301,14 +272,21 @@ function ProjectEvaluatorDetailsPageContent({
         }
       />
       {/* The tabs and the drawers over them load on their own; their
-          failures stay here rather than reading as the evaluator missing. */}
+          failures stay here rather than reading as the evaluator missing.
+          Each tab is a nested route that renders through the outlet, along
+          with the drawer or slideover nested under it. */}
       <ErrorBoundary>
-        <Tabs defaultSelectedKey={traceId ? "traces" : "configuration"}>
+        <Tabs
+          selectedKey={selectedTab}
+          onSelectionChange={(key) => {
+            if (isProjectEvaluatorTab(key)) {
+              navigate(paths.details(projectEvaluator.id, key));
+            }
+          }}
+        >
           <TabList>
-            {/* The key stays `configuration` -- it is the tab's identity, not its
-              label, and a Traces deep link selects by it. */}
-            <Tab id="configuration">Overview</Tab>
-            {codeEvaluatorId != null && (
+            <Tab id="overview">Overview</Tab>
+            {isCodeEvaluator && (
               <Tab id="versions">
                 Versions <Counter variant="quiet">{versionCount}</Counter>
               </Tab>
@@ -316,58 +294,13 @@ function ProjectEvaluatorDetailsPageContent({
             <Tab id="traces">Traces</Tab>
             <Tab id="metrics">Metrics</Tab>
           </TabList>
-          <LazyTabPanel id="configuration">
-            <View width="100%" overflow="auto" height="100%">
-              <View padding="size-200">
-                <div css={overviewContainerCSS}>
-                  <ProjectEvaluatorStats
-                    projectEvaluatorRef={projectEvaluator}
-                    timeRange={timeRange}
-                    onTimeRangeSelected={setCustomTimeRange}
-                  />
-                  <div css={evaluatorSplitLayoutCSS}>
-                    <div css={overviewColumnCSS}>
-                      {isLLMEvaluator && (
-                        <LLMProjectEvaluatorDetails
-                          projectEvaluatorRef={projectEvaluator}
-                        />
-                      )}
-                      {isCodeEvaluator && (
-                        <CodeProjectEvaluatorDetails
-                          projectEvaluatorRef={projectEvaluator}
-                        />
-                      )}
-                      {isDecisionEvaluator && (
-                        <DecisionProjectEvaluatorDetails
-                          projectEvaluatorRef={projectEvaluator}
-                        />
-                      )}
-                    </div>
-                    <aside css={overviewColumnCSS}>
-                      <ProjectEvaluatorScopeDetails
-                        projectEvaluatorRef={projectEvaluator}
-                      />
-                      <ProjectEvaluatorAdvancedDetails
-                        projectEvaluatorRef={projectEvaluator}
-                      />
-                      <AnnotationConfigurationCard
-                        projectEvaluatorRef={projectEvaluator}
-                      />
-                      {isCodeEvaluator && (
-                        <CodeProjectEvaluatorConfigCards
-                          projectEvaluatorRef={projectEvaluator}
-                        />
-                      )}
-                    </aside>
-                  </div>
-                </div>
-              </View>
-            </View>
+          <LazyTabPanel id="overview">
+            <Outlet context={outletContext} />
           </LazyTabPanel>
-          {codeEvaluatorId != null && (
+          {isCodeEvaluator && (
             <LazyTabPanel id="versions">
               <Suspense fallback={<CodeDatasetEvaluatorVersionsSkeleton />}>
-                <CodeEvaluatorVersions codeEvaluatorId={codeEvaluatorId} />
+                <Outlet context={outletContext} />
               </Suspense>
             </LazyTabPanel>
           )}
@@ -377,28 +310,15 @@ function ProjectEvaluatorDetailsPageContent({
                 <TableSkeleton hasToolbar isSelectable rowCount="fill" />
               }
             >
-              <ProjectEvaluatorTraces
-                projectId={projectEvaluator.traceProject.id}
-                projectEvaluatorId={projectEvaluator.id}
-                hasEverRun={projectEvaluator.runSummary.status !== "NEVER_RUN"}
-                isTracingEnabled={projectEvaluator.tracingEnabled}
-              />
+              <Outlet context={outletContext} />
             </Suspense>
           </LazyTabPanel>
           <LazyTabPanel id="metrics">
             <Suspense fallback={<Loading />}>
-              <ProjectEvaluatorMetrics
-                projectEvaluator={projectEvaluator}
-                timeRange={timeRange}
-                onTimeRangeSelected={setCustomTimeRange}
-              />
+              <Outlet context={outletContext} />
             </Suspense>
           </LazyTabPanel>
         </Tabs>
-        {/* The edit slideover and trace drawer routes render over the page. */}
-        <Suspense>
-          <Outlet context={outletContext} />
-        </Suspense>
       </ErrorBoundary>
     </main>
   );
