@@ -19,14 +19,30 @@ import type { EvaluatorOptimizationDirection } from "@phoenix/types";
 export const DEFAULT_OPTIMIZATION_DIRECTION: EvaluatorOptimizationDirection =
   "MAXIMIZE";
 
-const optimizationDirectionOptions: {
+export type OptimizationDirectionOption = {
   value: EvaluatorOptimizationDirection;
   label: string;
-}[] = [
+};
+
+const optimizationDirectionOptions: readonly OptimizationDirectionOption[] = [
   { value: "MAXIMIZE", label: "Maximize (higher is better)" },
   { value: "MINIMIZE", label: "Minimize (lower is better)" },
   { value: "NONE", label: "None" },
 ];
+
+/**
+ * The same three directions, worded for a Yes / No question, whose score is
+ * the probability of true: maximizing it means true is the good answer.
+ */
+export const PREDICATE_OPTIMIZATION_DIRECTION_OPTIONS: readonly OptimizationDirectionOption[] =
+  [
+    { value: "MAXIMIZE", label: "True is good" },
+    { value: "MINIMIZE", label: "False is good" },
+    { value: "NONE", label: "Neither" },
+  ];
+
+export const PREDICATE_OPTIMIZATION_DIRECTION_DESCRIPTION =
+  "Marks which answer is good. It doesn't change the answer or its probability.";
 
 const getOptimizationDirectionLabel = (
   value: EvaluatorOptimizationDirection
@@ -43,6 +59,8 @@ type OptimizationDirectionSelectProps = {
   isDisabled?: boolean;
   /** Helper text rendered beneath the field via the `description` slot. */
   description?: string;
+  /** The choices and their wording; the generic maximize / minimize by default. */
+  options?: readonly OptimizationDirectionOption[];
   "aria-label"?: string;
   "data-testid"?: string;
 };
@@ -56,6 +74,7 @@ export function OptimizationDirectionSelect({
   onChange,
   isDisabled,
   description,
+  options = optimizationDirectionOptions,
   "aria-label": ariaLabel = "Optimization direction",
   "data-testid": testId = "optimization-direction-picker",
 }: OptimizationDirectionSelectProps) {
@@ -77,7 +96,7 @@ export function OptimizationDirectionSelect({
       </Button>
       <Popover>
         <ListBox>
-          {optimizationDirectionOptions.map((option) => (
+          {options.map((option) => (
             <SelectItem key={option.value} id={option.value}>
               {option.label}
             </SelectItem>

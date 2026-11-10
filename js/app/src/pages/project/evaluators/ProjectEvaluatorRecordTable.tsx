@@ -441,20 +441,26 @@ function RecordedRunResultValue({ entry }: { entry: RecordedRunEntry }) {
       // A failed output says more than a passing one's explanation, so its
       // message takes the line under the chips when there is one.
       const firstError = state.errors[0];
-      const explanation = state.annotations.find(
-        ({ explanation }) => explanation
-      )?.explanation;
+      // Several outputs stack one per line, which takes the explanation's
+      // line; the explanation is still in each chip's popover.
+      const isStacked = state.annotations.length > 1;
+      const explanation = isStacked
+        ? undefined
+        : state.annotations.find(({ explanation }) => explanation)?.explanation;
       return (
         <div className="result-cell__lines" data-stale={state.isStale}>
           <div className="result-cell__annotation">
-            {state.annotations.map((annotation, index) => (
-              <span key={index} className="result-cell__chip">
-                <AnnotationPreviewPopoverButton
-                  annotation={annotation}
-                  compact
-                />
-              </span>
-            ))}
+            <div className="result-cell__chips" data-stacked={isStacked}>
+              {state.annotations.map((annotation, index) => (
+                <span key={index} className="result-cell__chip">
+                  <AnnotationPreviewPopoverButton
+                    annotation={annotation}
+                    compact
+                    omitEvaluatorName
+                  />
+                </span>
+              ))}
+            </div>
             <OutputErrorsNote errors={state.errors} />
             {state.isStale ? <StaleNote /> : null}
           </div>
@@ -621,8 +627,27 @@ const resultCellCSS = css`
     gap: var(--global-dimension-size-75);
     min-width: 0;
     max-width: 100%;
-    > :not(.result-cell__chip) {
+    > :not(.result-cell__chips) {
       flex: none;
+    }
+  }
+  .result-cell__chips {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--global-dimension-size-75);
+    flex: 0 1 auto;
+    min-width: 0;
+    &[data-stacked="true"] {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0;
+      // Every line starts on the left edge, and two lines fit in the height
+      // of a verdict over its explanation.
+      > .result-cell__chip {
+        margin-block: -5px;
+        margin-inline-start: -8px;
+      }
     }
   }
   // Set like the excerpt under a record's name in the column beside it.
@@ -641,6 +666,7 @@ const resultCellCSS = css`
     display: flex;
     flex: 0 1 auto;
     min-width: 0;
+    max-width: 100%;
     overflow: hidden;
     // The chip's button pads its pill by 4px of nothing; giving 3px of that
     // back keeps the verdict and its explanation within a row's height.

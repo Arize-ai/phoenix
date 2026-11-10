@@ -24,6 +24,7 @@ import {
 import type { Annotation } from "@phoenix/components/annotation";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import { JSONBlock } from "@phoenix/components/code";
+import { useEvaluatorPreviewOutputConfigs } from "@phoenix/components/evaluators/EvaluatorPreviewOutputConfigsContext";
 import {
   type EvaluatorPreview,
   type EvaluatorPreviewRequest,
@@ -32,6 +33,7 @@ import {
 import {
   createLLMEvaluatorPayload,
   getOutputConfigOptimizationValue,
+  getTypedOutputConfigOptimizationValue,
 } from "@phoenix/components/evaluators/utils";
 import { ExperimentAnnotationButton } from "@phoenix/components/experiment/ExperimentAnnotationButton";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
@@ -250,32 +252,54 @@ export function EvaluatorPreviewSection({
 
 /**
  * The annotation chip that opens the annotation's details in a popover, with
- * the positive/negative optimization direction derived from the evaluator
- * store's output configs.
+ * the positive/negative optimization direction derived from the output
+ * configs a form provides (a decision evaluator's, derived from its draft),
+ * else the evaluator store's.
  */
 export function AnnotationPreviewPopoverButton(props: {
   annotation: Annotation;
   /** Hug the annotation content; see {@link ExperimentAnnotationButton}. */
   compact?: boolean;
+  /**
+   * Leave out the evaluator's own name, where every chip belongs to the same
+   * evaluator: a single-output annotation shows no name, and a multi-output
+   * one shows only its output's name.
+   */
+  omitEvaluatorName?: boolean;
 }) {
-  const { annotation, compact } = props;
-  const outputConfigs = useEvaluatorStore((state) => state.outputConfigs);
-  const evaluatorName = useEvaluatorStore(
+  const { annotation, compact, omitEvaluatorName = false } = props;
+  const provided = useEvaluatorPreviewOutputConfigs();
+  const storeOutputConfigs = useEvaluatorStore((state) => state.outputConfigs);
+  const storeEvaluatorName = useEvaluatorStore(
     (state) => state.evaluator.name || state.evaluator.globalName
   );
+  const evaluatorName = provided?.evaluatorName ?? storeEvaluatorName;
+  const optimizationValue = provided?.outputConfigs
+    ? getTypedOutputConfigOptimizationValue({
+        annotationName: annotation.name,
+        score: annotation.score,
+        evaluatorName,
+        outputConfigs: provided.outputConfigs,
+      })
+    : getOutputConfigOptimizationValue({
+        annotationName: annotation.name,
+        score: annotation.score,
+        evaluatorName,
+        outputConfigs: storeOutputConfigs,
+      });
+  const displayName = omitEvaluatorName
+    ? getNameWithoutEvaluator({
+        annotationName: annotation.name,
+        evaluatorName,
+      })
+    : undefined;
   return (
     <DialogTrigger>
       <ExperimentAnnotationButton
         annotation={annotation}
         compact={compact}
-        optimizationValue={
-          getOutputConfigOptimizationValue({
-            annotationName: annotation.name,
-            score: annotation.score,
-            evaluatorName,
-            outputConfigs,
-          }) ?? undefined
-        }
+        optimizationValue={optimizationValue ?? undefined}
+        displayName={displayName}
       />
       <Popover>
         <Dialog style={{ width: 400 }}>
@@ -286,6 +310,30 @@ export function AnnotationPreviewPopoverButton(props: {
       </Popover>
     </DialogTrigger>
   );
+}
+
+/**
+ * An annotation's name less its evaluator's: null when the annotation is
+ * named after the evaluator, the output's name when it is
+ * `evaluatorName.outputName`, else the annotation's own name.
+ */
+export function getNameWithoutEvaluator({
+  annotationName,
+  evaluatorName,
+}: {
+  annotationName: string;
+  evaluatorName: string;
+}): string | null {
+  if (!evaluatorName) {
+    return annotationName;
+  }
+  if (annotationName === evaluatorName) {
+    return null;
+  }
+  const prefix = `${evaluatorName}.`;
+  return annotationName.startsWith(prefix)
+    ? annotationName.slice(prefix.length)
+    : annotationName;
 }
 
 /** The annotation preview card shown while a test is in flight. */
