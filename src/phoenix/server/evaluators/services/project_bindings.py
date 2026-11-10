@@ -1,8 +1,7 @@
 """Operations for binding evaluator definitions to projects."""
 
 from dataclasses import dataclass
-from secrets import token_hex
-from typing import Any, Mapping, Optional, Sequence, TypedDict, cast
+from typing import Any, Mapping, Optional, Sequence, TypedDict, Union
 
 from pydantic import ValidationError
 from sqlalchemy import delete, select, text, update
@@ -20,24 +19,23 @@ from phoenix.db.helpers import (
     code_evaluator_with_latest_version,
     delete_projects_and_evaluator_trace_projects,
 )
-from phoenix.db.types.annotation_configs import AnnotationConfigType, OutputConfigType
+from phoenix.db.types.annotation_configs import OutputConfigType
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import AlreadyExists, BadRequest, Conflict, NotFound
-from phoenix.server.api.helpers.prompts.validation import validate_custom_provider
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.evaluators.input_descriptions import (
-    apply_code_input_schema,
-    apply_llm_input_schema,
-)
 from phoenix.server.evaluators.services.definitions import (
     EvaluatorServiceContext,
-    require_output_configs,
+    ValidatedCode,
+    check_output_configs,
+    create_code_definition,
+    create_llm_definition,
+    preflight_code,
+    update_code_definition,
     update_llm_definition,
 )
 from phoenix.server.evaluators.services.management import (
     EVALUATOR_MODEL_BY_KIND,
-    ensure_evaluator_prompt_label,
     garbage_collect_evaluators,
     generate_unique_evaluator_name,
     get_trace_project_for_project_evaluator,
@@ -45,8 +43,6 @@ from phoenix.server.evaluators.services.management import (
     lock_evaluators,
     materialize_project_evaluator_evaluation_delay,
     parse_evaluator_id,
-    raise_on_uninferable_evaluate_signature,
-    validate_code_evaluator_sandbox_config,
     validate_project_evaluator_filter,
     validate_project_evaluator_project,
     validate_project_evaluator_sampling_rate,
@@ -54,16 +50,11 @@ from phoenix.server.evaluators.services.management import (
 )
 from phoenix.server.evaluators.services.prompt_source import (
     CreatePromptSource,
-    FromPromptVersion,
     UpdatePromptSource,
-    get_prompt_version,
-    pin_prompt_version,
     resolve_evaluator_prompt_version,
 )
 from phoenix.server.evaluators.validation import (
     PROJECT_EVALUATOR_CONTEXT_KEYS,
-    LLMEvaluatorOutputConfigs,
-    require_categorical_output_configs,
     validate_decision_input_mapping,
 )
 from phoenix.server.online_eval.project_evaluator_state import (
@@ -75,23 +66,6 @@ from phoenix.server.prometheus import ONLINE_EVAL_COMPLETED_WORK_UNITS
 from phoenix.server.types import DbSessionFactory
 
 
-@dataclass(kw_only=True)
-class CreateProjectLLMEvaluatorInput:
-    project_id: GlobalID
-    name: Identifier
-    prompt_source: CreatePromptSource
-    output_configs: list[OutputConfigType]
-    input_mapping: Optional[InputMapping]
-    sampling_rate: float
-    evaluation_target: models.EvaluationTarget
-    description: Optional[str] = None
-    filter_condition: str = ""
-    enabled: bool = True
-    tracing_enabled: bool = True
-    evaluation_delay_seconds: Optional[int] = None
-    input_schema: Any = None  # a JSON schema object, parsed by the service
-
-
 class ProjectEvaluatorWriteValues(TypedDict, total=False):
     name: Identifier
     filter_condition: str
@@ -101,23 +75,6 @@ class ProjectEvaluatorWriteValues(TypedDict, total=False):
     evaluation_delay_seconds: Optional[int]
     enabled: bool
     tracing_enabled: bool
-
-
-@dataclass(kw_only=True)
-class UpdateProjectLLMEvaluatorInput:
-    project_evaluator_id: GlobalID
-    name: Identifier
-    prompt_source: UpdatePromptSource
-    output_configs: list[OutputConfigType]
-    input_mapping: InputMapping
-    sampling_rate: float
-    evaluation_target: models.EvaluationTarget
-    filter_condition: str
-    enabled: Optional[bool] = UNSET
-    tracing_enabled: Optional[bool] = UNSET
-    description: Optional[str] = UNSET
-    evaluation_delay_seconds: Optional[int] = UNSET
-    input_schema: Any = UNSET  # a JSON schema object, parsed by the service
 
 
 @dataclass(kw_only=True)
@@ -134,46 +91,58 @@ class ProjectBindingSettings:
 
 
 @dataclass(kw_only=True)
+class ProjectEvaluatorPatch:
+    name: Optional[Identifier] = UNSET
+    sampling_rate: Optional[float] = UNSET
+    filter_condition: Optional[str] = UNSET
+    enabled: Optional[bool] = UNSET
+    input_mapping: Optional[InputMapping] = UNSET
+    evaluation_delay_seconds: Optional[int] = UNSET
+
+
+@dataclass(kw_only=True)
+class CreateProjectLLMEvaluatorInput(ProjectBindingSettings):
+    prompt_source: CreatePromptSource
+    output_configs: list[OutputConfigType]
+    description: Optional[str] = None
+    input_schema: Any = None  # a JSON schema object, parsed by the service
+
+
+@dataclass(kw_only=True)
+class UpdateProjectLLMEvaluatorInput(ProjectEvaluatorPatch):
+    project_evaluator_id: GlobalID
+    evaluation_target: models.EvaluationTarget
+    prompt_source: UpdatePromptSource
+    output_configs: list[OutputConfigType]
+    description: Optional[str] = UNSET
+    input_schema: Any = UNSET  # a JSON schema object, parsed by the service
+
+
+@dataclass(kw_only=True)
 class AddProjectCodeEvaluatorInput(ProjectBindingSettings):
     evaluator_id: GlobalID
 
 
 @dataclass(kw_only=True)
-class CreateProjectCodeEvaluatorInput:
-    project_id: GlobalID
-    name: Identifier
+class CreateProjectCodeEvaluatorInput(ProjectBindingSettings):
     source_code: str
     language: models.LanguageName
     sandbox_config_id: GlobalID
     evaluator_input_mapping: InputMapping
-    sampling_rate: float
-    evaluation_target: models.EvaluationTarget
     description: Optional[str] = None
     output_configs: Optional[list[OutputConfigType]] = None
-    input_mapping: Optional[InputMapping] = None
-    filter_condition: str = ""
-    enabled: bool = True
-    tracing_enabled: bool = True
-    evaluation_delay_seconds: Optional[int] = None
     input_schema: Any = None  # a JSON schema object, parsed by the service
 
 
 @dataclass(kw_only=True)
-class UpdateProjectCodeEvaluatorInput:
+class UpdateProjectCodeEvaluatorInput(ProjectEvaluatorPatch):
     project_evaluator_id: GlobalID
-    name: Identifier
-    sampling_rate: float
     evaluation_target: models.EvaluationTarget
-    filter_condition: str
     evaluator_input_mapping: Optional[InputMapping] = UNSET
-    enabled: Optional[bool] = UNSET
-    tracing_enabled: Optional[bool] = UNSET
     description: Optional[str] = UNSET
     source_code: Optional[str] = UNSET
     sandbox_config_id: Optional[GlobalID] = UNSET
     output_configs: Optional[list[OutputConfigType]] = UNSET
-    input_mapping: Optional[InputMapping] = UNSET
-    evaluation_delay_seconds: Optional[int] = UNSET
     input_schema: Any = UNSET  # a JSON schema object, parsed by the service
 
 
@@ -193,96 +162,25 @@ async def create_project_llm_evaluator(
     context: EvaluatorServiceContext, input: CreateProjectLLMEvaluatorInput
 ) -> models.ProjectEvaluator:
     """Create an LLM definition, pinned prompt version, and project binding atomically."""
-    try:
-        project_id = from_global_id_with_expected_type(input.project_id, "Project")
-    except ValueError:
-        raise BadRequest(f"Invalid project id: {input.project_id}")
-    validate_project_evaluator_filter(input.filter_condition, input.evaluation_target)
-    validate_project_evaluator_sampling_rate(input.sampling_rate)
-    evaluation_delay_seconds = materialize_project_evaluator_evaluation_delay(
-        input.evaluation_delay_seconds, input.evaluation_target
-    )
-    try:
-        name = Identifier.model_validate(input.name)
-        require_categorical_output_configs(input.output_configs)
-        output_configs = list(
-            LLMEvaluatorOutputConfigs.model_validate({"configs": input.output_configs}).configs
-        )
-    except (ValueError, ValidationError) as error:
-        raise BadRequest(str(error))
-
-    user_id = context.user_id
-    source = input.prompt_source
-    if source.content is not None:
-        source.content.user_id = user_id
-
+    project_id, values = check_project_binding(input)
+    output_configs = check_output_configs("LLM", input.output_configs)
     try:
         async with context.db() as session:
             project = await validate_project_evaluator_project(
                 session, project_id, input.project_id
             )
-            evaluator_name = await generate_unique_evaluator_name(session, name)
-            if source.content is not None:
-                await validate_custom_provider(session, source.content)
-
-            if isinstance(source, FromPromptVersion):
-                base = await get_prompt_version(session, source.prompt_version_id)
-                prompt = await session.get(models.Prompt, base.prompt_id)
-                if prompt is None:
-                    raise NotFound("Prompt for the selected version was not found")
-                prompt_version = await pin_prompt_version(
-                    session, base=base, content=source.content, prompt_id=prompt.id
-                )
-            else:
-                prompt_version = source.content
-                prompt = models.Prompt(
-                    name=Identifier.model_validate(f"{input.name}-evaluator-{token_hex(4)}"),
-                    description=input.description,
-                    prompt_versions=[prompt_version],
-                )
-
-            evaluator = models.LLMEvaluator(
-                name=evaluator_name,
-                description=input.description,
-                kind="LLM",
+            evaluator = await create_llm_definition(
+                session,
+                name=await generate_unique_evaluator_name(session, values["name"]),
+                prompt_source=input.prompt_source,
                 output_configs=output_configs,
-                user_id=user_id,
-                prompt=prompt,
+                user_id=context.user_id,
+                description=input.description,
+                input_schema=input.input_schema,
             )
-            try:
-                apply_llm_input_schema(evaluator, prompt_version, input.input_schema)
-            except ValueError as error:
-                raise BadRequest(str(error))
-            session.add(evaluator)
-            await session.flush()
-            await ensure_evaluator_prompt_label(session, prompt.id)
-            evaluator.prompt_version_tag = models.PromptVersionTag(
-                name=Identifier.model_validate(f"{input.name}-evaluator-{token_hex(4)}"),
-                prompt_id=prompt.id,
-                prompt_version_id=prompt_version.id,
-            )
-            project_evaluator = models.ProjectEvaluator(
-                project_id=project_id,
-                evaluator_id=evaluator.id,
-                trace_project=get_trace_project_for_project_evaluator(
-                    project_name=project.name,
-                    project_evaluator_name=name.root,
-                ),
-                name=name,
-                filter_condition=input.filter_condition,
-                sampling_rate=input.sampling_rate,
-                evaluation_target=input.evaluation_target,
-                input_mapping=input.input_mapping,
-                evaluation_delay_seconds=evaluation_delay_seconds,
-                enabled=input.enabled,
-                tracing_enabled=input.tracing_enabled,
-            )
-            session.add(project_evaluator)
-            await session.flush()
-            await _start_new_evaluator(session, project_evaluator)
-    except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-        raise Conflict(f"A project evaluator named '{input.name}' already exists for this project")
-
+            project_evaluator = await bind_project_evaluator(session, project, evaluator, values)
+    except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+        raise await project_binding_name_taken(context, project_id, values["name"]) from error
     return project_evaluator
 
 
@@ -296,30 +194,14 @@ async def update_project_llm_evaluator(
         )
     except ValueError:
         raise BadRequest(f"Invalid project evaluator id: {input.project_evaluator_id}")
-    validate_project_evaluator_filter(input.filter_condition, input.evaluation_target)
-    validate_project_evaluator_sampling_rate(input.sampling_rate)
-    if input.enabled is None:
-        raise BadRequest("enabled cannot be set to null")
-    if input.tracing_enabled is None:
-        raise BadRequest("tracing_enabled cannot be set to null")
-    if input.evaluation_delay_seconds is not UNSET:
-        materialize_project_evaluator_evaluation_delay(
-            input.evaluation_delay_seconds, input.evaluation_target
-        )
     try:
         name = Identifier.model_validate(input.name)
-        require_categorical_output_configs(input.output_configs)
-        output_configs = list(
-            LLMEvaluatorOutputConfigs.model_validate({"configs": input.output_configs}).configs
-        )
-    except (ValueError, ValidationError) as error:
+    except ValidationError as error:
         raise BadRequest(str(error))
-
-    user_id = context.user_id
-    if input.prompt_source.content is not None:
-        input.prompt_source.content.user_id = user_id
+    output_configs = check_output_configs("LLM", input.output_configs)
 
     await clear_queue_before_enabling(context.db, project_evaluator_id, input.enabled)
+    project_id: Optional[int] = None
     try:
         async with context.db() as session:
             # Edits and deletes take the evaluator row first, so they queue instead of deadlocking.
@@ -343,17 +225,14 @@ async def update_project_llm_evaluator(
             if pair is None:
                 raise NotFound(f"LLM project evaluator not found: {input.project_evaluator_id}")
             project_evaluator, evaluator = pair
-            validate_project_evaluator_target_update(
-                project_evaluator,
-                input.evaluation_target,
-            )
+            project_id = project_evaluator.project_id
+            validate_project_evaluator_target_update(project_evaluator, input.evaluation_target)
             shared_evaluator_changed = False
             if project_evaluator.name != name and await is_sole_evaluator_binding(
                 session, evaluator.id
             ):
                 evaluator.name = await generate_unique_evaluator_name(session, name)
                 shared_evaluator_changed = True
-
             await update_llm_definition(
                 session,
                 evaluator,
@@ -361,35 +240,18 @@ async def update_project_llm_evaluator(
                 output_configs=output_configs,
                 description=input.description,
                 name=name,
-                user_id=user_id,
+                user_id=context.user_id,
                 shared_evaluator_changed=shared_evaluator_changed,
                 input_schema=input.input_schema,
             )
-
-            binding_values = ProjectEvaluatorWriteValues(
-                name=name,
-                filter_condition=input.filter_condition,
-                sampling_rate=input.sampling_rate,
-                evaluation_target=input.evaluation_target,
-                input_mapping=input.input_mapping,
+            project_evaluator = await apply_project_evaluator_patch(
+                session, project_evaluator, input
             )
-            if input.evaluation_delay_seconds is not UNSET:
-                binding_values["evaluation_delay_seconds"] = (
-                    materialize_project_evaluator_evaluation_delay(
-                        input.evaluation_delay_seconds, input.evaluation_target
-                    )
-                )
-            if input.enabled is not UNSET:
-                assert input.enabled is not None
-                binding_values["enabled"] = input.enabled
-            if input.tracing_enabled is not UNSET:
-                assert input.tracing_enabled is not None
-                binding_values["tracing_enabled"] = input.tracing_enabled
-            project_evaluator = await write_project_evaluator(
-                session, project_evaluator.id, binding_values
-            )
-    except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-        raise Conflict(f"A project evaluator named '{input.name}' already exists for this project")
+    except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+        assert project_id is not None
+        raise await project_binding_name_taken(
+            context, project_id, name, binding_id=project_evaluator_id
+        ) from error
     return project_evaluator
 
 
@@ -420,7 +282,7 @@ async def add_project_evaluator(
         raise BadRequest(f"Invalid evaluator id: {evaluator_id}. {error}")
     if evaluator_kind not in ("LLM", "CODE", "DECISION"):
         raise BadRequest("Projects run LLM, code, and decision evaluators")
-    project_id = check_project_binding(settings)
+    project_id, values = check_project_binding(settings)
     evaluator_model = EVALUATOR_MODEL_BY_KIND[evaluator_kind]
     try:
         async with context.db() as session:
@@ -436,54 +298,76 @@ async def add_project_evaluator(
                 await resolve_evaluator_prompt_version(session, evaluator) is None
             ):
                 raise NotFound(f"Prompt version not found for evaluator {evaluator_id}")
-            project_evaluator = await bind_project_evaluator(session, project, evaluator, settings)
+            project_evaluator = await bind_project_evaluator(session, project, evaluator, values)
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
-        raise await project_binding_name_taken(context, project_id, settings.name) from error
+        raise await project_binding_name_taken(context, project_id, values["name"]) from error
     return project_evaluator
 
 
-def check_project_binding(settings: ProjectBindingSettings) -> int:
-    """Refuse settings that are invalid whatever the database holds; returns the project's id."""
+def check_project_binding(
+    settings: ProjectBindingSettings,
+) -> tuple[int, ProjectEvaluatorWriteValues]:
+    """Refuse settings that are invalid whatever the database holds; returns the project's id
+    and the values a new binding is written with."""
     project_id = _decode_project_id(settings.project_id)
-    try:
-        Identifier.model_validate(settings.name)
-    except ValidationError as error:
-        raise BadRequest(str(error))
-    validate_project_evaluator_filter(settings.filter_condition, settings.evaluation_target)
-    validate_project_evaluator_sampling_rate(settings.sampling_rate)
-    materialize_project_evaluator_evaluation_delay(
-        settings.evaluation_delay_seconds, settings.evaluation_target
-    )
-    return project_id
+    values = project_binding_values(settings, settings.evaluation_target)
+    values["evaluation_target"] = settings.evaluation_target
+    return project_id, values
+
+
+def project_binding_values(
+    settings: Union[ProjectBindingSettings, ProjectEvaluatorPatch],
+    evaluation_target: models.EvaluationTarget,
+) -> ProjectEvaluatorWriteValues:
+    """Check binding settings for a binding of this target and return the values to write.
+    A setting left UNSET is left out, and None resets the evaluation delay to its default."""
+    for field in ("name", "sampling_rate", "filter_condition", "enabled"):
+        if getattr(settings, field) is None:
+            raise BadRequest(f"{field} cannot be set to null")
+    values = ProjectEvaluatorWriteValues()
+    if settings.name is not UNSET:
+        try:
+            values["name"] = Identifier.model_validate(settings.name)
+        except ValidationError as error:
+            raise BadRequest(str(error))
+    if settings.filter_condition is not UNSET:
+        assert settings.filter_condition is not None
+        validate_project_evaluator_filter(settings.filter_condition, evaluation_target)
+        values["filter_condition"] = settings.filter_condition
+    if settings.sampling_rate is not UNSET:
+        assert settings.sampling_rate is not None
+        validate_project_evaluator_sampling_rate(settings.sampling_rate)
+        values["sampling_rate"] = settings.sampling_rate
+    if settings.evaluation_delay_seconds is not UNSET:
+        values["evaluation_delay_seconds"] = materialize_project_evaluator_evaluation_delay(
+            settings.evaluation_delay_seconds, evaluation_target
+        )
+    if settings.enabled is not UNSET:
+        assert settings.enabled is not None
+        values["enabled"] = settings.enabled
+    if settings.input_mapping is not UNSET:
+        values["input_mapping"] = settings.input_mapping
+    return values
 
 
 async def bind_project_evaluator(
     session: AsyncSession,
     project: models.Project,
     evaluator: models.Evaluator,
-    settings: ProjectBindingSettings,
+    values: ProjectEvaluatorWriteValues,
 ) -> models.ProjectEvaluator:
-    """Bind an evaluator to a project with its own trace project, after check_project_binding."""
+    """Bind an evaluator to a project with its own trace project, writing the values
+    check_project_binding returned."""
     if isinstance(evaluator, models.DecisionEvaluator):
-        validate_decision_project_mapping(evaluator.selected_version, settings.input_mapping)
-    name = Identifier.model_validate(settings.name)
+        validate_decision_project_mapping(evaluator.selected_version, values.get("input_mapping"))
     project_evaluator = models.ProjectEvaluator(
         project_id=project.id,
         evaluator_id=evaluator.id,
         trace_project=get_trace_project_for_project_evaluator(
             project_name=project.name,
-            project_evaluator_name=name.root,
+            project_evaluator_name=values["name"].root,
         ),
-        name=name,
-        filter_condition=settings.filter_condition,
-        sampling_rate=settings.sampling_rate,
-        evaluation_target=settings.evaluation_target,
-        input_mapping=settings.input_mapping,
-        evaluation_delay_seconds=materialize_project_evaluator_evaluation_delay(
-            settings.evaluation_delay_seconds, settings.evaluation_target
-        ),
-        enabled=settings.enabled,
-        tracing_enabled=settings.tracing_enabled,
+        **values,
     )
     session.add(project_evaluator)
     await session.flush()
@@ -511,21 +395,35 @@ def _decode_project_id(project_id: GlobalID) -> int:
 
 
 async def project_binding_name_taken(
-    context: EvaluatorServiceContext, project_id: int, name: Identifier
+    context: EvaluatorServiceContext,
+    project_id: int,
+    name: Optional[Identifier],
+    *,
+    binding_id: Optional[int] = None,
 ) -> Conflict:
-    async with context.db() as session:
-        existing_id = await session.scalar(
-            select(models.ProjectEvaluator.id).where(
-                models.ProjectEvaluator.project_id == project_id,
-                models.ProjectEvaluator.name == name,
-            )
+    """The error for a project binding write the database refused: AlreadyExists when
+    another binding of the project holds the name, otherwise a conflicting resource. An edit
+    passes its binding's id, so the binding is never reported as holding its own name."""
+    existing_id: Optional[int] = None
+    if name is not UNSET and name is not None:
+        name = Identifier.model_validate(name)
+        query = select(models.ProjectEvaluator.id).where(
+            models.ProjectEvaluator.project_id == project_id,
+            models.ProjectEvaluator.name == name,
         )
-    if existing_id is None:
-        return Conflict(f"Could not bind evaluator '{name.root}' because of a conflicting resource")
-    return AlreadyExists(
-        f"A project evaluator named '{name.root}' already exists for this project",
-        existing_id=str(GlobalID("ProjectEvaluator", str(existing_id))),
-    )
+        if binding_id is not None:
+            query = query.where(models.ProjectEvaluator.id != binding_id)
+        async with context.db() as session:
+            existing_id = await session.scalar(query)
+    if existing_id is not None:
+        assert name is not None
+        return AlreadyExists(
+            f"A project evaluator named '{name.root}' already exists for this project",
+            existing_id=str(GlobalID("ProjectEvaluator", str(existing_id))),
+        )
+    if binding_id is not None:
+        return Conflict("Could not update the project evaluator because of a conflicting resource")
+    return Conflict(f"Could not bind evaluator '{name}' because of a conflicting resource")
 
 
 async def detach_project_evaluators(
@@ -574,185 +472,101 @@ async def create_project_code_evaluator(
     context: EvaluatorServiceContext, input: CreateProjectCodeEvaluatorInput
 ) -> models.ProjectEvaluator:
     """Validate code and create its definition, initial version, and project binding."""
-    try:
-        project_id = from_global_id_with_expected_type(input.project_id, "Project")
-        name = Identifier.model_validate(input.name)
-    except (ValueError, ValidationError) as error:
-        raise BadRequest(str(error))
-    validate_project_evaluator_filter(input.filter_condition, input.evaluation_target)
-    validate_project_evaluator_sampling_rate(input.sampling_rate)
-    evaluation_delay_seconds = materialize_project_evaluator_evaluation_delay(
-        input.evaluation_delay_seconds, input.evaluation_target
-    )
-    raise_on_uninferable_evaluate_signature(input.source_code, input.language)
-    require_output_configs(input.output_configs or [])
-    output_configs = cast(list[AnnotationConfigType], input.output_configs)
-
-    user_id = context.user_id
-
-    # Validate outside the write transaction to avoid nested sessions.
-    sandbox_config_id = await validate_code_evaluator_sandbox_config(
-        context.db,
-        sandbox_config_global_id=input.sandbox_config_id,
-        language=input.language,
-        action="creating this evaluator",
+    project_id, values = check_project_binding(input)
+    output_configs = check_output_configs("CODE", input.output_configs)
+    code = await preflight_code(
+        context,
         source_code=input.source_code,
-        sandbox_runtime=context.sandbox_runtime,
+        language=input.language,
+        sandbox_config_id=input.sandbox_config_id,
+        action="creating this evaluator",
     )
-
     try:
         async with context.db() as session:
             project = await validate_project_evaluator_project(
                 session, project_id, input.project_id
             )
-            evaluator_name = await generate_unique_evaluator_name(session, name)
-            evaluator = models.CodeEvaluator(
-                name=evaluator_name,
-                description=input.description,
-                language=input.language,
-                user_id=user_id,
-                sandbox_config_id=sandbox_config_id,
+            evaluator = await create_code_definition(
+                session,
+                name=await generate_unique_evaluator_name(session, values["name"]),
+                code=code,
                 input_mapping=input.evaluator_input_mapping,
                 output_configs=output_configs,
+                user_id=context.user_id,
+                description=input.description,
+                input_schema=input.input_schema,
             )
-            try:
-                apply_code_input_schema(evaluator, input.source_code, input.input_schema)
-            except ValueError as error:
-                raise BadRequest(str(error))
-            session.add(evaluator)
-            await session.flush()
-            session.add(
-                models.CodeEvaluatorVersion(
-                    code_evaluator_id=evaluator.id,
-                    source_code=input.source_code,
-                    user_id=user_id,
-                )
-            )
-            project_evaluator = models.ProjectEvaluator(
-                project_id=project_id,
-                evaluator_id=evaluator.id,
-                trace_project=get_trace_project_for_project_evaluator(
-                    project_name=project.name,
-                    project_evaluator_name=name.root,
-                ),
-                name=name,
-                filter_condition=input.filter_condition,
-                sampling_rate=input.sampling_rate,
-                evaluation_target=input.evaluation_target,
-                input_mapping=input.input_mapping,
-                evaluation_delay_seconds=evaluation_delay_seconds,
-                enabled=input.enabled,
-                tracing_enabled=input.tracing_enabled,
-            )
-            session.add(project_evaluator)
-            await session.flush()
-            await _start_new_evaluator(session, project_evaluator)
-    except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-        raise Conflict(f"A project evaluator named '{input.name}' already exists for this project")
-
+            project_evaluator = await bind_project_evaluator(session, project, evaluator, values)
+    except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+        raise await project_binding_name_taken(context, project_id, values["name"]) from error
     return project_evaluator
 
 
 async def update_project_code_evaluator(
     context: EvaluatorServiceContext, input: UpdateProjectCodeEvaluatorInput
 ) -> models.ProjectEvaluator:
-    """Update a code binding and its shared definition using the GraphQL edit contract."""
+    """Update a code binding and its shared definition using the GraphQL edit contract.
+
+    New source, or a new sandbox, is run through the sandbox before the write. A deploy that
+    lands in between is overwritten, as any later edit would overwrite it."""
     try:
         project_evaluator_id = from_global_id_with_expected_type(
             input.project_evaluator_id, "ProjectEvaluator"
         )
         name = Identifier.model_validate(input.name)
-    except (ValueError, ValidationError) as error:
+    except ValueError as error:
         raise BadRequest(str(error))
-    validate_project_evaluator_filter(input.filter_condition, input.evaluation_target)
-    validate_project_evaluator_sampling_rate(input.sampling_rate)
-    if input.evaluator_input_mapping is None:
+    evaluator_input_mapping = input.evaluator_input_mapping
+    if evaluator_input_mapping is None:
         raise BadRequest("evaluator_input_mapping cannot be set to null")
-    if input.enabled is None:
-        raise BadRequest("enabled cannot be set to null")
-    if input.tracing_enabled is None:
-        raise BadRequest("tracing_enabled cannot be set to null")
-    if input.evaluation_delay_seconds is not UNSET:
-        materialize_project_evaluator_evaluation_delay(
-            input.evaluation_delay_seconds, input.evaluation_target
-        )
-    if input.source_code is not UNSET and input.source_code is None:
+    if input.source_code is None:
         raise BadRequest("source_code cannot be set to null")
     if input.output_configs is None:
         raise BadRequest("output_configs cannot be set to null")
-    if input.output_configs is not UNSET:
-        require_output_configs(input.output_configs)
-
-    user_id = context.user_id
-
-    # Validate outside the write transaction to avoid nested sessions.
-    validated_sandbox_config_id: Optional[int] = None
-    validated_source_code: Optional[str] = None
-    # A source-only edit leaves sandbox_config_id UNSET, so it must be checked against the
-    # evaluator's current sandbox, or it saves code that was never run through any sandbox.
-    source_only_edit = (
-        input.sandbox_config_id is UNSET
-        and input.source_code is not UNSET
-        and input.source_code is not None
+    output_configs = (
+        check_output_configs("CODE", input.output_configs)
+        if input.output_configs is not UNSET
+        else UNSET
     )
-    if (input.sandbox_config_id is not UNSET and input.sandbox_config_id is not None) or (
-        source_only_edit
-    ):
+
+    new_source = input.source_code is not UNSET
+    validated: Optional[ValidatedCode] = None
+    if new_source or (input.sandbox_config_id is not UNSET and input.sandbox_config_id is not None):
         async with context.db() as session:
-            current_pair = (
-                await session.execute(
-                    select(models.ProjectEvaluator, models.CodeEvaluator)
-                    .join(
-                        models.CodeEvaluator,
-                        models.ProjectEvaluator.evaluator_id == models.CodeEvaluator.id,
-                    )
-                    .where(models.ProjectEvaluator.id == project_evaluator_id)
+            current = await session.scalar(
+                select(models.CodeEvaluator)
+                .join(
+                    models.ProjectEvaluator,
+                    models.ProjectEvaluator.evaluator_id == models.CodeEvaluator.id,
                 )
-            ).one_or_none()
-            if current_pair is None:
-                raise NotFound(f"CODE project evaluator not found: {input.project_evaluator_id}")
-            _, current_evaluator = current_pair
-            current_language = current_evaluator.language
-            current_sandbox_config_id = current_evaluator.sandbox_config_id
-            current_with_version = await code_evaluator_with_latest_version(
-                session, current_evaluator.id
+                .where(models.ProjectEvaluator.id == project_evaluator_id)
             )
+            if current is None:
+                raise NotFound(f"CODE project evaluator not found: {input.project_evaluator_id}")
+            current_with_version = await code_evaluator_with_latest_version(session, current.id)
             stored_source_code = (
                 current_with_version[1].source_code
                 if current_with_version is not None and current_with_version[1] is not None
                 else ""
             )
-        # Validate the candidate source against the effective sandbox configuration.
-        validated_source_code = (
-            input.source_code
-            if input.source_code is not UNSET and input.source_code is not None
-            else stored_source_code
-        )
-        if source_only_edit:
-            validated_sandbox_config_id = current_sandbox_config_id
-            if validated_sandbox_config_id is not None:
-                await validate_code_evaluator_sandbox_config(
-                    context.db,
-                    sandbox_config_global_id=GlobalID(
-                        "SandboxConfig", str(validated_sandbox_config_id)
-                    ),
-                    language=current_language,
-                    action="updating this evaluator",
-                    source_code=validated_source_code,
-                    sandbox_runtime=context.sandbox_runtime,
-                )
-        else:
-            assert input.sandbox_config_id is not None
-            validated_sandbox_config_id = await validate_code_evaluator_sandbox_config(
-                context.db,
-                sandbox_config_global_id=input.sandbox_config_id,
-                language=current_language,
-                action="updating this evaluator",
-                source_code=validated_source_code,
-                sandbox_runtime=context.sandbox_runtime,
+        sandbox_config_id = input.sandbox_config_id
+        if sandbox_config_id is UNSET:
+            sandbox_config_id = (
+                GlobalID("SandboxConfig", str(current.sandbox_config_id))
+                if current.sandbox_config_id is not None
+                else None
             )
+        validated = await preflight_code(
+            context,
+            source_code=input.source_code if new_source else stored_source_code,
+            language=current.language,
+            sandbox_config_id=sandbox_config_id,
+            action="updating this evaluator",
+            new_source=new_source,
+        )
 
     await clear_queue_before_enabling(context.db, project_evaluator_id, input.enabled)
+    project_id: Optional[int] = None
     try:
         async with context.db() as session:
             pair = (
@@ -768,124 +582,41 @@ async def update_project_code_evaluator(
             if pair is None:
                 raise NotFound(f"CODE project evaluator not found: {input.project_evaluator_id}")
             project_evaluator, evaluator = pair
-            validate_project_evaluator_target_update(
-                project_evaluator,
-                input.evaluation_target,
-            )
+            project_id = project_evaluator.project_id
+            validate_project_evaluator_target_update(project_evaluator, input.evaluation_target)
             shared_evaluator_changed = False
             if project_evaluator.name != name and await is_sole_evaluator_binding(
                 session, evaluator.id
             ):
                 evaluator.name = await generate_unique_evaluator_name(session, name)
                 shared_evaluator_changed = True
-            if input.description is not UNSET and evaluator.description != input.description:
-                evaluator.description = input.description
-                shared_evaluator_changed = True
-            if input.evaluator_input_mapping is not UNSET:
-                assert input.evaluator_input_mapping is not None
-                evaluator_input_mapping = input.evaluator_input_mapping
-                if evaluator.input_mapping != evaluator_input_mapping:
-                    evaluator.input_mapping = evaluator_input_mapping
-                    shared_evaluator_changed = True
-
-            if input.sandbox_config_id is not UNSET:
-                if input.sandbox_config_id is None:
-                    sandbox_config_id = None
-                else:
-                    if input.source_code is UNSET or input.source_code is None:
-                        # A version deployed during validation was never checked against
-                        # this sandbox.
-                        latest = await code_evaluator_with_latest_version(session, evaluator.id)
-                        latest_source_code = (
-                            latest[1].source_code
-                            if latest is not None and latest[1] is not None
-                            else ""
-                        )
-                        if latest_source_code != validated_source_code:
-                            raise Conflict(
-                                "The evaluator version changed during sandbox validation; retry."
-                            )
-                    sandbox_config_id = validated_sandbox_config_id
-                if evaluator.sandbox_config_id != sandbox_config_id:
-                    evaluator.sandbox_config_id = sandbox_config_id
-                    shared_evaluator_changed = True
-            if input.output_configs is not UNSET:
-                output_configs = cast(
-                    list[AnnotationConfigType],
-                    input.output_configs,
-                )
-                if evaluator.output_configs != output_configs:
-                    evaluator.output_configs = output_configs
-                    shared_evaluator_changed = True
-            if input.source_code is not UNSET and input.source_code is not None:
-                raise_on_uninferable_evaluate_signature(input.source_code, evaluator.language)
-                if source_only_edit and evaluator.sandbox_config_id != validated_sandbox_config_id:
-                    raise Conflict("The evaluator sandbox changed during source validation; retry.")
-                locked = await code_evaluator_with_latest_version(session, evaluator.id)
-                if locked is None:
-                    raise NotFound(
-                        f"CODE project evaluator not found: {input.project_evaluator_id}"
-                    )
-                _, current_version = locked
-                candidate = models.CodeEvaluatorVersion(
-                    code_evaluator_id=evaluator.id,
-                    source_code=input.source_code,
-                    user_id=user_id,
-                )
-                if current_version is None or not current_version.has_identical_content(candidate):
-                    session.add(candidate)
-                    shared_evaluator_changed = True
-
-            source_changed = input.source_code is not UNSET and input.source_code is not None
-            if source_changed or input.input_schema is not UNSET:
-                # Descriptions follow the parameters of the code the evaluator runs after
-                # this edit: the submitted source, or else the current version's.
-                if source_changed:
-                    assert input.source_code is not None
-                    described_source_code = input.source_code
-                else:
-                    latest = await code_evaluator_with_latest_version(session, evaluator.id)
-                    described_source_code = (
-                        latest[1].source_code
-                        if latest is not None and latest[1] is not None
-                        else ""
-                    )
-                try:
-                    if apply_code_input_schema(
-                        evaluator, described_source_code, input.input_schema
-                    ):
-                        shared_evaluator_changed = True
-                except ValueError as error:
-                    raise BadRequest(str(error))
-
-            if shared_evaluator_changed:
-                evaluator.user_id = user_id
-
-            binding_values = ProjectEvaluatorWriteValues(
-                name=name,
-                filter_condition=input.filter_condition,
-                sampling_rate=input.sampling_rate,
-                evaluation_target=input.evaluation_target,
+            sandbox_config_rowid: Optional[int] = UNSET
+            if input.sandbox_config_id is None:
+                sandbox_config_rowid = None
+            elif input.sandbox_config_id is not UNSET:
+                assert validated is not None
+                sandbox_config_rowid = validated.sandbox_config_id
+            update = await update_code_definition(
+                session,
+                evaluator,
+                user_id=context.user_id,
+                source_code=input.source_code,
+                description=input.description,
+                sandbox_config_id=sandbox_config_rowid,
+                input_mapping=evaluator_input_mapping,
+                output_configs=output_configs,
+                input_schema=input.input_schema,
             )
-            if input.input_mapping is not UNSET:
-                binding_values["input_mapping"] = input.input_mapping
-            if input.evaluation_delay_seconds is not UNSET:
-                binding_values["evaluation_delay_seconds"] = (
-                    materialize_project_evaluator_evaluation_delay(
-                        input.evaluation_delay_seconds, input.evaluation_target
-                    )
-                )
-            if input.enabled is not UNSET:
-                assert input.enabled is not None
-                binding_values["enabled"] = input.enabled
-            if input.tracing_enabled is not UNSET:
-                assert input.tracing_enabled is not None
-                binding_values["tracing_enabled"] = input.tracing_enabled
-            project_evaluator = await write_project_evaluator(
-                session, project_evaluator.id, binding_values
+            if shared_evaluator_changed or update.changed:
+                evaluator.user_id = context.user_id
+            project_evaluator = await apply_project_evaluator_patch(
+                session, project_evaluator, input
             )
-    except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-        raise Conflict(f"A project evaluator named '{input.name}' already exists for this project")
+    except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+        assert project_id is not None
+        raise await project_binding_name_taken(
+            context, project_id, name, binding_id=project_evaluator_id
+        ) from error
     return project_evaluator
 
 
@@ -1208,17 +939,6 @@ async def delete_project_evaluators(
     return deleted_ids
 
 
-@dataclass(kw_only=True)
-class ProjectEvaluatorPatch:
-    name: Optional[Identifier] = UNSET
-    sampling_rate: Optional[float] = UNSET
-    filter_condition: Optional[str] = UNSET
-    enabled: Optional[bool] = UNSET
-    tracing_enabled: Optional[bool] = UNSET
-    input_mapping: Optional[InputMapping] = UNSET
-    evaluation_delay_seconds: Optional[int] = UNSET
-
-
 async def patch_project_evaluator(
     context: EvaluatorServiceContext,
     project_evaluator_id: GlobalID,
@@ -1238,10 +958,8 @@ async def patch_project_evaluator(
             project_rowid = row.project_id
             row = await apply_project_evaluator_patch(session, row, patch)
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
-        if patch.name is not UNSET and patch.name is not None:
-            raise await project_binding_name_taken(context, project_rowid, patch.name) from error
-        raise Conflict(
-            "A project evaluator with this name already exists for this project"
+        raise await project_binding_name_taken(
+            context, project_rowid, patch.name, binding_id=row_id
         ) from error
     return row
 
@@ -1250,32 +968,10 @@ async def apply_project_evaluator_patch(
     session: AsyncSession, row: models.ProjectEvaluator, patch: ProjectEvaluatorPatch
 ) -> models.ProjectEvaluator:
     """Write binding settings to a binding loaded in this session."""
-    target = row.evaluation_target
-    values = ProjectEvaluatorWriteValues()
-    if patch.name is not UNSET:
-        values["name"] = Identifier.model_validate(patch.name)
-    if patch.sampling_rate is not UNSET:
-        assert patch.sampling_rate is not None
-        validate_project_evaluator_sampling_rate(patch.sampling_rate)
-        values["sampling_rate"] = patch.sampling_rate
-    if patch.filter_condition is not UNSET:
-        assert patch.filter_condition is not None
-        validate_project_evaluator_filter(patch.filter_condition, target)
-        values["filter_condition"] = patch.filter_condition
-    if patch.enabled is not UNSET:
-        assert patch.enabled is not None
-        values["enabled"] = patch.enabled
-    if patch.tracing_enabled is not UNSET:
-        assert patch.tracing_enabled is not None
-        values["tracing_enabled"] = patch.tracing_enabled
+    values = project_binding_values(patch, row.evaluation_target)
     if patch.input_mapping is not UNSET:
         if (decision := await session.get(models.DecisionEvaluator, row.evaluator_id)) is not None:
             validate_decision_project_mapping(decision.selected_version, patch.input_mapping)
-        values["input_mapping"] = patch.input_mapping
-    if patch.evaluation_delay_seconds is not UNSET:
-        values["evaluation_delay_seconds"] = materialize_project_evaluator_evaluation_delay(
-            patch.evaluation_delay_seconds, target
-        )
     if values:
         row = await write_project_evaluator(session, row.id, values)
     return row

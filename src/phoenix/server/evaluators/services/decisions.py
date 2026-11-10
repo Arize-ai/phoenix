@@ -579,7 +579,7 @@ async def create_project_decision_evaluator(
     if input.evaluator_id is not None:
         _id(input.evaluator_id, "DecisionEvaluator")
         return await add_project_evaluator(context, input.evaluator_id, input)
-    project_id = check_project_binding(input)
+    project_id, values = check_project_binding(input)
     try:
         async with context.db() as session:
             project = await validate_project_evaluator_project(
@@ -595,29 +595,22 @@ async def create_project_decision_evaluator(
                 decision_version=input.decision_version,
                 scoring_policy=input.scoring_policy,
             )
-            binding = await bind_project_evaluator(session, project, evaluator, input)
+            binding = await bind_project_evaluator(session, project, evaluator, values)
     except (IntegrityError, SQLiteIntegrityError) as error:
-        raise await project_binding_name_taken(context, project_id, input.name) from error
+        raise await project_binding_name_taken(context, project_id, values["name"]) from error
     except ValueError as error:
         raise BadRequest(str(error)) from error
     return binding
 
 
 @dataclass(kw_only=True)
-class UpdateProjectDecisionEvaluatorInput:
+class UpdateProjectDecisionEvaluatorInput(ProjectEvaluatorPatch):
     project_evaluator_id: GlobalID
-    sampling_rate: float
     evaluation_target: models.EvaluationTarget
-    filter_condition: str
-    name: Optional[Identifier] = UNSET
     description: Optional[str] = UNSET
-    input_mapping: Optional[InputMapping] = UNSET
     decision_version_id: Optional[GlobalID] = UNSET
     decision_version: Optional[models.DecisionVersion] = None
     scoring_policy: Optional[DecisionScoringPolicy] = UNSET
-    enabled: Optional[bool] = UNSET
-    tracing_enabled: Optional[bool] = UNSET
-    evaluation_delay_seconds: Optional[int] = UNSET
 
 
 async def update_project_decision_evaluator(
@@ -631,10 +624,6 @@ async def update_project_decision_evaluator(
         decision_version=input.decision_version,
         scoring_policy=input.scoring_policy,
     )
-    if input.enabled is None:
-        raise BadRequest("enabled cannot be set to null")
-    if input.tracing_enabled is None:
-        raise BadRequest("tracing_enabled cannot be set to null")
     project_evaluator_id = _id(input.project_evaluator_id, "ProjectEvaluator")
     await clear_queue_before_enabling(context.db, project_evaluator_id, input.enabled)
     try:
@@ -660,23 +649,11 @@ async def update_project_decision_evaluator(
                 evaluator.description = input.description
             if version is not None and input.input_mapping is UNSET:
                 validate_decision_project_mapping(selected, binding.input_mapping)
-            binding = await apply_project_evaluator_patch(
-                session,
-                binding,
-                ProjectEvaluatorPatch(
-                    name=input.name,
-                    sampling_rate=input.sampling_rate,
-                    filter_condition=input.filter_condition,
-                    enabled=input.enabled,
-                    tracing_enabled=input.tracing_enabled,
-                    input_mapping=input.input_mapping,
-                    evaluation_delay_seconds=input.evaluation_delay_seconds,
-                ),
-            )
+            binding = await apply_project_evaluator_patch(session, binding, input)
     except (IntegrityError, SQLiteIntegrityError) as error:
-        if input.name is not UNSET and input.name is not None:
-            raise await project_binding_name_taken(context, project_id, input.name) from error
-        raise Conflict("The project evaluator could not be updated") from error
+        raise await project_binding_name_taken(
+            context, project_id, input.name, binding_id=project_evaluator_id
+        ) from error
     except ValueError as error:
         raise BadRequest(str(error)) from error
     return binding
