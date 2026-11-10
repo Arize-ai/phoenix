@@ -373,7 +373,8 @@ export function isPolicyValid(validation: DecisionPolicyValidation): boolean {
  * The output configs a decision evaluator's results are scored against,
  * derived from its questions and policy the way the server's
  * `derive_decision_output_configs` derives them: a Yes / No question scores
- * its probability of true on 0..1, a scale question its expected level on
+ * its probability of true on 0..1 against its threshold, a scale question its
+ * expected level on
  * 0..levels-1, and a choice question its choices' scores. Lets a form colour
  * preview results by the draft's direction without saving or re-running.
  */
@@ -410,12 +411,16 @@ export function deriveDecisionOutputConfigs(
         upperBound: question.levels.length - 1,
       };
     }
+    // The server derives a CONTINUOUS 0..1 config, which pivots at 0.5; a
+    // freeform config carries the threshold too, so a result is coloured on
+    // the same side of the line as its true / false label.
     return {
-      annotationType: "CONTINUOUS",
+      annotationType: "FREEFORM",
       name: question.name,
       optimizationDirection,
       lowerBound: 0,
       upperBound: 1,
+      threshold: "predicate" in scoring ? scoring.predicate.threshold : null,
     };
   });
 }

@@ -283,13 +283,19 @@ describe("deriveDecisionOutputConfigs", () => {
   };
 
   it("mirrors the server's derivation", () => {
-    expect(deriveDecisionOutputConfigs(questions, policy)).toEqual([
+    const threeLevelScale: DecisionQuestionDefinition[] = [
+      questions[0],
+      questions[1],
+      { type: "scale", name: "clarity", levels: ["low", "mid", "high"] },
+    ];
+    expect(deriveDecisionOutputConfigs(threeLevelScale, policy)).toEqual([
       {
-        annotationType: "CONTINUOUS",
+        annotationType: "FREEFORM",
         name: "accurate",
         optimizationDirection: "MAXIMIZE",
         lowerBound: 0,
         upperBound: 1,
+        threshold: 0.8,
       },
       {
         annotationType: "CATEGORICAL",
@@ -306,7 +312,7 @@ describe("deriveDecisionOutputConfigs", () => {
         name: "clarity",
         optimizationDirection: "MINIMIZE",
         lowerBound: 0,
-        upperBound: 1,
+        upperBound: 2,
       },
     ]);
   });

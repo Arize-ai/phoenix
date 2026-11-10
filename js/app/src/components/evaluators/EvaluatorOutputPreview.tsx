@@ -273,20 +273,20 @@ export function AnnotationPreviewPopoverButton(props: {
   const storeEvaluatorName = useEvaluatorStore(
     (state) => state.evaluator.name || state.evaluator.globalName
   );
-  const optimizationValue = provided
+  const evaluatorName = provided?.evaluatorName ?? storeEvaluatorName;
+  const optimizationValue = provided?.outputConfigs
     ? getTypedOutputConfigOptimizationValue({
         annotationName: annotation.name,
         score: annotation.score,
-        evaluatorName: provided.evaluatorName ?? storeEvaluatorName,
+        evaluatorName,
         outputConfigs: provided.outputConfigs,
       })
     : getOutputConfigOptimizationValue({
         annotationName: annotation.name,
         score: annotation.score,
-        evaluatorName: storeEvaluatorName,
+        evaluatorName,
         outputConfigs: storeOutputConfigs,
       });
-  const evaluatorName = provided?.evaluatorName ?? storeEvaluatorName;
   const displayName = omitEvaluatorName
     ? getNameWithoutEvaluator({
         annotationName: annotation.name,

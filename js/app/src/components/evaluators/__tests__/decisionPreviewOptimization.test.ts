@@ -16,13 +16,16 @@ describe("decision preview colouring", () => {
   const predicateOnly: DecisionQuestionDefinition[] = [
     { type: "predicate", name: "addresses_request" },
   ];
-  const draft = (optimizationDirection: DecisionOptimizationDirection) =>
+  const draft = (
+    optimizationDirection: DecisionOptimizationDirection,
+    threshold = 0.5
+  ) =>
     deriveDecisionOutputConfigs(predicateOnly, {
       questions: [
         {
           predicate: {
             name: "addresses_request",
-            threshold: 0.5,
+            threshold,
             optimizationDirection,
           },
         },
@@ -45,6 +48,15 @@ describe("decision preview colouring", () => {
     expect(valueOf(draft("MINIMIZE"), 0.86)).toBeLessThan(0);
     expect(valueOf(draft("MAXIMIZE"), 0.05)).toBeLessThan(0);
     expect(valueOf(draft("MINIMIZE"), 0.05)).toBeGreaterThan(0);
+  });
+
+  it("pivots at the threshold, where the true / false label flips", () => {
+    // Labelled false under a 0.8 threshold, so bad when true is good.
+    expect(valueOf(draft("MAXIMIZE", 0.8), 0.7)).toBeLessThan(0);
+    expect(valueOf(draft("MAXIMIZE", 0.8), 0.9)).toBeGreaterThan(0);
+    // Labelled true under a 0.3 threshold, so good when true is good.
+    expect(valueOf(draft("MAXIMIZE", 0.3), 0.4)).toBeGreaterThan(0);
+    expect(valueOf(draft("MINIMIZE", 0.3), 0.4)).toBeLessThan(0);
   });
 
   it("leaves results neutral when neither answer is good", () => {

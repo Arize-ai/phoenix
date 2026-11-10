@@ -7,10 +7,15 @@ import type { AnnotationConfig } from "@phoenix/components/annotation/types";
  * whose configs the evaluator store does not hold. A decision evaluator's
  * outputs derive from its questions and scoring policy, so its form provides
  * them here, and a direction edit recolours results already on
- * screen without a re-run.
+ * screen without a re-run. The project test bench provides the name its
+ * previews run under for every kind of evaluator.
  */
 export type EvaluatorPreviewOutputConfigs = {
-  outputConfigs: AnnotationConfig[];
+  /**
+   * The configs results are coloured against; the evaluator store's when
+   * left out.
+   */
+  outputConfigs?: AnnotationConfig[];
   /**
    * The name the previewed evaluator writes under, when it is not the
    * store's: multi-output results are named `evaluatorName.configName`.

@@ -43,7 +43,7 @@ import {
   useProjectEvaluatorSubmitHint,
   useUnboundRequiredVariables,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
-import { UNTITLED_EVALUATOR_NAME } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTestBench";
+import { selectPreviewEvaluatorName } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTestBench";
 import {
   toEvaluationDelayInput,
   toEvaluatorRecordKind,
@@ -163,9 +163,7 @@ function ProjectDecisionEvaluatorLayout({
   });
   const recordKind = toEvaluatorRecordKind(scope.targetType);
   // The bench names a draft's results the way it names its preview runs.
-  const evaluatorName = useEvaluatorStore(
-    (state) => state.evaluator.globalName.trim() || UNTITLED_EVALUATOR_NAME
-  );
+  const evaluatorName = useEvaluatorStore(selectPreviewEvaluatorName);
   return (
     <EvaluatorPreviewOutputConfigsProvider
       value={{ outputConfigs, evaluatorName }}
