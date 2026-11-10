@@ -38,6 +38,8 @@ from phoenix.server.encryption import EncryptionService
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
+from .test_saved_decision_mutations import version_input
+
 
 def _canonical_tools(
     name: str,
@@ -381,7 +383,8 @@ class TestDatasetLLMEvaluatorMutations:
                 )
             ],
         )
-        assert result.errors and "Dataset with id 999 not found" in result.errors[0].message
+        assert result.errors
+        assert result.errors[0].message == f"Dataset not found: {GlobalID('Dataset', '999')}"
 
         # Failure: Invalid template format
         result = await self._create(
@@ -1097,45 +1100,6 @@ class TestDatasetLLMEvaluatorMutations:
         name1 = result1.data["createDatasetLlmEvaluator"]["evaluator"]["evaluator"]["name"]
         name2 = result2.data["createDatasetLlmEvaluator"]["evaluator"]["evaluator"]["name"]
         assert name1 != name2
-
-    async def test_create_dataset_llm_evaluator_rejects_empty_output_configs(
-        self,
-        gql_client: AsyncGraphQLClient,
-        empty_dataset: models.Dataset,
-    ) -> None:
-        dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
-        result = await self._create(
-            gql_client,
-            datasetId=dataset_id,
-            name="empty-configs",
-            description="test",
-            promptVersion=dict(
-                templateFormat="MUSTACHE",
-                template=dict(messages=[dict(role="USER", content=[dict(text=dict(text="Test"))])]),
-                invocationParameters=dict(openai=dict(temperature=0.5)),
-                tools=_canonical_tools(
-                    name="test",
-                    description="test",
-                    parameters=dict(
-                        type="object",
-                        properties=dict(
-                            label=dict(
-                                type="string",
-                                enum=["correct", "incorrect"],
-                                description="correctness",
-                            )
-                        ),
-                        required=["label"],
-                    ),
-                    tool_choice_name="test",
-                ),
-                modelProvider="OPENAI",
-                modelName="gpt-4",
-            ),
-            outputConfigs=[],
-        )
-        assert result.errors
-        assert "at least 1 item" in result.errors[0].message.lower()
 
     async def test_create_dataset_llm_evaluator_rejects_empty_label(
         self,
@@ -2734,7 +2698,8 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
             evaluatorId=builtin_evaluator_gid,
             name="test",
         )
-        assert result.errors and "Dataset with id" in result.errors[0].message
+        assert result.errors
+        assert result.errors[0].message == f"Dataset not found: {GlobalID('Dataset', '999')}"
 
         # Failure: Invalid evaluator type (not BuiltInEvaluator)
         invalid_evaluator_id = str(GlobalID("Dataset", str(empty_dataset.id)))
@@ -4822,7 +4787,7 @@ class TestUpdateDatasetCodeEvaluatorMutation:
 
 
 class TestDatasetBindingOutputConfigOverrides:
-    """Code and built-in bindings store null to inherit output configs, never an empty list."""
+    """Dataset writes never store an empty output list: a binding stores null to inherit."""
 
     _CREATE_CODE = """
       mutation($input: CreateDatasetCodeEvaluatorInput!) {
@@ -4846,7 +4811,7 @@ class TestDatasetBindingOutputConfigOverrides:
     """
     _MAPPING: dict[str, dict[str, str]] = {"literalMapping": {}, "pathMapping": {}}
 
-    async def test_code_and_builtin_bindings_reject_an_empty_override(
+    async def test_dataset_writes_need_at_least_one_output_config(
         self,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
@@ -4854,6 +4819,37 @@ class TestDatasetBindingOutputConfigOverrides:
         sandbox_config: models.SandboxConfig,
         synced_builtin_evaluators: None,
     ) -> None:
+        dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
+        new_definitions = [
+            (
+                _CREATE_DATASET_LLM,
+                {**_dataset_llm_input(dataset_id, "llm-without-outputs"), "outputConfigs": []},
+            ),
+            (
+                self._CREATE_CODE,
+                {
+                    "datasetId": dataset_id,
+                    "name": "code-without-outputs",
+                    "source": {
+                        "definition": {
+                            "sourceCode": "def evaluate(output):\n    return {'score': 1.0}",
+                            "language": "PYTHON",
+                            "sandboxConfigId": str(
+                                GlobalID("SandboxConfig", str(sandbox_config.id))
+                            ),
+                        }
+                    },
+                    "inputMapping": self._MAPPING,
+                },
+            ),
+        ]
+        before = await _create_and_attach_rows(db)
+        for create, create_input in new_definitions:
+            rejected = await gql_client.execute(create, {"input": create_input})
+            assert rejected.errors
+            assert rejected.errors[0].message == "At least one output config is required."
+        assert await _create_and_attach_rows(db) == before
+
         async with db() as session:
             code_evaluator = models.CodeEvaluator(
                 name=IdentifierModel.model_validate(f"code-{token_hex(4)}"),
@@ -4879,7 +4875,6 @@ class TestDatasetBindingOutputConfigOverrides:
             await session.flush()
             builtin_id = await session.scalar(select(models.BuiltinEvaluator.id).limit(1))
         assert builtin_id is not None
-        dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
         creates = [
             (self._CREATE_CODE, "createDatasetCodeEvaluator", self._UPDATE_CODE),
             (self._CREATE_BUILTIN, "createDatasetBuiltinEvaluator", self._UPDATE_BUILTIN),
@@ -4936,3 +4931,135 @@ class TestDatasetBindingOutputConfigOverrides:
                 )
             )
         assert count == 2
+
+
+_CREATE_DATASET_LLM = """
+  mutation($input: CreateDatasetLLMEvaluatorInput!) {
+    createDatasetLlmEvaluator(input: $input) { evaluator { id } }
+  }
+"""
+_CREATE_DATASET_CODE = """
+  mutation($input: CreateDatasetCodeEvaluatorInput!) {
+    createDatasetCodeEvaluator(input: $input) { evaluator { id } }
+  }
+"""
+_CREATE_DATASET_DECISION = """
+  mutation($input: CreateDatasetDecisionEvaluatorInput!) {
+    createDatasetDecisionEvaluator(input: $input) { evaluator { id } }
+  }
+"""
+
+
+def _dataset_llm_input(dataset_id: str, name: str) -> dict[str, Any]:
+    return {
+        "datasetId": dataset_id,
+        "name": name,
+        "promptVersion": {
+            "templateFormat": "MUSTACHE",
+            "template": {
+                "messages": [{"role": "USER", "content": [{"text": {"text": "Judge {{output}}"}}]}]
+            },
+            "invocationParameters": {"openai": {"temperature": 0.0}},
+            "tools": _canonical_tools(
+                name="correctness",
+                description="correctness",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "label": {
+                            "type": "string",
+                            "enum": ["correct", "incorrect"],
+                            "description": "correctness",
+                        }
+                    },
+                    "required": ["label"],
+                },
+                tool_choice_name="correctness",
+            ),
+            "modelProvider": "OPENAI",
+            "modelName": "gpt-4",
+        },
+        "outputConfigs": [
+            {
+                "categorical": {
+                    "name": "correctness",
+                    "optimizationDirection": "MAXIMIZE",
+                    "values": [
+                        {"label": "correct", "score": 1},
+                        {"label": "incorrect", "score": 0},
+                    ],
+                }
+            }
+        ],
+        "inputMapping": {"literalMapping": {}, "pathMapping": {"output": "output"}},
+    }
+
+
+async def _create_and_attach_rows(db: DbSessionFactory) -> dict[str, int]:
+    async with db() as session:
+        return {
+            model.__name__: await session.scalar(sa.select(sa.func.count()).select_from(model)) or 0
+            for model in (
+                models.Project,
+                models.Evaluator,
+                models.Prompt,
+                models.PromptVersion,
+                models.PromptVersionTag,
+                models.CodeEvaluatorVersion,
+                models.Decision,
+                models.DecisionVersion,
+                models.DecisionVersionTag,
+                models.DatasetEvaluators,
+            )
+        }
+
+
+@pytest.mark.parametrize("kind", ["llm", "code", "decision"])
+async def test_dataset_create_and_attach_with_a_taken_name_leaves_nothing_behind(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    empty_dataset: models.Dataset,
+    sandbox_config: models.SandboxConfig,
+    kind: str,
+) -> None:
+    dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
+    taken = await gql_client.execute(
+        _CREATE_DATASET_LLM, {"input": _dataset_llm_input(dataset_id, "taken")}
+    )
+    assert taken.data and not taken.errors, taken.errors
+
+    before = await _create_and_attach_rows(db)
+    mapping = {"literalMapping": {}, "pathMapping": {"output": "output"}}
+    if kind == "llm":
+        mutation, create_input = _CREATE_DATASET_LLM, _dataset_llm_input(dataset_id, "taken")
+    elif kind == "code":
+        mutation = _CREATE_DATASET_CODE
+        create_input = {
+            "datasetId": dataset_id,
+            "name": "taken",
+            "source": {
+                "definition": {
+                    "sourceCode": "def evaluate(output):\n    return {'score': 1.0}",
+                    "language": "PYTHON",
+                    "sandboxConfigId": str(GlobalID("SandboxConfig", str(sandbox_config.id))),
+                }
+            },
+            "inputMapping": mapping,
+            "outputConfigs": [
+                {"continuous": {"name": "score", "optimizationDirection": "MAXIMIZE"}}
+            ],
+        }
+    else:
+        mutation = _CREATE_DATASET_DECISION
+        create_input = {
+            "datasetId": dataset_id,
+            "name": "taken",
+            "evaluatorName": "triage",
+            "decisionVersion": version_input(),
+            "inputMapping": {"pathMapping": {"ticket": "input.ticket"}, "literalMapping": {}},
+        }
+    result = await gql_client.execute(mutation, {"input": create_input})
+
+    assert result.errors
+    assert result.errors[0].message == "An evaluator named 'taken' already exists for this dataset"
+    assert await _create_and_attach_rows(db) == before

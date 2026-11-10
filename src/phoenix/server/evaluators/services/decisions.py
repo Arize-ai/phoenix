@@ -4,9 +4,9 @@ version tag it owns."""
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from secrets import token_hex
-from typing import Optional, Sequence
+from typing import Optional
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
@@ -23,7 +23,9 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.decisions.validation import validate_decision_custom_provider
 from phoenix.server.evaluators.services.dataset_bindings import (
     DatasetEvaluatorWriteValues,
-    dataset_binding_name_taken,
+    bind_dataset_evaluator,
+    check_dataset_binding,
+    dataset_binding_error,
     write_dataset_evaluator,
 )
 from phoenix.server.evaluators.services.definitions import (
@@ -33,7 +35,6 @@ from phoenix.server.evaluators.services.definitions import (
 )
 from phoenix.server.evaluators.services.management import (
     generate_unique_evaluator_name,
-    get_project_for_dataset_evaluator,
     validate_project_evaluator_project,
     validate_project_evaluator_target_update,
 )
@@ -243,68 +244,28 @@ class CreateDatasetDecisionBindingInput:
     output_configs: Optional[list[OutputConfigType]] = None
 
 
-async def _bind_decision_to_dataset(
-    session: AsyncSession,
-    *,
-    dataset_id: int,
-    evaluator: models.DecisionEvaluator,
-    name: Identifier,
-    input_mapping: InputMapping,
-    description: Optional[str],
-    user_id: Optional[int],
-    output_configs: Optional[Sequence[OutputConfigType]] = None,
-) -> models.DatasetEvaluators:
-    dataset_name = await session.scalar(
-        select(models.Dataset.name).where(models.Dataset.id == dataset_id)
-    )
-    if dataset_name is None:
-        raise NotFound("Dataset not found")
-    if output_configs is not None and list(output_configs) != evaluator.output_configs:
-        raise BadRequest(
-            "Decision outputs are derived from the questions and scoring policy; "
-            "edit the scoring policy to change scoring"
-        )
-    validate_decision_input_mapping(evaluator.selected_version, input_mapping)
-    binding = models.DatasetEvaluators(
-        dataset_id=dataset_id,
-        evaluator_id=evaluator.id,
-        name=name,
-        input_mapping=input_mapping,
-        # Derived from the judge whenever they are read, so they follow its edits.
-        output_configs=None,
-        description=description,
-        user_id=user_id,
-        project=get_project_for_dataset_evaluator(
-            dataset_name=dataset_name, dataset_evaluator_name=name.root
-        ),
-    )
-    session.add(binding)
-    await session.flush()
-    return binding
-
-
 async def create_dataset_decision_binding(
     context: EvaluatorServiceContext, input: CreateDatasetDecisionBindingInput
 ) -> models.DatasetEvaluators:
     """Attach a judge with a dataset-specific input mapping; scoring is the judge's own."""
-    dataset_id = _id(input.dataset_id, "Dataset")
+    settings = check_dataset_binding(
+        dataset_id=input.dataset_id,
+        name=input.name,
+        input_mapping=input.input_mapping,
+        description=input.description,
+        output_configs=input.output_configs,
+        user_id=context.user_id,
+    )
     try:
         async with context.db() as session:
             evaluator = await get_decision_evaluator(
                 session, _id(input.evaluator_id, "DecisionEvaluator"), lock=True
             )
-            binding = await _bind_decision_to_dataset(
-                session,
-                dataset_id=dataset_id,
-                evaluator=evaluator,
-                name=input.name,
-                input_mapping=input.input_mapping,
-                description=input.description,
-                user_id=context.user_id,
-                output_configs=input.output_configs,
-            )
+            binding = await bind_dataset_evaluator(session, evaluator, settings)
     except (IntegrityError, SQLiteIntegrityError) as error:
-        raise await dataset_binding_name_taken(context, dataset_id, input.name) from error
+        raise await dataset_binding_error(
+            context, error, name=settings.name, dataset_id=input.dataset_id
+        ) from error
     except ValueError as error:
         raise BadRequest(str(error)) from error
     return binding
@@ -464,7 +425,13 @@ async def create_dataset_decision_evaluator(
                 description=description,
             ),
         )
-    dataset_rowid = _id(dataset_id, "Dataset")
+    settings = check_dataset_binding(
+        dataset_id=dataset_id,
+        name=name,
+        input_mapping=input_mapping,
+        description=description,
+        user_id=context.user_id,
+    )
     try:
         async with context.db() as session:
             evaluator = await _new_decision_evaluator_from_source(
@@ -477,18 +444,10 @@ async def create_dataset_decision_evaluator(
                 decision_version=decision_version,
                 scoring_policy=scoring_policy,
             )
-            binding = await _bind_decision_to_dataset(
-                session,
-                dataset_id=dataset_rowid,
-                evaluator=evaluator,
-                name=name,
-                input_mapping=input_mapping,
-                description=description,
-                user_id=context.user_id,
-            )
+            binding = await bind_dataset_evaluator(session, evaluator, settings)
     except (IntegrityError, SQLiteIntegrityError) as error:
-        raise Conflict(
-            "A Decision, evaluator, or dataset binding with this name already exists"
+        raise await dataset_binding_error(
+            context, error, name=settings.name, dataset_id=dataset_id
         ) from error
     except ValueError as error:
         raise BadRequest(str(error)) from error
@@ -547,7 +506,9 @@ async def update_dataset_decision_evaluator(
             binding = await write_dataset_evaluator(session, binding.id, values)
             await session.flush()
     except (IntegrityError, SQLiteIntegrityError) as error:
-        raise Conflict("An evaluator with this name already exists in the dataset") from error
+        raise await dataset_binding_error(
+            context, error, name=name, dataset_evaluator_id=dataset_evaluator_id
+        ) from error
     except ValueError as error:
         raise BadRequest(str(error)) from error
     return binding
