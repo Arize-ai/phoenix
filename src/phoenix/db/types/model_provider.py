@@ -614,14 +614,14 @@ class AzureOpenAICustomProviderConfig(BaseModel):
             token_provider = get_bearer_token_provider(default_cred, scope)
 
             def create_client_with_default_cred() -> AsyncOpenAI:
-                # No env var isolation needed - credentials are already resolved via token_provider
-                return AsyncOpenAI(
-                    api_key=token_provider,
-                    base_url=base_url,
-                    default_headers=merged_headers,
-                    max_retries=0,
-                    http_client=openai_http_client(),
-                )
+                with without_env_vars("OPENAI_*"):
+                    return AsyncOpenAI(
+                        api_key=token_provider,
+                        base_url=base_url,
+                        default_headers=merged_headers,
+                        max_retries=0,
+                        http_client=openai_http_client(),
+                    )
 
             # Default credentials use managed identity, keyed by endpoint
             return LLMClientFactory(

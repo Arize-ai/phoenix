@@ -174,3 +174,18 @@ async def test_typesafe_client_does_not_follow_redirects() -> None:
     )
     async with typesafe.get_client_factory()() as typesafe_client:
         assert typesafe_client._http_client.follow_redirects is False
+
+
+async def test_azure_default_credentials_client_ignores_openai_env_vars(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OPENAI_ORG_ID", "org-from-env")
+    monkeypatch.setenv("OPENAI_PROJECT_ID", "proj-from-env")
+    azure = mp.AzureOpenAICustomProviderConfig(
+        azure_openai_authentication_method=mp.AuthenticationMethodDefaultCredentials(),
+        azure_openai_client_kwargs=mp.AzureOpenAIClientKwargs(
+            azure_endpoint="https://resource.openai.azure.com"
+        ),
+    )
+    async with azure.get_client_factory()() as client:
+        assert (client.organization, client.project) == (None, None)
