@@ -977,8 +977,9 @@ async def test_pending_session_with_deleted_trace_is_claimed_hydrated_and_publis
         limit=1,
     )
 
-    assert isinstance(await consumer._executor.hydrate(unit), HydratedWorkUnit)
-    await consumer._process_unit(unit)
+    (configuration,) = await consumer._executor.hydrate_configuration_snapshots([unit])
+    assert isinstance(configuration, HydratedWorkUnit)
+    await consumer._process_unit(unit, configuration)
 
     stored = await _get_session_unit(db, unit_id)
     assert stored.status == "DONE"
@@ -1019,10 +1020,9 @@ async def test_session_whose_traces_were_all_deleted_retires_as_content_lost(
         limit=1,
     )
 
-    assert await consumer._executor.hydrate(unit) == HydrationFailure(
-        HydrationFailureReason.NO_ROOT_TURNS
-    )
-    await consumer._process_unit(unit)
+    (configuration,) = await consumer._executor.hydrate_configuration_snapshots([unit])
+    assert configuration == HydrationFailure(HydrationFailureReason.NO_ROOT_TURNS)
+    await consumer._process_unit(unit, configuration)
 
     stored = await _get_session_unit(db, unit_id)
     assert stored.status == "CONTENT_LOST"
@@ -1296,11 +1296,8 @@ async def test_trace_hydration_binds_the_trace_context(
     )
     executor = _executor(db, evaluation_target="TRACE")
 
-    hydrated = await executor.hydrate(
-        _claimed_trace_unit(
-            trace.id,
-            project_evaluator_id=project_evaluator_id,
-        )
+    (hydrated,) = await executor.hydrate_configuration_snapshots(
+        [_claimed_trace_unit(trace.id, project_evaluator_id=project_evaluator_id)]
     )
     assert isinstance(hydrated, HydratedWorkUnit)
     assert hydrated.context["input"] == "question"
@@ -1311,12 +1308,9 @@ async def test_trace_hydration_binds_the_trace_context(
     assert metadata["num_spans"] == 1
     assert hydrated.annotation_metadata == {}
 
-    assert await executor.hydrate(
-        _claimed_trace_unit(
-            rootless_trace.id,
-            project_evaluator_id=project_evaluator_id,
-        )
-    ) == HydrationFailure(HydrationFailureReason.ROOT_SPAN_MISSING)
+    assert await executor.hydrate_configuration_snapshots(
+        [_claimed_trace_unit(rootless_trace.id, project_evaluator_id=project_evaluator_id)]
+    ) == [HydrationFailure(HydrationFailureReason.ROOT_SPAN_MISSING)]
 
 
 async def test_span_entity_path_mapping_binds_attribute(
@@ -2017,10 +2011,9 @@ async def test_cross_project_session_unit_expires_before_evaluator_call(
         claimed_by=consumer._consumer_id,
         limit=1,
     )
-    assert await consumer._executor.hydrate(unit) == HydrationFailure(
-        HydrationFailureReason.SESSION_PROJECT_MISMATCH
-    )
-    await consumer._process_unit(unit)
+    (configuration,) = await consumer._executor.hydrate_configuration_snapshots([unit])
+    assert configuration == HydrationFailure(HydrationFailureReason.SESSION_PROJECT_MISMATCH)
+    await consumer._process_unit(unit, configuration)
 
     assert (await _get_session_unit(db, unit_id)).status == "EXPIRED"
     assert client.requests == []
@@ -2060,10 +2053,9 @@ async def test_session_hydration_excludes_transferred_trace_roots(
         claimed_by=consumer._consumer_id,
         limit=1,
     )
-    assert await consumer._executor.hydrate(unit) == HydrationFailure(
-        HydrationFailureReason.NO_ROOT_TURNS
-    )
-    await consumer._process_unit(unit)
+    (configuration,) = await consumer._executor.hydrate_configuration_snapshots([unit])
+    assert configuration == HydrationFailure(HydrationFailureReason.NO_ROOT_TURNS)
+    await consumer._process_unit(unit, configuration)
 
     stored = await _get_session_unit(db, unit_id)
     assert stored.status == "CONTENT_LOST"
@@ -2123,7 +2115,8 @@ async def test_session_filtered_sampled_criteria_survives_hydration(
         claimed_by=consumer._consumer_id,
         limit=1,
     )
-    assert isinstance(await consumer._executor.hydrate(unit), HydratedWorkUnit)
+    (configuration,) = await consumer._executor.hydrate_configuration_snapshots([unit])
+    assert isinstance(configuration, HydratedWorkUnit)
 
 
 async def test_session_code_hydration_supplies_configured_payload_cap(
@@ -2165,7 +2158,7 @@ async def test_session_code_hydration_supplies_configured_payload_cap(
         db, evaluation_target="SESSION", sandbox_session_manager=cast(Any, manager)
     )
 
-    hydrated = await executor.hydrate(unit)
+    (hydrated,) = await executor.hydrate_configuration_snapshots([unit])
 
     assert isinstance(hydrated, HydratedWorkUnit)
     assert captured_runner_arguments["max_payload_bytes"] == 2048
@@ -2207,7 +2200,7 @@ async def test_code_hydration_supplies_sandbox_runtime(
         sandbox_runtime=sandbox_runtime,
     )
 
-    hydrated = await executor.hydrate(unit)
+    (hydrated,) = await executor.hydrate_configuration_snapshots([unit])
 
     assert isinstance(hydrated, HydratedWorkUnit)
     assert received_runtime is sandbox_runtime
@@ -2243,7 +2236,7 @@ async def test_span_code_hydration_supplies_configured_payload_cap(
     monkeypatch.setattr(resolution_module, "CodeEvaluatorRunner", _build_runner)
     executor = _executor(db, sandbox_session_manager=cast(Any, manager))
 
-    hydrated = await executor.hydrate(unit)
+    (hydrated,) = await executor.hydrate_configuration_snapshots([unit])
 
     assert isinstance(hydrated, HydratedWorkUnit)
     assert captured_runner_arguments["max_payload_bytes"] == 2048
@@ -2354,7 +2347,7 @@ async def test_code_criteria_input_mapping_override_is_used_during_execution(
 
     monkeypatch.setattr(resolution_module, "build_sandbox_backend", _build_backend)
     executor = _executor(db, sandbox_session_manager=cast(Any, manager))
-    hydrated = await executor.hydrate(unit)
+    (hydrated,) = await executor.hydrate_configuration_snapshots([unit])
     assert isinstance(hydrated, HydratedWorkUnit)
 
     await executor.evaluate_and_annotate(unit, hydrated)
@@ -2445,8 +2438,9 @@ async def test_reclaimed_execution_writes_one_annotation_and_one_insert_event(
 
     events: SimpleQueue[DmlEvent] = SimpleQueue()
     executor = _executor(db, event_queue=events)
-    first_hydrated = await executor.hydrate(first_claim)
-    reclaimed_hydrated = await executor.hydrate(reclaimed)
+    first_hydrated, reclaimed_hydrated = await executor.hydrate_configuration_snapshots(
+        [first_claim, reclaimed]
+    )
     assert isinstance(first_hydrated, HydratedWorkUnit)
     assert isinstance(reclaimed_hydrated, HydratedWorkUnit)
     assert reclaimed_hydrated.identifier == first_hydrated.identifier
@@ -2889,10 +2883,9 @@ async def test_execution_deadline_cancels_eval_and_counts_attempt(
         finally:
             cancelled.set()
 
-    monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
     monkeypatch.setattr(consumer._executor, "evaluate_and_annotate", _never_resolves)
 
-    await consumer._process_unit(unit)
+    await consumer._process_unit(unit, await _hydrate(unit))
 
     assert cancelled.is_set()
     row = await _get_unit(db, unit_id)
@@ -2927,10 +2920,9 @@ async def test_llm_execution_deadline_retries_without_counting_attempt(
     async def _never_resolves(*_: Any, **__: Any) -> None:
         await asyncio.Event().wait()
 
-    monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
     monkeypatch.setattr(consumer._executor, "evaluate_and_annotate", _never_resolves)
 
-    await consumer._process_unit(unit)
+    await consumer._process_unit(unit, await _hydrate(unit))
 
     row = await _get_unit(db, unit_id)
     assert row.status == "ERROR"
@@ -2980,12 +2972,11 @@ async def test_lost_claim_cancels_the_evaluation_without_a_transition(
         await publish(**kwargs)
 
     monkeypatch.setattr(consumer_module, "HEARTBEAT_INTERVAL_SECONDS", 0.01)
-    monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
     monkeypatch.setattr(consumer._executor, "evaluate_and_annotate", _never_resolves)
     monkeypatch.setattr(consumer, "_retry_transition", _record_transition)
     monkeypatch.setattr(coordinator, "publish", _record_publish)
 
-    await asyncio.wait_for(consumer._process_unit(unit), timeout=5)
+    await asyncio.wait_for(consumer._process_unit(unit, await _hydrate(unit)), timeout=5)
 
     assert cancelled.is_set()
     assert writes == []
@@ -3022,9 +3013,7 @@ async def test_sandbox_payload_limit_is_terminal_without_counting_attempt(
             output_configs=[_output_config("criterion")],
         )
 
-    monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
-
-    await consumer._process_unit(unit)
+    await consumer._process_unit(unit, await _hydrate(unit))
 
     row = await _get_unit(db, unit_id)
     assert row.status == "EXPIRED"
@@ -3056,9 +3045,8 @@ async def test_process_cancellation_releases_claim_without_counting_attempt(
         started.set()
         await asyncio.Event().wait()
 
-    monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
     monkeypatch.setattr(consumer._executor, "evaluate_and_annotate", _never_resolves)
-    task = asyncio.create_task(consumer._process_unit(unit))
+    task = asyncio.create_task(consumer._process_unit(unit, await _hydrate(unit)))
     await started.wait()
     task.cancel()
 
@@ -3180,10 +3168,9 @@ async def test_storage_pause_before_publication_returns_claim_to_pending(
             output_configs=[_output_config("criterion")],
         )
 
-    monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
     db.should_not_insert_or_update = True
     try:
-        await consumer._process_unit(unit)
+        await consumer._process_unit(unit, await _hydrate(unit))
     finally:
         db.should_not_insert_or_update = False
 
@@ -3333,15 +3320,7 @@ async def test_a_consumer_that_reclaims_its_own_unit_fences_out_the_earlier_clai
     async def _write_nothing(_: Any) -> None:
         return None
 
-    async def _hydrate(_: ClaimedWorkUnit) -> HydratedWorkUnit:
-        return _hydrated_stub(
-            results=[_evaluation_result("criterion")],
-            evaluator_kind="LLM",
-            output_configs=[_output_config("criterion")],
-        )
-
     monkeypatch.setattr(consumer, "_process_unit", _start)
-    monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
     await _cycle_to_completion(consumer)
     lapsed = datetime.now(timezone.utc) - timedelta(seconds=CLAIM_LEASE_TTL_SECONDS + 1)
     async with db() as session:
@@ -3365,7 +3344,14 @@ async def test_a_consumer_that_reclaims_its_own_unit_fences_out_the_earlier_clai
     row = await _get_unit(db, unit_id)
     assert (row.status, row.claimed_by, row.attempts) == ("RUNNING", second.claimed_by, 1)
 
-    await process_unit(second)
+    await process_unit(
+        second,
+        _hydrated_stub(
+            results=[_evaluation_result("criterion")],
+            evaluator_kind="LLM",
+            output_configs=[_output_config("criterion")],
+        ),
+    )
     assert (await _get_unit(db, unit_id)).status == "DONE"
     assert len(await _annotations(db)) == 1
 
@@ -3410,12 +3396,11 @@ async def test_failure_transition_retries_raised_exceptions(
         return await original_heartbeat(**kwargs)
 
     monkeypatch.setattr(consumer_module, "_TRANSITION_RETRY_DELAYS_SECONDS", (0.0, 0.0, 0.0))
-    monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
     monkeypatch.setattr(consumer._executor, "evaluate_and_annotate", _evaluate)
     monkeypatch.setattr(consumer._coordinator, "fail", _flaky_fail)
     monkeypatch.setattr(consumer._coordinator, "heartbeat", _heartbeat)
 
-    await consumer._process_unit(unit)
+    await consumer._process_unit(unit, await _hydrate(unit))
 
     assert fail_calls == 4
     assert heartbeat_calls == 3
@@ -3457,11 +3442,10 @@ async def test_failure_transition_retries_after_ambiguous_commit(
         return failed
 
     monkeypatch.setattr(consumer_module, "_TRANSITION_RETRY_DELAYS_SECONDS", (0.0, 0.0, 0.0))
-    monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
     monkeypatch.setattr(consumer._executor, "evaluate_and_annotate", _evaluate)
     monkeypatch.setattr(consumer._coordinator, "fail", _ambiguous_fail)
 
-    await consumer._process_unit(unit)
+    await consumer._process_unit(unit, await _hydrate(unit))
 
     assert fail_calls == 1
     row = await _get_unit(db, unit_id)

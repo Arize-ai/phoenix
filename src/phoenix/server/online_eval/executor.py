@@ -78,6 +78,7 @@ from phoenix.server.online_eval.bound_variables import (
 from phoenix.server.online_eval.coordinator import (
     ClaimedWorkUnit,
     EvalWorkCoordinator,
+    PublicationClaimLostError,
 )
 from phoenix.server.online_eval.derivation import (
     annotation_identifier,
@@ -118,28 +119,20 @@ class OnlineEvalStoragePaused(Exception):
 
 
 class HydrationFailureReason(str, Enum):
-    PROJECT_EVALUATOR_MISSING = "PROJECT_EVALUATOR_MISSING"
     PROJECT_EVALUATOR_DISABLED = "PROJECT_EVALUATOR_DISABLED"
-    EVALUATOR_MISSING = "EVALUATOR_MISSING"
     EVALUATOR_VERSION_MISSING = "EVALUATOR_VERSION_MISSING"
     SANDBOX_RUNTIME_UNAVAILABLE = "SANDBOX_RUNTIME_UNAVAILABLE"
-    SPAN_MISSING = "SPAN_MISSING"
-    SESSION_MISSING = "SESSION_MISSING"
     SESSION_PROJECT_MISMATCH = "SESSION_PROJECT_MISMATCH"
-    TRACE_MISSING = "TRACE_MISSING"
     TRACE_PROJECT_MISMATCH = "TRACE_PROJECT_MISMATCH"
-    UNSUPPORTED_TARGET = "UNSUPPORTED_TARGET"
     NO_ROOT_TURNS = "NO_ROOT_TURNS"
     ROOT_SPAN_MISSING = "ROOT_SPAN_MISSING"
 
 
-# The subject was scheduled and then lost its content before it was evaluated. Span
-# work is not listed: a span's work unit is deleted with the span it describes.
+# The subject still exists but has nothing left to evaluate; a deleted subject takes
+# its work unit with it, so it needs no reason of its own.
 _CONTENT_LOST_REASONS = frozenset(
     {
-        HydrationFailureReason.SESSION_MISSING,
         HydrationFailureReason.NO_ROOT_TURNS,
-        HydrationFailureReason.TRACE_MISSING,
         HydrationFailureReason.ROOT_SPAN_MISSING,
     }
 )
@@ -487,7 +480,7 @@ async def _load_span_context(
     project_id: int,
     target_vocabularies: _TargetVocabularies,
 ) -> tuple[dict[str, Any], Optional[dict[str, Any]]] | HydrationFailure:
-    span = await session.get(
+    span = await session.get_one(
         models.Span,
         unit.target_rowid,
         options=[
@@ -495,8 +488,6 @@ async def _load_span_context(
             selectinload(models.Span.span_annotations).selectinload(models.SpanAnnotation.user),
         ],
     )
-    if span is None:
-        return HydrationFailure(HydrationFailureReason.SPAN_MISSING)
     return (
         span_eval_context(
             span,
@@ -514,9 +505,7 @@ async def _load_session_context(
     project_id: int,
     target_vocabularies: _TargetVocabularies,
 ) -> tuple[dict[str, Any], Optional[dict[str, Any]]] | HydrationFailure:
-    project_session = await session.get(models.ProjectSession, unit.target_rowid)
-    if project_session is None:
-        return HydrationFailure(HydrationFailureReason.SESSION_MISSING)
+    project_session = await session.get_one(models.ProjectSession, unit.target_rowid)
     if project_session.project_id != project_id:
         return HydrationFailure(HydrationFailureReason.SESSION_PROJECT_MISMATCH)
     loaded = await load_session_eval_context(
@@ -537,9 +526,7 @@ async def _load_trace_context(
     project_id: int,
     target_vocabularies: _TargetVocabularies,
 ) -> tuple[dict[str, Any], Optional[dict[str, Any]]] | HydrationFailure:
-    trace = await session.get(models.Trace, unit.target_rowid)
-    if trace is None:
-        return HydrationFailure(HydrationFailureReason.TRACE_MISSING)
+    trace = await session.get_one(models.Trace, unit.target_rowid)
     if trace.project_rowid != project_id:
         return HydrationFailure(HydrationFailureReason.TRACE_PROJECT_MISMATCH)
     context = await load_trace_eval_context(
@@ -633,14 +620,6 @@ class OnlineEvalExecutor:
         for evaluator_kind in get_args(EvaluatorKind):
             ONLINE_EVAL_EVALUATOR_DURATION_SECONDS.labels(evaluator_kind=evaluator_kind)
 
-    async def hydrate(self, unit: ClaimedWorkUnit) -> HydrationOutcome:
-        configuration = (await self.hydrate_configuration_snapshots([unit]))[0]
-        if isinstance(configuration, SharedHydrationFailure):
-            raise configuration.error
-        if isinstance(configuration, Exception):
-            raise configuration
-        return configuration
-
     async def hydrate_configuration_snapshots(
         self,
         units: Sequence[ClaimedWorkUnit],
@@ -663,7 +642,7 @@ class OnlineEvalExecutor:
         rows = (
             await session.execute(
                 select(models.ProjectEvaluator, PolymorphicEvaluator)
-                .outerjoin(
+                .join(
                     PolymorphicEvaluator,
                     models.ProjectEvaluator.evaluator_id == PolymorphicEvaluator.id,
                 )
@@ -675,21 +654,21 @@ class OnlineEvalExecutor:
             for project_evaluator, evaluator in rows
         }
 
-        preliminary: list[Optional[HydrationFailure]] = []
+        preliminary: list[Optional[HydrationFailure | PublicationClaimLostError]] = []
         project_evaluator_pairs: dict[int, tuple[models.ProjectEvaluator, models.Evaluator]] = {}
         for unit in units:
             row = rows_by_project_evaluator_id.get(unit.project_evaluator_id)
-            failure: Optional[HydrationFailure] = None
+            failure: Optional[HydrationFailure | PublicationClaimLostError] = None
             if row is None:
-                failure = HydrationFailure(HydrationFailureReason.PROJECT_EVALUATOR_MISSING)
+                # A deleted project evaluator takes its work units with it: end only this
+                # one, as a lost claim.
+                failure = PublicationClaimLostError(
+                    f"Project evaluator {unit.project_evaluator_id} was deleted"
+                )
             else:
                 project_evaluator, evaluator = row
                 if not project_evaluator.enabled:
                     failure = HydrationFailure(HydrationFailureReason.PROJECT_EVALUATOR_DISABLED)
-                elif unit.evaluation_target != self._evaluation_target:
-                    failure = HydrationFailure(HydrationFailureReason.UNSUPPORTED_TARGET)
-                elif evaluator is None:
-                    failure = HydrationFailure(HydrationFailureReason.EVALUATOR_MISSING)
                 else:
                     project_evaluator_pairs.setdefault(
                         project_evaluator.id, (project_evaluator, evaluator)

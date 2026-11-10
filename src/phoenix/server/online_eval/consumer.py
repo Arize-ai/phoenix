@@ -261,7 +261,7 @@ class EvaluationConsumer(DaemonTask):
     async def _process_unit(
         self,
         unit: ClaimedWorkUnit,
-        configuration: Optional[ConfigurationSnapshotOutcome] = None,
+        configuration: ConfigurationSnapshotOutcome,
     ) -> None:
         # The guard wraps the whole lifecycle, including the terminal transition:
         # a cancel delivered while a transition retries would otherwise escape from
@@ -306,13 +306,11 @@ class EvaluationConsumer(DaemonTask):
     async def _execute_unit(
         self,
         unit: ClaimedWorkUnit,
-        configuration: Optional[ConfigurationSnapshotOutcome] = None,
+        configuration: ConfigurationSnapshotOutcome,
     ) -> None:
         hydrated_work_unit: Optional[HydratedWorkUnit] = None
         try:
-            if configuration is None:
-                hydrated = await self._executor.hydrate(unit)
-            elif isinstance(configuration, SharedHydrationFailure):
+            if isinstance(configuration, SharedHydrationFailure):
                 await self._release_claim(unit)
                 return
             elif isinstance(configuration, Exception):
