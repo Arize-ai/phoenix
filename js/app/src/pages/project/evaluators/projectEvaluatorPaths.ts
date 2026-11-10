@@ -34,6 +34,33 @@ export type ProjectEvaluatorCreationPaths = {
   attach: (evaluatorId: string) => string;
 };
 
+/**
+ * The tabs of a project evaluator's details page, each a nested route so it
+ * can be linked and restored on reload. The overview sits at the evaluator's
+ * own path; the others at a segment of the same name under it.
+ */
+export const PROJECT_EVALUATOR_TABS = [
+  "overview",
+  "versions",
+  "traces",
+  "metrics",
+] as const;
+
+export type ProjectEvaluatorTab = (typeof PROJECT_EVALUATOR_TABS)[number];
+
+export function isProjectEvaluatorTab(
+  value: unknown
+): value is ProjectEvaluatorTab {
+  return PROJECT_EVALUATOR_TABS.some((tab) => tab === value);
+}
+
+/** The route id of a details tab, which the page reads to select it. */
+export const projectEvaluatorTabRouteId = (tab: ProjectEvaluatorTab) =>
+  `projectEvaluatorDetails.${tab}`;
+
+const tabSegment = (tab: ProjectEvaluatorTab) =>
+  tab === "overview" ? "" : `/${tab}`;
+
 /** Drops the search params that belong to a sub-view a destination leaves. */
 const withoutCompareParams = (search: string) =>
   withSearchParams(search, (searchParams) => {
@@ -93,10 +120,18 @@ export function useProjectEvaluatorPaths() {
             );
           }
         })}`,
-      details: (projectEvaluatorId: string) =>
-        `${list}/${encodeURIComponent(projectEvaluatorId)}${evaluatorSearch(projectEvaluatorId)}`,
-      edit: (projectEvaluatorId: string) =>
-        `${list}/${encodeURIComponent(projectEvaluatorId)}/edit${evaluatorSearch(projectEvaluatorId)}`,
+      /** The details page, on its overview unless a tab is given. */
+      details: (
+        projectEvaluatorId: string,
+        tab: ProjectEvaluatorTab = "overview"
+      ) =>
+        `${list}/${encodeURIComponent(projectEvaluatorId)}${tabSegment(tab)}${evaluatorSearch(projectEvaluatorId)}`,
+      /** The edit slideover, over the overview unless a tab is given. */
+      edit: (
+        projectEvaluatorId: string,
+        tab: ProjectEvaluatorTab = "overview"
+      ) =>
+        `${list}/${encodeURIComponent(projectEvaluatorId)}${tabSegment(tab)}/edit${evaluatorSearch(projectEvaluatorId)}`,
     };
   }, [rootPath, search, currentProjectEvaluatorId]);
 }

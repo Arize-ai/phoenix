@@ -582,6 +582,7 @@ class PatchProjectEvaluatorRequest(TypedDict):
     sampling_rate: NotRequired[float]
     filter_condition: NotRequired[str]
     enabled: NotRequired[bool]
+    tracing_enabled: NotRequired[bool]
     input_mapping: NotRequired[InputMapping]
     evaluation_delay_seconds: NotRequired[int]
 
@@ -653,6 +654,7 @@ class ProjectEvaluator(TypedDict):
     sampling_rate: float
     filter_condition: str
     enabled: bool
+    tracing_enabled: bool
     input_mapping: Optional[InputMapping]
     evaluation_delay_seconds: int
 
@@ -1778,6 +1780,7 @@ class CreateProjectEvaluatorRequest(TypedDict):
     sampling_rate: float
     filter_condition: NotRequired[str]
     enabled: NotRequired[bool]
+    tracing_enabled: NotRequired[bool]
     input_mapping: NotRequired[InputMapping]
     evaluation_delay_seconds: NotRequired[int]
 

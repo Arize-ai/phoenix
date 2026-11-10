@@ -1524,6 +1524,7 @@ CREATE TABLE project_evaluators (
         ),
     input_mapping JSONB,
     enabled BOOLEAN DEFAULT true NOT NULL,
+    tracing_enabled BOOLEAN DEFAULT true NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT pk_project_evaluators PRIMARY KEY (id),

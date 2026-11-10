@@ -2557,6 +2557,46 @@ async def test_evaluation_is_traced_into_the_evaluator_own_project(db: DbSession
     assert annotation.metadata_["phoenix.evaluator_trace_id"] == evaluator_trace_id
 
 
+async def test_evaluation_with_tracing_disabled_writes_its_annotation_but_no_trace(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    unit = await _claim_queued_unit(db, project_id=project.id, span_rowid=span.id)
+    async with db() as session:
+        await session.execute(
+            update(models.ProjectEvaluator)
+            .where(models.ProjectEvaluator.id == unit.project_evaluator_id)
+            .values(tracing_enabled=False)
+        )
+    executor = _executor(db, tracer_factory=lambda: Tracer(span_cost_calculator=Mock()))
+    hydrated = await executor.hydrate(unit)
+    assert isinstance(hydrated, HydratedWorkUnit)
+    assert hydrated.tracing_enabled is False
+
+    await executor.evaluate_and_annotate(
+        unit,
+        replace(hydrated, evaluator=cast(Any, _StubEvaluator([_evaluation_result("criterion")]))),
+    )
+
+    async with db() as session:
+        traced_span_count = await session.scalar(
+            select(func.count(models.Span.id))
+            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+            .join(
+                models.ProjectEvaluator,
+                models.Trace.project_rowid == models.ProjectEvaluator.trace_project_id,
+            )
+            .where(models.ProjectEvaluator.id == unit.project_evaluator_id)
+        )
+    assert traced_span_count == 0
+    (annotation,) = await _annotations(db)
+    assert annotation.label == "good"
+    assert "phoenix.evaluator_trace_id" not in annotation.metadata_
+
+
 async def test_llm_incomplete_result_set_writes_nothing(db: DbSessionFactory) -> None:
     async with db() as session:
         project = await _add_project(session)

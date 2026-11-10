@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<97914757d21b375947acbb1d93318bc2>>
+ * @generated SignedSource<<4242dced502f07bc0380f05c713ee699>>
  * @lightSyntaxTransform
  */
 
@@ -29,6 +29,7 @@ export type CreateProjectDecisionEvaluatorInput = {
   projectId: string;
   samplingRate: number;
   scoringPolicy?: DecisionScoringPolicyInput | null;
+  tracingEnabled?: boolean;
 };
 export type DecisionVersionInput = {
   customProviderId?: string | null;
@@ -141,6 +142,7 @@ export type ProjectDecisionEvaluatorDialogContentCreateMutation$data = {
       readonly id: string;
       readonly name: string;
       readonly samplingRate: number;
+      readonly tracingEnabled: boolean;
     };
   };
 };
@@ -210,6 +212,13 @@ v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "tracingEnabled",
+  "storageKey": null
+},
+v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "kind",
   "storageKey": null
 };
@@ -242,6 +251,7 @@ return {
               (v5/*:: as any*/),
               (v6/*:: as any*/),
               (v7/*:: as any*/),
+              (v8/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -250,7 +260,7 @@ return {
                 "name": "evaluator",
                 "plural": false,
                 "selections": [
-                  (v8/*:: as any*/)
+                  (v9/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -292,6 +302,7 @@ return {
               (v5/*:: as any*/),
               (v6/*:: as any*/),
               (v7/*:: as any*/),
+              (v8/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -307,7 +318,7 @@ return {
                     "name": "__typename",
                     "storageKey": null
                   },
-                  (v8/*:: as any*/),
+                  (v9/*:: as any*/),
                   (v2/*:: as any*/)
                 ],
                 "storageKey": null
@@ -321,16 +332,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "80da7c6448caeda0ca6ebf79ddd97a8b",
+    "cacheID": "486f934a928b92670fbbda1d32706e9b",
     "id": null,
     "metadata": {},
     "name": "ProjectDecisionEvaluatorDialogContentCreateMutation",
     "operationKind": "mutation",
-    "text": "mutation ProjectDecisionEvaluatorDialogContentCreateMutation(\n  $input: CreateProjectDecisionEvaluatorInput!\n) {\n  createProjectDecisionEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      evaluationTarget\n      filterCondition\n      samplingRate\n      enabled\n      evaluator {\n        __typename\n        kind\n        id\n      }\n    }\n  }\n}\n"
+    "text": "mutation ProjectDecisionEvaluatorDialogContentCreateMutation(\n  $input: CreateProjectDecisionEvaluatorInput!\n) {\n  createProjectDecisionEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      evaluationTarget\n      filterCondition\n      samplingRate\n      enabled\n      tracingEnabled\n      evaluator {\n        __typename\n        kind\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "da3932e32f9020caad5873c9178045ab";
+(node as any).hash = "ef0c09fdb695a8b97c26c2e4453a1e0e";
 
 export default node;

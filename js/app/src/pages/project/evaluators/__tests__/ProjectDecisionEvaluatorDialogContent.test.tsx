@@ -89,6 +89,7 @@ const scope: ProjectEvaluatorScope = {
   filterCondition: "span_kind == 'LLM'",
   samplingRate: 0.5,
   evaluationDelaySeconds: DEFAULT_EVALUATION_DELAY_SECONDS,
+  tracingEnabled: true,
 };
 
 const savedEvaluator: DecisionEvaluatorData = {

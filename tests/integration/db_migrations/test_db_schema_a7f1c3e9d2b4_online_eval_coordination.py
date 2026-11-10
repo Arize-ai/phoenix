@@ -227,6 +227,7 @@ class TestProjectEvaluators(_OnlineEvalSchemaTest):
             "evaluation_delay_seconds",
             "input_mapping",
             "enabled",
+            "tracing_enabled",
             "created_at",
             "updated_at",
         }

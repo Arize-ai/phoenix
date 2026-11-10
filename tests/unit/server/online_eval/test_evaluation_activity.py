@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 import pytest
+import sqlalchemy as sa
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -234,6 +235,45 @@ async def test_server_activity_is_grouped_by_project(db: DbSessionFactory) -> No
             ActivityBinGroup(second, None, 0, 1, 0, _approx(3600), None, 0),
         ),
     ]
+
+
+async def test_activity_says_when_it_leaves_out_untraced_evaluators(
+    db: DbSessionFactory,
+) -> None:
+    """An enabled evaluator with tracing off adds no cost, and the activity of its scope says
+    so; a disabled one, or one in another project, does not count."""
+    seeded = await _seed(db)
+    first_project = await load_evaluation_activity(
+        db, project_id=seeded.first_project_id, start=_at(12), end=_at(15), time_bins=_HOURLY
+    )
+    assert first_project.excludes_untraced_evaluators is False
+
+    async with db() as session:
+        await session.execute(
+            sa.update(models.ProjectEvaluator)
+            .where(models.ProjectEvaluator.id == seeded.trace_evaluator_id)
+            .values(tracing_enabled=False)
+        )
+    first_project, second_project, server = [
+        await load_evaluation_activity(
+            db, project_id=project_id, start=_at(12), end=_at(15), time_bins=_HOURLY
+        )
+        for project_id in (seeded.first_project_id, seeded.second_project_id, None)
+    ]
+    assert first_project.excludes_untraced_evaluators is True
+    assert second_project.excludes_untraced_evaluators is False
+    assert server.excludes_untraced_evaluators is True
+
+    async with db() as session:
+        await session.execute(
+            sa.update(models.ProjectEvaluator)
+            .where(models.ProjectEvaluator.id == seeded.trace_evaluator_id)
+            .values(enabled=False)
+        )
+    server = await load_evaluation_activity(
+        db, project_id=None, start=_at(12), end=_at(15), time_bins=_HOURLY
+    )
+    assert server.excludes_untraced_evaluators is False
 
 
 @pytest.mark.parametrize(

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e945118873577441ac5b0ac399cf800f>>
+ * @generated SignedSource<<c381bf47ecde467d2bf6039ed4036350>>
  * @lightSyntaxTransform
  */
 
@@ -20,6 +20,7 @@ export type AddProjectCodeEvaluatorInput = {
   name: string;
   projectId: string;
   samplingRate: number;
+  tracingEnabled?: boolean;
 };
 export type EvaluatorInputMappingInput = {
   literalMapping: any;
@@ -40,6 +41,7 @@ export type CreateProjectEvaluatorSlideoverAddCodeMutation$data = {
       readonly id: string;
       readonly name: string;
       readonly samplingRate: number;
+      readonly tracingEnabled: boolean;
     };
   };
 };
@@ -109,6 +111,13 @@ v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "tracingEnabled",
+  "storageKey": null
+},
+v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "kind",
   "storageKey": null
 };
@@ -141,6 +150,7 @@ return {
               (v5/*:: as any*/),
               (v6/*:: as any*/),
               (v7/*:: as any*/),
+              (v8/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -149,7 +159,7 @@ return {
                 "name": "evaluator",
                 "plural": false,
                 "selections": [
-                  (v8/*:: as any*/)
+                  (v9/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -191,6 +201,7 @@ return {
               (v5/*:: as any*/),
               (v6/*:: as any*/),
               (v7/*:: as any*/),
+              (v8/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -206,7 +217,7 @@ return {
                     "name": "__typename",
                     "storageKey": null
                   },
-                  (v8/*:: as any*/),
+                  (v9/*:: as any*/),
                   (v2/*:: as any*/)
                 ],
                 "storageKey": null
@@ -220,16 +231,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ff70f37bd491a275fe6f76ce8f736cc8",
+    "cacheID": "08e51e65bc08632d952cbfcca80af784",
     "id": null,
     "metadata": {},
     "name": "CreateProjectEvaluatorSlideoverAddCodeMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateProjectEvaluatorSlideoverAddCodeMutation(\n  $input: AddProjectCodeEvaluatorInput!\n) {\n  addProjectCodeEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      evaluationTarget\n      filterCondition\n      samplingRate\n      enabled\n      evaluator {\n        __typename\n        kind\n        id\n      }\n    }\n  }\n}\n"
+    "text": "mutation CreateProjectEvaluatorSlideoverAddCodeMutation(\n  $input: AddProjectCodeEvaluatorInput!\n) {\n  addProjectCodeEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      evaluationTarget\n      filterCondition\n      samplingRate\n      enabled\n      tracingEnabled\n      evaluator {\n        __typename\n        kind\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ba204577b1ac95036a0e00fae18c7230";
+(node as any).hash = "e407d962279ffb1118a6a0ef8bbf7526";
 
 export default node;

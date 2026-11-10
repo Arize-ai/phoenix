@@ -141,6 +141,7 @@ export function useProjectEvaluator(projectEvaluatorId: string) {
             samplingRate
             evaluationDelaySeconds
             enabled
+            tracingEnabled
             inputMapping {
               pathMapping
               literalMapping
@@ -303,6 +304,7 @@ function getScope(evaluator: ProjectEvaluatorNode): ProjectEvaluatorScope {
     filterCondition: evaluator.filterCondition,
     samplingRate: evaluator.samplingRate,
     evaluationDelaySeconds: evaluator.evaluationDelaySeconds,
+    tracingEnabled: evaluator.tracingEnabled,
   };
 }
 
@@ -418,6 +420,7 @@ function EditLlmProjectEvaluatorContent({
             filterCondition
             samplingRate
             enabled
+            tracingEnabled
           }
         }
       }
@@ -490,6 +493,7 @@ function EditLlmProjectEvaluatorContent({
             evaluationTarget: scope.targetType,
             filterCondition: scope.filterCondition,
             ...toEvaluationDelayInput(scope),
+            tracingEnabled: scope.tracingEnabled,
           },
         },
         onCompleted: () => {
@@ -605,6 +609,7 @@ function EditCodeProjectEvaluator({
             filterCondition
             samplingRate
             enabled
+            tracingEnabled
           }
         }
       }
@@ -747,6 +752,7 @@ function EditCodeProjectEvaluator({
                     evaluationTarget: scope.targetType,
                     filterCondition: scope.filterCondition,
                     ...toEvaluationDelayInput(scope),
+                    tracingEnabled: scope.tracingEnabled,
                   },
                 },
                 onCompleted: () => {

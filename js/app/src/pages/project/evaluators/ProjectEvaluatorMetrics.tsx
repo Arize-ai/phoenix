@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { Flex } from "@phoenix/components";
+import { Alert, Flex } from "@phoenix/components";
 import {
   type ProjectEvaluatorResultAnnotation,
   useProjectEvaluatorResultAnnotations,
@@ -57,6 +57,7 @@ export function ProjectEvaluatorMetrics({
     graphql`
       fragment ProjectEvaluatorMetrics_projectEvaluator on ProjectEvaluator {
         evaluationTarget
+        tracingEnabled
         project {
           id
         }
@@ -74,6 +75,12 @@ export function ProjectEvaluatorMetrics({
   const resultAnnotations = useProjectEvaluatorResultAnnotations(data);
   return (
     <div css={metricsScrollContainerCSS}>
+      {data.tracingEnabled ? null : (
+        <Alert variant="info" banner title="Tracing is off">
+          Cost, latency, and evaluation charts show traced evaluations only.
+          Turn on tracing under Advanced to record a trace of each evaluation.
+        </Alert>
+      )}
       <ProjectEvaluatorMetricPanels
         evaluatedProjectId={data.project.id}
         traceProjectId={data.traceProject.id}

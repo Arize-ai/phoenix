@@ -845,6 +845,7 @@ px project evaluator create support-bot --name resolution --evaluation-target SE
 | `--evaluator-id <id>`            | The LLM or code evaluator to bind (required)                                                                   | —        |
 | `--filter-condition <expr>`      | Filter expression records must match, in the language of the evaluation target                                 | —        |
 | `--disabled`                     | Create the binding paused                                                                                      | —        |
+| `--no-tracing`                   | Write annotations only, without a trace of each evaluation; saves storage, but cost and time are not measured  | tracing  |
 | `--input-mapping <json>`         | JSON object with `literal_mapping` and `path_mapping` (omit to use the definition's; LLM evaluators have none) | —        |
 | `--evaluation-delay-seconds <n>` | For `TRACE` and `SESSION` targets, quiet period before evaluation (rejected for `SPAN`)                        | server   |
 | `--format <format>`              | `pretty`, `json`, or `raw`                                                                                     | `pretty` |
@@ -860,7 +861,7 @@ px project evaluator update UHJvamVjdEV2YWx1YXRvcjox --disabled
 px project evaluator update UHJvamVjdEV2YWx1YXRvcjox --sampling-rate 0.5 --filter-condition "span_kind == 'LLM'"
 ```
 
-Accepts `--name`, `--sampling-rate`, `--filter-condition`, `--enabled` / `--disabled`, `--input-mapping`, and `--evaluation-delay-seconds`. The evaluation target cannot change. `--inherit-input-mapping` drops the binding's mapping so the evaluator uses the definition's again, and `--default-evaluation-delay` restores the server's default delay for the target.
+Accepts `--name`, `--sampling-rate`, `--filter-condition`, `--enabled` / `--disabled`, `--tracing` / `--no-tracing`, `--input-mapping`, and `--evaluation-delay-seconds`. The evaluation target cannot change. `--inherit-input-mapping` drops the binding's mapping so the evaluator uses the definition's again, and `--default-evaluation-delay` restores the server's default delay for the target.
 
 ---
 

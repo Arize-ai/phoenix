@@ -164,6 +164,7 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
             filterCondition
             samplingRate
             enabled
+            tracingEnabled
             evaluator {
               kind
             }
@@ -220,6 +221,7 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
           inputMapping: null,
           filterCondition: scope.filterCondition,
           ...toEvaluationDelayInput(scope),
+          tracingEnabled: scope.tracingEnabled,
           enabled: true,
         },
       },

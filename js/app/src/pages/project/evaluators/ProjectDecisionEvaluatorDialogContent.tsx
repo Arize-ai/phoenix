@@ -81,6 +81,7 @@ const createMutation = graphql`
         filterCondition
         samplingRate
         enabled
+        tracingEnabled
         evaluator {
           kind
         }
@@ -105,6 +106,7 @@ function getBindingFields(scope: ProjectEvaluatorScope) {
     samplingRate: scope.samplingRate,
     filterCondition: scope.filterCondition,
     ...toEvaluationDelayInput(scope),
+    tracingEnabled: scope.tracingEnabled,
   };
 }
 
@@ -438,6 +440,7 @@ function EditProjectDecisionEvaluatorForm({
             filterCondition
             samplingRate
             enabled
+            tracingEnabled
           }
         }
       }

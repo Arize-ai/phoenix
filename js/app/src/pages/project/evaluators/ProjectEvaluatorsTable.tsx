@@ -27,10 +27,6 @@ import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import type { TimeRangeISOStrings } from "@phoenix/components/datetime";
 import { useTimeRange } from "@phoenix/components/datetime";
-import {
-  EvaluatorAverageCost,
-  EvaluatorCost,
-} from "@phoenix/components/evaluators/EvaluatorCost";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import { SandboxConfigLabel } from "@phoenix/components/sandbox/SandboxConfigLabel";
@@ -66,6 +62,10 @@ import type { ProjectEvaluatorsTable_row$key } from "@phoenix/pages/project/eval
 import type { ProjectEvaluatorsTable_scores$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_scores.graphql";
 import { getClearableCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
 import { ProjectEvaluatorActionMenu } from "@phoenix/pages/project/evaluators/ProjectEvaluatorActionMenu";
+import {
+  ProjectEvaluatorAverageCost,
+  ProjectEvaluatorCost,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorCost";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
 import { ProjectEvaluatorFailuresCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFailuresCell";
 import {
@@ -134,10 +134,12 @@ const readRow = (
           clearedCount
           oldestWaitingOrRetryingAt
         }
+        tracingEnabled
         evaluationLoad {
           evaluationCount
           meanEvaluationSeconds
           shareOfEvaluationTime
+          excludesUntracedEvaluators
         }
         evaluator {
           id
@@ -571,6 +573,7 @@ export function ProjectEvaluatorsTable({
         cell: ({ row }) => (
           <ProjectEvaluatorLoadCell
             evaluationLoad={row.original.evaluationLoad}
+            isTracingEnabled={row.original.tracingEnabled}
           />
         ),
       },
@@ -682,9 +685,10 @@ export function ProjectEvaluatorsTable({
         size: 120,
         meta: { textAlign: "right" },
         cell: ({ row }) => (
-          <EvaluatorCost
+          <ProjectEvaluatorCost
             evaluatorKind={row.original.evaluator.kind}
             costSummary={row.original.traceProject.costSummary}
+            isTracingEnabled={row.original.tracingEnabled}
           />
         ),
       },
@@ -694,10 +698,11 @@ export function ProjectEvaluatorsTable({
         size: 200,
         meta: { textAlign: "right" },
         cell: ({ row }) => (
-          <EvaluatorAverageCost
+          <ProjectEvaluatorAverageCost
             evaluatorKind={row.original.evaluator.kind}
             costSummary={row.original.traceProject.costSummary}
             runCount={row.original.traceProject.traceCount}
+            isTracingEnabled={row.original.tracingEnabled}
           />
         ),
       },

@@ -50,6 +50,13 @@ import {
 } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
 import { ProjectEvaluatorDetailsPage } from "@phoenix/pages/project/evaluators/ProjectEvaluatorDetailsPage";
 import {
+  ProjectEvaluatorMetricsTab,
+  ProjectEvaluatorOverviewTab,
+  ProjectEvaluatorTracesTab,
+  ProjectEvaluatorVersionsTab,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorDetailsTabs";
+import { projectEvaluatorTabRouteId } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
+import {
   PROJECT_EVALUATOR_DETAILS_ROUTE_ID,
   ProjectEvaluatorTracePage,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTracePage";
@@ -734,32 +741,83 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Project Evaluator Details",
                     description:
-                      "Inspect a project evaluator's configuration and scope policy — model, prompt template, or source code and sandbox for code evaluators, annotation output configs, input mapping, evaluation target, filter condition, sampling rate, and enabled state — a stats overview for the selected time range (evaluation run volume by status, scores and labels produced, LLM cost, last run and queue activity), its metrics over time (scores and labels produced, evaluation run volume, latency percentiles, and LLM cost), a code evaluator's version history with diffs, and the traces its own runs produced. The projectEvaluatorId route param uses the GraphQL ProjectEvaluator.id Relay node ID, not the underlying Evaluator.id.",
+                      "Inspect a project evaluator's configuration and scope policy — model, prompt template, or source code and sandbox for code evaluators, annotation output configs, input mapping, evaluation target, filter condition, sampling rate, enabled state, and whether tracing is on (the Advanced card) — a stats overview for the selected time range (evaluation run volume by status, scores and labels produced, LLM cost, last run and queue activity), its metrics over time (scores and labels produced, evaluation run volume, latency percentiles, and LLM cost), a code evaluator's version history with diffs, and the traces its own runs produced. The projectEvaluatorId route param uses the GraphQL ProjectEvaluator.id Relay node ID, not the underlying Evaluator.id.",
                   },
                 }}
               >
+                {/* Each tab is a nested route. The edit slideover nests
+                    under every tab, so it opens over the tab it was opened
+                    from and closing it returns there. */}
                 <Route
-                  path="edit"
-                  element={<EditProjectEvaluatorPage />}
+                  id={projectEvaluatorTabRouteId("overview")}
+                  element={<ProjectEvaluatorOverviewTab />}
+                >
+                  <Route index element={null} />
+                  <Route
+                    path="edit"
+                    element={<EditProjectEvaluatorPage />}
+                    handle={{
+                      agentRoute: {
+                        label: "Edit Project Evaluator",
+                        description:
+                          "Edit a project evaluator's definition and scope, and its advanced settings such as turning tracing of each evaluation on or off to save storage. The projectEvaluatorId route param uses the GraphQL ProjectEvaluator.id Relay node ID, not the underlying Evaluator.id.",
+                      },
+                    }}
+                  />
+                </Route>
+                <Route
+                  id={projectEvaluatorTabRouteId("versions")}
+                  path="versions"
+                  element={<ProjectEvaluatorVersionsTab />}
                   handle={{
                     agentRoute: {
-                      label: "Edit Project Evaluator",
+                      label: "Project Evaluator Versions",
                       description:
-                        "Edit a project evaluator's definition and scope. The projectEvaluatorId route param uses the GraphQL ProjectEvaluator.id Relay node ID, not the underlying Evaluator.id.",
+                        "Browse a code project evaluator's version history and diff its source code between versions. Only code evaluators have versions. The projectEvaluatorId route param uses the GraphQL ProjectEvaluator.id Relay node ID, not the underlying Evaluator.id.",
                     },
                   }}
-                />
+                >
+                  <Route path="edit" element={<EditProjectEvaluatorPage />} />
+                </Route>
                 <Route
-                  path=":traceId"
-                  element={<ProjectEvaluatorTracePage />}
+                  id={projectEvaluatorTabRouteId("traces")}
+                  path="traces"
+                  element={<ProjectEvaluatorTracesTab />}
                   handle={{
                     agentRoute: {
-                      label: "Project Evaluator Trace",
+                      label: "Project Evaluator Traces",
                       description:
-                        "Inspect one trace a project evaluator produced when it ran — its mapped inputs, model call or sandbox run, and parsed judgment. The traceId route param uses the GraphQL Trace.traceId OpenTelemetry trace ID, not Trace.id. Supports selecting a span with selectedSpanNodeId.",
+                        "Browse and filter the traces a project evaluator's own runs produced — each run's mapped inputs, model call or sandbox run, and parsed judgment. The projectEvaluatorId route param uses the GraphQL ProjectEvaluator.id Relay node ID, not the underlying Evaluator.id.",
                     },
                   }}
-                />
+                >
+                  <Route path="edit" element={<EditProjectEvaluatorPage />} />
+                  <Route
+                    path=":traceId"
+                    element={<ProjectEvaluatorTracePage />}
+                    handle={{
+                      agentRoute: {
+                        label: "Project Evaluator Trace",
+                        description:
+                          "Inspect one trace a project evaluator produced when it ran — its mapped inputs, model call or sandbox run, and parsed judgment. The traceId route param uses the GraphQL Trace.traceId OpenTelemetry trace ID, not Trace.id. Supports selecting a span with selectedSpanNodeId.",
+                      },
+                    }}
+                  />
+                </Route>
+                <Route
+                  id={projectEvaluatorTabRouteId("metrics")}
+                  path="metrics"
+                  element={<ProjectEvaluatorMetricsTab />}
+                  handle={{
+                    agentRoute: {
+                      label: "Project Evaluator Metrics",
+                      description:
+                        "Chart a project evaluator over the selected time range: the scores and labels it produced, evaluation run volume by status, latency percentiles, and LLM cost. The projectEvaluatorId route param uses the GraphQL ProjectEvaluator.id Relay node ID, not the underlying Evaluator.id.",
+                    },
+                  }}
+                >
+                  <Route path="edit" element={<EditProjectEvaluatorPage />} />
+                </Route>
               </Route>
             </Route>
           </Route>

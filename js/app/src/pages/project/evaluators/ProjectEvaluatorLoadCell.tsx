@@ -6,6 +6,7 @@ import {
   TooltipTrigger,
   TriggerWrap,
 } from "@phoenix/components";
+import { ProjectEvaluatorTracingOffValue } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTracingOffValue";
 import {
   formatPercentShort,
   intFormatter,
@@ -15,6 +16,8 @@ export type ProjectEvaluatorEvaluationLoad = {
   evaluationCount: number;
   meanEvaluationSeconds: number | null;
   shareOfEvaluationTime: number | null;
+  /** Whether the server total leaves out an enabled evaluator with tracing off. */
+  excludesUntracedEvaluators: boolean;
 };
 
 const secondsFormatter = new Intl.NumberFormat(undefined, {
@@ -24,17 +27,34 @@ const secondsFormatter = new Intl.NumberFormat(undefined, {
 /**
  * The share of the server's evaluation time this evaluator used over the last
  * hour, with its evaluation count and mean time on hover. Shown as `--` before
- * it has evaluated anything in that hour.
+ * it has evaluated anything in that hour, and as "tracing off" while its
+ * tracing is off, since load is measured from evaluator traces. When other
+ * evaluators have tracing off, the hover says the share leaves them out.
  */
 export function ProjectEvaluatorLoad({
   evaluationLoad,
+  isTracingEnabled,
   size,
   fontFamily,
 }: {
   evaluationLoad: ProjectEvaluatorEvaluationLoad;
+  isTracingEnabled: boolean;
 } & Pick<TextProps, "size" | "fontFamily">) {
-  const { evaluationCount, meanEvaluationSeconds, shareOfEvaluationTime } =
-    evaluationLoad;
+  const {
+    evaluationCount,
+    meanEvaluationSeconds,
+    shareOfEvaluationTime,
+    excludesUntracedEvaluators,
+  } = evaluationLoad;
+  if (!isTracingEnabled) {
+    return (
+      <ProjectEvaluatorTracingOffValue
+        measure="Evaluation time"
+        size={size}
+        fontFamily={fontFamily}
+      />
+    );
+  }
   if (shareOfEvaluationTime == null || meanEvaluationSeconds == null) {
     return (
       <Text size={size} fontFamily={fontFamily} color="text-700">
@@ -57,6 +77,12 @@ export function ProjectEvaluatorLoad({
               ? `1 evaluation, ${secondsFormatter.format(meanEvaluationSeconds)}s`
               : `${intFormatter(evaluationCount)} evaluations, ${secondsFormatter.format(meanEvaluationSeconds)}s each`}
           </Text>
+          {excludesUntracedEvaluators ? (
+            <Text size="S" color="text-700">
+              Excludes evaluators with tracing off, whose evaluation time is not
+              measured.
+            </Text>
+          ) : null}
         </Flex>
       </RichTooltip>
     </TooltipTrigger>
@@ -66,10 +92,16 @@ export function ProjectEvaluatorLoad({
 /** The evaluators table's load cell. */
 export function ProjectEvaluatorLoadCell({
   evaluationLoad,
+  isTracingEnabled,
 }: {
   evaluationLoad: ProjectEvaluatorEvaluationLoad;
+  isTracingEnabled: boolean;
 }) {
   return (
-    <ProjectEvaluatorLoad evaluationLoad={evaluationLoad} fontFamily="mono" />
+    <ProjectEvaluatorLoad
+      evaluationLoad={evaluationLoad}
+      isTracingEnabled={isTracingEnabled}
+      fontFamily="mono"
+    />
   );
 }

@@ -32,6 +32,7 @@ def _make_binding(**overrides: object) -> v1.ProjectEvaluator:
         "sampling_rate": 0.25,
         "filter_condition": "",
         "enabled": True,
+        "tracing_enabled": True,
         "input_mapping": None,
         "evaluation_delay_seconds": 0,
     }
@@ -98,6 +99,7 @@ class TestProjectEvaluatorsCreate:
             body = json.loads(request.content)
             assert body["filter_condition"] == "span_kind == 'LLM'"
             assert body["enabled"] is False
+            assert body["tracing_enabled"] is False
             assert body["input_mapping"] == {"literal_mapping": {}, "path_mapping": {}}
             assert body["evaluation_delay_seconds"] == 600
             return httpx.Response(201, json={"data": _make_binding(enabled=False)})
@@ -111,6 +113,7 @@ class TestProjectEvaluatorsCreate:
             evaluator_id=EVALUATOR_ID,
             filter_condition="span_kind == 'LLM'",
             enabled=False,
+            tracing_enabled=False,
             input_mapping={"literal_mapping": {}, "path_mapping": {}},
             evaluation_delay_seconds=600,
         )
@@ -173,6 +176,17 @@ class TestProjectEvaluatorsGetUpdate:
             project_evaluator_id=BINDING_ID, sampling_rate=0.5, enabled=False
         )
         assert result == updated
+
+    def test_update_sends_tracing_enabled(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert json.loads(request.content) == {"tracing_enabled": False}
+            return httpx.Response(200, json={"data": _make_binding(tracing_enabled=False)})
+
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+        result = ProjectEvaluators(client).update(
+            project_evaluator_id=BINDING_ID, tracing_enabled=False
+        )
+        assert result["tracing_enabled"] is False
 
     def test_update_sends_explicit_null_to_restore_defaults(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
