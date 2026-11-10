@@ -78,13 +78,7 @@ def _decode_evaluator_cursor(cursor: str) -> int:
 class CreateLLMEvaluatorRequest(EvaluatorRequest):
     type: Literal["llm"]
     name: Identifier = Field(description="Unique among evaluators.")
-    description: Optional[str] = Field(
-        default=None,
-        description=(
-            "Must equal the description of the prompt's tool function, since an LLM evaluator's "
-            "description is the instruction its output tool carries."
-        ),
-    )
+    description: Optional[str] = Field(default=None)
     prompt: LLMEvaluatorPromptInput = Field(
         description=(
             "The prompt version to run. Create the prompt and its version through the prompts "
@@ -132,13 +126,7 @@ class PatchLLMEvaluatorRequest(EvaluatorRequest):
 
     type: Literal["llm"]
     name: Identifier = Field(default=UNDEFINED)
-    description: Optional[str] = Field(
-        default=UNDEFINED,
-        description=(
-            "Must equal the description of the prompt's tool function, since an LLM evaluator's "
-            "description is the instruction its output tool carries."
-        ),
-    )
+    description: Optional[str] = Field(default=UNDEFINED)
     prompt: LLMEvaluatorPromptInput = Field(
         default=UNDEFINED,
         description="Move the evaluator to another prompt version. Omit to keep it.",
@@ -273,9 +261,7 @@ class LLMEvaluatorDefinition(V1RoutesBaseModel):
     type: Literal["llm"]
     id: str
     name: Identifier
-    description: Optional[str] = Field(
-        description="Equals the description of the prompt's tool function."
-    )
+    description: Optional[str]
     prompt: LLMEvaluatorPrompt
     output_configs: list[CategoricalAnnotationConfigData]
     input_schema: Optional[dict[str, Any]] = Field(

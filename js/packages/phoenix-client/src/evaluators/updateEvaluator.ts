@@ -29,10 +29,8 @@ export interface UpdateEvaluatorParams extends ClientFn {
  * evaluator. Code is immutable per version: to change a code evaluator's
  * source, use {@link createCodeEvaluatorVersion}. Prompt content is edited through
  * the prompts API: create a version with `createPrompt` and select it with
- * `prompt: { selector: { type: "version", prompt_version_id } }`. An LLM
- * evaluator's `description` must equal the
- * description of its prompt's tool function. The server refuses with 409 an
- * LLM change that would invalidate a dataset binding's output overrides.
+ * `prompt: { selector: { type: "version", prompt_version_id } }`. Nothing
+ * checks an LLM evaluator's `description` or output configs against its prompt.
  *
  * @param params - The evaluator and the fields to change.
  * @param params.evaluatorId - The evaluator GlobalID.

@@ -475,14 +475,14 @@ Bind an existing evaluator definition to a dataset. A binding registers the eval
 px dataset evaluator create golden-questions --name exact-match --evaluator-id Q29kZUV2YWx1YXRvcjoy --input-mapping '{"literal_mapping":{},"path_mapping":{"output":"output"}}'
 ```
 
-| Option                    | Description                                                                                                                           | Default  |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| `--name <name>`           | Binding name, unique within the dataset (required)                                                                                    | —        |
-| `--input-mapping <json>`  | JSON object with `literal_mapping` and `path_mapping` (required)                                                                      | —        |
-| `--evaluator-id <id>`     | The LLM, code, or built-in evaluator to bind (required)                                                                               | —        |
-| `--description <text>`    | Description override for this binding; for LLM evaluators it must equal the prompt tool's description                                 | —        |
-| `--output-configs <json>` | JSON array of at least one output configuration that overrides the definition's (LLM evaluators: must match the prompt's tool schema) | —        |
-| `--format <format>`       | `pretty`, `json`, or `raw`                                                                                                            | `pretty` |
+| Option                    | Description                                                                                                        | Default  |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------ | -------- |
+| `--name <name>`           | Binding name, unique within the dataset (required)                                                                 | —        |
+| `--input-mapping <json>`  | JSON object with `literal_mapping` and `path_mapping` (required)                                                   | —        |
+| `--evaluator-id <id>`     | The LLM, code, or built-in evaluator to bind (required)                                                            | —        |
+| `--description <text>`    | Description override for this binding                                                                              | —        |
+| `--output-configs <json>` | JSON array of at least one output configuration that overrides the definition's (LLM evaluators: categorical only) | —        |
+| `--format <format>`       | `pretty`, `json`, or `raw`                                                                                         | `pretty` |
 
 ---
 
@@ -691,7 +691,7 @@ px evaluator create --type code --name exact-match --file evaluator.py --languag
 | `--language <language>`    | (code) `PYTHON` or `TYPESCRIPT` (required)                                      | —       |
 | `--sandbox-config-id <id>` | (code) Sandbox configuration to run in (required; see `px sandbox-config list`) | —       |
 | `--input-mapping <json>`   | (code) JSON object with `literal_mapping` and `path_mapping` (required)         | —       |
-| `--description <text>`     | Description (llm: must equal the prompt tool's description)                     | —       |
+| `--description <text>`     | Description                                                                     | —       |
 | `--output-configs <json>`  | JSON array of output configurations, at least one (required)                    | —       |
 | `--if-not-exists`          | Print the evaluator that already holds the name instead of failing              | —       |
 
@@ -707,19 +707,19 @@ px evaluator update TExNRXZhbHVhdG9yOjE= --type llm --prompt-version-id UHJvbXB0
 px evaluator update Q29kZUV2YWx1YXRvcjoy --type code --input-mapping '{"literal_mapping":{},"path_mapping":{"output":"output"}}'
 ```
 
-| Option                     | Description                                                                | Default |
-| -------------------------- | -------------------------------------------------------------------------- | ------- |
-| `--type <llm\|code>`       | Kind of evaluator (required, must match the server)                        | —       |
-| `--name <name>`            | New name                                                                   | —       |
-| `--description <text>`     | New description (LLM evaluators: must equal the prompt tool's description) | —       |
-| `--clear-description`      | Remove the description                                                     | —       |
-| `--output-configs <json>`  | JSON array of output configs (LLM evaluators: categorical only)            | —       |
-| `--prompt-version-id <id>` | (llm) Run an existing prompt version                                       | —       |
-| `--sandbox-config-id <id>` | (code) Sandbox configuration to run in                                     | —       |
-| `--clear-sandbox-config`   | (code) Detach the sandbox configuration                                    | —       |
-| `--input-mapping <json>`   | (code) JSON object with `literal_mapping` and `path_mapping` keys          | —       |
+| Option                     | Description                                                       | Default |
+| -------------------------- | ----------------------------------------------------------------- | ------- |
+| `--type <llm\|code>`       | Kind of evaluator (required, must match the server)               | —       |
+| `--name <name>`            | New name                                                          | —       |
+| `--description <text>`     | New description                                                   | —       |
+| `--clear-description`      | Remove the description                                            | —       |
+| `--output-configs <json>`  | JSON array of output configs (LLM evaluators: categorical only)   | —       |
+| `--prompt-version-id <id>` | (llm) Run an existing prompt version                              | —       |
+| `--sandbox-config-id <id>` | (code) Sandbox configuration to run in                            | —       |
+| `--clear-sandbox-config`   | (code) Detach the sandbox configuration                           | —       |
+| `--input-mapping <json>`   | (code) JSON object with `literal_mapping` and `path_mapping` keys | —       |
 
-Prompt content is not edited here. Create a new version of the evaluator's prompt through the Phoenix UI or the client SDKs, then pass its ID with `--prompt-version-id`. The server refuses with a conflict an LLM change that would invalidate a dataset binding's output overrides, and the CLI prints the server's explanation.
+Prompt content is not edited here. Create a new version of the evaluator's prompt through the Phoenix UI or the client SDKs, then pass its ID with `--prompt-version-id`. Nothing checks the description or output configs against the prompt.
 
 ### `px evaluator delete <evaluator-id>`
 
