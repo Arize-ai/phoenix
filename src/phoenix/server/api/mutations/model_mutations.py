@@ -40,7 +40,8 @@ class TokenPriceInput:
         return models.TokenPrice(
             token_type=_normalize_token_type(self.token_type),
             is_prompt=self.kind == TokenKind.PROMPT,
-            base_rate=self.cost_per_million_tokens / 1_000_000,
+            # Adding 0.0 turns -0.0 into 0.0, which postgres would otherwise keep.
+            base_rate=(self.cost_per_million_tokens + 0.0) / 1_000_000,
         )
 
 
@@ -296,6 +297,12 @@ def _trim_and_snap_to_known(value: str, known_values: frozenset[str]) -> str:
 
 def _normalized_token_prices(costs: list[TokenPriceInput]) -> list[models.TokenPrice]:
     token_prices = [cost.token_prices for cost in costs]
+    for token_price in token_prices:
+        # Zero is allowed: it means the tokens are free.
+        if token_price.base_rate < 0:
+            raise BadRequest(
+                f"Cost per million tokens for '{token_price.token_type}' must be zero or more"
+            )
     seen: set[tuple[bool, str]] = set()
     for token_price in token_prices:
         if not token_price.token_type:
