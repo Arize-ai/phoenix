@@ -1146,7 +1146,7 @@ px annotation-config create --type CATEGORICAL --name response-quality \
 | `--values <json>`                | Categorical values as JSON (CATEGORICAL configs)      | —        |
 | `--lower-bound <number>`         | Lower bound (CONTINUOUS/FREEFORM configs)             | —        |
 | `--upper-bound <number>`         | Upper bound (CONTINUOUS/FREEFORM configs)             | —        |
-| `--threshold <number>`           | Threshold (FREEFORM configs)                          | —        |
+| `--threshold <number>`           | Threshold (CONTINUOUS/FREEFORM configs)               | —        |
 | `--format <format>`              | `pretty`, `json`, or `raw`                            | `pretty` |
 | `--no-progress`                  | Suppress progress output                              | —        |
 
@@ -1184,7 +1184,7 @@ px annotation-config update response-quality --description 'Updated' --format ra
 | `--values <json>`                | Categorical values as JSON (CATEGORICAL configs)    | —        |
 | `--lower-bound <number>`         | Lower bound (CONTINUOUS/FREEFORM configs)           | —        |
 | `--upper-bound <number>`         | Upper bound (CONTINUOUS/FREEFORM configs)           | —        |
-| `--threshold <number>`           | Threshold (FREEFORM configs)                        | —        |
+| `--threshold <number>`           | Threshold (CONTINUOUS/FREEFORM configs)             | —        |
 | `--format <format>`              | `pretty`, `json`, or `raw`                          | `pretty` |
 | `--no-progress`                  | Suppress progress output                            | —        |
 
