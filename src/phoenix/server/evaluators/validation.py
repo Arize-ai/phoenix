@@ -2,8 +2,6 @@
 
 from typing import Optional, Sequence
 
-from pydantic import BaseModel, Field, field_validator
-
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalOutputConfig,
@@ -12,23 +10,6 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.decisions.rendering import decision_variables
-
-
-class LLMEvaluatorOutputConfigs(BaseModel):
-    """Validated output configs for LLM evaluators (categorical only)."""
-
-    configs: list[CategoricalOutputConfig] = Field(min_length=1)
-
-    @field_validator("configs")
-    @classmethod
-    def check_unique_names(
-        cls, configs: list[CategoricalOutputConfig]
-    ) -> list[CategoricalOutputConfig]:
-        names = [c.name for c in configs]
-        if len(names) != len(set(names)):
-            duplicates = [n for n in names if names.count(n) > 1]
-            raise ValueError(f"Config names must be unique. Duplicates found: {set(duplicates)}")
-        return configs
 
 
 def require_categorical_output_configs(configs: Sequence[OutputConfigType]) -> None:
