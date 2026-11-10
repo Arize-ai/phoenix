@@ -148,9 +148,8 @@ async def recover_lapsed_claims(
 class EvalWorkCoordinator:
     """Coordinates one evaluation target's consumers across replicas.
 
-    Heartbeat, fail, expire, clear and release return False once the claim is lost, and
-    True, changing nothing, when the claim's own publication already finished the unit, so
-    a call that raced that publication doesn't report a lost claim."""
+    Heartbeat, fail, expire, clear and release return whether the claim still held the
+    unit, changing nothing when it did not."""
 
     def __init__(
         self,
@@ -470,19 +469,11 @@ class EvalWorkCoordinator:
                     )
                 )
             ).first()
-            transitioned = row is not None
-            if not transitioned:
-                status = await session.scalar(
-                    select(work_unit_model.status).where(
-                        work_unit_model.id == work_unit_id,
-                        work_unit_model.claimed_by == claim_owner,
-                    )
-                )
-                transitioned = status == "DONE"
             await session.commit()
-        if row is not None:
-            self._count_completed(row.status, [(row.created_at, row.updated_at)])
-        return transitioned
+        if row is None:
+            return False
+        self._count_completed(row.status, [(row.created_at, row.updated_at)])
+        return True
 
     def _count_completed(self, status: str, ended: Sequence[_EndedWork]) -> None:
         """Count units that left the queue, and observe the lag of completed ones, once the

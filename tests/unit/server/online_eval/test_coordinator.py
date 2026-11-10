@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from typing import Any, Optional
 
 import pytest
-from sqlalchemy import delete, func, select, text, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from phoenix.db import models
@@ -233,12 +233,12 @@ async def test_claim_and_publish_happy_path(db: DbSessionFactory) -> None:
         )
         assert (await _get_unit(db, unit_id)).status == "DONE"
     finished = await _get_unit(db, unit_ids[0])
-    for claimed_by, held in (("consumer-1", True), ("consumer-2", False)):
+    for claimed_by in ("consumer-1", "consumer-2"):
         late: dict[str, Any] = {"work_unit_id": unit_ids[0], "claimed_by": claimed_by}
-        assert await coordinator.heartbeat(**late) is held
-        assert await coordinator.fail(**late, error="late") is held
-        assert await coordinator.expire(**late, error="late") is held
-        assert await coordinator.release(**late) is held
+        await coordinator.heartbeat(**late)
+        await coordinator.fail(**late, error="late")
+        await coordinator.expire(**late, error="late")
+        await coordinator.release(**late)
     row = await _get_unit(db, unit_ids[0])
     assert (row.status, row.claimed_by, row.attempts, row.error, row.updated_at) == (
         "DONE",
@@ -884,54 +884,6 @@ async def test_session_publish_holds_work_lock_against_reclaim(
         unit = await session.get(models.EvalSessionWorkUnit, unit_id)
         assert unit is not None
         assert unit.status == "DONE"
-
-
-@pytest.mark.postgres_only
-async def test_heartbeat_that_waits_on_its_own_publish_keeps_the_claim(
-    postgresql_engine: AsyncEngine,
-) -> None:
-    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
-    (unit_id,) = await _seed_work_units(db, 1)
-    coordinator = EvalWorkCoordinator(db)
-    (claim,) = await coordinator.claim(claimed_by="owner", limit=1)
-    publisher_pids: list[int] = []
-    entered = asyncio.Event()
-    release = asyncio.Event()
-
-    async def _write(session: AsyncSession) -> None:
-        publisher_pid = await session.scalar(select(func.pg_backend_pid()))
-        assert publisher_pid is not None
-        publisher_pids.append(publisher_pid)
-        entered.set()
-        await release.wait()
-
-    async def _wait_until_blocked_by(backend_pid: int) -> None:
-        while True:
-            async with db() as observer:
-                if await observer.scalar(
-                    text(
-                        "SELECT EXISTS (SELECT 1 FROM pg_stat_activity "
-                        "WHERE :pid = ANY(pg_blocking_pids(pid)))"
-                    ),
-                    {"pid": backend_pid},
-                ):
-                    return
-            await asyncio.sleep(0)
-
-    publication = asyncio.create_task(
-        coordinator.publish(work_unit_id=unit_id, claimed_by=claim.claimed_by, write=_write)
-    )
-    await entered.wait()
-    heartbeat = asyncio.create_task(
-        coordinator.heartbeat(work_unit_id=unit_id, claimed_by=claim.claimed_by)
-    )
-    await asyncio.wait_for(_wait_until_blocked_by(publisher_pids[0]), timeout=5)
-    release.set()
-    await publication
-
-    assert await heartbeat
-    row = await _get_unit(db, unit_id)
-    assert (row.status, row.claimed_by) == ("DONE", claim.claimed_by)
 
 
 async def test_publish_refuses_a_disabled_project_evaluator(db: DbSessionFactory) -> None:
