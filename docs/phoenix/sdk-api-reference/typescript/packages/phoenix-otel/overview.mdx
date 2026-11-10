@@ -33,7 +33,7 @@ npm install \
 - decorators and context propagation: `observe()`, `setSession()`, `setUser()`, `setMetadata()`, `setTags()`, `setPromptTemplate()`, `setAttributes()`
 - attribute builders: `getLLMAttributes()`, `getRetrieverAttributes()`, `getEmbeddingAttributes()`, `getToolAttributes()`, `getMetadataAttributes()`, `getInputAttributes()`, `getOutputAttributes()`, `defaultProcessInput()`, `defaultProcessOutput()`
 - redaction and safety helpers: `OITracer`, `withSafety`, `safelyJSONStringify`, `safelyJSONParse`
-- OpenTelemetry utilities: `trace`, `context`, `SpanStatusCode`, `DiagLogLevel`, `registerInstrumentations()`, `BatchSpanProcessor`, `SimpleSpanProcessor`, `OTLPTraceExporter`
+- OpenTelemetry utilities: `trace`, `context`, `SpanStatusCode`, `DiagLogLevel`, `registerInstrumentations()`, `BatchSpanProcessor`, `SimpleSpanProcessor`, `OTLPTraceExporter`, `AlwaysOnSampler`, `AlwaysOffSampler`, `ParentBasedSampler`, `TraceIdRatioBasedSampler`
 
 The re-exported OpenInference wrappers resolve the default tracer when the wrapped function runs, so module-scoped traced helpers continue following global provider changes.
 
@@ -121,6 +121,8 @@ const provider = register({
 | `batch` | `true` for batched export, `false` for immediate export during debugging. |
 | `instrumentations` | OpenTelemetry instrumentations to register with the provider. |
 | `spanProcessors` | Custom span processors. When provided, these replace the default Phoenix exporter setup. |
+| `sampler` | Sampler that decides which spans are recorded, e.g. `new ParentBasedSampler({ root: new TraceIdRatioBasedSampler(0.1) })`. Defaults to always on. |
+| `spanLimits` | Limits on span attributes, events and links, e.g. `{ attributeValueLengthLimit: 4096 }`. |
 | `global` | Whether to attach the provider to the global OpenTelemetry APIs automatically. |
 | `diagLogLevel` | OpenTelemetry diagnostic logging level. |
 
@@ -130,6 +132,8 @@ const provider = register({
 |--------|-----|
 | `PHOENIX_COLLECTOR_ENDPOINT` | Base Phoenix collector URL or full OTLP trace endpoint. |
 | `PHOENIX_API_KEY` | API key used when you do not pass `apiKey` explicitly. |
+
+`register()` does not read the `OTEL_TRACES_SAMPLER`, `OTEL_SPAN_*`, `OTEL_ATTRIBUTE_*` or `OTEL_BSP_*` variables, and warns when any are set. Use `sampler`, `spanLimits`, or a `BatchSpanProcessor` with options in `spanProcessors` instead.
 
 ## Instrumentation
 
@@ -268,7 +272,7 @@ await provider.shutdown();
 | **Attribute builders** | `getLLMAttributes()`, `getToolAttributes()`, `getRetrieverAttributes()`, `getEmbeddingAttributes()`, `getMetadataAttributes()` |
 | **Redaction and safety** | `OITracer`, `withSafety()`, `safelyJSONStringify()`, `safelyJSONParse()` |
 | **Semantic conventions** | `SemanticConventions`, `OpenInferenceSpanKind`, `MimeType` |
-| **OpenTelemetry** | `trace`, `context`, `SpanStatusCode`, `DiagLogLevel`, `suppressTracing`, `registerInstrumentations()`, `BatchSpanProcessor`, `SimpleSpanProcessor`, `OTLPTraceExporter` |
+| **OpenTelemetry** | `trace`, `context`, `SpanStatusCode`, `DiagLogLevel`, `suppressTracing`, `registerInstrumentations()`, `BatchSpanProcessor`, `SimpleSpanProcessor`, `OTLPTraceExporter`, `AlwaysOnSampler`, `AlwaysOffSampler`, `ParentBasedSampler`, `TraceIdRatioBasedSampler` |
 | **Types** | `Tracer`, `Instrumentation`, `SpanTraceOptions`, `RegisterParams` |
 
 ## Where To Start
