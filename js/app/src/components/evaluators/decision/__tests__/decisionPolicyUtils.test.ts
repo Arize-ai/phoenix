@@ -6,11 +6,13 @@ import type {
 } from "../decisionPolicyUtils";
 import {
   buildDefaultPolicy,
+  deriveDecisionOutputConfigs,
   normalizePolicy,
   policyOutputToInput,
   questionScoringEqual,
   toDecisionQuestionDefinitions,
   validatePolicy,
+  withoutOptimizationDirections,
 } from "../decisionPolicyUtils";
 
 const questions: DecisionQuestionDefinition[] = [
@@ -247,5 +249,122 @@ describe("decisionPolicyUtils", () => {
         ],
       }).p
     ).toBeDefined();
+  });
+});
+
+describe("deriveDecisionOutputConfigs", () => {
+  const policy: DecisionScoringPolicyValue = {
+    questions: [
+      {
+        predicate: {
+          name: "accurate",
+          threshold: 0.8,
+          optimizationDirection: "MAXIMIZE",
+        },
+      },
+      {
+        choice: {
+          name: "tone",
+          scores: [
+            { choice: "good", score: 1 },
+            { choice: "bad", score: 0 },
+          ],
+          optimizationDirection: "MAXIMIZE",
+        },
+      },
+      {
+        scale: {
+          name: "clarity",
+          includeLabel: false,
+          optimizationDirection: "MINIMIZE",
+        },
+      },
+    ],
+  };
+
+  it("mirrors the server's derivation", () => {
+    const threeLevelScale: DecisionQuestionDefinition[] = [
+      questions[0],
+      questions[1],
+      { type: "scale", name: "clarity", levels: ["low", "mid", "high"] },
+    ];
+    expect(deriveDecisionOutputConfigs(threeLevelScale, policy)).toEqual([
+      {
+        annotationType: "FREEFORM",
+        name: "accurate",
+        optimizationDirection: "MAXIMIZE",
+        lowerBound: 0,
+        upperBound: 1,
+        threshold: 0.8,
+      },
+      {
+        annotationType: "CATEGORICAL",
+        name: "tone",
+        optimizationDirection: "MAXIMIZE",
+        values: [
+          { label: "good", score: 1 },
+          { label: "ok", score: null },
+          { label: "bad", score: 0 },
+        ],
+      },
+      {
+        annotationType: "CONTINUOUS",
+        name: "clarity",
+        optimizationDirection: "MINIMIZE",
+        lowerBound: 0,
+        upperBound: 2,
+      },
+    ]);
+  });
+
+  it("fills defaults for questions the policy does not mention", () => {
+    const [predicate] = deriveDecisionOutputConfigs(questions, null);
+    expect(predicate).toMatchObject({ optimizationDirection: "NONE" });
+  });
+});
+
+describe("withoutOptimizationDirections", () => {
+  it("drops only the directions", () => {
+    const flipped: DecisionScoringPolicyValue = {
+      questions: [
+        {
+          predicate: {
+            name: "accurate",
+            threshold: 0.8,
+            optimizationDirection: "MINIMIZE",
+          },
+        },
+      ],
+    };
+    const original: DecisionScoringPolicyValue = {
+      questions: [
+        {
+          predicate: {
+            name: "accurate",
+            threshold: 0.8,
+            optimizationDirection: "MAXIMIZE",
+          },
+        },
+      ],
+    };
+    expect(withoutOptimizationDirections(flipped)).toEqual({
+      questions: [{ predicate: { name: "accurate", threshold: 0.8 } }],
+    });
+    expect(withoutOptimizationDirections(flipped)).toEqual(
+      withoutOptimizationDirections(original)
+    );
+    expect(
+      withoutOptimizationDirections({
+        questions: [
+          {
+            predicate: {
+              name: "accurate",
+              threshold: 0.6,
+              optimizationDirection: "MAXIMIZE",
+            },
+          },
+        ],
+      })
+    ).not.toEqual(withoutOptimizationDirections(original));
   });
 });

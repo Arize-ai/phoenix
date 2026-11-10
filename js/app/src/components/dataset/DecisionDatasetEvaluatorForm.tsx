@@ -7,6 +7,7 @@ import {
   commitAsync,
   type DecisionEvaluatorData,
 } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
+import { deriveDecisionOutputConfigs } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
 import { useDecisionEvaluatorDraft } from "@phoenix/components/evaluators/decision/useDecisionEvaluatorDraft";
 import {
   DecisionEvaluatorValidationError,
@@ -20,6 +21,7 @@ import {
   EvaluatorPreviewSection,
   getEvaluatorPreviewHelpText,
 } from "@phoenix/components/evaluators/EvaluatorOutputPreview";
+import { EvaluatorPreviewOutputConfigsProvider } from "@phoenix/components/evaluators/EvaluatorPreviewOutputConfigsContext";
 import { EvaluatorValidationBanner } from "@phoenix/components/evaluators/EvaluatorValidationBanner";
 import { useEvaluatorPreview } from "@phoenix/components/evaluators/useEvaluatorPreview";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
@@ -113,11 +115,12 @@ function DecisionDatasetEvaluatorFormContent({
       }
     `);
 
+  const previewName = bindingName || "decision_preview";
   const onTest = () =>
     void preview.run(() => ({
       evaluator: {
         inlineDecisionEvaluator: {
-          name: bindingName || "decision_preview",
+          name: previewName,
           ...draft.getTestDefinition(),
         },
       },
@@ -162,51 +165,63 @@ function DecisionDatasetEvaluatorFormContent({
   };
 
   return (
-    <EvaluatorFormDialogContent
-      title={
-        isEditing ? "Edit Decision Evaluator" : "Create Decision Evaluator"
-      }
-      submitLabel={isEditing ? "Update" : "Create"}
-      onSubmit={() => void onSubmit()}
-      isSubmitting={isSubmitting}
-      isSubmitDisabled={!isDraftReady}
-      error={submitError ?? draft.loadError}
-      errorTitle={
-        isEditing ? "Failed to update evaluator" : "Failed to create evaluator"
-      }
-      banner={showValidationError ? <EvaluatorValidationBanner /> : null}
-      left={
-        <>
-          <EvaluatorNameAndDescriptionFields isNameRequired />
-          <DecisionEvaluatorForm
-            draft={draft}
-            isDisabled={isSubmitting}
-            scoringDescription="Turn each answer into the score this dataset records, and whether higher or lower is better."
-            sharedEvaluatorNote={`${otherBindingCount > 0 ? `${otherBindingCount} other dataset evaluators use it. ` : ""}Input mappings apply only to this dataset.`}
-          />
-        </>
-      }
-      right={
-        <EvaluatorDatasetTestPanel
-          testSection={
-            <EvaluatorPreviewSection
-              preview={preview}
-              onTest={onTest}
-              helpText={getEvaluatorPreviewHelpText("DECISION")}
-              isDisabled={!isDraftReady || isSubmitting}
-            />
-          }
-        />
-      }
-      renderInputVariables={(form) => (
-        <EvaluatorInputVariablesProvider variables={draft.variables}>
-          {form}
-        </EvaluatorInputVariablesProvider>
-      )}
-      submitButtonProps={{
-        "data-testid": "decision-evaluator-form-submit-button",
-        "data-mode": isEditing ? "update" : "create",
+    <EvaluatorPreviewOutputConfigsProvider
+      value={{
+        outputConfigs: deriveDecisionOutputConfigs(
+          draft.questions,
+          draft.policy
+        ),
+        evaluatorName: previewName,
       }}
-    />
+    >
+      <EvaluatorFormDialogContent
+        title={
+          isEditing ? "Edit Decision Evaluator" : "Create Decision Evaluator"
+        }
+        submitLabel={isEditing ? "Update" : "Create"}
+        onSubmit={() => void onSubmit()}
+        isSubmitting={isSubmitting}
+        isSubmitDisabled={!isDraftReady}
+        error={submitError ?? draft.loadError}
+        errorTitle={
+          isEditing
+            ? "Failed to update evaluator"
+            : "Failed to create evaluator"
+        }
+        banner={showValidationError ? <EvaluatorValidationBanner /> : null}
+        left={
+          <>
+            <EvaluatorNameAndDescriptionFields isNameRequired />
+            <DecisionEvaluatorForm
+              draft={draft}
+              isDisabled={isSubmitting}
+              scoringDescription="Turn each answer into the score this dataset records, and which answers are good."
+              sharedEvaluatorNote={`${otherBindingCount > 0 ? `${otherBindingCount} other dataset evaluators use it. ` : ""}Input mappings apply only to this dataset.`}
+            />
+          </>
+        }
+        right={
+          <EvaluatorDatasetTestPanel
+            testSection={
+              <EvaluatorPreviewSection
+                preview={preview}
+                onTest={onTest}
+                helpText={getEvaluatorPreviewHelpText("DECISION")}
+                isDisabled={!isDraftReady || isSubmitting}
+              />
+            }
+          />
+        }
+        renderInputVariables={(form) => (
+          <EvaluatorInputVariablesProvider variables={draft.variables}>
+            {form}
+          </EvaluatorInputVariablesProvider>
+        )}
+        submitButtonProps={{
+          "data-testid": "decision-evaluator-form-submit-button",
+          "data-mode": isEditing ? "update" : "create",
+        }}
+      />
+    </EvaluatorPreviewOutputConfigsProvider>
   );
 }
