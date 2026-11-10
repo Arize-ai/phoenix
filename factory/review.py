@@ -46,7 +46,7 @@ from dispatch import (
     write_github_outputs,
 )
 from github_app import GitHubAppToken
-from pr_input import find_head_problem
+from pr_input import check_requested_head
 
 REVIEW_LABEL = "factory-review"
 REVIEW_AGENT_LOCK_KEY = "./agents/pr-reviewer.md"
@@ -541,7 +541,7 @@ def run_start(*, args: argparse.Namespace) -> None:
     admission_problem = find_admission_problem(
         pr=pr, requester_login=requester_login, requester_permission=requester_permission
     )
-    admission_problem = admission_problem or find_head_problem(pr=pr, expected_sha=args.head_sha)
+    admission_problem = admission_problem or check_requested_head(pr=pr, expected_sha=args.head_sha)
     print(f"head_sha={pr['headRefOid']} admission_problem={admission_problem}")
     if args.dry_run:
         return

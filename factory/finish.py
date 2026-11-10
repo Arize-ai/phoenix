@@ -36,7 +36,7 @@ from dispatch import (
     write_github_outputs,
 )
 from github_app import GitHubAppToken
-from pr_input import find_head_problem
+from pr_input import check_requested_head
 from review import comment_on_pr, read_factory_login
 
 FINISH_LABEL = "factory-finish"
@@ -334,7 +334,7 @@ def run_start(*, args: argparse.Namespace) -> None:
         requester_login=requester_login,
         requester_permission=requester_permission,
     )
-    admission_problem = admission_problem or find_head_problem(pr=pr, expected_sha=args.head_sha)
+    admission_problem = admission_problem or check_requested_head(pr=pr, expected_sha=args.head_sha)
     print(
         f"head_sha={pr['headRefOid']} fork={pr['isCrossRepository']} "
         f"copy={copy['number'] if copy else None} admission_problem={admission_problem}"
