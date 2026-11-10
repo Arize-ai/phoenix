@@ -87,23 +87,26 @@ def validate_base_url(base_url: str) -> str:
     Userinfo would be recorded on spans, and a query or fragment does not survive the
     SDK appending its path.
     """
+    from urllib.parse import urlsplit
+
     import httpx
 
+    stripped = base_url.strip()
     try:
-        url = httpx.URL(base_url.strip())
+        url = httpx.URL(stripped)
     except httpx.InvalidURL as error:
         raise ValueError("Base URL must be a valid HTTP(S) URL.") from error
     if (
         url.scheme not in ("http", "https")
         or not url.host
-        or url.userinfo
-        or url.query
-        or url.fragment
+        or "@" in urlsplit(stripped).netloc
+        or "?" in stripped
+        or "#" in stripped
     ):
         raise ValueError(
             "Base URL must be an HTTP(S) URL without embedded credentials, a query, or a fragment."
         )
-    return base_url.strip()
+    return stripped
 
 
 def openai_http_client() -> Any:

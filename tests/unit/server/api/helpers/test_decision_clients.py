@@ -208,7 +208,14 @@ class TestValidateAnswers:
 
 class TestValidatedBaseUrl:
     @pytest.mark.parametrize(
-        "base_url", ["https://api.example.com", "http://localhost:11434/v1", "https://host/v1/"]
+        "base_url",
+        [
+            "https://api.example.com",
+            "http://localhost:11434/v1",
+            "https://host/v1/",
+            "https://host/@org/v1",
+            "https://host/%3F/%23",
+        ],
     )
     def test_accepts_plain_http_urls(self, base_url: str) -> None:
         assert checked_base_url(base_url) == base_url
@@ -228,8 +235,11 @@ class TestValidatedBaseUrl:
             pytest.param("https:///v1", id="empty-host"),
             pytest.param("https://user:secret@host/v1", id="userinfo"),
             pytest.param("https://user@host/v1", id="username-only"),
+            pytest.param("https://@host/v1", id="empty-userinfo"),
             pytest.param("https://host?x=1", id="query"),
+            pytest.param("https://host?", id="empty-query"),
             pytest.param("https://host#fragment", id="fragment"),
+            pytest.param("https://host#", id="empty-fragment"),
         ],
     )
     def test_rejects_a_url_that_is_not_plain_http(self, base_url: str) -> None:
@@ -249,6 +259,8 @@ class TestOllamaBaseUrl:
             ),
             pytest.param("http://localhost:11434/", "http://localhost:11434", id="server-root"),
             pytest.param("http://localhost:11434", "http://localhost:11434", id="bare"),
+            pytest.param("http://v1", "http://v1", id="host-named-v1"),
+            pytest.param("https://host/proxy/v1/", "https://host/proxy", id="proxy-prefix"),
         ],
     )
     async def test_environment_value_is_reduced_to_the_server_root(
