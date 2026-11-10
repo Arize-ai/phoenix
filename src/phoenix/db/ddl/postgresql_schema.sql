@@ -887,7 +887,7 @@ CREATE TABLE public.dataset_evaluators (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     deleted_at TIMESTAMP WITH TIME ZONE,
     delete_unused_evaluator BOOLEAN NOT NULL DEFAULT false,
-    delete_associated_prompt BOOLEAN NOT NULL DEFAULT false,
+    delete_associated_prompt_or_decision BOOLEAN NOT NULL DEFAULT false,
     CONSTRAINT pk_dataset_evaluators PRIMARY KEY (id),
     CONSTRAINT fk_dataset_evaluators_dataset_id_datasets
         FOREIGN KEY (dataset_id)
@@ -1625,7 +1625,7 @@ CREATE TABLE public.project_evaluators (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     deleted_at TIMESTAMP WITH TIME ZONE,
     delete_unused_evaluator BOOLEAN NOT NULL DEFAULT false,
-    delete_associated_prompt BOOLEAN NOT NULL DEFAULT false,
+    delete_associated_prompt_or_decision BOOLEAN NOT NULL DEFAULT false,
     CONSTRAINT pk_project_evaluators PRIMARY KEY (id),
     CONSTRAINT "ck_project_evaluators_`valid_evaluation_delay_seconds`" CHECK (((((evaluation_target)::text = 'SPAN'::text) AND (evaluation_delay_seconds = 0)) OR (((evaluation_target)::text <> 'SPAN'::text) AND (evaluation_delay_seconds >= 10)))),
     CONSTRAINT "ck_project_evaluators_`valid_evaluation_target`"

@@ -41,7 +41,7 @@ def upgrade() -> None:
             )
             batch_op.add_column(
                 sa.Column(
-                    "delete_associated_prompt",
+                    "delete_associated_prompt_or_decision",
                     sa.Boolean,
                     nullable=False,
                     server_default=sa.false(),
@@ -88,6 +88,6 @@ def downgrade() -> None:
             batch_op.create_unique_constraint(
                 f"uq_{table}_{scope_column}_name", [scope_column, "name"]
             )
-            batch_op.drop_column("delete_associated_prompt")
+            batch_op.drop_column("delete_associated_prompt_or_decision")
             batch_op.drop_column("delete_unused_evaluator")
             batch_op.drop_column("deleted_at")

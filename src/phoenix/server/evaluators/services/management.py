@@ -69,7 +69,7 @@ async def mark_bindings_deleted(
     binding_ids: Iterable[int],
     *,
     delete_unused_evaluator: bool,
-    delete_associated_prompt: bool,
+    delete_associated_prompt_or_decision: bool,
 ) -> list[int]:
     """Mark bindings deleted for the evaluator purger, returning the ids marked now.
 
@@ -85,7 +85,7 @@ async def mark_bindings_deleted(
             .values(
                 deleted_at=datetime.now(timezone.utc),
                 delete_unused_evaluator=delete_unused_evaluator,
-                delete_associated_prompt=delete_associated_prompt,
+                delete_associated_prompt_or_decision=delete_associated_prompt_or_decision,
             )
             .returning(model.id)
         )
@@ -378,6 +378,21 @@ async def release_llm_evaluator_prompt(
         await release_evaluator_prompt_label(session, prompt_id)
 
 
+async def release_decision_evaluator_tag(
+    session: AsyncSession, decision_version_tag_id: int
+) -> None:
+    """Delete the tag a removed decision evaluator ran through, unless another evaluator still
+    runs through it. Call this once the evaluator row itself is gone."""
+    await session.execute(
+        delete(models.DecisionVersionTag).where(
+            models.DecisionVersionTag.id == decision_version_tag_id,
+            ~select(models.DecisionEvaluator.id)
+            .where(models.DecisionEvaluator.decision_version_tag_id == models.DecisionVersionTag.id)
+            .exists(),
+        )
+    )
+
+
 async def validate_project_evaluator_project(
     session: AsyncSession,
     project_id: int,
@@ -460,15 +475,31 @@ async def garbage_collect_evaluators(
     *,
     evaluator_ids: set[int],
     prompt_ids: set[int],
-    delete_associated_prompt: bool,
+    decision_ids: set[int],
+    delete_associated_prompt_or_decision: bool,
 ) -> None:
+    """Delete the evaluators nothing binds, with the version tags they run through.
+
+    With ``delete_associated_prompt_or_decision``, also delete each given prompt or decision
+    that no remaining evaluator uses. Built-in evaluators are never deleted.
+    """
     deleted_ids: set[int] = set()
     llm_evaluator_prompts: dict[int, tuple[Optional[int], int]] = {}
+    decision_evaluator_tags: dict[int, Optional[int]] = {}
     if evaluator_ids:
-        # Read the LLM evaluators' tag and prompt before deleting: once a row is gone there is
-        # nothing left to join it against. RETURNING then reports only the evaluators this
-        # delete actually removed, so a binding added between this read and that delete (which
-        # keeps the row) can't be cleaned up as if it were unbound.
+        # Read the tags and prompts before deleting: once a row is gone there is nothing left
+        # to join it against. RETURNING then reports only the evaluators this delete actually
+        # removed, so a binding added between this read and that delete (which keeps the row)
+        # can't be cleaned up as if it were unbound.
+        decision_evaluator_tags = {
+            row.id: row.decision_version_tag_id
+            for row in await session.execute(
+                select(
+                    models.DecisionEvaluator.id,
+                    models.DecisionEvaluator.decision_version_tag_id,
+                ).where(models.DecisionEvaluator.id.in_(evaluator_ids))
+            )
+        }
         llm_evaluator_prompts = {
             row.id: (row.prompt_version_tag_id, row.prompt_id)
             for row in await session.execute(
@@ -484,9 +515,7 @@ async def garbage_collect_evaluators(
                 delete(models.Evaluator)
                 .where(
                     models.Evaluator.id.in_(evaluator_ids),
-                    # Decision judges are standalone and may serve several datasets or
-                    # projects; they are deleted explicitly, never garbage-collected.
-                    models.Evaluator.kind != "DECISION",
+                    models.Evaluator.kind != "BUILTIN",
                     ~select(models.DatasetEvaluators.id)
                     .where(models.DatasetEvaluators.evaluator_id == models.Evaluator.id)
                     .exists(),
@@ -497,12 +526,21 @@ async def garbage_collect_evaluators(
                 .returning(models.Evaluator.id)
             )
         )
-    if delete_associated_prompt and prompt_ids:
+    if delete_associated_prompt_or_decision and prompt_ids:
         await session.execute(
             delete(models.Prompt).where(
                 models.Prompt.id.in_(prompt_ids),
                 ~select(models.LLMEvaluator.id)
                 .where(models.LLMEvaluator.prompt_id == models.Prompt.id)
+                .exists(),
+            )
+        )
+    if delete_associated_prompt_or_decision and decision_ids:
+        await session.execute(
+            delete(models.Decision).where(
+                models.Decision.id.in_(decision_ids),
+                ~select(models.DecisionEvaluator.id)
+                .where(models.DecisionEvaluator.decision_id == models.Decision.id)
                 .exists(),
             )
         )
@@ -512,6 +550,8 @@ async def garbage_collect_evaluators(
             await release_llm_evaluator_prompt(
                 session, prompt_version_tag_id=tag_id, prompt_id=prompt_id
             )
+        if (decision_tag_id := decision_evaluator_tags.get(evaluator_id)) is not None:
+            await release_decision_evaluator_tag(session, decision_tag_id)
 
 
 def parse_evaluator_id(global_id: GlobalID) -> tuple[int, EvaluatorKind]:

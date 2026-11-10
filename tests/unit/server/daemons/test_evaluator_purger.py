@@ -106,7 +106,7 @@ async def _mark(
             model,
             [binding_id],
             delete_unused_evaluator=True,
-            delete_associated_prompt=False,
+            delete_associated_prompt_or_decision=False,
         ) == [binding_id]
 
 
@@ -272,11 +272,11 @@ async def test_marking_skips_bindings_already_deleted(db: DbSessionFactory) -> N
                 models.ProjectEvaluator,
                 [binding.id],
                 delete_unused_evaluator=False,
-                delete_associated_prompt=True,
+                delete_associated_prompt_or_decision=True,
             )
             == []
         )
         row = await session.get(models.ProjectEvaluator, binding.id)
         assert row is not None
         assert row.deleted_at == first
-        assert row.delete_unused_evaluator and not row.delete_associated_prompt
+        assert row.delete_unused_evaluator and not row.delete_associated_prompt_or_decision

@@ -3910,11 +3910,12 @@ class DatasetEvaluators(HasId):
         Boolean, nullable=False, server_default=sa.false()
     )
     """Whether the purger should also delete the evaluator definition once nothing binds it.
-    Built-in and decision evaluators are always kept."""
-    delete_associated_prompt: Mapped[bool] = mapped_column(
+    Built-in evaluators are always kept."""
+    delete_associated_prompt_or_decision: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=sa.false()
     )
-    """Whether the purger should also delete the evaluator's prompt once nothing uses it."""
+    """Whether the purger should also delete the evaluator's prompt or decision once no
+    evaluator uses it."""
     project: Mapped["Project"] = relationship("Project")
 
     __table_args__ = (
@@ -4245,11 +4246,12 @@ class ProjectEvaluator(HasId):
         Boolean, nullable=False, server_default=sa.false()
     )
     """Whether the purger should also delete the evaluator definition once nothing binds it.
-    Built-in and decision evaluators are always kept."""
-    delete_associated_prompt: Mapped[bool] = mapped_column(
+    Built-in evaluators are always kept."""
+    delete_associated_prompt_or_decision: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=sa.false()
     )
-    """Whether the purger should also delete the evaluator's prompt once nothing uses it."""
+    """Whether the purger should also delete the evaluator's prompt or decision once no
+    evaluator uses it."""
 
     project: Mapped["Project"] = relationship("Project", foreign_keys=[project_id])
     trace_project: Mapped["Project"] = relationship("Project", foreign_keys=[trace_project_id])

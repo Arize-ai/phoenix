@@ -840,7 +840,7 @@ CREATE TABLE dataset_evaluators (
     updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
     deleted_at TIMESTAMP,
     delete_unused_evaluator BOOLEAN DEFAULT 0 NOT NULL,
-    delete_associated_prompt BOOLEAN DEFAULT 0 NOT NULL,
+    delete_associated_prompt_or_decision BOOLEAN DEFAULT 0 NOT NULL,
     CONSTRAINT pk_dataset_evaluators PRIMARY KEY (id),
     CONSTRAINT fk_dataset_evaluators_dataset_id_datasets
         FOREIGN KEY (dataset_id)
@@ -1525,7 +1525,7 @@ CREATE TABLE project_evaluators (
     updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
     deleted_at TIMESTAMP,
     delete_unused_evaluator BOOLEAN DEFAULT 0 NOT NULL,
-    delete_associated_prompt BOOLEAN DEFAULT 0 NOT NULL,
+    delete_associated_prompt_or_decision BOOLEAN DEFAULT 0 NOT NULL,
     CONSTRAINT pk_project_evaluators PRIMARY KEY (id),
     CONSTRAINT "ck_project_evaluators_`valid_evaluation_delay_seconds`"
         CHECK (
