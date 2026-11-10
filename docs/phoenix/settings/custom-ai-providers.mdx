@@ -80,14 +80,14 @@ To turn on decision models for an OpenAI provider:
 3.  Click **Test connection** in the **Connection** section. For decision models, the test sends a request for a model that does not exist to the URL that a run uses. If the test fails, the error shows that URL. The test passes when the endpoint rejects that model by name, which shows that the URL and the API key are correct. No model runs. Some servers, such as a server that runs one model, ignore the model name and send an answer. The test also passes when that answer is a valid decision response.
 
 <Note>
-If the endpoint serves decisions at a different base URL than chat, add a second provider with that base URL and turn on only its decision models.
+If the endpoint serves decisions at a different base URL than chat, add a second provider with that base URL and turn on its decision models.
 </Note>
 
 *   A TypeSafe provider always serves decision models through System One, at its own base URL. You can enter suggested model names in its **Decision models** section. **Test connection** checks its decision endpoint.
 *   If a host serves OpenAI-compatible chat and System One decisions, for example a self-hosted Ollama or a proxy in front of Fireworks, add two providers: an OpenAI provider for chat and a TypeSafe provider for decisions.
 *   Azure OpenAI, Anthropic, AWS Bedrock, and Google GenAI providers do not serve decision models.
 *   Saved decisions record the provider's SDK, as saved prompts do. While saved decisions use a provider, you cannot turn off its decision models.
-*   Providers that existed before decision models were added do not serve decision models until you turn them on. Exceptions: TypeSafe providers, and OpenAI providers that saved decisions already use.
+*   Providers that existed before decision models were added do not serve decision models until you turn them on.
 
 ## Example: Azure OpenAI Configuration
 
