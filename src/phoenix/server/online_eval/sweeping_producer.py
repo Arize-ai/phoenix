@@ -538,19 +538,10 @@ class SweepingEvaluationProducer(DaemonTask):
         rows: Sequence[Any],
     ) -> dict[tuple[int, int], bool]:
         """Whether each evaluation on the page passes its evaluator's filter, keyed by
-        (project evaluator, target), for evaluations whose target is still at the activity
-        the page read.
-
-        Each evaluator's statement reads its targets' activity together with the filter, so
-        an evaluation is decided on the content its target had, quiet, at the page read; the
-        consumer later evaluates whatever content the target has when it runs. An evaluation
-        whose target has moved on is left out and stays undecided until a later tick sees the
-        target quiet, and so are the evaluations of an evaluator whose filter fails when it
-        runs.
-        """
+        (project evaluator, target). An evaluator whose filter fails when it runs has no
+        verdicts this tick."""
         target = self._target
         target_model = target.target_model
-        decided_through = {row.target_rowid: row.decided_through for row in rows}
         verdicts: dict[tuple[int, int], bool] = {}
         for project_evaluator in project_evaluators:
             target_rowids = tuple(
@@ -575,11 +566,9 @@ class SweepingEvaluationProducer(DaemonTask):
                 async with session.begin_nested():
                     result = (
                         await session.execute(
-                            select(
-                                target_model.id,
-                                target_model.last_span_ingested_at,
-                                passes_filter,
-                            ).where(target_model.id.in_(target_rowids))
+                            select(target_model.id, passes_filter).where(
+                                target_model.id.in_(target_rowids)
+                            )
                         )
                     ).all()
             except (DBAPIError, OverflowError) as error:
@@ -592,9 +581,8 @@ class SweepingEvaluationProducer(DaemonTask):
                     f"{error.orig if isinstance(error, DBAPIError) else error}"
                 )
                 continue
-            for target_rowid, activity_through, passes in result:
-                if activity_through == decided_through[target_rowid]:
-                    verdicts[(project_evaluator.project_evaluator_id, target_rowid)] = passes
+            for target_rowid, passes in result:
+                verdicts[(project_evaluator.project_evaluator_id, target_rowid)] = passes
         return verdicts
 
     async def _advance_sweep_positions_to_due_time(
