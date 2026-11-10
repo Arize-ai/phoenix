@@ -11,6 +11,7 @@ from phoenix.config import getenv
 from phoenix.db.types.model_provider import (
     SDK_TO_MODEL_PROVIDER,
     ModelProvider,
+    ModelTypeKey,
 )
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.ModelType import ModelType
@@ -282,22 +283,25 @@ class GenerativeProvider:
         ],
     }
 
-    def _default_client(self) -> Optional[type["ModelClient[Any]"]]:
+    def _client(self, model_type: Optional[ModelType] = None) -> Optional[type["ModelClient[Any]"]]:
         from phoenix.server.api.helpers.client_registry import CLIENT_REGISTRY
 
-        for model_type in CLIENT_REGISTRY.model_types(self.key):
-            if client := CLIENT_REGISTRY.get_client(self.key, model_type=model_type):
+        if model_type is not None:
+            key: ModelTypeKey = "decision" if model_type is ModelType.DECISION else "chat"
+            return CLIENT_REGISTRY.get_client(self.key, model_type=key)
+        for key in CLIENT_REGISTRY.model_types(self.key):
+            if client := CLIENT_REGISTRY.get_client(self.key, model_type=key):
                 return client
         return None
 
     @strawberry.field
-    async def dependencies(self) -> list[str]:
-        client = self._default_client()
+    async def dependencies(self, model_type: Optional[ModelType] = None) -> list[str]:
+        client = self._client(model_type)
         return [dependency.name for dependency in client.dependencies()] if client else []
 
     @strawberry.field
-    async def dependencies_installed(self) -> bool:
-        client = self._default_client()
+    async def dependencies_installed(self, model_type: Optional[ModelType] = None) -> bool:
+        client = self._client(model_type)
         return client.dependencies_are_installed() if client else False
 
     @strawberry.field(

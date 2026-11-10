@@ -196,6 +196,9 @@ export function useModelMenuData({
           key
           name
           dependenciesInstalled
+          decisionDependenciesInstalled: dependenciesInstalled(
+            modelType: DECISION
+          ) @include(if: $includeDecisionModels)
           credentialsSet
           modelTypes
         }
@@ -350,15 +353,13 @@ export function useModelMenuData({
   // disabled.
   const visibleProviders = useMemo<ModelProviderInfo[]>(() => {
     if (modelType === "DECISION") {
-      // Decision clients speak plain HTTP, so a provider whose chat SDK is
-      // missing can still run decisions; the server reports installation per
-      // provider, not per model type. Decision-only providers (TypeSafe), which
-      // the chat lists leave out, are included.
+      // Decision-only providers (TypeSafe), which the chat lists leave out, are
+      // included, and each provider's decision client dependency is checked.
       return data.modelProviders
         .filter((provider) => provider.modelTypes.includes("DECISION"))
         .map((provider) => ({
           ...provider,
-          dependenciesInstalled: true,
+          dependenciesInstalled: provider.decisionDependenciesInstalled ?? false,
           needsCredentials: providerNeedsCredentials({
             provider,
             localCredentials,
