@@ -58,6 +58,8 @@ def check_servable_model_types(
     sdk = config.type
     for key in sorted(served.types() - servable_model_types(sdk)):
         raise BadRequest(f"A provider with the {sdk} SDK can't serve {_LABELS[key]} models.")
+    if not served.types():
+        raise BadRequest("A provider must serve at least one model type.")
 
 
 def check_provider_models(
@@ -70,5 +72,3 @@ def check_provider_models(
         # Chat execution paths do not check provider.models.chat yet, so chat SDKs cannot
         # disable chat.
         raise BadRequest(f"A provider with the {sdk} SDK always serves chat models.")
-    if not served.types():
-        raise BadRequest("A provider must serve at least one model type.")
