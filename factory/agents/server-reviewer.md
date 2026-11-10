@@ -20,7 +20,7 @@ Hold the change to `REVIEW.md` and the project skills for its area. Check these 
 
 - Every `@strawberry.mutation` and `@strawberry.subscription` declares `permission_classes`. Side-effecting resolvers are mutations, never `Query` fields. Run `make check-graphql-permissions`.
 - Schema changes ship a migration that works on both SQLite and PostgreSQL, with no single-dialect SQL.
-- Resolvers on object types other than `Query` use dataloaders, and no resolver queries inside a loop over rows (no N+1). A root `Query` field that loads one row by its ID may query directly.
+- A field that loads one value or one related row per parent, by the parent's ID or a foreign key, such as `Project.name` or `Span.project`, uses a dataloader, and no resolver queries inside a loop over rows (no N+1). Root `Query` fields, mutations, subscriptions, and connection or filtered list fields may query directly.
 - If you say a change is slower, say slower than what: for the same request, compare the queries the change makes with the queries your suggested fix makes, and the rows each scans when that is the difference, and give the numbers.
 - Data-mutating operations emit events so subscribers stay in sync.
 - User-supplied URLs and headers are validated before the server dials out.

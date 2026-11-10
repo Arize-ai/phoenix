@@ -8,7 +8,7 @@ An implementation is compliant if it satisfies all "MUST", "MUST NOT", "REQUIRED
 
 - A rule applies only within the scope its own text states, including any exception it names. A reason given in a rule explains it; it doesn't narrow it
 - If a rule seems wrong for the code under review, follow it anyway, and say so in the finding or the PR body so a maintainer can fix the rule
-- A finding or fix that cites an existing pattern as the convention MUST name any other pattern the codebase uses for the same thing
+- A finding or fix that cites an existing pattern as the convention MUST name any other pattern it knows the codebase uses for the same thing, and say why the one it cites fits better
 
 ## Always Check
 
@@ -16,7 +16,7 @@ An implementation is compliant if it satisfies all "MUST", "MUST NOT", "REQUIRED
 - Database schema changes MUST include migrations and MUST be tested across all supported backends
 - Error messages MUST NOT leak internal details to users — typed error classes SHOULD be used for expected failures
 - Data-mutating operations MUST emit events so downstream subscribers stay in sync
-- Resolvers on object types other than `Query` MUST load data through dataloaders, and a resolver MUST NOT query inside a loop over rows. Otherwise a list of 100 items makes 100 queries (N+1). A root `Query` field that loads one row by its ID MAY query directly, even though aliasing it several times in one request makes one query per alias
+- A field that loads one value or one related row per parent, by the parent's ID or a foreign key, such as `Project.name` or `Span.project`, MUST use a dataloader, and a resolver MUST NOT query inside a loop over rows. Otherwise a list of 100 items makes 100 queries (N+1). Root `Query` fields, mutations, subscriptions, and connection or filtered list fields are outside the dataloader requirement and MAY query directly. A root field aliased several times in one request makes one query per alias
 - Tests SHOULD extend existing test modules unless they cover a distinct responsibility
 - Tests MUST fail when the behavior they cover is removed — tests that only exercise mocks or restate the implementation MUST NOT be added
 - Docs the change makes stale MUST be updated in the same PR; new environment variables MUST be documented and new docs pages indexed in `docs/phoenix/llms.txt`
@@ -77,10 +77,10 @@ An implementation is compliant if it satisfies all "MUST", "MUST NOT", "REQUIRED
 Before acting on a finding, check three things:
 
 1. The code or text it quotes exists and does what the finding says.
-2. The code is within the scope of the rule it cites.
+2. Any rule it cites covers this code within the rule's stated scope.
 3. Any claim that the change is slower holds up against the suggested fix.
 
-If a check fails, don't apply the finding. Send the reviewer which check failed and why. The reviewer MUST answer that: withdraw the finding, or show why it still holds, not just repeat the rule.
+If check 1 or 2 fails, don't apply the finding. If check 3 fails, drop the cost claim and judge the rest of the finding without it. Either way, send the reviewer which check failed and why. The reviewer MUST answer that: withdraw the finding, or show why it still holds, not just repeat the rule.
 
 ## Skip
 
