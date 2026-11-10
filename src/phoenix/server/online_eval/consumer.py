@@ -28,6 +28,7 @@ from phoenix.server.online_eval.coordinator import (
     HEARTBEAT_INTERVAL_SECONDS,
     ClaimedWorkUnit,
     EvalWorkCoordinator,
+    PublicationClaimLostError,
     PublicationEvaluatorDisabledError,
 )
 from phoenix.server.online_eval.current_queue import load_evaluation_queue
@@ -390,6 +391,11 @@ class EvaluationConsumer(DaemonTask):
                     f"Online-eval work unit {unit.work_unit_id} could not be cleared after "
                     "its claim was lost"
                 )
+        except PublicationClaimLostError:
+            logger.warning(
+                f"Online-eval work unit {unit.work_unit_id} lost its claim before its results "
+                "were published"
+            )
         except Exception as exc:
             disposition = classify(exc, hydrated_work_unit)
             if disposition.terminal:

@@ -39,7 +39,6 @@ from phoenix.server.online_eval.clock import (
     TERMINAL_METRICS_WINDOW_SECONDS,
     current_database_time,
 )
-from phoenix.server.online_eval.failure_policy import FailureDisposition
 from phoenix.server.online_eval.work_tables import WORK_TABLES, WorkUnitModel
 from phoenix.server.prometheus import (
     ONLINE_EVAL_COMPLETED_WORK_UNITS,
@@ -72,12 +71,6 @@ _COMPLETED_OUTCOMES = {
 
 class PublicationClaimLostError(Exception):
     """A work unit stopped being publishable before its results could be written."""
-
-    online_eval_disposition = FailureDisposition(
-        count_attempt=True,
-        terminal=True,
-        code="PUBLICATION_CLAIM_LOST",
-    )
 
 
 class PublicationEvaluatorDisabledError(PublicationClaimLostError):
