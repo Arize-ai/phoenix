@@ -935,15 +935,21 @@ class GoogleGenAICustomProviderConfig(BaseModel):
         if extra_headers:
             headers.update(extra_headers)
         # attempts=1: no HTTP retries (google-genai default is 5 attempts).
+        # Redirects are disabled on both httpx and aiohttp transports so x-goog-api-key
+        # is not forwarded across redirects.
         _no_http_retries = HttpRetryOptions(attempts=1)
-        if base_url or headers:
-            http_options = HttpOptions(
-                base_url=base_url,
-                headers=headers or None,
-                retry_options=_no_http_retries,
-            )
-        else:
-            http_options = HttpOptions(retry_options=_no_http_retries)
+        _no_redirects_client_args = {"follow_redirects": False}
+        _no_redirects_async_client_args = {
+            "follow_redirects": False,
+            "allow_redirects": False,
+        }
+        http_options = HttpOptions(
+            base_url=base_url,
+            headers=headers or None,
+            retry_options=_no_http_retries,
+            client_args=_no_redirects_client_args,
+            async_client_args=_no_redirects_async_client_args,
+        )
 
         # Wrapped with @asynccontextmanager because Google's AsyncClient has
         # a non-standard __aexit__ signature that doesn't conform to
