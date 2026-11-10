@@ -19,7 +19,6 @@ from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.daemons.evaluator_purger import purge_deleted_bindings_of_evaluator
 from phoenix.server.decisions.validation import validate_decision_custom_provider
 from phoenix.server.evaluators.services.dataset_bindings import (
     DatasetEvaluatorWriteValues,
@@ -52,6 +51,7 @@ from phoenix.server.evaluators.services.project_bindings import (
     project_binding_name_taken,
     validate_decision_project_mapping,
 )
+from phoenix.server.evaluators.services.purge import purge_deleted_bindings_of_evaluator
 from phoenix.server.evaluators.snapshots import get_decision_evaluator
 from phoenix.server.evaluators.validation import validate_decision_input_mapping
 

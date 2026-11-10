@@ -11,8 +11,9 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
-from phoenix.server.daemons.evaluator_purger import EvaluatorPurger, purge_deleted_bindings
+from phoenix.server.daemons.evaluator_purger import EvaluatorPurger
 from phoenix.server.evaluators.services import project_bindings
+from phoenix.server.evaluators.services.purge import purge_deleted_bindings
 from phoenix.server.online_eval.coordinator import EvalWorkCoordinator
 from phoenix.server.online_eval.span_producer import SpanEvaluationProducer
 from phoenix.server.online_eval.sweeping_producer import (

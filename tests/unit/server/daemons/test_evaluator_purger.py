@@ -9,12 +9,10 @@ import sqlalchemy as sa
 from phoenix.db import models
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
-from phoenix.server.daemons import evaluator_purger
-from phoenix.server.daemons.evaluator_purger import (
-    EvaluatorPurger,
-    purge_deleted_bindings,
-)
+from phoenix.server.daemons.evaluator_purger import EvaluatorPurger
+from phoenix.server.evaluators.services import purge
 from phoenix.server.evaluators.services.management import mark_bindings_deleted
+from phoenix.server.evaluators.services.purge import purge_deleted_bindings
 from phoenix.server.online_eval.leases import ScanLease
 from phoenix.server.types import DbSessionFactory
 
@@ -128,7 +126,7 @@ async def test_purge_removes_a_project_evaluator_in_batches(db: DbSessionFactory
     untouched = await _add_project_binding(db, evaluated_spans=1, evaluator_traces=1)
     await _mark(db, models.ProjectEvaluator, binding.id)
 
-    with patch.object(evaluator_purger, "PURGE_BATCH_ROWS", 2):
+    with patch.object(purge, "PURGE_BATCH_ROWS", 2):
         await purge_deleted_bindings(db)
 
     async with db() as session:
@@ -146,7 +144,7 @@ async def test_purge_removes_a_project_evaluator_in_batches(db: DbSessionFactory
 
 async def test_purge_leaves_bindings_that_are_not_deleted(db: DbSessionFactory) -> None:
     binding = await _add_project_binding(db, evaluated_spans=1, evaluator_traces=1)
-    await evaluator_purger.purge_project_evaluator(db, binding.id)
+    await purge.purge_project_evaluator(db, binding.id)
     async with db() as session:
         assert await session.get(models.ProjectEvaluator, binding.id) is not None
     assert await _project_exists(db, binding.trace_project_id)
@@ -184,9 +182,9 @@ async def test_interrupted_purge_resumes_on_the_next_run(db: DbSessionFactory) -
     async def _interrupt() -> None:
         raise _Interrupted
 
-    with patch.object(evaluator_purger, "PURGE_BATCH_ROWS", 2):
+    with patch.object(purge, "PURGE_BATCH_ROWS", 2):
         with pytest.raises(_Interrupted):
-            await evaluator_purger.purge_project_evaluator(db, binding.id, heartbeat=_interrupt)
+            await purge.purge_project_evaluator(db, binding.id, heartbeat=_interrupt)
 
     work_units = models.EvalWorkUnit.project_evaluator_id == binding.id
     assert await _count(db, models.EvalWorkUnit, work_units) == 1

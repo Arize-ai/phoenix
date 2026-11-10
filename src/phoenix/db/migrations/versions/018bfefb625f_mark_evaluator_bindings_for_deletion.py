@@ -22,13 +22,13 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 _BINDINGS = (
-    ("dataset_evaluators", "dataset_id", "project_id"),
-    ("project_evaluators", "project_id", "trace_project_id"),
+    ("dataset_evaluators", "dataset_id"),
+    ("project_evaluators", "project_id"),
 )
 
 
 def upgrade() -> None:
-    for table, scope_column, _ in _BINDINGS:
+    for table, scope_column in _BINDINGS:
         with op.batch_alter_table(table) as batch_op:
             batch_op.add_column(sa.Column("deleted_at", sa.TIMESTAMP(timezone=True), nullable=True))
             batch_op.add_column(
@@ -65,23 +65,15 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     connection = op.get_bind()
-    # Flagged bindings would collide with the restored name constraints, so drop them
-    # along with the trace projects they own.
-    for table, _, trace_project_column in _BINDINGS:
-        trace_project_ids = list(
-            connection.execute(
-                sa.text(f"SELECT {trace_project_column} FROM {table} WHERE deleted_at IS NOT NULL")
-            ).scalars()
-        )
-        connection.execute(sa.text(f"DELETE FROM {table} WHERE deleted_at IS NOT NULL"))
-        if trace_project_ids:
-            connection.execute(
-                sa.text("DELETE FROM projects WHERE id IN :ids").bindparams(
-                    sa.bindparam("ids", expanding=True)
-                ),
-                {"ids": trace_project_ids},
+    # Deleted bindings would collide with the restored name constraints, and removing them here
+    # would skip the cascades SQLite leaves off during migrations, so refuse until they are purged.
+    for table, _ in _BINDINGS:
+        if connection.scalar(sa.text(f"SELECT COUNT(*) FROM {table} WHERE deleted_at IS NOT NULL")):
+            raise ValueError(
+                f"Cannot downgrade while deleted {table} rows remain; run the server on this "
+                "version until the evaluator purger removes them"
             )
-    for table, scope_column, _ in _BINDINGS:
+    for table, scope_column in _BINDINGS:
         with op.batch_alter_table(table) as batch_op:
             batch_op.drop_index(f"ix_{table}_deleted_at")
             batch_op.drop_index(f"ix_{table}_{scope_column}_name")

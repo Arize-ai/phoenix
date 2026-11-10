@@ -12,7 +12,7 @@ from phoenix.db import models
 from phoenix.db.types.annotation_configs import ContinuousOutputConfig, OptimizationDirection
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
-from phoenix.server.daemons.evaluator_purger import purge_deleted_bindings
+from phoenix.server.evaluators.services.purge import purge_deleted_bindings
 from phoenix.server.types import DbSessionFactory
 
 

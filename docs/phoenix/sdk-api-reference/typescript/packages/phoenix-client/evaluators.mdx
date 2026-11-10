@@ -50,6 +50,7 @@ try {
 `problem.reason` is a finer condition under `code`, present on some `conflict` responses. Treat a `reason` you don't recognize by `code` alone. The reasons today, and what to do for each:
 
 - `still_bound` (deleting a definition something still binds): detach the bindings first, then delete.
+- `bindings_being_deleted` (deleting a definition whose bindings were deleted but not yet purged): retry the definition delete shortly.
 - `version_mismatch` (`expected_current_version_id` didn't match): re-read the evaluator and reconcile before retrying — never blindly resubmit with the version the error reports as current, since another deploy can land before you do.
 - `concurrent_change` (another write touched the same row mid-request): retry the same request unchanged.
 
@@ -285,7 +286,7 @@ await deleteDatasetEvaluators({
 });
 ```
 
-Deleting a binding also deletes its trace project and recorded traces while keeping its evaluator definition and prompt. `deleteDatasetEvaluators` deletes up to 1000 of a dataset's bindings atomically: either every binding and its trace project are deleted or none is. Missing bindings are ignored, but an ID that is not a binding, or a binding of another dataset, fails the whole request.
+Deleting a binding hides it at once; its trace project and recorded traces are removed in the background, and its evaluator definition and prompt are kept. `deleteDatasetEvaluators` deletes up to 1000 of a dataset's bindings atomically: either every binding is deleted or none is. Missing bindings are ignored, but an ID that is not a binding, or a binding of another dataset, fails the whole request.
 
 ## Run An Evaluator On A Project
 
@@ -345,7 +346,7 @@ await deleteProjectEvaluators({
 ```
 
 - On update, `input_mapping: null` drops the binding's mapping so the evaluator's applies; LLM evaluators have none, so only variables rooted at input, output, or metadata bind (for example `{{metadata.turns}}`); anything else needs `inputMapping`. `evaluation_delay_seconds: null` restores the default delay. `filter_condition` is cleared with `""`, not `null`.
-- `deleteProjectEvaluator` deletes one binding and its trace project and recorded traces. `deleteProjectEvaluators` deletes up to 1000 of a project's bindings atomically, with the same rules as the dataset bulk delete. The evaluator definitions and prompts are kept.
+- `deleteProjectEvaluator` deletes one binding; its trace project and recorded traces are removed in the background. `deleteProjectEvaluators` deletes up to 1000 of a project's bindings atomically, with the same rules as the dataset bulk delete. The evaluator definitions and prompts are kept.
 
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">
   <h2>Source Map</h2>

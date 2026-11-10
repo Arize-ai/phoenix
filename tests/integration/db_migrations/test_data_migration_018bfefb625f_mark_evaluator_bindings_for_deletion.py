@@ -2,8 +2,7 @@
 Data migration test for marking evaluator bindings deleted.
 
 After the upgrade a deleted binding no longer holds its name, so a new binding can take it.
-The downgrade restores the name constraints, so it first drops deleted bindings with the
-trace projects they own.
+The downgrade restores the name constraints, so it refuses while deleted bindings remain.
 """
 
 from typing import Literal
@@ -108,8 +107,10 @@ def _rebind_live_name(conn: Connection, ids: dict[str, int]) -> None:
         conn.rollback()
 
 
-def _project_names(conn: Connection) -> set[str]:
-    return set(conn.execute(text("SELECT name FROM projects")).scalars())
+def _purge(conn: Connection) -> None:
+    conn.execute(text("DELETE FROM dataset_evaluators WHERE deleted_at IS NOT NULL"))
+    conn.execute(text("DELETE FROM project_evaluators WHERE deleted_at IS NOT NULL"))
+    conn.commit()
 
 
 def _binding_counts(conn: Connection) -> tuple[int, int]:
@@ -134,8 +135,12 @@ async def test_mark_evaluator_bindings_for_deletion(
     with pytest.raises(Exception, match="(?i)unique|duplicate"):
         await _run_async(_engine, lambda conn: _rebind_live_name(conn, ids))
 
+    with pytest.raises(Exception, match="Cannot downgrade while deleted dataset_evaluators"):
+        await _down(_engine, _alembic_config, _DOWN, _schema)
+    assert await _run_async(_engine, _binding_counts) == (2, 2)
+
+    await _run_async(_engine, _purge)
     await _down(_engine, _alembic_config, _DOWN, _schema)
     assert await _run_async(_engine, _binding_counts) == (1, 1)
-    names = await _run_async(_engine, _project_names)
-    assert {"app", "dataset-trace-2", "project-trace-2"} <= names
-    assert not names & {"dataset-trace", "project-trace"}
+    with pytest.raises(Exception, match="(?i)unique|duplicate"):
+        await _run_async(_engine, lambda conn: _rebind_live_name(conn, ids))
