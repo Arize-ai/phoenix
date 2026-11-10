@@ -138,7 +138,7 @@ Each call shows up in Phoenix as a **[DECISION span](/docs/phoenix/tracing/conce
 - `decision.request.model_name`, `decision.response.model_name`, and `decision.model_name`
 - `decision.token_count.input` and `decision.token_count.output`, from the response's `usage`
 
-Phoenix names the decision model in the span's input card. The model and its usage are recorded under `decision.*` rather than `llm.*`, so decision-model calls stay out of Phoenix's LLM token and cost reporting.
+Phoenix names the decision model in the span's input card. The model and its usage are recorded under `decision.*` rather than `llm.*`, so decision-model calls stay out of Phoenix's LLM token reporting. Phoenix prices them against decision-model prices instead (see [Cost Tracking](/docs/phoenix/tracing/how-to-tracing/cost-tracking#decision-spans)).
 
 The questions and answers live only in `input.value` and `output.value`, so the `hideInputs` and `hideOutputs` trace config options redact them completely.
 

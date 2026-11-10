@@ -88,7 +88,7 @@ With instrumentation enabled, each `systemOne` call shows up in Phoenix as a **D
 - `decision.request.model_name`, `decision.response.model_name` (the resolved model), and `decision.model_name`
 - `decision.token_count.input` and `decision.token_count.output`, when reported by the SDK
 
-Phoenix names the decision model in the span's input card. The model and its usage follow the OpenInference [decision span conventions](https://github.com/Arize-ai/openinference/blob/main/spec/decision_spans.md) and live under `decision.*` rather than `llm.*`, so decision-model calls stay out of Phoenix's LLM token and cost reporting. Earlier releases recorded them under `llm.*`, and releases before 0.3.0 recorded them as LLM spans.
+Phoenix names the decision model in the span's input card. The model and its usage follow the OpenInference [decision span conventions](https://github.com/Arize-ai/openinference/blob/main/spec/decision_spans.md) and live under `decision.*` rather than `llm.*`, so decision-model calls stay out of Phoenix's LLM token reporting. Phoenix prices them against decision-model prices instead (see [Cost Tracking](/docs/phoenix/tracing/how-to-tracing/cost-tracking#decision-spans)). Earlier releases recorded them under `llm.*`, and releases before 0.3.0 recorded them as LLM spans.
 
 ## Configuration
 
