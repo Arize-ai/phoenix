@@ -96,6 +96,7 @@ class ProjectEvaluatorPatch:
     sampling_rate: Optional[float] = UNSET
     filter_condition: Optional[str] = UNSET
     enabled: Optional[bool] = UNSET
+    tracing_enabled: Optional[bool] = UNSET
     input_mapping: Optional[InputMapping] = UNSET
     evaluation_delay_seconds: Optional[int] = UNSET
 
@@ -322,7 +323,7 @@ def project_binding_values(
 ) -> ProjectEvaluatorWriteValues:
     """Check binding settings for a binding of this target and return the values to write.
     A setting left UNSET is left out, and None resets the evaluation delay to its default."""
-    for field in ("name", "sampling_rate", "filter_condition", "enabled"):
+    for field in ("name", "sampling_rate", "filter_condition", "enabled", "tracing_enabled"):
         if getattr(settings, field) is None:
             raise BadRequest(f"{field} cannot be set to null")
     values = ProjectEvaluatorWriteValues()
@@ -346,6 +347,9 @@ def project_binding_values(
     if settings.enabled is not UNSET:
         assert settings.enabled is not None
         values["enabled"] = settings.enabled
+    if settings.tracing_enabled is not UNSET:
+        assert settings.tracing_enabled is not None
+        values["tracing_enabled"] = settings.tracing_enabled
     if settings.input_mapping is not UNSET:
         values["input_mapping"] = settings.input_mapping
     return values
