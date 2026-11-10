@@ -60,14 +60,43 @@ def _canonical_default(obj: Any) -> Any:
     raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
 
+# Output config fields that change no score or label, so setting, moving or clearing
+# them must not start a new annotation series. A continuous config's threshold only
+# says where good turns to bad when results are displayed; a decision evaluator's
+# predicate threshold, which does flip labels, already reaches the fingerprint through
+# the scoring policy in its version_ref.
+_DISPLAY_ONLY_OUTPUT_CONFIG_FIELDS: dict[Any, frozenset[str]] = {
+    "CONTINUOUS": frozenset({"threshold"})
+}
+
+
+def fingerprinted_output_config(config: Any) -> Any:
+    """A dumped output config without the fields that change no result."""
+    if not isinstance(config, dict):
+        return config
+    config_type = config.get("type")
+    if isinstance(config_type, Enum):
+        config_type = config_type.value
+    display_only = _DISPLAY_ONLY_OUTPUT_CONFIG_FIELDS.get(config_type, frozenset())
+    if not display_only:
+        return config
+    return {key: value for key, value in config.items() if key not in display_only}
+
+
 def config_fingerprint(resolved: ResolvedProjectEvaluator) -> str:
     """Full 64-char sha256 hex over the canonical JSON form of the resolved evaluator.
 
     The consumer computes it from the configuration it hydrates, so an annotation's
-    identifier names the configuration that produced it.
+    identifier names the configuration that produced it. Display-only output config
+    fields are left out (see ``fingerprinted_output_config``).
     """
+    fingerprinted = asdict(resolved)
+    if isinstance(resolved.output_configs, list):
+        fingerprinted["output_configs"] = [
+            fingerprinted_output_config(config) for config in resolved.output_configs
+        ]
     canonical = json.dumps(
-        asdict(resolved),
+        fingerprinted,
         sort_keys=True,
         separators=(",", ":"),
         ensure_ascii=False,
