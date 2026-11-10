@@ -481,10 +481,13 @@ export function ProjectEvaluatorsTable({
     () => data.evaluators.edges.map(({ node }) => readRow(node)),
     [data.evaluators.edges]
   );
-  const targetsById = useMemo(
+  const evaluatorsById = useMemo<ProjectEvaluatorSelection>(
     () =>
       Object.fromEntries(
-        tableData.map(({ id, evaluationTarget }) => [id, evaluationTarget])
+        tableData.map(({ id, name, evaluationTarget, evaluator }) => [
+          id,
+          { evaluationTarget, name, kind: evaluator.kind },
+        ])
       ),
     [tableData]
   );
@@ -499,11 +502,11 @@ export function ProjectEvaluatorsTable({
         reconcileProjectEvaluatorSelection({
           nextRowSelection,
           previousSelection: selection,
-          targetsById,
+          evaluatorsById,
         })
       );
     },
-    [onSelectionChange, rowSelection, selection, targetsById]
+    [onSelectionChange, rowSelection, selection, evaluatorsById]
   );
   const navigate = useNavigate();
   const paths = useProjectEvaluatorPaths();
@@ -1024,6 +1027,7 @@ export function ProjectEvaluatorsTable({
       </EvaluatorScoreWindowProvider>
       {Object.keys(selection).length > 0 ? (
         <ProjectEvaluatorSelectionToolbar
+          projectId={projectId}
           selection={selection}
           onClearSelection={() => onSelectionChange({})}
         />

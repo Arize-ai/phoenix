@@ -1,80 +1,55 @@
-import { graphql, useMutation, useRelayEnvironment } from "react-relay";
+import { useRelayEnvironment } from "react-relay";
 
 import { useTimeRange } from "@phoenix/components/datetime";
 import { DeleteEvaluatorDialog } from "@phoenix/components/evaluators/DeleteEvaluatorDialog";
-import type { DeleteProjectEvaluatorDialogMutation } from "@phoenix/pages/project/evaluators/__generated__/DeleteProjectEvaluatorDialogMutation.graphql";
+import type { EvaluatorToDelete } from "@phoenix/components/evaluators/deleteEvaluatorsCopy";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
-import type { EvaluatorKind } from "@phoenix/types";
-import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
+import { useDeleteProjectEvaluators } from "@phoenix/pages/project/evaluators/useDeleteProjectEvaluators";
 
-export function DeleteProjectEvaluatorDialog({
-  projectEvaluatorId,
-  projectId,
-  evaluatorName,
-  evaluatorKind,
-  isOpen,
-  onOpenChange,
-}: {
-  projectEvaluatorId: string;
-  projectId: string;
-  evaluatorName: string;
-  evaluatorKind: EvaluatorKind;
+export type DeleteProjectEvaluatorDialogProps = {
+  projectEvaluators: ReadonlyArray<EvaluatorToDelete>;
+  /**
+   * The project every evaluator belongs to, whose evaluators are refetched
+   * after the delete. Without it the evaluators may belong to any project and
+   * the caller refetches from `onDeleted`.
+   */
+  projectId?: string;
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-}) {
+  onDeleted?: () => void;
+};
+
+export function DeleteProjectEvaluatorDialog({
+  projectEvaluators,
+  projectId,
+  isOpen,
+  onOpenChange,
+  onDeleted,
+}: DeleteProjectEvaluatorDialogProps) {
   const environment = useRelayEnvironment();
   const { timeRangeISOStrings } = useTimeRange();
-  const [commitDelete, isDeleting] =
-    useMutation<DeleteProjectEvaluatorDialogMutation>(graphql`
-      mutation DeleteProjectEvaluatorDialogMutation(
-        $input: DeleteProjectEvaluatorsInput!
-      ) {
-        deleteProjectEvaluators(input: $input) {
-          projectEvaluatorIds
-        }
-      }
-    `);
+  const { deleteProjectEvaluators, isDeleting } = useDeleteProjectEvaluators();
   return (
     <DeleteEvaluatorDialog
-      evaluatorName={evaluatorName}
-      evaluatorKind={evaluatorKind}
-      target="project"
+      evaluators={projectEvaluators}
+      target={projectId ? "project" : "anyProject"}
       isOpen={isOpen}
       onOpenChange={onOpenChange}
+      onDeleted={onDeleted}
       isDeleting={isDeleting}
-      onDelete={({ deleteAssociatedPrompt }) =>
-        new Promise<void>((resolve, reject) => {
-          commitDelete({
-            variables: {
-              input: {
-                projectEvaluatorIds: [projectEvaluatorId],
-                deleteAssociatedPromptOrDecision: deleteAssociatedPrompt,
-              },
-            },
-            onCompleted: (_response, errors) => {
-              if (errors?.length) {
-                reject(
-                  new Error(errors.map(({ message }) => message).join("\n"))
-                );
-                return;
-              }
-              void refetchProjectEvaluators({
-                environment,
-                projectId,
-                timeRange: timeRangeISOStrings,
-              }).then(() => resolve(), reject);
-            },
-            onError: (mutationError) =>
-              reject(
-                new Error(
-                  getErrorMessagesFromRelayMutationError(mutationError)?.join(
-                    "\n"
-                  ) ?? mutationError.message
-                )
-              ),
+      onDelete={async ({ deleteAssociatedPromptOrDecision }) => {
+        await deleteProjectEvaluators({
+          projectEvaluatorIds: projectEvaluators.map(({ id }) => id),
+          deleteAssociatedPromptOrDecision,
+        });
+        if (projectId) {
+          await refetchProjectEvaluators({
+            environment,
+            projectId,
+            timeRange: timeRangeISOStrings,
           });
-        })
-      }
+        }
+      }}
     />
   );
 }

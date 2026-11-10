@@ -1,78 +1,43 @@
-import { graphql, useMutation } from "react-relay";
-
 import { DeleteEvaluatorDialog } from "@phoenix/components/evaluators/DeleteEvaluatorDialog";
-import type { EvaluatorKind } from "@phoenix/types";
-import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
-
-import type { DeleteDatasetEvaluatorDialogMutation } from "./__generated__/DeleteDatasetEvaluatorDialogMutation.graphql";
+import type { EvaluatorToDelete } from "@phoenix/components/evaluators/deleteEvaluatorsCopy";
+import { useDeleteDatasetEvaluators } from "@phoenix/pages/dataset/evaluators/useDeleteDatasetEvaluators";
 
 export type DeleteDatasetEvaluatorDialogProps = {
-  datasetEvaluatorId: string;
-  evaluatorName: string;
-  evaluatorKind: EvaluatorKind;
+  datasetEvaluators: ReadonlyArray<EvaluatorToDelete>;
+  /**
+   * The dataset every evaluator belongs to. Without it the evaluators may
+   * belong to any dataset.
+   */
+  datasetId?: string;
   isOpen?: boolean;
   onOpenChange?: (isOpen: boolean) => void;
   onDeleted?: () => void;
-  updateConnectionIds?: string[];
+  updateConnectionIds?: ReadonlyArray<string>;
 };
 
 export function DeleteDatasetEvaluatorDialog({
-  datasetEvaluatorId,
-  evaluatorName,
-  evaluatorKind,
+  datasetEvaluators,
+  datasetId,
   isOpen,
   onOpenChange,
   onDeleted,
-  updateConnectionIds = [],
+  updateConnectionIds,
 }: DeleteDatasetEvaluatorDialogProps) {
-  const [commitDelete, isDeleting] =
-    useMutation<DeleteDatasetEvaluatorDialogMutation>(graphql`
-      mutation DeleteDatasetEvaluatorDialogMutation(
-        $input: DeleteDatasetEvaluatorsInput!
-        $connectionIds: [ID!]!
-      ) {
-        deleteDatasetEvaluators(input: $input) {
-          datasetEvaluatorIds @deleteEdge(connections: $connectionIds)
-        }
-      }
-    `);
+  const { deleteDatasetEvaluators, isDeleting } = useDeleteDatasetEvaluators();
   return (
     <DeleteEvaluatorDialog
-      evaluatorName={evaluatorName}
-      evaluatorKind={evaluatorKind}
-      target="dataset"
+      evaluators={datasetEvaluators}
+      target={datasetId ? "dataset" : "anyDataset"}
       isOpen={isOpen}
       onOpenChange={onOpenChange}
       onDeleted={onDeleted}
       isDeleting={isDeleting}
-      onDelete={({ deleteAssociatedPrompt }) =>
-        new Promise<void>((resolve, reject) => {
-          commitDelete({
-            variables: {
-              input: {
-                datasetEvaluatorIds: [datasetEvaluatorId],
-                deleteAssociatedPromptOrDecision: deleteAssociatedPrompt,
-              },
-              connectionIds: updateConnectionIds,
-            },
-            onCompleted: (_response, errors) => {
-              if (errors?.length) {
-                reject(
-                  new Error(errors.map(({ message }) => message).join("\n"))
-                );
-                return;
-              }
-              resolve();
-            },
-            onError: (mutationError) =>
-              reject(
-                new Error(
-                  getErrorMessagesFromRelayMutationError(mutationError)?.join(
-                    "\n"
-                  ) ?? mutationError.message
-                )
-              ),
-          });
+      onDelete={({ deleteAssociatedPromptOrDecision }) =>
+        deleteDatasetEvaluators({
+          datasetEvaluatorIds: datasetEvaluators.map(({ id }) => id),
+          deleteAssociatedPromptOrDecision,
+          connectionIds: updateConnectionIds,
+          datasetId,
         })
       }
     />

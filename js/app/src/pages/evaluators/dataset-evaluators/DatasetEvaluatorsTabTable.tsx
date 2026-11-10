@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import { graphql } from "relay-runtime";
@@ -38,6 +39,7 @@ export function DatasetEvaluatorsTabTable({
           sort: $sort
           filter: $filter
         ) @connection(key: "DatasetEvaluatorsTabTable_datasetEvaluators") {
+          __id
           edges {
             node {
               ...DatasetEvaluatorsTable_row
@@ -48,6 +50,8 @@ export function DatasetEvaluatorsTabTable({
     `,
     query
   );
+  const connectionId = data.datasetEvaluators.__id;
+  const connectionIds = useMemo(() => [connectionId], [connectionId]);
   const loadNext = (
     args: NonNullable<
       Parameters<typeof _loadNext>[1]
@@ -65,6 +69,7 @@ export function DatasetEvaluatorsTabTable({
       hasNext={hasNext}
       loadNext={loadNext}
       refetch={refetch}
+      updateConnectionIds={connectionIds}
       onRowClick={(row) => {
         navigate(`/datasets/${row.dataset.id}/evaluators/${row.id}`);
       }}
