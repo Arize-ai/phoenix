@@ -1088,12 +1088,15 @@ function SDKSelect({
         ? SDK_DEFAULT_PROVIDER[newSDK]
         : currentValues.provider;
 
-      reset({
-        ...newDefaults,
-        name: currentValues.name || "",
-        description: currentValues.description || "",
-        provider: newProvider,
-      });
+      reset(
+        {
+          ...newDefaults,
+          name: currentValues.name || "",
+          description: currentValues.description || "",
+          provider: newProvider,
+        },
+        { keepDefaultValues: true }
+      );
     },
     [reset, getValues]
   );

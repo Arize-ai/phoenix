@@ -32,7 +32,8 @@ describe("CustomProviderForm decision models", () => {
 
   function render(
     initialValues?: ProviderFormData,
-    onSubmit: (data: ProviderFormData) => void = vi.fn()
+    onSubmit: (data: ProviderFormData) => void = vi.fn(),
+    onDirtyChange?: (isDirty: boolean) => void
   ) {
     act(() => {
       root.render(
@@ -42,6 +43,7 @@ describe("CustomProviderForm decision models", () => {
               onSubmit={onSubmit}
               onCancel={vi.fn()}
               initialValues={initialValues}
+              onDirtyChange={onDirtyChange}
             />
           </ThemeProvider>
         </RelayEnvironmentProvider>
@@ -283,5 +285,30 @@ describe("CustomProviderForm decision models", () => {
     expect(
       container.querySelector('input[placeholder="qwen3-coder, llama-5-70b"]')
     ).toBeNull();
+  });
+
+  it("marks the form dirty when switching SDKs", async () => {
+    const user = userEvent.setup();
+    const onDirtyChange = vi.fn();
+    render(
+      {
+        ...(createDefaultFormData("OPENAI") as ProviderFormData),
+        name: "proxy",
+      } as ProviderFormData,
+      vi.fn(),
+      onDirtyChange
+    );
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+    const trigger = container.querySelector<HTMLButtonElement>(
+      'button[aria-haspopup="listbox"]'
+    );
+    if (!trigger) throw new Error("no SDK select");
+    await act(() => user.click(trigger));
+    const option = [
+      ...document.querySelectorAll<HTMLElement>('[role="option"]'),
+    ].find((candidate) => candidate.textContent === "Azure OpenAI");
+    if (!option) throw new Error("no Azure OpenAI option");
+    await act(() => user.click(option));
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
   });
 });
