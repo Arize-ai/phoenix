@@ -266,9 +266,9 @@ def find_factory_review(
 ) -> Optional[dict[str, Any]]:
     """Return the first review the factory submitted since `started_at`, on any commit.
 
-    Matching by time rather than by commit finds the review when the agent had to review a
-    newer head, and never picks up a review from an earlier run. The concurrency group
-    keeps one review session per PR, so a review after `started_at` is this session's.
+    Matching by time excludes reviews from earlier runs, including reruns on the same
+    commit. The concurrency group keeps one review session per PR, so a review after
+    `started_at` is this session's.
     """
     review_lines = run_gh(
         "api",
