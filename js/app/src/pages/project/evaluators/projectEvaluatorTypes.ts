@@ -154,6 +154,12 @@ export type ProjectEvaluatorScope = {
   filterCondition: string;
   samplingRate: number;
   evaluationDelaySeconds: number;
+  /**
+   * Whether each evaluation writes a trace to the evaluator's trace project.
+   * It selects nothing; it rides along with the scope because both are
+   * settings of the project binding, saved by the same mutation.
+   */
+  tracingEnabled: boolean;
 };
 
 const DELAYED_PROJECT_EVALUATOR_TARGETS: readonly ProjectEvaluatorTarget[] = [

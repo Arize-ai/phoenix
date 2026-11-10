@@ -27,6 +27,7 @@ from phoenix.server.api.mutations.evaluator_mutations import (
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.Evaluator import (
     PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION,
+    PROJECT_EVALUATOR_TRACING_ENABLED_DESCRIPTION,
     DatasetEvaluator,
     DecisionEvaluator,
     EvaluationTarget,
@@ -109,6 +110,9 @@ class CreateProjectDecisionEvaluatorInput:
     description: Optional[str] = None
     filter_condition: str = ""
     enabled: bool = True
+    tracing_enabled: bool = strawberry.field(
+        default=True, description=PROJECT_EVALUATOR_TRACING_ENABLED_DESCRIPTION
+    )
     evaluation_delay_seconds: Optional[int] = strawberry.field(
         default=None,
         description=(
@@ -138,6 +142,10 @@ class UpdateProjectDecisionEvaluatorInput:
     )
     filter_condition: str
     enabled: Optional[bool] = UNSET
+    tracing_enabled: Optional[bool] = strawberry.field(
+        default=UNSET,
+        description=f"{PROJECT_EVALUATOR_TRACING_ENABLED_DESCRIPTION} Omit to preserve it.",
+    )
     evaluation_delay_seconds: Optional[int] = strawberry.field(
         default=UNSET,
         description=(
@@ -274,6 +282,7 @@ class DecisionEvaluatorMutationMixin:
                 evaluation_target=input.evaluation_target.value,
                 filter_condition=input.filter_condition,
                 enabled=input.enabled,
+                tracing_enabled=input.tracing_enabled,
                 evaluation_delay_seconds=input.evaluation_delay_seconds,
                 description=input.description,
                 evaluator_id=input.evaluator_id,
@@ -319,6 +328,7 @@ class DecisionEvaluatorMutationMixin:
                 else None,
                 scoring_policy=_scoring_policy(input.scoring_policy),
                 enabled=input.enabled,
+                tracing_enabled=input.tracing_enabled,
                 evaluation_delay_seconds=input.evaluation_delay_seconds,
             ),
         )

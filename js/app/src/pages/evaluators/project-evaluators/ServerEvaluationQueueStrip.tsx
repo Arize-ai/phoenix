@@ -224,7 +224,15 @@ function EvaluationCostValue({ fetchKey }: { fetchKey: string }) {
   return (
     <HoverDetail
       detail={
-        <Text size="S">{`${intFormatter(activity.evaluatedCount)} evaluated · ${intFormatter(activity.failedCount)} failed`}</Text>
+        <Flex direction="column" gap="size-50">
+          <Text size="S">{`${intFormatter(activity.evaluatedCount)} evaluated · ${intFormatter(activity.failedCount)} failed`}</Text>
+          {activity.excludesUntracedEvaluators ? (
+            <Text size="S" color="text-700">
+              Excludes evaluators with tracing off, whose evaluations write no
+              trace to measure cost from.
+            </Text>
+          ) : null}
+        </Flex>
       }
     >
       <StatValue>

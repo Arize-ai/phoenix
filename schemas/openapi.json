@@ -16606,6 +16606,12 @@
             "title": "Enabled",
             "default": true
           },
+          "tracing_enabled": {
+            "type": "boolean",
+            "title": "Tracing Enabled",
+            "description": "Whether each evaluation writes a trace to the project evaluator's trace project. A trace records the evaluator's inputs, outputs, latency, and token cost. With tracing off, evaluations still write their annotations but no trace: that saves storage, but the evaluator's cost and evaluation time are no longer measured. Changing it applies to evaluations that start afterwards and does not re-evaluate anything.",
+            "default": true
+          },
           "input_mapping": {
             "anyOf": [
               {
@@ -22437,6 +22443,11 @@
             "type": "boolean",
             "title": "Enabled"
           },
+          "tracing_enabled": {
+            "type": "boolean",
+            "title": "Tracing Enabled",
+            "description": "Whether each evaluation writes a trace to the project evaluator's trace project. A trace records the evaluator's inputs, outputs, latency, and token cost. With tracing off, evaluations still write their annotations but no trace: that saves storage, but the evaluator's cost and evaluation time are no longer measured. Changing it applies to evaluations that start afterwards and does not re-evaluate anything."
+          },
           "input_mapping": {
             "anyOf": [
               {
@@ -23127,6 +23138,11 @@
             "type": "boolean",
             "title": "Enabled"
           },
+          "tracing_enabled": {
+            "type": "boolean",
+            "title": "Tracing Enabled",
+            "description": "Whether each evaluation writes a trace to the project evaluator's trace project. A trace records the evaluator's inputs, outputs, latency, and token cost. With tracing off, evaluations still write their annotations but no trace: that saves storage, but the evaluator's cost and evaluation time are no longer measured. Changing it applies to evaluations that start afterwards and does not re-evaluate anything."
+          },
           "input_mapping": {
             "anyOf": [
               {
@@ -23156,6 +23172,7 @@
           "sampling_rate",
           "filter_condition",
           "enabled",
+          "tracing_enabled",
           "input_mapping",
           "evaluation_delay_seconds"
         ],

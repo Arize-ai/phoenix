@@ -77,10 +77,12 @@ export function ProjectEvaluatorStats({
           oldestWaitingOrRetryingAt
           lastError
         }
+        tracingEnabled
         evaluationLoad {
           evaluationCount
           meanEvaluationSeconds
           shareOfEvaluationTime
+          excludesUntracedEvaluators
         }
         ...useProjectEvaluatorResultAnnotationsFragment
       }
@@ -193,6 +195,7 @@ function ProjectEvaluatorActivityPanel({
         <StatField label="eval time share">
           <ProjectEvaluatorLoad
             evaluationLoad={projectEvaluator.evaluationLoad}
+            isTracingEnabled={projectEvaluator.tracingEnabled}
             size="S"
           />
         </StatField>
