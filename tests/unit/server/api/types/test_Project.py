@@ -31,7 +31,6 @@ from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBinS
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.pagination import Cursor, CursorSortColumn, CursorSortColumnDataType
 from phoenix.server.api.types.Project import Project
-from phoenix.server.online_eval import current_queue, throughput
 from phoenix.server.sandbox.sync import sync_languages
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -365,16 +364,14 @@ async def test_evaluation_queue(
     }
 
 
-async def test_evaluation_queue_rates_of_the_queue_and_a_project_come_from_one_read(
+async def test_queue_and_project_rates_agree_with_activity_over_the_last_hour(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """The queue's evaluations added and completed in the last hour are the sums of its
+    projects', and what evaluation activity counts over the same hour."""
     now = datetime.now(timezone.utc)
     async with db() as session:
-        project = await _add_project(session)
-        trace = await _add_trace(session, project)
-        spans = [await _add_span(session, trace) for _ in range(2)]
         evaluator = models.BuiltinEvaluator(
             name=DbIdentifier(f"evaluator-{token_hex(4)}"),
             kind="BUILTIN",
@@ -382,61 +379,100 @@ async def test_evaluation_queue_rates_of_the_queue_and_a_project_come_from_one_r
             input_schema={},
             output_configs=[],
         )
-        project_evaluator = models.ProjectEvaluator(
-            trace_project=models.Project(name=f"runs-{token_hex(8)}"),
-            project_id=project.id,
-            evaluator=evaluator,
-            name=DbIdentifier(f"project-evaluator-{token_hex(4)}"),
-            filter_condition="",
-            sampling_rate=1.0,
-            evaluation_target="SPAN",
-        )
-        session.add(project_evaluator)
+        projects = [await _add_project(session) for _ in range(2)]
+        project_evaluators = [
+            models.ProjectEvaluator(
+                trace_project=models.Project(name=f"runs-{token_hex(8)}"),
+                project_id=project.id,
+                evaluator=evaluator,
+                name=DbIdentifier(f"project-evaluator-{token_hex(4)}"),
+                filter_condition="",
+                sampling_rate=1.0,
+                evaluation_target="SPAN",
+            )
+            for project in projects
+        ]
+        session.add_all(project_evaluators)
         await session.flush()
+
+        async def unit(
+            project_index: int,
+            status: str,
+            *,
+            queued_ago: timedelta,
+            finished_ago: Optional[timedelta] = None,
+        ) -> models.EvalWorkUnit:
+            trace = await _add_trace(session, projects[project_index])
+            return models.EvalWorkUnit(
+                span_rowid=(await _add_span(session, trace)).id,
+                project_evaluator_id=project_evaluators[project_index].id,
+                status=status,
+                claimed_by="consumer" if status == "RUNNING" else None,
+                claimed_at=now - timedelta(minutes=1) if status == "RUNNING" else None,
+                created_at=now - queued_ago,
+                updated_at=now - (finished_ago or queued_ago),
+            )
+
         session.add_all(
             [
-                models.EvalWorkUnit(
-                    span_rowid=spans[0].id,
-                    project_evaluator_id=project_evaluator.id,
-                    status="PENDING",
-                    created_at=now - timedelta(minutes=5),
+                await unit(0, "PENDING", queued_ago=timedelta(minutes=5)),
+                await unit(
+                    0, "DONE", queued_ago=timedelta(minutes=10), finished_ago=timedelta(minutes=2)
                 ),
-                models.EvalWorkUnit(
-                    span_rowid=spans[1].id,
-                    project_evaluator_id=project_evaluator.id,
-                    status="DONE",
-                    created_at=now - timedelta(minutes=10),
-                    updated_at=now - timedelta(minutes=2),
+                # Queued before the hour: completed in it, but not added.
+                await unit(
+                    0, "DONE", queued_ago=timedelta(minutes=90), finished_ago=timedelta(minutes=30)
+                ),
+                # Cleared: added in the hour, but not completed.
+                await unit(
+                    0, "DROPPED", queued_ago=timedelta(minutes=8), finished_ago=timedelta(minutes=3)
+                ),
+                await unit(
+                    0, "DONE", queued_ago=timedelta(hours=3), finished_ago=timedelta(hours=2)
+                ),
+                await unit(1, "RUNNING", queued_ago=timedelta(minutes=15)),
+                await unit(
+                    1, "DONE", queued_ago=timedelta(minutes=30), finished_ago=timedelta(minutes=25)
                 ),
             ]
         )
-    load_rates = throughput._load_rates_by_project_evaluator
-    rate_reads: list[Any] = []
-
-    async def _counting_load_rates(*args: Any) -> Any:
-        rate_reads.append(args)
-        return await load_rates(*args)
-
-    monkeypatch.setattr(throughput, "_load_rates_by_project_evaluator", _counting_load_rates)
 
     response = await gql_client.execute(
-        """query ($project: ID!) {
+        """query ($first: ID!, $second: ID!, $timeRange: TimeRange!) {
             evaluationQueue { addedPerMinute completedPerMinute }
-            project: node(id: $project) {
-                ... on Project { evaluationQueue { addedPerMinute completedPerMinute } }
+            first: node(id: $first) { ...ProjectRates }
+            second: node(id: $second) { ...ProjectRates }
+            evaluationActivity(timeRange: $timeRange) {
+                evaluatedCount
+                failedCount
+                series { groups { addedCount } }
             }
+        }
+        fragment ProjectRates on Project {
+            evaluationQueue { addedPerMinute completedPerMinute }
         }""",
-        variables={"project": str(GlobalID("Project", str(project.id)))},
+        variables={
+            "first": str(GlobalID("Project", str(projects[0].id))),
+            "second": str(GlobalID("Project", str(projects[1].id))),
+            "timeRange": {"start": (now - timedelta(hours=1)).isoformat()},
+        },
     )
 
     assert not response.errors and response.data
-    assert len(rate_reads) == len(current_queue.EVALUATION_TARGETS)
-    rates = {
-        "addedPerMinute": pytest.approx(2 / 60),
-        "completedPerMinute": pytest.approx(1 / 60),
-    }
-    assert response.data["evaluationQueue"] == rates
-    assert response.data["project"]["evaluationQueue"] == rates
+
+    def per_hour(rates: dict[str, float]) -> tuple[int, int]:
+        return round(rates["addedPerMinute"] * 60), round(rates["completedPerMinute"] * 60)
+
+    activity = response.data["evaluationActivity"]
+    activity_counts = (
+        sum(group["addedCount"] for bin_ in activity["series"] for group in bin_["groups"]),
+        activity["evaluatedCount"] + activity["failedCount"],
+    )
+    project_rates = [
+        per_hour(response.data[name]["evaluationQueue"]) for name in ("first", "second")
+    ]
+    assert project_rates == [(3, 2), (2, 1)]
+    assert per_hour(response.data["evaluationQueue"]) == activity_counts == (5, 3)
 
 
 async def _add_generative_model(

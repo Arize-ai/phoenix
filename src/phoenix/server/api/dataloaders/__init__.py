@@ -41,7 +41,7 @@ from .document_retrieval_metrics import DocumentRetrievalMetricsDataLoader
 from .evaluation_queues import (
     EvaluationQueueDataLoader,
     EvaluationQueueProjectsDataLoader,
-    EvaluationQueueThroughputDataLoader,
+    EvaluationQueueRatesDataLoader,
 )
 from .evaluator_by_id import EvaluatorByIdDataLoader
 from .experiment_annotation_label_fractions import ExperimentAnnotationLabelFractionsDataLoader
@@ -215,7 +215,7 @@ class DataLoaders:
     document_retrieval_metrics: DocumentRetrievalMetricsDataLoader
     evaluation_queue: EvaluationQueueDataLoader
     evaluation_queue_projects: EvaluationQueueProjectsDataLoader
-    evaluation_queue_throughput: EvaluationQueueThroughputDataLoader
+    evaluation_queue_rates: EvaluationQueueRatesDataLoader
     evaluator_by_id: EvaluatorByIdDataLoader
     experiment_annotation_label_fractions: ExperimentAnnotationLabelFractionsDataLoader
     experiment_annotation_summaries: ExperimentAnnotationSummaryDataLoader
@@ -402,7 +402,7 @@ def build_data_loaders(
         document_retrieval_metrics=DocumentRetrievalMetricsDataLoader(db),
         evaluation_queue=EvaluationQueueDataLoader(db),
         evaluation_queue_projects=EvaluationQueueProjectsDataLoader(db, project_evaluator_queues),
-        evaluation_queue_throughput=EvaluationQueueThroughputDataLoader(db),
+        evaluation_queue_rates=EvaluationQueueRatesDataLoader(db),
         evaluator_by_id=EvaluatorByIdDataLoader(db),
         experiment_annotation_label_fractions=ExperimentAnnotationLabelFractionsDataLoader(db),
         annotation_summaries=AnnotationSummaryDataLoader(

@@ -13,18 +13,16 @@ from phoenix.server.api.dataloaders.project_evaluator_queues import (
 )
 from phoenix.server.online_eval import current_queue
 from phoenix.server.online_eval.current_queue import (
-    EvaluationQueue,
     ProjectEvaluatorQueue,
-    ProjectQueue,
     ProjectQueuedCount,
     load_evaluation_queue,
     load_project_evaluator_queues,
 )
+from phoenix.server.online_eval.evaluation_activity import load_added_and_completed
 from phoenix.server.online_eval.evaluator_status import (
     ProjectEvaluatorRunStatus,
     project_evaluator_run_status,
 )
-from phoenix.server.online_eval.throughput import QueueThroughput, load_queue_throughput
 from phoenix.server.types import DbSessionFactory
 
 from ..._helpers import _add_project, _add_span, _add_trace
@@ -79,7 +77,9 @@ async def test_span_queue_health(db: DbSessionFactory) -> None:
         )
 
     queue = await load_evaluation_queue(db)
-    throughput = await load_queue_throughput(db, queue)
+    added, completed = await load_added_and_completed(
+        db, project_id=None, start=now - timedelta(hours=1), end=now
+    )
     spans = queue.target("SPAN")
 
     # Queued or running, retries included.
@@ -90,9 +90,7 @@ async def test_span_queue_health(db: DbSessionFactory) -> None:
     assert (queue.queued_count, queue.running_count) == (4, 1)
     # The head of the line has waited 20 minutes.
     assert queue.status == "DEGRADED"
-    assert throughput.target("SPAN").completed_per_minute == pytest.approx(3 / 60)
-    assert throughput.target("SPAN").added_per_minute == pytest.approx(6 / 60)
-    assert throughput.added_per_minute == pytest.approx(6 / 60)
+    assert (added, completed) == (6, 3)
 
 
 async def _seed_pending_spans(
@@ -185,20 +183,6 @@ async def test_summed_queue_counts_stay_at_the_limit(
         db, ProjectEvaluatorQueuesDataLoader(db)
     ).load(project.id)
     assert project_queue.queued_count == 2
-
-
-def test_added_rate_stops_at_the_limit(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(current_queue, "MAX_QUEUE_COUNT", 2)
-    now = datetime.now(timezone.utc)
-    throughput = QueueThroughput(
-        queue=EvaluationQueue(measured_at=now, targets=()),
-        project_evaluator_rates=({1: (1, 0), 2: (2, 0)}, {3: (3, 0)}, {}),
-    )
-    project = ProjectQueue(measured_at=now, project_evaluator_ids=frozenset({1, 2}), targets=())
-
-    assert [target.added_per_minute for target in throughput.targets] == [2 / 60, 2 / 60, 0]
-    assert throughput.added_per_minute == 2 / 60
-    assert throughput.project(project).added_per_minute == 2 / 60
 
 
 async def test_oldest_wait_is_the_earliest_queued_not_the_lowest_id(

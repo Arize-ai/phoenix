@@ -131,13 +131,10 @@ async def load_evaluation_activity(
     bin's end with ``read_queue_size``; otherwise both are 0. The queue size reads every
     evaluation in queue in the scope, so it costs as much as the queue is long.
     """
-    scope = sa.select(models.ProjectEvaluator.id)
-    if project_id is not None:
-        scope = scope.where(models.ProjectEvaluator.project_id == project_id)
     reader = _ActivityReader(
         dialect=db.dialect,
         by_project=project_id is None,
-        scope=scope,
+        scope=_scope(project_id),
         start=start,
         end=end,
         time_bins=time_bins,
@@ -146,6 +143,30 @@ async def load_evaluation_activity(
     )
     async with db.read() as session:
         return await reader.read(session)
+
+
+async def load_added_and_completed(
+    db: DbSessionFactory,
+    *,
+    project_id: Optional[int],
+    start: datetime,
+    end: datetime,
+) -> tuple[int, int]:
+    """Evaluations added to the queue in ``[start, end)``, and those completed in it, of one
+    project's evaluators or, with no ``project_id``, of every project evaluator: activity's
+    added and completed counts over the whole range."""
+    scope = _scope(project_id)
+    added = sa.select(sa.func.count()).select_from(_added(scope, start, end))
+    completed = sa.select(sa.func.count()).select_from(_completed(scope, start, end))
+    async with db.read() as session:
+        return (await session.scalar(added)) or 0, (await session.scalar(completed)) or 0
+
+
+def _scope(project_id: Optional[int]) -> sa.Select[Any]:
+    scope = sa.select(models.ProjectEvaluator.id)
+    if project_id is not None:
+        scope = scope.where(models.ProjectEvaluator.project_id == project_id)
+    return scope
 
 
 @dataclass

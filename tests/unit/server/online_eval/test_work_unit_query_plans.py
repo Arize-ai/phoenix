@@ -24,6 +24,7 @@ from phoenix.server.online_eval.current_queue import (
     load_project_evaluator_queues,
 )
 from phoenix.server.online_eval.evaluation_activity import (
+    load_added_and_completed,
     load_evaluation_activity,
     load_evaluation_lags,
 )
@@ -32,7 +33,6 @@ from phoenix.server.online_eval.sweeping_producer import (
     SessionEvaluationProducer,
     TraceEvaluationProducer,
 )
-from phoenix.server.online_eval.throughput import load_queue_throughput
 from phoenix.server.types import DbSessionFactory
 
 from ..._helpers import _add_project
@@ -76,8 +76,9 @@ async def test_per_tick_work_unit_queries_use_partial_indexes_on_sqlite(
         for coordinator_target in ("SPAN", "SESSION", "TRACE"):
             coordinator = EvalWorkCoordinator(db, evaluation_target=coordinator_target)
             await coordinator.claim(claimed_by="query-plan", limit=1)
-        queue = await load_evaluation_queue(db)
-        await load_queue_throughput(db, queue)
+        await load_evaluation_queue(db)
+        now = datetime.now(timezone.utc)
+        await load_added_and_completed(db, project_id=None, start=now - timedelta(hours=1), end=now)
         first_evaluator_queue_plan = len(plans)
         await load_project_evaluator_queues(db, project_evaluator_ids)
         await ProjectEvaluationQueueDataLoader(db, ProjectEvaluatorQueuesDataLoader(db)).load(
