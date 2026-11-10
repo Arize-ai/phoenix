@@ -6,14 +6,12 @@ An implementation is compliant if it satisfies all "MUST", "MUST NOT", "REQUIRED
 
 ## Applying These Rules
 
-- Each rule exists for a reason. Apply it where that reason holds, and not outside the scope it names
-- If following a rule would cause the problem it exists to prevent, don't follow it. Say so in the finding or the PR body, so the rule can be fixed
-- Rules in § Security always apply exactly as written
-- If the codebase does the same thing in different ways, mention each and follow the one that fits the code under review
-- Prefer the simplest resulting code over the smallest diff
-- Fix a bug where it starts, not where it shows up
-- Before removing a guard, a check or a special case, find out why it's there
-- New rules SHOULD say why they exist
+- A rule that states its reason or scope MUST be applied only where that reason or scope holds. Other rules MUST be applied as written. If a rule seems wrong for the code under review, the finding or the PR body SHOULD say so, so the rule can be fixed
+- Rules in § Security MUST always be applied exactly as written
+- When the codebase does the same thing in different ways, the finding or the PR body SHOULD name each and say why the one it follows fits better
+- When two fixes are about the same size, the one that leaves fewer queries and special cases SHOULD be preferred
+- Before a guard, a check or a special case is removed, its history SHOULD be checked with `git log -S` or `git blame`, and the finding or the PR body SHOULD say why it was added
+- New rules SHOULD state why they exist
 
 ## Always Check
 
@@ -73,7 +71,7 @@ An implementation is compliant if it satisfies all "MUST", "MUST NOT", "REQUIRED
 - Only problems the change introduces SHOULD be reported — pre-existing issues and anything a linter, formatter or type checker catches MUST NOT be
 - Each root cause MUST be reported once, listing every location; generated-file drift is reported at its source
 - Each finding MUST carry a severity: **Blocking** (wrong behavior, security, data loss, or a broken MUST) or **Non-blocking** (a broken SHOULD). Nits and praise SHOULD NOT be posted
-- A convention finding MUST cite the rule it breaks in this file or in `.agents/skills/`, and say why the rule's reason applies here
+- A convention finding MUST cite the rule it breaks in this file or in `.agents/skills/`, and, when the rule states a reason, say why that reason applies here
 - A finding that says a change is slower MUST say slower than what: for the same request, count the queries the change makes and the queries the suggested fix makes, and give both numbers
 - A finding SHOULD fit in five lines: what is wrong, the evidence, and a concrete fix
 
@@ -82,7 +80,7 @@ An implementation is compliant if it satisfies all "MUST", "MUST NOT", "REQUIRED
 Before acting on a finding, check three things:
 
 1. The code it quotes exists and does what the finding says.
-2. The reason behind the rule it cites applies here.
+2. When the rule it cites states a reason, that reason applies here.
 3. Any claim that the change is slower holds up against the suggested fix.
 
 If a check fails, don't apply the finding. Reply with which check failed and why. Whoever raised the finding MUST answer that reasoning, not just repeat the rule.
