@@ -1,0 +1,28 @@
+# Measure how well a coding agent builds evals with Phoenix, with and without the public
+# skills. Run `evals/harbor/scripts/snapshot_skills.sh <ref> baseline` first; the
+# `claude-code-skills-baseline` condition loads the skills as they were at that ref.
+# The plugin records all results in the phoenix-evals Phoenix dataset.
+datasets:
+  - path: evals/harbor/tasks/phoenix-evals
+agents:
+  - name: claude-code-no-skills
+    import_path: evals.harbor.agents.coding_agents:ClaudeCodeCliAgent
+    model_name: anthropic/claude-fable-5-1
+    extra_allowed_hosts: [api.anthropic.com]
+    resume_trajectory: true
+  - name: claude-code-skills-baseline
+    import_path: evals.harbor.agents.coding_agents:ClaudeCodeCliAgent
+    model_name: anthropic/claude-fable-5-1
+    extra_allowed_hosts: [api.anthropic.com]
+    resume_trajectory: true
+    skills:
+      - evals/harbor/.cache/skills-baseline/skills/phoenix-cli
+      - evals/harbor/.cache/skills-baseline/skills/phoenix-error-analysis
+      - evals/harbor/.cache/skills-baseline/skills/phoenix-evals
+      - evals/harbor/.cache/skills-baseline/skills/phoenix-tracing
+environment:
+  type: docker
+n_attempts: 3
+# Retry infrastructure errors, but do not retry trials that produce a reward.
+retry:
+  max_retries: 1
