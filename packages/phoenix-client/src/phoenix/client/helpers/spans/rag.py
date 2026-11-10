@@ -123,7 +123,7 @@ def get_retrieved_documents(
         query=_build_retrieved_documents_query(),
         start_time=start_time,
         end_time=end_time,
-        project_name=project,
+        project_identifier=project,
         timeout=timeout,
     )
 
@@ -195,14 +195,14 @@ def get_input_output_context(
         query=qa_query,
         start_time=start_time,
         end_time=end_time,
-        project_name=project,
+        project_identifier=project,
         timeout=timeout,
     )
     df_docs = client.spans.get_spans_dataframe(
         query=docs_query,
         start_time=start_time,
         end_time=end_time,
-        project_name=project,
+        project_identifier=project,
         timeout=timeout,
     )
 
@@ -346,7 +346,7 @@ async def async_get_retrieved_documents(
         query=_build_retrieved_documents_query(),
         start_time=start_time,
         end_time=end_time,
-        project_name=project,
+        project_identifier=project,
         timeout=timeout,
     )
 
@@ -403,14 +403,14 @@ async def async_get_input_output_context(
         query=qa_query,
         start_time=start_time,
         end_time=end_time,
-        project_name=project,
+        project_identifier=project,
         timeout=timeout,
     )
     df_docs = await client.spans.get_spans_dataframe(
         query=docs_query,
         start_time=start_time,
         end_time=end_time,
-        project_name=project,
+        project_identifier=project,
         timeout=timeout,
     )
 
