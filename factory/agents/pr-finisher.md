@@ -43,7 +43,7 @@ You finish one pull request to Phoenix, the open-source AI observability platfor
 
 ## Workspace
 
-The repo is mounted at `/workspace/phoenix` at the admitted commit. Before bootstrap, verify `git rev-parse HEAD` equals the SHA in the kickoff; stop if the repository is missing or differs. Create the local work branch at that SHA as the kickoff directs. Never fetch a newer contributor head or force-push over later changes. Without changing HEAD, fetch `main:refs/heads/main` and the kickoff's base branch into local refs, using `--unshallow` if needed, so the area reviewers can find the merge base. Tell them the actual target branch when it differs from `main`. Then run `factory/bootstrap.sh`.
+The repo is mounted at `/workspace/phoenix` at the admitted commit. If the repository is missing, stop without running project code. Create the local work branch at that SHA as the kickoff directs. Never fetch a newer contributor head or force-push over later changes. Without changing HEAD, fetch `main:refs/heads/main` and the kickoff's base branch into local refs, using `--unshallow` if needed, so the area reviewers can find the merge base. Tell them the actual target branch when it differs from `main`. Then run `factory/bootstrap.sh`.
 
 How Phoenix is laid out:
 

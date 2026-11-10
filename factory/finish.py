@@ -37,7 +37,7 @@ from dispatch import (
     write_github_outputs,
 )
 from github_app import GitHubAppToken
-from pr_input import find_head_problem
+from pr_input import check_requested_head
 from review import comment_on_pr, read_factory_login
 from security_scan import canonical_json
 from security_scan import find_admission_problem as scan_admission
@@ -284,8 +284,8 @@ def start_session(
     kickoff_text = (
         f"Finish pull request #{pr['number']} in {repo}. {issue_text} The repo is checked out "
         f"at commit {pr['headRefOid']}, targeting {pr['baseRefName']}. Before bootstrap or "
-        f"any other work, verify `git rev-parse HEAD` equals {pr['headRefOid']}; stop if "
-        f"it differs or the mount is missing. Never fall back to another commit. "
+        f"any other work, stop if the repository mount is missing. "
+        f"Never fall back to another commit. "
         f"Create the local work branch with `git switch -C {shlex.quote(pr['headRefName'])} "
         f"{pr['headRefOid']}`; push only normally, never force-push. "
         f"Use the admitted snapshot below; "
@@ -337,7 +337,7 @@ def run_start(*, args: argparse.Namespace) -> None:
         "none" if requester_login == WORKFLOW_LOGIN else read_repo_permission(login=requester_login)
     )
     copy = find_copy(pr_number=args.pr) if pr["isCrossRepository"] else None
-    admission_problem = find_head_problem(
+    admission_problem = check_requested_head(
         pr=pr, expected_sha=args.head_sha
     ) or find_admission_problem(
         pr=pr,
