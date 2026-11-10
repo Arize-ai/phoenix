@@ -22,7 +22,12 @@ import {
   Text,
 } from "@phoenix/components";
 import { SelectChevronUpDownIcon } from "@phoenix/components/core/icon";
+import { withoutOptimizationDirections } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
 import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
+import {
+  EvaluatorPreviewOutputConfigsProvider,
+  useEvaluatorPreviewOutputConfigs,
+} from "@phoenix/components/evaluators/EvaluatorPreviewOutputConfigsContext";
 import {
   buildOutputConfigsInput,
   createLLMEvaluatorPayload,
@@ -216,7 +221,11 @@ export function ProjectEvaluatorTestBench({
   const hasAnyRun = entries.some(({ run }) => run != null);
   const focusedEntry =
     entries.find(({ row }) => row.key === focusedRow?.key) ?? null;
-  return (
+  // Results are named the way the bench names its preview runs, whatever
+  // kind of evaluator ran them; a form's provided output configs still apply.
+  const previewOutputConfigs = useEvaluatorPreviewOutputConfigs();
+  const previewEvaluatorName = useEvaluatorStore(selectPreviewEvaluatorName);
+  const bench = (
     <div css={benchCSS} data-testid="project-evaluator-test-bench">
       <TestBenchHeader
         {...headerProps}
@@ -291,6 +300,13 @@ export function ProjectEvaluatorTestBench({
         </Panel>
       </Group>
     </div>
+  );
+  return (
+    <EvaluatorPreviewOutputConfigsProvider
+      value={{ ...previewOutputConfigs, evaluatorName: previewEvaluatorName }}
+    >
+      {bench}
+    </EvaluatorPreviewOutputConfigsProvider>
   );
 }
 
@@ -522,7 +538,7 @@ const benchCSS = css`
   }
 `;
 
-type PreviewEvaluatorInput =
+export type PreviewEvaluatorInput =
   | { codeEvaluatorId: string }
   | { inlineCodeEvaluator: InlineCodeEvaluatorInput }
   | { inlineLlmEvaluator: InlineLLMEvaluatorInput }
@@ -537,11 +553,18 @@ type PreviewEvaluatorInput =
  */
 export const UNTITLED_EVALUATOR_NAME = "untitled-evaluator";
 
+/** The name the bench runs a draft's previews, and names their results, under. */
+export function selectPreviewEvaluatorName(
+  state: Pick<EvaluatorStore, "evaluator">
+): string {
+  return state.evaluator.globalName.trim() || UNTITLED_EVALUATOR_NAME;
+}
+
 /** The definition with the stand-in name filled in wherever a name is blank. */
 function withPreviewName(
   state: Pick<EvaluatorStore, "evaluator" | "outputConfigs">
 ): { name: string; outputConfigs: EvaluatorStore["outputConfigs"] } {
-  const name = state.evaluator.globalName.trim() || UNTITLED_EVALUATOR_NAME;
+  const name = selectPreviewEvaluatorName(state);
   return {
     name,
     outputConfigs: state.outputConfigs.map((config) =>
@@ -618,11 +641,29 @@ function buildPreviewEvaluator({
   };
 }
 
-function fingerprintDefinition(
+/**
+ * What a preview result was run against; a result goes stale when the
+ * bench's current fingerprint no longer matches its run's.
+ */
+export function fingerprintDefinition(
   evaluator: PreviewEvaluatorInput | null,
   inputMapping: EvaluatorInputMapping
 ): string {
-  return JSON.stringify({ evaluator, inputMapping });
+  // A decision's optimization direction only says which answer is good, so
+  // a result stays current across a direction edit; the bench recolours it.
+  const decision =
+    evaluator != null && "inlineDecisionEvaluator" in evaluator
+      ? evaluator.inlineDecisionEvaluator
+      : null;
+  const fingerprinted = decision?.scoringPolicy
+    ? {
+        inlineDecisionEvaluator: {
+          ...decision,
+          scoringPolicy: withoutOptimizationDirections(decision.scoringPolicy),
+        },
+      }
+    : evaluator;
+  return JSON.stringify({ evaluator: fingerprinted, inputMapping });
 }
 
 const subscribeToNothing = () => () => {};
