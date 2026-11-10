@@ -1,3 +1,4 @@
+import importlib.util
 import json
 from typing import Any, Optional, cast
 from unittest.mock import MagicMock
@@ -741,18 +742,27 @@ def test_decision_clients_declare_capability_credentials_and_endpoints() -> None
 
 async def test_decision_only_provider_is_listed_and_installed(
     gql_client: AsyncGraphQLClient,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    result = await gql_client.execute(
-        """query {
-          modelProviders {
-            key dependenciesInstalled modelTypes
-            credentialRequirements { envVarName }
-          }
-        }"""
-    )
+    query = """query {
+      modelProviders {
+        key
+        dependencies
+        decisionDependencies: dependencies(modelType: DECISION)
+        dependenciesInstalled
+        decisionDependenciesInstalled: dependenciesInstalled(modelType: DECISION)
+        modelTypes
+        credentialRequirements { envVarName }
+      }
+    }"""
+    result = await gql_client.execute(query)
     assert result.data and not result.errors
     by_key = {provider["key"]: provider for provider in result.data["modelProviders"]}
     assert by_key["TYPESAFE"]["dependenciesInstalled"] is True
+    assert by_key["TYPESAFE"]["dependencies"] == ["typesafe-sdk"]
+    assert by_key["FIREWORKS"]["dependencies"] == ["openai"]
+    assert by_key["FIREWORKS"]["decisionDependencies"] == ["typesafe-sdk"]
+    assert by_key["FIREWORKS"]["decisionDependenciesInstalled"] is True
     assert by_key["TYPESAFE"]["credentialRequirements"] == [{"envVarName": "TYPESAFE_API_KEY"}]
     # Listed once even though OpenAI is in both registries.
     assert [provider["key"] for provider in result.data["modelProviders"]].count("OPENAI") == 1
@@ -760,6 +770,24 @@ async def test_decision_only_provider_is_listed_and_installed(
     assert by_key["TYPESAFE"]["modelTypes"] == ["DECISION"]
     assert by_key["OPENAI"]["modelTypes"] == ["CHAT", "DECISION"]
     assert by_key["ANTHROPIC"]["modelTypes"] == ["CHAT"]
+
+    real_find_spec = importlib.util.find_spec
+    monkeypatch.setattr(
+        importlib.util,
+        "find_spec",
+        lambda name: None if name == "typesafe_sdk" else real_find_spec(name),
+    )
+    result = await gql_client.execute(query)
+    assert result.data and not result.errors
+    by_key = {provider["key"]: provider for provider in result.data["modelProviders"]}
+    assert by_key["FIREWORKS"]["dependenciesInstalled"] is True
+    assert by_key["FIREWORKS"]["decisionDependenciesInstalled"] is False
+    assert by_key["OLLAMA"]["dependenciesInstalled"] is True
+    assert by_key["OLLAMA"]["decisionDependenciesInstalled"] is False
+    assert by_key["OPENAI"]["dependenciesInstalled"] is True
+    assert by_key["OPENAI"]["decisionDependenciesInstalled"] is True
+    assert by_key["TYPESAFE"]["dependenciesInstalled"] is False
+    assert by_key["TYPESAFE"]["decisionDependenciesInstalled"] is False
 
 
 @pytest.fixture

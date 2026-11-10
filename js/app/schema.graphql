@@ -3852,8 +3852,8 @@ enum GenerativeModelSDK {
 type GenerativeProvider {
   name: String!
   key: GenerativeProviderKey!
-  dependencies: [String!]!
-  dependenciesInstalled: Boolean!
+  dependencies(modelType: ModelType = null): [String!]!
+  dependenciesInstalled(modelType: ModelType = null): Boolean!
 
   """
   The model types this provider offers: chat models, decision models, or both. Derived from which clients serve the provider, not from its name.
