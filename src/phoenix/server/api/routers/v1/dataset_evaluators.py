@@ -165,6 +165,21 @@ async def _written_dataset_evaluator(
         return await _dataset_evaluator(session, dataset_evaluator_id)
 
 
+async def _binds_a_decision(request: Request, dataset_evaluator_id: str) -> bool:
+    """Whether the binding runs a decision judge, whose outputs' thresholds are derived."""
+    row_id = decode_global_id(dataset_evaluator_id, "DatasetEvaluator")
+    async with request.app.state.db() as session:
+        kind = await session.scalar(
+            select(models.Evaluator.kind)
+            .join(
+                models.DatasetEvaluators,
+                models.Evaluator.id == models.DatasetEvaluators.evaluator_id,
+            )
+            .where(models.DatasetEvaluators.id == row_id)
+        )
+    return kind == "DECISION"
+
+
 @router.post(
     "/datasets/{dataset_identifier}/evaluators",
     operation_id="createDatasetEvaluator",
@@ -192,10 +207,15 @@ async def create_dataset_evaluator(
             dataset = await get_dataset_by_identifier(session, dataset_identifier)
             dataset_id = GlobalID("Dataset", str(dataset.id))
         context = evaluator_service_context(request)
-        configs = (
-            output_configs_to_db(body.output_configs) if body.output_configs is not None else None
-        )
         evaluator_id = parse_global_id(body.evaluator_id)
+        configs = (
+            output_configs_to_db(
+                body.output_configs,
+                derived_thresholds=evaluator_id.type_name == "DecisionEvaluator",
+            )
+            if body.output_configs is not None
+            else None
+        )
         row: models.DatasetEvaluators
         if evaluator_id.type_name == "DecisionEvaluator":
             row = await decisions.create_dataset_decision_binding(
@@ -333,7 +353,10 @@ async def patch_dataset_evaluator(
     with evaluator_api_errors():
         values = {name: getattr(body, name) for name in body.model_fields_set}
         if "output_configs" in values and body.output_configs is not None:
-            values["output_configs"] = output_configs_to_db(body.output_configs)
+            values["output_configs"] = output_configs_to_db(
+                body.output_configs,
+                derived_thresholds=await _binds_a_decision(request, dataset_evaluator_id),
+            )
         await dataset_bindings.patch_dataset_evaluator(
             evaluator_service_context(request),
             parse_global_id(dataset_evaluator_id),

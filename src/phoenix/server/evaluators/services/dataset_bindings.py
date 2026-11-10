@@ -25,6 +25,7 @@ from phoenix.db.types.annotation_configs import (
     OutputConfigType,
     as_output_configs,
 )
+from phoenix.db.types.decision_evaluators import matches_derived_output_configs
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import AlreadyExists, BadRequest, Conflict, NotFound
@@ -1139,7 +1140,9 @@ async def patch_dataset_evaluator(
                 if patch.input_mapping is not UNSET:
                     validate_decision_input_mapping(decision.selected_version, patch.input_mapping)
                 if "output_configs" in values:
-                    if values["output_configs"] != decision.output_configs:
+                    if values["output_configs"] is None or not matches_derived_output_configs(
+                        values["output_configs"], decision.output_configs
+                    ):
                         raise BadRequest(
                             "Decision outputs are derived from the questions and scoring policy; "
                             "edit the scoring policy to change scoring"
