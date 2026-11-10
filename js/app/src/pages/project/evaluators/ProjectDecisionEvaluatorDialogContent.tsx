@@ -2,13 +2,15 @@ import { type ReactNode, useState } from "react";
 import { graphql, useMutation, useRelayEnvironment } from "react-relay";
 import { useRevalidator } from "react-router";
 
+import type { AnnotationConfig } from "@phoenix/components/annotation/types";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { DecisionEvaluatorDraftProvider } from "@phoenix/components/evaluators/decision/DecisionEvaluatorDraftProvider";
 import {
   commitAsync,
   type DecisionEvaluatorData,
-  inputNamesFromSchema,
+  toDecisionEvaluatorView,
 } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
+import { deriveDecisionOutputConfigs } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
 import {
   type DecisionEvaluatorDraft,
   useDecisionEvaluatorDraft,
@@ -20,8 +22,12 @@ import {
 } from "@phoenix/components/evaluators/decision/useDecisionEvaluatorSave";
 import { EvaluatorFormDialogContent } from "@phoenix/components/evaluators/EvaluatorFormDialogContent";
 import { EvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/EvaluatorInputVariablesProvider";
+import { EvaluatorPreviewOutputConfigsProvider } from "@phoenix/components/evaluators/EvaluatorPreviewOutputConfigsContext";
 import { EvaluatorValidationBanner } from "@phoenix/components/evaluators/EvaluatorValidationBanner";
-import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
+import {
+  useEvaluatorStore,
+  useEvaluatorStoreInstance,
+} from "@phoenix/contexts/EvaluatorContext";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
 import type { ProjectDecisionEvaluatorDialogContentCreateMutation } from "@phoenix/pages/project/evaluators/__generated__/ProjectDecisionEvaluatorDialogContentCreateMutation.graphql";
 import type { ProjectDecisionEvaluatorDialogContentUpdateMutation } from "@phoenix/pages/project/evaluators/__generated__/ProjectDecisionEvaluatorDialogContentUpdateMutation.graphql";
@@ -37,6 +43,7 @@ import {
   useProjectEvaluatorSubmitHint,
   useUnboundRequiredVariables,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
+import { selectPreviewEvaluatorName } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTestBench";
 import {
   toEvaluationDelayInput,
   toEvaluatorRecordKind,
@@ -123,6 +130,7 @@ function ProjectDecisionEvaluatorLayout({
   variables,
   definition,
   decision,
+  outputConfigs,
   isSubmitting,
   isSubmitDisabled,
   isFilterValid,
@@ -137,6 +145,8 @@ function ProjectDecisionEvaluatorLayout({
   variables: readonly string[];
   definition: ReactNode;
   decision: ProjectEvaluatorDecisionPreview;
+  /** What the bench colours results against: the draft's derived outputs. */
+  outputConfigs: AnnotationConfig[];
   isSubmitting: boolean;
   isSubmitDisabled: boolean;
   isFilterValid: boolean;
@@ -152,41 +162,47 @@ function ProjectDecisionEvaluatorLayout({
     submitLabel,
   });
   const recordKind = toEvaluatorRecordKind(scope.targetType);
+  // The bench names a draft's results the way it names its preview runs.
+  const evaluatorName = useEvaluatorStore(selectPreviewEvaluatorName);
   return (
-    <EvaluatorFormDialogContent
-      title={title}
-      submitLabel={SUBMIT_LABELS[submitLabel]}
-      onSubmit={onSubmit}
-      isSubmitting={isSubmitting}
-      isSubmitDisabled={
-        isSubmitDisabled || !isFilterValid || unboundVariables.length > 0
-      }
-      submitHint={submitHint}
-      error={error}
-      errorTitle={ERROR_TITLES[submitLabel]}
-      banner={showValidationError ? <EvaluatorValidationBanner /> : null}
-      contentGap="var(--global-dimension-size-100)"
-      renderInputVariables={(form) => (
-        <EvaluatorInputVariablesProvider variables={[...variables]}>
-          {form}
-        </EvaluatorInputVariablesProvider>
-      )}
-      left={definition}
-      leftDock={
-        <ProjectEvaluatorInputMappingDock
-          recordKind={recordKind}
-          evaluatorKind="decision"
-          canDescribeInputs={false}
-        />
-      }
-      right={
-        <ProjectEvaluatorScopePanel
-          projectId={projectId}
-          scope={scope}
-          decision={decision}
-        />
-      }
-    />
+    <EvaluatorPreviewOutputConfigsProvider
+      value={{ outputConfigs, evaluatorName }}
+    >
+      <EvaluatorFormDialogContent
+        title={title}
+        submitLabel={SUBMIT_LABELS[submitLabel]}
+        onSubmit={onSubmit}
+        isSubmitting={isSubmitting}
+        isSubmitDisabled={
+          isSubmitDisabled || !isFilterValid || unboundVariables.length > 0
+        }
+        submitHint={submitHint}
+        error={error}
+        errorTitle={ERROR_TITLES[submitLabel]}
+        banner={showValidationError ? <EvaluatorValidationBanner /> : null}
+        contentGap="var(--global-dimension-size-100)"
+        renderInputVariables={(form) => (
+          <EvaluatorInputVariablesProvider variables={[...variables]}>
+            {form}
+          </EvaluatorInputVariablesProvider>
+        )}
+        left={definition}
+        leftDock={
+          <ProjectEvaluatorInputMappingDock
+            recordKind={recordKind}
+            evaluatorKind="decision"
+            canDescribeInputs={false}
+          />
+        }
+        right={
+          <ProjectEvaluatorScopePanel
+            projectId={projectId}
+            scope={scope}
+            decision={decision}
+          />
+        }
+      />
+    </EvaluatorPreviewOutputConfigsProvider>
   );
 }
 
@@ -269,6 +285,7 @@ function CreateProjectDecisionEvaluatorForm({
       scope={scope}
       variables={draft.variables}
       decision={toDecisionPreview(draft)}
+      outputConfigs={deriveDecisionOutputConfigs(draft.questions, draft.policy)}
       isSubmitting={isSubmitting}
       isSubmitDisabled={draft.isLoading || !draft.isVersionReady}
       isFilterValid={isFilterValid}
@@ -299,7 +316,8 @@ export function AttachProjectDecisionEvaluatorDialogContent({
   registerDirtyCheck,
 }: DialogProps & { evaluator: DecisionEvaluatorData }) {
   const store = useEvaluatorStoreInstance();
-  const variables = inputNamesFromSchema(evaluator.inputSchema);
+  const view = toDecisionEvaluatorView(evaluator);
+  const variables = view.variables;
   const getInputMapping = useDeclaredInputMapping(variables);
   const { attach, isAttaching, error } =
     useAttachProjectEvaluator<ProjectDecisionEvaluatorDialogContentCreateMutation>(
@@ -337,6 +355,7 @@ export function AttachProjectDecisionEvaluatorDialogContent({
       scope={scope}
       variables={variables}
       decision={{ decisionEvaluatorId: evaluator.id }}
+      outputConfigs={deriveDecisionOutputConfigs(view.questions, view.policy)}
       isSubmitting={isAttaching}
       isSubmitDisabled={false}
       isFilterValid={isFilterValid}
@@ -473,6 +492,10 @@ function EditProjectDecisionEvaluatorForm({
         scope={scope}
         variables={draft.variables}
         decision={toDecisionPreview(draft)}
+        outputConfigs={deriveDecisionOutputConfigs(
+          draft.questions,
+          draft.policy
+        )}
         isSubmitting={isSubmitting}
         isSubmitDisabled={draft.isLoading || !draft.isVersionReady}
         isFilterValid={isFilterValid}

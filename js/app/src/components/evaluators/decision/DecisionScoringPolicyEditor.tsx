@@ -11,7 +11,11 @@ import {
   Text,
   TextField,
 } from "@phoenix/components";
-import { OptimizationDirectionSelect } from "@phoenix/components/evaluators/OptimizationDirectionField";
+import {
+  OptimizationDirectionSelect,
+  PREDICATE_OPTIMIZATION_DIRECTION_DESCRIPTION,
+  PREDICATE_OPTIMIZATION_DIRECTION_OPTIONS,
+} from "@phoenix/components/evaluators/OptimizationDirectionField";
 
 import type {
   DecisionOptimizationDirection,
@@ -114,6 +118,13 @@ export function DecisionScoringPolicyEditor({
                   data-testid={`decision-policy-${name}-direction-picker`}
                   aria-label={`${name} optimization direction`}
                   value={getDirection(question)}
+                  {...("predicate" in question
+                    ? {
+                        options: PREDICATE_OPTIMIZATION_DIRECTION_OPTIONS,
+                        description:
+                          PREDICATE_OPTIMIZATION_DIRECTION_DESCRIPTION,
+                      }
+                    : {})}
                   isDisabled={isDisabled}
                   onChange={(optimizationDirection) =>
                     updateQuestion(
