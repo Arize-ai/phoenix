@@ -24,9 +24,6 @@ jobs:
       MAX_STALE_PRS: 15
       MAX_UNOWNED_PRS: 10
       IGNORED_PR_LABELS: "autorelease: pending"
-      # Optional JSON object of GitHub login to Slack user ID, for example
-      # {"octocat": "U0123ABCD"}. Mapped people are @-mentioned in the digest.
-      SLACK_USER_IDS: ${{ vars.SLACK_USER_IDS }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

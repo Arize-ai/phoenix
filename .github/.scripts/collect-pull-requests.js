@@ -6,10 +6,6 @@
 // 2. The stale PRs (no human activity for more than the staleness threshold),
 //    stalest first, each with the person the PR is waiting on.
 // 3. Community PRs that have no reviewer or assignee yet.
-//
-// GitHub logins are converted to Slack mentions when the SLACK_USER_IDS
-// environment variable maps them (JSON: {"github-login": "U0123ABCD"}), so
-// that the people named in the digest are notified.
 
 const PULL_REQUESTS_QUERY = `
   query($owner: String!, $repo: String!, $cursor: String) {
@@ -287,20 +283,11 @@ function byIdleDaysDescending(a, b) {
   return b.idleDays - a.idleDays || b.ageDays - a.ageDays;
 }
 
-function createMentioner(slackUserIds) {
-  return (login) => {
-    // Own string values only, so a login such as "constructor" does not pick
-    // up an Object.prototype member
-    const slackUserId = Object.hasOwn(slackUserIds, login)
-      ? slackUserIds[login]
-      : undefined;
-    return typeof slackUserId === "string" && slackUserId
-      ? `<@${slackUserId}>`
-      : `<https://github.com/${login}|${login}>`;
-  };
+function createGithubLink(login) {
+  return `<https://github.com/${login}|${login}>`;
 }
 
-function formatPersonLine(person, { owner, repo, mention }) {
+function formatPersonLine(person, { owner, repo }) {
   const roleCounts = [
     ["authored", person.authored.length, `author:${person.login}`],
     [
@@ -319,20 +306,20 @@ function formatPersonLine(person, { owner, repo, mention }) {
     .reverse()
     .filter(([key]) => person.counts[key] > 0)
     .map(([key, { emoji }]) => `${emoji} ${person.counts[key]}`);
-  return `• ${mention(person.login)}: ${roleCounts.join(
+  return `• ${createGithubLink(person.login)}: ${roleCounts.join(
     " · ",
   )}  —  ${freshnessCounts.join("  ")}`;
 }
 
-function formatPullRequestLine(summary, index, { mention }) {
+function formatPullRequestLine(summary, index) {
   const details = [
     `idle ${summary.idleDays}d`,
     `opened ${summary.ageDays}d ago`,
-    `by ${mention(summary.author)}`,
+    `by ${createGithubLink(summary.author)}`,
   ];
   if (summary.waitingOn) {
     details.push(
-      `waiting on ${summary.waitingOn.logins.map(mention).join(", ")} (${
+      `waiting on ${summary.waitingOn.logins.map(createGithubLink).join(", ")} (${
         summary.waitingOn.reason
       })`,
     );
@@ -342,12 +329,12 @@ function formatPullRequestLine(summary, index, { mention }) {
   }>* ${escapeSlackText(summary.title)} — ${details.join(" · ")}`;
 }
 
-function formatList(header, summaries, limit, options) {
+function formatList(header, summaries, limit) {
   const lines = [header];
   summaries
     .slice(0, limit)
     .forEach((summary, index) =>
-      lines.push(formatPullRequestLine(summary, index, options)),
+      lines.push(formatPullRequestLine(summary, index)),
     );
   const hidden = Math.max(0, summaries.length - limit);
   if (hidden > 0) lines.push(`_…and ${hidden} more_`);
@@ -384,7 +371,6 @@ function buildSlackMessage(summaries, options) {
         `*${FRESHNESS.STALE.emoji} Stale (no activity in >${stalenessThreshold} days), stalest first*`,
         stale,
         maxStale,
-        options,
       ),
     );
   }
@@ -398,7 +384,6 @@ function buildSlackMessage(summaries, options) {
         } with no reviewer or assignee)`,
         unowned,
         maxUnowned,
-        options,
       ),
     );
   }
@@ -424,22 +409,6 @@ async function fetchOpenPullRequests(github, owner, repo) {
   return pullRequests;
 }
 
-function parseSlackUserIds(raw, core) {
-  if (!raw || !raw.trim()) return {};
-  try {
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      return parsed;
-    }
-  } catch {
-    // Fall through to the warning below
-  }
-  core.warning(
-    "SLACK_USER_IDS is not a JSON object of GitHub login to Slack user ID; using GitHub links instead of mentions",
-  );
-  return {};
-}
-
 function parseIntegerEnv(name, fallback) {
   const value = parseInt(process.env[name] ?? "", 10);
   return Number.isNaN(value) ? fallback : value;
@@ -461,9 +430,6 @@ module.exports = async ({ github, context, core }) => {
     stalenessThreshold: parseIntegerEnv("STALENESS_THRESHOLD_IN_DAYS", 14),
     maxStale: parseIntegerEnv("MAX_STALE_PRS", 15),
     maxUnowned: parseIntegerEnv("MAX_UNOWNED_PRS", 10),
-    mention: createMentioner(
-      parseSlackUserIds(process.env.SLACK_USER_IDS, core),
-    ),
   };
 
   const pullRequests = await fetchOpenPullRequests(github, owner, repo);
