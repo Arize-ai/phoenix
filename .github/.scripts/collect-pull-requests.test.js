@@ -1,4 +1,4 @@
-// Run with: node --test .github/.scripts/
+// Run with: node --test .github/.scripts/*.test.js
 const assert = require("node:assert/strict");
 const { describe, it } = require("node:test");
 
@@ -241,6 +241,10 @@ describe("buildSlackMessage", () => {
     const mention = createMentioner({ alice: "U123" });
     assert.equal(mention("alice"), "<@U123>");
     assert.equal(mention("bob"), "<https://github.com/bob|bob>");
+    assert.equal(
+      mention("constructor"),
+      "<https://github.com/constructor|constructor>",
+    );
   });
 });
 

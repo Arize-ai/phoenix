@@ -93,9 +93,9 @@ const TEAM_AUTHOR_ASSOCIATIONS = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
 const MILLISECONDS_IN_A_DAY = 1000 * 60 * 60 * 24;
 
 const FRESHNESS = {
-  ACTIVE: { emoji: "🟢", label: "active" },
-  AGING: { emoji: "🟡", label: "aging" },
-  STALE: { emoji: "🔴", label: "stale" },
+  ACTIVE: { key: "ACTIVE", emoji: "🟢", label: "active" },
+  AGING: { key: "AGING", emoji: "🟡", label: "aging" },
+  STALE: { key: "STALE", emoji: "🔴", label: "stale" },
 };
 
 // Slack mrkdwn treats these characters as control characters
@@ -104,10 +104,6 @@ function escapeSlackText(text) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
-}
-
-function pluralize(count, noun) {
-  return `${count} ${noun}${count === 1 ? "" : "s"}`;
 }
 
 function daysBetween(earlier, later) {
@@ -275,9 +271,7 @@ function groupByPerson(summaries) {
     person.pullRequests = [...unique.values()];
     person.counts = { ACTIVE: 0, AGING: 0, STALE: 0 };
     for (const summary of person.pullRequests) {
-      for (const [key, freshness] of Object.entries(FRESHNESS)) {
-        if (summary.freshness === freshness) person.counts[key] += 1;
-      }
+      person.counts[summary.freshness.key] += 1;
     }
   }
   return [...people.values()].sort(
@@ -294,10 +288,16 @@ function byIdleDaysDescending(a, b) {
 }
 
 function createMentioner(slackUserIds) {
-  return (login) =>
-    slackUserIds[login]
-      ? `<@${slackUserIds[login]}>`
+  return (login) => {
+    // Own string values only, so a login such as "constructor" does not pick
+    // up an Object.prototype member
+    const slackUserId = Object.hasOwn(slackUserIds, login)
+      ? slackUserIds[login]
+      : undefined;
+    return typeof slackUserId === "string" && slackUserId
+      ? `<@${slackUserId}>`
       : `<https://github.com/${login}|${login}>`;
+  };
 }
 
 function formatPersonLine(person, { owner, repo, mention }) {
@@ -349,7 +349,7 @@ function formatList(header, summaries, limit, options) {
     .forEach((summary, index) =>
       lines.push(formatPullRequestLine(summary, index, options)),
     );
-  const hidden = summaries.length - Math.min(limit, summaries.length);
+  const hidden = Math.max(0, summaries.length - limit);
   if (hidden > 0) lines.push(`_…and ${hidden} more_`);
   return lines;
 }
