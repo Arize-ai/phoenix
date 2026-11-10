@@ -12,6 +12,7 @@ from phoenix.db.types.annotation_configs import (
     OptimizationDirection,
     OutputConfigType,
 )
+from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.server.api.exceptions import BadRequest
 
 
@@ -41,6 +42,13 @@ class ContinuousAnnotationConfigInput:
     optimization_direction: OptimizationDirection
     lower_bound: Optional[float] = None
     upper_bound: Optional[float] = None
+    threshold: Optional[float] = strawberry.field(
+        default=None,
+        description=(
+            "The score separating good from bad results, strictly between the bounds. "
+            "Null leaves it at the bounds' midpoint."
+        ),
+    )
 
     def __post_init__(self) -> None:
         if not self.name.strip():
@@ -113,6 +121,8 @@ class AnnotationConfigInput:
                 optimization_direction=continuous.optimization_direction,
                 lower_bound=continuous.lower_bound,
                 upper_bound=continuous.upper_bound,
+                # Left unset when absent, so configs without one serialize as before.
+                threshold=UNDEFINED if continuous.threshold is None else continuous.threshold,
             )
         if self.freeform is not None and self.freeform is not strawberry.UNSET:
             freeform = self.freeform

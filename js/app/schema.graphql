@@ -975,7 +975,7 @@ type ContinuousAnnotationConfig implements Node & AnnotationConfigBase {
   upperBound: Float
 
   """
-  The score separating good from bad results, when it is not the midpoint of the bounds: a decision evaluator's Yes / No question sets it to the question's threshold, where its label flips from false to true. Null for annotation configs and other evaluators' outputs.
+  The score separating good from bad results; null means the midpoint of the bounds. Saved on annotation configs and evaluator outputs, where it only colours results and changes no score or label; a decision evaluator's Yes / No question sets it to the question's threshold, where its label flips from false to true.
   """
   threshold: Float
   shapeExamples(language: ShapeExamplesLanguage! = PYTHON, mode: ShapeExamplesMode! = FULL): [String!]!
@@ -987,6 +987,11 @@ input ContinuousAnnotationConfigInput {
   optimizationDirection: OptimizationDirection!
   lowerBound: Float = null
   upperBound: Float = null
+
+  """
+  The score separating good from bad results, strictly between the bounds. Null leaves it at the bounds' midpoint.
+  """
+  threshold: Float = null
 }
 
 type CostBreakdown {

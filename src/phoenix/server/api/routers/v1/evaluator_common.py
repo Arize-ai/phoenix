@@ -65,6 +65,9 @@ def output_configs_to_db(configs: Sequence[EvaluatorOutputConfig]) -> list[Outpu
             if isinstance(config, FreeformAnnotationConfigData):
                 threshold = data.pop("threshold")
                 data["thresholds"] = [threshold] if threshold is not None else None
+            elif isinstance(config, ContinuousAnnotationConfigData) and data["threshold"] is None:
+                # Left unset, so configs without one are stored as before.
+                del data["threshold"]
             stored.append(OutputConfig.model_validate(data).root)
     except ValidationError as error:
         raise BadRequest(str(error)) from error

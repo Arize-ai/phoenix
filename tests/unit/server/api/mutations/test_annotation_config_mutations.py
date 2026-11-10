@@ -1,7 +1,9 @@
+import json
 from copy import deepcopy
 from typing import Any
 
 import pytest
+from sqlalchemy import text
 from strawberry.relay import GlobalID
 
 from phoenix.config import DEFAULT_PROJECT_NAME
@@ -1104,3 +1106,132 @@ class TestAnnotationConfigMutations:
         project_configs = data["project"]["annotationConfigs"]["edges"]
         assert len(project_configs) == 1
         assert project_configs[0]["annotationConfig"]["id"] == config_id
+
+
+class TestContinuousAnnotationConfigThreshold:
+    MUTATIONS = """
+    mutation Create($input: CreateAnnotationConfigInput!) {
+        createAnnotationConfig(input: $input) {
+            annotationConfig { ...Fields }
+        }
+    }
+
+    mutation Update($input: UpdateAnnotationConfigInput!) {
+        updateAnnotationConfig(input: $input) {
+            annotationConfig { ...Fields }
+        }
+    }
+
+    fragment Fields on ContinuousAnnotationConfig {
+        id
+        lowerBound
+        upperBound
+        threshold
+    }
+    """
+
+    @staticmethod
+    def _continuous(threshold: Any = None) -> dict[str, Any]:
+        config: dict[str, Any] = {
+            "name": "helpfulness",
+            "optimizationDirection": "MAXIMIZE",
+            "lowerBound": 0.0,
+            "upperBound": 10.0,
+        }
+        if threshold is not None:
+            config["threshold"] = threshold
+        return config
+
+    @staticmethod
+    async def _stored(db: DbSessionFactory, config_id: str) -> Any:
+        async with db() as session:
+            return await session.scalar(
+                text("SELECT config FROM annotation_configs WHERE id = :id"),
+                {"id": int(GlobalID.from_id(config_id).node_id)},
+            )
+
+    async def test_threshold_round_trips_and_clears(
+        self, gql_client: AsyncGraphQLClient, db: DbSessionFactory
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.MUTATIONS,
+            variables={"input": {"annotationConfig": {"continuous": self._continuous(7.0)}}},
+            operation_name="Create",
+        )
+        assert not response.errors and response.data
+        created = response.data["createAnnotationConfig"]["annotationConfig"]
+        assert created["threshold"] == 7.0
+        stored = await self._stored(db, created["id"])
+        stored = json.loads(stored) if isinstance(stored, str) else stored
+        assert stored["threshold"] == 7.0
+
+        response = await gql_client.execute(
+            query=self.MUTATIONS,
+            variables={
+                "input": {
+                    "id": created["id"],
+                    "annotationConfig": {"continuous": self._continuous(4.5)},
+                }
+            },
+            operation_name="Update",
+        )
+        assert not response.errors and response.data
+        assert response.data["updateAnnotationConfig"]["annotationConfig"]["threshold"] == 4.5
+
+        response = await gql_client.execute(
+            query=self.MUTATIONS,
+            variables={
+                "input": {
+                    "id": created["id"],
+                    "annotationConfig": {"continuous": self._continuous()},
+                }
+            },
+            operation_name="Update",
+        )
+        assert not response.errors and response.data
+        assert response.data["updateAnnotationConfig"]["annotationConfig"]["threshold"] is None
+        stored = await self._stored(db, created["id"])
+        stored = json.loads(stored) if isinstance(stored, str) else stored
+        # Cleared, it is left out of the stored config like it never was.
+        assert "threshold" not in stored
+
+    async def test_config_without_threshold_is_stored_as_before(
+        self, gql_client: AsyncGraphQLClient, db: DbSessionFactory
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.MUTATIONS,
+            variables={"input": {"annotationConfig": {"continuous": self._continuous()}}},
+            operation_name="Create",
+        )
+        assert not response.errors and response.data
+        created = response.data["createAnnotationConfig"]["annotationConfig"]
+        assert created["threshold"] is None
+        stored = await self._stored(db, created["id"])
+        stored = json.loads(stored) if isinstance(stored, str) else stored
+        assert stored == {
+            "name": None,
+            "type": "CONTINUOUS",
+            "description": None,
+            "optimization_direction": "MAXIMIZE",
+            "lower_bound": 0.0,
+            "upper_bound": 10.0,
+        }
+
+    @pytest.mark.parametrize(
+        "threshold, message",
+        [
+            pytest.param(0.0, "Threshold must be greater than the lower bound", id="at-lower"),
+            pytest.param(10.0, "Threshold must be less than the upper bound", id="at-upper"),
+            pytest.param(12.0, "Threshold must be less than the upper bound", id="above"),
+        ],
+    )
+    async def test_threshold_outside_the_bounds_is_rejected(
+        self, gql_client: AsyncGraphQLClient, threshold: float, message: str
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.MUTATIONS,
+            variables={"input": {"annotationConfig": {"continuous": self._continuous(threshold)}}},
+            operation_name="Create",
+        )
+        assert response.errors
+        assert message in response.errors[0].message

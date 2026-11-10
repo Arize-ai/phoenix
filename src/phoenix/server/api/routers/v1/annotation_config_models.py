@@ -40,6 +40,14 @@ class ContinuousAnnotationConfigData(V1RoutesBaseModel):
     optimization_direction: OptimizationDirection
     lower_bound: Optional[float] = None
     upper_bound: Optional[float] = None
+    threshold: Optional[float] = Field(
+        default=None,
+        description=(
+            "The score separating good from bad results, strictly between the bounds; "
+            "null means the bounds' midpoint. It only colours results and changes no "
+            "score or label."
+        ),
+    )
 
 
 class FreeformAnnotationConfigData(V1RoutesBaseModel):
@@ -100,6 +108,7 @@ def db_to_api_annotation_config(
             optimization_direction=config.optimization_direction,
             lower_bound=config.lower_bound,
             upper_bound=config.upper_bound,
+            threshold=config.threshold,
         )
     if isinstance(config, CategoricalAnnotationConfigModel):
         return CategoricalAnnotationConfig(

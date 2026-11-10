@@ -480,6 +480,59 @@ async def test_code_definition_input_schema_round_trip(
     }
 
 
+async def test_code_output_threshold_round_trip(
+    httpx_client: httpx.AsyncClient,
+    sandbox_config: models.SandboxConfig,
+    db: DbSessionFactory,
+) -> None:
+    """A continuous output's threshold is stored when given and only then."""
+    bounded = {**_SCORE_JSON, "lower_bound": 0.0, "upper_bound": 10.0}
+    response = await httpx_client.post(
+        "v1/evaluators",
+        json={
+            "type": "code",
+            "name": f"thresholded-{token_hex(4)}",
+            "source_code": "def evaluate(output):\n    return 6.0",
+            "language": sandbox_config.language,
+            "sandbox_config_id": str(GlobalID("SandboxConfig", str(sandbox_config.id))),
+            "input_mapping": {"literal_mapping": {}, "path_mapping": {}},
+            "output_configs": [bounded],
+        },
+    )
+    assert response.status_code == 201, response.text
+    definition = response.json()["data"]
+    assert definition["output_configs"][0].get("threshold") is None
+    evaluator_id = int(GlobalID.from_id(definition["id"]).node_id)
+
+    async def stored() -> dict[str, Any]:
+        async with db() as session:
+            row = await session.get(models.CodeEvaluator, evaluator_id)
+            assert row is not None
+            await session.refresh(row)
+            return dict(row.output_configs[0].model_dump())
+
+    assert "threshold" not in await stored()
+
+    route = f"v1/evaluators/{definition['id']}"
+    patched = await httpx_client.patch(
+        route, json={"type": "code", "output_configs": [{**bounded, "threshold": 7.0}]}
+    )
+    assert patched.status_code == 200, patched.text
+    assert patched.json()["data"]["output_configs"][0]["threshold"] == 7.0
+    assert (await stored())["threshold"] == 7.0
+
+    refused = await httpx_client.patch(
+        route, json={"type": "code", "output_configs": [{**bounded, "threshold": 0.0}]}
+    )
+    assert refused.status_code == 422, refused.text
+    assert "greater than the lower bound" in refused.text
+
+    cleared = await httpx_client.patch(route, json={"type": "code", "output_configs": [bounded]})
+    assert cleared.status_code == 200, cleared.text
+    assert cleared.json()["data"]["output_configs"][0].get("threshold") is None
+    assert "threshold" not in await stored()
+
+
 async def test_llm_definition_input_schema_round_trip(
     httpx_client: httpx.AsyncClient,
     correctness_llm_evaluator: models.LLMEvaluator,
