@@ -3223,6 +3223,11 @@ export interface components {
             lower_bound?: number | null;
             /** Upper Bound */
             upper_bound?: number | null;
+            /**
+             * Threshold
+             * @description The score separating good from bad results, strictly between the bounds; null means the bounds' midpoint. It only colours results and changes no score or label.
+             */
+            threshold?: number | null;
             /** Id */
             id: string;
         };
@@ -3242,6 +3247,11 @@ export interface components {
             lower_bound?: number | null;
             /** Upper Bound */
             upper_bound?: number | null;
+            /**
+             * Threshold
+             * @description The score separating good from bad results, strictly between the bounds; null means the bounds' midpoint. It only colours results and changes no score or label.
+             */
+            threshold?: number | null;
         };
         /**
          * CreateAgentSessionRequestBody

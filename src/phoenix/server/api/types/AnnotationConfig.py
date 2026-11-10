@@ -87,10 +87,11 @@ class ContinuousAnnotationConfig(Node, AnnotationConfigBase):
     threshold: Optional[float] = strawberry.field(
         default=None,
         description=(
-            "The score separating good from bad results, when it is not the midpoint of the "
-            "bounds: a decision evaluator's Yes / No question sets it to the question's "
-            "threshold, where its label flips from false to true. Null for annotation "
-            "configs and other evaluators' outputs."
+            "The score separating good from bad results; null means the midpoint of the "
+            "bounds. Saved on annotation configs and evaluator outputs, where it only "
+            "colours results and changes no score or label; a decision evaluator's Yes / No "
+            "question sets it to the question's threshold, where its label flips from false "
+            "to true."
         ),
     )
 
@@ -160,6 +161,7 @@ def _to_gql_continuous_annotation_config(
         description=config.description,
         lower_bound=config.lower_bound,
         upper_bound=config.upper_bound,
+        threshold=config.threshold,
     )
 
 
