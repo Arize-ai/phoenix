@@ -4,9 +4,14 @@ from typing import Literal
 import pandas as pd
 import pytest
 from sqlalchemy import func, select
+from sqlalchemy.dialects import postgresql, sqlite
 
 from phoenix.db import models
-from phoenix.server.api.dataloaders.annotation_summaries import AnnotationSummaryDataLoader, Key
+from phoenix.server.api.dataloaders.annotation_summaries import (
+    AnnotationSummaryDataLoader,
+    Key,
+    _get_stmt,
+)
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.types import DbSessionFactory
 
@@ -376,3 +381,27 @@ async def test_null_label_handling(
     # Span averages: (0.5+0.9)/2 = 0.7, (0.6+0.8)/2 = 0.7, (0.4+1.0)/2 = 0.7.
     expected_avg = 0.7
     assert result.mean_score() == pytest.approx(expected_avg, rel=1e-4)  # type: ignore[call-arg]
+
+
+_POSTGRESQL = postgresql.dialect()  # type: ignore[no-untyped-call]
+
+
+@pytest.mark.parametrize("kind", ["span", "trace", "session"])
+@pytest.mark.parametrize("dialect", [sqlite.dialect(), _POSTGRESQL])
+def test_statement_scans_the_scoped_annotations_once(
+    kind: Literal["span", "trace", "session"], dialect: object
+) -> None:
+    """Every aggregate reads one CTE. Inlining the scoped join into each of them ran it
+    five times per statement, which dominated page loads on large projects."""
+    annotation_table = {
+        "span": "span_annotations",
+        "trace": "trace_annotations",
+        "session": "project_session_annotations",
+    }[kind]
+    stmt = _get_stmt(
+        (kind, 1, (datetime.fromisoformat("2024-01-01T00:00:00+00:00"), None), None, None),
+        "quality",
+        "correctness",
+    )
+    sql = str(stmt.compile(dialect=dialect))  # type: ignore[arg-type]
+    assert sql.count(f"FROM {annotation_table}") == 1

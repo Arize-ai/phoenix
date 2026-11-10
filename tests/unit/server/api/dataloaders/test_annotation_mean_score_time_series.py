@@ -5,9 +5,11 @@ from secrets import token_hex
 from typing import Any, Literal, Optional
 
 import pytest
+from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.api.annotation_metrics import build_entity_weighted_annotation_metrics_stmt
 from phoenix.server.api.dataloaders.annotation_mean_score_time_series import (
     AnnotationMeanScoreTimeSeriesCache,
@@ -72,6 +74,8 @@ class TestAnnotationMeanScoreTimeSeriesCache:
         assert cache.get(_key(project_rowid=1, annotation_name="other")) is None
         assert cache.get(_key(project_rowid=2)) is not None
 
+
+_POSTGRESQL = postgresql.dialect()  # type: ignore[no-untyped-call]
 
 _DAY_0 = datetime(2024, 6, 10, tzinfo=timezone.utc)
 _DAY_BINS = TimeBucketSpec(unit="day")
@@ -172,3 +176,32 @@ class TestAnnotationMeanScoreTimeSeriesDataLoader:
         lean = {("quality", bucket): mean_bin for bucket, mean_bin in quality.items()}
         lean.update({("other", bucket): mean_bin for bucket, mean_bin in other.items()})
         assert lean == reference
+
+    @pytest.mark.parametrize("kind", ["span", "trace", "session"])
+    @pytest.mark.parametrize(
+        "dialect",
+        [
+            (SupportedSQLDialect.SQLITE, sqlite.dialect()),
+            (SupportedSQLDialect.POSTGRESQL, _POSTGRESQL),
+        ],
+    )
+    def test_statement_scans_the_annotations_once(
+        self, kind: Literal["span", "trace", "session"], dialect: tuple[SupportedSQLDialect, Any]
+    ) -> None:
+        """The shared metrics statement inlined its rows into five branches, and on
+        Postgres a mis-estimated join between those branches took minutes."""
+        supported_dialect, sa_dialect = dialect
+
+        class _Db:
+            pass
+
+        db = _Db()
+        db.dialect = supported_dialect  # type: ignore[attr-defined]
+        loader = AnnotationMeanScoreTimeSeriesDataLoader(db)  # type: ignore[arg-type]
+        stmt = loader._get_stmt((kind, 1, (_DAY_0, None), _DAY_BINS), "quality", "other")
+        annotation_table = {
+            "span": "span_annotations",
+            "trace": "trace_annotations",
+            "session": "project_session_annotations",
+        }[kind]
+        assert str(stmt.compile(dialect=sa_dialect)).count(f"FROM {annotation_table}") == 1

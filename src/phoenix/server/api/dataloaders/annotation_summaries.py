@@ -217,9 +217,9 @@ def _get_stmt(
         if end_time:
             time_range_conditions.append(time_column < end_time)
 
-    # The entity-count query below is the denominator of the reported fractions and the main
-    # query is the numerator, so the two have to select from the same rows. Both get their
-    # scope from this one function, and both reuse the one compiled session-filter subquery.
+    # Every aggregate below, including the entity count that is the denominator of the
+    # reported fractions, derives from the one scoped scan in `base_cte`, so numerator and
+    # denominator always select from the same rows.
     span_filter = SpanFilter(filter_condition) if kind == "span" and filter_condition else None
     filtered_session_rowids = (
         get_filtered_session_rowids_subquery(
@@ -245,14 +245,6 @@ def _get_stmt(
         stmt = stmt.where(name_column.in_(annotation_names))
         return stmt.where(*time_range_conditions)
 
-    # First query: count distinct entities per annotation name
-    # This is used later to calculate accurate fractions that account for entities without labels
-    entity_count_subquery = (
-        scoped(select(name_column, func.count(distinct(entity_id_column)).label("entity_count")))
-        .group_by(name_column)
-        .subquery()
-    )
-
     # Main query: gets raw annotation data with counts per (span/trace)+name+label
     base_stmt = scoped(
         select(
@@ -269,7 +261,21 @@ def _get_stmt(
     # Group to get one row per (span/trace)+name+label combination
     base_stmt = base_stmt.group_by(entity_id_column, name_column, label_column)
 
-    base_subquery = base_stmt.subquery()
+    # A CTE, not a subquery: every aggregate below reads it, and Postgres (12+) and SQLite
+    # both materialize a CTE that is referenced more than once. As inlined subqueries, the
+    # scoped annotation-entity join ran once per reference, five times per statement.
+    base_subquery = base_stmt.cte("annotation_entity_rows")
+
+    # Count distinct entities per annotation name, the denominator for fractions that
+    # account for entities without labels.
+    entity_count_subquery = (
+        select(
+            base_subquery.c.name,
+            func.count(distinct(base_subquery.c.entity_id)).label("entity_count"),
+        )
+        .group_by(base_subquery.c.name)
+        .subquery()
+    )
 
     # Calculate total counts per (span/trace)+name for computing fractions
     entity_totals = (
