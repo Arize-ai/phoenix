@@ -206,7 +206,8 @@ const CHART_DEFINITIONS: Record<
   },
   cost_by_evaluator: {
     name: "Cost by evaluator",
-    description: "Estimated cost and share of total",
+    description:
+      "Estimated cost and share of total; evaluators with tracing off add none",
     chartType: "barHorizontal",
     Component: CostByEvaluator,
   },
@@ -218,7 +219,8 @@ const CHART_DEFINITIONS: Record<
   },
   cost_over_time_by_evaluator: {
     name: "Cost over time by evaluator",
-    description: "Estimated cost per interval",
+    description:
+      "Estimated cost per interval; evaluators with tracing off add none",
     chartType: "bar",
     Component: CostOverTimeByEvaluatorTimeSeries,
   },

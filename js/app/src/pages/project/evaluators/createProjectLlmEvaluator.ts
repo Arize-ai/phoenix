@@ -20,6 +20,7 @@ const mutation = graphql`
         filterCondition
         samplingRate
         enabled
+        tracingEnabled
         evaluator {
           kind
         }

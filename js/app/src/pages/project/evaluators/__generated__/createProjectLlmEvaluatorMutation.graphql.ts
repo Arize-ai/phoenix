@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0d7bd68c245f9022ec79430d9fa5fd44>>
+ * @generated SignedSource<<297295f1ffa4fecd1c740ded842cdec6>>
  * @lightSyntaxTransform
  */
 
@@ -32,6 +32,7 @@ export type CreateProjectLLMEvaluatorInput = {
   promptVersion: ChatPromptVersionInput;
   promptVersionId?: string | null;
   samplingRate: number;
+  tracingEnabled?: boolean;
 };
 export type ChatPromptVersionInput = {
   customProviderId?: string | null;
@@ -276,6 +277,7 @@ export type createProjectLlmEvaluatorMutation$data = {
       readonly id: string;
       readonly name: string;
       readonly samplingRate: number;
+      readonly tracingEnabled: boolean;
     };
   };
 };
@@ -345,6 +347,13 @@ v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "tracingEnabled",
+  "storageKey": null
+},
+v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "kind",
   "storageKey": null
 };
@@ -377,6 +386,7 @@ return {
               (v5/*:: as any*/),
               (v6/*:: as any*/),
               (v7/*:: as any*/),
+              (v8/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -385,7 +395,7 @@ return {
                 "name": "evaluator",
                 "plural": false,
                 "selections": [
-                  (v8/*:: as any*/)
+                  (v9/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -427,6 +437,7 @@ return {
               (v5/*:: as any*/),
               (v6/*:: as any*/),
               (v7/*:: as any*/),
+              (v8/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -442,7 +453,7 @@ return {
                     "name": "__typename",
                     "storageKey": null
                   },
-                  (v8/*:: as any*/),
+                  (v9/*:: as any*/),
                   (v2/*:: as any*/)
                 ],
                 "storageKey": null
@@ -456,16 +467,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c78ad4cc5d355fdb97472a6cb3a32c5f",
+    "cacheID": "a3b1e68964c177e653f425f3dfc37061",
     "id": null,
     "metadata": {},
     "name": "createProjectLlmEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation createProjectLlmEvaluatorMutation(\n  $input: CreateProjectLLMEvaluatorInput!\n) {\n  createProjectLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      evaluationTarget\n      filterCondition\n      samplingRate\n      enabled\n      evaluator {\n        __typename\n        kind\n        id\n      }\n    }\n  }\n}\n"
+    "text": "mutation createProjectLlmEvaluatorMutation(\n  $input: CreateProjectLLMEvaluatorInput!\n) {\n  createProjectLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      evaluationTarget\n      filterCondition\n      samplingRate\n      enabled\n      tracingEnabled\n      evaluator {\n        __typename\n        kind\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5d7369d5e99bb173582ea52f4eb71273";
+(node as any).hash = "040456dcee9b943445b83987e4688260";
 
 export default node;

@@ -37,6 +37,7 @@ const BINDING: componentsV1["schemas"]["ProjectEvaluator"] = {
   sampling_rate: 0.25,
   filter_condition: "",
   enabled: true,
+  tracing_enabled: true,
   input_mapping: null,
   evaluation_delay_seconds: null,
 };
@@ -159,6 +160,7 @@ describe("project evaluator create", () => {
         "--filter-condition",
         "span_kind == 'LLM'",
         "--disabled",
+        "--no-tracing",
         "--format",
         "raw",
         ...BASE_ARGS,
@@ -175,6 +177,7 @@ describe("project evaluator create", () => {
       sampling_rate: 0.25,
       filter_condition: "span_kind == 'LLM'",
       enabled: false,
+      tracing_enabled: false,
     });
     const parsed = JSON.parse(String(io.stdout.mock.calls[0]?.[0]));
     expect(parsed).toEqual(BINDING);
@@ -337,6 +340,23 @@ describe("project evaluator update", () => {
     );
 
     expect(captured.body).toEqual({ sampling_rate: 0.5, enabled: false });
+  });
+
+  it("PATCHes tracing_enabled from --tracing and --no-tracing", async () => {
+    const captured = capturePatch();
+    captureCliOutput();
+
+    await createProjectEvaluatorCommand().parseAsync(
+      ["update", BINDING_ID, "--no-tracing", ...BASE_ARGS],
+      { from: "user" }
+    );
+    expect(captured.body).toEqual({ tracing_enabled: false });
+
+    await createProjectEvaluatorCommand().parseAsync(
+      ["update", BINDING_ID, "--tracing", ...BASE_ARGS],
+      { from: "user" }
+    );
+    expect(captured.body).toEqual({ tracing_enabled: true });
   });
 
   it("sends explicit nulls for the reset flags", async () => {

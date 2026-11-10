@@ -24,6 +24,8 @@ export interface UpdateProjectEvaluatorParams extends ClientFn {
    * For `TRACE` and `SESSION` targets, `evaluation_delay_seconds` must be at
    * least 10, `null` restores the default of 300, and omitting it keeps the
    * current delay. `SPAN` targets reject a number and keep a delay of 0.
+   * Set `tracing_enabled` to turn tracing of each evaluation on or off; it
+   * applies to evaluations that start afterwards.
    */
   patch: ProjectEvaluatorPatch;
 }
