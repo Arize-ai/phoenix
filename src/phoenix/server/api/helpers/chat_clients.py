@@ -111,7 +111,6 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
 )
 from phoenix.server.api.types.GenerativeProvider import (
     GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING,
-    MINIMAX_MODEL_NAMES,
     GenerativeProviderKey,
 )
 from phoenix.utilities.json import jsonify
@@ -1316,6 +1315,9 @@ class GroqClient(OpenAICompatibleClient):
 )
 class MoonshotClient(OpenAICompatibleClient):
     pass
+
+
+MINIMAX_MODEL_NAMES = ("MiniMax-M3.1-Flash", "MiniMax-M3")
 
 
 @register_client(
