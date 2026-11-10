@@ -98,6 +98,7 @@ describe("output config kind rule", () => {
   };
 
   const continuous = {
+    annotationType: "CONTINUOUS" as const,
     name: "quality",
     optimizationDirection: "MAXIMIZE" as const,
     lowerBound: 0,

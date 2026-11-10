@@ -27,12 +27,8 @@ import {
   type EvaluatorStoreInstance,
   type EvaluatorStoreProps,
 } from "@phoenix/store/evaluatorStore";
-import type {
-  ClassificationEvaluatorAnnotationConfig,
-  ContinuousEvaluatorAnnotationConfig,
-} from "@phoenix/types";
-import type { Mutable } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
+import { toEvaluatorStoreOutputConfig } from "@phoenix/utils/evaluatorOutputConfigUtils";
 
 export function CreateBuiltInDatasetEvaluatorSlideover({
   evaluatorId,
@@ -175,12 +171,8 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
     if (evaluator.kind === "BUILTIN") {
       const name = evaluator.name;
       // Map all output configs from the evaluator to the store format
-      const outputConfigs = (evaluator.outputConfigs ?? []).map(
-        (config) =>
-          config as Mutable<
-            | ContinuousEvaluatorAnnotationConfig
-            | ClassificationEvaluatorAnnotationConfig
-          >
+      const outputConfigs = (evaluator.outputConfigs ?? []).flatMap(
+        (config) => toEvaluatorStoreOutputConfig(config) ?? []
       );
       return {
         ...DEFAULT_CODE_EVALUATOR_STORE_VALUES,

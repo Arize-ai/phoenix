@@ -1,27 +1,15 @@
 import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
+import type { EvaluatorOptimizationDirection } from "@phoenix/types";
 
 export type EvaluatorOutputConfigType =
   | "CATEGORICAL"
   | "CONTINUOUS"
   | "FREEFORM";
 
-const OUTPUT_CONFIG_TYPE_BY_TYPENAME: Record<
-  string,
-  EvaluatorOutputConfigType | undefined
-> = {
-  CategoricalAnnotationConfig: "CATEGORICAL",
-  ContinuousAnnotationConfig: "CONTINUOUS",
-  FreeformAnnotationConfig: "FREEFORM",
-};
-
 /**
- * Which kind of evaluator output an evaluator-store config is.
- *
- * Continuous and freeform configs share their fields (both may carry bounds and
- * a threshold), so a config's `annotationType` tag, or the GraphQL
- * `__typename` of one copied straight from a query, decides. An untagged
- * config is freeform only when it has a threshold, as before continuous
- * configs could carry one.
+ * Which kind of evaluator output an evaluator-store config is. Continuous and
+ * freeform configs share their fields, so the config's `annotationType` tag
+ * decides; categorical configs are the ones with values.
  */
 export function getEvaluatorOutputConfigType(
   config: AnnotationConfig
@@ -29,21 +17,73 @@ export function getEvaluatorOutputConfigType(
   if ("values" in config) {
     return "CATEGORICAL";
   }
-  const tagged = config as { annotationType?: unknown; __typename?: unknown };
-  if (
-    tagged.annotationType === "CONTINUOUS" ||
-    tagged.annotationType === "FREEFORM"
-  ) {
-    return tagged.annotationType;
+  return config.annotationType;
+}
+
+/** An output config as a GraphQL query selects it, told apart by `__typename`. */
+export type SelectedOutputConfig = {
+  readonly __typename: string;
+  readonly name?: string;
+  readonly optimizationDirection?: EvaluatorOptimizationDirection | string;
+  readonly values?: ReadonlyArray<{
+    readonly label: string;
+    readonly score?: number | null;
+  }>;
+  readonly lowerBound?: number | null;
+  readonly upperBound?: number | null;
+  readonly threshold?: number | null;
+};
+
+function toOptimizationDirection(
+  direction: string | undefined
+): EvaluatorOptimizationDirection {
+  return direction === "MAXIMIZE" || direction === "MINIMIZE"
+    ? direction
+    : "NONE";
+}
+
+/**
+ * Converts a selected output config into the evaluator store's shape, tagged
+ * with its type. Returns null for a type this client does not know.
+ */
+export function toEvaluatorStoreOutputConfig(
+  config: SelectedOutputConfig
+): AnnotationConfig | null {
+  const name = config.name ?? "";
+  const optimizationDirection = toOptimizationDirection(
+    config.optimizationDirection
+  );
+  switch (config.__typename) {
+    case "CategoricalAnnotationConfig":
+      return {
+        name,
+        optimizationDirection,
+        values: (config.values ?? []).map(({ label, score }) => ({
+          label,
+          ...(score != null ? { score } : {}),
+        })),
+      };
+    case "ContinuousAnnotationConfig":
+      return {
+        annotationType: "CONTINUOUS",
+        name,
+        optimizationDirection,
+        lowerBound: config.lowerBound ?? null,
+        upperBound: config.upperBound ?? null,
+        threshold: config.threshold ?? null,
+      };
+    case "FreeformAnnotationConfig":
+      return {
+        annotationType: "FREEFORM",
+        name,
+        optimizationDirection,
+        threshold: config.threshold ?? null,
+        lowerBound: config.lowerBound ?? null,
+        upperBound: config.upperBound ?? null,
+      };
+    default:
+      return null;
   }
-  const fromTypename =
-    typeof tagged.__typename === "string"
-      ? OUTPUT_CONFIG_TYPE_BY_TYPENAME[tagged.__typename]
-      : undefined;
-  if (fromTypename === "CONTINUOUS" || fromTypename === "FREEFORM") {
-    return fromTypename;
-  }
-  return "threshold" in config ? "FREEFORM" : "CONTINUOUS";
 }
 
 /**
