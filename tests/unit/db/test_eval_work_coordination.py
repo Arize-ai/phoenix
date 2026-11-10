@@ -344,19 +344,14 @@ async def test_eval_span_cursor_holds_a_single_row(db: DbSessionFactory) -> None
 
 def test_migration_status_predicates_match_the_code_that_reads_them() -> None:
     """The migration spells its status sets as literals so a later edit to eval_work
-    cannot rewrite what it applied. This is the other half of that bargain: when the
-    code's sets change, this fails, and the answer is a new migration, not an edit."""
+    cannot rewrite what it applied. While the migration is unreleased, a change to the
+    code's sets is made in the migration too; once it ships, the change needs a new one."""
     migration = import_module(
         "phoenix.db.migrations.versions.a7f1c3e9d2b4_add_online_eval_coordination"
     )
     assert migration._EVAL_WORK_STATUS_CHECK == eval_work.eval_work_status_check()
-    assert migration._SWEPT_TARGET_WORK_STATUS_CHECK == eval_work.swept_target_work_status_check()
     assert migration._QUEUED_PREDICATE == eval_work.queued_index_predicate()
     assert migration._TERMINAL_PREDICATE == eval_work.terminal_index_predicate()
-    assert (
-        migration._SWEPT_TARGET_TERMINAL_PREDICATE
-        == eval_work.swept_target_terminal_index_predicate()
-    )
 
 
 @pytest.mark.parametrize(

@@ -733,7 +733,7 @@ async def _advance_liveness(
 async def test_work_ended_without_a_result_is_re_offered_in_place_after_new_ingest(
     db: DbSessionFactory,
     evaluation_target: models.EvaluationTarget,
-    status: models.SweptTargetWorkStatus,
+    status: models.EvalWorkStatus,
 ) -> None:
     """Work that ended without a result carries the activity it was scheduled for in
     ``decided_through``, so it is offered again only once its target has newer activity.
@@ -799,7 +799,7 @@ async def test_work_ended_without_a_result_is_re_offered_in_place_after_new_inge
 @pytest.mark.parametrize("declined_status", ["FILTERED_OUT", "SAMPLED_OUT"])
 async def test_re_offer_that_lands_declined_is_final(
     db: DbSessionFactory,
-    declined_status: models.SweptTargetWorkStatus,
+    declined_status: models.EvalWorkStatus,
 ) -> None:
     project_id, project_session_id, first_ingest_at = await _add_session_liveness(
         db,

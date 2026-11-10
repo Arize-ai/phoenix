@@ -60,8 +60,6 @@ from phoenix.db.eval_work import (
     eval_work_status_check,
     failed_index_predicate,
     queued_index_predicate,
-    swept_target_terminal_index_predicate,
-    swept_target_work_status_check,
     terminal_index_predicate,
 )
 from phoenix.db.types.annotation_configs import (
@@ -214,9 +212,6 @@ DecisionSDK: TypeAlias = Literal["openai", "typesafe"]
 """A custom provider's decision client: OpenAI's Decisions API or System One."""
 ExperimentStatus: TypeAlias = Literal["RUNNING", "COMPLETED", "STOPPED", "ERROR"]
 EvalWorkStatus: TypeAlias = Literal[
-    "PENDING", "RUNNING", "DONE", "ERROR", "FAILED", "EXPIRED", "DROPPED"
-]
-SweptTargetWorkStatus: TypeAlias = Literal[
     "PENDING",
     "RUNNING",
     "DONE",
@@ -4343,8 +4338,8 @@ class EvalSessionWorkUnit(HasId):
         index=True,
     )
     decided_through: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
-    status: Mapped[SweptTargetWorkStatus] = mapped_column(
-        CheckConstraint(swept_target_work_status_check(), name="valid_eval_work_status"),
+    status: Mapped[EvalWorkStatus] = mapped_column(
+        CheckConstraint(eval_work_status_check(), name="valid_eval_work_status"),
         default="PENDING",
         server_default="PENDING",
     )
@@ -4385,8 +4380,8 @@ class EvalSessionWorkUnit(HasId):
         Index(
             "ix_eval_session_work_units_terminal",
             "updated_at",
-            postgresql_where=text(swept_target_terminal_index_predicate()),
-            sqlite_where=text(swept_target_terminal_index_predicate()),
+            postgresql_where=text(terminal_index_predicate()),
+            sqlite_where=text(terminal_index_predicate()),
         ),
         # Each evaluator's newest success and newest failure, found without walking its history.
         Index(
@@ -4420,8 +4415,8 @@ class EvalTraceWorkUnit(HasId):
         index=True,
     )
     decided_through: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
-    status: Mapped[SweptTargetWorkStatus] = mapped_column(
-        CheckConstraint(swept_target_work_status_check(), name="valid_eval_work_status"),
+    status: Mapped[EvalWorkStatus] = mapped_column(
+        CheckConstraint(eval_work_status_check(), name="valid_eval_work_status"),
         default="PENDING",
         server_default="PENDING",
     )
@@ -4462,8 +4457,8 @@ class EvalTraceWorkUnit(HasId):
         Index(
             "ix_eval_trace_work_units_terminal",
             "updated_at",
-            postgresql_where=text(swept_target_terminal_index_predicate()),
-            sqlite_where=text(swept_target_terminal_index_predicate()),
+            postgresql_where=text(terminal_index_predicate()),
+            sqlite_where=text(terminal_index_predicate()),
         ),
         # Each evaluator's newest success and newest failure, found without walking its history.
         Index(

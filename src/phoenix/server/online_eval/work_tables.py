@@ -9,10 +9,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm import InstrumentedAttribute
 
 from phoenix.db import models
-from phoenix.db.eval_work import (
-    SWEPT_TARGET_TERMINAL_STATUSES,
-    TERMINAL_STATUSES,
-)
+from phoenix.db.eval_work import TERMINAL_STATUSES
 
 WorkUnitModel = Union[
     type[models.EvalWorkUnit],
@@ -41,13 +38,13 @@ WORK_TABLES: dict[models.EvaluationTarget, WorkTable] = {
         work_unit_model=models.EvalTraceWorkUnit,
         target_model=models.Trace,
         target_column=models.EvalTraceWorkUnit.trace_rowid,
-        terminal_statuses=SWEPT_TARGET_TERMINAL_STATUSES,
+        terminal_statuses=TERMINAL_STATUSES,
     ),
     "SESSION": WorkTable(
         work_unit_model=models.EvalSessionWorkUnit,
         target_model=models.ProjectSession,
         target_column=models.EvalSessionWorkUnit.project_session_rowid,
-        terminal_statuses=SWEPT_TARGET_TERMINAL_STATUSES,
+        terminal_statuses=TERMINAL_STATUSES,
     ),
 }
 

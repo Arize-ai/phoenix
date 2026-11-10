@@ -38,7 +38,7 @@ from phoenix.config import get_env_enable_prometheus
 from phoenix.db import models
 from phoenix.db.eval_work import (
     REOFFERED_STATUSES,
-    swept_target_terminal_index_predicate,
+    terminal_index_predicate,
 )
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.online_eval.clock import (
@@ -492,7 +492,7 @@ class SweepingEvaluationProducer(DaemonTask):
             if passes_filter is None:
                 continue
             if not passes_filter:
-                status: models.SweptTargetWorkStatus = "FILTERED_OUT"
+                status: models.EvalWorkStatus = "FILTERED_OUT"
             elif sample_key(row.sample_identity) >= row.sampling_rate:
                 status = "SAMPLED_OUT"
             else:
@@ -657,7 +657,7 @@ class SweepingEvaluationProducer(DaemonTask):
             )
             .where(
                 # SQLite reads a partial index only when the query repeats its predicate.
-                text(swept_target_terminal_index_predicate()),
+                text(terminal_index_predicate()),
                 work_unit_model.status == "DONE",
                 work_unit_model.updated_at
                 >= database_now - timedelta(seconds=TERMINAL_METRICS_WINDOW_SECONDS),
