@@ -1586,9 +1586,6 @@ async def test_consumer_publishes_queue_health_gauges(
             "ONLINE_EVAL_RUNNING_WORK_UNITS",
             "ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS",
             "ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS",
-            "ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS",
-            "ONLINE_EVAL_EXPIRED_WORK_UNITS",
-            "ONLINE_EVAL_CLEARED_WORK_UNITS",
         )
     }
     for name, gauge in gauges.items():

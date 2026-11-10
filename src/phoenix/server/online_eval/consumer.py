@@ -31,7 +31,7 @@ from phoenix.server.online_eval.coordinator import (
     PublicationClaimLostError,
     PublicationEvaluatorDisabledError,
 )
-from phoenix.server.online_eval.current_queue import load_evaluation_queue
+from phoenix.server.online_eval.current_queue import load_target_queue, seconds_since
 from phoenix.server.online_eval.executor import (
     ConfigurationSnapshotOutcome,
     HydratedWorkUnit,
@@ -43,9 +43,6 @@ from phoenix.server.online_eval.executor import (
 )
 from phoenix.server.online_eval.failure_policy import FailureDisposition, classify
 from phoenix.server.prometheus import (
-    ONLINE_EVAL_CLEARED_WORK_UNITS,
-    ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS,
-    ONLINE_EVAL_EXPIRED_WORK_UNITS,
     ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS,
     ONLINE_EVAL_PENDING_WORK_UNITS,
     ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS,
@@ -177,19 +174,16 @@ class EvaluationConsumer(DaemonTask):
         await self._run_db(self._publish_queue_metrics_with_slot)
 
     async def _publish_queue_metrics_with_slot(self) -> None:
-        queue = await load_evaluation_queue(self._db)
-        ended = await self._coordinator.ended_work_counts()
-        target = queue.target(self._evaluation_target)
+        measured_at = datetime.now(timezone.utc)
+        async with self._db.read() as session:
+            queue = await load_target_queue(session, self._evaluation_target)
         labels = {"evaluation_target": self._evaluation_target}
-        ONLINE_EVAL_PENDING_WORK_UNITS.labels(**labels).set(target.waiting_count)
-        ONLINE_EVAL_RUNNING_WORK_UNITS.labels(**labels).set(target.running_count)
-        ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS.labels(**labels).set(target.retrying_count)
+        ONLINE_EVAL_PENDING_WORK_UNITS.labels(**labels).set(queue.waiting_count)
+        ONLINE_EVAL_RUNNING_WORK_UNITS.labels(**labels).set(queue.running_count)
+        ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS.labels(**labels).set(queue.retrying_count)
         ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS.labels(**labels).set(
-            queue.wait_seconds(target.oldest_waiting_at) or 0.0
+            seconds_since(queue.oldest_waiting_at, measured_at) or 0.0
         )
-        ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS.labels(**labels).set(ended.exhausted_error_count)
-        ONLINE_EVAL_EXPIRED_WORK_UNITS.labels(**labels).set(ended.expired_count)
-        ONLINE_EVAL_CLEARED_WORK_UNITS.labels(**labels).set(ended.cleared_count)
 
     async def stop(self) -> None:
         await super().stop()

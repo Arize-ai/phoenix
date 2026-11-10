@@ -88,7 +88,7 @@ class EvaluationQueue:
     def wait_seconds(self, oldest_waiting_at: Optional[datetime]) -> Optional[float]:
         """How long an evaluation queued at ``oldest_waiting_at`` had waited when the queue
         was measured."""
-        return _seconds_since(oldest_waiting_at, self.measured_at)
+        return seconds_since(oldest_waiting_at, self.measured_at)
 
 
 @dataclass(frozen=True)
@@ -158,14 +158,14 @@ async def load_evaluation_queue(db: DbSessionFactory) -> EvaluationQueue:
     async with db.read() as session:
         targets = tuple(
             [
-                await _load_target_queue(session, evaluation_target)
+                await load_target_queue(session, evaluation_target)
                 for evaluation_target in EVALUATION_TARGETS
             ]
         )
     return EvaluationQueue(measured_at=measured_at, targets=targets)
 
 
-async def _load_target_queue(
+async def load_target_queue(
     session: AsyncSession,
     evaluation_target: models.EvaluationTarget,
 ) -> TargetQueue:
@@ -384,5 +384,5 @@ def _evaluator_queued_stmt(
     ).select_from(rows)
 
 
-def _seconds_since(then: Optional[datetime], now: datetime) -> Optional[float]:
+def seconds_since(then: Optional[datetime], now: datetime) -> Optional[float]:
     return None if then is None else max((now - then).total_seconds(), 0.0)

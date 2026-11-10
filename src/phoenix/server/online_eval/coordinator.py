@@ -24,21 +24,18 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Any, Literal, Optional
 
 from sqlalchemy import and_, case, func, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.sql.elements import ColumnElement, TextClause
+from sqlalchemy.sql.elements import ColumnElement
 
 from phoenix.config import get_env_enable_prometheus
 from phoenix.db import models
 from phoenix.db.eval_work import COMPLETED_STATUSES, MAX_ATTEMPTS, queued_index_predicate
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.server.online_eval.clock import (
-    TERMINAL_METRICS_WINDOW_SECONDS,
-    current_database_time,
-)
+from phoenix.server.online_eval.clock import current_database_time
 from phoenix.server.online_eval.work_tables import WORK_TABLES, WorkUnitModel
 from phoenix.server.prometheus import (
     ONLINE_EVAL_COMPLETED_WORK_UNITS,
@@ -89,18 +86,6 @@ class ClaimedWorkUnit:
     project_evaluator_id: int
     attempts: int
     claimed_by: str
-
-
-@dataclass(frozen=True)
-class EndedWorkCounts:
-    """Work of one evaluation target that ended without a result, last updated within
-    ``TERMINAL_METRICS_WINDOW_SECONDS``: FAILED (``exhausted_error_count``), EXPIRED and
-    CONTENT_LOST (``expired_count``), and DROPPED, cleared from the queue before it ran
-    (``cleared_count``)."""
-
-    exhausted_error_count: int
-    expired_count: int
-    cleared_count: int
 
 
 def claim_lease_lapsed(
@@ -168,7 +153,6 @@ class EvalWorkCoordinator:
         self._work_unit_model = work_table.work_unit_model
         self._target_row_column = work_table.target_column
         self._target_model = work_table.target_model
-        self._terminal_index_predicate = text(work_table.terminal_index_predicate)
 
     def _claimable(self, now: datetime) -> ColumnElement[bool]:
         work_unit_model = self._work_unit_model
@@ -482,33 +466,3 @@ class EvalWorkCoordinator:
             lag = ONLINE_EVAL_QUEUE_TO_RESULT_SECONDS.labels(**labels)
             for created_at, updated_at in ended:
                 lag.observe((updated_at - created_at).total_seconds())
-
-    async def ended_work_counts(self) -> EndedWorkCounts:
-        """Count recently ended work that produced no result."""
-        now = datetime.now(timezone.utc)
-        work_unit_model = self._work_unit_model
-        async with self._db.read() as session:
-            counts = await self._count_by_status(
-                session,
-                self._terminal_index_predicate,
-                work_unit_model.updated_at
-                >= now - timedelta(seconds=TERMINAL_METRICS_WINDOW_SECONDS),
-            )
-        return EndedWorkCounts(
-            exhausted_error_count=counts.get("FAILED", 0),
-            expired_count=sum(counts.get(status, 0) for status in ("EXPIRED", "CONTENT_LOST")),
-            cleared_count=counts.get("DROPPED", 0),
-        )
-
-    async def _count_by_status(
-        self,
-        session: AsyncSession,
-        *where: ColumnElement[bool] | TextClause,
-    ) -> dict[str, int]:
-        work_unit_model = self._work_unit_model
-        rows = await session.execute(
-            select(work_unit_model.status, func.count())
-            .where(*where)
-            .group_by(work_unit_model.status)
-        )
-        return {status: count for status, count in rows.all()}

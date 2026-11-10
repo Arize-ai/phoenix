@@ -14,12 +14,10 @@ from phoenix.db.eval_work import MAX_ATTEMPTS
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.app import _db
 from phoenix.server.online_eval import coordinator as coordinator_module
-from phoenix.server.online_eval.clock import TERMINAL_METRICS_WINDOW_SECONDS
 from phoenix.server.online_eval.coordinator import (
     CLAIM_LEASE_TTL_SECONDS,
     LEASE_ATTEMPTS_EXHAUSTED_ERROR,
     TRANSIENT_RETRY_MAX_AGE_SECONDS,
-    EndedWorkCounts,
     EvalWorkCoordinator,
     PublicationClaimLostError,
     PublicationEvaluatorDisabledError,
@@ -406,8 +404,6 @@ async def test_aged_transient_failure_is_parked_as_exhausted_error(
     assert row.status == "FAILED"
     assert row.attempts == MAX_ATTEMPTS
     assert await coordinator.claim(claimed_by="consumer-2", limit=1) == []
-    ended = await coordinator.ended_work_counts()
-    assert ended.exhausted_error_count == 1
 
 
 async def test_fresh_transient_failure_remains_retryable_after_cooldown(
@@ -680,76 +676,6 @@ async def test_completed_work_is_counted_by_outcome_once_committed(
         for outcome_lags in lags.values()
         for lag in outcome_lags
     )
-
-
-async def test_ended_work_counts(
-    db: DbSessionFactory,
-) -> None:
-    coordinator = EvalWorkCoordinator(db)
-
-    empty = await coordinator.ended_work_counts()
-    assert empty == EndedWorkCounts(exhausted_error_count=0, expired_count=0, cleared_count=0)
-
-    unit_ids = await _seed_work_units(db, 5)
-    async with db() as session:
-        await session.execute(
-            update(models.EvalWorkUnit)
-            .where(models.EvalWorkUnit.id == unit_ids[0])
-            .values(status="DONE")
-        )
-        await session.execute(
-            update(models.EvalWorkUnit)
-            .where(models.EvalWorkUnit.id == unit_ids[1])
-            .values(status="ERROR", attempts=MAX_ATTEMPTS - 1)
-        )
-        await session.execute(
-            update(models.EvalWorkUnit)
-            .where(models.EvalWorkUnit.id == unit_ids[2])
-            .values(status="FAILED", attempts=MAX_ATTEMPTS)
-        )
-        await session.execute(
-            update(models.EvalWorkUnit)
-            .where(models.EvalWorkUnit.id == unit_ids[3])
-            .values(status="DROPPED")
-        )
-        await session.execute(
-            update(models.EvalWorkUnit)
-            .where(models.EvalWorkUnit.id == unit_ids[4])
-            .values(status="EXPIRED")
-        )
-
-    ended = await coordinator.ended_work_counts()
-    assert ended == EndedWorkCounts(exhausted_error_count=1, expired_count=1, cleared_count=1)
-
-
-async def test_ended_work_counts_exclude_work_older_than_the_metrics_window(
-    db: DbSessionFactory,
-) -> None:
-    _, unit_ids = await _seed_session_work_units(db, 3)
-    coordinator = EvalWorkCoordinator(db, evaluation_target="SESSION")
-    before_window = datetime.now(timezone.utc) - timedelta(
-        seconds=TERMINAL_METRICS_WINDOW_SECONDS + 60
-    )
-    async with db() as session:
-        await session.execute(
-            update(models.EvalSessionWorkUnit)
-            .where(models.EvalSessionWorkUnit.id == unit_ids[0])
-            .values(status="FAILED", attempts=MAX_ATTEMPTS, updated_at=before_window)
-        )
-        await session.execute(
-            update(models.EvalSessionWorkUnit)
-            .where(models.EvalSessionWorkUnit.id == unit_ids[1])
-            .values(status="EXPIRED", updated_at=before_window)
-        )
-        await session.execute(
-            update(models.EvalSessionWorkUnit)
-            .where(models.EvalSessionWorkUnit.id == unit_ids[2])
-            .values(status="FAILED", attempts=MAX_ATTEMPTS)
-        )
-
-    ended = await coordinator.ended_work_counts()
-    assert ended.exhausted_error_count == 1
-    assert ended.expired_count == 0
 
 
 async def test_session_claim_lifecycle(db: DbSessionFactory) -> None:
