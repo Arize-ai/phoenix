@@ -1,6 +1,6 @@
 ---
 name: phoenix-harbor
-description: Configure and interpret the Phoenix plugin for Harbor agent evaluations. Use when adding `arize-phoenix` to Harbor jobs, choosing ATIF tracing, mapping Harbor tasks and rewards to Phoenix experiments, comparing agents or models, resuming jobs, or troubleshooting Harbor records in Phoenix.
+description: Configure and interpret the Phoenix plugin for Harbor agent evaluations, and write Harbor tasks and verifiers whose scores you can trust. Use when adding `arize-phoenix` to Harbor jobs, choosing ATIF tracing, mapping Harbor tasks and rewards to Phoenix experiments, writing or reviewing Harbor tasks, verifiers, or expected answers, comparing agents, models, or skills, investigating suspicious Harbor scores, resuming jobs, or troubleshooting Harbor records in Phoenix.
 license: Apache-2.0
 metadata:
   targets: "agents mcp"
@@ -13,6 +13,14 @@ metadata:
 Use the Phoenix Harbor plugin to record Harbor agent evaluations as versioned Phoenix datasets, experiments, runs, scores, and ATIF traces.
 
 Harbor runs agents and verifiers. Phoenix records and compares their results. Do not describe Phoenix as executing Harbor tasks or recalculating Harbor rewards.
+
+This file covers the plugin. For the tasks and verifiers themselves, read:
+
+| Need | Read |
+| --- | --- |
+| Write, review, or debug a Harbor task or verifier | [references/best-practices.md](references/best-practices.md) |
+| A Harbor setting that fails silently or costs money | [references/gotchas.md](references/gotchas.md) |
+| A worked verifier that uses a `phoenix-evals` LLM judge | [references/phoenix-evals-verifier.md](references/phoenix-evals-verifier.md) |
 
 ## Requirements
 
@@ -90,6 +98,24 @@ When a saved terminal ATIF trajectory ends with a user-facing textual agent turn
 
 Successful runs written by older plugin versions keep their legacy Harbor metadata output because Phoenix runs are immutable. Resume recognizes that exact legacy shape and reuses the run.
 
+## Know what the plugin records and what you add
+
+The plugin records some signals without any task changes. Others only exist if the task's verifier writes them.
+
+| Signal | Source | Where it shows in Phoenix |
+| --- | --- | --- |
+| Trial latency | Plugin, from Harbor's start and end times | Run duration |
+| Token counts and cost | Plugin, from the ATIF trajectory when it reports them | LLM spans in the linked trace, summed per run and experiment |
+| Final agent reply | Plugin | Run output |
+| Each model call and tool call | Plugin | Spans in the linked trace |
+| Infrastructure health | Plugin | `infra_ok` and the run error |
+| Task success | Your verifier, as `reward` | Experiment evaluation |
+| Tool-call or turn counts | Your verifier, counted from the trajectory | Experiment evaluations, averaged per experiment |
+| Behavior, such as which skill loaded | Your verifier | Experiment evaluations |
+| Expected answer | Your task, with `reference_output_path` | Dataset example output, beside each run |
+
+Don't write verifier keys for tokens, cost, or latency. The trace already carries them, and token counts and cost need the default `atif` trace mode. Do write keys for tool calls or turns when you want to compare them, because the trace shows each call but not a per-run count. Keep these keys separate from `reward`.
+
 ## Add optional reference outputs
 
 A task can declare a checked-in reference file in its root `task.toml`:
@@ -114,6 +140,9 @@ This works for local datasets, direct tasks, and published tasks. Multi-step
 tasks have one reference for the whole task, usually its expected final result.
 Reference-content changes create a dataset version; existing experiments keep
 their original version. References do not change Harbor's grading.
+
+Point the setting at the same file your verifier grades against, such as
+`tests/expected.json`. Then the value Phoenix displays is the value Harbor used.
 
 ## Name the dataset
 
