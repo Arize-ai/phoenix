@@ -4,7 +4,6 @@ import json
 import os
 import re
 import subprocess
-import tarfile
 import tempfile
 from dataclasses import asdict, dataclass
 from html.parser import HTMLParser
@@ -15,7 +14,7 @@ FACTORY_DIR = Path(__file__).resolve().parent
 MAX_INPUT_BYTES = 512 * 1024
 MAX_DIFF_BYTES = 256 * 1024
 MAX_FILE_BYTES = 8 * 1024 * 1024
-MAX_ARCHIVE_BYTES = 32 * 1024 * 1024
+MAX_CHANGED_BYTES = 32 * 1024 * 1024
 CONTEXT_BYTES = 8 * 1024
 MAX_FILES = 100
 SEMGREP_VERSION = "1.144.0"
@@ -41,6 +40,32 @@ TEXT_RULES = {
 }
 LOCKFILES = {"uv.lock", "pnpm-lock.yaml", "package-lock.json", "yarn.lock", "poetry.lock"}
 MANIFESTS = {"pyproject.toml", "package.json", "requirements.txt", "requirements.in"}
+BINARY_SUFFIXES = {
+    ".avif",
+    ".gif",
+    ".ico",
+    ".jpeg",
+    ".jpg",
+    ".pdf",
+    ".png",
+    ".webp",
+    ".eot",
+    ".otf",
+    ".ttf",
+    ".woff",
+    ".woff2",
+    ".mp3",
+    ".mp4",
+    ".ogg",
+    ".wav",
+    ".webm",
+    ".gz",
+    ".zip",
+    ".parquet",
+    ".arrow",
+    ".sqlite",
+    ".db",
+}
 
 
 @dataclass(frozen=True)
@@ -183,7 +208,7 @@ def git(*args: str, binary: bool = False) -> Any:
         check=True,
         timeout=120,
     ).stdout
-    return result if binary else result.decode("utf-8", errors="strict").strip()
+    return result if binary else result.decode("utf-8", errors="backslashreplace").strip()
 
 
 def added_ranges(diff: str) -> list[tuple[int, int]]:
@@ -207,7 +232,7 @@ def code_bundle(*, pr: dict[str, Any], destination: Path) -> tuple[dict[str, Any
         fetch.append("--unshallow")
     git(*fetch, "origin", sha, base_sha)
     base = git("merge-base", base_sha, sha)
-    diff = git("diff", "--no-ext-diff", "--no-textconv", "--no-color", base, sha, "--")
+    diff = git("diff", "--text", "--no-ext-diff", "--no-textconv", "--no-color", base, sha, "--")
     if len(diff.encode()) > MAX_DIFF_BYTES:
         raise ValueError("too-large-to-scan: diff exceeds 256 KiB")
     entries = git("diff", "--name-status", "--no-renames", "-z", base, sha, "--", binary=True)
@@ -219,41 +244,29 @@ def code_bundle(*, pr: dict[str, Any], destination: Path) -> tuple[dict[str, Any
     for path in paths:
         parts = PurePosixPath(path)
         if parts.is_absolute() or ".." in parts.parts or not parts.parts:
-            raise ValueError("Unsafe archive path")
+            raise ValueError("Unsafe changed path")
     findings: list[Finding] = []
     ranges: dict[str, list[tuple[int, int]]] = {}
     if paths:
-        archive = destination.parent / "head.tar"
-        with archive.open("wb") as output:
-            subprocess.run(
-                ["git", "-c", "core.hooksPath=/dev/null", "archive", sha, "--", *paths],
-                stdout=output,
-                stderr=subprocess.PIPE,
-                check=True,
-                timeout=120,
-            )
-        if archive.stat().st_size > MAX_ARCHIVE_BYTES:
-            raise ValueError("too-large-to-scan: archive exceeds 32 MiB")
-        with tarfile.open(archive) as tar:
-            for member in tar:
-                path = PurePosixPath(member.name)
-                if path.is_absolute() or ".." in path.parts:
-                    raise ValueError("Unsafe archive path")
-                if member.isdir():
-                    continue
-                if not member.isfile() or member.name not in paths:
-                    raise ValueError(
-                        "Unsupported archive entry: links and special files are not admitted"
-                    )
-                if member.size > MAX_FILE_BYTES:
-                    raise ValueError("too-large-to-scan: changed file exceeds 8 MiB")
-                target = destination / member.name
-                target.parent.mkdir(parents=True, exist_ok=True)
-                stream = tar.extractfile(member)
-                if stream is None:
-                    raise ValueError("Cannot read archive member")
-                target.write_bytes(stream.read())
-        archive.unlink()
+        entries = git("ls-tree", "-r", "-l", "-z", "--full-tree", sha, "--", *paths, binary=True)
+        total_bytes = 0
+        for entry in entries.rstrip(b"\0").split(b"\0"):
+            metadata, raw_path = entry.split(b"\t", 1)
+            mode, kind, oid, size = metadata.split()
+            path = raw_path.decode("utf-8")
+            if path not in paths or kind != b"blob" or mode not in (b"100644", b"100755"):
+                raise ValueError(
+                    "Unsupported changed entry: links and special files are not admitted"
+                )
+            num_bytes = int(size)
+            if num_bytes > MAX_FILE_BYTES:
+                raise ValueError("too-large-to-scan: changed file exceeds 8 MiB")
+            total_bytes += num_bytes
+            if total_bytes > MAX_CHANGED_BYTES:
+                raise ValueError("too-large-to-scan: changed files exceed 32 MiB")
+            target = destination / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(git("cat-file", "blob", oid.decode("ascii"), binary=True))
     context = []
     names = {PurePosixPath(p).name for p in changes}
     for path in paths:
@@ -262,17 +275,17 @@ def code_bundle(*, pr: dict[str, Any], destination: Path) -> tuple[dict[str, Any
             raise ValueError("Unsupported changed entry (including submodules)")
         raw = target.read_bytes()
         if b"\0" in raw:
-            if changes[path] == "A":
-                findings.append(Finding(path, 1, "new-binary", "Binary payload"))
-            context.append({"path": path, "binary": True, "bytes": len(raw)})
-            continue
+            if target.suffix.lower() not in BINARY_SUFFIXES:
+                raise ValueError(f"uninspectable-file: {path} contains NUL bytes in a text file")
+            findings.append(Finding(path, 1, "binary-content", "File contains NUL bytes"))
         try:
             text = raw.decode("utf-8")
         except UnicodeDecodeError:
-            findings.append(Finding(path, 1, "non-utf8-file", "Uninspectable text or binary"))
-            context.append({"path": path, "binary": True, "bytes": len(raw)})
-            continue
-        patch = git("diff", "--no-ext-diff", "--no-textconv", "--unified=0", base, sha, "--", path)
+            findings.append(Finding(path, 1, "non-utf8-file", "Invalid bytes escaped as \\xNN"))
+            text = raw.decode("utf-8", errors="backslashreplace")
+        patch = git(
+            "diff", "--text", "--no-ext-diff", "--no-textconv", "--unified=0", base, sha, "--", path
+        )
         ranges[path] = added_ranges(patch)
         findings.extend(
             f
@@ -487,6 +500,12 @@ def find_admission_problem(
                 return "the security scan rejected the input; see the workflow step summary"
             return None
     except Exception as error:
+        if str(error).startswith("uninspectable-file:"):
+            write_summary(str(error))
+            return (
+                "the input contains a text file with NUL bytes; "
+                "remove them (see the workflow summary)"
+            )
         if str(error).startswith("too-large-to-scan"):
             write_summary(
                 json.dumps(
