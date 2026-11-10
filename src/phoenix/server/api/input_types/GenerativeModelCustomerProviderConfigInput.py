@@ -43,7 +43,7 @@ class OpenAIClientKwargsInput:
     base_url: str | None = UNSET
     organization: str | None = UNSET
     project: str | None = UNSET
-    default_headers: JSON | None = UNSET
+    default_headers: Redacted[JSON | None] = UNSET
 
     def to_orm(self) -> OpenAIClientKwargs:
         return OpenAIClientKwargs(
@@ -120,7 +120,7 @@ class AzureOpenAIAuthenticationMethodInput:
 @strawberry.input
 class AzureOpenAIClientKwargsInput:
     azure_endpoint: str
-    default_headers: JSON | None = UNSET
+    default_headers: Redacted[JSON | None] = UNSET
 
     def to_orm(self) -> AzureOpenAIClientKwargs:
         return AzureOpenAIClientKwargs(
@@ -158,7 +158,7 @@ class AnthropicAuthenticationMethodInput:
 @strawberry.input
 class AnthropicClientKwargsInput:
     base_url: str | None = UNSET
-    default_headers: JSON | None = UNSET
+    default_headers: Redacted[JSON | None] = UNSET
 
     def to_orm(self) -> AnthropicClientKwargs:
         return AnthropicClientKwargs(
@@ -300,7 +300,7 @@ class AWSBedrockCustomProviderConfigInput:
 
 @strawberry.input
 class TypeSafeAuthenticationMethodInput:
-    api_key: RedactedString
+    api_key: Redacted[RedactedString]
 
     def to_orm(self) -> AuthenticationMethodApiKey:
         return AuthenticationMethodApiKey(api_key=self.api_key)
@@ -309,7 +309,7 @@ class TypeSafeAuthenticationMethodInput:
 @strawberry.input
 class TypeSafeClientKwargsInput:
     base_url: str | None = UNSET
-    default_headers: JSON | None = UNSET
+    default_headers: Redacted[JSON | None] = UNSET
 
     def to_orm(self) -> TypeSafeClientKwargs:
         return TypeSafeClientKwargs(
