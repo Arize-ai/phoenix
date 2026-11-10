@@ -43,7 +43,7 @@ class EditCurrentPrompt:
 
 
 CreatePromptSource = Union[NewPrompt, FromPromptVersion]
-UpdatePromptSource = Union[EditCurrentPrompt, FromPromptVersion]
+UpdatePromptSource = Union[EditCurrentPrompt, FromPromptVersion, NewPrompt]
 
 
 async def get_prompt_version(

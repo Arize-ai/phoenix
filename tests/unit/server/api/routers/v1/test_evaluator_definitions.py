@@ -1,6 +1,7 @@
 import asyncio
 from secrets import token_hex
 from typing import Any, cast
+from unittest.mock import patch
 
 import httpx
 import pytest
@@ -28,6 +29,7 @@ from phoenix.db.types.prompts import (
     PromptTemplateFormat,
     PromptTemplateType,
 )
+from phoenix.server import sandbox as sandbox_module
 from phoenix.server.api.exceptions import Conflict
 from phoenix.server.api.routers.v1.evaluators import router
 from phoenix.server.api.routers.v1.sandbox_configs import router as sandbox_configs_router
@@ -38,6 +40,7 @@ from phoenix.server.evaluators.services.definitions import (
     create_code_evaluator_version,
 )
 from phoenix.server.sandbox.types import SandboxRuntimeContext
+from phoenix.server.sandbox.wasm_backend import WASMAdapter
 from phoenix.server.types import DbSessionFactory
 
 _SCORE = ContinuousOutputConfig(
@@ -359,6 +362,65 @@ async def test_writes_require_an_output_config(
     assert kept.status_code == 200, kept.text
     assert [config["name"] for config in kept.json()["data"]["output_configs"]] == ["score"]
     assert kept.json()["data"]["source_code"] == "def evaluate(output): ..."
+
+
+@pytest.mark.parametrize("write", ["patch", "deploy"])
+async def test_code_edits_refuse_source_deployed_during_sandbox_validation(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+    write: str,
+) -> None:
+    """Clients retry on `concurrent_change`: the sandbox accepted source that is no longer
+    the evaluator's latest."""
+    async with db() as session:
+        evaluator = models.CodeEvaluator(
+            name=IdentifierModel.model_validate(f"racing-{token_hex(4)}"),
+            description="racing",
+            metadata_={},
+            language=sandbox_config.language,
+            sandbox_config_id=sandbox_config.id,
+            input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+            output_configs=[_SCORE],
+            versions=[
+                models.CodeEvaluatorVersion(source_code="def evaluate(output):\n    return 1.0")
+            ],
+        )
+        session.add(evaluator)
+        await session.flush()
+        evaluator_rowid = evaluator.id
+    evaluator_id = str(GlobalID("CodeEvaluator", str(evaluator_rowid)))
+
+    async def deploy_during_validation(*args: object, **kwargs: object) -> None:
+        async with db() as session:
+            session.add(
+                models.CodeEvaluatorVersion(
+                    code_evaluator_id=evaluator_rowid,
+                    source_code="def evaluate(output):\n    return 3.0",
+                )
+            )
+
+    adapter = WASMAdapter()
+    with (
+        patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"WASM": adapter}),
+        patch.object(adapter, "validate_code", side_effect=deploy_during_validation),
+    ):
+        if write == "patch":
+            response = await httpx_client.patch(
+                f"v1/evaluators/{evaluator_id}",
+                json={
+                    "type": "code",
+                    "sandbox_config_id": str(GlobalID("SandboxConfig", str(sandbox_config.id))),
+                },
+            )
+        else:
+            response = await httpx_client.post(
+                f"v1/evaluators/{evaluator_id}/versions",
+                json={"source_code": "def evaluate(output):\n    return 2.0"},
+            )
+
+    assert response.status_code == 409, response.text
+    assert response.json()["reason"] == "concurrent_change"
 
 
 async def test_untagged_llm_definition_follows_its_prompts_latest_version(
