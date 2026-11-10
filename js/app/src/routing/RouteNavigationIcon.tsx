@@ -16,7 +16,7 @@ const ROUTE_NAVIGATION_ICONS: Record<
   Key: <Icons.Key />,
   Link2: <Icons.Link2 />,
   MessageCircle: <Icons.MessageCircle />,
-  MessageSquare: <Icons.MessageSquare />,
+  MessagesSquare: <Icons.MessagesSquare />,
   Options: <Icons.Options />,
   Person: <Icons.Person />,
   PlayCircle: <Icons.PlayCircle />,

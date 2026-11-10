@@ -67,7 +67,7 @@ const settingsTabPanelCSS = css`
 `;
 
 // Icons follow the associations established elsewhere in the app (side nav,
-// session tabs): Database for datasets, MessageSquare for prompts, Edit2 for
+// session tabs): Database for datasets, MessagesSquare for prompts, Edit2 for
 // annotations, and the PXI glyph for the assistant.
 const TABS = [
   { id: "general", label: "General", icon: <Icons.Settings /> },
@@ -79,7 +79,7 @@ const TABS = [
   { id: "secrets", label: "Secrets", icon: <Icons.Lock /> },
   { id: "datasets", label: "Datasets", icon: <Icons.Database /> },
   { id: "annotations", label: "Annotations", icon: <Icons.Edit2 /> },
-  { id: "prompts", label: "Prompts", icon: <Icons.MessageSquare /> },
+  { id: "prompts", label: "Prompts", icon: <Icons.MessagesSquare /> },
   { id: "data", label: "Data Retention", icon: <Icons.HardDrive /> },
   { id: "agents", label: "Assistant", icon: <PxiGlyphOutline /> },
   { id: "mcp", label: "MCP", icon: <McpSVG /> },
