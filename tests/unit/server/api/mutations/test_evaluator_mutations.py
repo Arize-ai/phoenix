@@ -3862,7 +3862,7 @@ class TestDeleteDatasetEvaluators:
             {
                 "input": {
                     "datasetEvaluatorIds": [dataset_evaluator_gid],
-                    "deleteAssociatedPrompt": True,
+                    "deleteAssociatedPromptOrDecision": True,
                 }
             },
         )
@@ -4075,7 +4075,7 @@ class TestDeleteDatasetEvaluators:
         gql_client: AsyncGraphQLClient,
         empty_dataset: models.Dataset,
     ) -> None:
-        """Test deleting an LLM evaluator with deleteAssociatedPrompt=True also deletes the prompt."""
+        """Test deleting an LLM evaluator with deleteAssociatedPromptOrDecision=True also deletes the prompt."""
         evaluator_name = IdentifierModel.model_validate(f"test-llm-with-prompt-del-{token_hex(4)}")
 
         # Create an LLM evaluator with prompt
@@ -4147,14 +4147,14 @@ class TestDeleteDatasetEvaluators:
             project_id = llm_evaluator.dataset_evaluators[0].project_id
             dataset_evaluator_gid = str(GlobalID("DatasetEvaluator", str(dataset_evaluator_id)))
 
-        # Delete with deleteAssociatedPrompt=True (default)
+        # Delete with deleteAssociatedPromptOrDecision=True (default)
         result = await self._delete_and_purge(
             db,
             gql_client,
             {
                 "input": {
                     "datasetEvaluatorIds": [dataset_evaluator_gid],
-                    "deleteAssociatedPrompt": True,
+                    "deleteAssociatedPromptOrDecision": True,
                 }
             },
         )
@@ -4188,7 +4188,7 @@ class TestDeleteDatasetEvaluators:
         gql_client: AsyncGraphQLClient,
         empty_dataset: models.Dataset,
     ) -> None:
-        """Test deleting an LLM evaluator with deleteAssociatedPrompt=False preserves the prompt."""
+        """Test deleting an LLM evaluator with deleteAssociatedPromptOrDecision=False preserves the prompt."""
         evaluator_name = IdentifierModel.model_validate(f"test-llm-keep-prompt-{token_hex(4)}")
 
         # Create an LLM evaluator with prompt
@@ -4260,14 +4260,14 @@ class TestDeleteDatasetEvaluators:
             project_id = llm_evaluator.dataset_evaluators[0].project_id
             dataset_evaluator_gid = str(GlobalID("DatasetEvaluator", str(dataset_evaluator_id)))
 
-        # Delete with deleteAssociatedPrompt=False
+        # Delete with deleteAssociatedPromptOrDecision=False
         result = await self._delete_and_purge(
             db,
             gql_client,
             {
                 "input": {
                     "datasetEvaluatorIds": [dataset_evaluator_gid],
-                    "deleteAssociatedPrompt": False,
+                    "deleteAssociatedPromptOrDecision": False,
                 }
             },
         )
@@ -4404,7 +4404,7 @@ class TestDeleteDatasetEvaluators:
             {
                 "input": {
                     "datasetEvaluatorIds": [dataset_evaluator_gid],
-                    "deleteAssociatedPrompt": False,
+                    "deleteAssociatedPromptOrDecision": False,
                 }
             },
         )

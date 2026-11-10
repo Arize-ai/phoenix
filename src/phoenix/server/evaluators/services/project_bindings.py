@@ -154,7 +154,7 @@ class SetProjectEvaluatorEnabledInput:
 @dataclass(kw_only=True)
 class DeleteProjectEvaluatorsInput:
     project_evaluator_ids: list[GlobalID]
-    delete_associated_prompt: bool = False
+    delete_associated_prompt_or_decision: bool = False
 
 
 async def create_project_llm_evaluator(
@@ -473,7 +473,7 @@ async def detach_project_evaluators(
             models.ProjectEvaluator,
             rowids,
             delete_unused_evaluator=False,
-            delete_associated_prompt=False,
+            delete_associated_prompt_or_decision=False,
         )
     if deleted_rowids:
         context.wake_evaluator_purger()
@@ -913,7 +913,7 @@ async def delete_project_evaluators(
             models.ProjectEvaluator,
             project_evaluator_ids,
             delete_unused_evaluator=True,
-            delete_associated_prompt=input.delete_associated_prompt,
+            delete_associated_prompt_or_decision=input.delete_associated_prompt_or_decision,
         )
     if deleted_rowids:
         context.wake_evaluator_purger()

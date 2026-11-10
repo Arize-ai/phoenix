@@ -119,7 +119,7 @@ class UpdateDatasetCodeEvaluatorInput:
 @dataclass(kw_only=True)
 class DeleteDatasetEvaluatorsInput:
     dataset_evaluator_ids: list[GlobalID]
-    delete_associated_prompt: bool = False
+    delete_associated_prompt_or_decision: bool = False
 
 
 async def create_dataset_llm_evaluator(
@@ -302,7 +302,7 @@ async def delete_dataset_evaluators(
             models.DatasetEvaluators,
             dataset_evaluator_rowids,
             delete_unused_evaluator=True,
-            delete_associated_prompt=input.delete_associated_prompt,
+            delete_associated_prompt_or_decision=input.delete_associated_prompt_or_decision,
         )
     if deleted_rowids:
         context.wake_evaluator_purger()
@@ -805,7 +805,7 @@ async def detach_dataset_evaluators(
             models.DatasetEvaluators,
             rowids,
             delete_unused_evaluator=False,
-            delete_associated_prompt=False,
+            delete_associated_prompt_or_decision=False,
         )
     if deleted_rowids:
         context.wake_evaluator_purger()

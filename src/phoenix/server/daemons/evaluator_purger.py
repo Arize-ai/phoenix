@@ -2,9 +2,9 @@
 
 Deleting a binding only sets its ``deleted_at``. The purger then removes, in short
 transactions, everything the binding owns: its online-eval work units, the traces in its
-trace project, the binding row, the trace project itself, and the evaluator definition and
-prompt when the delete asked for them and nothing else uses them. Every step can be repeated,
-so a purge interrupted by a crash or restart resumes where it stopped.
+trace project, the binding row, the trace project itself, and the evaluator definition with
+its prompt or decision when the delete asked for them and nothing else uses them. Every step
+can be repeated, so a purge interrupted by a crash or restart resumes where it stopped.
 """
 
 from __future__ import annotations
@@ -69,7 +69,7 @@ async def purge_project_evaluator(
                     models.ProjectEvaluator.trace_project_id,
                     models.ProjectEvaluator.evaluator_id,
                     models.ProjectEvaluator.delete_unused_evaluator,
-                    models.ProjectEvaluator.delete_associated_prompt,
+                    models.ProjectEvaluator.delete_associated_prompt_or_decision,
                 ).where(
                     models.ProjectEvaluator.id == project_evaluator_id,
                     models.ProjectEvaluator.deleted_at.is_not(None),
@@ -78,12 +78,17 @@ async def purge_project_evaluator(
         ).one_or_none()
     if binding is None:
         return
-    trace_project_id, evaluator_id, delete_unused_evaluator, delete_associated_prompt = binding
+    (
+        trace_project_id,
+        evaluator_id,
+        delete_unused_evaluator,
+        delete_associated_prompt_or_decision,
+    ) = binding
     await _purge_attached_project_evaluators(
         db,
         trace_project_id,
         delete_unused_evaluator=delete_unused_evaluator,
-        delete_associated_prompt=delete_associated_prompt,
+        delete_associated_prompt_or_decision=delete_associated_prompt_or_decision,
         heartbeat=heartbeat,
     )
     for work_unit_model in _WORK_UNIT_MODELS:
@@ -112,7 +117,7 @@ async def purge_project_evaluator(
             sa.delete(models.Project).where(models.Project.id == trace_project_id)
         )
         if delete_unused_evaluator:
-            await _collect_evaluator(session, evaluator_id, delete_associated_prompt)
+            await _collect_evaluator(session, evaluator_id, delete_associated_prompt_or_decision)
 
 
 async def purge_dataset_evaluator(
@@ -130,7 +135,7 @@ async def purge_dataset_evaluator(
                     models.DatasetEvaluators.project_id,
                     models.DatasetEvaluators.evaluator_id,
                     models.DatasetEvaluators.delete_unused_evaluator,
-                    models.DatasetEvaluators.delete_associated_prompt,
+                    models.DatasetEvaluators.delete_associated_prompt_or_decision,
                 ).where(
                     models.DatasetEvaluators.id == dataset_evaluator_id,
                     models.DatasetEvaluators.deleted_at.is_not(None),
@@ -139,12 +144,17 @@ async def purge_dataset_evaluator(
         ).one_or_none()
     if binding is None:
         return
-    trace_project_id, evaluator_id, delete_unused_evaluator, delete_associated_prompt = binding
+    (
+        trace_project_id,
+        evaluator_id,
+        delete_unused_evaluator,
+        delete_associated_prompt_or_decision,
+    ) = binding
     await _purge_attached_project_evaluators(
         db,
         trace_project_id,
         delete_unused_evaluator=delete_unused_evaluator,
-        delete_associated_prompt=delete_associated_prompt,
+        delete_associated_prompt_or_decision=delete_associated_prompt_or_decision,
         heartbeat=heartbeat,
     )
     await _delete_in_batches(
@@ -164,7 +174,7 @@ async def purge_dataset_evaluator(
             return
         await delete_projects_and_evaluator_trace_projects(session, [trace_project_id])
         if delete_unused_evaluator:
-            await _collect_evaluator(session, evaluator_id, delete_associated_prompt)
+            await _collect_evaluator(session, evaluator_id, delete_associated_prompt_or_decision)
 
 
 async def _purge_attached_project_evaluators(
@@ -172,7 +182,7 @@ async def _purge_attached_project_evaluators(
     trace_project_id: int,
     *,
     delete_unused_evaluator: bool,
-    delete_associated_prompt: bool,
+    delete_associated_prompt_or_decision: bool,
     heartbeat: Heartbeat,
 ) -> None:
     """Delete and purge the project evaluators attached to a trace project, which would
@@ -187,7 +197,7 @@ async def _purge_attached_project_evaluators(
             .values(
                 deleted_at=datetime.now(timezone.utc),
                 delete_unused_evaluator=delete_unused_evaluator,
-                delete_associated_prompt=delete_associated_prompt,
+                delete_associated_prompt_or_decision=delete_associated_prompt_or_decision,
             )
         )
         attached_ids = list(
@@ -271,21 +281,22 @@ async def _delete_in_batches(
 
 
 async def _collect_evaluator(
-    session: AsyncSession, evaluator_id: int, delete_associated_prompt: bool
+    session: AsyncSession, evaluator_id: int, delete_associated_prompt_or_decision: bool
 ) -> None:
-    kind = await session.scalar(
-        sa.select(models.Evaluator.kind).where(models.Evaluator.id == evaluator_id)
-    )
-    if kind is None or kind == "BUILTIN":
-        return
     prompt_id = await session.scalar(
         sa.select(models.LLMEvaluator.prompt_id).where(models.LLMEvaluator.id == evaluator_id)
+    )
+    decision_id = await session.scalar(
+        sa.select(models.DecisionEvaluator.decision_id).where(
+            models.DecisionEvaluator.id == evaluator_id
+        )
     )
     await garbage_collect_evaluators(
         session,
         evaluator_ids={evaluator_id},
         prompt_ids={prompt_id} if prompt_id is not None else set(),
-        delete_associated_prompt=delete_associated_prompt,
+        decision_ids={decision_id} if decision_id is not None else set(),
+        delete_associated_prompt_or_decision=delete_associated_prompt_or_decision,
     )
 
 

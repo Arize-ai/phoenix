@@ -6,7 +6,6 @@ from datetime import datetime, timezone
 from secrets import token_hex
 from typing import Optional
 
-from sqlalchemy import delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
@@ -38,6 +37,7 @@ from phoenix.server.evaluators.services.management import (
     generate_unique_evaluator_name,
     get_live_dataset_evaluator,
     get_live_project_evaluator,
+    release_decision_evaluator_tag,
     validate_project_evaluator_project,
     validate_project_evaluator_target_update,
 )
@@ -230,9 +230,7 @@ async def delete_decision_evaluator(
         await session.delete(evaluator)
         await session.flush()
         if tag_id is not None:
-            await session.execute(
-                delete(models.DecisionVersionTag).where(models.DecisionVersionTag.id == tag_id)
-            )
+            await release_decision_evaluator_tag(session, tag_id)
 
 
 @dataclass(kw_only=True)
