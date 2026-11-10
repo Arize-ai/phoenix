@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e7d6d840ce10f50968c7961ed525fcb1>>
+ * @generated SignedSource<<546300e3d9964e06a0172213c45119da>>
  * @lightSyntaxTransform
  */
 
@@ -40,6 +40,7 @@ export type ContinuousAnnotationConfigInput = {
   lowerBound?: number | null;
   name: string;
   optimizationDirection: OptimizationDirection;
+  threshold?: number | null;
   upperBound?: number | null;
 };
 export type FreeformAnnotationConfigInput = {

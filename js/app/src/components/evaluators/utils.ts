@@ -27,6 +27,7 @@ import type {
   FreeformEvaluatorAnnotationConfig,
 } from "@phoenix/types";
 import { isObject } from "@phoenix/typeUtils";
+import { getEvaluatorOutputConfigType } from "@phoenix/utils/evaluatorOutputConfigUtils";
 
 /**
  * The input schema sent with an evaluator: its declared inputs, each with the
@@ -397,7 +398,8 @@ const toAnnotationConfigInput = (
     };
   }
 
-  if ("threshold" in config) {
+  const configType = getEvaluatorOutputConfigType(config);
+  if (configType === "FREEFORM") {
     const freeformConfig = config as FreeformEvaluatorAnnotationConfig;
     return {
       freeform: {
@@ -423,6 +425,10 @@ const toAnnotationConfigInput = (
       optimizationDirection: continuousConfig.optimizationDirection,
       lowerBound: continuousConfig.lowerBound ?? null,
       upperBound: continuousConfig.upperBound ?? null,
+      // Sent only when set, so an unset threshold stays out of the saved config.
+      ...(continuousConfig.threshold != null
+        ? { threshold: continuousConfig.threshold }
+        : {}),
     },
   };
 };

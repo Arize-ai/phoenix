@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<abde2c99cfb64e4a224c52c8b5d37246>>
+ * @generated SignedSource<<49ac8e91fe303303d2ad287a55e1a459>>
  * @lightSyntaxTransform
  */
 
@@ -19,6 +19,7 @@ export type BuiltInDatasetEvaluatorDetails_datasetEvaluator$data = {
       readonly lowerBound?: number | null;
       readonly name?: string;
       readonly optimizationDirection?: OptimizationDirection;
+      readonly threshold?: number | null;
       readonly upperBound?: number | null;
       readonly values?: ReadonlyArray<{
         readonly label: string;
@@ -35,6 +36,7 @@ export type BuiltInDatasetEvaluatorDetails_datasetEvaluator$data = {
     readonly lowerBound?: number | null;
     readonly name?: string;
     readonly optimizationDirection?: OptimizationDirection;
+    readonly threshold?: number | null;
     readonly upperBound?: number | null;
     readonly values?: ReadonlyArray<{
       readonly label: string;
@@ -123,6 +125,13 @@ v2 = {
           "kind": "ScalarField",
           "name": "upperBound",
           "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "threshold",
+          "storageKey": null
         }
       ],
       "type": "ContinuousAnnotationConfig",
@@ -203,6 +212,6 @@ return {
 };
 })();
 
-(node as any).hash = "9337e09ebecf455aeed6d85e7b942f94";
+(node as any).hash = "c554d21a07ff702e288f544ae9d83783";
 
 export default node;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8878e9773b0dcc0abc6815f3e6072936>>
+ * @generated SignedSource<<60fb34cc888bf5db81626aac7ec203e7>>
  * @lightSyntaxTransform
  */
 
@@ -85,10 +85,17 @@ v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "threshold",
+  "storageKey": null
+},
+v10 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v10 = [
+v11 = [
   (v4/*:: as any*/),
   {
     "kind": "InlineFragment",
@@ -139,7 +146,8 @@ v10 = [
         "selections": [
           (v6/*:: as any*/),
           (v7/*:: as any*/),
-          (v8/*:: as any*/)
+          (v8/*:: as any*/),
+          (v9/*:: as any*/)
         ],
         "type": "ContinuousAnnotationConfig",
         "abstractKey": null
@@ -148,13 +156,7 @@ v10 = [
         "kind": "InlineFragment",
         "selections": [
           (v6/*:: as any*/),
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "threshold",
-            "storageKey": null
-          },
+          (v9/*:: as any*/),
           (v7/*:: as any*/),
           (v8/*:: as any*/)
         ],
@@ -168,7 +170,7 @@ v10 = [
   {
     "kind": "InlineFragment",
     "selections": [
-      (v9/*:: as any*/)
+      (v10/*:: as any*/)
     ],
     "type": "Node",
     "abstractKey": "__isNode"
@@ -293,14 +295,14 @@ return {
                                 "kind": "LinkedField",
                                 "name": "outputConfigs",
                                 "plural": true,
-                                "selections": (v10/*:: as any*/),
+                                "selections": (v11/*:: as any*/),
                                 "storageKey": null
                               },
-                              (v9/*:: as any*/)
+                              (v10/*:: as any*/)
                             ],
                             "storageKey": null
                           },
-                          (v9/*:: as any*/)
+                          (v10/*:: as any*/)
                         ],
                         "storageKey": null
                       }
@@ -340,7 +342,7 @@ return {
                         "kind": "LinkedField",
                         "name": "node",
                         "plural": false,
-                        "selections": (v10/*:: as any*/),
+                        "selections": (v11/*:: as any*/),
                         "storageKey": null
                       }
                     ],
@@ -353,19 +355,19 @@ return {
             "type": "Project",
             "abstractKey": null
           },
-          (v9/*:: as any*/)
+          (v10/*:: as any*/)
         ],
         "storageKey": "node(id:\"project-1\")"
       }
     ]
   },
   "params": {
-    "cacheID": "86528d6f887b29ff96bd6320f3085d12",
+    "cacheID": "54318c96e4fb98eb4098a7b10a06de1b",
     "id": null,
     "metadata": {},
     "name": "useProjectAnnotationConfigsByNameTestQuery",
     "operationKind": "query",
-    "text": "query useProjectAnnotationConfigsByNameTestQuery(\n  $names: [String!]\n  $first: Int\n) {\n  node(id: \"project-1\") {\n    __typename\n    ... on Project {\n      ...ProjectAnnotationConfigsByNameFragment_2vFrAy\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment_2vFrAy on Project {\n  evaluators(first: $first, filter: {annotationNames: $names}) {\n    edges {\n      node {\n        name\n        evaluator {\n          __typename\n          outputConfigs {\n            __typename\n            ...useProjectAnnotationConfigsByName_config\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          id\n        }\n        id\n      }\n    }\n  }\n  configsByName: annotationConfigs(first: $first, names: $names) {\n    edges {\n      config: node {\n        __typename\n        ...useProjectAnnotationConfigsByName_config\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment useProjectAnnotationConfigsByName_config on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  name\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    optimizationDirection\n    lowerBound\n    upperBound\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n    lowerBound\n    upperBound\n  }\n}\n"
+    "text": "query useProjectAnnotationConfigsByNameTestQuery(\n  $names: [String!]\n  $first: Int\n) {\n  node(id: \"project-1\") {\n    __typename\n    ... on Project {\n      ...ProjectAnnotationConfigsByNameFragment_2vFrAy\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment_2vFrAy on Project {\n  evaluators(first: $first, filter: {annotationNames: $names}) {\n    edges {\n      node {\n        name\n        evaluator {\n          __typename\n          outputConfigs {\n            __typename\n            ...useProjectAnnotationConfigsByName_config\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          id\n        }\n        id\n      }\n    }\n  }\n  configsByName: annotationConfigs(first: $first, names: $names) {\n    edges {\n      config: node {\n        __typename\n        ...useProjectAnnotationConfigsByName_config\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment useProjectAnnotationConfigsByName_config on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  name\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    optimizationDirection\n    lowerBound\n    upperBound\n    threshold\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n    lowerBound\n    upperBound\n  }\n}\n"
   }
 };
 })();

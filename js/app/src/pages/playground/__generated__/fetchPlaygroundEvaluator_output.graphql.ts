@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<defb9b38a3580e89933f24b38fe0633b>>
+ * @generated SignedSource<<9e14dc3b9b5865a3bb000134c133b7dd>>
  * @lightSyntaxTransform
  */
 
@@ -24,6 +24,7 @@ export type fetchPlaygroundEvaluator_output$data = {
   readonly lowerBound: number | null;
   readonly name: string;
   readonly optimizationDirection: OptimizationDirection;
+  readonly threshold: number | null;
   readonly upperBound: number | null;
   readonly " $fragmentType": "fetchPlaygroundEvaluator_output";
 } | {
@@ -72,6 +73,13 @@ v3 = {
   "args": null,
   "kind": "ScalarField",
   "name": "upperBound",
+  "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "threshold",
   "storageKey": null
 };
 return {
@@ -127,7 +135,8 @@ return {
         (v0/*:: as any*/),
         (v1/*:: as any*/),
         (v2/*:: as any*/),
-        (v3/*:: as any*/)
+        (v3/*:: as any*/),
+        (v4/*:: as any*/)
       ],
       "type": "ContinuousAnnotationConfig",
       "abstractKey": null
@@ -137,13 +146,7 @@ return {
       "selections": [
         (v0/*:: as any*/),
         (v1/*:: as any*/),
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "threshold",
-          "storageKey": null
-        },
+        (v4/*:: as any*/),
         (v2/*:: as any*/),
         (v3/*:: as any*/)
       ],
@@ -156,6 +159,6 @@ return {
 };
 })();
 
-(node as any).hash = "e52fbaffadd6cef562ae662c61ea841a";
+(node as any).hash = "75a0d908dec8a1f17bcc42f02fe5dda8";
 
 export default node;

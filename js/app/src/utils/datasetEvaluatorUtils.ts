@@ -58,7 +58,7 @@ function outputConfigToAnnotationConfig(
         optimizationDirection,
         lowerBound: outputConfig.lowerBound,
         upperBound: outputConfig.upperBound,
-        // A decision's Yes / No output pivots on its threshold.
+        // Saved, or a decision Yes / No question's: where good turns bad.
         threshold: outputConfig.threshold ?? null,
         annotationType: "CONTINUOUS",
       };

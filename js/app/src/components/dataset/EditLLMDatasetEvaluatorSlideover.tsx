@@ -165,6 +165,7 @@ const EditEvaluatorDialog = ({
             pathMapping
           }
           outputConfigs {
+            __typename
             ... on CategoricalAnnotationConfig {
               name
               optimizationDirection
@@ -178,6 +179,7 @@ const EditEvaluatorDialog = ({
               optimizationDirection
               lowerBound
               upperBound
+              threshold
             }
           }
           evaluator {
@@ -187,6 +189,7 @@ const EditEvaluatorDialog = ({
             name
             ... on LLMEvaluator {
               outputConfigs {
+                __typename
                 ... on CategoricalAnnotationConfig {
                   name
                   optimizationDirection

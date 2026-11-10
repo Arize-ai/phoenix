@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f9f1a8c08a52a8f3381fca735bc98eb6>>
+ * @generated SignedSource<<e1048b1ba7305d14ba73666a08cf8ca7>>
  * @lightSyntaxTransform
  */
 
@@ -165,7 +165,14 @@ v19 = {
   "name": "upperBound",
   "storageKey": null
 },
-v20 = [
+v20 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "threshold",
+  "storageKey": null
+},
+v21 = [
   (v11/*:: as any*/),
   {
     "kind": "InlineFragment",
@@ -204,7 +211,8 @@ v20 = [
         "selections": [
           (v15/*:: as any*/),
           (v18/*:: as any*/),
-          (v19/*:: as any*/)
+          (v19/*:: as any*/),
+          (v20/*:: as any*/)
         ],
         "type": "ContinuousAnnotationConfig",
         "abstractKey": null
@@ -213,13 +221,7 @@ v20 = [
         "kind": "InlineFragment",
         "selections": [
           (v15/*:: as any*/),
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "threshold",
-            "storageKey": null
-          },
+          (v20/*:: as any*/),
           (v18/*:: as any*/),
           (v19/*:: as any*/)
         ],
@@ -239,7 +241,7 @@ v20 = [
     "abstractKey": "__isNode"
   }
 ],
-v21 = [
+v22 = [
   (v7/*:: as any*/),
   (v8/*:: as any*/),
   (v9/*:: as any*/),
@@ -250,7 +252,7 @@ v21 = [
     "variableName": "timeRange"
   }
 ],
-v22 = [
+v23 = [
   {
     "alias": "value",
     "args": null,
@@ -259,28 +261,28 @@ v22 = [
     "storageKey": null
   }
 ],
-v23 = {
+v24 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "value",
   "storageKey": null
 },
-v24 = {
+v25 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "description",
   "storageKey": null
 },
-v25 = {
+v26 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "probability",
   "storageKey": null
 },
-v26 = {
+v27 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -407,7 +409,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "outputConfigs",
                                 "plural": true,
-                                "selections": (v20/*:: as any*/),
+                                "selections": (v21/*:: as any*/),
                                 "storageKey": null
                               },
                               (v12/*:: as any*/)
@@ -449,7 +451,7 @@ return {
                         "kind": "LinkedField",
                         "name": "node",
                         "plural": false,
-                        "selections": (v20/*:: as any*/),
+                        "selections": (v21/*:: as any*/),
                         "storageKey": null
                       }
                     ],
@@ -467,7 +469,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v21/*:: as any*/),
+                "args": (v22/*:: as any*/),
                 "concreteType": "ProjectSessionConnection",
                 "kind": "LinkedField",
                 "name": "sessions",
@@ -532,7 +534,7 @@ return {
                             "kind": "LinkedField",
                             "name": "firstInput",
                             "plural": false,
-                            "selections": (v22/*:: as any*/),
+                            "selections": (v23/*:: as any*/),
                             "storageKey": null
                           },
                           {
@@ -542,7 +544,7 @@ return {
                             "kind": "LinkedField",
                             "name": "lastOutput",
                             "plural": false,
-                            "selections": (v22/*:: as any*/),
+                            "selections": (v23/*:: as any*/),
                             "storageKey": null
                           },
                           {
@@ -723,8 +725,8 @@ return {
                                         "name": "choices",
                                         "plural": true,
                                         "selections": [
-                                          (v23/*:: as any*/),
-                                          (v24/*:: as any*/)
+                                          (v24/*:: as any*/),
+                                          (v25/*:: as any*/)
                                         ],
                                         "storageKey": null
                                       },
@@ -737,7 +739,7 @@ return {
                                         "plural": true,
                                         "selections": [
                                           (v16/*:: as any*/),
-                                          (v24/*:: as any*/)
+                                          (v25/*:: as any*/)
                                         ],
                                         "storageKey": null
                                       }
@@ -756,7 +758,7 @@ return {
                                       {
                                         "kind": "InlineFragment",
                                         "selections": [
-                                          (v25/*:: as any*/)
+                                          (v26/*:: as any*/)
                                         ],
                                         "type": "PredicateAnswer",
                                         "abstractKey": null
@@ -771,7 +773,7 @@ return {
                                             "name": "choice",
                                             "storageKey": null
                                           },
-                                          (v26/*:: as any*/),
+                                          (v27/*:: as any*/),
                                           {
                                             "alias": "choiceProbabilities",
                                             "args": null,
@@ -780,8 +782,8 @@ return {
                                             "name": "probabilities",
                                             "plural": true,
                                             "selections": [
-                                              (v23/*:: as any*/),
-                                              (v25/*:: as any*/)
+                                              (v24/*:: as any*/),
+                                              (v26/*:: as any*/)
                                             ],
                                             "storageKey": null
                                           }
@@ -799,7 +801,7 @@ return {
                                             "name": "expectedLevel",
                                             "storageKey": null
                                           },
-                                          (v26/*:: as any*/),
+                                          (v27/*:: as any*/),
                                           {
                                             "alias": "levelProbabilities",
                                             "args": null,
@@ -815,7 +817,7 @@ return {
                                                 "name": "level",
                                                 "storageKey": null
                                               },
-                                              (v25/*:: as any*/)
+                                              (v26/*:: as any*/)
                                             ],
                                             "storageKey": null
                                           }
@@ -980,7 +982,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v21/*:: as any*/),
+                "args": (v22/*:: as any*/),
                 "filters": [
                   "sort",
                   "sessionFilterCondition",
@@ -1001,12 +1003,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "8cc827348c704465a68d5e5b23b5f9d2",
+    "cacheID": "d5f1b87ed7af5e1cb7cc903fe6497714",
     "id": null,
     "metadata": {},
     "name": "SessionsTableQuery",
     "operationKind": "query",
-    "text": "query SessionsTableQuery(\n  $after: String = null\n  $first: Int = 30\n  $sessionFilterCondition: String = null\n  $sort: ProjectSessionSort = {col: startTime, dir: desc}\n  $timeRange: TimeRange\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...SessionsTable_sessions_2tSkrj\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  evaluators(first: 100, filter: {}) {\n    edges {\n      node {\n        name\n        evaluator {\n          __typename\n          outputConfigs {\n            __typename\n            ...useProjectAnnotationConfigsByName_config\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          id\n        }\n        id\n      }\n    }\n  }\n  configsByName: annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ...useProjectAnnotationConfigsByName_config\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationSummaryGroup on ProjectSession {\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n    decision {\n      status\n      question {\n        name\n        type\n        choices {\n          value\n          description\n        }\n        levels {\n          label\n          description\n        }\n      }\n      answer {\n        __typename\n        ... on PredicateAnswer {\n          probability\n        }\n        ... on ChoiceAnswer {\n          choice\n          confidence\n          choiceProbabilities: probabilities {\n            value\n            probability\n          }\n        }\n        ... on ScaleAnswer {\n          expectedLevel\n          confidence\n          levelProbabilities: probabilities {\n            level\n            probability\n          }\n        }\n      }\n      requestedModel\n      resolvedModel\n      modelProvider\n    }\n  }\n  summarySessionAnnotationSummaries: sessionAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SessionColumnSelector_annotations on Project {\n  sessionAnnotationNames\n}\n\nfragment SessionsTable_sessions_2tSkrj on Project {\n  id\n  name\n  ...ProjectAnnotationConfigsByNameFragment\n  ...SessionColumnSelector_annotations\n  sessions(first: $first, after: $after, sort: $sort, sessionFilterCondition: $sessionFilterCondition, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        userId\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value: truncatedValue\n        }\n        lastOutput {\n          value: truncatedValue\n        }\n        tokenUsage {\n          total\n        }\n        traceLatencyMsP50: traceLatencyMsQuantile(probability: 0.5)\n        traceLatencyMsP99: traceLatencyMsQuantile(probability: 0.99)\n        costSummary {\n          total {\n            cost\n          }\n        }\n        ...SessionAnnotationSummaryGroup\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment useProjectAnnotationConfigsByName_config on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  name\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    optimizationDirection\n    lowerBound\n    upperBound\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n    lowerBound\n    upperBound\n  }\n}\n"
+    "text": "query SessionsTableQuery(\n  $after: String = null\n  $first: Int = 30\n  $sessionFilterCondition: String = null\n  $sort: ProjectSessionSort = {col: startTime, dir: desc}\n  $timeRange: TimeRange\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...SessionsTable_sessions_2tSkrj\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  evaluators(first: 100, filter: {}) {\n    edges {\n      node {\n        name\n        evaluator {\n          __typename\n          outputConfigs {\n            __typename\n            ...useProjectAnnotationConfigsByName_config\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          id\n        }\n        id\n      }\n    }\n  }\n  configsByName: annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ...useProjectAnnotationConfigsByName_config\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationSummaryGroup on ProjectSession {\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n    decision {\n      status\n      question {\n        name\n        type\n        choices {\n          value\n          description\n        }\n        levels {\n          label\n          description\n        }\n      }\n      answer {\n        __typename\n        ... on PredicateAnswer {\n          probability\n        }\n        ... on ChoiceAnswer {\n          choice\n          confidence\n          choiceProbabilities: probabilities {\n            value\n            probability\n          }\n        }\n        ... on ScaleAnswer {\n          expectedLevel\n          confidence\n          levelProbabilities: probabilities {\n            level\n            probability\n          }\n        }\n      }\n      requestedModel\n      resolvedModel\n      modelProvider\n    }\n  }\n  summarySessionAnnotationSummaries: sessionAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SessionColumnSelector_annotations on Project {\n  sessionAnnotationNames\n}\n\nfragment SessionsTable_sessions_2tSkrj on Project {\n  id\n  name\n  ...ProjectAnnotationConfigsByNameFragment\n  ...SessionColumnSelector_annotations\n  sessions(first: $first, after: $after, sort: $sort, sessionFilterCondition: $sessionFilterCondition, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        userId\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value: truncatedValue\n        }\n        lastOutput {\n          value: truncatedValue\n        }\n        tokenUsage {\n          total\n        }\n        traceLatencyMsP50: traceLatencyMsQuantile(probability: 0.5)\n        traceLatencyMsP99: traceLatencyMsQuantile(probability: 0.99)\n        costSummary {\n          total {\n            cost\n          }\n        }\n        ...SessionAnnotationSummaryGroup\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment useProjectAnnotationConfigsByName_config on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  name\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    optimizationDirection\n    lowerBound\n    upperBound\n    threshold\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n    lowerBound\n    upperBound\n  }\n}\n"
   }
 };
 })();

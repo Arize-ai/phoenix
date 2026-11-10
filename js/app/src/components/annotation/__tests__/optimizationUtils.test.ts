@@ -521,3 +521,56 @@ describe("toAnnotationOptimizationConfig", () => {
     ).toEqual([true, false]);
   });
 });
+
+describe("a human annotation config's saved threshold", () => {
+  // helpfulness_score: 0..10, Maximize, threshold 7, as the Settings dialog saves it.
+  const helpfulness = toAnnotationOptimizationConfig({
+    annotationType: "CONTINUOUS",
+    optimizationDirection: "MAXIMIZE",
+    lowerBound: 0,
+    upperBound: 10,
+    threshold: 7,
+  });
+
+  it("pivots good and bad on the threshold rather than the midpoint", () => {
+    expect(getOptimizationBounds(helpfulness).threshold).toBe(7);
+    expect(
+      getOptimizationValueFromConfig({ config: helpfulness, score: 6 })
+    ).toBeLessThan(0);
+    expect(
+      getOptimizationValueFromConfig({ config: helpfulness, score: 8 })
+    ).toBeGreaterThan(0);
+    expect(
+      getOptimizationValueFromConfig({ config: helpfulness, score: 7 })
+    ).toBe(0);
+  });
+
+  it("falls back to the midpoint without one", () => {
+    const unthresholded = toAnnotationOptimizationConfig({
+      annotationType: "CONTINUOUS",
+      optimizationDirection: "MAXIMIZE",
+      lowerBound: 0,
+      upperBound: 10,
+      threshold: null,
+    });
+    expect(
+      getOptimizationValueFromConfig({ config: unthresholded, score: 6 })
+    ).toBeGreaterThan(0);
+  });
+
+  it("flips sides for a minimized config", () => {
+    const latency = toAnnotationOptimizationConfig({
+      annotationType: "CONTINUOUS",
+      optimizationDirection: "MINIMIZE",
+      lowerBound: 0,
+      upperBound: 10,
+      threshold: 3,
+    });
+    expect(
+      getOptimizationValueFromConfig({ config: latency, score: 2 })
+    ).toBeGreaterThan(0);
+    expect(
+      getOptimizationValueFromConfig({ config: latency, score: 4 })
+    ).toBeLessThan(0);
+  });
+});

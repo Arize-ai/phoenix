@@ -41,6 +41,7 @@ export function CodeDatasetEvaluatorDetails({
             optimizationDirection
             lowerBound
             upperBound
+            threshold
           }
           ... on FreeformAnnotationConfig {
             name
@@ -67,6 +68,7 @@ export function CodeDatasetEvaluatorDetails({
                 optimizationDirection
                 lowerBound
                 upperBound
+                threshold
               }
               ... on FreeformAnnotationConfig {
                 name

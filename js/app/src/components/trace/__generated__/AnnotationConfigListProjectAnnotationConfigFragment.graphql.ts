@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<27573397b3c42bfbcf45d645ca76881d>>
+ * @generated SignedSource<<28560504880d4519fd55c5c3804e61d5>>
  * @lightSyntaxTransform
  */
 
@@ -47,6 +47,13 @@ var v0 = {
   "storageKey": null
 },
 v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "threshold",
+  "storageKey": null
+},
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -173,7 +180,8 @@ return {
                       "name": "upperBound",
                       "storageKey": null
                     },
-                    (v1/*:: as any*/)
+                    (v1/*:: as any*/),
+                    (v2/*:: as any*/)
                   ],
                   "type": "ContinuousAnnotationConfig",
                   "abstractKey": null
@@ -182,14 +190,8 @@ return {
                   "kind": "InlineFragment",
                   "selections": [
                     (v0/*:: as any*/),
-                    (v1/*:: as any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "threshold",
-                      "storageKey": null
-                    }
+                    (v2/*:: as any*/),
+                    (v1/*:: as any*/)
                   ],
                   "type": "FreeformAnnotationConfig",
                   "abstractKey": null
@@ -209,6 +211,6 @@ return {
 };
 })();
 
-(node as any).hash = "9533f7753e41107c3e8095954bdd970c";
+(node as any).hash = "14f6fea360e4e492752ab51840ece462";
 
 export default node;

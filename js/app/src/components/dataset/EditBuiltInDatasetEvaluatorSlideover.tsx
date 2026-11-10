@@ -110,6 +110,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
                 description
                 ... on DatasetEvaluator {
                   outputConfigs {
+                    __typename
                     ... on CategoricalAnnotationConfig {
                       name
                       optimizationDirection
@@ -123,6 +124,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
                       optimizationDirection
                       lowerBound
                       upperBound
+                      threshold
                     }
                   }
                   inputMapping {
@@ -137,6 +139,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
                     ... on BuiltInEvaluator {
                       inputSchema
                       outputConfigs {
+                        __typename
                         ... on CategoricalAnnotationConfig {
                           name
                           optimizationDirection
@@ -150,6 +153,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
                           optimizationDirection
                           lowerBound
                           upperBound
+                          threshold
                         }
                       }
                     }

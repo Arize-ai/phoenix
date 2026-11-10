@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d8cdec18fc09bac8820700383f76b5a1>>
+ * @generated SignedSource<<73b627c6aa9d3a1aea97cae429c06d31>>
  * @lightSyntaxTransform
  */
 
@@ -42,6 +42,7 @@ export type ContinuousAnnotationConfigInput = {
   lowerBound?: number | null;
   name: string;
   optimizationDirection: OptimizationDirection;
+  threshold?: number | null;
   upperBound?: number | null;
 };
 export type FreeformAnnotationConfigInput = {
@@ -115,6 +116,13 @@ v6 = {
   "args": null,
   "kind": "ScalarField",
   "name": "optimizationDirection",
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "threshold",
   "storageKey": null
 };
 return {
@@ -260,6 +268,7 @@ return {
                                 "name": "upperBound",
                                 "storageKey": null
                               },
+                              (v7/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -279,13 +288,7 @@ return {
                               (v4/*:: as any*/),
                               (v5/*:: as any*/),
                               (v6/*:: as any*/),
-                              {
-                                "alias": null,
-                                "args": null,
-                                "kind": "ScalarField",
-                                "name": "threshold",
-                                "storageKey": null
-                              }
+                              (v7/*:: as any*/)
                             ],
                             "type": "FreeformAnnotationConfig",
                             "abstractKey": null
@@ -316,12 +319,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "30e419dbb36072b86b093cfc14c75a79",
+    "cacheID": "0ea6b807b3ec6685fc0a5b9ac1323663",
     "id": null,
     "metadata": {},
     "name": "SettingsAnnotationsPageUpdateAnnotationConfigMutation",
     "operationKind": "mutation",
-    "text": "mutation SettingsAnnotationsPageUpdateAnnotationConfigMutation(\n  $input: UpdateAnnotationConfigInput!\n) {\n  updateAnnotationConfig(input: $input) {\n    query {\n      ...AnnotationConfigTableFragment\n    }\n  }\n}\n\nfragment AnnotationConfigTableFragment on Query {\n  annotationConfigs {\n    edges {\n      annotationConfig: node {\n        __typename\n        ... on CategoricalAnnotationConfig {\n          id\n          name\n          description\n          annotationType\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          id\n          name\n          description\n          annotationType\n          optimizationDirection\n          upperBound\n          lowerBound\n        }\n        ... on FreeformAnnotationConfig {\n          id\n          name\n          description\n          annotationType\n          optimizationDirection\n          threshold\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n"
+    "text": "mutation SettingsAnnotationsPageUpdateAnnotationConfigMutation(\n  $input: UpdateAnnotationConfigInput!\n) {\n  updateAnnotationConfig(input: $input) {\n    query {\n      ...AnnotationConfigTableFragment\n    }\n  }\n}\n\nfragment AnnotationConfigTableFragment on Query {\n  annotationConfigs {\n    edges {\n      annotationConfig: node {\n        __typename\n        ... on CategoricalAnnotationConfig {\n          id\n          name\n          description\n          annotationType\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          id\n          name\n          description\n          annotationType\n          optimizationDirection\n          upperBound\n          threshold\n          lowerBound\n        }\n        ... on FreeformAnnotationConfig {\n          id\n          name\n          description\n          annotationType\n          optimizationDirection\n          threshold\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();

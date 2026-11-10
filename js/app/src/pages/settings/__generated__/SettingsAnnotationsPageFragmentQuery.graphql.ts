@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<18922f931078ff8582ab1f7739de73cf>>
+ * @generated SignedSource<<45e9bf84f94fe62717cbd8490a5fa729>>
  * @lightSyntaxTransform
  */
 
@@ -52,6 +52,13 @@ v4 = {
   "args": null,
   "kind": "ScalarField",
   "name": "optimizationDirection",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "threshold",
   "storageKey": null
 };
 return {
@@ -159,6 +166,7 @@ return {
                         "name": "upperBound",
                         "storageKey": null
                       },
+                      (v5/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -178,13 +186,7 @@ return {
                       (v2/*:: as any*/),
                       (v3/*:: as any*/),
                       (v4/*:: as any*/),
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "threshold",
-                        "storageKey": null
-                      }
+                      (v5/*:: as any*/)
                     ],
                     "type": "FreeformAnnotationConfig",
                     "abstractKey": null
@@ -209,12 +211,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0a86aa80fee4cfabe46f0f363d151413",
+    "cacheID": "bb842fc25e62cd6d55b3d7537da2fd03",
     "id": null,
     "metadata": {},
     "name": "SettingsAnnotationsPageFragmentQuery",
     "operationKind": "query",
-    "text": "query SettingsAnnotationsPageFragmentQuery {\n  ...SettingsAnnotationsPageFragment\n}\n\nfragment AnnotationConfigTableFragment on Query {\n  annotationConfigs {\n    edges {\n      annotationConfig: node {\n        __typename\n        ... on CategoricalAnnotationConfig {\n          id\n          name\n          description\n          annotationType\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          id\n          name\n          description\n          annotationType\n          optimizationDirection\n          upperBound\n          lowerBound\n        }\n        ... on FreeformAnnotationConfig {\n          id\n          name\n          description\n          annotationType\n          optimizationDirection\n          threshold\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SettingsAnnotationsPageFragment on Query {\n  ...AnnotationConfigTableFragment\n}\n"
+    "text": "query SettingsAnnotationsPageFragmentQuery {\n  ...SettingsAnnotationsPageFragment\n}\n\nfragment AnnotationConfigTableFragment on Query {\n  annotationConfigs {\n    edges {\n      annotationConfig: node {\n        __typename\n        ... on CategoricalAnnotationConfig {\n          id\n          name\n          description\n          annotationType\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          id\n          name\n          description\n          annotationType\n          optimizationDirection\n          upperBound\n          threshold\n          lowerBound\n        }\n        ... on FreeformAnnotationConfig {\n          id\n          name\n          description\n          annotationType\n          optimizationDirection\n          threshold\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SettingsAnnotationsPageFragment on Query {\n  ...AnnotationConfigTableFragment\n}\n"
   }
 };
 })();

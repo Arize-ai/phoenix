@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2929224dcf344631e9ee911ee1efcbd7>>
+ * @generated SignedSource<<8b55f815752d12007def85bd88d9a133>>
  * @lightSyntaxTransform
  */
 
@@ -45,6 +45,7 @@ export type EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery$data = {
           readonly lowerBound: number | null;
           readonly name: string;
           readonly optimizationDirection: OptimizationDirection;
+          readonly threshold: number | null;
           readonly upperBound: number | null;
         } | {
           readonly __typename: "FreeformAnnotationConfig";
@@ -81,6 +82,7 @@ export type EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery$data = {
         readonly lowerBound: number | null;
         readonly name: string;
         readonly optimizationDirection: OptimizationDirection;
+        readonly threshold: number | null;
         readonly upperBound: number | null;
       } | {
         readonly __typename: "FreeformAnnotationConfig";
@@ -270,35 +272,37 @@ v11 = {
   "storageKey": null
 },
 v12 = {
-  "kind": "InlineFragment",
-  "selections": [
-    (v4/*:: as any*/),
-    (v8/*:: as any*/),
-    (v10/*:: as any*/),
-    (v11/*:: as any*/)
-  ],
-  "type": "ContinuousAnnotationConfig",
-  "abstractKey": null
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "threshold",
+  "storageKey": null
 },
 v13 = {
   "kind": "InlineFragment",
   "selections": [
     (v4/*:: as any*/),
     (v8/*:: as any*/),
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "threshold",
-      "storageKey": null
-    },
+    (v10/*:: as any*/),
+    (v11/*:: as any*/),
+    (v12/*:: as any*/)
+  ],
+  "type": "ContinuousAnnotationConfig",
+  "abstractKey": null
+},
+v14 = {
+  "kind": "InlineFragment",
+  "selections": [
+    (v4/*:: as any*/),
+    (v8/*:: as any*/),
+    (v12/*:: as any*/),
     (v10/*:: as any*/),
     (v11/*:: as any*/)
   ],
   "type": "FreeformAnnotationConfig",
   "abstractKey": null
 },
-v14 = {
+v15 = {
   "alias": null,
   "args": null,
   "concreteType": null,
@@ -308,67 +312,67 @@ v14 = {
   "selections": [
     (v7/*:: as any*/),
     (v9/*:: as any*/),
-    (v12/*:: as any*/),
-    (v13/*:: as any*/)
+    (v13/*:: as any*/),
+    (v14/*:: as any*/)
   ],
-  "storageKey": null
-},
-v15 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "kind",
   "storageKey": null
 },
 v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "kind",
+  "storageKey": null
+},
+v17 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "language",
   "storageKey": null
 },
-v17 = [
+v18 = [
   (v2/*:: as any*/)
 ],
-v18 = {
+v19 = {
   "alias": null,
   "args": null,
   "concreteType": "SandboxConfig",
   "kind": "LinkedField",
   "name": "sandboxConfig",
   "plural": false,
-  "selections": (v17/*:: as any*/),
-  "storageKey": null
-},
-v19 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "sourceCode",
+  "selections": (v18/*:: as any*/),
   "storageKey": null
 },
 v20 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "backendType",
+  "name": "sourceCode",
   "storageKey": null
 },
 v21 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "supportedLanguages",
+  "name": "backendType",
   "storageKey": null
 },
 v22 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "enabled",
+  "name": "supportedLanguages",
   "storageKey": null
 },
 v23 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "enabled",
+  "storageKey": null
+},
+v24 = {
   "alias": null,
   "args": null,
   "concreteType": "SandboxConfig",
@@ -379,7 +383,7 @@ v23 = {
     (v2/*:: as any*/),
     (v4/*:: as any*/),
     (v5/*:: as any*/),
-    (v16/*:: as any*/),
+    (v17/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -456,7 +460,7 @@ v23 = {
   ],
   "storageKey": null
 },
-v24 = {
+v25 = {
   "alias": null,
   "args": null,
   "concreteType": "SandboxBackendInfo",
@@ -464,7 +468,7 @@ v24 = {
   "name": "sandboxBackends",
   "plural": true,
   "selections": [
-    (v20/*:: as any*/),
+    (v21/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -496,7 +500,7 @@ v24 = {
   ],
   "storageKey": null
 },
-v25 = {
+v26 = {
   "alias": null,
   "args": null,
   "concreteType": null,
@@ -506,11 +510,11 @@ v25 = {
   "selections": [
     (v7/*:: as any*/),
     (v9/*:: as any*/),
-    (v12/*:: as any*/),
     (v13/*:: as any*/),
+    (v14/*:: as any*/),
     {
       "kind": "InlineFragment",
-      "selections": (v17/*:: as any*/),
+      "selections": (v18/*:: as any*/),
       "type": "Node",
       "abstractKey": "__isNode"
     }
@@ -548,7 +552,7 @@ return {
                   (v4/*:: as any*/),
                   (v5/*:: as any*/),
                   (v6/*:: as any*/),
-                  (v14/*:: as any*/),
+                  (v15/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -558,15 +562,15 @@ return {
                     "plural": false,
                     "selections": [
                       (v2/*:: as any*/),
-                      (v15/*:: as any*/),
+                      (v16/*:: as any*/),
                       {
                         "kind": "InlineFragment",
                         "selections": [
                           (v4/*:: as any*/),
                           (v5/*:: as any*/),
-                          (v16/*:: as any*/),
-                          (v18/*:: as any*/),
-                          (v14/*:: as any*/),
+                          (v17/*:: as any*/),
+                          (v19/*:: as any*/),
+                          (v15/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -575,7 +579,7 @@ return {
                             "name": "currentVersion",
                             "plural": false,
                             "selections": [
-                              (v19/*:: as any*/)
+                              (v20/*:: as any*/)
                             ],
                             "storageKey": null
                           }
@@ -604,14 +608,14 @@ return {
         "name": "sandboxProviders",
         "plural": true,
         "selections": [
-          (v20/*:: as any*/),
           (v21/*:: as any*/),
           (v22/*:: as any*/),
-          (v23/*:: as any*/)
+          (v23/*:: as any*/),
+          (v24/*:: as any*/)
         ],
         "storageKey": null
       },
-      (v24/*:: as any*/)
+      (v25/*:: as any*/)
     ],
     "type": "Query",
     "abstractKey": null
@@ -647,7 +651,7 @@ return {
                   (v4/*:: as any*/),
                   (v5/*:: as any*/),
                   (v6/*:: as any*/),
-                  (v25/*:: as any*/),
+                  (v26/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -658,15 +662,15 @@ return {
                     "selections": [
                       (v7/*:: as any*/),
                       (v2/*:: as any*/),
-                      (v15/*:: as any*/),
+                      (v16/*:: as any*/),
                       {
                         "kind": "InlineFragment",
                         "selections": [
                           (v4/*:: as any*/),
                           (v5/*:: as any*/),
-                          (v16/*:: as any*/),
-                          (v18/*:: as any*/),
-                          (v25/*:: as any*/),
+                          (v17/*:: as any*/),
+                          (v19/*:: as any*/),
+                          (v26/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -675,7 +679,7 @@ return {
                             "name": "currentVersion",
                             "plural": false,
                             "selections": [
-                              (v19/*:: as any*/),
+                              (v20/*:: as any*/),
                               (v2/*:: as any*/)
                             ],
                             "storageKey": null
@@ -705,28 +709,28 @@ return {
         "name": "sandboxProviders",
         "plural": true,
         "selections": [
-          (v20/*:: as any*/),
           (v21/*:: as any*/),
           (v22/*:: as any*/),
           (v23/*:: as any*/),
+          (v24/*:: as any*/),
           (v2/*:: as any*/)
         ],
         "storageKey": null
       },
-      (v24/*:: as any*/)
+      (v25/*:: as any*/)
     ]
   },
   "params": {
-    "cacheID": "395da128a7d38385677a36b361567041",
+    "cacheID": "c64d3cdccdce6624105d7408a3b730ac",
     "id": null,
     "metadata": {},
     "name": "EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery",
     "operationKind": "query",
-    "text": "query EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery(\n  $datasetEvaluatorId: ID!\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        name\n        description\n        inputMapping {\n          literalMapping\n          pathMapping\n        }\n        outputConfigs {\n          __typename\n          ... on CategoricalAnnotationConfig {\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on ContinuousAnnotationConfig {\n            name\n            optimizationDirection\n            lowerBound\n            upperBound\n          }\n          ... on FreeformAnnotationConfig {\n            name\n            optimizationDirection\n            threshold\n            lowerBound\n            upperBound\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n        evaluator {\n          __typename\n          id\n          kind\n          ... on CodeEvaluator {\n            name\n            description\n            language\n            sandboxConfig {\n              id\n            }\n            outputConfigs {\n              __typename\n              ... on CategoricalAnnotationConfig {\n                name\n                optimizationDirection\n                values {\n                  label\n                  score\n                }\n              }\n              ... on ContinuousAnnotationConfig {\n                name\n                optimizationDirection\n                lowerBound\n                upperBound\n              }\n              ... on FreeformAnnotationConfig {\n                name\n                optimizationDirection\n                threshold\n                lowerBound\n                upperBound\n              }\n              ... on Node {\n                __isNode: __typename\n                id\n              }\n            }\n            currentVersion {\n              sourceCode\n              id\n            }\n          }\n        }\n      }\n    }\n  }\n  sandboxProviders {\n    backendType\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      config {\n        envVars {\n          name\n          secretKey\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n    }\n    id\n  }\n  sandboxBackends {\n    backendType\n    status\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n  }\n}\n"
+    "text": "query EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery(\n  $datasetEvaluatorId: ID!\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        name\n        description\n        inputMapping {\n          literalMapping\n          pathMapping\n        }\n        outputConfigs {\n          __typename\n          ... on CategoricalAnnotationConfig {\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on ContinuousAnnotationConfig {\n            name\n            optimizationDirection\n            lowerBound\n            upperBound\n            threshold\n          }\n          ... on FreeformAnnotationConfig {\n            name\n            optimizationDirection\n            threshold\n            lowerBound\n            upperBound\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n        evaluator {\n          __typename\n          id\n          kind\n          ... on CodeEvaluator {\n            name\n            description\n            language\n            sandboxConfig {\n              id\n            }\n            outputConfigs {\n              __typename\n              ... on CategoricalAnnotationConfig {\n                name\n                optimizationDirection\n                values {\n                  label\n                  score\n                }\n              }\n              ... on ContinuousAnnotationConfig {\n                name\n                optimizationDirection\n                lowerBound\n                upperBound\n                threshold\n              }\n              ... on FreeformAnnotationConfig {\n                name\n                optimizationDirection\n                threshold\n                lowerBound\n                upperBound\n              }\n              ... on Node {\n                __isNode: __typename\n                id\n              }\n            }\n            currentVersion {\n              sourceCode\n              id\n            }\n          }\n        }\n      }\n    }\n  }\n  sandboxProviders {\n    backendType\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      config {\n        envVars {\n          name\n          secretKey\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n    }\n    id\n  }\n  sandboxBackends {\n    backendType\n    status\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e29a5391fc87c178b46e1a713b5be376";
+(node as any).hash = "e33680e8e8049e76a5a97b3dac0c5beb";
 
 export default node;

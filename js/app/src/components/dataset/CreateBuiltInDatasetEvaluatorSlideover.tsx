@@ -116,6 +116,7 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
             ... on BuiltInEvaluator {
               inputSchema
               outputConfigs {
+                __typename
                 ... on CategoricalAnnotationConfig {
                   name
                   annotationType
@@ -131,6 +132,7 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
                   optimizationDirection
                   lowerBound
                   upperBound
+                  threshold
                 }
               }
             }

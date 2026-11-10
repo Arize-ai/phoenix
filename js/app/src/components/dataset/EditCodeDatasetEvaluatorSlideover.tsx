@@ -164,6 +164,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
                     optimizationDirection
                     lowerBound
                     upperBound
+                    threshold
                   }
                   ... on FreeformAnnotationConfig {
                     name
@@ -198,6 +199,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
                         optimizationDirection
                         lowerBound
                         upperBound
+                        threshold
                       }
                       ... on FreeformAnnotationConfig {
                         name

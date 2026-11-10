@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f1fbfe806f4b42f85cf777931afd6945>>
+ * @generated SignedSource<<5e377c2f2c23a835cf50638c26d9bbf7>>
  * @lightSyntaxTransform
  */
 
@@ -98,18 +98,25 @@ v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "id",
+  "name": "threshold",
   "storageKey": null
 },
 v10 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v11 = {
   "kind": "InlineFragment",
   "selections": [
-    (v9/*:: as any*/)
+    (v10/*:: as any*/)
   ],
   "type": "Node",
   "abstractKey": "__isNode"
 },
-v11 = [
+v12 = [
   (v5/*:: as any*/),
   {
     "kind": "InlineFragment",
@@ -160,7 +167,8 @@ v11 = [
         "selections": [
           (v6/*:: as any*/),
           (v7/*:: as any*/),
-          (v8/*:: as any*/)
+          (v8/*:: as any*/),
+          (v9/*:: as any*/)
         ],
         "type": "ContinuousAnnotationConfig",
         "abstractKey": null
@@ -169,13 +177,7 @@ v11 = [
         "kind": "InlineFragment",
         "selections": [
           (v6/*:: as any*/),
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "threshold",
-            "storageKey": null
-          },
+          (v9/*:: as any*/),
           (v7/*:: as any*/),
           (v8/*:: as any*/)
         ],
@@ -186,7 +188,7 @@ v11 = [
     "type": "AnnotationConfigBase",
     "abstractKey": "__isAnnotationConfigBase"
   },
-  (v10/*:: as any*/)
+  (v11/*:: as any*/)
 ];
 return {
   "fragment": {
@@ -308,14 +310,14 @@ return {
                                 "kind": "LinkedField",
                                 "name": "outputConfigs",
                                 "plural": true,
-                                "selections": (v11/*:: as any*/),
+                                "selections": (v12/*:: as any*/),
                                 "storageKey": null
                               },
-                              (v9/*:: as any*/)
+                              (v10/*:: as any*/)
                             ],
                             "storageKey": null
                           },
-                          (v9/*:: as any*/)
+                          (v10/*:: as any*/)
                         ],
                         "storageKey": null
                       }
@@ -350,7 +352,7 @@ return {
                         "kind": "LinkedField",
                         "name": "node",
                         "plural": false,
-                        "selections": (v11/*:: as any*/),
+                        "selections": (v12/*:: as any*/),
                         "storageKey": null
                       }
                     ],
@@ -392,7 +394,7 @@ return {
                             "type": "AnnotationConfigBase",
                             "abstractKey": "__isAnnotationConfigBase"
                           },
-                          (v10/*:: as any*/)
+                          (v11/*:: as any*/)
                         ],
                         "storageKey": null
                       }
@@ -402,7 +404,7 @@ return {
                 ],
                 "storageKey": null
               },
-              (v9/*:: as any*/)
+              (v10/*:: as any*/)
             ],
             "storageKey": null
           }
@@ -412,12 +414,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "34eb8c1d7e653871a3fac9f42ca012a3",
+    "cacheID": "7a919ed70636eb1fe98c89ca1921689f",
     "id": null,
     "metadata": {},
     "name": "ProjectAnnotationConfigCardContentRemoveAnnotationConfigFromProjectMutation",
     "operationKind": "mutation",
-    "text": "mutation ProjectAnnotationConfigCardContentRemoveAnnotationConfigFromProjectMutation(\n  $projectId: ID!\n  $annotationConfigId: ID!\n) {\n  removeAnnotationConfigFromProject(input: {projectId: $projectId, annotationConfigId: $annotationConfigId}) {\n    project {\n      ...ProjectAnnotationConfigCardContent_project_annotations\n      id\n    }\n  }\n}\n\nfragment ProjectAnnotationConfigCardContent_project_annotations on Project {\n  ...ProjectAnnotationConfigsByNameFragment\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n  id\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  evaluators(first: 100, filter: {}) {\n    edges {\n      node {\n        name\n        evaluator {\n          __typename\n          outputConfigs {\n            __typename\n            ...useProjectAnnotationConfigsByName_config\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          id\n        }\n        id\n      }\n    }\n  }\n  configsByName: annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ...useProjectAnnotationConfigsByName_config\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment useProjectAnnotationConfigsByName_config on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  name\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    optimizationDirection\n    lowerBound\n    upperBound\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n    lowerBound\n    upperBound\n  }\n}\n"
+    "text": "mutation ProjectAnnotationConfigCardContentRemoveAnnotationConfigFromProjectMutation(\n  $projectId: ID!\n  $annotationConfigId: ID!\n) {\n  removeAnnotationConfigFromProject(input: {projectId: $projectId, annotationConfigId: $annotationConfigId}) {\n    project {\n      ...ProjectAnnotationConfigCardContent_project_annotations\n      id\n    }\n  }\n}\n\nfragment ProjectAnnotationConfigCardContent_project_annotations on Project {\n  ...ProjectAnnotationConfigsByNameFragment\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n  id\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  evaluators(first: 100, filter: {}) {\n    edges {\n      node {\n        name\n        evaluator {\n          __typename\n          outputConfigs {\n            __typename\n            ...useProjectAnnotationConfigsByName_config\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          id\n        }\n        id\n      }\n    }\n  }\n  configsByName: annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ...useProjectAnnotationConfigsByName_config\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment useProjectAnnotationConfigsByName_config on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  name\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    optimizationDirection\n    lowerBound\n    upperBound\n    threshold\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n    lowerBound\n    upperBound\n  }\n}\n"
   }
 };
 })();
