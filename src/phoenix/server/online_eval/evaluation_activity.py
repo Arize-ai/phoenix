@@ -57,7 +57,6 @@ class ActivityGroup:
     project_evaluator_id: Optional[int]
     evaluated_count: int = 0
     failed_count: int = 0
-    lag: Optional[EvaluationLag] = None
     cost: Optional[float] = None
 
 
@@ -86,7 +85,6 @@ class ActivityBin:
 class EvaluationActivity:
     evaluated_count: int
     failed_count: int
-    lag: Optional[EvaluationLag]
     cost: Optional[float]
     groups: tuple[ActivityGroup, ...]
     series: tuple[ActivityBin, ...]
@@ -182,7 +180,6 @@ class _GroupBin:
 class _GroupTotals:
     evaluated_count: int = 0
     failed_count: int = 0
-    lag: Optional[EvaluationLag] = None
     cost: Optional[float] = None
     bins: dict[int, _GroupBin] = field(default_factory=dict)
     queue_sizes: list[int] = field(default_factory=list)
@@ -227,44 +224,26 @@ class _ActivityReader:
 
         completed = _completed(self.scope, self.start, self.end)
         group = self._group(completed)
-        evaluated = sa.func.sum(completed.c.evaluated)
-        lag_seconds = completed.c.lag_seconds
         bucket = self.time_bins.truncate(self.dialect, completed.c.completed_at)
         async for key, timestamp, evaluated_count, count, lag_p95 in await session.stream(
             sa.select(
                 group,
                 bucket,
-                evaluated,
+                sa.func.sum(completed.c.evaluated),
                 sa.func.count(),
-                _percentile(self.dialect, lag_seconds, 0.95),
+                _percentile(self.dialect, completed.c.lag_seconds, 0.95),
             )
             .select_from(completed)
             .group_by(group, bucket)
         ):
-            if key not in groups:
+            if (totals := groups.get(key)) is None:
                 continue
-            group_bin = groups[key].bins.setdefault(bin_index[_as_datetime(timestamp)], _GroupBin())
+            group_bin = totals.bins.setdefault(bin_index[_as_datetime(timestamp)], _GroupBin())
             group_bin.evaluated_count = evaluated_count
             group_bin.failed_count = count - evaluated_count
             group_bin.lag_p95_seconds = lag_p95
-        async for key, evaluated_count, count, *percentiles in await session.stream(
-            sa.select(
-                group, evaluated, sa.func.count(), *_lag_percentiles(self.dialect, lag_seconds)
-            )
-            .select_from(completed)
-            .group_by(group)
-        ):
-            if (totals := groups.get(key)) is None:
-                continue
-            totals.evaluated_count = evaluated_count
-            totals.failed_count = count - evaluated_count
-            totals.lag = _lag(*percentiles)
-        total_percentiles = (
-            await session.execute(
-                sa.select(*_lag_percentiles(self.dialect, lag_seconds)).select_from(completed)
-            )
-        ).one()
-        lag = _lag(*total_percentiles)
+            totals.evaluated_count += evaluated_count
+            totals.failed_count += count - evaluated_count
 
         if self.read_added:
             await self._read_added(session, groups, group_keys_by_evaluator, bin_index)
@@ -281,14 +260,12 @@ class _ActivityReader:
             excludes_untraced_evaluators=excludes_untraced_evaluators,
             evaluated_count=sum(totals.evaluated_count for totals in groups.values()),
             failed_count=sum(totals.failed_count for totals in groups.values()),
-            lag=lag,
             cost=sum(costs) if costs else None,
             groups=tuple(
                 ActivityGroup(
                     *self._identity(key, project_ids[key]),
                     evaluated_count=groups[key].evaluated_count,
                     failed_count=groups[key].failed_count,
-                    lag=groups[key].lag,
                     cost=groups[key].cost,
                 )
                 for key in group_keys

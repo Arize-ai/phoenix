@@ -180,16 +180,7 @@ class EvaluationActivity:
         return self.activity.failed_count
 
     @strawberry.field(  # type: ignore[untyped-decorator]
-        description="Lag of evaluations completed in the range; null if none completed."
-    )
-    def lag(self) -> Optional[EvaluationLag]:
-        return to_gql_evaluation_lag(self.activity.lag)
-
-    @strawberry.field(  # type: ignore[untyped-decorator]
-        description=(
-            "Cost in USD of the evaluations' traces started in the range; null if none. "
-            "Evaluators with tracing off write no traces, so their evaluations add no cost."
-        )
+        description="Cost in USD of the evaluations' traces started in the range; null if none."
     )
     def cost(self) -> Optional[float]:
         return self.activity.cost

@@ -186,11 +186,10 @@ async def test_project_activity_is_grouped_by_evaluator(db: DbSessionFactory) ->
     span, trace = seeded.span_evaluator_id, seeded.trace_evaluator_id
 
     assert (activity.evaluated_count, activity.failed_count) == (3, 1)
-    assert activity.lag == _lag(900, 2475, 2655)
     assert activity.cost == _approx(1.75)
     assert activity.groups == (
-        ActivityGroup(project_id, span, 2, 1, _lag(1200, 2550, 2670), _approx(1.75)),
-        ActivityGroup(project_id, trace, 1, 0, _lag(600, 600, 600), None),
+        ActivityGroup(project_id, span, 2, 1, _approx(1.75)),
+        ActivityGroup(project_id, trace, 1, 0, None),
     )
     assert [activity_bin.timestamp for activity_bin in activity.series] == [
         _at(12),
@@ -218,11 +217,10 @@ async def test_server_activity_is_grouped_by_project(db: DbSessionFactory) -> No
     first, second = seeded.first_project_id, seeded.second_project_id
 
     assert (activity.evaluated_count, activity.failed_count) == (3, 2)
-    assert activity.lag == _lag(1200, 3420, 3564)
     assert activity.cost == _approx(3.75)
     assert activity.groups == (
-        ActivityGroup(first, None, 3, 1, _lag(900, 2475, 2655), _approx(1.75)),
-        ActivityGroup(second, None, 0, 1, _lag(3600, 3600, 3600), _approx(2.0)),
+        ActivityGroup(first, None, 3, 1, _approx(1.75)),
+        ActivityGroup(second, None, 0, 1, _approx(2.0)),
     )
     assert [activity_bin.groups for activity_bin in activity.series] == [
         (ActivityBinGroup(first, None, 2, 0, 3, _approx(1170), _approx(0.75), 2),),
@@ -401,7 +399,7 @@ async def test_activity_over_an_empty_range(db: DbSessionFactory) -> None:
         db, project_id=seeded.first_project_id, start=_at(10), end=_at(11), time_bins=_HOURLY
     )
     assert (activity.evaluated_count, activity.failed_count) == (0, 0)
-    assert (activity.lag, activity.cost) == (None, None)
+    assert activity.cost is None
     assert [(group.project_evaluator_id, group.evaluated_count) for group in activity.groups] == [
         (seeded.span_evaluator_id, 0),
         (seeded.trace_evaluator_id, 0),
@@ -428,7 +426,6 @@ async def test_evaluation_activity_graphql(
                     evaluationActivity(timeRange: $timeRange, timeBinConfig: {scale: HOUR}) {
                         evaluatedCount
                         failedCount
-                        lag { p50Seconds p95Seconds p99Seconds }
                         cost
                         groups { projectEvaluator { id } evaluatedCount failedCount cost }
                         series {
@@ -461,11 +458,6 @@ async def test_evaluation_activity_graphql(
     ]
 
     project: dict[str, Any] = response.data["project"]["evaluationActivity"]
-    assert project["lag"] == {
-        "p50Seconds": _approx(900),
-        "p95Seconds": _approx(2475),
-        "p99Seconds": _approx(2655),
-    }
     assert (project["evaluatedCount"], project["failedCount"]) == (3, 1)
     assert project["cost"] == _approx(1.75)
     assert project["groups"] == [

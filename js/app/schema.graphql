@@ -2791,9 +2791,6 @@ type EvaluationActivity {
   """Evaluations given up on in the range."""
   failedCount: Int!
 
-  """Lag of evaluations completed in the range; null if none completed."""
-  lag: EvaluationLag
-
   """
   Cost in USD of the evaluations' traces started in the range; null if none. Evaluators with tracing off write no traces, so their evaluations add no cost.
   """
