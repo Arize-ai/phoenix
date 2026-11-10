@@ -16,7 +16,13 @@ const annotationConfigDraftShape = {
   values: z.array(categoricalValueSchema).optional(),
   lowerBound: z.number().nullable().optional(),
   upperBound: z.number().nullable().optional(),
-  threshold: z.number().nullable().optional(),
+  threshold: z
+    .number()
+    .nullable()
+    .optional()
+    .describe(
+      "continuous and freeform only. For continuous: where good results turn bad, strictly between the bounds; null means their midpoint."
+    ),
 };
 
 export const createAnnotationConfigInputSchema = z.object({

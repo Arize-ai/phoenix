@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f4d0ff39499ce2586c66142d222e212c>>
+ * @generated SignedSource<<157b7d0bb76c89597ab7d22c43a52305>>
  * @lightSyntaxTransform
  */
 
@@ -77,6 +77,7 @@ export type updateAnnotationConfigToolMutation$data = {
       readonly lowerBound: number | null;
       readonly name: string;
       readonly optimizationDirection: OptimizationDirection;
+      readonly threshold: number | null;
       readonly upperBound: number | null;
     } | {
       readonly __typename: "FreeformAnnotationConfig";
@@ -193,6 +194,13 @@ v8 = {
   "abstractKey": null
 },
 v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "threshold",
+  "storageKey": null
+},
+v10 = {
   "kind": "InlineFragment",
   "selections": [
     (v3/*:: as any*/),
@@ -213,12 +221,13 @@ v9 = {
       "kind": "ScalarField",
       "name": "upperBound",
       "storageKey": null
-    }
+    },
+    (v9/*:: as any*/)
   ],
   "type": "ContinuousAnnotationConfig",
   "abstractKey": null
 },
-v10 = {
+v11 = {
   "kind": "InlineFragment",
   "selections": [
     (v3/*:: as any*/),
@@ -226,13 +235,7 @@ v10 = {
     (v5/*:: as any*/),
     (v6/*:: as any*/),
     (v7/*:: as any*/),
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "threshold",
-      "storageKey": null
-    }
+    (v9/*:: as any*/)
   ],
   "type": "FreeformAnnotationConfig",
   "abstractKey": null
@@ -262,8 +265,8 @@ return {
             "selections": [
               (v2/*:: as any*/),
               (v8/*:: as any*/),
-              (v9/*:: as any*/),
-              (v10/*:: as any*/)
+              (v10/*:: as any*/),
+              (v11/*:: as any*/)
             ],
             "storageKey": null
           }
@@ -298,8 +301,8 @@ return {
             "selections": [
               (v2/*:: as any*/),
               (v8/*:: as any*/),
-              (v9/*:: as any*/),
               (v10/*:: as any*/),
+              (v11/*:: as any*/),
               {
                 "kind": "InlineFragment",
                 "selections": [
@@ -317,16 +320,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "cec99a36d365cfc6cb484e3731033b18",
+    "cacheID": "3983f1a36607e7362c706b696d057f50",
     "id": null,
     "metadata": {},
     "name": "updateAnnotationConfigToolMutation",
     "operationKind": "mutation",
-    "text": "mutation updateAnnotationConfigToolMutation(\n  $input: UpdateAnnotationConfigInput!\n) {\n  updateAnnotationConfig(input: $input) {\n    annotationConfig {\n      __typename\n      ... on CategoricalAnnotationConfig {\n        id\n        name\n        description\n        annotationType\n        optimizationDirection\n        values {\n          label\n          score\n        }\n      }\n      ... on ContinuousAnnotationConfig {\n        id\n        name\n        description\n        annotationType\n        optimizationDirection\n        lowerBound\n        upperBound\n      }\n      ... on FreeformAnnotationConfig {\n        id\n        name\n        description\n        annotationType\n        optimizationDirection\n        threshold\n      }\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n  }\n}\n"
+    "text": "mutation updateAnnotationConfigToolMutation(\n  $input: UpdateAnnotationConfigInput!\n) {\n  updateAnnotationConfig(input: $input) {\n    annotationConfig {\n      __typename\n      ... on CategoricalAnnotationConfig {\n        id\n        name\n        description\n        annotationType\n        optimizationDirection\n        values {\n          label\n          score\n        }\n      }\n      ... on ContinuousAnnotationConfig {\n        id\n        name\n        description\n        annotationType\n        optimizationDirection\n        lowerBound\n        upperBound\n        threshold\n      }\n      ... on FreeformAnnotationConfig {\n        id\n        name\n        description\n        annotationType\n        optimizationDirection\n        threshold\n      }\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7802f88e0c4186e672b0313acd6dff6c";
+(node as any).hash = "76eedf28e02c3ab185e3cf7b311ef0da";
 
 export default node;

@@ -1,5 +1,6 @@
 import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
 import { assertUnreachable } from "@phoenix/typeUtils";
+import { getEvaluatorOutputConfigType } from "@phoenix/utils/evaluatorOutputConfigUtils";
 
 import type { OutputConfigDraft } from "./types";
 
@@ -15,7 +16,7 @@ function toOutputConfigDraft(config: AnnotationConfig): OutputConfigDraft {
       })),
     };
   }
-  if ("threshold" in config) {
+  if (getEvaluatorOutputConfigType(config) === "FREEFORM") {
     return {
       kind: "freeform",
       name: config.name,
@@ -31,6 +32,7 @@ function toOutputConfigDraft(config: AnnotationConfig): OutputConfigDraft {
     optimizationDirection: config.optimizationDirection,
     lowerBound: config.lowerBound ?? null,
     upperBound: config.upperBound ?? null,
+    threshold: config.threshold ?? null,
   };
 }
 
@@ -55,13 +57,16 @@ export function fromOutputConfigDraft(
       };
     case "continuous":
       return {
+        annotationType: "CONTINUOUS",
         name: draft.name,
         optimizationDirection: draft.optimizationDirection,
         lowerBound: draft.lowerBound ?? null,
         upperBound: draft.upperBound ?? null,
+        threshold: draft.threshold ?? null,
       };
     case "freeform":
       return {
+        annotationType: "FREEFORM",
         name: draft.name,
         optimizationDirection: draft.optimizationDirection,
         threshold: draft.threshold ?? null,
