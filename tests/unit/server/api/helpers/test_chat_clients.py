@@ -1468,6 +1468,76 @@ class TestResolveProviderApiKey:
             )
         assert api_key == "sk-from-secret"
 
+    @pytest.mark.parametrize(
+        ("stored_value", "expected"),
+        [
+            pytest.param(" sk-from-secret \n", "sk-from-secret", id="stored-key"),
+            pytest.param(" \t\n", "sk-from-env", id="blank-stored-key"),
+        ],
+    )
+    async def test_blank_input_credentials_fall_through(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+        stored_value: str,
+        expected: str,
+    ) -> None:
+        from phoenix.server.encryption import EncryptionService
+
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-from-env")
+        encryption = EncryptionService()
+        async with db() as session:
+            session.add(
+                models.Secret(key="OPENAI_API_KEY", value=encryption.encrypt(stored_value.encode()))
+            )
+            await session.commit()
+        async with db() as session:
+            api_key = await resolve_provider_api_key(
+                credentials=[
+                    GenerativeCredentialInput(env_var_name="OPENAI_API_KEY", value=SecretStr(" \t"))
+                ],
+                session=session,
+                decrypt=encryption.decrypt,
+                env_var_names=("OPENAI_API_KEY",),
+                client_base_url=None,
+                provider_label="OpenAI",
+            )
+        assert api_key == expected
+
+    @pytest.mark.parametrize("stored_value", [None, " \t\n"])
+    async def test_blank_credentials_do_not_bypass_the_custom_endpoint_guard(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+        stored_value: str | None,
+    ) -> None:
+        from phoenix.server.encryption import EncryptionService
+
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-from-env")
+        encryption = EncryptionService()
+        if stored_value is not None:
+            async with db() as session:
+                session.add(
+                    models.Secret(
+                        key="OPENAI_API_KEY", value=encryption.encrypt(stored_value.encode())
+                    )
+                )
+                await session.commit()
+        async with db() as session:
+            with pytest.raises(BadRequest, match="server-configured"):
+                await resolve_provider_api_key(
+                    credentials=[
+                        GenerativeCredentialInput(
+                            env_var_name="OPENAI_API_KEY", value=SecretStr(" \t")
+                        )
+                    ],
+                    session=session,
+                    decrypt=encryption.decrypt,
+                    env_var_names=("OPENAI_API_KEY",),
+                    client_base_url="https://custom.example",
+                    provider_label="OpenAI",
+                )
+
     async def test_env_var_key_with_base_url_is_rejected(
         self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -1792,6 +1862,32 @@ class TestBuiltInProvidersResolveToProviderConfigs:
             )
         async with client._client_factory() as sdk_client:
             assert (sdk_client.organization, sdk_client.project) == ("org-1", "proj-1")
+
+    async def test_empty_optional_env_vars_are_treated_as_unset(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("OPENAI_API_KEY", "server-key")
+        monkeypatch.setenv("OPENAI_ORG_ID", "")
+        monkeypatch.setenv("OPENAI_PROJECT_ID", "   ")
+        monkeypatch.setenv("AWS_ACCESS_KEY_ID", "AKIA123")
+        monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "secret123")
+        monkeypatch.setenv("AWS_SESSION_TOKEN", "")
+        async with db() as session:
+            openai_client = await get_chat_client(
+                model_provider=ModelProvider.OPENAI,
+                model_name="gpt-4o",
+                session=session,
+                decrypt=lambda value: value,
+            )
+            bedrock_client = await get_chat_client(
+                model_provider=ModelProvider.AWS,
+                model_name="anthropic.claude-opus-5-5",
+                session=session,
+                decrypt=lambda value: value,
+            )
+        async with openai_client._client_factory() as sdk_client:
+            assert (sdk_client.organization, sdk_client.project) == (None, None)
+        assert bedrock_client._client_factory is not None
 
 
 def test_the_catalog_lists_each_providers_model_types() -> None:
