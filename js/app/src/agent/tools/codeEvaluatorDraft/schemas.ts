@@ -72,6 +72,12 @@ const continuousOutputConfigDraftSchema = z.object({
   optimizationDirection: optimizationDirectionSchema,
   lowerBound: z.number().nullish(),
   upperBound: z.number().nullish(),
+  threshold: z
+    .number()
+    .nullish()
+    .describe(
+      "Where good results turn bad, strictly between the bounds; null means their midpoint."
+    ),
 });
 
 const freeformOutputConfigDraftSchema = z.object({

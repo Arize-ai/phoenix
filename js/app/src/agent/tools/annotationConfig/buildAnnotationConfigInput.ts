@@ -55,6 +55,7 @@ export function buildAnnotationConfigInput(
           optimizationDirection,
           lowerBound: draft.lowerBound ?? null,
           upperBound: draft.upperBound ?? null,
+          threshold: draft.threshold ?? null,
         },
       };
     case "freeform":

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4dd5e0f70ab27954824234791e3a037f>>
+ * @generated SignedSource<<0bebdea7bc612888bc2544c9d8621aeb>>
  * @lightSyntaxTransform
  */
 
@@ -170,7 +170,8 @@ v11 = {
       "selections": [
         (v6/*:: as any*/),
         (v8/*:: as any*/),
-        (v9/*:: as any*/)
+        (v9/*:: as any*/),
+        (v10/*:: as any*/)
       ],
       "type": "ContinuousAnnotationConfig",
       "abstractKey": null
@@ -312,16 +313,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "39dd6480e45fec44721c094fb2435560",
+    "cacheID": "c4321e38f4b8127f1ff7c46eaad8aaf4",
     "id": null,
     "metadata": {},
     "name": "refreshAnnotationConfigsQuery",
     "operationKind": "query",
-    "text": "query refreshAnnotationConfigsQuery {\n  ...AnnotationConfigTableFragment\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          description\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n        }\n      }\n    }\n  }\n}\n\nfragment AnnotationConfigTableFragment on Query {\n  annotationConfigs {\n    edges {\n      annotationConfig: node {\n        __typename\n        ... on CategoricalAnnotationConfig {\n          id\n          name\n          description\n          annotationType\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          id\n          name\n          description\n          annotationType\n          optimizationDirection\n          upperBound\n          threshold\n          lowerBound\n        }\n        ... on FreeformAnnotationConfig {\n          id\n          name\n          description\n          annotationType\n          optimizationDirection\n          threshold\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query refreshAnnotationConfigsQuery {\n  ...AnnotationConfigTableFragment\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          description\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n          threshold\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n        }\n      }\n    }\n  }\n}\n\nfragment AnnotationConfigTableFragment on Query {\n  annotationConfigs {\n    edges {\n      annotationConfig: node {\n        __typename\n        ... on CategoricalAnnotationConfig {\n          id\n          name\n          description\n          annotationType\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          id\n          name\n          description\n          annotationType\n          optimizationDirection\n          upperBound\n          threshold\n          lowerBound\n        }\n        ... on FreeformAnnotationConfig {\n          id\n          name\n          description\n          annotationType\n          optimizationDirection\n          threshold\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "204122de852bf1c96df075cb2f32badb";
+(node as any).hash = "ed85c31e07748162e057496ded0a3482";
 
 export default node;

@@ -29,7 +29,10 @@ function describeDraft(draft: AnnotationConfigDraft): Record<string, unknown> {
     if (draft.lowerBound != null) base.lowerBound = draft.lowerBound;
     if (draft.upperBound != null) base.upperBound = draft.upperBound;
   }
-  if (draft.type === "freeform" && draft.threshold != null) {
+  if (
+    (draft.type === "continuous" || draft.type === "freeform") &&
+    draft.threshold != null
+  ) {
     base.threshold = draft.threshold;
   }
   return base;

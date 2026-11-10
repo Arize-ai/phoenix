@@ -41,6 +41,7 @@ const query = graphql`
             optimizationDirection
             lowerBound
             upperBound
+            threshold
           }
           ... on FreeformAnnotationConfig {
             optimizationDirection

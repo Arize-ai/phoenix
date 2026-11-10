@@ -47,6 +47,12 @@ const continuousOutputConfigSchema = z.strictObject({
   optimizationDirection: optimizationDirectionSchema,
   lowerBound: z.number().nullish(),
   upperBound: z.number().nullish(),
+  threshold: z
+    .number()
+    .nullish()
+    .describe(
+      "Where good results turn bad, strictly between the bounds; null means their midpoint."
+    ),
 });
 
 const freeformOutputConfigSchema = z.strictObject({
