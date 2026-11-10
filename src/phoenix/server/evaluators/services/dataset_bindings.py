@@ -309,8 +309,7 @@ async def update_dataset_llm_evaluator(
         raise BadRequest(f"Invalid DatasetEvaluator id: {input.dataset_evaluator_id}")
 
     async with context.db() as session:
-        # Edits lock the evaluator row first, so a concurrent delete of its binding or
-        # definition waits for the edit instead of removing rows the edit is writing.
+        # Edits and deletes take the evaluator row first, so they queue instead of deadlocking.
         evaluator_id = await session.scalar(
             select(models.DatasetEvaluators.evaluator_id).where(
                 models.DatasetEvaluators.id == dataset_evaluator_rowid

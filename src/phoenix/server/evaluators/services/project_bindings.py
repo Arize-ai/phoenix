@@ -322,8 +322,7 @@ async def update_project_llm_evaluator(
     await clear_queue_before_enabling(context.db, project_evaluator_id, input.enabled)
     try:
         async with context.db() as session:
-            # Edits lock the evaluator row first, so a concurrent delete of its binding or
-            # definition waits for the edit instead of removing rows the edit is writing.
+            # Edits and deletes take the evaluator row first, so they queue instead of deadlocking.
             evaluator_id = await session.scalar(
                 select(models.ProjectEvaluator.evaluator_id).where(
                     models.ProjectEvaluator.id == project_evaluator_id

@@ -654,8 +654,7 @@ async def patch_llm_evaluator(
         raise BadRequest(str(error)) from error
     try:
         async with context.db() as session:
-            # Edits lock the evaluator row first, so a concurrent delete of its binding or
-            # definition waits for the edit instead of removing rows the edit is writing.
+            # Edits and deletes take the evaluator row first, so they queue instead of deadlocking.
             row = await session.get(models.LLMEvaluator, row_id, with_for_update=True)
             if row is None:
                 raise NotFound(f"LLM evaluator not found: {evaluator_id}")
