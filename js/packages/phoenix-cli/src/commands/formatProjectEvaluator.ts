@@ -73,7 +73,8 @@ function formatProjectEvaluatorsPretty(bindings: ProjectEvaluator[]): string {
     sampling: b.sampling_rate,
     delay: b.evaluation_delay_seconds ?? "",
     enabled: b.enabled ? "yes" : "no",
-    tracing: b.tracing_enabled ? "on" : "off",
+    // Servers older than the setting omit it, and always trace.
+    tracing: b.tracing_enabled === false ? "off" : "on",
     filter: b.filter_condition,
   }));
 

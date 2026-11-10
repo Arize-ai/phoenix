@@ -7,10 +7,6 @@ import { Icon, Icons, Link, Text } from "@phoenix/components";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeRange } from "@phoenix/components/datetime";
-import {
-  EvaluatorAverageCost,
-  EvaluatorCost,
-} from "@phoenix/components/evaluators/EvaluatorCost";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { ProjectLink } from "@phoenix/components/project/ProjectLink";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
@@ -22,13 +18,16 @@ import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
 import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import type { ProjectEvaluatorsTabTableQuery } from "@phoenix/pages/evaluators/project-evaluators/__generated__/ProjectEvaluatorsTabTableQuery.graphql";
 import { getClearableCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
+import {
+  ProjectEvaluatorAverageCost,
+  ProjectEvaluatorCost,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorCost";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
 import { ProjectEvaluatorFailuresCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFailuresCell";
 import { ProjectEvaluatorLagCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorLagCell";
 import { ProjectEvaluatorLoadCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorLoadCell";
 import { ProjectEvaluatorQueueCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueCell";
 import { ProjectEvaluatorStatusCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorStatusCell";
-import { ProjectEvaluatorTracingOffValue } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTracingOffValue";
 
 type QueryData = ProjectEvaluatorsTabTableQuery["response"];
 type TableRow = QueryData["projectEvaluators"]["edges"][number]["node"];
@@ -428,16 +427,13 @@ export function ProjectEvaluatorsTabTable({
         row.tracingEnabled
           ? (row.traceProject.costSummary.total.cost ?? undefined)
           : undefined,
-      cell: ({ row }) =>
-        row.original.tracingEnabled ||
-        row.original.evaluator.kind === "CODE" ? (
-          <EvaluatorCost
-            evaluatorKind={row.original.evaluator.kind}
-            costSummary={row.original.traceProject.costSummary}
-          />
-        ) : (
-          <ProjectEvaluatorTracingOffValue measure="Cost" />
-        ),
+      cell: ({ row }) => (
+        <ProjectEvaluatorCost
+          evaluatorKind={row.original.evaluator.kind}
+          costSummary={row.original.traceProject.costSummary}
+          isTracingEnabled={row.original.tracingEnabled}
+        />
+      ),
     },
     {
       id: "averageCost",
@@ -457,17 +453,14 @@ export function ProjectEvaluatorsTabTable({
           ? cost / runCount
           : undefined;
       },
-      cell: ({ row }) =>
-        row.original.tracingEnabled ||
-        row.original.evaluator.kind === "CODE" ? (
-          <EvaluatorAverageCost
-            evaluatorKind={row.original.evaluator.kind}
-            costSummary={row.original.traceProject.costSummary}
-            runCount={row.original.traceProject.traceCount}
-          />
-        ) : (
-          <ProjectEvaluatorTracingOffValue measure="Cost" />
-        ),
+      cell: ({ row }) => (
+        <ProjectEvaluatorAverageCost
+          evaluatorKind={row.original.evaluator.kind}
+          costSummary={row.original.traceProject.costSummary}
+          runCount={row.original.traceProject.traceCount}
+          isTracingEnabled={row.original.tracingEnabled}
+        />
+      ),
     },
   ];
   const table = useTable({

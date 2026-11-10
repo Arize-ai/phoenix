@@ -27,10 +27,6 @@ import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import type { TimeRangeISOStrings } from "@phoenix/components/datetime";
 import { useTimeRange } from "@phoenix/components/datetime";
-import {
-  EvaluatorAverageCost,
-  EvaluatorCost,
-} from "@phoenix/components/evaluators/EvaluatorCost";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import { SandboxConfigLabel } from "@phoenix/components/sandbox/SandboxConfigLabel";
@@ -66,6 +62,10 @@ import type { ProjectEvaluatorsTable_row$key } from "@phoenix/pages/project/eval
 import type { ProjectEvaluatorsTable_scores$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_scores.graphql";
 import { getClearableCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
 import { ProjectEvaluatorActionMenu } from "@phoenix/pages/project/evaluators/ProjectEvaluatorActionMenu";
+import {
+  ProjectEvaluatorAverageCost,
+  ProjectEvaluatorCost,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorCost";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
 import { ProjectEvaluatorFailuresCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFailuresCell";
 import {
@@ -92,7 +92,6 @@ import {
 import { ProjectEvaluatorSelectionToolbar } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSelectionToolbar";
 import { ProjectEvaluatorsEmptyState } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsEmptyState";
 import { ProjectEvaluatorStatusCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorStatusCell";
-import { ProjectEvaluatorTracingOffValue } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTracingOffValue";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 const PAGE_SIZE = 30;
@@ -679,33 +678,27 @@ export function ProjectEvaluatorsTable({
         header: "total cost",
         size: 120,
         meta: { textAlign: "right" },
-        cell: ({ row }) =>
-          row.original.tracingEnabled ||
-          row.original.evaluator.kind === "CODE" ? (
-            <EvaluatorCost
-              evaluatorKind={row.original.evaluator.kind}
-              costSummary={row.original.traceProject.costSummary}
-            />
-          ) : (
-            <ProjectEvaluatorTracingOffValue measure="Cost" />
-          ),
+        cell: ({ row }) => (
+          <ProjectEvaluatorCost
+            evaluatorKind={row.original.evaluator.kind}
+            costSummary={row.original.traceProject.costSummary}
+            isTracingEnabled={row.original.tracingEnabled}
+          />
+        ),
       },
       {
         id: "averageCost",
         header: "avg cost / evaluation",
         size: 200,
         meta: { textAlign: "right" },
-        cell: ({ row }) =>
-          row.original.tracingEnabled ||
-          row.original.evaluator.kind === "CODE" ? (
-            <EvaluatorAverageCost
-              evaluatorKind={row.original.evaluator.kind}
-              costSummary={row.original.traceProject.costSummary}
-              runCount={row.original.traceProject.traceCount}
-            />
-          ) : (
-            <ProjectEvaluatorTracingOffValue measure="Cost" />
-          ),
+        cell: ({ row }) => (
+          <ProjectEvaluatorAverageCost
+            evaluatorKind={row.original.evaluator.kind}
+            costSummary={row.original.traceProject.costSummary}
+            runCount={row.original.traceProject.traceCount}
+            isTracingEnabled={row.original.tracingEnabled}
+          />
+        ),
       },
       {
         id: "language",

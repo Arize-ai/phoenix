@@ -647,7 +647,9 @@ function addSchedulingOptions(command: Command): Command {
     .option("--disabled", "Deactivate the binding without deleting it")
     .option(
       "--tracing",
-      "Write a trace of each evaluation: inputs, outputs, latency, and token cost (the default)"
+      creating
+        ? "Write a trace of each evaluation: inputs, outputs, latency, and token cost (the default)"
+        : "Write a trace of each evaluation: inputs, outputs, latency, and token cost (omit both to keep the current setting)"
     )
     .option(
       "--no-tracing",
