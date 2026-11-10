@@ -49,8 +49,6 @@ CREATE TABLE public.deployment_secret (
 CREATE TABLE public.eval_span_cursors (
     id BIGINT NOT NULL,
     produced_through_id BIGINT NOT NULL DEFAULT '0'::bigint,
-    observed_high_water_id BIGINT,
-    observed_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_eval_span_cursors PRIMARY KEY (id),

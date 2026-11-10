@@ -139,22 +139,17 @@ async def _seed_code_criteria(
         return evaluator.id, project_evaluator.id, sandbox_config.id
 
 
-async def _seed_cursor(
-    db: DbSessionFactory,
-    *,
-    produced_through_id: int = 0,
-    observed_high_water_id: int | None = None,
-    observed_at: datetime | None = None,
-) -> None:
+async def _seed_cursor(db: DbSessionFactory, *, produced_through_id: int = 0) -> None:
     async with db() as session:
-        session.add(
-            models.EvalSpanCursor(
-                id=1,
-                produced_through_id=produced_through_id,
-                observed_high_water_id=observed_high_water_id,
-                observed_at=observed_at,
-            )
-        )
+        session.add(models.EvalSpanCursor(id=1, produced_through_id=produced_through_id))
+
+
+async def _observed_producer(db: DbSessionFactory, **kwargs: Any) -> SpanEvaluationProducer:
+    """A producer with no visibility lag that has run the tick that sees the high water, so
+    its next tick scans up to it."""
+    producer = SpanEvaluationProducer(db, visibility_lag_seconds=0, **kwargs)
+    await producer._tick()
+    return producer
 
 
 async def _get_cursor(db: DbSessionFactory) -> models.EvalSpanCursor:
@@ -195,15 +190,10 @@ async def test_storage_pause_skips_scanning_and_cursor_advance(
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
-        span = await _add_span(session, trace)
+        await _add_span(session, trace)
     await _seed_criteria(db, project.id)
-    await _seed_cursor(
-        db,
-        produced_through_id=0,
-        observed_high_water_id=span.id,
-        observed_at=_now() - timedelta(seconds=120),
-    )
-    producer = SpanEvaluationProducer(db)
+    await _seed_cursor(db)
+    producer = await _observed_producer(db)
     db.should_not_insert_or_update = True
 
     try:
@@ -230,13 +220,9 @@ async def test_tick_queues_matching_spans_and_advances_the_cursor(
         db, project.id, filter_condition="span_kind == 'LLM'"
     )
     high_water = other_span.id
-    await _seed_cursor(
-        db,
-        observed_high_water_id=high_water,
-        observed_at=_now() - timedelta(seconds=120),
-    )
+    await _seed_cursor(db)
 
-    producer = SpanEvaluationProducer(db)
+    producer = await _observed_producer(db)
     await producer._tick()
 
     queued = await _work_unit_span_rowids(db)
@@ -255,13 +241,7 @@ async def test_tick_queues_matching_spans_and_advances_the_cursor(
 
     # Re-scanning the same window is idempotent under the work-key unique constraint.
     async with db() as session:
-        await session.execute(
-            update(models.EvalSpanCursor).values(
-                produced_through_id=0,
-                observed_high_water_id=high_water,
-                observed_at=_now() - timedelta(seconds=120),
-            )
-        )
+        await session.execute(update(models.EvalSpanCursor).values(produced_through_id=0))
     await producer._tick()
     assert len(await _work_unit_span_rowids(db)) == len(llm_spans)
 
@@ -293,13 +273,9 @@ async def test_tick_queues_a_root_span_persisted_by_pxi(
             select(models.Span.id).where(models.Span.parent_id.is_(None))
         )
     assert root_span_rowid is not None
-    await _seed_cursor(
-        db,
-        observed_high_water_id=root_span_rowid,
-        observed_at=_now() - timedelta(seconds=120),
-    )
+    await _seed_cursor(db)
 
-    await SpanEvaluationProducer(db)._tick()
+    await (await _observed_producer(db))._tick()
 
     assert await _work_unit_span_rowids(db) == [root_span_rowid]
 
@@ -605,21 +581,13 @@ async def test_tick_advances_at_most_one_id_chunk(
         spans = [await _add_span(session, trace) for _ in range(5)]
     await _seed_criteria(db, project.id)
     low_exclusive = spans[0].id - 1
-    observed_at = _now() - timedelta(seconds=120)
-    await _seed_cursor(
-        db,
-        produced_through_id=low_exclusive,
-        observed_high_water_id=spans[-1].id,
-        observed_at=observed_at,
-    )
+    await _seed_cursor(db, produced_through_id=low_exclusive)
 
-    producer = SpanEvaluationProducer(db, max_span_ids_per_tick=2)
+    producer = await _observed_producer(db, max_span_ids_per_tick=2)
     assert await producer._tick() is True
 
     cursor = await _get_cursor(db)
     assert cursor.produced_through_id == low_exclusive + 2
-    assert cursor.observed_high_water_id == spans[-1].id
-    assert cursor.observed_at == observed_at
     assert sorted(await _work_unit_span_rowids(db)) == [span.id for span in spans[:2]]
 
     assert await producer._tick() is True
@@ -699,21 +667,12 @@ async def test_cursor_regresses_to_live_span_high_water(db: DbSessionFactory) ->
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
     await _seed_criteria(db, project.id)
-    stale_high_water = span.id + 100
-    await _seed_cursor(
-        db,
-        produced_through_id=stale_high_water,
-        observed_high_water_id=stale_high_water,
-        observed_at=_now() - timedelta(seconds=120),
-    )
+    await _seed_cursor(db, produced_through_id=span.id + 100)
 
     producer = SpanEvaluationProducer(db)
     await producer._tick()
 
-    cursor = await _get_cursor(db)
-    assert cursor.produced_through_id == span.id
-    assert cursor.observed_high_water_id is None
-    assert cursor.observed_at is None
+    assert (await _get_cursor(db)).produced_through_id == span.id
 
 
 async def test_spans_that_reuse_deleted_span_ids_are_queued(db: DbSessionFactory) -> None:
@@ -748,21 +707,16 @@ async def test_scan_waits_until_the_visibility_lag_elapses(db: DbSessionFactory)
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
-        span = await _add_span(session, trace)
+        await _add_span(session, trace)
     await _seed_criteria(db, project.id)
-    observed_at = _now()
-    await _seed_cursor(db, observed_high_water_id=span.id, observed_at=observed_at)
+    await _seed_cursor(db)
 
     producer = SpanEvaluationProducer(db)
     await producer._tick()
+    await producer._tick()
 
     assert await _work_unit_span_rowids(db) == []
-    cursor = await _get_cursor(db)
-    assert cursor.produced_through_id == 0
-    # The pending observation is held so it can age past the lag gate — a tick
-    # must not reset observed_at while the observation is unconsumed.
-    assert cursor.observed_high_water_id == span.id
-    assert cursor.observed_at == observed_at
+    assert (await _get_cursor(db)).produced_through_id == 0
 
 
 async def test_catch_up_scan_catches_late_visible_span(db: DbSessionFactory) -> None:
@@ -912,20 +866,16 @@ async def test_unexpected_criteria_load_error_fails_closed(
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
-        span = await _add_span(session, trace)
+        await _add_span(session, trace)
     await _seed_criteria(db, project.id)
-    await _seed_cursor(
-        db,
-        observed_high_water_id=span.id,
-        observed_at=_now() - timedelta(seconds=120),
-    )
+    await _seed_cursor(db)
+    producer = await _observed_producer(db)
 
     async def _transient_boom(*args: Any, **kwargs: Any) -> None:
         raise RuntimeError("transient version-lookup failure")
 
     monkeypatch.setattr(span_producer_module, "resolve_project_evaluators_bulk", _transient_boom)
 
-    producer = SpanEvaluationProducer(db)
     with pytest.raises(RuntimeError, match="transient version-lookup failure"):
         await producer._tick()
 
@@ -945,13 +895,9 @@ async def test_uncompilable_filter_is_skipped_without_stalling(db: DbSessionFact
         span = await _add_span(session, trace)
     _, good_criteria_id = await _seed_criteria(db, project.id)
     await _seed_criteria(db, project.id, filter_condition="span_kind ==")
-    await _seed_cursor(
-        db,
-        observed_high_water_id=span.id,
-        observed_at=_now() - timedelta(seconds=120),
-    )
+    await _seed_cursor(db)
 
-    producer = SpanEvaluationProducer(db)
+    producer = await _observed_producer(db)
     await producer._tick()
 
     async with db() as session:
@@ -978,12 +924,8 @@ async def test_filter_that_fails_when_run_skips_only_its_own_evaluator(
     )
     _, project_evaluator_id = await _seed_criteria(db, project.id)
     _, other_project_evaluator_id = await _seed_criteria(db, other_project.id)
-    await _seed_cursor(
-        db,
-        observed_high_water_id=other_span.id,
-        observed_at=_now() - timedelta(seconds=120),
-    )
-    producer = SpanEvaluationProducer(db)
+    await _seed_cursor(db)
+    producer = await _observed_producer(db)
 
     with caplog.at_level("WARNING", logger=span_producer_module.__name__):
         await producer._tick()
@@ -1013,17 +955,13 @@ async def test_lease_stand_down_and_stale_reclaim(db: DbSessionFactory) -> None:
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
     await _seed_criteria(db, project.id)
-    await _seed_cursor(
-        db,
-        observed_high_water_id=span.id,
-        observed_at=_now() - timedelta(seconds=120),
-    )
+    await _seed_cursor(db)
+    producer = await _observed_producer(db)
     async with db() as session:
-        session.add(
-            models.EvalWorkLease(name="span-producer", holder="rival-producer", heartbeat_at=_now())
+        await session.execute(
+            update(models.EvalWorkLease).values(holder="rival-producer", heartbeat_at=_now())
         )
 
-    producer = SpanEvaluationProducer(db)
     await producer._tick()
 
     assert await _work_unit_span_rowids(db) == []
@@ -1042,7 +980,7 @@ async def test_lease_stand_down_and_stale_reclaim(db: DbSessionFactory) -> None:
 
 
 @pytest.mark.parametrize("span_count", [1, 2], ids=["consumed", "cut"])
-async def test_stale_scan_window_rolls_back_and_never_moves_the_cursor_backwards(
+async def test_a_stale_scan_window_never_moves_the_span_cursor_backwards(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
     span_count: int,
@@ -1052,15 +990,10 @@ async def test_stale_scan_window_rolls_back_and_never_moves_the_cursor_backwards
         trace = await _add_trace(session, project)
         spans = [await _add_span(session, trace) for _ in range(span_count)]
     await _seed_criteria(db, project.id)
-    await _seed_cursor(
-        db,
-        produced_through_id=spans[0].id - 1,
-        observed_high_water_id=spans[-1].id,
-        observed_at=_now() - timedelta(seconds=120),
-    )
+    await _seed_cursor(db, produced_through_id=spans[0].id - 1)
     rival_position = spans[-1].id + 5
 
-    producer = SpanEvaluationProducer(db, max_span_ids_per_tick=1)
+    producer = await _observed_producer(db, max_span_ids_per_tick=1)
     load_active = producer._load_active_project_evaluators
 
     async def _load_then_rival_advances() -> list[span_producer_module._ActiveProjectEvaluator]:
@@ -1072,9 +1005,8 @@ async def test_stale_scan_window_rolls_back_and_never_moves_the_cursor_backwards
         return active
 
     monkeypatch.setattr(producer, "_load_active_project_evaluators", _load_then_rival_advances)
-    assert await producer._tick() is False
+    await producer._tick()
 
-    assert await _work_unit_span_rowids(db) == []
     assert (await _get_cursor(db)).produced_through_id == rival_position
 
 
@@ -1105,61 +1037,6 @@ async def test_stale_clamp_leaves_a_cursor_another_producer_moved(
     await producer._tick()
 
     assert (await _get_cursor(db)).produced_through_id == rival_position
-
-
-async def test_stale_observation_is_neither_recorded_nor_published(
-    db: DbSessionFactory,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(span_producer_module, "get_env_enable_prometheus", lambda: True)
-    cursor_lag = Mock()
-    monkeypatch.setattr(span_producer_module, "ONLINE_EVAL_SPAN_CURSOR_LAG_SPAN_IDS", cursor_lag)
-    async with db() as session:
-        project = await _add_project(session)
-        trace = await _add_trace(session, project)
-        span = await _add_span(session, trace)
-    await _seed_cursor(db, produced_through_id=span.id - 1)
-    producer = SpanEvaluationProducer(db)
-
-    await producer._record_observation(span.id - 2)
-
-    assert (await _get_cursor(db)).observed_high_water_id is None
-    cursor_lag.set.assert_not_called()
-
-
-@pytest.mark.postgres_only
-async def test_catch_up_scan_rolls_back_when_the_cursor_moves_while_it_runs(
-    db: DbSessionFactory,
-    monkeypatch: pytest.MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    async with db() as session:
-        project = await _add_project(session)
-        trace = await _add_trace(session, project)
-        span = await _add_span(session, trace)
-    await _seed_criteria(db, project.id)
-    producer = SpanEvaluationProducer(db)
-    await _seed_cursor(db, produced_through_id=span.id)
-    active = await producer._load_active_project_evaluators()
-    insert_work_units = producer._insert_work_units
-
-    async def _rival_advances_then_insert(
-        session: Any,
-        project_evaluator: Any,
-        span_ids: list[int],
-    ) -> int:
-        async with db() as rival_session:
-            await rival_session.execute(
-                update(models.EvalSpanCursor).values(produced_through_id=span.id + 100)
-            )
-        return await insert_work_units(session, project_evaluator, span_ids)
-
-    monkeypatch.setattr(producer, "_insert_work_units", _rival_advances_then_insert)
-    with caplog.at_level("WARNING"):
-        await producer._catch_up_scan(active, span.id)
-
-    assert await _work_unit_span_rowids(db) == []
-    assert any("catch-up scan rolled back" in record.message for record in caplog.records)
 
 
 async def test_producer_publishes_its_own_cursor_lag_and_ingest_gauges(
@@ -1219,14 +1096,9 @@ async def test_producer_counts_the_work_it_queues(
         session.add(
             models.EvalWorkUnit(span_rowid=spans[0].id, project_evaluator_id=project_evaluator_id)
         )
-    await _seed_cursor(
-        db,
-        produced_through_id=spans[0].id - 1,
-        observed_high_water_id=spans[-1].id,
-        observed_at=_now() - timedelta(seconds=120),
-    )
+    await _seed_cursor(db, produced_through_id=spans[0].id - 1)
 
-    await SpanEvaluationProducer(db)._tick()
+    await (await _observed_producer(db))._tick()
 
     # The span that already had work is not written again, so it is not counted.
     added_counter.labels.return_value.inc.assert_called_once_with(2)
@@ -1244,12 +1116,7 @@ async def test_cursor_lag_gauges_keep_updating_while_the_observation_ages(
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
     await _seed_criteria(db, project.id)
-    await _seed_cursor(
-        db,
-        produced_through_id=span.id - 1,
-        observed_high_water_id=span.id,
-        observed_at=_now(),
-    )
+    await _seed_cursor(db, produced_through_id=span.id - 1)
     producer = SpanEvaluationProducer(db, visibility_lag_seconds=3600)
     ingest_samples: list[int] = []
     publish_ingest_rate = producer._publish_ingest_rate

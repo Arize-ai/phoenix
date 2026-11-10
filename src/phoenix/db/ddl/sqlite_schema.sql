@@ -47,8 +47,6 @@ CREATE TABLE deployment_secret (
 CREATE TABLE eval_span_cursors (
     id INTEGER NOT NULL CONSTRAINT "ck_eval_span_cursors_`single_row`" CHECK (id = 1),
     produced_through_id INTEGER DEFAULT '0' NOT NULL,
-    observed_high_water_id INTEGER,
-    observed_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT pk_eval_span_cursors PRIMARY KEY (id)

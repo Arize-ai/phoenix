@@ -285,8 +285,6 @@ def upgrade() -> None:
             nullable=False,
             server_default="0",
         ),
-        sa.Column("observed_high_water_id", _Integer, nullable=True),
-        sa.Column("observed_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),

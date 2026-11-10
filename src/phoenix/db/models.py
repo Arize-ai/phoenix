@@ -4236,8 +4236,6 @@ class EvalSpanCursor(Base):
         autoincrement=False,
     )
     produced_through_id: Mapped[int] = mapped_column(_Integer, nullable=False, server_default="0")
-    observed_high_water_id: Mapped[Optional[int]] = mapped_column(_Integer)
-    observed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
 
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

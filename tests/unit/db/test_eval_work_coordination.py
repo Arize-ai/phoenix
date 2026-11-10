@@ -331,8 +331,6 @@ async def test_eval_span_cursor_defaults(db: DbSessionFactory) -> None:
         fetched = await session.get(models.EvalSpanCursor, 1)
         assert fetched is not None
         assert fetched.produced_through_id == 0
-        assert fetched.observed_high_water_id is None
-        assert fetched.observed_at is None
 
 
 async def test_eval_span_cursor_holds_a_single_row(db: DbSessionFactory) -> None:
