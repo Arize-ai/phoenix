@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<85fcc0b9b0abc78a156ab6d57569ff51>>
+ * @generated SignedSource<<8a72b14c854b502be5cf6eb5b5b5a79c>>
  * @lightSyntaxTransform
  */
 
@@ -9,6 +9,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type EvaluationQueueStatus = "DEGRADED" | "HEALTHY";
+export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
 export type EvaluatorKind = "BUILTIN" | "CODE" | "DECISION" | "LLM";
 export type ProjectEvaluatorRunStatus = "DEGRADED" | "DISABLED" | "ERROR" | "HEALTHY" | "NEVER_RUN" | "STARTING";
 export type TimeRange = {
@@ -33,6 +34,7 @@ export type ProjectEvaluatorsTabTableQuery$data = {
           readonly meanEvaluationSeconds: number | null;
           readonly shareOfEvaluationTime: number | null;
         };
+        readonly evaluationTarget: EvaluationTarget;
         readonly evaluator: {
           readonly kind: EvaluatorKind;
         };
@@ -159,6 +161,13 @@ v7 = {
 v8 = {
   "alias": null,
   "args": null,
+  "kind": "ScalarField",
+  "name": "evaluationTarget",
+  "storageKey": null
+},
+v9 = {
+  "alias": null,
+  "args": null,
   "concreteType": "Project",
   "kind": "LinkedField",
   "name": "project",
@@ -169,28 +178,28 @@ v8 = {
   ],
   "storageKey": null
 },
-v9 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "kind",
   "storageKey": null
 },
-v10 = {
+v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "evaluatedCount",
   "storageKey": null
 },
-v11 = {
+v12 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "failedCount",
   "storageKey": null
 },
-v12 = {
+v13 = {
   "alias": null,
   "args": null,
   "concreteType": "ProjectEvaluatorRunSummary",
@@ -214,8 +223,8 @@ v12 = {
       "name": "runningCount",
       "storageKey": null
     },
-    (v10/*:: as any*/),
     (v11/*:: as any*/),
+    (v12/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -233,7 +242,7 @@ v12 = {
   ],
   "storageKey": null
 },
-v13 = {
+v14 = {
   "alias": null,
   "args": null,
   "concreteType": "ProjectEvaluatorEvaluationLoad",
@@ -265,23 +274,23 @@ v13 = {
   ],
   "storageKey": null
 },
-v14 = [
+v15 = [
   {
     "kind": "Variable",
     "name": "timeRange",
     "variableName": "timeRange"
   }
 ],
-v15 = {
+v16 = {
   "alias": null,
-  "args": (v14/*:: as any*/),
+  "args": (v15/*:: as any*/),
   "concreteType": "ProjectEvaluatorFailureSummary",
   "kind": "LinkedField",
   "name": "failureSummary",
   "plural": false,
   "selections": [
+    (v12/*:: as any*/),
     (v11/*:: as any*/),
-    (v10/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -306,9 +315,9 @@ v15 = {
   ],
   "storageKey": null
 },
-v16 = {
+v17 = {
   "alias": null,
-  "args": (v14/*:: as any*/),
+  "args": (v15/*:: as any*/),
   "concreteType": "EvaluationLag",
   "kind": "LinkedField",
   "name": "lag",
@@ -338,7 +347,7 @@ v16 = {
   ],
   "storageKey": null
 },
-v17 = [
+v18 = [
   {
     "alias": null,
     "args": null,
@@ -347,7 +356,7 @@ v17 = [
     "storageKey": null
   }
 ],
-v18 = {
+v19 = {
   "alias": null,
   "args": null,
   "concreteType": "Project",
@@ -358,14 +367,14 @@ v18 = {
     (v5/*:: as any*/),
     {
       "alias": null,
-      "args": (v14/*:: as any*/),
+      "args": (v15/*:: as any*/),
       "kind": "ScalarField",
       "name": "traceCount",
       "storageKey": null
     },
     {
       "alias": null,
-      "args": (v14/*:: as any*/),
+      "args": (v15/*:: as any*/),
       "concreteType": "SpanCostSummary",
       "kind": "LinkedField",
       "name": "costSummary",
@@ -378,7 +387,7 @@ v18 = {
           "kind": "LinkedField",
           "name": "total",
           "plural": false,
-          "selections": (v17/*:: as any*/),
+          "selections": (v18/*:: as any*/),
           "storageKey": null
         },
         {
@@ -388,7 +397,7 @@ v18 = {
           "kind": "LinkedField",
           "name": "prompt",
           "plural": false,
-          "selections": (v17/*:: as any*/),
+          "selections": (v18/*:: as any*/),
           "storageKey": null
         },
         {
@@ -398,7 +407,7 @@ v18 = {
           "kind": "LinkedField",
           "name": "completion",
           "plural": false,
-          "selections": (v17/*:: as any*/),
+          "selections": (v18/*:: as any*/),
           "storageKey": null
         }
       ],
@@ -443,6 +452,7 @@ return {
                   (v6/*:: as any*/),
                   (v7/*:: as any*/),
                   (v8/*:: as any*/),
+                  (v9/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -451,15 +461,15 @@ return {
                     "name": "evaluator",
                     "plural": false,
                     "selections": [
-                      (v9/*:: as any*/)
+                      (v10/*:: as any*/)
                     ],
                     "storageKey": null
                   },
-                  (v12/*:: as any*/),
                   (v13/*:: as any*/),
-                  (v15/*:: as any*/),
+                  (v14/*:: as any*/),
                   (v16/*:: as any*/),
-                  (v18/*:: as any*/)
+                  (v17/*:: as any*/),
+                  (v19/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -508,6 +518,7 @@ return {
                   (v6/*:: as any*/),
                   (v7/*:: as any*/),
                   (v8/*:: as any*/),
+                  (v9/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -523,16 +534,16 @@ return {
                         "name": "__typename",
                         "storageKey": null
                       },
-                      (v9/*:: as any*/),
+                      (v10/*:: as any*/),
                       (v5/*:: as any*/)
                     ],
                     "storageKey": null
                   },
-                  (v12/*:: as any*/),
                   (v13/*:: as any*/),
-                  (v15/*:: as any*/),
+                  (v14/*:: as any*/),
                   (v16/*:: as any*/),
-                  (v18/*:: as any*/)
+                  (v17/*:: as any*/),
+                  (v19/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -545,16 +556,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "26a61fbb07665bc6ad2b342438a98635",
+    "cacheID": "92537a46ab7997bd41c2bdf87b781747",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorsTabTableQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorsTabTableQuery(\n  $first: Int!\n  $timeRange: TimeRange!\n) {\n  evaluationQueue {\n    status\n    queuedCount\n  }\n  projectEvaluators(first: $first) {\n    edges {\n      node {\n        id\n        name\n        enabled\n        project {\n          id\n          name\n        }\n        evaluator {\n          __typename\n          kind\n          id\n        }\n        runSummary {\n          status\n          lastRunAt\n          queuedCount\n          runningCount\n          evaluatedCount\n          failedCount\n          clearedCount\n          oldestWaitingOrRetryingAt\n        }\n        evaluationLoad {\n          evaluationCount\n          meanEvaluationSeconds\n          shareOfEvaluationTime\n        }\n        failureSummary(timeRange: $timeRange) {\n          failedCount\n          evaluatedCount\n          failureRate\n          lastFailedAt\n          lastError\n        }\n        lag(timeRange: $timeRange) {\n          p50Seconds\n          p95Seconds\n          p99Seconds\n        }\n        traceProject {\n          id\n          traceCount(timeRange: $timeRange)\n          costSummary(timeRange: $timeRange) {\n            total {\n              cost\n            }\n            prompt {\n              cost\n            }\n            completion {\n              cost\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query ProjectEvaluatorsTabTableQuery(\n  $first: Int!\n  $timeRange: TimeRange!\n) {\n  evaluationQueue {\n    status\n    queuedCount\n  }\n  projectEvaluators(first: $first) {\n    edges {\n      node {\n        id\n        name\n        enabled\n        evaluationTarget\n        project {\n          id\n          name\n        }\n        evaluator {\n          __typename\n          kind\n          id\n        }\n        runSummary {\n          status\n          lastRunAt\n          queuedCount\n          runningCount\n          evaluatedCount\n          failedCount\n          clearedCount\n          oldestWaitingOrRetryingAt\n        }\n        evaluationLoad {\n          evaluationCount\n          meanEvaluationSeconds\n          shareOfEvaluationTime\n        }\n        failureSummary(timeRange: $timeRange) {\n          failedCount\n          evaluatedCount\n          failureRate\n          lastFailedAt\n          lastError\n        }\n        lag(timeRange: $timeRange) {\n          p50Seconds\n          p95Seconds\n          p99Seconds\n        }\n        traceProject {\n          id\n          traceCount(timeRange: $timeRange)\n          costSummary(timeRange: $timeRange) {\n            total {\n              cost\n            }\n            prompt {\n              cost\n            }\n            completion {\n              cost\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6168b2704e67f5852f4292486ca32cc8";
+(node as any).hash = "2e9b736c53d33ff14597e6864419a835";
 
 export default node;

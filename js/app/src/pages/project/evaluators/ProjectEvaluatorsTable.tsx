@@ -92,6 +92,7 @@ import {
 import { ProjectEvaluatorSelectionToolbar } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSelectionToolbar";
 import { ProjectEvaluatorsEmptyState } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsEmptyState";
 import { ProjectEvaluatorStatusCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorStatusCell";
+import { ProjectEvaluatorTargetIcon } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTargetIcon";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 const PAGE_SIZE = 30;
@@ -534,9 +535,14 @@ export function ProjectEvaluatorsTable({
         size: 200,
         accessorKey: "name",
         cell: ({ getValue, row }) => (
-          <Link to={paths.details(row.original.id)}>
-            <Truncate maxWidth="100%">{getValue() as string}</Truncate>
-          </Link>
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <ProjectEvaluatorTargetIcon
+              target={row.original.evaluationTarget}
+            />
+            <Link to={paths.details(row.original.id)}>
+              <Truncate maxWidth="100%">{getValue() as string}</Truncate>
+            </Link>
+          </Flex>
         ),
       },
       {

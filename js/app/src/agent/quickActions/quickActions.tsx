@@ -116,7 +116,7 @@ const QUICK_ACTIONS_BY_CONTEXT: Partial<
   ],
   session: [
     {
-      icon: <Icons.MessageSquare />,
+      icon: <Icons.MessagesSquare />,
       label: "Summarize this session",
       prompt: "Summarize what happened in this session.",
     },

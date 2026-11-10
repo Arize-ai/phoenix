@@ -26,7 +26,7 @@ const routeNavigationMetadataSchema = z
       "Key",
       "Link2",
       "MessageCircle",
-      "MessageSquare",
+      "MessagesSquare",
       "Options",
       "Person",
       "PlayCircle",

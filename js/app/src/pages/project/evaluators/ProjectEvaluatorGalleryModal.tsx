@@ -1,5 +1,12 @@
 import { css } from "@emotion/react";
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Header, ListBoxSection } from "react-aria-components";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useNavigate, useParams } from "react-router";
@@ -66,6 +73,7 @@ import {
   type LlmProjectEvaluatorDetails,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
 import { useProjectEvaluatorCreationPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
+import { getProjectEvaluatorTargetIconSvg } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTargetIcon";
 import {
   getProjectEvaluatorTemplateCategoryLabel,
   getProjectEvaluatorTemplateChoices,
@@ -840,12 +848,7 @@ function EvaluatorTypeSummary({
 }) {
   const kindLabel = EVALUATOR_KIND_LABELS[evaluatorKind];
   const languageLabel = language ? CODE_LANGUAGE_LABELS[language] : undefined;
-  const targetsLabel = evaluationTargets
-    ?.map((target) => capitalize(formatEvaluationTargetPlural(target)))
-    .join(", ");
-  const summary = [kindLabel, languageLabel, targetsLabel]
-    .filter(Boolean)
-    .join(" • ");
+  const summary = [kindLabel, languageLabel].filter(Boolean).join(" • ");
   return (
     <Text
       className="project-evaluator-gallery__evaluator-type-summary"
@@ -854,6 +857,18 @@ function EvaluatorTypeSummary({
       fontFamily="mono"
     >
       {summary}
+      {evaluationTargets?.map((target, index) => (
+        <Fragment key={target}>
+          {index === 0 ? " • " : ", "}
+          <span className="project-evaluator-gallery__evaluator-target">
+            <Icon
+              svg={getProjectEvaluatorTargetIconSvg(target)}
+              aria-hidden="true"
+            />
+            {capitalize(formatEvaluationTargetPlural(target))}
+          </span>
+        </Fragment>
+      ))}
     </Text>
   );
 }
@@ -1543,6 +1558,13 @@ const galleryCSS = css`
 
   .project-evaluator-gallery__evaluator-type-summary {
     width: 100%;
+  }
+
+  .project-evaluator-gallery__evaluator-target {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--global-dimension-size-50);
+    vertical-align: bottom;
   }
 
   .project-evaluator-gallery__definition-list {
