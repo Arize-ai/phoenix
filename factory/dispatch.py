@@ -35,6 +35,10 @@ VAULT_LOCK_KEY = "./vaults/github.yaml"
 GRAFANA_VAULT_LOCK_KEY = "./vaults/grafana.yaml"
 DATADOG_VAULT_LOCK_KEY = "./vaults/datadog.yaml"
 FACTORY_LABEL = "factory"
+PREVIEW_LABEL = "factory-preview"
+PREVIEW_LABEL_COLOR = "0E8A16"
+PREVIEW_LABEL_DESCRIPTION = "Deploy a seeded preview of this PR (Factory Preview)"
+PREVIEW_LANES = {"bug", "feature"}
 
 LANE_AGENT_LOCK_KEYS = {
     "docs": "./agents/docs-writer.md",
@@ -165,6 +169,27 @@ def report_on_status_comment(
             )
         except subprocess.CalledProcessError as error:
             print(f"::warning::Deleting status comment {comment_id} failed: {error}")
+
+
+def add_preview_label(*, pr_number: int, token: Optional[str]) -> bool:
+    try:
+        existing = run_gh("label", "list", "--search", PREVIEW_LABEL, "--json", "name", token=token)
+        if PREVIEW_LABEL not in {label["name"] for label in json.loads(existing)}:
+            run_gh(
+                "label",
+                "create",
+                PREVIEW_LABEL,
+                "--color",
+                PREVIEW_LABEL_COLOR,
+                "--description",
+                PREVIEW_LABEL_DESCRIPTION,
+                token=token,
+            )
+        run_gh("pr", "edit", str(pr_number), "--add-label", PREVIEW_LABEL, token=token)
+        return True
+    except subprocess.CalledProcessError as error:
+        print(f"::warning::Could not add the {PREVIEW_LABEL} label: {error.stderr}")
+        return False
 
 
 def remove_factory_label(*, issue_number: int, token: Optional[str]) -> None:
@@ -584,6 +609,7 @@ def watch_session(
     else:
         status_line = f"left {pr['url']} before CI finished"
         ready_at = datetime.min.replace(tzinfo=timezone.utc)
+        preview_labeled = False
         for feedback_round in range(MAX_FEEDBACK_ROUNDS + 1):
             failing_checks = wait_for_required_checks(pr_number=pr["number"], deadline=deadline)
             if failing_checks is None:
@@ -603,6 +629,10 @@ def watch_session(
                     # Leaving draft is what starts the automated code review.
                     ready_at = datetime.now(timezone.utc) - timedelta(minutes=1)
                     run_gh("pr", "ready", str(pr["number"]), token=app_token.refresh())
+                if lane in PREVIEW_LANES and not preview_labeled:
+                    preview_labeled = add_preview_label(
+                        pr_number=pr["number"], token=app_token.refresh()
+                    )
                 if not wait_for_review_run(
                     head_sha=pr["headRefOid"], created_after=ready_at, deadline=deadline
                 ):
