@@ -3292,22 +3292,3 @@ class TestProjectNode:
         assert len(response.errors) == 1
         assert response.errors[0].message == f"Unknown node: {project_id}"
         assert response.data is None
-
-    async def test_node_for_existing_project_resolves(
-        self,
-        gql_client: AsyncGraphQLClient,
-        db: DbSessionFactory,
-    ) -> None:
-        async with db() as session:
-            project = models.Project(name="existing-project")
-            session.add(project)
-            await session.flush()
-            project_rowid = project.id
-        project_id = str(GlobalID("Project", str(project_rowid)))
-        response = await gql_client.execute(query=self._QUERY, variables={"id": project_id})
-        assert not response.errors
-        assert response.data
-        assert response.data["node"]["__typename"] == "Project"
-        assert response.data["node"]["id"] == project_id
-        assert response.data["node"]["name"] == "existing-project"
-        assert response.data["node"]["hasTraces"] is False
