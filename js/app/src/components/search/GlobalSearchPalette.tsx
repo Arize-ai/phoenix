@@ -31,7 +31,7 @@ const RESOURCE_ICONS: Record<RecentlyViewedResourceType, ReactNode> = {
   project: <Icon svg={<Icons.Trace />} />,
   dataset: <Icon svg={<Icons.Database />} />,
   experiment: <Icon svg={<Icons.Experiment />} />,
-  prompt: <Icon svg={<Icons.MessageSquare />} />,
+  prompt: <Icon svg={<Icons.MessagesSquare />} />,
 };
 
 /**
