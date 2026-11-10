@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b20a8d73d98a570e165d9dcc893fcb0c>>
+ * @generated SignedSource<<6f553803ac9031d4f81f3608085007f2>>
  * @lightSyntaxTransform
  */
 
@@ -175,8 +175,10 @@ export type EditCustomProviderButtonPatchMutation$data = {
   readonly patchGenerativeModelCustomProvider: {
     readonly provider: {
       readonly createdAt: string;
+      readonly decisionModelNames: ReadonlyArray<string>;
       readonly description: string | null;
       readonly id: string;
+      readonly modelNames: ReadonlyArray<string>;
       readonly modelTypes: ReadonlyArray<ModelType>;
       readonly name: string;
       readonly provider: string;
@@ -309,6 +311,26 @@ v11 = {
     (v5/*:: as any*/),
     (v6/*:: as any*/),
     (v7/*:: as any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "modelNames",
+      "storageKey": null
+    },
+    {
+      "alias": "decisionModelNames",
+      "args": [
+        {
+          "kind": "Literal",
+          "name": "modelType",
+          "value": "DECISION"
+        }
+      ],
+      "kind": "ScalarField",
+      "name": "modelNames",
+      "storageKey": "modelNames(modelType:\"DECISION\")"
+    },
     (v8/*:: as any*/),
     (v9/*:: as any*/),
     (v10/*:: as any*/)
@@ -510,16 +532,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "cd71e290c0b08ca6c0b9e7ea1dab86e3",
+    "cacheID": "113b8d7f46e755de049ffadcfd279891",
     "id": null,
     "metadata": {},
     "name": "EditCustomProviderButtonPatchMutation",
     "operationKind": "mutation",
-    "text": "mutation EditCustomProviderButtonPatchMutation(\n  $input: PatchGenerativeModelCustomProviderMutationInput!\n) {\n  patchGenerativeModelCustomProvider(input: $input) {\n    provider {\n      id\n      name\n      description\n      sdk\n      provider\n      modelTypes\n      createdAt\n      updatedAt\n      user {\n        id\n        username\n        profilePictureUrl\n      }\n    }\n    query {\n      ...CustomProvidersCard_data\n    }\n  }\n}\n\nfragment CustomProvidersCard_data on Query {\n  generativeModelCustomProviders(first: 50) {\n    edges {\n      node {\n        id\n        name\n        description\n        sdk\n        provider\n        modelTypes\n        createdAt\n        updatedAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n        config {\n          __typename\n          ... on UnparsableConfig {\n            parseError\n          }\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "mutation EditCustomProviderButtonPatchMutation(\n  $input: PatchGenerativeModelCustomProviderMutationInput!\n) {\n  patchGenerativeModelCustomProvider(input: $input) {\n    provider {\n      id\n      name\n      description\n      sdk\n      provider\n      modelTypes\n      modelNames\n      decisionModelNames: modelNames(modelType: DECISION)\n      createdAt\n      updatedAt\n      user {\n        id\n        username\n        profilePictureUrl\n      }\n    }\n    query {\n      ...CustomProvidersCard_data\n    }\n  }\n}\n\nfragment CustomProvidersCard_data on Query {\n  generativeModelCustomProviders(first: 50) {\n    edges {\n      node {\n        id\n        name\n        description\n        sdk\n        provider\n        modelTypes\n        createdAt\n        updatedAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n        config {\n          __typename\n          ... on UnparsableConfig {\n            parseError\n          }\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "04553d8873b56710a39dc1af0cc3e14b";
+(node as any).hash = "6df20cec2f253539c9a5e3d6a129b44d";
 
 export default node;

@@ -173,6 +173,8 @@ function EditCustomProviderDialogContent({
             sdk
             provider
             modelTypes
+            modelNames
+            decisionModelNames: modelNames(modelType: DECISION)
             createdAt
             updatedAt
             user {
