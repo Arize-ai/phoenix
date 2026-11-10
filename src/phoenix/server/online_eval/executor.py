@@ -10,7 +10,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from collections import Counter
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from enum import Enum
@@ -45,7 +44,6 @@ from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.db.trace_aggregates import SPAN_ROWID, representative_root_span_by_trace
 from phoenix.db.types.annotation_configs import (
-    CategoricalOutputConfig,
     OutputConfigType,
     as_output_configs,
 )
@@ -75,7 +73,6 @@ from phoenix.server.evaluators.runtime.base import (
 )
 from phoenix.server.evaluators.runtime.builtin import get_builtin_evaluator_by_key
 from phoenix.server.evaluators.runtime.code import CodeEvaluatorRunner
-from phoenix.server.evaluators.runtime.decision import parse_decision_annotation
 from phoenix.server.evaluators.runtime.llm import LLMEvaluator
 from phoenix.server.evaluators.snapshots import capture_decision_evaluator_definition
 from phoenix.server.online_eval import session_policy
@@ -92,7 +89,7 @@ from phoenix.server.online_eval.derivation import (
     annotation_identifier,
     config_fingerprint,
 )
-from phoenix.server.online_eval.failure_policy import FailureDisposition, is_transient_error
+from phoenix.server.online_eval.failure_policy import is_transient_error
 from phoenix.server.online_eval.project_evaluator_resolution import (
     PolymorphicEvaluator,
     resolve_project_evaluators_bulk,
@@ -121,15 +118,6 @@ EvaluatorKind = Literal["LLM", "CODE", "BUILTIN", "DECISION"]
 
 class EvalExecutionError(Exception):
     """The evaluator ran but produced no writable result."""
-
-
-class EvaluatorResultValidationError(EvalExecutionError):
-    """The evaluator returned a result that violates its output contract."""
-
-    online_eval_disposition = FailureDisposition(
-        count_attempt=True,
-        code="EVALUATOR_RESULT_INVALID",
-    )
 
 
 class OnlineEvalStoragePaused(Exception):
@@ -475,11 +463,6 @@ async def load_trace_eval_context(
         events=root_span.events,
         annotations=annotations,
     )
-
-
-def _is_refusal(result: EvaluationResult) -> bool:
-    decision = parse_decision_annotation(result["metadata"])
-    return decision is not None and decision.status == "refused"
 
 
 def _evaluator_trace_metadata(result: EvaluationResult) -> dict[str, Any]:
@@ -1170,40 +1153,6 @@ class OnlineEvalExecutor:
         errored = [result for result in results if result["error"] is not None]
         if errored:
             raise EvalExecutionError(errored[0]["error"]) from errored[0].get("error_exc")
-        if hydrated.evaluator_kind != "BUILTIN":
-            # Built-ins retain their evaluator-defined result-name contract.
-            output_configs_by_name = dict(
-                zip(
-                    result_annotation_names(hydrated.annotation_name, hydrated.output_configs),
-                    hydrated.output_configs,
-                )
-            )
-            returned_name_counts = Counter(result["name"] for result in results)
-            invalid_counts = {
-                name: returned_name_counts.get(name, 0)
-                for name in output_configs_by_name
-                if returned_name_counts.get(name, 0) != 1
-            }
-            unexpected = sorted(returned_name_counts.keys() - output_configs_by_name.keys())
-            if invalid_counts or unexpected:
-                raise EvaluatorResultValidationError(
-                    "evaluator returned an invalid result set: "
-                    f"counts={invalid_counts}, unexpected={unexpected}"
-                )
-            for result in results:
-                output_config = output_configs_by_name[result["name"]]
-                if not isinstance(output_config, CategoricalOutputConfig):
-                    continue
-                if hydrated.evaluator_kind == "DECISION" and _is_refusal(result):
-                    # A refusal is an answer with neither label nor score.
-                    continue
-                label = result["label"]
-                allowed_labels = {value.label for value in output_config.values}
-                if not isinstance(label, str) or label not in allowed_labels:
-                    raise EvaluatorResultValidationError(
-                        f"categorical output {result['name']!r} returned invalid label "
-                        f"{label!r}; expected one of {sorted(allowed_labels)!r}"
-                    )
         target_spec = self._target_spec
         records = [
             {

@@ -963,13 +963,7 @@ class EvaluatorTaskWorkItem(ExampleWorkItem):
         """Persist and broadcast what the evaluator returned, error results included."""
         end_time = datetime.now(timezone.utc)
         db_traces = list(tracer.get_db_traces(project_id=self._project_id))
-        annotations: list[models.ExperimentRunAnnotation] = []
-        seen_names: set[str] = set()
-        for result in eval_results:
-            annotation = evaluation_result_to_model(result)
-            if annotation.name not in seen_names:
-                seen_names.add(annotation.name)
-                annotations.append(annotation)
+        annotations = [evaluation_result_to_model(result) for result in eval_results]
         error_result = next((r for r in eval_results if r.get("error") is not None), None)
         db_run = models.ExperimentRun(
             experiment_id=self._experiment.id,
@@ -1398,16 +1392,10 @@ class EvalWorkItem(WorkItem):
                 db_traces: list[models.Trace] = list(
                     tracer.get_db_traces(project_id=self._project_id)
                 )
-                annotations: list[models.ExperimentRunAnnotation] = []
-                seen_names: set[str] = set()
-                for result in eval_results:
-                    annotation = evaluation_result_to_model(
-                        result,
-                        experiment_run_id=self._experiment_run.id,
-                    )
-                    if annotation.name not in seen_names:
-                        seen_names.add(annotation.name)
-                        annotations.append(annotation)
+                annotations = [
+                    evaluation_result_to_model(result, experiment_run_id=self._experiment_run.id)
+                    for result in eval_results
+                ]
 
         except TimeoutError:
             logger.warning(f"EvalWorkItem {self.debug_identifier} timed out")

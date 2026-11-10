@@ -89,7 +89,6 @@ from phoenix.server.online_eval.derivation import (
 )
 from phoenix.server.online_eval.executor import (
     EvalExecutionError,
-    EvaluatorResultValidationError,
     HydratedWorkUnit,
     HydrationFailure,
     HydrationFailureReason,
@@ -2549,98 +2548,6 @@ async def test_an_evaluation_cut_off_at_its_deadline_still_leaves_its_trace(
             .where(models.ProjectEvaluator.id == project_evaluator_id)
         )
     assert traced_span_count
-
-
-async def test_llm_incomplete_result_set_writes_nothing(db: DbSessionFactory) -> None:
-    async with db() as session:
-        project = await _add_project(session)
-        trace = await _add_trace(session, project)
-        span = await _add_span(session, trace)
-    output_configs = [_output_config("quality"), _output_config("relevance")]
-    hydrated = _hydrated_stub(
-        results=[_evaluation_result("criterion.quality")],
-        evaluator_kind="LLM",
-        output_configs=output_configs,
-    )
-    executor = _executor(db, tracer_factory=lambda: Tracer(span_cost_calculator=Mock()))
-    unit = await _claim_queued_unit(
-        db,
-        project_id=project.id,
-        span_rowid=span.id,
-    )
-
-    with pytest.raises(EvalExecutionError, match="invalid result set"):
-        await executor.evaluate_and_annotate(unit, hydrated)
-
-    assert await _annotations(db) == []
-    # A failed evaluation is exactly when its trace is worth reading, so the
-    # trace is written even though the evaluation wrote no annotation.
-    async with db() as session:
-        traced_span_count = await session.scalar(
-            select(func.count(models.Span.id))
-            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
-            .join(
-                models.ProjectEvaluator,
-                models.Trace.project_rowid == models.ProjectEvaluator.trace_project_id,
-            )
-            .where(models.ProjectEvaluator.id == unit.project_evaluator_id)
-        )
-    assert traced_span_count
-
-
-async def test_duplicate_output_name_writes_nothing(db: DbSessionFactory) -> None:
-    async with db() as session:
-        project = await _add_project(session)
-        trace = await _add_trace(session, project)
-        span = await _add_span(session, trace)
-    hydrated = _hydrated_stub(
-        results=[
-            _evaluation_result("criterion"),
-            _evaluation_result("criterion"),
-        ],
-        evaluator_kind="LLM",
-        output_configs=[_output_config("quality")],
-    )
-    executor = _executor(db)
-    unit = await _claim_queued_unit(
-        db,
-        project_id=project.id,
-        span_rowid=span.id,
-    )
-
-    with pytest.raises(EvaluatorResultValidationError, match="'criterion': 2"):
-        await executor.evaluate_and_annotate(unit, hydrated)
-
-    assert await _annotations(db) == []
-
-
-@pytest.mark.parametrize("invalid_label", ["unknown", 1, {"label": "good"}])
-async def test_invalid_categorical_label_writes_nothing(
-    db: DbSessionFactory,
-    invalid_label: Any,
-) -> None:
-    async with db() as session:
-        project = await _add_project(session)
-        trace = await _add_trace(session, project)
-        span = await _add_span(session, trace)
-    result = _evaluation_result("criterion")
-    result["label"] = invalid_label
-    hydrated = _hydrated_stub(
-        results=[result],
-        evaluator_kind="LLM",
-        output_configs=[_output_config("quality")],
-    )
-    executor = _executor(db)
-    unit = await _claim_queued_unit(
-        db,
-        project_id=project.id,
-        span_rowid=span.id,
-    )
-
-    with pytest.raises(EvaluatorResultValidationError, match="invalid label"):
-        await executor.evaluate_and_annotate(unit, hydrated)
-
-    assert await _annotations(db) == []
 
 
 async def test_code_mixed_result_set_writes_nothing(db: DbSessionFactory) -> None:
