@@ -11,8 +11,6 @@ import {
   SimpleSpanProcessor,
 } from "@opentelemetry/sdk-trace";
 
-import { getEnvBatchSpanProcessorConfig } from "./config";
-
 type PendingStart = {
   span: Span;
   parentContext: Context;
@@ -48,7 +46,6 @@ export class LazyOpenInferenceSpanProcessor implements SpanProcessor {
           batch
             ? new openInferenceVercel.OpenInferenceBatchSpanProcessor({
                 exporter,
-                config: getEnvBatchSpanProcessorConfig(),
               })
             : new openInferenceVercel.OpenInferenceSimpleSpanProcessor({
                 exporter,
@@ -63,10 +60,7 @@ export class LazyOpenInferenceSpanProcessor implements SpanProcessor {
         );
         this.setDelegate(
           batch
-            ? new BatchSpanProcessor({
-                exporter,
-                ...getEnvBatchSpanProcessorConfig(),
-              })
+            ? new BatchSpanProcessor({ exporter })
             : new SimpleSpanProcessor({ exporter })
         );
       });

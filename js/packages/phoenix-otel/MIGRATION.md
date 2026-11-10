@@ -7,8 +7,8 @@ Version 3 moves to OpenTelemetry JS 3 (`@opentelemetry/sdk-trace` 3.x, `@opentel
 ### Requirements
 
 - Node.js 22.15 or newer.
-- Use OpenTelemetry JS 3 packages in your app. Instrumentations must be compatible with
-  `@opentelemetry/instrumentation` 0.301.
+- `@opentelemetry/api` 1.10 or newer.
+- Instrumentations compatible with `@opentelemetry/instrumentation` 0.301.
 
 ### Import span processors from `@arizeai/phoenix-otel`
 
@@ -58,13 +58,13 @@ const provider = register({ global: false });
 attachGlobalTracerProvider(provider);
 ```
 
-### `OTEL_*` environment variables
+### `OTEL_*` sampler, span limit, and batch variables are not read
 
-OpenTelemetry JS 3 no longer reads `OTEL_TRACES_SAMPLER`, `OTEL_SPAN_*`, `OTEL_ATTRIBUTE_*`, or `OTEL_BSP_*` in
-the SDK. `register()` still applies them, so no change is needed when you use the default processor.
-`OTEL_BSP_*` does not apply to processors you pass in `spanProcessors`. Set the batch options on the processor
-instead.
+`register()` ignores `OTEL_TRACES_SAMPLER`, `OTEL_TRACES_SAMPLER_ARG`, `OTEL_SPAN_*`, `OTEL_ATTRIBUTE_*`, and
+`OTEL_BSP_*`. To tune batching, pass a `BatchSpanProcessor` with options in `spanProcessors`. To set a sampler or
+span limits, create a `TracerProvider` from `@opentelemetry/sdk-trace` and attach it with
+`attachGlobalTracerProvider()`.
 
 ### `@arizeai/phoenix-client` experiments
 
-A `tracerProvider` passed to `evaluateExperiment()` must be an `@opentelemetry/sdk-trace` 3.x `TracerProvider`.
+A `tracerProvider` passed to `evaluateExperiment()` must be a `TracerProvider` from `@opentelemetry/sdk-trace`.

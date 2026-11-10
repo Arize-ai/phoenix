@@ -3,15 +3,6 @@ import {
   getProjectFromEnvironment,
   getTraceExportEndpointFromEnvironment,
 } from "@arizeai/phoenix-config";
-import { diag } from "@opentelemetry/api";
-import { getNumberFromEnv, getStringFromEnv } from "@opentelemetry/core";
-import type { Sampler, SpanLimits } from "@opentelemetry/sdk-trace";
-import {
-  AlwaysOffSampler,
-  AlwaysOnSampler,
-  ParentBasedSampler,
-  TraceIdRatioBasedSampler,
-} from "@opentelemetry/sdk-trace";
 
 /**
  * Resolves the trace-export endpoint and credentials as source-aware groups.
@@ -58,83 +49,4 @@ export function getEnvApiKey(): string | undefined {
  */
 export function getEnvProjectName(): string | undefined {
   return getProjectFromEnvironment();
-}
-
-const DEFAULT_TRACES_SAMPLER = "parentbased_always_on";
-
-function getEnvSamplerRatio(): number {
-  const ratio = getNumberFromEnv("OTEL_TRACES_SAMPLER_ARG");
-  if (ratio == null || ratio < 0 || ratio > 1) {
-    diag.error(
-      `OTEL_TRACES_SAMPLER_ARG=${ratio ?? ""} is blank or outside [0..1], defaulting to 1.`
-    );
-    return 1;
-  }
-  return ratio;
-}
-
-/**
- * Builds the sampler named by `OTEL_TRACES_SAMPLER` (and
- * `OTEL_TRACES_SAMPLER_ARG`), or `undefined` to use the SDK default.
- */
-export function getEnvSampler(): Sampler | undefined {
-  const sampler = getStringFromEnv("OTEL_TRACES_SAMPLER");
-  switch (sampler) {
-    case undefined:
-    case DEFAULT_TRACES_SAMPLER:
-      return undefined;
-    case "always_on":
-      return new AlwaysOnSampler();
-    case "always_off":
-      return new AlwaysOffSampler();
-    case "parentbased_always_off":
-      return new ParentBasedSampler({ root: new AlwaysOffSampler() });
-    case "traceidratio":
-      return new TraceIdRatioBasedSampler(getEnvSamplerRatio());
-    case "parentbased_traceidratio":
-      return new ParentBasedSampler({
-        root: new TraceIdRatioBasedSampler(getEnvSamplerRatio()),
-      });
-    default:
-      diag.error(
-        `OTEL_TRACES_SAMPLER value "${sampler}" invalid, defaulting to "${DEFAULT_TRACES_SAMPLER}".`
-      );
-      return undefined;
-  }
-}
-
-/**
- * Reads span limits from the `OTEL_SPAN_*` and `OTEL_ATTRIBUTE_*`
- * environment variables. Unset limits keep the SDK defaults.
- */
-export function getEnvSpanLimits(): SpanLimits {
-  return {
-    attributeCountLimit:
-      getNumberFromEnv("OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT") ??
-      getNumberFromEnv("OTEL_ATTRIBUTE_COUNT_LIMIT"),
-    attributeValueLengthLimit:
-      getNumberFromEnv("OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT") ??
-      getNumberFromEnv("OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT"),
-    eventCountLimit: getNumberFromEnv("OTEL_SPAN_EVENT_COUNT_LIMIT"),
-    linkCountLimit: getNumberFromEnv("OTEL_SPAN_LINK_COUNT_LIMIT"),
-    attributePerEventCountLimit: getNumberFromEnv(
-      "OTEL_SPAN_ATTRIBUTE_PER_EVENT_COUNT_LIMIT"
-    ),
-    attributePerLinkCountLimit: getNumberFromEnv(
-      "OTEL_SPAN_ATTRIBUTE_PER_LINK_COUNT_LIMIT"
-    ),
-  };
-}
-
-/**
- * Reads `OTEL_BSP_*` batch span processor settings. Unset values keep the
- * SDK defaults.
- */
-export function getEnvBatchSpanProcessorConfig() {
-  return {
-    maxExportBatchSize: getNumberFromEnv("OTEL_BSP_MAX_EXPORT_BATCH_SIZE"),
-    maxQueueSize: getNumberFromEnv("OTEL_BSP_MAX_QUEUE_SIZE"),
-    scheduledDelayMillis: getNumberFromEnv("OTEL_BSP_SCHEDULE_DELAY"),
-    exportTimeoutMillis: getNumberFromEnv("OTEL_BSP_EXPORT_TIMEOUT"),
-  };
 }

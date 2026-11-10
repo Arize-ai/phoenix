@@ -29,12 +29,7 @@ import { resourceFromAttributes } from "@opentelemetry/resources";
 import type { SpanProcessor } from "@opentelemetry/sdk-trace";
 import { TracerProvider as SdkTracerProvider } from "@opentelemetry/sdk-trace";
 
-import {
-  getEnvConfig,
-  getEnvProjectName,
-  getEnvSampler,
-  getEnvSpanLimits,
-} from "./config";
+import { getEnvConfig, getEnvProjectName } from "./config";
 import { LazyOpenInferenceSpanProcessor } from "./lazyOpenInferenceSpanProcessor";
 
 /**
@@ -488,8 +483,6 @@ export function register(params: RegisterParams): SdkTracerProvider {
     resource: resourceFromAttributes({
       [SEMRESATTRS_PROJECT_NAME]: projectName,
     }),
-    sampler: getEnvSampler(),
-    spanLimits: getEnvSpanLimits(),
     spanProcessors: spanProcessors || [getDefaultSpanProcessor(params)],
   });
 
