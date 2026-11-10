@@ -2,7 +2,17 @@
 
 The keywords "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this specification are to be interpreted as described in BCP 14 [RFC2119] [RFC8174] when, and only when, they appear in all capitals, as shown here.
 
-An implementation is compliant if it satisfies all "MUST", "MUST NOT", "REQUIRED", "SHALL", and "SHALL NOT" requirements defined in this specification. An implementation that fails to satisfy any such requirement is not compliant.
+An implementation is compliant if it satisfies all "MUST", "MUST NOT", "REQUIRED", "SHALL", and "SHALL NOT" requirements defined in this specification, each within the scope it states. An implementation that fails to satisfy any such requirement is not compliant.
+
+## Applying These Rules
+
+- A rule applies where its reason does. When a rule states its reason or scope, code outside that scope does not break it. A new rule SHOULD state its reason when the rule alone doesn't make it obvious
+- Rules in § Security apply exactly as written: no reasoning in this section relaxes them
+- When existing code offers precedents on both sides, name both and follow the one whose reason fits the call site
+- When following a rule at a call site would defeat the rule's own reason, follow the reason and say so in the finding or the PR body, so the rule can be fixed
+- The smallest diff is not always the simplest result: prefer the version that leaves less code, fewer lookups and fewer special cases behind
+- A bug SHOULD be fixed in the layer where it starts, not where it surfaces
+- Before removing a guard, check or special case, find out why it was added
 
 ## Always Check
 
@@ -10,7 +20,7 @@ An implementation is compliant if it satisfies all "MUST", "MUST NOT", "REQUIRED
 - Database schema changes MUST include migrations and MUST be tested across all supported backends
 - Error messages MUST NOT leak internal details to users — typed error classes SHOULD be used for expected failures
 - Data-mutating operations MUST emit events so downstream subscribers stay in sync
-- Batch loading MUST be used to avoid N+1 query patterns in resolver-style APIs
+- Fields that can resolve many times in one request, such as type fields and list or connection items, MUST load data through dataloaders, not direct queries, because a per-row query multiplies with the size of the list (N+1). A root field that loads one row by primary key MAY query directly, as the `PromptVersion` branch of `Query.node` does
 - Tests SHOULD extend existing test modules unless they cover a distinct responsibility
 - Tests MUST fail when the behavior they cover is removed — tests that only exercise mocks or restate the implementation MUST NOT be added
 - Docs the change makes stale MUST be updated in the same PR; new environment variables MUST be documented and new docs pages indexed in `docs/phoenix/llms.txt`
@@ -34,7 +44,6 @@ An implementation is compliant if it satisfies all "MUST", "MUST NOT", "REQUIRED
 ## Patterns to Flag
 
 - Catching broad exception types without re-raising MUST NOT occur — specific exceptions MUST be caught
-- Direct database queries inside API resolvers MUST NOT be used — batched data access patterns are REQUIRED
 - Endpoints that modify data MUST have authorization checks
 - Queries or logic MUST work on all supported database backends — single-dialect code MUST NOT be introduced
 - State SHOULD NOT be derived in side effects when it can be computed directly
@@ -63,8 +72,14 @@ An implementation is compliant if it satisfies all "MUST", "MUST NOT", "REQUIRED
 - Only problems the change introduces SHOULD be reported — pre-existing issues and anything a linter, formatter or type checker catches MUST NOT be
 - Each root cause MUST be reported once, listing every location; generated-file drift is reported at its source
 - Each finding MUST carry a severity: **Blocking** (wrong behavior, security, data loss, or a broken MUST) or **Non-blocking** (a broken SHOULD). Nits and praise SHOULD NOT be posted
-- A convention finding MUST cite the rule it breaks in this file or in `.agents/skills/`
+- A convention finding MUST cite the rule it breaks in this file or in `.agents/skills/`, and say why the rule's reason applies at this call site
+- A performance finding MUST compare the change against the fix it suggests, not against no change, and name the queries or operations it counted
 - A finding SHOULD fit in five lines: what is wrong, the evidence, and a concrete fix
+
+## Acting on Findings
+
+- Whoever acts on a finding MUST check its argument, not only its facts: that the quoted code exists, that the cited rule's reason applies at that call site, and that any cost claim holds against the suggested fix
+- A finding that fails one of these checks MUST be disputed with the reason instead of applied. A reply to a dispute MUST answer its argument, not restate the rule
 
 ## Skip
 
