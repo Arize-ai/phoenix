@@ -25,8 +25,6 @@ export type ReadOnlyContinuousConfigProps = {
    * If false or omitted, it will be editable.
    */
   isReadOnly?: boolean;
-  /** Called when the user edits the threshold. */
-  onChange?: () => void;
 };
 
 /**
@@ -37,7 +35,6 @@ export type ReadOnlyContinuousConfigProps = {
  */
 export const ReadOnlyContinuousConfig = ({
   isReadOnly,
-  onChange,
 }: ReadOnlyContinuousConfigProps) => {
   const setOutputConfigThresholdAtIndex = useEvaluatorStore(
     (state) => state.setOutputConfigThresholdAtIndex
@@ -101,7 +98,6 @@ export const ReadOnlyContinuousConfig = ({
           isDisabled={isReadOnly}
           isInvalid={thresholdError != null}
           onChange={(value) => {
-            onChange?.();
             setOutputConfigThresholdAtIndex(
               0,
               Number.isNaN(value) ? null : value
