@@ -183,6 +183,40 @@ function saveUnrelatedEdit(node: ProviderNode) {
 }
 
 describe("a saved provider's models", () => {
+  it.each([
+    {
+      config: { parseError: "Cannot decrypt" },
+      expected: "default_credentials",
+    },
+    {
+      config: { awsBedrockAuthenticationMethod: { defaultCredentials: true } },
+      expected: "default_credentials",
+    },
+    {
+      config: {
+        awsBedrockAuthenticationMethod: {
+          accessKeys: {
+            awsAccessKeyId: "access-key",
+            awsSecretAccessKey: "secret-key",
+          },
+        },
+      },
+      expected: "access_keys",
+    },
+  ])("uses $expected for AWS authentication", ({ config, expected }) => {
+    const provider = {
+      ...savedOpenAIProvider(null),
+      sdk: "AWS_BEDROCK",
+      config,
+    } as unknown as ProviderNode;
+    const values = transformConfigToFormValues(provider) as AWSBedrockFormData;
+    expect(values.aws_auth_method).toBe(expected);
+    if (expected === "access_keys") {
+      expect(values.aws_access_key_id).toBe("access-key");
+      expect(values.aws_secret_access_key).toBe("secret-key");
+    }
+  });
+
   it("load into the form", () => {
     const values = transformConfigToFormValues(
       savedOpenAIProvider(["gpt-6-luna"])
@@ -197,6 +231,31 @@ describe("a saved provider's models", () => {
 
   it("are not resent when only the connection changes", () => {
     const { patch } = saveUnrelatedEdit(savedOpenAIProvider(["gpt-6-luna"]));
+    expect(patch.clientConfig?.openai?.openaiAuthenticationMethod).toEqual({
+      apiKey: "sk-new",
+    });
+    expect(patch.models).toBeUndefined();
+  });
+
+  it("remain intact when the encrypted connection config cannot be parsed", () => {
+    const unparsable = {
+      ...savedOpenAIProvider(["gpt-6-luna"]),
+      models: {
+        chat: { names: ["gpt-4o-custom"] },
+        decision: { names: ["gpt-6-luna"] },
+      },
+      config: {
+        __typename: "UnparsableConfig",
+        parseError: "Config cannot be decrypted",
+      },
+    } as unknown as ProviderNode;
+    const values = transformConfigToFormValues(unparsable) as OpenAIFormData;
+    expect(values.openai_api_key).toBe("");
+    expect(values.model_names).toBe("gpt-4o-custom");
+    expect(values.decision_enabled).toBe(true);
+    expect(values.decision_model_names).toBe("gpt-6-luna");
+
+    const { patch } = saveUnrelatedEdit(unparsable);
     expect(patch.clientConfig?.openai?.openaiAuthenticationMethod).toEqual({
       apiKey: "sk-new",
     });

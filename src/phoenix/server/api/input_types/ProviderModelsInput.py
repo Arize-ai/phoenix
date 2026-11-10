@@ -1,7 +1,7 @@
 import strawberry
 
+from phoenix.db.models import GenerativeModelSDK
 from phoenix.db.types.model_provider import (
-    GenerativeModelCustomerProviderConfigType,
     ModelsOfType,
     ModelTypeKey,
     ProviderModels,
@@ -52,10 +52,9 @@ class ProviderModelsInput:
 
 
 def check_servable_model_types(
-    config: GenerativeModelCustomerProviderConfigType,
+    sdk: GenerativeModelSDK,
     served: ProviderModels,
 ) -> None:
-    sdk = config.type
     for key in sorted(served.types() - servable_model_types(sdk)):
         raise BadRequest(f"A provider with the {sdk} SDK can't serve {_LABELS[key]} models.")
     if not served.types():
@@ -63,11 +62,10 @@ def check_servable_model_types(
 
 
 def check_provider_models(
-    config: GenerativeModelCustomerProviderConfigType,
+    sdk: GenerativeModelSDK,
     served: ProviderModels,
 ) -> None:
-    sdk = config.type
-    check_servable_model_types(config, served)
+    check_servable_model_types(sdk, served)
     if sdk_offers_chat(sdk) and served.chat is None:
         # Chat execution paths do not check provider.models.chat yet, so chat SDKs cannot
         # disable chat.

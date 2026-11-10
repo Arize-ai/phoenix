@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from secrets import token_hex
-from typing import Annotated, Any, Callable, Iterator, Mapping, Sequence
+from typing import Annotated, Any, Iterator, Mapping, Sequence
 
 import anyio
 import sqlalchemy as sa
@@ -424,17 +424,6 @@ async def _post_openai_decisions_check(client_factory: ClientFactory[Any]) -> st
     return None
 
 
-def _stored_config(
-    provider: models.GenerativeModelCustomProvider, decrypt: Callable[[bytes], bytes]
-) -> GenerativeModelCustomerProviderConfig:
-    try:
-        return GenerativeModelCustomerProviderConfig.model_validate_json(decrypt(provider.config))
-    except Exception as error:
-        raise BadRequest(
-            f"Custom provider '{provider.name}' can't be read. Re-enter its connection settings."
-        ) from error
-
-
 async def _check_decision_references(
     session: AsyncSession,
     provider_id: int,
@@ -558,7 +547,7 @@ class GenerativeModelCustomProviderMutationMixin:
         provider_models = (
             input.models.to_orm() if input.models else default_provider_models(config_obj.root.type)
         )
-        check_provider_models(config_obj.root, provider_models)
+        check_provider_models(config_obj.root.type, provider_models)
         # Serialize and encrypt the config
         config_json = config_obj.model_dump_json().encode("utf-8")
         encrypted_config = info.context.encrypt(config_json)
@@ -644,9 +633,9 @@ class GenerativeModelCustomProviderMutationMixin:
 
             new_served: ProviderModels | None = input.models.to_orm() if input.models else None
             if new_config is not None or new_served is not None:
-                config = new_config or _stored_config(provider, info.context.decrypt)
+                sdk = new_config.root.type if new_config is not None else provider.sdk
                 served = new_served or provider.models
-                check_provider_models(config.root, served)
+                check_provider_models(sdk, served)
 
                 if provider.models.decision is not None and served.decision is None:
                     await _check_decision_references(
@@ -707,7 +696,7 @@ class GenerativeModelCustomProviderMutationMixin:
             else default_provider_models(config.root.type)
         )
         # Allow testing a subset of servable types (e.g., decision only on an OpenAI config).
-        check_servable_model_types(config.root, served)
+        check_servable_model_types(config.root.type, served)
 
         chat: CustomProviderModelTypeCheck | None = None
         if served.chat is not None:
