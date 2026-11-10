@@ -1,5 +1,11 @@
 # @arizeai/phoenix-cli
 
+## 1.21.0
+
+### Minor Changes
+
+- 1e47750: Add `px dataset-versions list <dataset-identifier>` with cursor pagination, optional limits, and pretty, JSON, and raw output.
+
 ## 1.20.1
 
 ### Patch Changes
