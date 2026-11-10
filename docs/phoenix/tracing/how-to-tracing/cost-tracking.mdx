@@ -2,7 +2,7 @@
 title: "Cost Tracking"
 ---
 
-Phoenix allows you to track token-based costs for LLM and decision-model runs automatically. The costs are calculated from token counts and model pricing data, then rolled up to the trace and project level for comprehensive cost analysis.
+Phoenix allows you to track token-based costs for LLM, decision-model, and embedding runs automatically. The costs are calculated from token counts and model pricing data, then rolled up to the trace and project level for comprehensive cost analysis.
 
 In most cases it is simplest to let Phoenix handle cost calculation using its built-in model pricing table. When custom pricing is required, you can create custom cost configurations in Settings > Models.
 
@@ -68,6 +68,15 @@ For more granular cost tracking, you can provide detailed token counts:
 | `decision.token_count.output` | Integer | The number of output tokens                                                                                                                                           |
 
 If a decision span sets `decision.token_count.input` or `decision.token_count.output`, Phoenix uses only those two attributes and treats an omitted side as `0`. In that case, Phoenix ignores all `llm.token_count.*` attributes, including `*_details`. Otherwise, Phoenix falls back to `llm.token_count.prompt`, `llm.token_count.completion`, and their `*_details` breakdown from older instrumentation.
+
+### Embedding spans
+
+EMBEDDING spans are priced against embedding-model prices only, never LLM prices. Embedding models bill input tokens only, so an embedding span has no output cost. Phoenix reads these attributes from embedding spans:
+
+| Attribute                | Type    | Description                                                                 |
+| :------------------------ | :------- | :--------------------------------------------------------------------------- |
+| `embedding.model_name`   | String  | The embedding model                                                         |
+| `llm.token_count.prompt` | Integer | The number of input tokens. Falls back to `llm.token_count.total`           |
 
 ## Model pricing configuration
 
