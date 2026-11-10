@@ -32,7 +32,6 @@ export function DeleteProjectEvaluatorDialog({
   return (
     <DeleteEvaluatorDialog
       evaluators={projectEvaluators}
-      target={projectId ? "project" : "anyProject"}
       isOpen={isOpen}
       onOpenChange={onOpenChange}
       onDeleted={onDeleted}

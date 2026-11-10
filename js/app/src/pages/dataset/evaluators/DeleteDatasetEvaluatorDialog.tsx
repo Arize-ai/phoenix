@@ -5,8 +5,8 @@ import { useDeleteDatasetEvaluators } from "@phoenix/pages/dataset/evaluators/us
 export type DeleteDatasetEvaluatorDialogProps = {
   datasetEvaluators: ReadonlyArray<EvaluatorToDelete>;
   /**
-   * The dataset every evaluator belongs to. Without it the evaluators may
-   * belong to any dataset.
+   * The dataset every evaluator belongs to, whose evaluator count is refreshed.
+   * Without it the evaluators may belong to any dataset.
    */
   datasetId?: string;
   isOpen?: boolean;
@@ -27,7 +27,6 @@ export function DeleteDatasetEvaluatorDialog({
   return (
     <DeleteEvaluatorDialog
       evaluators={datasetEvaluators}
-      target={datasetId ? "dataset" : "anyDataset"}
       isOpen={isOpen}
       onOpenChange={onOpenChange}
       onDeleted={onDeleted}

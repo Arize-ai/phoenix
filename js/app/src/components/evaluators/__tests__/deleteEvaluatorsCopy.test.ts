@@ -6,56 +6,28 @@ import {
 } from "@phoenix/components/evaluators/deleteEvaluatorsCopy";
 
 describe("getDeleteEvaluatorsCopy", () => {
-  it("names a single evaluator and the dataset on screen", () => {
-    const copy = getDeleteEvaluatorsCopy({
-      evaluators: [{ name: "correctness", kind: "LLM" }],
-      target: "dataset",
+  it("names a single evaluator", () => {
+    expect(getDeleteEvaluatorsCopy([{ name: "correctness" }])).toEqual({
+      title: "Delete evaluator",
+      confirmLabel: "Delete evaluator",
+      description:
+        "Are you sure you want to delete evaluator correctness? This will also delete its evaluation traces, and it cannot be undone.",
+      successTitle: "Evaluator deleted",
+      successMessage: "Evaluator correctness has been deleted.",
     });
-    expect(copy.title).toBe("Delete evaluator");
-    expect(copy.confirmLabel).toBe("Delete evaluator");
-    expect(copy.description).toBe(
-      "Remove “correctness” from this dataset. Its evaluation traces are deleted in the background. The evaluator is deleted only if it isn't used anywhere else."
-    );
-    expect(copy.successMessage).toBe(
-      "Evaluator “correctness” was removed from this dataset."
-    );
   });
 
-  it("keeps built-in evaluators available", () => {
+  it("counts several evaluators in the title and the action", () => {
     expect(
-      getDeleteEvaluatorsCopy({
-        evaluators: [{ name: "exact_match", kind: "BUILTIN" }],
-        target: "project",
-      }).description
-    ).toContain("The built-in evaluator remains available elsewhere.");
-  });
-
-  it("counts several evaluators across projects and datasets", () => {
-    const copy = getDeleteEvaluatorsCopy({
-      evaluators: [
-        { name: "a", kind: "LLM" },
-        { name: "b", kind: "CODE" },
-        { name: "c", kind: "BUILTIN" },
-      ],
-      target: "anywhere",
+      getDeleteEvaluatorsCopy([{ name: "a" }, { name: "b" }, { name: "c" }])
+    ).toEqual({
+      title: "Delete 3 evaluators",
+      confirmLabel: "Delete 3 evaluators",
+      description:
+        "Are you sure you want to delete 3 evaluators? This will also delete their evaluation traces, and it cannot be undone.",
+      successTitle: "Evaluators deleted",
+      successMessage: "3 evaluators have been deleted.",
     });
-    expect(copy.title).toBe("Delete evaluators");
-    expect(copy.confirmLabel).toBe("Delete 3 evaluators");
-    expect(copy.description).toBe(
-      "Remove 3 evaluators from their projects and datasets. Their evaluation traces are deleted in the background. Built-in evaluators remain available elsewhere, and the others are deleted only if they aren't used anywhere else."
-    );
-    expect(copy.successMessage).toBe(
-      "3 evaluators were removed from their projects and datasets."
-    );
-  });
-
-  it("uses the singular for one evaluator from any dataset", () => {
-    expect(
-      getDeleteEvaluatorsCopy({
-        evaluators: [{ name: "a", kind: "CODE" }],
-        target: "anyDataset",
-      }).successMessage
-    ).toBe("Evaluator “a” was removed from its dataset.");
   });
 });
 

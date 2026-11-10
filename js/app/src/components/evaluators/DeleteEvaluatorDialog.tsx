@@ -21,7 +21,6 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 import {
-  type DeleteEvaluatorsTarget,
   type EvaluatorToDelete,
   getDeleteAssociatedLabel,
   getDeleteEvaluatorsCopy,
@@ -31,7 +30,6 @@ import { useNotifySuccess } from "@phoenix/contexts";
 export type DeleteEvaluatorDialogProps = {
   /** The evaluators to remove; at least one. */
   evaluators: ReadonlyArray<EvaluatorToDelete>;
-  target: DeleteEvaluatorsTarget;
   isOpen?: boolean;
   onOpenChange?: (isOpen: boolean) => void;
   onDeleted?: () => void;
@@ -42,11 +40,10 @@ export type DeleteEvaluatorDialogProps = {
 };
 
 /**
- * Confirms removing one or more evaluators from their projects or datasets.
+ * Confirms deleting one or more evaluators.
  */
 export function DeleteEvaluatorDialog({
   evaluators,
-  target,
   isOpen,
   onOpenChange,
   onDeleted,
@@ -56,7 +53,7 @@ export function DeleteEvaluatorDialog({
   const notifySuccess = useNotifySuccess();
   const [deleteAssociated, setDeleteAssociated] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const copy = getDeleteEvaluatorsCopy({ evaluators, target });
+  const copy = getDeleteEvaluatorsCopy(evaluators);
   const deleteAssociatedLabel = getDeleteAssociatedLabel(evaluators);
   const handleOpenChange = (nextIsOpen: boolean) => {
     if (nextIsOpen) {
@@ -83,7 +80,7 @@ export function DeleteEvaluatorDialog({
           setError(
             deleteError instanceof Error
               ? deleteError.message
-              : "Unable to remove evaluators"
+              : "Unable to delete evaluators"
           );
         });
     });
@@ -108,7 +105,7 @@ export function DeleteEvaluatorDialog({
             ) : null}
             <View padding="size-200">
               <Flex direction="column" gap="size-100">
-                <Text>{copy.description}</Text>
+                <Text color="danger">{copy.description}</Text>
                 {deleteAssociatedLabel ? (
                   <Checkbox
                     isSelected={deleteAssociated}

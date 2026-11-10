@@ -30,16 +30,9 @@ export function DeleteAllEvaluatorsDialog({
     useDeleteProjectEvaluators();
   const { deleteDatasetEvaluators, isDeleting: isDeletingDatasetEvaluators } =
     useDeleteDatasetEvaluators();
-  const target =
-    projectEvaluators.length === 0
-      ? "anyDataset"
-      : datasetEvaluators.length === 0
-        ? "anyProject"
-        : "anywhere";
   return (
     <DeleteEvaluatorDialog
       evaluators={[...projectEvaluators, ...datasetEvaluators]}
-      target={target}
       isOpen={isOpen}
       onOpenChange={onOpenChange}
       onDeleted={onDeleted}
@@ -75,7 +68,7 @@ export function DeleteAllEvaluatorsDialog({
         }
         throw failure.reason instanceof Error
           ? failure.reason
-          : new Error("Unable to remove evaluators");
+          : new Error("Unable to delete evaluators");
       }}
     />
   );
