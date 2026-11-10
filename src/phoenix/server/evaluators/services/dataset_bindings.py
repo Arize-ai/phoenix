@@ -16,7 +16,6 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.helpers import (
-    SupportedSQLDialect,
     delete_projects_and_evaluator_trace_projects,
     is_foreign_key_violation,
 )
@@ -465,65 +464,20 @@ async def delete_dataset_evaluators(
     deleted_gids: list[GlobalID] = []
 
     async with context.db() as session:
-        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
-
-        # Updates lock their shared evaluator before writing a binding. Lock definitions
-        # removed directly or through trace-project cascades before deleting any bindings.
-        lock_rows = (
-            await session.execute(
-                select(
-                    models.DatasetEvaluators.evaluator_id, models.DatasetEvaluators.project_id
-                ).where(models.DatasetEvaluators.id.in_(dataset_evaluator_rowids))
-            )
-        ).all()
-        lock_evaluator_ids = {
-            evaluator_id for evaluator_id, _ in lock_rows if evaluator_id is not None
-        }
-        lock_project_ids = {project_id for _, project_id in lock_rows if project_id is not None}
-        if lock_project_ids:
-            lock_evaluator_ids.update(
-                await session.scalars(
-                    select(models.ProjectEvaluator.evaluator_id).where(
-                        models.ProjectEvaluator.project_id.in_(lock_project_ids)
-                    )
+        # Edits lock their evaluator before writing its binding; take rows in the same order.
+        await lock_evaluators(
+            session,
+            await session.scalars(
+                select(models.DatasetEvaluators.evaluator_id).where(
+                    models.DatasetEvaluators.id.in_(dataset_evaluator_rowids)
                 )
-            )
-        await lock_evaluators(session, lock_evaluator_ids)
+            ),
+        )
 
         # Flat aliasing prevents SQLAlchemy from rewriting the base kind discriminator.
         llm_evaluator_alias = aliased(models.LLMEvaluator, flat=True)
-        # PostgreSQL can delete and return bindings in one CTE; SQLite requires two statements.
-        if dialect is SupportedSQLDialect.POSTGRESQL:
-            deleted_links_cte = (
-                delete(models.DatasetEvaluators)
-                .where(models.DatasetEvaluators.id.in_(dataset_evaluator_rowids))
-                .returning(
-                    models.DatasetEvaluators.id,
-                    models.DatasetEvaluators.evaluator_id,
-                    models.DatasetEvaluators.project_id,
-                )
-                .cte("deleted_links")
-            )
-            gather_stmt = (
-                select(
-                    deleted_links_cte.c.id,
-                    deleted_links_cte.c.evaluator_id,
-                    deleted_links_cte.c.project_id,
-                    models.Evaluator.kind,
-                    llm_evaluator_alias.prompt_id,
-                )
-                .select_from(deleted_links_cte)
-                .join(
-                    models.Evaluator,
-                    models.Evaluator.id == deleted_links_cte.c.evaluator_id,
-                )
-                .outerjoin(
-                    llm_evaluator_alias,
-                    llm_evaluator_alias.id == deleted_links_cte.c.evaluator_id,
-                )
-            )
-        else:
-            gather_stmt = (
+        rows = (
+            await session.execute(
                 select(
                     models.DatasetEvaluators.id,
                     models.DatasetEvaluators.evaluator_id,
@@ -541,7 +495,7 @@ async def delete_dataset_evaluators(
                 )
                 .where(models.DatasetEvaluators.id.in_(dataset_evaluator_rowids))
             )
-        rows = (await session.execute(gather_stmt)).all()
+        ).all()
 
         link_ids: list[int] = []
         project_ids: list[int] = []
@@ -557,42 +511,14 @@ async def delete_dataset_evaluators(
                 if prompt_id is not None:
                     candidate_prompt_ids.add(prompt_id)
 
-        if project_ids:
-            cascade_rows = (
-                await session.execute(
-                    select(
-                        models.ProjectEvaluator.evaluator_id,
-                        models.Evaluator.kind,
-                        llm_evaluator_alias.prompt_id,
-                    )
-                    .join(
-                        models.Evaluator,
-                        models.ProjectEvaluator.evaluator_id == models.Evaluator.id,
-                    )
-                    .outerjoin(
-                        llm_evaluator_alias,
-                        models.ProjectEvaluator.evaluator_id == llm_evaluator_alias.id,
-                    )
-                    .where(models.ProjectEvaluator.project_id.in_(project_ids))
-                )
-            ).all()
-            for evaluator_id, kind, prompt_id in cascade_rows:
-                if kind != "BUILTIN":
-                    gc_candidate_evaluator_ids.add(evaluator_id)
-                    if prompt_id is not None:
-                        candidate_prompt_ids.add(prompt_id)
-
         if not link_ids:
             return []
 
         # Remove bindings before trace projects to satisfy the RESTRICT foreign key.
-        if dialect is not SupportedSQLDialect.POSTGRESQL:
-            await session.execute(
-                delete(models.DatasetEvaluators).where(models.DatasetEvaluators.id.in_(link_ids))
-            )
-
-        if project_ids:
-            await delete_projects_and_evaluator_trace_projects(session, project_ids)
+        await session.execute(
+            delete(models.DatasetEvaluators).where(models.DatasetEvaluators.id.in_(link_ids))
+        )
+        await delete_projects_and_evaluator_trace_projects(session, project_ids)
 
         await garbage_collect_evaluators(
             session,
