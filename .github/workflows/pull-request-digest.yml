@@ -2,6 +2,10 @@ name: Pull request digest
 permissions: {}
 
 on:
+  # TEMPORARY: dry-run trigger for testing on this PR; remove before merge
+  pull_request:
+    paths:
+      - .github/workflows/pull-request-digest.yml
   schedule:
     - cron: "0 12 * * MON-FRI"
   workflow_dispatch:
