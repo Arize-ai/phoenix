@@ -2406,7 +2406,7 @@ class TestExperimentsOverDatasetPromptTaskSubscription:
             assert not attributes
 
             # Prompt span
-            assert llm_prompt_span.name == "Prompt: correctness-prompt"
+            assert llm_prompt_span.name == "Prompt: correctness-evaluator"
             assert llm_prompt_span.span_kind == "PROMPT"
             assert llm_prompt_span.status_code == "OK"
             assert not llm_prompt_span.status_message

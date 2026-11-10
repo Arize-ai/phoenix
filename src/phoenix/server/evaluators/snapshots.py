@@ -8,12 +8,16 @@ from phoenix.db import models
 from phoenix.db.helpers import latest_code_evaluator_versions_by_evaluator_id
 from phoenix.db.types.decision_evaluators import adapt_scoring_policy
 from phoenix.db.types.evaluator_definition import (
+    BuiltInEvaluatorDefinition,
     EvaluatorDefinition,
     EvaluatorSource,
     InlineDecisionEvaluatorDefinition,
+    InlineLLMEvaluatorDefinition,
+    InlineLLMEvaluatorPromptVersion,
     StoredCodeEvaluatorDefinition,
     StoredDecisionEvaluatorDefinition,
 )
+from phoenix.db.types.prompts import PromptChatTemplate
 from phoenix.server.api.exceptions import BadRequest, NotFound
 
 
@@ -55,6 +59,92 @@ def capture_decision_evaluator_definition(
             project_evaluator_id=project_evaluator_id,
         ),
     )
+
+
+def capture_llm_evaluator_definition(
+    evaluator: models.LLMEvaluator,
+    *,
+    prompt_version: Optional[models.PromptVersion] = None,
+    dataset_evaluator_id: Optional[int] = None,
+    project_evaluator_id: Optional[int] = None,
+) -> InlineLLMEvaluatorDefinition:
+    """An LLM evaluator's row at `prompt_version`, by default the version it selects."""
+    version = prompt_version if prompt_version is not None else evaluator.selected_prompt_version
+    template = version.template
+    if not isinstance(template, PromptChatTemplate):
+        raise BadRequest(f"Prompt version {version.id} does not carry a chat template")
+    return InlineLLMEvaluatorDefinition(
+        type="inline_llm_evaluator",
+        name=evaluator.name.root,
+        description=evaluator.description,
+        prompt_version=InlineLLMEvaluatorPromptVersion(
+            template_format=version.template_format,
+            template=template,
+            tools=version.tools,
+            response_format=version.response_format,
+            invocation_parameters=version.invocation_parameters,
+            model_provider=version.model_provider,
+            model_name=version.model_name,
+            custom_provider_id=version.custom_provider_id,
+        ),
+        output_configs=evaluator.output_configs,
+        source=EvaluatorSource(
+            evaluator_id=evaluator.id,
+            prompt_version_id=version.id,
+            dataset_evaluator_id=dataset_evaluator_id,
+            project_evaluator_id=project_evaluator_id,
+        ),
+    )
+
+
+def stored_evaluator_definition(
+    evaluator: models.Evaluator,
+    *,
+    name: Optional[str] = None,
+    description: Optional[str] = None,
+    dataset_evaluator_id: Optional[int] = None,
+    project_evaluator_id: Optional[int] = None,
+    prompt_version: Optional[models.PromptVersion] = None,
+    code_evaluator_version_id: Optional[int] = None,
+) -> EvaluatorDefinition:
+    """The definition a stored evaluator runs as, for any kind. `name` and `description`
+    are a binding's, which a decision evaluator runs under. An LLM evaluator is captured
+    at `prompt_version`, by default the version it selects; a code evaluator is pinned to
+    `code_evaluator_version_id` when given, and otherwise to its current version by
+    `pin_evaluator_definition`."""
+    if isinstance(evaluator, models.LLMEvaluator):
+        return capture_llm_evaluator_definition(
+            evaluator,
+            prompt_version=prompt_version,
+            dataset_evaluator_id=dataset_evaluator_id,
+            project_evaluator_id=project_evaluator_id,
+        )
+    if isinstance(evaluator, models.CodeEvaluator):
+        return StoredCodeEvaluatorDefinition(
+            type="code_evaluator",
+            code_evaluator_id=evaluator.id,
+            code_evaluator_version_id=code_evaluator_version_id,
+            sandbox_config_id=evaluator.sandbox_config_id,
+            language=evaluator.language,
+            source=EvaluatorSource(
+                evaluator_id=evaluator.id,
+                dataset_evaluator_id=dataset_evaluator_id,
+                project_evaluator_id=project_evaluator_id,
+            ),
+        )
+    if isinstance(evaluator, models.BuiltinEvaluator):
+        return BuiltInEvaluatorDefinition(
+            type="builtin_evaluator", builtin_evaluator_id=evaluator.id
+        )
+    if isinstance(evaluator, models.DecisionEvaluator):
+        return capture_decision_evaluator_definition(
+            evaluator,
+            name=name,
+            description=description,
+            dataset_evaluator_id=dataset_evaluator_id,
+            project_evaluator_id=project_evaluator_id,
+        )
+    raise BadRequest(f"Evaluator {evaluator.id} has an unsupported kind: {evaluator.kind}")
 
 
 async def pin_evaluator_definition(
