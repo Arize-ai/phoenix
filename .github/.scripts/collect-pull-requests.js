@@ -88,10 +88,12 @@ const TEAM_AUTHOR_ASSOCIATIONS = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
 
 const MILLISECONDS_IN_A_DAY = 1000 * 60 * 60 * 24;
 
+// Each level has its own shape (circle, diamond, square) as well as its own
+// color, so the levels can be told apart without relying on color
 const FRESHNESS = {
   ACTIVE: { key: "ACTIVE", emoji: "🟢", label: "active" },
-  AGING: { key: "AGING", emoji: "🟡", label: "aging" },
-  STALE: { key: "STALE", emoji: "🔴", label: "stale" },
+  AGING: { key: "AGING", emoji: "🔶", label: "aging" },
+  STALE: { key: "STALE", emoji: "🟥", label: "stale" },
 };
 
 // Slack mrkdwn treats these characters as control characters
@@ -356,7 +358,7 @@ function buildSlackMessage(summaries, options) {
 
   const lines = [
     `*🔍 Open pull requests:* ${summaries.length} open · ${FRESHNESS.STALE.emoji} ${staleTotal} stale · 🙋 ${unowned.length} need an owner`,
-    `_Last human activity (push, review, or comment): ${FRESHNESS.ACTIVE.emoji} ≤${agingThreshold}d · ${FRESHNESS.AGING.emoji} ${agingThreshold + 1}–${stalenessThreshold}d · ${FRESHNESS.STALE.emoji} >${stalenessThreshold}d. Drafts and bot PRs are excluded._`,
+    `_Last human activity (push, review, or comment): ${FRESHNESS.ACTIVE.emoji} ${FRESHNESS.ACTIVE.label} ≤${agingThreshold}d · ${FRESHNESS.AGING.emoji} ${FRESHNESS.AGING.label} ${agingThreshold + 1}–${stalenessThreshold}d · ${FRESHNESS.STALE.emoji} ${FRESHNESS.STALE.label} >${stalenessThreshold}d. Drafts and bot PRs are excluded._`,
   ];
 
   if (people.length > 0) {
