@@ -18,10 +18,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, AsyncSessionTransaction, create
 from phoenix.db import bulk_inserter, models
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import aio_sqlite_engine, get_async_db_url
-from phoenix.db.insertion.helpers import get_sqlstate
-from phoenix.db.insertion.project_session import advance_project_session_liveness
+from phoenix.db.insertion.helpers import advance_liveness, get_sqlstate
 from phoenix.db.insertion.span import SpanInsertionEvent, insert_span
-from phoenix.db.insertion.trace import advance_trace_liveness
 from phoenix.server.app import _db
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
 from phoenix.server.types import DbSessionFactory
@@ -1792,7 +1790,7 @@ async def test_session_liveness_update_is_monotonic(db: DbSessionFactory) -> Non
         session.add(project_session)
         await session.flush()
         project_session_id = project_session.id
-        await advance_project_session_liveness(session, [project_session_id])
+        await advance_liveness(session, models.ProjectSession, [project_session_id])
 
     async with db() as session:
         last_span_ingested_at = await session.scalar(
@@ -1831,7 +1829,7 @@ async def test_session_liveness_failure_does_not_rollback_inserted_spans(
     span = _session_span(trace_id="2" * 32, span_id="5" * 16, session_id="savepoint-liveness")
     liveness_update = AsyncMock(side_effect=RuntimeError("liveness update failed"))
     monkeypatch.setattr(
-        "phoenix.db.bulk_inserter.advance_project_session_liveness",
+        "phoenix.db.bulk_inserter.advance_liveness",
         liveness_update,
     )
     inserter = BulkInserter(
@@ -1865,14 +1863,18 @@ async def test_liveness_stamp_deadlock_replays_batch(
     spans = [_session_span(trace_id=trace_id, span_id=f"{i:016x}", session_id="s") for i in (1, 2)]
     calls = 0
 
-    async def deadlock_first_stamp(session: AsyncSession, rowids: Iterable[int]) -> None:
+    async def deadlock_first_stamp(
+        session: AsyncSession,
+        model: type[models.Trace] | type[models.ProjectSession],
+        rowids: Iterable[int],
+    ) -> None:
         nonlocal calls
         calls += 1
         if calls == 1:
             raise DBAPIError("liveness", {}, _PostgresError("40P01"))
-        await advance_trace_liveness(session, rowids)
+        await advance_liveness(session, model, rowids)
 
-    monkeypatch.setattr(bulk_inserter, "advance_trace_liveness", deadlock_first_stamp)
+    monkeypatch.setattr(bulk_inserter, "advance_liveness", deadlock_first_stamp)
     inserter = _inserter(db, *spans)
 
     await inserter._insert_spans(2)
