@@ -57,7 +57,7 @@ function getContextCategoryIcon(category: string | undefined): ReactNode {
     case "trace":
       return <Icon svg={<Icons.Trace />} />;
     case "session":
-      return <Icon svg={<Icons.MessageSquare />} />;
+      return <Icon svg={<Icons.MessagesSquare />} />;
     case "span":
       return <Icon svg={<Icons.Span />} />;
     case "span_filter":

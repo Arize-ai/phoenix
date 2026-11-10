@@ -35,7 +35,7 @@ export function AIMessageContentRadioGroup({
     >
       <TooltipTrigger delay={0}>
         <SegmentedControlItem aria-label="text input" id="text">
-          <Icon svg={<Icons.MessageSquare />} />
+          <Icon svg={<Icons.MessagesSquare />} />
         </SegmentedControlItem>
         <Tooltip placement="top">
           <TooltipArrow />
