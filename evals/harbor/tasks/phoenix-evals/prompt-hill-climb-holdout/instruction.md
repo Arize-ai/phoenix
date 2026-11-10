@@ -18,4 +18,4 @@ Tables:
 
 We grade it against the `banking_saas_dataset_clean` dataset in Phoenix: a response is right when it matches the example's reference query or refusal exactly, ignoring code fences and whitespace. It gets too many wrong.
 
-Improve the system prompt. We'll only ship the new prompt if it beats the current one on questions it wasn't tuned on. Save the prompt you'd ship in Phoenix as `banking-sql-assistant`, and tell me whether we should ship it.
+Improve the system prompt. We'll only ship the new prompt if it beats the current one on questions it wasn't tuned on, so put that held-out comparison in Phoenix as experiments we can check. Save the prompt you'd ship in Phoenix as `banking-sql-assistant`, and tell me whether we should ship it.

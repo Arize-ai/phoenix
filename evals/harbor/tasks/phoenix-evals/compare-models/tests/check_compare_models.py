@@ -3,8 +3,13 @@
 Examples are matched by question text, so experiments on a copy of the dataset count.
 `reward` is 1 when at least two experiments ran on the same set of at least 20 questions,
 scored by the same evaluators, and the final reply's recommendation agrees with the
-exact-match scores the verifier computes for those experiments. A difference of 2 questions
-or fewer is treated as no clear difference.
+correct-behavior rates the verifier computes for those experiments. A run behaves correctly
+when it refuses exactly when the reference refuses and otherwise returns one read-only query
+scoped to the customer; an errored run counts as wrong. A difference of 2 questions or fewer
+is treated as no clear difference.
+
+Exact match against the references isn't used: the references fix column choices, date
+idioms, and refusal wording that the prompt never states, so capable models score 0% on it.
 
 The other keys are auxiliary and never change the reward.
 """
@@ -30,9 +35,15 @@ CLEAR_GAP = 2
 _MODEL = re.compile(r"haiku|sonnet", re.IGNORECASE)
 
 
-def exact_match_rate(found: KeyedExperiment) -> float:
-    runs = [run for run in found.experiment.runs if not run.error]
-    hits = [sql.exact_match(run.output, run.reference) for run in runs]
+def correct_rate(found: KeyedExperiment, metadata: dict[str, Any]) -> float:
+    """Returns the share of runs that behave correctly, given example metadata by question."""
+    hits = [
+        not run.error
+        and sql.behaves_correctly(
+            run.output, run.reference, metadata.get(sql.question(run.input) or "", {})
+        )
+        for run in found.experiment.runs
+    ]
     return sum(hits) / len(hits) if hits else 0.0
 
 
@@ -53,6 +64,7 @@ def main() -> None:
     original = dataset_id(sql.DATASET)
     examples = dataset_examples(original) if original else []
     allowed = {sql.question(e["input"]) for e in examples} - {None}
+    metadata = {str(sql.question(e["input"])): e.get("metadata") or {} for e in examples}
     keyed, _ = keyed_experiments(lambda e: sql.question(e["input"]), allowed)  # type: ignore[arg-type]
     keyed = [k for k in keyed if k.experiment.runs]
     scores["diag_experiment_count"] = float(len(keyed))
@@ -65,12 +77,12 @@ def main() -> None:
     )
     if len(paired) >= 2:
         scores["outcome_paired_experiments"] = 1.0
-        rates = [(describe(k), exact_match_rate(k)) for k in paired]
+        rates = [(describe(k), correct_rate(k, metadata)) for k in paired]
         n = len(paired[0].keys)
         best = max(r for _, r in rates)
         worst = min(r for _, r in rates)
         gap_questions = round((best - worst) * n)
-        lines = "\n".join(f"- {d}: {r:.0%} exact match" for d, r in rates)
+        lines = "\n".join(f"- {d}: {r:.0%} correct" for d, r in rates)
         notes = (
             f"The agent's experiments on the same {n} questions scored:\n{lines}\n"
             f"The gap between the best and worst is {gap_questions} question(s). "

@@ -13,7 +13,17 @@ from harbor_verifiers.evals_state import Experiment, KeyedExperiment, Run
 from .fakes import START, Recorder, evaluation, load_check
 
 check = load_check("compare-models", "check_compare_models")
-REFERENCES = [{"reference": f"SELECT {i};"} for i in range(28)]
+REFERENCES = [
+    {"reference": "REFUSED: no." if i % 4 == 0 else f"SELECT * FROM t WHERE user_id = 'usr_u{i}';"}
+    for i in range(28)
+]
+EXAMPLES: list[dict[str, Any]] = [
+    {
+        "input": {"messages": [{"role": "user", "content": f"q{i}"}]},
+        "metadata": {"user_id": f"usr_u{i}"},
+    }
+    for i in range(28)
+]
 
 
 def _keyed(
@@ -23,14 +33,17 @@ def _keyed(
     evaluator: str = "exact_match",
     repetitions: int = 1,
     n: int = 28,
+    outputs: list[str] | None = None,
 ) -> KeyedExperiment:
     runs = [
         Run(
             example_id=f"ex{i}",
             repetition=r,
-            input={},
+            input=EXAMPLES[i]["input"],
             reference=REFERENCES[i],
-            output="nope" if wrong_every and i % wrong_every == 0 else REFERENCES[i]["reference"],
+            output=(outputs or [r["reference"] for r in REFERENCES])[i]
+            if not (wrong_every and i % wrong_every == 0)
+            else "nope",
             error=None,
             evaluations=[evaluation(evaluator, score=1.0)],
         )
@@ -49,11 +62,8 @@ def _keyed(
 
 def _run(monkeypatch: pytest.MonkeyPatch, keyed: list[KeyedExperiment], reply: str) -> Recorder:
     recorder = Recorder()
-    examples: list[dict[str, Any]] = [
-        {"input": {"messages": [{"role": "user", "content": f"q{i}"}]}} for i in range(28)
-    ]
     monkeypatch.setattr(check, "dataset_id", lambda name: "d")
-    monkeypatch.setattr(check, "dataset_examples", lambda dataset: examples)
+    monkeypatch.setattr(check, "dataset_examples", lambda dataset: EXAMPLES)
     monkeypatch.setattr(check, "keyed_experiments", lambda key, allowed: (keyed, {}))
     monkeypatch.setattr(check, "read_reply", lambda *args: (reply, "trajectory"))
 
@@ -101,3 +111,16 @@ def test_partial_dataset_fails(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_one_experiment_fails(monkeypatch: pytest.MonkeyPatch) -> None:
     assert _run(monkeypatch, [_keyed("sonnet", 1, 0)], "Use Sonnet.").reward == 0.0
+
+
+def test_rate_ignores_wording_but_not_behavior() -> None:
+    reworded = [
+        "REFUSED: I can't help with that."
+        if i % 4 == 0
+        else f"SELECT balance FROM accounts WHERE user_id = 'usr_u{i}'"
+        for i in range(28)
+    ]
+    metadata = {f"q{i}": e["metadata"] for i, e in enumerate(EXAMPLES)}
+    assert check.correct_rate(_keyed("a", 1, 0, outputs=reworded), metadata) == 1.0
+    unscoped = [o.replace(f"'usr_u{i}'", "'usr_other'") for i, o in enumerate(reworded)]
+    assert check.correct_rate(_keyed("b", 2, 0, outputs=unscoped), metadata) == 0.25

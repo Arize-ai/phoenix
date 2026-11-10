@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Reference solution: both models on the whole dataset, two repetitions each.
 
-The oracle makes no model calls. Its stand-in for Haiku misses some references and its
-stand-in for Sonnet returns them all, so Sonnet wins by a clear margin.
+The oracle makes no model calls. Its stand-in for Haiku answers a third of the questions
+with an unscoped query and its stand-in for Sonnet returns the references, so Sonnet behaves
+correctly more often by a clear margin.
 """
 
 from __future__ import annotations
@@ -22,8 +23,8 @@ def sonnet(expected: dict[str, Any]) -> str:
     return sql.reference_text(expected)
 
 
-def exact_match(output: Any, expected: dict[str, Any]) -> float:
-    return float(sql.exact_match(output, expected))
+def correct_behavior(output: Any, expected: dict[str, Any], metadata: dict[str, Any]) -> float:
+    return float(sql.behaves_correctly(output, expected, metadata))
 
 
 def main() -> None:
@@ -33,14 +34,15 @@ def main() -> None:
         phoenix.experiments.run_experiment(
             dataset=dataset,
             task=task,
-            evaluators=[exact_match],
+            evaluators=[correct_behavior],
             experiment_name=name,
             experiment_metadata={"model": name},
             repetitions=2,
         )
     write_answer(
-        "Move to claude-sonnet-5-5: it matched every reference, while claude-haiku-5-5 missed "
-        "about a third of the questions in both repetitions."
+        "Move to claude-sonnet-5-5: it behaved correctly on every question, while "
+        "claude-haiku-5-5 answered about a third of them with an unscoped query in both "
+        "repetitions."
     )
 
 

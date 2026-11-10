@@ -8,4 +8,4 @@ You are reviewing a run of our research agent. Here is the trace:
 Did the agent do a good job? Answer "yes" or "no".
 ```
 
-Improve the judge, and give me an agreement number I can trust for traces it wasn't tuned on. Save the final judge prompt in Phoenix as `goal-deviation-judge`.
+Improve the judge, and give me an agreement number I can trust for traces it wasn't tuned on, with that held-out run in Phoenix as an experiment I can check. Save the final judge prompt in Phoenix as `goal-deviation-judge`.
