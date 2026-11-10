@@ -31,6 +31,10 @@ import type {
   AnnotationConfigOptimizationDirection,
   AnnotationConfigType,
 } from "@phoenix/pages/settings/types";
+import {
+  getContinuousThresholdDescription,
+  getContinuousThresholdError,
+} from "@phoenix/utils/evaluatorOutputConfigUtils";
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
@@ -84,6 +88,11 @@ export const AnnotationConfigDialog = ({
   >(null);
   const annotationType = useWatch({ control, name: "annotationType" });
   const lowerBound = useWatch({ control, name: "lowerBound" });
+  const upperBound = useWatch({ control, name: "upperBound" });
+  const optimizationDirection = useWatch({
+    control,
+    name: "optimizationDirection",
+  });
   const onSubmit = (data: AnnotationConfig, close: () => void) => {
     const onCompleted = () => {
       notifySuccess({
@@ -121,6 +130,11 @@ export const AnnotationConfigDialog = ({
           name: data.name,
           lowerBound: data.lowerBound,
           upperBound: data.upperBound,
+          // A cleared field reads as NaN; either way the threshold is unset.
+          threshold:
+            data.threshold == null || Number.isNaN(data.threshold)
+              ? null
+              : data.threshold,
           id: initialAnnotationConfig?.id || "",
           optimizationDirection: data.optimizationDirection,
           description: data.description,
@@ -350,6 +364,56 @@ export const AnnotationConfigDialog = ({
                       }}
                     />
                   </Flex>
+                )}
+                {annotationType === "CONTINUOUS" && (
+                  <Controller
+                    control={control}
+                    name="threshold"
+                    rules={{
+                      validate: (value) =>
+                        getContinuousThresholdError({
+                          threshold: value,
+                          lowerBound,
+                          upperBound,
+                        }) ?? true,
+                    }}
+                    render={({
+                      field: { value, ...field },
+                      fieldState: { error },
+                    }) => (
+                      <NumberField
+                        {...field}
+                        value={
+                          typeof value === "number" && !Number.isNaN(value)
+                            ? value
+                            : undefined
+                        }
+                        isInvalid={!!error}
+                        css={css`
+                          max-width: 240px;
+                        `}
+                      >
+                        <Label>Threshold (optional)</Label>
+                        <Input
+                          placeholder={
+                            typeof lowerBound === "number" &&
+                            typeof upperBound === "number"
+                              ? String((lowerBound + upperBound) / 2)
+                              : undefined
+                          }
+                        />
+                        {error ? (
+                          <FieldError>{error.message}</FieldError>
+                        ) : (
+                          <Text slot="description">
+                            {getContinuousThresholdDescription(
+                              optimizationDirection
+                            )}
+                          </Text>
+                        )}
+                      </NumberField>
+                    )}
+                  />
                 )}
                 {annotationType === "CATEGORICAL" && (
                   <>

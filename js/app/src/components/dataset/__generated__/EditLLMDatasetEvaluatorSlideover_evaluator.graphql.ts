@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<862a6697a7555f014df210e865f0eac0>>
+ * @generated SignedSource<<6f91cc6b05181366b1ad3d065f8ed364>>
  * @lightSyntaxTransform
  */
 
@@ -18,12 +18,17 @@ export type EditLLMDatasetEvaluatorSlideover_evaluator$data = {
     readonly kind: EvaluatorKind;
     readonly name: string;
     readonly outputConfigs?: ReadonlyArray<{
-      readonly name?: string;
-      readonly optimizationDirection?: OptimizationDirection;
-      readonly values?: ReadonlyArray<{
+      readonly __typename: "CategoricalAnnotationConfig";
+      readonly name: string;
+      readonly optimizationDirection: OptimizationDirection;
+      readonly values: ReadonlyArray<{
         readonly label: string;
         readonly score: number | null;
       }>;
+    } | {
+      // This will never be '%other', but we need some
+      // value in case none of the concrete values match.
+      readonly __typename: "%other";
     }>;
     readonly prompt?: {
       readonly id: string;
@@ -55,14 +60,24 @@ export type EditLLMDatasetEvaluatorSlideover_evaluator$data = {
   };
   readonly name: string;
   readonly outputConfigs: ReadonlyArray<{
-    readonly lowerBound?: number | null;
-    readonly name?: string;
-    readonly optimizationDirection?: OptimizationDirection;
-    readonly upperBound?: number | null;
-    readonly values?: ReadonlyArray<{
+    readonly __typename: "CategoricalAnnotationConfig";
+    readonly name: string;
+    readonly optimizationDirection: OptimizationDirection;
+    readonly values: ReadonlyArray<{
       readonly label: string;
       readonly score: number | null;
     }>;
+  } | {
+    readonly __typename: "ContinuousAnnotationConfig";
+    readonly lowerBound: number | null;
+    readonly name: string;
+    readonly optimizationDirection: OptimizationDirection;
+    readonly threshold: number | null;
+    readonly upperBound: number | null;
+  } | {
+    // This will never be '%other', but we need some
+    // value in case none of the concrete values match.
+    readonly __typename: "%other";
   }>;
   readonly " $fragmentType": "EditLLMDatasetEvaluatorSlideover_evaluator";
 };
@@ -90,14 +105,21 @@ v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "optimizationDirection",
+  "name": "__typename",
   "storageKey": null
 },
 v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "optimizationDirection",
+  "storageKey": null
+},
+v4 = {
   "kind": "InlineFragment",
   "selections": [
     (v1/*:: as any*/),
-    (v2/*:: as any*/),
+    (v3/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -127,24 +149,17 @@ v3 = {
   "type": "CategoricalAnnotationConfig",
   "abstractKey": null
 },
-v4 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "description",
   "storageKey": null
 },
-v5 = [
+v6 = [
   (v0/*:: as any*/),
   (v1/*:: as any*/)
 ],
-v6 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "__typename",
-  "storageKey": null
-},
 v7 = {
   "alias": null,
   "args": null,
@@ -263,12 +278,13 @@ return {
       "name": "outputConfigs",
       "plural": true,
       "selections": [
-        (v3/*:: as any*/),
+        (v2/*:: as any*/),
+        (v4/*:: as any*/),
         {
           "kind": "InlineFragment",
           "selections": [
             (v1/*:: as any*/),
-            (v2/*:: as any*/),
+            (v3/*:: as any*/),
             {
               "alias": null,
               "args": null,
@@ -281,6 +297,13 @@ return {
               "args": null,
               "kind": "ScalarField",
               "name": "upperBound",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "threshold",
               "storageKey": null
             }
           ],
@@ -299,7 +322,7 @@ return {
       "plural": false,
       "selections": [
         (v0/*:: as any*/),
-        (v4/*:: as any*/),
+        (v5/*:: as any*/),
         {
           "alias": null,
           "args": null,
@@ -319,7 +342,8 @@ return {
               "name": "outputConfigs",
               "plural": true,
               "selections": [
-                (v3/*:: as any*/)
+                (v2/*:: as any*/),
+                (v4/*:: as any*/)
               ],
               "storageKey": null
             },
@@ -330,7 +354,7 @@ return {
               "kind": "LinkedField",
               "name": "prompt",
               "plural": false,
-              "selections": (v5/*:: as any*/),
+              "selections": (v6/*:: as any*/),
               "storageKey": null
             },
             {
@@ -357,7 +381,7 @@ return {
                       "name": "tools",
                       "plural": true,
                       "selections": [
-                        (v6/*:: as any*/),
+                        (v2/*:: as any*/),
                         {
                           "kind": "InlineFragment",
                           "selections": [
@@ -415,7 +439,7 @@ return {
                           "kind": "InlineDataFragmentSpread",
                           "name": "PromptInvocationParametersReadableFragment",
                           "selections": [
-                            (v6/*:: as any*/),
+                            (v2/*:: as any*/),
                             {
                               "kind": "InlineFragment",
                               "selections": [
@@ -502,7 +526,7 @@ return {
                                   "name": "thinking",
                                   "plural": false,
                                   "selections": [
-                                    (v6/*:: as any*/),
+                                    (v2/*:: as any*/),
                                     {
                                       "kind": "InlineFragment",
                                       "selections": [
@@ -649,7 +673,7 @@ return {
                       "kind": "LinkedField",
                       "name": "customProvider",
                       "plural": false,
-                      "selections": (v5/*:: as any*/),
+                      "selections": (v6/*:: as any*/),
                       "storageKey": null
                     },
                     {
@@ -669,7 +693,7 @@ return {
                           "plural": false,
                           "selections": [
                             (v1/*:: as any*/),
-                            (v4/*:: as any*/),
+                            (v5/*:: as any*/),
                             {
                               "alias": null,
                               "args": null,
@@ -692,7 +716,7 @@ return {
                       "name": "template",
                       "plural": false,
                       "selections": [
-                        (v6/*:: as any*/),
+                        (v2/*:: as any*/),
                         {
                           "kind": "InlineFragment",
                           "selections": [
@@ -719,7 +743,7 @@ return {
                                   "name": "content",
                                   "plural": true,
                                   "selections": [
-                                    (v6/*:: as any*/),
+                                    (v2/*:: as any*/),
                                     {
                                       "kind": "InlineFragment",
                                       "selections": [
@@ -852,7 +876,7 @@ return {
                           "name": "tools",
                           "plural": true,
                           "selections": [
-                            (v6/*:: as any*/),
+                            (v2/*:: as any*/),
                             {
                               "kind": "InlineFragment",
                               "selections": [
@@ -865,7 +889,7 @@ return {
                                   "plural": false,
                                   "selections": [
                                     (v1/*:: as any*/),
-                                    (v4/*:: as any*/),
+                                    (v5/*:: as any*/),
                                     (v7/*:: as any*/),
                                     (v15/*:: as any*/)
                                   ],
@@ -934,6 +958,6 @@ return {
 };
 })();
 
-(node as any).hash = "5d7cfaaeef344a5a7bad59b1a3cddb93";
+(node as any).hash = "f515c3ff8dcfed00c5377e7232557a83";
 
 export default node;

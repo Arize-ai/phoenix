@@ -327,6 +327,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                         optimizationDirection
                         lowerBound
                         upperBound
+                        threshold
                       }
                       ... on FreeformAnnotationConfig {
                         name

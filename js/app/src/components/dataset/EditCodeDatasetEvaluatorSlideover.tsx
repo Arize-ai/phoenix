@@ -30,13 +30,8 @@ import {
   type EvaluatorStoreInstance,
   type EvaluatorStoreProps,
 } from "@phoenix/store/evaluatorStore";
-import type {
-  ClassificationEvaluatorAnnotationConfig,
-  ContinuousEvaluatorAnnotationConfig,
-  FreeformEvaluatorAnnotationConfig,
-} from "@phoenix/types";
-import type { Mutable } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
+import { toEvaluatorStoreOutputConfig } from "@phoenix/utils/evaluatorOutputConfigUtils";
 
 type EditCodeDatasetEvaluatorSlideoverProps = {
   datasetEvaluatorId?: string | null;
@@ -164,6 +159,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
                     optimizationDirection
                     lowerBound
                     upperBound
+                    threshold
                   }
                   ... on FreeformAnnotationConfig {
                     name
@@ -198,6 +194,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
                         optimizationDirection
                         lowerBound
                         upperBound
+                        threshold
                       }
                       ... on FreeformAnnotationConfig {
                         name
@@ -334,17 +331,15 @@ function EditCodeDatasetEvaluatorSlideoverContent({
   const evaluatorLanguage = evaluator.language;
   const evaluatorSourceCode = currentVersion.sourceCode;
 
-  const loadedOutputConfigs = (
-    datasetEvaluator.outputConfigs?.length
-      ? datasetEvaluator.outputConfigs
-      : evaluator.outputConfigs?.length
-        ? evaluator.outputConfigs
-        : [createDefaultFreeformOutputConfig(datasetEvaluator.name ?? "")]
-  ) as Mutable<
-    | ContinuousEvaluatorAnnotationConfig
-    | ClassificationEvaluatorAnnotationConfig
-    | FreeformEvaluatorAnnotationConfig
-  >[];
+  const selectedOutputConfigs = datasetEvaluator.outputConfigs?.length
+    ? datasetEvaluator.outputConfigs
+    : (evaluator.outputConfigs ?? []);
+  const taggedOutputConfigs = selectedOutputConfigs.flatMap(
+    (config) => toEvaluatorStoreOutputConfig(config) ?? []
+  );
+  const loadedOutputConfigs = taggedOutputConfigs.length
+    ? taggedOutputConfigs
+    : [createDefaultFreeformOutputConfig(datasetEvaluator.name ?? "")];
   const initialState: EvaluatorStoreProps = {
     evaluator: {
       id: evaluator.id,

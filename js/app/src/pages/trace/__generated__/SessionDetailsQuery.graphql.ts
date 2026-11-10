@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<58489e76c92fd7f1bfd96f97b38ebcd8>>
+ * @generated SignedSource<<35a5d73f9d50667210d9a6403ad2657c>>
  * @lightSyntaxTransform
  */
 
@@ -224,7 +224,14 @@ v16 = {
   "name": "upperBound",
   "storageKey": null
 },
-v17 = [
+v17 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "threshold",
+  "storageKey": null
+},
+v18 = [
   (v9/*:: as any*/),
   {
     "kind": "InlineFragment",
@@ -263,7 +270,8 @@ v17 = [
         "selections": [
           (v12/*:: as any*/),
           (v15/*:: as any*/),
-          (v16/*:: as any*/)
+          (v16/*:: as any*/),
+          (v17/*:: as any*/)
         ],
         "type": "ContinuousAnnotationConfig",
         "abstractKey": null
@@ -272,13 +280,7 @@ v17 = [
         "kind": "InlineFragment",
         "selections": [
           (v12/*:: as any*/),
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "threshold",
-            "storageKey": null
-          },
+          (v17/*:: as any*/),
           (v15/*:: as any*/),
           (v16/*:: as any*/)
         ],
@@ -298,28 +300,28 @@ v17 = [
     "abstractKey": "__isNode"
   }
 ],
-v18 = {
+v19 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "value",
   "storageKey": null
 },
-v19 = {
+v20 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "description",
   "storageKey": null
 },
-v20 = {
+v21 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "probability",
   "storageKey": null
 },
-v21 = {
+v22 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -463,7 +465,7 @@ return {
                                     "kind": "LinkedField",
                                     "name": "outputConfigs",
                                     "plural": true,
-                                    "selections": (v17/*:: as any*/),
+                                    "selections": (v18/*:: as any*/),
                                     "storageKey": null
                                   },
                                   (v2/*:: as any*/)
@@ -505,7 +507,7 @@ return {
                             "kind": "LinkedField",
                             "name": "node",
                             "plural": false,
-                            "selections": (v17/*:: as any*/),
+                            "selections": (v18/*:: as any*/),
                             "storageKey": null
                           }
                         ],
@@ -627,8 +629,8 @@ return {
                             "name": "choices",
                             "plural": true,
                             "selections": [
-                              (v18/*:: as any*/),
-                              (v19/*:: as any*/)
+                              (v19/*:: as any*/),
+                              (v20/*:: as any*/)
                             ],
                             "storageKey": null
                           },
@@ -641,7 +643,7 @@ return {
                             "plural": true,
                             "selections": [
                               (v13/*:: as any*/),
-                              (v19/*:: as any*/)
+                              (v20/*:: as any*/)
                             ],
                             "storageKey": null
                           }
@@ -660,7 +662,7 @@ return {
                           {
                             "kind": "InlineFragment",
                             "selections": [
-                              (v20/*:: as any*/)
+                              (v21/*:: as any*/)
                             ],
                             "type": "PredicateAnswer",
                             "abstractKey": null
@@ -675,7 +677,7 @@ return {
                                 "name": "choice",
                                 "storageKey": null
                               },
-                              (v21/*:: as any*/),
+                              (v22/*:: as any*/),
                               {
                                 "alias": "choiceProbabilities",
                                 "args": null,
@@ -684,8 +686,8 @@ return {
                                 "name": "probabilities",
                                 "plural": true,
                                 "selections": [
-                                  (v18/*:: as any*/),
-                                  (v20/*:: as any*/)
+                                  (v19/*:: as any*/),
+                                  (v21/*:: as any*/)
                                 ],
                                 "storageKey": null
                               }
@@ -703,7 +705,7 @@ return {
                                 "name": "expectedLevel",
                                 "storageKey": null
                               },
-                              (v21/*:: as any*/),
+                              (v22/*:: as any*/),
                               {
                                 "alias": "levelProbabilities",
                                 "args": null,
@@ -719,7 +721,7 @@ return {
                                     "name": "level",
                                     "storageKey": null
                                   },
-                                  (v20/*:: as any*/)
+                                  (v21/*:: as any*/)
                                 ],
                                 "storageKey": null
                               }
@@ -839,12 +841,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c15733a2ea3a3aa360879c67513afa84",
+    "cacheID": "ad785537b84573afcdfde3cd1ccf4296",
     "id": null,
     "metadata": {},
     "name": "SessionDetailsQuery",
     "operationKind": "query",
-    "text": "query SessionDetailsQuery(\n  $id: ID!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      project {\n        id\n        ...ProjectAnnotationConfigsByNameFragment\n      }\n      numTraces\n      tokenUsage {\n        total\n      }\n      costSummary {\n        total {\n          cost\n          tokens\n        }\n        prompt {\n          cost\n          tokens\n        }\n        completion {\n          cost\n          tokens\n        }\n      }\n      sessionId\n      latencyP50: traceLatencyMsQuantile(probability: 0.5)\n      ...SessionAnnotationSummaryGroup\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  evaluators(first: 100, filter: {}) {\n    edges {\n      node {\n        name\n        evaluator {\n          __typename\n          outputConfigs {\n            __typename\n            ...useProjectAnnotationConfigsByName_config\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          id\n        }\n        id\n      }\n    }\n  }\n  configsByName: annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ...useProjectAnnotationConfigsByName_config\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationSummaryGroup on ProjectSession {\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n    decision {\n      status\n      question {\n        name\n        type\n        choices {\n          value\n          description\n        }\n        levels {\n          label\n          description\n        }\n      }\n      answer {\n        __typename\n        ... on PredicateAnswer {\n          probability\n        }\n        ... on ChoiceAnswer {\n          choice\n          confidence\n          choiceProbabilities: probabilities {\n            value\n            probability\n          }\n        }\n        ... on ScaleAnswer {\n          expectedLevel\n          confidence\n          levelProbabilities: probabilities {\n            level\n            probability\n          }\n        }\n      }\n      requestedModel\n      resolvedModel\n      modelProvider\n    }\n  }\n  summarySessionAnnotationSummaries: sessionAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment useProjectAnnotationConfigsByName_config on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  name\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    optimizationDirection\n    lowerBound\n    upperBound\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n    lowerBound\n    upperBound\n  }\n}\n"
+    "text": "query SessionDetailsQuery(\n  $id: ID!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      project {\n        id\n        ...ProjectAnnotationConfigsByNameFragment\n      }\n      numTraces\n      tokenUsage {\n        total\n      }\n      costSummary {\n        total {\n          cost\n          tokens\n        }\n        prompt {\n          cost\n          tokens\n        }\n        completion {\n          cost\n          tokens\n        }\n      }\n      sessionId\n      latencyP50: traceLatencyMsQuantile(probability: 0.5)\n      ...SessionAnnotationSummaryGroup\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  evaluators(first: 100, filter: {}) {\n    edges {\n      node {\n        name\n        evaluator {\n          __typename\n          outputConfigs {\n            __typename\n            ...useProjectAnnotationConfigsByName_config\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          id\n        }\n        id\n      }\n    }\n  }\n  configsByName: annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ...useProjectAnnotationConfigsByName_config\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationSummaryGroup on ProjectSession {\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n    decision {\n      status\n      question {\n        name\n        type\n        choices {\n          value\n          description\n        }\n        levels {\n          label\n          description\n        }\n      }\n      answer {\n        __typename\n        ... on PredicateAnswer {\n          probability\n        }\n        ... on ChoiceAnswer {\n          choice\n          confidence\n          choiceProbabilities: probabilities {\n            value\n            probability\n          }\n        }\n        ... on ScaleAnswer {\n          expectedLevel\n          confidence\n          levelProbabilities: probabilities {\n            level\n            probability\n          }\n        }\n      }\n      requestedModel\n      resolvedModel\n      modelProvider\n    }\n  }\n  summarySessionAnnotationSummaries: sessionAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment useProjectAnnotationConfigsByName_config on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  name\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    optimizationDirection\n    lowerBound\n    upperBound\n    threshold\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n    lowerBound\n    upperBound\n  }\n}\n"
   }
 };
 })();

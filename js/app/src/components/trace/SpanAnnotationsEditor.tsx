@@ -433,6 +433,7 @@ function SpanAnnotationsList(props: {
                   ... on ContinuousAnnotationConfig {
                     lowerBound
                     upperBound
+                    threshold
                     optimizationDirection
                   }
                   ... on FreeformAnnotationConfig {

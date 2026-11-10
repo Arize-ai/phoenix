@@ -294,6 +294,7 @@ export function ExperimentsTable({
                     optimizationDirection
                     lowerBound
                     upperBound
+                    threshold
                   }
                   ... on FreeformAnnotationConfig {
                     name

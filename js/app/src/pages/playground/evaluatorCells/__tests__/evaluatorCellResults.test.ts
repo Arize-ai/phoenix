@@ -85,6 +85,7 @@ describe("getEvaluatorTaskAnnotation", () => {
           outputConfigs: [
             PASS_FAIL,
             {
+              annotationType: "CONTINUOUS",
               name: "confidence",
               optimizationDirection: "MAXIMIZE",
               lowerBound: 0,
@@ -104,6 +105,7 @@ describe("getEvaluatorTaskAnnotation", () => {
           name: "confidence",
           outputConfigs: [
             {
+              annotationType: "CONTINUOUS",
               name: "confidence",
               optimizationDirection: "MAXIMIZE",
               lowerBound: 0,
@@ -119,6 +121,7 @@ describe("getEvaluatorTaskAnnotation", () => {
       optimizationDirection: "MAXIMIZE",
       lowerBound: 0,
       upperBound: 0.5,
+      threshold: null,
     });
     expect(
       getEvaluatorTaskAnnotation({
@@ -135,6 +138,27 @@ describe("getEvaluatorTaskAnnotation", () => {
         position: 0,
       }).config
     ).toMatchObject({ values: [{ label: "friendly", score: null }] });
+  });
+
+  it("carries a numeric output's threshold through", () => {
+    expect(
+      getEvaluatorTaskAnnotation({
+        evaluator: {
+          name: "helpfulness",
+          outputConfigs: [
+            {
+              annotationType: "CONTINUOUS",
+              name: "helpfulness",
+              optimizationDirection: "MAXIMIZE",
+              lowerBound: 0,
+              upperBound: 10,
+              threshold: 7,
+            },
+          ],
+        },
+        position: 0,
+      }).config
+    ).toMatchObject({ lowerBound: 0, upperBound: 10, threshold: 7 });
   });
 
   it("names an unnamed draft by its column and has no output without a config", () => {

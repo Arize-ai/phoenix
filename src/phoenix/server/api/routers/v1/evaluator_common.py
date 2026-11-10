@@ -17,6 +17,7 @@ from phoenix.db.types.annotation_configs import (
     OutputConfigType,
     as_output_configs,
 )
+from phoenix.db.types.decision_evaluators import with_derived_threshold
 from phoenix.server.api.exceptions import AlreadyExists, BadRequest, Conflict, NotFound
 from phoenix.server.api.routers.v1.annotation_config_models import (
     CategoricalAnnotationConfigData,
@@ -52,11 +53,17 @@ EvaluatorOutputConfig = Annotated[
 """Output configurations use the same REST shapes as annotation configs for every kind."""
 
 
-def output_configs_to_db(configs: Sequence[EvaluatorOutputConfig]) -> list[OutputConfigType]:
+def output_configs_to_db(
+    configs: Sequence[EvaluatorOutputConfig], *, derived_thresholds: bool = False
+) -> list[OutputConfigType]:
     """Convert REST output configurations to their database representation.
 
     The REST models accept values the stored config rejects, such as inverted bounds
     or duplicate categorical labels. Those are the caller's input, not a server fault.
+
+    With `derived_thresholds`, a continuous threshold is carried as a decision judge's
+    derived one rather than saved: it is not checked against the bounds, since a
+    predicate's may sit on one, and is left for the caller to compare with the policy's.
     """
     stored: list[OutputConfigType] = []
     try:
@@ -65,6 +72,18 @@ def output_configs_to_db(configs: Sequence[EvaluatorOutputConfig]) -> list[Outpu
             if isinstance(config, FreeformAnnotationConfigData):
                 threshold = data.pop("threshold")
                 data["thresholds"] = [threshold] if threshold is not None else None
+            elif isinstance(config, ContinuousAnnotationConfigData) and (
+                data["threshold"] is None or derived_thresholds
+            ):
+                # Left unset, so configs without one are stored as before.
+                threshold = data.pop("threshold")
+                continuous = ContinuousOutputConfig.model_validate(data)
+                stored.append(
+                    continuous
+                    if threshold is None
+                    else with_derived_threshold(continuous, threshold)
+                )
+                continue
             stored.append(OutputConfig.model_validate(data).root)
     except ValidationError as error:
         raise BadRequest(str(error)) from error

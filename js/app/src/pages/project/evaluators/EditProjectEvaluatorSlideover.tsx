@@ -175,6 +175,7 @@ export function useProjectEvaluator(projectEvaluatorId: string) {
                     optimizationDirection
                     lowerBound
                     upperBound
+                    threshold
                   }
                   ... on FreeformAnnotationConfig {
                     name
@@ -235,6 +236,7 @@ export function useProjectEvaluator(projectEvaluatorId: string) {
                     optimizationDirection
                     lowerBound
                     upperBound
+                    threshold
                   }
                   ... on FreeformAnnotationConfig {
                     name

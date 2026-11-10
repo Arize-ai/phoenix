@@ -28,6 +28,7 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.annotation_configs import (
     FreeformAnnotationConfig as FreeformAnnotationConfigModel,
 )
+from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.server.api.routers.v1.annotation_config_models import (
     AnnotationConfig,
     AnnotationConfigData,
@@ -670,6 +671,8 @@ def _to_db_continuous_annotation_config(
         optimization_direction=input_config.optimization_direction,
         lower_bound=input_config.lower_bound,
         upper_bound=input_config.upper_bound,
+        # Left unset when absent, so configs without one serialize as before.
+        threshold=UNDEFINED if input_config.threshold is None else input_config.threshold,
     )
 
 

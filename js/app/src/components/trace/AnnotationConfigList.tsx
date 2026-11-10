@@ -72,6 +72,7 @@ export function AnnotationConfigList(props: {
               ... on ContinuousAnnotationConfig {
                 lowerBound
                 upperBound
+                threshold
               }
             }
           }
@@ -108,6 +109,7 @@ export function AnnotationConfigList(props: {
                 ... on ContinuousAnnotationConfig {
                   lowerBound
                   upperBound
+                  threshold
                   optimizationDirection
                 }
                 ... on FreeformAnnotationConfig {

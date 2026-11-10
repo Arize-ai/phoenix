@@ -163,6 +163,7 @@ const readRow = (
               optimizationDirection
               lowerBound
               upperBound
+              threshold
             }
             ... on FreeformAnnotationConfig {
               optimizationDirection

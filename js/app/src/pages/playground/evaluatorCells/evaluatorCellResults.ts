@@ -100,6 +100,7 @@ function toAnnotationConfig({
     optimizationDirection: config.optimizationDirection,
     lowerBound: config.lowerBound ?? null,
     upperBound: config.upperBound ?? null,
+    threshold: config.threshold ?? null,
   };
 }
 

@@ -15,7 +15,11 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import OutputConfigType
-from phoenix.db.types.decision_evaluators import DecisionScoringPolicy, adapt_scoring_policy
+from phoenix.db.types.decision_evaluators import (
+    DecisionScoringPolicy,
+    adapt_scoring_policy,
+    matches_derived_output_configs,
+)
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
@@ -259,7 +263,9 @@ async def _bind_decision_to_dataset(
     )
     if dataset_name is None:
         raise NotFound("Dataset not found")
-    if output_configs is not None and list(output_configs) != evaluator.output_configs:
+    if output_configs is not None and not matches_derived_output_configs(
+        output_configs, evaluator.output_configs
+    ):
         raise BadRequest(
             "Decision outputs are derived from the questions and scoring policy; "
             "edit the scoring policy to change scoring"

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<038abc3e968315bb1b22e5e40f837374>>
+ * @generated SignedSource<<81a0616996f2fd26deb200a205dbf5fa>>
  * @lightSyntaxTransform
  */
 
@@ -70,7 +70,14 @@ v4 = {
   "name": "upperBound",
   "storageKey": null
 },
-v5 = [
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "threshold",
+  "storageKey": null
+},
+v6 = [
   {
     "kind": "InlineDataFragmentSpread",
     "name": "useProjectAnnotationConfigsByName_config",
@@ -124,7 +131,8 @@ v5 = [
             "selections": [
               (v2/*:: as any*/),
               (v3/*:: as any*/),
-              (v4/*:: as any*/)
+              (v4/*:: as any*/),
+              (v5/*:: as any*/)
             ],
             "type": "ContinuousAnnotationConfig",
             "abstractKey": null
@@ -133,13 +141,7 @@ v5 = [
             "kind": "InlineFragment",
             "selections": [
               (v2/*:: as any*/),
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "threshold",
-                "storageKey": null
-              },
+              (v5/*:: as any*/),
               (v3/*:: as any*/),
               (v4/*:: as any*/)
             ],
@@ -225,7 +227,7 @@ return {
                       "kind": "LinkedField",
                       "name": "outputConfigs",
                       "plural": true,
-                      "selections": (v5/*:: as any*/),
+                      "selections": (v6/*:: as any*/),
                       "storageKey": null
                     }
                   ],
@@ -270,7 +272,7 @@ return {
               "kind": "LinkedField",
               "name": "node",
               "plural": false,
-              "selections": (v5/*:: as any*/),
+              "selections": (v6/*:: as any*/),
               "storageKey": null
             }
           ],

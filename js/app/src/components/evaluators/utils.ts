@@ -1,7 +1,7 @@
 import { graphql, readInlineData } from "relay-runtime";
 
 import {
-  getOptimizationValue,
+  type AnnotationOptimizationConfig,
   getOptimizationValueFromConfig,
 } from "@phoenix/components/annotation/optimizationUtils";
 import type { AnnotationConfig as TypedAnnotationConfig } from "@phoenix/components/annotation/types";
@@ -27,6 +27,7 @@ import type {
   FreeformEvaluatorAnnotationConfig,
 } from "@phoenix/types";
 import { isObject } from "@phoenix/typeUtils";
+import { getEvaluatorOutputConfigType } from "@phoenix/utils/evaluatorOutputConfigUtils";
 
 /**
  * The input schema sent with an evaluator: its declared inputs, each with the
@@ -397,7 +398,8 @@ const toAnnotationConfigInput = (
     };
   }
 
-  if ("threshold" in config) {
+  const configType = getEvaluatorOutputConfigType(config);
+  if (configType === "FREEFORM") {
     const freeformConfig = config as FreeformEvaluatorAnnotationConfig;
     return {
       freeform: {
@@ -423,6 +425,10 @@ const toAnnotationConfigInput = (
       optimizationDirection: continuousConfig.optimizationDirection,
       lowerBound: continuousConfig.lowerBound ?? null,
       upperBound: continuousConfig.upperBound ?? null,
+      // Sent only when set, so an unset threshold stays out of the saved config.
+      ...(continuousConfig.threshold != null
+        ? { threshold: continuousConfig.threshold }
+        : {}),
     },
   };
 };
@@ -569,7 +575,7 @@ export function matchOutputConfigForAnnotation<T extends { name: string }>({
 /**
  * Maps an evaluator preview's annotation score onto the optimization value of
  * a typed output config it came from, such as a decision evaluator's derived
- * outputs.
+ * outputs: a Yes / No question's pivots on its threshold.
  */
 export function getTypedOutputConfigOptimizationValue({
   annotationName,
@@ -618,38 +624,22 @@ export function getOutputConfigOptimizationValue({
     return null;
   }
 
-  const optimizationDirection =
-    matchedConfig.optimizationDirection === "MAXIMIZE" ||
-    matchedConfig.optimizationDirection === "MINIMIZE"
-      ? matchedConfig.optimizationDirection
-      : undefined;
-
-  let lowerBound: number | undefined;
-  let upperBound: number | undefined;
-  let threshold: number | undefined;
-
-  if ("values" in matchedConfig) {
-    const scores = matchedConfig.values
-      .map((v) => v.score)
-      .filter((s): s is number => s != null);
-    if (scores.length > 0) {
-      lowerBound = Math.min(...scores);
-      upperBound = Math.max(...scores);
-    }
-  } else if ("threshold" in matchedConfig) {
-    threshold = matchedConfig.threshold ?? undefined;
-    lowerBound = matchedConfig.lowerBound ?? undefined;
-    upperBound = matchedConfig.upperBound ?? undefined;
-  } else if ("lowerBound" in matchedConfig) {
-    lowerBound = matchedConfig.lowerBound ?? undefined;
-    upperBound = matchedConfig.upperBound ?? undefined;
-  }
-
-  return getOptimizationValue({
-    score,
-    lowerBound,
-    upperBound,
-    threshold,
-    optimizationDirection,
-  });
+  const config: AnnotationOptimizationConfig =
+    "values" in matchedConfig
+      ? {
+          annotationType: "CATEGORICAL",
+          optimizationDirection: matchedConfig.optimizationDirection,
+          values: matchedConfig.values.map(({ label, score }) => ({
+            label,
+            score: score ?? null,
+          })),
+        }
+      : {
+          annotationType: getEvaluatorOutputConfigType(matchedConfig),
+          optimizationDirection: matchedConfig.optimizationDirection,
+          lowerBound: matchedConfig.lowerBound,
+          upperBound: matchedConfig.upperBound,
+          threshold: matchedConfig.threshold,
+        };
+  return getOptimizationValueFromConfig({ config, score });
 }

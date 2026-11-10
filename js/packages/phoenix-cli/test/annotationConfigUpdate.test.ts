@@ -270,6 +270,38 @@ describe("annotation-config update", () => {
     expect(body.upper_bound).toBe(10);
   });
 
+  it("updates a continuous threshold", async () => {
+    const captured = captureAnnotationConfigUpdateFlow(CONTINUOUS);
+    captureCliOutput();
+
+    await createAnnotationConfigCommand().parseAsync(
+      ["update", "score", "--threshold", "0.7", ...BASE_ARGS],
+      { from: "user" }
+    );
+
+    const body = captured.putBody as Record<string, unknown>;
+    expect(body.type).toBe("CONTINUOUS");
+    expect(body.threshold).toBe(0.7);
+    expect(body.lower_bound).toBe(CONTINUOUS.lower_bound);
+  });
+
+  it("keeps a continuous config's threshold when other fields change", async () => {
+    const captured = captureAnnotationConfigUpdateFlow({
+      ...CONTINUOUS,
+      threshold: 0.7,
+    });
+    captureCliOutput();
+
+    await createAnnotationConfigCommand().parseAsync(
+      ["update", "score", "--description", "new", ...BASE_ARGS],
+      { from: "user" }
+    );
+
+    const body = captured.putBody as Record<string, unknown>;
+    expect(body.threshold).toBe(0.7);
+    expect(body.description).toBe("new");
+  });
+
   it("outputs the updated config as a single object with --format raw", async () => {
     const updated = { ...CATEGORICAL, name: "renamed" };
     captureAnnotationConfigUpdateFlow(CATEGORICAL, updated);

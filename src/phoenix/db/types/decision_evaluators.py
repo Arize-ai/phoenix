@@ -1,7 +1,8 @@
 """Versioned scoring policies for native decision evaluators."""
 
 import math
-from typing import Annotated, Literal, Union
+from collections.abc import Sequence
+from typing import Annotated, Any, Literal, Optional, Union
 
 from pydantic import Field, model_validator
 from typing_extensions import Self
@@ -113,6 +114,24 @@ def adapt_scoring_policy(
     return DecisionScoringPolicy(questions=resolved)
 
 
+def with_derived_threshold(
+    config: ContinuousOutputConfig, threshold: float
+) -> ContinuousOutputConfig:
+    """The config with a predicate's threshold, which is where its label flips and so
+    where its results turn from bad to good, not the middle of 0..1.
+
+    Constructed so the threshold stays out of the config's set fields, which keeps it
+    from being serialized or checked as a saved threshold: it is the scoring policy's,
+    stored, validated and fingerprinted there, so outputs derived from a policy dump,
+    snapshot and compare as they did before they carried it, and it may sit on a
+    bound (at 1, only a certain Yes is true), which a saved threshold may not.
+    """
+    return ContinuousOutputConfig.model_construct(
+        _fields_set=set(config.model_fields_set),
+        **{**dict(config), "threshold": threshold},
+    )
+
+
 def derive_decision_output_configs(
     questions: list[DecisionQuestion], policy: DecisionScoringPolicy
 ) -> list[OutputConfigType]:
@@ -137,15 +156,52 @@ def derive_decision_output_configs(
                 )
             )
         else:
-            configs.append(
-                ContinuousOutputConfig(
-                    type="CONTINUOUS",
-                    name=question.name,
-                    optimization_direction=scoring.optimization_direction,
-                    lower_bound=0,
-                    upper_bound=1
-                    if isinstance(question, PredicateQuestion)
-                    else len(question.levels) - 1,
-                )
+            config = ContinuousOutputConfig(
+                type="CONTINUOUS",
+                name=question.name,
+                optimization_direction=scoring.optimization_direction,
+                lower_bound=0,
+                upper_bound=1
+                if isinstance(question, PredicateQuestion)
+                else len(question.levels) - 1,
             )
+            if isinstance(scoring, PredicateScoring):
+                config = with_derived_threshold(config, scoring.threshold)
+            configs.append(config)
     return configs
+
+
+def _comparable(value: Any) -> Any:
+    # A field left unset and one given as null say the same thing.
+    if isinstance(value, dict):
+        return {key: _comparable(item) for key, item in value.items() if item is not None}
+    if isinstance(value, list):
+        return [_comparable(item) for item in value]
+    return value
+
+
+def matches_derived_output_configs(
+    given: Sequence[OutputConfigType], derived: Sequence[OutputConfigType]
+) -> bool:
+    """Whether a caller's copy of a judge's outputs is the one derived from its policy.
+
+    A field given as null matches one left unset, so a judge's outputs read back from the
+    API match themselves. The threshold is compared on its own, since a predicate's is
+    derived and never serialized: a copy may leave it out, as callers written before
+    outputs carried it do, but one that gives a threshold must give the policy's.
+    """
+    if len(given) != len(derived):
+        return False
+    for given_config, derived_config in zip(given, derived):
+        given_threshold: Optional[float] = getattr(given_config, "threshold", None)
+        if given_threshold is not None and given_threshold != getattr(
+            derived_config, "threshold", None
+        ):
+            return False
+        given_dump = _comparable(given_config.model_dump())
+        derived_dump = _comparable(derived_config.model_dump())
+        given_dump.pop("threshold", None)
+        derived_dump.pop("threshold", None)
+        if given_dump != derived_dump:
+            return False
+    return True

@@ -67,6 +67,7 @@ const llmProjectEvaluatorDetailsFragment = graphql`
         optimizationDirection
         lowerBound
         upperBound
+        threshold
       }
       ... on FreeformAnnotationConfig {
         name
@@ -130,6 +131,7 @@ const codeProjectEvaluatorDetailsFragment = graphql`
         optimizationDirection
         lowerBound
         upperBound
+        threshold
       }
       ... on FreeformAnnotationConfig {
         name
@@ -399,14 +401,17 @@ export function convertProjectEvaluatorOutputConfigs(
     }
     if (config.__typename === "ContinuousAnnotationConfig") {
       return {
+        annotationType: "CONTINUOUS",
         name,
         optimizationDirection,
         lowerBound: getNullableNumber(config.lowerBound),
         upperBound: getNullableNumber(config.upperBound),
+        threshold: getNullableNumber(config.threshold),
       };
     }
     if (config.__typename === "FreeformAnnotationConfig") {
       return {
+        annotationType: "FREEFORM",
         name,
         optimizationDirection,
         threshold: getNullableNumber(config.threshold),

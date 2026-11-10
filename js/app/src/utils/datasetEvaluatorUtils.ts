@@ -58,6 +58,8 @@ function outputConfigToAnnotationConfig(
         optimizationDirection,
         lowerBound: outputConfig.lowerBound,
         upperBound: outputConfig.upperBound,
+        // Saved, or a decision Yes / No question's: where good turns bad.
+        threshold: outputConfig.threshold ?? null,
         annotationType: "CONTINUOUS",
       };
     case "FreeformAnnotationConfig":

@@ -20,6 +20,7 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.annotation_configs import (
     FreeformAnnotationConfig as FreeformAnnotationConfigModel,
 )
+from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.server.api.auth import IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
@@ -138,6 +139,8 @@ def _to_pydantic_continuous_annotation_config(
             optimization_direction=input.optimization_direction,
             lower_bound=input.lower_bound,
             upper_bound=input.upper_bound,
+            # Left unset when absent, so configs without one serialize as before.
+            threshold=UNDEFINED if input.threshold is None else input.threshold,
         )
     except ValueError as error:
         raise BadRequest(str(error))

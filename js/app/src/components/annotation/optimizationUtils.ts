@@ -70,7 +70,8 @@ function normalizeOptimizationDirection(
 
 /**
  * Gets the optimization bounds from an annotation config.
- * For continuous configs, uses the lower/upper bounds directly.
+ * For continuous configs, uses the lower/upper bounds directly, and the threshold
+ * when one is saved or a decision evaluator's Yes / No output carries one.
  * For categorical configs, calculates bounds from the min/max scores of the values.
  * For freeform configs, returns an optional threshold that overrides the midpoint computation.
  */
@@ -80,6 +81,8 @@ export function getOptimizationBounds(
   lowerBound: number | undefined;
   upperBound: number | undefined;
   threshold: number | undefined;
+  /** Whether a score exactly at `threshold` is on its high side. */
+  isThresholdHighSide: boolean;
   optimizationDirection: OptimizationDirectionResult;
 } {
   if (config == null) {
@@ -87,6 +90,7 @@ export function getOptimizationBounds(
       lowerBound: undefined,
       upperBound: undefined,
       threshold: undefined,
+      isThresholdHighSide: false,
       optimizationDirection: undefined,
     };
   }
@@ -96,6 +100,7 @@ export function getOptimizationBounds(
       lowerBound: config.lowerBound ?? undefined,
       upperBound: config.upperBound ?? undefined,
       threshold: config.threshold ?? undefined,
+      isThresholdHighSide: false,
       optimizationDirection: normalizeOptimizationDirection(
         config.optimizationDirection
       ),
@@ -110,7 +115,11 @@ export function getOptimizationBounds(
     return {
       lowerBound: config.lowerBound ?? undefined,
       upperBound: config.upperBound ?? undefined,
-      threshold: undefined,
+      // A saved threshold, or a decision Yes / No question's (where its label
+      // flips), replaces the bounds' midpoint as the pivot. A score at it is on
+      // its high side, as a Yes / No label is true from its threshold up.
+      threshold: config.threshold ?? undefined,
+      isThresholdHighSide: config.threshold != null,
       optimizationDirection,
     };
   }
@@ -134,6 +143,7 @@ export function getOptimizationBounds(
     lowerBound: lowerBound === Infinity ? undefined : lowerBound,
     upperBound: upperBound === -Infinity ? undefined : upperBound,
     threshold: undefined,
+    isThresholdHighSide: false,
     optimizationDirection,
   };
 }
@@ -160,11 +170,19 @@ function getOptimizationPivot({
 }
 
 /**
+ * The smallest magnitude a score on a threshold's high side maps to, so a score
+ * exactly at the threshold reads as good or bad rather than neutral. It is the
+ * colour scale's smallest step, which keeps the gradient as it is.
+ */
+const THRESHOLD_HIGH_SIDE_MIN_MAGNITUDE = 0.01;
+
+/**
  * Maps a score onto a signed optimization value from `-1` (worst) through
  * `0` (neutral) to `1` (best).
  *
  * The pivot is `threshold`, else the midpoint of the bounds; a score at the
- * pivot is neutral. Each side of the pivot is scaled to its own range, so an
+ * pivot is neutral, unless `isThresholdHighSide` puts a score at the threshold
+ * on its high side: good under MAXIMIZE, bad under MINIMIZE. Each side of the pivot is scaled to its own range, so an
  * off-center threshold still reaches both ends, and scores outside the bounds
  * are clamped. A side with no bound has no range to scale, so any score on
  * that side is `1` or `-1`.
@@ -177,12 +195,14 @@ export function getOptimizationValue({
   lowerBound,
   upperBound,
   threshold,
+  isThresholdHighSide = false,
   optimizationDirection,
 }: {
   score: number | null | undefined;
   lowerBound: number | undefined;
   upperBound: number | undefined;
   threshold?: number | undefined;
+  isThresholdHighSide?: boolean;
   optimizationDirection: OptimizationDirectionResult;
 }): number | null {
   if (score == null || optimizationDirection == null) {
@@ -193,6 +213,16 @@ export function getOptimizationValue({
 
   if (pivot == null) {
     return null;
+  }
+
+  if (isThresholdHighSide && threshold != null && score >= threshold) {
+    // The high side runs from the threshold to the upper bound, whichever
+    // direction makes it the good one.
+    const highSign = optimizationDirection === "MAXIMIZE" ? 1 : -1;
+    const highRange = upperBound == null ? 0 : upperBound - threshold;
+    const magnitude =
+      highRange <= 0 ? 1 : Math.min(1, (score - threshold) / highRange);
+    return highSign * Math.max(THRESHOLD_HIGH_SIDE_MIN_MAGNITUDE, magnitude);
   }
 
   const signedDistance =
@@ -232,16 +262,7 @@ export function getOptimizationValueFromConfig({
   config: AnnotationOptimizationConfig | undefined;
   score: number | null | undefined;
 }): number | null {
-  const { lowerBound, upperBound, threshold, optimizationDirection } =
-    getOptimizationBounds(config);
-
-  return getOptimizationValue({
-    score,
-    lowerBound,
-    upperBound,
-    threshold,
-    optimizationDirection,
-  });
+  return getOptimizationValue({ score, ...getOptimizationBounds(config) });
 }
 
 /**

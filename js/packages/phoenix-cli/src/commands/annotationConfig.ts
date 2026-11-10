@@ -125,8 +125,9 @@ interface AnnotationConfigCreateOptions extends CommonOptions<OutputFormat> {
    */
   upperBound?: number;
   /**
-   * `--threshold <number>`: Pass/fail threshold. Valid for FREEFORM configs
-   * only; rejected for CATEGORICAL and CONTINUOUS.
+   * `--threshold <number>`: Pass/fail threshold. Valid for CONTINUOUS and
+   * FREEFORM configs; rejected for CATEGORICAL. On a CONTINUOUS config it must
+   * lie strictly between the bounds; omitted, the bounds' midpoint is used.
    *
    * @example 0.5
    */
@@ -195,8 +196,8 @@ interface AnnotationConfigUpdateOptions extends CommonOptions<OutputFormat> {
    */
   upperBound?: number;
   /**
-   * `--threshold <number>`: New pass/fail threshold. Valid for FREEFORM
-   * configs only; rejected for CATEGORICAL and CONTINUOUS.
+   * `--threshold <number>`: New pass/fail threshold. Valid for CONTINUOUS
+   * and FREEFORM configs; rejected for CATEGORICAL.
    *
    * @example 0.75
    */
@@ -264,11 +265,6 @@ function assertFlagsValidForConfigType(
       "--value/--values are only valid for CATEGORICAL configs"
     );
   }
-  if (type === "CONTINUOUS" && options.threshold !== undefined) {
-    throw new InvalidArgumentError(
-      "--threshold is not valid for CONTINUOUS configs"
-    );
-  }
 }
 
 /**
@@ -315,6 +311,8 @@ function buildCreateConfigData(
       optimization_direction: optimizationDirection,
       lower_bound: options.lowerBound ?? null,
       upper_bound: options.upperBound ?? null,
+      // Sent only when given, so servers without continuous thresholds accept it.
+      ...(options.threshold !== undefined && { threshold: options.threshold }),
     };
   }
 
@@ -366,7 +364,7 @@ function buildUpdatedConfigData(
   }
 
   if (existing.type === "CONTINUOUS") {
-    return {
+    const body: componentsV1["schemas"]["ContinuousAnnotationConfigData"] = {
       type: "CONTINUOUS",
       name,
       description,
@@ -381,6 +379,10 @@ function buildUpdatedConfigData(
           ? options.upperBound
           : existing.upper_bound,
     };
+    const threshold =
+      options.threshold !== undefined ? options.threshold : existing.threshold;
+    // Carried over when set, so an update of other fields keeps it.
+    return threshold != null ? { ...body, threshold } : body;
   }
 
   return {
@@ -980,7 +982,7 @@ export function createAnnotationConfigCreateCommand(): Command {
     )
     .option(
       "--threshold <number>",
-      "Threshold (FREEFORM configs)",
+      "Threshold (CONTINUOUS/FREEFORM configs)",
       parseNumberOption
     );
 
@@ -1034,7 +1036,7 @@ export function createAnnotationConfigUpdateCommand(): Command {
     )
     .option(
       "--threshold <number>",
-      "Threshold (FREEFORM configs)",
+      "Threshold (CONTINUOUS/FREEFORM configs)",
       parseNumberOption
     );
 

@@ -2,6 +2,7 @@ import { css } from "@emotion/react";
 import { useEffect } from "react";
 
 import {
+  FieldError,
   Flex,
   Input,
   Label,
@@ -17,10 +18,16 @@ import {
   useEvaluatorStoreInstance,
 } from "@phoenix/contexts/EvaluatorContext";
 import type { FreeformEvaluatorAnnotationConfig } from "@phoenix/types";
+import {
+  getContinuousThresholdDescription,
+  getContinuousThresholdError,
+  getEvaluatorOutputConfigType,
+} from "@phoenix/utils/evaluatorOutputConfigUtils";
 
 export const createDefaultFreeformOutputConfig = (
   name: string
 ): FreeformEvaluatorAnnotationConfig => ({
+  annotationType: "FREEFORM",
   name,
   optimizationDirection: "NONE",
   threshold: null,
@@ -110,6 +117,8 @@ const OutputConfigSection = ({ onChange }: { onChange?: () => void }) => {
     );
   }
 
+  const isContinuous =
+    getEvaluatorOutputConfigType(outputConfig) === "CONTINUOUS";
   const threshold =
     "threshold" in outputConfig ? (outputConfig.threshold ?? null) : null;
   const lowerBound =
@@ -118,6 +127,95 @@ const OutputConfigSection = ({ onChange }: { onChange?: () => void }) => {
     "upperBound" in outputConfig ? (outputConfig.upperBound ?? null) : null;
   const optimizationDirection = outputConfig.optimizationDirection;
   const isThresholdDisabled = optimizationDirection === "NONE";
+  const onThresholdChange = (value: number) => {
+    onChange?.();
+    setOutputConfigThresholdAtIndex(0, Number.isNaN(value) ? null : value);
+  };
+  const boundFields = (
+    <Flex direction="row" gap="size-200" alignItems="start">
+      <NumberField
+        value={lowerBound ?? undefined}
+        onChange={(value) => {
+          onChange?.();
+          setOutputConfigLowerBoundAtIndex(
+            0,
+            Number.isNaN(value) ? null : value
+          );
+        }}
+      >
+        <Label>Minimum score (optional)</Label>
+        <Input />
+        <Text slot="description">
+          The lowest score your evaluator is expected to produce.
+        </Text>
+      </NumberField>
+      <NumberField
+        value={upperBound ?? undefined}
+        onChange={(value) => {
+          onChange?.();
+          setOutputConfigUpperBoundAtIndex(
+            0,
+            Number.isNaN(value) ? null : value
+          );
+        }}
+      >
+        <Label>Maximum score (optional)</Label>
+        <Input />
+        <Text slot="description">
+          The highest score your evaluator is expected to produce.
+        </Text>
+      </NumberField>
+    </Flex>
+  );
+
+  if (isContinuous) {
+    // A continuous output's threshold sits under its bounds, which it must lie
+    // between; it only colours results, so it applies whatever the direction.
+    const thresholdError = getContinuousThresholdError({
+      threshold,
+      lowerBound,
+      upperBound,
+    });
+    return (
+      <Flex direction="column" gap="size-200">
+        <Flex direction="row" gap="size-200" alignItems="start">
+          <TextField isDisabled value={outputConfig.name}>
+            <Label>Name</Label>
+            <Input />
+          </TextField>
+          <OptimizationDirectionField
+            description="Whether higher or lower scores are better."
+            onChange={onChange}
+          />
+        </Flex>
+        {boundFields}
+        <NumberField
+          value={threshold ?? undefined}
+          onChange={onThresholdChange}
+          isInvalid={thresholdError != null}
+          css={css`
+            max-width: 50%;
+          `}
+        >
+          <Label>Threshold (optional)</Label>
+          <Input
+            placeholder={
+              lowerBound != null && upperBound != null
+                ? String((lowerBound + upperBound) / 2)
+                : undefined
+            }
+          />
+          {thresholdError != null ? (
+            <FieldError>{thresholdError}</FieldError>
+          ) : (
+            <Text slot="description">
+              {getContinuousThresholdDescription(optimizationDirection)}
+            </Text>
+          )}
+        </NumberField>
+      </Flex>
+    );
+  }
 
   const thresholdDescription =
     optimizationDirection === "MAXIMIZE"
@@ -139,13 +237,7 @@ const OutputConfigSection = ({ onChange }: { onChange?: () => void }) => {
         />
         <NumberField
           value={threshold ?? undefined}
-          onChange={(value) => {
-            onChange?.();
-            setOutputConfigThresholdAtIndex(
-              0,
-              Number.isNaN(value) ? null : value
-            );
-          }}
+          onChange={onThresholdChange}
           isDisabled={isThresholdDisabled}
         >
           <Label>Score threshold (optional)</Label>
@@ -153,40 +245,7 @@ const OutputConfigSection = ({ onChange }: { onChange?: () => void }) => {
           <Text slot="description">{thresholdDescription}</Text>
         </NumberField>
       </Flex>
-      <Flex direction="row" gap="size-200" alignItems="start">
-        <NumberField
-          value={lowerBound ?? undefined}
-          onChange={(value) => {
-            onChange?.();
-            setOutputConfigLowerBoundAtIndex(
-              0,
-              Number.isNaN(value) ? null : value
-            );
-          }}
-        >
-          <Label>Minimum score (optional)</Label>
-          <Input />
-          <Text slot="description">
-            The lowest score your evaluator is expected to produce.
-          </Text>
-        </NumberField>
-        <NumberField
-          value={upperBound ?? undefined}
-          onChange={(value) => {
-            onChange?.();
-            setOutputConfigUpperBoundAtIndex(
-              0,
-              Number.isNaN(value) ? null : value
-            );
-          }}
-        >
-          <Label>Maximum score (optional)</Label>
-          <Input />
-          <Text slot="description">
-            The highest score your evaluator is expected to produce.
-          </Text>
-        </NumberField>
-      </Flex>
+      {boundFields}
     </Flex>
   );
 };

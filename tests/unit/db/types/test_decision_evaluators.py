@@ -3,8 +3,17 @@
 from typing import Any
 
 import pytest
+from pydantic import TypeAdapter
+from sqlalchemy.dialects import sqlite
 
-from phoenix.db.types.annotation_configs import CategoricalOutputConfig, ContinuousOutputConfig
+from phoenix.db.models import _OutputConfigList
+from phoenix.db.types.annotation_configs import (
+    CategoricalOutputConfig,
+    ContinuousOutputConfig,
+    OptimizationDirection,
+    OutputConfig,
+    OutputConfigType,
+)
 from phoenix.db.types.decision_evaluators import (
     ChoiceScoring,
     DecisionScoringPolicy,
@@ -60,6 +69,70 @@ def test_output_shapes_and_default_policy_roundtrip() -> None:
     assert configs[0].lower_bound == 0 and configs[0].upper_bound == 1
     assert [value.label for value in configs[1].values] == ["accept", "review"]
     assert configs[2].lower_bound == 0 and configs[2].upper_bound == 2
+
+
+def test_predicate_output_carries_its_threshold_but_never_serializes_it() -> None:
+    policy = DecisionScoringPolicy(
+        questions={
+            "correct": PredicateScoring(
+                type="predicate",
+                threshold=0.8,
+                optimization_direction=OptimizationDirection.MAXIMIZE,
+            )
+        }
+    )
+    predicate, _, scale = derive_decision_output_configs(questions(), policy)
+    assert isinstance(predicate, ContinuousOutputConfig)
+    assert isinstance(scale, ContinuousOutputConfig)
+    assert predicate.threshold == 0.8
+    assert predicate.optimization_direction is OptimizationDirection.MAXIMIZE
+    assert scale.threshold is None
+    # The threshold is the scoring policy's: stored snapshots, binding checks and
+    # online-eval fingerprints serialize derived outputs, and must not change with it.
+    for config in (predicate, scale):
+        assert "threshold" not in config.model_dump()
+        assert "threshold" not in config.model_dump(mode="json")
+    assert (
+        predicate.model_dump()
+        == ContinuousOutputConfig.model_validate(predicate.model_dump()).model_dump()
+    )
+
+
+def test_storage_dumps_leave_out_a_predicates_threshold() -> None:
+    # The model's own dump leaves out every unset field, so it cannot show this. The
+    # dumps that reach JSON columns and snapshots wrap the config, and only the
+    # config's serializer keeps a derived threshold out of them. At 1.0, a leaked one
+    # would also fail to reload, as a saved threshold on a bound.
+    policy = DecisionScoringPolicy(
+        questions={"correct": PredicateScoring(type="predicate", threshold=1.0)}
+    )
+    configs = derive_decision_output_configs(questions(), policy)
+    predicate = configs[0]
+    assert isinstance(predicate, ContinuousOutputConfig)
+    assert predicate.threshold == 1.0
+    stored = [
+        OutputConfig(root=predicate).model_dump(),
+        OutputConfig(root=predicate).model_dump(mode="json"),
+        TypeAdapter(list[OutputConfigType]).dump_python(configs)[0],
+        _OutputConfigList().process_bind_param(configs, sqlite.dialect())[0],  # type: ignore[index]
+    ]
+    for dump in stored:
+        assert "threshold" not in dump
+        assert OutputConfig.model_validate(dump).root.threshold is None  # type: ignore[union-attr]
+
+
+@pytest.mark.parametrize("threshold", [0.0, 1.0])
+def test_predicate_threshold_may_sit_on_a_bound(threshold: float) -> None:
+    # A saved continuous threshold must lie strictly inside the bounds; a
+    # predicate's may not, and deriving its output must not fail.
+    policy = DecisionScoringPolicy(
+        questions={"correct": PredicateScoring(type="predicate", threshold=threshold)}
+    )
+    predicate, _, _ = derive_decision_output_configs(questions(), policy)
+    assert isinstance(predicate, ContinuousOutputConfig)
+    assert predicate.threshold == threshold
+    # Stored or echoed back, it still validates: the threshold is not in the dump.
+    assert ContinuousOutputConfig.model_validate(predicate.model_dump()).threshold is None
 
 
 @pytest.mark.parametrize(

@@ -59,12 +59,18 @@ export type ClassificationOutputConfigDraft = Omit<
   values: { label: string; score?: number | null }[];
 };
 
-export type ContinuousOutputConfigDraft =
-  ContinuousEvaluatorAnnotationConfig & {
-    kind: "continuous";
-  };
+// A draft is tagged by `kind`, which stands in for the store's `annotationType`.
+export type ContinuousOutputConfigDraft = Omit<
+  ContinuousEvaluatorAnnotationConfig,
+  "annotationType"
+> & {
+  kind: "continuous";
+};
 
-export type FreeformOutputConfigDraft = FreeformEvaluatorAnnotationConfig & {
+export type FreeformOutputConfigDraft = Omit<
+  FreeformEvaluatorAnnotationConfig,
+  "annotationType"
+> & {
   kind: "freeform";
 };
 

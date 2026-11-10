@@ -379,6 +379,7 @@ function SessionAnnotationsList(props: {
                     ... on ContinuousAnnotationConfig {
                       lowerBound
                       upperBound
+                      threshold
                       optimizationDirection
                     }
                     ... on FreeformAnnotationConfig {

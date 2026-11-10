@@ -1,8 +1,10 @@
+import json
 from copy import deepcopy
 from typing import Any, Optional
 
 import pytest
 from httpx2 import AsyncClient
+from sqlalchemy import text
 from strawberry.relay.types import GlobalID
 
 from phoenix.db import models
@@ -49,6 +51,7 @@ from phoenix.server.types import DbSessionFactory
                 "optimization_direction": OptimizationDirection.MAXIMIZE.value,
                 "lower_bound": 0.0,
                 "upper_bound": 100.0,
+                "threshold": 70.0,
             },
             {
                 "name": "updated-config-name",
@@ -57,6 +60,7 @@ from phoenix.server.types import DbSessionFactory
                 "optimization_direction": OptimizationDirection.MINIMIZE.value,
                 "lower_bound": -10.0,
                 "upper_bound": 10.0,
+                "threshold": None,
             },
             id="continuous",
         ),
@@ -682,3 +686,43 @@ async def test_list_annotation_configs_pagination_with_cursor(
     data = response.json()
     assert len(data["data"]) == expected_page_size
     assert data["next_cursor"] == expected_next_cursor
+
+
+async def test_continuous_threshold_is_stored_only_when_given(
+    httpx_client: AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    config = {
+        "name": "helpfulness",
+        "type": AnnotationType.CONTINUOUS.value,
+        "optimization_direction": OptimizationDirection.MAXIMIZE.value,
+        "lower_bound": 0.0,
+        "upper_bound": 10.0,
+    }
+    response = await httpx_client.post("/v1/annotation_configs", json=config)
+    assert response.status_code == 200, response.text
+    config_id = response.json()["data"]["id"]
+    assert response.json()["data"]["threshold"] is None
+
+    async def stored() -> dict[str, Any]:
+        async with db() as session:
+            value = await session.scalar(
+                text("SELECT config FROM annotation_configs WHERE name = 'helpfulness'")
+            )
+        loaded: dict[str, Any] = json.loads(value) if isinstance(value, str) else value
+        return loaded
+
+    assert "threshold" not in await stored()
+
+    response = await httpx_client.put(
+        f"/v1/annotation_configs/{config_id}", json={**config, "threshold": 7.0}
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["data"]["threshold"] == 7.0
+    assert (await stored())["threshold"] == 7.0
+
+    response = await httpx_client.put(
+        f"/v1/annotation_configs/{config_id}", json={**config, "threshold": 10.0}
+    )
+    assert response.status_code == 400
+    assert "Threshold must be less than the upper bound" in response.text

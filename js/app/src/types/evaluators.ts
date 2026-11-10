@@ -126,9 +126,22 @@ export type ContinuousEvaluatorAnnotationConfig = {
    * The upper bound of the annotation
    */
   upperBound?: number | null;
+  /**
+   * The score separating good from bad results, strictly between the bounds.
+   * Unset means the bounds' midpoint. It colours results and changes no score.
+   */
+  threshold?: number | null;
+  /**
+   * Tags the config as continuous. Continuous and freeform configs share their
+   * fields, so the tag is what tells them apart (see
+   * `getEvaluatorOutputConfigType`).
+   */
+  annotationType: "CONTINUOUS";
 };
 
 export type FreeformEvaluatorAnnotationConfig = {
+  /** Tags the config as freeform. */
+  annotationType: "FREEFORM";
   name: string;
   optimizationDirection: EvaluatorOptimizationDirection;
   threshold?: number | null;

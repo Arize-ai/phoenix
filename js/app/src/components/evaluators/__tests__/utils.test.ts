@@ -2,6 +2,7 @@ import { vi } from "vitest";
 
 import {
   buildInputSchemaInput,
+  buildOutputConfigsInput,
   createLLMEvaluatorPayload,
   getInputDescriptionsFromSchema,
   normalizeInputMapping,
@@ -117,5 +118,69 @@ describe("getInputDescriptionsFromSchema", () => {
     expect(getInputDescriptionsFromSchema(null)).toEqual({});
     expect(getInputDescriptionsFromSchema("x")).toEqual({});
     expect(getInputDescriptionsFromSchema({ properties: [] })).toEqual({});
+  });
+});
+
+describe("buildOutputConfigsInput", () => {
+  it("sends a continuous config's threshold only when it has one", () => {
+    expect(
+      buildOutputConfigsInput([
+        {
+          annotationType: "CONTINUOUS",
+          name: "helpfulness",
+          optimizationDirection: "MAXIMIZE",
+          lowerBound: 0,
+          upperBound: 10,
+          threshold: 7,
+        },
+        {
+          annotationType: "CONTINUOUS",
+          name: "unthresholded",
+          optimizationDirection: "MAXIMIZE",
+          lowerBound: 0,
+          upperBound: 10,
+          threshold: null,
+        },
+      ])
+    ).toEqual([
+      {
+        continuous: {
+          name: "helpfulness",
+          optimizationDirection: "MAXIMIZE",
+          lowerBound: 0,
+          upperBound: 10,
+          threshold: 7,
+        },
+      },
+      {
+        continuous: {
+          name: "unthresholded",
+          optimizationDirection: "MAXIMIZE",
+          lowerBound: 0,
+          upperBound: 10,
+        },
+      },
+    ]);
+  });
+
+  it("keeps a freeform config freeform", () => {
+    expect(
+      buildOutputConfigsInput([
+        {
+          annotationType: "FREEFORM",
+          name: "notes",
+          optimizationDirection: "NONE",
+          threshold: 0.5,
+        },
+      ])
+    ).toEqual([
+      {
+        freeform: {
+          name: "notes",
+          optimizationDirection: "NONE",
+          threshold: 0.5,
+        },
+      },
+    ]);
   });
 });

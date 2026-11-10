@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a412cc16ccc05bdf4aae31925c5802c7>>
+ * @generated SignedSource<<83b1c0b37332274013fc110ee48e9c20>>
  * @lightSyntaxTransform
  */
 
@@ -71,6 +71,13 @@ v4 = {
   "args": null,
   "kind": "ScalarField",
   "name": "optimizationDirection",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "threshold",
   "storageKey": null
 };
 return {
@@ -155,6 +162,7 @@ return {
                       "name": "upperBound",
                       "storageKey": null
                     },
+                    (v5/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -174,13 +182,7 @@ return {
                     (v2/*:: as any*/),
                     (v3/*:: as any*/),
                     (v4/*:: as any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "threshold",
-                      "storageKey": null
-                    }
+                    (v5/*:: as any*/)
                   ],
                   "type": "FreeformAnnotationConfig",
                   "abstractKey": null
@@ -200,6 +202,6 @@ return {
 };
 })();
 
-(node as any).hash = "f682f42537dd470dbd78566b2d7fa5b9";
+(node as any).hash = "34050b34fcc887edae2f12fd18e9c85d";
 
 export default node;

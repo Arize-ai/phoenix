@@ -297,10 +297,12 @@ describe("toEvaluatorTaskOutputConfigs", () => {
         ],
       },
       {
+        annotationType: "CONTINUOUS",
         name: "score",
         optimizationDirection: "MAXIMIZE",
         lowerBound: 0,
         upperBound: 1,
+        threshold: null,
       },
     ]);
   });

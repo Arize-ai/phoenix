@@ -84,6 +84,18 @@ class ContinuousAnnotationConfig(Node, AnnotationConfigBase):
     optimization_direction: OptimizationDirection
     lower_bound: Optional[float]
     upper_bound: Optional[float]
+    threshold: Optional[float] = strawberry.field(
+        default=None,
+        description=(
+            "The score separating good from bad results; null means the midpoint of the "
+            "bounds. A score at the threshold is on its high side. Saved on annotation "
+            "configs and evaluator outputs, where it only colours results and changes no "
+            "score or label; a decision evaluator's Yes / No question sets it to the "
+            "question's threshold, where its label flips from false to true. Experiment "
+            "task configs (EvaluatorTaskConfig.outputConfigs) do not carry a decision "
+            "question's threshold, so it is null there."
+        ),
+    )
 
     @strawberry.field
     def shape_examples(
@@ -151,6 +163,7 @@ def _to_gql_continuous_annotation_config(
         description=config.description,
         lower_bound=config.lower_bound,
         upper_bound=config.upper_bound,
+        threshold=config.threshold,
     )
 
 

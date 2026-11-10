@@ -29,7 +29,7 @@ mutation ($input: CreateDecisionEvaluatorInput!) {
         ... on DecisionScaleScoring { includeLabel }
       }
     } inputSchema decisionVersion { id }
-    outputConfigs { ... on ContinuousAnnotationConfig { name lowerBound upperBound } ... on CategoricalAnnotationConfig { name values { label score } } }
+    outputConfigs { ... on ContinuousAnnotationConfig { name lowerBound upperBound threshold } ... on CategoricalAnnotationConfig { name values { label score } } }
   } }
 }
 """
@@ -59,7 +59,14 @@ async def test_saved_decision_evaluator_discovery_and_owned_tag(
     decision, evaluator = await saved_evaluator(gql_client)
     assert evaluator["kind"] == "DECISION"
     assert evaluator["decisionVersion"]["id"] == decision["version"]["id"]
-    assert evaluator["outputConfigs"][0] == {"name": "urgent", "lowerBound": 0, "upperBound": 1}
+    # The predicate's threshold is where its results turn good or bad, so its
+    # derived output config carries it.
+    assert evaluator["outputConfigs"][0] == {
+        "name": "urgent",
+        "lowerBound": 0,
+        "upperBound": 1,
+        "threshold": 0.8,
+    }
     result = await gql_client.execute(
         "query($id: ID!){ node(id:$id) { ... on DecisionEvaluator { name kind } } evaluators { edges { node { name kind } } } }",
         variables={"id": evaluator["id"]},

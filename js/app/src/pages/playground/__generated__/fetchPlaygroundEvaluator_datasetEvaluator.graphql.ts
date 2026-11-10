@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<796745419846eeaa8fe263d623c113d9>>
+ * @generated SignedSource<<c8c1479ce3d52c74395663cc19d26f02>>
  * @lightSyntaxTransform
  */
 
@@ -41,6 +41,7 @@ export type fetchPlaygroundEvaluator_datasetEvaluator$data = {
       readonly lowerBound: number | null;
       readonly name: string;
       readonly optimizationDirection: OptimizationDirection;
+      readonly threshold: number | null;
       readonly upperBound: number | null;
     } | {
       readonly __typename: "FreeformAnnotationConfig";
@@ -90,6 +91,7 @@ export type fetchPlaygroundEvaluator_datasetEvaluator$data = {
     readonly lowerBound: number | null;
     readonly name: string;
     readonly optimizationDirection: OptimizationDirection;
+    readonly threshold: number | null;
     readonly upperBound: number | null;
   } | {
     readonly __typename: "FreeformAnnotationConfig";
@@ -184,6 +186,13 @@ v7 = {
 v8 = {
   "alias": null,
   "args": null,
+  "kind": "ScalarField",
+  "name": "threshold",
+  "storageKey": null
+},
+v9 = {
+  "alias": null,
+  "args": null,
   "concreteType": null,
   "kind": "LinkedField",
   "name": "outputConfigs",
@@ -230,7 +239,8 @@ v8 = {
         (v1/*:: as any*/),
         (v5/*:: as any*/),
         (v6/*:: as any*/),
-        (v7/*:: as any*/)
+        (v7/*:: as any*/),
+        (v8/*:: as any*/)
       ],
       "type": "ContinuousAnnotationConfig",
       "abstractKey": null
@@ -240,13 +250,7 @@ v8 = {
       "selections": [
         (v1/*:: as any*/),
         (v5/*:: as any*/),
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "threshold",
-          "storageKey": null
-        },
+        (v8/*:: as any*/),
         (v6/*:: as any*/),
         (v7/*:: as any*/)
       ],
@@ -256,67 +260,67 @@ v8 = {
   ],
   "storageKey": null
 },
-v9 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "description",
   "storageKey": null
 },
-v10 = [
+v11 = [
   (v0/*:: as any*/),
   (v1/*:: as any*/)
 ],
-v11 = {
+v12 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "temperature",
   "storageKey": null
 },
-v12 = {
+v13 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "frequencyPenalty",
   "storageKey": null
 },
-v13 = {
+v14 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "presencePenalty",
   "storageKey": null
 },
-v14 = {
+v15 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "topP",
   "storageKey": null
 },
-v15 = {
+v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "extraBody",
   "storageKey": null
 },
-v16 = {
+v17 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "stopSequences",
   "storageKey": null
 },
-v17 = {
+v18 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "strict",
   "storageKey": null
 },
-v18 = {
+v19 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -342,7 +346,7 @@ return {
       "storageKey": null
     },
     (v3/*:: as any*/),
-    (v8/*:: as any*/),
+    (v9/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -353,7 +357,7 @@ return {
       "selections": [
         (v0/*:: as any*/),
         (v1/*:: as any*/),
-        (v9/*:: as any*/),
+        (v10/*:: as any*/),
         {
           "alias": null,
           "args": null,
@@ -368,7 +372,7 @@ return {
           "name": "isBuiltin",
           "storageKey": null
         },
-        (v8/*:: as any*/),
+        (v9/*:: as any*/),
         {
           "kind": "InlineFragment",
           "selections": [
@@ -379,7 +383,7 @@ return {
               "kind": "LinkedField",
               "name": "prompt",
               "plural": false,
-              "selections": (v10/*:: as any*/),
+              "selections": (v11/*:: as any*/),
               "storageKey": null
             },
             {
@@ -433,7 +437,7 @@ return {
                             {
                               "kind": "InlineFragment",
                               "selections": [
-                                (v11/*:: as any*/),
+                                (v12/*:: as any*/),
                                 {
                                   "alias": "openaiMaxTokens",
                                   "args": null,
@@ -448,9 +452,9 @@ return {
                                   "name": "maxCompletionTokens",
                                   "storageKey": null
                                 },
-                                (v12/*:: as any*/),
                                 (v13/*:: as any*/),
                                 (v14/*:: as any*/),
+                                (v15/*:: as any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -472,7 +476,7 @@ return {
                                   "name": "reasoningEffort",
                                   "storageKey": null
                                 },
-                                (v15/*:: as any*/)
+                                (v16/*:: as any*/)
                               ],
                               "type": "PromptOpenAIInvocationParameters",
                               "abstractKey": null
@@ -487,9 +491,9 @@ return {
                                   "name": "maxTokens",
                                   "storageKey": null
                                 },
-                                (v11/*:: as any*/),
-                                (v14/*:: as any*/),
-                                (v16/*:: as any*/),
+                                (v12/*:: as any*/),
+                                (v15/*:: as any*/),
+                                (v17/*:: as any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -569,7 +573,7 @@ return {
                                   ],
                                   "storageKey": null
                                 },
-                                (v15/*:: as any*/)
+                                (v16/*:: as any*/)
                               ],
                               "type": "PromptAnthropicInvocationParameters",
                               "abstractKey": null
@@ -577,7 +581,7 @@ return {
                             {
                               "kind": "InlineFragment",
                               "selections": [
-                                (v11/*:: as any*/),
+                                (v12/*:: as any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -585,10 +589,10 @@ return {
                                   "name": "maxOutputTokens",
                                   "storageKey": null
                                 },
-                                (v16/*:: as any*/),
-                                (v13/*:: as any*/),
-                                (v12/*:: as any*/),
+                                (v17/*:: as any*/),
                                 (v14/*:: as any*/),
+                                (v13/*:: as any*/),
+                                (v15/*:: as any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -642,9 +646,9 @@ return {
                                   "name": "maxTokens",
                                   "storageKey": null
                                 },
-                                (v11/*:: as any*/),
-                                (v14/*:: as any*/),
-                                (v16/*:: as any*/)
+                                (v12/*:: as any*/),
+                                (v15/*:: as any*/),
+                                (v17/*:: as any*/)
                               ],
                               "type": "PromptAwsInvocationParameters",
                               "abstractKey": null
@@ -663,7 +667,7 @@ return {
                       "kind": "LinkedField",
                       "name": "customProvider",
                       "plural": false,
-                      "selections": (v10/*:: as any*/),
+                      "selections": (v11/*:: as any*/),
                       "storageKey": null
                     },
                     {
@@ -683,7 +687,7 @@ return {
                           "plural": false,
                           "selections": [
                             (v1/*:: as any*/),
-                            (v9/*:: as any*/),
+                            (v10/*:: as any*/),
                             {
                               "alias": null,
                               "args": null,
@@ -691,7 +695,7 @@ return {
                               "name": "schema",
                               "storageKey": null
                             },
-                            (v17/*:: as any*/)
+                            (v18/*:: as any*/)
                           ],
                           "storageKey": null
                         }
@@ -770,7 +774,7 @@ return {
                                           "name": "toolCall",
                                           "plural": false,
                                           "selections": [
-                                            (v18/*:: as any*/),
+                                            (v19/*:: as any*/),
                                             {
                                               "alias": null,
                                               "args": null,
@@ -808,7 +812,7 @@ return {
                                           "name": "toolResult",
                                           "plural": false,
                                           "selections": [
-                                            (v18/*:: as any*/),
+                                            (v19/*:: as any*/),
                                             {
                                               "alias": null,
                                               "args": null,
@@ -879,7 +883,7 @@ return {
                                   "plural": false,
                                   "selections": [
                                     (v1/*:: as any*/),
-                                    (v9/*:: as any*/),
+                                    (v10/*:: as any*/),
                                     {
                                       "alias": null,
                                       "args": null,
@@ -887,7 +891,7 @@ return {
                                       "name": "parameters",
                                       "storageKey": null
                                     },
-                                    (v17/*:: as any*/)
+                                    (v18/*:: as any*/)
                                   ],
                                   "storageKey": null
                                 }
