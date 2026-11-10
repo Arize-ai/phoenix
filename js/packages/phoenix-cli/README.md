@@ -444,6 +444,34 @@ px dataset get my-dataset --version <version-id>
 px dataset get my-dataset --file dataset.json
 ```
 
+Use `px dataset-versions list <dataset-identifier>` to discover version IDs for
+`--version`.
+
+---
+
+### `px dataset-versions list <dataset-identifier>`
+
+List all versions of a dataset by name or ID, newest first. The table shows each
+version's ID, description, and creation date in local date/time formatting. A
+dataset that has no versions yet prints `No dataset versions found`.
+
+```bash
+px dataset-versions list my-dataset
+px dataset-versions list my-dataset --limit 10 --format json
+px dataset-versions list my-dataset --format raw --no-progress | jq '.[].version_id'
+```
+
+Without `--limit`, fetches all pages. JSON and raw output contain an array of full
+version objects, including `metadata`, and preserve the original timestamp string.
+
+| Option              | Description                         | Default             |
+| ------------------- | ----------------------------------- | ------------------- |
+| `--limit <number>`  | Maximum number of versions to fetch | All versions        |
+| `--format <format>` | `pretty`, `json`, or `raw`          | `pretty`            |
+| `--endpoint <url>`  | Phoenix API endpoint                | Configured endpoint |
+| `--api-key <key>`   | Phoenix API key                     | Configured API key  |
+| `--no-progress`     | Suppress progress output            | Progress enabled    |
+
 ---
 
 ### `px experiment list --dataset <name-or-id>`
