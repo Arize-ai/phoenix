@@ -52,6 +52,36 @@ async function logout({ page }: { page: Page }) {
   await page.getByRole("menuitem", { name: "Log Out" }).click();
 }
 
+async function getUserEmails({
+  page,
+  baseURL,
+}: {
+  page: Page;
+  baseURL: string;
+}) {
+  const response = await page.request.post(`${baseURL}/graphql`, {
+    data: {
+      // Explicit null removes the default 50-user limit for reused test servers.
+      query: `query AuthSetupUsers {
+        users(first: null) {
+          edges {
+            node {
+              email
+            }
+          }
+        }
+      }`,
+    },
+  });
+  expect(response.ok()).toBe(true);
+  const result = (await response.json()) as {
+    data: { users: { edges: { node: { email: string | null } }[] } };
+    errors?: { message: string }[];
+  };
+  expect(result.errors).toBeUndefined();
+  return new Set(result.data.users.edges.map(({ node }) => node.email));
+}
+
 async function resetDefaultPasswordAndReLogin({
   page,
   baseURL,
@@ -131,18 +161,11 @@ setup(
       currentPassword: "admin",
       newPassword: "admin123",
     });
+    const userEmails = await getUserEmails({ page, baseURL });
     await page.goto(`${baseURL}/settings/users`);
     await page.waitForURL("**/settings/users");
-    await expect(
-      page.getByText("admin@localhost", { exact: true })
-    ).toBeVisible();
 
-    // Add member user
-    if (
-      !(await page
-        .getByText("member@localhost.com", { exact: true })
-        .isVisible())
-    ) {
+    if (!userEmails.has("member@localhost.com")) {
       await page.getByRole("button", { name: "Add User" }).click();
       await page.getByLabel("Email").fill("member@localhost.com");
       await page.getByLabel("Username").fill("member");
@@ -160,12 +183,7 @@ setup(
       await expect(page.getByTestId("dialog")).not.toBeVisible();
     }
 
-    // Add viewer user
-    if (
-      !(await page
-        .getByText("viewer@localhost.com", { exact: true })
-        .isVisible())
-    ) {
+    if (!userEmails.has("viewer@localhost.com")) {
       await page.getByRole("button", { name: "Add User" }).click();
       await page.getByLabel("Email").fill("viewer@localhost.com");
       await page.getByLabel("Username").fill("viewer");
