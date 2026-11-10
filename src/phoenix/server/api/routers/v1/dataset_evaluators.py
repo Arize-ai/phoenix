@@ -169,7 +169,7 @@ async def _binds_a_decision(request: Request, dataset_evaluator_id: str) -> bool
     """Whether the binding runs a decision judge, whose outputs' thresholds are derived."""
     row_id = decode_global_id(dataset_evaluator_id, "DatasetEvaluator")
     async with request.app.state.db() as session:
-        kind = await session.scalar(
+        kind: Optional[models.EvaluatorKind] = await session.scalar(
             select(models.Evaluator.kind)
             .join(
                 models.DatasetEvaluators,
