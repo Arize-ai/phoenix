@@ -119,15 +119,13 @@ async def load_evaluation_activity(
     start: datetime,
     end: datetime,
     time_bins: TimeBucketSpec,
-    read_added: bool = False,
     read_queue_size: bool = False,
 ) -> EvaluationActivity:
     """Activity of one project's evaluators, grouped by project evaluator, or, with no
     ``project_id``, of every project evaluator on the server, grouped by project.
 
-    Evaluations added in each bin are read with ``read_added``, and the queue's size at each
-    bin's end with ``read_queue_size``; otherwise both are 0. The queue size reads every
-    evaluation in queue in the scope, so it costs as much as the queue is long.
+    The queue's size at each bin's end is read with ``read_queue_size``, and is otherwise 0:
+    it reads every evaluation in queue in the scope, so it costs as much as the queue is long.
     """
     reader = _ActivityReader(
         dialect=db.dialect,
@@ -136,7 +134,6 @@ async def load_evaluation_activity(
         start=start,
         end=end,
         time_bins=time_bins,
-        read_added=read_added,
         read_queue_size=read_queue_size,
     )
     async with db.read() as session:
@@ -193,7 +190,6 @@ class _ActivityReader:
     start: datetime
     end: datetime
     time_bins: TimeBucketSpec
-    read_added: bool
     read_queue_size: bool
 
     async def read(self, session: AsyncSession) -> EvaluationActivity:
@@ -245,8 +241,7 @@ class _ActivityReader:
             totals.evaluated_count += evaluated_count
             totals.failed_count += count - evaluated_count
 
-        if self.read_added:
-            await self._read_added(session, groups, group_keys_by_evaluator, bin_index)
+        await self._read_added(session, groups, group_keys_by_evaluator, bin_index)
         if self.read_queue_size:
             await self._read_queue_size(session, groups, group_keys_by_evaluator, bin_index)
         await self._read_cost(session, groups, bin_index)

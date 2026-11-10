@@ -99,7 +99,6 @@ async def test_per_tick_work_unit_queries_use_partial_indexes_on_sqlite(
                 start=now - timedelta(hours=1),
                 end=now,
                 time_bins=TimeBucketSpec(),
-                read_added=True,
                 read_queue_size=True,
             )
         activity_plans = plans[first_activity_plan:]

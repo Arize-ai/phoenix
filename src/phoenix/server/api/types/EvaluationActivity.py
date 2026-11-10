@@ -225,7 +225,6 @@ async def resolve_evaluation_activity(
         start=time_range.start,
         end=end,
         time_bins=TimeBucketSpec.from_config(time_bin_config),
-        read_added=_selects_bin_field(info, "addedCount"),
         read_queue_size=_selects_bin_field(info, "queueSize"),
     )
     return EvaluationActivity(activity=activity)

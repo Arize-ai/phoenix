@@ -23,7 +23,7 @@ from .test_span_producer import _seed_criteria
 
 _NOON = datetime(2026, 10, 1, 12, tzinfo=timezone.utc)
 _HOURLY = TimeBucketSpec()
-_EVERY_BIN_FIELD: dict[str, Any] = dict(time_bins=_HOURLY, read_added=True, read_queue_size=True)
+_EVERY_BIN_FIELD: dict[str, Any] = dict(time_bins=_HOURLY, read_queue_size=True)
 
 
 def _at(hour: int, minute: int = 0) -> datetime:
@@ -291,7 +291,6 @@ async def test_activity_bins_follow_the_time_bin_config(
         start=_at(12),
         end=_at(15),
         time_bins=time_bins,
-        read_added=True,
         read_queue_size=True,
     )
     assert [activity_bin.timestamp for activity_bin in activity.series] == list(
@@ -311,14 +310,14 @@ async def test_activity_bins_follow_the_time_bin_config(
     } == {seeded.span_evaluator_id: 2, seeded.trace_evaluator_id: 1}
 
 
-async def test_added_and_queue_size_are_read_only_when_asked(db: DbSessionFactory) -> None:
+async def test_queue_size_is_read_only_when_asked(db: DbSessionFactory) -> None:
     seeded = await _seed(db)
     activity = await load_evaluation_activity(
         db, project_id=seeded.first_project_id, start=_at(12), end=_at(15), time_bins=_HOURLY
     )
     bin_groups = [group for activity_bin in activity.series for group in activity_bin.groups]
     assert bin_groups
-    assert {(group.added_count, group.queue_size) for group in bin_groups} == {(0, 0)}
+    assert {group.queue_size for group in bin_groups} == {0}
     assert activity.evaluated_count == 3
 
 
@@ -451,18 +450,18 @@ async def test_evaluation_activity_graphql(
     ]
 
 
-async def test_evaluation_activity_graphql_reads_bin_fields_only_when_selected(
+async def test_evaluation_activity_graphql_reads_queue_size_only_when_selected(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from phoenix.server.online_eval import evaluation_activity
 
-    reads: list[tuple[bool, bool]] = []
+    reads: list[bool] = []
     load = evaluation_activity.load_evaluation_activity
 
     async def recording_load(*args: Any, **kwargs: Any) -> Any:
-        reads.append((kwargs["read_added"], kwargs["read_queue_size"]))
+        reads.append(kwargs["read_queue_size"])
         return await load(*args, **kwargs)
 
     monkeypatch.setattr(evaluation_activity, "load_evaluation_activity", recording_load)
@@ -478,7 +477,7 @@ async def test_evaluation_activity_graphql_reads_bin_fields_only_when_selected(
     ):
         response = await gql_client.execute(query, {"timeRange": time_range})
         assert not response.errors
-    assert reads == [(True, False), (False, True)]
+    assert reads == [False, True]
 
 
 async def test_project_evaluator_lag_graphql(
