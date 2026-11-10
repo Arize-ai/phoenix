@@ -10,7 +10,10 @@ from typing import Any
 
 import pytest
 import respx
+import sqlalchemy as sa
+from cryptography.fernet import Fernet
 
+from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 from tests.unit.server.api.mutations.test_decision_mutations import (
@@ -548,6 +551,37 @@ async def test_models_and_names_round_trip(
     )
     assert result.data and not result.errors, result.errors
     assert result.data["patchGenerativeModelCustomProvider"]["provider"]["modelTypes"] == ["CHAT"]
+
+
+async def test_patching_models_preserves_an_unreadable_connection_config(
+    gql_client: AsyncGraphQLClient, db: DbSessionFactory
+) -> None:
+    provider_id = await create(gql_client, "Unreadable provider", openai_config())
+    encrypted_config = Fernet(Fernet.generate_key()).encrypt(b"{}")
+    async with db() as session:
+        record = await session.scalar(
+            sa.select(models.GenerativeModelCustomProvider).where(
+                models.GenerativeModelCustomProvider.name == "Unreadable provider"
+            )
+        )
+        assert record is not None
+        record_id = record.id
+        record.config = encrypted_config
+    result = await gql_client.execute(
+        """mutation ($input: PatchGenerativeModelCustomProviderMutationInput!) {
+          patchGenerativeModelCustomProvider(input: $input) { provider { modelTypes } }
+        }""",
+        variables={"input": {"id": provider_id, "models": {"chat": {}, "decision": {}}}},
+    )
+    assert result.data and not result.errors, result.errors
+    assert result.data["patchGenerativeModelCustomProvider"]["provider"]["modelTypes"] == [
+        "CHAT",
+        "DECISION",
+    ]
+    async with db() as session:
+        record = await session.get(models.GenerativeModelCustomProvider, record_id)
+        assert record is not None
+        assert record.config == encrypted_config
 
 
 async def test_a_provider_serves_what_its_sdk_serves_by_default(

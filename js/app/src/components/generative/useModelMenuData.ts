@@ -359,7 +359,8 @@ export function useModelMenuData({
         .filter((provider) => provider.modelTypes.includes("DECISION"))
         .map((provider) => ({
           ...provider,
-          dependenciesInstalled: provider.decisionDependenciesInstalled ?? false,
+          dependenciesInstalled:
+            provider.decisionDependenciesInstalled ?? false,
           needsCredentials: providerNeedsCredentials({
             provider,
             localCredentials,

@@ -31,7 +31,6 @@ import type { EditCustomProviderButtonPatchMutation } from "./__generated__/Edit
 import type { EditCustomProviderButtonQuery } from "./__generated__/EditCustomProviderButtonQuery.graphql";
 import { ProviderForm, type ProviderFormData } from "./CustomProviderForm";
 import {
-  createDefaultFormData,
   transformConfigToFormValues,
   transformToPatchInput,
 } from "./customProviderFormUtils";
@@ -200,16 +199,7 @@ function EditCustomProviderDialogContent({
     (formData: ProviderFormData) => {
       if (!providerData) return;
 
-      // When config has a parse error, use default form values as the baseline
-      // so that transformToPatchInput will include all the new config fields
-      const originalValues = providerData.config?.parseError
-        ? {
-            ...createDefaultFormData(providerData.sdk),
-            name: providerData.name,
-            description: providerData.description || "",
-            provider: providerData.provider,
-          }
-        : transformConfigToFormValues(providerData);
+      const originalValues = transformConfigToFormValues(providerData);
       const input = transformToPatchInput(
         formData,
         providerData.id,
@@ -252,16 +242,8 @@ function EditCustomProviderDialogContent({
   }
 
   // Check if config has a parse error (corrupted/invalid config)
-  // In this case, show a blank form with default values for the SDK type
   const hasParseError = Boolean(providerData.config?.parseError);
-  const initialValues = hasParseError
-    ? {
-        ...createDefaultFormData(providerData.sdk),
-        name: providerData.name,
-        description: providerData.description || "",
-        provider: providerData.provider,
-      }
-    : transformConfigToFormValues(providerData);
+  const initialValues = transformConfigToFormValues(providerData);
 
   return (
     <>

@@ -342,9 +342,9 @@ function transformAwsBedrockConfig(
     ...getBaseFormValues(provider),
     sdk: "AWS_BEDROCK",
     aws_region: config?.awsBedrockClientKwargs?.regionName || "",
-    aws_auth_method: authMethod?.defaultCredentials
-      ? "default_credentials"
-      : "access_keys",
+    aws_auth_method: authMethod?.accessKeys
+      ? "access_keys"
+      : "default_credentials",
     aws_access_key_id: authMethod?.accessKeys?.awsAccessKeyId ?? undefined,
     aws_secret_access_key:
       authMethod?.accessKeys?.awsSecretAccessKey ?? undefined,
