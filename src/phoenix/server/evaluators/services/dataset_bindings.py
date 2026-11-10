@@ -6,7 +6,7 @@ from secrets import token_hex
 from typing import Any, Optional, Sequence, TypedDict
 
 from pydantic import ValidationError
-from sqlalchemy import delete, select, true, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
@@ -335,19 +335,7 @@ async def update_dataset_llm_evaluator(
         )
         dataset_evaluator_triplet = dataset_evaluator_row.one_or_none()
         if dataset_evaluator_triplet is None:
-            dataset_evaluator = await session.get(models.DatasetEvaluators, dataset_evaluator_rowid)
-            if dataset_evaluator is None:
-                raise NotFound(f"DatasetEvaluator with id {input.dataset_evaluator_id} not found")
-            evaluator = (
-                await session.get(models.Evaluator, dataset_evaluator.evaluator_id)
-                if dataset_evaluator.evaluator_id is not None
-                else None
-            )
-            if evaluator is not None and evaluator.kind == "BUILTIN":
-                raise BadRequest("Cannot update a built-in evaluator")
-            raise NotFound(
-                f"LLM evaluator not found for DatasetEvaluator {input.dataset_evaluator_id}"
-            )
+            raise NotFound(f"LLM dataset evaluator not found: {input.dataset_evaluator_id}")
         dataset_evaluator, llm_evaluator, prompt_version_tag = dataset_evaluator_triplet
         if source.content is not None:
             await validate_custom_provider(session, source.content)
@@ -562,28 +550,14 @@ async def create_dataset_builtin_evaluator(
 
     try:
         async with context.db() as session:
-            builtin_and_dataset = (
-                await session.execute(
-                    select(models.BuiltinEvaluator, models.Dataset.name)
-                    .select_from(models.BuiltinEvaluator)
-                    .join(models.Dataset, true())
-                    .where(
-                        models.BuiltinEvaluator.id == built_in_evaluator_id,
-                        models.Dataset.id == dataset_rowid,
-                    )
-                )
-            ).one_or_none()
-            if builtin_and_dataset is None:
-                builtin_db = await session.get(models.BuiltinEvaluator, built_in_evaluator_id)
-                if builtin_db is None:
-                    raise NotFound(f"Built-in evaluator with id {input.evaluator_id} not found")
-                dataset_name = await session.scalar(
-                    select(models.Dataset.name).where(models.Dataset.id == dataset_rowid)
-                )
-                if dataset_name is None:
-                    raise NotFound(f"Dataset with id {dataset_rowid} not found")
-            else:
-                builtin_db, dataset_name = builtin_and_dataset
+            builtin_db = await session.get(models.BuiltinEvaluator, built_in_evaluator_id)
+            if builtin_db is None:
+                raise NotFound(f"Built-in evaluator with id {input.evaluator_id} not found")
+            dataset_name = await session.scalar(
+                select(models.Dataset.name).where(models.Dataset.id == dataset_rowid)
+            )
+            if dataset_name is None:
+                raise NotFound(f"Dataset with id {dataset_rowid} not found")
 
             builtin_evaluator = get_builtin_evaluator_by_key(builtin_db.key)
             if builtin_evaluator is None:

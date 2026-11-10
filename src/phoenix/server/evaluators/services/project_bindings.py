@@ -639,7 +639,7 @@ async def create_project_code_evaluator(
                 filter_condition=input.filter_condition,
                 sampling_rate=input.sampling_rate,
                 evaluation_target=input.evaluation_target,
-                input_mapping=(input.input_mapping if input.input_mapping is not None else None),
+                input_mapping=input.input_mapping,
                 evaluation_delay_seconds=evaluation_delay_seconds,
                 enabled=input.enabled,
                 tracing_enabled=input.tracing_enabled,
