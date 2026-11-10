@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import pandas as pd
 from phoenix.client.types.prompts import PromptVersion
 
 from harbor_verifiers import trail_truth
@@ -48,24 +47,15 @@ def main() -> None:
     )
     rows = [
         {
-            "question": f.question,
-            "deviation": f.goal_deviation,
-            "trace_id": f.trace_id,
-            "human_deviation": f.goal_deviation,
-            "n": i,
-            "split": "test" if i % 4 == 0 else "dev",
+            "input": {"question": f.question},
+            "output": {"deviation": f.goal_deviation},
+            "metadata": {"trace_id": f.trace_id, "human_deviation": f.goal_deviation, "n": i},
+            "splits": "test" if i % 4 == 0 else "dev",
         }
         for i, f in enumerate(facts)
     ]
     phoenix = client()
-    phoenix.datasets.create_dataset(
-        name=DATASET,
-        dataframe=pd.DataFrame(rows),
-        input_keys=["question"],
-        output_keys=["deviation"],
-        metadata_keys=["trace_id", "human_deviation", "n"],
-        split_key="split",
-    )
+    phoenix.datasets.create_dataset(name=DATASET, examples=rows)
     phoenix.prompts.create(
         name="goal-deviation-judge",
         version=PromptVersion(
@@ -84,9 +74,10 @@ def main() -> None:
         phoenix.experiments.run_experiment(
             dataset=dataset, task=task, evaluators=[agrees], experiment_name=name
         )
-    held_out = [r for r in rows if r["split"] == "test"]
+    held_out = [r for r in rows if r["splits"] == "test"]
     matrix = confusion(
-        (improved_judge(r)["label"] == "deviation", bool(r["deviation"])) for r in held_out
+        (improved_judge(r["metadata"])["label"] == "deviation", r["output"]["deviation"])
+        for r in held_out
     )
     write_answer(
         f"On {len(held_out)} held-out traces the improved judge has precision "
