@@ -484,12 +484,3 @@ module.exports = async ({ github, context, core }) => {
     .addCodeBlock(message)
     .write();
 };
-
-module.exports.internals = {
-  buildSlackMessage,
-  createMentioner,
-  getLastActivity,
-  groupByPerson,
-  isRelevant,
-  summarizePullRequest,
-};
