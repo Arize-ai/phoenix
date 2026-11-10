@@ -34,8 +34,9 @@ from phoenix.db.types.prompts import (
     PromptTools,
     TextContentPart,
 )
-from phoenix.server.daemons.evaluator_purger import EvaluatorPurger, purge_deleted_bindings
+from phoenix.server.daemons.evaluator_purger import EvaluatorPurger
 from phoenix.server.encryption import EncryptionService
+from phoenix.server.evaluators.services.purge import purge_deleted_bindings
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 

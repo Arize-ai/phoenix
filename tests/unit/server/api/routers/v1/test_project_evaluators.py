@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.server.daemons.evaluator_purger import purge_deleted_bindings
+from phoenix.server.evaluators.services.purge import purge_deleted_bindings
 from phoenix.server.online_eval.span_producer import SpanEvaluationProducer
 from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import _add_span, _add_trace

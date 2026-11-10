@@ -598,7 +598,7 @@ async function projectEvaluatorDeleteHandler(
         ? `project evaluator ${projectEvaluatorIds[0]}`
         : `${projectEvaluatorIds.length} project evaluators`;
     await confirmOrExit({
-      message: `Delete ${noun}? Its trace project and recorded traces will be removed; its evaluator and prompt are kept. This cannot be undone.`,
+      message: `Delete ${noun}? Its trace project and recorded traces will be removed in the background; its evaluator and prompt are kept. This cannot be undone.`,
       yes: options.yes,
     });
 
@@ -825,7 +825,7 @@ export function createProjectEvaluatorUpdateCommand(): Command {
 export function createProjectEvaluatorDeleteCommand(): Command {
   return new Command("delete")
     .description(
-      "Delete one or more project evaluator bindings and their trace projects and recorded traces. Evaluator definitions and prompts are kept. Requires Phoenix server >= 21.0.0."
+      "Delete one or more project evaluator bindings. Their trace projects and recorded traces are removed in the background; evaluator definitions and prompts are kept. Requires Phoenix server >= 21.0.0."
     )
     .argument("<project-evaluator-id...>", "Project evaluator ID(s)")
     .option(

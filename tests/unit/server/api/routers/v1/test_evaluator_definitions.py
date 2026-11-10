@@ -35,6 +35,7 @@ from phoenix.server.api.routers.v1.evaluators import router
 from phoenix.server.api.routers.v1.sandbox_configs import router as sandbox_configs_router
 from phoenix.server.app import _db
 from phoenix.server.daemons.evaluator_purger import EvaluatorPurger
+from phoenix.server.evaluators.services import definitions
 from phoenix.server.evaluators.services.definitions import (
     CreateCodeEvaluatorVersionInput,
     EvaluatorServiceContext,
@@ -835,11 +836,14 @@ async def test_delete_still_bound_llm_evaluator_reports_binding_counts(
     assert problem["binding_counts"] == {"project": 0, "dataset": 1}
 
 
-async def test_delete_right_after_detaching_its_last_binding_succeeds(
+async def _detach_last_binding(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
-) -> None:
+) -> tuple[models.LLMEvaluator, int, int]:
+    """Detach an LLM evaluator's only binding while the background purger is held, returning
+    the evaluator, the binding id and the binding's trace project id."""
+
     async def _hold(_: EvaluatorPurger) -> None:
         return None
 
@@ -864,6 +868,17 @@ async def test_delete_right_after_detaching_its_last_binding_succeeds(
         f"v1/dataset_evaluators/{GlobalID('DatasetEvaluator', str(binding_id))}"
     )
     assert detach.status_code == 204, detach.text
+    return evaluator, binding_id, trace_project_id
+
+
+async def test_delete_right_after_detaching_its_last_binding_succeeds(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    evaluator, binding_id, trace_project_id = await _detach_last_binding(
+        httpx_client, db, monkeypatch
+    )
     response = await httpx_client.delete(
         f"v1/evaluators/{GlobalID('LLMEvaluator', str(evaluator.id))}"
     )
@@ -872,6 +887,30 @@ async def test_delete_right_after_detaching_its_last_binding_succeeds(
         assert await session.get(models.LLMEvaluator, evaluator.id) is None
         assert await session.get(models.DatasetEvaluators, binding_id) is None
         assert await session.get(models.Project, trace_project_id) is None
+
+
+async def test_delete_refuses_while_a_detached_binding_is_unpurged(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    evaluator, binding_id, trace_project_id = await _detach_last_binding(
+        httpx_client, db, monkeypatch
+    )
+
+    async def _skip_purge(*_: Any) -> None:
+        return None
+
+    monkeypatch.setattr(definitions, "purge_deleted_bindings_of_evaluator", _skip_purge)
+    response = await httpx_client.delete(
+        f"v1/evaluators/{GlobalID('LLMEvaluator', str(evaluator.id))}"
+    )
+    assert response.status_code == 409, response.text
+    assert response.json()["reason"] == "bindings_being_deleted"
+    async with db() as session:
+        assert await session.get(models.LLMEvaluator, evaluator.id) is not None
+        assert await session.get(models.DatasetEvaluators, binding_id) is not None
+        assert await session.get(models.Project, trace_project_id) is not None
 
 
 async def test_wrong_typed_ids_are_invalid_argument_not_a_crash(

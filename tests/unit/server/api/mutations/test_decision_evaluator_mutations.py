@@ -14,7 +14,7 @@ from phoenix.server.api.helpers.decision_clients import (
     RefusalAnswer,
     TypeSafeDecisionClient,
 )
-from phoenix.server.daemons.evaluator_purger import purge_deleted_bindings
+from phoenix.server.evaluators.services.purge import purge_deleted_bindings
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient, GraphQLExecutionResult
 

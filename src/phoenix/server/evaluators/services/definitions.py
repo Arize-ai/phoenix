@@ -25,7 +25,6 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import AlreadyExists, BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.prompts.validation import validate_custom_provider
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.daemons.evaluator_purger import purge_deleted_bindings_of_evaluator
 from phoenix.server.evaluators.input_descriptions import (
     apply_code_input_schema,
     apply_llm_input_schema,
@@ -47,7 +46,10 @@ from phoenix.server.evaluators.services.prompt_source import (
     pin_prompt_version,
     resolve_evaluator_prompt_version,
 )
-from phoenix.server.evaluators.validation import require_categorical_output_configs
+from phoenix.server.evaluators.services.purge import purge_deleted_bindings_of_evaluator
+from phoenix.server.evaluators.validation import (
+    require_categorical_output_configs,
+)
 from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.types import DbSessionFactory
 

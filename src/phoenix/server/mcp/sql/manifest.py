@@ -316,7 +316,15 @@ MANIFEST = AnalyticsSqlManifest(
                             grain=(
                                 "One evaluator attached to a dataset, with the dataset's own "
                                 "name, mapping and output config for it"
-                            )
+                            ),
+                            column_notes=MappingProxyType(
+                                {
+                                    "deleted_at": (
+                                        "set when the binding was deleted and awaits purging; "
+                                        "filter deleted_at IS NULL for live bindings"
+                                    )
+                                }
+                            ),
                         ),
                         "languages": TableCuration(),
                         "sandbox_configs": TableCuration(
