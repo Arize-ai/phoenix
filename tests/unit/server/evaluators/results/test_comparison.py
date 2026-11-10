@@ -79,6 +79,38 @@ class TestMakeSideBinning:
         assert binning.bin(None, 3.0) == FLAGGED_LABEL
         assert binning.bin(None, 2.9) == UNFLAGGED_LABEL
 
+    def test_pivot_is_a_saved_threshold(self) -> None:
+        config = ContinuousOutputConfig(
+            type="CONTINUOUS",
+            name="helpfulness",
+            optimization_direction=OptimizationDirection.MAXIMIZE,
+            lower_bound=0.0,
+            upper_bound=10.0,
+            threshold=7.0,
+        )
+        binning = make_side_binning("helpfulness", config, None)
+        assert binning.threshold == pytest.approx(7.0)
+        assert binning.bin(None, 6.0) == FLAGGED_LABEL  # good only above 7, not above 5
+        assert binning.bin(None, 7.0) == FLAGGED_LABEL
+        assert binning.bin(None, 8.0) == UNFLAGGED_LABEL
+        # The caller's override still wins over the saved threshold.
+        assert make_side_binning("helpfulness", config, 3.0).threshold == pytest.approx(3.0)
+
+    def test_saved_threshold_survives_storage(self) -> None:
+        stored = ContinuousOutputConfig(
+            type="CONTINUOUS",
+            name="helpfulness",
+            optimization_direction=OptimizationDirection.MINIMIZE,
+            lower_bound=0.0,
+            upper_bound=10.0,
+            threshold=2.0,
+        ).model_dump(mode="json")
+        config = ContinuousOutputConfig.model_validate(stored)
+        binning = make_side_binning("helpfulness", config, None)
+        assert binning.threshold == pytest.approx(2.0)
+        assert binning.bin(None, 3.0) == FLAGGED_LABEL
+        assert binning.bin(None, 1.0) == UNFLAGGED_LABEL
+
     def test_categorical_label_at_pivot_is_never_flagged(self) -> None:
         config = _categorical_config(
             direction=OptimizationDirection.MAXIMIZE,

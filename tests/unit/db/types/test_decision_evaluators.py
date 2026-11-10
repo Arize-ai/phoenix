@@ -82,10 +82,29 @@ def test_predicate_output_carries_its_threshold_but_never_serializes_it() -> Non
     assert predicate.threshold == 0.8
     assert predicate.optimization_direction is OptimizationDirection.MAXIMIZE
     assert scale.threshold is None
-    # Derived for display and binning only: stored snapshots and online-eval
-    # fingerprints serialize the configs, and must not change with it.
-    assert "threshold" not in predicate.model_dump()
-    assert "threshold" not in predicate.model_dump_json()
+    # The threshold is the scoring policy's: stored snapshots, binding checks and
+    # online-eval fingerprints serialize derived outputs, and must not change with it.
+    for config in (predicate, scale):
+        assert "threshold" not in config.model_dump()
+        assert "threshold" not in config.model_dump(mode="json")
+    assert (
+        predicate.model_dump()
+        == ContinuousOutputConfig.model_validate(predicate.model_dump()).model_dump()
+    )
+
+
+@pytest.mark.parametrize("threshold", [0.0, 1.0])
+def test_predicate_threshold_may_sit_on_a_bound(threshold: float) -> None:
+    # A saved continuous threshold must lie strictly inside the bounds; a
+    # predicate's may not, and deriving its output must not fail.
+    policy = DecisionScoringPolicy(
+        questions={"correct": PredicateScoring(type="predicate", threshold=threshold)}
+    )
+    predicate, _, _ = derive_decision_output_configs(questions(), policy)
+    assert isinstance(predicate, ContinuousOutputConfig)
+    assert predicate.threshold == threshold
+    # Stored or echoed back, it still validates: the threshold is not in the dump.
+    assert ContinuousOutputConfig.model_validate(predicate.model_dump()).threshold is None
 
 
 @pytest.mark.parametrize(

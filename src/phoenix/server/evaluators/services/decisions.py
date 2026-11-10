@@ -243,6 +243,29 @@ class CreateDatasetDecisionBindingInput:
     output_configs: Optional[list[OutputConfigType]] = None
 
 
+def _matches_derived_output_configs(
+    given: Sequence[OutputConfigType], derived: Sequence[OutputConfigType]
+) -> bool:
+    """Whether a caller's copy of a judge's outputs is the one derived from its policy.
+
+    Compared as serialized, which leaves out a predicate's derived threshold. A copy
+    may leave the threshold out too, as callers written before outputs carried it
+    do; one that gives a threshold must give the policy's.
+    """
+    if len(given) != len(derived):
+        return False
+    for given_config, derived_config in zip(given, derived):
+        given_dump = given_config.model_dump()
+        given_threshold = given_dump.pop("threshold", None)
+        if given_threshold is not None and given_threshold != getattr(
+            derived_config, "threshold", None
+        ):
+            return False
+        if given_dump != derived_config.model_dump():
+            return False
+    return True
+
+
 async def _bind_decision_to_dataset(
     session: AsyncSession,
     *,
@@ -259,11 +282,9 @@ async def _bind_decision_to_dataset(
     )
     if dataset_name is None:
         raise NotFound("Dataset not found")
-    # Compared as serialized, which leaves out the derived predicate threshold a
-    # caller's copy of the configs cannot carry.
-    if output_configs is not None and [config.model_dump() for config in output_configs] != [
-        config.model_dump() for config in evaluator.output_configs
-    ]:
+    if output_configs is not None and not _matches_derived_output_configs(
+        output_configs, evaluator.output_configs
+    ):
         raise BadRequest(
             "Decision outputs are derived from the questions and scoring policy; "
             "edit the scoring policy to change scoring"

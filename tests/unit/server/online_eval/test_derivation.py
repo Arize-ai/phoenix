@@ -9,12 +9,22 @@ import json
 import string
 from dataclasses import asdict, replace
 from random import Random
-from typing import Any
+from typing import Any, Optional
 
+import pytest
+
+from phoenix.db.types.annotation_configs import AnnotationType, OptimizationDirection
+from phoenix.db.types.decision_evaluators import (
+    DecisionScoringPolicy,
+    PredicateScoring,
+    derive_decision_output_configs,
+)
+from phoenix.db.types.decisions import PredicateQuestion
 from phoenix.server.online_eval.derivation import (
     ResolvedProjectEvaluator,
     annotation_identifier,
     config_fingerprint,
+    fingerprinted_output_config,
     sample_key,
 )
 
@@ -178,6 +188,114 @@ class TestConfigFingerprint:
             config_fingerprint(resolved)
             == "1deed348252eb69b468359d01f0f46e3e43946b573ec067bc499740e415e3b9f"
         )
+
+
+def _continuous_evaluator(**config: Any) -> ResolvedProjectEvaluator:
+    return ResolvedProjectEvaluator(
+        project_evaluator_id=5,
+        name="fixed-helpfulness",
+        evaluator_id=9,
+        version_ref=[3, "monty:1"],
+        output_configs=[
+            {
+                "name": "fixed-helpfulness",
+                "type": "CONTINUOUS",
+                "optimization_direction": "MAXIMIZE",
+                "lower_bound": 0.0,
+                "upper_bound": 10.0,
+                **config,
+            }
+        ],
+        input_mapping={"output": "output.messages"},
+        evaluation_target="SPAN",
+        sandbox_config_id=3,
+        filter_condition="",
+        sampling_rate=1.0,
+    )
+
+
+class TestContinuousThresholdLeavesFingerprintAlone:
+    """A continuous output's threshold changes no score or label, so it must not
+    start a new annotation series (``online:<fingerprint>``)."""
+
+    # The fingerprint of the evaluator above before thresholds existed.
+    _GOLDEN = "439c16930850a473119204243417068e389ad8589cca4ec7fbf8d5482b9a50ef"
+
+    def test_unset_threshold_keeps_the_pre_threshold_fingerprint(self) -> None:
+        assert config_fingerprint(_continuous_evaluator()) == self._GOLDEN
+
+    @pytest.mark.parametrize("threshold", [7.0, 2.5, None])
+    def test_setting_moving_or_clearing_the_threshold_keeps_it(
+        self, threshold: Optional[float]
+    ) -> None:
+        assert config_fingerprint(_continuous_evaluator(threshold=threshold)) == self._GOLDEN
+
+    def test_enum_typed_dumps_are_handled(self) -> None:
+        resolved = _continuous_evaluator(threshold=7.0)
+        config = dict(resolved.output_configs[0])
+        config["type"] = AnnotationType.CONTINUOUS
+        config["optimization_direction"] = OptimizationDirection.MAXIMIZE
+        assert config_fingerprint(replace(resolved, output_configs=[config])) == self._GOLDEN
+
+    def test_bounds_still_change_it(self) -> None:
+        assert config_fingerprint(_continuous_evaluator(upper_bound=5.0)) != self._GOLDEN
+
+    def test_other_kinds_keep_their_threshold_fields(self) -> None:
+        # Only continuous thresholds are display-only; a freeform config's
+        # leftover thresholds field is hashed as it always was.
+        freeform = replace(
+            _continuous_evaluator(),
+            output_configs=[{"name": "x", "type": "FREEFORM", "thresholds": [0.5]}],
+        )
+        moved = replace(
+            freeform, output_configs=[{"name": "x", "type": "FREEFORM", "thresholds": [0.6]}]
+        )
+        assert config_fingerprint(freeform) != config_fingerprint(moved)
+
+    def test_decision_fingerprint_is_unchanged(self) -> None:
+        # A predicate's threshold rides on its derived output in memory only; it
+        # reaches the fingerprint through the scoring policy in version_ref.
+        policy = DecisionScoringPolicy(
+            questions={
+                "addresses_request": PredicateScoring(
+                    type="predicate",
+                    threshold=0.8,
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                )
+            }
+        )
+        question = PredicateQuestion(
+            type="predicate", name="addresses_request", instructions="Does it?"
+        )
+        dumped = [
+            config.model_dump() for config in derive_decision_output_configs([question], policy)
+        ]
+        assert "threshold" not in dumped[0]
+        version_ref = [13, policy.model_dump(mode="json")]
+        current = replace(_continuous_evaluator(), version_ref=version_ref, output_configs=dumped)
+        with_threshold = [{**dumped[0], "threshold": 0.8}]
+        assert config_fingerprint(current) == config_fingerprint(
+            replace(current, output_configs=with_threshold)
+        )
+        moved_policy = DecisionScoringPolicy(
+            questions={
+                "addresses_request": PredicateScoring(
+                    type="predicate",
+                    threshold=0.6,
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                )
+            }
+        )
+        # Moving a predicate's threshold rescoring its answers still starts a new series.
+        assert config_fingerprint(current) != config_fingerprint(
+            replace(current, version_ref=[13, moved_policy.model_dump(mode="json")])
+        )
+
+    def test_fingerprinted_output_config_passes_non_dicts_through(self) -> None:
+        assert fingerprinted_output_config("bumped") == "bumped"
+        assert fingerprinted_output_config({"type": "CONTINUOUS", "threshold": 1}) == {
+            "type": "CONTINUOUS"
+        }
 
 
 class TestAnnotationIdentifier:

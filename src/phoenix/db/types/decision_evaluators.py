@@ -113,6 +113,24 @@ def adapt_scoring_policy(
     return DecisionScoringPolicy(questions=resolved)
 
 
+def _with_derived_threshold(
+    config: ContinuousOutputConfig, threshold: float
+) -> ContinuousOutputConfig:
+    """The config with a predicate's threshold, which is where its label flips and so
+    where its results turn from bad to good, not the middle of 0..1.
+
+    Constructed so the threshold stays out of the config's set fields, which keeps it
+    from being serialized or checked as a saved threshold: it is the scoring policy's,
+    stored, validated and fingerprinted there, so outputs derived from a policy dump,
+    snapshot and compare as they did before they carried it, and it may sit on a
+    bound (at 1, only a certain Yes is true), which a saved threshold may not.
+    """
+    return ContinuousOutputConfig.model_construct(
+        _fields_set=set(config.model_fields_set),
+        **{**dict(config), "threshold": threshold},
+    )
+
+
 def derive_decision_output_configs(
     questions: list[DecisionQuestion], policy: DecisionScoringPolicy
 ) -> list[OutputConfigType]:
@@ -137,18 +155,16 @@ def derive_decision_output_configs(
                 )
             )
         else:
-            configs.append(
-                ContinuousOutputConfig(
-                    type="CONTINUOUS",
-                    name=question.name,
-                    optimization_direction=scoring.optimization_direction,
-                    lower_bound=0,
-                    upper_bound=1
-                    if isinstance(question, PredicateQuestion)
-                    else len(question.levels) - 1,
-                    # A predicate's label flips at its threshold, so that is where its
-                    # results turn from bad to good, not the middle of 0..1.
-                    threshold=scoring.threshold if isinstance(scoring, PredicateScoring) else None,
-                )
+            config = ContinuousOutputConfig(
+                type="CONTINUOUS",
+                name=question.name,
+                optimization_direction=scoring.optimization_direction,
+                lower_bound=0,
+                upper_bound=1
+                if isinstance(question, PredicateQuestion)
+                else len(question.levels) - 1,
             )
+            if isinstance(scoring, PredicateScoring):
+                config = _with_derived_threshold(config, scoring.threshold)
+            configs.append(config)
     return configs
