@@ -35,7 +35,7 @@ def _derived(threshold: float) -> list[ContinuousOutputConfig]:
 def _given(
     threshold: Optional[float],
     upper_bound: float = 1,
-    description: Optional[str] = UNDEFINED,  # type: ignore[assignment]
+    description: Optional[str] = UNDEFINED,
 ) -> ContinuousOutputConfig:
     return ContinuousOutputConfig(
         type="CONTINUOUS",

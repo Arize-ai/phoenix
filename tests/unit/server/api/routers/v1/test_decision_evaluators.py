@@ -227,14 +227,12 @@ async def test_a_judges_own_output_configs_can_be_echoed_into_a_binding(
     assert response.status_code == 200, response.text
     # A copy that gives the threshold must give the policy's, even on a bound.
     with_threshold = [
-        {**config, "threshold": 1.0} if config["name"] == "urgent" else config
-        for config in echoed
+        {**config, "threshold": 1.0} if config["name"] == "urgent" else config for config in echoed
     ]
     response = await httpx_client.patch(binding_route, json={"output_configs": with_threshold})
     assert response.status_code == 200, response.text
     other_threshold = [
-        {**config, "threshold": 0.3} if config["name"] == "urgent" else config
-        for config in echoed
+        {**config, "threshold": 0.3} if config["name"] == "urgent" else config for config in echoed
     ]
     response = await httpx_client.patch(binding_route, json={"output_configs": other_threshold})
     assert response.status_code == 422, response.text
