@@ -140,6 +140,27 @@ describe("getEvaluatorTaskAnnotation", () => {
     ).toMatchObject({ values: [{ label: "friendly", score: null }] });
   });
 
+  it("carries a numeric output's threshold through", () => {
+    expect(
+      getEvaluatorTaskAnnotation({
+        evaluator: {
+          name: "helpfulness",
+          outputConfigs: [
+            {
+              annotationType: "CONTINUOUS",
+              name: "helpfulness",
+              optimizationDirection: "MAXIMIZE",
+              lowerBound: 0,
+              upperBound: 10,
+              threshold: 7,
+            },
+          ],
+        },
+        position: 0,
+      }).config
+    ).toMatchObject({ lowerBound: 0, upperBound: 10, threshold: 7 });
+  });
+
   it("names an unnamed draft by its column and has no output without a config", () => {
     expect(
       getEvaluatorTaskAnnotation({
