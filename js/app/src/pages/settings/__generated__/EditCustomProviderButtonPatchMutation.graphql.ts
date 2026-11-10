@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<842585c36beffc80cc344044784fe208>>
+ * @generated SignedSource<<6f553803ac9031d4f81f3608085007f2>>
  * @lightSyntaxTransform
  */
 
@@ -9,14 +9,14 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type DecisionSDK = "OPENAI" | "TYPESAFE";
 export type GenerativeModelSDK = "ANTHROPIC" | "AWS_BEDROCK" | "AZURE_OPENAI" | "GOOGLE_GENAI" | "OPENAI" | "TYPESAFE";
-export type ModelType = "DECISION" | "LLM";
+export type ModelType = "CHAT" | "DECISION";
 export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
 export type PatchGenerativeModelCustomProviderMutationInput = {
   clientConfig?: GenerativeModelCustomerProviderConfigInput | null;
   description?: string | null;
   id: string;
+  models?: ProviderModelsInput | null;
   name?: string | null;
   provider?: string | null;
 };
@@ -64,8 +64,6 @@ export type GenerativeModelCustomerProviderConfigInput = {
   typesafe: TypeSafeCustomProviderConfigInput;
 };
 export type OpenAICustomProviderConfigInput = {
-  decisionModels?: DecisionModelsConfigInput | null;
-  modelNames?: ReadonlyArray<string> | null;
   openaiApiType?: OpenAIApiType | null;
   openaiAuthenticationMethod: OpenAIAuthenticationMethodInput;
   openaiClientKwargs?: OpenAIClientKwargsInput | null;
@@ -79,16 +77,9 @@ export type OpenAIClientKwargsInput = {
   organization?: string | null;
   project?: string | null;
 };
-export type DecisionModelsConfigInput = {
-  baseUrl?: string | null;
-  decisionSdk: DecisionSDK;
-  modelNames?: ReadonlyArray<string> | null;
-};
 export type AzureOpenAICustomProviderConfigInput = {
   azureOpenaiAuthenticationMethod: AzureOpenAIAuthenticationMethodInput;
   azureOpenaiClientKwargs: AzureOpenAIClientKwargsInput;
-  decisionModels?: DecisionModelsConfigInput | null;
-  modelNames?: ReadonlyArray<string> | null;
   openaiApiType?: OpenAIApiType | null;
 };
 export type AzureOpenAIAuthenticationMethodInput = {
@@ -117,7 +108,6 @@ export type AzureOpenAIClientKwargsInput = {
 export type AnthropicCustomProviderConfigInput = {
   anthropicAuthenticationMethod: AnthropicAuthenticationMethodInput;
   anthropicClientKwargs?: AnthropicClientKwargsInput | null;
-  modelNames?: ReadonlyArray<string> | null;
 };
 export type AnthropicAuthenticationMethodInput = {
   apiKey: string;
@@ -129,7 +119,6 @@ export type AnthropicClientKwargsInput = {
 export type AWSBedrockCustomProviderConfigInput = {
   awsBedrockAuthenticationMethod: AWSBedrockAuthenticationMethodInput;
   awsBedrockClientKwargs: AWSBedrockClientKwargsInput;
-  modelNames?: ReadonlyArray<string> | null;
 };
 export type AWSBedrockAuthenticationMethodInput = {
   accessKeys: AWSBedrockAccessKeysInput;
@@ -150,7 +139,6 @@ export type AWSBedrockClientKwargsInput = {
 export type GoogleGenAICustomProviderConfigInput = {
   googleGenaiAuthenticationMethod: GoogleGenAIAuthenticationMethodInput;
   googleGenaiClientKwargs?: GoogleGenAIClientKwargsInput | null;
-  modelNames?: ReadonlyArray<string> | null;
 };
 export type GoogleGenAIAuthenticationMethodInput = {
   apiKey: string;
@@ -163,7 +151,6 @@ export type GoogleGenAIHttpOptionsInput = {
   headers?: any | null;
 };
 export type TypeSafeCustomProviderConfigInput = {
-  decisionModels?: DecisionModelsConfigInput | null;
   typesafeAuthenticationMethod: TypeSafeAuthenticationMethodInput;
   typesafeClientKwargs?: TypeSafeClientKwargsInput | null;
 };
@@ -174,6 +161,13 @@ export type TypeSafeClientKwargsInput = {
   baseUrl?: string | null;
   defaultHeaders?: any | null;
 };
+export type ProviderModelsInput = {
+  chat?: ModelsOfTypeInput | null;
+  decision?: ModelsOfTypeInput | null;
+};
+export type ModelsOfTypeInput = {
+  names?: ReadonlyArray<string>;
+};
 export type EditCustomProviderButtonPatchMutation$variables = {
   input: PatchGenerativeModelCustomProviderMutationInput;
 };
@@ -181,8 +175,10 @@ export type EditCustomProviderButtonPatchMutation$data = {
   readonly patchGenerativeModelCustomProvider: {
     readonly provider: {
       readonly createdAt: string;
+      readonly decisionModelNames: ReadonlyArray<string>;
       readonly description: string | null;
       readonly id: string;
+      readonly modelNames: ReadonlyArray<string>;
       readonly modelTypes: ReadonlyArray<ModelType>;
       readonly name: string;
       readonly provider: string;
@@ -315,6 +311,26 @@ v11 = {
     (v5/*:: as any*/),
     (v6/*:: as any*/),
     (v7/*:: as any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "modelNames",
+      "storageKey": null
+    },
+    {
+      "alias": "decisionModelNames",
+      "args": [
+        {
+          "kind": "Literal",
+          "name": "modelType",
+          "value": "DECISION"
+        }
+      ],
+      "kind": "ScalarField",
+      "name": "modelNames",
+      "storageKey": "modelNames(modelType:\"DECISION\")"
+    },
     (v8/*:: as any*/),
     (v9/*:: as any*/),
     (v10/*:: as any*/)
@@ -516,16 +532,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "cd71e290c0b08ca6c0b9e7ea1dab86e3",
+    "cacheID": "113b8d7f46e755de049ffadcfd279891",
     "id": null,
     "metadata": {},
     "name": "EditCustomProviderButtonPatchMutation",
     "operationKind": "mutation",
-    "text": "mutation EditCustomProviderButtonPatchMutation(\n  $input: PatchGenerativeModelCustomProviderMutationInput!\n) {\n  patchGenerativeModelCustomProvider(input: $input) {\n    provider {\n      id\n      name\n      description\n      sdk\n      provider\n      modelTypes\n      createdAt\n      updatedAt\n      user {\n        id\n        username\n        profilePictureUrl\n      }\n    }\n    query {\n      ...CustomProvidersCard_data\n    }\n  }\n}\n\nfragment CustomProvidersCard_data on Query {\n  generativeModelCustomProviders(first: 50) {\n    edges {\n      node {\n        id\n        name\n        description\n        sdk\n        provider\n        modelTypes\n        createdAt\n        updatedAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n        config {\n          __typename\n          ... on UnparsableConfig {\n            parseError\n          }\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "mutation EditCustomProviderButtonPatchMutation(\n  $input: PatchGenerativeModelCustomProviderMutationInput!\n) {\n  patchGenerativeModelCustomProvider(input: $input) {\n    provider {\n      id\n      name\n      description\n      sdk\n      provider\n      modelTypes\n      modelNames\n      decisionModelNames: modelNames(modelType: DECISION)\n      createdAt\n      updatedAt\n      user {\n        id\n        username\n        profilePictureUrl\n      }\n    }\n    query {\n      ...CustomProvidersCard_data\n    }\n  }\n}\n\nfragment CustomProvidersCard_data on Query {\n  generativeModelCustomProviders(first: 50) {\n    edges {\n      node {\n        id\n        name\n        description\n        sdk\n        provider\n        modelTypes\n        createdAt\n        updatedAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n        config {\n          __typename\n          ... on UnparsableConfig {\n            parseError\n          }\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "04553d8873b56710a39dc1af0cc3e14b";
+(node as any).hash = "6df20cec2f253539c9a5e3d6a129b44d";
 
 export default node;

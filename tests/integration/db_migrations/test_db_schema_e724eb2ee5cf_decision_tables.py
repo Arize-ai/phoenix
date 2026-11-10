@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from . import _down, _run_async, _up, _verify_clean_state
 
-_DOWN = "ef09e3bc213f"
+_DOWN = "4027185fa2cf"
 _UP = "e724eb2ee5cf"
 
 _VERSION_COLUMNS = (
@@ -333,8 +333,9 @@ def _insert_custom_provider(conn: Connection) -> int:
     provider_id = conn.execute(
         text(
             "INSERT INTO generative_model_custom_providers "
-            "(name, provider, sdk, config, created_at, updated_at) "
-            "VALUES ('proxy', 'typesafe', 'typesafe', :config, :now, :now) RETURNING id"
+            "(name, provider, sdk, config, models, created_at, updated_at) "
+            "VALUES ('proxy', 'typesafe', 'typesafe', :config, '{\"decision\": {}}', "
+            ":now, :now) RETURNING id"
         ),
         {"config": b"encrypted", "now": datetime.now(timezone.utc)},
     ).scalar()

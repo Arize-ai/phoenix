@@ -20,8 +20,8 @@ from phoenix.db.types.evaluators import InputMapping
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.helpers.chat_clients import initialize_chat_clients
 from phoenix.server.api.helpers.expected_outputs import without_own_annotations
-from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
 from phoenix.server.api.input_types.EvaluatorDefinitionInput import (
     EvaluatorPreviewsInput,
     _node_id,
@@ -53,7 +53,7 @@ from phoenix.server.monty_runtime import (
 
 logger = logging.getLogger(__name__)
 
-initialize_playground_clients()
+initialize_chat_clients()
 
 
 @strawberry.type

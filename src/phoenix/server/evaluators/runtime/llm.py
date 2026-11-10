@@ -7,7 +7,7 @@ from typing import Any, Optional, Sequence, TypeAlias
 import openinference.instrumentation as oi
 from opentelemetry.context import Context
 from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer, format_trace_id
-from typing_extensions import TypedDict
+from typing_extensions import TypedDict, override
 
 from phoenix.db.types.annotation_configs import CategoricalOutputConfig, OutputConfigType
 from phoenix.db.types.evaluators import InputMapping
@@ -24,8 +24,8 @@ from phoenix.db.types.prompts import (
     RoleConversion,
     TextContentPart,
 )
+from phoenix.server.api.helpers.chat_clients import ChatClient
 from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
-from phoenix.server.api.helpers.playground_clients import PlaygroundClient
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
 from phoenix.server.evaluators.input_mapping import (
@@ -88,7 +88,7 @@ class LLMEvaluator(BaseEvaluator):
         tools: PromptTools,
         invocation_parameters: PromptInvocationParameters,
         model_provider: ModelProvider,
-        llm_client: PlaygroundClient[Any],
+        llm_client: ChatClient[Any],
         output_configs: Sequence[CategoricalOutputConfig],
         prompt_name: str,
         max_message_bytes: Optional[int] = None,
@@ -106,32 +106,39 @@ class LLMEvaluator(BaseEvaluator):
         self._max_message_bytes = max_message_bytes
 
     @property
+    @override
     def provider_client(self) -> EvaluatorProviderClient:
         return self._llm_client
 
     @property
+    @override
     def annotator_kind(self) -> EvaluatorAnnotatorKind:
         return "LLM"
 
     @property
+    @override
     def name(self) -> str:
         return self._name
 
     @property
+    @override
     def description(self) -> Optional[str]:
         return self._description
 
     @property
+    @override
     def output_configs(self) -> Sequence[OutputConfigType]:
         return self._output_configs
 
     @property
+    @override
     def input_schema(self) -> dict[str, Any]:
         return infer_input_schema_from_prompt_template(
             template=self._template,
             template_format=self._template_format,
         )
 
+    @override
     async def evaluate(
         self,
         *,

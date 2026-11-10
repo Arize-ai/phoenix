@@ -3,7 +3,7 @@ name: Sync Model Pricing Data
 # Keeps the built-in model catalog current in a single rolling PR:
 #   1. Re-sync the cost manifest's token prices from LiteLLM (every run).
 #   2. Have Claude audit the hard-coded playground model dropdowns
-#      (`model_names=` lists in playground_clients.py) for shut-down models to
+#      (`model_names=` lists in chat_clients.py) for shut-down models to
 #      drop and new GA models to add (when prices changed, on Mondays, or on
 #      manual dispatch).
 #   3. Publish both to one fixed branch so the open PR is updated in place
@@ -17,8 +17,8 @@ permissions:
 env:
   ACTIONS_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   MANIFEST_PATH: src/phoenix/server/cost_tracking/manifests/v1.json
-  PLAYGROUND_CLIENTS_PATH: src/phoenix/server/api/helpers/playground_clients.py
-  PLAYGROUND_CLIENTS_TEST_PATH: tests/unit/server/api/helpers/test_playground_clients.py
+  CHAT_CLIENTS_PATH: src/phoenix/server/api/helpers/chat_clients.py
+  CHAT_CLIENTS_TEST_PATH: tests/unit/server/api/helpers/test_chat_clients.py
   MANIFEST_TEST_PATH: tests/unit/server/cost_tracking/test_model_cost_manifest.py
   AUDIT_DIR: .scratch/model-audit
 
@@ -167,15 +167,15 @@ jobs:
 
             ## Scope
             The dropdown lists are the `model_names=[...]` arguments of the
-            `@register_llm_client(...)` decorators, and the module-level lists they
+            `@register_client(model_type="chat", ...)` decorators, and the module-level lists they
             splat (`OPENAI_CHAT_COMPLETIONS_MODELS`, `OPENAI_REASONING_MODELS`,
             `ANTHROPIC_ADAPTIVE_THINKING_MODELS`, `ANTHROPIC_EXTENDED_THINKING_MODELS`,
             `GEMINI_2_5_MODELS`, `GEMINI_3_MODELS`, `MINIMAX_MODEL_NAMES`, ...), all in
-            `${{ env.PLAYGROUND_CLIENTS_PATH }}`.
+            `${{ env.CHAT_CLIENTS_PATH }}`.
 
             You may edit ONLY:
-              - `${{ env.PLAYGROUND_CLIENTS_PATH }}`
-              - `${{ env.PLAYGROUND_CLIENTS_TEST_PATH }}` (only where a test pins a
+              - `${{ env.CHAT_CLIENTS_PATH }}`
+              - `${{ env.CHAT_CLIENTS_TEST_PATH }}` (only where a test pins a
                 list you changed)
             and write your summary to `${{ env.AUDIT_DIR }}/summary.md`. Any other edit
             is discarded by the workflow. Do not commit, push, or open a PR.
@@ -227,9 +227,9 @@ jobs:
 
             ## 4. Verify
             Run, and fix until they pass:
-              - `uv run ruff format ${{ env.PLAYGROUND_CLIENTS_PATH }} ${{ env.PLAYGROUND_CLIENTS_TEST_PATH }}`
-              - `uv run ruff check ${{ env.PLAYGROUND_CLIENTS_PATH }} ${{ env.PLAYGROUND_CLIENTS_TEST_PATH }}`
-              - `uv run pytest -q ${{ env.PLAYGROUND_CLIENTS_TEST_PATH }} ${{ env.MANIFEST_TEST_PATH }}`
+              - `uv run ruff format ${{ env.CHAT_CLIENTS_PATH }} ${{ env.CHAT_CLIENTS_TEST_PATH }}`
+              - `uv run ruff check ${{ env.CHAT_CLIENTS_PATH }} ${{ env.CHAT_CLIENTS_TEST_PATH }}`
+              - `uv run pytest -q ${{ env.CHAT_CLIENTS_TEST_PATH }} ${{ env.MANIFEST_TEST_PATH }}`
 
             ## 5. Summary
             Always write `${{ env.AUDIT_DIR }}/summary.md`, even when nothing changed
@@ -260,7 +260,7 @@ jobs:
           # Claude may only change the playground clients and their test; anything
           # else it touched is discarded. The manifest is listed only so the loop
           # keeps the synced copy just restored above.
-          allowed="$MANIFEST_PATH $PLAYGROUND_CLIENTS_PATH $PLAYGROUND_CLIENTS_TEST_PATH"
+          allowed="$MANIFEST_PATH $CHAT_CLIENTS_PATH $CHAT_CLIENTS_TEST_PATH"
           for file in $(git diff --name-only; git ls-files --others --exclude-standard); do
             case " $allowed " in
               *" $file "*) ;;
@@ -271,21 +271,21 @@ jobs:
             esac
           done
 
-          if git diff --quiet -- "$PLAYGROUND_CLIENTS_PATH" "$PLAYGROUND_CLIENTS_TEST_PATH"; then
+          if git diff --quiet -- "$CHAT_CLIENTS_PATH" "$CHAT_CLIENTS_TEST_PATH"; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           # Re-run the checks ourselves rather than trusting the agent's report.
           # On failure, drop the model-list edits so the price sync still ships.
-          if uv run ruff format --check "$PLAYGROUND_CLIENTS_PATH" "$PLAYGROUND_CLIENTS_TEST_PATH" \
-            && uv run ruff check "$PLAYGROUND_CLIENTS_PATH" "$PLAYGROUND_CLIENTS_TEST_PATH" \
-            && uv run pytest -q "$PLAYGROUND_CLIENTS_TEST_PATH" "$MANIFEST_TEST_PATH"; then
+          if uv run ruff format --check "$CHAT_CLIENTS_PATH" "$CHAT_CLIENTS_TEST_PATH" \
+            && uv run ruff check "$CHAT_CLIENTS_PATH" "$CHAT_CLIENTS_TEST_PATH" \
+            && uv run pytest -q "$CHAT_CLIENTS_TEST_PATH" "$MANIFEST_TEST_PATH"; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
-            git diff --stat -- "$PLAYGROUND_CLIENTS_PATH" "$PLAYGROUND_CLIENTS_TEST_PATH"
+            git diff --stat -- "$CHAT_CLIENTS_PATH" "$CHAT_CLIENTS_TEST_PATH"
           else
             echo "::warning::Model-list changes failed verification; reverting them."
-            git restore -- "$PLAYGROUND_CLIENTS_PATH" "$PLAYGROUND_CLIENTS_TEST_PATH"
+            git restore -- "$CHAT_CLIENTS_PATH" "$CHAT_CLIENTS_TEST_PATH"
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "reverted=true" >> "$GITHUB_OUTPUT"
           fi
@@ -354,7 +354,7 @@ jobs:
           # anything that code planted in .git/ cannot shape the patch.
           mkdir -p "$RUNNER_TEMP/catalog"
           git -c core.hooksPath=/dev/null diff --no-ext-diff --no-textconv --binary -- \
-            "$MANIFEST_PATH" "$PLAYGROUND_CLIENTS_PATH" "$PLAYGROUND_CLIENTS_TEST_PATH" \
+            "$MANIFEST_PATH" "$CHAT_CLIENTS_PATH" "$CHAT_CLIENTS_TEST_PATH" \
             > "$RUNNER_TEMP/catalog/catalog.patch"
           cp "$RUNNER_TEMP/pr-body.md" "$RUNNER_TEMP/catalog/pr-body.md"
           git apply --numstat "$RUNNER_TEMP/catalog/catalog.patch"
@@ -405,7 +405,7 @@ jobs:
             echo "::error::Catalog patch changes file modes or paths; refusing to publish."
             exit 1
           fi
-          allowed="$MANIFEST_PATH $PLAYGROUND_CLIENTS_PATH $PLAYGROUND_CLIENTS_TEST_PATH"
+          allowed="$MANIFEST_PATH $CHAT_CLIENTS_PATH $CHAT_CLIENTS_TEST_PATH"
           while IFS=$'\t' read -r _ _ file; do
             case " $allowed " in
               *" $file "*) ;;
@@ -425,8 +425,8 @@ jobs:
           body-path: ${{ runner.temp }}/catalog/pr-body.md
           add-paths: |
             ${{ env.MANIFEST_PATH }}
-            ${{ env.PLAYGROUND_CLIENTS_PATH }}
-            ${{ env.PLAYGROUND_CLIENTS_TEST_PATH }}
+            ${{ env.CHAT_CLIENTS_PATH }}
+            ${{ env.CHAT_CLIENTS_TEST_PATH }}
           # A fixed branch means one rolling PR: each run rebuilds it from main
           # and force-pushes, updating the open PR instead of opening a new one.
           branch: automation/sync-model-catalog

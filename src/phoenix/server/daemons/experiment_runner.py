@@ -123,6 +123,7 @@ from phoenix.db.types.experiment_log import (
     RetriesExhaustedDetail,
 )
 from phoenix.db.types.prompts import PromptChatTemplate, PromptInvocationParameters
+from phoenix.server.api.helpers.chat_clients import get_chat_client
 from phoenix.server.api.helpers.dataset_helpers import dataset_example_eval_context
 from phoenix.server.api.helpers.decision_clients import (
     DecisionClient,
@@ -139,7 +140,6 @@ from phoenix.server.api.helpers.message_helpers import (
     formatted_messages,
     prompt_chat_template_to_playground_messages,
 )
-from phoenix.server.api.helpers.playground_clients import get_playground_client
 from phoenix.server.api.helpers.playground_experiment_runs import (
     get_db_experiment_run,
 )
@@ -177,8 +177,8 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from phoenix.db.types.prompts import PromptResponseFormat, PromptTools
+    from phoenix.server.api.helpers.chat_clients import ChatCompletionChunk
     from phoenix.server.api.helpers.message_helpers import PlaygroundMessage
-    from phoenix.server.api.helpers.playground_clients import ChatCompletionChunk
     from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
     from phoenix.server.sandbox.session_manager import SandboxSessionManager
     from phoenix.server.sandbox.types import SandboxRuntimeContext
@@ -214,7 +214,7 @@ def _sanitize_error_message(error: BaseException) -> str:
 class LLMClient(Protocol):
     """Narrow interface for the LLM client methods the runner actually uses.
 
-    PlaygroundClient satisfies this implicitly.
+    ChatClient satisfies this implicitly.
     """
 
     def get_rate_limit_key(self) -> Hashable: ...
@@ -3254,7 +3254,7 @@ class ExperimentRunner(DaemonTask):
                 decrypt=self._decrypt,
             )
         elif isinstance(experiment_job, models.ExperimentPromptTask):
-            llm_client = await get_playground_client(
+            llm_client = await get_chat_client(
                 model_provider=experiment_job.model_provider,
                 model_name=experiment_job.model_name,
                 session=session,

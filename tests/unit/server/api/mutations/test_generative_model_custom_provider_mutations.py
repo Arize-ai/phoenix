@@ -1,7 +1,6 @@
 from secrets import token_bytes, token_hex
 from typing import Any
 
-import pytest
 from pydantic import SecretStr
 from sqlalchemy import delete as sa_delete
 from sqlalchemy import select
@@ -150,23 +149,16 @@ class TestGenerativeModelCustomProviderMutations:
       }
     """
 
-    @pytest.mark.parametrize(
-        "field_name",
-        [
-            "testGenerativeModelCustomProviderCredentials",
-            "testGenerativeModelCustomProviderDecisionEndpoint",
-        ],
-    )
     async def test_outbound_checks_are_mutations_not_queries(
         self,
         gql_client: AsyncGraphQLClient,
-        field_name: str,
     ) -> None:
-        """Security regression: the credential and decision endpoint checks must be
-        mutations, not query fields. Their resolvers make user-controlled outbound HTTP
+        """Security regression: the connection check, of chat and decision endpoints, must
+        be a mutation, not a query field. Their resolvers make user-controlled outbound HTTP
         requests with the user's key, which is an SSRF vector if exposed through the
         Query surface.
         """
+        field_name = "testGenerativeModelCustomProviderCredentials"
         introspection = """
           query SchemaShape {
             queryType: __type(name: "Query") { fields { name } }
@@ -186,19 +178,11 @@ class TestGenerativeModelCustomProviderMutations:
         )
         assert field_name in mutation_field_names
 
-    @pytest.mark.parametrize(
-        "resolver_name",
-        [
-            "test_generative_model_custom_provider_credentials",
-            "test_generative_model_custom_provider_decision_endpoint",
-        ],
-    )
-    def test_outbound_checks_refuse_read_only_viewers_and_non_admins(
-        self, resolver_name: str
-    ) -> None:
+    def test_outbound_checks_refuse_read_only_viewers_and_non_admins(self) -> None:
         """Security regression: only a writer who may manage providers can make these
         outbound requests: not in read-only mode, not a viewer, an admin when auth is on.
         """
+        resolver_name = "test_generative_model_custom_provider_credentials"
         definition = getattr(Mutation, "__strawberry_definition__")
         field = next(f for f in definition.fields if f.python_name == resolver_name)
         assert {IsNotReadOnly, IsNotViewer, IsAdminIfAuthEnabled} <= set(field.permission_classes)
@@ -1106,11 +1090,9 @@ mutation ($input: CreateGenerativeModelCustomProviderMutationInput!) {
 """
 
 
-async def test_decision_client_cannot_change_while_decision_versions_use_it(
+async def test_decisions_stay_on_while_decision_versions_use_them(
     gql_client: AsyncGraphQLClient, db: DbSessionFactory
 ) -> None:
-    """Turning off a provider's decision models, or switching its decision client, would
-    break the decisions saved on it; changing its SDK alone does not."""
     created = await gql_client.execute(
         _CREATE_OPENAI_PROVIDER,
         variables={
@@ -1118,30 +1100,24 @@ async def test_decision_client_cannot_change_while_decision_versions_use_it(
                 "name": "openai-for-decisions",
                 "provider": "openai",
                 "clientConfig": {
-                    "openai": {
-                        "openaiAuthenticationMethod": {"apiKey": "sk-test"},
-                        "decisionModels": {"decisionSdk": "OPENAI"},
-                    },
+                    "openai": {"openaiAuthenticationMethod": {"apiKey": "sk-test"}},
                 },
+                "models": {"chat": {}, "decision": {}},
             }
         },
     )
     assert created.data and not created.errors, created.errors
     provider_id = created.data["createGenerativeModelCustomProvider"]["provider"]["id"]
     provider_rowid = int(GlobalID.from_id(provider_id).node_id)
-    azure_patch = {
-        "input": {
-            "id": provider_id,
-            "clientConfig": {
-                "azureOpenai": {
-                    "azureOpenaiAuthenticationMethod": {"apiKey": "az-key"},
-                    "azureOpenaiClientKwargs": {
-                        "azureEndpoint": "https://example.openai.azure.com"
-                    },
-                }
-            },
-        }
+
+    def patch(**fields: Any) -> dict[str, Any]:
+        return {"input": {"id": provider_id, **fields}}
+
+    azure = {
+        "azureOpenaiAuthenticationMethod": {"apiKey": "az-key"},
+        "azureOpenaiClientKwargs": {"azureEndpoint": "https://example.openai.azure.com"},
     }
+    decisions_off = patch(models={"chat": {}})
 
     async with db() as session:
         decision = models.Decision(
@@ -1166,46 +1142,40 @@ async def test_decision_client_cannot_change_while_decision_versions_use_it(
         await session.flush()
         version_id = decision.id
 
-    blocked = await gql_client.execute(_PATCH_SDK, variables=azure_patch)
+    blocked = await gql_client.execute(_PATCH_SDK, variables=decisions_off)
     assert blocked.errors
     assert (
-        "referenced by saved decision versions (triage), so you cannot change or turn off "
-        "its decision models"
+        "referenced by saved decision versions (triage), so you cannot stop it serving decision models"
     ) in blocked.errors[0].message
-    system_one_patch = {
-        "input": {
-            "id": provider_id,
-            "clientConfig": {
-                "openai": {
-                    "openaiAuthenticationMethod": {"apiKey": "sk-test"},
-                    "decisionModels": {"decisionSdk": "TYPESAFE"},
-                }
-            },
-        }
-    }
-    blocked = await gql_client.execute(_PATCH_SDK, variables=system_one_patch)
+    blocked = await gql_client.execute(
+        _PATCH_SDK,
+        variables=patch(clientConfig={"azureOpenai": azure}),
+    )
     assert blocked.errors
-    assert "referenced by saved decision versions (triage)" in blocked.errors[0].message
+    assert "azure_openai SDK can't serve decision models" in blocked.errors[0].message
+    blocked = await gql_client.execute(
+        _PATCH_SDK,
+        variables=patch(clientConfig={"azureOpenai": azure}, models={"chat": {}}),
+    )
+    assert blocked.errors
+    assert "so you cannot stop it serving decision models" in blocked.errors[0].message
     async with db() as session:
         record = await session.get(models.GenerativeModelCustomProvider, provider_rowid)
-        assert record is not None
-        assert (record.sdk, record.decision_sdk) == ("openai", "openai")
+        assert record is not None and record.sdk == "openai"
 
-    azure_with_decisions = {
-        "input": {
-            "id": provider_id,
-            "clientConfig": {
-                "azureOpenai": {
-                    **azure_patch["input"]["clientConfig"]["azureOpenai"],
-                    "decisionModels": {"decisionSdk": "OPENAI"},
-                }
-            },
-        }
-    }
-    kept = await gql_client.execute(_PATCH_SDK, variables=azure_with_decisions)
+    kept = await gql_client.execute(
+        _PATCH_SDK,
+        variables=patch(
+            clientConfig={"openai": {"openaiAuthenticationMethod": {"apiKey": "sk-rotated"}}},
+            models={"chat": {}, "decision": {"names": ["gpt-6-luna"]}},
+        ),
+    )
     assert kept.data and not kept.errors, kept.errors
 
     async with db() as session:
         await session.execute(sa_delete(models.Decision).where(models.Decision.id == version_id))
-    allowed = await gql_client.execute(_PATCH_SDK, variables=azure_patch)
+    allowed = await gql_client.execute(
+        _PATCH_SDK,
+        variables=patch(clientConfig={"azureOpenai": azure}, models={"chat": {}}),
+    )
     assert allowed.data and not allowed.errors, allowed.errors

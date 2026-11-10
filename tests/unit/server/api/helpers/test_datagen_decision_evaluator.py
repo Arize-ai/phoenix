@@ -400,6 +400,7 @@ async def test_seed_custom_providers_creates_each_once_with_blank_url_and_preser
                     name
                     provider
                     sdk
+                    modelTypes
                     config {
                       __typename
                       ... on OpenAICustomProviderConfig {
@@ -434,6 +435,7 @@ async def test_seed_custom_providers_creates_each_once_with_blank_url_and_preser
     assert set(nodes) == set(CUSTOM_PROVIDERS)
     assert nodes["px-datagen-openai"]["provider"] == "openai"
     assert nodes["px-datagen-openai"]["sdk"] == "OPENAI"
+    assert nodes["px-datagen-openai"]["modelTypes"] == ["CHAT", "DECISION"]
     assert (
         redactor.unredact(
             nodes["px-datagen-openai"]["config"]["openaiAuthenticationMethod"]["apiKey"]
@@ -469,7 +471,8 @@ async def test_seed_custom_providers_creates_each_once_with_blank_url_and_preser
     )
     assert nodes["px-datagen-typesafe"]["config"]["typesafeClientKwargs"] is None
 
-    # Adding a base URL on a seeded provider is preserved across re-seeding.
+    # Adding a base URL on a seeded provider is preserved across re-seeding, and
+    # turning off decision models on px-datagen-openai is repaired without losing the URL.
     patched = await httpx_client.post(
         "/graphql",
         json={
@@ -480,11 +483,12 @@ async def test_seed_custom_providers_creates_each_once_with_blank_url_and_preser
             """,
             "variables": {
                 "input": {
-                    "id": nodes["px-datagen-typesafe"]["id"],
+                    "id": nodes["px-datagen-openai"]["id"],
+                    "models": {"chat": {}},
                     "clientConfig": {
-                        "typesafe": {
-                            "typesafeAuthenticationMethod": {"apiKey": "fake"},
-                            "typesafeClientKwargs": {"baseUrl": "http://mock-llm:57593"},
+                        "openai": {
+                            "openaiAuthenticationMethod": {"apiKey": "fake"},
+                            "openaiClientKwargs": {"baseUrl": "http://mock-llm:57593/v1"},
                         }
                     },
                 }
@@ -493,7 +497,7 @@ async def test_seed_custom_providers_creates_each_once_with_blank_url_and_preser
     )
     assert patched.status_code == 200 and "errors" not in patched.json()
     assert await anyio.to_thread.run_sync(seed) == first
-    assert len(writes) == len(CUSTOM_PROVIDERS)
+    assert len(writes) == len(CUSTOM_PROVIDERS) + 1
 
     rechecked = await httpx_client.post(
         "/graphql",
@@ -502,19 +506,19 @@ async def test_seed_custom_providers_creates_each_once_with_blank_url_and_preser
             query($id: ID!) {
               node(id: $id) {
                 ... on GenerativeModelCustomProvider {
+                  modelTypes
                   config {
-                    ... on TypeSafeCustomProviderConfig {
-                      typesafeClientKwargs { baseUrl }
+                    ... on OpenAICustomProviderConfig {
+                      openaiClientKwargs { baseUrl }
                     }
                   }
                 }
               }
             }
             """,
-            "variables": {"id": nodes["px-datagen-typesafe"]["id"]},
+            "variables": {"id": nodes["px-datagen-openai"]["id"]},
         },
     )
-    assert (
-        rechecked.json()["data"]["node"]["config"]["typesafeClientKwargs"]["baseUrl"]
-        == "http://mock-llm:57593"
-    )
+    node = rechecked.json()["data"]["node"]
+    assert node["modelTypes"] == ["CHAT", "DECISION"]
+    assert node["config"]["openaiClientKwargs"]["baseUrl"] == "http://mock-llm:57593/v1"

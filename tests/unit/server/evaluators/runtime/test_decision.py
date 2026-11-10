@@ -16,7 +16,6 @@ from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.prompts import PromptTemplateFormat
 from phoenix.server.api.helpers.decision_clients import (
     ChoiceAnswer,
-    DecisionConnection,
     DecisionRateLimitError,
     DecisionRequest,
     DecisionResponse,
@@ -33,6 +32,7 @@ from phoenix.server.evaluators.runtime.decision import (
 )
 from phoenix.tracers import Tracer
 from tests.unit.db.types.test_decision_evaluators import questions
+from tests.unit.server.decision_client_factories import built_in_factory
 
 
 @pytest.fixture
@@ -61,7 +61,9 @@ def definition() -> InlineDecisionEvaluatorDefinition:
 def client() -> TypeSafeDecisionClient:
     return TypeSafeDecisionClient(
         model_name="jev-latest",
-        connection=DecisionConnection(api_key="test", base_url="https://example.com"),
+        client_factory=built_in_factory(
+            TypeSafeDecisionClient, api_key="test", base_url="https://example.com"
+        ),
     )
 
 

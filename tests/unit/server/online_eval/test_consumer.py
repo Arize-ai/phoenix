@@ -141,18 +141,18 @@ class _StubLLMClient:
             function=FunctionCallChunk(name=self._tool_name, arguments=self._arguments),
         )
 
-    def is_rate_limit_error(self, error: Exception) -> bool:
-        return bool(getattr(error, "provider_rate_limit", False))
+    def is_rate_limit_error(self, e: Exception) -> bool:
+        return bool(getattr(e, "provider_rate_limit", False))
 
-    def is_transient_error(self, error: Exception) -> bool:
-        return bool(getattr(error, "provider_transient", False))
+    def is_transient_error(self, e: Exception) -> bool:
+        return bool(getattr(e, "provider_transient", False))
 
 
 def _patch_playground_client(monkeypatch: pytest.MonkeyPatch, client: _StubLLMClient) -> None:
     async def _get_client(**_: Any) -> _StubLLMClient:
         return client
 
-    monkeypatch.setattr("phoenix.server.online_eval.executor.get_playground_client", _get_client)
+    monkeypatch.setattr("phoenix.server.online_eval.executor.get_chat_client", _get_client)
 
 
 class _StubSandboxBackend:

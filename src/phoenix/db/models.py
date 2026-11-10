@@ -93,7 +93,11 @@ from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.experiment_config import ConnectionConfig, PlaygroundConfig
 from phoenix.db.types.experiment_log import ExperimentLogDetail
 from phoenix.db.types.identifier import Identifier
-from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.model_provider import (
+    ModelProvider,
+    ProviderModels,
+    default_provider_models,
+)
 from phoenix.db.types.prompts import (
     PromptInvocationParameters,
     PromptInvocationParametersRootModel,
@@ -210,8 +214,6 @@ GenerativeModelSDK: TypeAlias = Literal[
     "aws_bedrock",
     "typesafe",
 ]
-DecisionSDK: TypeAlias = Literal["openai", "typesafe"]
-"""A custom provider's decision client: OpenAI's Decisions API or System One."""
 ExperimentStatus: TypeAlias = Literal["RUNNING", "COMPLETED", "STOPPED", "ERROR"]
 EvalWorkStatus: TypeAlias = Literal[
     "PENDING", "RUNNING", "DONE", "ERROR", "FAILED", "EXPIRED", "DROPPED"
@@ -536,6 +538,23 @@ class _TraceRetentionRule(TypeDecorator[TraceRetentionRule]):
     ) -> Optional[TraceRetentionRule]:
         assert value and isinstance(value, dict)
         return TraceRetentionRule.model_validate(value)
+
+
+class _ProviderModels(TypeDecorator[ProviderModels]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[ProviderModels], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        assert isinstance(value, ProviderModels)
+        return value.model_dump(mode="json", exclude_none=True)
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[ProviderModels]:
+        return ProviderModels.model_validate(value or {})
 
 
 class _AnnotationConfig(TypeDecorator[AnnotationConfigType]):
@@ -3910,15 +3929,23 @@ def validate_secret_config(_: Any, __: Any, target: "Secret") -> None:
         raise ValueError("Value is not encrypted")
 
 
+def _default_provider_models(context: Any) -> ProviderModels:
+    return default_provider_models(context.get_current_parameters()["sdk"])
+
+
 class GenerativeModelCustomProvider(HasId):
     __tablename__ = "generative_model_custom_providers"
     name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     description: Mapped[Optional[str]]
     provider: Mapped[str] = mapped_column(String, nullable=False)
     sdk: Mapped[GenerativeModelSDK] = mapped_column(String, nullable=False)
-    decision_sdk: Mapped[Optional[DecisionSDK]] = mapped_column(String, nullable=True)
-    """The client its decision models run through; NULL when it serves none."""
     config: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    models: Mapped[ProviderModels] = mapped_column(
+        _ProviderModels,
+        nullable=False,
+        default=_default_provider_models,
+        server_default='{"chat": {}}',
+    )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()

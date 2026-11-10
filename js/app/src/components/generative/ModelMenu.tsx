@@ -120,7 +120,7 @@ const KEY_DELIMITER = "\uE000";
 
 function getModelType(
   value: ModelMenuValue | null | undefined,
-  defaultModelType: ModelType = "LLM"
+  defaultModelType: ModelType = "CHAT"
 ): ModelType {
   return value?.modelType ?? defaultModelType;
 }
@@ -175,7 +175,7 @@ export type ModelMenuProps = Pick<PopoverProps, "placement" | "shouldFlip"> &
     fixedModelType?: ModelType;
     /**
      * The tab the menu opens on when no model is selected yet.
-     * @default "LLM"
+     * @default "CHAT"
      */
     defaultModelType?: ModelType;
     /**
@@ -363,7 +363,7 @@ function ModelTypeTabs({
       <Tabs
         selectedKey={modelType}
         onSelectionChange={(key) =>
-          onChange(key === "DECISION" ? "DECISION" : "LLM")
+          onChange(key === "DECISION" ? "DECISION" : "CHAT")
         }
         // Tabs default to filling their parent (height: 100%, flex-grow)
         // because they normally own the panel below them. Here the menu
@@ -379,7 +379,7 @@ function ModelTypeTabs({
         `}
       >
         <TabList aria-label="Model type">
-          <Tab id="LLM">LLM</Tab>
+          <Tab id="CHAT">LLM</Tab>
           <Tab id="DECISION">Decision</Tab>
         </TabList>
       </Tabs>

@@ -43,15 +43,15 @@ from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.helpers.chat_clients import (
+    ChatClient,
+    get_chat_client,
+    initialize_chat_clients,
+)
 from phoenix.server.api.helpers.decision_experiments import build_example_request
 from phoenix.server.api.helpers.message_helpers import (
     formatted_messages,
     prompt_chat_template_to_playground_messages,
-)
-from phoenix.server.api.helpers.playground_clients import (
-    PlaygroundClient,
-    get_playground_client,
-    initialize_playground_clients,
 )
 from phoenix.server.api.helpers.playground_project import get_or_create_playground_project_id
 from phoenix.server.api.input_types.ChatCompletionInput import ChatCompletionInput
@@ -91,7 +91,7 @@ GenericType = TypeVar("GenericType")
 
 logger = logging.getLogger(__name__)
 
-initialize_playground_clients()
+initialize_chat_clients()
 
 RepetitionNumber: TypeAlias = int
 ChatStream: TypeAlias = AsyncGenerator[ChatCompletionSubscriptionPayload, None]
@@ -104,7 +104,7 @@ _EXPERIMENT_STREAM_BUFFER_SIZE = 1000
 async def _stream_single_chat_completion(
     *,
     input: ChatCompletionInput,
-    llm_client: "PlaygroundClient[Any]",
+    llm_client: "ChatClient[Any]",
     repetition_number: RepetitionNumber,
     db: DbSessionFactory,
     project_id: int,
@@ -232,7 +232,7 @@ class Subscription:
         )
         headers = cast(dict[str, str], input.headers) if input.headers else None
         async with info.context.db() as session:
-            llm_client = await get_playground_client(
+            llm_client = await get_chat_client(
                 model_provider=model_provider,
                 model_name=input.prompt_version.model_name,
                 session=session,

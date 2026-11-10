@@ -5,17 +5,16 @@ from pydantic import Field
 from starlette.requests import Request
 
 from phoenix.db.types.model_provider import ModelProvider
+from phoenix.server.api.helpers.chat_clients import initialize_chat_clients
+from phoenix.server.api.helpers.client_registry import CLIENT_REGISTRY
 
-# The registry is populated as an import side effect of the playground clients
+# The registry is populated as an import side effect of the chat clients
 # module; import it explicitly so this router does not depend on the GraphQL
 # modules having been imported first.
-from phoenix.server.api.helpers.decision_clients import allowed_decision_providers
-from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
-from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import ResponseBody
 
-initialize_playground_clients()
+initialize_chat_clients()
 
 router = APIRouter(tags=["model_providers"])
 
@@ -64,10 +63,8 @@ async def get_model_providers(
     the allow-list is snapshotted at app creation, matching the GraphQL API.
     """
     allowed_provider_names = request.app.state.allowed_provider_names
-    provider_keys = (
-        allowed_decision_providers(allowed_provider_names)
-        if model_type == "DECISION"
-        else PLAYGROUND_CLIENT_REGISTRY.list_allowed_providers(allowed_provider_names)
+    provider_keys = CLIENT_REGISTRY.list_allowed_providers(
+        allowed_provider_names, model_type="decision" if model_type == "DECISION" else "chat"
     )
     return GetModelProvidersResponseBody(
         data=[

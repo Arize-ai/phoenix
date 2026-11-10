@@ -23,8 +23,8 @@ from phoenix.db.types.evaluator_definition import (
 )
 from phoenix.db.types.prompts import PromptChatTemplate
 from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.helpers.chat_clients import get_chat_client
 from phoenix.server.api.helpers.decision_clients import resolve_decision_client
-from phoenix.server.api.helpers.playground_clients import get_playground_client
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.decisions.validation import validate_questions, validate_template
 from phoenix.server.evaluators.runtime.base import BaseEvaluator
@@ -109,7 +109,7 @@ async def _get_llm_evaluators(
         if prompt is None:
             raise NotFound(f"Prompt not found for LLM evaluator id {llm_evaluator_orm.id}")
 
-        llm_client = await get_playground_client(
+        llm_client = await get_chat_client(
             model_provider=prompt_version.model_provider,
             model_name=prompt_version.model_name,
             session=session,
@@ -486,7 +486,7 @@ async def _build_inline_llm_evaluator(
     max_message_bytes: Optional[int],
 ) -> LLMEvaluator:
     prompt_version = definition.prompt_version
-    llm_client = await get_playground_client(
+    llm_client = await get_chat_client(
         model_provider=prompt_version.model_provider,
         model_name=prompt_version.model_name,
         session=session,

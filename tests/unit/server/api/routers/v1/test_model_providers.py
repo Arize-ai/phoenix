@@ -3,7 +3,7 @@ from __future__ import annotations
 import httpx2
 from fastapi import FastAPI
 
-from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
+from phoenix.server.api.helpers.client_registry import CLIENT_REGISTRY
 
 
 class TestModelProviders:
@@ -41,11 +41,11 @@ class TestModelProviders:
 
         expected = {
             provider_key.to_model_provider().value: provider_key.value
-            for provider_key in PLAYGROUND_CLIENT_REGISTRY.list_allowed_providers(
-                app.state.allowed_provider_names
+            for provider_key in CLIENT_REGISTRY.list_allowed_providers(
+                app.state.allowed_provider_names, model_type="chat"
             )
         }
-        assert expected, "The playground registry should have registered provider families"
+        assert expected, "The client registry should have registered provider families"
         actual = {entry["provider"]: entry["name"] for entry in entries}
         assert actual == expected, (
             f"Built-in providers mismatch. Expected: {expected}, Got: {actual}"

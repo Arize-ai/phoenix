@@ -954,12 +954,14 @@ model the provider no longer lists.
 ### 10.5 Custom Providers
 
 A run reaches either a built-in provider or a custom provider, and a version's
-`custom_provider_id` names the second. What a custom provider can serve comes
-from its SDK (`sdk_offers_chat`, `sdk_offers_decisions`), not its name:
+`custom_provider_id` names the second. Which model types a custom provider
+serves is stored in its `models` column (bounded by `sdk_offers_chat` and
+`sdk_offers_decisions`):
 
-- An `openai` provider serves both. The same endpoint, key, organization,
-  project, and headers run chat or OpenAI's Decisions API; the model type chosen
-  decides which. `openai_api_type` stays a choice between chat surfaces.
+- An `openai` provider always serves chat and can also serve OpenAI's Decisions
+  API when `models.decision` is set. Both use the provider's base URL, API key,
+  organization, project, and headers. `openai_api_type` stays a choice between
+  chat surfaces.
 - A `typesafe` provider is any System One-compatible endpoint (API key, base
   URL, headers). It serves decision models only, so every chat path refuses it:
   prompts (no prompt provider is compatible with it), the playground, agents,
@@ -1005,22 +1007,6 @@ trailing `/v1` is dropped, as for Ollama. The catalog suggests
 `accounts/fireworks/models/rune`. The span's `decision.system` is `typesafe`
 and `decision.provider` is `fireworks`, a plain string until OpenInference has
 a value.
-
-### 10.8 Azure OpenAI
-
-Azure OpenAI serves OpenAI's Decisions API at `{endpoint}/openai/v1/decisions`,
-so the built-in `AZURE_OPENAI` provider runs it with the OpenAI adapter and
-serves both model types. It is configured the way Azure chat is:
-`AZURE_OPENAI_API_KEY`, and the resource endpoint from the run or
-`AZURE_OPENAI_ENDPOINT`, with no default. `/openai/v1` is appended unless the
-endpoint already ends with it. Like chat, it uses the plain OpenAI client on
-Azure's v1 API, which takes no `api-version`. The model name is the user's
-deployment name, so the catalog suggests none. As for a custom provider, the
-OpenAI SDK is kept from reading `OPENAI_*` variables, so the server's OpenAI
-organization and project never reach Azure. An API key is required: unlike
-chat, decisions don't fall back to Entra ID (`DefaultAzureCredential`), and the
-playground's per-model Azure endpoint isn't sent on decision runs. The span's
-`decision.system` is `openai` and `decision.provider` is `azure`.
 
 ## 11. App Access
 
@@ -1366,7 +1352,7 @@ by where a judge runs:
 
 - **A decision judge in an experiment or online evaluation:** `DecisionClient`
   always disables provider SDK retries (`max_retries=0`, matching
-  `PlaygroundClient`), and the runner or online-eval executor owns retry backoff
+  `ChatClient`), and the runner or online-eval executor owns retry backoff
   so retries never stack. As for any retried work, a retried attempt's trace is
   not kept.
 - **A decision judge in a preview:** `DecisionClient` still runs with
@@ -1730,8 +1716,8 @@ is in the [appendix](#19-appendix-decision-evaluator-implementation).
 ## 17. Implementation Status
 
 Everywhere Phoenix uses a chat model, a decision model needs an equivalent.
-Providers and models are done: built-in TypeSafe, OpenAI, Ollama, Fireworks,
-and Azure OpenAI (API key only); custom
+Providers and models are done: built-in TypeSafe, OpenAI, Ollama, and
+Fireworks; custom
 `openai` and `typesafe` providers with capability checks; credentials; the
 catalog; and decision models kept out of every chat path. The server also
 blocks deleting a custom provider referenced by a saved decision version or a

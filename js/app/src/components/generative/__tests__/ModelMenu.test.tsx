@@ -24,7 +24,7 @@ const provider = (
   dependenciesInstalled: true,
   credentialsSet: true,
   needsCredentials: false,
-  modelTypes: ["LLM"],
+  modelTypes: ["CHAT"],
   ...info,
 });
 
@@ -75,7 +75,7 @@ const DECISION_DATA: MenuData = {
     provider({
       key: "OPENAI",
       name: "OpenAI",
-      modelTypes: ["LLM", "DECISION"],
+      modelTypes: ["CHAT", "DECISION"],
     }),
     provider({
       key: "TYPESAFE",
@@ -101,7 +101,9 @@ vi.mock("@phoenix/components/generative/useModelMenuData", async () => ({
   ...(await vi.importActual<object>(
     "@phoenix/components/generative/useModelMenuData"
   )),
-  useModelMenuData: ({ modelType = "LLM" }: { modelType?: ModelType } = {}) => {
+  useModelMenuData: ({
+    modelType = "CHAT",
+  }: { modelType?: ModelType } = {}) => {
     const data = modelType === "DECISION" ? DECISION_DATA : LLM_DATA;
     const modelsByProvider = new Map<string, string[]>();
     for (const model of data.catalogModels) {
@@ -292,7 +294,7 @@ describe("ModelMenu", () => {
       expect(onChange).toHaveBeenCalledWith({
         provider: "ANTHROPIC",
         modelName: "claude-opus-9",
-        modelType: "LLM",
+        modelType: "CHAT",
       });
     });
 
@@ -305,7 +307,7 @@ describe("ModelMenu", () => {
       expect(onChange).toHaveBeenCalledWith({
         provider: "OPENAI",
         modelName: "my-finetune",
-        modelType: "LLM",
+        modelType: "CHAT",
         customProvider: { id: "custom-acme", name: "Acme gateway" },
       });
     });
@@ -320,7 +322,7 @@ describe("ModelMenu", () => {
       expect(onChange).toHaveBeenCalledWith({
         provider: "AWS",
         modelName: "us.anthropic.claude-x",
-        modelType: "LLM",
+        modelType: "CHAT",
       });
     });
 

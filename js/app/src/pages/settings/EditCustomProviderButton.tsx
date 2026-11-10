@@ -31,7 +31,6 @@ import type { EditCustomProviderButtonPatchMutation } from "./__generated__/Edit
 import type { EditCustomProviderButtonQuery } from "./__generated__/EditCustomProviderButtonQuery.graphql";
 import { ProviderForm, type ProviderFormData } from "./CustomProviderForm";
 import {
-  createDefaultFormData,
   transformConfigToFormValues,
   transformToPatchInput,
 } from "./customProviderFormUtils";
@@ -53,18 +52,20 @@ const ProviderQuery = graphql`
           username
           profilePictureUrl
         }
+        models {
+          chat {
+            names
+          }
+          decision {
+            names
+          }
+        }
         config {
           ... on UnparsableConfig {
             parseError
           }
           ... on OpenAICustomProviderConfig {
             openaiApiType
-            modelNames
-            decisionModels {
-              decisionSdk
-              baseUrl
-              modelNames
-            }
             openaiAuthenticationMethod {
               apiKey
             }
@@ -77,12 +78,6 @@ const ProviderQuery = graphql`
           }
           ... on AzureOpenAICustomProviderConfig {
             openaiApiType
-            modelNames
-            decisionModels {
-              decisionSdk
-              baseUrl
-              modelNames
-            }
             azureOpenaiAuthenticationMethod {
               apiKey
               azureAdTokenProvider {
@@ -99,7 +94,6 @@ const ProviderQuery = graphql`
             }
           }
           ... on AnthropicCustomProviderConfig {
-            modelNames
             anthropicAuthenticationMethod {
               apiKey
             }
@@ -109,11 +103,6 @@ const ProviderQuery = graphql`
             }
           }
           ... on TypeSafeCustomProviderConfig {
-            decisionModels {
-              decisionSdk
-              baseUrl
-              modelNames
-            }
             typesafeAuthenticationMethod {
               apiKey
             }
@@ -123,7 +112,6 @@ const ProviderQuery = graphql`
             }
           }
           ... on AWSBedrockCustomProviderConfig {
-            modelNames
             awsBedrockAuthenticationMethod {
               accessKeys {
                 awsAccessKeyId
@@ -138,7 +126,6 @@ const ProviderQuery = graphql`
             }
           }
           ... on GoogleGenAICustomProviderConfig {
-            modelNames
             googleGenaiAuthenticationMethod {
               apiKey
             }
@@ -186,6 +173,8 @@ function EditCustomProviderDialogContent({
             sdk
             provider
             modelTypes
+            modelNames
+            decisionModelNames: modelNames(modelType: DECISION)
             createdAt
             updatedAt
             user {
@@ -212,16 +201,7 @@ function EditCustomProviderDialogContent({
     (formData: ProviderFormData) => {
       if (!providerData) return;
 
-      // When config has a parse error, use default form values as the baseline
-      // so that transformToPatchInput will include all the new config fields
-      const originalValues = providerData.config?.parseError
-        ? {
-            ...createDefaultFormData(providerData.sdk),
-            name: providerData.name,
-            description: providerData.description || "",
-            provider: providerData.provider,
-          }
-        : transformConfigToFormValues(providerData);
+      const originalValues = transformConfigToFormValues(providerData);
       const input = transformToPatchInput(
         formData,
         providerData.id,
@@ -264,16 +244,8 @@ function EditCustomProviderDialogContent({
   }
 
   // Check if config has a parse error (corrupted/invalid config)
-  // In this case, show a blank form with default values for the SDK type
   const hasParseError = Boolean(providerData.config?.parseError);
-  const initialValues = hasParseError
-    ? {
-        ...createDefaultFormData(providerData.sdk),
-        name: providerData.name,
-        description: providerData.description || "",
-        provider: providerData.provider,
-      }
-    : transformConfigToFormValues(providerData);
+  const initialValues = transformConfigToFormValues(providerData);
 
   return (
     <>

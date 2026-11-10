@@ -53,7 +53,7 @@ def new_decision_version(
         InvalidDecisionVersion: The provider offers no decision models, the model name is
             empty, or the state template or questions break a rule.
     """
-    from phoenix.server.api.helpers.decision_clients import DECISION_CLIENTS
+    from phoenix.server.api.helpers.client_registry import CLIENT_REGISTRY
     from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
     from phoenix.server.decisions.validation import (
         DecisionRuleError,
@@ -61,9 +61,8 @@ def new_decision_version(
         validate_template,
     )
 
-    if (provider_key := GenerativeProviderKey.from_model_provider(model_provider)) not in (
-        DECISION_CLIENTS
-    ):
+    provider_key = GenerativeProviderKey.from_model_provider(model_provider)
+    if not CLIENT_REGISTRY.offers(provider_key, "decision"):
         raise InvalidDecisionVersion(
             f"{provider_key.value} does not offer decision models.",
             ("model_provider",),

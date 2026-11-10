@@ -51,6 +51,7 @@ from phoenix.db.types.annotation_configs import (
 )
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.prompts import PromptChatTemplate
+from phoenix.server.api.helpers.chat_clients import get_chat_client
 from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_input,
     get_dataset_example_metadata,
@@ -60,7 +61,6 @@ from phoenix.server.api.helpers.expected_outputs import (
     TRACE_ANNOTATIONS_METADATA_KEY,
     without_own_annotations,
 )
-from phoenix.server.api.helpers.playground_clients import get_playground_client
 from phoenix.server.dml_event import (
     DmlEvent,
     ProjectSessionAnnotationInsertEvent,
@@ -969,7 +969,7 @@ class OnlineEvalExecutor:
             raise ValueError(
                 f"LLM evaluator {evaluator_orm.id}: prompt version {prompt_version.id} has no tools"
             )
-        llm_client = await get_playground_client(
+        llm_client = await get_chat_client(
             model_provider=prompt_version.model_provider,
             model_name=prompt_version.model_name,
             session=session,

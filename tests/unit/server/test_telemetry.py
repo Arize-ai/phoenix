@@ -205,18 +205,26 @@ def test_phoenix_schema_marks_user_and_credential_fields() -> None:
     }
 
     info = SimpleNamespace(parent_type=mutation, field_name="createGenerativeModelCustomProvider")
-    args = {
-        "input": {
-            "name": "my-openai",
-            "provider": "openai",
-            "clientConfig": {
-                "openai": {"openaiAuthenticationMethod": {"apiKey": "sk-live-123"}},
-            },
+    for sdk in ("openai", "azureOpenai", "anthropic", "typesafe"):
+        auth_field = f"{sdk}AuthenticationMethod"
+        kwargs_field = f"{sdk}ClientKwargs"
+        kwargs: dict[str, Any] = {"defaultHeaders": {"Authorization": "Bearer header-secret"}}
+        if sdk == "azureOpenai":
+            kwargs["azureEndpoint"] = "https://resource.openai.azure.com"
+        args = {
+            "input": {
+                "name": "my-provider",
+                "provider": sdk,
+                "clientConfig": {
+                    sdk: {auth_field: {"apiKey": "api-secret"}, kwargs_field: kwargs},
+                },
+            }
         }
-    }
-    redacted = redact_arguments(args, info)  # type: ignore[arg-type]
-    assert "sk-live-123" not in str(redacted)
-    assert redacted["input"]["name"] == "my-openai"
+        redacted = redact_arguments(args, info)  # type: ignore[arg-type]
+        config = redacted["input"]["clientConfig"][sdk]
+        assert config[auth_field]["apiKey"] == "[redacted]", sdk
+        assert config[kwargs_field]["defaultHeaders"] == "[redacted]", sdk
+        assert redacted["input"]["name"] == "my-provider"
 
     info = SimpleNamespace(parent_type=mutation, field_name="createSpanNotes")
     notes: dict[str, Any] = {

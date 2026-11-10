@@ -1,5 +1,4 @@
-"""The built-in decision clients for providers whose chat client lives elsewhere: Azure
-OpenAI (OpenAI's Decisions API) and Fireworks (System One), plus Ollama's catalog."""
+"""Tests for built-in Fireworks and Ollama decision clients."""
 
 import json
 from typing import Any, cast
@@ -19,22 +18,22 @@ from phoenix.db.types.decisions import (
     ScaleQuestion,
 )
 from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.helpers.client_registry import CLIENT_REGISTRY
 from phoenix.server.api.helpers.decision_clients import (
-    DECISION_CLIENTS,
-    AzureOpenAIDecisionClient,
     ChoiceAnswer,
     DecisionRateLimitError,
     DecisionRequest,
     FireworksDecisionClient,
-    OllamaDecisionClient,
     PredicateAnswer,
     ScaleAnswer,
+    TypeSafeDecisionClient,
     get_decision_client,
 )
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import Tracer
+from tests.unit.server.decision_client_factories import built_in_factory, resolved_base_url
 
 
 @pytest.fixture(autouse=True)
@@ -61,8 +60,6 @@ def _route_sdk_http_through_respx(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.fixture(autouse=True)
 def _clear_provider_env(monkeypatch: pytest.MonkeyPatch) -> None:
     for name in (
-        "AZURE_OPENAI_API_KEY",
-        "AZURE_OPENAI_ENDPOINT",
         "FIREWORKS_API_KEY",
         "FIREWORKS_BASE_URL",
         "OPENAI_ORG_ID",
@@ -175,57 +172,46 @@ def _key(env_var_name: str) -> list[GenerativeCredentialInput]:
     return [GenerativeCredentialInput(env_var_name=env_var_name, value=SecretStr("test-key"))]
 
 
-def test_registry_includes_azure_openai_and_fireworks() -> None:
-    assert DECISION_CLIENTS[GenerativeProviderKey.AZURE_OPENAI] is AzureOpenAIDecisionClient
-    assert DECISION_CLIENTS[GenerativeProviderKey.FIREWORKS] is FireworksDecisionClient
-    # Azure routes by deployment name, which the user chooses, so none is suggested.
-    assert AzureOpenAIDecisionClient.model_names == ()
-    assert FireworksDecisionClient.model_names == ("accounts/fireworks/models/rune",)
-    assert AzureOpenAIDecisionClient.credential_env_var() == "AZURE_OPENAI_API_KEY"
-    assert FireworksDecisionClient.credential_env_var() == "FIREWORKS_API_KEY"
-    assert AzureOpenAIDecisionClient.dependencies_are_installed()
+def test_registry_includes_fireworks() -> None:
+    fireworks = GenerativeProviderKey.FIREWORKS
+    assert CLIENT_REGISTRY.get_client(fireworks, model_type="decision") is FireworksDecisionClient
+    assert CLIENT_REGISTRY.list_models(fireworks, model_type="decision") == [
+        "accounts/fireworks/models/rune"
+    ]
+    assert FireworksDecisionClient.built_in_endpoint.api_key_env_vars == ("FIREWORKS_API_KEY",)
     assert FireworksDecisionClient.dependencies_are_installed()
 
 
+async def test_azure_openai_does_not_offer_decision_models(db: DbSessionFactory) -> None:
+    # Azure's decision model, Microsoft-Decision-1, is System One on Foundry with an
+    # Entra ID token, not OpenAI's Decisions API.
+    assert not CLIENT_REGISTRY.offers(GenerativeProviderKey.AZURE_OPENAI, "decision")
+    async with db() as session:
+        with pytest.raises(BadRequest, match="does not offer decision models"):
+            await get_decision_client(
+                provider=GenerativeProviderKey.AZURE_OPENAI,
+                model_name="gpt-6-luna",
+                base_url="https://res.openai.azure.com",
+                credentials=None,
+                session=session,
+                decrypt=lambda value: value,
+            )
+
+
 def test_ollama_lists_its_documented_decision_models_first() -> None:
-    assert OllamaDecisionClient.model_names[:4] == ("nimble", "tev1", "clef", "clef-flash")
-    assert len(set(OllamaDecisionClient.model_names)) == len(OllamaDecisionClient.model_names)
-
-
-class TestAzureOpenAIBaseUrl:
-    @pytest.mark.parametrize(
-        "endpoint",
-        [
-            pytest.param("https://res.openai.azure.com", id="resource"),
-            pytest.param("https://res.openai.azure.com/", id="trailing-slash"),
-            pytest.param("https://res.openai.azure.com/openai/v1", id="v1-root"),
-            pytest.param("https://res.openai.azure.com/openai/v1/", id="v1-root-slash"),
-        ],
-    )
-    def test_the_endpoint_becomes_the_v1_root(
-        self, monkeypatch: pytest.MonkeyPatch, endpoint: str
-    ) -> None:
-        monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", endpoint)
-        assert (
-            AzureOpenAIDecisionClient.resolve_base_url(None)
-            == "https://res.openai.azure.com/openai/v1"
-        )
-
-    def test_the_run_overrides_the_environment(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://env.openai.azure.com")
-        assert (
-            AzureOpenAIDecisionClient.resolve_base_url("https://run.openai.azure.com")
-            == "https://run.openai.azure.com/openai/v1"
-        )
-
-    def test_there_is_no_default(self) -> None:
-        assert AzureOpenAIDecisionClient.resolve_base_url(None) is None
+    names = CLIENT_REGISTRY.list_models(GenerativeProviderKey.OLLAMA, model_type="decision")
+    assert names[:4] == ["nimble", "tev1", "clef", "clef-flash"]
+    assert len(set(names)) == len(names)
 
 
 class TestFireworksBaseUrl:
-    def test_the_default_is_the_inference_root(self) -> None:
+    async def test_the_default_is_the_inference_root(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("FIREWORKS_BASE_URL", raising=False)
         assert (
-            FireworksDecisionClient.resolve_base_url(None) == "https://api.fireworks.ai/inference"
+            await resolved_base_url(db, FireworksDecisionClient)
+            == "https://api.fireworks.ai/inference"
         )
 
     @pytest.mark.parametrize(
@@ -236,32 +222,19 @@ class TestFireworksBaseUrl:
             pytest.param("https://fw.example/inference", id="inference-root"),
         ],
     )
-    def test_the_chat_variable_is_reduced_to_the_inference_root(
-        self, monkeypatch: pytest.MonkeyPatch, configured: str
+    async def test_the_chat_variable_is_reduced_to_the_inference_root(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch, configured: str
     ) -> None:
         monkeypatch.setenv("FIREWORKS_BASE_URL", configured)
-        assert FireworksDecisionClient.resolve_base_url(None) == "https://fw.example/inference"
+        assert (
+            await resolved_base_url(db, FireworksDecisionClient) == "https://fw.example/inference"
+        )
 
 
 class TestMissingConfiguration:
-    async def test_azure_without_an_endpoint_names_the_variable(self, db: DbSessionFactory) -> None:
-        async with db() as session:
-            with pytest.raises(BadRequest, match="Set AZURE_OPENAI_ENDPOINT"):
-                await get_decision_client(
-                    provider=GenerativeProviderKey.AZURE_OPENAI,
-                    model_name="gpt-6-luna",
-                    base_url=None,
-                    credentials=None,
-                    session=session,
-                    decrypt=lambda value: value,
-                )
-
     @pytest.mark.parametrize(
         "provider,env_var_name",
         [
-            pytest.param(
-                GenerativeProviderKey.AZURE_OPENAI, "AZURE_OPENAI_API_KEY", id="azure-openai"
-            ),
             pytest.param(GenerativeProviderKey.FIREWORKS, "FIREWORKS_API_KEY", id="fireworks"),
         ],
     )
@@ -272,9 +245,8 @@ class TestMissingConfiguration:
         provider: GenerativeProviderKey,
         env_var_name: str,
     ) -> None:
-        monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://res.openai.azure.com")
         async with db() as session:
-            with pytest.raises(BadRequest, match=f"Configure {env_var_name}"):
+            with pytest.raises(BadRequest, match=f"Set the {env_var_name} environment variable"):
                 await get_decision_client(
                     provider=provider,
                     model_name="model",
@@ -285,104 +257,29 @@ class TestMissingConfiguration:
                 )
 
 
-class TestAzureOpenAIDecisions:
-    async def test_posts_openai_decisions_to_the_azure_v1_endpoint(
-        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://res.openai.azure.com/")
-        async with db() as session:
-            client = await get_decision_client(
-                provider=GenerativeProviderKey.AZURE_OPENAI,
-                model_name="my-luna-deployment",
-                base_url=None,
-                credentials=_key("AZURE_OPENAI_API_KEY"),
-                session=session,
-                decrypt=lambda value: value,
-            )
-        tracer = _tracer()
-        with respx.mock(assert_all_called=True) as router:
-            route = router.post("https://res.openai.azure.com/openai/v1/decisions").respond(
-                200, json=OPENAI_DECISION_RESPONSE
-            )
-            response = await client.create(request=REQUEST, tracer=tracer)
-        request = route.calls[0].request
-        assert "api-version" not in request.url.params
-        assert request.headers["authorization"] == "Bearer test-key"
-        body = json.loads(request.content)
-        assert body["model"] == "my-luna-deployment"
-        assert json.loads(body["input"]) == {"complaint": "I was charged twice."}
-        assert body["questions"] == [
-            {"name": "refund", "type": "predicate", "instructions": "Refund requested?"},
-            {
-                "name": "team",
-                "type": "choice",
-                "instructions": "Which team?",
-                "choices": [
-                    {"value": "billing", "description": "Payments"},
-                    {"value": "technical"},
-                ],
-            },
-            {
-                "name": "severity",
-                "type": "score",
-                "instructions": "How severe?",
-                "levels": [{"label": "low", "description": "Minor"}, {"label": "high"}],
-            },
-        ]
-        assert response.answers == EXPECTED_ANSWERS
-        assert (response.model, response.input_tokens, response.output_tokens) == (
-            "gpt-6-luna",
-            40,
-            3,
-        )
-        attributes = _decision_span(tracer).attributes
-        assert attributes["decision.system"] == "openai"
-        assert attributes["decision.provider"] == "azure"
-        assert attributes["decision.request.model_name"] == "my-luna-deployment"
-
-    async def test_the_servers_openai_organization_and_project_stay_off_azure(
-        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setenv("OPENAI_ORG_ID", "org-server")
-        monkeypatch.setenv("OPENAI_PROJECT_ID", "proj-server")
-        async with db() as session:
-            client = await get_decision_client(
-                provider=GenerativeProviderKey.AZURE_OPENAI,
-                model_name="my-luna-deployment",
-                base_url="https://res.openai.azure.com",
-                credentials=_key("AZURE_OPENAI_API_KEY"),
-                session=session,
-                decrypt=lambda value: value,
-            )
-        with respx.mock(assert_all_called=True) as router:
-            route = router.post("https://res.openai.azure.com/openai/v1/decisions").respond(
-                200, json=OPENAI_DECISION_RESPONSE
-            )
-            await client.create(request=REQUEST, tracer=_tracer())
-        headers = route.calls[0].request.headers
-        assert "openai-organization" not in headers
-        assert "openai-project" not in headers
-
-    async def test_an_error_names_azure_openai(self, db: DbSessionFactory) -> None:
-        async with db() as session:
-            client = await get_decision_client(
-                provider=GenerativeProviderKey.AZURE_OPENAI,
-                model_name="gpt-6-luna",
-                base_url="https://res.openai.azure.com",
-                credentials=_key("AZURE_OPENAI_API_KEY"),
-                session=session,
-                decrypt=lambda value: value,
-            )
-        with respx.mock:
-            respx.post("https://res.openai.azure.com/openai/v1/decisions").respond(
-                404, json={"error": {"message": "DeploymentNotFound"}}
-            )
-            with pytest.raises(BadRequest) as raised:
-                await client.create(request=REQUEST, tracer=_tracer())
-        assert str(raised.value) == (
-            "Azure OpenAI decision request failed (HTTP 404). "
-            "Check the base URL and the model name."
-        )
+@pytest.mark.parametrize(
+    ("provider", "span_provider"),
+    [
+        pytest.param(None, "typesafe", id="the-client-class-host"),
+        pytest.param("together", "together", id="a-custom-providers-host"),
+    ],
+)
+async def test_the_span_names_who_hosts_the_model(provider: str | None, span_provider: str) -> None:
+    client = TypeSafeDecisionClient(
+        model_name="jev",
+        client_factory=built_in_factory(
+            TypeSafeDecisionClient, api_key="test-key", base_url="https://host.example"
+        ),
+        provider=provider,
+    )
+    tracer = _tracer()
+    with respx.mock(assert_all_called=True) as router:
+        router.post("https://host.example/v1/systemone").respond(200, json=SYSTEM_ONE_RESPONSE)
+        await client.create(request=REQUEST, tracer=tracer)
+    attributes = _decision_span(tracer).attributes
+    assert attributes["decision.system"] == "typesafe"
+    assert attributes["decision.provider"] == span_provider
+    assert TypeSafeDecisionClient.provider == "typesafe"
 
 
 class TestFireworksDecisions:

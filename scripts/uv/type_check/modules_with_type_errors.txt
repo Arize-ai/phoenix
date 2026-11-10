@@ -51,7 +51,7 @@ src/phoenix/server/api/types/Prompt.py
 src/phoenix/server/api/types/PromptVersion.py
 src/phoenix/server/api/helpers/experiment_run_filters.py
 src/phoenix/server/api/input_types/GenerativeModelInput.py
-src/phoenix/server/api/helpers/playground_clients.py
+src/phoenix/server/api/helpers/chat_clients.py
 src/phoenix/server/api/types/CronExpression.py
 src/phoenix/server/api/types/ProjectTraceRetentionPolicy.py
 src/phoenix/server/api/types/PromptLabel.py

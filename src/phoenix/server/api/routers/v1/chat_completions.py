@@ -42,8 +42,8 @@ from phoenix.server.agents.model_selection import (
     BuiltInProviderModelSelection,
     CustomProviderModelSelection,
 )
-from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
-from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
+from phoenix.server.api.helpers.chat_clients import initialize_chat_clients
+from phoenix.server.api.helpers.client_registry import CLIENT_REGISTRY
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
@@ -51,14 +51,14 @@ logger = logging.getLogger(__name__)
 
 _CUSTOM_PROVIDER_PREFIX = "custom"
 
-# The chat client registry is populated when the playground clients module is
+# The chat client registry is populated when the chat clients module is
 # imported; make that explicit so the provider list below is complete.
-initialize_playground_clients()
+initialize_chat_clients()
 
 # Chat completions need a chat client, so decision-only providers are not offered.
 _CHAT_PROVIDER_NAMES = sorted(
     provider_key.to_model_provider().value.lower()
-    for provider_key in PLAYGROUND_CLIENT_REGISTRY.list_all_providers()
+    for provider_key in CLIENT_REGISTRY.list_all_providers(model_type="chat")
 )
 
 _MODEL_FORMAT_HELP = (
