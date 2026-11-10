@@ -141,11 +141,11 @@ Do these fast checks in the foreground right after `./dev.sh up`:
 
 Because `datagen` has already seeded both the custom providers and the online
 evaluators before `./dev.sh up` returns—and because linking a decision version
-to a custom provider checks only the provider's SDK, not its `baseUrl`—patching
-the custom providers and enabling the online evaluators have no ordering
-dependency. Launch **two parallel background subagents** (`run_in_background:
-true`) in a single turn, then hand over to the user immediately without polling
-or sleeping in the foreground:
+to a custom provider checks only that the provider serves `DECISION` models,
+not its `baseUrl`—patching the custom providers and enabling the online
+evaluators have no ordering dependency. Launch **two parallel background
+subagents** (`run_in_background: true`) in a single turn, then hand over to the
+user immediately without polling or sleeping in the foreground:
 
 #### Background Subagent A: Point the Seeded Custom Providers at the Mock LLM
 
@@ -172,14 +172,15 @@ untouched), point their underlying evaluator at the matching custom provider,
 enable them, and then wait for one complete pipeline cycle:
 
 - **Updating the provider.** Each custom provider's `modelTypes` field in
-  GraphQL reports which evaluator kinds its SDK supports (`OPENAI` serves
-  `LLM` and `DECISION`; `ANTHROPIC` and `GOOGLE_GENAI` serve `LLM`; `TYPESAFE`
-  serves `DECISION`). Several project bindings can share one underlying
-  evaluator definition, and a decision evaluator runs the decision version
-  that its version tag points to. When saving a new decision version that sets
-  the custom provider, make sure the evaluator's version tag moves to the new
-  version (for example, by updating the evaluator or project binding, not only
-  adding a version to the decision).
+  GraphQL reports which model types it is configured to serve
+  (`px-datagen-openai` is seeded with `CHAT` and `DECISION`;
+  `px-datagen-anthropic` and `px-datagen-google` serve `CHAT`;
+  `px-datagen-typesafe` serves `DECISION`). Several project bindings can share
+  one underlying evaluator definition, and a decision evaluator runs the
+  decision version that its version tag points to. When saving a new decision
+  version that sets the custom provider, make sure the evaluator's version tag
+  moves to the new version (for example, by updating the evaluator or project
+  binding, not only adding a version to the decision).
 - **Whether the mock's responses are accepted.** For decision evaluators, the
   mock LLM's decision endpoints return valid answers out of the box. (If the
   user asks for an LLM evaluator instead, constrain its prompt tool's `label`
