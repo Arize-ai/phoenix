@@ -24,6 +24,7 @@ const createFreeformStore = (
     },
     outputConfigs: [
       {
+        annotationType: "FREEFORM",
         name: "my_eval",
         optimizationDirection: "NONE",
         threshold: null,

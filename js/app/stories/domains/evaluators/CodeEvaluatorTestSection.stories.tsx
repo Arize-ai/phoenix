@@ -113,6 +113,7 @@ const SCORE_CASES: readonly ScoreCase[] = [
     label: "Maximize, near the best bound",
     config: {
       name: "correctness",
+      annotationType: "CONTINUOUS",
       optimizationDirection: "MAXIMIZE",
       ...UNIT_INTERVAL,
     },
@@ -122,6 +123,7 @@ const SCORE_CASES: readonly ScoreCase[] = [
     label: "Maximize, above the pivot",
     config: {
       name: "correctness",
+      annotationType: "CONTINUOUS",
       optimizationDirection: "MAXIMIZE",
       ...UNIT_INTERVAL,
     },
@@ -131,6 +133,7 @@ const SCORE_CASES: readonly ScoreCase[] = [
     label: "Maximize, at the pivot",
     config: {
       name: "correctness",
+      annotationType: "CONTINUOUS",
       optimizationDirection: "MAXIMIZE",
       ...UNIT_INTERVAL,
     },
@@ -140,6 +143,7 @@ const SCORE_CASES: readonly ScoreCase[] = [
     label: "Maximize, below the pivot",
     config: {
       name: "correctness",
+      annotationType: "CONTINUOUS",
       optimizationDirection: "MAXIMIZE",
       ...UNIT_INTERVAL,
     },
@@ -149,6 +153,7 @@ const SCORE_CASES: readonly ScoreCase[] = [
     label: "Maximize, above the upper bound",
     config: {
       name: "correctness",
+      annotationType: "CONTINUOUS",
       optimizationDirection: "MAXIMIZE",
       ...UNIT_INTERVAL,
     },
@@ -158,6 +163,7 @@ const SCORE_CASES: readonly ScoreCase[] = [
     label: "Minimize",
     config: {
       name: "toxicity",
+      annotationType: "CONTINUOUS",
       optimizationDirection: "MINIMIZE",
       ...UNIT_INTERVAL,
     },
@@ -166,6 +172,7 @@ const SCORE_CASES: readonly ScoreCase[] = [
   {
     label: "Threshold only",
     config: {
+      annotationType: "FREEFORM",
       name: "keyword_coverage",
       optimizationDirection: "MAXIMIZE",
       threshold: 0.8,
@@ -188,6 +195,7 @@ const SCORE_CASES: readonly ScoreCase[] = [
   {
     label: "Undirected",
     config: {
+      annotationType: "CONTINUOUS",
       name: "response_length",
       optimizationDirection: "NONE",
       lowerBound: 0,
@@ -269,8 +277,18 @@ export const ScorePositions: Story = {
 };
 
 const MULTI_OUTPUT_CONFIGS: AnnotationConfig[] = [
-  { name: "correctness", optimizationDirection: "MAXIMIZE", ...UNIT_INTERVAL },
-  { name: "toxicity", optimizationDirection: "MINIMIZE", ...UNIT_INTERVAL },
+  {
+    annotationType: "CONTINUOUS",
+    name: "correctness",
+    optimizationDirection: "MAXIMIZE",
+    ...UNIT_INTERVAL,
+  },
+  {
+    annotationType: "CONTINUOUS",
+    name: "toxicity",
+    optimizationDirection: "MINIMIZE",
+    ...UNIT_INTERVAL,
+  },
   {
     name: "format",
     optimizationDirection: "MAXIMIZE",

@@ -85,6 +85,7 @@ describe("getEvaluatorTaskAnnotation", () => {
           outputConfigs: [
             PASS_FAIL,
             {
+              annotationType: "CONTINUOUS",
               name: "confidence",
               optimizationDirection: "MAXIMIZE",
               lowerBound: 0,
@@ -104,6 +105,7 @@ describe("getEvaluatorTaskAnnotation", () => {
           name: "confidence",
           outputConfigs: [
             {
+              annotationType: "CONTINUOUS",
               name: "confidence",
               optimizationDirection: "MAXIMIZE",
               lowerBound: 0,

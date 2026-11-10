@@ -1,9 +1,8 @@
-import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
-
 import {
   getContinuousThresholdDescription,
   getContinuousThresholdError,
   getEvaluatorOutputConfigType,
+  toEvaluatorStoreOutputConfig,
 } from "../evaluatorOutputConfigUtils";
 
 describe("getEvaluatorOutputConfigType", () => {
@@ -26,32 +25,65 @@ describe("getEvaluatorOutputConfigType", () => {
       })
     ).toBe("CONTINUOUS");
   });
+});
 
-  it("reads a config copied from a query by its typename", () => {
-    // Relay data copied into the store keeps its typename.
-    const fromQuery = {
-      ...base,
-      __typename: "ContinuousAnnotationConfig",
+describe("toEvaluatorStoreOutputConfig", () => {
+  it("tags a selected config with the type its typename names", () => {
+    const selected = {
+      name: "score",
+      optimizationDirection: "MAXIMIZE",
       lowerBound: 0,
-      upperBound: 1,
-      threshold: null,
-    } as unknown as AnnotationConfig;
-    expect(getEvaluatorOutputConfigType(fromQuery)).toBe("CONTINUOUS");
+      upperBound: 10,
+      threshold: 7,
+    };
+    const continuous = toEvaluatorStoreOutputConfig({
+      ...selected,
+      __typename: "ContinuousAnnotationConfig",
+    });
+    expect(continuous).toEqual({
+      annotationType: "CONTINUOUS",
+      ...selected,
+    });
+    expect(getEvaluatorOutputConfigType(continuous!)).toBe("CONTINUOUS");
+    // A continuous config with no threshold is still continuous.
     expect(
-      getEvaluatorOutputConfigType({
-        ...fromQuery,
-        __typename: "FreeformAnnotationConfig",
-      } as unknown as AnnotationConfig)
-    ).toBe("FREEFORM");
+      getEvaluatorOutputConfigType(
+        toEvaluatorStoreOutputConfig({
+          ...selected,
+          threshold: null,
+          __typename: "ContinuousAnnotationConfig",
+        })!
+      )
+    ).toBe("CONTINUOUS");
+    const freeform = toEvaluatorStoreOutputConfig({
+      ...selected,
+      __typename: "FreeformAnnotationConfig",
+    });
+    expect(getEvaluatorOutputConfigType(freeform!)).toBe("FREEFORM");
   });
 
-  it("falls back to the threshold key for untagged configs", () => {
+  it("keeps a categorical config's values", () => {
+    const categorical = toEvaluatorStoreOutputConfig({
+      __typename: "CategoricalAnnotationConfig",
+      name: "verdict",
+      optimizationDirection: "MAXIMIZE",
+      values: [
+        { label: "pass", score: 1 },
+        { label: "fail", score: null },
+      ],
+    });
+    expect(categorical).toEqual({
+      name: "verdict",
+      optimizationDirection: "MAXIMIZE",
+      values: [{ label: "pass", score: 1 }, { label: "fail" }],
+    });
+    expect(getEvaluatorOutputConfigType(categorical!)).toBe("CATEGORICAL");
+  });
+
+  it("skips a type this client does not know", () => {
     expect(
-      getEvaluatorOutputConfigType({ ...base, lowerBound: 0, upperBound: 1 })
-    ).toBe("CONTINUOUS");
-    expect(getEvaluatorOutputConfigType({ ...base, threshold: null })).toBe(
-      "FREEFORM"
-    );
+      toEvaluatorStoreOutputConfig({ __typename: "%other", name: "x" })
+    ).toBeNull();
   });
 });
 

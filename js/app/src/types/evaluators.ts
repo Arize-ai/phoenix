@@ -132,16 +132,16 @@ export type ContinuousEvaluatorAnnotationConfig = {
    */
   threshold?: number | null;
   /**
-   * Tags the config as continuous. Required whenever `threshold` is present,
-   * since an untagged config with a threshold reads as freeform (see
+   * Tags the config as continuous. Continuous and freeform configs share their
+   * fields, so the tag is what tells them apart (see
    * `getEvaluatorOutputConfigType`).
    */
-  annotationType?: "CONTINUOUS";
+  annotationType: "CONTINUOUS";
 };
 
 export type FreeformEvaluatorAnnotationConfig = {
   /** Tags the config as freeform. */
-  annotationType?: "FREEFORM";
+  annotationType: "FREEFORM";
   name: string;
   optimizationDirection: EvaluatorOptimizationDirection;
   threshold?: number | null;
