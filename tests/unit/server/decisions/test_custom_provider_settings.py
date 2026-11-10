@@ -117,3 +117,60 @@ async def test_a_custom_providers_client_does_not_follow_redirects(config: Any) 
     async with config.get_client_factory()() as client:
         assert client.max_retries == 0
         assert client._client.follow_redirects is False
+
+
+@pytest.mark.parametrize("transport", ["httpx", "aiohttp"])
+async def test_google_genai_does_not_follow_redirects(
+    monkeypatch: pytest.MonkeyPatch, transport: str
+) -> None:
+    from aiohttp import web
+    from aiohttp.test_utils import TestServer
+    from google.genai import _api_client, errors
+
+    monkeypatch.setattr(_api_client, "has_aiohttp", transport == "aiohttp")
+    source_api_keys: list[str | None] = []
+    destination_requests: list[str] = []
+
+    async def destination(request: web.Request) -> web.Response:
+        destination_requests.append(request.path)
+        return web.json_response({})
+
+    destination_app = web.Application()
+    destination_app.router.add_route("*", "/{path:.*}", destination)
+    async with TestServer(destination_app) as destination_server:
+
+        async def redirect(request: web.Request) -> web.Response:
+            source_api_keys.append(request.headers.get("x-goog-api-key"))
+            return web.Response(
+                status=307,
+                headers={"Location": str(destination_server.make_url("/redirected"))},
+                content_type="application/json",
+                text='{"error": {"message": "redirect"}}',
+            )
+
+        source_app = web.Application()
+        source_app.router.add_route("*", "/{path:.*}", redirect)
+        async with TestServer(source_app) as source_server:
+            google = mp.GoogleGenAICustomProviderConfig(
+                google_genai_authentication_method=mp.AuthenticationMethodApiKey(api_key="gk"),
+                google_genai_client_kwargs=mp.GoogleGenAIClientKwargs(
+                    http_options=mp.GoogleGenAIHttpOptions(
+                        base_url=str(source_server.make_url("/"))
+                    )
+                ),
+            )
+            async with google.get_client_factory()() as client:
+                with pytest.raises(errors.APIError) as error:
+                    await client.models.generate_content(model="test-model", contents="hello")
+                assert error.value.code == 307
+
+    assert source_api_keys == ["gk"]
+    assert destination_requests == []
+
+
+async def test_typesafe_client_does_not_follow_redirects() -> None:
+    typesafe = mp.TypeSafeCustomProviderConfig(
+        typesafe_authentication_method=mp.AuthenticationMethodApiKey(api_key="ts"),
+    )
+    async with typesafe.get_client_factory()() as typesafe_client:
+        assert typesafe_client._http_client.follow_redirects is False
