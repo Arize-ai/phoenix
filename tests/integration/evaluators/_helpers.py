@@ -1,5 +1,6 @@
 """Request builders and API helpers for evaluator integration tests."""
 
+import time
 from secrets import token_hex
 from typing import Any
 
@@ -17,6 +18,15 @@ def _graphql(app: _AppInfo, query: str, variables: dict[str, Any]) -> dict[str, 
     assert not response.get("errors"), response
     result: dict[str, Any] = response["data"]
     return result
+
+
+def _wait_until_purged(client: httpx2.Client, project_id: str, timeout: float = 30) -> None:
+    """Wait for the evaluator purger to remove a deleted binding's trace project."""
+    deadline = time.monotonic() + timeout
+    while (status := client.get(f"v1/projects/{project_id}").status_code) != 404:
+        assert status == 200, status
+        assert time.monotonic() < deadline, f"trace project {project_id} was not purged"
+        time.sleep(0.1)
 
 
 def _create_dataset_evaluator(

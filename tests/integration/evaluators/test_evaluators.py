@@ -12,6 +12,7 @@ from ._helpers import (
     _llm_definition,
     _mapping,
     _pin,
+    _wait_until_purged,
 )
 
 
@@ -87,7 +88,7 @@ def test_code_lifecycle_and_shared_definition(
     assert client.delete(item).status_code == 204
     assert client.delete(second_item).status_code == 204
     assert client.get(evaluator).status_code == 200
-    assert client.get(f"v1/projects/{first['trace_project_id']}").status_code == 404
+    _wait_until_purged(client, first["trace_project_id"])
     assert client.delete(evaluator).status_code == 204
 
 
@@ -119,7 +120,7 @@ def test_pagination_and_bulk_delete(
     assert client.delete(collection, params={"project_evaluator_id": ids}).status_code == 204
     assert client.get(collection).json()["data"] == []
     for binding in bindings:
-        assert client.get(f"v1/projects/{binding['trace_project_id']}").status_code == 404
+        _wait_until_purged(client, binding["trace_project_id"])
     assert client.get(f"v1/evaluators/{definition['id']}").status_code == 200
 
 
@@ -224,7 +225,7 @@ def test_llm_binding_and_definition_edits(
     assert result["data"]["node"]["promptVersion"]["id"] == new_version_id
     assert client.delete(item).status_code == 204
     assert client.get(evaluator).status_code == 200
-    assert client.get(f"v1/projects/{binding['trace_project_id']}").status_code == 404
+    _wait_until_purged(client, binding["trace_project_id"])
     assert client.delete(evaluator).status_code == 204
     assert client.get(f"v1/prompt_versions/{new_version_id}").status_code == 200
 
