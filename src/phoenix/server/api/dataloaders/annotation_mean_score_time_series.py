@@ -10,13 +10,12 @@ from datetime import datetime, timezone
 from typing import Any, Literal, NamedTuple, Optional, Type, Union
 
 from cachetools import LRUCache, TTLCache
-from sqlalchemy import Select, or_, select
+from sqlalchemy import Select, func, or_, select
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
-from phoenix.server.api.annotation_metrics import build_entity_weighted_annotation_metrics_stmt
 from phoenix.server.api.dataloaders.cache import TwoTierCache
 from phoenix.server.api.input_types.TimeBinConfig import TimeBucketSpec
 from phoenix.server.types import DbSessionFactory
@@ -115,13 +114,9 @@ class AnnotationMeanScoreTimeSeriesDataLoader(DataLoader[Key, Result]):
             async with self._db.read() as session:
                 data = await session.stream(stmt)
                 async for row in data:
-                    # `avg_score` repeats per label row of the same bucket, so
-                    # the first sighting is the bucket's entity-weighted mean.
-                    if row.avg_score is not None:
-                        mean_scores[row.name].setdefault(
-                            _as_datetime(row.bucket),
-                            MeanScoreBin(float(row.avg_score), int(row.scored_entity_count)),
-                        )
+                    mean_scores[row.name][_as_datetime(row.bucket)] = MeanScoreBin(
+                        float(row.mean_score), int(row.scored_entity_count)
+                    )
             for annotation_name, positions in names.items():
                 for position in positions:
                     results[position] = mean_scores[annotation_name]
@@ -130,6 +125,38 @@ class AnnotationMeanScoreTimeSeriesDataLoader(DataLoader[Key, Result]):
     def _get_stmt(
         self, segment: Segment, *annotation_names: AnnotationName
     ) -> Select[*tuple[Any, ...]]:
+        """Per bucket and name: the mean of each scored entity's mean score,
+        and how many scored entities it averages over.
+
+        Equal to the `avg_score` and `scored_entity_count` that
+        `build_entity_weighted_annotation_metrics_stmt` reports, without its
+        label counts and fractions, which a series never reads. Those cost
+        several extra passes over the joined rows.
+        """
+        rows = self._get_rows_stmt(segment, *annotation_names).subquery()
+        # Label-only rows contribute to neither the mean nor the scored count.
+        entity_means = (
+            select(
+                rows.c.bucket,
+                rows.c.entity_id,
+                rows.c.name,
+                func.avg(rows.c.score).label("entity_mean"),
+            )
+            .where(rows.c.score.is_not(None))
+            .group_by(rows.c.bucket, rows.c.entity_id, rows.c.name)
+            .subquery()
+        )
+        return select(
+            entity_means.c.bucket,
+            entity_means.c.name,
+            func.avg(entity_means.c.entity_mean).label("mean_score"),
+            func.count().label("scored_entity_count"),
+        ).group_by(entity_means.c.bucket, entity_means.c.name)
+
+    def _get_rows_stmt(
+        self, segment: Segment, *annotation_names: AnnotationName
+    ) -> Select[*tuple[Any, ...]]:
+        """One row per result-bearing annotation in the window, with its bucket."""
         kind, project_rowid, (start_time, end_time), time_bins = segment
 
         annotation_model: Union[
@@ -217,7 +244,7 @@ class AnnotationMeanScoreTimeSeriesDataLoader(DataLoader[Key, Result]):
             # An absent end means "up to now": leaving the range open keeps
             # the cache key stable while writes invalidate stale entries.
             stmt = stmt.where(bucket_time_column < end_time)
-        return build_entity_weighted_annotation_metrics_stmt(stmt)
+        return stmt
 
 
 def _as_datetime(value: Any) -> datetime:
