@@ -179,7 +179,6 @@ async def resolve_project_evaluators_bulk(
         evaluator.selected_version.custom_provider_id
         for _, evaluator in project_evaluator_pairs
         if isinstance(evaluator, models.DecisionEvaluator)
-        and evaluator.selected_version is not None
         and evaluator.selected_version.custom_provider_id is not None
     }
     decision_custom_provider_updated_at: dict[int, str] = {
@@ -235,9 +234,6 @@ async def resolve_project_evaluators_bulk(
             ]
         elif isinstance(evaluator, models.DecisionEvaluator):
             decision_version = evaluator.selected_version
-            if decision_version is None:
-                resolved.append(None)
-                continue
             provider_ref: Optional[list[Any]] = None
             if decision_version.custom_provider_id is not None:
                 updated_at = decision_custom_provider_updated_at.get(

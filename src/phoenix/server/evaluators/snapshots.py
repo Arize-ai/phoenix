@@ -36,8 +36,6 @@ def capture_decision_evaluator_definition(
     project_evaluator_id: Optional[int] = None,
 ) -> InlineDecisionEvaluatorDefinition:
     version = evaluator.selected_version
-    if version is None:
-        raise ValueError("The evaluator's pinned decision version was not found")
     policy = adapt_scoring_policy(version.questions, evaluator.scoring_policy)
     return InlineDecisionEvaluatorDefinition(
         type="inline_decision_evaluator",
