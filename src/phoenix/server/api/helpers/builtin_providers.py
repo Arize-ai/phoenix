@@ -90,7 +90,8 @@ async def _resolve_secrets(
     result: dict[str, str] = {}
     for secret in secrets:
         try:
-            result[secret.key] = decrypt(secret.value).decode("utf-8")
+            if value := decrypt(secret.value).decode("utf-8").strip():
+                result[secret.key] = value
         except Exception:
             raise BadRequest(f"Failed to decrypt secret: {secret.key}")
     return result
@@ -104,7 +105,11 @@ def _get_credential_from_input(
     if not credentials:
         return None
     return next(
-        (c.value.get_secret_value() for c in credentials if c.env_var_name == env_var_name),
+        (
+            stripped
+            for c in credentials
+            if c.env_var_name == env_var_name and (stripped := c.value.get_secret_value().strip())
+        ),
         None,
     )
 
@@ -198,7 +203,7 @@ async def resolve_builtin_config(
 ) -> BuiltInConfig:
     """Resolve ``endpoint`` into a provider config using request overrides, DB secrets,
     and env vars."""
-    client_base_url = base_url or None
+    client_base_url = (base_url or "").strip() or None
     resolved = (
         client_base_url
         or (getenv(endpoint.base_url_env_var) if endpoint.base_url_env_var else None)
@@ -239,10 +244,12 @@ async def resolve_builtin_config(
             openai_authentication_method=auth,
             openai_client_kwargs=OpenAIClientKwargs(
                 base_url=resolved,
-                organization=getenv(endpoint.organization_env_var)
+                organization=(getenv(endpoint.organization_env_var) or None)
                 if endpoint.organization_env_var
                 else None,
-                project=getenv(endpoint.project_env_var) if endpoint.project_env_var else None,
+                project=(getenv(endpoint.project_env_var) or None)
+                if endpoint.project_env_var
+                else None,
             ),
             openai_api_type="chat_completions",
         )

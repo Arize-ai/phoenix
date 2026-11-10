@@ -3347,7 +3347,7 @@ async def _builtin_chat_config(
             decrypt=decrypt,
         )
     if provider_key is GenerativeProviderKey.AZURE_OPENAI:
-        endpoint_override = connection.endpoint or None
+        endpoint_override = (connection.endpoint or "").strip() or None
         api_key = await resolve_provider_api_key(
             credentials=credentials,
             session=session,
@@ -3376,7 +3376,7 @@ async def _builtin_chat_config(
         if not values["AWS_ACCESS_KEY_ID"] or not values["AWS_SECRET_ACCESS_KEY"]:
             secrets = await _resolve_secrets(session, decrypt, *names)
             values = {name: values[name] or secrets.get(name) for name in names}
-        values = {name: values[name] or getenv(name) for name in names}
+        values = {name: values[name] or getenv(name) or None for name in names}
         access_key_id = values["AWS_ACCESS_KEY_ID"]
         secret_access_key = values["AWS_SECRET_ACCESS_KEY"]
         return AWSBedrockCustomProviderConfig(
@@ -3388,7 +3388,7 @@ async def _builtin_chat_config(
             if access_key_id and secret_access_key
             else AuthenticationMethodDefaultCredentials(),
             aws_bedrock_client_kwargs=AWSBedrockClientKwargs(
-                region_name=connection.region or getenv("AWS_REGION") or "us-east-1"
+                region_name=(connection.region or "").strip() or getenv("AWS_REGION") or "us-east-1"
             ),
         )
     raise BadRequest(f"{provider_key.value} offers no chat models.")
