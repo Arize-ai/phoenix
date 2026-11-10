@@ -11,7 +11,10 @@ import {
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import { DEFAULT_DECISION_EVALUATOR_STORE_VALUES } from "@phoenix/store/evaluatorStore";
 
-const { subscribe } = vi.hoisted(() => ({ subscribe: vi.fn() }));
+const { subscribe, dispose } = vi.hoisted(() => ({
+  subscribe: vi.fn(),
+  dispose: vi.fn(),
+}));
 vi.mock("react-relay", async (importOriginal) => ({
   ...(await importOriginal<typeof ReactRelay>()),
   useRelayEnvironment: () => ({}),
@@ -20,7 +23,7 @@ vi.mock("relay-runtime", async (importOriginal) => ({
   ...(await importOriginal<typeof RelayRuntime>()),
   requestSubscription: (_environment: unknown, config: object) => {
     subscribe(config);
-    return { dispose: vi.fn() };
+    return { dispose };
   },
 }));
 vi.mock("@phoenix/contexts/CredentialsContext", () => ({
@@ -160,6 +163,22 @@ describe("useEvaluatorPreview", () => {
     });
     expect(preview.error).toBe("The Monty runtime is busy. Retry shortly.");
     expect(preview.results).toEqual([]);
+  });
+
+  it("closes a running preview when the form unmounts and settles it", async () => {
+    let outcome: Awaited<ReturnType<EvaluatorPreview["run"]>> | undefined;
+    await act(async () => {
+      void preview.run(() => REQUEST).then((result) => (outcome = result));
+    });
+    expect(dispose).not.toHaveBeenCalled();
+
+    await act(async () => root.unmount());
+
+    expect(dispose).toHaveBeenCalledTimes(1);
+    expect(outcome).toEqual({
+      ok: false,
+      error: "The evaluator form closed before the test finished",
+    });
   });
 
   it("reports every GraphQL error the preview stream returns", async () => {

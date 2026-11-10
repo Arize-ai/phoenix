@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { graphql, useRelayEnvironment } from "react-relay";
 import type { Disposable } from "relay-runtime";
 import { requestSubscription } from "relay-runtime";
@@ -134,6 +134,10 @@ function toEvaluatorPreviewResults(
  * preview with a single subject, and holds the results. Any evaluator kind
  * previews through it: the caller builds the evaluator definition, and a
  * build that throws reports its message as the preview error.
+ *
+ * Unmounting the form closes any preview still running, so the server stops
+ * its work, and settles the run so nothing (such as the agent's test tool)
+ * waits on it.
  */
 export function useEvaluatorPreview() {
   const store = useEvaluatorStoreInstance();
@@ -142,6 +146,16 @@ export function useEvaluatorPreview() {
   const [results, setResults] = useState<EvaluatorPreviewResult[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+  const closeRunningPreviewsRef = useRef(new Set<() => void>());
+  useEffect(() => {
+    const closeRunningPreviews = closeRunningPreviewsRef.current;
+    return () => {
+      for (const close of closeRunningPreviews) {
+        close();
+      }
+      closeRunningPreviews.clear();
+    };
+  }, []);
 
   const run = useCallback(
     (
@@ -162,11 +176,15 @@ export function useEvaluatorPreview() {
       setIsRunning(true);
       return new Promise((resolve) => {
         let subjectResult: EvaluatorPreviewSubjectResult | null = null;
+        let isSettled = false;
+        const closeRunningPreviews = closeRunningPreviewsRef.current;
         const settle = (outcome: EvaluatorPreviewRunResult) => {
+          isSettled = true;
+          closeRunningPreviews.delete(close);
           setIsRunning(false);
           resolve(outcome);
         };
-        startPreview(
+        const preview = startPreview(
           {
             ...request,
             subjects: [
@@ -195,6 +213,19 @@ export function useEvaluatorPreview() {
             },
           }
         );
+        // The form is gone, so there is no state left to update.
+        function close() {
+          isSettled = true;
+          closeRunningPreviews.delete(close);
+          preview.dispose();
+          resolve({
+            ok: false,
+            error: "The evaluator form closed before the test finished",
+          });
+        }
+        if (!isSettled) {
+          closeRunningPreviews.add(close);
+        }
       });
     },
     [startPreview, store, credentials]
