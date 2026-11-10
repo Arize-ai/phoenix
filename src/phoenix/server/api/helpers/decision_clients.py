@@ -31,6 +31,7 @@ from opentelemetry.trace import Span as OtelSpan
 from opentelemetry.trace import Status, StatusCode, Tracer
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing_extensions import override
 
 from phoenix.db import models
 from phoenix.db.types.decisions import (
@@ -265,12 +266,15 @@ class DecisionClient(ModelClient[Any]):
     system: ClassVar[OpenInferenceDecisionSystemValues]
     built_in_endpoint: ClassVar[BuiltInEndpoint]
 
+    @override
     def get_rate_limit_key(self) -> Hashable:
         return ("decision", self.system.value, self._client_factory.rate_limit_key)
 
+    @override
     def is_rate_limit_error(self, e: Exception) -> bool:
         return isinstance(e, DecisionRateLimitError)
 
+    @override
     def is_transient_error(self, e: Exception) -> bool:
         return isinstance(e, DecisionTransientError)
 
@@ -383,6 +387,7 @@ class TypeSafeDecisionClient(DecisionClient):
     )
 
     @classmethod
+    @override
     def dependencies(cls) -> list[Dependency]:
         return [Dependency(name="typesafe-sdk", module_name="typesafe_sdk")]
 
@@ -420,6 +425,7 @@ class TypeSafeDecisionClient(DecisionClient):
                 }
         return {"model": self.model_name, "state": request.state, "questions": questions}
 
+    @override
     async def invoke(self, request: DecisionRequest, span: OtelSpan) -> DecisionResponse:
         from typesafe_sdk import (
             TypeSafeAPIConnectionError,
@@ -499,6 +505,7 @@ class OpenAIDecisionClient(DecisionClient):
     built_in_endpoint = CHAT_ENDPOINTS[GenerativeProviderKey.OPENAI]
 
     @classmethod
+    @override
     def dependencies(cls) -> list[Dependency]:
         return [Dependency(name="openai")]
 
@@ -555,6 +562,7 @@ class OpenAIDecisionClient(DecisionClient):
                 questions.append({"name": name, "type": "predicate", "instructions": instructions})
         return {"model": self.model_name, "input": _as_text(request.state), "questions": questions}
 
+    @override
     async def invoke(self, request: DecisionRequest, span: OtelSpan) -> DecisionResponse:
         from openai import (
             APIConnectionError,

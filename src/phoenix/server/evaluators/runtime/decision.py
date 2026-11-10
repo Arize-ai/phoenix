@@ -10,6 +10,7 @@ import openinference.instrumentation as oi
 from opentelemetry.context import Context
 from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer, format_trace_id
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from typing_extensions import override
 
 from phoenix.db.types.annotation_configs import OutputConfigType
 from phoenix.db.types.decision_evaluators import (
@@ -217,22 +218,27 @@ class DecisionEvaluator(BaseEvaluator):
         self.max_request_bytes = max_request_bytes
 
     @property
+    @override
     def name(self) -> str:
         return self.definition.name
 
     @property
+    @override
     def description(self) -> Optional[str]:
         return self.definition.description
 
     @property
+    @override
     def input_schema(self) -> dict[str, Any]:
         return self._input_schema
 
     @property
+    @override
     def output_configs(self) -> Sequence[OutputConfigType]:
         return self._output_configs
 
     @property
+    @override
     def provider_client(self) -> DecisionClient:
         return self.client
 
@@ -250,15 +256,18 @@ class DecisionEvaluator(BaseEvaluator):
             )
 
     @property
+    @override
     def error_metadata(self) -> dict[str, Any]:
         return decision_annotation_metadata(
             ErroredDecisionAnnotation(status="error", source=self.definition.source)
         )
 
     @property
+    @override
     def annotator_kind(self) -> EvaluatorAnnotatorKind:
         return "LLM"
 
+    @override
     async def evaluate(
         self,
         *,
