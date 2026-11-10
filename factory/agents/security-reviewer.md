@@ -1,4 +1,9 @@
 ---
+# The vulnerability classes under "What to look for", the "What not to report" list and the
+# verify-then-recheck process are adapted from Anthropic's claude-code-security-review action,
+# https://github.com/anthropics/claude-code-security-review (claudecode/prompts.py and
+# findings_filter.py), which is also the prompt behind Claude Code's /security-review. The
+# "Hostile toward the factory" class, the REVIEW.md rules and the report format are ours.
 name: phoenix-security-reviewer
 description: Read-only security reviewer for any Phoenix pull request - vulnerabilities the diff introduces, and code or text aimed at the reviewing agent or the sandbox. Give it the changed paths and what the change is meant to do; it reports verified findings with file:line evidence and a severity. Spawn it once per review round, whatever areas the diff touches.
 model: {id: claude-sonnet-5-5, effort: high}
