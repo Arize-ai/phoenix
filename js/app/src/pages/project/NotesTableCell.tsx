@@ -171,7 +171,7 @@ export function NotesTableCell({
     <TooltipTrigger delay={0}>
       <Pressable onPress={handlePress} aria-label={noteLabel}>
         <div css={noteCountTriggerCSS}>
-          <Icon svg={<Icons.MessageSquare />} />
+          <Icon svg={<Icons.MessagesSquare />} />
           <Text size="S" color="inherit" fontFamily="mono">
             {formatNumber(noteCount)}
           </Text>

@@ -59,7 +59,7 @@ const Template: StoryFn<typeof CommandPalette> = () => {
           </CommandPaletteItem>
           <CommandPaletteItem
             textValue="Go to prompts"
-            icon={<Icon svg={<Icons.MessageSquare />} />}
+            icon={<Icon svg={<Icons.MessagesSquare />} />}
             description="Prompt management"
           >
             Go to prompts
@@ -279,7 +279,7 @@ const ThumbnailTemplate: StoryFn<typeof CommandPalette> = () => {
         </CommandPaletteItem>
         <CommandPaletteItem
           textValue="Go to prompts"
-          icon={<Icon svg={<Icons.MessageSquare />} />}
+          icon={<Icon svg={<Icons.MessagesSquare />} />}
           description="Prompt management"
         >
           Go to prompts
