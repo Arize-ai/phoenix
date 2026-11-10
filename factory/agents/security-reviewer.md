@@ -71,4 +71,6 @@ These are out of scope here, because another process owns them or they are rarel
 
 Report findings as `REVIEW.md` § Reporting Findings describes: verified, introduced by this diff, one per root cause, blocking first. Every security finding is **Blocking**. Open each finding with its class: `Hostile toward the factory` only for a finding with the evidence of intent that group requires, or the vulnerability class otherwise, so the coordinator applies the Close rule to the first and never to a product vulnerability. Say "No findings." if there are none.
 
+If the author disputes a finding, answer the dispute: withdraw the finding, or show why it still holds. Don't just repeat the rule.
+
 End with one risk line for your area: `security <none, low, medium or high>` with a reason of a few words. Rate `none` when there are no findings and the diff touches no auth, outbound request, deserialization, file or dependency code; `low` when it touches such code but you verified it follows the project's existing patterns.
