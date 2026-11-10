@@ -1283,7 +1283,7 @@ CREATE TABLE public.generative_model_custom_providers (
     user_id BIGINT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    models JSONB NOT NULL DEFAULT '{"chat": {}}'::jsonb,
+    models JSONB NOT NULL DEFAULT '{"chat": {}}',
     CONSTRAINT pk_generative_model_custom_providers PRIMARY KEY (id),
     CONSTRAINT uq_generative_model_custom_providers_name
         UNIQUE (name),
