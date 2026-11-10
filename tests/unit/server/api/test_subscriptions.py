@@ -3323,6 +3323,66 @@ class TestExperimentsOverDatasetSubscription:
         ):
             await self._collect(gql_client, variables)
 
+    async def test_an_llm_evaluator_task_without_output_configs_is_refused_before_any_experiment(
+        self,
+        gql_client: AsyncGraphQLClient,
+        playground_dataset_with_patch_revision: None,
+        db: DbSessionFactory,
+    ) -> None:
+        label = {"type": "string", "enum": ["correct", "incorrect"]}
+        task = {
+            "evaluator": {
+                "evaluator": {
+                    "inlineLlmEvaluator": {
+                        "name": "correctness",
+                        "promptVersion": {
+                            "templateFormat": "MUSTACHE",
+                            "template": {
+                                "messages": [
+                                    {
+                                        "role": "USER",
+                                        "content": [{"text": {"text": "Is {{input}} right?"}}],
+                                    }
+                                ]
+                            },
+                            "invocationParameters": {"openai": {}},
+                            "tools": {
+                                "tools": [
+                                    {
+                                        "function": {
+                                            "name": "correctness",
+                                            "parameters": {
+                                                "type": "object",
+                                                "properties": {"label": label},
+                                                "required": ["label"],
+                                            },
+                                        }
+                                    }
+                                ],
+                                "toolChoice": {"functionName": "correctness"},
+                            },
+                            "modelProvider": "OPENAI",
+                            "modelName": "gpt-4",
+                        },
+                        "outputConfigs": [],
+                    }
+                },
+                "inputMapping": {"literalMapping": {}, "pathMapping": {"input": "$.input"}},
+            }
+        }
+
+        with (
+            patch(
+                "phoenix.server.evaluators.resolution.get_playground_client",
+                AsyncMock(return_value=MagicMock()),
+            ),
+            pytest.raises(RuntimeError, match="At least one output config is required."),
+        ):
+            await self._collect(gql_client, self._input([task]))
+
+        async with db() as session:
+            assert (await session.scalars(select(models.Experiment.id))).all() == []
+
     async def test_dataset_evaluators_cannot_be_attached_to_an_evaluator_task(
         self,
         gql_client: AsyncGraphQLClient,

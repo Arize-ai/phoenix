@@ -215,8 +215,8 @@ async def build_evaluator_from_definition(
 
     Raises:
         BadRequest: The definition cannot be honoured: a missing or disabled sandbox
-            configuration, a judge prompt version without tools, or a stored evaluator
-            that no longer exists.
+            configuration, an LLM definition without output configs, a judge prompt
+            version without tools, or a stored evaluator that no longer exists.
     """
     if isinstance(
         definition, (InlineDecisionEvaluatorDefinition, StoredDecisionEvaluatorDefinition)
@@ -275,6 +275,8 @@ async def _build_inline_llm_evaluator(
     credentials: Sequence[GenerativeCredentialInput] | None,
     max_message_bytes: Optional[int],
 ) -> LLMEvaluator:
+    if not definition.output_configs:
+        raise BadRequest("At least one output config is required.")
     prompt_version = definition.prompt_version
     llm_client = await get_playground_client(
         model_provider=prompt_version.model_provider,
