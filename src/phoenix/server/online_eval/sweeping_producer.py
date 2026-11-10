@@ -28,7 +28,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
-from sqlalchemy.exc import DBAPIError, IntegrityError
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 from sqlalchemy.sql.selectable import ScalarSelect, Subquery
@@ -79,20 +79,6 @@ _LOCK_CONFLICT_SQLSTATES = frozenset({"55P03", "40P01"})  # lock_not_available, 
 
 _SweptTargetModel = type[models.ProjectSession] | type[models.Trace]
 _SweptWorkUnitModel = type[models.EvalSessionWorkUnit] | type[models.EvalTraceWorkUnit]
-
-
-class _PageRowDeletedError(Exception):
-    """A project evaluator or target on the page was deleted before its work was inserted.
-
-    The page is read without locks, so the insert's foreign keys are what catch the
-    deletion; the tick rolls back and the next tick's page no longer holds the row. On
-    PostgreSQL the tick waits on a deletion that hasn't committed, and if it doesn't
-    commit within the lock timeout the tick ends in ``_LockConflictError`` instead.
-    """
-
-
-class _LockConflictError(Exception):
-    """The tick gave up a lock wait, or was chosen to break a deadlock, and rolled back."""
 
 
 def _is_lock_conflict(error: DBAPIError) -> bool:
@@ -344,17 +330,6 @@ class SweepingEvaluationProducer(DaemonTask):
                 full_page_decided = False
                 try:
                     full_page_decided = await self._tick()
-                except _PageRowDeletedError as error:
-                    logger.warning(
-                        f"{self._evaluation_target} evaluation sweep rolled back: a project "
-                        f"evaluator or {self._evaluation_target.lower()} on its page was "
-                        f"deleted before its work was inserted ({error})"
-                    )
-                except _LockConflictError as error:
-                    logger.warning(
-                        f"{self._evaluation_target} evaluation sweep rolled back: it gave way "
-                        f"to a concurrent transaction holding a lock it needed ({error})"
-                    )
                 except Exception:
                     logger.exception(f"{self._evaluation_target} evaluation sweep failed")
                 await asyncio.sleep(0 if full_page_decided else self._tick_interval_seconds)
@@ -388,11 +363,9 @@ class SweepingEvaluationProducer(DaemonTask):
                     )
                 database_now = await current_database_time(session, self._db.dialect)
                 outcome = await self._sweep(session, database_now)
-        except Exception as error:
+        except Exception:
             if self._publish_metrics:
                 ONLINE_EVAL_SWEEP_FAILURES.labels(**labels).inc()
-            if isinstance(error, DBAPIError) and _is_lock_conflict(error):
-                raise _LockConflictError(str(error.orig)) from error
             raise
         finally:
             if self._publish_metrics:
@@ -543,18 +516,15 @@ class SweepingEvaluationProducer(DaemonTask):
                 eligible_count=eligible_count,
                 full_page_decided=False,
             )
-        try:
-            written_statuses = (
-                await session.scalars(
-                    _work_write_statement(
-                        target,
-                        decisions,
-                        self._db.dialect,
-                    )
+        written_statuses = (
+            await session.scalars(
+                _work_write_statement(
+                    target,
+                    decisions,
+                    self._db.dialect,
                 )
-            ).all()
-        except IntegrityError as error:
-            raise _PageRowDeletedError(str(error.orig)) from error
+            )
+        ).all()
         return _SweepOutcome(
             queued_count=written_statuses.count("PENDING"),
             eligible_count=eligible_count,
@@ -613,6 +583,7 @@ class SweepingEvaluationProducer(DaemonTask):
                         )
                     ).all()
             except (DBAPIError, OverflowError) as error:
+                # A lock conflict fails the tick, so the sweep positions it wrote roll back.
                 if isinstance(error, DBAPIError) and _is_lock_conflict(error):
                     raise
                 logger.warning(
@@ -633,7 +604,7 @@ class SweepingEvaluationProducer(DaemonTask):
         database_now: datetime,
     ) -> None:
         """Record that every loaded evaluator has swept everything already due to it."""
-        await self._write_sweep_positions(
+        await advance_sweep_positions(
             session,
             {
                 project_evaluator.project_evaluator_id: max(
@@ -655,17 +626,7 @@ class SweepingEvaluationProducer(DaemonTask):
             reached = sweep_positions.get(row.project_evaluator_id)
             if reached is None or row.decided_through > reached:
                 sweep_positions[row.project_evaluator_id] = row.decided_through
-        await self._write_sweep_positions(session, sweep_positions)
-
-    async def _write_sweep_positions(
-        self,
-        session: AsyncSession,
-        sweep_positions: dict[int, datetime],
-    ) -> None:
-        try:
-            await advance_sweep_positions(session, sweep_positions)
-        except IntegrityError as error:
-            raise _PageRowDeletedError(str(error.orig)) from error
+        await advance_sweep_positions(session, sweep_positions)
 
     async def _publish_eligibility_metrics(self, eligible_count: Optional[int]) -> None:
         """Publish the sweep's observation gauges from a session of its own.
