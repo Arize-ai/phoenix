@@ -278,10 +278,11 @@ ONLINE_EVAL_COMPLETED_WORK_UNITS = Counter(
     namespace="phoenix",
     name="online_eval_completed_work_units_total",
     documentation="Total number of online-eval work units that left the queue, by outcome: "
-    "evaluated (DONE), failed (FAILED, out of retries), expired (EXPIRED), cleared (DROPPED by "
-    "a queue clear or an enable), or evaluator_disabled (DROPPED because its evaluator was "
-    "disabled when its turn came). Cleared and evaluator_disabled work was removed from the "
-    f"queue before it ran. {_SUMS_ACROSS_REPLICAS}",
+    "evaluated (DONE), failed (FAILED, out of retries), expired (EXPIRED), content_lost "
+    "(CONTENT_LOST, a trace or session whose content was gone when its turn came), cleared "
+    "(DROPPED by a queue clear or an enable), or evaluator_disabled (DROPPED because its "
+    "evaluator was disabled when its turn came). Cleared and evaluator_disabled work was "
+    f"removed from the queue before it ran. {_SUMS_ACROSS_REPLICAS}",
     labelnames=[*_EVALUATION_TARGET_LABELS, "outcome"],
 )
 ONLINE_EVAL_QUEUE_TO_RESULT_SECONDS = Histogram(

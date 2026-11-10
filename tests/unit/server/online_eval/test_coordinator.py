@@ -597,16 +597,16 @@ async def test_completed_work_is_counted_by_outcome_once_committed(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    increments: Counter[str] = Counter()
-    lags: dict[str, list[float]] = {}
+    increments: Counter[tuple[str, str]] = Counter()
+    lags: dict[tuple[str, str], list[float]] = {}
 
     def counter_labels(*, evaluation_target: str, outcome: str) -> SimpleNamespace:
-        assert evaluation_target == "SPAN"
-        return SimpleNamespace(inc=lambda count=1: increments.update({outcome: count}))
+        key = (evaluation_target, outcome)
+        return SimpleNamespace(inc=lambda count=1: increments.update({key: count}))
 
     def lag_labels(*, evaluation_target: str, outcome: str) -> SimpleNamespace:
-        assert evaluation_target == "SPAN"
-        return SimpleNamespace(observe=lambda seconds: lags.setdefault(outcome, []).append(seconds))
+        key = (evaluation_target, outcome)
+        return SimpleNamespace(observe=lambda seconds: lags.setdefault(key, []).append(seconds))
 
     monkeypatch.setattr(coordinator_module, "get_env_enable_prometheus", lambda: True)
     monkeypatch.setattr(
@@ -650,15 +650,30 @@ async def test_completed_work_is_counted_by_outcome_once_committed(
         claimed_by="consumer",
         error="PROJECT_EVALUATOR_DISABLED",
     )
+    _, (content_lost,) = await _seed_session_work_units(db, 1)
+    session_coordinator = EvalWorkCoordinator(db, evaluation_target="SESSION")
+    await session_coordinator.claim(claimed_by="consumer", limit=1)
+    await session_coordinator.expire(
+        work_unit_id=content_lost,
+        claimed_by="consumer",
+        error="NO_ROOT_TURNS",
+        status="CONTENT_LOST",
+    )
 
     # The lapsed claim, out of attempts, fails when the next claim recovers it.
     assert (await _get_unit(db, unit_ids[0])).status == "FAILED"
-    assert increments == {"evaluated": 1, "failed": 2, "expired": 1, "evaluator_disabled": 1}
-    # Cleared work had no result, so it has no lag.
-    assert {outcome: len(seconds) for outcome, seconds in lags.items()} == {
-        "evaluated": 1,
-        "failed": 2,
-        "expired": 1,
+    assert increments == {
+        ("SPAN", "evaluated"): 1,
+        ("SPAN", "failed"): 2,
+        ("SPAN", "expired"): 1,
+        ("SPAN", "evaluator_disabled"): 1,
+        ("SESSION", "content_lost"): 1,
+    }
+    # Cleared and content-lost work had no result, so it has no lag.
+    assert {key: len(seconds) for key, seconds in lags.items()} == {
+        ("SPAN", "evaluated"): 1,
+        ("SPAN", "failed"): 2,
+        ("SPAN", "expired"): 1,
     }
     assert all(
         queued_seconds_ago - 5 <= lag <= queued_seconds_ago + 60

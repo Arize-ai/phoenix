@@ -65,6 +65,7 @@ _COMPLETED_OUTCOMES = {
     "DONE": "evaluated",
     "FAILED": "failed",
     "EXPIRED": "expired",
+    "CONTENT_LOST": "content_lost",
     "DROPPED": "evaluator_disabled",
 }
 
