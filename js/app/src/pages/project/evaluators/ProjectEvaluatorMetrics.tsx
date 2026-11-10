@@ -75,10 +75,15 @@ export function ProjectEvaluatorMetrics({
   const resultAnnotations = useProjectEvaluatorResultAnnotations(data);
   return (
     <div css={metricsScrollContainerCSS}>
+      {data.tracingEnabled ? null : (
+        <Alert variant="info" banner title="Tracing is off">
+          Cost, latency, and evaluation charts show traced evaluations only.
+          Turn on tracing under Advanced to record a trace of each evaluation.
+        </Alert>
+      )}
       <ProjectEvaluatorMetricPanels
         evaluatedProjectId={data.project.id}
         traceProjectId={data.traceProject.id}
-        isTracingEnabled={data.tracingEnabled}
         annotationLevel={getAnnotationLevel(data.evaluationTarget)}
         resultAnnotations={resultAnnotations}
         timeRange={timeRange}
@@ -92,7 +97,6 @@ const ProjectEvaluatorMetricPanels = memo(
   function ProjectEvaluatorMetricPanels({
     evaluatedProjectId,
     traceProjectId,
-    isTracingEnabled,
     annotationLevel,
     resultAnnotations,
     timeRange,
@@ -102,8 +106,6 @@ const ProjectEvaluatorMetricPanels = memo(
     evaluatedProjectId: string;
     /** The evaluator's own trace project, minted when the evaluator is created. */
     traceProjectId: string;
-    /** The evaluation, latency, and cost charts read traces, which stop while it is off. */
-    isTracingEnabled: boolean;
     annotationLevel: AnnotationMetricLevel;
     /** The annotations the evaluator writes, named the way its runs persist them. */
     resultAnnotations: ReadonlyArray<ProjectEvaluatorResultAnnotation>;
@@ -137,13 +139,6 @@ const ProjectEvaluatorMetricPanels = memo(
             />
           ))}
         </Flex>
-        {isTracingEnabled ? null : (
-          <Alert variant="info" title="Tracing is off">
-            The evaluation, latency, and cost charts below are read from this
-            evaluator&apos;s traces, so they show only evaluations that ran
-            while tracing was on. The results charts above are unaffected.
-          </Alert>
-        )}
         <Flex direction="row" gap="size-200">
           <DeferredProjectMetricPanel
             chart={getProjectMetricChart("traces")}

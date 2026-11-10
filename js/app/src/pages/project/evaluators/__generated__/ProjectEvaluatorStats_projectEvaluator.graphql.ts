@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<44d7dd5c72742fd6122e617cdaced9a7>>
+ * @generated SignedSource<<9d53976a9dd5c7336e14293e6c91686f>>
  * @lightSyntaxTransform
  */
 
@@ -16,7 +16,6 @@ export type ProjectEvaluatorStats_projectEvaluator$data = {
   readonly evaluationLoad: {
     readonly evaluationCount: number;
     readonly excludesUntracedEvaluators: boolean;
-    readonly isMeasured: boolean;
     readonly meanEvaluationSeconds: number | null;
     readonly shareOfEvaluationTime: number | null;
   };
@@ -32,6 +31,7 @@ export type ProjectEvaluatorStats_projectEvaluator$data = {
     readonly queuedCount: number;
     readonly status: ProjectEvaluatorRunStatus;
   };
+  readonly tracingEnabled: boolean;
   readonly " $fragmentSpreads": FragmentRefs<"useProjectEvaluatorResultAnnotationsFragment">;
   readonly " $fragmentType": "ProjectEvaluatorStats_projectEvaluator";
 };
@@ -130,6 +130,13 @@ return {
     {
       "alias": null,
       "args": null,
+      "kind": "ScalarField",
+      "name": "tracingEnabled",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
       "concreteType": "ProjectEvaluatorEvaluationLoad",
       "kind": "LinkedField",
       "name": "evaluationLoad",
@@ -160,13 +167,6 @@ return {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
-          "name": "isMeasured",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
           "name": "excludesUntracedEvaluators",
           "storageKey": null
         }
@@ -184,6 +184,6 @@ return {
 };
 })();
 
-(node as any).hash = "89b03f9f11991ede36fc7aad7ecdefae";
+(node as any).hash = "abd1f41205b2a074b5164a90390dbd8d";
 
 export default node;

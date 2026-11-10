@@ -293,12 +293,6 @@ class ProjectEvaluatorEvaluationLoad:
             "off: evaluation time is measured from evaluator traces."
         )
     )
-    is_measured: bool = strawberry.field(
-        description=(
-            "Whether this evaluator's load is measured. Evaluation time is measured from "
-            "evaluator traces, so it is false while the evaluator's tracing is off."
-        )
-    )
     excludes_untraced_evaluators: bool = strawberry.field(
         description=(
             "Whether an enabled project evaluator on the server has tracing off. Its "
@@ -1611,7 +1605,6 @@ class ProjectEvaluator(Node):
             evaluation_count=load.evaluation_count,
             mean_evaluation_seconds=load.mean_evaluation_seconds,
             share_of_evaluation_time=load.share_of_evaluation_time,
-            is_measured=load.tracing_enabled,
             excludes_untraced_evaluators=load.excludes_untraced_evaluators,
         )
 

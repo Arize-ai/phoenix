@@ -16,8 +16,6 @@ export type ProjectEvaluatorEvaluationLoad = {
   evaluationCount: number;
   meanEvaluationSeconds: number | null;
   shareOfEvaluationTime: number | null;
-  /** False while the evaluator's tracing is off: load is measured from traces. */
-  isMeasured: boolean;
   /** Whether the server total leaves out an enabled evaluator with tracing off. */
   excludesUntracedEvaluators: boolean;
 };
@@ -29,25 +27,26 @@ const secondsFormatter = new Intl.NumberFormat(undefined, {
 /**
  * The share of the server's evaluation time this evaluator used over the last
  * hour, with its evaluation count and mean time on hover. Shown as `--` before
- * it has evaluated anything in that hour, and as "tracing off" when its load
- * is not measured. When other evaluators' load is not measured, the hover
- * says the share leaves them out.
+ * it has evaluated anything in that hour, and as "tracing off" while its
+ * tracing is off, since load is measured from evaluator traces. When other
+ * evaluators have tracing off, the hover says the share leaves them out.
  */
 export function ProjectEvaluatorLoad({
   evaluationLoad,
+  isTracingEnabled,
   size,
   fontFamily,
 }: {
   evaluationLoad: ProjectEvaluatorEvaluationLoad;
+  isTracingEnabled: boolean;
 } & Pick<TextProps, "size" | "fontFamily">) {
   const {
     evaluationCount,
     meanEvaluationSeconds,
     shareOfEvaluationTime,
-    isMeasured,
     excludesUntracedEvaluators,
   } = evaluationLoad;
-  if (!isMeasured) {
+  if (!isTracingEnabled) {
     return (
       <ProjectEvaluatorTracingOffValue
         measure="Evaluation time"
@@ -93,10 +92,16 @@ export function ProjectEvaluatorLoad({
 /** The evaluators table's load cell. */
 export function ProjectEvaluatorLoadCell({
   evaluationLoad,
+  isTracingEnabled,
 }: {
   evaluationLoad: ProjectEvaluatorEvaluationLoad;
+  isTracingEnabled: boolean;
 }) {
   return (
-    <ProjectEvaluatorLoad evaluationLoad={evaluationLoad} fontFamily="mono" />
+    <ProjectEvaluatorLoad
+      evaluationLoad={evaluationLoad}
+      isTracingEnabled={isTracingEnabled}
+      fontFamily="mono"
+    />
   );
 }

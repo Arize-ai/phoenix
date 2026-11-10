@@ -175,7 +175,7 @@ function ProjectEvaluatorTracesEmpty({
         <EmptyState
           graphic={<EmptyStateGraphic variant="trace" />}
           title="Tracing is off"
-          description="This evaluator stores only the annotations its evaluations write. Traces recorded while tracing was on appear here when they match the time range and filters. To record a trace of each evaluation, edit the evaluator and turn on tracing under Advanced."
+          description="Turn on tracing under Advanced to record a trace of each evaluation."
         />
       </TableEmptyWrap>
     );

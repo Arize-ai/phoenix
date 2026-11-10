@@ -5163,11 +5163,6 @@ type ProjectEvaluatorEvaluationLoad {
   shareOfEvaluationTime: Float
 
   """
-  Whether this evaluator's load is measured. Evaluation time is measured from evaluator traces, so it is false while the evaluator's tracing is off.
-  """
-  isMeasured: Boolean!
-
-  """
   Whether an enabled project evaluator on the server has tracing off. Its evaluation time is not measured, so every share is then of traced evaluation time only.
   """
   excludesUntracedEvaluators: Boolean!

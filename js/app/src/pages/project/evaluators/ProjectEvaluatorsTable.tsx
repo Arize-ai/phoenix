@@ -138,7 +138,6 @@ const readRow = (
           evaluationCount
           meanEvaluationSeconds
           shareOfEvaluationTime
-          isMeasured
           excludesUntracedEvaluators
         }
         evaluator {
@@ -568,6 +567,7 @@ export function ProjectEvaluatorsTable({
         cell: ({ row }) => (
           <ProjectEvaluatorLoadCell
             evaluationLoad={row.original.evaluationLoad}
+            isTracingEnabled={row.original.tracingEnabled}
           />
         ),
       },

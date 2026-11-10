@@ -29,15 +29,20 @@ const MEASURED: ProjectEvaluatorEvaluationLoad = {
   evaluationCount: 4,
   meanEvaluationSeconds: 2,
   shareOfEvaluationTime: 0.25,
-  isMeasured: true,
   excludesUntracedEvaluators: false,
 };
 
-function renderLoad(evaluationLoad: ProjectEvaluatorEvaluationLoad) {
+function renderLoad(
+  evaluationLoad: ProjectEvaluatorEvaluationLoad,
+  { isTracingEnabled = true }: { isTracingEnabled?: boolean } = {}
+) {
   act(() => {
     root.render(
       <ThemeProvider themeMode="dark">
-        <ProjectEvaluatorLoad evaluationLoad={evaluationLoad} />
+        <ProjectEvaluatorLoad
+          evaluationLoad={evaluationLoad}
+          isTracingEnabled={isTracingEnabled}
+        />
       </ThemeProvider>
     );
   });
@@ -62,12 +67,14 @@ describe("ProjectEvaluatorLoad", () => {
 
   it("says tracing is off rather than showing a share it cannot measure", () => {
     expect(
-      renderLoad({
-        ...MEASURED,
-        meanEvaluationSeconds: null,
-        shareOfEvaluationTime: null,
-        isMeasured: false,
-      })
+      renderLoad(
+        {
+          ...MEASURED,
+          meanEvaluationSeconds: null,
+          shareOfEvaluationTime: null,
+        },
+        { isTracingEnabled: false }
+      )
     ).toBe("tracing off");
   });
 });

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<254dcf294f9cf324f867ea88f5d5d3ab>>
+ * @generated SignedSource<<cf4e2d2b15a35d37d67115c675a61504>>
  * @lightSyntaxTransform
  */
 
@@ -31,7 +31,6 @@ export type ProjectEvaluatorsTabTableQuery$data = {
         readonly evaluationLoad: {
           readonly evaluationCount: number;
           readonly excludesUntracedEvaluators: boolean;
-          readonly isMeasured: boolean;
           readonly meanEvaluationSeconds: number | null;
           readonly shareOfEvaluationTime: number | null;
         };
@@ -270,13 +269,6 @@ v14 = {
       "args": null,
       "kind": "ScalarField",
       "name": "shareOfEvaluationTime",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "isMeasured",
       "storageKey": null
     },
     {
@@ -571,16 +563,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "854d3d63dcf64b43dc8a186332c33730",
+    "cacheID": "90e11eeda3e7b7864373ffa44a96dc98",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorsTabTableQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorsTabTableQuery(\n  $first: Int!\n  $timeRange: TimeRange!\n) {\n  evaluationQueue {\n    status\n    queuedCount\n  }\n  projectEvaluators(first: $first) {\n    edges {\n      node {\n        id\n        name\n        enabled\n        project {\n          id\n          name\n        }\n        evaluator {\n          __typename\n          kind\n          id\n        }\n        runSummary {\n          status\n          lastRunAt\n          queuedCount\n          runningCount\n          evaluatedCount\n          failedCount\n          clearedCount\n          oldestWaitingOrRetryingAt\n        }\n        tracingEnabled\n        evaluationLoad {\n          evaluationCount\n          meanEvaluationSeconds\n          shareOfEvaluationTime\n          isMeasured\n          excludesUntracedEvaluators\n        }\n        failureSummary(timeRange: $timeRange) {\n          failedCount\n          evaluatedCount\n          failureRate\n          lastFailedAt\n          lastError\n        }\n        lag(timeRange: $timeRange) {\n          p50Seconds\n          p95Seconds\n          p99Seconds\n        }\n        traceProject {\n          id\n          traceCount(timeRange: $timeRange)\n          costSummary(timeRange: $timeRange) {\n            total {\n              cost\n            }\n            prompt {\n              cost\n            }\n            completion {\n              cost\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query ProjectEvaluatorsTabTableQuery(\n  $first: Int!\n  $timeRange: TimeRange!\n) {\n  evaluationQueue {\n    status\n    queuedCount\n  }\n  projectEvaluators(first: $first) {\n    edges {\n      node {\n        id\n        name\n        enabled\n        project {\n          id\n          name\n        }\n        evaluator {\n          __typename\n          kind\n          id\n        }\n        runSummary {\n          status\n          lastRunAt\n          queuedCount\n          runningCount\n          evaluatedCount\n          failedCount\n          clearedCount\n          oldestWaitingOrRetryingAt\n        }\n        tracingEnabled\n        evaluationLoad {\n          evaluationCount\n          meanEvaluationSeconds\n          shareOfEvaluationTime\n          excludesUntracedEvaluators\n        }\n        failureSummary(timeRange: $timeRange) {\n          failedCount\n          evaluatedCount\n          failureRate\n          lastFailedAt\n          lastError\n        }\n        lag(timeRange: $timeRange) {\n          p50Seconds\n          p95Seconds\n          p99Seconds\n        }\n        traceProject {\n          id\n          traceCount(timeRange: $timeRange)\n          costSummary(timeRange: $timeRange) {\n            total {\n              cost\n            }\n            prompt {\n              cost\n            }\n            completion {\n              cost\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3105a25750f58d44c71ab3b3ea99cc8b";
+(node as any).hash = "3191848619a9ecf23dd4b9b7979b90ff";
 
 export default node;

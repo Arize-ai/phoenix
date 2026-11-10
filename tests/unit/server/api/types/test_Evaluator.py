@@ -2473,7 +2473,7 @@ async def test_untraced_project_evaluator_has_no_evaluation_load(
         }
         fragment EvaluationLoad on ProjectEvaluator {
             evaluationLoad {
-                meanEvaluationSeconds shareOfEvaluationTime isMeasured excludesUntracedEvaluators
+                meanEvaluationSeconds shareOfEvaluationTime excludesUntracedEvaluators
             }
         }""",
         variables={
@@ -2486,13 +2486,11 @@ async def test_untraced_project_evaluator_has_no_evaluation_load(
     assert response.data["traced"]["evaluationLoad"] == {
         "meanEvaluationSeconds": pytest.approx(2),
         "shareOfEvaluationTime": pytest.approx(1),
-        "isMeasured": True,
         "excludesUntracedEvaluators": True,
     }
     assert response.data["untraced"]["evaluationLoad"] == {
         "meanEvaluationSeconds": None,
         "shareOfEvaluationTime": None,
-        "isMeasured": False,
         "excludesUntracedEvaluators": True,
     }
 

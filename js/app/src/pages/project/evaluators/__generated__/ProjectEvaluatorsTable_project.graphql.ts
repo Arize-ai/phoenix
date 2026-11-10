@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6469119f90469b1398035d6f4b479023>>
+ * @generated SignedSource<<0244c3817fd4cbb47b32d002dae4e65a>>
  * @lightSyntaxTransform
  */
 
@@ -370,13 +370,6 @@ return {
                           "args": null,
                           "kind": "ScalarField",
                           "name": "shareOfEvaluationTime",
-                          "storageKey": null
-                        },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "isMeasured",
                           "storageKey": null
                         },
                         {

@@ -203,7 +203,6 @@ export function ProjectEvaluatorsTabTable({
                 evaluationCount
                 meanEvaluationSeconds
                 shareOfEvaluationTime
-                isMeasured
                 excludesUntracedEvaluators
               }
               failureSummary(timeRange: $timeRange) {
@@ -391,6 +390,7 @@ export function ProjectEvaluatorsTabTable({
       cell: ({ row }) => (
         <ProjectEvaluatorLoadCell
           evaluationLoad={row.original.evaluationLoad}
+          isTracingEnabled={row.original.tracingEnabled}
         />
       ),
     },
