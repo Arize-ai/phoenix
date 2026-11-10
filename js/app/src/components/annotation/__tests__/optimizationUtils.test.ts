@@ -41,6 +41,7 @@ describe("getOptimizationBounds", () => {
       lowerBound: undefined,
       upperBound: undefined,
       optimizationDirection: undefined,
+      isThresholdHighSide: false,
     });
   });
 
@@ -49,6 +50,7 @@ describe("getOptimizationBounds", () => {
       lowerBound: undefined,
       upperBound: undefined,
       optimizationDirection: undefined,
+      isThresholdHighSide: false,
     });
   });
 
@@ -57,6 +59,7 @@ describe("getOptimizationBounds", () => {
       lowerBound: 0,
       upperBound: 1,
       optimizationDirection: "MAXIMIZE",
+      isThresholdHighSide: false,
     });
   });
 
@@ -70,6 +73,7 @@ describe("getOptimizationBounds", () => {
       lowerBound: undefined,
       upperBound: undefined,
       optimizationDirection: "MAXIMIZE",
+      isThresholdHighSide: false,
     });
   });
 
@@ -78,6 +82,7 @@ describe("getOptimizationBounds", () => {
       lowerBound: 0,
       upperBound: 1,
       optimizationDirection: "MAXIMIZE",
+      isThresholdHighSide: false,
     });
   });
 
@@ -90,6 +95,7 @@ describe("getOptimizationBounds", () => {
       lowerBound: undefined,
       upperBound: undefined,
       optimizationDirection: "MAXIMIZE",
+      isThresholdHighSide: false,
     });
   });
 
@@ -106,6 +112,7 @@ describe("getOptimizationBounds", () => {
       lowerBound: 5,
       upperBound: 5,
       optimizationDirection: "MAXIMIZE",
+      isThresholdHighSide: false,
     });
   });
 
@@ -118,6 +125,7 @@ describe("getOptimizationBounds", () => {
       lowerBound: 0,
       upperBound: 1,
       optimizationDirection: undefined,
+      isThresholdHighSide: false,
     });
   });
 
@@ -130,6 +138,7 @@ describe("getOptimizationBounds", () => {
       lowerBound: 0,
       upperBound: 1,
       optimizationDirection: "MINIMIZE",
+      isThresholdHighSide: false,
     });
   });
 });
@@ -249,6 +258,27 @@ describe("getOptimizationValueFromConfig", () => {
       expect(
         getOptimizationValueFromConfig({ config, score: 0.9 })
       ).toBeLessThan(0);
+    });
+
+    it("puts a score exactly at the threshold on its high side", () => {
+      // 0.8 is labelled true: good when true is good, bad when false is.
+      expect(
+        getOptimizationValueFromConfig({
+          config: predicate("MAXIMIZE"),
+          score: 0.8,
+        })
+      ).toBeGreaterThan(0);
+      expect(
+        getOptimizationValueFromConfig({
+          config: predicate("MINIMIZE"),
+          score: 0.8,
+        })
+      ).toBeLessThan(0);
+    });
+
+    it("counts a certain Yes as true at a threshold of 1", () => {
+      const config = { ...predicate("MAXIMIZE"), threshold: 1 };
+      expect(getOptimizationValueFromConfig({ config, score: 1 })).toBe(1);
     });
 
     it("is neutral without a direction", () => {
@@ -540,9 +570,10 @@ describe("a human annotation config's saved threshold", () => {
     expect(
       getOptimizationValueFromConfig({ config: helpfulness, score: 8 })
     ).toBeGreaterThan(0);
+    // At the threshold is its high side, so good when maximizing.
     expect(
       getOptimizationValueFromConfig({ config: helpfulness, score: 7 })
-    ).toBe(0);
+    ).toBeGreaterThan(0);
   });
 
   it("falls back to the midpoint without one", () => {
@@ -572,5 +603,41 @@ describe("a human annotation config's saved threshold", () => {
     expect(
       getOptimizationValueFromConfig({ config: latency, score: 4 })
     ).toBeLessThan(0);
+    // At the threshold is its high side, so bad when minimizing.
+    expect(
+      getOptimizationValueFromConfig({ config: latency, score: 3 })
+    ).toBeLessThan(0);
+  });
+
+  it("keeps a score at the midpoint neutral without one", () => {
+    const unthresholded = toAnnotationOptimizationConfig({
+      annotationType: "CONTINUOUS",
+      optimizationDirection: "MAXIMIZE",
+      lowerBound: 0,
+      upperBound: 10,
+      threshold: null,
+    });
+    expect(
+      getOptimizationValueFromConfig({ config: unthresholded, score: 5 })
+    ).toBe(0);
+  });
+
+  it("grows from the threshold without dipping just above it", () => {
+    const at = getOptimizationValueFromConfig({
+      config: helpfulness,
+      score: 7,
+    });
+    const justAbove = getOptimizationValueFromConfig({
+      config: helpfulness,
+      score: 7.01,
+    });
+    expect(at).not.toBeNull();
+    expect(justAbove).toBeGreaterThanOrEqual(at!);
+    expect(
+      getOptimizationValueFromConfig({ config: helpfulness, score: 10 })
+    ).toBe(1);
+    expect(
+      getOptimizationValueFromConfig({ config: helpfulness, score: 8.5 })
+    ).toBeCloseTo(0.5);
   });
 });

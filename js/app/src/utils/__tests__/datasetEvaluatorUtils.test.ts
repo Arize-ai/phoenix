@@ -165,6 +165,7 @@ describe("datasetEvaluatorToAnnotationConfigs", () => {
       lowerBound: 0,
       upperBound: 1,
       threshold: undefined,
+      isThresholdHighSide: false,
       optimizationDirection: "MINIMIZE",
     });
   });

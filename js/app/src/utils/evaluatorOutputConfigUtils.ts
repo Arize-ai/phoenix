@@ -80,10 +80,10 @@ export function getContinuousThresholdDescription(
   optimizationDirection: string | null | undefined
 ): string {
   if (optimizationDirection === "MAXIMIZE") {
-    return "Good results are at or above this. Empty means the midpoint.";
+    return "Good results are at or above this. Must be between the bounds; empty means the midpoint.";
   }
   if (optimizationDirection === "MINIMIZE") {
-    return "Good results are at or below this. Empty means the midpoint.";
+    return "Good results are below this. Must be between the bounds; empty means the midpoint.";
   }
-  return "Where good results turn bad once a direction is set. Empty means the midpoint.";
+  return "Where good results turn bad once a direction is set. Must be between the bounds; empty means the midpoint.";
 }
