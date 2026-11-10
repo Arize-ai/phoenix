@@ -26,7 +26,11 @@ import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
 import type { Instrumentation } from "@opentelemetry/instrumentation";
 import { registerInstrumentations } from "@opentelemetry/instrumentation";
 import { resourceFromAttributes } from "@opentelemetry/resources";
-import type { SpanProcessor } from "@opentelemetry/sdk-trace";
+import type {
+  Sampler,
+  SpanLimits,
+  SpanProcessor,
+} from "@opentelemetry/sdk-trace";
 import { TracerProvider as SdkTracerProvider } from "@opentelemetry/sdk-trace";
 
 import { getEnvConfig, getEnvProjectName } from "./config";
@@ -150,6 +154,34 @@ export type RegisterParams = {
    * ```
    */
   spanProcessors?: SpanProcessor[];
+
+  /**
+   * The sampler that decides which spans are recorded and exported.
+   *
+   * OpenTelemetry JS 3 does not read `OTEL_TRACES_SAMPLER` or
+   * `OTEL_TRACES_SAMPLER_ARG`, so set sampling here.
+   *
+   * @default ParentBasedSampler({ root: AlwaysOnSampler })
+   * @example
+   * ```typescript
+   * import { ParentBasedSampler, TraceIdRatioBasedSampler, register } from "@arizeai/phoenix-otel";
+   *
+   * register({
+   *   sampler: new ParentBasedSampler({ root: new TraceIdRatioBasedSampler(0.1) }),
+   * });
+   * ```
+   */
+  sampler?: Sampler;
+
+  /**
+   * Limits on span attributes, events and links.
+   *
+   * OpenTelemetry JS 3 does not read the `OTEL_SPAN_*` or `OTEL_ATTRIBUTE_*`
+   * limit variables, so set limits here.
+   *
+   * @example { attributeValueLengthLimit: 4096, attributeCountLimit: 256 }
+   */
+  spanLimits?: SpanLimits;
 
   /**
    * Whether to register the tracer provider as the global provider.
@@ -383,6 +415,88 @@ function bindGlobalTracerProviderRegistrationToShutdown({
 }
 
 /**
+ * `OTEL_*` variables the OpenTelemetry JS 2.x SDK read and JS 3 ignores, with
+ * the `register()` option that replaces each group. A group is skipped when
+ * that option is passed, since the code then states the configuration.
+ */
+const IGNORED_OTEL_ENV_VARS: ReadonlyArray<{
+  keys: readonly string[];
+  replacement: string;
+  isConfiguredInCode: (params: RegisterParams) => boolean;
+}> = [
+  {
+    keys: ["OTEL_TRACES_SAMPLER", "OTEL_TRACES_SAMPLER_ARG"],
+    replacement: "the `sampler` option",
+    isConfiguredInCode: (params) => params.sampler !== undefined,
+  },
+  {
+    keys: [
+      "OTEL_ATTRIBUTE_COUNT_LIMIT",
+      "OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT",
+      "OTEL_EVENT_ATTRIBUTE_COUNT_LIMIT",
+      "OTEL_LINK_ATTRIBUTE_COUNT_LIMIT",
+      "OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT",
+      "OTEL_SPAN_ATTRIBUTE_PER_EVENT_COUNT_LIMIT",
+      "OTEL_SPAN_ATTRIBUTE_PER_LINK_COUNT_LIMIT",
+      "OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT",
+      "OTEL_SPAN_EVENT_COUNT_LIMIT",
+      "OTEL_SPAN_LINK_COUNT_LIMIT",
+    ],
+    replacement: "the `spanLimits` option",
+    isConfiguredInCode: (params) => params.spanLimits !== undefined,
+  },
+  {
+    keys: [
+      "OTEL_BSP_EXPORT_TIMEOUT",
+      "OTEL_BSP_MAX_EXPORT_BATCH_SIZE",
+      "OTEL_BSP_MAX_QUEUE_SIZE",
+      "OTEL_BSP_SCHEDULE_DELAY",
+    ],
+    replacement:
+      "a `BatchSpanProcessor` with options in the `spanProcessors` option",
+    isConfiguredInCode: (params) => params.spanProcessors !== undefined,
+  },
+];
+
+const warnedIgnoredOtelEnvVars = new Set<string>();
+
+/**
+ * Warns once per variable when an `OTEL_*` variable that OpenTelemetry JS 3
+ * no longer reads is set. Without this, a setting such as
+ * `OTEL_TRACES_SAMPLER=always_off` that used to disable tracing is silently
+ * dropped and spans start exporting.
+ */
+function warnAboutIgnoredOtelEnvVars(params: RegisterParams): void {
+  if (typeof process === "undefined" || !process.env) {
+    return;
+  }
+  for (const group of IGNORED_OTEL_ENV_VARS) {
+    if (group.isConfiguredInCode(params)) {
+      continue;
+    }
+    const setKeys = group.keys.filter(
+      (key) =>
+        process.env[key] !== undefined && !warnedIgnoredOtelEnvVars.has(key)
+    );
+    if (setKeys.length === 0) {
+      continue;
+    }
+    setKeys.forEach((key) => warnedIgnoredOtelEnvVars.add(key));
+    // eslint-disable-next-line no-console
+    console.warn(
+      `@arizeai/phoenix-otel: ${setKeys.join(", ")} ${setKeys.length === 1 ? "is" : "are"} set but ignored: ` +
+        `OpenTelemetry JS 3 no longer reads ${setKeys.length === 1 ? "it" : "them"}. ` +
+        `Use ${group.replacement} of register() instead. See MIGRATION.md in @arizeai/phoenix-otel.`
+    );
+  }
+}
+
+/** @internal Resets the one-time ignored `OTEL_*` variable warning latch for tests. */
+export function resetIgnoredOtelEnvVarWarningsForTesting(): void {
+  warnedIgnoredOtelEnvVars.clear();
+}
+
+/**
  * Registers Phoenix OpenTelemetry tracing with the specified configuration.
  *
  * This function sets up a complete OpenTelemetry tracing pipeline configured
@@ -473,16 +587,22 @@ export function register(params: RegisterParams): SdkTracerProvider {
     global = true,
     diagLogLevel,
     spanProcessors,
+    sampler,
+    spanLimits,
   } = params;
 
   if (diagLogLevel) {
     diag.setLogger(new DiagConsoleLogger(), diagLogLevel);
   }
 
+  warnAboutIgnoredOtelEnvVars(params);
+
   const provider = new SdkTracerProvider({
     resource: resourceFromAttributes({
       [SEMRESATTRS_PROJECT_NAME]: projectName,
     }),
+    sampler,
+    spanLimits,
     spanProcessors: spanProcessors || [getDefaultSpanProcessor(params)],
   });
 
