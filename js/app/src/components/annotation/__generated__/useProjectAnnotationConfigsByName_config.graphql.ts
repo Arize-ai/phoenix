@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a4099410e8c28acb865d71f749c93254>>
+ * @generated SignedSource<<348e466f4331af82b687bdbe09f1a5fc>>
  * @lightSyntaxTransform
  */
 
@@ -34,6 +34,6 @@ const node: ReaderInlineDataFragment = {
   "name": "useProjectAnnotationConfigsByName_config"
 };
 
-(node as any).hash = "9551d5796ad16d59d5495ed0084047bf";
+(node as any).hash = "4f96d547a53a850d779aa95e39eb30b3";
 
 export default node;

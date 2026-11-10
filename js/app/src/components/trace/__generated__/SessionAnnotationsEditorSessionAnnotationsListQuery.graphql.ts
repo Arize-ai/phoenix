@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cac09a85331e7c7f46081ca0f096b414>>
+ * @generated SignedSource<<c1337926c2928cd69731a48e43420b78>>
  * @lightSyntaxTransform
  */
 
@@ -111,6 +111,13 @@ v7 = {
   "storageKey": null
 },
 v8 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "threshold",
+  "storageKey": null
+},
+v9 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -206,6 +213,7 @@ v8 = {
                       "name": "upperBound",
                       "storageKey": null
                     },
+                    (v8/*:: as any*/),
                     (v5/*:: as any*/)
                   ],
                   "type": "ContinuousAnnotationConfig",
@@ -216,13 +224,7 @@ v8 = {
                   "selections": [
                     (v4/*:: as any*/),
                     (v5/*:: as any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "threshold",
-                      "storageKey": null
-                    }
+                    (v8/*:: as any*/)
                   ],
                   "type": "FreeformAnnotationConfig",
                   "abstractKey": null
@@ -240,7 +242,7 @@ v8 = {
   "type": "Project",
   "abstractKey": null
 },
-v9 = [
+v10 = [
   {
     "kind": "Variable",
     "name": "id",
@@ -263,13 +265,13 @@ return {
         "plural": false,
         "selections": [
           (v2/*:: as any*/),
-          (v8/*:: as any*/)
+          (v9/*:: as any*/)
         ],
         "storageKey": null
       },
       {
         "alias": "session",
-        "args": (v9/*:: as any*/),
+        "args": (v10/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -311,13 +313,13 @@ return {
         "selections": [
           (v3/*:: as any*/),
           (v2/*:: as any*/),
-          (v8/*:: as any*/)
+          (v9/*:: as any*/)
         ],
         "storageKey": null
       },
       {
         "alias": "session",
-        "args": (v9/*:: as any*/),
+        "args": (v10/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -400,16 +402,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "6c2575972528a692f4e89a0097356f1a",
+    "cacheID": "5a67863c53515c91f80788100acab1b7",
     "id": null,
     "metadata": {},
     "name": "SessionAnnotationsEditorSessionAnnotationsListQuery",
     "operationKind": "query",
-    "text": "query SessionAnnotationsEditorSessionAnnotationsListQuery(\n  $projectId: ID!\n  $sessionId: ID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    id\n    ... on Project {\n      annotationConfigs {\n        configs: edges {\n          config: node {\n            __typename\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n            ... on AnnotationConfigBase {\n              __isAnnotationConfigBase: __typename\n              name\n              annotationType\n              description\n            }\n            ... on CategoricalAnnotationConfig {\n              optimizationDirection\n              values {\n                label\n                score\n              }\n            }\n            ... on ContinuousAnnotationConfig {\n              lowerBound\n              upperBound\n              optimizationDirection\n            }\n            ... on FreeformAnnotationConfig {\n              name\n              optimizationDirection\n              threshold\n            }\n          }\n        }\n      }\n    }\n  }\n  session: node(id: $sessionId) {\n    __typename\n    id\n    ... on ProjectSession {\n      ...SessionAnnotationsEditor_sessionAnnotations\n    }\n  }\n}\n\nfragment SessionAnnotationsEditor_sessionAnnotations on ProjectSession {\n  id\n  sessionAnnotations {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n"
+    "text": "query SessionAnnotationsEditorSessionAnnotationsListQuery(\n  $projectId: ID!\n  $sessionId: ID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    id\n    ... on Project {\n      annotationConfigs {\n        configs: edges {\n          config: node {\n            __typename\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n            ... on AnnotationConfigBase {\n              __isAnnotationConfigBase: __typename\n              name\n              annotationType\n              description\n            }\n            ... on CategoricalAnnotationConfig {\n              optimizationDirection\n              values {\n                label\n                score\n              }\n            }\n            ... on ContinuousAnnotationConfig {\n              lowerBound\n              upperBound\n              threshold\n              optimizationDirection\n            }\n            ... on FreeformAnnotationConfig {\n              name\n              optimizationDirection\n              threshold\n            }\n          }\n        }\n      }\n    }\n  }\n  session: node(id: $sessionId) {\n    __typename\n    id\n    ... on ProjectSession {\n      ...SessionAnnotationsEditor_sessionAnnotations\n    }\n  }\n}\n\nfragment SessionAnnotationsEditor_sessionAnnotations on ProjectSession {\n  id\n  sessionAnnotations {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "26722e9c60d0f8ec1cb65584fec658c6";
+(node as any).hash = "51e905c24677b7043ae3fb585f26392e";
 
 export default node;

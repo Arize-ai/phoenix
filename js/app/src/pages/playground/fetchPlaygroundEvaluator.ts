@@ -116,6 +116,7 @@ export const fetchPlaygroundEvaluatorOutputFragment = graphql`
       optimizationDirection
       lowerBound
       upperBound
+      threshold
     }
     ... on FreeformAnnotationConfig {
       name
@@ -171,10 +172,12 @@ export function toEvaluatorTaskOutputConfigs(
     if (config.__typename === "ContinuousAnnotationConfig") {
       return [
         {
+          annotationType: "CONTINUOUS",
           name: config.name,
           optimizationDirection: config.optimizationDirection,
           lowerBound: config.lowerBound,
           upperBound: config.upperBound,
+          threshold: config.threshold,
         },
       ];
     }
@@ -182,6 +185,7 @@ export function toEvaluatorTaskOutputConfigs(
     if (config.__typename === "FreeformAnnotationConfig") {
       return [
         {
+          annotationType: "FREEFORM",
           name: config.name,
           optimizationDirection: config.optimizationDirection,
           lowerBound: config.lowerBound,

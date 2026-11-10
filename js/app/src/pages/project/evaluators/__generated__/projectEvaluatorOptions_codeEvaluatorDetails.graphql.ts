@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<63de5756d34a181d2aa30352786f8c88>>
+ * @generated SignedSource<<8e0ffe18b43fc7de1fb0467aac1681e5>>
  * @lightSyntaxTransform
  */
 
@@ -37,6 +37,7 @@ export type projectEvaluatorOptions_codeEvaluatorDetails$data = {
     readonly lowerBound: number | null;
     readonly name: string;
     readonly optimizationDirection: OptimizationDirection;
+    readonly threshold: number | null;
     readonly upperBound: number | null;
   } | {
     readonly __typename: "FreeformAnnotationConfig";
@@ -66,6 +67,6 @@ const node: ReaderInlineDataFragment = {
   "name": "projectEvaluatorOptions_codeEvaluatorDetails"
 };
 
-(node as any).hash = "f8acbca29ae9f38b9b1b91246145910b";
+(node as any).hash = "4720f38003eece08990cb89b03321066";
 
 export default node;

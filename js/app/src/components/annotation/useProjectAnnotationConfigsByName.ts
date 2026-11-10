@@ -25,6 +25,7 @@ const annotationConfigFragment = graphql`
       optimizationDirection
       lowerBound
       upperBound
+      threshold
     }
     ... on FreeformAnnotationConfig {
       optimizationDirection

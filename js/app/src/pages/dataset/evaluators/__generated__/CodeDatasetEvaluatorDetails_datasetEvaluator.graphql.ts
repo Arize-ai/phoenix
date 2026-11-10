@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d7f60059fcf2d94008d5112253ecd4ed>>
+ * @generated SignedSource<<13ceb9229e1d71913353aa831938532b>>
  * @lightSyntaxTransform
  */
 
@@ -32,6 +32,7 @@ export type CodeDatasetEvaluatorDetails_datasetEvaluator$data = {
       readonly lowerBound: number | null;
       readonly name: string;
       readonly optimizationDirection: OptimizationDirection;
+      readonly threshold: number | null;
       readonly upperBound: number | null;
     } | {
       readonly __typename: "FreeformAnnotationConfig";
@@ -64,6 +65,7 @@ export type CodeDatasetEvaluatorDetails_datasetEvaluator$data = {
     readonly lowerBound: number | null;
     readonly name: string;
     readonly optimizationDirection: OptimizationDirection;
+    readonly threshold: number | null;
     readonly upperBound: number | null;
   } | {
     readonly __typename: "FreeformAnnotationConfig";
@@ -98,6 +100,13 @@ v1 = {
   "storageKey": null
 },
 v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "threshold",
+  "storageKey": null
+},
+v3 = {
   "alias": null,
   "args": null,
   "concreteType": null,
@@ -164,7 +173,8 @@ v2 = {
           "kind": "ScalarField",
           "name": "upperBound",
           "storageKey": null
-        }
+        },
+        (v2/*:: as any*/)
       ],
       "type": "ContinuousAnnotationConfig",
       "abstractKey": null
@@ -174,13 +184,7 @@ v2 = {
       "selections": [
         (v0/*:: as any*/),
         (v1/*:: as any*/),
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "threshold",
-          "storageKey": null
-        }
+        (v2/*:: as any*/)
       ],
       "type": "FreeformAnnotationConfig",
       "abstractKey": null
@@ -219,7 +223,7 @@ return {
       ],
       "storageKey": null
     },
-    (v2/*:: as any*/),
+    (v3/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -245,7 +249,7 @@ return {
               "name": "language",
               "storageKey": null
             },
-            (v2/*:: as any*/),
+            (v3/*:: as any*/),
             {
               "alias": null,
               "args": null,
@@ -293,6 +297,6 @@ return {
 };
 })();
 
-(node as any).hash = "9349ccc80d188e6dbdc225788cccf78a";
+(node as any).hash = "7258fe93a913f5ce916c4b95d30f1740";
 
 export default node;

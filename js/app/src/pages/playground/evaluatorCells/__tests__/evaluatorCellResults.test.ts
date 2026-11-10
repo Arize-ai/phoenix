@@ -119,6 +119,7 @@ describe("getEvaluatorTaskAnnotation", () => {
       optimizationDirection: "MAXIMIZE",
       lowerBound: 0,
       upperBound: 0.5,
+      threshold: null,
     });
     expect(
       getEvaluatorTaskAnnotation({

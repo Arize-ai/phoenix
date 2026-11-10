@@ -19,9 +19,9 @@ export type AnnotationConfigContinuous = Pick<
 > & {
   annotationType: "CONTINUOUS";
   /**
-   * The score separating good from bad results when it is not the midpoint
-   * of the bounds. Only a decision evaluator's Yes / No question sets it, to
-   * its threshold; annotation configs never carry one.
+   * The score separating good from bad results, strictly between the bounds;
+   * unset means their midpoint. A decision evaluator's Yes / No question sets
+   * it to its threshold.
    */
   threshold?: number | null;
 };

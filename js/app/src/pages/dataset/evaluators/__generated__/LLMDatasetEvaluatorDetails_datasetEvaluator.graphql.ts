@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<48a0254e98d5d98d753238975ee27641>>
+ * @generated SignedSource<<28da7ec7882bfd62427221dff596d6eb>>
  * @lightSyntaxTransform
  */
 
@@ -52,6 +52,7 @@ export type LLMDatasetEvaluatorDetails_datasetEvaluator$data = {
     readonly lowerBound?: number | null;
     readonly name?: string;
     readonly optimizationDirection?: OptimizationDirection;
+    readonly threshold?: number | null;
     readonly upperBound?: number | null;
     readonly values?: ReadonlyArray<{
       readonly label: string;
@@ -918,6 +919,13 @@ return {
               "kind": "ScalarField",
               "name": "upperBound",
               "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "threshold",
+              "storageKey": null
             }
           ],
           "type": "ContinuousAnnotationConfig",
@@ -932,6 +940,6 @@ return {
 };
 })();
 
-(node as any).hash = "b55431717277c4889fb60eddc1a56dba";
+(node as any).hash = "d5a7f6c27182b4b873c3db3a4f7bb02b";
 
 export default node;
