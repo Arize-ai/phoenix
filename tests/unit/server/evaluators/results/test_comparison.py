@@ -90,8 +90,8 @@ class TestMakeSideBinning:
         )
         binning = make_side_binning("helpfulness", config, None)
         assert binning.threshold == pytest.approx(7.0)
-        assert binning.bin(None, 6.0) == FLAGGED_LABEL  # good only above 7, not above 5
-        assert binning.bin(None, 7.0) == FLAGGED_LABEL
+        assert binning.bin(None, 6.0) == FLAGGED_LABEL  # good only from 7, not above 5
+        assert binning.bin(None, 7.0) == UNFLAGGED_LABEL  # at the threshold is good
         assert binning.bin(None, 8.0) == UNFLAGGED_LABEL
         # The caller's override still wins over the saved threshold.
         assert make_side_binning("helpfulness", config, 3.0).threshold == pytest.approx(3.0)
@@ -109,6 +109,7 @@ class TestMakeSideBinning:
         binning = make_side_binning("helpfulness", config, None)
         assert binning.threshold == pytest.approx(2.0)
         assert binning.bin(None, 3.0) == FLAGGED_LABEL
+        assert binning.bin(None, 2.0) == FLAGGED_LABEL  # at the threshold is high, so bad
         assert binning.bin(None, 1.0) == UNFLAGGED_LABEL
 
     def test_categorical_label_at_pivot_is_never_flagged(self) -> None:
@@ -136,10 +137,14 @@ class TestMakeSideBinning:
         "direction, flagged_scores, unflagged_scores",
         [
             pytest.param(
-                OptimizationDirection.MAXIMIZE, [0.7, 0.79], [0.81, 0.95], id="true-is-good"
+                # 0.8 itself is labelled true, so it is good.
+                OptimizationDirection.MAXIMIZE,
+                [0.7, 0.79],
+                [0.8, 0.81, 0.95],
+                id="true-is-good",
             ),
             pytest.param(
-                OptimizationDirection.MINIMIZE, [0.8, 0.95], [0.5, 0.7], id="false-is-good"
+                OptimizationDirection.MINIMIZE, [0.8, 0.95], [0.5, 0.7, 0.79], id="false-is-good"
             ),
         ],
     )
@@ -167,6 +172,30 @@ class TestMakeSideBinning:
             assert binning.bin("x", score) == FLAGGED_LABEL, score
         for score in unflagged_scores:
             assert binning.bin("x", score) == UNFLAGGED_LABEL, score
+
+    @pytest.mark.parametrize(
+        "direction, flagged",
+        [
+            pytest.param(OptimizationDirection.MAXIMIZE, False, id="true-is-good"),
+            pytest.param(OptimizationDirection.MINIMIZE, True, id="false-is-good"),
+        ],
+    )
+    def test_a_certain_yes_at_a_threshold_of_one_is_true(
+        self, direction: OptimizationDirection, flagged: bool
+    ) -> None:
+        policy = DecisionScoringPolicy(
+            questions={
+                "ok": PredicateScoring(
+                    type="predicate", threshold=1.0, optimization_direction=direction
+                )
+            }
+        )
+        (config,) = derive_decision_output_configs(
+            [PredicateQuestion(type="predicate", name="ok", instructions="Is it ok?")], policy
+        )
+        binning = make_side_binning("ok", config, None)
+        assert binning.bin("x", 1.0) == (FLAGGED_LABEL if flagged else UNFLAGGED_LABEL)
+        assert binning.bin("x", 0.99) == (UNFLAGGED_LABEL if flagged else FLAGGED_LABEL)
 
     def test_threshold_override_beats_a_derived_threshold(self) -> None:
         config = _continuous_config(direction=OptimizationDirection.MAXIMIZE)

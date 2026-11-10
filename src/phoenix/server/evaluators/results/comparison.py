@@ -44,13 +44,17 @@ class SideBinning:
     semantics pair with the frontend's optimizationUtils.ts: flagged means
     "not on the good side of the pivot" for the config's optimization
     direction — at or above it for MINIMIZE, at or below it for MAXIMIZE —
-    and at or above it by default when the direction is undetermined.
+    and at or above it by default when the direction is undetermined. A
+    continuous config's own threshold (saved, or a decision predicate's, whose
+    label is true from it up) puts a score exactly at it on the high side, so
+    under MAXIMIZE that score is good and not flagged.
     """
 
     annotation_name: str
     categorical_label_order: Optional[tuple[str, ...]]
     threshold: float = DEFAULT_FLAG_THRESHOLD
     flagged_when_gte: bool = True
+    threshold_is_high_side: bool = False
     flagged_label_set: Optional[frozenset[str]] = None
 
     @property
@@ -63,7 +67,12 @@ class SideBinning:
             return label
         if score is None:
             return None
-        flagged = score >= self.threshold if self.flagged_when_gte else score <= self.threshold
+        if self.flagged_when_gte:
+            flagged = score >= self.threshold
+        elif self.threshold_is_high_side:
+            flagged = score < self.threshold
+        else:
+            flagged = score <= self.threshold
         return FLAGGED_LABEL if flagged else UNFLAGGED_LABEL
 
 
@@ -117,6 +126,9 @@ def make_side_binning(
         categorical_label_order=None,
         threshold=threshold,
         flagged_when_gte=continuous_direction is not OptimizationDirection.MAXIMIZE,
+        threshold_is_high_side=threshold_override is None
+        and isinstance(output_config, ContinuousOutputConfig)
+        and output_config.threshold is not None,
         flagged_label_set=frozenset({FLAGGED_LABEL}),
     )
 
