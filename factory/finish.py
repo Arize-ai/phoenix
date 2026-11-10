@@ -280,8 +280,8 @@ def start_session(
     kickoff_text = (
         f"Finish pull request #{pr['number']} in {repo}. {issue_text} The repo is checked out "
         f"at commit {pr['headRefOid']}, targeting {pr['baseRefName']}. Before bootstrap or "
-        f"any other work, verify `git rev-parse HEAD` equals {pr['headRefOid']}; stop if "
-        f"it differs or the mount is missing. Never fall back to another commit. "
+        f"any other work, stop if the repository mount is missing. "
+        f"Never fall back to another commit. "
         f"Create the local work branch with `git switch -C {pr['headRefName']} "
         f"{pr['headRefOid']}`; push only normally, never force-push. Read it with "
         f"pull_request_read. `{requester_login}` asked for this run. "

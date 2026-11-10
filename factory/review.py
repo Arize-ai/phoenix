@@ -220,9 +220,8 @@ def start_session(
         f"Review pull request #{pr['number']} in {repo}. Review commit {head_sha}, the head of "
         f"{describe_head(pr=pr)}, against base branch {pr['baseRefName']}. "
         f"The repository mount is pinned to {head_sha}. Before bootstrap or any other work, "
-        f"verify `git rev-parse HEAD` equals {head_sha}; stop if it differs or the mount "
-        f"is missing. Never fall back to another commit. Read the PR with pull_request_read."
-        + format_open_threads(threads=open_threads)
+        f"stop if the repository mount is missing. Never fall back to another commit. "
+        f"Read the PR with pull_request_read." + format_open_threads(threads=open_threads)
     )
     session = client.beta.sessions.create(
         agent=read_lock_id(lock=lock, lock_key=REVIEW_AGENT_LOCK_KEY),
