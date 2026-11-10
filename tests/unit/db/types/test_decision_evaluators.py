@@ -3,11 +3,16 @@
 from typing import Any
 
 import pytest
+from pydantic import TypeAdapter
+from sqlalchemy.dialects import sqlite
 
+from phoenix.db.models import _OutputConfigList
 from phoenix.db.types.annotation_configs import (
     CategoricalOutputConfig,
     ContinuousOutputConfig,
     OptimizationDirection,
+    OutputConfig,
+    OutputConfigType,
 )
 from phoenix.db.types.decision_evaluators import (
     ChoiceScoring,
@@ -91,6 +96,29 @@ def test_predicate_output_carries_its_threshold_but_never_serializes_it() -> Non
         predicate.model_dump()
         == ContinuousOutputConfig.model_validate(predicate.model_dump()).model_dump()
     )
+
+
+def test_storage_dumps_leave_out_a_predicates_threshold() -> None:
+    # The model's own dump leaves out every unset field, so it cannot show this. The
+    # dumps that reach JSON columns and snapshots wrap the config, and only the
+    # config's serializer keeps a derived threshold out of them. At 1.0, a leaked one
+    # would also fail to reload, as a saved threshold on a bound.
+    policy = DecisionScoringPolicy(
+        questions={"correct": PredicateScoring(type="predicate", threshold=1.0)}
+    )
+    configs = derive_decision_output_configs(questions(), policy)
+    predicate = configs[0]
+    assert isinstance(predicate, ContinuousOutputConfig)
+    assert predicate.threshold == 1.0
+    stored = [
+        OutputConfig(root=predicate).model_dump(),
+        OutputConfig(root=predicate).model_dump(mode="json"),
+        TypeAdapter(list[OutputConfigType]).dump_python(configs)[0],
+        _OutputConfigList().process_bind_param(configs, sqlite.dialect())[0],  # type: ignore[index]
+    ]
+    for dump in stored:
+        assert "threshold" not in dump
+        assert OutputConfig.model_validate(dump).root.threshold is None  # type: ignore[union-attr]
 
 
 @pytest.mark.parametrize("threshold", [0.0, 1.0])
