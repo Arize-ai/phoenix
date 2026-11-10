@@ -79,7 +79,10 @@ class EvaluationActivityGroup:
         return self.group.failed_count
 
     @strawberry.field(  # type: ignore[untyped-decorator]
-        description="Cost in USD of the evaluations' traces started in the range; null if none."
+        description=(
+            "Cost in USD of the evaluations' traces started in the range; null if none. "
+            "Evaluators with tracing off write no traces, so their evaluations add no cost."
+        )
     )
     def cost(self) -> Optional[float]:
         return self.group.cost
@@ -124,7 +127,10 @@ class EvaluationActivityBinGroup:
         return self.group.lag_p95_seconds
 
     @strawberry.field(  # type: ignore[untyped-decorator]
-        description="Cost in USD of the evaluations' traces started in the bin; null if none."
+        description=(
+            "Cost in USD of the evaluations' traces started in the bin; null if none. "
+            "Evaluators with tracing off write no traces, so their evaluations add no cost."
+        )
     )
     def cost(self) -> Optional[float]:
         return self.group.cost
@@ -180,10 +186,22 @@ class EvaluationActivity:
         return to_gql_evaluation_lag(self.activity.lag)
 
     @strawberry.field(  # type: ignore[untyped-decorator]
-        description="Cost in USD of the evaluations' traces started in the range; null if none."
+        description=(
+            "Cost in USD of the evaluations' traces started in the range; null if none. "
+            "Evaluators with tracing off write no traces, so their evaluations add no cost."
+        )
     )
     def cost(self) -> Optional[float]:
         return self.activity.cost
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Whether an enabled project evaluator in scope has tracing off. Its evaluations "
+            "count and lag like any other, but add no cost."
+        )
+    )
+    def excludes_untraced_evaluators(self) -> bool:
+        return self.activity.excludes_untraced_evaluators
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description="Activity per group, most evaluations first."

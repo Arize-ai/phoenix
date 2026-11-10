@@ -89,6 +89,47 @@ async def test_trace_target_binding_round_trips(
     assert listed[0]["evaluation_target"] == "TRACE"
 
 
+async def test_tracing_enabled_defaults_on_and_round_trips_through_patch(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    correctness_llm_evaluator: models.LLMEvaluator,
+) -> None:
+    project = await _project(db)
+    evaluator_id = str(GlobalID("LLMEvaluator", str(correctness_llm_evaluator.id)))
+    url = f"v1/projects/{GlobalID('Project', str(project.id))}/evaluators"
+    response = await httpx_client.post(
+        url,
+        json={
+            "name": "traced",
+            "evaluator_id": evaluator_id,
+            "evaluation_target": "SPAN",
+            "sampling_rate": 1.0,
+        },
+    )
+    assert response.status_code == 201, response.text
+    assert response.json()["data"]["tracing_enabled"] is True
+
+    response = await httpx_client.post(
+        url,
+        json={
+            "name": "untraced",
+            "evaluator_id": evaluator_id,
+            "evaluation_target": "SPAN",
+            "sampling_rate": 1.0,
+            "tracing_enabled": False,
+        },
+    )
+    assert response.status_code == 201, response.text
+    untraced = response.json()["data"]
+    assert untraced["tracing_enabled"] is False
+
+    response = await httpx_client.patch(
+        f"v1/project_evaluators/{untraced['id']}", json={"tracing_enabled": True}
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["data"]["tracing_enabled"] is True
+
+
 async def test_detach_removes_trace_projects_atomically_and_keeps_definition_and_prompt(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,

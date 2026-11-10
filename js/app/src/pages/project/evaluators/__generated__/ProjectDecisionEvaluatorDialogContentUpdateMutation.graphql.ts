@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<149772ccffb65955e7bdb103fb3f8049>>
+ * @generated SignedSource<<bdc0fda03b63e39b792acde3bd0649fd>>
  * @lightSyntaxTransform
  */
 
@@ -25,6 +25,7 @@ export type UpdateProjectDecisionEvaluatorInput = {
   projectEvaluatorId: string;
   samplingRate: number;
   scoringPolicy?: DecisionScoringPolicyInput | null;
+  tracingEnabled?: boolean | null;
 };
 export type EvaluatorInputMappingInput = {
   literalMapping: any;
@@ -134,6 +135,7 @@ export type ProjectDecisionEvaluatorDialogContentUpdateMutation$data = {
       readonly id: string;
       readonly name: string;
       readonly samplingRate: number;
+      readonly tracingEnabled: boolean;
     };
   };
 };
@@ -214,6 +216,13 @@ v1 = [
             "kind": "ScalarField",
             "name": "enabled",
             "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "tracingEnabled",
+            "storageKey": null
           }
         ],
         "storageKey": null
@@ -240,16 +249,16 @@ return {
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "13d5392b3dd5d3ddc205a43b83b164c2",
+    "cacheID": "6719371ea5b37b2c46170114738ad4ff",
     "id": null,
     "metadata": {},
     "name": "ProjectDecisionEvaluatorDialogContentUpdateMutation",
     "operationKind": "mutation",
-    "text": "mutation ProjectDecisionEvaluatorDialogContentUpdateMutation(\n  $input: UpdateProjectDecisionEvaluatorInput!\n) {\n  updateProjectDecisionEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      evaluationTarget\n      filterCondition\n      samplingRate\n      enabled\n    }\n  }\n}\n"
+    "text": "mutation ProjectDecisionEvaluatorDialogContentUpdateMutation(\n  $input: UpdateProjectDecisionEvaluatorInput!\n) {\n  updateProjectDecisionEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      evaluationTarget\n      filterCondition\n      samplingRate\n      enabled\n      tracingEnabled\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "032e89564ffe21e4becf32dedd66076f";
+(node as any).hash = "9e4cf43b905326b18ad9bf2133a6c049";
 
 export default node;

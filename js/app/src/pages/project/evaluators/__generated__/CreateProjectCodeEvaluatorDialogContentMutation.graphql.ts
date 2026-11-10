@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a28e47dc519452ad6cbbd460e25b3411>>
+ * @generated SignedSource<<e4d2ba61838c6c0708f07dfacb21d062>>
  * @lightSyntaxTransform
  */
 
@@ -28,6 +28,7 @@ export type CreateProjectCodeEvaluatorInput = {
   samplingRate: number;
   sandboxConfigId: string;
   sourceCode: string;
+  tracingEnabled?: boolean;
 };
 export type EvaluatorInputMappingInput = {
   literalMapping: any;
@@ -86,6 +87,7 @@ export type CreateProjectCodeEvaluatorDialogContentMutation$data = {
       readonly id: string;
       readonly name: string;
       readonly samplingRate: number;
+      readonly tracingEnabled: boolean;
     };
   };
 };
@@ -155,6 +157,13 @@ v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "tracingEnabled",
+  "storageKey": null
+},
+v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "kind",
   "storageKey": null
 };
@@ -187,6 +196,7 @@ return {
               (v5/*:: as any*/),
               (v6/*:: as any*/),
               (v7/*:: as any*/),
+              (v8/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -195,7 +205,7 @@ return {
                 "name": "evaluator",
                 "plural": false,
                 "selections": [
-                  (v8/*:: as any*/)
+                  (v9/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -237,6 +247,7 @@ return {
               (v5/*:: as any*/),
               (v6/*:: as any*/),
               (v7/*:: as any*/),
+              (v8/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -252,7 +263,7 @@ return {
                     "name": "__typename",
                     "storageKey": null
                   },
-                  (v8/*:: as any*/),
+                  (v9/*:: as any*/),
                   (v2/*:: as any*/)
                 ],
                 "storageKey": null
@@ -266,16 +277,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e8fed9b1bedcfe9747cfbd70b8e8060e",
+    "cacheID": "20a6226f3362389b5597fecf8f1751a5",
     "id": null,
     "metadata": {},
     "name": "CreateProjectCodeEvaluatorDialogContentMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateProjectCodeEvaluatorDialogContentMutation(\n  $input: CreateProjectCodeEvaluatorInput!\n) {\n  createProjectCodeEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      evaluationTarget\n      filterCondition\n      samplingRate\n      enabled\n      evaluator {\n        __typename\n        kind\n        id\n      }\n    }\n  }\n}\n"
+    "text": "mutation CreateProjectCodeEvaluatorDialogContentMutation(\n  $input: CreateProjectCodeEvaluatorInput!\n) {\n  createProjectCodeEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      evaluationTarget\n      filterCondition\n      samplingRate\n      enabled\n      tracingEnabled\n      evaluator {\n        __typename\n        kind\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "151fc3d357207b482ca2e3c1deb1245d";
+(node as any).hash = "1586659f82f281ee9dc9651ef9d87c01";
 
 export default node;

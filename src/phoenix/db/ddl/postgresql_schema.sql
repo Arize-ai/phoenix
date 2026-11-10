@@ -1622,6 +1622,7 @@ CREATE TABLE public.project_evaluators (
     evaluation_delay_seconds INTEGER NOT NULL,
     input_mapping JSONB,
     enabled BOOLEAN NOT NULL DEFAULT true,
+    tracing_enabled BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_project_evaluators PRIMARY KEY (id),

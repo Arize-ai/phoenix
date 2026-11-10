@@ -13,7 +13,7 @@ import {
 import { DRAWER_DEFAULT_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
 import { useDefaultDrawerSize } from "@phoenix/components/core/overlay/useDefaultDrawerSize";
 import { ShareLinkButton } from "@phoenix/components/ShareLinkButton";
-import { useProjectEvaluatorDetailsOutletContext } from "@phoenix/pages/project/evaluators/ProjectEvaluatorDetailsPage";
+import { useProjectEvaluatorDetailsOutletContext } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsOutletContext";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import {
   TraceDetails,
@@ -29,9 +29,9 @@ export function ProjectEvaluatorTracePage() {
   const { traceId, projectEvaluatorId } = useParams();
   const navigate = useNavigate();
   const paths = useProjectEvaluatorPaths();
-  // Rendered through the details page's outlet, so the evaluator is loaded.
-  const { traceProjectId: projectId } =
-    useProjectEvaluatorDetailsOutletContext();
+  // Rendered through the traces tab's outlet, so the evaluator is loaded.
+  const { projectEvaluator } = useProjectEvaluatorDetailsOutletContext();
+  const projectId = projectEvaluator.traceProject.id;
   const { defaultSize, onSizeChange } = useDefaultDrawerSize({
     id: "evaluator-trace-details",
   });
@@ -43,7 +43,7 @@ export function ProjectEvaluatorTracePage() {
   return (
     <Drawer
       isOpen
-      onClose={() => navigate(paths.details(projectEvaluatorId))}
+      onClose={() => navigate(paths.details(projectEvaluatorId, "traces"))}
       defaultSize={defaultSize}
       minSize={DRAWER_DEFAULT_MIN_SIZE}
       onResize={onSizeChange}

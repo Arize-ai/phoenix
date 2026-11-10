@@ -616,6 +616,7 @@ class UpdateProjectDecisionEvaluatorInput:
     decision_version: Optional[models.DecisionVersion] = None
     scoring_policy: Optional[DecisionScoringPolicy] = UNSET
     enabled: Optional[bool] = UNSET
+    tracing_enabled: Optional[bool] = UNSET
     evaluation_delay_seconds: Optional[int] = UNSET
 
 
@@ -632,6 +633,8 @@ async def update_project_decision_evaluator(
     )
     if input.enabled is None:
         raise BadRequest("enabled cannot be set to null")
+    if input.tracing_enabled is None:
+        raise BadRequest("tracing_enabled cannot be set to null")
     project_evaluator_id = _id(input.project_evaluator_id, "ProjectEvaluator")
     await clear_queue_before_enabling(context.db, project_evaluator_id, input.enabled)
     try:
@@ -665,6 +668,7 @@ async def update_project_decision_evaluator(
                     sampling_rate=input.sampling_rate,
                     filter_condition=input.filter_condition,
                     enabled=input.enabled,
+                    tracing_enabled=input.tracing_enabled,
                     input_mapping=input.input_mapping,
                     evaluation_delay_seconds=input.evaluation_delay_seconds,
                 ),

@@ -387,6 +387,13 @@ def upgrade() -> None:
         ),
         sa.Column("input_mapping", JSON_, nullable=True),
         sa.Column("enabled", sa.Boolean(), nullable=False, server_default=sa.text("true")),
+        # Whether the evaluator's runs write traces to its trace project.
+        sa.Column(
+            "tracing_enabled",
+            sa.Boolean(),
+            nullable=False,
+            server_default=sa.text("true"),
+        ),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
