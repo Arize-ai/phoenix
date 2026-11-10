@@ -77,13 +77,17 @@ describe("getContinuousThresholdError", () => {
 });
 
 describe("getContinuousThresholdDescription", () => {
-  it("names the good side for the direction", () => {
-    expect(getContinuousThresholdDescription("MAXIMIZE")).toMatch(
-      /^Good results are at or above this/
+  it("names the good side for the direction and the bounds rule", () => {
+    // A score at the threshold is on its high side: good when maximizing,
+    // bad when minimizing.
+    expect(getContinuousThresholdDescription("MAXIMIZE")).toBe(
+      "Good results are at or above this. Must be between the bounds; empty means the midpoint."
     );
-    expect(getContinuousThresholdDescription("MINIMIZE")).toMatch(
-      /^Good results are at or below this/
+    expect(getContinuousThresholdDescription("MINIMIZE")).toBe(
+      "Good results are below this. Must be between the bounds; empty means the midpoint."
     );
-    expect(getContinuousThresholdDescription("NONE")).toMatch(/midpoint/);
+    expect(getContinuousThresholdDescription("NONE")).toMatch(
+      /Must be between the bounds; empty means the midpoint\.$/
+    );
   });
 });

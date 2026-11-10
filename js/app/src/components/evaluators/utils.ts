@@ -1,7 +1,7 @@
 import { graphql, readInlineData } from "relay-runtime";
 
 import {
-  getOptimizationValue,
+  type AnnotationOptimizationConfig,
   getOptimizationValueFromConfig,
 } from "@phoenix/components/annotation/optimizationUtils";
 import type { AnnotationConfig as TypedAnnotationConfig } from "@phoenix/components/annotation/types";
@@ -624,38 +624,22 @@ export function getOutputConfigOptimizationValue({
     return null;
   }
 
-  const optimizationDirection =
-    matchedConfig.optimizationDirection === "MAXIMIZE" ||
-    matchedConfig.optimizationDirection === "MINIMIZE"
-      ? matchedConfig.optimizationDirection
-      : undefined;
-
-  let lowerBound: number | undefined;
-  let upperBound: number | undefined;
-  let threshold: number | undefined;
-
-  if ("values" in matchedConfig) {
-    const scores = matchedConfig.values
-      .map((v) => v.score)
-      .filter((s): s is number => s != null);
-    if (scores.length > 0) {
-      lowerBound = Math.min(...scores);
-      upperBound = Math.max(...scores);
-    }
-  } else if ("threshold" in matchedConfig) {
-    threshold = matchedConfig.threshold ?? undefined;
-    lowerBound = matchedConfig.lowerBound ?? undefined;
-    upperBound = matchedConfig.upperBound ?? undefined;
-  } else if ("lowerBound" in matchedConfig) {
-    lowerBound = matchedConfig.lowerBound ?? undefined;
-    upperBound = matchedConfig.upperBound ?? undefined;
-  }
-
-  return getOptimizationValue({
-    score,
-    lowerBound,
-    upperBound,
-    threshold,
-    optimizationDirection,
-  });
+  const config: AnnotationOptimizationConfig =
+    "values" in matchedConfig
+      ? {
+          annotationType: "CATEGORICAL",
+          optimizationDirection: matchedConfig.optimizationDirection,
+          values: matchedConfig.values.map(({ label, score }) => ({
+            label,
+            score: score ?? null,
+          })),
+        }
+      : {
+          annotationType: getEvaluatorOutputConfigType(matchedConfig),
+          optimizationDirection: matchedConfig.optimizationDirection,
+          lowerBound: matchedConfig.lowerBound,
+          upperBound: matchedConfig.upperBound,
+          threshold: matchedConfig.threshold,
+        };
+  return getOptimizationValueFromConfig({ config, score });
 }
