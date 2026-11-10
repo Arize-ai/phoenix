@@ -376,7 +376,7 @@ function SideNavContent({
             <NavLink
               to="/prompts"
               text="Prompts"
-              leadingVisual={<Icon svg={<Icons.MessageSquare />} />}
+              leadingVisual={<Icon svg={<Icons.MessagesSquare />} />}
               trailingVisual={
                 counts?.promptCount != null ? (
                   <Counter variant="quiet">

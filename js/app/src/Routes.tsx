@@ -1173,7 +1173,7 @@ export const appRouteObjects = createRoutesFromElements(
               section: "Pages",
               label: "Prompts",
               description: "Manage and version prompts and decisions",
-              icon: "MessageSquare",
+              icon: "MessagesSquare",
             },
           }}
         >

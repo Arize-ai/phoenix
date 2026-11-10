@@ -26,6 +26,22 @@ const textCSS = (maxWidth: CSSProperties["maxWidth"]) => css`
   }
 `;
 
+/**
+ * When the name gives way first: the name shrinks to an ellipsis and the
+ * value keeps its full width, so a long name never clips the score.
+ */
+const nameGivesWayCSS = css`
+  flex: 0 1 auto;
+  min-width: 0;
+  .text {
+    max-width: 100%;
+  }
+`;
+
+const valueKeepsWidthCSS = css`
+  flex: none;
+`;
+
 const valuePartsCSS = css`
   display: inline-flex;
   align-items: center;
@@ -101,6 +117,16 @@ interface AnnotationNameAndValueProps {
    * Whether to show the color swatch next to the annotation name
    */
   showColorSwatch?: boolean;
+  /**
+   * Truncate the name before the value when space runs out, so the label and
+   * score always show in full. Off by default: both shrink together.
+   */
+  truncateNameFirst?: boolean;
+  /**
+   * The name to show in place of the annotation's own; null shows no name.
+   * The title tooltip keeps the annotation's full name either way.
+   */
+  displayName?: string | null;
 }
 export function AnnotationNameAndValue({
   annotation,
@@ -110,8 +136,11 @@ export function AnnotationNameAndValue({
   maxWidth = "9rem",
   optimizationValue,
   showColorSwatch = true,
+  truncateNameFirst = false,
+  displayName,
 }: AnnotationNameAndValueProps) {
   const valueParts = getAnnotationValueParts(annotation, displayPreference);
+  const name = displayName === undefined ? annotation.name : displayName;
 
   return (
     <Flex
@@ -125,18 +154,28 @@ export function AnnotationNameAndValue({
       {showColorSwatch && (
         <AnnotationColorSwatch annotationName={annotation.name} />
       )}
-      <div css={css(textCSS(maxWidth), { minWidth })} title={annotation.name}>
-        <Text weight="heavy" size={size} color="inherit">
-          {annotation.name}
-        </Text>
-      </div>
+      {name ? (
+        <div
+          css={css(
+            textCSS(maxWidth),
+            { minWidth },
+            truncateNameFirst && nameGivesWayCSS
+          )}
+          title={annotation.name}
+        >
+          <Text weight="heavy" size={size} color="inherit">
+            {name}
+          </Text>
+        </div>
+      ) : null}
       {valueParts.length > 0 && (
         <div
           css={css(
             textCSS(maxWidth),
             css`
               margin-left: var(--global-dimension-100);
-            `
+            `,
+            truncateNameFirst && valueKeepsWidthCSS
           )}
         >
           <AnnotationScoreText
