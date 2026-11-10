@@ -1,0 +1,1 @@
+Our support bot in the `mobile-review-queue` project sometimes states things that aren't backed by the conversation or by any tool output. Score every bot response for that, and put the results on the traces in Phoenix so we can filter on them. We work in Python, and you can use `claude-haiku-5-5` if you need a model.

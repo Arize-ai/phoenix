@@ -519,3 +519,76 @@ def stored_label_agreement(outputs: Sequence[Any], truth: Sequence[bool], patter
     regex = re.compile(pattern, re.IGNORECASE)
     candidates.append([bool(regex.search(json.dumps(o))) for o in outputs])
     return max((agreement(c, truth) for c in candidates), default=0.0)
+
+
+# Annotations on a project's traces
+
+
+@dataclass
+class TraceAnnotation:
+    """A span or trace annotation, attributed to the trace it belongs to."""
+
+    trace_id: str
+    unit: str
+    span_kind: str | None
+    name: str
+    annotator_kind: str
+    label: str | None
+    score: float | None
+    explanation: str | None
+
+
+def trace_level_annotations(
+    project: str, spans: Sequence[Mapping[str, Any]]
+) -> list[TraceAnnotation]:
+    """Returns every span and trace annotation in a project, each with its trace ID.
+
+    Notes, which Phoenix stores as annotations named `note`, are left out.
+    """
+    trace_of = {s["context"]["span_id"]: s["context"]["trace_id"] for s in spans}
+    kind_of = {s["context"]["span_id"]: str(s.get("span_kind", "")).upper() for s in spans}
+    found: list[TraceAnnotation] = []
+    span_ids = sorted(trace_of)
+    for start in range(0, len(span_ids), 100):
+        page = _paginate(
+            f"/v1/projects/{_quote(project)}/span_annotations",
+            {"span_ids": span_ids[start : start + 100], "limit": 1000},
+        )
+        for a in page:
+            found.append(_trace_annotation(a, trace_of.get(a.get("span_id", "")), "span", kind_of))
+    trace_ids = sorted(set(trace_of.values()))
+    for start in range(0, len(trace_ids), 50):
+        page = _paginate(
+            f"/v1/projects/{_quote(project)}/trace_annotations",
+            {"trace_ids": trace_ids[start : start + 50], "limit": 1000},
+        )
+        for a in page:
+            found.append(_trace_annotation(a, a.get("trace_id"), "trace", kind_of))
+    return [a for a in found if a.trace_id and a.name != "note"]
+
+
+def _trace_annotation(
+    raw: Mapping[str, Any], trace_id: str | None, unit: str, kind_of: Mapping[str, str]
+) -> TraceAnnotation:
+    result = raw.get("result") or {}
+    score = result.get("score")
+    return TraceAnnotation(
+        trace_id=str(trace_id or ""),
+        unit=unit,
+        span_kind=kind_of.get(raw.get("span_id", "")) if unit == "span" else None,
+        name=str(raw.get("name")),
+        annotator_kind=str(raw.get("annotator_kind") or ""),
+        label=result.get("label"),
+        score=float(score) if score is not None else None,
+        explanation=result.get("explanation"),
+    )
+
+
+def per_trace(annotations: Sequence[TraceAnnotation], name: str) -> dict[str, TraceAnnotation]:
+    """Returns one annotation per trace for a name, preferring LLM spans, then traces."""
+    rank = {"LLM": 0, None: 1}
+    chosen: dict[str, TraceAnnotation] = {}
+    for a in sorted(annotations, key=lambda a: rank.get(a.span_kind, 2)):
+        if a.name == name and (a.label is not None or a.score is not None):
+            chosen.setdefault(a.trace_id, a)
+    return chosen

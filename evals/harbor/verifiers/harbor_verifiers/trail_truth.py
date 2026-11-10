@@ -33,6 +33,7 @@ class TraceFacts:
     error_categories: frozenset[str]
     uses_search_agent: bool
     llm_spans: int
+    error_status: bool = False
 
     @property
     def tool_selection_error(self) -> bool:
@@ -110,6 +111,7 @@ def traces() -> dict[str, TraceFacts]:
             error_categories=frozenset(categories.get(trace_id, set())),
             uses_search_agent=any(s["name"] == "ToolCallingAgent.run" for s in members),
             llm_spans=sum(str(s.get("span_kind", "")).upper() == "LLM" for s in members),
+            error_status=any(str(s.get("status_code", "")).upper() == "ERROR" for s in members),
         )
     return facts
 

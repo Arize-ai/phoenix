@@ -101,7 +101,7 @@ def main() -> None:
         any(held_out == split for s in splits.values() for split in s.values())
     )
     scores["practice_single_test_look"] = float(1 <= len(on_held_out) <= 2)
-    scores["practice_no_full_dataset_runs"] = float(not partial)
+    scores["practice_no_full_dataset_runs"] = float(bool(keyed) and not partial)
     scores["diag_used_existing_splits_as_test"] = float(
         any(held_out == split for split in existing_splits.values())
     )
