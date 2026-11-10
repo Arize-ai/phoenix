@@ -167,6 +167,16 @@ def _host(url: str) -> str:
     return urlsplit(url).netloc.lower()
 
 
+def _strip_v1_path_suffix(url: str) -> str:
+    from urllib.parse import urlsplit, urlunsplit
+
+    parts = urlsplit(url)
+    path = parts.path.rstrip("/")
+    if path.endswith("/v1"):
+        path = path.removesuffix("/v1")
+    return urlunsplit((parts.scheme, parts.netloc, path, parts.query, parts.fragment))
+
+
 def _requires_key(endpoint: BuiltInEndpoint, base_url: Optional[str]) -> bool:
     """Require an API key only when targeting the provider's canonical host; custom or
     local base URLs may not need one."""
@@ -204,7 +214,7 @@ async def resolve_builtin_config(
     if resolved is not None:
         resolved = checked_base_url(resolved).rstrip("/")
         if endpoint.base_url_drops_v1:
-            resolved = resolved.removesuffix("/v1")
+            resolved = _strip_v1_path_suffix(resolved)
 
     api_key: Optional[str] = None
     if endpoint.api_key_env_vars:
