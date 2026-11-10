@@ -146,7 +146,7 @@ export type RegisterParams = {
    *
    * @example
    * ```typescript
-   * import { BatchSpanProcessor } from '@opentelemetry/sdk-trace';
+   * import { BatchSpanProcessor } from '@arizeai/phoenix-otel';
    *
    * const customProcessors = [
    *   new BatchSpanProcessor({ exporter }),
@@ -440,12 +440,14 @@ function bindGlobalTracerProviderRegistrationToShutdown({
  * @example
  * Custom span processors:
  * ```typescript
- * import { register } from '@arizeai/phoenix-otel';
- * import { BatchSpanProcessor } from '@opentelemetry/sdk-trace';
- * import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
+ * import {
+ *   BatchSpanProcessor,
+ *   OTLPTraceExporter,
+ *   register,
+ * } from '@arizeai/phoenix-otel';
  *
  * const exporter = new OTLPTraceExporter({
- *   url: 'https://app.phoenix.arize.com/v1/traces',
+ *   url: 'https://phoenix.example.com/v1/traces',
  *   headers: { 'Authorization': 'Bearer your-api-key' }
  * });
  *

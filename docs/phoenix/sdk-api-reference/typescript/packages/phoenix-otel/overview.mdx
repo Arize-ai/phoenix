@@ -13,7 +13,7 @@ Install the package and any OpenTelemetry instrumentations you want to use with 
 npm install @arizeai/phoenix-otel
 ```
 
-Requires Node.js 22.15 or newer and OpenTelemetry JS 3. Upgrading from 2.x? Read [Upgrade From Version 2](#upgrade-from-version-2).
+Requires Node.js 22.15 or newer and OpenTelemetry JS 3.
 
 ### Add Instrumentations
 
@@ -33,7 +33,7 @@ npm install \
 - decorators and context propagation: `observe()`, `setSession()`, `setUser()`, `setMetadata()`, `setTags()`, `setPromptTemplate()`, `setAttributes()`
 - attribute builders: `getLLMAttributes()`, `getRetrieverAttributes()`, `getEmbeddingAttributes()`, `getToolAttributes()`, `getMetadataAttributes()`, `getInputAttributes()`, `getOutputAttributes()`, `defaultProcessInput()`, `defaultProcessOutput()`
 - redaction and safety helpers: `OITracer`, `withSafety`, `safelyJSONStringify`, `safelyJSONParse`
-- OpenTelemetry utilities: `trace`, `context`, `SpanStatusCode`, `DiagLogLevel`, `registerInstrumentations()`
+- OpenTelemetry utilities: `trace`, `context`, `SpanStatusCode`, `DiagLogLevel`, `registerInstrumentations()`, `BatchSpanProcessor`, `SimpleSpanProcessor`, `OTLPTraceExporter`
 
 The re-exported OpenInference wrappers resolve the default tracer when the wrapped function runs, so module-scoped traced helpers continue following global provider changes.
 
@@ -218,9 +218,11 @@ await provider.shutdown();
 If you need full control over export, pass your own `spanProcessors`. This replaces the default Phoenix exporter setup.
 
 ```ts
-import { register } from "@arizeai/phoenix-otel";
-import { BatchSpanProcessor } from "@opentelemetry/sdk-trace";
-import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
+import {
+  BatchSpanProcessor,
+  OTLPTraceExporter,
+  register,
+} from "@arizeai/phoenix-otel";
 
 const exporter = new OTLPTraceExporter({
   url: "https://your-phoenix.example.com/v1/traces",
@@ -232,31 +234,6 @@ const provider = register({
   spanProcessors: [new BatchSpanProcessor({ exporter })],
 });
 ```
-
-## Upgrade From Version 2
-
-Version 3 moves to OpenTelemetry JS 3 and requires Node.js 22.15 or newer. The returned provider has no `register()` method, and processors come from `@opentelemetry/sdk-trace` with an options object:
-
-```ts
-// 2.x
-import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
-const provider = register({
-  spanProcessors: [new BatchSpanProcessor(exporter)],
-  global: false,
-});
-provider.register();
-
-// 3.x
-import { BatchSpanProcessor } from "@opentelemetry/sdk-trace";
-import { attachGlobalTracerProvider, register } from "@arizeai/phoenix-otel";
-const provider = register({
-  spanProcessors: [new BatchSpanProcessor({ exporter })],
-  global: false,
-});
-attachGlobalTracerProvider(provider);
-```
-
-A `tracerProvider` passed to `@arizeai/phoenix-client` experiments must also be an `@opentelemetry/sdk-trace` 3.x `TracerProvider`.
 
 ## Troubleshooting
 
@@ -292,7 +269,7 @@ await provider.shutdown();
 | **Attribute builders** | `getLLMAttributes()`, `getToolAttributes()`, `getRetrieverAttributes()`, `getEmbeddingAttributes()`, `getMetadataAttributes()` |
 | **Redaction and safety** | `OITracer`, `withSafety()`, `safelyJSONStringify()`, `safelyJSONParse()` |
 | **Semantic conventions** | `SemanticConventions`, `OpenInferenceSpanKind`, `MimeType` |
-| **OpenTelemetry** | `trace`, `context`, `SpanStatusCode`, `DiagLogLevel`, `suppressTracing`, `registerInstrumentations()` |
+| **OpenTelemetry** | `trace`, `context`, `SpanStatusCode`, `DiagLogLevel`, `suppressTracing`, `registerInstrumentations()`, `BatchSpanProcessor`, `SimpleSpanProcessor`, `OTLPTraceExporter` |
 | **Types** | `Tracer`, `Instrumentation`, `SpanTraceOptions`, `RegisterParams` |
 
 ## Where To Start

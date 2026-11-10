@@ -10,6 +10,8 @@ export { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
 export { registerInstrumentations } from "@opentelemetry/instrumentation";
 export { type Instrumentation } from "@opentelemetry/instrumentation";
 export {
+  BatchSpanProcessor,
+  SimpleSpanProcessor,
   type TracerProvider as NodeTracerProvider,
   type SpanProcessor,
 } from "@opentelemetry/sdk-trace";

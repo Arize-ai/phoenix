@@ -1,10 +1,9 @@
-// Custom span processors on OpenTelemetry JS 3. Processors come from
-// @opentelemetry/sdk-trace (not sdk-trace-base) and take an options object.
+// Custom span processors. BatchSpanProcessor and SimpleSpanProcessor are
+// re-exported from @arizeai/phoenix-otel and take an options object.
 
 /* eslint-disable no-console */
-import { BatchSpanProcessor } from "@opentelemetry/sdk-trace";
-
 import {
+  BatchSpanProcessor,
   ensureCollectorEndpoint,
   OTLPTraceExporter,
   register,
