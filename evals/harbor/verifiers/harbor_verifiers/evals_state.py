@@ -491,11 +491,11 @@ def keyed_experiments(
 # Reading binary labels that an agent stored in dataset outputs
 
 
-def _flatten(value: Any, prefix: str = "") -> dict[str, Any]:
+def flatten(value: Any, prefix: str = "") -> dict[str, Any]:
     if isinstance(value, Mapping):
         flat: dict[str, Any] = {}
         for key, item in value.items():
-            flat.update(_flatten(item, f"{prefix}.{key}" if prefix else str(key)))
+            flat.update(flatten(item, f"{prefix}.{key}" if prefix else str(key)))
         return flat
     if isinstance(value, list):
         return {prefix: json.dumps(value, sort_keys=True)}
@@ -509,7 +509,7 @@ def stored_label_agreement(outputs: Sequence[Any], truth: Sequence[bool], patter
     presence of `pattern` anywhere in the output, and returns the best agreement in either
     polarity. This accepts any reasonable labeling scheme without knowing its field names.
     """
-    flats = [_flatten(output) for output in outputs]
+    flats = [flatten(output) for output in outputs]
     candidates: list[list[bool | None]] = []
     for path in sorted({p for flat in flats for p in flat}):
         values = [json.dumps(flat.get(path), sort_keys=True) for flat in flats]
