@@ -1,17 +1,17 @@
 import { trace } from "@opentelemetry/api";
 import {
   InMemorySpanExporter,
-  NodeTracerProvider,
+  TracerProvider,
   SimpleSpanProcessor,
-} from "@opentelemetry/sdk-trace-node";
+} from "@opentelemetry/sdk-trace";
 import { MockLanguageModelV3 } from "ai/test";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 import { generateClassification } from "../../src/llm/generateClassification";
 
 const exporter = new InMemorySpanExporter();
-const provider = new NodeTracerProvider({
-  spanProcessors: [new SimpleSpanProcessor(exporter)],
+const provider = new TracerProvider({
+  spanProcessors: [new SimpleSpanProcessor({ exporter })],
 });
 
 beforeEach(() => {

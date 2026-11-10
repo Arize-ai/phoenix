@@ -84,7 +84,7 @@ const main = async () => {
   const response = await anthropic.messages.create({
     ...anthropicParams,
     // we may not have an anthropic model saved in the prompt
-    model: "claude-3-5-sonnet-20240620",
+    model: "claude-sonnet-5-5",
     // TODO: should this be strongly typed inside of toSDK results if sdk: "anthropic"?
     stream: true,
   });
