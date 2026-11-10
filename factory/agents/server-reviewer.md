@@ -20,8 +20,8 @@ Hold the change to `REVIEW.md` and the project skills for its area. Check these 
 
 - Every `@strawberry.mutation` and `@strawberry.subscription` declares `permission_classes`. Side-effecting resolvers are mutations, never `Query` fields. Run `make check-graphql-permissions`.
 - Schema changes ship a migration that works on both SQLite and PostgreSQL, with no single-dialect SQL.
-- Fields that resolve once per item of a list, such as `Span.project`, use dataloaders, not direct queries (no N+1). A root field that loads one row by its ID may query directly.
-- If you say a change is slower, say slower than what: for the same request, count the queries the change makes and the queries your suggested fix makes, and give both numbers.
+- Resolvers on object types other than `Query` use dataloaders, and no resolver queries inside a loop over rows (no N+1). A root `Query` field that loads one row by its ID may query directly.
+- If you say a change is slower, say slower than what: for the same request, compare the queries the change makes with the queries your suggested fix makes, and the rows each scans when that is the difference, and give the numbers.
 - Data-mutating operations emit events so subscribers stay in sync.
 - User-supplied URLs and headers are validated before the server dials out.
 - No secrets or internal details reach error messages or logs.
@@ -29,5 +29,7 @@ Hold the change to `REVIEW.md` and the project skills for its area. Check these 
 - Each new test would fail if the behavior it covers were removed, and exercises real code at the lowest layer that shows it (`REVIEW.md`: no tests that only exercise mocks or restate the implementation). Flag as blocking a test that mocks the module under test, patches out the database or query it is meant to check, or asserts only on what a mock returned. Suggest a test against the real `db` and `gql_client` fixtures instead, or deleting it and listing the behavior under Not verified.
 
 Report findings as `REVIEW.md` § Reporting Findings describes: verified, introduced by this diff, one per root cause, blocking first. Say "No findings." if there are none.
+
+If the author disputes a finding, answer the dispute: withdraw the finding, or show why it still holds. Don't just repeat the rule.
 
 End with one risk line for your area: side effects, performance and backwards compatibility, each `none`, `low`, `medium` or `high` with a reason of a few words.

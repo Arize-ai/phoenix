@@ -46,4 +46,6 @@ Grade severity by what a reader loses. **Blocking**: a wrong claim, a code block
 
 Report findings as `REVIEW.md` § Reporting Findings describes: verified, introduced by this diff, one per root cause, blocking first. Each wording finding gives the sentence as it is and the rewrite. Say "No findings." if there are none.
 
+If the author disputes a finding, answer the dispute: withdraw the finding, or show why it still holds. Don't just repeat the rule.
+
 End with one risk line for your area: side effects, performance and backwards compatibility, each `none`, `low`, `medium` or `high` with a reason of a few words. A docs change has backwards-compatibility risk when it moves or removes a page that other pages or external sites link to.
