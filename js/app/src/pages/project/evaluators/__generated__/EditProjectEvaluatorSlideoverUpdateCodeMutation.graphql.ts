@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bcfee19e1edf1262c7229d8b1a420e3f>>
+ * @generated SignedSource<<a97618a2f0b2c36d74a2782bfb35d87a>>
  * @lightSyntaxTransform
  */
 
@@ -25,6 +25,7 @@ export type UpdateProjectCodeEvaluatorInput = {
   samplingRate: number;
   sandboxConfigId?: string | null;
   sourceCode?: string | null;
+  tracingEnabled?: boolean | null;
 };
 export type EvaluatorInputMappingInput = {
   literalMapping: any;
@@ -80,6 +81,7 @@ export type EditProjectEvaluatorSlideoverUpdateCodeMutation$data = {
       readonly id: string;
       readonly name: string;
       readonly samplingRate: number;
+      readonly tracingEnabled: boolean;
     };
   };
 };
@@ -160,6 +162,13 @@ v1 = [
             "kind": "ScalarField",
             "name": "enabled",
             "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "tracingEnabled",
+            "storageKey": null
           }
         ],
         "storageKey": null
@@ -186,16 +195,16 @@ return {
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "ad5b40842eb247c0ae86f06135eb6515",
+    "cacheID": "f7ba83f9aef482a704ce549718a1eb13",
     "id": null,
     "metadata": {},
     "name": "EditProjectEvaluatorSlideoverUpdateCodeMutation",
     "operationKind": "mutation",
-    "text": "mutation EditProjectEvaluatorSlideoverUpdateCodeMutation(\n  $input: UpdateProjectCodeEvaluatorInput!\n) {\n  updateProjectCodeEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      evaluationTarget\n      filterCondition\n      samplingRate\n      enabled\n    }\n  }\n}\n"
+    "text": "mutation EditProjectEvaluatorSlideoverUpdateCodeMutation(\n  $input: UpdateProjectCodeEvaluatorInput!\n) {\n  updateProjectCodeEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      evaluationTarget\n      filterCondition\n      samplingRate\n      enabled\n      tracingEnabled\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "43789f757c5865c5470d63946ecf79ff";
+(node as any).hash = "7e8fef04fa7c3a50b4cb58d2b3756e9f";
 
 export default node;

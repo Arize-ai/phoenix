@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d710a27d39d31bfb2f059be7a0e10726>>
+ * @generated SignedSource<<21c68bf539e18556f1cbdd9e6d10d2ca>>
  * @lightSyntaxTransform
  */
 
@@ -31,6 +31,7 @@ export type UpdateProjectLLMEvaluatorInput = {
   promptVersion: ChatPromptVersionInput;
   promptVersionId?: string | null;
   samplingRate: number;
+  tracingEnabled?: boolean | null;
 };
 export type ChatPromptVersionInput = {
   customProviderId?: string | null;
@@ -272,6 +273,7 @@ export type EditProjectEvaluatorSlideoverUpdateLlmMutation$data = {
       readonly id: string;
       readonly name: string;
       readonly samplingRate: number;
+      readonly tracingEnabled: boolean;
     };
   };
 };
@@ -352,6 +354,13 @@ v1 = [
             "kind": "ScalarField",
             "name": "enabled",
             "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "tracingEnabled",
+            "storageKey": null
           }
         ],
         "storageKey": null
@@ -378,16 +387,16 @@ return {
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "a2b3ba7e527b8b5c0d0553c95c6d0f9b",
+    "cacheID": "60131ee0f00e545315dbe5c4e79b9057",
     "id": null,
     "metadata": {},
     "name": "EditProjectEvaluatorSlideoverUpdateLlmMutation",
     "operationKind": "mutation",
-    "text": "mutation EditProjectEvaluatorSlideoverUpdateLlmMutation(\n  $input: UpdateProjectLLMEvaluatorInput!\n) {\n  updateProjectLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      evaluationTarget\n      filterCondition\n      samplingRate\n      enabled\n    }\n  }\n}\n"
+    "text": "mutation EditProjectEvaluatorSlideoverUpdateLlmMutation(\n  $input: UpdateProjectLLMEvaluatorInput!\n) {\n  updateProjectLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      evaluationTarget\n      filterCondition\n      samplingRate\n      enabled\n      tracingEnabled\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "46945995ceccdd4842081292c2982050";
+(node as any).hash = "f066c4a0f638f358b59e9b9c7076f880";
 
 export default node;

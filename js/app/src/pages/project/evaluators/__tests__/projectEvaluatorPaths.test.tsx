@@ -35,6 +35,8 @@ function TestProjectEvaluatorPaths() {
         data-gallery-category={paths.gallery("AGENTS")}
         data-details={paths.details("ProjectEvaluator:1")}
         data-edit={paths.edit("ProjectEvaluator:1")}
+        data-details-traces={paths.details("ProjectEvaluator:1", "traces")}
+        data-edit-metrics={paths.edit("ProjectEvaluator:1", "metrics")}
         data-compare={paths.compare({
           a: "ProjectEvaluator:a/source",
           b: "ProjectEvaluator:b/source",
@@ -75,7 +77,7 @@ function renderAt(url: string) {
             element={<TestProjectEvaluatorPaths />}
           />
           <Route
-            path="/projects/:projectId/evaluators/:projectEvaluatorId/:traceId"
+            path="/projects/:projectId/evaluators/:projectEvaluatorId/traces/:traceId"
             element={<TestProjectEvaluatorPaths />}
           />
         </Routes>
@@ -107,6 +109,12 @@ describe("useProjectEvaluatorPaths", () => {
     );
     expect(path("edit")).toBe(
       "/projects/project-1/evaluators/ProjectEvaluator%3A1/edit?timeRangeKey=7d&proof=preserved"
+    );
+    expect(path("details-traces")).toBe(
+      "/projects/project-1/evaluators/ProjectEvaluator%3A1/traces?timeRangeKey=7d&proof=preserved"
+    );
+    expect(path("edit-metrics")).toBe(
+      "/projects/project-1/evaluators/ProjectEvaluator%3A1/metrics/edit?timeRangeKey=7d&proof=preserved"
     );
     expect(path("compare")).toBe(
       "/projects/project-1/evaluators/compare?timeRangeKey=7d&proof=preserved&evaluatorId=ProjectEvaluator%3Aa%2Fsource&evaluatorId=ProjectEvaluator%3Ab%2Fsource"
@@ -153,7 +161,7 @@ describe("useProjectEvaluatorPaths", () => {
 
   it("keeps an evaluator page's own span filter within that page", () => {
     const path = renderAt(
-      "/projects/project-1/evaluators/ProjectEvaluator%3A1/trace-1?spanFilterCondition=span_kind%20%3D%3D%20%27LLM%27"
+      "/projects/project-1/evaluators/ProjectEvaluator%3A1/traces/trace-1?spanFilterCondition=span_kind%20%3D%3D%20%27LLM%27"
     );
 
     expect(path("details")).toBe(
