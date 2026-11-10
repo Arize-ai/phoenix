@@ -2,17 +2,18 @@
 
 The keywords "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this specification are to be interpreted as described in BCP 14 [RFC2119] [RFC8174] when, and only when, they appear in all capitals, as shown here.
 
-An implementation is compliant if it satisfies all "MUST", "MUST NOT", "REQUIRED", "SHALL", and "SHALL NOT" requirements defined in this specification, each within the scope it states. An implementation that fails to satisfy any such requirement is not compliant.
+An implementation is compliant if it satisfies all "MUST", "MUST NOT", "REQUIRED", "SHALL", and "SHALL NOT" requirements defined in this specification. Each requirement applies only within the scope it states. An implementation that fails to satisfy any such requirement is not compliant.
 
 ## Applying These Rules
 
-- A rule applies where its reason does. When a rule states its reason or scope, code outside that scope does not break it. A new rule SHOULD state its reason when the rule alone doesn't make it obvious
-- Rules in § Security apply exactly as written; nothing in § Applying These Rules relaxes them
-- When existing code does the same thing in different ways, name each and follow the one whose reason fits the flagged code
-- When following a rule in the flagged code would defeat the rule's own reason, follow the reason and say so in the finding or the PR body, so the rule can be fixed
-- The smallest diff isn't always the simplest code: prefer the version that leaves fewer lines, queries and special cases
-- A bug SHOULD be fixed in the layer where it starts, not where it surfaces
-- Before removing a guard, a check or a special case, find out why it was added
+- Each rule exists for a reason. Apply it where that reason holds, and not outside the scope it names
+- If following a rule would cause the problem it exists to prevent, don't follow it. Say so in the finding or the PR body, so the rule can be fixed
+- Rules in § Security always apply exactly as written
+- If the codebase does the same thing in different ways, mention each and follow the one that fits the code under review
+- Prefer the simplest resulting code over the smallest diff
+- Fix a bug where it starts, not where it shows up
+- Before removing a guard, a check or a special case, find out why it's there
+- New rules SHOULD say why they exist
 
 ## Always Check
 
@@ -20,7 +21,7 @@ An implementation is compliant if it satisfies all "MUST", "MUST NOT", "REQUIRED
 - Database schema changes MUST include migrations and MUST be tested across all supported backends
 - Error messages MUST NOT leak internal details to users — typed error classes SHOULD be used for expected failures
 - Data-mutating operations MUST emit events so downstream subscribers stay in sync
-- Fields that resolve once per item of a list in one request, such as `Span.project`, MUST load data through dataloaders, not direct queries, because a per-row query multiplies with the size of the list (N+1). A root field that loads one row by primary key MAY query directly, as the `PromptVersion` branch of `Query.node` does
+- Fields that resolve once per item of a list, such as `Span.project`, MUST use dataloaders, not direct queries. Otherwise a list of 100 items makes 100 queries (N+1). A root field that loads one row by its ID MAY query directly, like the `PromptVersion` branch of `Query.node`
 - Tests SHOULD extend existing test modules unless they cover a distinct responsibility
 - Tests MUST fail when the behavior they cover is removed — tests that only exercise mocks or restate the implementation MUST NOT be added
 - Docs the change makes stale MUST be updated in the same PR; new environment variables MUST be documented and new docs pages indexed in `docs/phoenix/llms.txt`
@@ -72,14 +73,19 @@ An implementation is compliant if it satisfies all "MUST", "MUST NOT", "REQUIRED
 - Only problems the change introduces SHOULD be reported — pre-existing issues and anything a linter, formatter or type checker catches MUST NOT be
 - Each root cause MUST be reported once, listing every location; generated-file drift is reported at its source
 - Each finding MUST carry a severity: **Blocking** (wrong behavior, security, data loss, or a broken MUST) or **Non-blocking** (a broken SHOULD). Nits and praise SHOULD NOT be posted
-- A convention finding MUST cite the rule it breaks in this file or in `.agents/skills/`, and say why the rule's reason applies to the flagged code
-- A performance finding MUST compare the cost of the change with the cost of the fix it suggests, and name the queries or operations it counted for each
+- A convention finding MUST cite the rule it breaks in this file or in `.agents/skills/`, and say why the rule's reason applies here
+- A finding that says a change is slower MUST say slower than what: for the same request, count the queries the change makes and the queries the suggested fix makes, and give both numbers
 - A finding SHOULD fit in five lines: what is wrong, the evidence, and a concrete fix
 
 ## Acting on Findings
 
-- Whoever acts on a finding MUST check both its facts and its argument: that the quoted code exists and does what the finding says, that the cited rule's reason applies to the flagged code, and that any cost claim holds against the suggested fix
-- A finding that fails one of these checks MUST NOT be applied; dispute it and say which check it failed. A reply to a dispute MUST answer the dispute's argument, not restate the rule
+Before acting on a finding, check three things:
+
+1. The code it quotes exists and does what the finding says.
+2. The reason behind the rule it cites applies here.
+3. Any claim that the change is slower holds up against the suggested fix.
+
+If a check fails, don't apply the finding. Reply with which check failed and why. Whoever raised the finding MUST answer that reasoning, not just repeat the rule.
 
 ## Skip
 
