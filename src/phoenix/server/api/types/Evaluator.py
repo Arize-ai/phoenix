@@ -1494,8 +1494,9 @@ class EvaluatorAnnotationScoreMetrics:
     )
     previous_summary: Optional[AnnotationSummary] = strawberry.field(
         description=(
-            "Aggregates over the window of equal length immediately before the requested "
-            "time range, for change-over-time comparisons."
+            "Aggregates over the previous window, for change-over-time comparisons: "
+            "previousTimeRange when given, otherwise the equal-length window immediately "
+            "before the requested time range."
         )
     )
     series: list[EvaluatorScoreSeriesBin] = strawberry.field(
@@ -1678,10 +1679,13 @@ class ProjectEvaluator(Node):
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
             "Score aggregates for each annotation this evaluator writes on the evaluated "
-            "project: totals over the requested time range, totals over the equal-length "
-            "window immediately before it, and a binned mean-score series. Loading is "
-            "batched across the project's evaluators, so requesting this for a page of "
-            "evaluators costs a fixed number of queries."
+            "project: totals over the requested time range, totals over the previous "
+            "window, and a binned mean-score series. An open-ended time range means "
+            '"up to now" and requires an explicit previousTimeRange, since an open '
+            "window has no duration to mirror backward; a closed range derives the "
+            "previous window as the equal-length range before it when previousTimeRange "
+            "is omitted. Loading is batched across the project's evaluators, so "
+            "requesting this for a page of evaluators costs a fixed number of queries."
         )
     )
     async def annotation_score_metrics(
@@ -1689,9 +1693,10 @@ class ProjectEvaluator(Node):
         info: Info[Context, None],
         time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
+        previous_time_range: Optional[TimeRange] = UNSET,
     ) -> list[EvaluatorAnnotationScoreMetrics]:
-        if time_range.start is None or time_range.end is None:
-            raise BadRequest("time_range must have both a start and an end")
+        if time_range.start is None:
+            raise BadRequest("time_range must have a start")
         window_start, window_end = time_range.start, time_range.end
         record = await self._get_record(info)
         kind = _ANNOTATION_KIND_BY_TARGET.get(record.evaluation_target)
@@ -1701,10 +1706,19 @@ class ProjectEvaluator(Node):
         output_configs = as_output_configs(getattr(evaluator, "output_configs", None))
         annotation_names = result_annotation_names(record.name.root, output_configs)
         time_bins = TimeBucketSpec.from_config(time_bin_config)
-        previous_time_range = TimeRange(
-            start=window_start - (window_end - window_start),
-            end=window_start,
-        )
+        if isinstance(previous_time_range, TimeRange):
+            if previous_time_range.start is None or previous_time_range.end is None:
+                raise BadRequest("previous_time_range must have both a start and an end")
+            previous_window = previous_time_range
+        elif window_end is not None:
+            previous_window = TimeRange(
+                start=window_start - (window_end - window_start),
+                end=window_start,
+            )
+        else:
+            # An open-ended window carries no duration to mirror backward, so
+            # the caller must say what "the previous window" means.
+            raise BadRequest("previous_time_range is required when time_range has no end")
         loaders = info.context.data_loaders
         project_rowid = record.project_id
 
@@ -1714,7 +1728,7 @@ class ProjectEvaluator(Node):
                     (kind, project_rowid, time_range, None, None, annotation_name)
                 ),
                 loaders.annotation_summaries.load(
-                    (kind, project_rowid, previous_time_range, None, None, annotation_name)
+                    (kind, project_rowid, previous_window, None, None, annotation_name)
                 ),
                 loaders.annotation_mean_score_time_series.load(
                     (
@@ -1732,7 +1746,12 @@ class ProjectEvaluator(Node):
                     mean_score=mean_bin.mean_score if mean_bin is not None else None,
                     count=mean_bin.scored_entity_count if mean_bin is not None else 0,
                 )
-                for timestamp in time_bins.timestamps(window_start, window_end)
+                for timestamp in time_bins.timestamps(
+                    window_start,
+                    # An open end means "up to now"; the loader's cached bins
+                    # stay valid while the axis keeps growing between writes.
+                    window_end if window_end is not None else datetime.now(timezone.utc),
+                )
                 for mean_bin in (mean_scores_by_bucket.get(timestamp),)
             ]
             return EvaluatorAnnotationScoreMetrics(
