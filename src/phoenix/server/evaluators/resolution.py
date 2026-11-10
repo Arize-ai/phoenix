@@ -188,6 +188,7 @@ async def build_evaluator_from_definition(
     max_message_bytes: Optional[int] = None,
     max_payload_bytes: Optional[int] = None,
     payload_limit_remediation: Optional[str] = None,
+    execution_deadline_seconds: Optional[float] = None,
 ) -> BaseEvaluator:
     """
     Build the runtime evaluator a definition describes.
@@ -209,6 +210,8 @@ async def build_evaluator_from_definition(
         payload_limit_remediation: What the payload-limit error tells the user to do; it
             names the cap the caller applied, so the caller that sets ``max_payload_bytes``
             sets this too.
+        execution_deadline_seconds: The caller's deadline for one evaluation, or None. A
+            code evaluator's sandbox and runner timeouts are clamped to finish inside it.
 
     Raises:
         BadRequest: The definition cannot be honoured: a missing or disabled sandbox
@@ -245,6 +248,7 @@ async def build_evaluator_from_definition(
             session_key=session_key,
             max_payload_bytes=max_payload_bytes,
             payload_limit_remediation=payload_limit_remediation,
+            execution_deadline_seconds=execution_deadline_seconds,
         )
     assert_never(definition)
 
@@ -308,6 +312,7 @@ async def _build_code_evaluator(
     session_key: Optional[str],
     max_payload_bytes: Optional[int],
     payload_limit_remediation: Optional[str],
+    execution_deadline_seconds: Optional[float],
 ) -> CodeEvaluatorRunner:
     evaluator_version_id: Optional[str] = None
     if isinstance(definition, StoredCodeEvaluatorDefinition):
@@ -339,6 +344,11 @@ async def _build_code_evaluator(
         decrypt=decrypt,
         sandbox_runtime=sandbox_runtime,
     )
+    timeout = sandbox_timeout
+    runner_timeout: Optional[float] = None
+    if execution_deadline_seconds is not None:
+        timeout = min(sandbox_timeout, max(1, int(execution_deadline_seconds * 0.9)))
+        runner_timeout = min(execution_deadline_seconds * 0.95, timeout + max(1.0, timeout * 0.05))
     return CodeEvaluatorRunner(
         name=name,
         description=description,
@@ -346,7 +356,8 @@ async def _build_code_evaluator(
         stored_output_configs=output_configs,
         sandbox_backend=sandbox_backend,
         language=language,
-        timeout=sandbox_timeout,
+        timeout=timeout,
+        runner_timeout=runner_timeout,
         evaluator_version_id=evaluator_version_id,
         sandbox_session_manager=sandbox_session_manager,
         session_key=session_key,
@@ -390,7 +401,7 @@ async def _resolve_sandbox_backend(
     language: str,
     decrypt: Callable[[bytes], bytes],
     sandbox_runtime: Optional[SandboxRuntimeContext],
-) -> tuple[SandboxBackend, Optional[int]]:
+) -> tuple[SandboxBackend, int]:
     """Return the backend and timeout of an enabled sandbox configuration for a language."""
     sandbox_config = await session.get(models.SandboxConfig, sandbox_config_id)
     if sandbox_config is None:

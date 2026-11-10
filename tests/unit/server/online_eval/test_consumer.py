@@ -55,7 +55,8 @@ from phoenix.server.dml_event import (
     TraceAnnotationInsertEvent,
 )
 from phoenix.server.encryption import EncryptionService
-from phoenix.server.evaluators.runtime.code import SandboxPayloadTooLargeError
+from phoenix.server.evaluators import resolution as resolution_module
+from phoenix.server.evaluators.runtime.code import CodeEvaluatorRunner, SandboxPayloadTooLargeError
 from phoenix.server.evaluators.services.project_bindings import (
     ProjectEvaluatorPatch,
     apply_project_evaluator_patch,
@@ -155,7 +156,7 @@ def _patch_playground_client(monkeypatch: pytest.MonkeyPatch, client: _StubLLMCl
     async def _get_client(**_: Any) -> _StubLLMClient:
         return client
 
-    monkeypatch.setattr("phoenix.server.online_eval.executor.get_playground_client", _get_client)
+    monkeypatch.setattr("phoenix.server.evaluators.resolution.get_playground_client", _get_client)
 
 
 class _StubSandboxBackend:
@@ -2153,13 +2154,13 @@ async def test_session_code_hydration_supplies_configured_payload_cap(
     async def _build_backend(*_: Any, **__: Any) -> _StubSandboxBackend:
         return _StubSandboxBackend()
 
-    def _build_runner(**kwargs: Any) -> _StubEvaluator:
+    def _build_runner(**kwargs: Any) -> CodeEvaluatorRunner:
         captured_runner_arguments.update(kwargs)
-        return _StubEvaluator([])
+        return CodeEvaluatorRunner(**kwargs)
 
     monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES", "2048")
-    monkeypatch.setattr(executor_module, "build_sandbox_backend", _build_backend)
-    monkeypatch.setattr(executor_module, "CodeEvaluatorRunner", _build_runner)
+    monkeypatch.setattr(resolution_module, "build_sandbox_backend", _build_backend)
+    monkeypatch.setattr(resolution_module, "CodeEvaluatorRunner", _build_runner)
     executor = _executor(
         db, evaluation_target="SESSION", sandbox_session_manager=cast(Any, manager)
     )
@@ -2199,7 +2200,7 @@ async def test_code_hydration_supplies_sandbox_runtime(
         received_runtime = runtime
         return _StubSandboxBackend()
 
-    monkeypatch.setattr(executor_module, "build_sandbox_backend", _build_backend)
+    monkeypatch.setattr(resolution_module, "build_sandbox_backend", _build_backend)
     executor = _executor(
         db,
         sandbox_session_manager=cast(Any, _StubSandboxSessionManager()),
@@ -2233,13 +2234,13 @@ async def test_span_code_hydration_supplies_configured_payload_cap(
     async def _build_backend(*_: Any, **__: Any) -> _StubSandboxBackend:
         return _StubSandboxBackend()
 
-    def _build_runner(**kwargs: Any) -> _StubEvaluator:
+    def _build_runner(**kwargs: Any) -> CodeEvaluatorRunner:
         captured_runner_arguments.update(kwargs)
-        return _StubEvaluator([])
+        return CodeEvaluatorRunner(**kwargs)
 
     monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES", "2048")
-    monkeypatch.setattr(executor_module, "build_sandbox_backend", _build_backend)
-    monkeypatch.setattr(executor_module, "CodeEvaluatorRunner", _build_runner)
+    monkeypatch.setattr(resolution_module, "build_sandbox_backend", _build_backend)
+    monkeypatch.setattr(resolution_module, "CodeEvaluatorRunner", _build_runner)
     executor = _executor(db, sandbox_session_manager=cast(Any, manager))
 
     hydrated = await executor.hydrate(unit)
@@ -2351,7 +2352,7 @@ async def test_code_criteria_input_mapping_override_is_used_during_execution(
     async def _build_backend(*_: Any, **__: Any) -> _StubSandboxBackend:
         return _StubSandboxBackend()
 
-    monkeypatch.setattr(executor_module, "build_sandbox_backend", _build_backend)
+    monkeypatch.setattr(resolution_module, "build_sandbox_backend", _build_backend)
     executor = _executor(db, sandbox_session_manager=cast(Any, manager))
     hydrated = await executor.hydrate(unit)
     assert isinstance(hydrated, HydratedWorkUnit)

@@ -31,7 +31,6 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
-from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias
 
 from phoenix.config import (
@@ -45,10 +44,9 @@ from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.db.trace_aggregates import SPAN_ROWID, representative_root_span_by_trace
 from phoenix.db.types.annotation_configs import (
     OutputConfigType,
-    as_output_configs,
 )
+from phoenix.db.types.evaluator_definition import evaluator_kind_of
 from phoenix.db.types.evaluators import InputMapping
-from phoenix.db.types.prompts import PromptChatTemplate
 from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_input,
     get_dataset_example_metadata,
@@ -58,23 +56,19 @@ from phoenix.server.api.helpers.expected_outputs import (
     TRACE_ANNOTATIONS_METADATA_KEY,
     without_own_annotations,
 )
-from phoenix.server.api.helpers.playground_clients import get_playground_client
 from phoenix.server.dml_event import (
     DmlEvent,
     ProjectSessionAnnotationInsertEvent,
     SpanAnnotationInsertEvent,
     TraceAnnotationInsertEvent,
 )
-from phoenix.server.evaluators.resolution import build_decision_evaluator
+from phoenix.server.evaluators.resolution import build_evaluator_from_definition
 from phoenix.server.evaluators.runtime.base import (
     BaseEvaluator,
     EvaluationResult,
     result_annotation_names,
 )
-from phoenix.server.evaluators.runtime.builtin import get_builtin_evaluator_by_key
-from phoenix.server.evaluators.runtime.code import CodeEvaluatorRunner
-from phoenix.server.evaluators.runtime.llm import LLMEvaluator
-from phoenix.server.evaluators.snapshots import capture_decision_evaluator_definition
+from phoenix.server.evaluators.snapshots import stored_evaluator_definition
 from phoenix.server.online_eval import session_policy
 from phoenix.server.online_eval.bound_variables import (
     TRACE_ROOT_IO_NAMES,
@@ -99,7 +93,6 @@ from phoenix.server.online_eval.tracing import (
     persist_evaluator_traces,
 )
 from phoenix.server.prometheus import ONLINE_EVAL_EVALUATOR_DURATION_SECONDS
-from phoenix.server.sandbox import SecretsContext, build_sandbox_backend
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.types import CanPutItem, DbSessionFactory
@@ -697,11 +690,6 @@ class OnlineEvalExecutor:
                     failure = HydrationFailure(HydrationFailureReason.UNSUPPORTED_TARGET)
                 elif evaluator is None:
                     failure = HydrationFailure(HydrationFailureReason.EVALUATOR_MISSING)
-                elif (
-                    isinstance(evaluator, models.CodeEvaluator)
-                    and evaluator.sandbox_config_id is None
-                ):
-                    failure = HydrationFailure(HydrationFailureReason.SANDBOX_RUNTIME_UNAVAILABLE)
                 else:
                     project_evaluator_pairs.setdefault(
                         project_evaluator.id, (project_evaluator, evaluator)
@@ -910,190 +898,55 @@ class OnlineEvalExecutor:
         evaluator_orm: models.Evaluator,
         version_id: Optional[int],
         *,
-        project_evaluator_id: Optional[int] = None,
+        project_evaluator_id: int,
     ) -> Optional[_HydratedEvaluatorSnapshot]:
-        if isinstance(evaluator_orm, models.BuiltinEvaluator):
-            return self._hydrate_builtin(evaluator_orm)
-        if isinstance(evaluator_orm, models.DecisionEvaluator):
-            return await self._hydrate_decision(
-                session, evaluator_orm, project_evaluator_id=project_evaluator_id
-            )
-        if version_id is None:
-            return None
-        if isinstance(evaluator_orm, models.LLMEvaluator):
-            return await self._hydrate_llm(session, evaluator_orm, version_id)
-        if isinstance(evaluator_orm, models.CodeEvaluator):
-            return await self._hydrate_code(
-                session,
-                evaluator_orm,
-                version_id,
-                max_payload_bytes=get_env_online_eval_max_sandbox_payload_bytes(),
-            )
-        return None
-
-    async def _hydrate_llm(
-        self,
-        session: AsyncSession,
-        evaluator_orm: models.LLMEvaluator,
-        prompt_version_id: int,
-    ) -> Optional[_HydratedEvaluatorSnapshot]:
-        prompt_version = await session.get(models.PromptVersion, prompt_version_id)
-        if prompt_version is None:
-            return None
-        prompt = await session.get(models.Prompt, evaluator_orm.prompt_id)
-        if prompt is None:
-            return None
-        template = prompt_version.template
-        if not isinstance(template, PromptChatTemplate):
-            raise ValueError(
-                f"LLM evaluator {evaluator_orm.id}: prompt version {prompt_version.id} "
-                "does not carry a chat template"
-            )
-        tools = prompt_version.tools
-        if tools is None:
-            raise ValueError(
-                f"LLM evaluator {evaluator_orm.id}: prompt version {prompt_version.id} has no tools"
-            )
-        llm_client = await get_playground_client(
-            model_provider=prompt_version.model_provider,
-            model_name=prompt_version.model_name,
-            session=session,
-            decrypt=self._decrypt,
-            connection=prompt_version.custom_provider_id,
-        )
-        evaluator = LLMEvaluator(
-            name=evaluator_orm.name.root,
-            description=evaluator_orm.description,
-            template=template,
-            template_format=prompt_version.template_format,
-            tools=tools,
-            invocation_parameters=prompt_version.invocation_parameters,
-            model_provider=prompt_version.model_provider,
-            llm_client=llm_client,
-            output_configs=evaluator_orm.output_configs,
-            prompt_name=prompt.name.root,
-            max_message_bytes=get_env_online_eval_max_llm_message_bytes(),
-        )
-        return _HydratedEvaluatorSnapshot(
-            annotator_kind="LLM",
-            evaluator_kind="LLM",
-            evaluator=evaluator,
-            output_configs=tuple(evaluator_orm.output_configs),
-        )
-
-    async def _hydrate_code(
-        self,
-        session: AsyncSession,
-        evaluator_orm: models.CodeEvaluator,
-        code_version_id: int,
-        *,
-        max_payload_bytes: int | None = None,
-    ) -> Optional[_HydratedEvaluatorSnapshot]:
-        if self._sandbox_session_manager is None:
-            raise ValueError(
-                f"Code evaluator {evaluator_orm.id}: no sandbox session manager available"
-            )
-        code_version = await session.get(models.CodeEvaluatorVersion, code_version_id)
-        if code_version is None:
-            return None
-        if evaluator_orm.sandbox_config_id is None:
-            raise ValueError(f"Code evaluator {evaluator_orm.id} has no sandbox config")
-        sandbox_config = await session.get(models.SandboxConfig, evaluator_orm.sandbox_config_id)
-        if sandbox_config is None or not sandbox_config.enabled:
-            raise ValueError(
-                f"Code evaluator {evaluator_orm.id}: sandbox config "
-                f"{evaluator_orm.sandbox_config_id} is missing or disabled"
-            )
-        provider = await session.get(models.SandboxProvider, sandbox_config.backend_type)
-        if provider is None or not provider.enabled:
-            raise ValueError(
-                f"Code evaluator {evaluator_orm.id}: sandbox provider "
-                f"{sandbox_config.backend_type!r} is missing or disabled"
-            )
-        backend = await build_sandbox_backend(
-            sandbox_config,
-            secrets=SecretsContext(session=session, decrypt=self._decrypt),
-            runtime=self._sandbox_runtime,
-        )
-        if backend is None:
-            raise ValueError(
-                f"Code evaluator {evaluator_orm.id}: no sandbox backend available for "
-                f"config {sandbox_config.id}"
-            )
-        output_configs: list[OutputConfigType] = as_output_configs(evaluator_orm.output_configs)
-        backend_timeout = min(
-            sandbox_config.timeout,
-            max(1, int(self._execution_deadline_seconds * 0.9)),
-        )
-        runner_timeout = min(
-            self._execution_deadline_seconds * 0.95,
-            backend_timeout + max(1.0, backend_timeout * 0.05),
-        )
-        evaluator = CodeEvaluatorRunner(
-            name=evaluator_orm.name.root,
-            description=evaluator_orm.description,
-            source_code=code_version.source_code,
-            stored_output_configs=output_configs,
-            sandbox_backend=backend,
-            language=evaluator_orm.language,
-            sandbox_session_manager=self._sandbox_session_manager,
-            timeout=backend_timeout,
-            runner_timeout=runner_timeout,
-            evaluator_version_id=str(GlobalID("CodeEvaluatorVersion", str(code_version.id))),
-            session_key=(
-                f"online-eval:{evaluator_orm.id}:{self._sandbox_session_manager.replica_id}"
+        """Build what a resolved project evaluator runs, under online evaluation's limits.
+        LLM and code evaluators run the version the resolver resolved, so the run and the
+        annotation identifier name the same version. A decision judge's annotations name
+        the project evaluator they came from. No request credentials exist here, so
+        provider keys come from the server's secrets or environment."""
+        prompt_version: Optional[models.PromptVersion] = None
+        if isinstance(evaluator_orm, (models.LLMEvaluator, models.CodeEvaluator)):
+            if version_id is None:
+                return None
+            if isinstance(evaluator_orm, models.LLMEvaluator):
+                prompt_version = await session.get(models.PromptVersion, version_id)
+                if prompt_version is None:
+                    return None
+        definition = stored_evaluator_definition(
+            evaluator_orm,
+            project_evaluator_id=(
+                project_evaluator_id
+                if isinstance(evaluator_orm, models.DecisionEvaluator)
+                else None
             ),
-            max_payload_bytes=max_payload_bytes,
-            payload_limit_remediation=ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION,
+            prompt_version=prompt_version,
+            code_evaluator_version_id=(
+                version_id if isinstance(evaluator_orm, models.CodeEvaluator) else None
+            ),
         )
-        return _HydratedEvaluatorSnapshot(
-            annotator_kind="CODE",
-            evaluator_kind="CODE",
-            evaluator=evaluator,
-            output_configs=tuple(output_configs),
-        )
-
-    async def _hydrate_decision(
-        self,
-        session: AsyncSession,
-        evaluator_orm: models.DecisionEvaluator,
-        *,
-        project_evaluator_id: Optional[int] = None,
-    ) -> Optional[_HydratedEvaluatorSnapshot]:
-        """A judge runs its pinned decision version, scored by its own policy. It has no
-        request credentials, so the provider key comes from the server's secrets or
-        environment, as for LLM judges. Its annotations name the project evaluator
-        they came from."""
-        if evaluator_orm.selected_version is None:
-            return None
-        definition = capture_decision_evaluator_definition(
-            evaluator_orm, project_evaluator_id=project_evaluator_id
-        )
-        evaluator = await build_decision_evaluator(
-            definition,
+        manager = self._sandbox_session_manager
+        evaluator = await build_evaluator_from_definition(
+            definition=definition,
             session=session,
             decrypt=self._decrypt,
-            max_request_bytes=get_env_online_eval_max_llm_message_bytes(),
+            sandbox_runtime=self._sandbox_runtime,
+            sandbox_session_manager=manager,
+            session_key=(
+                f"online-eval:{evaluator_orm.id}:{manager.replica_id}"
+                if manager is not None
+                else None
+            ),
+            max_message_bytes=get_env_online_eval_max_llm_message_bytes(),
+            max_payload_bytes=get_env_online_eval_max_sandbox_payload_bytes(),
+            payload_limit_remediation=ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION,
+            execution_deadline_seconds=self._execution_deadline_seconds,
         )
         return _HydratedEvaluatorSnapshot(
-            annotator_kind="LLM",
-            evaluator_kind="DECISION",
+            annotator_kind=evaluator.annotator_kind,
+            evaluator_kind=evaluator_kind_of(definition),
             evaluator=evaluator,
             output_configs=tuple(evaluator.output_configs),
-        )
-
-    def _hydrate_builtin(
-        self,
-        evaluator_orm: models.BuiltinEvaluator,
-    ) -> _HydratedEvaluatorSnapshot:
-        evaluator_cls = get_builtin_evaluator_by_key(evaluator_orm.key)
-        if evaluator_cls is None:
-            raise ValueError(f"Built-in evaluator key {evaluator_orm.key!r} is not in the registry")
-        return _HydratedEvaluatorSnapshot(
-            annotator_kind="CODE",
-            evaluator_kind="BUILTIN",
-            evaluator=evaluator_cls(),
-            output_configs=tuple(evaluator_orm.output_configs),
         )
 
     async def evaluate_and_annotate(
