@@ -5063,3 +5063,39 @@ async def test_dataset_create_and_attach_with_a_taken_name_leaves_nothing_behind
     assert result.errors
     assert result.errors[0].message == "An evaluator named 'taken' already exists for this dataset"
     assert await _create_and_attach_rows(db) == before
+
+
+async def test_a_suffixed_dataset_definition_names_its_prompt_and_tag_after_the_typed_name(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    empty_dataset: models.Dataset,
+) -> None:
+    async with db() as session:
+        other_dataset = models.Dataset(name=f"other-dataset-{token_hex(4)}", metadata_={})
+        session.add(other_dataset)
+        await session.flush()
+        dataset_ids = (empty_dataset.id, other_dataset.id)
+    created = [
+        await gql_client.execute(
+            """
+              mutation($input: CreateDatasetLLMEvaluatorInput!) {
+                createDatasetLlmEvaluator(input: $input) {
+                  evaluator {
+                    evaluator {
+                      ... on LLMEvaluator { name prompt { name } promptVersionTag { name } }
+                    }
+                  }
+                }
+              }
+            """,
+            {"input": _dataset_llm_input(str(GlobalID("Dataset", str(dataset_id))), "judge")},
+        )
+        for dataset_id in dataset_ids
+    ]
+    assert all(result.data and not result.errors for result in created)
+    assert created[1].data is not None
+    definition = created[1].data["createDatasetLlmEvaluator"]["evaluator"]["evaluator"]
+
+    assert definition["name"] != "judge"
+    assert definition["prompt"]["name"].startswith("judge-evaluator-")
+    assert definition["promptVersionTag"]["name"].startswith("judge-evaluator-")

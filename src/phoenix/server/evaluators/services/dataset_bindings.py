@@ -147,6 +147,7 @@ async def create_dataset_llm_evaluator(
                 user_id=context.user_id,
                 description=input.description if input.description is not UNSET else None,
                 input_schema=input.input_schema,
+                binding_name=binding.name,
             )
             dataset_evaluator = await bind_dataset_evaluator(session, evaluator, binding)
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:

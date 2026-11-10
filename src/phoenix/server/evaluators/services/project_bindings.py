@@ -177,6 +177,7 @@ async def create_project_llm_evaluator(
                 user_id=context.user_id,
                 description=input.description,
                 input_schema=input.input_schema,
+                binding_name=values["name"],
             )
             project_evaluator = await bind_project_evaluator(session, project, evaluator, values)
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:

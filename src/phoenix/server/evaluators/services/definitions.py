@@ -453,9 +453,12 @@ async def create_llm_definition(
     user_id: Optional[int],
     description: Optional[str] = None,
     input_schema: Any = None,
+    binding_name: Optional[Identifier] = None,
 ) -> models.LLMEvaluator:
     """Create an LLM definition in the caller's transaction, pinned by a tag it owns to the
-    version its prompt source names."""
+    version its prompt source names. A create-and-attach passes the binding's name, which
+    names the new prompt and the tag in place of the definition's possibly suffixed name."""
+    naming = binding_name or name
     content = prompt_source.content
     if content is not None:
         content.user_id = user_id
@@ -467,7 +470,7 @@ async def create_llm_definition(
         )
     else:
         prompt_version = await _new_evaluator_prompt(
-            session, prompt_source.content, name=name, description=description
+            session, prompt_source.content, name=naming, description=description
         )
     evaluator = models.LLMEvaluator(
         name=name,
@@ -484,7 +487,7 @@ async def create_llm_definition(
     session.add(evaluator)
     await session.flush()
     await ensure_evaluator_prompt_label(session, prompt_version.prompt_id)
-    evaluator.prompt_version_tag = _evaluator_tag(name, prompt_version)
+    evaluator.prompt_version_tag = _evaluator_tag(naming, prompt_version)
     await session.flush()
     return evaluator
 

@@ -1969,6 +1969,36 @@ async def test_create_and_attach_with_a_taken_name_leaves_nothing_behind(
     assert await _row_counts(db) == before
 
 
+async def test_a_suffixed_project_definition_names_its_prompt_and_tag_after_the_typed_name(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    created = [
+        await gql_client.execute(
+            """
+            mutation($input: CreateProjectLLMEvaluatorInput!) {
+              createProjectLlmEvaluator(input: $input) {
+                evaluator {
+                  evaluator {
+                    ... on LLMEvaluator { name prompt { name } promptVersionTag { name } }
+                  }
+                }
+              }
+            }
+            """,
+            {"input": _llm_input(await _add_project(db), name="judge", text="Judge {{input}}")},
+        )
+        for _ in range(2)
+    ]
+    assert all(result.data and not result.errors for result in created)
+    assert created[1].data is not None
+    definition = created[1].data["createProjectLlmEvaluator"]["evaluator"]["evaluator"]
+
+    assert definition["name"] != "judge"
+    assert definition["prompt"]["name"].startswith("judge-evaluator-")
+    assert definition["promptVersionTag"]["name"].startswith("judge-evaluator-")
+
+
 async def test_create_rejects_invalid_llm_output_config_as_client_error(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
