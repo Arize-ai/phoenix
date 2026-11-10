@@ -19,8 +19,6 @@ from phoenix.trace.attributes import get_attribute_value
 if TYPE_CHECKING:
     from phoenix.server.api.helpers.model_clients import ModelClient
 
-MINIMAX_MODEL_NAMES = ("MiniMax-M3.1-Flash", "MiniMax-M3")
-
 
 @strawberry.enum
 class GenerativeProviderKey(Enum):
