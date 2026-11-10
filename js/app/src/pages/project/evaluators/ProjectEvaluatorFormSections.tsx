@@ -292,7 +292,7 @@ export const ProjectDecisionEvaluatorFormSections = (
       <DecisionEvaluatorForm
         draft={draft}
         isDisabled={isDisabled}
-        scoringDescription="Turn each answer into the score this evaluator records, and whether higher or lower is better."
+        scoringDescription="Turn each answer into the score this evaluator records, and which answers are good."
         showInputMapping={false}
       />
     </>

@@ -1,3 +1,5 @@
+import type { AnnotationConfig } from "@phoenix/components/annotation/types";
+
 /**
  * Pure helpers for a decision evaluator's scoring policy: the settings that
  * turn a decision evaluator's answers into annotation labels and scores.
@@ -365,4 +367,86 @@ export function validatePolicy(
 /** Whether a validation result has no messages. */
 export function isPolicyValid(validation: DecisionPolicyValidation): boolean {
   return Object.keys(validation).length === 0;
+}
+
+/**
+ * The output configs a decision evaluator's results are scored against,
+ * derived from its questions and policy the way the server's
+ * `derive_decision_output_configs` derives them: a Yes / No question scores
+ * its probability of true on 0..1 against its threshold, a scale question its
+ * expected level on
+ * 0..levels-1, and a choice question its choices' scores. Lets a form colour
+ * preview results by the draft's direction without saving or re-running.
+ */
+export function deriveDecisionOutputConfigs(
+  questions: readonly DecisionQuestionDefinition[],
+  policy: DecisionScoringPolicyValue | null | undefined
+): AnnotationConfig[] {
+  const normalized = normalizePolicy(questions, policy);
+  return questions.map((question, index): AnnotationConfig => {
+    const scoring = normalized.questions[index];
+    const { optimizationDirection } = getQuestionScoringSettings(scoring);
+    if (question.type === "choice") {
+      const scores = new Map(
+        ("choice" in scoring ? scoring.choice.scores : []).map(
+          ({ choice, score }) => [choice, score]
+        )
+      );
+      return {
+        annotationType: "CATEGORICAL",
+        name: question.name,
+        optimizationDirection,
+        values: question.choices.map((label) => ({
+          label,
+          score: scores.get(label) ?? null,
+        })),
+      };
+    }
+    if (question.type === "scale") {
+      return {
+        annotationType: "CONTINUOUS",
+        name: question.name,
+        optimizationDirection,
+        lowerBound: 0,
+        upperBound: question.levels.length - 1,
+      };
+    }
+    // The server derives a CONTINUOUS 0..1 config, which pivots at 0.5; a
+    // freeform config carries the threshold too, so a result is coloured on
+    // the same side of the line as its true / false label.
+    return {
+      annotationType: "FREEFORM",
+      name: question.name,
+      optimizationDirection,
+      lowerBound: 0,
+      upperBound: 1,
+      threshold: "predicate" in scoring ? scoring.predicate.threshold : null,
+    };
+  });
+}
+
+/**
+ * A policy with every optimization direction dropped, for comparing what a
+ * policy does to a result. Direction says which answer is good; it changes
+ * neither the answer nor its score, so a preview result stays current when
+ * only a direction changes. Structural, so the GraphQL input type is
+ * accepted too.
+ */
+export function withoutOptimizationDirections(policy: {
+  readonly questions?: ReadonlyArray<object>;
+}): { questions: Record<string, unknown>[] } {
+  return {
+    questions: (policy.questions ?? []).map((question) =>
+      Object.fromEntries(
+        Object.entries(question).map(([kind, settings]: [string, unknown]) => {
+          if (settings == null || typeof settings !== "object") {
+            return [kind, settings];
+          }
+          const { optimizationDirection: _direction, ...rest } =
+            settings as Record<string, unknown>;
+          return [kind, rest];
+        })
+      )
+    ),
+  };
 }

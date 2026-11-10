@@ -134,6 +134,23 @@ describe("DecisionScoringPolicyEditor", () => {
     ]);
   });
 
+  it("words a Yes / No question's direction as which answer is good", () => {
+    render({ initial: initialPolicy, onChange });
+    const predicate = container.querySelector(
+      '[data-testid="decision-policy-accurate-direction-picker"]'
+    )!;
+    expect(predicate.textContent).toContain("True is good");
+    expect(predicate.textContent).toContain(
+      "Marks which answer is good. It doesn't change the answer or its probability."
+    );
+    // Choice and scale questions keep the generic wording.
+    const choice = container.querySelector(
+      '[data-testid="decision-policy-tone-direction-picker"]'
+    )!;
+    expect(choice.textContent).toContain("None");
+    expect(choice.textContent).not.toContain("Marks which answer is good");
+  });
+
   it("toggles the scale label", async () => {
     render({ initial: initialPolicy, onChange });
     await act(async () => {
