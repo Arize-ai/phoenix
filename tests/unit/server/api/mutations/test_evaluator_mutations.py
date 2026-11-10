@@ -417,8 +417,8 @@ class TestDatasetLLMEvaluatorMutations:
         gql_client: AsyncGraphQLClient,
         empty_dataset: models.Dataset,
     ) -> None:
-        """An omitted description is no description: the tool's is not checked against it,
-        and the evaluator, its prompt, and its binding store none."""
+        """An omitted description is no description: the evaluator, its prompt, and its
+        binding store none."""
         result = await self._create(
             gql_client,
             datasetId=str(GlobalID("Dataset", str(empty_dataset.id))),
@@ -2184,8 +2184,6 @@ class TestUpdateDatasetLLMEvaluatorMutation:
             assert dataset_evaluator is not None
             dataset_evaluator_id = str(GlobalID("DatasetEvaluator", str(dataset_evaluator.id)))
 
-        # The evaluator description is constrained to equal the tool function description,
-        # so both carry the seeded value.
         def _input(prompt_version_id: str, **overrides: Any) -> dict[str, Any]:
             return {
                 "inputMapping": {"literalMapping": {}, "pathMapping": {}},

@@ -212,7 +212,6 @@ class LLMEvaluatorPromptErrorMessage:
     RESPONSE_FORMAT_NOT_SUPPORTED = "Response format is not supported for evaluator prompts"
     TOOLS_REQUIRED = "Evaluator prompts require tools"
     FUNCTION_TOOLS_REQUIRED = "Evaluator prompts require function tools"
-    EXACTLY_ONE_TOOL_REQUIRED = "Evaluator prompts require exactly one tool"
     TOOL_COUNT_MUST_MATCH_CONFIG_COUNT = (
         "Number of prompt tool definitions must match number of output configs"
     )

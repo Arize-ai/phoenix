@@ -95,7 +95,7 @@ from phoenix.utilities.template_formatters import get_template_formatter
 from tests.unit.vcr import CustomVCR
 
 
-def validate_consistent_llm_evaluator_and_prompt_version(
+def validate_evaluator_prompt_and_config(
     prompt_version: models.PromptVersion,
     output_config: CategoricalOutputConfig,
     description: Optional[str] = None,
@@ -109,15 +109,13 @@ def validate_consistent_llm_evaluator_and_prompt_version(
     )
 
 
-class TestValidateConsistentLLMEvaluatorAndPromptVersion:
+class TestValidateEvaluatorPromptAndConfigs:
     def test_both_descriptions_null_does_not_raise(
         self,
         output_config: CategoricalOutputConfig,
         prompt_version: models.PromptVersion,
     ) -> None:
-        validate_consistent_llm_evaluator_and_prompt_version(
-            prompt_version, output_config, description=None
-        )
+        validate_evaluator_prompt_and_config(prompt_version, output_config, description=None)
 
     def test_both_descriptions_strings_do_not_raise(
         self,
@@ -128,9 +126,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         assert prompt_version.tools is not None
         assert prompt_version.tools.tools[0].type == "function"
         prompt_version.tools.tools[0].function.description = description
-        validate_consistent_llm_evaluator_and_prompt_version(
-            prompt_version, output_config, description=description
-        )
+        validate_evaluator_prompt_and_config(prompt_version, output_config, description=description)
 
     def test_string_evaluator_description_and_null_function_description_raises(
         self,
@@ -141,7 +137,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=LLMEvaluatorPromptErrorMessage.EVALUATOR_DESCRIPTION_MUST_MATCH_FUNCTION_DESCRIPTION,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(
+            validate_evaluator_prompt_and_config(
                 prompt_version,
                 output_config,
                 description="a string description",
@@ -159,7 +155,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=LLMEvaluatorPromptErrorMessage.EVALUATOR_DESCRIPTION_MUST_MATCH_FUNCTION_DESCRIPTION,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(
+            validate_evaluator_prompt_and_config(
                 prompt_version,
                 output_config,
                 description="my different description",
@@ -181,7 +177,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=LLMEvaluatorPromptErrorMessage.RESPONSE_FORMAT_NOT_SUPPORTED,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
+            validate_evaluator_prompt_and_config(prompt_version, output_config)
 
     def test_null_tools_raises(
         self,
@@ -193,7 +189,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=LLMEvaluatorPromptErrorMessage.TOOLS_REQUIRED,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
+            validate_evaluator_prompt_and_config(prompt_version, output_config)
 
     def test_empty_tools_list_raises(
         self,
@@ -208,7 +204,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=LLMEvaluatorPromptErrorMessage.TOOL_COUNT_MUST_MATCH_CONFIG_COUNT,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
+            validate_evaluator_prompt_and_config(prompt_version, output_config)
 
     def test_multiple_tools_raises(
         self,
@@ -240,7 +236,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=LLMEvaluatorPromptErrorMessage.TOOL_COUNT_MUST_MATCH_CONFIG_COUNT,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
+            validate_evaluator_prompt_and_config(prompt_version, output_config)
 
     def test_null_tool_choice_raises(
         self,
@@ -253,7 +249,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_REQUIRED,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
+            validate_evaluator_prompt_and_config(prompt_version, output_config)
 
     def test_zero_or_more_tool_choice_raises(
         self,
@@ -266,7 +262,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_REQUIRED,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
+            validate_evaluator_prompt_and_config(prompt_version, output_config)
 
     def test_specific_function_tool_choice_with_matching_name_does_not_raise(
         self,
@@ -277,7 +273,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         prompt_version.tools.tool_choice = PromptToolChoiceSpecificFunctionTool(
             type="specific_function", function_name="correctness"
         )
-        validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
+        validate_evaluator_prompt_and_config(prompt_version, output_config)
 
     def test_specific_function_tool_choice_with_mismatched_name_raises(
         self,
@@ -292,7 +288,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_SPECIFIC_FUNCTION_NAME_MUST_MATCH_DEFINED_FUNCTION_NAME,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
+            validate_evaluator_prompt_and_config(prompt_version, output_config)
 
     def test_raw_tool_error_does_not_echo_submitted_json(
         self,
@@ -307,7 +303,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=f"^{LLMEvaluatorPromptErrorMessage.FUNCTION_TOOLS_REQUIRED}$",
         ) as error:
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
+            validate_evaluator_prompt_and_config(prompt_version, output_config)
         assert "secret" not in str(error.value)
 
     def test_function_parameters_type_not_object_raises(
@@ -322,7 +318,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match="^'correctness' function has errors. At 'type': Input should be 'object'.$",
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
+            validate_evaluator_prompt_and_config(prompt_version, output_config)
 
     def test_empty_function_parameters_properties_raises(
         self,
@@ -336,7 +332,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match="^'correctness' function has errors. At 'properties.label': Field required.$",
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
+            validate_evaluator_prompt_and_config(prompt_version, output_config)
 
     def test_missing_label_property_raises(
         self,
@@ -360,7 +356,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match="^'correctness' function has errors. At 'properties.label': Field required.$",
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
+            validate_evaluator_prompt_and_config(prompt_version, output_config)
 
     def test_label_property_type_not_string_raises(
         self,
@@ -384,7 +380,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match="^'correctness' function has errors. At 'properties.label.type': Input should be 'string'.$",
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
+            validate_evaluator_prompt_and_config(prompt_version, output_config)
 
     def test_label_enum_less_than_two_items_raises(
         self,
@@ -408,7 +404,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match="^'correctness' function has errors. At 'properties.label.enum': List should have at least 2 items after validation, not 1.$",
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
+            validate_evaluator_prompt_and_config(prompt_version, output_config)
 
     def test_label_missing_enum_field_raises(
         self,
@@ -431,7 +427,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match="^'correctness' function has errors. At 'properties.label.enum': Field required.$",
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
+            validate_evaluator_prompt_and_config(prompt_version, output_config)
 
     def test_label_missing_description_field_raises(
         self,
@@ -454,7 +450,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match="^'correctness' function has errors. At 'properties.label.description': Field required.$",
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
+            validate_evaluator_prompt_and_config(prompt_version, output_config)
 
     def test_duplicate_function_parameters_required_values_raises(
         self,
@@ -471,7 +467,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=LLMEvaluatorPromptErrorMessage.REQUIRED_VALUES_MUST_BE_UNIQUE,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
+            validate_evaluator_prompt_and_config(prompt_version, output_config)
 
     def test_label_defined_but_not_required_raises(
         self,
@@ -497,7 +493,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
                 properties="label",
             ),
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
+            validate_evaluator_prompt_and_config(prompt_version, output_config)
 
     def test_label_and_explanation_defined_but_only_label_required_raises(
         self,
@@ -527,7 +523,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
                 properties="explanation",
             ),
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
+            validate_evaluator_prompt_and_config(prompt_version, output_config)
 
     def test_unexpected_required_property_raises(
         self,
@@ -551,7 +547,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match="Found unexpected required properties: confidence",
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
+            validate_evaluator_prompt_and_config(prompt_version, output_config)
 
     def test_label_description_mismatch_raises(
         self,
@@ -575,7 +571,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=LLMEvaluatorPromptErrorMessage.EVALUATOR_ANNOTATION_NAME_MUST_MATCH_FUNCTION_LABEL_PROPERTY_DESCRIPTION,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
+            validate_evaluator_prompt_and_config(prompt_version, output_config)
 
     def test_choices_mismatch_raises(
         self,
@@ -591,7 +587,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=LLMEvaluatorPromptErrorMessage.EVALUATOR_CHOICES_MUST_MATCH_TOOL_FUNCTION_LABELS,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
+            validate_evaluator_prompt_and_config(prompt_version, output_config)
 
     def test_with_explanation_property_does_not_raise(
         self,
@@ -615,7 +611,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             },
             "required": ["label", "explanation"],
         }
-        validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
+        validate_evaluator_prompt_and_config(prompt_version, output_config)
 
     def test_explanation_property_explicitly_set_to_none_raises(
         self,
@@ -640,7 +636,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=LLMEvaluatorPromptErrorMessage.EXPLANATION_PROPERTIES_MUST_BE_STRING_OR_OMITTED,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
+            validate_evaluator_prompt_and_config(prompt_version, output_config)
 
 
 class TestMultiConfigValidation:

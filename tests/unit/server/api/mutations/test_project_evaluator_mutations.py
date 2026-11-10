@@ -1178,13 +1178,9 @@ async def test_update_project_llm_evaluator_preserves_description_and_owner_on_n
 ) -> None:
     project = await _add_project(db)
 
-    # The evaluator description is constrained to equal the tool function description.
     def _described_input(**overrides: Any) -> dict[str, Any]:
         payload = _llm_input(project, name="llm-owner", text="Evaluate {{input}}")
         payload["description"] = "original description"
-        payload["promptVersion"]["tools"]["tools"][0]["function"]["description"] = (
-            "original description"
-        )
         payload.update(overrides)
         return payload
 
