@@ -18,6 +18,7 @@ from phoenix.db.helpers import (
     is_foreign_key_violation,
 )
 from phoenix.db.types.annotation_configs import OutputConfigType, as_output_configs
+from phoenix.db.types.decision_evaluators import matches_derived_output_configs
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import AlreadyExists, BadRequest, Conflict, NotFound
@@ -735,29 +736,6 @@ async def bind_dataset_evaluator(
     return dataset_evaluator
 
 
-def _matches_derived_output_configs(
-    given: Sequence[OutputConfigType], derived: Sequence[OutputConfigType]
-) -> bool:
-    """Whether a caller's copy of a judge's outputs is the one derived from its policy.
-
-    Compared as serialized, which leaves out a predicate's derived threshold. A copy
-    may leave the threshold out too, as callers written before outputs carried it
-    do; one that gives a threshold must give the policy's.
-    """
-    if len(given) != len(derived):
-        return False
-    for given_config, derived_config in zip(given, derived):
-        given_dump = given_config.model_dump()
-        given_threshold = given_dump.pop("threshold", None)
-        if given_threshold is not None and given_threshold != getattr(
-            derived_config, "threshold", None
-        ):
-            return False
-        if given_dump != derived_config.model_dump():
-            return False
-    return True
-
-
 def dataset_binding_overrides(
     evaluator: models.Evaluator, output_configs: Optional[list[OutputConfigType]]
 ) -> Optional[list[OutputConfigType]]:
@@ -765,7 +743,7 @@ def dataset_binding_overrides(
     None inherits the evaluator's. A decision evaluator's outputs follow its questions and
     scoring policy, so its binding stores None and is refused any other outputs."""
     if isinstance(evaluator, models.DecisionEvaluator):
-        if output_configs is None or not _matches_derived_output_configs(
+        if output_configs is None or not matches_derived_output_configs(
             output_configs, evaluator.output_configs
         ):
             raise BadRequest(

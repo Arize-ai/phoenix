@@ -15,7 +15,10 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import OutputConfigType
-from phoenix.db.types.decision_evaluators import DecisionScoringPolicy, adapt_scoring_policy
+from phoenix.db.types.decision_evaluators import (
+    DecisionScoringPolicy,
+    adapt_scoring_policy,
+)
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound

@@ -181,6 +181,66 @@ async def test_binding_output_configs_must_match_the_derived_outputs(
     assert "Decision outputs are derived from the questions and scoring policy" in response.text
 
 
+async def test_a_judges_own_output_configs_can_be_echoed_into_a_binding(
+    httpx_client: httpx.AsyncClient,
+    gql_client: AsyncGraphQLClient,
+    empty_dataset: None,
+) -> None:
+    decision = await create(gql_client)
+    response = await httpx_client.post(
+        "v1/evaluators",
+        json={
+            "type": "decision",
+            "name": "native-judge",
+            "decision": {
+                "selector": {"type": "version", "decision_version_id": decision["version"]["id"]}
+            },
+            # On a bound, which a saved threshold may not be but a predicate's may.
+            "scoring_policy": {
+                "questions": {
+                    "urgent": {
+                        "type": "predicate",
+                        "threshold": 1.0,
+                        "optimization_direction": "MAXIMIZE",
+                    }
+                }
+            },
+        },
+    )
+    assert response.status_code == 201, response.text
+    evaluator_id = response.json()["data"]["id"]
+    response = await httpx_client.get(f"v1/evaluators/{evaluator_id}")
+    assert response.status_code == 200, response.text
+    echoed = response.json()["data"]["output_configs"]
+    response = await httpx_client.post(
+        f"v1/datasets/{GlobalID('Dataset', '1')}/evaluators",
+        json={
+            "name": "judge",
+            "evaluator_id": evaluator_id,
+            "input_mapping": {"literal_mapping": {}, "path_mapping": {"ticket": "input.ticket"}},
+            "output_configs": echoed,
+        },
+    )
+    assert response.status_code == 201, response.text
+    binding_route = f"v1/dataset_evaluators/{response.json()['data']['id']}"
+    response = await httpx_client.patch(binding_route, json={"output_configs": echoed})
+    assert response.status_code == 200, response.text
+    # A copy that gives the threshold must give the policy's, even on a bound.
+    with_threshold = [
+        {**config, "threshold": 1.0} if config["name"] == "urgent" else config
+        for config in echoed
+    ]
+    response = await httpx_client.patch(binding_route, json={"output_configs": with_threshold})
+    assert response.status_code == 200, response.text
+    other_threshold = [
+        {**config, "threshold": 0.3} if config["name"] == "urgent" else config
+        for config in echoed
+    ]
+    response = await httpx_client.patch(binding_route, json={"output_configs": other_threshold})
+    assert response.status_code == 422, response.text
+    assert "Decision outputs are derived from the questions and scoring policy" in response.text
+
+
 async def _judge_and_newer_version(
     httpx_client: httpx.AsyncClient,
     gql_client: AsyncGraphQLClient,
