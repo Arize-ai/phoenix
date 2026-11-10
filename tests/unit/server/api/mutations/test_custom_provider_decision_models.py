@@ -501,6 +501,24 @@ async def test_the_check_refuses_an_sdk_without_decisions(
     assert "can't serve decision models" in result.errors[0].message
 
 
+@pytest.mark.parametrize("decision_sdk", ["OPENAI", "TYPESAFE"])
+@pytest.mark.parametrize(
+    "served",
+    [
+        pytest.param({}, id="empty"),
+        pytest.param({"chat": None, "decision": None}, id="explicit-null-types"),
+    ],
+)
+async def test_the_check_refuses_empty_models(
+    gql_client: AsyncGraphQLClient, decision_sdk: str, served: dict[str, Any]
+) -> None:
+    result = await gql_client.execute(
+        TEST_ENDPOINT, variables={"input": decisions_config(decision_sdk), "served": served}
+    )
+    assert result.errors
+    assert "at least one model type" in result.errors[0].message
+
+
 async def test_models_and_names_round_trip(
     gql_client: AsyncGraphQLClient, db: DbSessionFactory
 ) -> None:
