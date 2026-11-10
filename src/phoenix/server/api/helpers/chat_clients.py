@@ -292,6 +292,7 @@ class OpenAICompatibleClient(ChatClient["AsyncOpenAI"]):
         )
 
     @classmethod
+    @override
     def dependencies(cls) -> list[Dependency]:
         return [Dependency(name="openai")]
 
@@ -1493,6 +1494,7 @@ class BedrockClient(ChatClient["BedrockRuntimeClient"]):
         super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
 
     @classmethod
+    @override
     def dependencies(cls) -> list[Dependency]:
         return [Dependency(name="aioboto3")]
 
@@ -2211,6 +2213,7 @@ class AnthropicClient(ChatClient["AsyncAnthropic"]):
         self._anthropic = anthropic
 
     @classmethod
+    @override
     def dependencies(cls) -> list[Dependency]:
         return [Dependency(name="anthropic")]
 
@@ -2666,6 +2669,7 @@ class GoogleClient(ChatClient["GoogleAsyncClient"]):
         self.provider = OpenInferenceLLMProviderValues.GOOGLE.value
 
     @classmethod
+    @override
     def dependencies(cls) -> list[Dependency]:
         return [Dependency(name="google-genai", module_name="google.genai")]
 
