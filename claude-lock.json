@@ -15,9 +15,9 @@
     "./agents/bug-fixer.md": {
       "kind": "agent",
       "id": "agent_01Raz9DgBPzzgzcPDfhDu92g",
-      "version": "9",
-      "hash": "a04d7f02d9cc95934d99eb359b480d8f",
-      "remote_hash": "45ccf1cabacd8b42f80bd679f92dda45"
+      "version": "10",
+      "hash": "d0a97eb7a7c5d58cdc5e632461659927",
+      "remote_hash": "777a34bfd342bb21412034f782cfef8a"
     },
     "./agents/bug-reproducer.md": {
       "kind": "agent",
@@ -57,9 +57,9 @@
     "./agents/feature-builder.md": {
       "kind": "agent",
       "id": "agent_01Ck8S1uMop4qWTTwZXo5FUq",
-      "version": "7",
-      "hash": "b5d60b30d1360c78147ed7533c60034e",
-      "remote_hash": "b1b1af38b79a44587f16d403a361848f"
+      "version": "8",
+      "hash": "f0a7ad1e807895c591589ec2928e7789",
+      "remote_hash": "2b1b59b20adf86b49a8681660a4dba91"
     },
     "./agents/frontend-reviewer.md": {
       "kind": "agent",
