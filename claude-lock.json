@@ -78,16 +78,16 @@
     "./agents/pr-finisher.md": {
       "kind": "agent",
       "id": "agent_016wWcHQdD25th5D8v7gGH83",
-      "version": "2",
-      "hash": "443cf23217c1ad57c7b9b8d32b1be327",
-      "remote_hash": "3bca689a2cf357be48dc0abe99dc078b"
+      "version": "3",
+      "hash": "951c4c34bda58205390e19f44c49a54e",
+      "remote_hash": "611ed0487668edfc9a4ba08a084d6ab7"
     },
     "./agents/pr-reviewer.md": {
       "kind": "agent",
       "id": "agent_01PjZ8vnrD9MoDyngXbvp2Si",
-      "version": "9",
-      "hash": "18127c9f1668826cecda90c95d7b73a5",
-      "remote_hash": "582d637470b5e15fc6836f00550a2cff"
+      "version": "10",
+      "hash": "4dffd502dac5186e2734a511d25ad746",
+      "remote_hash": "28e648bb5eb322d00232dcd43da05796"
     },
     "./agents/railway-triage.md": {
       "kind": "agent",
@@ -95,6 +95,13 @@
       "version": "2",
       "hash": "fbdc22372fac8fe2f6c10fc5f046e407",
       "remote_hash": "791fdbba22554f3b75a8eef586231be3"
+    },
+    "./agents/security-reviewer.md": {
+      "kind": "agent",
+      "id": "agent_012NWnJBvHz1LfhBJDKVYPqV",
+      "version": "1",
+      "hash": "3be4f7a4db73aade993dded1efa53c96",
+      "remote_hash": "f5c7433188eca46424a4b8b80c30ff0d"
     },
     "./agents/server-reviewer.md": {
       "kind": "agent",
