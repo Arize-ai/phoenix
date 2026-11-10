@@ -3631,6 +3631,20 @@ class LLMEvaluator(Evaluator):
     prompt_version_tag: Mapped[Optional["PromptVersionTag"]] = relationship(
         "PromptVersionTag", back_populates="llm_evaluators"
     )
+    selected_prompt_version: Mapped["PromptVersion"] = relationship(
+        "PromptVersion",
+        secondary=lambda: _LLM_EVALUATOR_SELECTED_PROMPT_VERSIONS,
+        primaryjoin=lambda: (
+            LLMEvaluator.id == foreign(_LLM_EVALUATOR_SELECTED_PROMPT_VERSIONS.c.llm_evaluator_id)
+        ),
+        secondaryjoin=lambda: (
+            PromptVersion.id == foreign(_LLM_EVALUATOR_SELECTED_PROMPT_VERSIONS.c.prompt_version_id)
+        ),
+        viewonly=True,
+        uselist=False,
+        innerjoin=True,
+        lazy="joined",
+    )
     __mapper_args__ = {
         "polymorphic_identity": "LLM",
     }
@@ -3641,6 +3655,30 @@ class LLMEvaluator(Evaluator):
             ondelete="CASCADE",
         ),
     )
+
+
+def _llm_evaluator_selected_prompt_versions() -> sa.Subquery:
+    """The prompt version each LLM evaluator runs: its tag's, or its prompt's newest."""
+    evaluators = LLMEvaluator.__table__
+    tags = PromptVersionTag.__table__
+    versions = PromptVersion.__table__
+    tagged = (
+        select(tags.c.prompt_version_id)
+        .where(tags.c.id == evaluators.c.prompt_version_tag_id)
+        .scalar_subquery()
+    )
+    newest = (
+        select(func.max(versions.c.id))
+        .where(versions.c.prompt_id == evaluators.c.prompt_id)
+        .scalar_subquery()
+    )
+    return select(
+        evaluators.c.id.label("llm_evaluator_id"),
+        func.coalesce(tagged, newest).label("prompt_version_id"),
+    ).subquery("llm_evaluator_selected_prompt_versions")
+
+
+_LLM_EVALUATOR_SELECTED_PROMPT_VERSIONS: sa.Subquery = _llm_evaluator_selected_prompt_versions()
 
 
 class Language(Base):

@@ -66,6 +66,9 @@ from .last_used_times_by_generative_model_id import LastUsedTimesByGenerativeMod
 from .latency_ms_quantile import LatencyMsQuantileCache, LatencyMsQuantileDataLoader
 from .latest_code_evaluator_versions import LatestCodeEvaluatorVersionDataLoader
 from .latest_prompt_version_ids import LatestPromptVersionIdDataLoader
+from .llm_evaluator_selected_prompt_version_ids import (
+    LLMEvaluatorSelectedPromptVersionIdDataLoader,
+)
 from .min_start_or_max_end_times import MinStartOrMaxEndTimeCache, MinStartOrMaxEndTimeDataLoader
 from .num_child_spans import NumChildSpansDataLoader
 from .num_spans_per_trace import NumSpansPerTraceDataLoader
@@ -271,6 +274,7 @@ class DataLoaders:
     prompt_authors: "VersionAuthorsDataLoader[models.PromptVersion]"
     latest_prompt_version_ids: LatestPromptVersionIdDataLoader
     latest_code_evaluator_versions: LatestCodeEvaluatorVersionDataLoader
+    llm_evaluator_selected_prompt_version_ids: LLMEvaluatorSelectedPromptVersionIdDataLoader
     project_session_annotation_fields: TableFieldsDataLoader
     project_session_fields: TableFieldsDataLoader
     record_counts: RecordCountDataLoader
@@ -475,6 +479,7 @@ def build_data_loaders(
         ),
         latest_prompt_version_ids=LatestPromptVersionIdDataLoader(db),
         latest_code_evaluator_versions=LatestCodeEvaluatorVersionDataLoader(db),
+        llm_evaluator_selected_prompt_version_ids=LLMEvaluatorSelectedPromptVersionIdDataLoader(db),
         project_session_annotation_fields=TableFieldsDataLoader(
             db, models.ProjectSessionAnnotation
         ),

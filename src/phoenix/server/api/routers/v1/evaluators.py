@@ -4,7 +4,7 @@ from typing import Annotated, Any, Literal, Optional, Union
 
 from fastapi import APIRouter, Depends, Query, Response
 from pydantic import ConfigDict, Field
-from sqlalchemy import String, cast, func, select
+from sqlalchemy import String, cast, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 
@@ -466,10 +466,10 @@ async def _evaluator_definitions_page(
     session: AsyncSession, rows: list[tuple[int, models.EvaluatorKind]]
 ) -> list[EvaluatorDefinition]:
     """Build a page of definitions in a fixed number of queries, independent of page size:
-    the LLM rows and their prompt versions (tagged and, separately, untagged) each batched
-    in one statement, the code rows and their latest versions likewise, and the built-in
-    rows in one statement of their own (the rest of a built-in definition comes from the
-    in-memory registry, not the database). `rows` is (id, kind) as listed by
+    the LLM rows with the prompt versions they run in one statement, the code rows and
+    their latest versions likewise, and the built-in rows in one statement of their own
+    (the rest of a built-in definition comes from the in-memory registry, not the
+    database). `rows` is (id, kind) as listed by
     `get_evaluators`, in the page's own order, which the result preserves."""
     llm_ids = [row_id for row_id, kind in rows if kind == "LLM"]
     code_ids = [row_id for row_id, kind in rows if kind == "CODE"]
@@ -482,49 +482,6 @@ async def _evaluator_definitions_page(
             for llm in (
                 await session.scalars(
                     select(models.LLMEvaluator).where(models.LLMEvaluator.id.in_(llm_ids))
-                )
-            ).all()
-        }
-
-    tag_ids = {
-        llm.prompt_version_tag_id
-        for llm in llm_by_id.values()
-        if llm.prompt_version_tag_id is not None
-    }
-    tagged_prompt_versions: dict[int, models.PromptVersion] = {}
-    if tag_ids:
-        tagged_prompt_versions = dict(
-            (
-                await session.execute(
-                    select(models.PromptVersionTag.id, models.PromptVersion)
-                    .join(
-                        models.PromptVersion,
-                        models.PromptVersionTag.prompt_version_id == models.PromptVersion.id,
-                    )
-                    .where(models.PromptVersionTag.id.in_(tag_ids))
-                )
-            )
-            .tuples()
-            .all()
-        )
-
-    untagged_prompt_ids = {
-        llm.prompt_id for llm in llm_by_id.values() if llm.prompt_version_tag_id is None
-    }
-    latest_prompt_versions: dict[int, models.PromptVersion] = {}
-    if untagged_prompt_ids:
-        latest_version_ids = (
-            select(func.max(models.PromptVersion.id))
-            .where(models.PromptVersion.prompt_id.in_(untagged_prompt_ids))
-            .group_by(models.PromptVersion.prompt_id)
-        )
-        latest_prompt_versions = {
-            version.prompt_id: version
-            for version in (
-                await session.scalars(
-                    select(models.PromptVersion).where(
-                        models.PromptVersion.id.in_(latest_version_ids)
-                    )
                 )
             ).all()
         }
@@ -592,12 +549,9 @@ async def _evaluator_definitions_page(
             llm = llm_by_id.get(row_id)
             if llm is None:
                 raise NotFound(f"Evaluator not found: {evaluator_id}")
-            prompt_version = (
-                tagged_prompt_versions.get(llm.prompt_version_tag_id)
-                if llm.prompt_version_tag_id is not None
-                else latest_prompt_versions.get(llm.prompt_id)
+            definitions.append(
+                _llm_evaluator_definition(evaluator_id, llm, llm.selected_prompt_version)
             )
-            definitions.append(_llm_evaluator_definition(evaluator_id, llm, prompt_version))
     return definitions
 
 
