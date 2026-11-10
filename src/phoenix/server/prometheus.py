@@ -221,12 +221,6 @@ ONLINE_EVAL_DECIDED_THROUGH_LAG_SECONDS = Gauge(
     "traces",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
-ONLINE_EVAL_SWEEP_ATTEMPTS = Counter(
-    namespace="phoenix",
-    name="online_eval_sweep_attempts_total",
-    documentation="Total number of online-eval sweep attempts",
-    labelnames=_EVALUATION_TARGET_LABELS,
-)
 ONLINE_EVAL_SWEEP_SUCCESSES = Counter(
     namespace="phoenix",
     name="online_eval_sweep_successes_total",

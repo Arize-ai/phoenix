@@ -59,7 +59,6 @@ from phoenix.server.online_eval.project_evaluator_state import (
 from phoenix.server.prometheus import (
     ONLINE_EVAL_ADDED_WORK_UNITS,
     ONLINE_EVAL_DECIDED_THROUGH_LAG_SECONDS,
-    ONLINE_EVAL_SWEEP_ATTEMPTS,
     ONLINE_EVAL_SWEEP_DURATION_SECONDS,
     ONLINE_EVAL_SWEEP_ELIGIBLE_EVALUATIONS,
     ONLINE_EVAL_SWEEP_FAILURES,
@@ -311,7 +310,6 @@ class SweepingEvaluationProducer(DaemonTask):
         ONLINE_EVAL_SWEEP_ELIGIBLE_EVALUATIONS.labels(**self._metric_labels)
         ONLINE_EVAL_ADDED_WORK_UNITS.labels(**self._metric_labels)
         ONLINE_EVAL_DECIDED_THROUGH_LAG_SECONDS.labels(**self._metric_labels)
-        ONLINE_EVAL_SWEEP_ATTEMPTS.labels(**self._metric_labels)
         ONLINE_EVAL_SWEEP_DURATION_SECONDS.labels(**self._metric_labels)
         ONLINE_EVAL_SWEEP_FAILURES.labels(**self._metric_labels)
         ONLINE_EVAL_SWEEP_SUCCESSES.labels(**self._metric_labels)
@@ -351,8 +349,6 @@ class SweepingEvaluationProducer(DaemonTask):
     async def _run_sweep(self) -> bool:
         started_at = time.monotonic()
         labels = self._metric_labels
-        if self._publish_metrics:
-            ONLINE_EVAL_SWEEP_ATTEMPTS.labels(**labels).inc()
         try:
             async with self._db() as session:
                 if self._db.dialect is SupportedSQLDialect.POSTGRESQL:

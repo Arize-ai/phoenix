@@ -1529,7 +1529,6 @@ async def test_sweep_metrics_cover_eligibility_decided_through_and_outcomes(
         "ONLINE_EVAL_SWEEP_ELIGIBLE_EVALUATIONS",
         "ONLINE_EVAL_DECIDED_THROUGH_LAG_SECONDS",
         "ONLINE_EVAL_ADDED_WORK_UNITS",
-        "ONLINE_EVAL_SWEEP_ATTEMPTS",
         "ONLINE_EVAL_SWEEP_DURATION_SECONDS",
         "ONLINE_EVAL_SWEEP_FAILURES",
         "ONLINE_EVAL_SWEEP_SUCCESSES",
@@ -1546,7 +1545,6 @@ async def test_sweep_metrics_cover_eligibility_decided_through_and_outcomes(
 
     metrics["ONLINE_EVAL_SWEEP_ELIGIBLE_EVALUATIONS"].set.assert_called_once_with(1)
     metrics["ONLINE_EVAL_DECIDED_THROUGH_LAG_SECONDS"].set.assert_called_once_with(0.0)
-    metrics["ONLINE_EVAL_SWEEP_ATTEMPTS"].inc.assert_called_once_with()
     metrics["ONLINE_EVAL_SWEEP_SUCCESSES"].inc.assert_called_once_with()
     metrics["ONLINE_EVAL_SWEEP_FAILURES"].inc.assert_not_called()
     metrics["ONLINE_EVAL_ADDED_WORK_UNITS"].inc.assert_called_once_with(1)
