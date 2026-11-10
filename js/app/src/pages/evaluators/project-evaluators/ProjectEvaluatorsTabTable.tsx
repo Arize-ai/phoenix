@@ -3,7 +3,7 @@ import type { OnChangeFn, SortingState } from "@tanstack/react-table";
 import { flexRender, useTable } from "@tanstack/react-table";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { Icon, Icons, Link, Text } from "@phoenix/components";
+import { Flex, Icon, Icons, Link, Text } from "@phoenix/components";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeRange } from "@phoenix/components/datetime";
@@ -28,6 +28,7 @@ import { ProjectEvaluatorLagCell } from "@phoenix/pages/project/evaluators/Proje
 import { ProjectEvaluatorLoadCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorLoadCell";
 import { ProjectEvaluatorQueueCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueCell";
 import { ProjectEvaluatorStatusCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorStatusCell";
+import { ProjectEvaluatorTargetIcon } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTargetIcon";
 
 type QueryData = ProjectEvaluatorsTabTableQuery["response"];
 type TableRow = QueryData["projectEvaluators"]["edges"][number]["node"];
@@ -181,6 +182,7 @@ export function ProjectEvaluatorsTabTable({
               id
               name
               enabled
+              evaluationTarget
               project {
                 id
                 name
@@ -295,9 +297,12 @@ export function ProjectEvaluatorsTabTable({
       size: 200,
       accessorFn: (row) => row.name,
       cell: ({ row }) => (
-        <Link to={getProjectEvaluatorDetailsPath(row.original)}>
-          <Truncate maxWidth="100%">{row.original.name}</Truncate>
-        </Link>
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <ProjectEvaluatorTargetIcon target={row.original.evaluationTarget} />
+          <Link to={getProjectEvaluatorDetailsPath(row.original)}>
+            <Truncate maxWidth="100%">{row.original.name}</Truncate>
+          </Link>
+        </Flex>
       ),
     },
     {

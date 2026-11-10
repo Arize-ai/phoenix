@@ -80,7 +80,7 @@ export const DecisionsFilterBar = () => {
           <CanModify>
             <LinkButton
               size="M"
-              leadingVisual={<Icon svg={<Icons.MessageSquare />} />}
+              leadingVisual={<Icon svg={<Icons.MessagesSquare />} />}
               variant="primary"
               to="/playground?newDecision=true"
             >
