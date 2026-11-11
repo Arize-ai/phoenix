@@ -253,13 +253,17 @@ class TestSeriesCacheInvalidation:
             # cache can carry a result from one load to the next.
             return await build_data_loaders(db, cache).annotation_mean_score_time_series.load(key)
 
-        async def put_and_wait_for_invalidation(handler: DmlEventHandler, event: DmlEvent) -> None:
+        handler = DmlEventHandler(
+            db=db, last_updated_at=LastUpdatedAt(), cache_for_dataloaders=cache
+        )
+
+        async def handle(event: DmlEvent) -> None:
+            # One pass of each handler's daemon loop, run inline
             handler.put(event)
-            for _ in range(200):
-                if cache.annotation_mean_score_time_series.get(key) is None:
-                    return
-                await asyncio.sleep(0.01)
-            pytest.fail(f"{type(event).__name__} did not invalidate the series cache")
+            for batched in handler._all_handlers:
+                if not batched._batch.empty:
+                    await batched()
+                    batched._batch.clear()
 
         assert await load() == {_DAY_0: MeanScoreBin(1.0, 1)}
         async with db() as session:
@@ -270,21 +274,18 @@ class TestSeriesCacheInvalidation:
         # Served from the cache until an event says the annotations changed.
         assert await load() == {_DAY_0: MeanScoreBin(1.0, 1)}
 
-        handler = DmlEventHandler(
-            db=db,
-            last_updated_at=LastUpdatedAt(),
-            cache_for_dataloaders=cache,
-            sleep_seconds=0.01,
-        )
-        async with handler:
-            await put_and_wait_for_invalidation(handler, SpanAnnotationInsertEvent((written.id,)))
-            assert await load() == {_DAY_0: MeanScoreBin(0.5, 2)}
+        await handle(SpanAnnotationInsertEvent((written.id,)))
+        assert await load() == {_DAY_0: MeanScoreBin(0.5, 2)}
 
-            async with db() as session:
-                await session.execute(
-                    delete(models.SpanAnnotation).where(models.SpanAnnotation.id == written.id)
-                )
-            await put_and_wait_for_invalidation(handler, SpanAnnotationDeleteEvent((written.id,)))
-            assert await load() == {_DAY_0: MeanScoreBin(1.0, 1)}
+        async with db() as session:
+            await session.execute(
+                delete(models.SpanAnnotation).where(models.SpanAnnotation.id == written.id)
+            )
+        # Still the cached series until the delete event arrives
+        assert await load() == {_DAY_0: MeanScoreBin(0.5, 2)}
+        await handle(SpanAnnotationDeleteEvent((written.id,)))
+        assert await load() == {_DAY_0: MeanScoreBin(1.0, 1)}
 
-            await put_and_wait_for_invalidation(handler, SpanDeleteEvent((project.id,)))
+        assert cache.annotation_mean_score_time_series.get(key) is not None
+        await handle(SpanDeleteEvent((project.id,)))
+        assert cache.annotation_mean_score_time_series.get(key) is None
