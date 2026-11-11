@@ -55,9 +55,9 @@ _UNMAPPED = InputMapping(literal_mapping={}, path_mapping={})
 _TOOL_LABELS = {"quality": ["great", "poor"], "relevance": ["relevant", "irrelevant"]}
 _CONFIG_LABELS = {"quality": ["good", "bad"], "relevance": ["relevant", "irrelevant"]}
 _PREVIEW = """
-  mutation($input: EvaluatorPreviewsInput!) {
-    evaluatorPreviews(input: $input) {
-      results { evaluatorName error }
+  mutation($input: EvaluatorPreviewInput!) {
+    previewEvaluator(input: $input) {
+      results { key error results { evaluatorName error } }
     }
   }
 """
@@ -253,21 +253,16 @@ async def test_a_misfit_llm_evaluator_errors_the_same_way_in_every_context(
         _PREVIEW,
         {
             "input": {
-                "previews": [
-                    {
-                        "evaluator": _llm_preview_definition(),
-                        "context": _CONTEXT,
-                        "inputMapping": {"literalMapping": {}, "pathMapping": {}},
-                    }
-                ]
+                "evaluator": _llm_preview_definition(),
+                "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                "subjects": [{"key": "subject", "context": _CONTEXT}],
             }
         },
     )
     assert preview.data and not preview.errors, preview.errors
-    preview_results = [
-        (result["evaluatorName"], result["error"])
-        for result in preview.data["evaluatorPreviews"]["results"]
-    ]
+    (subject,) = preview.data["previewEvaluator"]["results"]
+    assert subject["error"] is None, subject["error"]
+    preview_results = [(result["evaluatorName"], result["error"]) for result in subject["results"]]
 
     async with db() as session:
         (experiment_evaluator,) = await get_evaluators(
@@ -343,15 +338,9 @@ async def test_an_unbuildable_code_sandbox_is_refused_the_same_way_in_every_cont
         _PREVIEW,
         {
             "input": {
-                "previews": [
-                    {
-                        "evaluator": {
-                            "codeEvaluatorId": str(GlobalID("CodeEvaluator", str(evaluator_id)))
-                        },
-                        "context": _CONTEXT,
-                        "inputMapping": {"literalMapping": {}, "pathMapping": {}},
-                    }
-                ]
+                "evaluator": {"codeEvaluatorId": str(GlobalID("CodeEvaluator", str(evaluator_id)))},
+                "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                "subjects": [{"key": "subject", "context": _CONTEXT}],
             }
         },
     )
