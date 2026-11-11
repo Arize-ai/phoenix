@@ -166,6 +166,40 @@ def test_rejected_manifest_does_not_warn_about_entries(caplog: pytest.LogCapture
             _model(
                 "bad",
                 token_prices=[
+                    {"base_rate": float("inf"), "is_prompt": True, "token_type": "input"}
+                ],
+            ),
+            "'bad'",
+            id="infinite-rate",
+        ),
+        pytest.param(
+            _model(
+                "bad",
+                token_prices=[{"base_rate": True, "is_prompt": True, "token_type": "input"}],
+            ),
+            "'bad'",
+            id="bool-rate",
+        ),
+        pytest.param(_model("bad", token_prices=[]), "'bad'", id="empty-token-prices"),
+        pytest.param(
+            _model(
+                "bad",
+                token_prices=[
+                    {
+                        "base_rate": 1e-6,
+                        "is_prompt": True,
+                        "token_type": "input",
+                        "customization": {"type": "threshold_based", "threshold": "not-a-float"},
+                    }
+                ],
+            ),
+            "'bad'",
+            id="invalid-threshold-customization",
+        ),
+        pytest.param(
+            _model(
+                "bad",
+                token_prices=[
                     {"base_rate": 0, "is_prompt": True, "token_type": "input"},
                     {"base_rate": 1e-6, "is_prompt": True, "token_type": "input"},
                 ],
@@ -245,6 +279,7 @@ def test_ignores_unknown_fields() -> None:
                         "is_prompt": True,
                         "token_type": "input",
                         "future_token_price_field": "x",
+                        "customization": {"type": "future_tier", "brackets": [1000]},
                     }
                 ],
             )
@@ -254,6 +289,10 @@ def test_ignores_unknown_fields() -> None:
     assert [model.name for model in manifest.models] == ["model-a"]
     assert not hasattr(manifest, "future_top_level_field")
     assert not hasattr(manifest.models[0], "max_input_tokens")
+    assert manifest.models[0].token_prices[0].customization == {
+        "type": "future_tier",
+        "brackets": [1000],
+    }
 
 
 def test_parses_non_llm_models_with_their_types() -> None:

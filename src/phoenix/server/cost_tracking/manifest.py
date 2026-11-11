@@ -84,17 +84,45 @@ def _compile_regex(value: Any) -> Any:
         raise ValueError(f"invalid regex: {error}")
 
 
+def _reject_bool(value: Any) -> Any:
+    if isinstance(value, bool):
+        raise ValueError("must not be a boolean")
+    return value
+
+
+_NonNegativeFloat = Annotated[
+    float,
+    BeforeValidator(_reject_bool),
+    Field(ge=0, allow_inf_nan=False),
+]
+
+
 class _ManifestBaseModel(BaseModel):
     # Ignore unknown fields so that new optional fields don't need a schema version bump.
     model_config = ConfigDict(extra="ignore", frozen=True)
 
 
+class _ManifestThresholdCustomization(_ManifestBaseModel):
+    key: Annotated[str, AfterValidator(_strip_non_empty)]
+    threshold: _NonNegativeFloat
+    new_rate: _NonNegativeFloat
+
+
+def _validate_customization(value: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
+    if value is not None and value.get("type") == "threshold_based":
+        _ManifestThresholdCustomization.model_validate(value)
+    return value
+
+
 class ManifestTokenPrice(_ManifestBaseModel):
-    token_type: str
+    token_type: Annotated[str, AfterValidator(_strip_non_empty)]
     is_prompt: bool
-    base_rate: float = Field(ge=0)
-    # Left raw; it is parsed with TokenPriceCustomizationParser when applied.
-    customization: Optional[dict[str, Any]] = None
+    base_rate: _NonNegativeFloat
+    # Left raw so unknown customization types round-trip; known threshold_based tiers are
+    # validated here so a corrupt tier skips the entry instead of dropping its customization.
+    customization: Annotated[Optional[dict[str, Any]], AfterValidator(_validate_customization)] = (
+        None
+    )
 
 
 class ManifestModelKey(NamedTuple):
@@ -110,7 +138,7 @@ class ManifestModel(_ManifestBaseModel):
     provider: Annotated[Optional[str], AfterValidator(_strip_optional)] = None
     source: Optional[str] = None
     type: GenerativeModelType = "LLM"
-    token_prices: list[ManifestTokenPrice]
+    token_prices: list[ManifestTokenPrice] = Field(min_length=1)
 
     @property
     def key(self) -> ManifestModelKey:
