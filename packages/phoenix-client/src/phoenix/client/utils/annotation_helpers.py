@@ -156,10 +156,13 @@ def _validate_column_values(
         raise ValueError(f"{value_description} values cannot be None")
 
     if expected_type is str:
-        if (dataframe.loc[:, column].str.strip() == "").any():  # pyright: ignore[reportUnknownMemberType]
-            raise ValueError(f"{value_description} values must be non-empty strings")
+        # The type check runs before the .str accessor: on a column of
+        # non-strings the accessor itself raises an AttributeError that would
+        # mask the designed validation message.
         if not all(isinstance(x, str) for x in dataframe.loc[:, column]):  # pyright: ignore[reportUnknownVariableType,reportUnknownMemberType]
             raise ValueError(f"{value_description} values must be strings")
+        if (dataframe.loc[:, column].str.strip() == "").any():  # pyright: ignore[reportUnknownMemberType]
+            raise ValueError(f"{value_description} values must be non-empty strings")
     else:
         if not all(isinstance(x, expected_type) for x in dataframe.loc[:, column]):  # pyright: ignore[reportUnknownVariableType,reportUnknownMemberType]
             raise ValueError(f"{value_description} values must be of type {expected_type.__name__}")
@@ -186,10 +189,13 @@ def _validate_index_level_values(
         raise ValueError(f"Index level '{index_name}' values cannot be None")
 
     if expected_type is str:
-        if (pd.Series(level_values).str.strip() == "").any():  # pyright: ignore[reportUnknownMemberType,reportUnknownArgumentType]
-            raise ValueError(f"Index level '{index_name}' values must be non-empty strings")
+        # The type check runs before the .str accessor: on a level of
+        # non-strings the accessor itself raises an AttributeError that would
+        # mask the designed validation message.
         if not all(isinstance(x, str) for x in level_values):  # pyright: ignore[reportUnknownVariableType,reportUnknownArgumentType]
             raise ValueError(f"Index level '{index_name}' values must be strings")
+        if (pd.Series(level_values).str.strip() == "").any():  # pyright: ignore[reportUnknownMemberType,reportUnknownArgumentType]
+            raise ValueError(f"Index level '{index_name}' values must be non-empty strings")
     else:
         if not all(isinstance(x, expected_type) for x in level_values):  # pyright: ignore[reportUnknownVariableType,reportUnknownArgumentType]
             raise ValueError(
