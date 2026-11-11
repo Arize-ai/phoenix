@@ -14,6 +14,7 @@ import invariant from "tiny-invariant";
 import { useShallow } from "zustand/react/shallow";
 
 import {
+  Alert,
   Button,
   EdgeFade,
   Flex,
@@ -424,14 +425,7 @@ function TestBenchHeader({
           </Text>
         </div>
       ) : null}
-      {runError ? (
-        <div className="test-bench__blocker" role="alert">
-          <Icon svg={<Icons.AlertCircle />} color="danger" />
-          <Text size="S" color="danger">
-            {runError}
-          </Text>
-        </div>
-      ) : null}
+      {runError ? <Alert variant="danger">{runError}</Alert> : null}
     </div>
   );
 }
