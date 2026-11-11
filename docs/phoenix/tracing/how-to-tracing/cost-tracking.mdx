@@ -2,7 +2,7 @@
 title: "Cost Tracking"
 ---
 
-Phoenix allows you to track token-based costs for LLM and decision-model runs automatically. The costs are calculated from token counts and model pricing data, then rolled up to the trace and project level for comprehensive cost analysis.
+Phoenix allows you to track token-based costs for LLM, decision-model, and embedding runs automatically. The costs are calculated from token counts and model pricing data, then rolled up to the trace and project level for comprehensive cost analysis.
 
 In most cases it is simplest to let Phoenix handle cost calculation using its built-in model pricing table. When custom pricing is required, you can create custom cost configurations in Settings > Models.
 
@@ -68,6 +68,16 @@ For more granular cost tracking, you can provide detailed token counts:
 | `decision.token_count.output` | Integer | The number of output tokens                                                                                                                                           |
 
 If a decision span sets `decision.token_count.input` or `decision.token_count.output`, Phoenix uses only those two attributes and treats an omitted side as `0`. In that case, Phoenix ignores all `llm.token_count.*` attributes, including `*_details`. Otherwise, Phoenix falls back to `llm.token_count.prompt`, `llm.token_count.completion`, and their `*_details` breakdown from older instrumentation.
+
+### Embedding spans
+
+Phoenix prices [EMBEDDING spans](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds) only against embedding-model prices, never LLM or decision-model prices. Embedding models bill input tokens only, so Phoenix ignores completion counts and token details. When a matching embedding-model price exists, Phoenix calculates the input cost; otherwise, Phoenix records the input tokens with no cost. Embedding input tokens and costs count toward trace, session, experiment, and project cost summaries, while staying out of LLM span token counts. Phoenix reads these attributes from embedding spans:
+
+| Attribute                | Type    | Description                                                                           |
+| :------------------------ | :------- | :------------------------------------------------------------------------------------- |
+| `embedding.model_name`   | String  | The embedding model. Falls back to the `llm.*` model names                            |
+| `llm.provider`           | String  | The hosting provider (optional), used to break ties when set by instrumentation       |
+| `llm.token_count.prompt` | Integer | The number of input tokens. Falls back to `llm.token_count.total` when omitted or `0` |
 
 ## Model pricing configuration
 
@@ -165,7 +175,7 @@ Phoenix automatically tracks costs for traced experiments, providing detailed co
 * **Cost per experiment run**: Individual cost for each dataset example run through an experiment Experiment costs are automatically calculated when you:
 
 1. Run experiments on datasets through Phoenix
-2. Include proper token count and model information in your traced LLM or decision-model calls
+2. Include proper token count and model information in your traced LLM, decision-model, or embedding calls
 3. Have model pricing configured for the models used in experiments
 
 ### Project-level analytics

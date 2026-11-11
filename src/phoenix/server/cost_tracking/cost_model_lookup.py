@@ -17,7 +17,7 @@ _RegexPatternStr: TypeAlias = str
 _RegexSpecificityScore: TypeAlias = int
 _TieBreakerId: TypeAlias = int
 
-_PRICED_MODEL_TYPES: frozenset[PricedModelType] = frozenset(("LLM", "DECISION"))
+_PRICED_MODEL_TYPES: frozenset[PricedModelType] = frozenset(("LLM", "DECISION", "EMBEDDING"))
 
 
 class CostModelLookup:
@@ -36,7 +36,7 @@ class CostModelLookup:
     def _add_or_update_model(self, model: models.GenerativeModel) -> None:
         """Add or update a single model in the lookup."""
         if model.type not in _PRICED_MODEL_TYPES:
-            # Only LLM and DECISION spans are priced so far.
+            # Only LLM, DECISION and EMBEDDING models are priced.
             self._remove_model(model.id)
             return
         self._models_by_id[model.id] = model
@@ -94,12 +94,14 @@ class CostModelLookup:
                 Models with start_time greater than this value will be excluded.
             attributes: A mapping containing span attributes. The span kind
                 (`openinference.span.kind`) picks the model type: DECISION spans match
-                only DECISION models, and all other spans match only LLM models. Must
-                include the model name (`*.response.model_name`, `*.model_name`, or
-                `*.request.model_name`, from `decision.*` or legacy `llm.*` on DECISION
-                spans and `llm.*` otherwise). The provider (`decision.provider`,
-                `decision.system` or `llm.provider` on DECISION spans, `llm.provider`
-                otherwise) is optional.
+                only DECISION models, EMBEDDING spans only EMBEDDING models, and all
+                other spans only LLM models. Must include the model name
+                (`*.response.model_name`, `*.model_name`, or `*.request.model_name`, from
+                `decision.*` or legacy `llm.*` on DECISION spans and `llm.*` on LLM spans;
+                `embedding.model_name` or `llm.*` on EMBEDDING spans). The provider
+                (`decision.provider`, `decision.system` or `llm.provider` on DECISION
+                spans, `llm.provider` otherwise) is optional; EMBEDDING spans usually
+                have none.
 
         Raises:
             TypeError: If start_time is not timezone-aware (tzinfo is None)

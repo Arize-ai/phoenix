@@ -1085,3 +1085,59 @@ class TestDecisionSpanCostDetails:
         assert details["output"].tokens == 10
         assert details["output"].cost == pytest.approx(10 * 5e-7)
         assert details["output"].cost_per_token == pytest.approx(5e-7)
+
+
+def test_embedding_span_prices_input_tokens_only() -> None:
+    # Completion counts and details would otherwise add unpriced rows next to the manifest's
+    # input-only price.
+    attributes = {
+        "openinference": {"span": {"kind": "EMBEDDING"}},
+        "embedding": {"model_name": "text-embedding-3-small"},
+        "llm": {
+            "token_count": {
+                "prompt": 1000,
+                "completion": 5,
+                "total": 1005,
+                "prompt_details": {"cache_read": 400},
+                "completion_details": {"reasoning": 5},
+            }
+        },
+    }
+    calculator = SpanCostDetailsCalculator(
+        [models.TokenPrice(token_type="input", is_prompt=True, base_rate=2e-8)]
+    )
+    details = _by_type(calculator.calculate_details(attributes))
+    assert details == {"input": _Cost(tokens=1000, cost=1000 * 2e-8, cost_per_token=2e-8)}
+
+
+@pytest.mark.parametrize(
+    "token_count,expected_tokens,expected_rate",
+    [
+        pytest.param({"total": 300_000}, 300_000, 4e-8, id="total-only-above-threshold"),
+        pytest.param({"prompt": 0, "total": 300_000}, 300_000, 4e-8, id="zero-prompt-uses-total"),
+        pytest.param(
+            {"prompt": 1000, "total": 300_000}, 1000, 2e-8, id="positive-prompt-wins-over-total"
+        ),
+    ],
+)
+def test_embedding_span_tier_reads_priced_input_count(
+    token_count: dict[str, int], expected_tokens: int, expected_rate: float
+) -> None:
+    calculator = SpanCostDetailsCalculator(
+        [
+            models.TokenPrice(
+                token_type="input",
+                is_prompt=True,
+                **_tier(2e-8, 4e-8, "llm.token_count.prompt"),
+            )
+        ]
+    )
+    attributes = {
+        "openinference": {"span": {"kind": "EMBEDDING"}},
+        "embedding": {"model_name": "text-embedding-3-small"},
+        "llm": {"token_count": token_count},
+    }
+    details = _by_type(calculator.calculate_details(attributes))
+    assert details["input"].tokens == expected_tokens
+    assert details["input"].cost_per_token == pytest.approx(expected_rate)
+    assert details["input"].cost == pytest.approx(expected_tokens * expected_rate)
