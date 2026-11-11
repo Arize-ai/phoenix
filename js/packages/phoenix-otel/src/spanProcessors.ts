@@ -7,6 +7,11 @@ import {
   SimpleSpanProcessor as SdkSimpleSpanProcessor,
 } from "@opentelemetry/sdk-trace";
 
+import {
+  IGNORED_BSP_ENV_VARS,
+  warnAboutIgnoredOtelEnvVars,
+} from "./ignoredOtelEnvVars";
+
 /**
  * Throws a descriptive error when a span processor is constructed without an
  * `{ exporter }` options object.
@@ -36,14 +41,30 @@ function assertExporterOptions(processorName: string, options: unknown): void {
  * The `@opentelemetry/sdk-trace` `BatchSpanProcessor`, which throws a
  * descriptive `TypeError` when it is not given an `{ exporter }` options
  * object, such as the OpenTelemetry JS 2.x form `new BatchSpanProcessor(exporter)`.
+ * It also warns once per variable when an `OTEL_BSP_*` variable is set and the
+ * matching option is left out, since OpenTelemetry JS 3 no longer reads them.
+ *
+ * Passing `spanProcessors` to `register()` replaces the default Phoenix
+ * exporter, so give the exporter its Phoenix URL and auth yourself.
  *
  * @example
  * ```typescript
- * import { BatchSpanProcessor, OTLPTraceExporter, register } from "@arizeai/phoenix-otel";
+ * import {
+ *   BatchSpanProcessor,
+ *   ensureCollectorEndpoint,
+ *   OTLPTraceExporter,
+ *   register,
+ * } from "@arizeai/phoenix-otel";
  *
  * register({
  *   spanProcessors: [
- *     new BatchSpanProcessor({ exporter: new OTLPTraceExporter(), scheduledDelayMillis: 1000 }),
+ *     new BatchSpanProcessor({
+ *       exporter: new OTLPTraceExporter({
+ *         url: ensureCollectorEndpoint("http://localhost:6006"),
+ *         headers: { authorization: `Bearer ${process.env.PHOENIX_API_KEY}` },
+ *       }),
+ *       scheduledDelayMillis: 1000,
+ *     }),
  *   ],
  * });
  * ```
@@ -51,6 +72,12 @@ function assertExporterOptions(processorName: string, options: unknown): void {
 export class BatchSpanProcessor extends SdkBatchSpanProcessor {
   constructor(options: BatchSpanProcessorOptions) {
     assertExporterOptions("BatchSpanProcessor", options);
+    warnAboutIgnoredOtelEnvVars(
+      IGNORED_BSP_ENV_VARS.filter(
+        ([, field]) => options[field] === undefined
+      ).map(([key]) => key),
+      "the matching option of new BatchSpanProcessor({ exporter, ... })"
+    );
     super(options);
   }
 }

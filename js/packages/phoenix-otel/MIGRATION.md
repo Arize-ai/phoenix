@@ -62,13 +62,16 @@ attachGlobalTracerProvider(provider);
 ### `OTEL_*` sampler, span limit, and batch variables are not read
 
 `register()` ignores `OTEL_TRACES_SAMPLER`, `OTEL_TRACES_SAMPLER_ARG`, `OTEL_SPAN_*`, `OTEL_ATTRIBUTE_*`, and
-`OTEL_BSP_*`, and logs a warning naming any that are set. Configure them in code instead:
+`OTEL_BSP_*`. Configure them in code instead. If one is set and you did not configure the same setting in code, a warning is logged once per variable per process: `register()` checks `sampler`, each `spanLimits` field and its default batch processor, and the re-exported `BatchSpanProcessor` checks each batch option you leave out.
 
 | Variables                                        | `register()` option                                     |
 | ------------------------------------------------ | ------------------------------------------------------- |
 | `OTEL_TRACES_SAMPLER`, `OTEL_TRACES_SAMPLER_ARG` | `sampler`                                               |
 | `OTEL_SPAN_*`, `OTEL_ATTRIBUTE_*` limits         | `spanLimits`                                            |
 | `OTEL_BSP_*`                                     | a `BatchSpanProcessor` with options in `spanProcessors` |
+
+`spanProcessors` replaces the default Phoenix exporter, so give your `OTLPTraceExporter` the Phoenix URL
+and `Authorization` header yourself (see the custom span processor example in the README).
 
 **Before:**
 

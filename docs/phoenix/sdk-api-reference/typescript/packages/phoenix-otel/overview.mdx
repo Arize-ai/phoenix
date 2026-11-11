@@ -133,7 +133,7 @@ const provider = register({
 | `PHOENIX_COLLECTOR_ENDPOINT` | Base Phoenix collector URL or full OTLP trace endpoint. |
 | `PHOENIX_API_KEY` | API key used when you do not pass `apiKey` explicitly. |
 
-`register()` does not read the `OTEL_TRACES_SAMPLER`, `OTEL_SPAN_*`, `OTEL_ATTRIBUTE_*` or `OTEL_BSP_*` variables, and warns when any are set. Use `sampler`, `spanLimits`, or a `BatchSpanProcessor` with options in `spanProcessors` instead.
+`register()` does not read `OTEL_TRACES_SAMPLER`, `OTEL_TRACES_SAMPLER_ARG`, `OTEL_SPAN_*`, `OTEL_ATTRIBUTE_*` or `OTEL_BSP_*`. Use `sampler`, `spanLimits`, or a `BatchSpanProcessor` with options in `spanProcessors` instead. If one is set and you did not configure the same setting in code, a warning is logged once per variable per process: `register()` checks `sampler`, each `spanLimits` field and its default batch processor, and the re-exported `BatchSpanProcessor` checks each batch option you leave out. Passing `spanProcessors` replaces the default Phoenix exporter, so configure its URL and auth yourself.
 
 ## Instrumentation
 

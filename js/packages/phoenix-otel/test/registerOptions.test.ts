@@ -24,7 +24,9 @@ const IGNORED_ENV_KEYS = [
   "OTEL_TRACES_SAMPLER_ARG",
   "OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT",
   "OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT",
+  "OTEL_SPAN_EVENT_COUNT_LIMIT",
   "OTEL_BSP_SCHEDULE_DELAY",
+  "OTEL_BSP_MAX_QUEUE_SIZE",
 ];
 
 afterEach(() => {
@@ -157,6 +159,48 @@ describe("register warns about OTEL_* variables OpenTelemetry JS 3 ignores", () 
 
     expect(warn).not.toHaveBeenCalled();
     await provider.shutdown();
+  });
+
+  test("warns about span limit variables whose spanLimits field is not set", async () => {
+    process.env.OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT = "100";
+    process.env.OTEL_SPAN_EVENT_COUNT_LIMIT = "5";
+    const provider = register({
+      global: false,
+      spanLimits: { attributeValueLengthLimit: 4096 },
+      spanProcessors: [],
+    });
+
+    expect(warnings()).toHaveLength(1);
+    expect(warnings()[0]).toContain("OTEL_SPAN_EVENT_COUNT_LIMIT is set");
+    expect(warnings()[0]).not.toContain("OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT");
+    await provider.shutdown();
+  });
+
+  test("does not warn about OTEL_BSP_* for the default simple processor", async () => {
+    process.env.OTEL_BSP_SCHEDULE_DELAY = "100";
+    const provider = register({
+      global: false,
+      batch: false,
+      url: "http://localhost:6006",
+    });
+
+    expect(warn).not.toHaveBeenCalled();
+    await provider.shutdown();
+  });
+
+  test("BatchSpanProcessor warns about OTEL_BSP_* variables whose option is left out", async () => {
+    process.env.OTEL_BSP_SCHEDULE_DELAY = "100";
+    process.env.OTEL_BSP_MAX_QUEUE_SIZE = "10";
+    const processor = new BatchSpanProcessor({
+      exporter: new InMemorySpanExporter(),
+      maxQueueSize: 10,
+    });
+
+    expect(warnings()).toHaveLength(1);
+    expect(warnings()[0]).toContain("OTEL_BSP_SCHEDULE_DELAY is set");
+    expect(warnings()[0]).not.toContain("OTEL_BSP_MAX_QUEUE_SIZE");
+    expect(warnings()[0]).toContain("new BatchSpanProcessor");
+    await processor.shutdown();
   });
 
   test("warns about each variable only once per process", async () => {
