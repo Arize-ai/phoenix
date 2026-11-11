@@ -260,15 +260,13 @@ async def test_tick_queues_nothing_for_a_deleted_project_evaluator(
             .where(models.ProjectEvaluator.id == project_evaluator_id)
             .values(deleted_at=_now())
         )
-    await _seed_cursor(
-        db,
-        observed_high_water_id=span.id,
-        observed_at=_now() - timedelta(seconds=120),
-    )
+    await _seed_cursor(db)
 
-    await SpanEvaluationProducer(db)._tick()
+    producer = await _observed_producer(db)
+    await producer._tick()
 
     assert await _work_unit_span_rowids(db) == []
+    assert (await _get_cursor(db)).produced_through_id == span.id
 
 
 async def test_tick_queues_a_root_span_persisted_by_pxi(
