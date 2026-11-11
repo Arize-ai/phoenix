@@ -1,5 +1,7 @@
+import gc
 import json
 import re
+import weakref
 from datetime import datetime, timezone
 from typing import Sequence
 
@@ -445,6 +447,21 @@ class TestTracer:
         tracer.clear()
 
         assert len(tracer._self_exporter.get_finished_spans()) == 0
+
+    def test_dropped_tracer_and_its_spans_are_freed_without_shutdown(
+        self, span_cost_calculator: SpanCostCalculator
+    ) -> None:
+        tracer = Tracer(span_cost_calculator=span_cost_calculator)
+        with tracer.start_as_current_span("evaluator"):
+            pass
+        provider = weakref.ref(tracer.tracer_provider)
+        span = weakref.ref(tracer._self_exporter.get_finished_spans()[0])
+
+        del tracer
+        gc.collect()
+
+        assert provider() is None
+        assert span() is None
 
     def test_remote_exporter_uses_env_endpoint_only_when_enabled(
         self,
