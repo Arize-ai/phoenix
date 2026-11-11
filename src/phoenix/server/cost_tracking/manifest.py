@@ -154,7 +154,10 @@ class ManifestModel(_ManifestBaseModel):
                     f"duplicate token price for token_type '{key[0]}' with is_prompt={key[1]}"
                 )
             seen.add(key)
-        if any(is_prompt for _, is_prompt in seen) and ("input", True) not in seen:
+        if (self.type == "EMBEDDING" or any(is_prompt for _, is_prompt in seen)) and (
+            "input",
+            True,
+        ) not in seen:
             raise ValueError("Token prices for prompt must include an 'input' token type")
         if any(not is_prompt for _, is_prompt in seen) and ("output", False) not in seen:
             raise ValueError("Token prices for completion must include an 'output' token type")
