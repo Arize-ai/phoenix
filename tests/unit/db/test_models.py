@@ -788,11 +788,16 @@ class TestSpanCostPerToken:
         db: DbSessionFactory,
     ) -> None:
         start_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
-        # (cost, tokens, expected cost per token)
-        test_cases: list[tuple[float | None, float | None, float | None]] = [
-            (None, 100, None),  # no price applies
-            (0.0, 100, 0.0),  # $0 rate
-            (0.5, 100, 0.005),
+        # (cost, tokens, expected cost per token) for total, prompt and completion, in that order.
+        # Each column gets different values, so a hybrid reading the wrong column fails.
+        Case = tuple[float | None, float | None, float | None]
+        test_cases: list[tuple[Case, Case, Case]] = [
+            ((None, 100, None), (None, 60, None), (None, 40, None)),  # no price applies
+            ((0.0, 100, 0.0), (0.0, 60, 0.0), (0.0, 40, 0.0)),  # $0 rates
+            ((0.5, 100, 0.005), (0.3, 60, 0.005), (0.2, 40, 0.005)),
+            ((0.7, 100, 0.007), (0.6, 30, 0.02), (0.1, 70, 0.1 / 70)),
+            ((0.5, 0, None), (0.5, 0, None), (0.0, 0, None)),  # no tokens
+            ((0.5, None, None), (0.5, None, None), (0.0, None, None)),  # unknown tokens
         ]
         async with db() as session:
             project = models.Project(name=f"test_project_{token_hex(4)}")
@@ -824,17 +829,17 @@ class TestSpanCostPerToken:
             session.add(span)
             await session.flush()
 
-            for i, (cost, tokens, expected) in enumerate(test_cases):
+            for i, (total, prompt, completion) in enumerate(test_cases):
                 span_cost = models.SpanCost(
                     span_rowid=span.id,
                     trace_rowid=trace.id,
                     span_start_time=start_time,
-                    total_cost=cost,
-                    total_tokens=tokens,
-                    prompt_cost=cost,
-                    prompt_tokens=tokens,
-                    completion_cost=cost,
-                    completion_tokens=tokens,
+                    total_cost=total[0],
+                    total_tokens=total[1],
+                    prompt_cost=prompt[0],
+                    prompt_tokens=prompt[1],
+                    completion_cost=completion[0],
+                    completion_tokens=completion[1],
                 )
                 session.add(span_cost)
                 await session.flush()
@@ -850,8 +855,9 @@ class TestSpanCostPerToken:
                     models.SpanCost.completion_cost_per_token,
                 ).where(models.SpanCost.id == span_cost.id)
                 sql_values = tuple((await session.execute(stmt)).one())
-                assert python_values == pytest.approx((expected,) * 3), f"Case {i} (Python)"
-                assert sql_values == pytest.approx((expected,) * 3), f"Case {i} (SQL)"
+                expected = (total[2], prompt[2], completion[2])
+                assert python_values == pytest.approx(expected), f"Case {i} (Python)"
+                assert sql_values == pytest.approx(expected), f"Case {i} (SQL)"
 
 
 @pytest.mark.pristine_db

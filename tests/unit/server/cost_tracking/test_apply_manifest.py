@@ -13,6 +13,7 @@ from phoenix.db.facilitator import _ensure_enums
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.types.token_price_customization import ThresholdBasedTokenPriceCustomization
 from phoenix.server.cost_tracking.apply_manifest import (
+    MANIFEST_READER_VERSION,
     MANIFEST_VERSION_STATE_KEY,
     ModelCostManifestVersion,
     apply_manifest_if_newer,
@@ -34,7 +35,12 @@ def _manifest_date(day: int) -> datetime:
     return datetime(2026, 1, 1, tzinfo=timezone.utc) + timedelta(days=day)
 
 
-def _manifest_of(manifest_models: list[Any], *, day: int) -> ModelCostManifest:
+def _manifest_of(
+    manifest_models: list[Any],
+    *,
+    day: int,
+    non_llm_models: list[Any] | None = None,
+) -> ModelCostManifest:
     """Parses a manifest of the given raw model entries, generated on the given day."""
     return parse_manifest(
         json.dumps(
@@ -42,6 +48,7 @@ def _manifest_of(manifest_models: list[Any], *, day: int) -> ModelCostManifest:
                 "schema_version": SUPPORTED_SCHEMA_VERSION,
                 "generated_at": _manifest_date(day).isoformat(),
                 "models": manifest_models,
+                **({"non_llm_models": non_llm_models} if non_llm_models is not None else {}),
             }
         )
     )
@@ -105,12 +112,14 @@ async def _active_built_in_prices(db: DbSessionFactory) -> dict[str, float]:
     }
 
 
-async def _built_in_updated_at(db: DbSessionFactory) -> dict[str, datetime]:
+async def _built_in_updated_at(
+    db: DbSessionFactory, model_type: str = "LLM"
+) -> dict[str, datetime]:
     async with db() as session:
         result = await session.execute(
-            select(models.GenerativeModel.name, models.GenerativeModel.updated_at).where(
-                models.GenerativeModel.is_built_in.is_(True)
-            )
+            select(models.GenerativeModel.name, models.GenerativeModel.updated_at)
+            .where(models.GenerativeModel.is_built_in.is_(True))
+            .where(models.GenerativeModel.type == model_type)
         )
         return {name: updated_at for name, updated_at in result}
 
@@ -566,7 +575,9 @@ class TestApplyManifestIfNewer:
 
         async with db() as session:
             marker = await get_applied_manifest_version(session)
-        assert marker == ModelCostManifestVersion(generated_at=_manifest_date(1))
+        assert marker == ModelCostManifestVersion(
+            generated_at=_manifest_date(1), reader_version=MANIFEST_READER_VERSION
+        )
 
         assert await _apply(db, _manifest("model-a", "model-b", day=2, input_rate=3e-6))
         assert await _active_built_in_prices(db) == {"model-a": 3e-6, "model-b": 3e-6}
@@ -604,7 +615,7 @@ class TestApplyManifestIfNewer:
         async with db() as session:
             row = await session.get(models.SystemState, MANIFEST_VERSION_STATE_KEY)
         assert row is not None
-        assert row.value.keys() == {"generated_at"}
+        assert row.value.keys() == {"generated_at", "reader_version"}
         assert ModelCostManifestVersion.model_validate(row.value).generated_at == _manifest_date(6)
 
     @pytest.mark.parametrize(
@@ -674,7 +685,7 @@ class TestApplyManifestIfNewer:
         invalid = _manifest_model("model-a", input_rate=3e-6)
         invalid["token_prices"][0]["base_rate"] = -1
         manifest = _manifest_of([invalid, _manifest_model("model-b", input_rate=3e-6)], day=2)
-        assert manifest.skipped_model_names == {"model-a"}
+        assert manifest.skipped_models == {("model-a", "LLM")}
         assert await _apply(db, manifest)
         assert await _active_built_in_prices(db) == {"model-a": 1e-6, "model-b": 3e-6}
         async with db() as session:
@@ -692,7 +703,7 @@ class TestApplyManifestIfNewer:
             {"base_rate": 4e-6, "is_prompt": True, "token_type": "input"}
         )
         manifest = _manifest_of([duplicate, _manifest_model("model-b", input_rate=3e-6)], day=2)
-        assert manifest.skipped_model_names == {"model-a"}
+        assert manifest.skipped_models == {("model-a", "LLM")}
         assert await _apply(db, manifest)
         assert await _active_built_in_prices(db) == {"model-a": 1e-6, "model-b": 3e-6}
         model_a = (await _get_models(db, is_built_in=True))["model-a"]
@@ -708,7 +719,7 @@ class TestApplyManifestIfNewer:
         # model-b's new pattern collides with model-a's in the manifest; model-b stays as-is.
         dup_b = {**_manifest_model("model-b", input_rate=4e-6), "name_pattern": r"(?i)^(model-a)$"}
         manifest_day2 = _manifest_of([_manifest_model("model-a", input_rate=3e-6), dup_b], day=2)
-        assert manifest_day2.skipped_model_names == {"model-b"}
+        assert manifest_day2.skipped_models == {("model-b", "LLM")}
         assert await _apply(db, manifest_day2)
         assert await _active_built_in_prices(db) == {"model-a": 3e-6, "model-b": 1e-6}
 
@@ -799,7 +810,9 @@ class TestApplyManifestIfNewer:
         assert await _active_built_in_prices(db) == {"model-a": 1e-6, "model-b": 1e-6}
         async with db() as session:
             marker = await get_applied_manifest_version(session)
-        assert marker == ModelCostManifestVersion(generated_at=_manifest_date(1))
+        assert marker == ModelCostManifestVersion(
+            generated_at=_manifest_date(1), reader_version=MANIFEST_READER_VERSION
+        )
         lookup = CostModelLookup((await _get_models(db, is_built_in=True)).values())
         for name in ("model-a", "model-b"):
             matched = lookup.find_model(
@@ -823,3 +836,222 @@ class TestApplyManifestIfNewer:
         results = await asyncio.gather(*(_apply(db, manifest) for _ in range(4)))
         assert sorted(results) == [False, False, False, True]
         assert await _active_built_in_prices(db) == {"model-a": 1e-6, "model-b": 1e-6}
+
+
+def _decision_model(name: str, input_rate: float = 1e-7) -> dict[str, Any]:
+    return {**_manifest_model(name, input_rate), "type": "DECISION"}
+
+
+async def _active_built_in_prices_by_type(
+    db: DbSessionFactory,
+) -> dict[tuple[str, str], float]:
+    """Maps each active built-in model's name and type to its input rate."""
+    async with db() as session:
+        result = await session.scalars(
+            select(models.GenerativeModel)
+            .where(models.GenerativeModel.deleted_at.is_(None))
+            .where(models.GenerativeModel.is_built_in.is_(True))
+            .options(joinedload(models.GenerativeModel.token_prices))
+        )
+        return {
+            (model.name, model.type): next(
+                tp.base_rate for tp in model.token_prices if tp.token_type == "input"
+            )
+            for model in result.unique()
+        }
+
+
+async def _built_in_rows(db: DbSessionFactory) -> dict[tuple[str, str, bool], int]:
+    """Maps each built-in row's name, type and whether it's deleted to its id."""
+    async with db() as session:
+        result = await session.execute(
+            select(
+                models.GenerativeModel.name,
+                models.GenerativeModel.type,
+                models.GenerativeModel.deleted_at.isnot(None),
+                models.GenerativeModel.id,
+            ).where(models.GenerativeModel.is_built_in.is_(True))
+        )
+        return {(name, type_, bool(deleted)): id_ for name, type_, deleted, id_ in result}
+
+
+class TestApplyManifestModelTypes:
+    async def test_llm_and_decision_with_the_same_name_are_kept_apart(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        await _ensure_enums(db)
+        # Same name, name_pattern and provider in both types, as gpt-6-luna is published.
+        manifest = _manifest_of(
+            [_manifest_model("gpt-6-luna", input_rate=1e-6)],
+            non_llm_models=[_decision_model("gpt-6-luna", input_rate=1e-7)],
+            day=1,
+        )
+        assert await _apply(db, manifest)
+        assert await _active_built_in_prices_by_type(db) == {
+            ("gpt-6-luna", "LLM"): 1e-6,
+            ("gpt-6-luna", "DECISION"): 1e-7,
+        }
+        rows = await _built_in_rows(db)
+        llm_id = rows[("gpt-6-luna", "LLM", False)]
+
+        async def _llm_updated_at() -> Any:
+            async with db() as session:
+                return await session.scalar(
+                    select(models.GenerativeModel.updated_at).where(
+                        models.GenerativeModel.id == llm_id
+                    )
+                )
+
+        # Changing only the decision prices leaves the LLM row untouched.
+        llm_updated_at = await _llm_updated_at()
+        manifest = _manifest_of(
+            [_manifest_model("gpt-6-luna", input_rate=1e-6)],
+            non_llm_models=[_decision_model("gpt-6-luna", input_rate=3e-7)],
+            day=2,
+        )
+        assert await _apply(db, manifest)
+        assert await _active_built_in_prices_by_type(db) == {
+            ("gpt-6-luna", "LLM"): 1e-6,
+            ("gpt-6-luna", "DECISION"): 3e-7,
+        }
+        assert await _built_in_rows(db) == rows
+        assert await _llm_updated_at() == llm_updated_at
+
+        # Dropping the decision entry soft-deletes only the decision row.
+        assert await _apply(db, _manifest("gpt-6-luna", day=3))
+        assert await _active_built_in_prices_by_type(db) == {("gpt-6-luna", "LLM"): 1e-6}
+        assert await _built_in_rows(db) == {
+            ("gpt-6-luna", "LLM", False): llm_id,
+            ("gpt-6-luna", "DECISION", True): rows[("gpt-6-luna", "DECISION", False)],
+        }
+
+    async def test_decision_with_invalid_entry_is_left_as_is(self, db: DbSessionFactory) -> None:
+        await _ensure_enums(db)
+        manifest = _manifest_of(
+            [_manifest_model("model-a")],
+            non_llm_models=[_decision_model("decision-a"), _decision_model("model-a")],
+            day=1,
+        )
+        assert await _apply(db, manifest)
+
+        invalid = _decision_model("decision-a", input_rate=5e-7)
+        invalid["token_prices"][0]["base_rate"] = -1
+        # The LLM model-b takes the skipped decision's pattern, which is fine across types.
+        taking_pattern = {
+            **_manifest_model("model-b", input_rate=4e-6),
+            "name_pattern": r"(?i)^(decision-a)$",
+        }
+        manifest = _manifest_of(
+            [_manifest_model("model-a", input_rate=3e-6), taking_pattern],
+            non_llm_models=[invalid, _decision_model("model-a", input_rate=3e-7)],
+            day=2,
+        )
+        assert manifest.skipped_models == {("decision-a", "DECISION")}
+        assert await _apply(db, manifest)
+        assert await _active_built_in_prices_by_type(db) == {
+            ("model-a", "LLM"): 3e-6,
+            ("model-b", "LLM"): 4e-6,
+            ("decision-a", "DECISION"): 1e-7,
+            ("model-a", "DECISION"): 3e-7,
+        }
+
+    async def test_same_pattern_in_two_types_moves_independently(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        # ix_generative_models_match_criteria includes type, so moving one type's model onto
+        # a pattern the other type already uses must not trip it, nor reassign the other.
+        await _ensure_enums(db)
+        manifest = _manifest_of(
+            [_manifest_model("model-a"), _manifest_model("model-b")],
+            non_llm_models=[_decision_model("decision-a")],
+            day=1,
+        )
+        assert await _apply(db, manifest)
+        rows = await _built_in_rows(db)
+
+        claim_a = {**_decision_model("decision-a"), "name_pattern": r"(?i)^(model-a)$"}
+        claim_b = {**_manifest_model("model-b"), "name_pattern": r"(?i)^(decision-a)$"}
+        manifest = _manifest_of(
+            [_manifest_model("model-a"), claim_b],
+            non_llm_models=[claim_a],
+            day=2,
+        )
+        updated_at = await _built_in_updated_at(db)
+        applied = await apply_manifest_if_newer(db, manifest)
+        assert applied is not None
+        # Only the two models that moved changed; model-a (LLM) kept its pattern.
+        assert (applied.num_added, applied.num_updated, applied.num_removed) == (0, 2, 0)
+        assert await _built_in_rows(db) == rows
+        assert (await _built_in_updated_at(db))["model-a"] == updated_at["model-a"]
+        async with db() as session:
+            patterns = {
+                (name, type_): pattern.pattern
+                for name, type_, pattern in await session.execute(
+                    select(
+                        models.GenerativeModel.name,
+                        models.GenerativeModel.type,
+                        models.GenerativeModel.name_pattern,
+                    ).where(models.GenerativeModel.is_built_in.is_(True))
+                )
+            }
+        assert patterns == {
+            ("model-a", "LLM"): r"(?i)^(model-a)$",
+            ("model-b", "LLM"): r"(?i)^(decision-a)$",
+            ("decision-a", "DECISION"): r"(?i)^(model-a)$",
+        }
+
+    async def test_upgrade_adds_decision_next_to_existing_llm(self, db: DbSessionFactory) -> None:
+        # A database synced from a manifest without types gets a same-name decision model.
+        await _ensure_enums(db)
+        assert await _apply(db, _manifest("gpt-6-luna", "model-b", day=1))
+        rows = await _built_in_rows(db)
+        updated_at = await _built_in_updated_at(db)
+        manifest = _manifest_of(
+            [_manifest_model("gpt-6-luna"), _manifest_model("model-b")],
+            non_llm_models=[_decision_model("gpt-6-luna")],
+            day=2,
+        )
+        applied = await apply_manifest_if_newer(db, manifest)
+        assert applied is not None
+        assert (applied.num_added, applied.num_updated, applied.num_removed) == (1, 0, 0)
+        new_rows = await _built_in_rows(db)
+        assert {key: id_ for key, id_ in new_rows.items() if key[1] == "LLM"} == rows
+        assert ("gpt-6-luna", "DECISION", False) in new_rows
+        assert await _built_in_updated_at(db) == updated_at
+
+    async def test_manifest_applied_by_an_older_reader_is_applied_again(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        # A 21.x server applies a manifest without its non_llm_models and records it with a
+        # marker that has no reader_version. After an upgrade the same manifest, fetched or
+        # bundled, must be applied again, or the decision models wait for the next manifest.
+        await _ensure_enums(db)
+        manifest = _manifest_of(
+            [_manifest_model("gpt-6-luna")],
+            non_llm_models=[_decision_model("gpt-6-luna")],
+            day=2,
+        )
+        old_reader_view = _manifest_of([_manifest_model("gpt-6-luna")], day=2)
+        assert await _apply(db, old_reader_view)
+        async with db() as session:
+            row = await session.get(models.SystemState, MANIFEST_VERSION_STATE_KEY)
+            assert row is not None
+            row.value = {"generated_at": _manifest_date(2).isoformat()}
+
+        # An older manifest still doesn't roll back what the older reader applied.
+        assert not await _apply(db, _manifest_of([_manifest_model("gpt-6-luna")], day=1))
+        assert await _apply(db, manifest)
+        assert set(await _active_built_in_prices_by_type(db)) == {
+            ("gpt-6-luna", "LLM"),
+            ("gpt-6-luna", "DECISION"),
+        }
+        async with db() as session:
+            marker = await get_applied_manifest_version(session)
+        assert marker == ModelCostManifestVersion(
+            generated_at=_manifest_date(2), reader_version=MANIFEST_READER_VERSION
+        )
+        # Once recorded by this reader, the same manifest isn't applied again.
+        assert not await _apply(db, manifest)
