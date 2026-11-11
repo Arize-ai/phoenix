@@ -19,15 +19,20 @@ const SCORE_WINDOW: EvaluatorScoreWindow = {
     start: "2026-01-01T00:00:00.000Z",
     end: "2026-01-08T00:00:00.000Z",
   },
+  previousTimeRange: {
+    start: "2025-12-25T00:00:00.000Z",
+    end: "2026-01-01T00:00:00.000Z",
+  },
   timeBinConfig: { scale: "DAY", utcOffsetMinutes: 0 },
   windowKey: "7d",
 };
 
 const SERIES = Array.from({ length: 7 }, (_, day) => ({
   timestamp: `2026-01-0${day + 1}T00:00:00.000Z`,
-  meanScore: null,
-  count: 0,
 }));
+
+/** Results per bin: ten on every day except the fourth, which is empty. */
+const BIN_RESULT_COUNTS = [10, 10, 10, 0, 10, 10, 10];
 
 function makeMetrics({
   annotationName,
@@ -55,11 +60,17 @@ function makeMetrics({
       meanScore: previousMeanScore,
       labelFractions: previousLabelFractions,
     },
-    series: SERIES.map((bin) => ({
-      ...bin,
-      meanScore: meanScore,
-      count: meanScore == null ? 0 : 10,
-    })),
+    series: SERIES.map((bin, index) => {
+      const resultCount =
+        labelFractions.length > 0 ? BIN_RESULT_COUNTS[index] : 0;
+      return {
+        ...bin,
+        meanScore: resultCount > 0 ? meanScore : null,
+        count: meanScore == null ? 0 : resultCount,
+        labelFractions: resultCount > 0 ? labelFractions : [],
+        resultCount,
+      };
+    }),
   };
 }
 
@@ -97,13 +108,18 @@ function renderCell(
   });
 }
 
-const getBar = () =>
-  container.querySelector('[data-testid="label-distribution-bar"]');
+/** The label columns' svg, when the cell draws them. */
+const getColumnsChart = () => container.querySelector(".stacked-sparkline svg");
 
+const getColumns = () => [
+  ...container.querySelectorAll(".stacked-sparkline__column"),
+];
+
+/** The first column's segment fills, bottom to top. */
 const getSegmentColors = () =>
-  [...container.querySelectorAll<HTMLElement>(".segment-chart__segment")].map(
-    (segment) => segment.style.backgroundColor
-  );
+  [
+    ...(getColumns()[0]?.querySelectorAll(".stacked-sparkline__segment") ?? []),
+  ].map((segment) => segment.getAttribute("fill"));
 
 const UNSCORED_TONE: ProjectEvaluatorResultAnnotation = {
   name: "tone",
@@ -119,7 +135,7 @@ const UNSCORED_TONE: ProjectEvaluatorResultAnnotation = {
 };
 
 describe("ProjectEvaluatorMeanScoreCell", () => {
-  it("shows the leading label's share and a distribution bar for a label-only annotation", () => {
+  it("shows the leading label's share and per-bin label columns for a label-only annotation", () => {
     renderCell(
       UNSCORED_TONE,
       makeMetrics({
@@ -134,9 +150,46 @@ describe("ProjectEvaluatorMeanScoreCell", () => {
     );
     expect(container.textContent).toContain("positive\u00a050%");
     expect(container.textContent).not.toContain("--");
-    expect(getBar()?.getAttribute("aria-label")).toBe(
-      "tone labels over the last 7d: positive 50%, neutral 36%, negative 14%"
+    expect(getColumnsChart()?.querySelector("title")?.textContent).toBe(
+      "tone labels per bin over the last 7d"
     );
+    // One column per bin with labels; the empty fourth day stays blank
+    expect(
+      getColumns().map((column) => column.getAttribute("data-position"))
+    ).toEqual(["0", "1", "2", "4", "5", "6"]);
+    // No score sparkline beside the columns
+    expect(container.querySelectorAll("svg")).toHaveLength(1);
+  });
+
+  it("shows a column's time, label shares and counts on hover", () => {
+    renderCell(
+      UNSCORED_TONE,
+      makeMetrics({
+        annotationName: "tone",
+        labelFractions: [
+          { label: "negative", fraction: 0.1 },
+          { label: "neutral", fraction: 0.4 },
+          { label: "positive", fraction: 0.5 },
+        ],
+      })
+    );
+    const svg = getColumnsChart();
+    if (!(svg instanceof SVGSVGElement)) {
+      throw new Error("expected the label columns");
+    }
+    svg.getBoundingClientRect = () =>
+      ({ left: 0, width: 70, top: 0, height: 20 }) as DOMRect;
+    act(() => {
+      // Seven bins over 70px: the pointer at 5px is over the first column
+      svg.dispatchEvent(
+        new MouseEvent("pointermove", { bubbles: true, clientX: 5 })
+      );
+    });
+    const tooltip = document.body.textContent ?? "";
+    expect(tooltip).toContain("n=10");
+    expect(tooltip).toContain("positive50% · n=5");
+    expect(tooltip).toContain("neutral40% · n=4");
+    expect(tooltip).toContain("negative10% · n=1");
   });
 
   it("colors a label the same whatever the window's shares", () => {
@@ -223,31 +276,6 @@ describe("ProjectEvaluatorMeanScoreCell", () => {
     expect(container.textContent).toContain("▲ 12 pts");
   });
 
-  it("ticks the bar at the leading label's previous share", () => {
-    renderCell(
-      UNSCORED_TONE,
-      makeMetrics({
-        annotationName: "tone",
-        labelFractions: [
-          { label: "neutral", fraction: 0.29 },
-          { label: "positive", fraction: 0.71 },
-        ],
-        previousLabelFractions: [
-          { label: "neutral", fraction: 0.17 },
-          { label: "positive", fraction: 0.83 },
-        ],
-      })
-    );
-    expect(
-      container.querySelector<HTMLElement>(
-        ".label-distribution-bar__prior-tick"
-      )?.style.left
-    ).toBe("83%");
-    expect(getBar()?.getAttribute("aria-label")).toContain(
-      "tick: positive 83% in the previous 7d"
-    );
-  });
-
   it("counts a label missing from the previous window as a zero share", () => {
     renderCell(
       UNSCORED_TONE,
@@ -269,9 +297,6 @@ describe("ProjectEvaluatorMeanScoreCell", () => {
       })
     );
     expect(container.textContent).not.toMatch(/[▲▼]/);
-    expect(
-      container.querySelector(".label-distribution-bar__prior-tick")
-    ).toBeNull();
   });
 
   it("marks a share change good or bad when the config scores the leading label", () => {
@@ -331,7 +356,7 @@ describe("ProjectEvaluatorMeanScoreCell", () => {
         ],
       })
     );
-    expect(getBar()).toBeNull();
+    expect(getColumnsChart()).toBeNull();
     expect(container.querySelector("svg[role='img']")).not.toBeNull();
     expect(container.textContent).toContain("0.80");
     expect(container.textContent).toContain("▼ 0.10");
@@ -343,6 +368,6 @@ describe("ProjectEvaluatorMeanScoreCell", () => {
       makeMetrics({ annotationName: "tone", labelFractions: [] })
     );
     expect(container.textContent).toBe("--");
-    expect(getBar()).toBeNull();
+    expect(getColumnsChart()).toBeNull();
   });
 });

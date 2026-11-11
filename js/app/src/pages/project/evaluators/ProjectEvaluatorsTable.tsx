@@ -309,6 +309,11 @@ const readRow = (
             timestamp
             meanScore
             count
+            labelFractions {
+              label
+              fraction
+            }
+            resultCount
           }
         }
       }
@@ -622,10 +627,10 @@ export function ProjectEvaluatorsTable({
         // stable when the window changes. A def that closed over the window
         // would remount every cell on each live-range re-anchor.
         header: () => <ProjectEvaluatorMeanScoreHeader />,
-        // Room for the score pill and delta plus a sparkline wide enough to
-        // resolve a few dozen bins (the sparkline itself caps its width), and
-        // for a label row's pill, change and a three-label legend under its bar.
-        size: 320,
+        // Room for the widest common pill and change (a label row's
+        // "positive 50% ▼ 8.6 pts") beside the fixed-width chart every row
+        // shares, so the charts line up.
+        size: 352,
         cell: ({ row }) => (
           <ProjectEvaluatorMeanScoreCell
             annotations={getProjectEvaluatorResultAnnotations({

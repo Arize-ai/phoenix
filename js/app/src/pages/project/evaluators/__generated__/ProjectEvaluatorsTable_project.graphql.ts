@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<15b4ccac3e8d02f35045fbc121e4c117>>
+ * @generated SignedSource<<fa299c6bb1a0090d9c440c5c7cf4621f>>
  * @lightSyntaxTransform
  */
 
@@ -893,7 +893,15 @@ return {
                                   "storageKey": null
                                 },
                                 (v20/*:: as any*/),
-                                (v21/*:: as any*/)
+                                (v21/*:: as any*/),
+                                (v22/*:: as any*/),
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "resultCount",
+                                  "storageKey": null
+                                }
                               ],
                               "storageKey": null
                             }
