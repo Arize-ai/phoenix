@@ -57,7 +57,6 @@ class ActivityGroup:
     project_evaluator_id: Optional[int]
     evaluated_count: int = 0
     failed_count: int = 0
-    lag: Optional[EvaluationLag] = None
     cost: Optional[float] = None
 
 
@@ -86,7 +85,6 @@ class ActivityBin:
 class EvaluationActivity:
     evaluated_count: int
     failed_count: int
-    lag: Optional[EvaluationLag]
     cost: Optional[float]
     groups: tuple[ActivityGroup, ...]
     series: tuple[ActivityBin, ...]
@@ -121,31 +119,49 @@ async def load_evaluation_activity(
     start: datetime,
     end: datetime,
     time_bins: TimeBucketSpec,
-    read_added: bool = False,
     read_queue_size: bool = False,
 ) -> EvaluationActivity:
     """Activity of one project's evaluators, grouped by project evaluator, or, with no
     ``project_id``, of every project evaluator on the server, grouped by project.
 
-    Evaluations added in each bin are read with ``read_added``, and the queue's size at each
-    bin's end with ``read_queue_size``; otherwise both are 0. The queue size reads every
-    evaluation in queue in the scope, so it costs as much as the queue is long.
+    The queue's size at each bin's end is read with ``read_queue_size``, and is otherwise 0:
+    it reads every evaluation in queue in the scope, so it costs as much as the queue is long.
     """
-    scope = sa.select(models.ProjectEvaluator.id)
-    if project_id is not None:
-        scope = scope.where(models.ProjectEvaluator.project_id == project_id)
     reader = _ActivityReader(
         dialect=db.dialect,
         by_project=project_id is None,
-        scope=scope,
+        scope=_scope(project_id),
         start=start,
         end=end,
         time_bins=time_bins,
-        read_added=read_added,
         read_queue_size=read_queue_size,
     )
     async with db.read() as session:
         return await reader.read(session)
+
+
+async def load_added_and_completed(
+    db: DbSessionFactory,
+    *,
+    project_id: Optional[int],
+    start: datetime,
+    end: datetime,
+) -> tuple[int, int]:
+    """Evaluations added to the queue in ``[start, end)``, and those completed in it, of one
+    project's evaluators or, with no ``project_id``, of every project evaluator: activity's
+    added and completed counts over the whole range."""
+    scope = _scope(project_id)
+    added = sa.select(sa.func.count()).select_from(_added(scope, start, end))
+    completed = sa.select(sa.func.count()).select_from(_completed(scope, start, end))
+    async with db.read() as session:
+        return (await session.scalar(added)) or 0, (await session.scalar(completed)) or 0
+
+
+def _scope(project_id: Optional[int]) -> sa.Select[Any]:
+    scope = sa.select(models.ProjectEvaluator.id)
+    if project_id is not None:
+        scope = scope.where(models.ProjectEvaluator.project_id == project_id)
+    return scope
 
 
 @dataclass
@@ -161,7 +177,6 @@ class _GroupBin:
 class _GroupTotals:
     evaluated_count: int = 0
     failed_count: int = 0
-    lag: Optional[EvaluationLag] = None
     cost: Optional[float] = None
     bins: dict[int, _GroupBin] = field(default_factory=dict)
     queue_sizes: list[int] = field(default_factory=list)
@@ -175,7 +190,6 @@ class _ActivityReader:
     start: datetime
     end: datetime
     time_bins: TimeBucketSpec
-    read_added: bool
     read_queue_size: bool
 
     async def read(self, session: AsyncSession) -> EvaluationActivity:
@@ -206,47 +220,28 @@ class _ActivityReader:
 
         completed = _completed(self.scope, self.start, self.end)
         group = self._group(completed)
-        evaluated = sa.func.sum(completed.c.evaluated)
-        lag_seconds = completed.c.lag_seconds
         bucket = self.time_bins.truncate(self.dialect, completed.c.completed_at)
         async for key, timestamp, evaluated_count, count, lag_p95 in await session.stream(
             sa.select(
                 group,
                 bucket,
-                evaluated,
+                sa.func.sum(completed.c.evaluated),
                 sa.func.count(),
-                _percentile(self.dialect, lag_seconds, 0.95),
+                _percentile(self.dialect, completed.c.lag_seconds, 0.95),
             )
             .select_from(completed)
             .group_by(group, bucket)
         ):
-            if key not in groups:
+            if (totals := groups.get(key)) is None:
                 continue
-            group_bin = groups[key].bins.setdefault(bin_index[_as_datetime(timestamp)], _GroupBin())
+            group_bin = totals.bins.setdefault(bin_index[_as_datetime(timestamp)], _GroupBin())
             group_bin.evaluated_count = evaluated_count
             group_bin.failed_count = count - evaluated_count
             group_bin.lag_p95_seconds = lag_p95
-        async for key, evaluated_count, count, *percentiles in await session.stream(
-            sa.select(
-                group, evaluated, sa.func.count(), *_lag_percentiles(self.dialect, lag_seconds)
-            )
-            .select_from(completed)
-            .group_by(group)
-        ):
-            if (totals := groups.get(key)) is None:
-                continue
-            totals.evaluated_count = evaluated_count
-            totals.failed_count = count - evaluated_count
-            totals.lag = _lag(*percentiles)
-        total_percentiles = (
-            await session.execute(
-                sa.select(*_lag_percentiles(self.dialect, lag_seconds)).select_from(completed)
-            )
-        ).one()
-        lag = _lag(*total_percentiles)
+            totals.evaluated_count += evaluated_count
+            totals.failed_count += count - evaluated_count
 
-        if self.read_added:
-            await self._read_added(session, groups, group_keys_by_evaluator, bin_index)
+        await self._read_added(session, groups, group_keys_by_evaluator, bin_index)
         if self.read_queue_size:
             await self._read_queue_size(session, groups, group_keys_by_evaluator, bin_index)
         await self._read_cost(session, groups, bin_index)
@@ -260,14 +255,12 @@ class _ActivityReader:
             excludes_untraced_evaluators=excludes_untraced_evaluators,
             evaluated_count=sum(totals.evaluated_count for totals in groups.values()),
             failed_count=sum(totals.failed_count for totals in groups.values()),
-            lag=lag,
             cost=sum(costs) if costs else None,
             groups=tuple(
                 ActivityGroup(
                     *self._identity(key, project_ids[key]),
                     evaluated_count=groups[key].evaluated_count,
                     failed_count=groups[key].failed_count,
-                    lag=groups[key].lag,
                     cost=groups[key].cost,
                 )
                 for key in group_keys

@@ -88,7 +88,7 @@ class EvaluationQueue:
     def wait_seconds(self, oldest_waiting_at: Optional[datetime]) -> Optional[float]:
         """How long an evaluation queued at ``oldest_waiting_at`` had waited when the queue
         was measured."""
-        return _seconds_since(oldest_waiting_at, self.measured_at)
+        return seconds_since(oldest_waiting_at, self.measured_at)
 
 
 @dataclass(frozen=True)
@@ -102,14 +102,11 @@ class ProjectTargetQueue:
 
 @dataclass(frozen=True)
 class ProjectQueue:
-    """One project's part of the queue, as measured at ``measured_at``: the queued
-    evaluations of its project evaluators, of each evaluation target in
-    ``EVALUATION_TARGETS`` order, and when the oldest of their waiting (PENDING) evaluations
-    was queued.
+    """One project's part of the queue: the queued evaluations of its project evaluators, of
+    each evaluation target in ``EVALUATION_TARGETS`` order, and when the oldest of their
+    waiting (PENDING) evaluations was queued.
     """
 
-    measured_at: datetime
-    project_evaluator_ids: frozenset[int]
     targets: tuple[ProjectTargetQueue, ...]
     oldest_waiting_at: Optional[datetime] = None
 
@@ -158,14 +155,14 @@ async def load_evaluation_queue(db: DbSessionFactory) -> EvaluationQueue:
     async with db.read() as session:
         targets = tuple(
             [
-                await _load_target_queue(session, evaluation_target)
+                await load_target_queue(session, evaluation_target)
                 for evaluation_target in EVALUATION_TARGETS
             ]
         )
     return EvaluationQueue(measured_at=measured_at, targets=targets)
 
 
-async def _load_target_queue(
+async def load_target_queue(
     session: AsyncSession,
     evaluation_target: models.EvaluationTarget,
 ) -> TargetQueue:
@@ -174,7 +171,7 @@ async def _load_target_queue(
     model = WORK_TABLES[evaluation_target].work_unit_model
     by_status: dict[str, tuple[int, Optional[datetime]]] = {}
     for status in QUEUED_STATUSES:
-        head = queued_rows(model, status, model.created_at, newest=False)
+        head = queued_rows(model, status, model.created_at)
         count, oldest_created_at = (
             await session.execute(sa.select(sa.func.count(), sa.func.min(head.c.created_at)))
         ).one()
@@ -248,14 +245,9 @@ def project_queues(
 ) -> dict[int, ProjectQueue]:
     """Each project's part of the queue, of every evaluator and evaluation target: the sums
     of its evaluators' queued evaluations, from ``load_project_evaluator_queues``."""
-    measured_at = datetime.now(timezone.utc)
-    project_evaluator_ids: dict[int, set[int]] = {project_id: set() for project_id in project_ids}
     by_target: dict[tuple[int, models.EvaluationTarget], list[ProjectEvaluatorQueue]] = {}
     oldest_waiting_at: dict[int, datetime] = {}
     for evaluator in evaluators:
-        if evaluator.project_id not in project_evaluator_ids:
-            continue
-        project_evaluator_ids[evaluator.project_id].add(evaluator.id)
         if (evaluator_queued := queued.get(evaluator.id)) is None:
             continue
         by_target.setdefault((evaluator.project_id, evaluator.evaluation_target), []).append(
@@ -267,8 +259,6 @@ def project_queues(
             )
     return {
         project_id: ProjectQueue(
-            measured_at=measured_at,
-            project_evaluator_ids=frozenset(ids),
             targets=tuple(
                 _project_target_queue(
                     evaluation_target, by_target.get((project_id, evaluation_target), [])
@@ -277,7 +267,7 @@ def project_queues(
             ),
             oldest_waiting_at=oldest_waiting_at.get(project_id),
         )
-        for project_id, ids in project_evaluator_ids.items()
+        for project_id in project_ids
     }
 
 
@@ -311,14 +301,13 @@ def queued_rows(
     model: WorkUnitModel,
     status: str,
     *columns: sa.orm.InstrumentedAttribute[Any],
-    newest: bool,
 ) -> sa.Subquery:
-    """At most ``MAX_QUEUE_COUNT`` of one target's queued evaluations in ``status``, the
-    oldest or the newest, read through its ``ix_*_claimable`` index."""
+    """The oldest ``MAX_QUEUE_COUNT`` of one target's queued evaluations in ``status``, read
+    through its ``ix_*_claimable`` index."""
     return (
         sa.select(*columns)
         .where(status_in(model, QUEUED_STATUSES), model.status == status)
-        .order_by(model.id.desc() if newest else model.id)
+        .order_by(model.id)
         .limit(MAX_QUEUE_COUNT)
         .subquery()
     )
@@ -384,5 +373,5 @@ def _evaluator_queued_stmt(
     ).select_from(rows)
 
 
-def _seconds_since(then: Optional[datetime], now: datetime) -> Optional[float]:
+def seconds_since(then: Optional[datetime], now: datetime) -> Optional[float]:
     return None if then is None else max((now - then).total_seconds(), 0.0)

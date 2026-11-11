@@ -18,17 +18,11 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.compiler import compiles
 
 _EVAL_WORK_STATUS_CHECK = (
-    "status IN ('PENDING', 'RUNNING', 'ERROR', 'DONE', 'FAILED', 'EXPIRED', 'DROPPED')"
-)
-_SWEPT_TARGET_WORK_STATUS_CHECK = (
     "status IN ('PENDING', 'RUNNING', 'ERROR', 'DONE', 'FAILED', 'EXPIRED', 'DROPPED', "
     "'CONTENT_LOST', 'FILTERED_OUT', 'SAMPLED_OUT')"
 )
 _QUEUED_PREDICATE = "status IN ('PENDING', 'RUNNING', 'ERROR')"
-_TERMINAL_PREDICATE = "status IN ('DONE', 'FAILED', 'EXPIRED', 'DROPPED')"
-_SWEPT_TARGET_TERMINAL_PREDICATE = (
-    "status IN ('DONE', 'FAILED', 'EXPIRED', 'DROPPED', 'CONTENT_LOST')"
-)
+_TERMINAL_PREDICATE = "status IN ('DONE', 'FAILED', 'EXPIRED', 'DROPPED', 'CONTENT_LOST')"
 _FAILED_PREDICATE = "status IN ('FAILED', 'EXPIRED')"
 _DONE_PREDICATE = "status = 'DONE'"
 
@@ -84,7 +78,7 @@ def _create_session_work_units_table() -> None:
         sa.Column(
             "status",
             sa.String(),
-            sa.CheckConstraint(_SWEPT_TARGET_WORK_STATUS_CHECK, name="valid_eval_work_status"),
+            sa.CheckConstraint(_EVAL_WORK_STATUS_CHECK, name="valid_eval_work_status"),
             nullable=False,
             server_default="PENDING",
         ),
@@ -118,8 +112,8 @@ def _create_session_work_units_table() -> None:
         "ix_eval_session_work_units_terminal",
         "eval_session_work_units",
         ["updated_at"],
-        postgresql_where=sa.text(_SWEPT_TARGET_TERMINAL_PREDICATE),
-        sqlite_where=sa.text(_SWEPT_TARGET_TERMINAL_PREDICATE),
+        postgresql_where=sa.text(_TERMINAL_PREDICATE),
+        sqlite_where=sa.text(_TERMINAL_PREDICATE),
     )
     op.create_index(
         "ix_eval_session_work_units_project_evaluator_id",
@@ -175,7 +169,7 @@ def _create_trace_work_units_table() -> None:
         sa.Column(
             "status",
             sa.String(),
-            sa.CheckConstraint(_SWEPT_TARGET_WORK_STATUS_CHECK, name="valid_eval_work_status"),
+            sa.CheckConstraint(_EVAL_WORK_STATUS_CHECK, name="valid_eval_work_status"),
             nullable=False,
             server_default="PENDING",
         ),
@@ -209,8 +203,8 @@ def _create_trace_work_units_table() -> None:
         "ix_eval_trace_work_units_terminal",
         "eval_trace_work_units",
         ["updated_at"],
-        postgresql_where=sa.text(_SWEPT_TARGET_TERMINAL_PREDICATE),
-        sqlite_where=sa.text(_SWEPT_TARGET_TERMINAL_PREDICATE),
+        postgresql_where=sa.text(_TERMINAL_PREDICATE),
+        sqlite_where=sa.text(_TERMINAL_PREDICATE),
     )
     op.create_index(
         "ix_eval_trace_work_units_project_evaluator_id",
@@ -291,8 +285,6 @@ def upgrade() -> None:
             nullable=False,
             server_default="0",
         ),
-        sa.Column("observed_high_water_id", _Integer, nullable=True),
-        sa.Column("observed_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),

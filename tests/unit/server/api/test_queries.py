@@ -623,8 +623,6 @@ async def test_evaluation_queue(
                     evaluationTarget
                     queuedCount
                     oldestWaitingAt
-                    addedPerMinute
-                    completedPerMinute
                 }
             }
         }"""
@@ -644,11 +642,7 @@ async def test_evaluation_queue(
     }
     assert datetime.fromisoformat(queue["oldestWaitingAt"]) == now - timedelta(minutes=5)
     assert [target["evaluationTarget"] for target in targets] == ["SPAN", "TRACE", "SESSION"]
-    assert [(target["queuedCount"], target["addedPerMinute"]) for target in targets] == [
-        (2, pytest.approx(2 / 60)),
-        (1, pytest.approx(1 / 60)),
-        (1, pytest.approx(1 / 60)),
-    ]
+    assert [target["queuedCount"] for target in targets] == [2, 1, 1]
     oldest = [target["oldestWaitingAt"] for target in targets]
     assert oldest[1] is None
     assert datetime.fromisoformat(oldest[2]) == now - timedelta(minutes=1)

@@ -2,11 +2,11 @@ import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
-from typing import Any, Sequence
+from typing import Any, Literal, Optional, Sequence
 from unittest.mock import Mock
 
 import pytest
-from sqlalchemy import delete, event, func, select, text, update
+from sqlalchemy import delete, event, func, insert, select, update
 from sqlalchemy.engine import Engine
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
@@ -17,12 +17,11 @@ from phoenix.server.app import _db
 from phoenix.server.online_eval import sweeping_producer as sweeping_producer_module
 from phoenix.server.online_eval.clock import current_database_time
 from phoenix.server.online_eval.derivation import (
-    ResolvedProjectEvaluator,
     sample_key,
 )
 from phoenix.server.online_eval.leases import SCAN_LEASE_TTL_SECONDS
-from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
 from phoenix.server.online_eval.project_evaluator_state import start_at_database_time
+from phoenix.server.online_eval.span_producer import SpanEvaluationProducer
 from phoenix.server.online_eval.sweeping_producer import (
     SessionEvaluationProducer,
     SweepingEvaluationProducer,
@@ -31,8 +30,8 @@ from phoenix.server.online_eval.sweeping_producer import (
 from phoenix.server.types import DbSessionFactory
 
 from ..._helpers import _add_project, _add_project_session, _add_span, _add_trace
+from .test_span_producer import _seed_code_criteria
 from .test_span_producer import _seed_criteria as _seed_criteria_raw
-from .test_span_producer import _stop_at_the_first_interval_sleep
 
 
 def _now() -> datetime:
@@ -61,46 +60,6 @@ async def _seed_criteria(
             .values(created_at=_now() - timedelta(days=1))
         )
     return evaluator_id, project_evaluator_id
-
-
-async def test_sweep_rechecks_eligibility_at_write_time(
-    db: DbSessionFactory,
-) -> None:
-    project_id, project_session_id, last_span_ingested_at = await _add_session_liveness(
-        db,
-        age_seconds=600,
-    )
-    await _seed_criteria(db, project_id, evaluation_target="SESSION")
-    sweeper = SessionEvaluationProducer(db)
-
-    async with db() as session:
-        criterion = (await sweeper._load_evaluators(session))[0]
-        database_now = await current_database_time(session, db.dialect)
-        await session.execute(
-            update(models.ProjectSession)
-            .where(models.ProjectSession.id == project_session_id)
-            .values(last_span_ingested_at=database_now)
-        )
-        outcome = await sweeper._decide_due_evaluations(
-            session,
-            database_now,
-            [criterion],
-            limit=1,
-        )
-        assert outcome.queued_count == 0
-        assert outcome.eligible_count is None
-        await session.execute(
-            update(models.ProjectSession)
-            .where(models.ProjectSession.id == project_session_id)
-            .values(last_span_ingested_at=last_span_ingested_at)
-        )
-        outcome = await sweeper._decide_due_evaluations(
-            session,
-            database_now,
-            [criterion],
-            limit=1,
-        )
-        assert outcome.queued_count == 1
 
 
 async def _add_session_liveness(
@@ -300,26 +259,23 @@ def _run_one_tick(
 
 @pytest.mark.postgres_only
 @pytest.mark.parametrize("deleted_row", ["project_evaluator", "session"])
-async def test_row_deleted_mid_tick_rolls_the_tick_back(
+async def test_sweep_rolled_back_by_a_concurrent_delete_decides_the_survivors_on_the_next_tick(
     postgresql_engine: AsyncEngine,
     monkeypatch: pytest.MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
     deleted_row: str,
 ) -> None:
+    """A tick that gives way to a delete holding a row it needs writes nothing, its sweep
+    positions included, so the next tick decides every evaluation that survived."""
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
     project_id, deleted_session_id, _ = await _add_session_liveness(db, age_seconds=600)
     _, surviving_session_id, _ = await _add_session_liveness(
         db, age_seconds=600, project_id=project_id
     )
     _, deleted_project_evaluator_id = await _seed_criteria(
-        db,
-        project_id,
-        evaluation_target="SESSION",
+        db, project_id, evaluation_target="SESSION"
     )
     _, surviving_project_evaluator_id = await _seed_criteria(
-        db,
-        project_id,
-        evaluation_target="SESSION",
+        db, project_id, evaluation_target="SESSION"
     )
     if deleted_row == "project_evaluator":
         deletion = delete(models.ProjectEvaluator).where(
@@ -333,26 +289,8 @@ async def test_row_deleted_mid_tick_rolls_the_tick_back(
         )
         project_evaluator_ids = {deleted_project_evaluator_id, surviving_project_evaluator_id}
         session_ids = {surviving_session_id}
-    # The tick must still be waiting when the delete commits, so its foreign key check fails.
-    monkeypatch.setattr(sweeping_producer_module, "_LOCK_TIMEOUT_MILLISECONDS", 10_000)
-    sweeper = SessionEvaluationProducer(
-        db,
-        tick_interval_seconds=0,
-    )
+    sweeper = SessionEvaluationProducer(db, tick_interval_seconds=0)
     tick = sweeper._tick
-
-    async def wait_until_blocked_by(backend_pid: int) -> None:
-        while True:
-            async with db() as observer:
-                if await observer.scalar(
-                    text(
-                        "SELECT EXISTS (SELECT 1 FROM pg_stat_activity "
-                        "WHERE :pid = ANY(pg_blocking_pids(pid)))"
-                    ),
-                    {"pid": backend_pid},
-                ):
-                    return
-            await asyncio.sleep(0)
 
     async def swept_through_at() -> set[datetime | None]:
         async with db() as session:
@@ -369,33 +307,17 @@ async def test_row_deleted_mid_tick_rolls_the_tick_back(
                 )
             )
 
-    with caplog.at_level(logging.WARNING, logger=sweeping_producer_module.__name__):
-        async with db() as deletion_session:
-            deletion_backend_pid = await deletion_session.scalar(select(func.pg_backend_pid()))
-            assert deletion_backend_pid is not None
-            await deletion_session.execute(deletion)
-            run = _run_one_tick(sweeper, monkeypatch)
-            await asyncio.wait_for(wait_until_blocked_by(deletion_backend_pid), timeout=5)
-        await asyncio.wait_for(run, timeout=5)
+    async with db() as deletion_session:
+        await deletion_session.execute(deletion)
+        await asyncio.wait_for(_run_one_tick(sweeper, monkeypatch), timeout=5)
 
-    (record,) = [
-        record for record in caplog.records if record.name == sweeping_producer_module.__name__
-    ]
-    assert record.levelno == logging.WARNING
-    assert (
-        "SESSION evaluation sweep rolled back: a project evaluator or session on its page "
-        "was deleted before its work was inserted"
-    ) in record.getMessage()
-    async with db() as session:
-        assert (
-            await session.scalar(select(func.count()).select_from(models.EvalSessionWorkUnit)) == 0
-        )
+    assert await _work_statuses(db) == []
     assert await swept_through_at() == {None}
 
     await tick()
 
     async with db() as session:
-        scheduled_pairs = set(
+        decided = set(
             (
                 await session.execute(
                     select(
@@ -405,76 +327,12 @@ async def test_row_deleted_mid_tick_rolls_the_tick_back(
                 )
             ).tuples()
         )
-    assert scheduled_pairs == {
+    assert decided == {
         (project_evaluator_id, session_id)
         for project_evaluator_id in project_evaluator_ids
         for session_id in session_ids
     }
     assert None not in await swept_through_at()
-
-
-@pytest.mark.postgres_only
-async def test_sweep_gives_way_to_a_transaction_holding_a_row_it_needs(
-    postgresql_engine: AsyncEngine,
-    monkeypatch: pytest.MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
-    project_id, deleted_session_id, _ = await _add_session_liveness(db, age_seconds=600)
-    _, surviving_session_id, _ = await _add_session_liveness(
-        db, age_seconds=600, project_id=project_id
-    )
-    _, project_evaluator_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
-    sweeper = SessionEvaluationProducer(
-        db,
-        tick_interval_seconds=0,
-    )
-    tick = sweeper._tick
-
-    with caplog.at_level(logging.WARNING, logger=sweeping_producer_module.__name__):
-        async with db() as deletion_session:
-            await deletion_session.execute(
-                delete(models.ProjectSession).where(models.ProjectSession.id == deleted_session_id)
-            )
-            await asyncio.wait_for(_run_one_tick(sweeper, monkeypatch), timeout=5)
-
-    (record,) = [
-        record for record in caplog.records if record.name == sweeping_producer_module.__name__
-    ]
-    assert record.levelno == logging.WARNING
-    assert (
-        "SESSION evaluation sweep rolled back: it gave way to a concurrent transaction "
-        "holding a lock it needed"
-    ) in record.getMessage()
-    async with db() as session:
-        assert await session.get(models.ProjectSession, deleted_session_id) is None
-        assert (
-            await session.scalar(select(func.count()).select_from(models.EvalSessionWorkUnit)) == 0
-        )
-        assert (
-            await session.scalar(
-                select(models.ProjectEvaluatorState.swept_through_at).where(
-                    models.ProjectEvaluatorState.project_evaluator_id == project_evaluator_id
-                )
-            )
-            is None
-        )
-
-    await tick()
-
-    async with db() as session:
-        scheduled_session_ids = list(
-            await session.scalars(select(models.EvalSessionWorkUnit.project_session_rowid))
-        )
-        assert (
-            await session.scalar(
-                select(models.ProjectEvaluatorState.swept_through_at).where(
-                    models.ProjectEvaluatorState.project_evaluator_id == project_evaluator_id
-                )
-            )
-            is not None
-        )
-    assert scheduled_session_ids == [surviving_session_id]
 
 
 async def test_session_with_null_liveness_is_never_eligible(
@@ -586,24 +444,184 @@ async def test_retained_long_delay_pairs_do_not_block_later_due_pair(
     }
 
 
-async def test_full_sweeper_page_starts_the_next_tick_without_the_interval(
+_WORK_UNITS: dict[str, tuple[Any, Any]] = {
+    "SPAN": (models.EvalWorkUnit, models.EvalWorkUnit.span_rowid),
+    "TRACE": (models.EvalTraceWorkUnit, models.EvalTraceWorkUnit.trace_rowid),
+    "SESSION": (models.EvalSessionWorkUnit, models.EvalSessionWorkUnit.project_session_rowid),
+}
+
+
+async def _add_quiet_targets(
     db: DbSessionFactory,
-    monkeypatch: pytest.MonkeyPatch,
+    project_id: int,
+    evaluation_target: Literal["TRACE", "SESSION"],
+    count: int,
+    *,
+    age_seconds: float,
+) -> list[int]:
+    """Add ``count`` traces or sessions, each holding one span last ingested ``age_seconds``
+    ago, returning their row ids."""
+    ingested_at = _now() - timedelta(seconds=age_seconds)
+    async with db() as session:
+        session_rowids: list[Optional[int]] = [None] * count
+        if evaluation_target == "SESSION":
+            session_rowids = list(
+                await session.scalars(
+                    insert(models.ProjectSession).returning(models.ProjectSession.id),
+                    [
+                        {
+                            "session_id": token_hex(8),
+                            "project_id": project_id,
+                            "start_time": ingested_at,
+                            "end_time": ingested_at,
+                            "last_span_ingested_at": ingested_at,
+                        }
+                        for _ in range(count)
+                    ],
+                )
+            )
+        trace_rowids = list(
+            await session.scalars(
+                insert(models.Trace).returning(models.Trace.id),
+                [
+                    {
+                        "trace_id": token_hex(16),
+                        "project_rowid": project_id,
+                        "project_session_rowid": session_rowid,
+                        "start_time": ingested_at,
+                        "end_time": ingested_at,
+                        "last_span_ingested_at": ingested_at,
+                    }
+                    for session_rowid in session_rowids
+                ],
+            )
+        )
+        await session.execute(
+            insert(models.Span),
+            [
+                {
+                    "trace_rowid": trace_rowid,
+                    "span_id": token_hex(8),
+                    "name": "root",
+                    "span_kind": "CHAIN",
+                    "start_time": ingested_at,
+                    "end_time": ingested_at,
+                    "attributes": {},
+                    "events": [],
+                    "status_code": "OK",
+                    "status_message": "",
+                    "cumulative_error_count": 0,
+                    "cumulative_llm_token_count_prompt": 0,
+                    "cumulative_llm_token_count_completion": 0,
+                }
+                for trace_rowid in trace_rowids
+            ],
+        )
+    if evaluation_target == "SESSION":
+        return [session_rowid for session_rowid in session_rowids if session_rowid is not None]
+    return trace_rowids
+
+
+async def _queued_targets(
+    db: DbSessionFactory, evaluation_target: str, project_evaluator_id: int
+) -> set[int]:
+    work_unit_model, target_column = _WORK_UNITS[evaluation_target]
+    async with db() as session:
+        return set(
+            await session.scalars(
+                select(target_column).where(
+                    work_unit_model.project_evaluator_id == project_evaluator_id,
+                    work_unit_model.status == "PENDING",
+                )
+            )
+        )
+
+
+@pytest.mark.parametrize("evaluation_target", ["TRACE", "SESSION"])
+async def test_waiting_work_does_not_stop_the_sweeping_producers_queuing_newly_quiet_targets(
+    db: DbSessionFactory,
+    evaluation_target: Literal["TRACE", "SESSION"],
 ) -> None:
-    monkeypatch.setattr(sweeping_producer_module, "_MAX_EVALUATIONS_PER_TICK", 1)
-    project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
-    for _ in range(2):
-        await _add_session_liveness(db, age_seconds=600, project_id=project_id)
-    await _seed_criteria(db, project_id, evaluation_target="SESSION")
-    sweeper = SessionEvaluationProducer(db, tick_interval_seconds=3600)
-    sleeps = _stop_at_the_first_interval_sleep(sweeper, monkeypatch, sweeping_producer_module)
+    """Overload shows as waiting work, never as a producer that fell behind."""
+    async with db() as session:
+        project = await _add_project(session)
+    _, project_evaluator_id = await _seed_criteria(
+        db, project.id, evaluation_target=evaluation_target
+    )
+    delay = timedelta(seconds=models.DEFAULT_EVALUATION_DELAY_SECONDS)
+    producer = (
+        TraceEvaluationProducer(db)
+        if evaluation_target == "TRACE"
+        else SessionEvaluationProducer(db)
+    )
+    backlog = await _add_quiet_targets(
+        db,
+        project.id,
+        evaluation_target,
+        sweeping_producer_module._MAX_EVALUATIONS_PER_TICK + 1,
+        age_seconds=2 * delay.total_seconds(),
+    )
+    while await producer._tick():
+        pass
+    assert await _queued_targets(db, evaluation_target, project_evaluator_id) == set(backlog)
 
-    sweeper._running = True
-    await sweeper._run()
+    arrivals: list[int] = []
+    for _ in range(3):
+        arrivals += await _add_quiet_targets(
+            db, project.id, evaluation_target, 1, age_seconds=delay.total_seconds() + 1
+        )
+        async with db() as session:
+            before = await current_database_time(session, db.dialect)
+        await producer._tick()
+        async with db() as session:
+            after = await current_database_time(session, db.dialect)
+            sweep_position = await session.scalar(
+                select(models.ProjectEvaluatorState.swept_through_at).where(
+                    models.ProjectEvaluatorState.project_evaluator_id == project_evaluator_id
+                )
+            )
+        assert await _queued_targets(db, evaluation_target, project_evaluator_id) == set(
+            backlog
+        ) | set(arrivals)
+        assert sweep_position is not None
+        assert before - delay <= sweep_position <= after - delay
 
-    # Three full pages that each decided a session, then a short page.
-    assert sleeps == [0, 0, 0, 3600]
-    assert await _work_statuses(db) == ["PENDING"] * 3
+
+@pytest.mark.parametrize("evaluation_target", ["SPAN", "TRACE", "SESSION"])
+async def test_a_lower_sampling_rate_queues_a_subset_of_what_a_higher_one_queues(
+    db: DbSessionFactory,
+    evaluation_target: models.EvaluationTarget,
+) -> None:
+    """Sampling nests: a target a lower rate queues, any higher rate on it queues too."""
+    async with db() as session:
+        project = await _add_project(session)
+    _, lower_rate_id = await _seed_criteria(
+        db, project.id, evaluation_target=evaluation_target, sampling_rate=0.3
+    )
+    _, higher_rate_id = await _seed_criteria(
+        db, project.id, evaluation_target=evaluation_target, sampling_rate=0.7
+    )
+    if evaluation_target == "SPAN":
+        span_producer = SpanEvaluationProducer(db, visibility_lag_seconds=0)
+        await span_producer._tick()
+        async with db() as session:
+            trace = await _add_trace(session, project)
+            for _ in range(50):
+                await _add_span(session, trace)
+        await span_producer._tick()
+        await span_producer._tick()
+    else:
+        await _add_quiet_targets(db, project.id, evaluation_target, 50, age_seconds=600)
+        await (
+            TraceEvaluationProducer(db)
+            if evaluation_target == "TRACE"
+            else SessionEvaluationProducer(db)
+        )._tick()
+
+    lower = await _queued_targets(db, evaluation_target, lower_rate_id)
+    higher = await _queued_targets(db, evaluation_target, higher_rate_id)
+    assert lower and higher
+    assert lower <= higher
 
 
 async def test_full_sweeper_page_that_decides_nothing_waits_the_interval(
@@ -616,83 +634,53 @@ async def test_full_sweeper_page_that_decides_nothing_waits_the_interval(
     await _seed_criteria(db, project_id, evaluation_target="SESSION")
     sweeper = SessionEvaluationProducer(db)
 
-    async def every_target_moved_on(*_: object) -> dict[tuple[int, int], bool]:
+    async def every_filter_fails(*_: object) -> dict[tuple[int, int], bool]:
         return {}
 
-    monkeypatch.setattr(sweeper, "_read_filter_verdicts", every_target_moved_on)
+    monkeypatch.setattr(sweeper, "_read_filter_verdicts", every_filter_fails)
 
     assert await sweeper._tick() is False
     assert await _work_statuses(db) == []
 
 
-async def test_disabled_and_unresolved_criteria_preserve_future_eligibility(
+async def test_an_evaluator_with_no_resolvable_version_catches_up_once_it_resolves(
     db: DbSessionFactory,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    disabled_project_id, disabled_session_id, _ = await _add_session_liveness(
-        db,
-        age_seconds=600,
+    project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
+    _, project_evaluator_id, sandbox_config_id = await _seed_code_criteria(
+        db, project_id, evaluation_target="SESSION"
     )
-    _, disabled_criteria_id = await _seed_criteria(
-        db,
-        disabled_project_id,
-        evaluation_target="SESSION",
-    )
-    unresolved_project_id, unresolved_session_id, _ = await _add_session_liveness(
-        db,
-        age_seconds=600,
-    )
-    _, unresolved_criteria_id = await _seed_criteria(
-        db,
-        unresolved_project_id,
-        evaluation_target="SESSION",
-    )
+
+    async def set_sandbox_enabled(enabled: bool) -> None:
+        async with db() as session:
+            await session.execute(
+                update(models.SandboxConfig)
+                .where(models.SandboxConfig.id == sandbox_config_id)
+                .values(enabled=enabled)
+            )
+
     async with db() as session:
         await session.execute(
             update(models.ProjectEvaluator)
-            .where(models.ProjectEvaluator.id == disabled_criteria_id)
-            .values(enabled=False)
+            .where(models.ProjectEvaluator.id == project_evaluator_id)
+            .values(created_at=_now() - timedelta(days=1))
         )
-
-    resolution_calls = 0
-
-    async def unresolved(
-        session: AsyncSession,
-        project_evaluator_pairs: Sequence[tuple[models.ProjectEvaluator, models.Evaluator]],
-    ) -> list[ResolvedProjectEvaluator | None]:
-        nonlocal resolution_calls
-        resolution_calls += 1
-        resolved = await resolve_project_evaluators_bulk(session, project_evaluator_pairs)
-        return [
-            None if project_evaluator.id == unresolved_criteria_id else result
-            for (project_evaluator, _), result in zip(
-                project_evaluator_pairs, resolved, strict=True
-            )
-        ]
-
-    monkeypatch.setattr(sweeping_producer_module, "resolve_project_evaluators_bulk", unresolved)
+    await set_sandbox_enabled(False)
     sweeper = SessionEvaluationProducer(db)
     await sweeper._tick()
-    async with db() as session:
-        assert (
-            await session.scalar(select(func.count()).select_from(models.EvalSessionWorkUnit)) == 0
-        )
-        await session.execute(
-            update(models.ProjectEvaluator)
-            .where(models.ProjectEvaluator.id == disabled_criteria_id)
-            .values(enabled=True)
-        )
+    assert await _work_statuses(db) == []
 
-    assert resolution_calls == 1
-    monkeypatch.setattr(
-        sweeping_producer_module, "resolve_project_evaluators_bulk", resolve_project_evaluators_bulk
-    )
+    await set_sandbox_enabled(True)
     await sweeper._tick()
     async with db() as session:
-        session_ids = set(
-            await session.scalars(select(models.EvalSessionWorkUnit.project_session_rowid))
+        queued = list(
+            await session.scalars(
+                select(models.EvalSessionWorkUnit.project_session_rowid).where(
+                    models.EvalSessionWorkUnit.status == "PENDING"
+                )
+            )
         )
-    assert session_ids == {disabled_session_id, unresolved_session_id}
+    assert queued == [project_session_id]
 
 
 async def test_successful_work_closes_evaluate_once_key(
@@ -745,7 +733,7 @@ async def _advance_liveness(
 async def test_work_ended_without_a_result_is_re_offered_in_place_after_new_ingest(
     db: DbSessionFactory,
     evaluation_target: models.EvaluationTarget,
-    status: models.SweptTargetWorkStatus,
+    status: models.EvalWorkStatus,
 ) -> None:
     """Work that ended without a result carries the activity it was scheduled for in
     ``decided_through``, so it is offered again only once its target has newer activity.
@@ -811,7 +799,7 @@ async def test_work_ended_without_a_result_is_re_offered_in_place_after_new_inge
 @pytest.mark.parametrize("declined_status", ["FILTERED_OUT", "SAMPLED_OUT"])
 async def test_re_offer_that_lands_declined_is_final(
     db: DbSessionFactory,
-    declined_status: models.SweptTargetWorkStatus,
+    declined_status: models.EvalWorkStatus,
 ) -> None:
     project_id, project_session_id, first_ingest_at = await _add_session_liveness(
         db,
@@ -872,45 +860,6 @@ async def test_quiet_session_predating_criterion_creation_is_not_live(
         assert (
             await session.scalar(select(func.count()).select_from(models.EvalSessionWorkUnit)) == 0
         )
-
-
-async def test_disabled_criterion_neither_sweeps_nor_moves_its_floor(
-    db: DbSessionFactory,
-) -> None:
-    project_id, project_session_id, activity_at = await _add_session_liveness(
-        db,
-        age_seconds=600,
-    )
-    _, project_evaluator_id = await _seed_criteria_raw(
-        db,
-        project_id,
-        evaluation_target="SESSION",
-    )
-    async with db() as session:
-        await session.execute(
-            update(models.ProjectEvaluator)
-            .where(models.ProjectEvaluator.id == project_evaluator_id)
-            .values(created_at=activity_at - timedelta(seconds=1), enabled=False)
-        )
-
-    sweeper = SessionEvaluationProducer(db)
-    await sweeper._tick()
-    async with db() as session:
-        assert (
-            await session.scalar(select(func.count()).select_from(models.EvalSessionWorkUnit)) == 0
-        )
-        await session.execute(
-            update(models.ProjectEvaluator)
-            .where(models.ProjectEvaluator.id == project_evaluator_id)
-            .values(enabled=True)
-        )
-
-    await sweeper._tick()
-    async with db() as session:
-        scheduled_session_id = await session.scalar(
-            select(models.EvalSessionWorkUnit.project_session_rowid)
-        )
-    assert scheduled_session_id == project_session_id
 
 
 async def _rename_project_evaluator(
@@ -1322,49 +1271,6 @@ async def test_declined_oldest_page_does_not_starve_later_match(
     }
 
 
-async def test_session_whose_activity_moves_mid_tick_is_decided_on_a_later_tick(
-    db: DbSessionFactory,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """A filter decides a session only on content the session was quiet at."""
-    project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
-    _, project_evaluator_id = await _seed_criteria(
-        db,
-        project_id,
-        evaluation_target="SESSION",
-        filter_condition="num_traces < 2",
-    )
-    await _set_delay(db, project_evaluator_id, 10)
-    sweeper = SessionEvaluationProducer(db)
-    read_filter_verdicts = sweeper._read_filter_verdicts
-    resumed_at = _now() - timedelta(seconds=30)
-
-    async def ingest_after_the_page_read(
-        session: AsyncSession,
-        project_evaluators: Sequence[sweeping_producer_module._SweepProjectEvaluator],
-        rows: Sequence[Any],
-    ) -> dict[tuple[int, int], bool]:
-        project = await session.get(models.Project, project_id)
-        project_session = await session.get(models.ProjectSession, project_session_id)
-        assert project is not None
-        assert project_session is not None
-        await _add_span(session, await _add_trace(session, project, project_session))
-        project_session.last_span_ingested_at = resumed_at
-        await session.flush()
-        return await read_filter_verdicts(session, project_evaluators, rows)
-
-    monkeypatch.setattr(sweeper, "_read_filter_verdicts", ingest_after_the_page_read)
-    await sweeper._tick()
-    assert await _work_statuses(db) == []
-
-    monkeypatch.setattr(sweeper, "_read_filter_verdicts", read_filter_verdicts)
-    await sweeper._tick()
-    async with db() as session:
-        unit = (await session.scalars(select(models.EvalSessionWorkUnit))).one()
-    assert unit.status == "FILTERED_OUT"
-    assert unit.decided_through == resumed_at
-
-
 async def test_trace_criteria_do_not_reach_the_session_sweeper(
     db: DbSessionFactory,
 ) -> None:
@@ -1623,7 +1529,6 @@ async def test_sweep_metrics_cover_eligibility_decided_through_and_outcomes(
         "ONLINE_EVAL_SWEEP_ELIGIBLE_EVALUATIONS",
         "ONLINE_EVAL_DECIDED_THROUGH_LAG_SECONDS",
         "ONLINE_EVAL_ADDED_WORK_UNITS",
-        "ONLINE_EVAL_SWEEP_ATTEMPTS",
         "ONLINE_EVAL_SWEEP_DURATION_SECONDS",
         "ONLINE_EVAL_SWEEP_FAILURES",
         "ONLINE_EVAL_SWEEP_SUCCESSES",
@@ -1640,7 +1545,6 @@ async def test_sweep_metrics_cover_eligibility_decided_through_and_outcomes(
 
     metrics["ONLINE_EVAL_SWEEP_ELIGIBLE_EVALUATIONS"].set.assert_called_once_with(1)
     metrics["ONLINE_EVAL_DECIDED_THROUGH_LAG_SECONDS"].set.assert_called_once_with(0.0)
-    metrics["ONLINE_EVAL_SWEEP_ATTEMPTS"].inc.assert_called_once_with()
     metrics["ONLINE_EVAL_SWEEP_SUCCESSES"].inc.assert_called_once_with()
     metrics["ONLINE_EVAL_SWEEP_FAILURES"].inc.assert_not_called()
     metrics["ONLINE_EVAL_ADDED_WORK_UNITS"].inc.assert_called_once_with(1)

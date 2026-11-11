@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from secrets import token_hex
-from typing import Any, Optional, Union, cast
+from typing import Any, Literal, Optional, Sequence, Union, cast, overload
 
 from pydantic import ValidationError
 from sqlalchemy import func, select
@@ -38,16 +38,15 @@ from phoenix.server.evaluators.services.management import (
     validate_code_evaluator_sandbox_config,
 )
 from phoenix.server.evaluators.services.prompt_source import (
+    CreatePromptSource,
     FromPromptVersion,
+    NewPrompt,
     UpdatePromptSource,
     get_prompt_version,
     pin_prompt_version,
     resolve_evaluator_prompt_version,
 )
-from phoenix.server.evaluators.validation import (
-    LLMEvaluatorOutputConfigs,
-    require_categorical_output_configs,
-)
+from phoenix.server.evaluators.validation import require_categorical_output_configs
 from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.types import DbSessionFactory
 
@@ -70,6 +69,175 @@ def require_output_configs(configs: list[OutputConfigType]) -> None:
     names = [config.name for config in configs]
     if len(names) != len(set(names)):
         raise BadRequest("Output config names must be unique")
+
+
+@overload
+def check_output_configs(
+    kind: Literal["LLM"], configs: Optional[Sequence[OutputConfigType]]
+) -> list[CategoricalOutputConfig]: ...
+@overload
+def check_output_configs(
+    kind: Literal["CODE", "BUILTIN"], configs: Optional[Sequence[OutputConfigType]]
+) -> list[OutputConfigType]: ...
+def check_output_configs(
+    kind: Literal["LLM", "CODE", "BUILTIN"], configs: Optional[Sequence[OutputConfigType]]
+) -> Union[list[CategoricalOutputConfig], list[OutputConfigType]]:
+    """Check the output configs of a definition or a binding's override for an evaluator of
+    this kind, and return them typed for it. A missing list counts as empty."""
+    checked = list(configs or [])
+    if kind == "LLM":
+        try:
+            require_categorical_output_configs(checked)
+        except ValueError as error:
+            raise BadRequest(str(error)) from error
+    require_output_configs(checked)
+    if kind == "LLM":
+        return cast(list[CategoricalOutputConfig], checked)
+    return checked
+
+
+@dataclass(frozen=True)
+class ValidatedCode:
+    """Source code and the sandbox that accepted it, checked before the write that stores
+    them. A sandbox of None means none was chosen, so nothing ran the code."""
+
+    source_code: str
+    language: models.LanguageName
+    sandbox_config_id: Optional[int]
+
+
+async def preflight_code(
+    context: EvaluatorServiceContext,
+    *,
+    source_code: str,
+    language: models.LanguageName,
+    sandbox_config_id: Optional[GlobalID],
+    action: str,
+    new_source: bool = True,
+) -> ValidatedCode:
+    """Run code through its sandbox before the write transaction, so no database lock is
+    held while the sandbox works. New source must also declare inferable `evaluate` inputs,
+    which is checked first."""
+    if new_source:
+        raise_on_uninferable_evaluate_signature(source_code, language)
+    validated_sandbox_config_id: Optional[int] = None
+    if sandbox_config_id is not None:
+        validated_sandbox_config_id = await validate_code_evaluator_sandbox_config(
+            context.db,
+            sandbox_config_global_id=sandbox_config_id,
+            language=language,
+            action=action,
+            source_code=source_code,
+            sandbox_runtime=context.sandbox_runtime,
+        )
+    return ValidatedCode(
+        source_code=source_code,
+        language=language,
+        sandbox_config_id=validated_sandbox_config_id,
+    )
+
+
+async def create_code_definition(
+    session: AsyncSession,
+    *,
+    name: Identifier,
+    code: ValidatedCode,
+    input_mapping: InputMapping,
+    output_configs: list[OutputConfigType],
+    user_id: Optional[int],
+    description: Optional[str] = None,
+    input_schema: Any = None,
+) -> models.CodeEvaluator:
+    """Create a code definition with its first version in the caller's transaction."""
+    evaluator = models.CodeEvaluator(
+        name=name,
+        description=description,
+        language=code.language,
+        user_id=user_id,
+        sandbox_config_id=code.sandbox_config_id,
+        input_mapping=input_mapping,
+        output_configs=cast(list[AnnotationConfigType], output_configs),
+    )
+    try:
+        apply_code_input_schema(evaluator, code.source_code, input_schema)
+    except ValueError as error:
+        raise BadRequest(str(error))
+    session.add(evaluator)
+    await session.flush()
+    session.add(
+        models.CodeEvaluatorVersion(
+            code_evaluator_id=evaluator.id,
+            source_code=code.source_code,
+            user_id=user_id,
+        )
+    )
+    await session.flush()
+    return evaluator
+
+
+@dataclass(frozen=True)
+class CodeDefinitionUpdate:
+    """What an edit did: the version the evaluator runs after it, whether the edit appended
+    that version, and whether it changed the definition at all."""
+
+    version: Optional[models.CodeEvaluatorVersion]
+    appended: bool
+    changed: bool
+
+
+async def update_code_definition(
+    session: AsyncSession,
+    evaluator: models.CodeEvaluator,
+    *,
+    user_id: Optional[int],
+    source_code: str = UNSET,
+    description: Optional[str] = UNSET,
+    sandbox_config_id: Optional[int] = UNSET,
+    input_mapping: InputMapping = UNSET,
+    output_configs: list[OutputConfigType] = UNSET,
+    input_schema: Any = UNSET,
+) -> CodeDefinitionUpdate:
+    """Apply a definition edit in the caller's transaction. UNSET fields keep their values.
+
+    Source that differs from the current version is appended as a new version. When the
+    source or `input_schema` is given, the input descriptions follow the parameters of the
+    code the evaluator runs after the edit."""
+    latest = await code_evaluator_with_latest_version(session, evaluator.id)
+    version = latest[1] if latest is not None else None
+    changed = False
+    if description is not UNSET and evaluator.description != description:
+        evaluator.description = description
+        changed = True
+    if sandbox_config_id is not UNSET and evaluator.sandbox_config_id != sandbox_config_id:
+        evaluator.sandbox_config_id = sandbox_config_id
+        changed = True
+    if input_mapping is not UNSET and evaluator.input_mapping != input_mapping:
+        evaluator.input_mapping = input_mapping
+        changed = True
+    if output_configs is not UNSET and evaluator.output_configs != output_configs:
+        evaluator.output_configs = cast(list[AnnotationConfigType], output_configs)
+        changed = True
+    appended = False
+    if source_code is not UNSET:
+        candidate = models.CodeEvaluatorVersion(
+            code_evaluator_id=evaluator.id,
+            source_code=source_code,
+            user_id=user_id,
+        )
+        if version is None or not version.has_identical_content(candidate):
+            session.add(candidate)
+            version = candidate
+            appended = changed = True
+    if source_code is not UNSET or input_schema is not UNSET:
+        try:
+            if apply_code_input_schema(
+                evaluator, version.source_code if version is not None else "", input_schema
+            ):
+                changed = True
+        except ValueError as error:
+            raise BadRequest(str(error))
+    await session.flush()
+    return CodeDefinitionUpdate(version=version, appended=appended, changed=changed)
 
 
 @dataclass(kw_only=True)
@@ -130,15 +298,18 @@ async def patch_code_evaluator(
     except ValueError as error:
         raise BadRequest(str(error)) from error
 
-    if input.input_mapping is not UNSET and input.input_mapping is None:
+    input_mapping = input.input_mapping
+    if input_mapping is None:
         raise BadRequest("input_mapping cannot be set to null")
     if input.output_configs is not UNSET and input.output_configs is None:
         raise BadRequest("output_configs cannot be set to null")
-    if input.output_configs is not UNSET:
-        require_output_configs(input.output_configs)
+    output_configs = (
+        check_output_configs("CODE", input.output_configs)
+        if input.output_configs is not UNSET
+        else UNSET
+    )
 
-    validated_sandbox_config_id: Optional[int] = None
-    validated_source_code: Optional[str] = None
+    validated: Optional[ValidatedCode] = None
     if input.sandbox_config_id is not UNSET and input.sandbox_config_id is not None:
         async with context.db() as session:
             code_evaluator_with_version = await code_evaluator_with_latest_version(
@@ -147,15 +318,13 @@ async def patch_code_evaluator(
             if code_evaluator_with_version is None:
                 raise NotFound(f"CodeEvaluator not found: {evaluator_id}")
             current, current_version = code_evaluator_with_version
-            language = current.language
-            validated_source_code = current_version.source_code if current_version else ""
-        validated_sandbox_config_id = await validate_code_evaluator_sandbox_config(
-            context.db,
-            sandbox_config_global_id=input.sandbox_config_id,
-            language=language,
+        validated = await preflight_code(
+            context,
+            source_code=current_version.source_code if current_version else "",
+            language=current.language,
+            sandbox_config_id=input.sandbox_config_id,
             action="patching this evaluator",
-            source_code=validated_source_code,
-            sandbox_runtime=context.sandbox_runtime,
+            new_source=False,
         )
 
     try:
@@ -173,45 +342,32 @@ async def patch_code_evaluator(
                 except ValidationError as error:
                     raise BadRequest(f"Invalid evaluator name: {error}")
 
-            if input.description is not UNSET:
-                row.description = input.description
-
-            if input.sandbox_config_id is not UNSET:
-                if input.sandbox_config_id is None:
-                    row.sandbox_config_id = None
-                else:
-                    latest_source_code = (
-                        current_version.source_code if current_version is not None else ""
-                    )
-                    if latest_source_code != validated_source_code:
-                        raise Conflict(
-                            "The evaluator version changed during sandbox validation; retry.",
-                            reason="concurrent_change",
-                        )
-                    row.sandbox_config_id = validated_sandbox_config_id
-
-            if input.input_mapping is not UNSET and input.input_mapping is not None:
-                row.input_mapping = input.input_mapping
-
-            if input.output_configs is not UNSET and input.output_configs is not None:
-                row.output_configs = cast(
-                    list[AnnotationConfigType],
-                    input.output_configs,
+            sandbox_config_id: Optional[int] = UNSET
+            if input.sandbox_config_id is None:
+                sandbox_config_id = None
+            elif validated is not None:
+                latest_source_code = (
+                    current_version.source_code if current_version is not None else ""
                 )
-
-            if input.input_schema is not UNSET:
-                try:
-                    apply_code_input_schema(
-                        row,
-                        current_version.source_code if current_version is not None else "",
-                        input.input_schema,
+                if latest_source_code != validated.source_code:
+                    raise Conflict(
+                        "The evaluator version changed during sandbox validation; retry.",
+                        reason="concurrent_change",
                     )
-                except ValueError as error:
-                    raise BadRequest(str(error))
+                sandbox_config_id = validated.sandbox_config_id
 
+            await update_code_definition(
+                session,
+                row,
+                user_id=context.user_id,
+                description=input.description,
+                sandbox_config_id=sandbox_config_id,
+                input_mapping=input_mapping,
+                output_configs=output_configs,
+                input_schema=input.input_schema,
+            )
             # The row is returned to resolvers after the session closes, so load the
             # server-generated updated_at now instead of leaving it expired.
-            await session.flush()
             await session.refresh(row, attribute_names=["updated_at"])
 
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
@@ -232,40 +388,25 @@ async def create_code_evaluator(
         validated_name = Identifier.model_validate(input.name)
     except ValidationError as error:
         raise BadRequest(f"Invalid evaluator name: {error}")
-    output_configs = list(input.output_configs)
-    require_output_configs(output_configs)
-    raise_on_uninferable_evaluate_signature(input.source_code, input.language)
-    sandbox_config_id = await validate_code_evaluator_sandbox_config(
-        context.db,
-        sandbox_config_global_id=input.sandbox_config_id,
-        language=input.language,
-        action="creating this evaluator",
+    output_configs = check_output_configs("CODE", input.output_configs)
+    code = await preflight_code(
+        context,
         source_code=input.source_code,
-        sandbox_runtime=context.sandbox_runtime,
+        language=input.language,
+        sandbox_config_id=input.sandbox_config_id,
+        action="creating this evaluator",
     )
     try:
         async with context.db() as session:
-            row = models.CodeEvaluator(
+            row = await create_code_definition(
+                session,
                 name=validated_name,
-                description=input.description,
-                language=input.language,
-                user_id=context.user_id,
-                sandbox_config_id=sandbox_config_id,
+                code=code,
                 input_mapping=input.input_mapping,
-                output_configs=cast(list[AnnotationConfigType], output_configs),
-            )
-            try:
-                apply_code_input_schema(row, input.source_code, input.input_schema)
-            except ValueError as error:
-                raise BadRequest(str(error))
-            session.add(row)
-            await session.flush()
-            session.add(
-                models.CodeEvaluatorVersion(
-                    code_evaluator_id=row.id,
-                    source_code=input.source_code,
-                    user_id=context.user_id,
-                )
+                output_configs=output_configs,
+                user_id=context.user_id,
+                description=input.description,
+                input_schema=input.input_schema,
             )
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
         raise await evaluator_name_taken(context, input.name) from error
@@ -303,6 +444,79 @@ class CreateLLMEvaluatorInput:
     input_schema: Any = None  # a JSON schema object, parsed by the service
 
 
+async def create_llm_definition(
+    session: AsyncSession,
+    *,
+    name: Identifier,
+    prompt_source: CreatePromptSource,
+    output_configs: list[CategoricalOutputConfig],
+    user_id: Optional[int],
+    description: Optional[str] = None,
+    input_schema: Any = None,
+    binding_name: Optional[Identifier] = None,
+) -> models.LLMEvaluator:
+    """Create an LLM definition in the caller's transaction, pinned by a tag it owns to the
+    version its prompt source names. A create-and-attach passes the binding's name, which
+    names the new prompt and the tag in place of the definition's possibly suffixed name."""
+    naming = binding_name or name
+    content = prompt_source.content
+    if content is not None:
+        content.user_id = user_id
+        await validate_custom_provider(session, content)
+    if isinstance(prompt_source, FromPromptVersion):
+        base = await get_prompt_version(session, prompt_source.prompt_version_id)
+        prompt_version = await pin_prompt_version(
+            session, base=base, content=content, prompt_id=base.prompt_id
+        )
+    else:
+        prompt_version = await _new_evaluator_prompt(
+            session, prompt_source.content, name=naming, description=description
+        )
+    evaluator = models.LLMEvaluator(
+        name=name,
+        description=description,
+        kind="LLM",
+        output_configs=output_configs,
+        user_id=user_id,
+        prompt_id=prompt_version.prompt_id,
+    )
+    try:
+        apply_llm_input_schema(evaluator, prompt_version, input_schema)
+    except ValueError as error:
+        raise BadRequest(str(error))
+    session.add(evaluator)
+    await session.flush()
+    await ensure_evaluator_prompt_label(session, prompt_version.prompt_id)
+    evaluator.prompt_version_tag = _evaluator_tag(naming, prompt_version)
+    await session.flush()
+    return evaluator
+
+
+async def _new_evaluator_prompt(
+    session: AsyncSession,
+    content: models.PromptVersion,
+    *,
+    name: Identifier,
+    description: Optional[str],
+) -> models.PromptVersion:
+    prompt = models.Prompt(
+        name=Identifier.model_validate(f"{name}-evaluator-{token_hex(4)}"),
+        description=description,
+        prompt_versions=[content],
+    )
+    session.add(prompt)
+    await session.flush()
+    return content
+
+
+def _evaluator_tag(name: Identifier, version: models.PromptVersion) -> models.PromptVersionTag:
+    return models.PromptVersionTag(
+        name=Identifier.model_validate(f"{name}-evaluator-{token_hex(4)}"),
+        prompt_id=version.prompt_id,
+        prompt_version_id=version.id,
+    )
+
+
 async def create_llm_evaluator(
     context: EvaluatorServiceContext, input: CreateLLMEvaluatorInput
 ) -> models.LLMEvaluator:
@@ -310,36 +524,20 @@ async def create_llm_evaluator(
     a tag the evaluator owns; nothing binds it yet."""
     try:
         name = Identifier.model_validate(input.name)
-        require_categorical_output_configs(input.output_configs)
-        output_configs = list(
-            LLMEvaluatorOutputConfigs.model_validate({"configs": input.output_configs}).configs
-        )
-    except (ValueError, ValidationError) as error:
+    except ValidationError as error:
         raise BadRequest(str(error))
+    output_configs = check_output_configs("LLM", input.output_configs)
     try:
         async with context.db() as session:
-            version = await get_prompt_version(session, input.prompt_version_id)
-            evaluator = models.LLMEvaluator(
+            evaluator = await create_llm_definition(
+                session,
                 name=name,
-                description=input.description,
-                kind="LLM",
+                prompt_source=FromPromptVersion(prompt_version_id=input.prompt_version_id),
                 output_configs=output_configs,
                 user_id=context.user_id,
-                prompt_id=version.prompt_id,
+                description=input.description,
+                input_schema=input.input_schema,
             )
-            try:
-                apply_llm_input_schema(evaluator, version, input.input_schema)
-            except ValueError as error:
-                raise BadRequest(str(error))
-            session.add(evaluator)
-            await session.flush()
-            await ensure_evaluator_prompt_label(session, version.prompt_id)
-            evaluator.prompt_version_tag = models.PromptVersionTag(
-                name=Identifier.model_validate(f"{name.root}-evaluator-{token_hex(4)}"),
-                prompt_id=version.prompt_id,
-                prompt_version_id=version.id,
-            )
-            await session.flush()
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
         raise await evaluator_name_taken(context, input.name) from error
     return evaluator
@@ -445,19 +643,17 @@ async def create_code_evaluator_version(
         )
     except ValueError as error:
         raise BadRequest(str(error)) from error
-    if input.input_mapping is not UNSET and input.input_mapping is None:
+    input_mapping = input.input_mapping
+    if input_mapping is None:
         raise BadRequest("input_mapping cannot be set to null")
     if input.output_configs is not UNSET and input.output_configs is None:
         raise BadRequest("output_configs cannot be set to null")
-    if input.output_configs is not UNSET:
-        require_output_configs(input.output_configs)
-
-    user_id = context.user_id
-    candidate = models.CodeEvaluatorVersion(
-        code_evaluator_id=evaluator_id,
-        source_code=input.source_code,
-        user_id=user_id,
+    output_configs = (
+        check_output_configs("CODE", input.output_configs)
+        if input.output_configs is not UNSET
+        else UNSET
     )
+
     async with context.db() as session:
         code_evaluator_with_version = await code_evaluator_with_latest_version(
             session, evaluator_id
@@ -466,9 +662,8 @@ async def create_code_evaluator_version(
             raise NotFound(f"CodeEvaluator not found: {evaluator_id}")
         current, current_version = code_evaluator_with_version
         _check_expected_version(input, current_version)
-        validated_language = current.language
-        source_unchanged = current_version is not None and current_version.has_identical_content(
-            candidate
+        source_unchanged = (
+            current_version is not None and current_version.source_code == input.source_code
         )
         if source_unchanged and not input.changes_configuration():
             assert current_version is not None
@@ -486,16 +681,17 @@ async def create_code_evaluator_version(
             except ValueError as error:
                 raise BadRequest(str(error)) from error
 
-    raise_on_uninferable_evaluate_signature(input.source_code, validated_language)
-    if target_sandbox_config_id is not None:
-        await validate_code_evaluator_sandbox_config(
-            context.db,
-            sandbox_config_global_id=GlobalID("SandboxConfig", str(target_sandbox_config_id)),
-            language=validated_language,
-            action="creating this evaluator version",
-            source_code=input.source_code,
-            sandbox_runtime=context.sandbox_runtime,
-        )
+    code = await preflight_code(
+        context,
+        source_code=input.source_code,
+        language=current.language,
+        sandbox_config_id=(
+            GlobalID("SandboxConfig", str(target_sandbox_config_id))
+            if target_sandbox_config_id is not None
+            else None
+        ),
+        action="creating this evaluator version",
+    )
 
     try:
         async with context.db() as session:
@@ -509,7 +705,7 @@ async def create_code_evaluator_version(
                 raise NotFound(f"CodeEvaluator not found: {evaluator_id}")
             row, current_version = code_evaluator_with_version
             _check_expected_version(input, current_version)
-            if row.language != validated_language:
+            if row.language != code.language:
                 raise Conflict(
                     "The evaluator language changed during source validation; retry.",
                     reason="concurrent_change",
@@ -517,43 +713,38 @@ async def create_code_evaluator_version(
             if (
                 current_version.id if current_version is not None else None
             ) != validated_current_version_id:
-                if current_version is None or not current_version.has_identical_content(candidate):
+                if current_version is None or current_version.source_code != code.source_code:
                     raise Conflict(
                         "The evaluator version changed during source validation; retry.",
                         reason="concurrent_change",
                     )
-            if input.description is not UNSET:
-                row.description = input.description
-            if input.sandbox_config_id is not UNSET:
-                row.sandbox_config_id = target_sandbox_config_id
-            elif row.sandbox_config_id != target_sandbox_config_id:
+            if input.sandbox_config_id is UNSET and row.sandbox_config_id != code.sandbox_config_id:
                 raise Conflict(
                     "The evaluator sandbox changed during source validation; retry.",
                     reason="concurrent_change",
                 )
-            if input.input_mapping is not UNSET and input.input_mapping is not None:
-                row.input_mapping = input.input_mapping
-            if input.output_configs is not UNSET and input.output_configs is not None:
-                row.output_configs = cast(list[AnnotationConfigType], input.output_configs)
-            try:
-                apply_code_input_schema(row, input.source_code, input.input_schema)
-            except ValueError as error:
-                raise BadRequest(str(error))
-            was_created = current_version is None or not current_version.has_identical_content(
-                candidate
+            sandbox_config_id: Optional[int] = UNSET
+            if input.sandbox_config_id is not UNSET:
+                sandbox_config_id = code.sandbox_config_id
+            update = await update_code_definition(
+                session,
+                row,
+                user_id=context.user_id,
+                source_code=code.source_code,
+                description=input.description,
+                sandbox_config_id=sandbox_config_id,
+                input_mapping=input_mapping,
+                output_configs=output_configs,
+                input_schema=input.input_schema,
             )
-            if was_created:
-                candidate.code_evaluator_id = row.id
-                session.add(candidate)
-            await session.flush()
-            version = candidate if was_created else current_version
+            version = update.version
             assert version is not None
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
         raise Conflict(
             "Could not create the code evaluator version because of a conflicting resource"
         ) from e
 
-    return row, version, was_created
+    return row, version, update.appended
 
 
 async def update_llm_definition(
@@ -570,25 +761,36 @@ async def update_llm_definition(
 ) -> None:
     """Apply a definition edit. Without a prompt source the evaluator keeps running what it
     runs: its pinned version, or, for an evaluator without a pin, its prompt's newest version,
-    which stays unpinned. `input_schema` describes the prompt's variables; UNSET keeps the
-    stored descriptions for the variables the prompt still names, and None clears them."""
+    which stays unpinned. `NewPrompt` moves the evaluator onto a new prompt holding the
+    content. `input_schema` describes the prompt's variables; UNSET keeps the stored
+    descriptions for the variables the prompt still names, and None clears them. A deleted
+    tag is recreated whenever the edit names a version."""
     base: Optional[models.PromptVersion] = None
     keeps_following_latest = prompt_source is None and evaluator.prompt_version_tag_id is None
-    if isinstance(prompt_source, FromPromptVersion):
-        base = await get_prompt_version(session, prompt_source.prompt_version_id)
-    elif evaluator.prompt_version_tag_id is not None or keeps_following_latest:
-        base = await resolve_evaluator_prompt_version(session, evaluator)
-
-    target_prompt_id = base.prompt_id if base is not None else evaluator.prompt_id
     content = prompt_source.content if prompt_source is not None else None
     if content is not None:
-        await validate_custom_provider(session, content)
-    prompt_version = await pin_prompt_version(
-        session, base=base, content=content, prompt_id=target_prompt_id
-    )
+        content.user_id = user_id
+    if isinstance(prompt_source, NewPrompt):
+        await validate_custom_provider(session, prompt_source.content)
+        prompt_version = await _new_evaluator_prompt(
+            session, prompt_source.content, name=name, description=description or None
+        )
+    else:
+        if isinstance(prompt_source, FromPromptVersion):
+            base = await get_prompt_version(session, prompt_source.prompt_version_id)
+        elif evaluator.prompt_version_tag_id is not None or keeps_following_latest:
+            base = await resolve_evaluator_prompt_version(session, evaluator)
+        if content is not None:
+            await validate_custom_provider(session, content)
+        prompt_version = await pin_prompt_version(
+            session,
+            base=base,
+            content=content,
+            prompt_id=base.prompt_id if base is not None else evaluator.prompt_id,
+        )
     if prompt_version is not base:
         shared_evaluator_changed = True
-    final_prompt_version_id = prompt_version.id
+    target_prompt_id = prompt_version.prompt_id
 
     if description is not UNSET and evaluator.description != description:
         evaluator.description = description
@@ -608,11 +810,7 @@ async def update_llm_definition(
     except ValueError as error:
         raise BadRequest(str(error))
     if evaluator.prompt_version_tag_id is None and not keeps_following_latest:
-        evaluator.prompt_version_tag = models.PromptVersionTag(
-            name=Identifier.model_validate(f"{name}-evaluator-{token_hex(4)}"),
-            prompt_id=target_prompt_id,
-            prompt_version_id=final_prompt_version_id,
-        )
+        evaluator.prompt_version_tag = _evaluator_tag(name, prompt_version)
         shared_evaluator_changed = True
     elif evaluator.prompt_version_tag_id is not None:
         prompt_version_tag = await session.get(
@@ -622,10 +820,10 @@ async def update_llm_definition(
             raise NotFound("Prompt version tag was not found")
         if (
             prompt_version_tag.prompt_id != target_prompt_id
-            or prompt_version_tag.prompt_version_id != final_prompt_version_id
+            or prompt_version_tag.prompt_version_id != prompt_version.id
         ):
             prompt_version_tag.prompt_id = target_prompt_id
-            prompt_version_tag.prompt_version_id = final_prompt_version_id
+            prompt_version_tag.prompt_version_id = prompt_version.id
             shared_evaluator_changed = True
 
     if shared_evaluator_changed:
@@ -654,8 +852,7 @@ async def patch_llm_evaluator(
         raise BadRequest(str(error)) from error
     try:
         async with context.db() as session:
-            # Edits lock the evaluator row first, so a concurrent delete of its binding or
-            # definition waits for the edit instead of removing rows the edit is writing.
+            # Edits and deletes take the evaluator row first, so they queue instead of deadlocking.
             row = await session.get(models.LLMEvaluator, row_id, with_for_update=True)
             if row is None:
                 raise NotFound(f"LLM evaluator not found: {evaluator_id}")
@@ -664,20 +861,14 @@ async def patch_llm_evaluator(
                     row.name = Identifier.model_validate(patch.name)
                 except ValidationError as error:
                     raise BadRequest(f"Invalid evaluator name: {error}") from error
-            configs = row.output_configs if patch.output_configs is UNSET else patch.output_configs
-            try:
-                output_configs = LLMEvaluatorOutputConfigs.model_validate(
-                    {"configs": configs}
-                ).configs
-            except ValidationError as error:
-                raise BadRequest(str(error)) from error
-            if patch.prompt_source is not None and patch.prompt_source.content is not None:
-                patch.prompt_source.content.user_id = context.user_id
             await update_llm_definition(
                 session,
                 row,
                 prompt_source=patch.prompt_source,
-                output_configs=output_configs,
+                output_configs=check_output_configs(
+                    "LLM",
+                    row.output_configs if patch.output_configs is UNSET else patch.output_configs,
+                ),
                 description=patch.description,
                 name=row.name,
                 user_id=context.user_id,
