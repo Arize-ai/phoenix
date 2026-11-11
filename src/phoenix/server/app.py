@@ -912,29 +912,23 @@ def create_graphql_router(
 
 
 def instrument_engine_if_enabled(engine: AsyncEngine) -> list[Callable[[], None]]:
-    if not server_instrumentation_is_enabled():
-        return []
-    tracer_provider = initialize_opentelemetry_tracer_provider()
-    return [*instrument_engine(engine, tracer_provider), tracer_provider.shutdown]
-
-
-def instrument_engine(
-    engine: AsyncEngine, tracer_provider: "TracerProvider"
-) -> list[Callable[[], None]]:
     """
-    Emits a CLIENT span for each SQL statement the engine runs and returns the
-    cleanups that detach the listeners.
+    When server instrumentation is enabled, emits a CLIENT span for each SQL
+    statement the engine runs and returns the cleanups to run at shutdown.
 
     SQLAlchemyInstrumentor is not used: its instrument() does nothing when the
     installed SQLAlchemy is outside the range its package declares, and it is a
     singleton that ignores every call after the first, so only one engine could
     be traced.
     """
+    if not server_instrumentation_is_enabled():
+        return []
     from opentelemetry.instrumentation.sqlalchemy.engine import EngineTracer
     from opentelemetry.instrumentation.sqlalchemy.version import __version__
     from opentelemetry.metrics import get_meter
     from opentelemetry.semconv.metrics import MetricInstruments
 
+    tracer_provider = initialize_opentelemetry_tracer_provider()
     scope = "opentelemetry.instrumentation.sqlalchemy"
     EngineTracer(  # type: ignore[no-untyped-call]
         tracer_provider.get_tracer(scope, __version__),
@@ -946,7 +940,7 @@ def instrument_engine(
             "described by the state attribute.",
         ),
     )
-    return [EngineTracer.remove_all_event_listeners]
+    return [EngineTracer.remove_all_event_listeners, tracer_provider.shutdown]
 
 
 async def plain_text_http_exception_handler(request: Request, exc: HTTPException) -> Response:
