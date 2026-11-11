@@ -54,13 +54,24 @@ LLM_PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
 LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
+DECISION_TOKEN_COUNT_INPUT = SpanAttributes.DECISION_TOKEN_COUNT_INPUT
+DECISION_TOKEN_COUNT_OUTPUT = SpanAttributes.DECISION_TOKEN_COUNT_OUTPUT
+_INT_COERCED_KEYS = frozenset(
+    (
+        LLM_TOKEN_COUNT_PROMPT,
+        LLM_TOKEN_COUNT_COMPLETION,
+        LLM_TOKEN_COUNT_TOTAL,
+        DECISION_TOKEN_COUNT_INPUT,
+        DECISION_TOKEN_COUNT_OUTPUT,
+    )
+)
 
 
 def coerce_otlp_span_attributes(
     decoded_attributes: Iterable[tuple[str, Any]],
 ) -> Iterator[tuple[str, Any]]:
     for key, value in decoded_attributes:
-        if key in (LLM_TOKEN_COUNT_PROMPT, LLM_TOKEN_COUNT_COMPLETION, LLM_TOKEN_COUNT_TOTAL):
+        if key in _INT_COERCED_KEYS:
             try:
                 value = int(value)
             except BaseException:

@@ -3,7 +3,12 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from phoenix.server.cost_tracking.helpers import get_aggregated_tokens
+from phoenix.server.cost_tracking.helpers import (
+    get_aggregated_tokens,
+    get_model_name,
+    get_priced_model_type,
+    get_provider,
+)
 
 
 class TestGetAggregatedTokens:
@@ -393,7 +398,7 @@ class TestGetAggregatedTokens:
 
     def test_get_aggregated_tokens_type_conversion(self) -> None:
         """Test type conversion from various input types."""
-        # Test with boolean values (should convert to int: True=1, False=0)
+        # Booleans are not token counts even though bool subclasses int in Python.
         bool_attributes: dict[str, Any] = {
             "llm": {
                 "token_count": {
@@ -406,7 +411,7 @@ class TestGetAggregatedTokens:
         result: tuple[Optional[int], Optional[int], Optional[int]] = get_aggregated_tokens(
             bool_attributes
         )
-        assert result == (1, 0, 1)  # int(True) = 1, int(False) = 0
+        assert result == (0, 0, 0)
 
         # Test with None values (should default to 0)
         none_attributes: dict[str, Any] = {
@@ -472,3 +477,240 @@ class TestGetAggregatedTokens:
                 }
             }
         ) == (0, 0, 0)
+
+
+class TestDecisionSpanAttributes:
+    """DECISION spans read `decision.*` attributes, with the legacy `llm.*` ones as fallback."""
+
+    @pytest.mark.parametrize(
+        "attributes,expected",
+        [
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "decision": {"token_count": {"input": 1000, "output": 500}},
+                },
+                (1000, 500, 1500),
+                id="decision_counts",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "decision": {"token_count": {"input": 1000, "output": 2}},
+                    "llm": {"token_count": {"prompt": 9, "completion": 9, "total": 99}},
+                },
+                (1000, 2, 1002),
+                id="decision_counts_win_over_llm_counts",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "decision": {"token_count": {"input": 1000}},
+                    "llm": {"token_count": {"completion": 5}},
+                },
+                (1000, 0, 1000),
+                id="families_are_not_mixed",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "llm": {"token_count": {"prompt": 400, "completion": 2, "total": 402}},
+                },
+                (400, 2, 402),
+                id="legacy_decision_span_with_llm_counts",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "decision": {
+                        "token_count": {"input": "n/a", "output": float("nan")},
+                    },
+                    "llm": {"token_count": {"prompt": 10, "completion": 5}},
+                },
+                (10, 5, 15),
+                id="invalid_decision_counts_keep_llm_counts",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "decision": {"token_count": {"input": False}},
+                    "llm": {"token_count": {"prompt": 10, "completion": 5}},
+                },
+                (10, 5, 15),
+                id="bool_decision_count_keeps_llm_counts",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "LLM"}},
+                    "decision": {"token_count": {"input": 1000, "output": 500}},
+                    "llm": {"token_count": {"prompt": 10, "completion": 5}},
+                },
+                (10, 5, 15),
+                id="llm_span_ignores_decision_counts",
+            ),
+        ],
+    )
+    def test_get_aggregated_tokens(
+        self, attributes: dict[str, Any], expected: tuple[int, int, int]
+    ) -> None:
+        assert get_aggregated_tokens(attributes) == expected
+
+    @pytest.mark.parametrize(
+        "attributes,expected_type,expected_name,expected_provider",
+        [
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "decision": {
+                        "response": {"model_name": " gpt-6-luna-2026-10-01 "},
+                        "model_name": "gpt-6-luna",
+                        "request": {"model_name": "gpt-6-luna"},
+                        "provider": "openai",
+                        "system": "openai",
+                    },
+                    "llm": {
+                        "response": {"model_name": "ignored"},
+                        "model_name": "ignored",
+                        "provider": "ignored",
+                    },
+                },
+                "DECISION",
+                "gpt-6-luna-2026-10-01",
+                "openai",
+                id="decision_response_model_name_primary",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "decision": {
+                        "model_name": " jev-1.13.0 ",
+                        "request": {"model_name": "ignored"},
+                        "provider": "vllm",
+                        "system": "typesafe",
+                    },
+                    "llm": {
+                        "response": {"model_name": "ignored"},
+                        "model_name": "ignored",
+                        "provider": "ignored",
+                    },
+                },
+                "DECISION",
+                "jev-1.13.0",
+                "vllm",
+                id="decision_model_name_fallback",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "decision": {
+                        "request": {"model_name": "jev-latest"},
+                        "system": "typesafe",
+                    },
+                    "llm": {
+                        "response": {"model_name": "ignored"},
+                        "model_name": "ignored",
+                    },
+                },
+                "DECISION",
+                "jev-latest",
+                "typesafe",
+                id="decision_request_model_name_fallback",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "decision": {"model_name": "jev-1.13.0", "system": "typesafe"},
+                },
+                "DECISION",
+                "jev-1.13.0",
+                "typesafe",
+                id="decision_system_stands_in_for_provider",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "decision": {
+                        "model_name": "jev-1.13.0",
+                        "provider": {"region": "us-east-1"},
+                        "system": "typesafe",
+                    },
+                },
+                "DECISION",
+                "jev-1.13.0",
+                "typesafe",
+                id="non_string_decision_provider_falls_back_to_system",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "llm": {
+                        "response": {"model_name": "jev-1.13.0"},
+                        "model_name": "jev-latest",
+                        "request": {"model_name": "jev-latest"},
+                        "provider": "typesafe",
+                    },
+                },
+                "DECISION",
+                "jev-1.13.0",
+                "typesafe",
+                id="legacy_decision_span_with_llm_attributes",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "llm": {"request": {"model_name": "jev-latest"}, "provider": "typesafe"},
+                },
+                "DECISION",
+                "jev-latest",
+                "typesafe",
+                id="legacy_decision_span_with_llm_request_model_name",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "LLM"}},
+                    "decision": {
+                        "response": {"model_name": "ignored"},
+                        "model_name": "ignored",
+                        "provider": "ignored",
+                    },
+                    "llm": {
+                        "response": {"model_name": "gpt-6-luna-2026-10-01"},
+                        "model_name": "gpt-6-luna",
+                        "request": {"model_name": "gpt-6-luna"},
+                        "provider": "openai",
+                    },
+                },
+                "LLM",
+                "gpt-6-luna-2026-10-01",
+                "openai",
+                id="llm_span_response_model_name_primary",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "LLM"}},
+                    "llm": {"request": {"model_name": "gpt-6-luna"}, "provider": "openai"},
+                },
+                "LLM",
+                "gpt-6-luna",
+                "openai",
+                id="llm_span_request_model_name_fallback",
+            ),
+            pytest.param(
+                {"llm": {"model_name": "gpt-6-luna"}},
+                "LLM",
+                "gpt-6-luna",
+                "",
+                id="no_span_kind_is_llm",
+            ),
+        ],
+    )
+    def test_model_type_name_and_provider(
+        self,
+        attributes: dict[str, Any],
+        expected_type: str,
+        expected_name: str,
+        expected_provider: str,
+    ) -> None:
+        assert get_priced_model_type(attributes) == expected_type
+        assert get_model_name(attributes) == expected_name
+        assert get_provider(attributes) == expected_provider

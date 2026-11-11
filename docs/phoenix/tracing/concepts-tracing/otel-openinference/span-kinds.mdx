@@ -142,7 +142,7 @@ Chain spans use only the common attributes — `input.value`, `output.value`, `m
 
 A call to a **decision model**. A decision model takes some state plus a fixed set of typed questions and returns one typed, probabilistic answer per question, instead of generating free-form text. Examples are the [OpenAI Decisions API](/docs/phoenix/integrations/llm-providers/openai/openai-tracing#decisions-api), which answers predicate, choice, and score questions over text or images, and [TypeSafe AI's System One / Jev](/docs/phoenix/integrations/llm-providers/typesafe), which answers Noul, Choice, and Score questions. Decision models suit the "smart if-statements" inside an application: routing a request to the right agent or department, classifying content, judging whether a condition holds, or scoring an item against a rubric.
 
-Decision spans use a `decision.*` namespace instead of `llm.*`, so decision-model usage stays out of LLM model, token, and cost reporting. The `decision.*` identification attributes mirror their `llm.*` counterparts and share the same well-known values (`openai`, `typesafe`, and so on).
+Decision spans use a `decision.*` namespace instead of `llm.*`, so decision-model usage stays out of LLM span token counts. Phoenix prices decision spans against decision-model prices, and their tokens and cost appear in trace, session, and project cost summaries (see [Cost Tracking](/docs/phoenix/tracing/how-to-tracing/cost-tracking#decision-spans)). The `decision.*` identification attributes mirror their `llm.*` counterparts and share the same well-known values (`openai`, `typesafe`, and so on).
 
 | Attribute | Description |
 | :--- | :--- |
@@ -159,7 +159,7 @@ Decision spans use a `decision.*` namespace instead of `llm.*`, so decision-mode
 Token counts have no prompt/completion split and no total, since a decision call has no chat-style prompt and completion. A decision call is not a chat exchange either, so decision spans carry no `llm.input_messages` or `llm.output_messages`, and they should not set `llm.system`, `llm.provider`, `llm.model_name`, or `llm.token_count.*`.
 
 <Info>
-**Phoenix UI behavior**: a DECISION span renders with the decision icon in the trace tree. Its details view shows the input and output cards, with the decision model named in the input card header. The name comes from `decision.model_name`, then `decision.response.model_name`, then `decision.request.model_name`, and is led by the provider's icon when Phoenix has one for `decision.provider`. Decision spans use `decision.token_count.*` rather than `llm.token_count.*`, so their usage does not appear in LLM token and cost totals.
+**Phoenix UI behavior**: a DECISION span renders with the decision icon in the trace tree. Its details view shows the input and output cards, with the decision model named in the input card header. The name comes from `decision.model_name`, then `decision.response.model_name`, then `decision.request.model_name`, and is led by the provider's icon when Phoenix has one for `decision.provider`. Decision spans use `decision.token_count.*` rather than `llm.token_count.*`, so their usage does not appear in LLM span token counts. Their input and output tokens and their cost appear in cost summaries, priced against decision models.
 </Info>
 
 The full convention, including the system-versus-provider rules and a worked example, is in the OpenInference [decision spans specification](https://github.com/Arize-ai/openinference/blob/main/spec/decision_spans.md).
