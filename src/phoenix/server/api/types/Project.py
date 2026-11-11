@@ -44,7 +44,7 @@ from phoenix.db.trace_aggregates import (
 )
 from phoenix.db.trace_aggregates import (
     TRACE_ROWID,
-    representative_root_span_by_trace,
+    representative_root_span_of_traces,
 )
 from phoenix.db.types.annotation_configs import as_output_configs
 from phoenix.server.api.annotation_metrics import build_entity_weighted_annotation_metrics_stmt
@@ -1691,8 +1691,8 @@ class Project(Node):
                 and scanned_bytes < _VOCABULARY_ATTRIBUTE_SCAN_BYTE_LIMIT
             ):
                 trace_rowids = recent_trace_rowids[chunk_start : chunk_start + chunk_size]
-                root_spans = representative_root_span_by_trace(
-                    keys=trace_rowids,
+                root_spans = representative_root_span_of_traces(
+                    trace_rowids,
                     project_rowids=[self.id],
                     start_time=time_range.start if time_range else None,
                     end_time=time_range.end if time_range else None,

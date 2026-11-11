@@ -4,9 +4,9 @@ from collections.abc import Collection
 from dataclasses import dataclass
 from typing import Any, Optional
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select, union_all
 from sqlalchemy.sql.elements import KeyedColumnElement
-from sqlalchemy.sql.expression import ColumnElement, Select
+from sqlalchemy.sql.expression import ColumnElement, CompoundSelect, Select
 from sqlalchemy.sql.selectable import ScalarSelect
 
 from phoenix.db import models
@@ -25,6 +25,7 @@ __all__ = [
     "error_count_by_trace",
     "num_spans_by_trace",
     "representative_root_span_by_trace",
+    "representative_root_span_of_traces",
     "span_kind_count_by_trace",
     "token_counts_by_trace",
 ]
@@ -141,6 +142,23 @@ def span_kind_count_by_trace(span_kind: str) -> TraceAggregate:
     )
 
 
+def _root_span_predicate(orphan_span_as_root_span: bool) -> ColumnElement[bool]:
+    root_predicate: ColumnElement[bool] = models.Span.parent_id.is_(None)
+    if not orphan_span_as_root_span:
+        return root_predicate
+    parent_spans = models.Span.__table__.alias("parent_spans")
+    return or_(
+        root_predicate,
+        ~select(1)
+        .select_from(parent_spans)
+        .where(
+            models.Span.parent_id == parent_spans.c.span_id,
+            models.Span.trace_rowid == parent_spans.c.trace_rowid,
+        )
+        .exists(),
+    )
+
+
 def representative_root_span_by_trace(
     keys: Optional[Any] = None,
     project_rowids: Optional[Collection[int]] = None,
@@ -149,19 +167,7 @@ def representative_root_span_by_trace(
     orphan_span_as_root_span: bool = True,
 ) -> Select[Any]:
     """Select the displayed representative root span for each trace."""
-    parent_spans = models.Span.__table__.alias("parent_spans")
-    root_predicate: ColumnElement[bool] = models.Span.parent_id.is_(None)
-    if orphan_span_as_root_span:
-        root_predicate = or_(
-            root_predicate,
-            ~select(1)
-            .select_from(parent_spans)
-            .where(
-                models.Span.parent_id == parent_spans.c.span_id,
-                models.Span.trace_rowid == parent_spans.c.trace_rowid,
-            )
-            .exists(),
-        )
+    root_predicate = _root_span_predicate(orphan_span_as_root_span)
     ranked = select(
         models.Span.trace_rowid.label(TRACE_ROWID),
         models.Span.id.label(SPAN_ROWID),
@@ -184,6 +190,52 @@ def representative_root_span_by_trace(
     ).where(ranked_subquery.c[_ROOT_SPAN_RANK] == 1)
 
 
+def representative_root_span_of_traces(
+    trace_rowids: Collection[int],
+    project_rowids: Optional[Collection[int]] = None,
+    start_time: Optional[Any] = None,
+    end_time: Optional[Any] = None,
+    orphan_span_as_root_span: bool = True,
+) -> CompoundSelect[Any]:
+    """The rows of :func:`representative_root_span_by_trace` for ``trace_rowids``. A trace
+    starts when its earliest span does, so a root starting with its trace is the representative
+    and only traces without one are ranked span by span."""
+    first_roots = (
+        select(
+            models.Trace.id.label(TRACE_ROWID),
+            func.max(models.Span.id).label(SPAN_ROWID),
+        )
+        .join(
+            models.Span,
+            and_(
+                models.Span.trace_rowid == models.Trace.id,
+                models.Span.start_time == models.Trace.start_time,
+            ),
+        )
+        .where(
+            models.Trace.id.in_(trace_rowids),
+            _root_span_predicate(orphan_span_as_root_span),
+            *_trace_scope_conditions(models.Trace.__table__, project_rowids, start_time, end_time),
+        )
+        .group_by(models.Trace.id)
+        .cte("first_roots")
+    )
+    remaining_trace_rowids = select(models.Trace.id).where(
+        models.Trace.id.in_(trace_rowids),
+        models.Trace.id.not_in(select(first_roots.c[TRACE_ROWID])),
+    )
+    return union_all(
+        select(first_roots.c[TRACE_ROWID], first_roots.c[SPAN_ROWID]),
+        representative_root_span_by_trace(
+            keys=remaining_trace_rowids,
+            project_rowids=project_rowids,
+            start_time=start_time,
+            end_time=end_time,
+            orphan_span_as_root_span=orphan_span_as_root_span,
+        ),
+    )
+
+
 def apply_trace_scope(
     stmt: Select[Any],
     trace_key: Any,
@@ -200,11 +252,22 @@ def apply_trace_scope(
     if project_rowids is None and start_time is None and end_time is None:
         return stmt
     trace_scope = models.Trace.__table__.alias("trace_scope")
-    stmt = stmt.join(trace_scope, trace_scope.c.id == trace_key)
+    return stmt.join(trace_scope, trace_scope.c.id == trace_key).where(
+        *_trace_scope_conditions(trace_scope, project_rowids, start_time, end_time)
+    )
+
+
+def _trace_scope_conditions(
+    traces: Any,
+    project_rowids: Optional[Collection[int]],
+    start_time: Optional[Any],
+    end_time: Optional[Any],
+) -> list[ColumnElement[bool]]:
+    conditions: list[ColumnElement[bool]] = []
     if project_rowids is not None:
-        stmt = stmt.where(trace_scope.c.project_rowid.in_(project_rowids))
+        conditions.append(traces.c.project_rowid.in_(project_rowids))
     if start_time is not None:
-        stmt = stmt.where(trace_scope.c.start_time >= start_time)
+        conditions.append(traces.c.start_time >= start_time)
     if end_time is not None:
-        stmt = stmt.where(trace_scope.c.start_time < end_time)
-    return stmt
+        conditions.append(traces.c.start_time < end_time)
+    return conditions
