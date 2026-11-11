@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d8b4276755e9e6fa1fdea27897b4af7d>>
+ * @generated SignedSource<<25d670c420eb14cc85905723a5fad54c>>
  * @lightSyntaxTransform
  */
 
@@ -14,6 +14,9 @@ export type PromptVersionSummaryFragment$data = {
   readonly description: string | null;
   readonly id: string;
   readonly sequenceNumber: number;
+  readonly tags: ReadonlyArray<{
+    readonly id: string;
+  }>;
   readonly user: {
     readonly id: string;
     readonly profilePictureUrl: string | null;
@@ -90,6 +93,18 @@ return {
       "storageKey": null
     },
     {
+      "alias": null,
+      "args": null,
+      "concreteType": "PromptVersionTag",
+      "kind": "LinkedField",
+      "name": "tags",
+      "plural": true,
+      "selections": [
+        (v0/*:: as any*/)
+      ],
+      "storageKey": null
+    },
+    {
       "args": null,
       "kind": "FragmentSpread",
       "name": "PromptVersionTagsList_data"
@@ -100,6 +115,6 @@ return {
 };
 })();
 
-(node as any).hash = "80901eff49852a413f643ee876638174";
+(node as any).hash = "f09e4b11703a96f6a882e631d2add5e7";
 
 export default node;
