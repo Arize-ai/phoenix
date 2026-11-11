@@ -912,16 +912,32 @@ def create_graphql_router(
 
 
 def instrument_engine_if_enabled(engine: AsyncEngine) -> list[Callable[[], None]]:
-    instrumentation_cleanups = []
+    instrumentation_cleanups: list[Callable[[], None]] = []
     if server_instrumentation_is_enabled():
-        from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+        from opentelemetry.instrumentation.sqlalchemy.engine import EngineTracer
+        from opentelemetry.instrumentation.sqlalchemy.version import __version__
+        from opentelemetry.metrics import get_meter
+        from opentelemetry.semconv.metrics import MetricInstruments
 
         tracer_provider = initialize_opentelemetry_tracer_provider()
-        SQLAlchemyInstrumentor().instrument(
-            engine=engine.sync_engine,
-            tracer_provider=tracer_provider,
+        # Attaches the tracer to this engine directly instead of calling
+        # SQLAlchemyInstrumentor().instrument(), which would trace nothing here:
+        # it does nothing when the installed SQLAlchemy is outside the range its
+        # package declares (< 2.1.0), and it is a singleton that ignores every
+        # call after the first, so the read and replica engines would be skipped.
+        scope = "opentelemetry.instrumentation.sqlalchemy"
+        EngineTracer(  # type: ignore[no-untyped-call]
+            tracer_provider.get_tracer(scope, __version__),
+            engine.sync_engine,
+            get_meter(scope, __version__).create_up_down_counter(
+                name=MetricInstruments.DB_CLIENT_CONNECTIONS_USAGE,
+                unit="connections",
+                description="The number of connections that are currently in state "
+                "described by the state attribute.",
+            ),
         )
-        instrumentation_cleanups.append(SQLAlchemyInstrumentor().uninstrument)
+        instrumentation_cleanups.append(EngineTracer.remove_all_event_listeners)
+        instrumentation_cleanups.append(tracer_provider.shutdown)
     return instrumentation_cleanups
 
 
