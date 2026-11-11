@@ -1194,6 +1194,71 @@ class TestModelMutations:
             assert not result.errors
 
     @pytest.mark.parametrize(
+        "update_kwargs,expected_error_message",
+        [
+            pytest.param(
+                {"name": "custom-model", "name_pattern": "^other$", "model_type": "LLM"},
+                "Model with name 'custom-model' already exists",
+                id="name-conflict-in-target-type",
+            ),
+            pytest.param(
+                {
+                    "name": "other-name",
+                    "provider": "anthropic",
+                    "name_pattern": "claude-*",
+                    "model_type": "LLM",
+                },
+                "Model 'custom-model' already uses name pattern 'claude-*' with provider 'anthropic'",
+                id="pattern-conflict-in-target-type",
+            ),
+        ],
+    )
+    async def test_update_model_into_unique_index_conflict_preserves_existing_row(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        custom_model: models.GenerativeModel,
+        update_kwargs: dict[str, Any],
+        expected_error_message: str,
+    ) -> None:
+        created = await gql_client.execute(
+            query=self.QUERY,
+            variables=_create_model_variables(
+                name="custom-model",
+                provider="openai",
+                name_pattern="^other$",
+                model_type="DECISION",
+            ),
+            operation_name="CreateModelMutation",
+        )
+        assert not created.errors
+        assert created.data is not None
+        decision_id = created.data["createModel"]["model"]["id"]
+
+        variables = _create_model_variables(**update_kwargs)
+        variables["input"]["id"] = decision_id
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="UpdateModelMutation",
+        )
+        assert len(result.errors) == 1
+        assert result.errors[0].message == expected_error_message
+        assert result.data is None
+
+        # The savepoint rollback keeps the DECISION model's type and token prices intact.
+        node_rowid = int(GlobalID.from_id(decision_id).node_id)
+        async with db() as session:
+            preserved = await session.scalar(
+                sa.select(models.GenerativeModel)
+                .where(models.GenerativeModel.id == node_rowid)
+                .options(sa.orm.joinedload(models.GenerativeModel.token_prices))
+            )
+            assert preserved is not None
+            assert preserved.type == "DECISION"
+            assert {p.token_type for p in preserved.token_prices} == {"input", "output"}
+
+    @pytest.mark.parametrize(
         "model_type_input,expected_model_type",
         [
             pytest.param({}, "DECISION", id="omitted-keeps-stored-type"),

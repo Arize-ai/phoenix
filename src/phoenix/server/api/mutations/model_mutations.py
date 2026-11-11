@@ -181,24 +181,23 @@ class ModelMutationMixin:
                 exclude_model_id=model_id,
             )
 
-            await session.execute(
-                delete(models.TokenPrice).where(models.TokenPrice.model_id == model.id)
-            )
-
-            await session.refresh(model)
-
-            model.name = input.name
-            model.provider = provider
-            model.name_pattern = name_pattern
-            model.token_prices = token_prices
-            model.start_time = input.start_time
-            model.type = model_type
-            # Explicitly set updated_at so the GenerativeModelStore daemon picks up this
-            # change (SQLAlchemy's onupdate may not trigger for relationship-only changes).
-            model.updated_at = datetime.now(timezone.utc)
-            session.add(model)
             try:
                 async with session.begin_nested():
+                    await session.execute(
+                        delete(models.TokenPrice).where(models.TokenPrice.model_id == model.id)
+                    )
+                    await session.refresh(model)
+
+                    model.name = input.name
+                    model.provider = provider
+                    model.name_pattern = name_pattern
+                    model.token_prices = token_prices
+                    model.start_time = input.start_time
+                    model.type = model_type
+                    # Explicitly set updated_at so the GenerativeModelStore daemon picks up this
+                    # change (SQLAlchemy's onupdate may not trigger for relationship-only changes).
+                    model.updated_at = datetime.now(timezone.utc)
+                    session.add(model)
                     await session.flush()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 raise await _conflicting_model_error(
@@ -206,7 +205,7 @@ class ModelMutationMixin:
                     name=input.name,
                     provider=provider,
                     name_pattern=name_pattern,
-                    model_type=model.type,
+                    model_type=model_type,
                     exclude_model_id=model_id,
                 )
 
