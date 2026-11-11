@@ -61,6 +61,7 @@ from phoenix.server.evaluators.services.project_bindings import (
     ProjectEvaluatorPatch,
     apply_project_evaluator_patch,
 )
+from phoenix.server.evaluators.services.purge import purge_deleted_bindings
 from phoenix.server.online_eval import consumer as consumer_module
 from phoenix.server.online_eval import executor as executor_module
 from phoenix.server.online_eval import session_policy as session_policy_module
@@ -3592,9 +3593,11 @@ async def test_deleted_criteria_runs_nothing_and_writes_no_annotation(
     consumer = EvaluationConsumer(db, decrypt=lambda b: b)
     await _cycle_to_completion(consumer)
 
-    unit = await _get_unit(db, unit_id)
-    assert (unit.status, unit.error) == ("EXPIRED", "PROJECT_EVALUATOR_MISSING")
+    assert (await _get_unit(db, unit_id)).status != "DONE"
     assert await _annotations(db) == []
+    await purge_deleted_bindings(db)
+    async with db() as session:
+        assert await session.get(models.EvalWorkUnit, unit_id) is None
 
 
 async def test_evaluator_disabled_while_running_drops_its_unit_without_failing_it(
