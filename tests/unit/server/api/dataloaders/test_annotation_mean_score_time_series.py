@@ -5,12 +5,14 @@ from secrets import token_hex
 from typing import Any, Literal, Optional
 
 import pytest
+from sqlalchemy import delete
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.api.annotation_metrics import build_entity_weighted_annotation_metrics_stmt
+from phoenix.server.api.dataloaders import CacheForDataLoaders, build_data_loaders
 from phoenix.server.api.dataloaders.annotation_mean_score_time_series import (
     AnnotationMeanScoreTimeSeriesCache,
     AnnotationMeanScoreTimeSeriesDataLoader,
@@ -20,7 +22,14 @@ from phoenix.server.api.dataloaders.annotation_mean_score_time_series import (
     _as_datetime,
 )
 from phoenix.server.api.input_types.TimeBinConfig import TimeBucketSpec
-from phoenix.server.types import DbSessionFactory
+from phoenix.server.dml_event import (
+    DmlEvent,
+    SpanAnnotationDeleteEvent,
+    SpanAnnotationInsertEvent,
+    SpanDeleteEvent,
+)
+from phoenix.server.dml_event_handler import DmlEventHandler
+from phoenix.server.types import DbSessionFactory, LastUpdatedAt
 
 from ...._helpers import _add_project, _add_project_session, _add_span, _add_trace
 
@@ -222,3 +231,60 @@ class TestAnnotationMeanScoreTimeSeriesDataLoader:
             "session": "project_session_annotations",
         }[kind]
         assert str(stmt.compile(dialect=sa_dialect)).count(f"FROM {annotation_table}") == 1
+
+
+class TestSeriesCacheInvalidation:
+    async def test_annotation_events_refresh_the_cached_series(self, db: DbSessionFactory) -> None:
+        """The series cache that `build_data_loaders` wires in serves repeat loads, and the
+        DML events for annotation writes, annotation deletes and span deletes clear it."""
+        async with db() as session:
+            project = await _add_project(session)
+            span_rowids = [
+                await _add_entity(session, project, "span", _DAY_0 + timedelta(hours=hour))
+                for hour in (1, 2)
+            ]
+            session.add(_annotation("span", span_rowids[0], "quality", None, 1.0))
+            await session.flush()
+        key: Key = ("span", project.id, (_DAY_0, None), _DAY_BINS, "quality")
+        cache = CacheForDataLoaders()
+
+        async def load() -> Result:
+            # A new set of loaders per call, as each request gets, so only the shared
+            # cache can carry a result from one load to the next.
+            return await build_data_loaders(db, cache).annotation_mean_score_time_series.load(key)
+
+        async def put_and_wait_for_invalidation(handler: DmlEventHandler, event: DmlEvent) -> None:
+            handler.put(event)
+            for _ in range(200):
+                if cache.annotation_mean_score_time_series.get(key) is None:
+                    return
+                await asyncio.sleep(0.01)
+            pytest.fail(f"{type(event).__name__} did not invalidate the series cache")
+
+        assert await load() == {_DAY_0: MeanScoreBin(1.0, 1)}
+        async with db() as session:
+            written = _annotation("span", span_rowids[1], "quality", None, 0.0)
+            assert isinstance(written, models.SpanAnnotation)
+            session.add(written)
+            await session.flush()
+        # Served from the cache until an event says the annotations changed.
+        assert await load() == {_DAY_0: MeanScoreBin(1.0, 1)}
+
+        handler = DmlEventHandler(
+            db=db,
+            last_updated_at=LastUpdatedAt(),
+            cache_for_dataloaders=cache,
+            sleep_seconds=0.01,
+        )
+        async with handler:
+            await put_and_wait_for_invalidation(handler, SpanAnnotationInsertEvent((written.id,)))
+            assert await load() == {_DAY_0: MeanScoreBin(0.5, 2)}
+
+            async with db() as session:
+                await session.execute(
+                    delete(models.SpanAnnotation).where(models.SpanAnnotation.id == written.id)
+                )
+            await put_and_wait_for_invalidation(handler, SpanAnnotationDeleteEvent((written.id,)))
+            assert await load() == {_DAY_0: MeanScoreBin(1.0, 1)}
+
+            await put_and_wait_for_invalidation(handler, SpanDeleteEvent((project.id,)))

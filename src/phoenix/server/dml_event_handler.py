@@ -25,10 +25,13 @@ from phoenix.server.api.dataloaders import CacheForDataLoaders
 from phoenix.server.dml_event import (
     DmlEvent,
     DocumentAnnotationDmlEvent,
+    ProjectSessionAnnotationDeleteEvent,
     ProjectSessionAnnotationDmlEvent,
+    SpanAnnotationDeleteEvent,
     SpanAnnotationDmlEvent,
     SpanDeleteEvent,
     SpanDmlEvent,
+    TraceAnnotationDeleteEvent,
     TraceAnnotationDmlEvent,
 )
 from phoenix.server.types import (
@@ -244,6 +247,15 @@ class _ProjectSessionAnnotationDmlEventHandler(
         cache.annotation_mean_score_time_series.invalidate((project_id, name, "session"))
 
 
+class _AnnotationDeleteEventHandler(_DmlEventHandler[DmlEvent]):
+    async def __call__(self) -> None:
+        # A delete event arrives after its rows are gone, so the annotation handlers can't
+        # look up their project and name. Clear the whole series cache instead; deletes are
+        # rare, and the series would otherwise show deleted scores until the TTL expires.
+        if cache := self._cache_for_dataloaders:
+            cache.annotation_mean_score_time_series.clear()
+
+
 class DmlEventHandler:
     def __init__(
         self,
@@ -259,6 +271,7 @@ class DmlEventHandler:
             cache_for_dataloaders=cache_for_dataloaders,
             sleep_seconds=sleep_seconds,
         )
+        annotation_delete_handler = _AnnotationDeleteEventHandler(**kwargs)
         self._handlers: Mapping[type[DmlEvent], Iterable[_DmlEventHandler[Any]]] = {
             DmlEvent: [_GenericDmlEventHandler(**kwargs)],
             SpanDmlEvent: [_SpanDmlEventHandler(**kwargs)],
@@ -267,6 +280,9 @@ class DmlEventHandler:
             TraceAnnotationDmlEvent: [_TraceAnnotationDmlEventHandler(**kwargs)],
             DocumentAnnotationDmlEvent: [_DocumentAnnotationDmlEventHandler(**kwargs)],
             ProjectSessionAnnotationDmlEvent: [_ProjectSessionAnnotationDmlEventHandler(**kwargs)],
+            SpanAnnotationDeleteEvent: [annotation_delete_handler],
+            TraceAnnotationDeleteEvent: [annotation_delete_handler],
+            ProjectSessionAnnotationDeleteEvent: [annotation_delete_handler],
         }
         self._all_handlers = frozenset(chain.from_iterable(self._handlers.values()))
 
