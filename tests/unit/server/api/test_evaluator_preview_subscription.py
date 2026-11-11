@@ -418,6 +418,55 @@ class TestPreviewEvaluatorMutation:
         }
         assert results[2]["results"][0]["annotation"] == {"score": 1.0}
 
+    async def test_a_producer_that_stops_early_is_logged_and_fails_the_request_clearly(
+        self,
+        gql_client: AsyncGraphQLClient,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        from phoenix.server.api.types.EvaluatorPreviewSubjectResult import (
+            EvaluatorPreviewSubjectResult,
+        )
+
+        async def stop_after_the_first(
+            evaluator: Any,
+            subjects: list[EvaluatorPreviewSubjectInput],
+            input_mapping: Any,
+            send_stream: Any,
+        ) -> None:
+            async with send_stream:
+                await send_stream.send(
+                    EvaluatorPreviewSubjectResult(key=subjects[0].key, results=[])
+                )
+                raise RuntimeError("the producer broke")
+
+        evaluate = AsyncMock(return_value=[_eval_result("accuracy")])
+        with (
+            _patch_built_evaluator(_FakeEvaluator(evaluate)),
+            patch.object(evaluator_preview, "_evaluate_subjects", stop_after_the_first),
+            caplog.at_level("ERROR", logger=evaluator_preview.__name__),
+        ):
+            response = await gql_client.execute(
+                self._MUTATION,
+                {
+                    "input": {
+                        "evaluator": _BUILTIN_PLACEHOLDER,
+                        "inputMapping": _EMPTY_MAPPING,
+                        "subjects": [
+                            {"key": f"s{i}", "context": {"output": str(i)}} for i in range(3)
+                        ],
+                    }
+                },
+            )
+
+        assert response.errors
+        assert response.errors[0].message == (
+            "The evaluator preview stopped before reporting 2 of 3 subjects: s1, s2. "
+            "Retry the preview."
+        )
+        (record,) = [r for r in caplog.records if r.name == evaluator_preview.__name__]
+        assert record.getMessage() == "Evaluator preview stopped with 2 of 3 subjects unreported"
+        assert record.exc_info is not None and str(record.exc_info[1]) == "the producer broke"
+
     async def test_a_definition_error_fails_the_request(
         self,
         gql_client: AsyncGraphQLClient,

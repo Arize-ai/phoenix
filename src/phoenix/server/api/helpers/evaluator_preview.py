@@ -155,7 +155,17 @@ async def stream_evaluator_preview(
                 len(input.subjects),
             )
             producer.cancel()
-        await asyncio.gather(producer, return_exceptions=True)
+        (outcome,) = await asyncio.gather(producer, return_exceptions=True)
+        # Each subject's own failures become its result, so anything else that stops
+        # the producer (a failed send, an error outside a subject) would otherwise end
+        # the stream early with no trace of why.
+        if isinstance(outcome, BaseException) and not isinstance(outcome, asyncio.CancelledError):
+            logger.error(
+                "Evaluator preview stopped with %d of %d subjects unreported",
+                len(input.subjects) - reported,
+                len(input.subjects),
+                exc_info=outcome,
+            )
 
 
 async def _capture_binding_definition(
