@@ -81,7 +81,7 @@ describe("getEvaluatorScoreWindow", () => {
     expect(window.windowKey).toBe("30d");
   });
 
-  it("clamps a custom range over the cap to its trailing 30 days", () => {
+  it("clamps a custom range over the cap to its trailing 30 days, previous window included", () => {
     const window = getEvaluatorScoreWindow({
       timeRange: {
         timeRangeKey: "custom",
@@ -94,6 +94,11 @@ describe("getEvaluatorScoreWindow", () => {
     expect(window.timeRange).toEqual({
       start: "2026-05-02T00:00:00.000Z",
       end: "2026-06-01T00:00:00.000Z",
+    });
+    // The previous window mirrors the clamped 30 days, not the page range
+    expect(window.previousTimeRange).toEqual({
+      start: "2026-04-02T00:00:00.000Z",
+      end: "2026-05-02T00:00:00.000Z",
     });
     expect(window.windowKey).toBe("30d");
   });
@@ -142,27 +147,23 @@ describe("getEvaluatorScoreWindow", () => {
     expect(minute.windowKey).toBe("1h");
   });
 
-  it("bins a live range at a scale boundary as the page's charts do", () => {
-    // The live window always runs a little past the key's duration, so a
-    // "5h" range bins by the hour and a "5d" range by the day.
+  it("bins a live range at a scale boundary as the page's charts do, whatever now is", () => {
+    // The live window runs a little past the key's duration for nearly the
+    // whole snap interval, so a "5h" range bins by the hour and a "5d" range
+    // by the day, even at the instant now is exactly one key's duration past
+    // the start, so the scale never changes between renders.
+    const fiveHoursStart = new Date("2026-06-09T07:00:00.000Z");
     const fiveHours = getEvaluatorScoreWindow({
-      timeRange: {
-        timeRangeKey: "5h",
-        start: new Date("2026-06-09T07:00:00.000Z"),
-        end: null,
-      },
+      timeRange: { timeRangeKey: "5h", start: fiveHoursStart, end: null },
       utcOffsetMinutes: UTC_OFFSET_MINUTES,
-      now,
+      now: new Date(fiveHoursStart.getTime() + 5 * 60 * 60 * 1000),
     });
     expect(fiveHours.timeBinConfig.scale).toBe("HOUR");
+    const fiveDaysStart = new Date("2026-06-04T12:00:00.000Z");
     const fiveDays = getEvaluatorScoreWindow({
-      timeRange: {
-        timeRangeKey: "5d",
-        start: new Date("2026-06-04T12:00:00.000Z"),
-        end: null,
-      },
+      timeRange: { timeRangeKey: "5d", start: fiveDaysStart, end: null },
       utcOffsetMinutes: UTC_OFFSET_MINUTES,
-      now,
+      now: new Date(fiveDaysStart.getTime() + 5 * 24 * 60 * 60 * 1000),
     });
     expect(fiveDays.timeBinConfig.scale).toBe("DAY");
   });
