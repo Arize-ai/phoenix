@@ -1096,6 +1096,10 @@ def _compile_condition(
                     aliased_annotation._identifier_attribute_alias,
                 )
             ),
+            float_keywords=(
+                aliased_annotation._score_attribute_alias
+                for aliased_annotation in aliased_annotation_relations
+            ),
         )
         translated = translator.visit(root)
         ast.fix_missing_locations(translated)
@@ -2495,10 +2499,12 @@ class _FilterTranslator(_ProjectionTranslator):
         self,
         reserved_keywords: typing.Iterable[str] = (),
         string_keywords: typing.Iterable[str] = (),
+        float_keywords: typing.Iterable[str] = (),
         bindings: _FilterBindings = SPAN_BINDINGS,
     ) -> None:
         super().__init__(reserved_keywords, bindings)
         self._string_keywords = frozenset(string_keywords)
+        self._float_keywords = frozenset(float_keywords)
         self.literal_bindings: dict[str, typing.Any] = {}
         self.referenced_deferred_numbers: set[str] = set()
 
@@ -2522,6 +2528,8 @@ class _FilterTranslator(_ProjectionTranslator):
         if node.id in self._bindings.deferred_number_names:
             self.referenced_deferred_numbers.add(node.id)
             return ast.Name(id=_span_cost_binding(node.id), ctx=ast.Load())
+        if node.id in self._float_keywords:
+            return _cast_as("Float", node)
         return super().visit_Name(node)
 
     def visit_Attribute(self, node: ast.Attribute) -> typing.Any:
