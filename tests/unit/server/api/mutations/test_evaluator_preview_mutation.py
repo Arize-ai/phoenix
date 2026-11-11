@@ -200,6 +200,66 @@ class TestEvaluatorPreviewMutation:
 
         assert result.errors is not None
 
+    async def test_preview_refuses_an_llm_draft_without_output_configs(
+        self,
+        gql_client: AsyncGraphQLClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        llm_client = MagicMock()
+        monkeypatch.setattr(
+            "phoenix.server.evaluators.resolution.get_playground_client",
+            AsyncMock(return_value=llm_client),
+        )
+        label = {"type": "string", "enum": ["correct", "incorrect"]}
+        result = await self._preview(
+            gql_client,
+            previews=[
+                dict(
+                    evaluator=dict(
+                        inlineLlmEvaluator=dict(
+                            name="correctness",
+                            promptVersion=dict(
+                                templateFormat="MUSTACHE",
+                                template=dict(
+                                    messages=[
+                                        dict(
+                                            role="USER",
+                                            content=[dict(text=dict(text="Is {{output}} right?"))],
+                                        )
+                                    ]
+                                ),
+                                invocationParameters=dict(openai=dict()),
+                                tools=dict(
+                                    tools=[
+                                        dict(
+                                            function=dict(
+                                                name="correctness",
+                                                parameters=dict(
+                                                    type="object",
+                                                    properties=dict(label=label),
+                                                    required=["label"],
+                                                ),
+                                            )
+                                        )
+                                    ],
+                                    toolChoice=dict(functionName="correctness"),
+                                ),
+                                modelProvider="OPENAI",
+                                modelName="gpt-4",
+                            ),
+                            outputConfigs=[],
+                        )
+                    ),
+                    context={"output": "4"},
+                    inputMapping=dict(literalMapping={}, pathMapping={}),
+                )
+            ],
+        )
+
+        assert result.errors
+        assert "At least one output config is required." in result.errors[0].message
+        llm_client.chat_completion_create.assert_not_called()
+
 
 class TestInlineCodeEvaluatorPreviewMutation:
     async def _preview_inline_code_evaluator(

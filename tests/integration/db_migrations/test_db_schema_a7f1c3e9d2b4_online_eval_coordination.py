@@ -151,8 +151,6 @@ class TestEvalSpanCursors(_OnlineEvalSchemaTest):
         column_names = {
             "id",
             "produced_through_id",
-            "observed_high_water_id",
-            "observed_at",
             "created_at",
             "updated_at",
         }
@@ -171,7 +169,7 @@ class TestEvalSpanCursors(_OnlineEvalSchemaTest):
             column_names=frozenset(column_names),
             index_names=frozenset(index_names),
             constraint_names=frozenset(constraint_names),
-            nullable_column_names=frozenset(["observed_high_water_id", "observed_at"]),
+            nullable_column_names=frozenset(),
         )
 
 

@@ -1,7 +1,7 @@
 """Base evaluator contract, evaluation results, and shared runtime errors."""
 
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Hashable, Literal, Optional, Protocol, Sequence, TypeAlias
 
 from opentelemetry.trace import Tracer
@@ -19,6 +19,15 @@ class RenderedMessageTooLargeError(Exception):
         count_attempt=True,
         terminal=True,
         code="RENDERED_MESSAGE_TOO_LARGE",
+    )
+
+
+class EvaluatorResultValidationError(Exception):
+    """An evaluator's answer for an output violates that output's config."""
+
+    online_eval_disposition = FailureDisposition(
+        count_attempt=True,
+        code="EVALUATOR_RESULT_INVALID",
     )
 
 
@@ -53,9 +62,9 @@ def result_annotation_names(
 
     A single output config writes under the evaluator's own name; multiple
     write under "{evaluator_name}.{config_name}". This is the storage contract
-    `BaseEvaluator.evaluate` implements and the online-eval executor validates
-    against; the frontend mirrors it in useProjectEvaluatorResultAnnotations.ts.
-    An evaluator with no output configs still writes under its own name.
+    `BaseEvaluator.evaluate` implements, one result per name, errors included; the
+    frontend mirrors it in useProjectEvaluatorResultAnnotations.ts. An evaluator with
+    no output configs still writes under its own name.
     """
     if len(output_configs) > 1:
         return [f"{evaluator_name}.{config.name}" for config in output_configs]
@@ -82,6 +91,54 @@ class BaseEvaluator(ABC):
     def error_metadata(self) -> dict[str, Any]:
         """Metadata for an errored annotation, including errors the runner records."""
         return {}
+
+    def error_result(
+        self,
+        annotation_name: str,
+        error: str,
+        *,
+        start_time: datetime,
+        trace_id: Optional[str] = None,
+        error_exc: Optional[Exception] = None,
+    ) -> EvaluationResult:
+        """An errored result for one output."""
+        result = EvaluationResult(
+            name=annotation_name,
+            annotator_kind=self.annotator_kind,
+            label=None,
+            score=None,
+            explanation=None,
+            metadata=self.error_metadata,
+            error=error,
+            trace_id=trace_id,
+            start_time=start_time,
+            end_time=datetime.now(timezone.utc),
+        )
+        if error_exc is not None:
+            result["error_exc"] = error_exc
+        return result
+
+    def error_results(
+        self,
+        name: str,
+        output_configs: Sequence[OutputConfigType],
+        error: str,
+        *,
+        start_time: datetime,
+        trace_id: Optional[str] = None,
+        error_exc: Optional[Exception] = None,
+    ) -> list[EvaluationResult]:
+        """One errored result per output, for a failure of the whole evaluation."""
+        return [
+            self.error_result(
+                annotation_name,
+                error,
+                start_time=start_time,
+                trace_id=trace_id,
+                error_exc=error_exc,
+            )
+            for annotation_name in result_annotation_names(name, output_configs)
+        ]
 
     @property
     @abstractmethod
@@ -120,9 +177,10 @@ class BaseEvaluator(ABC):
         """
         Evaluate the given context and return evaluation results.
 
-        Produces one EvaluationResult per output config. For LLM evaluators, this
-        is done with a single LLM call that returns multiple tool calls matched to
-        configs by name. For built-in evaluators, each config is evaluated independently.
+        Produces one EvaluationResult per ``result_annotation_names(name, output_configs)``
+        entry, an errored one when that output failed. For LLM evaluators, this is done
+        with a single LLM call that returns multiple tool calls matched to configs by
+        name. For built-in evaluators, each config is evaluated independently.
 
         Annotation naming: when there are multiple output configs (K>1), each result
         is named ``name.config_name``. When there is a single output config (K=1),

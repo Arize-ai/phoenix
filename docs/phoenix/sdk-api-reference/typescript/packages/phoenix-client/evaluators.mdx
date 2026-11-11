@@ -117,7 +117,7 @@ const evaluator = await createEvaluator({
 });
 ```
 
-- The `description` must equal the description of the prompt's tool function, and the output configs must be categorical and match that tool.
+- The output configs must be categorical, with at least one and each with its own name. Nothing checks them, or the `description`, against the prompt.
 - The name must be unique among evaluators; a clash is refused with `409` and `already_exists`.
 - Creating the evaluator adds the `evaluator` label to the prompt and creates a tag that pins the version; the prompt is otherwise unchanged.
 
@@ -210,8 +210,7 @@ await updateEvaluator({
 The `patch` is discriminated by `type`, which must match the evaluator, and needs at least one other field. Omitted fields keep their values.
 
 - Prompt content is edited through the [prompts](./prompts) module: create a version with `createPrompt` and select it with `prompt: { selector: { type: "version", prompt_version_id } }`. A version of another prompt moves the evaluator to that prompt.
-- An LLM evaluator's `description` must equal the description of its prompt's tool function.
-- An LLM change that would invalidate a dataset binding's output overrides is refused with `409`.
+- Nothing checks an LLM evaluator's `description` or output configs against its prompt.
 
 ## Delete A Definition
 
@@ -267,7 +266,7 @@ await updateDatasetEvaluator({
 ```
 
 - An `output_configs` override needs at least one config; `[]` is rejected.
-- On an LLM evaluator, output overrides must be categorical and match the prompt's output tool, and a description override must equal that tool's description.
+- On an LLM evaluator, output overrides must be categorical. Nothing checks them, or a description override, against the prompt.
 - `getDatasetEvaluator` and `getDatasetEvaluators` return the stored overrides; `null` means the binding uses the evaluator's value.
 
 ## Delete Dataset Bindings

@@ -185,8 +185,7 @@ interface EvaluatorUpdateOptions extends CommonOptions<OutputFormat> {
    */
   name?: string;
   /**
-   * `--description <text>`: New description. For LLM evaluators it must equal
-   * the description of the prompt's tool function.
+   * `--description <text>`: New description.
    *
    * @example "Flags responses that contradict the retrieved context"
    */
@@ -1055,10 +1054,7 @@ export function createEvaluatorUpdateCommand(): Command {
       .argument("<evaluator-id>", "Evaluator ID")
       .option("--type <type>", "Evaluator type: llm or code")
       .option("--name <name>", "New name for the evaluator")
-      .option(
-        "--description <text>",
-        "New description (LLM evaluators: must equal the prompt tool's description)"
-      )
+      .option("--description <text>", "New description")
       .option("--clear-description", "Remove the description")
       .option(
         "--output-configs <json>",

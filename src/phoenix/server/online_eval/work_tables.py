@@ -9,12 +9,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm import InstrumentedAttribute
 
 from phoenix.db import models
-from phoenix.db.eval_work import (
-    SWEPT_TARGET_TERMINAL_STATUSES,
-    TERMINAL_STATUSES,
-    swept_target_terminal_index_predicate,
-    terminal_index_predicate,
-)
+from phoenix.db.eval_work import TERMINAL_STATUSES
 
 WorkUnitModel = Union[
     type[models.EvalWorkUnit],
@@ -30,7 +25,6 @@ class WorkTable:
     target_model: TargetModel
     target_column: InstrumentedAttribute[int]
     terminal_statuses: tuple[str, ...]
-    terminal_index_predicate: str
 
 
 WORK_TABLES: dict[models.EvaluationTarget, WorkTable] = {
@@ -39,21 +33,18 @@ WORK_TABLES: dict[models.EvaluationTarget, WorkTable] = {
         target_model=models.Span,
         target_column=models.EvalWorkUnit.span_rowid,
         terminal_statuses=TERMINAL_STATUSES,
-        terminal_index_predicate=terminal_index_predicate(),
     ),
     "TRACE": WorkTable(
         work_unit_model=models.EvalTraceWorkUnit,
         target_model=models.Trace,
         target_column=models.EvalTraceWorkUnit.trace_rowid,
-        terminal_statuses=SWEPT_TARGET_TERMINAL_STATUSES,
-        terminal_index_predicate=swept_target_terminal_index_predicate(),
+        terminal_statuses=TERMINAL_STATUSES,
     ),
     "SESSION": WorkTable(
         work_unit_model=models.EvalSessionWorkUnit,
         target_model=models.ProjectSession,
         target_column=models.EvalSessionWorkUnit.project_session_rowid,
-        terminal_statuses=SWEPT_TARGET_TERMINAL_STATUSES,
-        terminal_index_predicate=swept_target_terminal_index_predicate(),
+        terminal_statuses=TERMINAL_STATUSES,
     ),
 }
 

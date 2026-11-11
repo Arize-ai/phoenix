@@ -55,7 +55,12 @@ from phoenix.server.dml_event import (
     TraceAnnotationInsertEvent,
 )
 from phoenix.server.encryption import EncryptionService
-from phoenix.server.evaluators.runtime.code import SandboxPayloadTooLargeError
+from phoenix.server.evaluators import resolution as resolution_module
+from phoenix.server.evaluators.runtime.code import CodeEvaluatorRunner, SandboxPayloadTooLargeError
+from phoenix.server.evaluators.services.project_bindings import (
+    ProjectEvaluatorPatch,
+    apply_project_evaluator_patch,
+)
 from phoenix.server.online_eval import consumer as consumer_module
 from phoenix.server.online_eval import executor as executor_module
 from phoenix.server.online_eval import session_policy as session_policy_module
@@ -85,7 +90,6 @@ from phoenix.server.online_eval.derivation import (
 )
 from phoenix.server.online_eval.executor import (
     EvalExecutionError,
-    EvaluatorResultValidationError,
     HydratedWorkUnit,
     HydrationFailure,
     HydrationFailureReason,
@@ -152,7 +156,7 @@ def _patch_playground_client(monkeypatch: pytest.MonkeyPatch, client: _StubLLMCl
     async def _get_client(**_: Any) -> _StubLLMClient:
         return client
 
-    monkeypatch.setattr("phoenix.server.online_eval.executor.get_playground_client", _get_client)
+    monkeypatch.setattr("phoenix.server.evaluators.resolution.get_playground_client", _get_client)
 
 
 class _StubSandboxBackend:
@@ -302,27 +306,6 @@ def _claimed_trace_unit(
         attempts=0,
         claimed_by="consumer",
     )
-
-
-async def _config_fingerprint(
-    db: DbSessionFactory,
-    evaluator_id: int,
-    project_evaluator_id: int,
-) -> str:
-    async with db() as session:
-        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
-        assert project_evaluator is not None
-        polymorphic = with_polymorphic(
-            models.Evaluator,
-            [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator],
-        )
-        evaluator = await session.scalar(select(polymorphic).where(polymorphic.id == evaluator_id))
-        assert evaluator is not None
-        resolved = (
-            await resolve_project_evaluators_bulk(session, [(project_evaluator, evaluator)])
-        )[0]
-        assert resolved is not None
-        return config_fingerprint(resolved)
 
 
 async def _claim_queued_unit(
@@ -994,8 +977,9 @@ async def test_pending_session_with_deleted_trace_is_claimed_hydrated_and_publis
         limit=1,
     )
 
-    assert isinstance(await consumer._executor.hydrate(unit), HydratedWorkUnit)
-    await consumer._process_unit(unit)
+    (configuration,) = await consumer._executor.hydrate_configuration_snapshots([unit])
+    assert isinstance(configuration, HydratedWorkUnit)
+    await consumer._process_unit(unit, configuration)
 
     stored = await _get_session_unit(db, unit_id)
     assert stored.status == "DONE"
@@ -1036,10 +1020,9 @@ async def test_session_whose_traces_were_all_deleted_retires_as_content_lost(
         limit=1,
     )
 
-    assert await consumer._executor.hydrate(unit) == HydrationFailure(
-        HydrationFailureReason.NO_ROOT_TURNS
-    )
-    await consumer._process_unit(unit)
+    (configuration,) = await consumer._executor.hydrate_configuration_snapshots([unit])
+    assert configuration == HydrationFailure(HydrationFailureReason.NO_ROOT_TURNS)
+    await consumer._process_unit(unit, configuration)
 
     stored = await _get_session_unit(db, unit_id)
     assert stored.status == "CONTENT_LOST"
@@ -1313,11 +1296,8 @@ async def test_trace_hydration_binds_the_trace_context(
     )
     executor = _executor(db, evaluation_target="TRACE")
 
-    hydrated = await executor.hydrate(
-        _claimed_trace_unit(
-            trace.id,
-            project_evaluator_id=project_evaluator_id,
-        )
+    (hydrated,) = await executor.hydrate_configuration_snapshots(
+        [_claimed_trace_unit(trace.id, project_evaluator_id=project_evaluator_id)]
     )
     assert isinstance(hydrated, HydratedWorkUnit)
     assert hydrated.context["input"] == "question"
@@ -1328,12 +1308,9 @@ async def test_trace_hydration_binds_the_trace_context(
     assert metadata["num_spans"] == 1
     assert hydrated.annotation_metadata == {}
 
-    assert await executor.hydrate(
-        _claimed_trace_unit(
-            rootless_trace.id,
-            project_evaluator_id=project_evaluator_id,
-        )
-    ) == HydrationFailure(HydrationFailureReason.ROOT_SPAN_MISSING)
+    assert await executor.hydrate_configuration_snapshots(
+        [_claimed_trace_unit(rootless_trace.id, project_evaluator_id=project_evaluator_id)]
+    ) == [HydrationFailure(HydrationFailureReason.ROOT_SPAN_MISSING)]
 
 
 async def test_span_entity_path_mapping_binds_attribute(
@@ -1603,9 +1580,6 @@ async def test_consumer_publishes_queue_health_gauges(
             "ONLINE_EVAL_RUNNING_WORK_UNITS",
             "ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS",
             "ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS",
-            "ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS",
-            "ONLINE_EVAL_EXPIRED_WORK_UNITS",
-            "ONLINE_EVAL_CLEARED_WORK_UNITS",
         )
     }
     for name, gauge in gauges.items():
@@ -1783,42 +1757,45 @@ async def test_work_queued_before_an_edit_runs_under_the_new_configuration(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Queued work runs under the evaluator's configuration when it runs, not when it was
+    queued."""
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         spans = [await _add_span(session, trace) for _ in range(2)]
-    evaluator_id, project_evaluator_id = await _seed_llm_criteria(db, project.id)
-    unit_ids = [
-        (await _queue_unit(db, span.id, evaluator_id, project_evaluator_id))[0] for span in spans
-    ]
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(
+        db,
+        project.id,
+        template_content="Answer: {{answer}}",
+        criteria_input_mapping=InputMapping(
+            literal_mapping={"answer": "before the edit"}, path_mapping={}
+        ),
+    )
+    for span in spans:
+        await _queue_unit(db, span.id, evaluator_id, project_evaluator_id)
     client = _StubLLMClient()
     _patch_playground_client(monkeypatch, client)
-    consumer = EvaluationConsumer(
-        db,
-        decrypt=lambda value: value,
-        claim_batch_size=1,
-    )
+    consumer = EvaluationConsumer(db, decrypt=lambda value: value, claim_batch_size=1)
 
     await _cycle_to_completion(consumer)
     async with db() as session:
-        await session.execute(
-            update(models.ProjectEvaluator)
-            .where(models.ProjectEvaluator.id == project_evaluator_id)
-            .values(sampling_rate=0.5)
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+        assert project_evaluator is not None
+        await apply_project_evaluator_patch(
+            session,
+            project_evaluator,
+            ProjectEvaluatorPatch(
+                input_mapping=InputMapping(
+                    literal_mapping={"answer": "after the edit"}, path_mapping={}
+                )
+            ),
         )
     await _cycle_to_completion(consumer)
 
-    units = [await _get_unit(db, unit_id) for unit_id in unit_ids]
-    assert [unit.status for unit in units] == ["DONE", "DONE"]
-    assert len(client.requests) == 2
-    edited_identifier = annotation_identifier(
-        await _config_fingerprint(db, evaluator_id, project_evaluator_id)
-    )
-    identifiers = {
-        annotation.span_rowid: annotation.identifier for annotation in await _annotations(db)
-    }
-    assert identifiers[spans[1].id] == edited_identifier
-    assert identifiers[spans[0].id] != edited_identifier
+    assert [request["messages"][0]["content"] for request in client.requests] == [
+        "Answer: before the edit",
+        "Answer: after the edit",
+    ]
 
 
 async def test_session_happy_path_builds_context_annotates_and_emits_insert_event(
@@ -2002,40 +1979,6 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
     assert events.empty()
 
 
-async def test_session_publication_preserves_the_last_ingest_time(
-    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    start_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
-    duplicate_root_time = start_time + timedelta(seconds=30)
-    async with db() as session:
-        project = await _add_project(session)
-        project_session = await _add_project_session(session, project, start_time=start_time)
-        # The sweep sees only what had been ingested by sweep time.
-        project_session.last_span_ingested_at = start_time + timedelta(seconds=5)
-        trace = await _add_trace(session, project, project_session, start_time=start_time)
-        await _add_span(session, trace, span_kind="CHAIN", start_time=start_time)
-        await _add_span(session, trace, span_kind="CHAIN", start_time=duplicate_root_time)
-    evaluator_id, project_evaluator_id = await _seed_llm_criteria(
-        db,
-        project.id,
-        evaluation_target="SESSION",
-    )
-    unit_id, _ = await _queue_session_unit(
-        db,
-        project_session.id,
-        evaluator_id,
-        project_evaluator_id,
-    )
-    _patch_playground_client(monkeypatch, _StubLLMClient())
-
-    consumer = EvaluationConsumer(db, decrypt=lambda value: value, evaluation_target="SESSION")
-    await _cycle_to_completion(consumer)
-
-    unit = await _get_session_unit(db, unit_id)
-    assert unit.status == "DONE"
-    assert unit.decided_through == start_time + timedelta(seconds=5)
-
-
 async def test_cross_project_session_unit_expires_before_evaluator_call(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -2068,10 +2011,9 @@ async def test_cross_project_session_unit_expires_before_evaluator_call(
         claimed_by=consumer._consumer_id,
         limit=1,
     )
-    assert await consumer._executor.hydrate(unit) == HydrationFailure(
-        HydrationFailureReason.SESSION_PROJECT_MISMATCH
-    )
-    await consumer._process_unit(unit)
+    (configuration,) = await consumer._executor.hydrate_configuration_snapshots([unit])
+    assert configuration == HydrationFailure(HydrationFailureReason.SESSION_PROJECT_MISMATCH)
+    await consumer._process_unit(unit, configuration)
 
     assert (await _get_session_unit(db, unit_id)).status == "EXPIRED"
     assert client.requests == []
@@ -2111,10 +2053,9 @@ async def test_session_hydration_excludes_transferred_trace_roots(
         claimed_by=consumer._consumer_id,
         limit=1,
     )
-    assert await consumer._executor.hydrate(unit) == HydrationFailure(
-        HydrationFailureReason.NO_ROOT_TURNS
-    )
-    await consumer._process_unit(unit)
+    (configuration,) = await consumer._executor.hydrate_configuration_snapshots([unit])
+    assert configuration == HydrationFailure(HydrationFailureReason.NO_ROOT_TURNS)
+    await consumer._process_unit(unit, configuration)
 
     stored = await _get_session_unit(db, unit_id)
     assert stored.status == "CONTENT_LOST"
@@ -2174,7 +2115,8 @@ async def test_session_filtered_sampled_criteria_survives_hydration(
         claimed_by=consumer._consumer_id,
         limit=1,
     )
-    assert isinstance(await consumer._executor.hydrate(unit), HydratedWorkUnit)
+    (configuration,) = await consumer._executor.hydrate_configuration_snapshots([unit])
+    assert isinstance(configuration, HydratedWorkUnit)
 
 
 async def test_session_code_hydration_supplies_configured_payload_cap(
@@ -2205,18 +2147,18 @@ async def test_session_code_hydration_supplies_configured_payload_cap(
     async def _build_backend(*_: Any, **__: Any) -> _StubSandboxBackend:
         return _StubSandboxBackend()
 
-    def _build_runner(**kwargs: Any) -> _StubEvaluator:
+    def _build_runner(**kwargs: Any) -> CodeEvaluatorRunner:
         captured_runner_arguments.update(kwargs)
-        return _StubEvaluator([])
+        return CodeEvaluatorRunner(**kwargs)
 
     monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES", "2048")
-    monkeypatch.setattr(executor_module, "build_sandbox_backend", _build_backend)
-    monkeypatch.setattr(executor_module, "CodeEvaluatorRunner", _build_runner)
+    monkeypatch.setattr(resolution_module, "build_sandbox_backend", _build_backend)
+    monkeypatch.setattr(resolution_module, "CodeEvaluatorRunner", _build_runner)
     executor = _executor(
         db, evaluation_target="SESSION", sandbox_session_manager=cast(Any, manager)
     )
 
-    hydrated = await executor.hydrate(unit)
+    (hydrated,) = await executor.hydrate_configuration_snapshots([unit])
 
     assert isinstance(hydrated, HydratedWorkUnit)
     assert captured_runner_arguments["max_payload_bytes"] == 2048
@@ -2251,14 +2193,14 @@ async def test_code_hydration_supplies_sandbox_runtime(
         received_runtime = runtime
         return _StubSandboxBackend()
 
-    monkeypatch.setattr(executor_module, "build_sandbox_backend", _build_backend)
+    monkeypatch.setattr(resolution_module, "build_sandbox_backend", _build_backend)
     executor = _executor(
         db,
         sandbox_session_manager=cast(Any, _StubSandboxSessionManager()),
         sandbox_runtime=sandbox_runtime,
     )
 
-    hydrated = await executor.hydrate(unit)
+    (hydrated,) = await executor.hydrate_configuration_snapshots([unit])
 
     assert isinstance(hydrated, HydratedWorkUnit)
     assert received_runtime is sandbox_runtime
@@ -2285,16 +2227,16 @@ async def test_span_code_hydration_supplies_configured_payload_cap(
     async def _build_backend(*_: Any, **__: Any) -> _StubSandboxBackend:
         return _StubSandboxBackend()
 
-    def _build_runner(**kwargs: Any) -> _StubEvaluator:
+    def _build_runner(**kwargs: Any) -> CodeEvaluatorRunner:
         captured_runner_arguments.update(kwargs)
-        return _StubEvaluator([])
+        return CodeEvaluatorRunner(**kwargs)
 
     monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES", "2048")
-    monkeypatch.setattr(executor_module, "build_sandbox_backend", _build_backend)
-    monkeypatch.setattr(executor_module, "CodeEvaluatorRunner", _build_runner)
+    monkeypatch.setattr(resolution_module, "build_sandbox_backend", _build_backend)
+    monkeypatch.setattr(resolution_module, "CodeEvaluatorRunner", _build_runner)
     executor = _executor(db, sandbox_session_manager=cast(Any, manager))
 
-    hydrated = await executor.hydrate(unit)
+    (hydrated,) = await executor.hydrate_configuration_snapshots([unit])
 
     assert isinstance(hydrated, HydratedWorkUnit)
     assert captured_runner_arguments["max_payload_bytes"] == 2048
@@ -2403,9 +2345,9 @@ async def test_code_criteria_input_mapping_override_is_used_during_execution(
     async def _build_backend(*_: Any, **__: Any) -> _StubSandboxBackend:
         return _StubSandboxBackend()
 
-    monkeypatch.setattr(executor_module, "build_sandbox_backend", _build_backend)
+    monkeypatch.setattr(resolution_module, "build_sandbox_backend", _build_backend)
     executor = _executor(db, sandbox_session_manager=cast(Any, manager))
-    hydrated = await executor.hydrate(unit)
+    (hydrated,) = await executor.hydrate_configuration_snapshots([unit])
     assert isinstance(hydrated, HydratedWorkUnit)
 
     await executor.evaluate_and_annotate(unit, hydrated)
@@ -2496,8 +2438,9 @@ async def test_reclaimed_execution_writes_one_annotation_and_one_insert_event(
 
     events: SimpleQueue[DmlEvent] = SimpleQueue()
     executor = _executor(db, event_queue=events)
-    first_hydrated = await executor.hydrate(first_claim)
-    reclaimed_hydrated = await executor.hydrate(reclaimed)
+    first_hydrated, reclaimed_hydrated = await executor.hydrate_configuration_snapshots(
+        [first_claim, reclaimed]
+    )
     assert isinstance(first_hydrated, HydratedWorkUnit)
     assert isinstance(reclaimed_hydrated, HydratedWorkUnit)
     assert reclaimed_hydrated.identifier == first_hydrated.identifier
@@ -2558,29 +2501,34 @@ async def test_evaluation_is_traced_into_the_evaluator_own_project(db: DbSession
 
 
 async def test_evaluation_with_tracing_disabled_writes_its_annotation_but_no_trace(
-    db: DbSessionFactory,
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
-        span = await _add_span(session, trace)
-    unit = await _claim_queued_unit(db, project_id=project.id, span_rowid=span.id)
+        span = await _add_span(
+            session,
+            trace,
+            attributes={"input": {"value": "hi"}, "output": {"value": "there"}},
+        )
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(db, project.id)
     async with db() as session:
         await session.execute(
             update(models.ProjectEvaluator)
-            .where(models.ProjectEvaluator.id == unit.project_evaluator_id)
+            .where(models.ProjectEvaluator.id == project_evaluator_id)
             .values(tracing_enabled=False)
         )
-    executor = _executor(db, tracer_factory=lambda: Tracer(span_cost_calculator=Mock()))
-    hydrated = await executor.hydrate(unit)
-    assert isinstance(hydrated, HydratedWorkUnit)
-    assert hydrated.tracing_enabled is False
-
-    await executor.evaluate_and_annotate(
-        unit,
-        replace(hydrated, evaluator=cast(Any, _StubEvaluator([_evaluation_result("criterion")]))),
+    unit_id, _ = await _queue_unit(db, span.id, evaluator_id, project_evaluator_id)
+    _patch_playground_client(monkeypatch, _StubLLMClient())
+    consumer = EvaluationConsumer(
+        db,
+        decrypt=lambda value: value,
+        tracer_factory=lambda: Tracer(span_cost_calculator=Mock()),
     )
 
+    await _cycle_to_completion(consumer)
+
+    assert (await _get_unit(db, unit_id)).status == "DONE"
     async with db() as session:
         traced_span_count = await session.scalar(
             select(func.count(models.Span.id))
@@ -2589,7 +2537,7 @@ async def test_evaluation_with_tracing_disabled_writes_its_annotation_but_no_tra
                 models.ProjectEvaluator,
                 models.Trace.project_rowid == models.ProjectEvaluator.trace_project_id,
             )
-            .where(models.ProjectEvaluator.id == unit.project_evaluator_id)
+            .where(models.ProjectEvaluator.id == project_evaluator_id)
         )
     assert traced_span_count == 0
     (annotation,) = await _annotations(db)
@@ -2597,30 +2545,38 @@ async def test_evaluation_with_tracing_disabled_writes_its_annotation_but_no_tra
     assert "phoenix.evaluator_trace_id" not in annotation.metadata_
 
 
-async def test_llm_incomplete_result_set_writes_nothing(db: DbSessionFactory) -> None:
+async def test_an_evaluation_cut_off_at_its_deadline_still_leaves_its_trace(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An evaluation cut off at its deadline still leaves its trace in the evaluator's trace
+    project."""
+
+    class _UnansweredLLMClient(_StubLLMClient):
+        async def chat_completion_create(self, **kwargs: Any) -> AsyncIterator[Any]:
+            await asyncio.Event().wait()
+            yield
+
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
-        span = await _add_span(session, trace)
-    output_configs = [_output_config("quality"), _output_config("relevance")]
-    hydrated = _hydrated_stub(
-        results=[_evaluation_result("criterion.quality")],
-        evaluator_kind="LLM",
-        output_configs=output_configs,
-    )
-    executor = _executor(db, tracer_factory=lambda: Tracer(span_cost_calculator=Mock()))
-    unit = await _claim_queued_unit(
+        span = await _add_span(
+            session,
+            trace,
+            attributes={"input": {"value": "hi"}, "output": {"value": "there"}},
+        )
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(db, project.id)
+    unit_id, _ = await _queue_unit(db, span.id, evaluator_id, project_evaluator_id)
+    _patch_playground_client(monkeypatch, _UnansweredLLMClient())
+    consumer = EvaluationConsumer(
         db,
-        project_id=project.id,
-        span_rowid=span.id,
+        decrypt=lambda value: value,
+        execution_deadline_seconds=0.05,
+        tracer_factory=lambda: Tracer(span_cost_calculator=Mock()),
     )
 
-    with pytest.raises(EvalExecutionError, match="invalid result set"):
-        await executor.evaluate_and_annotate(unit, hydrated)
+    await _cycle_to_completion(consumer)
 
-    assert await _annotations(db) == []
-    # A failed evaluation is exactly when its trace is worth reading, so the
-    # trace is written even though the evaluation wrote no annotation.
+    assert (await _get_unit(db, unit_id)).status == "ERROR"
     async with db() as session:
         traced_span_count = await session.scalar(
             select(func.count(models.Span.id))
@@ -2629,64 +2585,9 @@ async def test_llm_incomplete_result_set_writes_nothing(db: DbSessionFactory) ->
                 models.ProjectEvaluator,
                 models.Trace.project_rowid == models.ProjectEvaluator.trace_project_id,
             )
-            .where(models.ProjectEvaluator.id == unit.project_evaluator_id)
+            .where(models.ProjectEvaluator.id == project_evaluator_id)
         )
     assert traced_span_count
-
-
-async def test_duplicate_output_name_writes_nothing(db: DbSessionFactory) -> None:
-    async with db() as session:
-        project = await _add_project(session)
-        trace = await _add_trace(session, project)
-        span = await _add_span(session, trace)
-    hydrated = _hydrated_stub(
-        results=[
-            _evaluation_result("criterion"),
-            _evaluation_result("criterion"),
-        ],
-        evaluator_kind="LLM",
-        output_configs=[_output_config("quality")],
-    )
-    executor = _executor(db)
-    unit = await _claim_queued_unit(
-        db,
-        project_id=project.id,
-        span_rowid=span.id,
-    )
-
-    with pytest.raises(EvaluatorResultValidationError, match="'criterion': 2"):
-        await executor.evaluate_and_annotate(unit, hydrated)
-
-    assert await _annotations(db) == []
-
-
-@pytest.mark.parametrize("invalid_label", ["unknown", 1, {"label": "good"}])
-async def test_invalid_categorical_label_writes_nothing(
-    db: DbSessionFactory,
-    invalid_label: Any,
-) -> None:
-    async with db() as session:
-        project = await _add_project(session)
-        trace = await _add_trace(session, project)
-        span = await _add_span(session, trace)
-    result = _evaluation_result("criterion")
-    result["label"] = invalid_label
-    hydrated = _hydrated_stub(
-        results=[result],
-        evaluator_kind="LLM",
-        output_configs=[_output_config("quality")],
-    )
-    executor = _executor(db)
-    unit = await _claim_queued_unit(
-        db,
-        project_id=project.id,
-        span_rowid=span.id,
-    )
-
-    with pytest.raises(EvaluatorResultValidationError, match="invalid label"):
-        await executor.evaluate_and_annotate(unit, hydrated)
-
-    assert await _annotations(db) == []
 
 
 async def test_code_mixed_result_set_writes_nothing(db: DbSessionFactory) -> None:
@@ -2804,36 +2705,6 @@ async def test_evaluator_run_time_is_observed_whatever_its_result(
     assert all(seconds >= _EVALUATOR_SECONDS for seconds in observed)
 
 
-async def test_complete_result_set_is_written_atomically(db: DbSessionFactory) -> None:
-    async with db() as session:
-        project = await _add_project(session)
-        trace = await _add_trace(session, project)
-        span = await _add_span(session, trace)
-    output_configs = [_output_config("quality"), _output_config("relevance")]
-    hydrated = _hydrated_stub(
-        results=[
-            _evaluation_result("criterion.quality"),
-            _evaluation_result("criterion.relevance"),
-        ],
-        evaluator_kind="CODE",
-        output_configs=output_configs,
-    )
-    executor = _executor(db)
-    unit = await _claim_queued_unit(
-        db,
-        project_id=project.id,
-        span_rowid=span.id,
-    )
-
-    await executor.evaluate_and_annotate(unit, hydrated)
-
-    annotations = await _annotations(db)
-    assert {annotation.name for annotation in annotations} == {
-        "criterion.quality",
-        "criterion.relevance",
-    }
-
-
 async def test_deleted_criteria_cannot_publish_annotation(db: DbSessionFactory) -> None:
     async with db() as session:
         project = await _add_project(session)
@@ -2888,6 +2759,40 @@ async def test_evaluator_error_fails_unit_with_cooldown_and_no_annotation(
     assert "provider is down" in unit.error
     assert unit.cooldown_until is not None
     assert unit.cooldown_until > before
+    assert await _annotations(db) == []
+
+
+async def test_a_failing_evaluation_is_tried_three_times_then_marked_failed(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A failing evaluation is tried three times and then marked failed, with no
+    annotation."""
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(
+            session,
+            trace,
+            attributes={"input": {"value": "hi"}, "output": {"value": "there"}},
+        )
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(db, project.id)
+    unit_id, _ = await _queue_unit(db, span.id, evaluator_id, project_evaluator_id)
+    _patch_playground_client(monkeypatch, _StubLLMClient(error=RuntimeError("provider is down")))
+    consumer = EvaluationConsumer(db, decrypt=lambda value: value)
+
+    statuses: list[str] = []
+    for _ in range(3):
+        await _cycle_to_completion(consumer)
+        statuses.append((await _get_unit(db, unit_id)).status)
+        async with db() as session:
+            await session.execute(
+                update(models.EvalWorkUnit)
+                .where(models.EvalWorkUnit.id == unit_id)
+                .values(cooldown_until=datetime.now(timezone.utc))
+            )
+
+    assert statuses == ["ERROR", "ERROR", "FAILED"]
+    assert (await _get_unit(db, unit_id)).attempts == 3
     assert await _annotations(db) == []
 
 
@@ -3023,10 +2928,9 @@ async def test_execution_deadline_cancels_eval_and_counts_attempt(
         finally:
             cancelled.set()
 
-    monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
     monkeypatch.setattr(consumer._executor, "evaluate_and_annotate", _never_resolves)
 
-    await consumer._process_unit(unit)
+    await consumer._process_unit(unit, await _hydrate(unit))
 
     assert cancelled.is_set()
     row = await _get_unit(db, unit_id)
@@ -3061,10 +2965,9 @@ async def test_llm_execution_deadline_retries_without_counting_attempt(
     async def _never_resolves(*_: Any, **__: Any) -> None:
         await asyncio.Event().wait()
 
-    monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
     monkeypatch.setattr(consumer._executor, "evaluate_and_annotate", _never_resolves)
 
-    await consumer._process_unit(unit)
+    await consumer._process_unit(unit, await _hydrate(unit))
 
     row = await _get_unit(db, unit_id)
     assert row.status == "ERROR"
@@ -3114,12 +3017,11 @@ async def test_lost_claim_cancels_the_evaluation_without_a_transition(
         await publish(**kwargs)
 
     monkeypatch.setattr(consumer_module, "HEARTBEAT_INTERVAL_SECONDS", 0.01)
-    monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
     monkeypatch.setattr(consumer._executor, "evaluate_and_annotate", _never_resolves)
     monkeypatch.setattr(consumer, "_retry_transition", _record_transition)
     monkeypatch.setattr(coordinator, "publish", _record_publish)
 
-    await asyncio.wait_for(consumer._process_unit(unit), timeout=5)
+    await asyncio.wait_for(consumer._process_unit(unit, await _hydrate(unit)), timeout=5)
 
     assert cancelled.is_set()
     assert writes == []
@@ -3156,9 +3058,7 @@ async def test_sandbox_payload_limit_is_terminal_without_counting_attempt(
             output_configs=[_output_config("criterion")],
         )
 
-    monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
-
-    await consumer._process_unit(unit)
+    await consumer._process_unit(unit, await _hydrate(unit))
 
     row = await _get_unit(db, unit_id)
     assert row.status == "EXPIRED"
@@ -3190,9 +3090,8 @@ async def test_process_cancellation_releases_claim_without_counting_attempt(
         started.set()
         await asyncio.Event().wait()
 
-    monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
     monkeypatch.setattr(consumer._executor, "evaluate_and_annotate", _never_resolves)
-    task = asyncio.create_task(consumer._process_unit(unit))
+    task = asyncio.create_task(consumer._process_unit(unit, await _hydrate(unit)))
     await started.wait()
     task.cancel()
 
@@ -3314,10 +3213,9 @@ async def test_storage_pause_before_publication_returns_claim_to_pending(
             output_configs=[_output_config("criterion")],
         )
 
-    monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
     db.should_not_insert_or_update = True
     try:
-        await consumer._process_unit(unit)
+        await consumer._process_unit(unit, await _hydrate(unit))
     finally:
         db.should_not_insert_or_update = False
 
@@ -3467,15 +3365,7 @@ async def test_a_consumer_that_reclaims_its_own_unit_fences_out_the_earlier_clai
     async def _write_nothing(_: Any) -> None:
         return None
 
-    async def _hydrate(_: ClaimedWorkUnit) -> HydratedWorkUnit:
-        return _hydrated_stub(
-            results=[_evaluation_result("criterion")],
-            evaluator_kind="LLM",
-            output_configs=[_output_config("criterion")],
-        )
-
     monkeypatch.setattr(consumer, "_process_unit", _start)
-    monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
     await _cycle_to_completion(consumer)
     lapsed = datetime.now(timezone.utc) - timedelta(seconds=CLAIM_LEASE_TTL_SECONDS + 1)
     async with db() as session:
@@ -3499,7 +3389,14 @@ async def test_a_consumer_that_reclaims_its_own_unit_fences_out_the_earlier_clai
     row = await _get_unit(db, unit_id)
     assert (row.status, row.claimed_by, row.attempts) == ("RUNNING", second.claimed_by, 1)
 
-    await process_unit(second)
+    await process_unit(
+        second,
+        _hydrated_stub(
+            results=[_evaluation_result("criterion")],
+            evaluator_kind="LLM",
+            output_configs=[_output_config("criterion")],
+        ),
+    )
     assert (await _get_unit(db, unit_id)).status == "DONE"
     assert len(await _annotations(db)) == 1
 
@@ -3544,12 +3441,11 @@ async def test_failure_transition_retries_raised_exceptions(
         return await original_heartbeat(**kwargs)
 
     monkeypatch.setattr(consumer_module, "_TRANSITION_RETRY_DELAYS_SECONDS", (0.0, 0.0, 0.0))
-    monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
     monkeypatch.setattr(consumer._executor, "evaluate_and_annotate", _evaluate)
     monkeypatch.setattr(consumer._coordinator, "fail", _flaky_fail)
     monkeypatch.setattr(consumer._coordinator, "heartbeat", _heartbeat)
 
-    await consumer._process_unit(unit)
+    await consumer._process_unit(unit, await _hydrate(unit))
 
     assert fail_calls == 4
     assert heartbeat_calls == 3
@@ -3591,11 +3487,10 @@ async def test_failure_transition_retries_after_ambiguous_commit(
         return failed
 
     monkeypatch.setattr(consumer_module, "_TRANSITION_RETRY_DELAYS_SECONDS", (0.0, 0.0, 0.0))
-    monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
     monkeypatch.setattr(consumer._executor, "evaluate_and_annotate", _evaluate)
     monkeypatch.setattr(consumer._coordinator, "fail", _ambiguous_fail)
 
-    await consumer._process_unit(unit)
+    await consumer._process_unit(unit, await _hydrate(unit))
 
     assert fail_calls == 1
     row = await _get_unit(db, unit_id)

@@ -185,28 +185,6 @@ ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS = Gauge(
     f"up to a fixed bound. {_SAME_ON_EVERY_REPLICA}",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
-ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS = Gauge(
-    namespace="phoenix",
-    name="online_eval_exhausted_error_work_units",
-    documentation="Number of online-eval work units in FAILED status, out of retries, whose "
-    f"last update was in the past {_TERMINAL_METRICS_WINDOW}. {_SAME_ON_EVERY_REPLICA}",
-    labelnames=_EVALUATION_TARGET_LABELS,
-)
-ONLINE_EVAL_EXPIRED_WORK_UNITS = Gauge(
-    namespace="phoenix",
-    name="online_eval_expired_work_units",
-    documentation="Number of online-eval work units in EXPIRED or CONTENT_LOST status whose "
-    f"last update was in the past {_TERMINAL_METRICS_WINDOW}. {_SAME_ON_EVERY_REPLICA}",
-    labelnames=_EVALUATION_TARGET_LABELS,
-)
-ONLINE_EVAL_CLEARED_WORK_UNITS = Gauge(
-    namespace="phoenix",
-    name="online_eval_cleared_work_units",
-    documentation="Number of online-eval work units cleared from the queue before they ran "
-    f"(DROPPED status), whose last update was in the past {_TERMINAL_METRICS_WINDOW}. "
-    f"{_SAME_ON_EVERY_REPLICA}",
-    labelnames=_EVALUATION_TARGET_LABELS,
-)
 ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS = Gauge(
     namespace="phoenix",
     name="online_eval_oldest_pending_age_seconds",
@@ -243,12 +221,6 @@ ONLINE_EVAL_DECIDED_THROUGH_LAG_SECONDS = Gauge(
     "traces",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
-ONLINE_EVAL_SWEEP_ATTEMPTS = Counter(
-    namespace="phoenix",
-    name="online_eval_sweep_attempts_total",
-    documentation="Total number of online-eval sweep attempts",
-    labelnames=_EVALUATION_TARGET_LABELS,
-)
 ONLINE_EVAL_SWEEP_SUCCESSES = Counter(
     namespace="phoenix",
     name="online_eval_sweep_successes_total",
@@ -278,10 +250,11 @@ ONLINE_EVAL_COMPLETED_WORK_UNITS = Counter(
     namespace="phoenix",
     name="online_eval_completed_work_units_total",
     documentation="Total number of online-eval work units that left the queue, by outcome: "
-    "evaluated (DONE), failed (FAILED, out of retries), expired (EXPIRED), cleared (DROPPED by "
-    "a queue clear or an enable), or evaluator_disabled (DROPPED because its evaluator was "
-    "disabled when its turn came). Cleared and evaluator_disabled work was removed from the "
-    f"queue before it ran. {_SUMS_ACROSS_REPLICAS}",
+    "evaluated (DONE), failed (FAILED, out of retries), expired (EXPIRED), content_lost "
+    "(CONTENT_LOST, a trace or session whose content was gone when its turn came), cleared "
+    "(DROPPED by a queue clear or an enable), or evaluator_disabled (DROPPED because its "
+    "evaluator was disabled when its turn came). Cleared and evaluator_disabled work was "
+    f"removed from the queue before it ran. {_SUMS_ACROSS_REPLICAS}",
     labelnames=[*_EVALUATION_TARGET_LABELS, "outcome"],
 )
 ONLINE_EVAL_QUEUE_TO_RESULT_SECONDS = Histogram(

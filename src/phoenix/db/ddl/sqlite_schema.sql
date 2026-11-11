@@ -47,8 +47,6 @@ CREATE TABLE deployment_secret (
 CREATE TABLE eval_span_cursors (
     id INTEGER NOT NULL CONSTRAINT "ck_eval_span_cursors_`single_row`" CHECK (id = 1),
     produced_through_id INTEGER DEFAULT '0' NOT NULL,
-    observed_high_water_id INTEGER,
-    observed_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT pk_eval_span_cursors PRIMARY KEY (id)
@@ -1682,7 +1680,10 @@ CHECK (status IN (
             'DONE',
             'FAILED',
             'EXPIRED',
-            'DROPPED'
+            'DROPPED',
+            'CONTENT_LOST',
+            'FILTERED_OUT',
+            'SAMPLED_OUT'
         )),
     claimed_at TIMESTAMP,
     claimed_by VARCHAR,
@@ -1718,7 +1719,7 @@ CREATE INDEX ix_eval_work_units_project_evaluator_live ON eval_work_units
     (project_evaluator_id, status, created_at)
     WHERE status IN ('PENDING', 'RUNNING', 'ERROR');
 CREATE INDEX ix_eval_work_units_terminal ON eval_work_units (updated_at)
-    WHERE status IN ('DONE', 'FAILED', 'EXPIRED', 'DROPPED');
+    WHERE status IN ('DONE', 'FAILED', 'EXPIRED', 'DROPPED', 'CONTENT_LOST');
 
 
 -- Table: project_evaluator_state
