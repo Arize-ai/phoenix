@@ -367,8 +367,13 @@ class TestShouldCalculateSpanCost:
                     "openinference": {"span": {"kind": "EMBEDDING"}},
                     "llm": {"model_name": "text-embedding-3-small"},
                 },
+                True,
+                id="embedding_span_with_llm_model_name_fallback",
+            ),
+            pytest.param(
+                {"openinference": {"span": {"kind": "EMBEDDING"}}, "embedding": {}},
                 False,
-                id="embedding_span_with_only_llm_model_name",
+                id="embedding_span_without_model_name",
             ),
             pytest.param(
                 {

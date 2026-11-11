@@ -741,3 +741,32 @@ class TestEmbeddingSpanAttributes:
             "llm": {"token_count": token_count},
         }
         assert get_aggregated_tokens(attributes) == expected
+
+    @pytest.mark.parametrize(
+        "attributes,expected_name",
+        [
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "EMBEDDING"}},
+                    "embedding": {"model_name": " text-embedding-3-small "},
+                    "llm": {"response": {"model_name": "ignored"}, "model_name": "ignored"},
+                },
+                "text-embedding-3-small",
+                id="embedding_model_name_wins_over_llm_model_names",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "EMBEDDING"}},
+                    "llm": {
+                        "response": {"model_name": "text-embedding-3-small-v2"},
+                        "model_name": "text-embedding-3-small",
+                    },
+                },
+                "text-embedding-3-small-v2",
+                id="falls_back_to_llm_model_names",
+            ),
+        ],
+    )
+    def test_get_model_name(self, attributes: dict[str, Any], expected_name: str) -> None:
+        assert get_priced_model_type(attributes) == "EMBEDDING"
+        assert get_model_name(attributes) == expected_name

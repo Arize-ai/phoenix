@@ -63,13 +63,14 @@ def get_model_name(attributes: Optional[Mapping[str, Any]]) -> str:
     `*.model_name`, which wins over `*.request.model_name`. DECISION spans read `decision.*`,
     falling back to `llm.*` for TypeSafe instrumentor releases from before the `decision.*`
     attributes existed (OpenInference `spec/decision_spans.md`, "Transition Note"). EMBEDDING
-    spans read `embedding.model_name` (`spec/embedding_spans.md`). Other spans read `llm.*`.
+    spans read `embedding.model_name` (`spec/embedding_spans.md`), falling back to `llm.*` for
+    GenAI converters that write the model name there. Other spans read `llm.*`.
     """
     model_type = get_priced_model_type(attributes)
     if model_type == "DECISION":
         return _get_str(attributes, *_DECISION_MODEL_NAME_KEYS, *_LLM_MODEL_NAME_KEYS)
     if model_type == "EMBEDDING":
-        return _get_str(attributes, SpanAttributes.EMBEDDING_MODEL_NAME)
+        return _get_str(attributes, SpanAttributes.EMBEDDING_MODEL_NAME, *_LLM_MODEL_NAME_KEYS)
     return _get_str(attributes, *_LLM_MODEL_NAME_KEYS)
 
 
