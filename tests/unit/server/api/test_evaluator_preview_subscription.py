@@ -222,6 +222,61 @@ class TestEvaluatorPreviewSubscription:
                 subjects=[dict(key="a", context={"output": "test"})],
             )
 
+    async def test_refuses_an_llm_draft_without_output_configs(
+        self,
+        gql_client: AsyncGraphQLClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        llm_client = MagicMock()
+        monkeypatch.setattr(
+            "phoenix.server.evaluators.resolution.get_playground_client",
+            AsyncMock(return_value=llm_client),
+        )
+        label = {"type": "string", "enum": ["correct", "incorrect"]}
+        with pytest.raises(RuntimeError, match="At least one output config is required."):
+            await _preview(
+                gql_client,
+                evaluator=dict(
+                    inlineLlmEvaluator=dict(
+                        name="correctness",
+                        promptVersion=dict(
+                            templateFormat="MUSTACHE",
+                            template=dict(
+                                messages=[
+                                    dict(
+                                        role="USER",
+                                        content=[dict(text=dict(text="Is {{output}} right?"))],
+                                    )
+                                ]
+                            ),
+                            invocationParameters=dict(openai=dict()),
+                            tools=dict(
+                                tools=[
+                                    dict(
+                                        function=dict(
+                                            name="correctness",
+                                            parameters=dict(
+                                                type="object",
+                                                properties=dict(label=label),
+                                                required=["label"],
+                                            ),
+                                        )
+                                    )
+                                ],
+                                toolChoice=dict(functionName="correctness"),
+                            ),
+                            modelProvider="OPENAI",
+                            modelName="gpt-4",
+                        ),
+                        outputConfigs=[],
+                    )
+                ),
+                inputMapping=_EMPTY_MAPPING,
+                subjects=[dict(key="a", context={"output": "4"})],
+            )
+
+        llm_client.chat_completion_create.assert_not_called()
+
     async def test_reports_every_output_of_a_multi_output_evaluator(
         self,
         gql_client: AsyncGraphQLClient,
