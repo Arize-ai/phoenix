@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { graphql, useRelayEnvironment } from "react-relay";
 import type { Disposable } from "relay-runtime";
 import { requestSubscription } from "relay-runtime";
@@ -70,35 +70,32 @@ export type EvaluatorPreviewHandlers = {
  */
 export function useEvaluatorPreviewStream() {
   const environment = useRelayEnvironment();
-  return useCallback(
-    ({
-      input,
-      onSubjectResult,
-      onError,
+  return ({
+    input,
+    onSubjectResult,
+    onError,
+    onCompleted,
+  }: {
+    input: EvaluatorPreviewInput;
+  } & EvaluatorPreviewHandlers): Disposable =>
+    requestSubscription<useEvaluatorPreviewSubscription>(environment, {
+      subscription,
+      variables: { input },
+      onNext: (response) => {
+        if (response) {
+          onSubjectResult(response.evaluatorPreview);
+        }
+      },
       onCompleted,
-    }: {
-      input: EvaluatorPreviewInput;
-    } & EvaluatorPreviewHandlers): Disposable =>
-      requestSubscription<useEvaluatorPreviewSubscription>(environment, {
-        subscription,
-        variables: { input },
-        onNext: (response) => {
-          if (response) {
-            onSubjectResult(response.evaluatorPreview);
-          }
-        },
-        onCompleted,
-        onError: (error) => {
-          const messages = getErrorMessagesFromRelaySubscriptionError(error);
-          onError(
-            messages != null && messages.length > 0
-              ? messages.join("\n")
-              : error.message || "An unknown error occurred"
-          );
-        },
-      }),
-    [environment]
-  );
+      onError: (error) => {
+        const messages = getErrorMessagesFromRelaySubscriptionError(error);
+        onError(
+          messages != null && messages.length > 0
+            ? messages.join("\n")
+            : error.message || "An unknown error occurred"
+        );
+      },
+    });
 }
 
 /** The evaluator to preview and how its inputs read the mapping source. */
@@ -167,85 +164,82 @@ export function useEvaluatorPreview() {
     };
   }, []);
 
-  const run = useCallback(
-    (
-      buildRequest: () => EvaluatorPreviewRequest
-    ): Promise<EvaluatorPreviewRunResult> => {
-      const fail = (message: string): EvaluatorPreviewRunResult => {
-        setError(message);
-        return { ok: false, error: message };
+  const run = (
+    buildRequest: () => EvaluatorPreviewRequest
+  ): Promise<EvaluatorPreviewRunResult> => {
+    const fail = (message: string): EvaluatorPreviewRunResult => {
+      setError(message);
+      return { ok: false, error: message };
+    };
+    setError(null);
+    setResults([]);
+    let request: EvaluatorPreviewRequest;
+    try {
+      request = buildRequest();
+    } catch (buildError) {
+      return Promise.resolve(fail(getMutationErrorMessage(buildError)));
+    }
+    setIsRunning(true);
+    return new Promise((resolve) => {
+      let subjectResult: EvaluatorPreviewSubjectResult | null = null;
+      let isSettled = false;
+      const closeRunningPreviews = closeRunningPreviewsRef.current;
+      const settle = (outcome: EvaluatorPreviewRunResult) => {
+        isSettled = true;
+        closeRunningPreviews.delete(close);
+        setIsRunning(false);
+        resolve(outcome);
       };
-      setError(null);
-      setResults([]);
-      let request: EvaluatorPreviewRequest;
-      try {
-        request = buildRequest();
-      } catch (buildError) {
-        return Promise.resolve(fail(getMutationErrorMessage(buildError)));
-      }
-      setIsRunning(true);
-      return new Promise((resolve) => {
-        let subjectResult: EvaluatorPreviewSubjectResult | null = null;
-        let isSettled = false;
-        const closeRunningPreviews = closeRunningPreviewsRef.current;
-        const settle = (outcome: EvaluatorPreviewRunResult) => {
-          isSettled = true;
-          closeRunningPreviews.delete(close);
-          setIsRunning(false);
-          resolve(outcome);
-        };
-        const preview = startPreview({
-          input: {
-            ...request,
-            subjects: [
-              {
-                key: "subject",
-                context: store.getState().evaluatorMappingSource.source,
-              },
-            ],
-            credentials: toGqlCredentials(credentials),
-          },
-          onSubjectResult: (result) => {
-            subjectResult = result;
-          },
-          onError: (message) => settle(fail(message)),
-          onCompleted: () => {
-            if (subjectResult == null) {
-              settle(fail("The preview returned no result"));
-            } else if (subjectResult.error != null) {
-              settle(fail(subjectResult.error));
-            } else {
-              const output = { results: subjectResult.results };
-              setResults(toEvaluatorPreviewResults(output));
-              settle({ ok: true, output });
-            }
-          },
-        });
-        // The form is gone, so there is no state left to update.
-        function close() {
-          isSettled = true;
-          closeRunningPreviews.delete(close);
-          preview.dispose();
-          resolve({
-            ok: false,
-            error: "The evaluator form closed before the test finished",
-          });
-        }
-        if (!isSettled) {
-          closeRunningPreviews.add(close);
-        }
+      const preview = startPreview({
+        input: {
+          ...request,
+          subjects: [
+            {
+              key: "subject",
+              context: store.getState().evaluatorMappingSource.source,
+            },
+          ],
+          credentials: toGqlCredentials(credentials),
+        },
+        onSubjectResult: (result) => {
+          subjectResult = result;
+        },
+        onError: (message) => settle(fail(message)),
+        onCompleted: () => {
+          if (subjectResult == null) {
+            settle(fail("The preview returned no result"));
+          } else if (subjectResult.error != null) {
+            settle(fail(subjectResult.error));
+          } else {
+            const output = { results: subjectResult.results };
+            setResults(toEvaluatorPreviewResults(output));
+            settle({ ok: true, output });
+          }
+        },
       });
-    },
-    [startPreview, store, credentials]
-  );
+      // The form is gone, so there is no state left to update.
+      function close() {
+        isSettled = true;
+        closeRunningPreviews.delete(close);
+        preview.dispose();
+        resolve({
+          ok: false,
+          error: "The evaluator form closed before the test finished",
+        });
+      }
+      if (!isSettled) {
+        closeRunningPreviews.add(close);
+      }
+    });
+  };
 
   return {
     run,
     isRunning,
     results,
     error,
-    clearResults: useCallback(() => setResults([]), []),
-    clearError: useCallback(() => setError(null), []),
+    clearResults: () => setResults([]),
+    clearError: () => setError(null),
   };
 }
 

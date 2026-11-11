@@ -11,13 +11,17 @@ import {
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import { DEFAULT_DECISION_EVALUATOR_STORE_VALUES } from "@phoenix/store/evaluatorStore";
 
-const { subscribe, dispose } = vi.hoisted(() => ({
+const { subscribe, dispose, credentials, environment } = vi.hoisted(() => ({
   subscribe: vi.fn(),
   dispose: vi.fn(),
+  // One object each, as the app's Relay environment and credentials store
+  // hand out between edits.
+  credentials: {},
+  environment: {},
 }));
 vi.mock("react-relay", async (importOriginal) => ({
   ...(await importOriginal<typeof ReactRelay>()),
-  useRelayEnvironment: () => ({}),
+  useRelayEnvironment: () => environment,
 }));
 vi.mock("relay-runtime", async (importOriginal) => ({
   ...(await importOriginal<typeof RelayRuntime>()),
@@ -27,7 +31,8 @@ vi.mock("relay-runtime", async (importOriginal) => ({
   },
 }));
 vi.mock("@phoenix/contexts/CredentialsContext", () => ({
-  useCredentialsContext: (selector: (state: object) => unknown) => selector({}),
+  useCredentialsContext: (selector: (state: object) => unknown) =>
+    selector(credentials),
 }));
 
 const SOURCE = {
@@ -145,6 +150,20 @@ describe("useEvaluatorPreview", () => {
     ]);
     expect(outcome).toEqual({ ok: true, output: { results } });
     expect(preview.isRunning).toBe(false);
+  });
+
+  it("keeps run and the clear actions the same across renders", async () => {
+    // The forms list run in the deps of the effect that registers the agent's
+    // test tool; the compiler, not useCallback, keeps it from re-registering
+    // on every render.
+    const { run, clearResults, clearError } = preview;
+    await act(async () => {
+      void preview.run(() => REQUEST);
+    });
+    expect(preview.isRunning).toBe(true);
+    expect(preview.run).toBe(run);
+    expect(preview.clearResults).toBe(clearResults);
+    expect(preview.clearError).toBe(clearError);
   });
 
   it("reports the subject's own error", async () => {
