@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<00a8d5c8486e2e9e2334e9cb87b0d1fc>>
+ * @generated SignedSource<<6774e7b994a041fba67418ac80edfc8c>>
  * @lightSyntaxTransform
  */
 
@@ -13,6 +13,10 @@ export type ProjectEvaluatorsTable_scores$data = {
   readonly annotationScoreMetrics?: ReadonlyArray<{
     readonly annotationName: string;
     readonly previousSummary: {
+      readonly labelFractions: ReadonlyArray<{
+        readonly fraction: number;
+        readonly label: string;
+      }>;
       readonly meanScore: number | null;
     } | null;
     readonly series: ReadonlyArray<{
@@ -43,6 +47,6 @@ const node: ReaderInlineDataFragment = {
   "name": "ProjectEvaluatorsTable_scores"
 };
 
-(node as any).hash = "7bf924cc54d101ff545f898d1bad907b";
+(node as any).hash = "5434537456bc109c9851c86426ecbd14";
 
 export default node;

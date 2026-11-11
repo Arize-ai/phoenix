@@ -11,16 +11,29 @@ import {
   TriggerWrap,
 } from "@phoenix/components";
 import {
+  AnnotationScoreText,
   getOptimizationBounds,
   getOptimizationValueFromConfig,
 } from "@phoenix/components/annotation";
+import {
+  getAnnotationLabelColor,
+  getAnnotationLabelOrder,
+  useAnnotationLabelColors,
+} from "@phoenix/components/annotation/annotationLabelColors";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
-import { Sparkline, useBinTimeTickFormatter } from "@phoenix/components/chart";
+import {
+  LabelDistributionBar,
+  Sparkline,
+  useBinTimeTickFormatter,
+} from "@phoenix/components/chart";
 import type { ProjectEvaluatorResultAnnotation } from "@phoenix/hooks/useProjectEvaluatorResultAnnotations";
 import { SummaryValueBreakdown } from "@phoenix/pages/project/AnnotationSummary";
 import type { ProjectEvaluatorsTable_scores$data } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_scores.graphql";
 import type { EvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
-import { formatFloat } from "@phoenix/utils/numberFormatUtils";
+import {
+  formatFloat,
+  formatPercentShort,
+} from "@phoenix/utils/numberFormatUtils";
 
 /**
  * One annotation's score aggregates as the scores fragment selects them from
@@ -60,6 +73,19 @@ const meanScoreFallback = (
     </Text>
   </AlignedScore>
 );
+
+/**
+ * Keeps a long leading label from crowding the delta and the bar out of the
+ * column; the full label is in the tooltip.
+ */
+const leadingLabelCSS = css`
+  display: inline-block;
+  max-width: 7em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+`;
 
 /**
  * Widest the sparkline grows. Past this it stops being glanceable: a 20px
@@ -138,7 +164,9 @@ export function ProjectEvaluatorMeanScoreHeader() {
 /**
  * The evaluators table's mean score cell: for each annotation the evaluator
  * writes, the mean score over the (clamped) page time range, its change vs.
- * the previous window, and a sparkline of per-bin means. The data arrives
+ * the previous window, and a sparkline of per-bin means. An annotation that
+ * only carries labels shows its leading label's share, that share's change,
+ * and a stacked bar of the label distribution instead. The data arrives
  * with the row via `ProjectEvaluator.annotationScoreMetrics`, which the
  * connection only fetches while the column is visible.
  */
@@ -197,6 +225,16 @@ function AnnotationMeanScoreView({
   const hasLabels = (summary?.labelFractions.length ?? 0) > 0;
   if (!hasScore && !hasLabels) {
     return meanScoreFallback;
+  }
+  if (!hasScore && summary != null) {
+    return (
+      <AnnotationLabelDistributionView
+        annotation={annotation}
+        windowKey={windowKey}
+        summary={summary}
+        previousLabelFractions={metrics?.previousSummary?.labelFractions}
+      />
+    );
   }
   const delta =
     hasScore && typeof previousMeanScore === "number"
@@ -317,6 +355,166 @@ function AnnotationMeanScoreView({
             </Text>
           );
         }}
+      />
+    </Flex>
+  );
+}
+
+type LabelFraction = { readonly label: string; readonly fraction: number };
+
+/** The arrow-and-magnitude form shared by the score and the share deltas. */
+function getDeltaArrow(delta: number) {
+  return delta > 0 ? "▲" : delta < 0 ? "▼" : "—";
+}
+
+/**
+ * A share change in percentage points: one decimal under 10, whole points
+ * above, matching how the shares themselves are rounded.
+ */
+function formatSharePointsDelta(delta: number) {
+  const points = Math.abs(delta * 100);
+  const rounded = Math.round(points * 10) / 10;
+  return `${getDeltaArrow(delta)} ${rounded < 10 ? rounded.toFixed(1) : Math.round(points)}pp`;
+}
+
+/**
+ * The cell for an annotation that carries labels but no scores: the leading
+ * label and its share where the mean score would be, the change in that
+ * share vs. the previous window, and the label distribution as a stacked bar
+ * in the sparkline's place, at the sparkline's width.
+ */
+function AnnotationLabelDistributionView({
+  annotation,
+  windowKey,
+  summary,
+  previousLabelFractions,
+}: {
+  annotation: ProjectEvaluatorResultAnnotation;
+  windowKey: string;
+  summary: NonNullable<EvaluatorAnnotationScoreMetricsData["summary"]>;
+  previousLabelFractions: ReadonlyArray<LabelFraction> | null | undefined;
+}) {
+  const colors = useAnnotationLabelColors(annotation.name);
+  const { config } = annotation;
+  const { labelFractions, labelCount } = summary;
+  // Draw labels in the config's order (the order their colors follow), then
+  // the server's order for labels the config doesn't list, so each label
+  // holds its place in the bar as the shares shift.
+  const configOrder = getAnnotationLabelOrder(config) ?? [];
+  const getRank = (label: string) => {
+    const rank = configOrder.indexOf(label);
+    return rank === -1 ? configOrder.length : rank;
+  };
+  const orderedLabelFractions = labelFractions
+    .map((entry, index) => ({ entry, index }))
+    .sort(
+      (left, right) =>
+        getRank(left.entry.label) - getRank(right.entry.label) ||
+        left.index - right.index
+    )
+    .map(({ entry }) => entry);
+  // The bar and the summary tooltip list the labels in the same order, and
+  // color them alike: by config order, falling back to that shared position.
+  const segments = orderedLabelFractions.map((entry, index) => ({
+    label: entry.label,
+    fraction: entry.fraction,
+    // The summary carries one labeled-annotation count, not one per label
+    count:
+      typeof labelCount === "number"
+        ? Math.round(entry.fraction * labelCount)
+        : null,
+    color: getAnnotationLabelColor(colors, index, entry.label, config),
+  }));
+  // The largest share; ties go to the label drawn first.
+  const leading = segments.reduce((best, segment) =>
+    segment.fraction > best.fraction ? segment : best
+  );
+  // A label the config scores reads as good or bad the way that score would.
+  const leadingOptimizationValue = getOptimizationValueFromConfig({
+    config,
+    score: config?.values?.find((value) => value.label === leading.label)
+      ?.score,
+  });
+  // No previous labels means nothing to compare against; a previous window
+  // that had labels but not this one had a share of zero.
+  const delta =
+    previousLabelFractions != null && previousLabelFractions.length > 0
+      ? leading.fraction -
+        (previousLabelFractions.find((entry) => entry.label === leading.label)
+          ?.fraction ?? 0)
+      : null;
+  const isImprovement =
+    delta == null ||
+    delta === 0 ||
+    leadingOptimizationValue == null ||
+    leadingOptimizationValue === 0
+      ? null
+      : delta > 0 === leadingOptimizationValue > 0;
+  const deltaText = delta == null ? null : formatSharePointsDelta(delta);
+  const shareText = formatPercentShort(leading.fraction * 100);
+  return (
+    <Flex direction="row" alignItems="center" gap="size-100" minWidth={0}>
+      <TooltipTrigger delay={0}>
+        <TriggerWrap>
+          <Flex direction="row" alignItems="center" gap="size-100" flex="none">
+            <AlignedScore>
+              <Text>
+                <AnnotationScoreText
+                  elementType="span"
+                  fontFamily="mono"
+                  optimizationValue={leadingOptimizationValue}
+                >
+                  <span css={leadingLabelCSS}>{leading.label}</span>
+                  &nbsp;{shareText}
+                </AnnotationScoreText>
+              </Text>
+            </AlignedScore>
+            {deltaText != null ? (
+              <Text
+                size="XS"
+                fontFamily="mono"
+                flex="none"
+                color={
+                  isImprovement == null
+                    ? "text-500"
+                    : isImprovement
+                      ? "success"
+                      : "danger"
+                }
+              >
+                {deltaText}
+              </Text>
+            ) : null}
+          </Flex>
+        </TriggerWrap>
+        <RichTooltip placement="bottom">
+          <Flex direction="column" gap="size-50">
+            <SummaryValueBreakdown
+              annotationName={annotation.name}
+              labelFractions={orderedLabelFractions}
+              annotationConfig={config}
+              count={summary.count}
+              scoreCount={summary.scoreCount}
+              labelCount={labelCount}
+            />
+            {deltaText != null ? (
+              <Text size="S" color="text-700">
+                {deltaText} in {leading.label}&apos;s share vs. the previous{" "}
+                {windowKey}
+              </Text>
+            ) : null}
+          </Flex>
+        </RichTooltip>
+      </TooltipTrigger>
+      <LabelDistributionBar
+        segments={segments}
+        maxWidth={SPARKLINE_MAX_WIDTH}
+        aria-label={`${annotation.name} labels over the last ${windowKey}`}
+        tooltipHeader={
+          <Text size="S" color="text-700">
+            {annotation.name} labels, last {windowKey}
+          </Text>
+        }
       />
     </Flex>
   );

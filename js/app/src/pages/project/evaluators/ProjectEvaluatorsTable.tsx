@@ -300,6 +300,10 @@ const readRow = (
           }
           previousSummary {
             meanScore
+            labelFractions {
+              label
+              fraction
+            }
           }
           series {
             timestamp
