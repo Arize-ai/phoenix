@@ -16240,7 +16240,7 @@
               }
             ],
             "title": "Output Configs",
-            "description": "Null inherits the shared output configs. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema. A decision binding's configs are derived from its scoring policy, so they are accepted only if they equal the derived ones, and are not stored."
+            "description": "Null inherits the shared output configs. An override needs at least one config, each with its own name; an LLM binding's configs must be categorical. Nothing checks them against the prompt. A decision binding's configs are derived from its scoring policy, so they are accepted only if they equal the derived ones, and are not stored."
           }
         },
         "additionalProperties": false,
@@ -16691,8 +16691,7 @@
                 "type": "null"
               }
             ],
-            "title": "Description",
-            "description": "Must equal the description of the prompt's tool function, since an LLM evaluator's description is the instruction its output tool carries."
+            "title": "Description"
           },
           "prompt": {
             "$ref": "#/components/schemas/LLMEvaluatorPromptInput",
@@ -20700,8 +20699,7 @@
                 "type": "null"
               }
             ],
-            "title": "Description",
-            "description": "Equals the description of the prompt's tool function."
+            "title": "Description"
           },
           "prompt": {
             "$ref": "#/components/schemas/LLMEvaluatorPrompt"
@@ -22423,7 +22421,7 @@
               }
             ],
             "title": "Output Configs",
-            "description": "Omit to preserve; null restores inheritance. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema. A decision binding's configs are derived from its scoring policy, so they are accepted only if they equal the derived ones, and are not stored."
+            "description": "Omit to preserve; null restores inheritance. An override needs at least one config, each with its own name; an LLM binding's configs must be categorical. Nothing checks them against the prompt. A decision binding's configs are derived from its scoring policy, so they are accepted only if they equal the derived ones, and are not stored."
           }
         },
         "additionalProperties": false,
@@ -22553,8 +22551,7 @@
                 "type": "null"
               }
             ],
-            "title": "Description",
-            "description": "Must equal the description of the prompt's tool function, since an LLM evaluator's description is the instruction its output tool carries."
+            "title": "Description"
           },
           "prompt": {
             "$ref": "#/components/schemas/LLMEvaluatorPromptInput",

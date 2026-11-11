@@ -2969,7 +2969,7 @@
                         "type": "prometheus",
                         "uid": "PBFA97CFB590B2093"
                     },
-                    "expr": "max(phoenix_online_eval_exhausted_error_work_units{evaluation_target=\"SPAN\"})",
+                    "expr": "sum(increase(phoenix_online_eval_completed_work_units_total{evaluation_target=\"SPAN\",outcome=\"failed\"}[24h]))",
                     "legendFormat": "failed",
                     "refId": "A"
                 },
@@ -2978,7 +2978,7 @@
                         "type": "prometheus",
                         "uid": "PBFA97CFB590B2093"
                     },
-                    "expr": "max(phoenix_online_eval_expired_work_units{evaluation_target=\"SPAN\"})",
+                    "expr": "sum(increase(phoenix_online_eval_completed_work_units_total{evaluation_target=\"SPAN\",outcome=~\"expired|content_lost\"}[24h]))",
                     "legendFormat": "expired",
                     "refId": "B"
                 },
@@ -2987,14 +2987,14 @@
                         "type": "prometheus",
                         "uid": "PBFA97CFB590B2093"
                     },
-                    "expr": "max(phoenix_online_eval_cleared_work_units{evaluation_target=\"SPAN\"})",
+                    "expr": "sum(increase(phoenix_online_eval_completed_work_units_total{evaluation_target=\"SPAN\",outcome=~\"cleared|evaluator_disabled\"}[24h]))",
                     "legendFormat": "cleared",
                     "refId": "C"
                 }
             ],
-            "title": "🪦 Span Eval Terminal Work (window)",
+            "title": "🪦 Span Eval Terminal Work (24h)",
             "type": "timeseries",
-            "description": "Span work units that ended as failed (out of retries), expired, or cleared, and were last updated within the terminal-metrics window. Every replica reports the same value, so this takes the max."
+            "description": "Span work units that ended as failed (out of retries), expired, or cleared in the past 24 hours. Each replica counts its own, so this takes the sum."
         },
         {
             "datasource": {
@@ -3630,7 +3630,7 @@
                         "type": "prometheus",
                         "uid": "PBFA97CFB590B2093"
                     },
-                    "expr": "max(phoenix_online_eval_exhausted_error_work_units{evaluation_target=\"TRACE\"})",
+                    "expr": "sum(increase(phoenix_online_eval_completed_work_units_total{evaluation_target=\"TRACE\",outcome=\"failed\"}[24h]))",
                     "legendFormat": "failed",
                     "refId": "A"
                 },
@@ -3639,7 +3639,7 @@
                         "type": "prometheus",
                         "uid": "PBFA97CFB590B2093"
                     },
-                    "expr": "max(phoenix_online_eval_expired_work_units{evaluation_target=\"TRACE\"})",
+                    "expr": "sum(increase(phoenix_online_eval_completed_work_units_total{evaluation_target=\"TRACE\",outcome=~\"expired|content_lost\"}[24h]))",
                     "legendFormat": "expired",
                     "refId": "B"
                 },
@@ -3648,14 +3648,14 @@
                         "type": "prometheus",
                         "uid": "PBFA97CFB590B2093"
                     },
-                    "expr": "max(phoenix_online_eval_cleared_work_units{evaluation_target=\"TRACE\"})",
+                    "expr": "sum(increase(phoenix_online_eval_completed_work_units_total{evaluation_target=\"TRACE\",outcome=~\"cleared|evaluator_disabled\"}[24h]))",
                     "legendFormat": "cleared",
                     "refId": "C"
                 }
             ],
-            "title": "🪦 Trace Eval Terminal Work (window)",
+            "title": "🪦 Trace Eval Terminal Work (24h)",
             "type": "timeseries",
-            "description": "Trace work units that ended as failed (out of retries), expired, or cleared, and were last updated within the terminal-metrics window. Every replica reports the same value, so this takes the max."
+            "description": "Trace work units that ended as failed (out of retries), expired, or cleared in the past 24 hours. Each replica counts its own, so this takes the sum."
         },
         {
             "datasource": {
@@ -4561,7 +4561,7 @@
                         "type": "prometheus",
                         "uid": "PBFA97CFB590B2093"
                     },
-                    "expr": "max(phoenix_online_eval_exhausted_error_work_units{evaluation_target=\"SESSION\"})",
+                    "expr": "sum(increase(phoenix_online_eval_completed_work_units_total{evaluation_target=\"SESSION\",outcome=\"failed\"}[24h]))",
                     "legendFormat": "failed",
                     "refId": "A"
                 },
@@ -4570,7 +4570,7 @@
                         "type": "prometheus",
                         "uid": "PBFA97CFB590B2093"
                     },
-                    "expr": "max(phoenix_online_eval_expired_work_units{evaluation_target=\"SESSION\"})",
+                    "expr": "sum(increase(phoenix_online_eval_completed_work_units_total{evaluation_target=\"SESSION\",outcome=~\"expired|content_lost\"}[24h]))",
                     "legendFormat": "expired",
                     "refId": "B"
                 },
@@ -4579,14 +4579,14 @@
                         "type": "prometheus",
                         "uid": "PBFA97CFB590B2093"
                     },
-                    "expr": "max(phoenix_online_eval_cleared_work_units{evaluation_target=\"SESSION\"})",
+                    "expr": "sum(increase(phoenix_online_eval_completed_work_units_total{evaluation_target=\"SESSION\",outcome=~\"cleared|evaluator_disabled\"}[24h]))",
                     "legendFormat": "cleared",
                     "refId": "C"
                 }
             ],
-            "title": "🪦 Session Eval Terminal Work (window)",
+            "title": "🪦 Session Eval Terminal Work (24h)",
             "type": "timeseries",
-            "description": "Session work units that ended as failed (out of retries), expired, or cleared, and were last updated within the terminal-metrics window. Every replica reports the same value, so this takes the max."
+            "description": "Session work units that ended as failed (out of retries), expired, or cleared in the past 24 hours. Each replica counts its own, so this takes the sum."
         },
         {
             "datasource": {

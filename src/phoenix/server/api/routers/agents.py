@@ -87,9 +87,7 @@ from phoenix.config import (
 )
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
-from phoenix.db.insertion.project_session import advance_project_session_liveness
-from phoenix.db.insertion.trace import advance_trace_liveness
+from phoenix.db.insertion.helpers import OnConflict, advance_liveness, insert_on_conflict
 from phoenix.db.types.data_stream_protocol import (
     AssistantMessageMetadataUsage,
     AssistantMessageMetadataUsageCacheTokenDetails,
@@ -1431,8 +1429,8 @@ async def _persist_db_traces(
     session.add_all([*traces_to_insert, *spans_to_insert])
     await session.flush()
     trace_rowids_with_new_spans.update(db_trace.id for db_trace in traces_to_insert)
-    await advance_project_session_liveness(session, project_session_rowids_with_new_spans)
-    await advance_trace_liveness(session, trace_rowids_with_new_spans)
+    await advance_liveness(session, models.ProjectSession, project_session_rowids_with_new_spans)
+    await advance_liveness(session, models.Trace, trace_rowids_with_new_spans)
     await _refresh_cumulative_span_counts(session=session, trace_ids=trace_ids)
     return project_ids
 

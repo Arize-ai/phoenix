@@ -1,4 +1,5 @@
-from typing import Iterable
+from datetime import datetime, timedelta, timezone
+from typing import Iterable, Optional
 
 from strawberry.dataloader import DataLoader
 
@@ -12,8 +13,10 @@ from phoenix.server.online_eval.current_queue import (
     load_project_evaluator_targets,
     queued_by_project,
 )
-from phoenix.server.online_eval.throughput import QueueThroughput, load_queue_throughput
+from phoenix.server.online_eval.evaluation_activity import load_added_and_completed
 from phoenix.server.types import DbSessionFactory
+
+RATE_WINDOW = timedelta(hours=1)
 
 
 class EvaluationQueueDataLoader(DataLoader[None, EvaluationQueue]):
@@ -28,16 +31,23 @@ class EvaluationQueueDataLoader(DataLoader[None, EvaluationQueue]):
         return [queue for _ in keys]
 
 
-class EvaluationQueueThroughputDataLoader(DataLoader[EvaluationQueue, QueueThroughput]):
-    """The queue's rates, read once per request and only by the fields that show them. A
-    project's rates come from the same read."""
+class EvaluationQueueRatesDataLoader(DataLoader[Optional[int], tuple[int, int]]):
+    """Evaluations added to the queue and completed over the last ``RATE_WINDOW``, of one
+    project or, keyed by None, of every project, read once per request and only by the
+    fields that show them."""
 
     def __init__(self, db: DbSessionFactory) -> None:
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
-    async def _load_fn(self, keys: Iterable[EvaluationQueue]) -> list[QueueThroughput]:
-        return [await load_queue_throughput(self._db, queue) for queue in keys]
+    async def _load_fn(self, keys: Iterable[Optional[int]]) -> list[tuple[int, int]]:
+        end = datetime.now(timezone.utc)
+        return [
+            await load_added_and_completed(
+                self._db, project_id=project_id, start=end - RATE_WINDOW, end=end
+            )
+            for project_id in keys
+        ]
 
 
 class EvaluationQueueProjectsDataLoader(DataLoader[int, list[ProjectQueuedCount]]):

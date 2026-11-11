@@ -34,14 +34,14 @@ export interface CreateDatasetEvaluatorParams extends ClientFn {
    */
   inputMapping: EvaluatorInputMapping;
   /**
-   * Overrides the shared definition's description for this binding. For LLM
-   * evaluators it must equal the description of the prompt's tool function.
+   * Overrides the shared definition's description for this binding.
    */
   description?: string;
   /**
    * Overrides the shared definition's output configurations for this binding
-   * with at least one config; omit it to inherit them. For LLM evaluators the
-   * override must match the prompt's tool schema.
+   * with at least one config, each with its own name; omit it to inherit them.
+   * For LLM evaluators the override must be categorical. It is not checked
+   * against the prompt.
    */
   outputConfigs?: EvaluatorOutputConfig[];
 }
