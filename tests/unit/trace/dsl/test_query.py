@@ -139,7 +139,7 @@ async def test_select_parent_id_as_span_id(
     expected = pd.DataFrame(
         {
             "context.span_id": ["123", "234", "234", "234"],
-            "name": ["root span", "embedding span", "retriever span", "llm span"],
+            "name": ["root span", "llm span", "retriever span", "embedding span"],
         }
     ).set_index("context.span_id")
     async with db() as session:
