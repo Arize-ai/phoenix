@@ -22,6 +22,12 @@ register({ projectName: "my-app" });
 
 Connects to `http://localhost:6006` by default.
 
+`@arizeai/phoenix-otel` 3.x is built on OpenTelemetry JS 3 and requires
+Node.js >= 22.15, `@opentelemetry/api` >= 1.10, and instrumentations compatible
+with `@opentelemetry/instrumentation` 0.301. `register()` returns the
+`@opentelemetry/sdk-trace` `TracerProvider` (exported as the `NodeTracerProvider`
+type).
+
 ## Configuration
 
 ```typescript
@@ -70,7 +76,9 @@ discovery.
 default Phoenix exporter setup rather than adding to it. For these setups you do
 not need to install the underlying OTel/OpenInference packages:
 
-- The package root re-exports `OTLPTraceExporter` and `ensureCollectorEndpoint`.
+- The package root re-exports `OTLPTraceExporter`, `ensureCollectorEndpoint`,
+  `BatchSpanProcessor`, `SimpleSpanProcessor`, and the `SpanProcessor` type.
+  The span processors take an options object: `new BatchSpanProcessor({ exporter })`.
 - The **ESM-only** subpath `@arizeai/phoenix-otel/vercel` re-exports
   `@arizeai/openinference-vercel` — `OpenInferenceSimpleSpanProcessor`,
   `OpenInferenceBatchSpanProcessor`, `isOpenInferenceSpan`, and types.
@@ -118,6 +126,40 @@ If the module cannot be loaded at all (e.g. a bundler stripped dynamic imports),
 it falls back to the plain OTel batch/simple processors and emits a diagnostic
 warning: spans still reach Phoenix, but AI SDK telemetry is not translated to
 OpenInference. This is the processor `register()` uses by default.
+
+Plain OTel processors from the root work the same way, and can be combined with
+your own `SpanProcessor`:
+
+```typescript
+import {
+  BatchSpanProcessor,
+  ensureCollectorEndpoint,
+  OTLPTraceExporter,
+  register,
+} from "@arizeai/phoenix-otel";
+
+const exporter = new OTLPTraceExporter({
+  url: ensureCollectorEndpoint("http://localhost:6006"),
+});
+
+register({
+  projectName: "my-app",
+  spanProcessors: [new BatchSpanProcessor({ exporter })],
+});
+```
+
+## Non-Global Providers
+
+`register({ global: false })` returns a provider without making it the global
+OpenTelemetry provider. The returned provider has no `register()` method; to make
+it global later, call `attachGlobalTracerProvider()`:
+
+```typescript
+import { attachGlobalTracerProvider, register } from "@arizeai/phoenix-otel";
+
+const provider = register({ projectName: "my-app", global: false });
+attachGlobalTracerProvider(provider);
+```
 
 ## ESM vs CommonJS
 

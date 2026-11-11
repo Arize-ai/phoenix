@@ -69,6 +69,17 @@ text, image, blob, and reasoning parts each become an entry under
 survives the conversion as a `reasoning` part rather than being folded into the
 answer text. See [span-llm](span-llm.md#messages) for the full content-part shape.
 
+Token usage maps onto the `llm.token_count.*` attributes, so cost tracking prices
+each kind separately:
+
+| `gen_ai` attribute | OpenInference attribute |
+|---|---|
+| `gen_ai.usage.input_tokens` | `llm.token_count.prompt` |
+| `gen_ai.usage.output_tokens` | `llm.token_count.completion` |
+| `gen_ai.usage.cache_read.input_tokens` | `llm.token_count.prompt_details.cache_read` |
+| `gen_ai.usage.cache_write.input_tokens`, falling back to `gen_ai.usage.cache_creation.input_tokens` | `llm.token_count.prompt_details.cache_write` |
+| `gen_ai.usage.reasoning.output_tokens` | `llm.token_count.completion_details.reasoning` |
+
 No client-side changes required. Send OTLP to Phoenix as usual:
 
 ```python
