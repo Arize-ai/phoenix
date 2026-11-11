@@ -1162,7 +1162,10 @@ export function SpansTable(props: SpansTableProps) {
             </div>
           </Panel>
           <TableAsidePanel>
-            <SpansTableAside filterCondition={filterCondition} />
+            <SpansTableAside
+              filterCondition={filterCondition}
+              spanAnnotationNames={data.spanAnnotationNames}
+            />
           </TableAsidePanel>
         </Group>
         {selectedRows.length ? (
