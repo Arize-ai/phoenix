@@ -605,7 +605,6 @@ function ProjectPageContentBody({
   );
 }
 
-/** Suspends below the table loaders, so their requests do not wait on this query. */
 function ProjectPageTabs({ projectId }: { projectId: string }) {
   const navigate = useNavigate();
   const location = useLocation();

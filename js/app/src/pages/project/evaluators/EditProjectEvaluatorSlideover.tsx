@@ -87,7 +87,6 @@ function getEditProjectEvaluatorTitle({
   return `Edit ${kindLabel} evaluator “${name}”`;
 }
 
-/** Opens at once; the form loads under the slideover's loading state. */
 export function EditProjectEvaluatorSlideover({
   projectEvaluatorId,
   kind,
