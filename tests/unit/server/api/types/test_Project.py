@@ -5774,6 +5774,10 @@ async def test_first_page_of_newest_spans_reads_few_spans_on_postgresql(
             session.add_all([root, _span(trace, trace.start_time, parent_id=root.span_id)])
         await session.flush()
         project_rowid = projects[project_name].id
+    async with engine.begin() as conn:
+        # Without statistics the planner expects one trace in the project, and PostgreSQL 14
+        # then sorts every trace's spans instead of stopping at the page.
+        await conn.exec_driver_sql("ANALYZE traces, spans")
     statements: list[tuple[str, Any]] = []
 
     def capture(
@@ -5810,14 +5814,15 @@ async def test_first_page_of_newest_spans_reads_few_spans_on_postgresql(
         # hides whether a statement stops once the page is full.
         for setting in ("enable_seqscan", "enable_bitmapscan"):
             await conn.exec_driver_sql(f"SET LOCAL {setting} = off")
+        # The view also counts what this connection read in transactions before this one.
+        spans_read_so_far = (
+            "SELECT seq_tup_read + idx_tup_fetch FROM pg_stat_xact_user_tables "
+            "WHERE relname = 'spans'"
+        )
+        read_before = (await conn.exec_driver_sql(spans_read_so_far)).scalar_one()
         for statement, parameters in statements:
             await conn.exec_driver_sql(statement, parameters)
-        spans_read = (
-            await conn.exec_driver_sql(
-                "SELECT seq_tup_read + idx_tup_fetch FROM pg_stat_xact_user_tables "
-                "WHERE relname = 'spans'"
-            )
-        ).scalar_one()
+        spans_read = (await conn.exec_driver_sql(spans_read_so_far)).scalar_one() - read_before
     assert spans_read <= 4 * walk_limit
 
 
