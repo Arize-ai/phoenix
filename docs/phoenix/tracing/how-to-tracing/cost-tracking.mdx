@@ -58,7 +58,7 @@ For more granular cost tracking, you can provide detailed token counts:
 
 ### Decision spans
 
-[DECISION spans](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds#decision), calls to decision models such as the OpenAI Decisions API or TypeSafe System One, are priced too. They are priced only against decision-model prices, never LLM prices, even when an LLM has the same name (such as `gpt-6-luna`). Their cost counts toward trace, session, and project cost totals. Phoenix reads these attributes from decision spans:
+[DECISION spans](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds#decision) record calls to decision models such as the OpenAI Decisions API or TypeSafe System One. Phoenix prices them only against decision-model prices, never LLM prices, even when an LLM shares the model name (such as `gpt-6-luna`). When a matching decision-model price exists, Phoenix calculates the span cost; otherwise, Phoenix records the token counts with no cost. Decision tokens and costs count toward trace, session, experiment, and project cost summaries. Phoenix reads these attributes from decision spans:
 
 | Attribute                     | Type    | Description                                                                                                                                                           |
 | :----------------------------- | :------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -67,7 +67,7 @@ For more granular cost tracking, you can provide detailed token counts:
 | `decision.token_count.input`  | Integer | The number of input tokens                                                                                                                                            |
 | `decision.token_count.output` | Integer | The number of output tokens                                                                                                                                           |
 
-Decision token counts have no detailed breakdown. If a decision span sets neither `decision.token_count.input` nor `decision.token_count.output`, Phoenix uses `llm.token_count.prompt` and `llm.token_count.completion` instead, as set by older instrumentation.
+If a decision span sets `decision.token_count.input` or `decision.token_count.output`, Phoenix uses only those two attributes and treats an omitted side as `0`. In that case, Phoenix ignores all `llm.token_count.*` attributes, including `*_details`. Otherwise, Phoenix falls back to `llm.token_count.prompt`, `llm.token_count.completion`, and their `*_details` breakdown from older instrumentation.
 
 ## Model pricing configuration
 
@@ -161,11 +161,11 @@ Once configured, Phoenix automatically displays cost information throughout the 
 
 Phoenix automatically tracks costs for traced experiments, providing detailed cost analysis across experiment runs:
 
-* **Total experiment cost**: Sum of all LLM costs across all experiment runs
+* **Total experiment cost**: Sum of all span costs across all experiment runs
 * **Cost per experiment run**: Individual cost for each dataset example run through an experiment Experiment costs are automatically calculated when you:
 
 1. Run experiments on datasets through Phoenix
-2. Include proper token count and model information in your traced LLM calls
+2. Include proper token count and model information in your traced LLM or decision-model calls
 3. Have model pricing configured for the models used in experiments
 
 ### Project-level analytics
