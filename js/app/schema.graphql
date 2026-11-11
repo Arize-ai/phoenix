@@ -5177,9 +5177,9 @@ input UpdateModelMutationInput {
   startTime: DateTime = null
 
   """
-  The kind of span the model is priced for. Omit or pass null to keep it.
+  The kind of span the model is priced for. Omitted leaves the type unchanged.
   """
-  modelType: GenerativeModelType = null
+  modelType: GenerativeModelType
 }
 
 type UpdateModelMutationPayload {

@@ -558,6 +558,31 @@ class TestModelMutations:
                 "Invalid regex: unterminated character set at position 0",
                 id="invalid-regex",
             ),
+            pytest.param(
+                {
+                    "input": {
+                        "id": str(GlobalID(GenerativeModel.__name__, str(1))),
+                        "name": "updated-model",
+                        "provider": "openai",
+                        "namePattern": "gpt-*",
+                        "modelType": None,
+                        "costs": [
+                            {
+                                "tokenType": "input",
+                                "kind": "PROMPT",
+                                "costPerMillionTokens": 0.001 * 1_000_000,
+                            },
+                            {
+                                "tokenType": "output",
+                                "kind": "COMPLETION",
+                                "costPerMillionTokens": 0.002 * 1_000_000,
+                            },
+                        ],
+                    }
+                },
+                "modelType cannot be null",
+                id="null-model-type",
+            ),
         ],
     )
     async def test_updating_model_with_invalid_input_fails_with_expected_error(
@@ -1262,7 +1287,6 @@ class TestModelMutations:
         "model_type_input,expected_model_type",
         [
             pytest.param({}, "DECISION", id="omitted-keeps-stored-type"),
-            pytest.param({"modelType": None}, "DECISION", id="null-keeps-stored-type"),
             pytest.param({"modelType": "EMBEDDING"}, "EMBEDDING", id="changes-type"),
             pytest.param({"modelType": "LLM"}, "LLM", id="changes-type-back-to-llm"),
         ],
