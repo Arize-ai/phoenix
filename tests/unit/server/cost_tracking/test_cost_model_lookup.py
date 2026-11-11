@@ -1251,7 +1251,7 @@ class TestCostModelLookupMerge:
     def test_lookup_follows_model_type_through_merge(self) -> None:
         """
         Each span kind finds only its own model type, including after `merge` changes a model's
-        type. EMBEDDING models are never priced.
+        type.
         """
 
         def model(id: int, type: models.GenerativeModelType) -> models.GenerativeModel:
@@ -1283,9 +1283,17 @@ class TestCostModelLookupMerge:
         result = lookup.find_model(start_time=start_time, attributes=decision_attributes)
         assert result is not None and result.id == 2
 
-        # A model that becomes EMBEDDING is dropped.
-        lookup.merge([model(2, "EMBEDDING")])
+        # A model that becomes EMBEDDING moves to embedding spans.
+        embedding_attributes = {
+            "openinference": {"span": {"kind": "EMBEDDING"}},
+            "embedding": {"model_name": "gpt-6-luna"},
+        }
+        result = lookup.find_model(start_time=start_time, attributes=embedding_attributes)
+        assert result is not None and result.id == 3
+        lookup.merge([model(3, "LLM"), model(2, "EMBEDDING")])
         assert lookup.find_model(start_time=start_time, attributes=decision_attributes) is None
+        result = lookup.find_model(start_time=start_time, attributes=embedding_attributes)
+        assert result is not None and result.id == 2
 
 
 def _model(
@@ -1309,26 +1317,44 @@ def _decision(**decision: Any) -> dict[str, Any]:
     return {"openinference": {"span": {"kind": "DECISION"}}, "decision": decision}
 
 
+def _embedding(**llm: Any) -> dict[str, Any]:
+    return {
+        "openinference": {"span": {"kind": "EMBEDDING"}},
+        "embedding": {"model_name": "gpt-6-luna"},
+        "llm": llm,
+    }
+
+
 class TestCostModelLookupByType:
-    """The span kind picks the model type: DECISION spans match DECISION models only."""
+    """
+    The span kind picks the model type: DECISION spans match DECISION models only, EMBEDDING
+    spans EMBEDDING models only.
+    """
 
     @pytest.mark.parametrize(
         "generative_models,attributes,expected_model_id",
         [
             pytest.param(
-                [_model(1, "LLM"), _model(2, "LLM", is_built_in=False)],
+                [
+                    _model(1, "LLM"),
+                    _model(2, "LLM", is_built_in=False),
+                    _model(3, "EMBEDDING", is_built_in=False),
+                ],
                 _decision(model_name="gpt-6-luna"),
                 None,
-                id="decision_span_never_falls_back_to_llm_models",
+                id="decision_span_never_falls_back_to_other_types",
             ),
             pytest.param(
-                [_model(1, "DECISION", name_pattern="^gpt-6-luna$", is_built_in=False)],
+                [
+                    _model(1, "DECISION", name_pattern="^gpt-6-luna$", is_built_in=False),
+                    _model(2, "EMBEDDING", name_pattern="^gpt-6-luna$", is_built_in=False),
+                ],
                 {
                     "openinference": {"span": {"kind": "LLM"}},
                     "llm": {"model_name": "gpt-6-luna"},
                 },
                 None,
-                id="llm_span_never_falls_back_to_decision_models",
+                id="llm_span_never_falls_back_to_other_types",
             ),
             pytest.param(
                 [_model(1, "LLM"), _model(2, "DECISION")],
@@ -1365,6 +1391,18 @@ class TestCostModelLookupByType:
                 {**_decision(model_name=123), "llm": {"model_name": "jev"}},
                 2,
                 id="non_string_decision_model_name_falls_back_to_llm_model_name",
+            ),
+            pytest.param(
+                [_model(1, "LLM"), _model(2, "DECISION", is_built_in=False)],
+                _embedding(),
+                None,
+                id="embedding_span_never_falls_back_to_other_types",
+            ),
+            pytest.param(
+                [_model(1, "EMBEDDING"), _model(2, "EMBEDDING", provider="azure")],
+                _embedding(provider="azure"),
+                2,
+                id="llm_provider_breaks_ties_on_embedding_spans",
             ),
         ],
     )

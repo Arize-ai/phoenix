@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 import pytest
-from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
+from opentelemetry.proto.common.v1.common_pb2 import AnyValue, ArrayValue, KeyValue
 from sqlalchemy import NullPool, delete, func, select, text
 from sqlalchemy.exc import DBAPIError, StatementError
 from sqlalchemy.ext.asyncio import AsyncSession, AsyncSessionTransaction, create_async_engine
@@ -709,6 +709,82 @@ async def test_decision_span_gets_a_cost_row(db: DbSessionFactory) -> None:
     assert cost is not None
     assert cost.model_id == decision_model.id
     assert cost.total_cost == pytest.approx(1000 * 1e-7)
+
+
+def _otlp_embedding_span(model_name: str, *, span_id: bytes) -> otlp.Span:
+    """Attributes from the embedding spec's text input example (it sets no provider), as OTLP."""
+    attributes = [
+        KeyValue(key=key, value=value)
+        for key, value in (
+            ("openinference.span.kind", AnyValue(string_value="EMBEDDING")),
+            ("embedding.model_name", AnyValue(string_value=model_name)),
+            ("embedding.embeddings.0.embedding.text", AnyValue(string_value="hello world")),
+            (
+                "embedding.embeddings.0.embedding.vector",
+                AnyValue(
+                    array_value=ArrayValue(values=[AnyValue(double_value=v) for v in (0.1, 0.2)])
+                ),
+            ),
+            ("llm.token_count.prompt", AnyValue(int_value=2)),
+            ("llm.token_count.total", AnyValue(int_value=2)),
+        )
+    ]
+    start = int(_START.timestamp() * 1e9)
+    return otlp.Span(
+        trace_id=bytes(range(1, 17)),
+        span_id=span_id,
+        name=model_name,
+        start_time_unix_nano=start,
+        end_time_unix_nano=start + 200_000_000,
+        attributes=attributes,
+    )
+
+
+async def test_embedding_span_from_otlp_gets_a_cost_row(db: DbSessionFactory) -> None:
+    # An LLM row with the same pattern must not price the embedding span, and an embedding span
+    # with no EMBEDDING row still gets a row with its tokens and NULL costs.
+    rows = {
+        model_type: models.GenerativeModel(
+            name=f"text-embedding-3-small-{model_type.lower()}",
+            provider="openai",
+            name_pattern=re.compile("text-embedding-3-small"),
+            is_built_in=True,
+            type=model_type,
+            token_prices=[models.TokenPrice(token_type="input", is_prompt=True, base_rate=rate)],
+        )
+        for model_type, rate in (("LLM", 1e-6), ("EMBEDDING", 2e-8))
+    }
+    async with db() as session:
+        session.add_all(rows.values())
+    store = GenerativeModelStore(db=db)
+    await store._fetch_models()
+    inserter = _inserter(
+        db,
+        decode_otlp_span(
+            _otlp_embedding_span("text-embedding-3-small", span_id=bytes(range(1, 9)))
+        ),
+        decode_otlp_span(_otlp_embedding_span("nomic-embed-text", span_id=bytes(range(9, 17)))),
+    )
+    inserter._span_cost_calculator = SpanCostCalculator(model_store=store)
+    await inserter._insert_spans(2)
+    async with db() as session:
+        costs_by_name = dict(
+            (
+                await session.execute(
+                    select(models.Span.name, models.SpanCost).join(
+                        models.SpanCost, models.SpanCost.span_rowid == models.Span.id
+                    )
+                )
+            ).all()
+        )
+    assert set(costs_by_name) == {"text-embedding-3-small", "nomic-embed-text"}
+    for cost in costs_by_name.values():
+        assert (cost.prompt_tokens, cost.completion_tokens, cost.total_tokens) == (2, None, 2)
+        assert cost.completion_cost is None
+    assert costs_by_name["text-embedding-3-small"].model_id == rows["EMBEDDING"].id
+    assert costs_by_name["text-embedding-3-small"].total_cost == pytest.approx(2 * 2e-8)
+    assert costs_by_name["nomic-embed-text"].model_id is None
+    assert costs_by_name["nomic-embed-text"].total_cost is None
 
 
 @pytest.mark.parametrize("sqlstate", ["40P01", "40001", "08006"])
