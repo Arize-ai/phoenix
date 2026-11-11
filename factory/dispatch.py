@@ -35,6 +35,10 @@ VAULT_LOCK_KEY = "./vaults/github.yaml"
 GRAFANA_VAULT_LOCK_KEY = "./vaults/grafana.yaml"
 DATADOG_VAULT_LOCK_KEY = "./vaults/datadog.yaml"
 FACTORY_LABEL = "factory"
+PREVIEW_LABEL = "factory-preview"
+PREVIEW_LABEL_COLOR = "0E8A16"
+PREVIEW_LABEL_DESCRIPTION = "Deploy a seeded preview of this PR (Factory Preview)"
+PREVIEW_LANES = {"bug", "feature"}
 
 LANE_AGENT_LOCK_KEYS = {
     "docs": "./agents/docs-writer.md",
@@ -82,6 +86,20 @@ def run_gh(*args: str, token: Optional[str] = None, input_text: Optional[str] = 
         ["gh", *args], capture_output=True, text=True, check=True, env=env, input=input_text
     )
     return completed_process.stdout
+
+
+def format_mention(*, login: Optional[str]) -> str:
+    """Return a line that names `login`, or "" when there is nobody to alert.
+
+    GitHub notifies someone only when a comment names them, and a factory comment is often
+    the only word whoever asked for the run gets, so every comment a lane posts ends with
+    this. A bot account is never notified, which covers both WORKFLOW_LOGIN and the
+    factory's own app, so those get no line. The line goes last: factory-candidates.yml
+    tells a factory comment by its "The factory" opening.
+    """
+    if not login or login.endswith("[bot]"):
+        return ""
+    return f"\n\ncc @{login}"
 
 
 def comment_on_issue(*, issue_number: int, body: str, token: Optional[str]) -> None:
@@ -151,6 +169,27 @@ def report_on_status_comment(
             )
         except subprocess.CalledProcessError as error:
             print(f"::warning::Deleting status comment {comment_id} failed: {error}")
+
+
+def add_preview_label(*, pr_number: int, token: Optional[str]) -> bool:
+    try:
+        existing = run_gh("label", "list", "--search", PREVIEW_LABEL, "--json", "name", token=token)
+        if PREVIEW_LABEL not in {label["name"] for label in json.loads(existing)}:
+            run_gh(
+                "label",
+                "create",
+                PREVIEW_LABEL,
+                "--color",
+                PREVIEW_LABEL_COLOR,
+                "--description",
+                PREVIEW_LABEL_DESCRIPTION,
+                token=token,
+            )
+        run_gh("pr", "edit", str(pr_number), "--add-label", PREVIEW_LABEL, token=token)
+        return True
+    except subprocess.CalledProcessError as error:
+        print(f"::warning::Could not add the {PREVIEW_LABEL} label: {error.stderr}")
+        return False
 
 
 def remove_factory_label(*, issue_number: int, token: Optional[str]) -> None:
@@ -570,6 +609,7 @@ def watch_session(
     else:
         status_line = f"left {pr['url']} before CI finished"
         ready_at = datetime.min.replace(tzinfo=timezone.utc)
+        preview_labeled = False
         for feedback_round in range(MAX_FEEDBACK_ROUNDS + 1):
             failing_checks = wait_for_required_checks(pr_number=pr["number"], deadline=deadline)
             if failing_checks is None:
@@ -589,6 +629,10 @@ def watch_session(
                     # Leaving draft is what starts the automated code review.
                     ready_at = datetime.now(timezone.utc) - timedelta(minutes=1)
                     run_gh("pr", "ready", str(pr["number"]), token=app_token.refresh())
+                if lane in PREVIEW_LANES and not preview_labeled:
+                    preview_labeled = add_preview_label(
+                        pr_number=pr["number"], token=app_token.refresh()
+                    )
                 if not wait_for_review_run(
                     head_sha=pr["headRefOid"], created_after=ready_at, deadline=deadline
                 ):
@@ -722,7 +766,10 @@ def run_start(*, args: argparse.Namespace) -> None:
     if admission_problem is not None:
         comment_on_issue(
             issue_number=args.issue,
-            body=f"The factory skipped this issue: {admission_problem}.",
+            body=(
+                f"The factory skipped this issue: {admission_problem}."
+                f"{format_mention(login=requester_login)}"
+            ),
             token=app_token.refresh(),
         )
         remove_factory_label(issue_number=args.issue, token=app_token.refresh())
@@ -752,12 +799,14 @@ def run_start(*, args: argparse.Namespace) -> None:
             f"The factory is running the **{lane}** lane for this issue "
             f"(session {format_session_link(session_id=session_id)}). "
             f"It reports back here when the session ends."
+            f"{format_mention(login=requester_login)}"
         ),
         token=app_token.refresh(),
     )
     write_github_outputs(
         started="true",
         lane=lane,
+        requested_by=requester_login,
         session_id=session_id,
         status_comment_id=str(status_comment_id),
     )
@@ -794,7 +843,7 @@ def run_watch(*, args: argparse.Namespace) -> None:
         report_on_status_comment(
             number=args.issue,
             comment_id=args.status_comment_id,
-            body=report,
+            body=report + format_mention(login=args.requested_by),
             token=report_token,
             notify=True,
         )
@@ -822,6 +871,9 @@ def main() -> None:
     watch_parser = subparsers.add_parser("watch", help="Follow a session to a reviewable PR")
     watch_parser.add_argument("--session-id", required=True)
     watch_parser.add_argument("--lane", required=True)
+    watch_parser.add_argument(
+        "--requested-by", default="", help="Login the run answers to, named in the report"
+    )
     watch_parser.add_argument(
         "--status-comment-id", type=int, help="The start step's comment, edited into the report"
     )

@@ -41,12 +41,14 @@ px session-annotations delete
 px dataset list
 px dataset get <name>
 px dataset export <name> --format csv|jsonl|openai-evals|openai-ft
+px dataset-versions list <dataset-identifier>
 px dataset delete <dataset-identifier>
 px experiment list
 px experiment get <id>
 px experiment delete <experiment-id>
 px prompt list
 px prompt get <prompt-identifier>
+px prompt-versions list <prompt-identifier>
 px prompt delete <prompt-identifier>
 px project list
 px project get <name>
@@ -205,11 +207,12 @@ px profile edit prod                         # open profile JSON in $EDITOR (val
 px profile delete prod --yes                 # delete a profile (--yes skips confirmation)
 ```
 
-Use `--profile <name>` on any command to target a specific profile without changing the active one:
+Only `px auth login`, `px auth logout`, `px auth status` and `px setup mcp` take `--profile <name>`. Other commands use the active profile, so to run one against another profile, switch to it with `px profile use` first:
 
 ```bash
-px trace list --profile staging --limit 10 --format raw --no-progress | jq .
-px auth status --profile prod
+px auth status --profile prod                # check a named profile without switching
+px profile use staging
+px trace list --limit 10 --format raw --no-progress | jq .
 ```
 
 `px profile create` options: `--endpoint <url>`, `--project <name>`, `--api-key <key>`, `--header <key=value>` (repeatable), `--activate`.
@@ -385,11 +388,24 @@ px dataset list --format raw --no-progress | jq '.[].name'
 px dataset get <name> --format raw | jq '.examples[] | {input, output: .expected_output}'
 px dataset get <name> --split train --format raw | jq .    # filter by split
 px dataset get <name> --version <version-id> --format raw | jq .
+px dataset-versions list <name-or-id> --format raw --no-progress | jq '.[].version_id'
 px experiment list --dataset <name> --format raw --no-progress | jq '.[] | {id, name, failed_run_count}'
 px experiment get <id> --format raw --no-progress | jq '.[] | select(.error != null) | {input, error}'
 px prompt list --format raw --no-progress | jq '.[].name'
 px prompt get <name> --format text --no-progress   # plain text, ideal for piping to AI
+px prompt-versions list <name-or-id> --limit 10 --format raw --no-progress | jq '.[].id'
 ```
+
+`dataset-versions list` fetches all pages unless `--limit` is set. JSON/raw output
+is an array of full version objects (`version_id`, `description`, `metadata`,
+`created_at`). A dataset with no versions yet returns `[]`; unknown dataset names
+exit nonzero. Use the IDs with `dataset get --version`.
+
+`prompt-versions list` fetches all pages unless `--limit` is set. JSON/raw output is
+an array of full version objects. `created_at` is absent on older servers (blank
+in pretty output); tags are not included. Use the IDs with `prompt get --version`.
+Missing prompts exit nonzero. JSON/raw errors go to stderr as
+`{ error, code, hint? }`.
 
 ## Annotation Configs
 

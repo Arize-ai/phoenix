@@ -1,9 +1,9 @@
 import { context, propagation, SpanKind, trace } from "@opentelemetry/api";
 import {
   InMemorySpanExporter,
-  NodeTracerProvider,
+  TracerProvider,
   SimpleSpanProcessor,
-} from "@opentelemetry/sdk-trace-node";
+} from "@opentelemetry/sdk-trace";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createEvaluator } from "../../src/helpers/createEvaluator";
@@ -18,16 +18,16 @@ type TestRecord = {
 
 describe("CreateEvaluator", () => {
   let spanExporter: InMemorySpanExporter;
-  let tracerProvider: NodeTracerProvider;
+  let tracerProvider: TracerProvider;
 
   beforeEach(() => {
     // Set up in-memory span exporter and tracer provider
     spanExporter = new InMemorySpanExporter();
-    tracerProvider = new NodeTracerProvider({
-      spanProcessors: [new SimpleSpanProcessor(spanExporter)],
+    tracerProvider = new TracerProvider({
+      spanProcessors: [new SimpleSpanProcessor({ exporter: spanExporter })],
     });
 
-    tracerProvider.register();
+    trace.setGlobalTracerProvider(tracerProvider);
   });
 
   afterEach(async () => {
@@ -408,10 +408,10 @@ describe("CreateEvaluator", () => {
       propagation.disable();
 
       const secondExporter = new InMemorySpanExporter();
-      const secondProvider = new NodeTracerProvider({
-        spanProcessors: [new SimpleSpanProcessor(secondExporter)],
+      const secondProvider = new TracerProvider({
+        spanProcessors: [new SimpleSpanProcessor({ exporter: secondExporter })],
       });
-      secondProvider.register();
+      trace.setGlobalTracerProvider(secondProvider);
 
       await evaluator.evaluate({
         input: "test",

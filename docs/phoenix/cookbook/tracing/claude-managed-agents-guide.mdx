@@ -1207,7 +1207,7 @@ In a Managed Agents session, only the `anthropic.model_request` spans, and the `
 
 Two details affect what you read:
 
-- **Cache reads are part of the input tokens.** The agent's system prompt and tools are cached after the first model request, so most of each request's input tokens are cache reads, billed at a lower rate. The spans report them in `gen_ai.usage.cache_read.input_tokens` and `gen_ai.usage.cache_write.input_tokens`, which Phoenix doesn't map yet, so it counts them as regular prompt tokens and its cost estimate can be higher than what you were billed.
+- **Cache reads are part of the input tokens.** The agent's system prompt and tools are cached after the first model request, so most of each request's input tokens are cache reads, billed at a lower rate. The spans report cache reads and writes in `gen_ai.usage.cache_read.input_tokens` and `gen_ai.usage.cache_write.input_tokens`. Phoenix maps them to `llm.token_count.prompt_details.cache_read` and `llm.token_count.prompt_details.cache_write` and prices them separately, so its cost estimate doesn't charge cache reads at the regular input rate.
 - **The `anthropic.sessions.create` spans show as `LLM` spans with zero tokens.** They carry the agent's model, but they aren't model calls, so leave them out when you count model requests.
 
 Anthropic's guide on [counting tokens](https://platform.claude.com/docs/en/manage-claude/opentelemetry#count-tokens) has the rules for other kinds of requests, such as the Messages API, where usage repeats across levels of spans.

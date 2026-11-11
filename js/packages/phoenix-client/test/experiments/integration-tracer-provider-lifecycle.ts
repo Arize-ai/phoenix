@@ -17,9 +17,9 @@
 import { context, propagation, trace } from "@opentelemetry/api";
 import {
   InMemorySpanExporter,
-  NodeTracerProvider,
+  TracerProvider,
   SimpleSpanProcessor,
-} from "@opentelemetry/sdk-trace-node";
+} from "@opentelemetry/sdk-trace";
 
 import { createClient } from "../../src/client";
 import { createDataset } from "../../src/datasets/createDataset";
@@ -76,10 +76,10 @@ async function main(): Promise<void> {
   // Register a sentinel global tracer provider before the experiment
   // to verify it is restored after the experiment completes.
   const sentinelExporter = new InMemorySpanExporter();
-  const sentinelProvider = new NodeTracerProvider({
-    spanProcessors: [new SimpleSpanProcessor(sentinelExporter)],
+  const sentinelProvider = new TracerProvider({
+    spanProcessors: [new SimpleSpanProcessor({ exporter: sentinelExporter })],
   });
-  sentinelProvider.register();
+  trace.setGlobalTracerProvider(sentinelProvider);
 
   trace.getTracer("sentinel").startSpan("before-experiment").end();
   assert(

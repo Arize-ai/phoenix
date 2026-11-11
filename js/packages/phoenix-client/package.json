@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-client",
-  "version": "7.18.1",
+  "version": "8.0.0",
   "description": "A client for the Phoenix API",
   "keywords": [
     "arize",
@@ -128,13 +128,13 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@ai-sdk/openai": "^4.0.106",
+    "@ai-sdk/openai": "4.0.108",
     "@ai-sdk/otel": "^1.0.152",
     "@anthropic-ai/sdk": "^0.111.0",
     "@arizeai/phoenix-evals": "workspace:*",
     "@arizeai/phoenix-testing": "workspace:*",
     "@opentelemetry/api": "^1.10.0",
-    "@opentelemetry/sdk-trace-node": "^2.12.0",
+    "@opentelemetry/sdk-trace": "^3.1.0",
     "@types/async": "^3.2.26",
     "@types/node": "^26.6.6",
     "ai": "^7.0.152",
@@ -143,7 +143,7 @@
     "openai": "^6.49.0",
     "openapi-typescript": "^7.13.0",
     "tsx": "^4.23.15",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.0"
   },
   "peerDependencies": {
     "@anthropic-ai/sdk": "^0.35.0",
@@ -170,6 +170,6 @@
     }
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22.15.0"
   }
 }

@@ -527,6 +527,12 @@ class TestSpanExporters:
             headers_dict = {h[0].lower(): h[1] for h in exporter._headers}
             assert headers_dict.get("custom-header") == "custom-value"
 
+    def test_grpc_span_exporter_targets_ipv6_collector_host_with_brackets(self) -> None:
+        with patch.dict(os.environ, {"PHOENIX_COLLECTOR_ENDPOINT": "http://[::1]:6006"}):
+            exporter = GRPCSpanExporter()
+
+        assert exporter._endpoint == "[::1]:4317"
+
     def test_explicit_headers_with_file_endpoint_warns_and_continues(
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
@@ -590,6 +596,18 @@ class TestEndpointNormalization:
                 parsed, endpoint = _normalized_endpoint(None, use_http=False)
                 assert parsed.scheme == "http"
                 assert parsed.netloc == "localhost:4317"
+
+    def test_normalized_endpoint_grpc_keeps_ipv6_brackets(self) -> None:
+        from phoenix.otel.otel import _normalized_endpoint
+
+        with patch(
+            "phoenix.otel.otel.get_env_collector_endpoint", return_value="http://[::1]:6006"
+        ):
+            parsed, endpoint = _normalized_endpoint(None, use_http=False)
+
+        assert endpoint == "http://[::1]:4317"
+        assert parsed.hostname == "::1"
+        assert parsed.port == 4317
 
     def test_construct_http_endpoint_preserves_path_prefix(self) -> None:
         parsed = urlparse("http://example.com/phoenix")

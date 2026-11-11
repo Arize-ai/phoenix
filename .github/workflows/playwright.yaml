@@ -8,6 +8,7 @@ on:
       - main
       - version-*
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches:
       - main
       - version-*
@@ -155,22 +156,18 @@ jobs:
         # WebKit dependencies can't be cached and must always be installed.
         if: ${{ env.CI_PLAYWRIGHT_SKIP_WEBKIT != 'true' && steps.playwright-cache.outputs.cache-hit == 'true' }}
         run: pnpm exec playwright install-deps webkit
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
           cache-dependency-glob: "uv.lock"
       - name: Install dependencies
         if: ${{ github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' }}
         run: uv sync --extra container
       - name: Install dependencies (with upgrade)
         if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
-        run: |
-          echo ${{ matrix.py }} > ../../.python-version
-          uv sync --upgrade --extra container
+        run: uv sync --upgrade --extra container
       # Sandbox providers used by the Playwright suite (Deno for TypeScript
       # code evaluators, CPython WASM for Python). The Phoenix container image
       # bundles these (see Dockerfile); the e2e runner is bare so we pin the
@@ -188,7 +185,7 @@ jobs:
         # against upstream release-asset tampering.
         run: |
           mkdir -p .cache/wasm
-          python -c "import hashlib, sys, urllib.request; \
+          uv run --no-sync python -c "import hashlib, sys, urllib.request; \
           url = 'https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python%2F3.12.0%2B20231211-040d5a6/python-3.12.0.wasm'; \
           dest = '.cache/wasm/python-3.12.0.wasm'; \
           expected = 'e5dc5a398b07b54ea8fdb503bf68fb583d533f10ec3f930963e02b9505f7a763'; \

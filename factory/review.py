@@ -34,6 +34,7 @@ from dispatch import (
     WORKFLOW_LOGIN,
     create_app_token,
     format_cost,
+    format_mention,
     format_session_link,
     post_status_comment,
     read_lock_id,
@@ -548,7 +549,10 @@ def run_start(*, args: argparse.Namespace) -> None:
     if admission_problem is not None:
         comment_on_pr(
             pr_number=args.pr,
-            body=f"The factory skipped reviewing this pull request: {admission_problem}.",
+            body=(
+                f"The factory skipped reviewing this pull request: {admission_problem}."
+                f"{format_mention(login=requester_login)}"
+            ),
             token=app_token.refresh(),
         )
         remove_review_label(pr_number=args.pr, token=app_token.refresh())
@@ -576,11 +580,13 @@ def run_start(*, args: argparse.Namespace) -> None:
             f"The factory is reviewing {pr['headRefOid'][:10]} "
             f"(session {format_session_link(session_id=session_id)}). "
             f"It reports back here when the session ends."
+            f"{format_mention(login=requester_login)}"
         ),
         token=app_token.refresh(),
     )
     write_github_outputs(
         started="true",
+        requested_by=requester_login,
         session_id=session_id,
         started_at=started_at,
         status_comment_id=str(status_comment_id),
@@ -624,7 +630,7 @@ def run_watch(*, args: argparse.Namespace) -> None:
             report_on_status_comment(
                 number=args.pr,
                 comment_id=args.status_comment_id,
-                body=report,
+                body=report + format_mention(login=args.requested_by),
                 token=report_token,
                 notify=verdict is None,
             )
@@ -651,6 +657,9 @@ def main() -> None:
 
     watch_parser = subparsers.add_parser("watch", help="Follow a review session to its report")
     watch_parser.add_argument("--session-id", required=True)
+    watch_parser.add_argument(
+        "--requested-by", default="", help="Login the run answers to, named in the report"
+    )
     watch_parser.add_argument(
         "--started-at", required=True, help="UTC time the start step created the session"
     )

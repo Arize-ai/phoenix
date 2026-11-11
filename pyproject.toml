@@ -25,14 +25,14 @@ dependencies = [
   "numpy",
   "pandas>=1.0",
   "jinja2",
-  "jsonpath-ng",
+  "jsonpath-ng>=1.16.0",
   "jsonschema",
   "pystache",
   "PyYAML",
   "starlette>=0.37.0",
   "uvicorn",
   "psutil",
-  "strawberry-graphql==0.339.1",
+  "strawberry-graphql==0.340.1",
   "graphql-core>=3.3.1,<3.4",
   "pyarrow",
   "typing-extensions>=4.6",
@@ -57,11 +57,11 @@ dependencies = [
   "cachetools",
   "python-multipart",  # see https://www.starlette.io/#dependencies
   "arize-phoenix-evals>=3.9.5",
-  "arize-phoenix-otel>=0.17.0",
+  "arize-phoenix-otel>=0.17.3",
   "fastapi>=0.142.0",  # 0.142 adds native OpenTelemetry support
   "fastmcp-slim[client,server]>=4,<5",  # client: pydantic-ai's MCPToolset, used by the agent assistant. server: the in-process MCP server mounted at /mcp.
   # Code-mode sandbox. Direct, not via fastmcp's `code-mode` extra, whose exact `pydantic-monty` pin conflicts and would ship in wheel metadata.
-  "pydantic-monty==1.4.0",
+  "pydantic-monty==1.5.0",
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
   "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.53.0,<3",
   # Arrives via pydantic-ai-slim[anthropic], which sets no upper bound. Pinned
@@ -70,7 +70,7 @@ dependencies = [
   "bashkit>=0.10.0,!=0.14.2",  # 0.14.2 shipped no sdist and only cp310/cp311 wheels, breaking installs on 3.14; see https://pypi.org/project/bashkit/0.14.2/
   "authlib>=1.8.0",
   "joserfc",
-  "arize-phoenix-client>=3.6.0",
+  "arize-phoenix-client>=3.7.0",
   "email-validator",
   "python-dateutil",
   "prometheus_client",
@@ -108,7 +108,7 @@ dev = [
   "grpc-interceptor[testing]",
   "grpcio",
   "httpx2",
-  "jsonpath-ng",
+  "jsonpath-ng>=1.16.0",
   "ldap3",
   "litellm>=1.83.14,!=1.107.0; python_version < '3.14'",  # >=1.83.14 fixes CVE-2026-42208; excluded because upstream metadata does not support Python 3.14 (https://github.com/BerriAI/litellm/issues/26343)
   "modal>=1.2.0",  # type-checking only; runtime is gated by the [modal] extra
@@ -151,7 +151,7 @@ dev = [
   "pytest-xdist",
   "requests",  # this is needed to type-check third-party packages
   "responses",
-  "strawberry-graphql[opentelemetry,cli]==0.339.1",  # cli extra provides typer for `strawberry export-schema` (schema-graphql); previously satisfied transitively via huggingface-hub, which dropped typer in 1.22.0
+  "strawberry-graphql[opentelemetry,cli]==0.340.1",  # cli extra provides typer for `strawberry export-schema` (schema-graphql); previously satisfied transitively via huggingface-hub, which dropped typer in 1.22.0
   "syrupy",
   "tenacity",
   "tiktoken",
@@ -230,7 +230,7 @@ container = [
   "opentelemetry-instrumentation-sqlalchemy==0.66b0",
   "opentelemetry-instrumentation-grpc==0.66b0",
   "py-grpc-prometheus",
-  "strawberry-graphql[opentelemetry]==0.339.1",
+  "strawberry-graphql[opentelemetry]==0.340.1",
   "uvloop; platform_system != 'Windows'",
   "aioboto3",
   "aiobotocore>=3.2.0",  # first release whose botocore floor includes Converse ToolSpecification "strict"; older botocore rejects it client-side
@@ -471,7 +471,7 @@ script_location = "src/phoenix/db/migrations"  # enables `uv run alembic <comman
 # The lower bound is the exact uv that writes uv.lock: CI installs it with
 # setup-uv resolution-strategy "lowest", and scripts/uv.sh runs it locally.
 # Newer 0.12.x releases work for everything else.
-required-version = ">=0.13.5,<0.14"
+required-version = ">=0.13.7,<0.14"
 exclude-newer = "3 days"
 # Exempt our own packages from the `exclude-newer` window so freshly published
 # versions are immediately resolvable. arize-phoenix-sqlean is not a workspace
