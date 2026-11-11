@@ -71,10 +71,14 @@ export type EvaluatorPreviewHandlers = {
 export function useEvaluatorPreviewStream() {
   const environment = useRelayEnvironment();
   return useCallback(
-    (
-      input: EvaluatorPreviewInput,
-      { onSubjectResult, onError, onCompleted }: EvaluatorPreviewHandlers
-    ): Disposable =>
+    ({
+      input,
+      onSubjectResult,
+      onError,
+      onCompleted,
+    }: {
+      input: EvaluatorPreviewInput;
+    } & EvaluatorPreviewHandlers): Disposable =>
       requestSubscription<useEvaluatorPreviewSubscription>(environment, {
         subscription,
         variables: { input },
@@ -190,8 +194,8 @@ export function useEvaluatorPreview() {
           setIsRunning(false);
           resolve(outcome);
         };
-        const preview = startPreview(
-          {
+        const preview = startPreview({
+          input: {
             ...request,
             subjects: [
               {
@@ -201,24 +205,22 @@ export function useEvaluatorPreview() {
             ],
             credentials: toGqlCredentials(credentials),
           },
-          {
-            onSubjectResult: (result) => {
-              subjectResult = result;
-            },
-            onError: (message) => settle(fail(message)),
-            onCompleted: () => {
-              if (subjectResult == null) {
-                settle(fail("The preview returned no result"));
-              } else if (subjectResult.error != null) {
-                settle(fail(subjectResult.error));
-              } else {
-                const output = { results: subjectResult.results };
-                setResults(toEvaluatorPreviewResults(output));
-                settle({ ok: true, output });
-              }
-            },
-          }
-        );
+          onSubjectResult: (result) => {
+            subjectResult = result;
+          },
+          onError: (message) => settle(fail(message)),
+          onCompleted: () => {
+            if (subjectResult == null) {
+              settle(fail("The preview returned no result"));
+            } else if (subjectResult.error != null) {
+              settle(fail(subjectResult.error));
+            } else {
+              const output = { results: subjectResult.results };
+              setResults(toEvaluatorPreviewResults(output));
+              settle({ ok: true, output });
+            }
+          },
+        });
         // The form is gone, so there is no state left to update.
         function close() {
           isSettled = true;

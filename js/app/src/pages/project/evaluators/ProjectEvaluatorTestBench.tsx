@@ -697,13 +697,16 @@ export function fingerprintDefinition(
  * takes at most EVALUATOR_PREVIEW_MAX_SUBJECTS subjects per request.
  */
 export function previewSubjectBatches<Row extends { key: string }>(
-  rows: readonly Row[],
-  maxSubjects: number = EVALUATOR_PREVIEW_MAX_SUBJECTS
+  rows: readonly Row[]
 ): Row[][] {
   const unique = [...new Map(rows.map((row) => [row.key, row])).values()];
   const batches: Row[][] = [];
-  for (let start = 0; start < unique.length; start += maxSubjects) {
-    batches.push(unique.slice(start, start + maxSubjects));
+  for (
+    let start = 0;
+    start < unique.length;
+    start += EVALUATOR_PREVIEW_MAX_SUBJECTS
+  ) {
+    batches.push(unique.slice(start, start + EVALUATOR_PREVIEW_MAX_SUBJECTS));
   }
   return batches;
 }
@@ -841,8 +844,8 @@ export function useEvaluatorPreviewRuns({
         activePreviewsRef.current.delete(preview);
       }
     };
-    preview = startPreview(
-      {
+    preview = startPreview({
+      input: {
         evaluator,
         inputMapping: state.evaluator.inputMapping,
         subjects: [...subjectContextByKey].map(([key, context]) => ({
@@ -852,56 +855,54 @@ export function useEvaluatorPreviewRuns({
         applyOnlineEvaluationLimits: true,
         credentials: toGqlCredentials(credentials),
       },
-      {
-        onSubjectResult(result) {
-          settle(
-            result.key,
-            result.error != null
-              ? { status: "error", fingerprint, message: result.error }
-              : { status: "done", fingerprint, results: [...result.results] }
-          );
-        },
-        onError(message) {
-          finish();
-          // Rows a newer run has taken over are that run's to report on.
-          const ownedKeys = [...pendingKeys].filter(ownsRow);
-          if (ownedKeys.length === 0) {
-            return;
-          }
+      onSubjectResult(result) {
+        settle(
+          result.key,
+          result.error != null
+            ? { status: "error", fingerprint, message: result.error }
+            : { status: "done", fingerprint, results: [...result.results] }
+        );
+      },
+      onError(message) {
+        finish();
+        // Rows a newer run has taken over are that run's to report on.
+        const ownedKeys = [...pendingKeys].filter(ownsRow);
+        if (ownedKeys.length === 0) {
+          return;
+        }
+        for (const rowKey of ownedKeys) {
+          rowRunIdsRef.current.delete(rowKey);
+        }
+        // The definition could not run at all, so no row has a verdict
+        // from it: the error shows once, and the rows keep what they had.
+        setRunError(message);
+        setRuns((current) => {
+          const next = { ...current };
           for (const rowKey of ownedKeys) {
-            rowRunIdsRef.current.delete(rowKey);
-          }
-          // The definition could not run at all, so no row has a verdict
-          // from it: the error shows once, and the rows keep what they had.
-          setRunError(message);
-          setRuns((current) => {
-            const next = { ...current };
-            for (const rowKey of ownedKeys) {
-              const run = current[rowKey];
-              if (run?.status !== "running") {
-                continue;
-              }
-              if (run.previous) {
-                next[rowKey] = run.previous;
-              } else {
-                delete next[rowKey];
-              }
+            const run = current[rowKey];
+            if (run?.status !== "running") {
+              continue;
             }
-            return next;
-          });
-        },
-        onCompleted() {
-          finish();
-          for (const rowKey of [...pendingKeys]) {
-            settle(rowKey, {
-              status: "error",
-              fingerprint,
-              message: "The preview returned no result for this record",
-            });
+            if (run.previous) {
+              next[rowKey] = run.previous;
+            } else {
+              delete next[rowKey];
+            }
           }
-        },
-      }
-    );
+          return next;
+        });
+      },
+      onCompleted() {
+        finish();
+        for (const rowKey of [...pendingKeys]) {
+          settle(rowKey, {
+            status: "error",
+            fingerprint,
+            message: "The preview returned no result for this record",
+          });
+        }
+      },
+    });
     if (!isFinished) {
       activePreviewsRef.current.add(preview);
     }
