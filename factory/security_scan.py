@@ -18,7 +18,10 @@ MAX_CHANGED_BYTES = 32 * 1024 * 1024
 CONTEXT_BYTES = 8 * 1024
 MAX_FILES = 100
 SEMGREP_VERSION = "1.144.0"
-INVISIBLE = re.compile("[\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]")
+INVISIBLE = re.compile(
+    "[\u00ad\u034f\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f"
+    "\u3164\ufe00-\ufe0f\ufeff\uffa0\U000e0000-\U000e007f\U000e0100-\U000e01ef]"
+)
 TEXT_RULES = {
     "hidden-markdown": re.compile(r"<!--[\s\S]*?-->", re.I),
     "concealed-html": re.compile(
