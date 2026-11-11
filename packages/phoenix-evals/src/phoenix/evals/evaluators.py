@@ -6,7 +6,7 @@ import json
 import warnings
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import (
     Any,
     Callable,
@@ -270,6 +270,65 @@ class Score:
         """
         score_dict = self.to_dict()
         print(json.dumps(score_dict, indent=indent))
+
+
+@dataclass(frozen=True)
+class Criterion:
+    """A single classification question within a (possibly multi-criterion) evaluator.
+
+    Each criterion produces one :class:`Score`.
+
+    Args:
+        name: The criterion name; used as the resulting ``Score.name``.
+        description: Instructions for this criterion (the question). May be empty.
+        choices: Either a list of label strings, or a dict mapping each label to a numeric score.
+        direction: Optional per-criterion score direction. When ``None``, the evaluator's
+            direction is used.
+    """
+
+    name: str
+    description: str
+    choices: Union[List[str], Dict[str, Union[float, int]]]
+    direction: Optional[DirectionType] = None
+
+    def __post_init__(self) -> None:
+        if not self.name or not isinstance(self.name, str):
+            raise ValueError("Criterion.name must be a non-empty string.")
+        if not self.choices:
+            raise ValueError(f"Criterion '{self.name}' must define at least one choice.")
+        if isinstance(self.choices, dict):
+            if not all(isinstance(key, str) for key in self.choices):
+                raise ValueError(f"Criterion '{self.name}' choices dict keys must be strings.")
+        elif isinstance(self.choices, list):
+            if not all(isinstance(label, str) for label in self.choices):
+                raise ValueError(f"Criterion '{self.name}' choices list must contain only strings.")
+        else:
+            raise ValueError(
+                f"Criterion '{self.name}' choices must be a list of label strings or a "
+                f"label->score dict."
+            )
+
+    @property
+    def labels(self) -> List[str]:
+        """The label strings for this criterion."""
+        return list(self.choices) if isinstance(self.choices, list) else list(self.choices.keys())
+
+    @property
+    def label_score_map(self) -> Optional[Dict[str, Union[float, int]]]:
+        """Mapping of label to score, or ``None`` when choices are a bare label list."""
+        return dict(self.choices) if isinstance(self.choices, dict) else None
+
+
+def _is_criteria_list(choices: Any) -> bool:
+    """True when ``choices`` is the multi-criterion format (a list of Criterion/criterion dicts)."""
+    return (
+        isinstance(choices, list)
+        and len(choices) > 0
+        and all(
+            isinstance(choice, Criterion) or (isinstance(choice, dict) and "choices" in choice)
+            for choice in choices
+        )
+    )
 
 
 def _add_trace_id_to_scores(scores: List[Score], trace_id: Optional[str]) -> List[Score]:
@@ -707,7 +766,10 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
         llm: Union[LLM, DecisionModel],
         prompt_template: Union[PromptLike, PromptTemplate, Template],
         choices: Union[
-            List[str], Dict[str, Union[float, int]], Dict[str, Tuple[Union[float, int], str]]
+            List[str],
+            Dict[str, Union[float, int]],
+            Dict[str, Tuple[Union[float, int], str]],
+            List[Criterion],
         ],
         include_explanation: bool = True,
         input_schema: Optional[type[BaseModel]] = None,
@@ -724,27 +786,69 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
         )
 
         self.include_explanation = include_explanation
-        score_map: Optional[Dict[str, Union[float, int]]] = None
-        labels: Union[List[str], Dict[str, str]]
+        self._criteria: List[Criterion] = self._normalize_choices(choices, direction)
+        self.label_score_map = self._criteria[0].label_score_map
+        self.labels: Union[List[str], Dict[str, str]] = self._legacy_labels(choices)
+
+    @property
+    def criteria(self) -> List[Criterion]:
+        """The normalised list of criteria this evaluator classifies (one Score each)."""
+        return self._criteria
+
+    def _normalize_choices(
+        self,
+        choices: Union[
+            List[str],
+            Dict[str, Union[float, int]],
+            Dict[str, Tuple[Union[float, int], str]],
+            List[Criterion],
+        ],
+        direction: DirectionType,
+    ) -> List[Criterion]:
+        """Convert any supported `choices` format into a canonical list of Criterion."""
+        # Case 4: a list of criteria (Criterion instances or plain dicts).
+        if _is_criteria_list(choices):
+            criteria: List[Criterion] = []
+            for choice in cast("List[Union[Criterion, Dict[str, Any]]]", choices):
+                criterion = choice if isinstance(choice, Criterion) else Criterion(**choice)
+                if criterion.direction is None:
+                    criterion = replace(criterion, direction=direction)
+                criteria.append(criterion)
+            return criteria
+
+        # Cases 1-3: a single legacy classification -> one criterion named after the evaluator.
         if isinstance(choices, list):
-            # Case 1: List[str]
-            score_map = None
-            labels = choices
+            leaf: Union[List[str], Dict[str, Union[float, int]]] = [
+                label for label in choices if isinstance(label, str)
+            ]
         else:
             first_value = next(iter(choices.values()))
-            # Case 2: Score and description provided
             if isinstance(first_value, tuple):
-                # Extract score and description from tuple
-                score_map = {key: value[0] for key, value in choices.items()}  # type: ignore
-                labels = {key: value[1] for key, value in choices.items()}  # type: ignore
-            # Case 3: Only score provided
+                leaf = {key: value[0] for key, value in choices.items()}  # type: ignore[index]
             else:
-                # Extract score and labels from dictionary
-                score_map = dict(choices)  # type: ignore
-                labels = list(choices.keys())
+                leaf = dict(choices)  # type: ignore[arg-type]
+        return [
+            Criterion(name=self.name, description="", choices=leaf, direction=direction),
+        ]
 
-        self.label_score_map = score_map
-        self.labels = labels
+    def _legacy_labels(
+        self,
+        choices: Union[
+            List[str],
+            Dict[str, Union[float, int]],
+            Dict[str, Tuple[Union[float, int], str]],
+            List[Criterion],
+        ],
+    ) -> Union[List[str], Dict[str, str]]:
+        """Reproduce the legacy ``labels`` value (list, or label->description dict for tuples)."""
+        if _is_criteria_list(choices):
+            return self._criteria[0].labels
+        if isinstance(choices, list):
+            return [label for label in choices if isinstance(label, str)]
+        first_value = next(iter(choices.values()))
+        if isinstance(first_value, tuple):
+            return {key: value[1] for key, value in choices.items()}  # type: ignore[index]
+        return list(choices.keys())
 
     def _evaluate(self, eval_input: EvalInput) -> List[Score]:
         # Render template using PromptTemplate
@@ -1141,7 +1245,10 @@ def create_classifier(
     prompt_template: str,
     llm: Union[LLM, DecisionModel],
     choices: Union[
-        List[str], Dict[str, Union[float, int]], Dict[str, Tuple[Union[float, int], str]]
+        List[str],
+        Dict[str, Union[float, int]],
+        Dict[str, Tuple[Union[float, int], str]],
+        List[Criterion],
     ],
     direction: DirectionType = "maximize",
 ) -> ClassificationEvaluator:
@@ -1744,6 +1851,7 @@ __all__ = [
     "EnforcedString",
     "SmartString",
     "Score",
+    "Criterion",
     "Evaluator",
     "LLMEvaluator",
     "ClassificationEvaluator",

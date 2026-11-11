@@ -9,6 +9,7 @@ import pytest
 
 from phoenix.evals.evaluators import (
     ClassificationEvaluator,
+    Criterion,
     EnforcedString,
     Evaluator,
     LLMEvaluator,
@@ -424,6 +425,111 @@ class TestClassificationEvaluator:
         assert evaluator.labels == expected_labels
         assert evaluator.label_score_map == expected_score_map
         assert evaluator.include_explanation is True
+
+    @pytest.mark.parametrize(
+        "choices,expected_leaf,expected_labels,expected_score_map",
+        [
+            pytest.param(
+                ["good", "bad"],
+                ["good", "bad"],
+                ["good", "bad"],
+                None,
+                id="List choices normalize to one criterion",
+            ),
+            pytest.param(
+                {"good": 1.0, "bad": 0.0},
+                {"good": 1.0, "bad": 0.0},
+                ["good", "bad"],
+                {"good": 1.0, "bad": 0.0},
+                id="Score-map choices normalize to one criterion",
+            ),
+            pytest.param(
+                {"good": (1.0, "Good result"), "bad": (0.0, "Bad result")},
+                {"good": 1.0, "bad": 0.0},
+                {"good": "Good result", "bad": "Bad result"},
+                {"good": 1.0, "bad": 0.0},
+                id="Tuple choices: criterion keeps score map, labels keep descriptions",
+            ),
+        ],
+    )
+    def test_legacy_choices_normalize_to_single_criterion(
+        self, choices, expected_leaf, expected_labels, expected_score_map
+    ):
+        """Legacy formats collapse to one criterion named after the evaluator (parity rule)."""
+        evaluator = ClassificationEvaluator(
+            name="test_evaluator",
+            llm=MockLLM(),
+            prompt_template="Test template with {input}",
+            choices=choices,
+            direction="minimize",
+        )
+
+        assert len(evaluator.criteria) == 1
+        criterion = evaluator.criteria[0]
+        assert criterion.name == "test_evaluator"
+        assert criterion.description == ""
+        assert criterion.choices == expected_leaf
+        assert criterion.direction == "minimize"  # inherits the evaluator's direction
+        # Legacy public attributes are unchanged.
+        assert evaluator.labels == expected_labels
+        assert evaluator.label_score_map == expected_score_map
+
+    def test_criteria_list_choices_passthrough(self):
+        """The new List[Criterion] format passes through, one criterion each."""
+        criteria = [
+            Criterion(name="helpfulness", description="How helpful", choices=["poor", "good"]),
+            Criterion(
+                name="accuracy",
+                description="How accurate",
+                choices={"wrong": 0.0, "right": 1.0},
+                direction="minimize",
+            ),
+        ]
+        evaluator = ClassificationEvaluator(
+            name="quality",
+            llm=MockLLM(),
+            prompt_template="Rate this: {input}",
+            choices=criteria,
+            direction="maximize",
+        )
+
+        assert [c.name for c in evaluator.criteria] == ["helpfulness", "accuracy"]
+        # Missing per-criterion direction inherits the evaluator's; explicit one is kept.
+        assert evaluator.criteria[0].direction == "maximize"
+        assert evaluator.criteria[1].direction == "minimize"
+        # Legacy attributes track the first criterion.
+        assert evaluator.labels == ["poor", "good"]
+        assert evaluator.label_score_map is None
+
+    def test_criteria_list_accepts_plain_dicts(self):
+        """Criteria may be given as plain dicts (coerced to Criterion)."""
+        evaluator = ClassificationEvaluator(
+            name="quality",
+            llm=MockLLM(),
+            prompt_template="Rate this: {input}",
+            choices=[
+                {"name": "clarity", "description": "How clear", "choices": {"no": 0, "yes": 1}},
+            ],
+        )
+
+        assert isinstance(evaluator.criteria[0], Criterion)
+        assert evaluator.criteria[0].name == "clarity"
+        assert evaluator.criteria[0].label_score_map == {"no": 0, "yes": 1}
+
+    @pytest.mark.parametrize(
+        "kwargs,match",
+        [
+            pytest.param(
+                {"name": "", "description": "d", "choices": ["a"]}, "non-empty", id="name"
+            ),
+            pytest.param(
+                {"name": "c", "description": "d", "choices": []}, "at least one", id="empty-choices"
+            ),
+        ],
+    )
+    def test_criterion_validation(self, kwargs, match):
+        with pytest.raises(ValueError, match=match):
+            Criterion(**kwargs)
 
     def test_classification_evaluator_evaluate_success(self):
         """Test successful classification evaluation."""
