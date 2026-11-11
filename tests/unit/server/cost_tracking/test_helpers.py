@@ -541,16 +541,59 @@ class TestDecisionSpanAttributes:
                 {
                     "openinference": {"span": {"kind": "DECISION"}},
                     "decision": {
+                        "response": {"model_name": " gpt-6-luna-2026-10-01 "},
+                        "model_name": "gpt-6-luna",
+                        "request": {"model_name": "gpt-6-luna"},
+                        "provider": "openai",
+                        "system": "openai",
+                    },
+                    "llm": {
+                        "response": {"model_name": "ignored"},
+                        "model_name": "ignored",
+                        "provider": "ignored",
+                    },
+                },
+                "DECISION",
+                "gpt-6-luna-2026-10-01",
+                "openai",
+                id="decision_response_model_name_primary",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "decision": {
                         "model_name": " jev-1.13.0 ",
+                        "request": {"model_name": "ignored"},
                         "provider": "vllm",
                         "system": "typesafe",
                     },
-                    "llm": {"model_name": "ignored", "provider": "ignored"},
+                    "llm": {
+                        "response": {"model_name": "ignored"},
+                        "model_name": "ignored",
+                        "provider": "ignored",
+                    },
                 },
                 "DECISION",
                 "jev-1.13.0",
                 "vllm",
-                id="decision_attributes",
+                id="decision_model_name_fallback",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "decision": {
+                        "request": {"model_name": "jev-latest"},
+                        "system": "typesafe",
+                    },
+                    "llm": {
+                        "response": {"model_name": "ignored"},
+                        "model_name": "ignored",
+                    },
+                },
+                "DECISION",
+                "jev-latest",
+                "typesafe",
+                id="decision_request_model_name_fallback",
             ),
             pytest.param(
                 {
@@ -565,23 +608,57 @@ class TestDecisionSpanAttributes:
             pytest.param(
                 {
                     "openinference": {"span": {"kind": "DECISION"}},
-                    "llm": {"model_name": "jev-latest", "provider": "typesafe"},
+                    "llm": {
+                        "response": {"model_name": "jev-1.13.0"},
+                        "model_name": "jev-latest",
+                        "request": {"model_name": "jev-latest"},
+                        "provider": "typesafe",
+                    },
                 },
                 "DECISION",
-                "jev-latest",
+                "jev-1.13.0",
                 "typesafe",
                 id="legacy_decision_span_with_llm_attributes",
             ),
             pytest.param(
                 {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "llm": {"request": {"model_name": "jev-latest"}, "provider": "typesafe"},
+                },
+                "DECISION",
+                "jev-latest",
+                "typesafe",
+                id="legacy_decision_span_with_llm_request_model_name",
+            ),
+            pytest.param(
+                {
                     "openinference": {"span": {"kind": "LLM"}},
-                    "decision": {"model_name": "ignored", "provider": "ignored"},
-                    "llm": {"model_name": "gpt-6-luna", "provider": "openai"},
+                    "decision": {
+                        "response": {"model_name": "ignored"},
+                        "model_name": "ignored",
+                        "provider": "ignored",
+                    },
+                    "llm": {
+                        "response": {"model_name": "gpt-6-luna-2026-10-01"},
+                        "model_name": "gpt-6-luna",
+                        "request": {"model_name": "gpt-6-luna"},
+                        "provider": "openai",
+                    },
+                },
+                "LLM",
+                "gpt-6-luna-2026-10-01",
+                "openai",
+                id="llm_span_response_model_name_primary",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "LLM"}},
+                    "llm": {"request": {"model_name": "gpt-6-luna"}, "provider": "openai"},
                 },
                 "LLM",
                 "gpt-6-luna",
                 "openai",
-                id="llm_span",
+                id="llm_span_request_model_name_fallback",
             ),
             pytest.param(
                 {"llm": {"model_name": "gpt-6-luna"}},

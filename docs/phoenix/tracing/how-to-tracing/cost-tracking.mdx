@@ -32,10 +32,10 @@ Phoenix uses the [OpenInference semantic conventions](https://arize-ai.github.io
 
 #### Model information
 
-| Attribute        | Type   | Description                                                      |
-| :---------------- | :------ | :---------------------------------------------------------------- |
-| `llm.model_name` | String | The name of the language model being utilized                    |
-| `llm.provider`   | String | The hosting provider of the llm (e.g., openai, anthropic, azure) |
+| Attribute        | Type   | Description                                                                                                                |
+| :---------------- | :------ | :-------------------------------------------------------------------------------------------------------------------------- |
+| `llm.model_name` | String | The language model that answered (`llm.response.model_name` takes precedence when set; falls back to `llm.request.model_name`) |
+| `llm.provider`   | String | The hosting provider of the llm (e.g., openai, anthropic, azure)                                                           |
 
 ### Detailed token breakdown (optional)
 
@@ -60,12 +60,12 @@ For more granular cost tracking, you can provide detailed token counts:
 
 [DECISION spans](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds#decision), calls to decision models such as the OpenAI Decisions API or TypeSafe System One, are priced too. They are priced only against decision-model prices, never LLM prices, even when an LLM has the same name (such as `gpt-6-luna`). Their cost counts toward trace, session, and project cost totals. Phoenix reads these attributes from decision spans:
 
-| Attribute                     | Type    | Description                                                                                       |
-| :----------------------------- | :------- | :------------------------------------------------------------------------------------------------- |
-| `decision.model_name`         | String  | The decision model that answered. Falls back to `llm.model_name`                                   |
-| `decision.provider`           | String  | The hosting provider. Falls back to `decision.system`, then `llm.provider`                         |
-| `decision.token_count.input`  | Integer | The number of input tokens                                                                         |
-| `decision.token_count.output` | Integer | The number of output tokens                                                                        |
+| Attribute                     | Type    | Description                                                                                                                                                           |
+| :----------------------------- | :------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `decision.model_name`         | String  | The decision model that answered (`decision.response.model_name` takes precedence when set; falls back to `decision.request.model_name`, then the `llm.*` model names) |
+| `decision.provider`           | String  | The hosting provider. Falls back to `decision.system`, then `llm.provider`                                                                                            |
+| `decision.token_count.input`  | Integer | The number of input tokens                                                                                                                                            |
+| `decision.token_count.output` | Integer | The number of output tokens                                                                                                                                           |
 
 Decision token counts have no detailed breakdown. If a decision span sets neither `decision.token_count.input` nor `decision.token_count.output`, Phoenix uses `llm.token_count.prompt` and `llm.token_count.completion` instead, as set by older instrumentation.
 

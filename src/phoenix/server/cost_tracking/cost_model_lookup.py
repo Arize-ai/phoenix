@@ -95,10 +95,11 @@ class CostModelLookup:
             attributes: A mapping containing span attributes. The span kind
                 (`openinference.span.kind`) picks the model type: DECISION spans match
                 only DECISION models, and all other spans match only LLM models. Must
-                include the model name: `decision.model_name` (or the legacy
-                `llm.model_name`) on DECISION spans, `llm.model_name` otherwise. The
-                provider (`decision.provider`, `decision.system` or `llm.provider` on
-                DECISION spans, `llm.provider` otherwise) is optional.
+                include the model name (`*.response.model_name`, `*.model_name`, or
+                `*.request.model_name`, from `decision.*` or legacy `llm.*` on DECISION
+                spans and `llm.*` otherwise). The provider (`decision.provider`,
+                `decision.system` or `llm.provider` on DECISION spans, `llm.provider`
+                otherwise) is optional.
 
         Raises:
             TypeError: If start_time is not timezone-aware (tzinfo is None)

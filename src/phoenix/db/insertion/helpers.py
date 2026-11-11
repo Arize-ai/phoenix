@@ -126,9 +126,9 @@ def should_calculate_span_cost(
 ) -> bool:
     """
     Whether the span is an LLM or DECISION span with a model name to price it by. The name is
-    picked the same way the cost lookup picks it: `decision.model_name`, then the legacy
-    `llm.model_name` (OpenInference `spec/decision_spans.md`, "Transition Note"), on DECISION
-    spans, and `llm.model_name` on LLM spans.
+    picked the same way the cost lookup picks it (see `get_model_name`): `*.response.model_name`,
+    `*.model_name`, then `*.request.model_name`, from `decision.*` (falling back to legacy
+    `llm.*`) on DECISION spans and from `llm.*` on LLM spans.
     """
     span_kind = get_attribute_value(attributes, SpanAttributes.OPENINFERENCE_SPAN_KIND)
     return (

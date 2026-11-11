@@ -48,20 +48,32 @@ def _get_name(attributes: Optional[Mapping[str, Any]], *keys: str) -> str:
     return ""
 
 
+_DECISION_MODEL_NAME_KEYS = (
+    SpanAttributes.DECISION_RESPONSE_MODEL_NAME,
+    SpanAttributes.DECISION_MODEL_NAME,
+    SpanAttributes.DECISION_REQUEST_MODEL_NAME,
+)
+_LLM_MODEL_NAME_KEYS = (
+    SpanAttributes.LLM_RESPONSE_MODEL_NAME,
+    SpanAttributes.LLM_MODEL_NAME,
+    SpanAttributes.LLM_REQUEST_MODEL_NAME,
+)
+
+
 def get_model_name(attributes: Optional[Mapping[str, Any]]) -> str:
     """
     Return the model name used for cost lookup, or "" if the span has none. Only string values
     count. `should_calculate_span_cost` uses this too, so the gate and the lookup agree on the name.
 
-    DECISION spans read `decision.model_name`, falling back to `llm.model_name`, which TypeSafe
-    instrumentor releases from before the `decision.*` attributes still set (OpenInference
-    `spec/decision_spans.md`, "Transition Note"). Other spans read `llm.model_name`.
+    Within each attribute family, the provider-reported `*.response.model_name` wins over
+    `*.model_name`, which wins over `*.request.model_name`. DECISION spans read `decision.*`,
+    falling back to `llm.*` for TypeSafe instrumentor releases from before the `decision.*`
+    attributes existed (OpenInference `spec/decision_spans.md`, "Transition Note"). Other spans
+    read `llm.*`.
     """
     if get_priced_model_type(attributes) == "DECISION":
-        return _get_name(
-            attributes, SpanAttributes.DECISION_MODEL_NAME, SpanAttributes.LLM_MODEL_NAME
-        )
-    return _get_name(attributes, SpanAttributes.LLM_MODEL_NAME)
+        return _get_name(attributes, *_DECISION_MODEL_NAME_KEYS, *_LLM_MODEL_NAME_KEYS)
+    return _get_name(attributes, *_LLM_MODEL_NAME_KEYS)
 
 
 def get_provider(attributes: Optional[Mapping[str, Any]]) -> str:

@@ -301,6 +301,25 @@ class TestShouldCalculateSpanCost:
             pytest.param(
                 {
                     "openinference": {"span": {"kind": "DECISION"}},
+                    "decision": {
+                        "request": {"model_name": "gpt-6-luna"},
+                        "response": {"model_name": "gpt-6-luna-2026-10-01"},
+                    },
+                },
+                True,
+                id="decision_span_with_response_and_request_model_names",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "LLM"}},
+                    "llm": {"request": {"model_name": "gpt-6-luna"}},
+                },
+                True,
+                id="llm_span_with_request_model_name",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
                     "llm": {"model_name": "jev-latest"},
                 },
                 True,
