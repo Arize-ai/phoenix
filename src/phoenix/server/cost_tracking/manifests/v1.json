@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-19T13:07:42Z",
-  "models_sha256": "cda9074813171749579841263eeb472c71559c315bc9670cc88170733cb56c26",
+  "generated_at": "2026-11-20T00:05:41Z",
+  "models_sha256": "7cf0c6149eab5bf146362570ad98660847176687863ec3b7deae4792b522e1d9",
   "models": [
     {
       "name": "anthropic.claude-3-5-haiku-20241022-v1:0",
@@ -16465,6 +16465,130 @@
           "base_rate": 2.4e-7,
           "is_prompt": true,
           "token_type": "cache_read"
+        }
+      ]
+    }
+  ],
+  "non_llm_models": [
+    {
+      "name": "gpt-6-luna",
+      "name_pattern": "gpt-6-luna",
+      "source": "litellm",
+      "type": "DECISION",
+      "token_prices": [
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "decision.token_count.input",
+            "threshold": 272000.0,
+            "new_rate": 2e-7
+          }
+        },
+        {
+          "base_rate": 0.0,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1e-8,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "decision.token_count.input",
+            "threshold": 272000.0,
+            "new_rate": 2e-8
+          }
+        },
+        {
+          "base_rate": 1.25e-7,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "decision.token_count.input",
+            "threshold": 272000.0,
+            "new_rate": 2.5e-7
+          }
+        }
+      ]
+    },
+    {
+      "name": "typesafe/jev-1.13.0",
+      "name_pattern": "jev-1\\.13\\.0",
+      "source": "litellm",
+      "provider": "typesafe",
+      "type": "DECISION",
+      "token_prices": [
+        {
+          "base_rate": 4.2e-8,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "typesafe/jev-1.14.0",
+      "name_pattern": "jev-1\\.14\\.0",
+      "source": "litellm",
+      "provider": "typesafe",
+      "type": "DECISION",
+      "token_prices": [
+        {
+          "base_rate": 4.2e-8,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "typesafe/jev-latest",
+      "name_pattern": "jev-latest",
+      "source": "litellm",
+      "provider": "typesafe",
+      "type": "DECISION",
+      "token_prices": [
+        {
+          "base_rate": 4.2e-8,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "typesafe/jev-preview",
+      "name_pattern": "jev-preview",
+      "source": "litellm",
+      "provider": "typesafe",
+      "type": "DECISION",
+      "token_prices": [
+        {
+          "base_rate": 4.2e-8,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0,
+          "is_prompt": false,
+          "token_type": "output"
         }
       ]
     }

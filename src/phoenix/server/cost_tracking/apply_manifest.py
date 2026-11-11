@@ -23,12 +23,21 @@ from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.db.types.token_price_customization import TokenPriceCustomizationParser
-from phoenix.server.cost_tracking.manifest import ManifestModel, ModelCostManifest
+from phoenix.server.cost_tracking.manifest import (
+    ManifestModel,
+    ManifestModelKey,
+    ModelCostManifest,
+)
 from phoenix.server.types import DbSessionFactory
 
 logger = logging.getLogger(__name__)
 
 MANIFEST_VERSION_STATE_KEY = "cost_tracking.model_cost_manifest"
+
+# What this version of Phoenix reads from a manifest, recorded in the applied marker. Bump it
+# when servers start reading content that older ones ignore, so that a manifest an older server
+# applied is applied again after an upgrade. 1: model types (``non_llm_models``).
+MANIFEST_READER_VERSION = 1
 
 # Serializes applies across replicas sharing a PostgreSQL database. SQLite allows one writer.
 _APPLY_LOCK_ID = 0x70686F656E6978  # "phoenix"
@@ -46,6 +55,9 @@ class ModelCostManifestVersion(BaseModel):
     model_config = ConfigDict(extra="ignore", frozen=True)
 
     generated_at: AwareDatetime
+    # MANIFEST_READER_VERSION of the server that applied it. Markers from before it existed
+    # read as 0.
+    reader_version: int = 0
 
 
 class AppliedManifest(NamedTuple):
@@ -94,6 +106,11 @@ def _is_newer(
 ) -> bool:
     if applied is None:
         return True
+    if applied.reader_version < MANIFEST_READER_VERSION:
+        # The manifest was applied by a server that ignored part of it, such as the
+        # non_llm_models of a 21.x server, so applying the same manifest again adds what it
+        # skipped. An older one is still skipped, so that a boot doesn't roll back prices.
+        return manifest.generated_at >= applied.generated_at
     # Only generated_at is compared, even across schema versions. That is safe while replicas
     # of different versions share a database because bumping the schema freezes the old
     # schema's manifest (see BUNDLED_MANIFEST_PATH): every manifest of the new schema is newer
@@ -109,7 +126,8 @@ async def apply_manifest_if_newer(
     Applies the manifest if it is newer than the one last applied, and records it as applied.
 
     Creates and updates built-in models and their token prices to match the manifest, and
-    soft-deletes built-in models that are no longer in it. Historical span costs keep
+    soft-deletes built-in models that are no longer in it. Models are matched by name and
+    type, so an LLM and a decision model can share a name. Historical span costs keep
     pointing at the soft-deleted rows. Models whose entries were skipped as invalid are
     left as they are.
     Everything happens in one transaction, committed before this returns.
@@ -117,9 +135,12 @@ async def apply_manifest_if_newer(
     Returns:
         What was applied, or None if the manifest wasn't newer.
     """
-    # parse_manifest has already skipped duplicate names and name_pattern/provider pairs.
-    entries = {manifest_model.name: manifest_model for manifest_model in manifest.models}
-    payload = ModelCostManifestVersion(generated_at=manifest.generated_at).model_dump(mode="json")
+    # parse_manifest has already skipped duplicate names and name_pattern/provider pairs
+    # within each type.
+    entries = {manifest_model.key: manifest_model for manifest_model in manifest.models}
+    payload = ModelCostManifestVersion(
+        generated_at=manifest.generated_at, reader_version=MANIFEST_READER_VERSION
+    ).model_dump(mode="json")
     async with db() as session:
         if db.dialect is SupportedSQLDialect.POSTGRESQL:
             # Held until the transaction ends, so a replica applying concurrently waits here and
@@ -133,23 +154,20 @@ async def apply_manifest_if_newer(
         # so an entry claiming them is skipped too, or both would be active under
         # ix_generative_models_match_criteria. The skipped entry's own row is then soft-deleted
         # like any model missing from the manifest, which frees its name_pattern and provider.
-        preserved_names = manifest.skipped_model_names & built_in_models.keys()
-        preserved_patterns = {
-            (built_in_models[name].name_pattern, built_in_models[name].provider)
-            for name in preserved_names
-        }
-        for name, manifest_model in list(entries.items()):
-            if (manifest_model.name_pattern, _provider(manifest_model)) in preserved_patterns:
+        preserved_keys = manifest.skipped_models & built_in_models.keys()
+        preserved_patterns = {_model_pattern_key(built_in_models[key]) for key in preserved_keys}
+        for key, manifest_model in list(entries.items()):
+            if _manifest_pattern_key(manifest_model) in preserved_patterns:
                 logger.warning(
-                    f"Skipping model '{name}' whose name_pattern/provider collides with a "
-                    "skipped model"
+                    f"Skipping model '{key.name}' ({key.type}) whose name_pattern/provider "
+                    "collides with a skipped model"
                 )
-                del entries[name]
+                del entries[key]
 
         removed_ids = [
             model.id
-            for name, model in built_in_models.items()
-            if name not in entries and name not in preserved_names
+            for key, model in built_in_models.items()
+            if key not in entries and key not in preserved_keys
         ]
         num_removed = await _soft_delete_models(session, removed_ids)
         num_added, num_updated = await _upsert_models(session, entries, built_in_models)
@@ -171,22 +189,33 @@ def _provider(manifest_model: ManifestModel) -> str:
     return (manifest_model.provider or "").strip()
 
 
+# The columns of ix_generative_models_match_criteria, other than is_built_in.
+_PatternKey = tuple[re.Pattern[str], str, str]
+
+
+def _manifest_pattern_key(manifest_model: ManifestModel) -> _PatternKey:
+    return (manifest_model.name_pattern, _provider(manifest_model), manifest_model.type)
+
+
+def _model_pattern_key(model: models.GenerativeModel) -> _PatternKey:
+    return (model.name_pattern, model.provider, model.type)
+
+
 async def _upsert_models(
     session: AsyncSession,
-    entries: dict[str, ManifestModel],
-    built_in_models: dict[str, models.GenerativeModel],
+    entries: dict[ManifestModelKey, ManifestModel],
+    built_in_models: dict[ManifestModelKey, models.GenerativeModel],
 ) -> tuple[int, int]:
     """Returns the number of models added and the number of existing models changed."""
     incoming_patterns = {
-        (manifest_model.name_pattern, _provider(manifest_model))
-        for manifest_model in entries.values()
+        _manifest_pattern_key(manifest_model) for manifest_model in entries.values()
     }
-    reassigned_names: set[str] = set()
-    for name, manifest_model in entries.items():
-        if (model := built_in_models.get(name)) is None:
+    reassigned_keys: set[ManifestModelKey] = set()
+    for key, manifest_model in entries.items():
+        if (model := built_in_models.get(key)) is None:
             continue
-        old_key = (model.name_pattern, model.provider)
-        new_key = (manifest_model.name_pattern, _provider(manifest_model))
+        old_key = _model_pattern_key(model)
+        new_key = _manifest_pattern_key(manifest_model)
         if old_key != new_key and old_key in incoming_patterns:
             # Another entry takes over this model's name_pattern and provider, possibly in a
             # swap. The partial unique index ix_generative_models_match_criteria cannot be
@@ -194,19 +223,20 @@ async def _upsert_models(
             # below then sets its new pattern. The placeholder never matches a real model name
             # and is never committed.
             model.name_pattern = re.compile(f"^__phoenix_reassigned_{model.id}_{token_hex(8)}__$")
-            reassigned_names.add(name)
-    if reassigned_names:
+            reassigned_keys.add(key)
+    if reassigned_keys:
         await session.flush()
 
     num_added = num_updated = 0
-    for name, manifest_model in entries.items():
+    for key, manifest_model in entries.items():
         pattern = manifest_model.name_pattern
         provider = _provider(manifest_model)
-        model = built_in_models.get(name)
+        model = built_in_models.get(key)
         is_existing_model = model is not None
         if model is None:
             model = models.GenerativeModel(
-                name=name,
+                name=key.name,
+                type=key.type,
                 provider=provider,
                 name_pattern=pattern,
                 is_built_in=True,
@@ -216,7 +246,7 @@ async def _upsert_models(
             changed = False
         else:
             changed = (
-                name in reassigned_names
+                key in reassigned_keys
                 or model.provider != provider
                 or model.name_pattern != pattern
             )
@@ -232,12 +262,14 @@ async def _upsert_models(
         for manifest_token_price in manifest_model.token_prices:
             base_rate = manifest_token_price.base_rate
             customization = TokenPriceCustomizationParser.parse(manifest_token_price.customization)
-            key = _TokenTypeKey(manifest_token_price.token_type, manifest_token_price.is_prompt)
-            if not (token_price := existing_token_prices.pop(key, None)):
+            token_key = _TokenTypeKey(
+                manifest_token_price.token_type, manifest_token_price.is_prompt
+            )
+            if not (token_price := existing_token_prices.pop(token_key, None)):
                 model.token_prices.append(
                     models.TokenPrice(
-                        token_type=key.token_type,
-                        is_prompt=key.is_prompt,
+                        token_type=token_key.token_type,
+                        is_prompt=token_key.is_prompt,
                         base_rate=base_rate,
                         customization=customization,
                     )
@@ -278,16 +310,16 @@ async def _soft_delete_models(
     return int(result.rowcount or 0)  # type: ignore[attr-defined]
 
 
-async def _get_built_in_models(session: AsyncSession) -> dict[str, models.GenerativeModel]:
+async def _get_built_in_models(
+    session: AsyncSession,
+) -> dict[ManifestModelKey, models.GenerativeModel]:
     return {
-        model.name: model
+        ManifestModelKey(model.name, model.type): model
         for model in (
             await session.scalars(
                 select(models.GenerativeModel)
                 .where(models.GenerativeModel.deleted_at.is_(None))
                 .where(models.GenerativeModel.is_built_in.is_(True))
-                # The manifest only has LLM models, and names are only unique within a type.
-                .where(models.GenerativeModel.type == "LLM")
                 .options(joinedload(models.GenerativeModel.token_prices))
             )
         ).unique()
