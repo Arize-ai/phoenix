@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-09T18:38:00Z",
-  "models_sha256": "61207863d4b2678e68007169156776eab22bdd171916ff1293d02f1f496bc9f9",
+  "generated_at": "2026-11-11T07:24:21Z",
+  "models_sha256": "00f3fabfef2393c9cb7589cc1d71795679923d3f0834a9b02016cdb51450de8b",
   "models": [
     {
       "name": "chatgpt-image-latest",
@@ -10878,13 +10878,7 @@
         {
           "base_rate": 0.0,
           "is_prompt": false,
-          "token_type": "output",
-          "customization": {
-            "type": "threshold_based",
-            "key": "decision.token_count.input",
-            "threshold": 272000.0,
-            "new_rate": 0.0
-          }
+          "token_type": "output"
         },
         {
           "base_rate": 1e-8,

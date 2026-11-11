@@ -202,21 +202,26 @@ def _tier_customization(
 ) -> Optional[ThresholdBasedTokenPriceCustomization]:
     """
     LiteLLM publishes whole-prompt tier rates as ``<base_field>_above_NNNk_tokens`` variants
-    (e.g. ``input_cost_per_token_above_200k_tokens``). Emit the lowest configured tier as a
-    ThresholdBasedTokenPriceCustomization keyed on the prompt token count, so that once the
-    prompt strictly exceeds the threshold every token bills at the elevated rate. Only a
-    single tier per model is emitted today; no publicly-priced model in the LiteLLM manifest
-    configures more than one tier for the same base field.
+    (e.g. ``input_cost_per_token_above_200k_tokens``). Emit the lowest configured tier whose
+    rate differs from ``base_field`` as a ThresholdBasedTokenPriceCustomization keyed on the
+    prompt token count, so that once the prompt strictly exceeds the threshold every token
+    bills at the elevated rate. Only a single tier per model is emitted today; no
+    publicly-priced model in the LiteLLM manifest configures more than one tier for the same
+    base field.
     """
     tier_field = re.compile(rf"{re.escape(base_field)}_above_(?P<thousands>\d+)k_tokens")
+    base_rate = _to_finite_float(model_info.get(base_field))
 
     rates_by_threshold: dict[float, float] = {}
     for field, rate in model_info.items():
         match = tier_field.fullmatch(field)
         if match is None or not _is_non_negative_number(rate):
             continue
+        tier_rate = float(rate)
+        if tier_rate == base_rate:
+            continue
         threshold = float(match["thousands"]) * 1000
-        rates_by_threshold[threshold] = float(rate)
+        rates_by_threshold[threshold] = tier_rate
 
     if not rates_by_threshold:
         return None

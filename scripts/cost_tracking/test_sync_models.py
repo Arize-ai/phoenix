@@ -301,7 +301,8 @@ def test_extract_litellm_entries_assigns_types_by_mode() -> None:
     decision_input = "decision.token_count.input"
     assert _tiers(decision) == {
         "input": (decision_input, 272000.0, 2e-7),
-        "output": (decision_input, 272000.0, 0.0),
+        # LiteLLM's 0 -> 0 output tier is a no-op and isn't emitted.
+        "output": None,
         "cache_read": (decision_input, 272000.0, 2e-8),
         "cache_write": (decision_input, 272000.0, 2.5e-7),
     }
