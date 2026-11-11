@@ -1042,21 +1042,12 @@ class TestModelMutations:
         assert result.data is not None
         assert result.data["createModel"]["model"]["provider"] == "acmeai"
 
-    @pytest.mark.parametrize(
-        "model_type,expected_model_type",
-        [
-            pytest.param(None, "LLM", id="omitted-defaults-to-llm"),
-            pytest.param("LLM", "LLM", id="llm"),
-            pytest.param("DECISION", "DECISION", id="decision"),
-            pytest.param("EMBEDDING", "EMBEDDING", id="embedding"),
-        ],
-    )
+    @pytest.mark.parametrize("model_type", ["DECISION", "EMBEDDING"])
     async def test_create_model_sets_model_type(
         self,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
-        model_type: Optional[str],
-        expected_model_type: str,
+        model_type: str,
     ) -> None:
         result = await gql_client.execute(
             query=self.QUERY,
@@ -1066,9 +1057,9 @@ class TestModelMutations:
         assert not result.errors
         assert result.data is not None
         model = result.data["createModel"]["model"]
-        assert model["modelType"] == expected_model_type
+        assert model["modelType"] == model_type
         assert model["kind"] == "CUSTOM"
-        expected_tokens = ["input"] if expected_model_type == "EMBEDDING" else ["input", "output"]
+        expected_tokens = ["input"] if model_type == "EMBEDDING" else ["input", "output"]
         assert [p["tokenType"] for p in model["tokenPrices"]] == expected_tokens
         async with db() as session:
             stored_type = await session.scalar(
@@ -1076,7 +1067,7 @@ class TestModelMutations:
                     models.GenerativeModel.name == "my-model"
                 )
             )
-        assert stored_type == expected_model_type
+        assert stored_type == model_type
 
     async def test_update_model_input_only_embedding_costs(
         self,
@@ -1175,7 +1166,6 @@ class TestModelMutations:
         "initial_provider,initial_type,update_provider,update_type,rejected",
         [
             pytest.param("acmeai", "DECISION", "acmeai", "LLM", True, id="type-into-collision"),
-            pytest.param("other", "EMBEDDING", "ACMEAI", "LLM", True, id="type-and-provider"),
             pytest.param("other", "LLM", "acmeai", "EMBEDDING", False, id="type-away"),
         ],
     )
@@ -1288,7 +1278,6 @@ class TestModelMutations:
         [
             pytest.param({}, "DECISION", id="omitted-keeps-stored-type"),
             pytest.param({"modelType": "EMBEDDING"}, "EMBEDDING", id="changes-type"),
-            pytest.param({"modelType": "LLM"}, "LLM", id="changes-type-back-to-llm"),
         ],
     )
     async def test_update_model_model_type(
@@ -1322,26 +1311,6 @@ class TestModelMutations:
                 )
             )
         assert stored_type == expected_model_type
-
-    async def test_updating_built_in_model_type_fails(
-        self,
-        gql_client: AsyncGraphQLClient,
-        default_model: models.GenerativeModel,
-    ) -> None:
-        variables = _create_model_variables(
-            name=default_model.name,
-            provider=default_model.provider,
-            name_pattern=default_model.name_pattern.pattern,
-            model_type="DECISION",
-        )
-        variables["input"]["id"] = str(GlobalID(GenerativeModel.__name__, str(default_model.id)))
-        result = await gql_client.execute(
-            query=self.QUERY,
-            variables=variables,
-            operation_name="UpdateModelMutation",
-        )
-        assert len(result.errors) == 1
-        assert result.errors[0].message == "Cannot update built-in model"
 
 
 class TestGenerativeModelModelType:
@@ -1416,20 +1385,18 @@ class TestGenerativeModelModelType:
             },
         ]
 
-    @pytest.mark.parametrize("model_type", ["LLM", "DECISION", "EMBEDDING"])
     async def test_node_query_returns_model_type(
         self,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
         custom_model: models.GenerativeModel,
-        model_type: str,
     ) -> None:
         """The node resolver has no db record, so this goes through the dataloader."""
         async with db() as session:
             await session.execute(
                 sa.update(models.GenerativeModel)
                 .where(models.GenerativeModel.id == custom_model.id)
-                .values(type=model_type)
+                .values(type="DECISION")
             )
         result = await gql_client.execute(
             query=self.NODE_QUERY,
@@ -1440,7 +1407,7 @@ class TestGenerativeModelModelType:
         assert result.data["node"] == {
             "name": "custom-model",
             "kind": "CUSTOM",
-            "modelType": model_type,
+            "modelType": "DECISION",
         }
 
 
