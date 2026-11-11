@@ -14,7 +14,7 @@
     "@arizeai/phoenix-evals": "workspace:*",
     "@arizeai/phoenix-otel": "workspace:*",
     "@opentelemetry/api": "^1.10.0",
-    "ai": "^6.0.325",
+    "ai": "^6.0.326",
     "dotenv": "^17.4.2"
   },
   "devDependencies": {
