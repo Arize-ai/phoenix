@@ -714,3 +714,59 @@ class TestDecisionSpanAttributes:
         assert get_priced_model_type(attributes) == expected_type
         assert get_model_name(attributes) == expected_name
         assert get_provider(attributes) == expected_provider
+
+
+class TestEmbeddingSpanAttributes:
+    """EMBEDDING spans have input tokens only: the prompt count, or the total without one."""
+
+    @pytest.mark.parametrize(
+        "token_count,expected",
+        [
+            pytest.param({"prompt": 2, "total": 2}, (2, 0, 2), id="spec_example"),
+            pytest.param({"total": 1000}, (1000, 0, 1000), id="total_when_prompt_is_missing"),
+            pytest.param(
+                {"prompt": 0, "total": 1000}, (1000, 0, 1000), id="total_when_prompt_is_0"
+            ),
+            pytest.param(
+                {"prompt": 900, "total": 1000}, (900, 0, 900), id="prompt_wins_over_total"
+            ),
+        ],
+    )
+    def test_get_aggregated_tokens(
+        self, token_count: dict[str, Any], expected: tuple[int, int, int]
+    ) -> None:
+        attributes = {
+            "openinference": {"span": {"kind": "EMBEDDING"}},
+            "embedding": {"model_name": "text-embedding-3-small"},
+            "llm": {"token_count": token_count},
+        }
+        assert get_aggregated_tokens(attributes) == expected
+
+    @pytest.mark.parametrize(
+        "attributes,expected_name",
+        [
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "EMBEDDING"}},
+                    "embedding": {"model_name": " text-embedding-3-small "},
+                    "llm": {"response": {"model_name": "ignored"}, "model_name": "ignored"},
+                },
+                "text-embedding-3-small",
+                id="embedding_model_name_wins_over_llm_model_names",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "EMBEDDING"}},
+                    "llm": {
+                        "response": {"model_name": "text-embedding-3-small-v2"},
+                        "model_name": "text-embedding-3-small",
+                    },
+                },
+                "text-embedding-3-small-v2",
+                id="falls_back_to_llm_model_names",
+            ),
+        ],
+    )
+    def test_get_model_name(self, attributes: dict[str, Any], expected_name: str) -> None:
+        assert get_priced_model_type(attributes) == "EMBEDDING"
+        assert get_model_name(attributes) == expected_name
