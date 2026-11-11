@@ -18,6 +18,7 @@ import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
 import type { OpenTimeRangeWithKey } from "./types";
 import {
+  getLastNTimeRangeRefreshJitterMs,
   getMillisecondsUntilNextLastNTimeRangeRefresh,
   getTimeRangeFromSearchParams,
   getTimeRangeFromLastNTimeRangeKey,
@@ -233,17 +234,36 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
 
   // Drive live refreshes. While a last-N range is live, schedule a bump of
   // `timeRangeNow` for when its window next rolls over (the start of the next
-  // minute or hour) so the displayed window keeps tracking "now".
+  // minute or hour, plus jitter for hourly windows) so the displayed window
+  // keeps tracking "now". A hidden tab defers the refresh until it is visible
+  // again, so idle tabs do not refetch every page query in the background.
   useEffect(() => {
     if (!isLastNTimeRangeKey(timeRange.timeRangeKey)) {
       return undefined;
     }
     const timeRangeKey = timeRange.timeRangeKey;
-    const timeoutId = window.setTimeout(() => {
-      refreshLiveTimeRange();
-    }, getMillisecondsUntilNextLastNTimeRangeRefresh(timeRangeKey));
+    let isRefreshDue = false;
+    const timeoutId = window.setTimeout(
+      () => {
+        if (document.visibilityState === "hidden") {
+          isRefreshDue = true;
+          return;
+        }
+        refreshLiveTimeRange();
+      },
+      getMillisecondsUntilNextLastNTimeRangeRefresh(timeRangeKey) +
+        getLastNTimeRangeRefreshJitterMs(timeRangeKey)
+    );
+    const onVisibilityChange = () => {
+      if (isRefreshDue && document.visibilityState !== "hidden") {
+        isRefreshDue = false;
+        refreshLiveTimeRange();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
       window.clearTimeout(timeoutId);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [timeRange.timeRangeKey, timeRangeStartMs, refreshLiveTimeRange]);
 

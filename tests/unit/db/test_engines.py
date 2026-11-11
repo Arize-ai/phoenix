@@ -8,9 +8,11 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import make_url, text
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
+from sqlalchemy.pool import QueuePool
 
 import phoenix.db
 from phoenix.db.engines import (
+    aio_postgresql_engine,
     aio_sqlite_engine,
     aio_sqlite_read_engine,
     get_async_db_url,
@@ -202,3 +204,33 @@ def test_standalone_alembic_sqlite_url_migrates_via_sqlean(tmp_path: Path) -> No
             await engine.dispose()
 
     asyncio.run(verify())
+
+
+@pytest.mark.parametrize(
+    "auth_env",
+    [
+        pytest.param({}, id="password"),
+        pytest.param({"PHOENIX_POSTGRES_USE_AWS_IAM_AUTH": "true"}, id="aws-iam"),
+        pytest.param({"PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY": "true"}, id="azure-mi"),
+    ],
+)
+async def test_postgresql_engine_pool_size_and_max_overflow_are_configurable(
+    monkeypatch: pytest.MonkeyPatch,
+    auth_env: dict[str, str],
+) -> None:
+    # SQLAlchemy's default QueuePool caps PostgreSQL at 5 + 10 connections,
+    # which one Project page load can exhaust; operators must be able to raise
+    # it. Building the engine opens no connection.
+    for name, value in auth_env.items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.setenv("PHOENIX_SQL_DATABASE_POOL_SIZE", "20")
+    monkeypatch.setenv("PHOENIX_SQL_DATABASE_MAX_OVERFLOW", "30")
+    url = get_async_db_url("postgresql://user@db.example.com:5432/phoenix")
+    engine = aio_postgresql_engine(url, migrate=False)
+    try:
+        pool = engine.pool
+        assert isinstance(pool, QueuePool)
+        assert pool.size() == 20
+        assert pool._max_overflow == 30
+    finally:
+        await engine.dispose()

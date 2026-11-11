@@ -418,6 +418,8 @@ def aio_postgresql_engine(
     from phoenix.config import (
         get_env_postgres_use_aws_iam_auth,
         get_env_postgres_use_azure_managed_identity,
+        get_env_sql_database_max_overflow,
+        get_env_sql_database_pool_size,
     )
 
     use_aws = get_env_postgres_use_aws_iam_auth()
@@ -428,6 +430,8 @@ def aio_postgresql_engine(
             "Set only one."
         )
     asyncpg_url, asyncpg_args = get_pg_config(url, enforce_ssl=use_aws or use_azure)
+    pool_size = get_env_sql_database_pool_size()
+    max_overflow = get_env_sql_database_max_overflow()
 
     # pool_pre_ping issues a `SELECT 1` on each pool checkout and discards
     # the connection if it fails, so callers don't get a stale connection
@@ -446,6 +450,8 @@ def aio_postgresql_engine(
             hide_parameters=True,
             pool_pre_ping=True,
             pool_recycle=_POOL_RECYCLE_SECONDS,
+            pool_size=pool_size,
+            max_overflow=max_overflow,
         )
     elif use_aws:
         from phoenix.db.aws_auth import create_aws_engine
@@ -459,6 +465,8 @@ def aio_postgresql_engine(
             hide_parameters=True,
             pool_pre_ping=True,
             pool_recycle=_POOL_RECYCLE_SECONDS,
+            pool_size=pool_size,
+            max_overflow=max_overflow,
         )
     else:
         engine = create_async_engine(
@@ -469,6 +477,8 @@ def aio_postgresql_engine(
             hide_parameters=True,
             pool_pre_ping=True,
             pool_recycle=_POOL_RECYCLE_SECONDS,
+            pool_size=pool_size,
+            max_overflow=max_overflow,
         )
 
     if not migrate:
