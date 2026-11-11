@@ -141,13 +141,11 @@ export function ProjectPage() {
       <TopNavActions>
         <ConnectedTimeRangeSelector size="S" />
       </TopNavActions>
-      <Suspense fallback={<ProjectPageSkeleton />}>
-        <ProjectPageContent
-          key={projectId}
-          projectId={projectId as string}
-          timeRangeISOStrings={timeRangeISOStrings}
-        />
-      </Suspense>
+      <ProjectPageContent
+        key={projectId}
+        projectId={projectId as string}
+        timeRangeISOStrings={timeRangeISOStrings}
+      />
     </>
   );
 }
@@ -302,24 +300,8 @@ function ProjectPageContentBody({
   projectId: string;
   timeRangeISOStrings: TimeRangeISOStrings;
 }) {
-  const navigate = useNavigate();
-  const { rootPath, tab } = useProjectRootPath();
+  const { tab } = useProjectRootPath();
   const [searchParams, setSearchParams] = useSearchParams();
-  const data = useLazyLoadQuery<ProjectPageQueryType>(
-    graphql`
-      query ProjectPageQuery($id: ID!) {
-        project: node(id: $id) {
-          ... on Project {
-            evaluatorCount
-            ...ProjectTimeRangeControls_data
-            ...ProjectOnboardingOverlay_project
-          }
-        }
-      }
-    `,
-    { id: projectId },
-    { fetchPolicy: "store-and-network" }
-  );
   const [tracesQueryReference, loadTracesQuery] =
     useQueryLoader<ProjectPageTracesQueryType>(ProjectPageQueriesTracesQuery);
   const [spansQueryReference, loadSpansQuery] =
@@ -347,7 +329,6 @@ function ProjectPageContentBody({
       ProjectPageQueriesProjectConfigQuery
     );
   const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
-  const location = useLocation();
   // React Router recreates this setter on every location change. The resolvers
   // below are handed to the filter field, whose validation effect keys on their
   // identity -- depending on the setter directly would revalidate on every URL
@@ -602,78 +583,101 @@ function ProjectPageContentBody({
     });
   }, [tabIndex, projectId]);
 
-  const onTabChange = useCallback(
-    (index: number) => {
-      startTransition(() => {
-        const search = clearSelectionScopedParams(location.search);
-        const tab = TAB_PATH_BY_INDEX[index] ?? "spans";
-        navigate({
-          pathname: `${rootPath}/${tab}`,
-          search,
-          hash: location.hash,
-        });
-      });
-    },
-    [location.hash, location.search, navigate, rootPath]
+  return (
+    <ProjectPageQueryReferenceContext.Provider
+      value={{
+        spansQueryReference: spansQueryReference ?? null,
+        spansFilterSeed,
+        resolveSpansSeed,
+        sessionsQueryReference: sessionsQueryReference ?? null,
+        sessionsFilterSeed,
+        resolveSessionsSeed,
+        tracesQueryReference: tracesQueryReference ?? null,
+        tracesFilterSeed,
+        resolveTracesSeed,
+        projectConfigQueryReference: projectConfigQueryReference ?? null,
+      }}
+    >
+      <Suspense fallback={<ProjectPageSkeleton />}>
+        <ProjectPageTabs projectId={projectId} />
+      </Suspense>
+    </ProjectPageQueryReferenceContext.Provider>
   );
+}
+
+/** Suspends below the table loaders, so their requests do not wait on this query. */
+function ProjectPageTabs({ projectId }: { projectId: string }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { rootPath, tab } = useProjectRootPath();
+  const data = useLazyLoadQuery<ProjectPageQueryType>(
+    graphql`
+      query ProjectPageQuery($id: ID!) {
+        project: node(id: $id) {
+          ... on Project {
+            evaluatorCount
+            ...ProjectTimeRangeControls_data
+            ...ProjectOnboardingOverlay_project
+          }
+        }
+      }
+    `,
+    { id: projectId },
+    { fetchPolicy: "store-and-network" }
+  );
+
+  const onTabChange = (index: number) => {
+    startTransition(() => {
+      const search = clearSelectionScopedParams(location.search);
+      const tab = TAB_PATH_BY_INDEX[index] ?? "spans";
+      navigate({
+        pathname: `${rootPath}/${tab}`,
+        search,
+        hash: location.hash,
+      });
+    });
+  };
 
   return (
     <main css={mainCSS}>
-      <LegacyTraceFilterParamNotice
-        isActive={tabIndex === TAB_INDEX_MAP.traces}
-      />
+      <LegacyTraceFilterParamNotice isActive={tab === "traces"} />
       <TopNavActions order={1}>
         <ProjectTimeRangeControls project={data.project} />
       </TopNavActions>
-      <ProjectPageQueryReferenceContext.Provider
-        value={{
-          spansQueryReference: spansQueryReference ?? null,
-          spansFilterSeed,
-          resolveSpansSeed,
-          sessionsQueryReference: sessionsQueryReference ?? null,
-          sessionsFilterSeed,
-          resolveSessionsSeed,
-          tracesQueryReference: tracesQueryReference ?? null,
-          tracesFilterSeed,
-          resolveTracesSeed,
-          projectConfigQueryReference: projectConfigQueryReference ?? null,
+      <Tabs
+        onSelectionChange={(key) => {
+          if (typeof key === "string" && isTab(key)) {
+            onTabChange(TAB_INDEX_MAP[key]);
+          }
         }}
+        selectedKey={tab}
       >
-        <Tabs
-          onSelectionChange={(key) => {
-            if (typeof key === "string" && isTab(key)) {
-              onTabChange(TAB_INDEX_MAP[key]);
-            }
-          }}
-          selectedKey={tab}
-        >
-          <TabList>
-            <Tab id="spans">Spans</Tab>
-            <Tab id="traces">Traces</Tab>
-            <Tab id="sessions">Sessions</Tab>
-            <Tab id="metrics">Metrics</Tab>
-            <Tab id="evaluators">
-              Evaluators{" "}
-              <Counter variant="quiet">
-                {data.project.evaluatorCount ?? 0}
-              </Counter>
-            </Tab>
-            <Tab id="config">Config</Tab>
-          </TabList>
-          <StreamingTabPanel id="spans" project={data.project} />
-          <StreamingTabPanel id="traces" project={data.project} />
-          <StreamingTabPanel id="sessions" project={data.project} />
-          <LazyTabPanel padded={false} id="metrics">
-            <Outlet />
-          </LazyTabPanel>
-          <LazyTabPanel padded={false} id="config">
-            <Outlet />
-          </LazyTabPanel>
-          <LazyTabPanel padded={false} id="evaluators">
-            <Outlet />
-          </LazyTabPanel>
-        </Tabs>
-      </ProjectPageQueryReferenceContext.Provider>
+        <TabList>
+          <Tab id="spans">Spans</Tab>
+          <Tab id="traces">Traces</Tab>
+          <Tab id="sessions">Sessions</Tab>
+          <Tab id="metrics">Metrics</Tab>
+          <Tab id="evaluators">
+            Evaluators{" "}
+            <Counter variant="quiet">
+              {data.project.evaluatorCount ?? 0}
+            </Counter>
+          </Tab>
+          <Tab id="config">Config</Tab>
+        </TabList>
+        <StreamingTabPanel id="spans" project={data.project} />
+        <StreamingTabPanel id="traces" project={data.project} />
+        <StreamingTabPanel id="sessions" project={data.project} />
+        <LazyTabPanel padded={false} id="metrics">
+          <Outlet />
+        </LazyTabPanel>
+        <LazyTabPanel padded={false} id="config">
+          <Outlet />
+        </LazyTabPanel>
+        <LazyTabPanel padded={false} id="evaluators">
+          <Outlet />
+        </LazyTabPanel>
+      </Tabs>
     </main>
   );
 }
