@@ -2623,9 +2623,6 @@ async def test_code_mixed_result_set_writes_nothing(db: DbSessionFactory) -> Non
     assert await _annotations(db) == []
 
 
-_EVALUATOR_SECONDS = 0.05
-
-
 class _SlowEvaluator(_StubEvaluator):
     def __init__(self, results: list[dict[str, Any]], advance_clock: Callable[[], None]) -> None:
         super().__init__(results)
@@ -2660,8 +2657,8 @@ async def test_evaluator_run_time_is_observed_whatever_its_result(
 ) -> None:
     clock = [0.0]
 
-    def advance_clock() -> None:
-        clock[0] += _EVALUATOR_SECONDS
+    def advance_clock(seconds: float) -> None:
+        clock[0] += seconds
 
     duration = Mock()
     monkeypatch.setattr(executor_module, "perf_counter", lambda: clock[0])
@@ -2681,9 +2678,11 @@ async def test_evaluator_run_time_is_observed_whatever_its_result(
             evaluator_kind="CODE",
             output_configs=[_output_config("quality"), _output_config("relevance")],
         ),
-        evaluator=cast(Any, _SlowEvaluator(results, advance_clock)),
+        evaluator=cast(Any, _SlowEvaluator(results, lambda: advance_clock(1.0))),
     )
-    raising = replace(succeeding, evaluator=cast(Any, _SlowRaisingEvaluator(advance_clock)))
+    raising = replace(
+        succeeding, evaluator=cast(Any, _SlowRaisingEvaluator(lambda: advance_clock(2.0)))
+    )
     hanging_evaluator = _HangingEvaluator()
     hanging = replace(succeeding, evaluator=cast(Any, hanging_evaluator))
     executor = _executor(db)
@@ -2706,16 +2705,14 @@ async def test_evaluator_run_time_is_observed_whatever_its_result(
         )
     )
     await hanging_evaluator.started.wait()
-    advance_clock()
+    advance_clock(3.0)
     cut_off.cancel()
     with pytest.raises(asyncio.CancelledError):
         await cut_off
 
     assert duration.labels.call_args_list == [call(evaluator_kind="CODE")] * 3
-    observed = [args[0] for args, _ in duration.labels.return_value.observe.call_args_list]
-    assert len(observed) == 3
     # Each value covers the evaluator's whole run, not just the time around it.
-    assert observed == pytest.approx([_EVALUATOR_SECONDS] * 3)
+    assert duration.labels.return_value.observe.call_args_list == [call(1.0), call(2.0), call(3.0)]
 
 
 async def test_deleted_criteria_cannot_publish_annotation(db: DbSessionFactory) -> None:
