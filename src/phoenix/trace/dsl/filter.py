@@ -1774,6 +1774,15 @@ def _is_bool_sequence(node: typing.Any) -> TypeGuard[typing.Union[ast.List, ast.
     )
 
 
+def _is_numeric_sequence(node: typing.Any) -> TypeGuard[typing.Union[ast.List, ast.Tuple]]:
+    """A list of number literals, which a JSON operand matches as numbers."""
+    return (
+        isinstance(node, (ast.List, ast.Tuple))
+        and bool(node.elts)
+        and all(_is_float_constant(element) for element in node.elts)
+    )
+
+
 def _get_filter_value_type(node: ast.AST) -> typing.Optional[FilterValueType]:
     if isinstance(node, ast.Constant):
         if node.value is None:
@@ -2611,9 +2620,13 @@ class _FilterTranslator(_ProjectionTranslator):
             # number in it becomes NULL and its row drops out.
             left, right = _as_float_attribute(left), _as_float_attribute(right)
         if _is_json_attribute(left):
+            # A JSON operand cast to String can't be compared with number parameters on
+            # PostgreSQL (`character varying = integer`), so a number list reads it as a number.
             left = (
                 _as_bool_attribute(left)
                 if _is_bool_constant(right) or _is_bool_sequence(right)
+                else _as_float_attribute(left)
+                if isinstance(op, (ast.In, ast.NotIn)) and _is_numeric_sequence(right)
                 else _cast_as("String", left)
             )
         if _is_json_attribute(right):
