@@ -47,6 +47,10 @@ from phoenix.db.types.prompts import (
     PromptChatTemplate,
     PromptInvocationParameters,
     PromptTemplateFormat,
+    PromptToolChoiceOneOrMore,
+    PromptToolChoiceSpecificFunctionTool,
+    PromptToolChoiceZeroOrMore,
+    PromptToolFunction,
     PromptTools,
     RoleConversion,
     TextContentPart,
@@ -212,6 +216,32 @@ class BaseEvaluator(ABC):
                    and retrieving any recorded spans after evaluation.
         """
         ...
+
+
+def _request_tool_call_in_prompt(
+    tools: PromptTools,
+    messages: list[PlaygroundMessage],
+) -> tuple[PromptTools, list[PlaygroundMessage]]:
+    """Replaces a forced tool choice with `zero_or_more` and a system message naming the tools."""
+    tool_choice = tools.tool_choice
+    if isinstance(tool_choice, PromptToolChoiceSpecificFunctionTool):
+        tool_names = [tool_choice.function_name]
+    elif isinstance(tool_choice, PromptToolChoiceOneOrMore):
+        tool_names = [
+            tool.function.name for tool in tools.tools if isinstance(tool, PromptToolFunction)
+        ]
+    else:
+        return tools, messages
+    quoted_names = ", ".join(f"`{tool_name}`" for tool_name in tool_names)
+    instruction = (
+        f"Respond by calling the {quoted_names} tool."
+        if len(tool_names) == 1
+        else f"Respond by calling each of these tools: {quoted_names}."
+    )
+    return (
+        tools.model_copy(update={"tool_choice": PromptToolChoiceZeroOrMore(type="zero_or_more")}),
+        [*messages, create_playground_message(ChatCompletionMessageRole.SYSTEM, instruction)],
+    )
 
 
 class LLMEvaluator(BaseEvaluator):
@@ -405,11 +435,15 @@ class LLMEvaluator(BaseEvaluator):
                     )
                     prompt_span.set_status(Status(StatusCode.OK))
 
+                tools = self._tools
+                if not self._llm_client.supports_forced_tool_choice:
+                    tools, messages = _request_tool_call_in_prompt(tools, messages)
+
                 tool_call_by_id: dict[ToolCallId, ToolCall] = {}
 
                 async for chunk in self._llm_client.chat_completion_create(
                     messages=messages,
-                    tools=self._tools,
+                    tools=tools,
                     tracer=tracer_,
                     invocation_parameters=self._invocation_parameters,
                     stream_model_output=False,

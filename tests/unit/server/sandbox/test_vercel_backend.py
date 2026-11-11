@@ -506,7 +506,7 @@ def test_run_command_has_no_timeout_kwarg() -> None:
     """
     import inspect
 
-    pytest.importorskip("vercel")
+    pytest.importorskip("vercel.sandbox")  # imports termios; unavailable on Windows
     from vercel.sandbox.sandbox import AsyncSandbox
 
     sig = inspect.signature(AsyncSandbox.run_command)
@@ -571,7 +571,7 @@ def test_is_session_gone_classifies_sandbox_not_found() -> None:
     id no longer resolves. Unrelated user-code errors must NOT classify, so
     the manager doesn't churn fresh sessions on every failed evaluation.
     """
-    pytest.importorskip("vercel")
+    pytest.importorskip("vercel.sandbox")  # imports termios; unavailable on Windows
     backend = VercelSandboxBackend(
         token=_TOKEN, project_id=_PROJECT, team_id=_TEAM, language="PYTHON"
     )
@@ -584,7 +584,7 @@ def test_is_session_gone_does_not_classify_sibling_api_error() -> None:
     session-gone — under-classification preserves the existing wrap path for
     transient infra failures.
     """
-    pytest.importorskip("vercel")
+    pytest.importorskip("vercel.sandbox")  # imports termios; unavailable on Windows
     backend = VercelSandboxBackend(
         token=_TOKEN, project_id=_PROJECT, team_id=_TEAM, language="PYTHON"
     )
@@ -599,7 +599,7 @@ async def test_execute_in_session_propagates_session_gone_exception() -> None:
     every SDK failure arrives as ``ExecutionResult(error=...)``, indistinguishable
     from user code.
     """
-    pytest.importorskip("vercel")
+    pytest.importorskip("vercel.sandbox")  # imports termios; unavailable on Windows
     from vercel.sandbox import SandboxNotFoundError
 
     backend = VercelSandboxBackend(

@@ -26,8 +26,8 @@ import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
 import type { Instrumentation } from "@opentelemetry/instrumentation";
 import { registerInstrumentations } from "@opentelemetry/instrumentation";
 import { resourceFromAttributes } from "@opentelemetry/resources";
-import type { SpanProcessor } from "@opentelemetry/sdk-trace-node";
-import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
+import type { SpanProcessor } from "@opentelemetry/sdk-trace";
+import { TracerProvider as SdkTracerProvider } from "@opentelemetry/sdk-trace";
 
 import { getEnvConfig, getEnvProjectName } from "./config";
 import { LazyOpenInferenceSpanProcessor } from "./lazyOpenInferenceSpanProcessor";
@@ -141,10 +141,10 @@ export type RegisterParams = {
    *
    * @example
    * ```typescript
-   * import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
+   * import { BatchSpanProcessor } from '@arizeai/phoenix-otel';
    *
    * const customProcessors = [
-   *   new BatchSpanProcessor(exporter),
+   *   new BatchSpanProcessor({ exporter }),
    *   new MyCustomSpanProcessor()
    * ];
    * ```
@@ -200,7 +200,7 @@ type OpenTelemetryGlobalState = {
 
 type GlobalTracerProviderMount = {
   id: number;
-  provider: NodeTracerProvider;
+  provider: TracerProvider;
 };
 
 let nextGlobalTracerProviderMountId = 0;
@@ -259,13 +259,12 @@ function restoreGlobalTelemetrySnapshot(
  * Sets the given provider as the global OpenTelemetry provider using this
  * module's own imports of `trace`, `context`, and `propagation`.
  *
- * We deliberately avoid calling `provider.register()` because the SDK's
- * internal import of `@opentelemetry/api` may resolve to a different module
- * instance in pnpm workspaces (different symlink paths → different module
- * identity). By routing all global-state mutations through **our** copy of
+ * The SDK's internal import of `@opentelemetry/api` may resolve to a
+ * different module instance in pnpm workspaces (different symlink paths →
+ * different module identity). By routing all global-state mutations through **our** copy of
  * the OTEL API, snapshot/restore stays consistent.
  */
-function setGlobalProvider(provider: NodeTracerProvider): void {
+function setGlobalProvider(provider: TracerProvider): void {
   trace.setGlobalTracerProvider(provider);
 
   const contextManager = new AsyncLocalStorageContextManager();
@@ -341,7 +340,7 @@ export function detachGlobalTracerProvider(): void {
  * be attached in the same process.
  */
 export function attachGlobalTracerProvider(
-  provider: NodeTracerProvider
+  provider: TracerProvider
 ): GlobalTracerProviderRegistration {
   if (managedGlobalTracerProviderMounts.length === 0) {
     managedGlobalBaseSnapshot = getGlobalTelemetrySnapshot();
@@ -367,7 +366,7 @@ function bindGlobalTracerProviderRegistrationToShutdown({
   provider,
   registration,
 }: {
-  provider: NodeTracerProvider;
+  provider: SdkTracerProvider;
   registration: GlobalTracerProviderRegistration;
 }): void {
   const shutdown = provider.shutdown.bind(provider);
@@ -387,11 +386,11 @@ function bindGlobalTracerProviderRegistrationToShutdown({
  * Registers Phoenix OpenTelemetry tracing with the specified configuration.
  *
  * This function sets up a complete OpenTelemetry tracing pipeline configured
- * to send traces to a Phoenix instance. It creates a NodeTracerProvider with
+ * to send traces to a Phoenix instance. It creates an OpenTelemetry tracer provider with
  * appropriate span processors, resource attributes, and optional instrumentations.
  *
  * The function handles:
- * - Creating and configuring a NodeTracerProvider
+ * - Creating and configuring an OpenTelemetry tracer provider
  * - Setting up OTLP trace export to Phoenix
  * - Configuring span processors (batch or simple)
  * - Registering instrumentations (if provided)
@@ -399,7 +398,7 @@ function bindGlobalTracerProviderRegistrationToShutdown({
  * - Optional global provider registration
  *
  * @param params - Configuration parameters for Phoenix tracing
- * @returns The configured NodeTracerProvider instance that can be used to create traces
+ * @returns The configured tracer provider instance that can be used to create traces
  *
  * @example
  * Basic usage with minimal configuration:
@@ -436,18 +435,20 @@ function bindGlobalTracerProviderRegistrationToShutdown({
  * @example
  * Custom span processors:
  * ```typescript
- * import { register } from '@arizeai/phoenix-otel';
- * import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
- * import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
+ * import {
+ *   BatchSpanProcessor,
+ *   OTLPTraceExporter,
+ *   register,
+ * } from '@arizeai/phoenix-otel';
  *
  * const exporter = new OTLPTraceExporter({
- *   url: 'https://app.phoenix.arize.com/v1/traces',
+ *   url: 'https://phoenix.example.com/v1/traces',
  *   headers: { 'Authorization': 'Bearer your-api-key' }
  * });
  *
  * const provider = register({
  *   projectName: 'my-app',
- *   spanProcessors: [new BatchSpanProcessor(exporter)],
+ *   spanProcessors: [new BatchSpanProcessor({ exporter })],
  *   global: false // Manual provider management
  * });
  * ```
@@ -465,7 +466,7 @@ function bindGlobalTracerProviderRegistrationToShutdown({
  * });
  * ```
  */
-export function register(params: RegisterParams): NodeTracerProvider {
+export function register(params: RegisterParams): SdkTracerProvider {
   const {
     projectName = getEnvProjectName() ?? "default",
     instrumentations,
@@ -478,7 +479,7 @@ export function register(params: RegisterParams): NodeTracerProvider {
     diag.setLogger(new DiagConsoleLogger(), diagLogLevel);
   }
 
-  const provider = new NodeTracerProvider({
+  const provider = new SdkTracerProvider({
     resource: resourceFromAttributes({
       [SEMRESATTRS_PROJECT_NAME]: projectName,
     }),
@@ -518,7 +519,7 @@ export function register(params: RegisterParams): NodeTracerProvider {
  * @param params.apiKey - The API key for authenticating with the Phoenix instance
  * @param params.headers - Additional headers to include in OTLP requests
  * @param params.batch - Whether to use batching for span processing (recommended for production)
- * @returns A configured SpanProcessor instance ready for use with a NodeTracerProvider
+ * @returns A configured SpanProcessor instance ready for use with an OpenTelemetry tracer provider
  *
  * @example
  * Basic usage with environment variables:

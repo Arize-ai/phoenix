@@ -100,10 +100,17 @@ jobs:
           v=$(jq -r '.["."] // empty' .release-please-manifest.json)
           if [ -z "$v" ]; then echo "::error::No version for root (.) in manifest"; exit 1; fi
           echo "version=$v" >> $GITHUB_OUTPUT
+      - name: Resolve release tag
+        id: release
+        uses: ./.github/actions/resolve-release-tag
+        with:
+          tag: arize-phoenix-v${{ steps.version.outputs.version }}
+          package-name: arize-phoenix
+          package-path: .
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-          ref: refs/tags/arize-phoenix-v${{ steps.version.outputs.version }}
+          ref: ${{ steps.release.outputs.revision }}
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
         with:
           package_json_file: js/package.json
@@ -168,7 +175,7 @@ jobs:
         with:
           name: phoenix-dist
           path: dist/
-      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
 
   build-packages:
     name: Build Python packages
@@ -204,9 +211,9 @@ jobs:
         if: steps.check.outputs.needed == 'true'
         with:
           persist-credentials: false
-      - name: Resolve ref from manifest
+      - name: Read name and version from manifest
         if: steps.check.outputs.needed == 'true'
-        id: ref
+        id: manifest
         run: |
           VERSION=$(jq -r --arg p "${{ matrix.path }}" '.[$p] // empty' .release-please-manifest.json)
           NAME=$(jq -r --arg p "${{ matrix.path }}" '.packages[$p]["package-name"] // empty' release-please-config.json)
@@ -214,14 +221,21 @@ jobs:
             echo "::error::Missing version or package-name for path ${{ matrix.path }}"
             exit 1
           fi
-          echo "ref=refs/tags/${NAME}-v${VERSION}" >> $GITHUB_OUTPUT
           echo "name=$NAME" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+      - name: Resolve release tag
+        if: steps.check.outputs.needed == 'true'
+        id: release
+        uses: ./.github/actions/resolve-release-tag
+        with:
+          tag: ${{ steps.manifest.outputs.name }}-v${{ steps.manifest.outputs.version }}
+          package-name: ${{ steps.manifest.outputs.name }}
+          package-path: ${{ matrix.path }}
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         if: steps.check.outputs.needed == 'true'
         with:
           persist-credentials: false
-          ref: ${{ steps.ref.outputs.ref }}
+          ref: ${{ steps.release.outputs.revision }}
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         if: steps.check.outputs.needed == 'true'
         with:
@@ -279,7 +293,7 @@ jobs:
         with:
           name: ${{ matrix.package_name }}-dist
           path: dist/
-      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         if: steps.check.outputs.needed == 'true'
 
   # arize-phoenix-sqlean is a vendored C extension (fork of nalgeon/sqlean.py),
@@ -298,48 +312,46 @@ jobs:
     permissions:
       contents: read
     outputs:
-      needed: ${{ steps.pypi.outputs.needed || 'false' }}
-      ref: ${{ steps.ref.outputs.ref }}
+      needed: ${{ steps.pypi.outputs.needed }}
+      ref: ${{ steps.release.outputs.revision }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
           sparse-checkout: |
+            .github/actions/resolve-release-tag/action.yml
             .release-please-manifest.json
             packages/phoenix-sqlean/scripts/check-wheelhouse.py
           sparse-checkout-cone-mode: false
-      - name: Resolve ref from manifest
-        id: ref
+      - name: Read version from manifest
+        id: manifest
         run: |
           VERSION=$(jq -r '.["packages/phoenix-sqlean"] // empty' .release-please-manifest.json)
           if [ -z "$VERSION" ]; then
             echo "::error::Missing version for packages/phoenix-sqlean in manifest"
             exit 1
           fi
-          TAG="arize-phoenix-sqlean-v${VERSION}"
-          # Until release-please creates the first release of this package, the
-          # manifest version has no tag — skip instead of failing the run.
-          if git ls-remote --exit-code origin "refs/tags/${TAG}" > /dev/null 2>&1; then
-            echo "ref=refs/tags/${TAG}" >> $GITHUB_OUTPUT
-            echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          else
-            echo "Tag ${TAG} does not exist yet; skipping arize-phoenix-sqlean"
-          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+      - name: Resolve release tag
+        id: release
+        uses: ./.github/actions/resolve-release-tag
+        with:
+          tag: arize-phoenix-sqlean-v${{ steps.manifest.outputs.version }}
+          package-name: arize-phoenix-sqlean
+          package-path: packages/phoenix-sqlean
       # A complete release is the tag's python_requires across this commit's
       # PLATFORMS: the runners that would build it come from this commit too.
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        if: steps.ref.outputs.ref != ''
         with:
           persist-credentials: false
-          ref: ${{ steps.ref.outputs.ref }}
+          ref: ${{ steps.release.outputs.revision }}
           path: release
           sparse-checkout: packages/phoenix-sqlean/setup.py
           sparse-checkout-cone-mode: false
       - name: Check PyPI for every distribution
         id: pypi
-        if: steps.ref.outputs.ref != ''
         env:
-          VERSION: ${{ steps.ref.outputs.version }}
+          VERSION: ${{ steps.manifest.outputs.version }}
         run: |
           set -euo pipefail
           mkdir on-pypi
@@ -386,7 +398,7 @@ jobs:
           path: dist/
           merge-multiple: true
       # skip-existing: completing a partial release uploads only what PyPI lacks.
-      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         with:
           skip-existing: true
 
@@ -599,7 +611,7 @@ jobs:
           PY
       - name: Build distribution
         run: rm -rf dist && uv build
-      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         with:
           skip-existing: true
 
@@ -676,7 +688,7 @@ jobs:
         if: steps.check.outputs.needed == 'true'
         working-directory: ${{ matrix.path }}
         run: uv build
-      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         if: steps.check.outputs.needed == 'true'
         with:
           skip-existing: true

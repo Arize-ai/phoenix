@@ -40,7 +40,7 @@ A lightweight wrapper around OpenTelemetry for Node.js applications that simplif
 npm install @arizeai/phoenix-otel
 ```
 
-Requires Node.js 18 or newer. Both ESM and CommonJS entry points are provided.
+Requires Node.js 22.15 or newer and OpenTelemetry JS 3 (`@opentelemetry/api` 1.10). Both ESM and CommonJS entry points are provided.
 
 ## Quick Start
 

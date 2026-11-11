@@ -13,6 +13,8 @@ Install the package and any OpenTelemetry instrumentations you want to use with 
 npm install @arizeai/phoenix-otel
 ```
 
+Requires Node.js 22.15 or newer and OpenTelemetry JS 3.
+
 ### Add Instrumentations
 
 ```bash
@@ -31,7 +33,7 @@ npm install \
 - decorators and context propagation: `observe()`, `setSession()`, `setUser()`, `setMetadata()`, `setTags()`, `setPromptTemplate()`, `setAttributes()`
 - attribute builders: `getLLMAttributes()`, `getRetrieverAttributes()`, `getEmbeddingAttributes()`, `getToolAttributes()`, `getMetadataAttributes()`, `getInputAttributes()`, `getOutputAttributes()`, `defaultProcessInput()`, `defaultProcessOutput()`
 - redaction and safety helpers: `OITracer`, `withSafety`, `safelyJSONStringify`, `safelyJSONParse`
-- OpenTelemetry utilities: `trace`, `context`, `SpanStatusCode`, `DiagLogLevel`, `registerInstrumentations()`
+- OpenTelemetry utilities: `trace`, `context`, `SpanStatusCode`, `DiagLogLevel`, `registerInstrumentations()`, `BatchSpanProcessor`, `SimpleSpanProcessor`, `OTLPTraceExporter`
 
 The re-exported OpenInference wrappers resolve the default tracer when the wrapped function runs, so module-scoped traced helpers continue following global provider changes.
 
@@ -215,9 +217,11 @@ await provider.shutdown();
 If you need full control over export, pass your own `spanProcessors`. This replaces the default Phoenix exporter setup.
 
 ```ts
-import { register } from "@arizeai/phoenix-otel";
-import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
-import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
+import {
+  BatchSpanProcessor,
+  OTLPTraceExporter,
+  register,
+} from "@arizeai/phoenix-otel";
 
 const exporter = new OTLPTraceExporter({
   url: "https://your-phoenix.example.com/v1/traces",
@@ -226,7 +230,7 @@ const exporter = new OTLPTraceExporter({
 
 const provider = register({
   projectName: "support-bot",
-  spanProcessors: [new BatchSpanProcessor(exporter)],
+  spanProcessors: [new BatchSpanProcessor({ exporter })],
 });
 ```
 
@@ -264,7 +268,7 @@ await provider.shutdown();
 | **Attribute builders** | `getLLMAttributes()`, `getToolAttributes()`, `getRetrieverAttributes()`, `getEmbeddingAttributes()`, `getMetadataAttributes()` |
 | **Redaction and safety** | `OITracer`, `withSafety()`, `safelyJSONStringify()`, `safelyJSONParse()` |
 | **Semantic conventions** | `SemanticConventions`, `OpenInferenceSpanKind`, `MimeType` |
-| **OpenTelemetry** | `trace`, `context`, `SpanStatusCode`, `DiagLogLevel`, `suppressTracing`, `registerInstrumentations()` |
+| **OpenTelemetry** | `trace`, `context`, `SpanStatusCode`, `DiagLogLevel`, `suppressTracing`, `registerInstrumentations()`, `BatchSpanProcessor`, `SimpleSpanProcessor`, `OTLPTraceExporter` |
 | **Types** | `Tracer`, `Instrumentation`, `SpanTraceOptions`, `RegisterParams` |
 
 ## Where To Start

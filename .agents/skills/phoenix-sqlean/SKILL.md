@@ -3,7 +3,7 @@ name: phoenix-sqlean
 user-invocable: false
 description: >
   Maintaining packages/phoenix-sqlean, the vendored fork of nalgeon/sqlean.py published as
-  arize-phoenix-sqlean. Use when bumping the bundled SQLite, sqlean, or xxHash versions,
+  arize-phoenix-sqlean. Use when bumping the bundled SQLite or sqlean versions,
   changing its wheel matrix, or touching its publish path. Trigger on any change under
   packages/phoenix-sqlean/, .github/workflows/phoenix-sqlean-*.yml, or the sqlean jobs in
   .github/workflows/publish.yaml.
@@ -24,18 +24,17 @@ Pins live in `packages/phoenix-sqlean/Makefile`. Each has a partner that must mo
 | `SQLITE_VERSION` | `SQLITE_RELEASE_YEAR` (the URL embeds both, so a mismatch 404s) and `SQLITE_SHA256` |
 | `SQLEAN_COMMIT` | `SQLEAN_VERSION` in the `Makefile` *and* in `setup.py` — the commit is what gets fetched, the strings only describe it |
 | `SQLEAN_VERSION` | `setup.py`'s copy, compiled in as what `sqlean_version()` returns. Suffix `+<short sha>` iff `SQLEAN_COMMIT` sits ahead of the named tag |
-| `XXHASH_TAG` | `XXHASH_COMMIT` + `XXHASH_SHA256`, and the tag sqlean's own `Makefile` fetches |
 
 `check-sqlean-pin`, a prerequisite of `download-sqlean`, enforces the `SQLEAN_*` rows for one
 `ls-remote`: suffix prefixes the commit, base is a real tag, suffix present iff ahead, `setup.py`
 agrees. It cannot tell you the base names the *wrong* release — the single-commit fetch carries no
-ancestry. `SQLITE_*` and `XXHASH_*` get no equivalent cross-check — only their hashes, at fetch.
+ancestry. `SQLITE_*` gets no equivalent cross-check — only its hash, at fetch.
 
 sqlean is fetched over git by commit: GitHub's source archives are generated on demand and not
 byte-stable, so they cannot be checksum-pinned, while git hashes every object it receives. Hence
-`download-sqlean` needs `git` on PATH and no checksum. The other two arrive over plain HTTP, where
-curl verifies nothing — `XXHASH_COMMIT` fixes which bytes are correct and `XXHASH_SHA256` proves
-they are those. `src/test_windirent.h` needs neither; it is committed to this repo.
+`download-sqlean` needs `git` on PATH and no checksum. The SQLite amalgamation arrives over plain
+HTTP, where curl verifies nothing — `SQLITE_SHA256` proves the bytes match what was confirmed
+against sqlite.org's published SHA3-256.
 
 ### With the script
 
@@ -45,7 +44,7 @@ they are those. `src/test_windirent.h` needs neither; it is committed to this re
 cd packages/phoenix-sqlean
 ./scripts/check-upstream.sh sqlite            # detection only, no downloads
 ./scripts/check-upstream.sh sqlite --apply    # rewrite pins, print a Markdown summary
-./scripts/check-upstream.sh sqlean [--apply]  # also moves XXHASH_* if sqlean moved its own
+./scripts/check-upstream.sh sqlean [--apply]
 ```
 
 ### By hand
@@ -81,19 +80,16 @@ patch — cannot reproduce.
 A failure of the script itself is different: upstream changed shape, so it exits before writing and
 the job goes red with no PR, because there is no computed bump to review.
 
-`XXHASH_*` is deliberately unwatched. sqlean drives it, and `download-sqlean` already fails when
-sqlean moves its own pin.
-
 ## Gotchas
 
-- **`src/test_windirent.h` is pinned at 3.50.4 — do not re-sync it.** SQLite removed it in 3.51.0
-  and no newer tag has it. Vendored deliberately, not downloaded.
-- **sqlean >= 0.28 needs `crypto/xxhash.impl.h`, which sqlean does not ship.** Any new third-party
-  source needs a `THIRD_PARTY_LICENSES` section *and* its SPDX identifier in `license=`.
+- **Any new third-party source in sqlean needs a `THIRD_PARTY_LICENSES` section *and* its SPDX
+  identifier in `license=`.**
 - **`patch(1)` failing on `src/sqlean-time-msvc.patch` is the intended tripwire**, not a breakage.
-  Regenerate it against the new sqlean sources.
-- **"sqlean fetches xxHash X, but XXHASH_TAG is Y" is the other one.** Move all three `XXHASH_*`
-  pins, and the version named in `THIRD_PARTY_LICENSES`.
+  Regenerate it against `sqlite/time/duration.c` and `sqlite/time/time.c`.
+- **`download-sqlean` and `check-upstream.sh` assert that sqlean's `Makefile` has no external `curl`
+  downloads and that `src/sqlite3-*.c` matches `SQLEAN_MODULES`.** If upstream adds/removes an
+  extension module or re-introduces an external source download, update `Makefile`, `setup.py`,
+  `MANIFEST.in`, `src/sqlean.c`, `sqlean/extensions.py`, and `tests/extensions.py` together.
 - **The `sqlean_version()` test is a tautology on its own** — it compares the compiled macro to
   `setup.py`'s own constant, proving only that the binary is not stale. `check-sqlean-pin` is what
   ties that constant back to `SQLEAN_COMMIT`.
@@ -133,11 +129,14 @@ sqlean moves its own pin.
   may have removed private C API the driver uses, which fails that version's wheel builds.
 - **Source preparation is the build workflow's first job**, on Ubuntu because Windows runners lack
   make/curl/unzip. Its `ref` input selects what to build: CI leaves it empty (the PR's commit),
-  publish passes the release tag. Callers pass nothing else.
+  publish passes the verified release commit SHA. Callers pass nothing else.
 - **`test-sources` resolves against cibuildwheel's working directory, not `package-dir`** — hence
   the build legs unpack the sources at the workspace root.
-- Publishing is gated on the tag `arize-phoenix-sqlean-v<manifest version>`. Until release-please
-  creates it, `sqlean-release` skips and nothing builds.
+- Publishing is gated on the tag `arize-phoenix-sqlean-v<manifest version>`. If it is missing,
+  points at a commit that is not on `main`, or disagrees with the sqlean version in the
+  manifest at that commit, `sqlean-release` fails.
+  Missing tags fail closed even if the package was released before; restore the expected tag
+  before re-running publish.
 - **sqlean publishes until PyPI holds every distribution, not just the version.** The generic
   "version on PyPI" gate in `list-python-packages` skips sqlean; `sqlean-release` runs on every
   release and runs `check-wheelhouse.py --missing-only` on PyPI's file list for that version. A

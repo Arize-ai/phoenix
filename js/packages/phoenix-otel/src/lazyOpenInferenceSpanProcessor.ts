@@ -5,11 +5,11 @@ import type {
   Span,
   SpanExporter,
   SpanProcessor,
-} from "@opentelemetry/sdk-trace-base";
+} from "@opentelemetry/sdk-trace";
 import {
   BatchSpanProcessor,
   SimpleSpanProcessor,
-} from "@opentelemetry/sdk-trace-base";
+} from "@opentelemetry/sdk-trace";
 
 type PendingStart = {
   span: Span;
@@ -24,7 +24,7 @@ type PendingStart = {
  * export condition), so it cannot be loaded with `require()` from this
  * package's CommonJS build on any Node.js version. A dynamic `import()`,
  * however, can load ESM from CommonJS on every supported Node.js version
- * (>=18) — so the processors are loaded asynchronously and spans recorded
+ * (>=22.15) — so the processors are loaded asynchronously and spans recorded
  * before the load completes are buffered and replayed.
  *
  * If the module cannot be loaded at all (e.g. a bundler stripped dynamic
@@ -60,8 +60,8 @@ export class LazyOpenInferenceSpanProcessor implements SpanProcessor {
         );
         this.setDelegate(
           batch
-            ? new BatchSpanProcessor(exporter)
-            : new SimpleSpanProcessor(exporter)
+            ? new BatchSpanProcessor({ exporter })
+            : new SimpleSpanProcessor({ exporter })
         );
       });
   }

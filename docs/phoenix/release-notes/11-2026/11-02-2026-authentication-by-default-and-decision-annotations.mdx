@@ -1,0 +1,186 @@
+---
+title: "11.02.2026: Breaking Change: Authentication by Default"
+description: "Phoenix 21 binds to loopback and turns on authentication for network listeners, annotations gain DECISION and AGENT annotator kinds, and session turns preview their evals, tokens, and cost on hover."
+---
+
+Phoenix 21 secures network deployments out of the box: it binds to loopback by default and turns on authentication whenever it listens on another address. Annotations can now record DECISION and AGENT as their source, and session turns preview their evals, tokens, and cost on hover.
+
+# Breaking Change: Authentication by Default
+
+October 30, 2026
+
+**Breaking change in arize-phoenix 21.0.0**
+
+Phoenix no longer starts open to the network. When `PHOENIX_ENABLE_AUTH` is unset, authentication follows the bind address, and an explicit `PHOENIX_ENABLE_AUTH` still takes precedence.
+
+- **Loopback by default.** `PHOENIX_HOST` defaults to `127.0.0.1` for HTTP, gRPC, and Prometheus, and authentication stays off there. A non-loopback address, such as `0.0.0.0` or `::`, turns authentication on.
+- **Docker requires an API key.** The image sets `PHOENIX_HOST=::`, so configure trace exporters and API clients with an API key, or set `PHOENIX_ENABLE_AUTH=false`. The Helm chart's authentication default is unchanged.
+- **`PHOENIX_SECRET` is optional.** Without it, Phoenix signs tokens with a key stored in the database, but anyone with a copy of the database can then decrypt saved credentials. Settings → Secrets warns admins when this applies. Setting or changing `PHOENIX_SECRET` makes saved credentials unreadable, so re-enter them.
+- **Other changes:** `phoenix serve --host` is removed in favor of `PHOENIX_HOST`, `launch_app` honors the authentication settings, the default `admin` password must be changed before it can open a session, and browser sign-out no longer ends CLI or MCP OAuth2 sessions.
+
+```bash
+PHOENIX_HOST=0.0.0.0 phoenix serve --port 6006
+```
+
+<CardGroup cols={2}>
+  <Card title="Migration Guide" icon="arrow-up-right-dots" href="https://github.com/Arize-ai/phoenix/blob/main/MIGRATION.md">
+    Every step for upgrading from v20 to v21
+  </Card>
+  <Card title="Authentication" icon="lock" href="/docs/phoenix/self-hosting/features/authentication">
+    API keys, admin accounts, and secrets
+  </Card>
+</CardGroup>
+
+# DECISION and AGENT Annotator Kinds
+
+October 29 to 30, 2026
+
+**Available in arize-phoenix 21.0.0+ (server), arize-phoenix-client 3.6.0+ (Python), @arizeai/phoenix-client 7.17.0+, and @arizeai/phoenix-cli 1.19.0+**
+
+Annotations now record two more sources next to `HUMAN`, `LLM`, and `CODE`, so you can tell decision-model and agent judgments apart from LLM-judge output.
+
+- **`DECISION`** marks annotations produced by a decision model, and **`AGENT`** marks annotations produced by an AI agent.
+- **Works for every annotation target**: spans, documents, traces, sessions, and experiment runs, across REST, GraphQL, both SDKs, and the UI.
+- **In `px`**, `--annotator-kind` on `annotate` and the `*-annotations delete` commands accepts both. Older servers reject the new kinds.
+
+```python
+from phoenix.client import Client
+
+client = Client()
+client.spans.add_span_annotation(
+    span_id="67f6740bbe1ddc3f",
+    annotation_name="intent",
+    annotator_kind="DECISION",
+    label="refund_request",
+)
+```
+
+```typescript
+import { addSpanAnnotation } from "@arizeai/phoenix-client/spans";
+
+await addSpanAnnotation({
+  spanAnnotation: {
+    spanId: "67f6740bbe1ddc3f",
+    name: "intent",
+    annotatorKind: "DECISION",
+    label: "refund_request",
+  },
+});
+```
+
+<CardGroup cols={2}>
+  <Card title="Capture Feedback" icon="tag" href="/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/capture-feedback">
+    Annotation fields and annotator kinds
+  </Card>
+</CardGroup>
+
+# Harbor: Reference Outputs and Agent Responses
+
+October 30, 2026
+
+**Available in arize-phoenix-client 3.6.0+**
+
+Harbor experiments in Phoenix now show the agent's answer beside the expected one.
+
+- **Agent responses become run output.** The final text turn of the agent's ATIF trajectory renders as Markdown in experiment comparisons, even with `trace_mode=null`.
+- **Optional reference outputs.** Point a task at a JSON file under its `tests/` directory, and the plugin stores it as the dataset example's output. Tasks opt in one at a time.
+
+```toml
+[metadata.arize-phoenix]
+reference_output_path = "tests/expected.json"
+```
+
+<CardGroup cols={2}>
+  <Card title="Harbor" icon="flask" href="/docs/phoenix/integrations/evaluation-integrations/harbor">
+    Reference outputs and run output format
+  </Card>
+</CardGroup>
+
+# Session Turn Previews and PXI Model Search
+
+October 29, 2026
+
+**Available in arize-phoenix 20.27.0+**
+
+- **Preview a session turn.** Hover over a turn in a session, or move to it with the arrow keys, to see its trace and root span evals, timing, tokens, and cost without opening the trace.
+- **Search for a PXI model.** The PXI model picker shows Current, Recent, and Recommended models, searches every configured provider, and lets you type any model name and pick a provider for it. Settings → Assistant uses the same picker.
+
+# Client Updates: Trace Filters, Span Sorting, and Dataset Labels
+
+October 30 to November 2, 2026
+
+**Available in arize-phoenix-client 3.6.0+ (Python) and @arizeai/phoenix-client 7.18.0+ (TypeScript)**
+
+The Python client catches up with filter expressions and span sorting, and the TypeScript client can manage dataset labels.
+
+- **`filter` on `get_traces`, `sessions.list`, and `get_sessions_dataframe`** takes the same expressions as the UI and deprecates `error`, `min_latency_ms`, and `max_latency_ms`. Requires Phoenix server 20.12.0+.
+- **`sort` and `order` on `get_spans`** return spans by start time instead of insertion order. Requires Phoenix server 20.16.0+.
+- **Dataset label helpers** in `@arizeai/phoenix-client/datasets` create, list, update, and delete global labels, and add, remove, or replace the labels on a dataset selected by name or GlobalID.
+
+```python
+from phoenix.client import Client
+
+client = Client()
+slow_failures = client.traces.get_traces(
+    project_identifier="my-project",
+    filter="error_count > 0 and latency_ms >= 1000",
+)
+latest_spans = client.spans.get_spans(
+    project_identifier="my-project",
+    sort="start_time",
+    order="desc",
+)
+```
+
+```typescript
+import {
+  addLabelToDataset,
+  createDatasetLabel,
+} from "@arizeai/phoenix-client/datasets";
+
+const label = await createDatasetLabel({ name: "golden", color: "#00cc88" });
+await addLabelToDataset({
+  dataset: { datasetName: "support-tickets" },
+  labelId: label.id,
+});
+```
+
+<CardGroup cols={2}>
+  <Card title="Filter Expressions" icon="filter" href="/docs/phoenix/tracing/how-to-tracing/filter-expressions">
+    Filter vocabulary for spans, traces, and sessions
+  </Card>
+  <Card title="TypeScript Datasets" icon="database" href="/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/datasets">
+    Dataset label helpers
+  </Card>
+</CardGroup>
+
+# Built-in Model Prices Update Without an Upgrade
+
+October 30, 2026
+
+**Available in arize-phoenix 21.0.0+**
+
+Phoenix now fetches the latest built-in model prices from GitHub shortly after startup and about once a day, so new models get costs without a server upgrade.
+
+- **Prices never roll back.** Phoenix applies a price table only when it is newer than the one in use, so restarts, downgrades, and mixed-version replicas keep the latest prices.
+- **Settings → Models shows the table's date**, for example "Built-in prices from Oct 14, 2026". Custom models are never changed by an update.
+- **Opt out** with `PHOENIX_DISABLE_MODEL_COST_AUTO_UPDATE=true`. Air-gapped deployments with `PHOENIX_ALLOW_EXTERNAL_RESOURCES=false` skip the fetch too.
+
+<CardGroup cols={2}>
+  <Card title="Cost Tracking" icon="dollar-sign" href="/docs/phoenix/tracing/how-to-tracing/cost-tracking">
+    Keeping built-in prices current
+  </Card>
+</CardGroup>
+
+# Additional Improvements
+
+October 29 to 30, 2026
+
+**Available in arize-phoenix 20.27.0–21.0.0 and arize-phoenix-client 3.6.0+**
+
+- **Members can view sandbox settings** in read-only mode, while only admins can change them.
+- **Prompt version responses include `created_at`** in the REST API and both SDKs' types.
+- **IPv6 hosts work end to end**: `PHOENIX_HOST=::` binds dual-stack, and the clients turn IPv6 `PHOENIX_HOST` values into valid URLs.
+- **Server telemetry redacts personal data**, including credentials and customer content, from exported logs and spans.
+- **Experiment run errors are easier to read**, and the annotation score chart sizes its y-axis to the data.
+- **Python prompt helpers** keep Anthropic `extra_body`, treat the `developer` role as system for Anthropic and Google, and keep a label of `0` when logging annotation dataframes.

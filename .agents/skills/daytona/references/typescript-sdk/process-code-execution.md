@@ -257,7 +257,7 @@ try {
     const session = await sandbox.process.getSession(sessionId);
     // Do work...
 } finally {
-    await sandbox.process.deleteSession(session.sessionId);
+    await sandbox.process.deleteSession(sessionId);
 }
 ```
 

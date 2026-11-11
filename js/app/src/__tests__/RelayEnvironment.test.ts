@@ -72,3 +72,22 @@ describe("fetchRelay", () => {
     });
   });
 });
+
+describe("fetchRelay request cancellation", () => {
+  it("does not abort the request signal after the request completes", async () => {
+    authFetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ data: { __typename: "Query" } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+
+    await executeRequest();
+
+    const init: RequestInit | undefined = authFetchMock.mock.calls[0]?.[1];
+    expect(init?.signal).toBeInstanceOf(AbortSignal);
+    // Aborting a finished request still rejects any promise tied to its
+    // signal with an AbortError, which surfaces as an unhandled rejection.
+    expect(init?.signal?.aborted).toBe(false);
+  });
+});

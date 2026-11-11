@@ -8,13 +8,41 @@ on:
 
 jobs:
   version:
-    name: Extract version
+    name: Resolve release tag
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.extract.outputs.version }}
       major: ${{ steps.extract.outputs.major }}
       minor: ${{ steps.extract.outputs.minor }}
+      revision: ${{ steps.release.outputs.revision }}
     steps:
+      - name: Check out the repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      # Defense in depth: the tagged commit supplies this workflow and action,
+      # so repository tag rules must enforce who can create or move releases.
+      # Verify ancestry and pass the pinned SHA to every publishing job.
+      - name: Verify the tag points at a commit on main
+        id: release
+        uses: ./.github/actions/resolve-release-tag
+        with:
+          tag: ${{ github.ref_name }}
+          package-name: arize-phoenix
+          package-path: .
+      - name: Verify the tag still matches the triggering commit
+        env:
+          REVISION: ${{ steps.release.outputs.revision }}
+        run: |
+          set -euo pipefail
+          # HEAD peels annotated tags to a commit as well. A moved tag must not
+          # build different sources with this event's workflow and metadata.
+          EVENT_REVISION=$(git rev-parse HEAD)
+          if [ "$REVISION" != "$EVENT_REVISION" ]; then
+            echo "::error::Release tag resolved to ${REVISION}, but this run was triggered for ${EVENT_REVISION}. Refusing to publish a moved tag."
+            exit 1
+          fi
       - name: Extract version from tag
         id: extract
         run: |
@@ -29,6 +57,7 @@ jobs:
 
   build:
     name: Build ${{ matrix.platform }}
+    needs: version
     # linux/arm64 builds on a native ARM runner rather than under QEMU
     # emulation on x86, which is both far slower and a source of flakes.
     runs-on: ${{ matrix.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
@@ -50,6 +79,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+          ref: ${{ needs.version.outputs.revision }}
 
       - name: Build and push every variant by digest
         uses: ./.github/actions/docker-build-image
@@ -83,6 +113,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+          ref: ${{ needs.version.outputs.revision }}
 
       # Applied to every tag below. root publishes unsuffixed names, so a
       # suffix bug would silently point `latest` at the wrong variant — hence
@@ -146,6 +177,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+          ref: ${{ needs.version.outputs.revision }}
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:

@@ -385,7 +385,10 @@ export function createDatasetGetCommand(): Command {
       collectString,
       []
     )
-    .option("--version <id>", "Fetch from a specific dataset version")
+    .option(
+      "--version <id>",
+      "Fetch from a specific dataset version (discover IDs with px dataset-versions list)"
+    )
     .action(datasetHandler);
 }
 
