@@ -39,6 +39,7 @@ import {
   ColumnOrderingProvider,
   createRowSelectionColumn,
   useColumnOrder,
+  useShiftClickRowSelection,
 } from "@phoenix/components/table";
 import {
   getCommonPinningStyles,
@@ -514,12 +515,12 @@ export function ProjectEvaluatorsTable({
     (projectEvaluatorId: string) => navigate(paths.edit(projectEvaluatorId)),
     [navigate, paths]
   );
+  const { selectRow } = useShiftClickRowSelection<TableRow>({
+    resetKey: tableData,
+  });
   const columns = useMemo<ColumnDef<TableRow>[]>(
     () => [
-      createRowSelectionColumn<TableRow>({
-        showSelectAllHeader: false,
-        size: 40,
-      }),
+      createRowSelectionColumn<TableRow>({ selectRow, size: 40 }),
       {
         id: "enabled",
         header: "enabled",
@@ -819,7 +820,7 @@ export function ProjectEvaluatorsTable({
         ),
       },
     ],
-    [projectId, openEditSlideover, paths]
+    [projectId, openEditSlideover, paths, selectRow]
   );
   const columnVisibility = useProjectEvaluatorsTableContext(
     (state) => state.columnVisibility
