@@ -40,7 +40,10 @@ import {
   EvaluatorPreviewOutputConfigsProvider,
   useEvaluatorPreviewOutputConfigs,
 } from "@phoenix/components/evaluators/EvaluatorPreviewOutputConfigsContext";
-import { useEvaluatorPreviewStream } from "@phoenix/components/evaluators/useEvaluatorPreview";
+import {
+  EVALUATOR_PREVIEW_MAX_SUBJECTS,
+  useEvaluatorPreviewStream,
+} from "@phoenix/components/evaluators/useEvaluatorPreview";
 import {
   buildOutputConfigsInput,
   createLLMEvaluatorPayload,
@@ -687,6 +690,24 @@ export function fingerprintDefinition(
   return JSON.stringify({ evaluator: fingerprinted, inputMapping });
 }
 
+/**
+ * The rows to send, one request's worth per batch. A record can be listed
+ * twice under one key (an in-progress trace with two root spans) and the
+ * server rejects a repeated key, so each key is sent once; and the server
+ * takes at most EVALUATOR_PREVIEW_MAX_SUBJECTS subjects per request.
+ */
+export function previewSubjectBatches<Row extends { key: string }>(
+  rows: readonly Row[],
+  maxSubjects: number = EVALUATOR_PREVIEW_MAX_SUBJECTS
+): Row[][] {
+  const unique = [...new Map(rows.map((row) => [row.key, row])).values()];
+  const batches: Row[][] = [];
+  for (let start = 0; start < unique.length; start += maxSubjects) {
+    batches.push(unique.slice(start, start + maxSubjects));
+  }
+  return batches;
+}
+
 const subscribeToNothing = () => () => {};
 
 /** The preview runs, keyed by row; results survive a load-more. */
@@ -759,11 +780,8 @@ function useEvaluatorPreviewRuns({
     : (decisionBlocker ??
       "Fix the evaluator's annotation configuration to test");
 
-  /** Tests the rows in one stream; each row fills in as its result arrives. */
-  const runOnRows = (rows: readonly RecordedRunRow[]) => {
-    if (rows.length === 0) {
-      return;
-    }
+  /** Tests one request's worth of rows, each key once, in one stream. */
+  const runOnBatch = (rows: readonly RecordedRunRow[]) => {
     const state = evaluatorStore.getState();
     const evaluator = buildPreviewEvaluator({
       codeEvaluatorId,
@@ -777,8 +795,6 @@ function useEvaluatorPreviewRuns({
       evaluator,
       state.evaluator.inputMapping
     );
-    // A record can be listed twice under one key (an in-progress trace with two
-    // root spans); the server rejects a repeated key, so each is sent once.
     const subjectContextByKey = new Map(
       rows.map(({ key, context }) => [key, context])
     );
@@ -864,6 +880,16 @@ function useEvaluatorPreviewRuns({
     );
     if (!isFinished) {
       activePreviewsRef.current.add(preview);
+    }
+  };
+
+  /**
+   * Tests the rows in as few streams as the server's subject cap allows;
+   * each row fills in as its result arrives.
+   */
+  const runOnRows = (rows: readonly RecordedRunRow[]) => {
+    for (const batch of previewSubjectBatches(rows)) {
+      runOnBatch(batch);
     }
   };
 

@@ -199,6 +199,13 @@ class EvaluatorPreviewSubjectInput:
     context: Redacted[JSON]
 
 
+# Subjects one preview request may carry. Every subject's context is held in memory
+# and gets a task for the whole request, so this bounds one request's footprint. The
+# bench sends its loaded records in requests of at most this many; the harbor
+# hill-climb verifier sends 5.
+MAX_EVALUATOR_PREVIEW_SUBJECTS = 100
+
+
 @strawberry.input
 class EvaluatorPreviewInput:
     """Input for the evaluatorPreview subscription: one evaluator, many subjects."""
@@ -216,7 +223,12 @@ class EvaluatorPreviewInput:
         ),
     )
     input_mapping: EvaluatorInputMappingInput
-    subjects: list[EvaluatorPreviewSubjectInput]
+    subjects: list[EvaluatorPreviewSubjectInput] = strawberry.field(
+        description=(
+            "The records to evaluate, each under its own key. A request takes at most "
+            f"{MAX_EVALUATOR_PREVIEW_SUBJECTS}; split larger sets across requests."
+        ),
+    )
     apply_online_evaluation_limits: bool = strawberry.field(
         default=False,
         description=(

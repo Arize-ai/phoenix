@@ -17,6 +17,7 @@ from phoenix.server.api.helpers.evaluator_preview import (
     stream_evaluator_preview,
 )
 from phoenix.server.api.input_types.EvaluatorDefinitionInput import (
+    MAX_EVALUATOR_PREVIEW_SUBJECTS,
     EvaluatorPreviewInput,
     EvaluatorPreviewSubjectInput,
 )
@@ -442,6 +443,44 @@ class TestPreviewEvaluatorMutation:
 
         assert response.errors
         assert "No sandbox configuration selected" in response.errors[0].message
+
+    @pytest.mark.parametrize(
+        "count,accepted",
+        [(MAX_EVALUATOR_PREVIEW_SUBJECTS, True), (MAX_EVALUATOR_PREVIEW_SUBJECTS + 1, False)],
+        ids=["at-the-cap", "over-the-cap"],
+    )
+    async def test_caps_the_subjects_of_one_request(
+        self,
+        gql_client: AsyncGraphQLClient,
+        count: int,
+        accepted: bool,
+    ) -> None:
+        evaluate = AsyncMock(return_value=[_eval_result("accuracy")])
+        with _patch_built_evaluator(_FakeEvaluator(evaluate)) as build:
+            response = await gql_client.execute(
+                self._MUTATION,
+                {
+                    "input": {
+                        "evaluator": _BUILTIN_PLACEHOLDER,
+                        "inputMapping": _EMPTY_MAPPING,
+                        "subjects": [
+                            {"key": f"s{i}", "context": {"output": str(i)}} for i in range(count)
+                        ],
+                    }
+                },
+            )
+
+        if accepted:
+            assert response.data and not response.errors, response.errors
+            assert len(response.data["previewEvaluator"]["results"]) == count
+            return
+        assert response.errors
+        assert response.errors[0].message == (
+            f"An evaluator preview takes at most {MAX_EVALUATOR_PREVIEW_SUBJECTS} subjects; "
+            f"got {count}. Split them across requests."
+        )
+        build.assert_not_called()
+        evaluate.assert_not_called()
 
 
 class TestEvaluatorPreviewCancellation:

@@ -25,6 +25,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError, NotFound
 from phoenix.server.api.helpers.expected_outputs import without_own_annotations
 from phoenix.server.api.input_types.EvaluatorDefinitionInput import (
+    MAX_EVALUATOR_PREVIEW_SUBJECTS,
     EvaluatorPreviewInput,
     EvaluatorPreviewSubjectInput,
     _node_id,
@@ -82,6 +83,11 @@ async def stream_evaluator_preview(
     with their LLM calls and sandbox executions; each sandbox is torn down as its
     execution is cancelled.
     """
+    if len(input.subjects) > MAX_EVALUATOR_PREVIEW_SUBJECTS:
+        raise BadRequest(
+            f"An evaluator preview takes at most {MAX_EVALUATOR_PREVIEW_SUBJECTS} subjects; "
+            f"got {len(input.subjects)}. Split them across requests."
+        )
     subject_keys = [subject.key for subject in input.subjects]
     if len(set(subject_keys)) != len(subject_keys):
         raise BadRequest("Each evaluator preview subject needs a unique key")

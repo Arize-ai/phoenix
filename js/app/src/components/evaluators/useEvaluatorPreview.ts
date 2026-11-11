@@ -20,6 +20,12 @@ import {
 
 export type { EvaluatorPreviewInput };
 
+/**
+ * The most subjects the server takes in one preview request
+ * (MAX_EVALUATOR_PREVIEW_SUBJECTS); larger sets go in several requests.
+ */
+export const EVALUATOR_PREVIEW_MAX_SUBJECTS = 100;
+
 /** What the evaluator returned for one subject of a preview. */
 export type EvaluatorPreviewSubjectResult =
   useEvaluatorPreviewSubscription["response"]["evaluatorPreview"];

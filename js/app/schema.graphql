@@ -3221,6 +3221,10 @@ input EvaluatorPreviewInput {
   """
   datasetEvaluatorId: ID = null
   inputMapping: EvaluatorInputMappingInput!
+
+  """
+  The records to evaluate, each under its own key. A request takes at most 100; split larger sets across requests.
+  """
   subjects: [EvaluatorPreviewSubjectInput!]!
 
   """

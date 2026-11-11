@@ -214,6 +214,7 @@ class EvaluatorPreviewInput(BaseModel):
     "Preview a saved decision judge as this dataset evaluator binding: it runs under the binding's name and provenance, using the evaluator's scoring policy. Omit to preview the judge on its own, under its own name and policy."
     input_mapping: "EvaluatorInputMappingInput" = Field(alias="inputMapping")
     subjects: list["EvaluatorPreviewSubjectInput"]
+    "The records to evaluate, each under its own key. A request takes at most 100; split larger sets across requests."
     apply_online_evaluation_limits: bool = Field(
         alias="applyOnlineEvaluationLimits", default=False
     )
