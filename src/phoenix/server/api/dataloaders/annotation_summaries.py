@@ -218,7 +218,7 @@ def _get_stmt(
             time_range_conditions.append(time_column < end_time)
 
     # Every aggregate below, including the entity count that is the denominator of the
-    # reported fractions, derives from the one scoped scan in `base_cte`, so numerator and
+    # reported fractions, derives from the one scoped scan in `base_subquery`, so numerator and
     # denominator always select from the same rows.
     span_filter = SpanFilter(filter_condition) if kind == "span" and filter_condition else None
     filtered_session_rowids = (
