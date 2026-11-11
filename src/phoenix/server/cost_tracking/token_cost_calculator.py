@@ -9,6 +9,7 @@ from phoenix.db.types.token_price_customization import (
     TokenPriceCustomization,
 )
 from phoenix.server.cost_tracking.helpers import (
+    get_embedding_input_token_key,
     get_priced_model_type,
     is_finite_number,
     uses_decision_token_counts,
@@ -26,16 +27,21 @@ def _threshold_key(key: str, attributes: Mapping[str, Any]) -> str:
     """
     Return the attribute a threshold reads on this span.
 
-    On DECISION spans the LLM and DECISION token count keys mean the same count, so a threshold
-    reads the key of the family the span's tokens are priced from: a tier keyed on
-    `llm.token_count.prompt` (as the LLM manifest entries are) reads `decision.token_count.input`
-    on a DECISION span that reports it, and a tier keyed on `decision.token_count.input` reads
-    `llm.token_count.prompt` on a legacy DECISION span. LLM spans read the key as is.
+    A threshold reads the attribute the span's tokens are priced from:
+    - On DECISION spans, `llm.token_count.prompt`/`.completion` and
+      `decision.token_count.input`/`.output` map to whichever family the span reports.
+    - On EMBEDDING spans, a tier keyed on `llm.token_count.prompt` falls back to
+      `llm.token_count.total` when the prompt count is missing or 0, matching
+      `get_aggregated_tokens`.
+    - LLM spans read the key as is.
     """
     if uses_decision_token_counts(attributes):
         return _LLM_TO_DECISION_KEYS.get(key, key)
-    if get_priced_model_type(attributes) == "DECISION":
+    model_type = get_priced_model_type(attributes)
+    if model_type == "DECISION":
         return _DECISION_TO_LLM_KEYS.get(key, key)
+    if model_type == "EMBEDDING" and key == SpanAttributes.LLM_TOKEN_COUNT_PROMPT:
+        return get_embedding_input_token_key(attributes)
     return key
 
 

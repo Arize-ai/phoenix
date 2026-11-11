@@ -147,6 +147,16 @@ def _get_token_count(attributes: Mapping[str, Any], key: str) -> int:
     return parse_token_count(get_attribute_value(attributes, key)) or 0
 
 
+def get_embedding_input_token_key(attributes: Mapping[str, Any]) -> str:
+    """
+    Return the attribute holding an EMBEDDING span's input token count: `llm.token_count.prompt`
+    when positive, else `llm.token_count.total`.
+    """
+    if _get_token_count(attributes, SpanAttributes.LLM_TOKEN_COUNT_PROMPT):
+        return SpanAttributes.LLM_TOKEN_COUNT_PROMPT
+    return SpanAttributes.LLM_TOKEN_COUNT_TOTAL
+
+
 def get_aggregated_tokens(
     attributes: Mapping[str, Any],
 ) -> tuple[_PromptTokens, _CompletionTokens, _TotalTokens]:
@@ -162,9 +172,7 @@ def get_aggregated_tokens(
     """
     try:
         if get_priced_model_type(attributes) == "EMBEDDING":
-            prompt_tokens = _get_token_count(
-                attributes, SpanAttributes.LLM_TOKEN_COUNT_PROMPT
-            ) or _get_token_count(attributes, SpanAttributes.LLM_TOKEN_COUNT_TOTAL)
+            prompt_tokens = _get_token_count(attributes, get_embedding_input_token_key(attributes))
             return prompt_tokens, 0, prompt_tokens
 
         if uses_decision_token_counts(attributes):
