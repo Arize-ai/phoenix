@@ -128,7 +128,7 @@ function SandboxProviderTableRow({
             configureCredentials={
               canConfigureCredentials
                 ? {
-                    "aria-label": configureCredentialsLabel,
+                    action: `configure ${backend.displayName} credentials`,
                     onPress: openCredentials,
                   }
                 : undefined

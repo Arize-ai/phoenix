@@ -43,13 +43,13 @@ describe("StatusText", () => {
         status="MISSING_CREDENTIALS"
         detail="Missing E2B_API_KEY."
         configureCredentials={{
-          "aria-label": "Configure E2B credentials",
+          action: "configure E2B credentials",
           onPress,
         }}
       />
     );
     const trigger = container.querySelector(
-      '[aria-label="Configure E2B credentials"]'
+      '[aria-label="Needs credentials: configure E2B credentials"]'
     );
     expect(trigger).not.toBeNull();
     press(trigger!);
@@ -71,7 +71,7 @@ describe("StatusText", () => {
         status="UNAVAILABLE"
         detail="Backend creation failed."
         configureCredentials={{
-          "aria-label": "Configure E2B credentials",
+          action: "configure E2B credentials",
           onPress,
         }}
       />

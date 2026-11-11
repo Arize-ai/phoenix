@@ -43,18 +43,24 @@ export function StatusText({
   dependencyHints?: BackendInfo["dependencyHints"];
   /**
    * Makes a missing-credentials status open the credentials dialog, for a
-   * viewer who can set them.
+   * viewer who can set them. `action` follows the visible status label in the
+   * trigger's accessible name.
    */
-  configureCredentials?: { "aria-label": string; onPress: () => void };
+  configureCredentials?: { action: string; onPress: () => void };
 }) {
+  const label = statusLabel(status);
   const indicator = (
-    <StatusIndicator
-      category={STATUS_CATEGORIES[status]}
-      label={statusLabel(status)}
-    />
+    <StatusIndicator category={STATUS_CATEGORIES[status]} label={label} />
   );
   if (status === "MISSING_CREDENTIALS" && configureCredentials) {
-    return <MarkerTrigger {...configureCredentials}>{indicator}</MarkerTrigger>;
+    return (
+      <MarkerTrigger
+        aria-label={`${label}: ${configureCredentials.action}`}
+        onPress={configureCredentials.onPress}
+      >
+        {indicator}
+      </MarkerTrigger>
+    );
   }
   const explanationLines = detail ? [detail] : dependencyHints;
 

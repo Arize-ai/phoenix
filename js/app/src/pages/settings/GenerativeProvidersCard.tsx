@@ -239,7 +239,7 @@ function ProviderCredentialsStatus({
   if (status.category === "needs-credentials") {
     return (
       <MarkerTrigger
-        aria-label={`Configure ${provider.name} credentials`}
+        aria-label={`${status.label}: configure ${provider.name} credentials`}
         onPress={onConfigure}
       >
         {indicator}
