@@ -10,6 +10,8 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
     "skipLibCheck": true,
     "types": ["@emotion/react/types/css-prop", "vitest/globals"],
     "plugins": [
