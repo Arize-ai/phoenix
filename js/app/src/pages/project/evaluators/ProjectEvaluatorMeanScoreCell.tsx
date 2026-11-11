@@ -17,6 +17,7 @@ import {
 } from "@phoenix/components/annotation";
 import {
   ANNOTATION_LABEL_ACCENT_COLOR,
+  extendAnnotationLabelColors,
   getAnnotationLabelColor,
   getAnnotationLabelOrder,
   useAnnotationLabelColors,
@@ -379,6 +380,39 @@ function formatSharePointsDelta(delta: number) {
 }
 
 /**
+ * How the leading label's share moved since the previous window, and whether
+ * that is good news. No previous labels means nothing to compare against; a
+ * previous window that had labels but not this one had a share of zero.
+ */
+function getLeadingShareChange({
+  label,
+  fraction,
+  previousLabelFractions,
+  optimizationValue,
+}: {
+  label: string;
+  fraction: number;
+  previousLabelFractions: ReadonlyArray<LabelFraction> | null | undefined;
+  /** The label's own optimization value, when the config scores it. */
+  optimizationValue: number | null;
+}) {
+  const previousShare =
+    previousLabelFractions != null && previousLabelFractions.length > 0
+      ? (previousLabelFractions.find((entry) => entry.label === label)
+          ?.fraction ?? 0)
+      : null;
+  const delta = previousShare == null ? null : fraction - previousShare;
+  const isImprovement =
+    delta == null ||
+    delta === 0 ||
+    optimizationValue == null ||
+    optimizationValue === 0
+      ? null
+      : delta > 0 === optimizationValue > 0;
+  return { previousShare, delta, isImprovement };
+}
+
+/**
  * The cell for an annotation that carries labels but no scores: the leading
  * label and its share where the mean score would be, the change in that
  * share vs. the previous window, and the label distribution as a stacked bar
@@ -398,11 +432,17 @@ function AnnotationLabelDistributionView({
   // A neutral accent rather than the name's word color, which can land on a
   // status hue (red for "correct") and read as a judgement. Whether a label
   // is good or bad shows on the pill and delta when the config scores it.
-  const colors = useAnnotationLabelColors(annotation.name, {
+  const palette = useAnnotationLabelColors(annotation.name, {
     primaryColor: ANNOTATION_LABEL_ACCENT_COLOR,
   });
   const { config } = annotation;
   const { labelFractions, labelCount } = summary;
+  // Past the palette's end, cycle the grays only: wrapping back to the accent
+  // would paint a later label like the leading one.
+  const colors = extendAnnotationLabelColors(
+    palette,
+    Math.max(labelFractions.length, config?.values?.length ?? 0)
+  );
   // Draw labels in the config's order (the order their colors follow), then
   // the server's order for labels the config doesn't list, so each label
   // holds its place in the bar as the shares shift.
@@ -441,21 +481,12 @@ function AnnotationLabelDistributionView({
     score: config?.values?.find((value) => value.label === leading.label)
       ?.score,
   });
-  // No previous labels means nothing to compare against; a previous window
-  // that had labels but not this one had a share of zero.
-  const delta =
-    previousLabelFractions != null && previousLabelFractions.length > 0
-      ? leading.fraction -
-        (previousLabelFractions.find((entry) => entry.label === leading.label)
-          ?.fraction ?? 0)
-      : null;
-  const isImprovement =
-    delta == null ||
-    delta === 0 ||
-    leadingOptimizationValue == null ||
-    leadingOptimizationValue === 0
-      ? null
-      : delta > 0 === leadingOptimizationValue > 0;
+  const { previousShare, delta, isImprovement } = getLeadingShareChange({
+    label: leading.label,
+    fraction: leading.fraction,
+    previousLabelFractions,
+    optimizationValue: leadingOptimizationValue,
+  });
   const deltaText = delta == null ? null : formatSharePointsDelta(delta);
   const shareText = formatPercentShort(leading.fraction * 100);
   return (
@@ -515,6 +546,15 @@ function AnnotationLabelDistributionView({
       </TooltipTrigger>
       <LabelDistributionBar
         segments={segments}
+        prior={
+          previousShare == null
+            ? null
+            : {
+                label: leading.label,
+                fraction: previousShare,
+                description: `in the previous ${windowKey}`,
+              }
+        }
         maxWidth={SPARKLINE_MAX_WIDTH}
         aria-label={`${annotation.name} labels over the last ${windowKey}`}
         tooltipHeader={

@@ -34,6 +34,28 @@ export function useAnnotationLabelColors(
 }
 
 /**
+ * Stretches a label palette to cover `labelCount` labels by cycling its
+ * colors after the first, so a later label never wraps back onto the first
+ * label's color and reads as the leading one.
+ */
+export function extendAnnotationLabelColors(
+  colors: string[],
+  labelCount: number
+): string[] {
+  const [firstColor, ...restColors] = colors;
+  if (restColors.length === 0 || labelCount <= colors.length) {
+    return colors;
+  }
+  return [
+    firstColor,
+    ...Array.from(
+      { length: labelCount - 1 },
+      (_, index) => restColors[index % restColors.length]
+    ),
+  ];
+}
+
+/**
  * The labels of a categorical annotation config in the order their colors
  * are assigned: best score first for the config's optimization direction,
  * ties (and unscored labels) in config order. Null when the config does not

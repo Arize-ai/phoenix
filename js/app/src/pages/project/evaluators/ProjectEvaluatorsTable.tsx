@@ -623,8 +623,9 @@ export function ProjectEvaluatorsTable({
         // would remount every cell on each live-range re-anchor.
         header: () => <ProjectEvaluatorMeanScoreHeader />,
         // Room for the score pill and delta plus a sparkline wide enough to
-        // resolve a few dozen bins; the sparkline itself caps its width.
-        size: 280,
+        // resolve a few dozen bins (the sparkline itself caps its width), and
+        // for a label row's pill, change and a three-label legend under its bar.
+        size: 320,
         cell: ({ row }) => (
           <ProjectEvaluatorMeanScoreCell
             annotations={getProjectEvaluatorResultAnnotations({

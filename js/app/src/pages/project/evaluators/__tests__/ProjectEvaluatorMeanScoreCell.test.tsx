@@ -182,6 +182,29 @@ describe("ProjectEvaluatorMeanScoreCell", () => {
     ]);
   });
 
+  it("cycles only the grays past the palette, keeping the accent for the first label", () => {
+    const labels = ["a", "b", "c", "d", "e", "f", "g"];
+    renderCell(
+      {
+        name: "topic",
+        config: {
+          annotationType: "CATEGORICAL",
+          optimizationDirection: "NONE",
+          values: labels.map((label) => ({ label, score: null })),
+        },
+      },
+      makeMetrics({
+        annotationName: "topic",
+        labelFractions: labels.map((label) => ({ label, fraction: 1 / 7 })),
+      })
+    );
+    const colors = getSegmentColors();
+    expect(colors).toHaveLength(7);
+    expect(colors[0]).toBe("var(--global-color-indigo-800)");
+    expect(colors.slice(1)).not.toContain("var(--global-color-indigo-800)");
+    expect(colors[5]).toBe("var(--global-color-gray-300)");
+  });
+
   it("shows the change in the leading label's share in percentage points", () => {
     renderCell(
       UNSCORED_TONE,
@@ -198,6 +221,31 @@ describe("ProjectEvaluatorMeanScoreCell", () => {
       })
     );
     expect(container.textContent).toContain("▲ 12 pts");
+  });
+
+  it("ticks the bar at the leading label's previous share", () => {
+    renderCell(
+      UNSCORED_TONE,
+      makeMetrics({
+        annotationName: "tone",
+        labelFractions: [
+          { label: "neutral", fraction: 0.29 },
+          { label: "positive", fraction: 0.71 },
+        ],
+        previousLabelFractions: [
+          { label: "neutral", fraction: 0.17 },
+          { label: "positive", fraction: 0.83 },
+        ],
+      })
+    );
+    expect(
+      container.querySelector<HTMLElement>(
+        ".label-distribution-bar__prior-tick"
+      )?.style.left
+    ).toBe("83%");
+    expect(getBar()?.getAttribute("aria-label")).toContain(
+      "tick: positive 83% in the previous 7d"
+    );
   });
 
   it("counts a label missing from the previous window as a zero share", () => {
@@ -221,6 +269,9 @@ describe("ProjectEvaluatorMeanScoreCell", () => {
       })
     );
     expect(container.textContent).not.toMatch(/[▲▼]/);
+    expect(
+      container.querySelector(".label-distribution-bar__prior-tick")
+    ).toBeNull();
   });
 
   it("marks a share change good or bad when the config scores the leading label", () => {

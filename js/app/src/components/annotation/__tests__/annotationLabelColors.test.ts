@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  extendAnnotationLabelColors,
   getAnnotationLabelColor,
   getAnnotationLabelOrder,
 } from "../annotationLabelColors";
@@ -74,5 +75,22 @@ describe("getAnnotationLabelColor", () => {
   it("falls back to the list position for an unlisted label or no config", () => {
     expect(getAnnotationLabelColor(COLORS, 2, "maybe", config)).toBe("gray2");
     expect(getAnnotationLabelColor(COLORS, 4, "yes")).toBe("gray1");
+  });
+});
+
+describe("extendAnnotationLabelColors", () => {
+  it("cycles the colors after the first so it never repeats", () => {
+    expect(extendAnnotationLabelColors(COLORS, 6)).toEqual([
+      "primary",
+      "gray1",
+      "gray2",
+      "gray1",
+      "gray2",
+      "gray1",
+    ]);
+  });
+
+  it("returns the palette as is when it already covers the labels", () => {
+    expect(extendAnnotationLabelColors(COLORS, 2)).toBe(COLORS);
   });
 });
