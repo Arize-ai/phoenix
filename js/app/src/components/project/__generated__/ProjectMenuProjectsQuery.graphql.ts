@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f49ad99a4d41d61ba90a467654dd77ee>>
+ * @generated SignedSource<<c298dd0032047384aec2b7a1db3e5eb7>>
  * @lightSyntaxTransform
  */
 
@@ -10,9 +10,11 @@
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ProjectFilterColumn = "name";
+export type ProjectKind = "EVALUATOR" | "EXPERIMENT" | "PLAYGROUND" | "STANDARD";
 export type ProjectFilter = {
-  col: ProjectFilterColumn;
-  value: string;
+  col?: ProjectFilterColumn | null;
+  kinds?: ReadonlyArray<ProjectKind> | null;
+  value?: string | null;
 };
 export type ProjectMenuProjectsQuery$variables = {
   after?: string | null;

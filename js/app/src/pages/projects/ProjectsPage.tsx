@@ -51,6 +51,7 @@ import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
 import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
+import { TableViewSettingsButton } from "@phoenix/components/table/TableViewSettingsButton";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import {
@@ -75,12 +76,27 @@ import type {
   ProjectSort,
   ProjectsPageProjectsQuery,
 } from "./__generated__/ProjectsPageProjectsQuery.graphql";
-import type { ProjectsPageQuery } from "./__generated__/ProjectsPageQuery.graphql";
+import type {
+  ProjectKind,
+  ProjectsPageQuery,
+} from "./__generated__/ProjectsPageQuery.graphql";
 import { NewProjectButton } from "./NewProjectButton";
 import { ProjectActionMenu } from "./ProjectActionMenu";
 
 const PAGE_SIZE = 10;
 const PROJECTS_POLL_INTERVAL_MS = 60_000;
+
+const PROJECT_KIND_LABELS = {
+  STANDARD: "Projects",
+  PLAYGROUND: "Playground projects",
+  EXPERIMENT: "Experiment projects",
+  EVALUATOR: "Evaluator projects",
+} satisfies Record<ProjectKind, string>;
+
+const PROJECT_KINDS = Object.keys(PROJECT_KIND_LABELS) as ProjectKind[];
+
+const useVisibleProjectKinds = () =>
+  usePreferencesContext((state) => state.visibleProjectKinds);
 
 const useProjectSortQueryParams = () => {
   const { projectSortOrder } = usePreferencesContext((state) => ({
@@ -114,10 +130,14 @@ export function ProjectsPage() {
 function ProjectsPageQueryContent() {
   const { timeRangeISOStrings } = useTimeRange();
   const _queryParams = useProjectSortQueryParams();
+  const _kinds = useVisibleProjectKinds();
   // we only want to trigger the initial query when the component mounts
   // so we want to cache the initial state of the query params
   // this prevents full page reloads when the sort order changes
-  const [queryParams] = useState(() => _queryParams);
+  const [queryParams] = useState(() => ({
+    ..._queryParams,
+    filter: { value: "", col: "name" as const, kinds: _kinds },
+  }));
   const data = useLazyLoadQuery<ProjectsPageQuery>(
     graphql`
       query ProjectsPageQuery(
@@ -131,7 +151,6 @@ function ProjectsPageQueryContent() {
     `,
     {
       first: PAGE_SIZE,
-      filter: { value: "", col: "name" },
       ...queryParams,
     },
     { fetchPolicy: "store-and-network" }
@@ -207,6 +226,10 @@ export function ProjectsPageContent({
     projectViewMode: state.projectViewMode,
   }));
   const sortQueryParams = useProjectSortQueryParams();
+  const visibleProjectKinds = useVisibleProjectKinds();
+  const setVisibleProjectKinds = usePreferencesContext(
+    (state) => state.setVisibleProjectKinds
+  );
   const [filter, setFilter] = useState<string>("");
   const notifySuccess = useNotifySuccess();
   const {
@@ -249,9 +272,13 @@ export function ProjectsPageContent({
   const queryArgs = useMemo(
     () => ({
       ...sortQueryParams,
-      filter: { value: filter, col: "name" as const },
+      filter: {
+        value: filter,
+        col: "name" as const,
+        kinds: visibleProjectKinds,
+      },
     }),
-    [sortQueryParams, filter]
+    [sortQueryParams, filter, visibleProjectKinds]
   );
 
   const refetch = useCallback(
@@ -395,7 +422,11 @@ export function ProjectsPageContent({
               setFilter(newSearch);
               refetch({
                 vars: {
-                  filter: { value: newSearch, col: "name" },
+                  filter: {
+                    value: newSearch,
+                    col: "name",
+                    kinds: visibleProjectKinds,
+                  },
                 },
               });
             }}
@@ -412,6 +443,24 @@ export function ProjectsPageContent({
             `}
           >
             <ProjectViewModeToggle />
+            <TableViewSettingsButton
+              settings={PROJECT_KINDS.map((kind) => ({
+                id: kind,
+                label: PROJECT_KIND_LABELS[kind],
+                isEnabled: visibleProjectKinds.includes(kind),
+                onChange: (isEnabled) => {
+                  const kinds = PROJECT_KINDS.filter((optionKind) =>
+                    optionKind === kind
+                      ? isEnabled
+                      : visibleProjectKinds.includes(optionKind)
+                  );
+                  setVisibleProjectKinds(kinds);
+                  refetch({
+                    vars: { filter: { value: filter, col: "name", kinds } },
+                  });
+                },
+              }))}
+            />
             <CanModify>
               <NewProjectButton
                 variant="primary"
@@ -489,6 +538,14 @@ function ProjectsGrid({
   isLoadingNext,
 }: ProjectViewComponentProps) {
   const timeRangeSearch = useTimeRangeSearch();
+  if (projects.length === 0) {
+    return (
+      <EmptyState
+        graphic={<EmptyStateGraphic variant="project" />}
+        description="No projects found"
+      />
+    );
+  }
   return (
     <View padding="size-200" width="100%">
       <ul css={projectsGridCSS}>
