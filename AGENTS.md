@@ -13,7 +13,7 @@ This repo uses a **Makefile** for all build, test, lint, and dev commands. Run `
 
 ## Code Standards
 
-Every pull request is reviewed against this section, by maintainers and by the factory's reviewers (`factory/agents/`), as `REVIEW.md` describes. Write code to it from the start rather than waiting for review to point it out.
+Every pull request is reviewed against this section, by maintainers and by the factory's reviewers (`factory/agents/`), as `REVIEW.md` describes.
 
 The keywords "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this section are to be interpreted as described in BCP 14 [RFC2119] [RFC8174] when, and only when, they appear in all capitals, as shown here.
 
@@ -21,10 +21,10 @@ An implementation is compliant if it satisfies all "MUST", "MUST NOT", "REQUIRED
 
 ### Area Skills
 
-Reviewers also hold each change to the skills for the area it touches, and cite their reference files as rules. Load these skills before writing code in that area, and read the references that apply:
+Load these skills before writing code in affected areas, and read the references that apply:
 
 | Area | Skills | References reviewers cite most |
-|---|---|---|
+| --- | --- | --- |
 | Any TypeScript | `phoenix-typescript` | |
 | Frontend (`js/app/`) | `phoenix-frontend`, `phoenix-design` | `phoenix-frontend/references/testing.md`, `accessibility.md`, `components.md`; `phoenix-design/references/error-display.md` |
 | Storybook (`js/app/stories/`) | `phoenix-storybook` | |
@@ -89,11 +89,12 @@ Reviewers also hold each change to the skills for the area it touches, and cite 
 
 Review runs these steps on every PR. Run them first so review finds only what they can't:
 
-1. Rebase on `main`, and drop any commits that are already there.
+1. Rebase on `main` (or applicable base branch for stacked work), and drop any commits that are already there.
 2. Run the `format-*`, `lint-*` and `typecheck-*` targets and the tests next to the code you changed, for each area the diff touches (`make help` lists them).
-3. If the server API changed, run `make graphql` or `make openapi`, then commit what `git status` shows.
+3. If the server API changed, run `make graphql` and/or `make openapi`, then commit what `git status` shows.
 4. For each test you added, set aside the non-test changes and confirm the test fails without them. Use a temporary commit, or a named stash (`git stash push -u -m <tag> -- <non-test paths>`) that you restore by SHA: the stash stack is shared across worktrees.
 5. Read the diff against § Code Standards, the area skills above and the PR body. Anything the diff changes that doesn't serve the PR's stated intent belongs in another PR.
+6. Read the repository's GitHub Pull Request template, adhere to its guidelines, upload screenshots when frontend work is completed via the `gh` CLI when available
 
 ## Pull Request Auto-Merge
 
