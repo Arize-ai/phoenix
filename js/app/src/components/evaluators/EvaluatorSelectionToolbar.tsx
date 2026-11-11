@@ -57,6 +57,7 @@ export function EvaluatorSelectionToolbar({
           size="M"
           leadingVisual={<Icon svg={<Icons.Trash />} />}
           onPress={onDelete}
+          isDisabled={selectedCount === 0}
         >
           Delete
         </Button>

@@ -1,6 +1,9 @@
+import { useRelayEnvironment } from "react-relay";
+
 import { DeleteEvaluatorDialog } from "@phoenix/components/evaluators/DeleteEvaluatorDialog";
 import type { EvaluatorToDelete } from "@phoenix/components/evaluators/deleteEvaluatorsCopy";
 import { useDeleteDatasetEvaluators } from "@phoenix/pages/dataset/evaluators/useDeleteDatasetEvaluators";
+import { refetchEvaluatorCounts } from "@phoenix/pages/evaluators/refetchEvaluatorCounts";
 import { useDeleteProjectEvaluators } from "@phoenix/pages/project/evaluators/useDeleteProjectEvaluators";
 
 /**
@@ -26,6 +29,7 @@ export function DeleteAllEvaluatorsDialog({
    */
   onPartiallyDeleted: () => void;
 }) {
+  const environment = useRelayEnvironment();
   const { deleteProjectEvaluators, isDeleting: isDeletingProjectEvaluators } =
     useDeleteProjectEvaluators();
   const { deleteDatasetEvaluators, isDeleting: isDeletingDatasetEvaluators } =
@@ -44,6 +48,7 @@ export function DeleteAllEvaluatorsDialog({
             deleteProjectEvaluators({
               projectEvaluatorIds: projectEvaluators.map(({ id }) => id),
               deleteAssociatedPromptOrDecision,
+              refetchCounts: false,
             })
           );
         }
@@ -52,10 +57,16 @@ export function DeleteAllEvaluatorsDialog({
             deleteDatasetEvaluators({
               datasetEvaluatorIds: datasetEvaluators.map(({ id }) => id),
               deleteAssociatedPromptOrDecision,
+              refetchCounts: false,
             })
           );
         }
         const results = await Promise.allSettled(deletions);
+        // Refetched once both deletes settle, so neither response can
+        // overwrite the other's count with an older one.
+        if (results.some((result) => result.status === "fulfilled")) {
+          void refetchEvaluatorCounts({ environment }).catch(() => {});
+        }
         const failure = results.find(
           (result): result is PromiseRejectedResult =>
             result.status === "rejected"

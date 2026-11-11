@@ -9,14 +9,21 @@ import type { ProjectEvaluatorSelection } from "@phoenix/pages/project/evaluator
 export function ProjectEvaluatorSelectionToolbar({
   projectId,
   selection,
+  evaluatorsById,
   onClearSelection,
 }: {
   projectId: string;
+  /** Every selected evaluator, including rows a search hides, for Compare. */
   selection: ProjectEvaluatorSelection;
+  /** The rows the table has loaded, which limit the count and Delete. */
+  evaluatorsById: ProjectEvaluatorSelection;
   onClearSelection: () => void;
 }) {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const selectedEvaluators = getSelectedProjectEvaluators(selection);
+  const selectedEvaluators = getSelectedProjectEvaluators({
+    selection,
+    evaluatorsById,
+  });
   return (
     <>
       <EvaluatorSelectionToolbar

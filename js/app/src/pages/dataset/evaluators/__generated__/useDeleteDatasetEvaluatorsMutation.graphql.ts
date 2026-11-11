@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2fec20ee7295c0b260bae46765f50962>>
+ * @generated SignedSource<<f841bed7b4ac7b2b3fc198476a8ede4b>>
  * @lightSyntaxTransform
  */
 
@@ -25,8 +25,6 @@ export type useDeleteDatasetEvaluatorsMutation$data = {
       readonly dataset?: {
         readonly evaluatorCount?: number;
       };
-      readonly datasetEvaluatorCount: number;
-      readonly projectEvaluatorCount: number;
     };
   };
 };
@@ -70,28 +68,14 @@ v5 = {
   "name": "datasetEvaluatorIds",
   "storageKey": null
 },
-v6 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "projectEvaluatorCount",
-  "storageKey": null
-},
-v7 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "datasetEvaluatorCount",
-  "storageKey": null
-},
-v8 = [
+v6 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "datasetId"
   }
 ],
-v9 = {
+v7 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -134,8 +118,6 @@ return {
             "name": "query",
             "plural": false,
             "selections": [
-              (v6/*:: as any*/),
-              (v7/*:: as any*/),
               {
                 "condition": "hasDataset",
                 "kind": "Condition",
@@ -143,13 +125,13 @@ return {
                 "selections": [
                   {
                     "alias": "dataset",
-                    "args": (v8/*:: as any*/),
+                    "args": (v6/*:: as any*/),
                     "concreteType": null,
                     "kind": "LinkedField",
                     "name": "node",
                     "plural": false,
                     "selections": [
-                      (v9/*:: as any*/)
+                      (v7/*:: as any*/)
                     ],
                     "storageKey": null
                   }
@@ -209,8 +191,6 @@ return {
             "name": "query",
             "plural": false,
             "selections": [
-              (v6/*:: as any*/),
-              (v7/*:: as any*/),
               {
                 "condition": "hasDataset",
                 "kind": "Condition",
@@ -218,7 +198,7 @@ return {
                 "selections": [
                   {
                     "alias": "dataset",
-                    "args": (v8/*:: as any*/),
+                    "args": (v6/*:: as any*/),
                     "concreteType": null,
                     "kind": "LinkedField",
                     "name": "node",
@@ -231,7 +211,7 @@ return {
                         "name": "__typename",
                         "storageKey": null
                       },
-                      (v9/*:: as any*/),
+                      (v7/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -253,16 +233,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "af2b71de44d8cbfe8aae19e749060911",
+    "cacheID": "aae8984eaca06e7240bc21d49417290c",
     "id": null,
     "metadata": {},
     "name": "useDeleteDatasetEvaluatorsMutation",
     "operationKind": "mutation",
-    "text": "mutation useDeleteDatasetEvaluatorsMutation(\n  $input: DeleteDatasetEvaluatorsInput!\n  $datasetId: ID!\n  $hasDataset: Boolean!\n) {\n  deleteDatasetEvaluators(input: $input) {\n    datasetEvaluatorIds\n    query {\n      projectEvaluatorCount\n      datasetEvaluatorCount\n      dataset: node(id: $datasetId) @include(if: $hasDataset) {\n        __typename\n        ... on Dataset {\n          evaluatorCount\n        }\n        id\n      }\n    }\n  }\n}\n"
+    "text": "mutation useDeleteDatasetEvaluatorsMutation(\n  $input: DeleteDatasetEvaluatorsInput!\n  $datasetId: ID!\n  $hasDataset: Boolean!\n) {\n  deleteDatasetEvaluators(input: $input) {\n    datasetEvaluatorIds\n    query {\n      dataset: node(id: $datasetId) @include(if: $hasDataset) {\n        __typename\n        ... on Dataset {\n          evaluatorCount\n        }\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6df2e015cc2e2557074ee7685387f301";
+(node as any).hash = "94c8114f97cfe370d318d56c0c491c67";
 
 export default node;

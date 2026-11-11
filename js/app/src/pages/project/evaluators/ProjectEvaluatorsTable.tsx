@@ -1030,6 +1030,7 @@ export function ProjectEvaluatorsTable({
         <ProjectEvaluatorSelectionToolbar
           projectId={projectId}
           selection={selection}
+          evaluatorsById={evaluatorsById}
           onClearSelection={() => onSelectionChange({})}
         />
       ) : null}

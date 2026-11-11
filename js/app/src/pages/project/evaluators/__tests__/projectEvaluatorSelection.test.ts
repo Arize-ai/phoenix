@@ -68,14 +68,30 @@ describe("project evaluator selection", () => {
 
 describe("getSelectedProjectEvaluators", () => {
   it("lists the selected evaluators to delete", () => {
+    const evaluatorsById: ProjectEvaluatorSelection = {
+      a: { evaluationTarget: "SPAN", name: "first", kind: "LLM" },
+      b: { evaluationTarget: "TRACE", name: "second", kind: "CODE" },
+    };
     expect(
       getSelectedProjectEvaluators({
-        a: { evaluationTarget: "SPAN", name: "first", kind: "LLM" },
-        b: { evaluationTarget: "TRACE", name: "second", kind: "CODE" },
+        selection: evaluatorsById,
+        evaluatorsById,
       })
     ).toEqual([
       { id: "a", name: "first", kind: "LLM" },
       { id: "b", name: "second", kind: "CODE" },
     ]);
+  });
+
+  it("leaves out selected evaluators the table hasn't loaded", () => {
+    expect(
+      getSelectedProjectEvaluators({
+        selection: {
+          shown: selected("SPAN"),
+          hiddenBySearch: selected("SPAN"),
+        },
+        evaluatorsById: { shown: selected("SPAN") },
+      })
+    ).toEqual([{ id: "shown", name: "evaluator", kind: "LLM" }]);
   });
 });

@@ -1,8 +1,8 @@
 import { useCallback } from "react";
-import { graphql, useMutation } from "react-relay";
+import { graphql, useMutation, useRelayEnvironment } from "react-relay";
 
 import type { useDeleteDatasetEvaluatorsMutation } from "@phoenix/pages/dataset/evaluators/__generated__/useDeleteDatasetEvaluatorsMutation.graphql";
-import { updateRootEvaluatorCounts } from "@phoenix/pages/evaluators/updateRootEvaluatorCounts";
+import { refetchEvaluatorCounts } from "@phoenix/pages/evaluators/refetchEvaluatorCounts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 /**
@@ -12,6 +12,7 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
  * deleted and rejects with the server's error messages, and `isDeleting`.
  */
 export function useDeleteDatasetEvaluators() {
+  const environment = useRelayEnvironment();
   const [commitDelete, isDeleting] =
     useMutation<useDeleteDatasetEvaluatorsMutation>(graphql`
       mutation useDeleteDatasetEvaluatorsMutation(
@@ -23,8 +24,6 @@ export function useDeleteDatasetEvaluators() {
         deleteDatasetEvaluators(input: $input) {
           datasetEvaluatorIds @deleteEdge(connections: $connectionIds)
           query {
-            projectEvaluatorCount
-            datasetEvaluatorCount
             dataset: node(id: $datasetId) @include(if: $hasDataset) {
               ... on Dataset {
                 evaluatorCount
@@ -40,12 +39,18 @@ export function useDeleteDatasetEvaluators() {
       deleteAssociatedPromptOrDecision,
       connectionIds = [],
       datasetId,
+      refetchCounts = true,
     }: {
       datasetEvaluatorIds: ReadonlyArray<string>;
       deleteAssociatedPromptOrDecision: boolean;
       connectionIds?: ReadonlyArray<string>;
       /** The dataset every evaluator belongs to, whose count is refreshed. */
       datasetId?: string;
+      /**
+       * Refetches the evaluator counts once deleted. Pass false when the
+       * caller refetches them after several deletes.
+       */
+      refetchCounts?: boolean;
     }) =>
       new Promise<void>((resolve, reject) => {
         commitDelete({
@@ -58,14 +63,17 @@ export function useDeleteDatasetEvaluators() {
             datasetId: datasetId ?? "",
             hasDataset: datasetId != null,
           },
-          updater: (store) =>
-            updateRootEvaluatorCounts(store, "deleteDatasetEvaluators"),
           onCompleted: (_response, errors) => {
             if (errors?.length) {
               reject(
                 new Error(errors.map(({ message }) => message).join("\n"))
               );
               return;
+            }
+            if (refetchCounts) {
+              // The delete succeeded; a stale count corrects itself on the
+              // next visit, so a failed refresh isn't reported.
+              void refetchEvaluatorCounts({ environment }).catch(() => {});
             }
             resolve();
           },
@@ -79,7 +87,7 @@ export function useDeleteDatasetEvaluators() {
             ),
         });
       }),
-    [commitDelete]
+    [commitDelete, environment]
   );
   return { deleteDatasetEvaluators, isDeleting };
 }

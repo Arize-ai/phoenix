@@ -69,11 +69,22 @@ export function getCompareEvaluatorsDisabledReason(
   return null;
 }
 
-/** The selected evaluators, in selection order, for deleting them. */
-export function getSelectedProjectEvaluators(
-  selection: ProjectEvaluatorSelection
-): EvaluatorToDelete[] {
-  return Object.entries(selection).flatMap(([id, evaluator]) =>
-    evaluator ? [{ id, name: evaluator.name, kind: evaluator.kind }] : []
-  );
+/**
+ * The selected evaluators that the table has loaded, in selection order, for
+ * deleting them. Rows hidden by a search, or no longer returned after a
+ * delete, are left out.
+ */
+export function getSelectedProjectEvaluators({
+  selection,
+  evaluatorsById,
+}: {
+  selection: ProjectEvaluatorSelection;
+  evaluatorsById: ProjectEvaluatorSelection;
+}): EvaluatorToDelete[] {
+  return Object.keys(selection).flatMap((id) => {
+    const evaluator = evaluatorsById[id];
+    return evaluator
+      ? [{ id, name: evaluator.name, kind: evaluator.kind }]
+      : [];
+  });
 }

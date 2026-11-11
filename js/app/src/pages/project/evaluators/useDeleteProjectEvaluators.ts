@@ -1,7 +1,7 @@
 import { useCallback } from "react";
-import { graphql, useMutation } from "react-relay";
+import { graphql, useMutation, useRelayEnvironment } from "react-relay";
 
-import { updateRootEvaluatorCounts } from "@phoenix/pages/evaluators/updateRootEvaluatorCounts";
+import { refetchEvaluatorCounts } from "@phoenix/pages/evaluators/refetchEvaluatorCounts";
 import type { useDeleteProjectEvaluatorsMutation } from "@phoenix/pages/project/evaluators/__generated__/useDeleteProjectEvaluatorsMutation.graphql";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -12,6 +12,7 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
  * deleted and rejects with the server's error messages, and `isDeleting`.
  */
 export function useDeleteProjectEvaluators() {
+  const environment = useRelayEnvironment();
   const [commitDelete, isDeleting] =
     useMutation<useDeleteProjectEvaluatorsMutation>(graphql`
       mutation useDeleteProjectEvaluatorsMutation(
@@ -19,10 +20,6 @@ export function useDeleteProjectEvaluators() {
       ) {
         deleteProjectEvaluators(input: $input) {
           projectEvaluatorIds
-          query {
-            projectEvaluatorCount
-            datasetEvaluatorCount
-          }
         }
       }
     `);
@@ -30,9 +27,15 @@ export function useDeleteProjectEvaluators() {
     ({
       projectEvaluatorIds,
       deleteAssociatedPromptOrDecision,
+      refetchCounts = true,
     }: {
       projectEvaluatorIds: ReadonlyArray<string>;
       deleteAssociatedPromptOrDecision: boolean;
+      /**
+       * Refetches the evaluator counts once deleted. Pass false when the
+       * caller refetches them after several deletes.
+       */
+      refetchCounts?: boolean;
     }) =>
       new Promise<void>((resolve, reject) => {
         commitDelete({
@@ -42,14 +45,17 @@ export function useDeleteProjectEvaluators() {
               deleteAssociatedPromptOrDecision,
             },
           },
-          updater: (store) =>
-            updateRootEvaluatorCounts(store, "deleteProjectEvaluators"),
           onCompleted: (_response, errors) => {
             if (errors?.length) {
               reject(
                 new Error(errors.map(({ message }) => message).join("\n"))
               );
               return;
+            }
+            if (refetchCounts) {
+              // The delete succeeded; a stale count corrects itself on the
+              // next visit, so a failed refresh isn't reported.
+              void refetchEvaluatorCounts({ environment }).catch(() => {});
             }
             resolve();
           },
@@ -63,7 +69,7 @@ export function useDeleteProjectEvaluators() {
             ),
         });
       }),
-    [commitDelete]
+    [commitDelete, environment]
   );
   return { deleteProjectEvaluators, isDeleting };
 }

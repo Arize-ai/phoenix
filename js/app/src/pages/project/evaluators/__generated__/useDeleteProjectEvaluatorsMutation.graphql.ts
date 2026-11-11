@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0d1475b317eec06d8572a72af4fdd096>>
+ * @generated SignedSource<<4ccb2495dc824c50228a110f3db30b19>>
  * @lightSyntaxTransform
  */
 
@@ -18,10 +18,6 @@ export type useDeleteProjectEvaluatorsMutation$variables = {
 export type useDeleteProjectEvaluatorsMutation$data = {
   readonly deleteProjectEvaluators: {
     readonly projectEvaluatorIds: ReadonlyArray<string>;
-    readonly query: {
-      readonly datasetEvaluatorCount: number;
-      readonly projectEvaluatorCount: number;
-    };
   };
 };
 export type useDeleteProjectEvaluatorsMutation = {
@@ -58,31 +54,6 @@ v1 = [
         "kind": "ScalarField",
         "name": "projectEvaluatorIds",
         "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "concreteType": "Query",
-        "kind": "LinkedField",
-        "name": "query",
-        "plural": false,
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "projectEvaluatorCount",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "datasetEvaluatorCount",
-            "storageKey": null
-          }
-        ],
-        "storageKey": null
       }
     ],
     "storageKey": null
@@ -106,16 +77,16 @@ return {
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "144c2c9685180564166ffafbe6fef4e4",
+    "cacheID": "e61ad20b361cc2b00405efb7fda21f5c",
     "id": null,
     "metadata": {},
     "name": "useDeleteProjectEvaluatorsMutation",
     "operationKind": "mutation",
-    "text": "mutation useDeleteProjectEvaluatorsMutation(\n  $input: DeleteProjectEvaluatorsInput!\n) {\n  deleteProjectEvaluators(input: $input) {\n    projectEvaluatorIds\n    query {\n      projectEvaluatorCount\n      datasetEvaluatorCount\n    }\n  }\n}\n"
+    "text": "mutation useDeleteProjectEvaluatorsMutation(\n  $input: DeleteProjectEvaluatorsInput!\n) {\n  deleteProjectEvaluators(input: $input) {\n    projectEvaluatorIds\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0ee05d8ed7f2cc39d985ba8c56901827";
+(node as any).hash = "b496ee7131da52874920109f3f28fa5c";
 
 export default node;
