@@ -3,7 +3,6 @@ import {
   startTransition,
   Suspense,
   useCallback,
-  useDeferredValue,
   useEffect,
   useEffectEvent,
   useRef,
@@ -137,7 +136,6 @@ function ProjectPageSkeleton() {
 export function ProjectPage() {
   const { projectId } = useParams();
   const { timeRangeISOStrings } = useTimeRange();
-  const deferredTimeRangeISOStrings = useDeferredValue(timeRangeISOStrings);
   return (
     <>
       <TopNavActions>
@@ -147,7 +145,7 @@ export function ProjectPage() {
         <ProjectPageContent
           key={projectId}
           projectId={projectId as string}
-          timeRangeISOStrings={deferredTimeRangeISOStrings}
+          timeRangeISOStrings={timeRangeISOStrings}
         />
       </Suspense>
     </>
@@ -309,25 +307,18 @@ function ProjectPageContentBody({
   const [searchParams, setSearchParams] = useSearchParams();
   const data = useLazyLoadQuery<ProjectPageQueryType>(
     graphql`
-      query ProjectPageQuery($id: ID!, $timeRange: TimeRange!) {
+      query ProjectPageQuery($id: ID!) {
         project: node(id: $id) {
           ... on Project {
             evaluatorCount
-            ...ProjectStats_project
             ...ProjectTimeRangeControls_data
             ...ProjectOnboardingOverlay_project
           }
         }
       }
     `,
-    {
-      id: projectId as string,
-      timeRange: timeRangeISOStrings,
-    },
-    {
-      fetchPolicy: "store-and-network",
-      fetchKey: `${projectId}-${timeRangeISOStrings.start}-${timeRangeISOStrings.end}`,
-    }
+    { id: projectId },
+    { fetchPolicy: "store-and-network" }
   );
   const [tracesQueryReference, loadTracesQuery] =
     useQueryLoader<ProjectPageTracesQueryType>(ProjectPageQueriesTracesQuery);

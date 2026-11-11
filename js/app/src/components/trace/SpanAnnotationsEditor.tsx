@@ -510,7 +510,6 @@ function SpanAnnotationsList(props: {
       mutation SpanAnnotationsEditorDeleteAnnotationMutation(
         $spanId: ID!
         $annotationIds: [ID!]!
-        $timeRange: TimeRange!
         $projectId: ID!
         $filterUserIds: [ID]
       ) {
@@ -518,7 +517,7 @@ function SpanAnnotationsList(props: {
           query {
             project: node(id: $projectId) {
               ... on Project {
-                ...ProjectStats_project
+                spanAnnotationNames
               }
             }
             node(id: $spanId) {
@@ -542,7 +541,6 @@ function SpanAnnotationsList(props: {
             variables: {
               spanId: spanNodeId,
               annotationIds: [annotation.id],
-              timeRange: timeRangeISOStrings,
               projectId,
               filterUserIds: userFilter,
             },
@@ -565,13 +563,7 @@ function SpanAnnotationsList(props: {
           });
         }
       }),
-    [
-      commitDeleteAnnotation,
-      spanNodeId,
-      timeRangeISOStrings,
-      projectId,
-      userFilter,
-    ]
+    [commitDeleteAnnotation, spanNodeId, projectId, userFilter]
   );
 
   const [commitEdit] = useMutation<SpanAnnotationsEditorEditAnnotationMutation>(
