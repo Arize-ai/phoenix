@@ -177,19 +177,26 @@ class Tracer(_TracerBase):
         # chat conversations can record the full message history on each LLM
         # span without attribute eviction.
         span_limits = SpanLimits(max_span_attributes=100_000)
-        provider = TracerProvider(resource=resource, span_limits=span_limits)
+        remote_endpoint = (
+            (remote_collector_endpoint or get_env_phoenix_agents_collector_endpoint())
+            if enable_remote_export
+            else None
+        )
+        # OTel's default exit hook holds a provider and its buffered spans until process exit.
+        provider = TracerProvider(
+            resource=resource,
+            span_limits=span_limits,
+            shutdown_on_exit=bool(remote_endpoint),
+        )
         self._self_resource = resource
         simple_processor = SimpleSpanProcessor(self._self_exporter)
         self._self_span_processors: list[SpanProcessor] = [simple_processor]
         provider.add_span_processor(simple_processor)
 
         self._self_remote_exporter: Optional[SpanExporter] = None
-        remote_collector_endpoint = (
-            remote_collector_endpoint or get_env_phoenix_agents_collector_endpoint()
-        )
-        if enable_remote_export and remote_collector_endpoint:
+        if remote_endpoint:
             exporter_factory = remote_span_exporter_factory or _build_remote_http_span_exporter
-            self._self_remote_exporter = exporter_factory(remote_collector_endpoint)
+            self._self_remote_exporter = exporter_factory(remote_endpoint)
             remote_processor = BatchSpanProcessor(self._self_remote_exporter)
             self._self_span_processors.append(remote_processor)
             provider.add_span_processor(remote_processor)
