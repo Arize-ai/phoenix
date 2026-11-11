@@ -142,12 +142,12 @@ class DatasetEvaluators:
             input_mapping (v1.InputMapping): How example and run fields map onto
                 evaluator arguments.
             description (str): Overrides the shared definition's description on
-                this binding. For LLM evaluators it must equal the description of
-                the prompt's tool function.
+                this binding.
             output_configs (Sequence[EvaluatorOutputConfig]): Overrides the shared
                 definition's output configurations on this binding with at least
-                one config; omit it to inherit them. For LLM evaluators the
-                override must match the prompt's tool schema.
+                one config, each with its own name; omit it to inherit them. For
+                LLM evaluators the override must be categorical. It is not checked
+                against the prompt.
 
         Returns:
             The created binding.
@@ -396,12 +396,12 @@ class AsyncDatasetEvaluators:
             input_mapping (v1.InputMapping): How example and run fields map onto
                 evaluator arguments.
             description (str): Overrides the shared definition's description on
-                this binding. For LLM evaluators it must equal the description of
-                the prompt's tool function.
+                this binding.
             output_configs (Sequence[EvaluatorOutputConfig]): Overrides the shared
                 definition's output configurations on this binding with at least
-                one config; omit it to inherit them. For LLM evaluators the
-                override must match the prompt's tool schema.
+                one config, each with its own name; omit it to inherit them. For
+                LLM evaluators the override must be categorical. It is not checked
+                against the prompt.
 
         Returns:
             The created binding.

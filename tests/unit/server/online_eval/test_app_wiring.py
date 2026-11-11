@@ -5,10 +5,9 @@ consumer cycle → span annotation with the work unit DONE.
 
 import asyncio
 from contextlib import AsyncExitStack
-from datetime import datetime, timedelta, timezone
 
 import pytest
-from sqlalchemy import select, update
+from sqlalchemy import select
 
 from phoenix.config import (
     ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY,
@@ -16,7 +15,6 @@ from phoenix.config import (
     ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES,
 )
 from phoenix.db import models
-from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.app import create_app
 from phoenix.server.online_eval.consumer import (
     CLAIM_BATCH_SIZE,
@@ -156,27 +154,14 @@ async def test_app_runs_seeded_criteria_end_to_end(
             )
         _, project_evaluator_id = await _seed_llm_criteria(db, project.id)
 
-        # Age the cursor's high-water observation so the next scan window covers the span.
+        # Start the cursor below the span so a scan window covers it.
         async with db() as session:
-            await session.execute(
-                insert_on_conflict(
-                    {"id": 1, "produced_through_id": 0},
-                    table=models.EvalSpanCursor,
-                    dialect=db.dialect,
-                    unique_by=("id",),
-                    on_conflict=OnConflict.DO_NOTHING,
-                    constraint_name="pk_eval_span_cursors",
-                )
-            )
-            await session.execute(
-                update(models.EvalSpanCursor).values(
-                    produced_through_id=0,
-                    observed_high_water_id=span.id,
-                    observed_at=datetime.now(timezone.utc) - timedelta(seconds=120),
-                )
-            )
-
-        await producer._tick()
+            session.add(models.EvalSpanCursor(id=1, produced_through_id=0))
+        # The app's producer waits out the visibility lag; one without it scans on the tick
+        # after the one that sees the span.
+        span_producer = SpanEvaluationProducer(db, visibility_lag_seconds=0)
+        await span_producer._tick()
+        await span_producer._tick()
         async with db() as session:
             unit = await session.scalar(
                 select(models.EvalWorkUnit).where(models.EvalWorkUnit.span_rowid == span.id)

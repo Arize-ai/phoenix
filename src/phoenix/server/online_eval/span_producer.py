@@ -7,14 +7,17 @@ takes the lease and runs retention cleanup, which deletes old finished work. Whe
 water is older than the visibility lag, the tick scans the window from the span cursor to
 the window end per project evaluator and adds the work it finds. A window spans at most
 ``max_span_ids_per_tick`` ids, and after a window cut at that limit the next tick starts at
-once. An hourly catch-up scan re-reads a bounded id window behind the span cursor to catch
-spans that became visible after their window was scanned.
+once. An hourly catch-up scan re-reads a bounded id window behind the span cursor for spans
+an earlier scan passed over: those of an evaluator enabled while that scan ran, those of an
+evaluator whose filter failed when run, and spans that committed later than the visibility lag.
 
-Every cursor write is compare-and-set on the position it read, and a scan commits only if
-the cursor still holds the position it scanned against. Retention cleanup deletes finished
-span work below the retention floor, the cursor minus ``catch_up_scan_lookback_span_ids``,
-so no scan may commit against a position the cursor has left: its inserts could recreate
-work whose finished rows were already deleted.
+The high water and when it was seen are kept in memory, so a replica that takes the lease
+over waits the visibility lag before its first scan. The cursor only moves forward, except
+where the clamp lowers it to the live high water because SQLite reuses span ids. Retention
+cleanup deletes finished span work below the retention floor, the cursor minus
+``catch_up_scan_lookback_span_ids``, so the catch-up scan does not queue those spans again.
+A scan that stalls while another replica moves the cursor on and runs retention cleanup can
+still queue a few old spans again, which is accepted.
 """
 
 from __future__ import annotations
@@ -60,7 +63,7 @@ TICK_INTERVAL_SECONDS = 10.0
 CATCH_UP_SCAN_INTERVAL_SECONDS = 3600.0
 CATCH_UP_SCAN_LOOKBACK_SPAN_IDS = 100_000
 """How far behind the cursor the catch-up scan reads. Retention cleanup keeps finished work
-this far behind the cursor, so a catch-up scan never queues a span whose finished work was
+this far behind the cursor, so a catch-up scan does not queue a span whose finished work was
 deleted."""
 MAX_SPAN_IDS_PER_TICK = 10_000
 
@@ -139,6 +142,8 @@ class SpanEvaluationProducer(DaemonTask):
         self._publish_metrics = get_env_enable_prometheus()
         ONLINE_EVAL_ADDED_WORK_UNITS.labels(evaluation_target="SPAN")
         self._last_ingest_sample: Optional[tuple[int, datetime]] = None
+        # The high water and the database time it was read, until the cursor passes it.
+        self._observation: Optional[tuple[int, datetime]] = None
 
     async def _run(self) -> None:
         try:
@@ -174,36 +179,28 @@ class SpanEvaluationProducer(DaemonTask):
 
         await self._retention_cleanup(now)
 
-        observed_high_water_id = cursor.observed_high_water_id
-        pending_observation = (
-            observed_high_water_id is not None
-            and cursor.observed_at is not None
-            and observed_high_water_id > produced_through_id
-        )
+        # The observation the cursor has yet to pass, scanned up to once it is older than the
+        # visibility lag.
+        pending = self._observation
+        if pending is not None and pending[0] <= produced_through_id:
+            pending = None
         window_end: Optional[int] = None
-        if (
-            pending_observation
-            and observed_high_water_id is not None
-            and cursor.observed_at is not None
-            and (now - cursor.observed_at).total_seconds() >= self._visibility_lag_seconds
-        ):
-            window_end = min(
-                observed_high_water_id,
-                produced_through_id + self._max_span_ids_per_tick,
-            )
+        if pending is not None:
+            high_water, observed_at = pending
+            if (now - observed_at).total_seconds() >= self._visibility_lag_seconds:
+                window_end = min(high_water, produced_through_id + self._max_span_ids_per_tick)
 
         active = await self._load_active_project_evaluators()
 
-        advanced = False
         if window_end is not None:
             if not await self._lease.renew():
                 return False
-            advanced = await self._scan_window_and_advance(active, produced_through_id, window_end)
-            if advanced:
-                produced_through_id = window_end
+            await self._scan_window_and_advance(active, produced_through_id, window_end)
+            produced_through_id = window_end
+            if pending is not None and window_end == pending[0]:
+                pending = None
 
-        observation_consumed = advanced and window_end == observed_high_water_id
-        if not pending_observation or observation_consumed:
+        if pending is None:
             await self._record_observation(produced_through_id)
         else:
             await self._refresh_gauges(produced_through_id)
@@ -213,7 +210,7 @@ class SpanEvaluationProducer(DaemonTask):
                 return False
             await self._catch_up_scan(active, produced_through_id)
             self._last_catch_up_scan_at = time.monotonic()
-        return advanced and not observation_consumed
+        return window_end is not None and pending is not None
 
     async def _load_cursor(self, session: AsyncSession) -> Optional[models.EvalSpanCursor]:
         """Read the cursor, starting it at the current span high water on first use."""
@@ -247,15 +244,13 @@ class SpanEvaluationProducer(DaemonTask):
                     models.EvalSpanCursor.id == models.SPAN_CURSOR_ID,
                     models.EvalSpanCursor.produced_through_id == cursor.produced_through_id,
                 )
-                .values(
-                    produced_through_id=max_span_id,
-                    observed_high_water_id=None,
-                    observed_at=None,
-                )
+                .values(produced_through_id=max_span_id)
                 .returning(models.EvalSpanCursor)
             )
             if clamped is not None:
                 await lower_span_starts(session, max_span_id)
+                # The reused ids arrive after the observation, so they wait a fresh one.
+                self._observation = None
             return clamped
 
     async def _retention_cleanup(self, now: datetime) -> None:
@@ -347,29 +342,20 @@ class SpanEvaluationProducer(DaemonTask):
         active: list[_ActiveProjectEvaluator],
         low_exclusive: int,
         window_end: int,
-    ) -> bool:
-        """Queue the window's work and advance the cursor past the window, returning whether
-        the cursor advanced."""
+    ) -> None:
+        """Queue the window's work and move the cursor up to the window end, unless another
+        producer has already moved it past."""
         async with self._db() as session:
             queued_count = await self._queue_window(session, active, low_exclusive, window_end)
-            advanced = (
-                await session.scalar(
-                    update(models.EvalSpanCursor)
-                    .where(
-                        models.EvalSpanCursor.id == models.SPAN_CURSOR_ID,
-                        models.EvalSpanCursor.produced_through_id == low_exclusive,
-                    )
-                    .values(produced_through_id=window_end)
-                    .returning(models.EvalSpanCursor.id)
+            await session.execute(
+                update(models.EvalSpanCursor)
+                .where(
+                    models.EvalSpanCursor.id == models.SPAN_CURSOR_ID,
+                    models.EvalSpanCursor.produced_through_id < window_end,
                 )
-                is not None
+                .values(produced_through_id=window_end)
             )
-            if not advanced:
-                await session.rollback()
-                logger.warning("Online-eval span producer scan rolled back: the cursor moved")
-                return False
         self._count_queued(queued_count)
-        return True
 
     async def _record_observation(self, produced_through_id: int) -> None:
         async with self._db() as session:
@@ -382,17 +368,7 @@ class SpanEvaluationProducer(DaemonTask):
             # visibility lag, and a stale stamp ages the observation early, leaving spans
             # that commit late to the slower catch-up scan.
             observed_at = await current_database_time(session, self._db.dialect)
-            observed = await session.scalar(
-                update(models.EvalSpanCursor)
-                .where(
-                    models.EvalSpanCursor.id == models.SPAN_CURSOR_ID,
-                    models.EvalSpanCursor.produced_through_id == produced_through_id,
-                )
-                .values(observed_high_water_id=high_water, observed_at=observed_at)
-                .returning(models.EvalSpanCursor.id)
-            )
-        if observed is None:
-            return
+        self._observation = (high_water, observed_at)
         self._publish_span_cursor_lag(high_water - produced_through_id)
         self._publish_ingest_rate(high_water, observed_at)
 
@@ -402,8 +378,6 @@ class SpanEvaluationProducer(DaemonTask):
         if not self._publish_metrics:
             return
         async with self._db() as session:
-            if not await self._cursor_is_at(session, produced_through_id):
-                return
             high_water = await session.scalar(select(func.max(models.Span.id))) or 0
             observed_at = await current_database_time(session, self._db.dialect)
         self._publish_span_cursor_lag(max(high_water - produced_through_id, 0))
@@ -442,10 +416,6 @@ class SpanEvaluationProducer(DaemonTask):
         low_exclusive = max(span_cursor - self._catch_up_scan_lookback_span_ids - 1, 0)
         async with self._db() as session:
             queued_count = await self._queue_window(session, active, low_exclusive, span_cursor)
-            if not await self._cursor_is_at(session, span_cursor):
-                await session.rollback()
-                logger.warning("Online-eval catch-up scan rolled back: the cursor moved")
-                return
         self._count_queued(queued_count)
 
     async def _queue_window(
@@ -490,20 +460,6 @@ class SpanEvaluationProducer(DaemonTask):
                 f"run: {error.orig if isinstance(error, DBAPIError) else error}"
             )
             return []
-
-    async def _cursor_is_at(self, session: AsyncSession, position: int) -> bool:
-        """Whether the cursor still holds the position a scan was taken against.
-
-        Once the cursor moves, its holder's retention cleanup may delete finished work in the
-        scanned window before a scan reads it, and committing that scan's inserts recreates
-        the work.
-        """
-        produced_through_id = await session.scalar(
-            select(models.EvalSpanCursor.produced_through_id).where(
-                models.EvalSpanCursor.id == models.SPAN_CURSOR_ID
-            )
-        )
-        return produced_through_id == position
 
     async def _insert_work_units(
         self,

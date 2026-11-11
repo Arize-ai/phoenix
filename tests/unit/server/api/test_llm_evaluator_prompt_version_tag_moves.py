@@ -565,3 +565,37 @@ async def test_llm_edit_keeps_shared_name_when_another_binding_exists(
             )
         assert edited_binding_name is not None
         assert edited_binding_name.root == f"edited-{update_input['name']}"
+
+
+@pytest.mark.parametrize("binding", ["dataset", "project"])
+async def test_an_edit_choosing_a_version_after_its_tag_was_deleted_runs_that_version(
+    gql_client: AsyncGraphQLClient,
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    binding: str,
+) -> None:
+    evaluator_id, mutation, update_input = await _undescribed_evaluator(gql_client, db, binding)
+    async with db() as session:
+        evaluator = await session.get(models.LLMEvaluator, evaluator_id)
+        assert evaluator is not None
+        tag = await session.get(models.PromptVersionTag, evaluator.prompt_version_tag_id)
+        assert tag is not None
+        chosen_version_id, tag_name = tag.prompt_version_id, tag.name.root
+        newer = _prompt_version("Rate {{output}}")
+        newer.prompt_id = evaluator.prompt_id
+        session.add(newer)
+    chosen_version = str(GlobalID("PromptVersion", str(chosen_version_id)))
+    response = await httpx_client.delete(
+        f"v1/prompt_versions/{quote_plus(chosen_version)}/tags/{quote_plus(tag_name)}"
+    )
+    assert response.status_code == 204, response.text
+
+    result = await gql_client.execute(
+        mutation, {"input": {**update_input, "promptVersionId": chosen_version}}
+    )
+
+    assert result.data and not result.errors, result.errors
+    evaluator_gid = quote_plus(str(GlobalID("LLMEvaluator", str(evaluator_id))))
+    response = await httpx_client.get(f"v1/evaluators/{evaluator_gid}")
+    assert response.status_code == 200, response.text
+    assert response.json()["data"]["prompt"]["resolved_prompt_version_id"] == chosen_version

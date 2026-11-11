@@ -9,9 +9,7 @@ from phoenix.server.api.routers.v1.annotation_config_models import (
     FreeformAnnotationConfigData,
 )
 from phoenix.server.api.routers.v1.evaluator_common import output_configs_to_db
-from phoenix.server.evaluators.services.dataset_bindings import (
-    validate_llm_binding_overrides,
-)
+from phoenix.server.evaluators.services.definitions import check_output_configs
 
 
 def test_inverted_continuous_bounds_are_a_client_error() -> None:
@@ -51,11 +49,11 @@ def test_inverted_freeform_bounds_are_a_client_error() -> None:
         output_configs_to_db([config])
 
 
-def test_non_categorical_llm_binding_override_is_a_client_error() -> None:
+def test_non_categorical_llm_output_config_is_a_client_error() -> None:
     config = ContinuousOutputConfig(
         type="CONTINUOUS",
         name="score",
         optimization_direction=OptimizationDirection.MAXIMIZE,
     )
-    with pytest.raises(BadRequest, match="CategoricalOutputConfig"):
-        validate_llm_binding_overrides([config])
+    with pytest.raises(BadRequest, match="only support categorical output configs"):
+        check_output_configs("LLM", [config])

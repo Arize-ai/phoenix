@@ -41,7 +41,7 @@ from .document_retrieval_metrics import DocumentRetrievalMetricsDataLoader
 from .evaluation_queues import (
     EvaluationQueueDataLoader,
     EvaluationQueueProjectsDataLoader,
-    EvaluationQueueThroughputDataLoader,
+    EvaluationQueueRatesDataLoader,
 )
 from .evaluator_by_id import EvaluatorByIdDataLoader
 from .experiment_annotation_label_fractions import ExperimentAnnotationLabelFractionsDataLoader
@@ -66,6 +66,9 @@ from .last_used_times_by_generative_model_id import LastUsedTimesByGenerativeMod
 from .latency_ms_quantile import LatencyMsQuantileCache, LatencyMsQuantileDataLoader
 from .latest_code_evaluator_versions import LatestCodeEvaluatorVersionDataLoader
 from .latest_prompt_version_ids import LatestPromptVersionIdDataLoader
+from .llm_evaluator_selected_prompt_version_ids import (
+    LLMEvaluatorSelectedPromptVersionIdDataLoader,
+)
 from .min_start_or_max_end_times import MinStartOrMaxEndTimeCache, MinStartOrMaxEndTimeDataLoader
 from .num_child_spans import NumChildSpansDataLoader
 from .num_spans_per_trace import NumSpansPerTraceDataLoader
@@ -215,7 +218,7 @@ class DataLoaders:
     document_retrieval_metrics: DocumentRetrievalMetricsDataLoader
     evaluation_queue: EvaluationQueueDataLoader
     evaluation_queue_projects: EvaluationQueueProjectsDataLoader
-    evaluation_queue_throughput: EvaluationQueueThroughputDataLoader
+    evaluation_queue_rates: EvaluationQueueRatesDataLoader
     evaluator_by_id: EvaluatorByIdDataLoader
     experiment_annotation_label_fractions: ExperimentAnnotationLabelFractionsDataLoader
     experiment_annotation_summaries: ExperimentAnnotationSummaryDataLoader
@@ -271,6 +274,7 @@ class DataLoaders:
     prompt_authors: "VersionAuthorsDataLoader[models.PromptVersion]"
     latest_prompt_version_ids: LatestPromptVersionIdDataLoader
     latest_code_evaluator_versions: LatestCodeEvaluatorVersionDataLoader
+    llm_evaluator_selected_prompt_version_ids: LLMEvaluatorSelectedPromptVersionIdDataLoader
     project_session_annotation_fields: TableFieldsDataLoader
     project_session_fields: TableFieldsDataLoader
     record_counts: RecordCountDataLoader
@@ -402,7 +406,7 @@ def build_data_loaders(
         document_retrieval_metrics=DocumentRetrievalMetricsDataLoader(db),
         evaluation_queue=EvaluationQueueDataLoader(db),
         evaluation_queue_projects=EvaluationQueueProjectsDataLoader(db, project_evaluator_queues),
-        evaluation_queue_throughput=EvaluationQueueThroughputDataLoader(db),
+        evaluation_queue_rates=EvaluationQueueRatesDataLoader(db),
         evaluator_by_id=EvaluatorByIdDataLoader(db),
         experiment_annotation_label_fractions=ExperimentAnnotationLabelFractionsDataLoader(db),
         annotation_summaries=AnnotationSummaryDataLoader(
@@ -475,6 +479,7 @@ def build_data_loaders(
         ),
         latest_prompt_version_ids=LatestPromptVersionIdDataLoader(db),
         latest_code_evaluator_versions=LatestCodeEvaluatorVersionDataLoader(db),
+        llm_evaluator_selected_prompt_version_ids=LLMEvaluatorSelectedPromptVersionIdDataLoader(db),
         project_session_annotation_fields=TableFieldsDataLoader(
             db, models.ProjectSessionAnnotation
         ),

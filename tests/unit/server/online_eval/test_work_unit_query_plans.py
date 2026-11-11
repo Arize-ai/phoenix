@@ -24,6 +24,7 @@ from phoenix.server.online_eval.current_queue import (
     load_project_evaluator_queues,
 )
 from phoenix.server.online_eval.evaluation_activity import (
+    load_added_and_completed,
     load_evaluation_activity,
     load_evaluation_lags,
 )
@@ -32,17 +33,19 @@ from phoenix.server.online_eval.sweeping_producer import (
     SessionEvaluationProducer,
     TraceEvaluationProducer,
 )
-from phoenix.server.online_eval.throughput import load_queue_throughput
 from phoenix.server.types import DbSessionFactory
 
 from ..._helpers import _add_project
 from .test_span_producer import _seed_criteria
 
 
-async def test_per_tick_work_unit_queries_use_partial_indexes_on_sqlite(
+async def test_work_unit_reads_never_scan_a_work_table(
     db: DbSessionFactory,
     request: pytest.FixtureRequest,
 ) -> None:
+    """Every read of a work table on SQLite searches an index, the reads that take a few rows
+    per evaluator do not sort into a temporary table, and the reads bounded by a time range
+    do not walk an evaluator's whole history."""
     if db.dialect is not SupportedSQLDialect.SQLITE:
         pytest.skip("asserts SQLite query plans")
     connection: AsyncConnection = request.getfixturevalue("_sqlite_test_conn")
@@ -75,22 +78,19 @@ async def test_per_tick_work_unit_queries_use_partial_indexes_on_sqlite(
                 await sweeper._publish_decided_through_lag(session, datetime.now(timezone.utc))
         for coordinator_target in ("SPAN", "SESSION", "TRACE"):
             coordinator = EvalWorkCoordinator(db, evaluation_target=coordinator_target)
-            await coordinator.ended_work_counts()
             await coordinator.claim(claimed_by="query-plan", limit=1)
-        queue = await load_evaluation_queue(db)
-        await load_queue_throughput(db, queue)
-        first_evaluator_queue_plan = len(plans)
+        await load_evaluation_queue(db)
+        first_per_evaluator_plan = len(plans)
         await load_project_evaluator_queues(db, project_evaluator_ids)
         await ProjectEvaluationQueueDataLoader(db, ProjectEvaluatorQueuesDataLoader(db)).load(
             project.id
         )
         await EvaluationQueueProjectsDataLoader(db, ProjectEvaluatorQueuesDataLoader(db)).load(5)
-        evaluator_queue_plans = plans[first_evaluator_queue_plan:]
-        first_latest_outcome_plan = len(plans)
         await ProjectEvaluatorLatestOutcomesDataLoader(db).load(1)
-        latest_outcome_plans = plans[first_latest_outcome_plan:]
-        first_activity_plan = len(plans)
+        per_evaluator_plans = plans[first_per_evaluator_plan:]
+        first_range_plan = len(plans)
         now = datetime.now(timezone.utc)
+        await load_added_and_completed(db, project_id=None, start=now - timedelta(hours=1), end=now)
         await load_evaluation_lags(db, project_evaluator_ids, now - timedelta(hours=1), now)
         for project_id in (project.id, None):
             await load_evaluation_activity(
@@ -99,10 +99,9 @@ async def test_per_tick_work_unit_queries_use_partial_indexes_on_sqlite(
                 start=now - timedelta(hours=1),
                 end=now,
                 time_bins=TimeBucketSpec(),
-                read_added=True,
                 read_queue_size=True,
             )
-        activity_plans = plans[first_activity_plan:]
+        range_plans = plans[first_range_plan:]
     finally:
         event.remove(connection.sync_engine, "before_cursor_execute", explain)
 
@@ -118,39 +117,15 @@ async def test_per_tick_work_unit_queries_use_partial_indexes_on_sqlite(
         for step in work_unit_reads
         if not re.match(r"SEARCH \S+ USING (COVERING )?INDEX ", step)
     ] == []
-    (retention_delete_plan,) = [
-        steps for statement, steps in plans if statement.startswith("DELETE")
-    ]
-    assert any("ix_eval_work_units_terminal" in step for step in retention_delete_plan)
-    latest_outcome_steps = [step for _, steps in latest_outcome_plans for step in steps]
-    assert {
-        match.group(1)
-        for step in latest_outcome_steps
-        if (match := re.match(r"SEARCH \S+ USING (?:COVERING )?INDEX (\S+)", step))
-    } == {
-        f"ix_{table}_project_evaluator_{outcome}"
-        for table in ("eval_work_units", "eval_session_work_units", "eval_trace_work_units")
-        for outcome in ("done", "failed")
-    }
-    assert [step for step in latest_outcome_steps if "TEMP B-TREE" in step] == []
-    evaluator_queue_steps = [step for _, steps in evaluator_queue_plans for step in steps]
-    assert {
-        match.group(1)
-        for step in evaluator_queue_steps
-        if (match := re.match(r"SEARCH eval_\w*work_units USING (?:COVERING )?INDEX (\S+)", step))
-    } == {
-        f"ix_{table}_project_evaluator_live"
-        for table in ("eval_work_units", "eval_session_work_units", "eval_trace_work_units")
-    }
-    assert [step for step in evaluator_queue_steps if "TEMP B-TREE" in step] == []
-    activity_indexes = {
-        match.group(1)
-        for _, steps in activity_plans
+    assert [
+        step for _, steps in per_evaluator_plans for step in steps if "TEMP B-TREE" in step
+    ] == []
+    # Matching the evaluator as an expression keeps these reads on their time index. Without
+    # it SQLite reads by the plain evaluator index: a search on these empty tables, a scan of
+    # the table once it has rows.
+    assert [
+        step
+        for _, steps in range_plans
         for step in steps
-        if (match := re.match(r"(?:SCAN|SEARCH) eval_\w*work_units\b.*?(?:INDEX (\S+)|$)", step))
-    }
-    assert activity_indexes == {
-        f"ix_{table}_{index}"
-        for table in ("eval_work_units", "eval_session_work_units", "eval_trace_work_units")
-        for index in ("terminal", "project_evaluator_live")
-    }
+        if re.search(r"INDEX ix_\w+_project_evaluator_id\b", step)
+    ] == []

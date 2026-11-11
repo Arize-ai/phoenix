@@ -16,14 +16,13 @@ from phoenix.db.insertion.constants import DEFAULT_RETRY_ALLOWANCE, DEFAULT_RETR
 from phoenix.db.insertion.document_annotation import DocumentAnnotationQueueInserter
 from phoenix.db.insertion.helpers import (
     DataManipulation,
+    advance_liveness,
     get_sqlstate,
     should_calculate_span_cost,
 )
-from phoenix.db.insertion.project_session import advance_project_session_liveness
 from phoenix.db.insertion.session_annotation import SessionAnnotationQueueInserter
 from phoenix.db.insertion.span import SpanInsertionEvent, insert_span
 from phoenix.db.insertion.span_annotation import SpanAnnotationQueueInserter
-from phoenix.db.insertion.trace import advance_trace_liveness
 from phoenix.db.insertion.trace_annotation import TraceAnnotationQueueInserter
 from phoenix.db.insertion.types import Precursors
 from phoenix.server.cost_tracking.span_cost_calculator import (
@@ -351,11 +350,11 @@ class BulkInserter:
                 savepoint = await session.begin_nested()
                 try:
                     phase = "advance_liveness"
-                    await advance_project_session_liveness(session, project_session_rowids)
-                    await advance_trace_liveness(session, trace_rowids)
+                    await advance_liveness(session, models.ProjectSession, project_session_rowids)
+                    await advance_liveness(session, models.Trace, trace_rowids)
                 except Exception as error:
-                    # A stale stamp lets the sweeper treat a session or trace that is still
-                    # receiving spans as quiet, so replay the batch rather than commit without it.
+                    # Spans outrank their stamps: an error that calls for a replay replays the
+                    # batch, stamps included; any other error commits the spans without them.
                     if _must_replay_span_batch(error):
                         raise
                     phase = "rollback_savepoint"

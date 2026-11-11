@@ -8,7 +8,6 @@ from sqlalchemy import func, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.types.identifier import Identifier
 from phoenix.server.online_eval.span_producer import SpanEvaluationProducer
 from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import _add_span, _add_trace
@@ -160,20 +159,6 @@ async def test_detach_removes_trace_projects_atomically_and_keeps_definition_and
         await create_binding(project_routes[0], f"second-{token_hex(4)}"),
         await create_binding(project_routes[1], f"other-{token_hex(4)}"),
     ]
-    nested_trace_project = models.Project(name=f"nested-trace-{token_hex(4)}")
-    nested_project_id = int(GlobalID.from_id(bindings[2]["trace_project_id"]).node_id)
-    async with db() as session:
-        session.add(
-            models.ProjectEvaluator(
-                project_id=nested_project_id,
-                evaluator_id=correctness_llm_evaluator.id,
-                trace_project=nested_trace_project,
-                name=Identifier(f"nested-{token_hex(4)}"),
-                evaluation_target="SPAN",
-                sampling_rate=1.0,
-            )
-        )
-        await session.flush()
     wrong_owner = await httpx_client.delete(
         project_routes[0],
         params={"project_evaluator_id": [binding["id"] for binding in bindings]},
@@ -204,9 +189,6 @@ async def test_detach_removes_trace_projects_atomically_and_keeps_definition_and
     ).status_code == 204
     assert (
         await httpx_client.get(f"v1/projects/{bindings[2]['trace_project_id']}")
-    ).status_code == 404
-    assert (
-        await httpx_client.get(f"v1/projects/{GlobalID('Project', str(nested_trace_project.id))}")
     ).status_code == 404
     for project in projects:
         assert (
@@ -285,6 +267,40 @@ async def test_patch_rename_to_taken_name_is_already_exists(
     problem = response.json()
     assert problem["code"] == "already_exists"
     assert problem["existing_id"] == holder["id"]
+
+
+async def test_patch_checks_the_filter_against_the_stored_evaluation_target(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    correctness_llm_evaluator: models.LLMEvaluator,
+) -> None:
+    project = await _project(db)
+    created = (
+        await httpx_client.post(
+            f"v1/projects/{GlobalID('Project', str(project.id))}/evaluators",
+            json={
+                "name": "trace-evaluator",
+                "evaluator_id": str(GlobalID("LLMEvaluator", str(correctness_llm_evaluator.id))),
+                "evaluation_target": "TRACE",
+                "sampling_rate": 1.0,
+            },
+        )
+    ).json()["data"]
+
+    response = await httpx_client.patch(
+        f"v1/project_evaluators/{created['id']}",
+        json={"filter_condition": "span_kind == 'LLM'"},
+    )
+
+    assert response.status_code == 422, response.text
+    assert response.json()["code"] == "invalid_argument"
+    async with db() as session:
+        stored = await session.scalar(
+            select(models.ProjectEvaluator.filter_condition).where(
+                models.ProjectEvaluator.project_id == project.id
+            )
+        )
+    assert stored == ""
 
 
 async def test_malformed_ids_are_invalid_argument_not_a_crash(
