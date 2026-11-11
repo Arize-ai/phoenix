@@ -2,7 +2,7 @@ import contextlib
 import re
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
-from typing import Any, AsyncIterator
+from typing import Any, AsyncIterator, Optional
 from unittest.mock import patch
 
 import httpx2
@@ -3267,6 +3267,70 @@ class TestProjectEvaluatorAnnotationScoreMetrics:
         assert len(series) >= 2
         assert series[0]["meanScore"] == pytest.approx(0.5)
         assert all(bin["meanScore"] is None for bin in series[1:])
+
+    async def test_explicit_previous_window_overrides_the_derived_one(
+        self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        """A closed range given an explicit previous window uses it rather than
+        the equal-length window before the range, which holds two passing scores."""
+        window_start = _test_data["window_start"]
+        resp = await gql_client.execute(
+            self._QUERY,
+            variables={
+                "id": str(GlobalID("ProjectEvaluator", str(_test_data["project_evaluator"]))),
+                "timeRange": {
+                    "start": window_start.isoformat(),
+                    "end": (window_start + timedelta(days=2)).isoformat(),
+                },
+                "previousTimeRange": {
+                    "start": (window_start - timedelta(days=10)).isoformat(),
+                    "end": (window_start - timedelta(days=5)).isoformat(),
+                },
+                "timeBinConfig": {"scale": "DAY", "utcOffsetMinutes": 0},
+            },
+        )
+        assert not resp.errors
+        assert resp.data is not None
+        (metrics,) = resp.data["node"]["annotationScoreMetrics"]
+        assert metrics["summary"]["meanScore"] == pytest.approx(0.5)
+        assert metrics["previousSummary"] is None
+
+    @pytest.mark.parametrize(
+        "time_range, previous_time_range, message",
+        [
+            pytest.param(
+                {"end": "2024-06-12T00:00:00+00:00"},
+                None,
+                "time_range must have a start",
+                id="window-without-start",
+            ),
+            pytest.param(
+                {"start": "2024-06-10T00:00:00+00:00"},
+                {"start": "2024-06-08T00:00:00+00:00"},
+                "previous_time_range must have both a start and an end",
+                id="previous-window-without-end",
+            ),
+        ],
+    )
+    async def test_incomplete_windows_are_rejected(
+        self,
+        _test_data: dict[str, Any],
+        gql_client: AsyncGraphQLClient,
+        time_range: dict[str, str],
+        previous_time_range: Optional[dict[str, str]],
+        message: str,
+    ) -> None:
+        resp = await gql_client.execute(
+            self._QUERY,
+            variables={
+                "id": str(GlobalID("ProjectEvaluator", str(_test_data["project_evaluator"]))),
+                "timeRange": time_range,
+                "previousTimeRange": previous_time_range,
+                "timeBinConfig": {"scale": "DAY", "utcOffsetMinutes": 0},
+            },
+        )
+        assert resp.errors
+        assert message in resp.errors[0].message
 
     async def test_series_honors_units_per_bin_alongside_single_unit_bins(
         self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
