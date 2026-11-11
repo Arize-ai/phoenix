@@ -209,6 +209,10 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/evaluation/concepts-evals/decision-models-as-a-judge</loc>
+    <lastmod>2026-11-11T14:57:09+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/evaluation/how-to-evals</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -219,6 +223,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/evaluation/how-to-evals/configuring-the-llm</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/evaluation/how-to-evals/configuring-the-decision-model</loc>
+    <lastmod>2026-11-11T14:57:09+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/evaluation/how-to-evals/prompt-formats</loc>
