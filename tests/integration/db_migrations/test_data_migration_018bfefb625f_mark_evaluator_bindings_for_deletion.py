@@ -107,9 +107,8 @@ def _rebind_live_name(conn: Connection, ids: dict[str, int]) -> None:
         conn.rollback()
 
 
-def _purge(conn: Connection) -> None:
-    conn.execute(text("DELETE FROM dataset_evaluators WHERE deleted_at IS NOT NULL"))
-    conn.execute(text("DELETE FROM project_evaluators WHERE deleted_at IS NOT NULL"))
+def _purge(conn: Connection, table: str) -> None:
+    conn.execute(text(f"DELETE FROM {table} WHERE deleted_at IS NOT NULL"))
     conn.commit()
 
 
@@ -139,7 +138,12 @@ async def test_mark_evaluator_bindings_for_deletion(
         await _down(_engine, _alembic_config, _DOWN, _schema)
     assert await _run_async(_engine, _binding_counts) == (2, 2)
 
-    await _run_async(_engine, _purge)
+    await _run_async(_engine, lambda conn: _purge(conn, "dataset_evaluators"))
+    with pytest.raises(Exception, match="Cannot downgrade while deleted project_evaluators"):
+        await _down(_engine, _alembic_config, _DOWN, _schema)
+    assert await _run_async(_engine, _binding_counts) == (1, 2)
+
+    await _run_async(_engine, lambda conn: _purge(conn, "project_evaluators"))
     await _down(_engine, _alembic_config, _DOWN, _schema)
     assert await _run_async(_engine, _binding_counts) == (1, 1)
     with pytest.raises(Exception, match="(?i)unique|duplicate"):
