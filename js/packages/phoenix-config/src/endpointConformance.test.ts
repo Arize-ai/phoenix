@@ -21,7 +21,7 @@ import { ENV_PHOENIX_DISCOVER_CONFIG } from "./envFile";
  *
  * Columns:
  *
- * - `apiBaseUrl` — what the `px` CLI, the API clients and the MCP server send
+ * - `apiBaseUrl` — what the `px` CLI and the API clients send
  *   requests to; `undefined` means no variable resolved and the consumer's own
  *   localhost default applies.
  * - `traceExportEndpoint` — the raw value trace export resolved, before the

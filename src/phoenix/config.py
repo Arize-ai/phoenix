@@ -3796,7 +3796,7 @@ def get_env_allowed_origins() -> Optional[list[str]]:
     if allowed_origins is None:
         return None
 
-    return allowed_origins.split(",")
+    return [origin.strip() for origin in allowed_origins.split(",") if origin.strip()]
 
 
 def get_env_telemetry_enabled() -> bool:

@@ -37,7 +37,7 @@ NC := \033[0m # No Color
 	test test-python test-frontend test-ts test-helm test-jcs doctest typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
-	skills skills-check codegen-prompts sync-models test-sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples check-skill-filter-examples sync-docs-snippets check-docs-snippets gen-otel-models \
+	skills skills-check codegen-prompts sync-models test-sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples check-skill-filter-examples check-skill-python-examples check-skill-typescript-examples check-skill-px-commands sync-docs-snippets check-docs-snippets gen-otel-models \
 	test-integration-docs \
 	gh-comment-watch \
 	harbor-stage harbor-plugin-e2e harbor-run harbor-view \
@@ -104,6 +104,9 @@ help: ## Show this help message
 	@echo -e "  check-filter-dsl-snippets - Ensure UI filter DSL snippets compile under the Python filters"
 	@echo -e "  check-skill-graphql-examples - Ensure GraphQL examples in shipped skills validate against the schema"
 	@echo -e "  check-skill-filter-examples - Ensure filter conditions in shipped skills compile under the Python filters"
+	@echo -e "  check-skill-python-examples - Ensure Python examples in public skills type-check against the client packages"
+	@echo -e "  check-skill-typescript-examples - Ensure TypeScript examples in public skills type-check against the client packages"
+	@echo -e "  check-skill-px-commands - Ensure px commands in public skills match the CLI's commands and flags"
 	@echo -e "  sync-docs-snippets     - Copy examples/quickstarts code into the docs' fenced code blocks"
 	@echo -e "  check-docs-snippets    - Ensure docs' fenced code blocks match examples/quickstarts"
 	@echo -e ""
@@ -479,6 +482,25 @@ check-skill-graphql-examples: ## Ensure fenced GraphQL examples in shipped skill
 check-skill-filter-examples: ## Ensure span/trace/session filter conditions in shipped skills compile under the Python filters
 	@echo -e "$(CYAN)Checking skill filter conditions against the Python filters...$(NC)"
 	@$(UV) run pytest -q $(CURDIR)/scripts/ci/test_skill_filter_dsl_examples.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+check-skill-python-examples: ## Ensure Python examples in public skills type-check against the workspace client packages
+	@echo -e "$(CYAN)Type-checking skill Python examples with pyright...$(NC)"
+	@$(UV) run pytest -q $(CURDIR)/scripts/ci/test_skill_python_examples.py $(CURDIR)/scripts/ci/test_skill_lint.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+check-skill-typescript-examples: ## Ensure TypeScript examples in public skills type-check against the workspace client packages (needs pnpm install in js/)
+	@echo -e "$(CYAN)Building the TypeScript client packages...$(NC)"
+	@cd $(JS_DIR) && $(PNPM) --filter "@arizeai/phoenix-client..." --filter "@arizeai/phoenix-evals..." --filter "@arizeai/phoenix-otel..." run build >/dev/null
+	@echo -e "$(CYAN)Type-checking skill TypeScript examples with tsc...$(NC)"
+	@$(UV) run pytest -q $(CURDIR)/scripts/ci/test_skill_typescript_examples.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+check-skill-px-commands: ## Ensure px commands in public skills match the CLI's commands and flags (needs pnpm install in js/)
+	@echo -e "$(CYAN)Building the px CLI's workspace dependencies...$(NC)"
+	@cd $(JS_DIR) && $(PNPM) --filter "@arizeai/phoenix-cli^..." run build >/dev/null
+	@echo -e "$(CYAN)Checking skill px commands against the CLI...$(NC)"
+	@$(UV) run pytest -q $(CURDIR)/scripts/ci/test_skill_px_commands.py
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 # These two call python3 directly: the script is stdlib-only and its CI job has no uv.

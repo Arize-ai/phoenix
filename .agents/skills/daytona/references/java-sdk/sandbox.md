@@ -168,6 +168,24 @@ Replaces Sandbox labels.
 
 - `DaytonaException` - if label update fails
 
+#### setPublic()
+```java
+public void setPublic(boolean isPublic)
+```
+
+Sets whether the Sandbox's preview URLs are publicly accessible.
+
+When public, preview URLs can be opened without a preview token or API key. When private,
+every preview request must authenticate.
+
+**Parameters**:
+
+- `isPublic` _boolean_ - `true` to make preview URLs public, `false` to make them private
+
+**Throws**:
+
+- `DaytonaException` - if the update fails
+
 #### setAutostopInterval()
 ```java
 public void setAutostopInterval(int minutes)
@@ -852,6 +870,15 @@ public String getSpotEvictedAt()
 
 - `String` - when the Sandbox was evicted by spot preemption, or `null` when it was not.
 
+#### getQueueTimedOutAt()
+```java
+public String getQueueTimedOutAt()
+```
+
+**Returns**:
+
+- `String` - when the Sandbox queue timed out before runner assignment, or `null`.
+
 #### getMemory()
 ```java
 public int getMemory()
@@ -977,6 +1004,15 @@ public String getAutoDestroyAt()
 **Returns**:
 
 - `String` - when the Sandbox expires, or `null` if no TTL is set.
+
+#### getQueueTimeout()
+```java
+public Integer getQueueTimeout()
+```
+
+**Returns**:
+
+- `Integer` - minutes to wait for runner assignment before queue timeout, or `null`.
 
 #### getToolboxProxyUrl()
 ```java

@@ -1,0 +1,46 @@
+name: Claude Issue Triage Sweep
+
+on:
+  schedule:
+    - cron: "0 8 */2 * *"
+  workflow_dispatch:
+    inputs:
+      created:
+        description: 'Sweep a creation window, e.g. 2025-01-01..2025-12-31 or <2026-01-01 (blank = whole backlog, the scheduled default)'
+        required: false
+        default: ''
+      limit:
+        description: 'Issues to fetch in Pass A. Raise for a sweep; keep each slice under the 1000-result search cap.'
+        required: false
+        default: '25'
+      stages:
+        description: 'Triage stages to run, e.g. 1-7 (all), 1-4 (labels only), 3-4'
+        required: false
+        default: '1-7'
+      regression:
+        description: 'Re-triage issues already carrying the gate label'
+        type: choice
+        options: ['on', 'off']
+        required: false
+        default: 'on'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: claude-issue-triage-sweep
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    uses: ./.github/workflows/claude-issue-triage.yml
+    permissions:
+      issues: write
+      contents: read
+      id-token: write
+    with:
+      created: ${{ inputs.created }}
+      limit: ${{ inputs.limit || '25' }}
+      stages: ${{ inputs.stages || '1-7' }}
+      regression: ${{ inputs.regression || 'on' }}
+      timeout-minutes: 60

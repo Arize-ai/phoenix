@@ -6,6 +6,7 @@ from typing import Any, Callable, Optional
 
 import httpx2
 import pytest
+from anthropic import AsyncAnthropic
 from openai import AsyncOpenAI
 from openinference.semconv.trace import (
     MessageAttributes,
@@ -29,9 +30,12 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import (
     LLMClientFactory,
     ModelProvider,
+    anthropic_rate_limit_key,
     openai_rate_limit_key,
 )
 from phoenix.db.types.prompts import (
+    PromptAnthropicInvocationParameters,
+    PromptAnthropicInvocationParametersContent,
     PromptChatTemplate,
     PromptMessage,
     PromptOpenAIInvocationParameters,
@@ -53,6 +57,7 @@ from phoenix.db.types.prompts import (
 from phoenix.server.api.evaluators import (
     BuiltInEvaluator,
     LLMEvaluator,
+    _request_tool_call_in_prompt,
     apply_input_mapping,
     cast_template_variable_types,
     get_evaluators,
@@ -68,8 +73,12 @@ from phoenix.server.api.helpers.evaluators import (
     _LLMEvaluatorPromptErrorMessage,
     validate_evaluator_prompt_and_configs,
 )
-from phoenix.server.api.helpers.playground_clients import OpenAIChatCompletionsClient
+from phoenix.server.api.helpers.playground_clients import (
+    AnthropicClient,
+    OpenAIChatCompletionsClient,
+)
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
+from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.cost_tracking.span_cost_calculator import SpanCostCalculator
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
@@ -3664,6 +3673,238 @@ class TestLLMEvaluator:
         }
         assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
         assert not attributes
+
+
+class TestLLMEvaluatorWithoutForcedToolChoice:
+    """Evaluators on models that reject forced tool use (#17480)."""
+
+    @pytest.fixture
+    def input_mapping(self) -> InputMapping:
+        return InputMapping(path_mapping={}, literal_mapping={})
+
+    @staticmethod
+    def _tools(tool_choice: Any) -> PromptTools:
+        return PromptTools(
+            type="tools",
+            tools=[
+                PromptToolFunction(
+                    type="function",
+                    function=PromptToolFunctionDefinition(
+                        name="correctness",
+                        description=UNDEFINED,
+                        parameters={
+                            "type": "object",
+                            "properties": {
+                                "label": {
+                                    "type": "string",
+                                    "enum": ["correct", "incorrect"],
+                                    "description": "correctness",
+                                }
+                            },
+                            "required": ["label"],
+                        },
+                    ),
+                )
+            ],
+            tool_choice=tool_choice,
+        )
+
+    @staticmethod
+    def _anthropic_response(content: list[dict[str, Any]]) -> dict[str, Any]:
+        return {
+            "id": "msg_mock",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-opus-5-5",
+            "content": content,
+            "stop_reason": "tool_use" if content[0]["type"] == "tool_use" else "end_turn",
+            "stop_sequence": None,
+            "usage": {"input_tokens": 10, "output_tokens": 5},
+        }
+
+    async def _evaluate(
+        self,
+        *,
+        model_name: str,
+        tools: PromptTools,
+        response_content: list[dict[str, Any]],
+        output_config: CategoricalOutputConfig,
+        input_mapping: InputMapping,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Runs an evaluator against a mocked Anthropic API.
+
+        Returns:
+            The request body sent to Anthropic and the single evaluation result.
+        """
+        request_bodies: list[dict[str, Any]] = []
+
+        def handler(request: httpx2.Request) -> httpx2.Response:
+            request_bodies.append(json.loads(request.content))
+            return httpx2.Response(200, json=self._anthropic_response(response_content))
+
+        async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler)) as http_client:
+
+            @asynccontextmanager
+            async def create_anthropic_client() -> Any:
+                yield AsyncAnthropic(api_key="sk-ant-test", max_retries=0, http_client=http_client)
+
+            llm_client = AnthropicClient(
+                client_factory=LLMClientFactory(
+                    create_anthropic_client, anthropic_rate_limit_key("sk-ant-test", None)
+                ),
+                model_name=model_name,
+            )
+            evaluator = LLMEvaluator(
+                name="correctness",
+                description=None,
+                template=PromptChatTemplate(
+                    type="chat",
+                    messages=[
+                        PromptMessage(role="system", content="You are an evaluator."),
+                        PromptMessage(role="user", content="Is {{output}} correct?"),
+                    ],
+                ),
+                template_format=PromptTemplateFormat.MUSTACHE,
+                tools=tools,
+                invocation_parameters=PromptAnthropicInvocationParameters(
+                    type="anthropic",
+                    anthropic=PromptAnthropicInvocationParametersContent(max_tokens=2000),
+                ),
+                model_provider=ModelProvider.ANTHROPIC,
+                llm_client=llm_client,
+                output_configs=[output_config],
+                prompt_name="test-prompt",
+            )
+            results = await evaluator.evaluate(
+                context={"output": "4"},
+                input_mapping=input_mapping,
+                name="correctness",
+                output_configs=[output_config],
+            )
+        assert len(results) == 1
+        assert len(request_bodies) == 1, results[0]["error"]
+        return request_bodies[0], dict(results[0])
+
+    @pytest.mark.parametrize(
+        "model_name, tool_choice, expected_tool_choice, expected_system",
+        [
+            pytest.param(
+                "claude-opus-5-5",
+                PromptToolChoiceOneOrMore(type="one_or_more"),
+                {"type": "auto"},
+                "You are an evaluator.\nRespond by calling the `correctness` tool.",
+                id="opus-5-5-one-or-more",
+            ),
+            pytest.param(
+                "claude-sonnet-5-5",
+                PromptToolChoiceOneOrMore(type="one_or_more"),
+                {"type": "auto"},
+                "You are an evaluator.\nRespond by calling the `correctness` tool.",
+                id="sonnet-5-5-one-or-more",
+            ),
+            pytest.param(
+                "claude-fable-5-1",
+                PromptToolChoiceSpecificFunctionTool(
+                    type="specific_function", function_name="correctness"
+                ),
+                {"type": "auto"},
+                "You are an evaluator.\nRespond by calling the `correctness` tool.",
+                id="fable-5-1-specific-function",
+            ),
+            pytest.param(
+                "claude-opus-5",
+                PromptToolChoiceOneOrMore(type="one_or_more"),
+                {"type": "any"},
+                "You are an evaluator.",
+                id="opus-5-keeps-any",
+            ),
+            pytest.param(
+                "claude-opus-5",
+                PromptToolChoiceSpecificFunctionTool(
+                    type="specific_function", function_name="correctness"
+                ),
+                {"type": "tool", "name": "correctness"},
+                "You are an evaluator.",
+                id="opus-5-keeps-specific-tool",
+            ),
+        ],
+    )
+    async def test_tool_choice_sent_to_anthropic(
+        self,
+        model_name: str,
+        tool_choice: Any,
+        expected_tool_choice: dict[str, Any],
+        expected_system: str,
+        output_config: CategoricalOutputConfig,
+        input_mapping: InputMapping,
+    ) -> None:
+        request_body, result = await self._evaluate(
+            model_name=model_name,
+            tools=self._tools(tool_choice),
+            response_content=[
+                {
+                    "type": "tool_use",
+                    "id": "toolu_mock",
+                    "name": "correctness",
+                    "input": {"label": "correct"},
+                }
+            ],
+            output_config=output_config,
+            input_mapping=input_mapping,
+        )
+        assert request_body["tool_choice"] == expected_tool_choice
+        assert request_body["system"].strip() == expected_system
+        assert result["error"] is None
+        assert result["label"] == "correct"
+        assert result["score"] == 1.0
+
+    def test_instruction_names_every_tool_for_multiple_outputs(self) -> None:
+        tools = self._tools(PromptToolChoiceOneOrMore(type="one_or_more"))
+        tools = tools.model_copy(
+            update={
+                "tools": [
+                    *tools.tools,
+                    PromptToolFunction(
+                        type="function",
+                        function=PromptToolFunctionDefinition(name="relevance"),
+                    ),
+                ],
+                "disable_parallel_tool_calls": False,
+            }
+        )
+        new_tools, messages = _request_tool_call_in_prompt(tools, [])
+        assert new_tools.tool_choice == PromptToolChoiceZeroOrMore(type="zero_or_more")
+        assert new_tools.tools == tools.tools
+        assert new_tools.disable_parallel_tool_calls is False
+        assert messages == [
+            {
+                "role": ChatCompletionMessageRole.SYSTEM,
+                "content": "Respond by calling each of these tools: `correctness`, `relevance`.",
+            }
+        ]
+
+    def test_tool_choice_that_does_not_force_a_call_is_unchanged(self) -> None:
+        tools = self._tools(PromptToolChoiceZeroOrMore(type="zero_or_more"))
+        assert _request_tool_call_in_prompt(tools, []) == (tools, [])
+
+    async def test_text_response_without_tool_call_returns_error_result(
+        self,
+        output_config: CategoricalOutputConfig,
+        input_mapping: InputMapping,
+    ) -> None:
+        """With `auto`, a model can answer in text, which returns an evaluator error result."""
+        request_body, result = await self._evaluate(
+            model_name="claude-opus-5-5",
+            tools=self._tools(PromptToolChoiceOneOrMore(type="one_or_more")),
+            response_content=[{"type": "text", "text": "The output is correct."}],
+            output_config=output_config,
+            input_mapping=input_mapping,
+        )
+        assert request_body["tool_choice"] == {"type": "auto"}
+        assert isinstance(result["error"], str)
+        assert "No tool calls received from LLM" in result["error"]
+        assert result["label"] is None
+        assert result["score"] is None
 
 
 class TestGetEvaluators:

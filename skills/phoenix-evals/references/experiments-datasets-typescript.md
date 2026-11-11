@@ -101,6 +101,32 @@ await deleteDatasetSplit({ client, dataset, splitId: split.id }); // keeps the e
 
 Split names are unique instance-wide (409 on conflict). Before server 20.16.0, `exampleIds` must be example `nodeId`s, not user-provided `id`s.
 
+## Labeling Datasets
+
+Dataset labels tag whole datasets (e.g. `golden`, `regression`) so they can be grouped and found later; splits partition examples inside one dataset. A label is a global resource — create it once, then apply it to any number of datasets:
+
+```typescript
+import {
+  addLabelToDataset,
+  createDatasetLabel,
+  listDatasetLabels,
+  listLabelsForDataset,
+  removeLabelFromDataset,
+  replaceLabelsForDataset,
+} from "@arizeai/phoenix-client/datasets";
+
+const label = await createDatasetLabel({ client, name: "golden", color: "#00cc88" }); // 409 if the name exists
+const dataset = { datasetName: "qa-test-v1" };
+await addLabelToDataset({ client, dataset, labelId: label.id });       // idempotent
+const applied = await listLabelsForDataset({ client, dataset });        // DatasetLabel[]
+await replaceLabelsForDataset({ client, dataset, labelIds: [] });       // [] removes every label
+await removeLabelFromDataset({ client, dataset, labelId: label.id });   // keeps the label itself
+
+const { datasetLabels, nextCursor } = await listDatasetLabels({ client, limit: 100 });
+```
+
+`DatasetLabel` is `{ id, name, description, color }`; `color` is a lowercase hex string. `getDatasetLabel`, `updateDatasetLabel` (partial; `description: null` clears it), and `deleteDatasetLabel` take a `labelId`. The per-dataset helpers (`listLabelsForDataset`, `addLabelToDataset`, `removeLabelFromDataset`, `replaceLabelsForDataset`) require Phoenix server >= 17.16.0. The Python client has no dataset-label helpers.
+
 ## Best Practices
 
 - **Upsert by default**: Re-upload to the same name to update in-place; set a unique-per-dataset `id` on examples so the server targets specific rows instead of treating every upload as new data

@@ -7,7 +7,7 @@ Tests use real OTel components with spy span processors. This validates the actu
 MUST NOT mock:
 
 - `@opentelemetry/api` — that's the thing being tested.
-- `NodeTracerProvider` — use real instances with spy processors.
+- `TracerProvider` from `@opentelemetry/sdk-trace` — use real instances with spy processors.
 - The global state at `globalThis[Symbol.for("opentelemetry.js.api.1")]` — MUST be real.
 
 ## Cleanup

@@ -2383,6 +2383,39 @@ async def test_chat_turn_without_a_message_is_rejected(
         assert (await session.scalars(select(models.AgentSessionMessage))).all() == []
 
 
+@pytest.mark.parametrize("message_id", ["msg-1", "m1"])
+async def test_chat_turn_with_a_non_uuid_message_id_is_rejected_before_the_model_runs(
+    db: DbSessionFactory,
+    httpx_client: httpx2.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+    message_id: str,
+) -> None:
+    """``agent_session_messages.message_id`` must be a UUID, so a submitted
+    message with any other id can never be saved. The request is rejected up
+    front rather than running the turn (and the LLM call) and failing to
+    persist it at the end."""
+    model_builds = 0
+
+    async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
+        nonlocal model_builds
+        model_builds += 1
+        return TestModel(call_tools=[])
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    session_id = "24242424-2424-4424-8424-242424242424"
+    agent_session_id = await _create_agent_session_row(db)
+
+    response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(session_id, _user_message("hi", message_id=message_id)),
+    )
+    assert response.status_code == 422
+    assert model_builds == 0
+
+    async with db() as session:
+        assert (await session.scalars(select(models.AgentSessionMessage))).all() == []
+
+
 async def test_chat_turn_with_stale_last_message_id_is_rejected(
     db: DbSessionFactory,
     httpx_client: httpx2.AsyncClient,
