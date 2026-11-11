@@ -1,5 +1,3 @@
-import { startOfHour } from "date-fns";
-
 import type { OpenTimeRangeWithKey } from "@phoenix/components/datetime";
 import {
   clampTimeRangeToMaxDuration,
@@ -7,7 +5,7 @@ import {
   getLastNTimeRangeKeyFromDurationMs,
   isLastNTimeRangeKey,
 } from "@phoenix/components/datetime/utils";
-import { ONE_DAY_MS } from "@phoenix/constants/timeConstants";
+import { ONE_DAY_MS, ONE_HOUR_MS } from "@phoenix/constants/timeConstants";
 import { getTimeBinScale } from "@phoenix/hooks/useTimeBin";
 
 /**
@@ -61,8 +59,9 @@ export function isSameEvaluatorScoreWindow(
  * Everything derives from the range's snapped bounds and its last-N key —
  * never from "now" — so the loader and the table produce identical query
  * variables and repeated derivations stay cache-friendly. The one exception
- * is a live range longer than the cap, whose trailing window must resolve
- * "now"; it snaps to the hour so it, too, holds still between snaps.
+ * is a live range longer than the cap, whose trailing window must start from
+ * "now"; its start snaps to the UTC hour so it, too, holds still between
+ * snaps, and its end stays open so the latest scores are never left out.
  */
 export function getEvaluatorScoreWindow({
   timeRange,
@@ -109,12 +108,32 @@ export function getEvaluatorScoreWindow({
       windowKey: timeRangeKey,
     };
   }
-  // Custom ranges are closed by nature; a live range over the cap clamps to
-  // its trailing 30 days, resolving "now" snapped to the hour for stability.
+  if (timeRange.start != null && timeRange.end == null) {
+    // A live range over the cap: aggregate its trailing 30 days. The start
+    // derives from "now" snapped to the UTC hour (not local time, so every
+    // zone agrees), and the end stays open like any live window.
+    const nowHourMs = Math.floor(now.getTime() / ONE_HOUR_MS) * ONE_HOUR_MS;
+    const start = new Date(nowHourMs - MAX_SCORE_WINDOW_MS);
+    return {
+      timeRange: { start: start.toISOString() },
+      previousTimeRange: {
+        start: new Date(start.getTime() - MAX_SCORE_WINDOW_MS).toISOString(),
+        end: start.toISOString(),
+      },
+      timeBinConfig: {
+        scale: getTimeBinScale({
+          timeRange: { start, end: new Date(nowHourMs) },
+        }),
+        utcOffsetMinutes,
+      },
+      windowKey: getLastNTimeRangeKeyFromDurationMs(MAX_SCORE_WINDOW_MS),
+    };
+  }
+  // Custom ranges are closed by nature and clamp to their trailing 30 days.
   const clamped = clampTimeRangeToMaxDuration({
     value: timeRange,
     maxDurationMs: MAX_SCORE_WINDOW_MS,
-    now: startOfHour(now),
+    now,
   });
   const durationMs = clamped.end.getTime() - clamped.start.getTime();
   return {

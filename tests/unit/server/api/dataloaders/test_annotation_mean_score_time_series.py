@@ -30,8 +30,9 @@ def _key(
     project_rowid: int = 1,
     annotation_name: str = "quality",
     unit: str = "day",
+    start_day: int = 0,
 ) -> Key:
-    interval = (datetime(2024, 6, 10, tzinfo=timezone.utc), None)
+    interval = (datetime(2024, 6, 10, tzinfo=timezone.utc) + timedelta(days=start_day), None)
     time_bins = TimeBucketSpec(unit=unit)  # type: ignore[arg-type]
     return (kind, project_rowid, interval, time_bins, annotation_name)  # type: ignore[return-value]
 
@@ -73,6 +74,22 @@ class TestAnnotationMeanScoreTimeSeriesCache:
         assert cache.get(_key(project_rowid=1)) is None
         assert cache.get(_key(project_rowid=1, annotation_name="other")) is None
         assert cache.get(_key(project_rowid=2)) is not None
+
+    async def test_evicts_the_least_recently_read_window(self) -> None:
+        """A section keeps its eight most recently read windows. Under LFU the
+        window read last would be the victim here, since the others were read
+        more often."""
+        cache = AnnotationMeanScoreTimeSeriesCache()
+        for day in range(8):
+            cache.set(_key(start_day=day), _entry())
+        for _ in range(2):
+            for day in range(1, 8):
+                assert cache.get(_key(start_day=day)) is not None
+        assert cache.get(_key(start_day=0)) is not None
+        cache.set(_key(start_day=8), _entry())
+        assert cache.get(_key(start_day=0)) is not None
+        assert cache.get(_key(start_day=1)) is None
+        assert cache.get(_key(start_day=8)) is not None
 
 
 _POSTGRESQL = postgresql.dialect()  # type: ignore[no-untyped-call]

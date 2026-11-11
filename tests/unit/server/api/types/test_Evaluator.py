@@ -1,13 +1,18 @@
+import contextlib
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
 from typing import Any, AsyncIterator
+from unittest.mock import patch
 
+import httpx2
 import pytest
+from asgi_lifespan import LifespanManager
 from sqlalchemy import select, update
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.eval_work import MAX_ATTEMPTS
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     CategoricalOutputConfig,
@@ -24,14 +29,24 @@ from phoenix.db.types.prompts import (
     PromptTemplateFormat,
     PromptTemplateType,
 )
-from phoenix.server.api.dataloaders import project_evaluator_run_counts
+from phoenix.server import app as server_app
+from phoenix.server.api.dataloaders import CacheForDataLoaders, project_evaluator_run_counts
 from phoenix.server.api.types.Evaluator import (
     BuiltInEvaluator,
     DatasetEvaluator,
     LLMEvaluator,
 )
-from phoenix.server.types import DbSessionFactory
+from phoenix.server.app import create_app
+from phoenix.server.dml_event import SpanAnnotationInsertEvent
+from phoenix.server.dml_event_handler import DmlEventHandler
+from phoenix.server.types import DbSessionFactory, LastUpdatedAt
 from tests.unit._helpers import _user_role_id
+from tests.unit.conftest import (
+    TestBulkInserter,
+    patch_dml_event_handler,
+    patch_grpc_server,
+    patch_online_eval_daemons,
+)
 from tests.unit.graphql import AsyncGraphQLClient
 
 
@@ -2871,9 +2886,130 @@ class TestProjectEvaluatorAnnotationScoreMetrics:
                 await add_annotated_span(window_start - timedelta(days=1, hours=-hour), score)
 
         yield {
+            "project": project.id,
             "project_evaluator": project_evaluator.id,
             "window_start": window_start,
         }
+
+    @pytest.fixture
+    async def _cached_app(
+        self, db: DbSessionFactory
+    ) -> AsyncIterator[tuple[AsyncGraphQLClient, CacheForDataLoaders]]:
+        """The app with its dataloader caches on, which the shared `app`
+        fixture turns off. The DML daemon stays off; tests deliver events to
+        a handler themselves."""
+        if db.dialect is not SupportedSQLDialect.SQLITE:
+            pytest.skip("the dataloader caches are SQLite-only")
+        cache = CacheForDataLoaders()
+        async with contextlib.AsyncExitStack() as stack:
+            await stack.enter_async_context(patch_dml_event_handler())
+            await stack.enter_async_context(patch_online_eval_daemons())
+            await stack.enter_async_context(patch_grpc_server())
+            stack.enter_context(patch.object(server_app, "CacheForDataLoaders", lambda: cache))
+            app = create_app(
+                db=db,
+                authentication_enabled=False,
+                serve_ui=False,
+                bulk_inserter_factory=TestBulkInserter,
+            )
+            manager = await stack.enter_async_context(LifespanManager(app))
+            transport = httpx2.ASGITransport(app=manager.app)
+            client = httpx2.AsyncClient(transport=transport, base_url="http://test")
+            yield AsyncGraphQLClient(client), cache
+
+    async def test_annotation_writes_invalidate_the_cached_metrics(
+        self,
+        db: DbSessionFactory,
+        _test_data: dict[str, Any],
+        _cached_app: tuple[AsyncGraphQLClient, CacheForDataLoaders],
+    ) -> None:
+        """A live window is served from the cache until an annotation write
+        reaches the DML event handler, which clears the summary and series."""
+        gql_client, cache = _cached_app
+        window_start = _test_data["window_start"]
+        variables = {
+            "id": str(GlobalID("ProjectEvaluator", str(_test_data["project_evaluator"]))),
+            "timeRange": {"start": window_start.isoformat()},
+            "previousTimeRange": {
+                "start": (window_start - timedelta(days=2)).isoformat(),
+                "end": window_start.isoformat(),
+            },
+            "timeBinConfig": {"scale": "YEAR", "utcOffsetMinutes": 0},
+        }
+
+        async def metrics() -> dict[str, Any]:
+            resp = await gql_client.execute(self._QUERY, variables=variables)
+            assert not resp.errors
+            assert resp.data is not None
+            (result,) = resp.data["node"]["annotationScoreMetrics"]
+            return dict(result)
+
+        before = await metrics()
+        assert before["summary"]["count"] == 6
+        assert before["summary"]["meanScore"] == pytest.approx(0.5)
+        assert before["series"][0]["meanScore"] == pytest.approx(0.5)
+
+        # A seventh passing score inside the window
+        start_time = window_start + timedelta(hours=5)
+        async with db() as session:
+            trace = models.Trace(
+                trace_id=token_hex(16),
+                project_rowid=_test_data["project"],
+                start_time=start_time,
+                end_time=start_time + timedelta(seconds=1),
+            )
+            session.add(trace)
+            await session.flush()
+            span = models.Span(
+                trace_rowid=trace.id,
+                span_id=token_hex(8),
+                parent_id=None,
+                name=token_hex(8),
+                span_kind="LLM",
+                start_time=start_time,
+                end_time=start_time + timedelta(seconds=1),
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+            session.add(span)
+            await session.flush()
+            annotation = models.SpanAnnotation(
+                span_rowid=span.id,
+                name="quality",
+                label="pass",
+                score=1.0,
+                annotator_kind="CODE",
+                source="API",
+                metadata_={},
+                identifier=token_hex(4),
+            )
+            session.add(annotation)
+            await session.flush()
+            annotation_id = annotation.id
+
+        # Same variables, same cache keys: the cached values come back
+        assert await metrics() == before
+
+        handler = DmlEventHandler(
+            db=db, last_updated_at=LastUpdatedAt(), cache_for_dataloaders=cache
+        )
+        handler.put(SpanAnnotationInsertEvent(ids=(annotation_id,)))
+        # One pass of each handler's daemon loop, run inline
+        for batched in handler._all_handlers:
+            if not batched._batch.empty:
+                await batched()
+                batched._batch.clear()
+
+        after = await metrics()
+        assert after["summary"]["count"] == 7
+        assert after["summary"]["meanScore"] == pytest.approx(4 / 7)
+        assert after["series"][0]["meanScore"] == pytest.approx(4 / 7)
+        assert after["series"][0]["count"] == 7
 
     async def test_returns_window_previous_window_and_series(
         self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient

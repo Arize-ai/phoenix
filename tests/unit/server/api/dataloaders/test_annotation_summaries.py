@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import Literal
+from typing import Any, Literal
 
 import pandas as pd
 import pytest
@@ -8,6 +8,7 @@ from sqlalchemy.dialects import postgresql, sqlite
 
 from phoenix.db import models
 from phoenix.server.api.dataloaders.annotation_summaries import (
+    AnnotationSummaryCache,
     AnnotationSummaryDataLoader,
     Key,
     _get_stmt,
@@ -405,3 +406,31 @@ def test_statement_scans_the_scoped_annotations_once(
     )
     sql = str(stmt.compile(dialect=dialect))  # type: ignore[arg-type]
     assert sql.count(f"FROM {annotation_table}") == 1
+
+
+async def test_summary_cache_evicts_the_least_recently_read_window() -> None:
+    """A section keeps its eight most recently read windows. Under LFU the
+    window read last would be the victim here, since the others were read
+    more often."""
+    import asyncio
+
+    def key(day: int) -> Key:
+        start = datetime(2024, 6, 10) + timedelta(days=day)
+        return ("span", 1, TimeRange(start=start, end=None), None, None, "quality")
+
+    def entry() -> "asyncio.Future[Any]":
+        future: "asyncio.Future[Any]" = asyncio.get_running_loop().create_future()
+        future.set_result(None)
+        return future
+
+    cache = AnnotationSummaryCache()
+    for day in range(8):
+        cache.set(key(day), entry())
+    for _ in range(2):
+        for day in range(1, 8):
+            assert cache.get(key(day)) is not None
+    assert cache.get(key(0)) is not None
+    cache.set(key(8), entry())
+    assert cache.get(key(0)) is not None
+    assert cache.get(key(1)) is None
+    assert cache.get(key(8)) is not None

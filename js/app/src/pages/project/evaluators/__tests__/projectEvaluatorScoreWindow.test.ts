@@ -52,7 +52,7 @@ describe("getEvaluatorScoreWindow", () => {
     expect(window.windowKey).toBe("2d");
   });
 
-  it("clamps a live range over the cap to its trailing 30 days, hour-snapped", () => {
+  it("sends a live range over the cap as its trailing 30 days, open-ended", () => {
     const window = getEvaluatorScoreWindow({
       timeRange: {
         timeRangeKey: "90d",
@@ -62,14 +62,41 @@ describe("getEvaluatorScoreWindow", () => {
       utcOffsetMinutes: UTC_OFFSET_MINUTES,
       now,
     });
-    // Resolved "now" snaps to the hour so repeated derivations stay stable
-    expect(window.timeRange).toEqual({
-      start: "2026-05-10T12:00:00.000Z",
-      end: "2026-06-09T12:00:00.000Z",
-    });
+    // The start snaps "now" to the UTC hour; the end stays open so scores
+    // written since the top of the hour are included
+    expect(window.timeRange).toEqual({ start: "2026-05-10T12:00:00.000Z" });
     expect(window.previousTimeRange).toEqual({
       start: "2026-04-10T12:00:00.000Z",
       end: "2026-05-10T12:00:00.000Z",
+    });
+    expect(window.windowKey).toBe("30d");
+    expect(window.timeBinConfig.scale).toBe("DAY");
+    // Stable within the hour
+    const later = getEvaluatorScoreWindow({
+      timeRange: {
+        timeRangeKey: "90d",
+        start: new Date("2026-03-11T12:00:00.000Z"),
+        end: null,
+      },
+      utcOffsetMinutes: UTC_OFFSET_MINUTES,
+      now: new Date("2026-06-09T12:59:59.999Z"),
+    });
+    expect(later).toEqual(window);
+  });
+
+  it("clamps a custom range over the cap to its trailing 30 days", () => {
+    const window = getEvaluatorScoreWindow({
+      timeRange: {
+        timeRangeKey: "custom",
+        start: new Date("2026-01-01T00:00:00.000Z"),
+        end: new Date("2026-06-01T00:00:00.000Z"),
+      },
+      utcOffsetMinutes: UTC_OFFSET_MINUTES,
+      now,
+    });
+    expect(window.timeRange).toEqual({
+      start: "2026-05-02T00:00:00.000Z",
+      end: "2026-06-01T00:00:00.000Z",
     });
     expect(window.windowKey).toBe("30d");
   });
