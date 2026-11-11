@@ -367,9 +367,10 @@ const AnnotationCountsSection = (props: AnnotationCountsSectionProps) => {
       <DisclosureTrigger arrowPosition="start" justifyContent="space-between">
         <Flex direction="row" gap="size-100" alignItems="center">
           <Text>{title}</Text>
-          <Counter variant={isEmpty ? "quiet" : "default"}>
-            {sortedAnnotations.length}
-          </Counter>
+          <Counter
+            variant={isEmpty ? "quiet" : "neutral"}
+            count={sortedAnnotations.length}
+          />
         </Flex>
         <Text css={totalCountCSS} size="S">
           {totalCount.toLocaleString()} total

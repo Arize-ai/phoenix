@@ -12,13 +12,13 @@ type BaselineExperimentBadgeProps = {
   label?: string;
 };
 
-// The Badge derives its colors from `--badge-base-color`, which it sets
+// The Badge derives its colors from `--family-base-color`, which it sets
 // locally to a neutral gray. Override it from a wrapper with a descendant
 // selector so it takes precedence over Badge's own declaration.
 const baselineBadgeCSS = css`
   display: inline-flex;
   .badge {
-    --badge-base-color: var(--global-color-indigo-500);
+    --family-base-color: var(--global-color-indigo-500);
   }
 `;
 

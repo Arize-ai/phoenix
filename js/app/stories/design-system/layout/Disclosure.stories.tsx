@@ -215,7 +215,7 @@ const TRIGGER_LAYOUTS: {
     title: (
       <>
         Annotations
-        <Counter variant="quiet">4</Counter>
+        <Counter variant="quiet" count={4} />
       </>
     ),
   },
@@ -226,7 +226,7 @@ const TRIGGER_LAYOUTS: {
     title: (
       <>
         Annotations
-        <Counter variant="quiet">4</Counter>
+        <Counter variant="quiet" count={4} />
       </>
     ),
   },

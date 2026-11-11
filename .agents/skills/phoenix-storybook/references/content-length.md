@@ -40,7 +40,7 @@ the behavior reads without the source.
 **Draw lengths from the real shapes of the value.** When production passes a
 few known kinds of value, those are the length cases: an `ID Badge` shows a
 16-hex span ID, a 32-hex trace ID and a long user-supplied external ID; a
-`Counter` shows the count, `#n` position, `.3s`-abbreviated and `--`
+`Counter` shows the grouped count, `max+` capped, compact-abbreviated and `--`
 placeholder forms. An empty case production renders (an empty ID in a loading
 fallback) belongs in the grid too.
 

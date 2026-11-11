@@ -17,7 +17,7 @@ vi.mock("@phoenix/components", () => ({
 }));
 
 vi.mock("@phoenix/components/core/counter", () => ({
-  Counter: ({ children }: { children: ReactNode }) => <span>{children}</span>,
+  Counter: ({ count }: { count: number | null }) => <span>{count}</span>,
 }));
 
 vi.mock("@phoenix/components/table", () => ({

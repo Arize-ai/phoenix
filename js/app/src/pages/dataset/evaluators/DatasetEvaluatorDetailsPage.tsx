@@ -163,7 +163,7 @@ function DatasetEvaluatorDetailsPageContent({
           <Tab id="configuration">Configuration</Tab>
           {isCodeEvaluator && (
             <Tab id="versions">
-              Versions <Counter>{versionsCount}</Counter>
+              Versions <Counter variant="quiet" count={versionsCount ?? null} />
             </Tab>
           )}
           <Tab id="spans">Spans</Tab>
