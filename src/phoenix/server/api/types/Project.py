@@ -422,7 +422,7 @@ class Project(Node):
     )
     async def evaluation_queue(self, info: Info[Context, None]) -> ProjectEvaluationQueue:
         queue = await info.context.data_loaders.project_evaluation_queue.load(self.id)
-        return ProjectEvaluationQueue(queue=queue)
+        return ProjectEvaluationQueue(project_id=self.id, queue=queue)
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(

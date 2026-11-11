@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from typing import Any, Optional
 
 import pytest
-from sqlalchemy import delete, func, select, text, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from phoenix.db import models
@@ -14,12 +14,10 @@ from phoenix.db.eval_work import MAX_ATTEMPTS
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.app import _db
 from phoenix.server.online_eval import coordinator as coordinator_module
-from phoenix.server.online_eval.clock import TERMINAL_METRICS_WINDOW_SECONDS
 from phoenix.server.online_eval.coordinator import (
     CLAIM_LEASE_TTL_SECONDS,
     LEASE_ATTEMPTS_EXHAUSTED_ERROR,
     TRANSIENT_RETRY_MAX_AGE_SECONDS,
-    EndedWorkCounts,
     EvalWorkCoordinator,
     PublicationClaimLostError,
     PublicationEvaluatorDisabledError,
@@ -233,12 +231,12 @@ async def test_claim_and_publish_happy_path(db: DbSessionFactory) -> None:
         )
         assert (await _get_unit(db, unit_id)).status == "DONE"
     finished = await _get_unit(db, unit_ids[0])
-    for claimed_by, held in (("consumer-1", True), ("consumer-2", False)):
+    for claimed_by in ("consumer-1", "consumer-2"):
         late: dict[str, Any] = {"work_unit_id": unit_ids[0], "claimed_by": claimed_by}
-        assert await coordinator.heartbeat(**late) is held
-        assert await coordinator.fail(**late, error="late") is held
-        assert await coordinator.expire(**late, error="late") is held
-        assert await coordinator.release(**late) is held
+        await coordinator.heartbeat(**late)
+        await coordinator.fail(**late, error="late")
+        await coordinator.expire(**late, error="late")
+        await coordinator.release(**late)
     row = await _get_unit(db, unit_ids[0])
     assert (row.status, row.claimed_by, row.attempts, row.error, row.updated_at) == (
         "DONE",
@@ -251,6 +249,43 @@ async def test_claim_and_publish_happy_path(db: DbSessionFactory) -> None:
         await coordinator.publish(
             work_unit_id=unit_ids[0], claimed_by="consumer-1", write=_write_nothing
         )
+
+
+async def test_a_publication_that_fails_partway_writes_nothing(db: DbSessionFactory) -> None:
+    """Publishing is all or nothing: a write that fails after inserting an annotation
+    leaves no annotation, and the unit stays running under its claim."""
+    (unit_id,) = await _seed_work_units(db, 1)
+    coordinator = EvalWorkCoordinator(db)
+    (claimed,) = await coordinator.claim(claimed_by="consumer", limit=1)
+
+    class _WriteFailed(Exception):
+        pass
+
+    async def annotate_then_fail(session: AsyncSession) -> None:
+        session.add(
+            models.SpanAnnotation(
+                span_rowid=claimed.target_rowid,
+                name="quality",
+                label="good",
+                score=1.0,
+                explanation=None,
+                metadata_={},
+                annotator_kind="CODE",
+                source="API",
+            )
+        )
+        await session.flush()
+        raise _WriteFailed
+
+    with pytest.raises(_WriteFailed):
+        await coordinator.publish(
+            work_unit_id=unit_id, claimed_by="consumer", write=annotate_then_fail
+        )
+
+    async with db() as session:
+        assert await session.scalar(select(func.count()).select_from(models.SpanAnnotation)) == 0
+    unit = await _get_unit(db, unit_id)
+    assert (unit.status, unit.claimed_by) == ("RUNNING", "consumer")
 
 
 async def test_heartbeat_keeps_lapsed_unit_unavailable_to_competing_consumer(
@@ -369,8 +404,6 @@ async def test_aged_transient_failure_is_parked_as_exhausted_error(
     assert row.status == "FAILED"
     assert row.attempts == MAX_ATTEMPTS
     assert await coordinator.claim(claimed_by="consumer-2", limit=1) == []
-    ended = await coordinator.ended_work_counts()
-    assert ended.exhausted_error_count == 1
 
 
 async def test_fresh_transient_failure_remains_retryable_after_cooldown(
@@ -560,16 +593,16 @@ async def test_completed_work_is_counted_by_outcome_once_committed(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    increments: Counter[str] = Counter()
-    lags: dict[str, list[float]] = {}
+    increments: Counter[tuple[str, str]] = Counter()
+    lags: dict[tuple[str, str], list[float]] = {}
 
     def counter_labels(*, evaluation_target: str, outcome: str) -> SimpleNamespace:
-        assert evaluation_target == "SPAN"
-        return SimpleNamespace(inc=lambda count=1: increments.update({outcome: count}))
+        key = (evaluation_target, outcome)
+        return SimpleNamespace(inc=lambda count=1: increments.update({key: count}))
 
     def lag_labels(*, evaluation_target: str, outcome: str) -> SimpleNamespace:
-        assert evaluation_target == "SPAN"
-        return SimpleNamespace(observe=lambda seconds: lags.setdefault(outcome, []).append(seconds))
+        key = (evaluation_target, outcome)
+        return SimpleNamespace(observe=lambda seconds: lags.setdefault(key, []).append(seconds))
 
     monkeypatch.setattr(coordinator_module, "get_env_enable_prometheus", lambda: True)
     monkeypatch.setattr(
@@ -613,91 +646,36 @@ async def test_completed_work_is_counted_by_outcome_once_committed(
         claimed_by="consumer",
         error="PROJECT_EVALUATOR_DISABLED",
     )
+    _, (content_lost,) = await _seed_session_work_units(db, 1)
+    session_coordinator = EvalWorkCoordinator(db, evaluation_target="SESSION")
+    await session_coordinator.claim(claimed_by="consumer", limit=1)
+    await session_coordinator.expire(
+        work_unit_id=content_lost,
+        claimed_by="consumer",
+        error="NO_ROOT_TURNS",
+        status="CONTENT_LOST",
+    )
 
     # The lapsed claim, out of attempts, fails when the next claim recovers it.
     assert (await _get_unit(db, unit_ids[0])).status == "FAILED"
-    assert increments == {"evaluated": 1, "failed": 2, "expired": 1, "evaluator_disabled": 1}
-    # Cleared work had no result, so it has no lag.
-    assert {outcome: len(seconds) for outcome, seconds in lags.items()} == {
-        "evaluated": 1,
-        "failed": 2,
-        "expired": 1,
+    assert increments == {
+        ("SPAN", "evaluated"): 1,
+        ("SPAN", "failed"): 2,
+        ("SPAN", "expired"): 1,
+        ("SPAN", "evaluator_disabled"): 1,
+        ("SESSION", "content_lost"): 1,
+    }
+    # Cleared and content-lost work had no result, so it has no lag.
+    assert {key: len(seconds) for key, seconds in lags.items()} == {
+        ("SPAN", "evaluated"): 1,
+        ("SPAN", "failed"): 2,
+        ("SPAN", "expired"): 1,
     }
     assert all(
         queued_seconds_ago - 5 <= lag <= queued_seconds_ago + 60
         for outcome_lags in lags.values()
         for lag in outcome_lags
     )
-
-
-async def test_ended_work_counts(
-    db: DbSessionFactory,
-) -> None:
-    coordinator = EvalWorkCoordinator(db)
-
-    empty = await coordinator.ended_work_counts()
-    assert empty == EndedWorkCounts(exhausted_error_count=0, expired_count=0, cleared_count=0)
-
-    unit_ids = await _seed_work_units(db, 5)
-    async with db() as session:
-        await session.execute(
-            update(models.EvalWorkUnit)
-            .where(models.EvalWorkUnit.id == unit_ids[0])
-            .values(status="DONE")
-        )
-        await session.execute(
-            update(models.EvalWorkUnit)
-            .where(models.EvalWorkUnit.id == unit_ids[1])
-            .values(status="ERROR", attempts=MAX_ATTEMPTS - 1)
-        )
-        await session.execute(
-            update(models.EvalWorkUnit)
-            .where(models.EvalWorkUnit.id == unit_ids[2])
-            .values(status="FAILED", attempts=MAX_ATTEMPTS)
-        )
-        await session.execute(
-            update(models.EvalWorkUnit)
-            .where(models.EvalWorkUnit.id == unit_ids[3])
-            .values(status="DROPPED")
-        )
-        await session.execute(
-            update(models.EvalWorkUnit)
-            .where(models.EvalWorkUnit.id == unit_ids[4])
-            .values(status="EXPIRED")
-        )
-
-    ended = await coordinator.ended_work_counts()
-    assert ended == EndedWorkCounts(exhausted_error_count=1, expired_count=1, cleared_count=1)
-
-
-async def test_ended_work_counts_exclude_work_older_than_the_metrics_window(
-    db: DbSessionFactory,
-) -> None:
-    _, unit_ids = await _seed_session_work_units(db, 3)
-    coordinator = EvalWorkCoordinator(db, evaluation_target="SESSION")
-    before_window = datetime.now(timezone.utc) - timedelta(
-        seconds=TERMINAL_METRICS_WINDOW_SECONDS + 60
-    )
-    async with db() as session:
-        await session.execute(
-            update(models.EvalSessionWorkUnit)
-            .where(models.EvalSessionWorkUnit.id == unit_ids[0])
-            .values(status="FAILED", attempts=MAX_ATTEMPTS, updated_at=before_window)
-        )
-        await session.execute(
-            update(models.EvalSessionWorkUnit)
-            .where(models.EvalSessionWorkUnit.id == unit_ids[1])
-            .values(status="EXPIRED", updated_at=before_window)
-        )
-        await session.execute(
-            update(models.EvalSessionWorkUnit)
-            .where(models.EvalSessionWorkUnit.id == unit_ids[2])
-            .values(status="FAILED", attempts=MAX_ATTEMPTS)
-        )
-
-    ended = await coordinator.ended_work_counts()
-    assert ended.exhausted_error_count == 1
-    assert ended.expired_count == 0
 
 
 async def test_session_claim_lifecycle(db: DbSessionFactory) -> None:
@@ -847,54 +825,6 @@ async def test_session_publish_holds_work_lock_against_reclaim(
         unit = await session.get(models.EvalSessionWorkUnit, unit_id)
         assert unit is not None
         assert unit.status == "DONE"
-
-
-@pytest.mark.postgres_only
-async def test_heartbeat_that_waits_on_its_own_publish_keeps_the_claim(
-    postgresql_engine: AsyncEngine,
-) -> None:
-    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
-    (unit_id,) = await _seed_work_units(db, 1)
-    coordinator = EvalWorkCoordinator(db)
-    (claim,) = await coordinator.claim(claimed_by="owner", limit=1)
-    publisher_pids: list[int] = []
-    entered = asyncio.Event()
-    release = asyncio.Event()
-
-    async def _write(session: AsyncSession) -> None:
-        publisher_pid = await session.scalar(select(func.pg_backend_pid()))
-        assert publisher_pid is not None
-        publisher_pids.append(publisher_pid)
-        entered.set()
-        await release.wait()
-
-    async def _wait_until_blocked_by(backend_pid: int) -> None:
-        while True:
-            async with db() as observer:
-                if await observer.scalar(
-                    text(
-                        "SELECT EXISTS (SELECT 1 FROM pg_stat_activity "
-                        "WHERE :pid = ANY(pg_blocking_pids(pid)))"
-                    ),
-                    {"pid": backend_pid},
-                ):
-                    return
-            await asyncio.sleep(0)
-
-    publication = asyncio.create_task(
-        coordinator.publish(work_unit_id=unit_id, claimed_by=claim.claimed_by, write=_write)
-    )
-    await entered.wait()
-    heartbeat = asyncio.create_task(
-        coordinator.heartbeat(work_unit_id=unit_id, claimed_by=claim.claimed_by)
-    )
-    await asyncio.wait_for(_wait_until_blocked_by(publisher_pids[0]), timeout=5)
-    release.set()
-    await publication
-
-    assert await heartbeat
-    row = await _get_unit(db, unit_id)
-    assert (row.status, row.claimed_by) == ("DONE", claim.claimed_by)
 
 
 async def test_publish_refuses_a_disabled_project_evaluator(db: DbSessionFactory) -> None:

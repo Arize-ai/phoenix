@@ -396,30 +396,6 @@ class CodeEvaluatorRunner(BaseEvaluator):
             f"await _run();\n"
         )
 
-    def _make_error_result(
-        self,
-        name: str,
-        error: str,
-        start_time: datetime,
-        trace_id: Optional[str] = None,
-        error_exc: Optional[Exception] = None,
-    ) -> EvaluationResult:
-        result = EvaluationResult(
-            name=name,
-            annotator_kind="CODE",
-            label=None,
-            score=None,
-            explanation=None,
-            metadata={},
-            error=error,
-            trace_id=trace_id,
-            start_time=start_time,
-            end_time=datetime.now(timezone.utc),
-        )
-        if error_exc is not None:
-            result["error_exc"] = error_exc
-        return result
-
     async def evaluate(
         self,
         *,
@@ -451,10 +427,9 @@ class CodeEvaluatorRunner(BaseEvaluator):
             input_schema, inference_error = self._infer_input_schema()
             if inference_error is not None:
                 evaluator_span.set_status(Status(StatusCode.ERROR, inference_error))
-                return [
-                    self._make_error_result(name, inference_error, start_time, trace_id=trace_id)
-                    for _ in (output_configs or [None])  # type: ignore[list-item]
-                ]
+                return self.error_results(
+                    name, output_configs, inference_error, start_time=start_time, trace_id=trace_id
+                )
 
             # OTel auto-record is disabled so explicit masked exception
             # records below are the only thing persisted on these spans.
@@ -494,12 +469,14 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     _set_masked_status(input_mapping_span, StatusCode.ERROR, err, masker)
                     _record_masked_exception(evaluator_span, exc, masker)
                     _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
-                    return [
-                        self._make_error_result(
-                            name, err, start_time, trace_id=trace_id, error_exc=exc
-                        )
-                        for _ in (output_configs or [None])  # type: ignore[list-item]
-                    ]
+                    return self.error_results(
+                        name,
+                        output_configs,
+                        err,
+                        start_time=start_time,
+                        trace_id=trace_id,
+                        error_exc=exc,
+                    )
 
             if self._language == "PYTHON":
                 if self._sandbox_backend.provider == "MONTY":
@@ -531,16 +508,14 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     )
                     error_exc = SandboxPayloadTooLargeError(err)
                     evaluator_span.set_status(Status(StatusCode.ERROR, err))
-                    return [
-                        self._make_error_result(
-                            name,
-                            err,
-                            start_time,
-                            trace_id=trace_id,
-                            error_exc=error_exc,
-                        )
-                        for _ in (output_configs or [None])  # type: ignore[list-item]
-                    ]
+                    return self.error_results(
+                        name,
+                        output_configs,
+                        err,
+                        start_time=start_time,
+                        trace_id=trace_id,
+                        error_exc=error_exc,
+                    )
 
             session_key = self._session_key or ""
 
@@ -634,36 +609,42 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     _set_masked_status(sandbox_span, StatusCode.ERROR, err, masker)
                     _record_masked_exception(evaluator_span, exc, masker)
                     _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
-                    return [
-                        self._make_error_result(
-                            name, err, start_time, trace_id=trace_id, error_exc=exc
-                        )
-                        for _ in (output_configs or [None])  # type: ignore[list-item]
-                    ]
+                    return self.error_results(
+                        name,
+                        output_configs,
+                        err,
+                        start_time=start_time,
+                        trace_id=trace_id,
+                        error_exc=exc,
+                    )
                 except SessionInvalidated as exc:
                     err = SessionInvalidated.MESSAGE
                     _record_masked_exception(sandbox_span, exc, masker)
                     _set_masked_status(sandbox_span, StatusCode.ERROR, err, masker)
                     _record_masked_exception(evaluator_span, exc, masker)
                     _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
-                    return [
-                        self._make_error_result(
-                            name, err, start_time, trace_id=trace_id, error_exc=exc
-                        )
-                        for _ in (output_configs or [None])  # type: ignore[list-item]
-                    ]
+                    return self.error_results(
+                        name,
+                        output_configs,
+                        err,
+                        start_time=start_time,
+                        trace_id=trace_id,
+                        error_exc=exc,
+                    )
                 except SandboxBackendTimeoutError as exc:
                     err = str(exc)
                     _record_masked_exception(sandbox_span, exc, masker)
                     _set_masked_status(sandbox_span, StatusCode.ERROR, err, masker)
                     _record_masked_exception(evaluator_span, exc, masker)
                     _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
-                    return [
-                        self._make_error_result(
-                            name, err, start_time, trace_id=trace_id, error_exc=exc
-                        )
-                        for _ in (output_configs or [None])  # type: ignore[list-item]
-                    ]
+                    return self.error_results(
+                        name,
+                        output_configs,
+                        err,
+                        start_time=start_time,
+                        trace_id=trace_id,
+                        error_exc=exc,
+                    )
                 except asyncio.TimeoutError as exc:
                     # Managed path: route teardown through the manager so
                     # the tracked entry is dropped (acquire's finally only
@@ -690,16 +671,14 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     sandbox_span.set_status(Status(StatusCode.ERROR, str(timeout_exc)))
                     _record_masked_exception(evaluator_span, exc, masker)
                     evaluator_span.set_status(Status(StatusCode.ERROR, str(timeout_exc)))
-                    return [
-                        self._make_error_result(
-                            name,
-                            execution.error or str(timeout_exc),
-                            start_time,
-                            trace_id=trace_id,
-                            error_exc=timeout_exc,
-                        )
-                        for _ in (output_configs or [None])  # type: ignore[list-item]
-                    ]
+                    return self.error_results(
+                        name,
+                        output_configs,
+                        execution.error or str(timeout_exc),
+                        start_time=start_time,
+                        trace_id=trace_id,
+                        error_exc=timeout_exc,
+                    )
                 except UnsupportedOperation as exc:
                     err = f"Sandbox backend does not support this operation: {exc}"
                     sandbox_span.set_attributes(
@@ -712,12 +691,14 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     _set_masked_status(sandbox_span, StatusCode.ERROR, err, masker)
                     _record_masked_exception(evaluator_span, exc, masker)
                     _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
-                    return [
-                        self._make_error_result(
-                            name, err, start_time, trace_id=trace_id, error_exc=exc
-                        )
-                        for _ in (output_configs or [None])  # type: ignore[list-item]
-                    ]
+                    return self.error_results(
+                        name,
+                        output_configs,
+                        err,
+                        start_time=start_time,
+                        trace_id=trace_id,
+                        error_exc=exc,
+                    )
                 except MontyServiceError:
                     raise
                 except Exception as exc:
@@ -732,12 +713,14 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     _set_masked_status(sandbox_span, StatusCode.ERROR, err, masker)
                     _record_masked_exception(evaluator_span, exc, masker)
                     _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
-                    return [
-                        self._make_error_result(
-                            name, err, start_time, trace_id=trace_id, error_exc=exc
-                        )
-                        for _ in (output_configs or [None])  # type: ignore[list-item]
-                    ]
+                    return self.error_results(
+                        name,
+                        output_configs,
+                        err,
+                        start_time=start_time,
+                        trace_id=trace_id,
+                        error_exc=exc,
+                    )
 
                 fenced_text, non_fenced_stdout = extract_framed_result(execution.stdout)
 
@@ -791,16 +774,14 @@ class CodeEvaluatorRunner(BaseEvaluator):
                 execution_error_exc = SandboxBackendExecutionError(
                     f"SANDBOX_BACKEND_ERROR: {execution.error}"
                 )
-                return [
-                    self._make_error_result(
-                        name,
-                        execution.error,
-                        start_time,
-                        trace_id=trace_id,
-                        error_exc=execution_error_exc,
-                    )
-                    for _ in (output_configs or [None])  # type: ignore[list-item]
-                ]
+                return self.error_results(
+                    name,
+                    output_configs,
+                    execution.error,
+                    start_time=start_time,
+                    trace_id=trace_id,
+                    error_exc=execution_error_exc,
+                )
 
             multi_output = len(output_configs) > 1
 
@@ -844,8 +825,11 @@ class CodeEvaluatorRunner(BaseEvaluator):
                         any_coerce_error = True
                         last_coerce_error = parse_error
                         results.append(
-                            self._make_error_result(
-                                annotation_name, parse_error, start_time, trace_id=trace_id
+                            self.error_result(
+                                annotation_name,
+                                parse_error,
+                                start_time=start_time,
+                                trace_id=trace_id,
                             )
                         )
                         continue
@@ -862,8 +846,8 @@ class CodeEvaluatorRunner(BaseEvaluator):
                         any_coerce_error = True
                         last_coerce_error = str(exc)
                         results.append(
-                            self._make_error_result(
-                                annotation_name, str(exc), start_time, trace_id=trace_id
+                            self.error_result(
+                                annotation_name, str(exc), start_time=start_time, trace_id=trace_id
                             )
                         )
                         continue

@@ -419,11 +419,9 @@ class Evaluators:
             name (str): A name unique among evaluators.
             prompt_version_id (str): The ID of the prompt version to run.
             output_configs (Sequence[v1.CategoricalAnnotationConfigData]): The
-                categorical outputs the evaluator produces. They must match the
-                prompt's tool schema.
-            description (Optional[str]): Must equal the description of the prompt's
-                tool function, because that description is the instruction the
-                evaluator's output tool carries.
+                categorical outputs the evaluator produces: at least one, each
+                with its own name. They are not checked against the prompt.
+            description (Optional[str]): A description of the evaluator.
 
         Returns:
             The created LLM evaluator definition.
@@ -484,22 +482,18 @@ class Evaluators:
             evaluator_id (str): The ID of the LLM evaluator.
             name (str): A new name for the evaluator.
             description (Optional[str]): A new description, or ``None`` to clear
-                it. It must equal the description of the prompt's tool function,
-                because that description is the instruction the evaluator's
-                output tool carries.
+                it.
             prompt_version_id (str): The ID of the prompt version to run. A
                 version of another prompt moves the evaluator to that prompt.
             output_configs (Sequence[v1.CategoricalAnnotationConfigData]): The
-                categorical outputs the evaluator produces. They must match the
-                prompt's tool schema.
+                categorical outputs the evaluator produces: at least one, each
+                with its own name. They are not checked against the prompt.
 
         Returns:
             The updated LLM evaluator definition.
 
         Raises:
-            PhoenixAPIError: If the request fails. The server responds with 409
-                when a dataset binding overrides outputs that the new prompt no
-                longer supports.
+            PhoenixAPIError: If the request fails.
             ValueError: If no field to update is provided.
 
         Example::
@@ -997,11 +991,9 @@ class AsyncEvaluators:
             name (str): A name unique among evaluators.
             prompt_version_id (str): The ID of the prompt version to run.
             output_configs (Sequence[v1.CategoricalAnnotationConfigData]): The
-                categorical outputs the evaluator produces. They must match the
-                prompt's tool schema.
-            description (Optional[str]): Must equal the description of the prompt's
-                tool function, because that description is the instruction the
-                evaluator's output tool carries.
+                categorical outputs the evaluator produces: at least one, each
+                with its own name. They are not checked against the prompt.
+            description (Optional[str]): A description of the evaluator.
 
         Returns:
             The created LLM evaluator definition.
@@ -1062,22 +1054,18 @@ class AsyncEvaluators:
             evaluator_id (str): The ID of the LLM evaluator.
             name (str): A new name for the evaluator.
             description (Optional[str]): A new description, or ``None`` to clear
-                it. It must equal the description of the prompt's tool function,
-                because that description is the instruction the evaluator's
-                output tool carries.
+                it.
             prompt_version_id (str): The ID of the prompt version to run. A
                 version of another prompt moves the evaluator to that prompt.
             output_configs (Sequence[v1.CategoricalAnnotationConfigData]): The
-                categorical outputs the evaluator produces. They must match the
-                prompt's tool schema.
+                categorical outputs the evaluator produces: at least one, each
+                with its own name. They are not checked against the prompt.
 
         Returns:
             The updated LLM evaluator definition.
 
         Raises:
-            PhoenixAPIError: If the request fails. The server responds with 409
-                when a dataset binding overrides outputs that the new prompt no
-                longer supports.
+            PhoenixAPIError: If the request fails.
             ValueError: If no field to update is provided.
 
         Example::

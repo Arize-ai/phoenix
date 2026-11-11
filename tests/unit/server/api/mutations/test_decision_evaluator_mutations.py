@@ -923,31 +923,6 @@ async def test_dataset_authoring_creates_decision_version_evaluator_and_binding_
     assert binding["inputMapping"]["pathMapping"] == {"ticket": "input.ticket"}
 
 
-async def test_invalid_mapping_rolls_back_the_entire_dataset_authoring_save(
-    gql_client: AsyncGraphQLClient,
-    empty_dataset: None,
-    db: DbSessionFactory,
-) -> None:
-    from sqlalchemy import func, select
-
-    result = await gql_client.execute(
-        CREATE_DATASET_EVALUATOR,
-        variables={
-            "input": authored_dataset_input(inputMapping={"pathMapping": {}, "literalMapping": {}})
-        },
-    )
-    assert result.errors and "Map the variables" in result.errors[0].message
-    async with db() as session:
-        for model in (
-            models.Decision,
-            models.DecisionVersion,
-            models.DecisionVersionTag,
-            models.DecisionEvaluator,
-            models.DatasetEvaluators,
-        ):
-            assert await session.scalar(select(func.count()).select_from(model)) == 0
-
-
 async def test_dataset_authoring_can_change_its_own_variables_and_questions_atomically(
     gql_client: AsyncGraphQLClient,
     empty_dataset: None,

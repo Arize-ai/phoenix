@@ -1,10 +1,11 @@
 from abc import ABC
 from collections.abc import Awaitable, Callable, Iterable, Iterator, Mapping, Sequence
+from datetime import datetime, timezone
 from enum import Enum, auto
 from typing import Any, Optional
 
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
-from sqlalchemy import Insert
+from sqlalchemy import Insert, func, update
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.exc import DBAPIError
@@ -89,6 +90,32 @@ def insert_on_conflict(
             )
         assert_never(on_conflict)
     assert_never(dialect)
+
+
+async def advance_liveness(
+    session: AsyncSession,
+    model: type[models.Trace] | type[models.ProjectSession],
+    rowids: Iterable[int],
+) -> None:
+    """Advance each trace's or session's last span ingest time without letting it move
+    back."""
+    unique_rowids = tuple(dict.fromkeys(rowids))
+    if not unique_rowids:
+        return
+    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
+    if dialect is SupportedSQLDialect.POSTGRESQL:
+        value = func.greatest(
+            model.last_span_ingested_at,
+            func.statement_timestamp(type_=models.UtcTimeStamp()),
+        )
+    elif dialect is SupportedSQLDialect.SQLITE:
+        ingested_at = datetime.now(timezone.utc)
+        value = func.max(func.coalesce(model.last_span_ingested_at, ingested_at), ingested_at)
+    else:
+        assert_never(dialect)
+    await session.execute(
+        update(model).where(model.id.in_(unique_rowids)).values(last_span_ingested_at=value)
+    )
 
 
 def _clean(

@@ -1057,40 +1057,16 @@ class LLMEvaluator(Evaluator, Node):
         self,
         info: Info[Context, None],
     ) -> models.PromptVersion:
-        if self.db_record:
-            prompt_id = self.db_record.prompt_id
-            prompt_version_tag_id = self.db_record.prompt_version_tag_id
-        else:
-            (
-                prompt_id,
-                prompt_version_tag_id,
-            ) = await info.context.data_loaders.llm_evaluator_fields.load_many(
-                [
-                    (self.id, models.LLMEvaluator.prompt_id),
-                    (self.id, models.LLMEvaluator.prompt_version_tag_id),
-                ]
-            )
-        if prompt_version_tag_id is not None:
-            (
-                tag_prompt_id,
-                prompt_version_id,
-            ) = await info.context.data_loaders.prompt_version_tag_fields.load_many(
-                [
-                    (prompt_version_tag_id, models.PromptVersionTag.prompt_id),
-                    (prompt_version_tag_id, models.PromptVersionTag.prompt_version_id),
-                ]
-            )
-            if tag_prompt_id != prompt_id:
-                raise NotFound(f"Prompt version not found for prompt {prompt_id}")
-        else:
-            prompt_version_id = await info.context.data_loaders.latest_prompt_version_ids.load(
-                prompt_id
-            )
-        if prompt_version_id is None:
-            raise NotFound(f"Prompt version not found for prompt {prompt_id}")
-        prompt_version = await info.context.data_loaders.prompt_versions.load(prompt_version_id)
-        if prompt_version is None or prompt_version.prompt_id != prompt_id:
-            raise NotFound(f"Prompt version not found for prompt {prompt_id}")
+        prompt_version_id = (
+            await info.context.data_loaders.llm_evaluator_selected_prompt_version_ids.load(self.id)
+        )
+        prompt_version = (
+            await info.context.data_loaders.prompt_versions.load(prompt_version_id)
+            if prompt_version_id is not None
+            else None
+        )
+        if prompt_version is None:
+            raise NotFound(f"Prompt version not found for evaluator {self.id}")
         return prompt_version
 
 

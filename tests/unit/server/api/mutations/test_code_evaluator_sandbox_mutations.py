@@ -1599,56 +1599,49 @@ class TestCreateCodeEvaluatorSandboxStrictness:
 
 
 class TestCodeEvaluatorOutputConfigsRequired:
-    """A code evaluator definition keeps at least one output config."""
-
-    @pytest.mark.parametrize("output_configs", [[], None], ids=["empty", "omitted"])
-    async def test_create_rejects_missing_output_configs(
+    @pytest.mark.parametrize(
+        "write,output_configs",
+        [("create", []), ("create", None), ("patch", [])],
+        ids=["create-empty", "create-omitted", "patch-empty"],
+    )
+    async def test_a_code_definition_keeps_at_least_one_output_config(
         self,
         gql_client: AsyncGraphQLClient,
         db: DbSessionFactory,
         sandbox_config: models.SandboxConfig,
+        write: str,
         output_configs: list[Any] | None,
     ) -> None:
-        name = f"no-outputs-{token_hex(4)}"
+        name = f"outputs-{token_hex(4)}"
         create_input = _create_code_evaluator_input(sandbox_config_id=sandbox_config.id, name=name)
-        create_input["outputConfigs"] = output_configs
-
-        result = await gql_client.execute(_CREATE_CODE_EVALUATOR, variables={"input": create_input})
+        if write == "create":
+            create_input["outputConfigs"] = output_configs
+            result = await gql_client.execute(
+                _CREATE_CODE_EVALUATOR, variables={"input": create_input}
+            )
+        else:
+            created = await gql_client.execute(
+                _CREATE_CODE_EVALUATOR, variables={"input": create_input}
+            )
+            assert created.data and not created.errors
+            result = await gql_client.execute(
+                _PATCH_CODE_EVALUATOR,
+                variables={
+                    "input": {
+                        "id": created.data["createCodeEvaluator"]["evaluator"]["id"],
+                        "outputConfigs": output_configs,
+                    }
+                },
+            )
 
         assert result.errors
         assert result.errors[0].message == "At least one output config is required."
         async with db() as session:
-            created = await session.scalar(
+            row = await session.scalar(
                 select(models.CodeEvaluator).where(models.CodeEvaluator.name == Identifier(name))
             )
-        assert created is None
-
-    async def test_patch_rejects_empty_output_configs(
-        self,
-        gql_client: AsyncGraphQLClient,
-        db: DbSessionFactory,
-        sandbox_config: models.SandboxConfig,
-    ) -> None:
-        created = await gql_client.execute(
-            _CREATE_CODE_EVALUATOR,
-            variables={"input": _create_code_evaluator_input(sandbox_config_id=sandbox_config.id)},
-        )
-        assert created.data and not created.errors
-        evaluator_gid = created.data["createCodeEvaluator"]["evaluator"]["id"]
-
-        result = await gql_client.execute(
-            _PATCH_CODE_EVALUATOR,
-            variables={"input": {"id": evaluator_gid, "outputConfigs": []}},
-        )
-
-        assert result.errors
-        assert result.errors[0].message == "At least one output config is required."
-        async with db() as session:
-            row = await session.get(
-                models.CodeEvaluator, int(GlobalID.from_id(evaluator_gid).node_id)
-            )
-        assert row is not None
-        assert [config.name for config in row.output_configs] == ["score"]
+        stored = None if row is None else [config.name for config in row.output_configs]
+        assert stored == (None if write == "create" else ["score"])
 
 
 _CODE_EVALUATOR_OUTPUT_CONFIGS = """

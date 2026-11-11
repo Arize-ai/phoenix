@@ -64,8 +64,7 @@ interface DatasetEvaluatorFieldOptions extends CommonOptions<OutputFormat> {
   name?: string;
   /**
    * `--description <text>`: Overrides the shared definition's description on
-   * this binding. For LLM evaluators it must equal the description of the
-   * prompt's tool function.
+   * this binding.
    */
   description?: string;
   /**
@@ -78,8 +77,9 @@ interface DatasetEvaluatorFieldOptions extends CommonOptions<OutputFormat> {
   inputMapping?: string;
   /**
    * `--output-configs <json>`: JSON array of at least one output
-   * configuration that overrides the shared definition's on this binding. For
-   * LLM evaluators they must match the prompt's tool schema.
+   * configuration that overrides the shared definition's on this binding,
+   * each with its own name. For LLM evaluators they must be categorical. They
+   * are not checked against the prompt.
    */
   outputConfigs?: string;
 }
@@ -494,17 +494,14 @@ async function datasetEvaluatorDeleteHandler(
 function addBindingFieldOptions(command: Command): Command {
   return command
     .option("--name <name>", "Binding name, unique within the dataset")
-    .option(
-      "--description <text>",
-      "Description override for this binding; for LLM evaluators it must equal the prompt tool's description"
-    )
+    .option("--description <text>", "Description override for this binding")
     .option(
       "--input-mapping <json>",
       'JSON object with "literal_mapping" and "path_mapping" keys'
     )
     .option(
       "--output-configs <json>",
-      "JSON array of at least one output configuration that overrides the definition's (LLM evaluators: must match the prompt's tool schema)"
+      "JSON array of at least one output configuration that overrides the definition's (LLM evaluators: categorical only)"
     );
 }
 

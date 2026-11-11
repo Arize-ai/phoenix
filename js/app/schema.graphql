@@ -2791,9 +2791,6 @@ type EvaluationActivity {
   """Evaluations given up on in the range."""
   failedCount: Int!
 
-  """Lag of evaluations completed in the range; null if none completed."""
-  lag: EvaluationLag
-
   """
   Cost in USD of the evaluations' traces started in the range; null if none. Evaluators with tracing off write no traces, so their evaluations add no cost.
   """
@@ -2902,7 +2899,7 @@ type EvaluationLag {
 }
 
 """
-The online evaluation queue. Span, trace, and session evaluations of every project on the server share it. Rates are per minute over the last 60 minutes. Counts, and the evaluations added per 60 minutes, stop at 1,000,000.
+The online evaluation queue. Span, trace, and session evaluations of every project on the server share it. Rates are per minute over the last 60 minutes. Counts stop at 1,000,000.
 """
 type EvaluationQueue {
   status: EvaluationQueueStatus!
@@ -2957,7 +2954,7 @@ enum EvaluationQueueStatus {
 }
 
 """
-The online evaluations of one evaluation target in the queue. Rates are per minute over the last 60 minutes. Counts, and the evaluations added per 60 minutes, stop at 1,000,000.
+The online evaluations of one evaluation target in the queue. Counts stop at 1,000,000.
 """
 type EvaluationQueueTarget {
   evaluationTarget: EvaluationTarget!
@@ -2969,12 +2966,6 @@ type EvaluationQueueTarget {
   When the longest-waiting evaluation not yet started was queued, or null if none is waiting. Evaluations awaiting a retry are not included.
   """
   oldestWaitingAt: DateTime
-
-  """Evaluations added to the queue per minute."""
-  addedPerMinute: Float!
-
-  """Evaluations completed per minute, whether evaluated or failed."""
-  completedPerMinute: Float!
 }
 
 type EvaluationResult {
@@ -5003,7 +4994,7 @@ type ProjectEdge {
 }
 
 """
-One project's part of the online evaluation queue: the span, trace, and session evaluations of its evaluators. Rates are per minute over the last 60 minutes. Counts, and the evaluations added per 60 minutes, stop at 1,000,000.
+One project's part of the online evaluation queue: the span, trace, and session evaluations of its evaluators. Rates are per minute over the last 60 minutes. Counts stop at 1,000,000.
 """
 type ProjectEvaluationQueue {
   """Evaluations queued or running, including ones awaiting a retry."""

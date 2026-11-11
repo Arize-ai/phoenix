@@ -28,7 +28,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
-from sqlalchemy.exc import DBAPIError, IntegrityError
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 from sqlalchemy.sql.selectable import ScalarSelect, Subquery
@@ -38,7 +38,7 @@ from phoenix.config import get_env_enable_prometheus
 from phoenix.db import models
 from phoenix.db.eval_work import (
     REOFFERED_STATUSES,
-    swept_target_terminal_index_predicate,
+    terminal_index_predicate,
 )
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.online_eval.clock import (
@@ -59,7 +59,6 @@ from phoenix.server.online_eval.project_evaluator_state import (
 from phoenix.server.prometheus import (
     ONLINE_EVAL_ADDED_WORK_UNITS,
     ONLINE_EVAL_DECIDED_THROUGH_LAG_SECONDS,
-    ONLINE_EVAL_SWEEP_ATTEMPTS,
     ONLINE_EVAL_SWEEP_DURATION_SECONDS,
     ONLINE_EVAL_SWEEP_ELIGIBLE_EVALUATIONS,
     ONLINE_EVAL_SWEEP_FAILURES,
@@ -79,20 +78,6 @@ _LOCK_CONFLICT_SQLSTATES = frozenset({"55P03", "40P01"})  # lock_not_available, 
 
 _SweptTargetModel = type[models.ProjectSession] | type[models.Trace]
 _SweptWorkUnitModel = type[models.EvalSessionWorkUnit] | type[models.EvalTraceWorkUnit]
-
-
-class _PageRowDeletedError(Exception):
-    """A project evaluator or target on the page was deleted before its work was inserted.
-
-    The page is read without locks, so the insert's foreign keys are what catch the
-    deletion; the tick rolls back and the next tick's page no longer holds the row. On
-    PostgreSQL the tick waits on a deletion that hasn't committed, and if it doesn't
-    commit within the lock timeout the tick ends in ``_LockConflictError`` instead.
-    """
-
-
-class _LockConflictError(Exception):
-    """The tick gave up a lock wait, or was chosen to break a deadlock, and rolled back."""
 
 
 def _is_lock_conflict(error: DBAPIError) -> bool:
@@ -143,12 +128,8 @@ def _project_evaluator_relation(
     project_evaluators: Sequence[_SweepProjectEvaluator],
     dialect: SupportedSQLDialect,
 ) -> Subquery:
-    """Return a portable inline relation for resolved project evaluators.
-
-    Bind names are keyed off ``project_evaluator_id`` rather than row position: several of these
-    relations are unioned into one statement, and ``text()`` binds are not unique, so
-    position-keyed names from different relations would silently overwrite each other.
-    """
+    """Return the resolved project evaluators as an inline ``VALUES`` relation, one row
+    each. The first row's casts give the columns their types on both dialects."""
     rows = []
     parameters: dict[str, Any] = {}
     for index, project_evaluator in enumerate(project_evaluators):
@@ -299,8 +280,8 @@ def _reoffer_values(excluded: Any) -> dict[str, Any]:
 
 
 def _reofferable(work_unit: Any, activity_through: Any) -> ColumnElement[bool]:
-    """A failed, expired, or content-lost session or trace is retried when new spans arrive
-    after it failed; spans that arrived while it was running might not trigger a retry."""
+    """Work that ended without a result is offered again once its target has spans newer
+    than the activity it was decided through."""
     reofferable: ColumnElement[bool] = and_(
         work_unit.status.in_(REOFFERED_STATUSES),
         work_unit.decided_through < activity_through,
@@ -329,7 +310,6 @@ class SweepingEvaluationProducer(DaemonTask):
         ONLINE_EVAL_SWEEP_ELIGIBLE_EVALUATIONS.labels(**self._metric_labels)
         ONLINE_EVAL_ADDED_WORK_UNITS.labels(**self._metric_labels)
         ONLINE_EVAL_DECIDED_THROUGH_LAG_SECONDS.labels(**self._metric_labels)
-        ONLINE_EVAL_SWEEP_ATTEMPTS.labels(**self._metric_labels)
         ONLINE_EVAL_SWEEP_DURATION_SECONDS.labels(**self._metric_labels)
         ONLINE_EVAL_SWEEP_FAILURES.labels(**self._metric_labels)
         ONLINE_EVAL_SWEEP_SUCCESSES.labels(**self._metric_labels)
@@ -348,17 +328,6 @@ class SweepingEvaluationProducer(DaemonTask):
                 full_page_decided = False
                 try:
                     full_page_decided = await self._tick()
-                except _PageRowDeletedError as error:
-                    logger.warning(
-                        f"{self._evaluation_target} evaluation sweep rolled back: a project "
-                        f"evaluator or {self._evaluation_target.lower()} on its page was "
-                        f"deleted before its work was inserted ({error})"
-                    )
-                except _LockConflictError as error:
-                    logger.warning(
-                        f"{self._evaluation_target} evaluation sweep rolled back: it gave way "
-                        f"to a concurrent transaction holding a lock it needed ({error})"
-                    )
                 except Exception:
                     logger.exception(f"{self._evaluation_target} evaluation sweep failed")
                 await asyncio.sleep(0 if full_page_decided else self._tick_interval_seconds)
@@ -380,8 +349,6 @@ class SweepingEvaluationProducer(DaemonTask):
     async def _run_sweep(self) -> bool:
         started_at = time.monotonic()
         labels = self._metric_labels
-        if self._publish_metrics:
-            ONLINE_EVAL_SWEEP_ATTEMPTS.labels(**labels).inc()
         try:
             async with self._db() as session:
                 if self._db.dialect is SupportedSQLDialect.POSTGRESQL:
@@ -392,11 +359,9 @@ class SweepingEvaluationProducer(DaemonTask):
                     )
                 database_now = await current_database_time(session, self._db.dialect)
                 outcome = await self._sweep(session, database_now)
-        except Exception as error:
+        except Exception:
             if self._publish_metrics:
                 ONLINE_EVAL_SWEEP_FAILURES.labels(**labels).inc()
-            if isinstance(error, DBAPIError) and _is_lock_conflict(error):
-                raise _LockConflictError(str(error.orig)) from error
             raise
         finally:
             if self._publish_metrics:
@@ -527,7 +492,7 @@ class SweepingEvaluationProducer(DaemonTask):
             if passes_filter is None:
                 continue
             if not passes_filter:
-                status: models.SweptTargetWorkStatus = "FILTERED_OUT"
+                status: models.EvalWorkStatus = "FILTERED_OUT"
             elif sample_key(row.sample_identity) >= row.sampling_rate:
                 status = "SAMPLED_OUT"
             else:
@@ -547,18 +512,15 @@ class SweepingEvaluationProducer(DaemonTask):
                 eligible_count=eligible_count,
                 full_page_decided=False,
             )
-        try:
-            written_statuses = (
-                await session.scalars(
-                    _work_write_statement(
-                        target,
-                        decisions,
-                        self._db.dialect,
-                    )
+        written_statuses = (
+            await session.scalars(
+                _work_write_statement(
+                    target,
+                    decisions,
+                    self._db.dialect,
                 )
-            ).all()
-        except IntegrityError as error:
-            raise _PageRowDeletedError(str(error.orig)) from error
+            )
+        ).all()
         return _SweepOutcome(
             queued_count=written_statuses.count("PENDING"),
             eligible_count=eligible_count,
@@ -572,19 +534,10 @@ class SweepingEvaluationProducer(DaemonTask):
         rows: Sequence[Any],
     ) -> dict[tuple[int, int], bool]:
         """Whether each evaluation on the page passes its evaluator's filter, keyed by
-        (project evaluator, target), for evaluations whose target is still at the activity
-        the page read.
-
-        Each evaluator's statement reads its targets' activity together with the filter, so
-        an evaluation is decided on the content its target had, quiet, at the page read; the
-        consumer later evaluates whatever content the target has when it runs. An evaluation
-        whose target has moved on is left out and stays undecided until a later tick sees the
-        target quiet, and so are the evaluations of an evaluator whose filter fails when it
-        runs.
-        """
+        (project evaluator, target). An evaluator whose filter fails when it runs has no
+        verdicts this tick."""
         target = self._target
         target_model = target.target_model
-        decided_through = {row.target_rowid: row.decided_through for row in rows}
         verdicts: dict[tuple[int, int], bool] = {}
         for project_evaluator in project_evaluators:
             target_rowids = tuple(
@@ -609,14 +562,13 @@ class SweepingEvaluationProducer(DaemonTask):
                 async with session.begin_nested():
                     result = (
                         await session.execute(
-                            select(
-                                target_model.id,
-                                target_model.last_span_ingested_at,
-                                passes_filter,
-                            ).where(target_model.id.in_(target_rowids))
+                            select(target_model.id, passes_filter).where(
+                                target_model.id.in_(target_rowids)
+                            )
                         )
                     ).all()
             except (DBAPIError, OverflowError) as error:
+                # A lock conflict fails the tick, so the sweep positions it wrote roll back.
                 if isinstance(error, DBAPIError) and _is_lock_conflict(error):
                     raise
                 logger.warning(
@@ -625,9 +577,8 @@ class SweepingEvaluationProducer(DaemonTask):
                     f"{error.orig if isinstance(error, DBAPIError) else error}"
                 )
                 continue
-            for target_rowid, activity_through, passes in result:
-                if activity_through == decided_through[target_rowid]:
-                    verdicts[(project_evaluator.project_evaluator_id, target_rowid)] = passes
+            for target_rowid, passes in result:
+                verdicts[(project_evaluator.project_evaluator_id, target_rowid)] = passes
         return verdicts
 
     async def _advance_sweep_positions_to_due_time(
@@ -637,7 +588,7 @@ class SweepingEvaluationProducer(DaemonTask):
         database_now: datetime,
     ) -> None:
         """Record that every loaded evaluator has swept everything already due to it."""
-        await self._write_sweep_positions(
+        await advance_sweep_positions(
             session,
             {
                 project_evaluator.project_evaluator_id: max(
@@ -659,17 +610,7 @@ class SweepingEvaluationProducer(DaemonTask):
             reached = sweep_positions.get(row.project_evaluator_id)
             if reached is None or row.decided_through > reached:
                 sweep_positions[row.project_evaluator_id] = row.decided_through
-        await self._write_sweep_positions(session, sweep_positions)
-
-    async def _write_sweep_positions(
-        self,
-        session: AsyncSession,
-        sweep_positions: dict[int, datetime],
-    ) -> None:
-        try:
-            await advance_sweep_positions(session, sweep_positions)
-        except IntegrityError as error:
-            raise _PageRowDeletedError(str(error.orig)) from error
+        await advance_sweep_positions(session, sweep_positions)
 
     async def _publish_eligibility_metrics(self, eligible_count: Optional[int]) -> None:
         """Publish the sweep's observation gauges from a session of its own.
@@ -716,7 +657,7 @@ class SweepingEvaluationProducer(DaemonTask):
             )
             .where(
                 # SQLite reads a partial index only when the query repeats its predicate.
-                text(swept_target_terminal_index_predicate()),
+                text(terminal_index_predicate()),
                 work_unit_model.status == "DONE",
                 work_unit_model.updated_at
                 >= database_now - timedelta(seconds=TERMINAL_METRICS_WINDOW_SECONDS),

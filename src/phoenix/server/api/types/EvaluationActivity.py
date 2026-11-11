@@ -180,12 +180,6 @@ class EvaluationActivity:
         return self.activity.failed_count
 
     @strawberry.field(  # type: ignore[untyped-decorator]
-        description="Lag of evaluations completed in the range; null if none completed."
-    )
-    def lag(self) -> Optional[EvaluationLag]:
-        return to_gql_evaluation_lag(self.activity.lag)
-
-    @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
             "Cost in USD of the evaluations' traces started in the range; null if none. "
             "Evaluators with tracing off write no traces, so their evaluations add no cost."
@@ -234,7 +228,6 @@ async def resolve_evaluation_activity(
         start=time_range.start,
         end=end,
         time_bins=TimeBucketSpec.from_config(time_bin_config),
-        read_added=_selects_bin_field(info, "addedCount"),
         read_queue_size=_selects_bin_field(info, "queueSize"),
     )
     return EvaluationActivity(activity=activity)

@@ -987,7 +987,7 @@ await updateEvaluator({
 });
 ```
 
-The `patch` is discriminated by `type` (`"llm"` or `"code"`) and must match the evaluator. Omitted fields keep their current values. Prompt content is edited through the prompts API: create a version with `createPrompt` and select it with `prompt: { selector: { type: "version", prompt_version_id } }`. An LLM evaluator's `description` must equal the description of its prompt's tool function.
+The `patch` is discriminated by `type` (`"llm"` or `"code"`) and must match the evaluator. Omitted fields keep their current values. Prompt content is edited through the prompts API: create a version with `createPrompt` and select it with `prompt: { selector: { type: "version", prompt_version_id } }`. Nothing checks an LLM evaluator's `description` or output configs against its prompt.
 
 ### Code Versions
 

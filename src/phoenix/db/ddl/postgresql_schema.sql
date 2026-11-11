@@ -49,8 +49,6 @@ CREATE TABLE public.deployment_secret (
 CREATE TABLE public.eval_span_cursors (
     id BIGINT NOT NULL,
     produced_through_id BIGINT NOT NULL DEFAULT '0'::bigint,
-    observed_high_water_id BIGINT,
-    observed_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_eval_span_cursors PRIMARY KEY (id),
@@ -1788,7 +1786,10 @@ CREATE TABLE public.eval_work_units (
             'DONE'::character varying,
             'FAILED'::character varying,
             'EXPIRED'::character varying,
-            'DROPPED'::character varying
+            'DROPPED'::character varying,
+            'CONTENT_LOST'::character varying,
+            'FILTERED_OUT'::character varying,
+            'SAMPLED_OUT'::character varying
         ])::text[]))),
     CONSTRAINT fk_eval_work_units_project_evaluator_id_project_evaluators
         FOREIGN KEY (project_evaluator_id)
@@ -1811,7 +1812,7 @@ CREATE INDEX ix_eval_work_units_project_evaluator_id ON public.eval_work_units
 CREATE INDEX ix_eval_work_units_project_evaluator_live ON public.eval_work_units
     USING btree (project_evaluator_id, status, created_at) WHERE ((status)::text = ANY ((ARRAY['PENDING'::character varying, 'RUNNING'::character varying, 'ERROR'::character varying])::text[]));
 CREATE INDEX ix_eval_work_units_terminal ON public.eval_work_units
-    USING btree (updated_at) WHERE ((status)::text = ANY ((ARRAY['DONE'::character varying, 'FAILED'::character varying, 'EXPIRED'::character varying, 'DROPPED'::character varying])::text[]));
+    USING btree (updated_at) WHERE ((status)::text = ANY ((ARRAY['DONE'::character varying, 'FAILED'::character varying, 'EXPIRED'::character varying, 'DROPPED'::character varying, 'CONTENT_LOST'::character varying])::text[]));
 
 
 -- Table: project_evaluator_state

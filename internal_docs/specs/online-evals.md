@@ -101,12 +101,12 @@ span evaluator's filter and sampling, adds a work unit per sampled span, and mov
 cursor to the window end. After a full window the next tick starts at once. An hourly catch-up
 scan re-reads the 100,000 span ids behind the cursor to pick up spans that became visible after
 their window was read. The scan lease keeps one replica scanning at a time, but no write depends
-on it: the unique (span, evaluator) key absorbs duplicates, and a scan commits only if the cursor
-has not moved since it was read.
+on it: the unique (span, evaluator) key absorbs duplicates, and the cursor only moves forward.
 
 Retention cleanup deletes finished span work older than the retention period, but never above the
 retention floor, the cursor minus the catch-up scan's lookback, so the catch-up scan cannot queue
-a span again.
+a span again. A scan that stalls while another replica moves the cursor on and runs retention
+cleanup can evaluate a few old spans again; that is accepted.
 
 ### Traces and sessions
 
