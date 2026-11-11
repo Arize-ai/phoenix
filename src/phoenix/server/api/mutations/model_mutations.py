@@ -106,7 +106,8 @@ class ModelMutationMixin:
         info: Info[Context, None],
         input: CreateModelMutationInput,
     ) -> CreateModelMutationPayload:
-        token_prices = _normalized_token_prices(input.costs)
+        model_type = to_db_generative_model_type(input.model_type)
+        token_prices = _normalized_token_prices(input.costs, model_type=model_type)
         name_pattern = _compile_regular_expression(input.name_pattern)
         provider = _normalize_provider(input.provider)
         model = models.GenerativeModel(
@@ -116,7 +117,7 @@ class ModelMutationMixin:
             is_built_in=False,
             token_prices=token_prices,
             start_time=input.start_time,
-            type=to_db_generative_model_type(input.model_type),
+            type=model_type,
         )
         async with info.context.db() as session:
             await _raise_on_case_only_provider_collision(
@@ -153,7 +154,6 @@ class ModelMutationMixin:
         except ValueError:
             raise BadRequest(f'Invalid model id: "{input.id}"')
 
-        token_prices = _normalized_token_prices(input.costs)
         name_pattern = _compile_regular_expression(input.name_pattern)
         provider = _normalize_provider(input.provider)
         async with info.context.db() as session:
@@ -172,6 +172,7 @@ class ModelMutationMixin:
                 if input.model_type is None
                 else to_db_generative_model_type(input.model_type)
             )
+            token_prices = _normalized_token_prices(input.costs, model_type=model_type)
             await _raise_on_case_only_provider_collision(
                 session,
                 name_pattern=name_pattern,
@@ -318,7 +319,11 @@ def _trim_and_snap_to_known(value: str, known_values: frozenset[str]) -> str:
     return lowered if lowered in known_values else value
 
 
-def _normalized_token_prices(costs: list[TokenPriceInput]) -> list[models.TokenPrice]:
+def _normalized_token_prices(
+    costs: list[TokenPriceInput],
+    *,
+    model_type: models.GenerativeModelType,
+) -> list[models.TokenPrice]:
     token_prices = [cost.token_prices for cost in costs]
     seen: set[tuple[bool, str]] = set()
     for token_price in token_prices:
@@ -329,10 +334,12 @@ def _normalized_token_prices(costs: list[TokenPriceInput]) -> list[models.TokenP
             kind = "prompt" if token_price.is_prompt else "completion"
             raise BadRequest(f"Duplicate {kind} token type '{token_price.token_type}'")
         seen.add(key)
-    token_types = {token_price.token_type for token_price in token_prices}
-    if INPUT_TOKEN_TYPE not in token_types:
+    if (True, INPUT_TOKEN_TYPE) not in seen:
         raise BadRequest("input cost is required")
-    if OUTPUT_TOKEN_TYPE not in token_types:
+    # EMBEDDING models are priced on input tokens alone, unless completion rates are supplied
+    # (in which case SpanCostDetailsCalculator still requires an 'output' fallback rate).
+    requires_output_price = model_type != "EMBEDDING" or any(not is_prompt for is_prompt, _ in seen)
+    if requires_output_price and (False, OUTPUT_TOKEN_TYPE) not in seen:
         raise BadRequest("output cost is required")
     return token_prices
 

@@ -565,6 +565,7 @@ class TestModelMutations:
         gql_client: AsyncGraphQLClient,
         variables: dict[str, Any],
         expected_error_message: str,
+        custom_model: models.GenerativeModel,
     ) -> None:
         result = await gql_client.execute(
             query=self.QUERY,
@@ -732,32 +733,55 @@ class TestModelMutations:
         }
 
     @pytest.mark.parametrize(
-        "costs,expected_error_message",
+        "costs,model_type,expected_error_message",
         [
             pytest.param(
                 [("input", "PROMPT"), ("Cache_Read", "PROMPT"), ("cache_read", "PROMPT")],
+                None,
                 "Duplicate prompt token type 'cache_read'",
                 id="known-token-type-differing-in-case",
             ),
             pytest.param(
                 [("input", "PROMPT"), ("CacheRead", "PROMPT"), ("cacheread", "PROMPT")],
+                None,
                 "Duplicate prompt token type 'cacheread'",
                 id="custom-token-type-differing-in-case",
             ),
             pytest.param(
                 [("input", "PROMPT"), ("output", "COMPLETION"), ("Output", "COMPLETION")],
+                None,
                 "Duplicate completion token type 'output'",
                 id="completion-side",
             ),
             pytest.param(
                 [("input", "PROMPT"), ("", "PROMPT"), ("output", "COMPLETION")],
+                None,
                 "token type is required",
                 id="empty-token-type",
             ),
             pytest.param(
                 [("input", "PROMPT"), ("output", "COMPLETION"), ("   ", "COMPLETION")],
+                None,
                 "token type is required",
                 id="whitespace-only-token-type",
+            ),
+            pytest.param(
+                [("input", "COMPLETION"), ("output", "COMPLETION")],
+                None,
+                "input cost is required",
+                id="input-marked-as-completion",
+            ),
+            pytest.param(
+                [("input", "PROMPT"), ("output", "PROMPT")],
+                None,
+                "output cost is required",
+                id="output-marked-as-prompt",
+            ),
+            pytest.param(
+                [("input", "PROMPT"), ("reasoning", "COMPLETION")],
+                "EMBEDDING",
+                "output cost is required",
+                id="embedding-completion-without-output-fallback",
             ),
         ],
     )
@@ -765,11 +789,12 @@ class TestModelMutations:
         self,
         gql_client: AsyncGraphQLClient,
         costs: list[tuple[str, str]],
+        model_type: Optional[str],
         expected_error_message: str,
     ) -> None:
         result = await gql_client.execute(
             query=self.QUERY,
-            variables=_create_model_variables(costs=costs),
+            variables=_create_model_variables(costs=costs, model_type=model_type),
             operation_name="CreateModelMutation",
         )
         assert len(result.errors) == 1
@@ -1018,6 +1043,8 @@ class TestModelMutations:
         model = result.data["createModel"]["model"]
         assert model["modelType"] == expected_model_type
         assert model["kind"] == "CUSTOM"
+        expected_tokens = ["input"] if expected_model_type == "EMBEDDING" else ["input", "output"]
+        assert [p["tokenType"] for p in model["tokenPrices"]] == expected_tokens
         async with db() as session:
             stored_type = await session.scalar(
                 sa.select(models.GenerativeModel.type).where(
@@ -1025,6 +1052,57 @@ class TestModelMutations:
                 )
             )
         assert stored_type == expected_model_type
+
+    async def test_update_model_input_only_embedding_costs(
+        self,
+        gql_client: AsyncGraphQLClient,
+        custom_model: models.GenerativeModel,
+    ) -> None:
+        model_id = str(GlobalID(GenerativeModel.__name__, str(custom_model.id)))
+
+        # Switching LLM -> EMBEDDING accepts input-only costs and drops the prior output price.
+        to_embedding = _create_model_variables(
+            model_type="EMBEDDING",
+            costs=[("input", "PROMPT")],
+        )
+        to_embedding["input"]["id"] = model_id
+        switched = await gql_client.execute(
+            query=self.QUERY,
+            variables=to_embedding,
+            operation_name="UpdateModelMutation",
+        )
+        assert not switched.errors
+        assert switched.data is not None
+        assert switched.data["updateModel"]["model"]["modelType"] == "EMBEDDING"
+        assert [p["tokenType"] for p in switched.data["updateModel"]["model"]["tokenPrices"]] == [
+            "input"
+        ]
+
+        # Omitting modelType keeps the stored EMBEDDING type before validating costs.
+        keep_embedding = _create_model_variables(costs=[("input", "PROMPT")])
+        keep_embedding["input"]["id"] = model_id
+        kept = await gql_client.execute(
+            query=self.QUERY,
+            variables=keep_embedding,
+            operation_name="UpdateModelMutation",
+        )
+        assert not kept.errors
+        assert kept.data is not None
+        assert kept.data["updateModel"]["model"]["modelType"] == "EMBEDDING"
+
+        # Switching EMBEDDING -> DECISION without an output price is rejected.
+        to_decision = _create_model_variables(
+            model_type="DECISION",
+            costs=[("input", "PROMPT")],
+        )
+        to_decision["input"]["id"] = model_id
+        rejected = await gql_client.execute(
+            query=self.QUERY,
+            variables=to_decision,
+            operation_name="UpdateModelMutation",
+        )
+        assert len(rejected.errors) == 1
+        assert rejected.errors[0].message == "output cost is required"
 
     async def test_create_model_with_same_name_and_different_type_succeeds(
         self,
@@ -1271,7 +1349,11 @@ def _create_model_variables(
 ) -> dict[str, Any]:
     """Builds create (or, with an added id, update) variables; `modelType` is sent only if set."""
     if costs is None:
-        costs = [("input", "PROMPT"), ("output", "COMPLETION")]
+        costs = (
+            [("input", "PROMPT")]
+            if model_type == "EMBEDDING"
+            else [("input", "PROMPT"), ("output", "COMPLETION")]
+        )
     input: dict[str, Any] = {
         "name": name,
         "provider": provider,
