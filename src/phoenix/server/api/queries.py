@@ -1078,6 +1078,11 @@ class Query:
         if type_name == "Dimension" or type_name == "EmbeddingDimension":
             raise NotFound(f"Unknown node type: {type_name}")
         if type_name == Project.__name__:
+            name = await info.context.data_loaders.project_fields.load(
+                (node_id, models.Project.name)
+            )
+            if name is None:
+                raise NotFound(f"Unknown node: {id}")
             return Project(id=node_id)
         elif type_name == Trace.__name__:
             return Trace(id=node_id)

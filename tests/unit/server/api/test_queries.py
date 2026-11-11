@@ -3248,3 +3248,47 @@ class TestSecretNode:
         assert response.data["node"]["__typename"] == "Secret"
         assert response.data["node"]["key"] == "existing-secret"
         assert response.data["node"]["updatedAt"]
+
+
+class TestProjectNode:
+    _QUERY = """
+      query($id: ID!) {
+        node(id: $id) {
+          __typename
+          id
+          ... on Project { name hasTraces }
+        }
+      }
+    """
+
+    async def test_node_for_missing_project_returns_not_found(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project_id = str(GlobalID("Project", "999999"))
+        response = await gql_client.execute(query=self._QUERY, variables={"id": project_id})
+        assert response.errors
+        assert len(response.errors) == 1
+        assert response.errors[0].message == f"Unknown node: {project_id}"
+        # `node` is non-nullable, so a not-found error nulls the whole response.
+        assert response.data is None
+
+    async def test_node_for_deleted_project_returns_not_found(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            project = models.Project(name="deleted-project")
+            session.add(project)
+            await session.flush()
+            project_rowid = project.id
+        async with db() as session:
+            await session.delete(await session.get(models.Project, project_rowid))
+        project_id = str(GlobalID("Project", str(project_rowid)))
+        response = await gql_client.execute(query=self._QUERY, variables={"id": project_id})
+        assert response.errors
+        assert len(response.errors) == 1
+        assert response.errors[0].message == f"Unknown node: {project_id}"
+        assert response.data is None
