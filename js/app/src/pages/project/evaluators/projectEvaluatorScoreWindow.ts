@@ -1,11 +1,17 @@
 import type { OpenTimeRangeWithKey } from "@phoenix/components/datetime";
+import type { LastNTimeRangeKey } from "@phoenix/components/datetime/types";
 import {
   clampTimeRangeToMaxDuration,
   getDurationMsFromLastNTimeRangeKey,
   getLastNTimeRangeKeyFromDurationMs,
+  getTimeRangeFromLastNTimeRangeKey,
   isLastNTimeRangeKey,
 } from "@phoenix/components/datetime/utils";
-import { ONE_DAY_MS, ONE_HOUR_MS } from "@phoenix/constants/timeConstants";
+import {
+  ONE_DAY_MS,
+  ONE_HOUR_MS,
+  ONE_MINUTE_MS,
+} from "@phoenix/constants/timeConstants";
 import { getTimeBinScale } from "@phoenix/hooks/useTimeBin";
 
 /**
@@ -13,6 +19,9 @@ import { getTimeBinScale } from "@phoenix/hooks/useTimeBin";
  * range, keeping the per-page annotation scans bounded on long ranges.
  */
 export const MAX_SCORE_WINDOW_MS = 30 * ONE_DAY_MS;
+
+/** The live last-N key that spans exactly {@link MAX_SCORE_WINDOW_MS}. */
+const MAX_SCORE_WINDOW_KEY: LastNTimeRangeKey = "30d";
 
 /**
  * The window and binning the mean score column aggregates over. Derived from
@@ -56,12 +65,11 @@ export function isSameEvaluatorScoreWindow(
 
 /**
  * Resolves the page time range into the mean score column's clamped window.
- * Everything derives from the range's snapped bounds and its last-N key —
- * never from "now" — so the loader and the table produce identical query
- * variables and repeated derivations stay cache-friendly. The one exception
- * is a live range longer than the cap, whose trailing window must start from
- * "now"; its start snaps to the UTC hour so it, too, holds still between
- * snaps, and its end stays open so the latest scores are never left out.
+ * A live last-N range derives everything from its key and its snapped start,
+ * never from "now", so the loader and the table produce identical query
+ * variables and repeated derivations stay cache-friendly. A live range longer
+ * than the cap becomes the live "30d" range, so the two share variables.
+ * Custom ranges are closed over the page range, clamped to the cap.
  */
 export function getEvaluatorScoreWindow({
   timeRange,
@@ -74,62 +82,17 @@ export function getEvaluatorScoreWindow({
   now?: Date;
 }): EvaluatorScoreWindow {
   const { timeRangeKey } = timeRange;
-  const keyDurationMs = isLastNTimeRangeKey(timeRangeKey)
-    ? getDurationMsFromLastNTimeRangeKey(timeRangeKey)
-    : null;
-  if (
-    keyDurationMs != null &&
-    keyDurationMs <= MAX_SCORE_WINDOW_MS &&
-    timeRange.start != null &&
-    timeRange.end == null
-  ) {
-    // A live last-N range within the cap: keep the end open and mirror the
-    // key's exact duration backward for the previous window. The start is
-    // already snapped by the provider, so no field here depends on "now" —
-    // including the bin scale, derived from the key's duration.
-    const startIso = timeRange.start.toISOString();
-    return {
-      timeRange: { start: startIso },
-      previousTimeRange: {
-        start: new Date(
-          timeRange.start.getTime() - keyDurationMs
-        ).toISOString(),
-        end: startIso,
-      },
-      timeBinConfig: {
-        scale: getTimeBinScale({
-          timeRange: {
-            start: timeRange.start,
-            end: new Date(timeRange.start.getTime() + keyDurationMs),
-          },
-        }),
-        utcOffsetMinutes,
-      },
-      windowKey: timeRangeKey,
-    };
+  if (isLastNTimeRangeKey(timeRangeKey) && timeRange.end == null) {
+    const isOverCap =
+      getDurationMsFromLastNTimeRangeKey(timeRangeKey) > MAX_SCORE_WINDOW_MS;
+    const key = isOverCap ? MAX_SCORE_WINDOW_KEY : timeRangeKey;
+    const start = isOverCap
+      ? getTimeRangeFromLastNTimeRangeKey(key, now.getTime()).start
+      : timeRange.start;
+    if (start != null) {
+      return getLiveScoreWindow({ key, start, utcOffsetMinutes });
+    }
   }
-  if (timeRange.start != null && timeRange.end == null) {
-    // A live range over the cap: aggregate its trailing 30 days. The start
-    // derives from "now" snapped to the UTC hour (not local time, so every
-    // zone agrees), and the end stays open like any live window.
-    const nowHourMs = Math.floor(now.getTime() / ONE_HOUR_MS) * ONE_HOUR_MS;
-    const start = new Date(nowHourMs - MAX_SCORE_WINDOW_MS);
-    return {
-      timeRange: { start: start.toISOString() },
-      previousTimeRange: {
-        start: new Date(start.getTime() - MAX_SCORE_WINDOW_MS).toISOString(),
-        end: start.toISOString(),
-      },
-      timeBinConfig: {
-        scale: getTimeBinScale({
-          timeRange: { start, end: new Date(nowHourMs) },
-        }),
-        utcOffsetMinutes,
-      },
-      windowKey: getLastNTimeRangeKeyFromDurationMs(MAX_SCORE_WINDOW_MS),
-    };
-  }
-  // Custom ranges are closed by nature and clamp to their trailing 30 days.
   const clamped = clampTimeRangeToMaxDuration({
     value: timeRange,
     maxDurationMs: MAX_SCORE_WINDOW_MS,
@@ -150,5 +113,45 @@ export function getEvaluatorScoreWindow({
       utcOffsetMinutes,
     },
     windowKey: getLastNTimeRangeKeyFromDurationMs(durationMs),
+  };
+}
+
+/**
+ * A live last-N window within the cap: the end stays open ("up to now") and
+ * the previous window mirrors the key's exact duration backward from the
+ * start, which the time range provider has already snapped.
+ */
+function getLiveScoreWindow({
+  key,
+  start,
+  utcOffsetMinutes,
+}: {
+  key: LastNTimeRangeKey;
+  start: Date;
+  utcOffsetMinutes: number;
+}): EvaluatorScoreWindow {
+  const keyDurationMs = getDurationMsFromLastNTimeRangeKey(key);
+  // The live window runs past the key's duration by its start's snap-back:
+  // under a minute for keys up to an hour, under an hour beyond. Choose the
+  // bin scale for the window just before the next snap, as the page's charts
+  // see it for nearly the whole interval (a "5h" key bins by the hour).
+  const snapMs = keyDurationMs <= ONE_HOUR_MS ? ONE_MINUTE_MS : ONE_HOUR_MS;
+  const startIso = start.toISOString();
+  return {
+    timeRange: { start: startIso },
+    previousTimeRange: {
+      start: new Date(start.getTime() - keyDurationMs).toISOString(),
+      end: startIso,
+    },
+    timeBinConfig: {
+      scale: getTimeBinScale({
+        timeRange: {
+          start,
+          end: new Date(start.getTime() + keyDurationMs + snapMs),
+        },
+      }),
+      utcOffsetMinutes,
+    },
+    windowKey: key,
   };
 }
