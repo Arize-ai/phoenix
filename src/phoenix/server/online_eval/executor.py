@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from enum import Enum
+from time import perf_counter
 from typing import (
     Any,
     AsyncIterator,
@@ -944,7 +944,7 @@ class OnlineEvalExecutor:
             if self._tracer_factory and hydrated.tracing_enabled
             else None
         )
-        started_at = time.perf_counter()
+        started_at = perf_counter()
         try:
             context = {
                 **hydrated.context,
@@ -964,7 +964,7 @@ class OnlineEvalExecutor:
             if self._publish_metrics:
                 ONLINE_EVAL_EVALUATOR_DURATION_SECONDS.labels(
                     evaluator_kind=hydrated.evaluator_kind
-                ).observe(time.perf_counter() - started_at)
+                ).observe(perf_counter() - started_at)
             if tracer is not None:
                 # A failed evaluation is exactly when its trace is worth reading,
                 # so the trace is written whether or not the evaluation succeeded —
