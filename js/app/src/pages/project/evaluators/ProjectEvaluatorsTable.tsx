@@ -101,7 +101,7 @@ import { isModelProvider } from "@phoenix/utils/generativeUtils";
 const PAGE_SIZE = 30;
 /** Labels for columns whose header is not a plain string. */
 const COLUMN_LABELS: Partial<Record<string, string>> = {
-  meanScore: "mean score",
+  results: "results",
 };
 
 const scrollableAreaCSS = css`
@@ -350,7 +350,7 @@ export function ProjectEvaluatorsTable({
   initialTimeRange: TimeRangeISOStrings;
   /** Score window used to fetch the rows supplied by the owner query. */
   initialScoreWindow: EvaluatorScoreWindow;
-  /** Whether the owner query fetched the mean score column's data. */
+  /** Whether the owner query fetched the results column's data. */
   initialIncludeMeanScore: boolean;
   selection: ProjectEvaluatorSelection;
   onSelectionChange: (selection: ProjectEvaluatorSelection) => void;
@@ -410,9 +410,9 @@ export function ProjectEvaluatorsTable({
     [pageTimeRange, utcOffsetMinutes]
   );
   const isMeanScoreColumnVisible = useProjectEvaluatorsTableContext(
-    (state) => state.columnVisibility["meanScore"] !== false
+    (state) => state.columnVisibility["results"] !== false
   );
-  // Latched: once the mean score column has been shown, keep fetching its
+  // Latched: once the results column has been shown, keep fetching its
   // data so hiding and re-showing it does not churn the connection. Set
   // during render (not in an effect) so the latch lands in the same pass.
   const [includeMeanScore, setIncludeMeanScore] = useState(
@@ -616,7 +616,7 @@ export function ProjectEvaluatorsTable({
         ),
       },
       {
-        id: "meanScore",
+        id: "results",
         // The header reads the score window from context so the column def —
         // and with it the cell component identity tanstack renders — stays
         // stable when the window changes. A def that closed over the window

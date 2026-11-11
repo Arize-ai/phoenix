@@ -127,7 +127,7 @@ const EvaluatorScoreWindowContext = createContext<EvaluatorScoreWindow | null>(
 );
 
 /**
- * Provides the score window to the mean score column's header and cells.
+ * Provides the score window to the results column's header and cells.
  *
  * Context rather than a prop threaded through the column defs: a column def
  * closing over the window would rebuild — and, because tanstack renders the
@@ -147,13 +147,13 @@ function useEvaluatorScoreWindow(): EvaluatorScoreWindow {
   return scoreWindow;
 }
 
-/** The mean score column's header: the label plus the window it covers. */
+/** The results column's header: the label plus the window it covers. */
 export function ProjectEvaluatorMeanScoreHeader() {
   const scoreWindow = useEvaluatorScoreWindow();
   return (
     <Flex direction="row" gap="size-50" alignItems="baseline">
-      <span title="Mean score of the annotations this evaluator produced in the selected time range (at most the last 30 days), with the change vs. the previous window.">
-        mean score
+      <span title="Mean score, or label distribution for label-only evaluators, over the selected time range (at most the last 30 days), with the change vs. the previous window.">
+        results
       </span>
       <Text size="XS" fontFamily="mono" color="text-500">
         {scoreWindow.windowKey}
@@ -163,7 +163,7 @@ export function ProjectEvaluatorMeanScoreHeader() {
 }
 
 /**
- * The evaluators table's mean score cell: for each annotation the evaluator
+ * The evaluators table's results cell: for each annotation the evaluator
  * writes, the mean score over the (clamped) page time range, its change vs.
  * the previous window, and a sparkline of per-bin means. An annotation that
  * only carries labels shows its leading label's share, that share's change,
