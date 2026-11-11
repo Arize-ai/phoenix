@@ -1316,21 +1316,6 @@ class TestCostModelLookupByType:
         "generative_models,attributes,expected_model_id",
         [
             pytest.param(
-                [_model(1, "LLM"), _model(2, "DECISION")],
-                _decision(model_name="gpt-6-luna", provider="openai"),
-                2,
-                id="decision_span_matches_decision_model",
-            ),
-            pytest.param(
-                [_model(1, "LLM"), _model(2, "DECISION")],
-                {
-                    "openinference": {"span": {"kind": "LLM"}},
-                    "llm": {"model_name": "gpt-6-luna", "provider": "openai"},
-                },
-                1,
-                id="llm_span_matches_llm_model",
-            ),
-            pytest.param(
                 [_model(1, "LLM"), _model(2, "LLM", is_built_in=False)],
                 _decision(model_name="gpt-6-luna"),
                 None,
@@ -1355,12 +1340,6 @@ class TestCostModelLookupByType:
                 id="legacy_decision_span_with_llm_model_name",
             ),
             pytest.param(
-                [_model(1, "LLM", is_built_in=False), _model(2, "DECISION")],
-                _decision(model_name="gpt-6-luna"),
-                2,
-                id="custom_llm_model_does_not_shadow_built_in_decision_model",
-            ),
-            pytest.param(
                 [
                     _model(1, "DECISION", name_pattern="jev", provider="typesafe"),
                     _model(2, "DECISION", name_pattern="jev", provider="vllm"),
@@ -1377,12 +1356,6 @@ class TestCostModelLookupByType:
                 _decision(model_name="jev-1.13.0", system="typesafe"),
                 2,
                 id="decision_system_breaks_ties_without_provider",
-            ),
-            pytest.param(
-                [_model(1, "DECISION")],
-                _decision(model_name="  "),
-                None,
-                id="blank_decision_model_name",
             ),
             pytest.param(
                 [

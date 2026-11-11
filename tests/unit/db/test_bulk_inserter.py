@@ -9,7 +9,9 @@ from queue import SimpleQueue
 from typing import Any, NamedTuple, cast
 from unittest.mock import AsyncMock, MagicMock
 
+import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 import pytest
+from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
 from sqlalchemy import NullPool, delete, func, select, text
 from sqlalchemy.exc import DBAPIError, StatementError
 from sqlalchemy.ext.asyncio import AsyncSession, AsyncSessionTransaction, create_async_engine
@@ -24,6 +26,7 @@ from phoenix.server.cost_tracking.span_cost_calculator import SpanCostCalculator
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
 from phoenix.server.types import DbSessionFactory
+from phoenix.trace.otel import decode_otlp_span
 from phoenix.trace.schemas import Span, SpanContext, SpanEvent, SpanKind, SpanStatusCode
 from tests.unit._helpers import _peek_first_row, _selects_from
 
@@ -668,7 +671,7 @@ async def test_rejected_cost_keeps_its_span_and_sibling_costs(
 
 
 async def test_decision_span_gets_a_cost_row(db: DbSessionFactory) -> None:
-    # Pricing is covered in test_tracers.py; this checks the bulk inserter's own gate.
+    # Pricing is covered in test_tracers.py; this checks OTLP decode -> bulk inserter -> SpanCost.
     decision_model = models.GenerativeModel(
         name="gpt-6-luna-decisions",
         provider="openai",
@@ -684,15 +687,21 @@ async def test_decision_span_gets_a_cost_row(db: DbSessionFactory) -> None:
         session.add(decision_model)
     store = GenerativeModelStore(db=db)
     await store._fetch_models()
-    decision = replace(
-        _span("decision"),
-        span_kind=SpanKind.DECISION,
-        attributes={
-            "openinference": {"span": {"kind": "DECISION"}},
-            "decision": {"model_name": "gpt-6-luna", "token_count": {"input": 1000, "output": 5}},
-        },
+    start = int(_START.timestamp() * 1e9)
+    otlp_decision = otlp.Span(
+        trace_id=bytes(range(1, 17)),
+        span_id=bytes(range(1, 9)),
+        name="decision",
+        start_time_unix_nano=start,
+        end_time_unix_nano=start + 200_000_000,
+        attributes=[
+            KeyValue(key="openinference.span.kind", value=AnyValue(string_value="DECISION")),
+            KeyValue(key="decision.request.model_name", value=AnyValue(string_value="gpt-6-luna")),
+            KeyValue(key="decision.token_count.input", value=AnyValue(string_value="1000")),
+            KeyValue(key="decision.token_count.output", value=AnyValue(int_value=5)),
+        ],
     )
-    inserter = _inserter(db, decision)
+    inserter = _inserter(db, decode_otlp_span(otlp_decision))
     inserter._span_cost_calculator = SpanCostCalculator(model_store=store)
     await inserter._insert_spans(1)
     async with db() as session:

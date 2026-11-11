@@ -496,14 +496,6 @@ class TestDecisionSpanAttributes:
             pytest.param(
                 {
                     "openinference": {"span": {"kind": "DECISION"}},
-                    "decision": {"token_count": {"input": 1000}},
-                },
-                (1000, 0, 1000),
-                id="decision_input_only",
-            ),
-            pytest.param(
-                {
-                    "openinference": {"span": {"kind": "DECISION"}},
                     "decision": {"token_count": {"input": 1000, "output": 2}},
                     "llm": {"token_count": {"prompt": 9, "completion": 9, "total": 99}},
                 },
@@ -513,10 +505,39 @@ class TestDecisionSpanAttributes:
             pytest.param(
                 {
                     "openinference": {"span": {"kind": "DECISION"}},
+                    "decision": {"token_count": {"input": 1000}},
+                    "llm": {"token_count": {"completion": 5}},
+                },
+                (1000, 0, 1000),
+                id="families_are_not_mixed",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
                     "llm": {"token_count": {"prompt": 400, "completion": 2, "total": 402}},
                 },
                 (400, 2, 402),
                 id="legacy_decision_span_with_llm_counts",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "decision": {
+                        "token_count": {"input": "n/a", "output": float("nan")},
+                    },
+                    "llm": {"token_count": {"prompt": 10, "completion": 5}},
+                },
+                (10, 5, 15),
+                id="invalid_decision_counts_keep_llm_counts",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "decision": {"token_count": {"input": False}},
+                    "llm": {"token_count": {"prompt": 10, "completion": 5}},
+                },
+                (10, 5, 15),
+                id="bool_decision_count_keeps_llm_counts",
             ),
             pytest.param(
                 {
@@ -693,45 +714,3 @@ class TestDecisionSpanAttributes:
         assert get_priced_model_type(attributes) == expected_type
         assert get_model_name(attributes) == expected_name
         assert get_provider(attributes) == expected_provider
-
-    @pytest.mark.parametrize(
-        "token_count,llm_token_count,expected",
-        [
-            pytest.param(
-                {"input": 1000},
-                {"completion": 5},
-                (1000, 0, 1000),
-                id="families_are_not_mixed",
-            ),
-            pytest.param(
-                {"input": "n/a"},
-                {"prompt": 10, "completion": 5},
-                (10, 5, 15),
-                id="non_numeric_decision_count_keeps_llm_counts",
-            ),
-            pytest.param(
-                {"input": float("nan"), "output": float("inf")},
-                {"prompt": 10, "completion": 5},
-                (10, 5, 15),
-                id="non_finite_decision_count_keeps_llm_counts",
-            ),
-            pytest.param(
-                {"input": False},
-                {"prompt": 10, "completion": 5},
-                (10, 5, 15),
-                id="bool_decision_count_keeps_llm_counts",
-            ),
-        ],
-    )
-    def test_one_token_family_per_span(
-        self,
-        token_count: dict[str, Any],
-        llm_token_count: dict[str, Any],
-        expected: tuple[int, int, int],
-    ) -> None:
-        attributes = {
-            "openinference": {"span": {"kind": "DECISION"}},
-            "decision": {"token_count": token_count},
-            "llm": {"token_count": llm_token_count},
-        }
-        assert get_aggregated_tokens(attributes) == expected
