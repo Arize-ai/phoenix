@@ -1,4 +1,5 @@
 import contextlib
+import re
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
 from typing import Any, AsyncIterator
@@ -6,6 +7,7 @@ from unittest.mock import patch
 
 import httpx2
 import pytest
+import sqlalchemy
 from asgi_lifespan import LifespanManager
 from sqlalchemy import select, update
 from strawberry.relay import GlobalID
@@ -3074,6 +3076,75 @@ class TestProjectEvaluatorAnnotationScoreMetrics:
             None,
         ]
         assert [bin["count"] for bin in metrics["series"]] == [4, 2, 0, 0]
+
+    async def test_each_statement_reads_the_annotations_once(
+        self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        """Every statement the field runs reads span_annotations once in its query plan.
+        Re-reading the scoped annotation join in each aggregate made the page take
+        minutes on large projects."""
+        reads_by_statement: list[int] = []
+
+        def count_annotation_reads(
+            conn: Any,
+            cursor: Any,
+            statement: str,
+            parameters: Any,
+            context: Any,
+            executemany: bool,
+        ) -> None:
+            if "span_annotations" not in statement:
+                return
+            explain_cursor = conn.connection.cursor()
+            try:
+                if conn.dialect.name == "sqlite":
+                    explain_cursor.execute("EXPLAIN QUERY PLAN " + statement, parameters)
+                    steps = [row[3] for row in explain_cursor.fetchall()]
+                    pattern = r"(SCAN|SEARCH) span_annotations\b"
+                else:
+                    explain_cursor.execute("EXPLAIN " + statement, parameters)
+                    steps = [row[0] for row in explain_cursor.fetchall()]
+                    pattern = r".*\bon span_annotations\b"
+            finally:
+                explain_cursor.close()
+            reads_by_statement.append(sum(bool(re.match(pattern, step)) for step in steps))
+
+        window_start = _test_data["window_start"]
+        sqlalchemy.event.listen(
+            sqlalchemy.engine.Engine, "before_cursor_execute", count_annotation_reads
+        )
+        try:
+            resp = await gql_client.execute(
+                """query ($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig!) {
+                    node(id: $id) {
+                        ... on ProjectEvaluator {
+                            annotationScoreMetrics(
+                                timeRange: $timeRange
+                                timeBinConfig: $timeBinConfig
+                            ) {
+                                summary { meanScore }
+                                series { meanScore }
+                            }
+                        }
+                    }
+                }""",
+                variables={
+                    "id": str(GlobalID("ProjectEvaluator", str(_test_data["project_evaluator"]))),
+                    "timeRange": {
+                        "start": window_start.isoformat(),
+                        "end": (window_start + timedelta(days=2)).isoformat(),
+                    },
+                    "timeBinConfig": {"scale": "DAY", "utcOffsetMinutes": 0},
+                },
+            )
+        finally:
+            sqlalchemy.event.remove(
+                sqlalchemy.engine.Engine, "before_cursor_execute", count_annotation_reads
+            )
+        assert not resp.errors
+        # The window summary, the previous-window summary and the series
+        assert len(reads_by_statement) >= 3
+        assert reads_by_statement == [1] * len(reads_by_statement)
 
     async def test_open_end_requires_an_explicit_previous_window(
         self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
