@@ -395,14 +395,31 @@ def _has_pricing(model_info: dict[str, Any], model_type: GenerativeModelType) ->
     )
 
 
+MODALITY_INPUT_TOKEN_PRICE_FIELDS: tuple[str, ...] = (
+    "input_cost_per_audio_token",
+    "input_cost_per_image_token",
+    "input_cost_per_video_token",
+)
+
+
 def _embedding_input_rate(model_info: dict[str, Any]) -> Optional[float]:
     """
-    An embedding model's price per input token. Embedding spans report no output tokens, so
-    LiteLLM's output rate (0 when published at all) isn't used. As with ``output``, a 0 rate
-    means free unless the model publishes a positive non-token price, such as per image.
+    An embedding model's price per input token. Embedding spans report no output tokens or
+    modality breakdown, so LiteLLM's output rate (0 when published at all) isn't used and
+    multimodal models (such as ``gemini-embedding-2``) are priced at their text input rate,
+    like chat models with unmodeled video rates. As with ``output``, a 0 text rate means free
+    unless the model publishes a positive non-token or modality-token price.
     """
     rate = _to_finite_float(model_info.get("input_cost_per_token"))
-    if rate is None or rate < 0 or (rate == 0 and _has_positive_non_token_price(model_info)):
+    if rate is None or rate < 0:
+        return None
+    if rate == 0 and (
+        _has_positive_non_token_price(model_info)
+        or any(
+            _is_positive_number(model_info.get(field))
+            for field in MODALITY_INPUT_TOKEN_PRICE_FIELDS
+        )
+    ):
         return None
     return rate
 

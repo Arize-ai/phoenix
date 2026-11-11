@@ -246,6 +246,7 @@ LITELLM_DATA: dict[str, Any] = {
         "litellm_provider": "together_ai",
         "mode": "embedding",
         "input_cost_per_token": 8e-9,
+        "input_cost_per_token_above_8k_tokens": 1.6e-8,
         "output_cost_per_token": 0.0,
     },
 }
@@ -312,10 +313,12 @@ def test_extract_litellm_entries_assigns_types_by_mode() -> None:
     assert _rates([jev])["typesafe/jev-latest"] == {("input", True): 4.2e-8, ("output", False): 0.0}
     assert _tiers(jev) == {"input": None, "output": None}
 
-    # Priced on input alone: LiteLLM's published 0 output rate isn't used.
+    # Priced on input alone, with tiers keyed on llm.token_count.prompt; LiteLLM's published
+    # 0 output rate isn't used.
     bge = by_key["together_ai/BAAI/bge-base-en-v1.5", "EMBEDDING"]
     assert (bge.provider, bge.name_pattern) == ("together", "BAAI/bge-base-en-v1.5")
     assert _rates([bge])["together_ai/BAAI/bge-base-en-v1.5"] == {("input", True): 8e-9}
+    assert _tiers(bge) == {"input": (prompt, 8000.0, 1.6e-8)}
 
 
 @pytest.mark.parametrize(
@@ -323,7 +326,20 @@ def test_extract_litellm_entries_assigns_types_by_mode() -> None:
     [
         # An LLM entry would need an output rate too.
         pytest.param({"input_cost_per_token": 1e-7}, 1e-7, id="no-output-rate"),
+        # Multimodal embedding models keep their text rate (embedding spans carry no modality
+        # breakdown)...
+        pytest.param(
+            {"input_cost_per_token": 2e-7, "input_cost_per_audio_token": 6.5e-6},
+            2e-7,
+            id="multimodal-uses-text-rate",
+        ),
         pytest.param({"input_cost_per_token": 0}, 0.0, id="free"),
+        # ...unless the text rate is 0, meaning the model is billed by modality or non-token unit.
+        pytest.param(
+            {"input_cost_per_token": 0, "input_cost_per_image_token": 4.5e-7},
+            None,
+            id="zero-rate-with-modality-token-price",
+        ),
         pytest.param(
             {"input_cost_per_token": 0, "input_cost_per_image": 1e-4},
             None,
