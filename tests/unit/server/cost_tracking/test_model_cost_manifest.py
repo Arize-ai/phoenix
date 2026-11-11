@@ -248,11 +248,13 @@ def test_mistral_span_model_names_resolve_to_manifest_entries(
 def built_in_lookup(manifest: dict[str, Any]) -> CostModelLookup:
     """A lookup over every built-in model, mirroring how the facilitator seeds them."""
     now = datetime.now(timezone.utc)
+    all_models = [*manifest["models"], *manifest.get("non_llm_models", [])]
     return CostModelLookup(
         models.GenerativeModel(
             id=index,
             name=model["name"],
             provider=model.get("provider") or "",
+            type=model.get("type", "LLM"),
             start_time=None,
             name_pattern=re.compile(model["name_pattern"]),
             is_built_in=True,
@@ -261,7 +263,7 @@ def built_in_lookup(manifest: dict[str, Any]) -> CostModelLookup:
         )
         # Enumerate from 1 so that the built-in tie-breaker (-id) stays ordered by
         # manifest position, as it is for database-assigned ids.
-        for index, model in enumerate(manifest["models"], start=1)
+        for index, model in enumerate(all_models, start=1)
     )
 
 
@@ -327,6 +329,89 @@ def test_checked_in_manifest_reads_the_same_on_servers_that_predate_types(
     parsed_without_types = parse_manifest(json.dumps(without_types))
     parsed = parse_manifest(MANIFEST_PATH.read_bytes())
     assert parsed_without_types.models == [model for model in parsed.models if model.type == "LLM"]
+
+
+def test_decision_entries_carry_expected_rates_and_tiers(manifest: dict[str, Any]) -> None:
+    decisions = {
+        model["name"]: model for model in manifest["non_llm_models"] if model["type"] == "DECISION"
+    }
+
+    luna = decisions["gpt-6-luna"]
+    assert luna.get("provider") is None
+    luna_prices = {price["token_type"]: price for price in luna["token_prices"]}
+    assert set(luna_prices) == {"input", "output", "cache_read", "cache_write"}
+    assert luna_prices["output"]["base_rate"] == 0.0
+    assert luna_prices["output"].get("customization") is None
+    for token_type, base_rate, elevated_rate in (
+        ("input", 1e-7, 2e-7),
+        ("cache_read", 1e-8, 2e-8),
+        ("cache_write", 1.25e-7, 2.5e-7),
+    ):
+        assert luna_prices[token_type]["base_rate"] == pytest.approx(base_rate, rel=1e-9)
+        assert luna_prices[token_type]["customization"] == {
+            "type": "threshold_based",
+            "key": "decision.token_count.input",
+            "threshold": 272_000.0,
+            "new_rate": pytest.approx(elevated_rate, rel=1e-9),
+        }
+
+    for jev_name in (
+        "typesafe/jev-latest",
+        "typesafe/jev-1.14.0",
+        "typesafe/jev-1.13.0",
+        "typesafe/jev-preview",
+    ):
+        jev = decisions[jev_name]
+        assert jev.get("provider") == "typesafe"
+        assert jev["token_prices"] == [
+            {
+                "base_rate": pytest.approx(4.2e-8, rel=1e-9),
+                "is_prompt": True,
+                "token_type": "input",
+            },
+            {"base_rate": 0.0, "is_prompt": False, "token_type": "output"},
+        ]
+
+
+@pytest.mark.parametrize(
+    "span_model_name, span_provider, expected_decision_entry, expected_llm_entry",
+    [
+        ("gpt-6-luna", None, "gpt-6-luna", "gpt-6-luna"),
+        ("us.openai.gpt-6-luna", None, "gpt-6-luna", "us.openai.gpt-6-luna"),
+        ("jev-latest", "typesafe", "typesafe/jev-latest", None),
+        ("jev-latest", None, "typesafe/jev-latest", None),
+        ("jev-1.14.0", "typesafe", "typesafe/jev-1.14.0", None),
+        ("jev-1.13.0", "typesafe", "typesafe/jev-1.13.0", None),
+        ("jev-preview", "typesafe", "typesafe/jev-preview", None),
+    ],
+)
+def test_decision_span_model_names_resolve_apart_from_llm_entries(
+    built_in_lookup: CostModelLookup,
+    span_model_name: str,
+    span_provider: str | None,
+    expected_decision_entry: str,
+    expected_llm_entry: str | None,
+) -> None:
+    now = datetime.now(timezone.utc)
+    decision_attrs: dict[str, Any] = {
+        "openinference": {"span": {"kind": "DECISION"}},
+        "decision": {"model_name": span_model_name},
+    }
+    if span_provider is not None:
+        decision_attrs["decision"]["provider"] = span_provider
+    decision_model = built_in_lookup.find_model(start_time=now, attributes=decision_attrs)
+    assert decision_model is not None
+    assert (decision_model.name, decision_model.type) == (expected_decision_entry, "DECISION")
+
+    llm_model = built_in_lookup.find_model(
+        start_time=now,
+        attributes={"llm": {"model_name": span_model_name}},
+    )
+    if expected_llm_entry is None:
+        assert llm_model is None
+    else:
+        assert llm_model is not None
+        assert (llm_model.name, llm_model.type) == (expected_llm_entry, "LLM")
 
 
 def test_bundled_manifest_is_the_one_servers_fetch() -> None:
