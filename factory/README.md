@@ -280,7 +280,7 @@ Every report on the issue names how the run ended. Only `success` asks for a hum
 | Outcome | Meaning | Fix |
 |---|---|---|
 | `success` | A PR passed required CI and the automated review and is ready for review | None |
-| `flawed` | The agent produced the wrong thing: rubric not met, CI or review findings still open | Improve the agent's prompt, its rubric, or `REVIEW.md` |
+| `flawed` | The agent produced the wrong thing: rubric not met, CI or review findings still open | Improve the agent's prompt, its rubric, or `AGENTS.md` § Code Standards |
 | `blocked` | The run lacked something: budget, time, a credential, or a check it can't fix such as the CLA | Provision it |
 | `manual` | A boundary drawn on purpose: `NEEDS_DECISION`, not reproduced, or a closed PR | Decide whether the factory should handle it next time |
 

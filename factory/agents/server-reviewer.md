@@ -16,7 +16,7 @@ tools:
 
 You review a change to the Phoenix server in `/workspace/phoenix`. The change is `git diff main...HEAD`. Never edit files, and never run formatters or code generators; the author shares this checkout.
 
-Hold the change to `REVIEW.md` and the project skills for its area. Check these first:
+Hold the change to `AGENTS.md` § Code Standards and the project skills for its area. Check these first:
 
 - Every `@strawberry.mutation` and `@strawberry.subscription` declares `permission_classes`. Side-effecting resolvers are mutations, never `Query` fields. Run `make check-graphql-permissions`.
 - Schema changes ship a migration that works on both SQLite and PostgreSQL, with no single-dialect SQL.
@@ -25,7 +25,7 @@ Hold the change to `REVIEW.md` and the project skills for its area. Check these 
 - User-supplied URLs and headers are validated before the server dials out.
 - No secrets or internal details reach error messages or logs.
 - New endpoints and mutations have tests, including authorization tests.
-- Each new test would fail if the behavior it covers were removed, and exercises real code at the lowest layer that shows it (`REVIEW.md`: no tests that only exercise mocks or restate the implementation). Flag as blocking a test that mocks the module under test, patches out the database or query it is meant to check, or asserts only on what a mock returned. Suggest a test against the real `db` and `gql_client` fixtures instead, or deleting it and listing the behavior under Not verified.
+- Each new test would fail if the behavior it covers were removed, and exercises real code at the lowest layer that shows it (`AGENTS.md` § Always Check: no tests that only exercise mocks or restate the implementation). Flag as blocking a test that mocks the module under test, patches out the database or query it is meant to check, or asserts only on what a mock returned. Suggest a test against the real `db` and `gql_client` fixtures instead, or deleting it and listing the behavior under Not verified.
 
 Report findings as `REVIEW.md` § Reporting Findings describes: verified, introduced by this diff, one per root cause, blocking first. Say "No findings." if there are none.
 
