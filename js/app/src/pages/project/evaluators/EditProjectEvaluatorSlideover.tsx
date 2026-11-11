@@ -72,65 +72,67 @@ type ProjectEvaluatorNode = Extract<
   { readonly __typename: "ProjectEvaluator" }
 >;
 
+type EditableProjectEvaluatorKind = "LLM" | "CODE" | "DECISION";
+
 /** The slideover heading: the flow, and the evaluator it edits. */
-function getEditProjectEvaluatorTitle(evaluator: ProjectEvaluatorNode): string {
-  const kind =
-    evaluator.evaluator.kind === "LLM"
-      ? "LLM"
-      : evaluator.evaluator.kind === "DECISION"
-        ? "decision"
-        : "code";
-  return `Edit ${kind} evaluator “${evaluator.name}”`;
+function getEditProjectEvaluatorTitle({
+  kind,
+  name,
+}: {
+  kind: EditableProjectEvaluatorKind;
+  name: string;
+}): string {
+  const kindLabel =
+    kind === "LLM" ? "LLM" : kind === "DECISION" ? "decision" : "code";
+  return `Edit ${kindLabel} evaluator “${name}”`;
 }
 
-/**
- * Takes the evaluator already loaded by the route rather than loading it here,
- * so the title is known before the dialog mounts and can name it.
- */
+/** Opens at once; the form loads under the slideover's loading state. */
 export function EditProjectEvaluatorSlideover({
-  evaluator,
-  sandboxConfigs,
+  projectEvaluatorId,
+  kind,
+  name,
   ...props
 }: {
-  evaluator: ProjectEvaluatorNode;
-  sandboxConfigs: SandboxConfigOption[];
+  projectEvaluatorId: string;
+  kind: EditableProjectEvaluatorKind;
+  name: string;
 } & Omit<ModalOverlayProps, "children">) {
+  const title = getEditProjectEvaluatorTitle({ kind, name });
   return (
-    <ProjectEvaluatorSlideover
-      {...props}
-      title={getEditProjectEvaluatorTitle(evaluator)}
-    >
-      {(close, registerDirtyCheck) =>
-        evaluator.evaluator.kind === "LLM" ? (
-          <EditLlmProjectEvaluator
-            evaluator={evaluator}
-            onClose={close}
-            registerDirtyCheck={registerDirtyCheck}
-          />
-        ) : evaluator.evaluator.kind === "DECISION" ? (
-          <EditDecisionProjectEvaluator
-            evaluator={evaluator}
-            onClose={close}
-            registerDirtyCheck={registerDirtyCheck}
-          />
-        ) : (
-          <EditCodeProjectEvaluator
-            evaluator={evaluator}
-            sandboxConfigs={sandboxConfigs}
-            onClose={close}
-            registerDirtyCheck={registerDirtyCheck}
-          />
-        )
-      }
+    <ProjectEvaluatorSlideover {...props} title={title}>
+      {(close, registerDirtyCheck) => (
+        <EditProjectEvaluatorForm
+          projectEvaluatorId={projectEvaluatorId}
+          kind={kind}
+          title={title}
+          onClose={close}
+          registerDirtyCheck={registerDirtyCheck}
+        />
+      )}
     </ProjectEvaluatorSlideover>
   );
 }
 
-/** Loaded by the edit route, above the slideover. */
-export function useProjectEvaluator(projectEvaluatorId: string) {
+function EditProjectEvaluatorForm({
+  projectEvaluatorId,
+  kind,
+  title,
+  onClose,
+  registerDirtyCheck,
+}: {
+  projectEvaluatorId: string;
+  kind: EditableProjectEvaluatorKind;
+  title: string;
+  onClose: () => void;
+  registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
+}) {
   const data = useLazyLoadQuery<EditProjectEvaluatorSlideoverQuery>(
     graphql`
-      query EditProjectEvaluatorSlideoverQuery($projectEvaluatorId: ID!) {
+      query EditProjectEvaluatorSlideoverQuery(
+        $projectEvaluatorId: ID!
+        $includeSandboxes: Boolean!
+      ) {
         projectEvaluator: node(id: $projectEvaluatorId) {
           __typename
           ... on ProjectEvaluator {
@@ -248,7 +250,7 @@ export function useProjectEvaluator(projectEvaluatorId: string) {
             }
           }
         }
-        sandboxProviders {
+        sandboxProviders @include(if: $includeSandboxes) {
           backendType
           supportedLanguages
           enabled
@@ -272,7 +274,7 @@ export function useProjectEvaluator(projectEvaluatorId: string) {
             }
           }
         }
-        sandboxBackends {
+        sandboxBackends @include(if: $includeSandboxes) {
           backendType
           status
           supportsEnvVars
@@ -281,21 +283,46 @@ export function useProjectEvaluator(projectEvaluatorId: string) {
         }
       }
     `,
-    { projectEvaluatorId },
+    { projectEvaluatorId, includeSandboxes: kind === "CODE" },
     { fetchPolicy: "network-only" }
   );
-  const projectEvaluator = data.projectEvaluator;
+  const evaluator = data.projectEvaluator;
   invariant(
-    projectEvaluator?.__typename === "ProjectEvaluator",
+    evaluator?.__typename === "ProjectEvaluator",
     "project evaluator is required"
   );
-  return {
-    evaluator: projectEvaluator,
-    sandboxConfigs: mapSandboxConfigOptions(
-      data.sandboxProviders,
-      data.sandboxBackends
-    ),
-  };
+  if (kind === "LLM") {
+    return (
+      <EditLlmProjectEvaluator
+        evaluator={evaluator}
+        title={title}
+        onClose={onClose}
+        registerDirtyCheck={registerDirtyCheck}
+      />
+    );
+  }
+  if (kind === "DECISION") {
+    return (
+      <EditDecisionProjectEvaluator
+        evaluator={evaluator}
+        title={title}
+        onClose={onClose}
+        registerDirtyCheck={registerDirtyCheck}
+      />
+    );
+  }
+  return (
+    <EditCodeProjectEvaluator
+      evaluator={evaluator}
+      title={title}
+      sandboxConfigs={mapSandboxConfigOptions(
+        data.sandboxProviders ?? [],
+        data.sandboxBackends ?? []
+      )}
+      onClose={onClose}
+      registerDirtyCheck={registerDirtyCheck}
+    />
+  );
 }
 
 function getScope(evaluator: ProjectEvaluatorNode): ProjectEvaluatorScope {
@@ -310,10 +337,12 @@ function getScope(evaluator: ProjectEvaluatorNode): ProjectEvaluatorScope {
 
 function EditDecisionProjectEvaluator({
   evaluator,
+  title,
   onClose,
   registerDirtyCheck,
 }: {
   evaluator: ProjectEvaluatorNode;
+  title: string;
   onClose: () => void;
   registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
 }) {
@@ -339,7 +368,7 @@ function EditDecisionProjectEvaluator({
   return (
     <EvaluatorStoreProvider initialState={initialState}>
       <EditProjectDecisionEvaluatorDialogContent
-        title={getEditProjectEvaluatorTitle(evaluator)}
+        title={title}
         projectId={evaluator.project.id}
         projectEvaluatorId={evaluator.id}
         evaluator={decisionEvaluator}
@@ -355,10 +384,12 @@ function EditDecisionProjectEvaluator({
 
 function EditLlmProjectEvaluator({
   evaluator,
+  title,
   onClose,
   registerDirtyCheck,
 }: {
   evaluator: ProjectEvaluatorNode;
+  title: string;
   onClose: () => void;
   registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
 }) {
@@ -372,6 +403,7 @@ function EditLlmProjectEvaluator({
     >
       <EditLlmProjectEvaluatorContent
         evaluator={evaluator}
+        title={title}
         onClose={onClose}
         registerDirtyCheck={registerDirtyCheck}
       />
@@ -381,10 +413,12 @@ function EditLlmProjectEvaluator({
 
 function EditLlmProjectEvaluatorContent({
   evaluator,
+  title,
   onClose,
   registerDirtyCheck,
 }: {
   evaluator: ProjectEvaluatorNode;
+  title: string;
   onClose: () => void;
   registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
 }) {
@@ -524,7 +558,7 @@ function EditLlmProjectEvaluatorContent({
           <ProjectLlmEvaluatorDialogContent
             targetType={scope.targetType}
             isFilterValid={isFilterValid}
-            title={getEditProjectEvaluatorTitle(evaluator)}
+            title={title}
             onClose={onClose}
             onSubmit={() => submit(store)}
             isSubmitting={isUpdating}
@@ -561,11 +595,13 @@ function EditLlmProjectEvaluatorContent({
 
 function EditCodeProjectEvaluator({
   evaluator,
+  title,
   sandboxConfigs,
   onClose,
   registerDirtyCheck,
 }: {
   evaluator: ProjectEvaluatorNode;
+  title: string;
   sandboxConfigs: SandboxConfigOption[];
   onClose: () => void;
   registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
@@ -647,7 +683,7 @@ function EditCodeProjectEvaluator({
         return (
           <ProjectCodeEvaluatorDialogContent
             mode="update"
-            title={getEditProjectEvaluatorTitle(evaluator)}
+            title={title}
             projectId={evaluator.project.id}
             evaluatorId={evaluator.evaluator.id}
             evaluatorName={evaluator.name}
