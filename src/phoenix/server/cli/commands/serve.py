@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import atexit
 import logging
 import os
@@ -15,6 +16,8 @@ from urllib.parse import urljoin
 
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
+
+    from opentelemetry.trace import TracerProvider
 
 from uvicorn import Config, Server
 from uvicorn.config import LOGGING_CONFIG
@@ -51,6 +54,7 @@ from phoenix.config import (
     get_pids_path,
     is_unspecified_host,
     local_url_host,
+    server_instrumentation_is_enabled,
     server_log_export_is_enabled,
     url_host,
 )
@@ -67,6 +71,10 @@ from phoenix.server.app import (
 from phoenix.server.cli.boot_message import AssistantConfig, BootMessage
 from phoenix.server.daemons.system_settings import SystemSettings
 from phoenix.server.email.sender import email_sender_from_env
+from phoenix.server.telemetry import (
+    initialize_opentelemetry_tracer_provider,
+    instrument_sqlalchemy_engine,
+)
 from phoenix.server.types import DbSessionFactory
 from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
@@ -262,13 +270,20 @@ def run(args: Namespace) -> None:
         start_prometheus(host)
 
     read_replica_connection_str = get_env_read_replica_url()
+    tracer_provider = (
+        initialize_opentelemetry_tracer_provider() if server_instrumentation_is_enabled() else None
+    )
     factory, shutdown_callbacks = _create_db_session_factory(
         db_connection_str=db_connection_str,
+        tracer_provider=tracer_provider,
         read_replica_connection_str=read_replica_connection_str,
         migrate=not Settings.disable_migrations,
         log_to_stdout=get_env_log_sql(),
         log_migrations=Settings.log_migrations,
     )
+
+    if tracer_provider is not None:
+        shutdown_callbacks.append(partial(asyncio.to_thread, tracer_provider.shutdown))
 
     allowed_origins = get_env_allowed_origins()
     management_url = get_env_management_url()
@@ -360,6 +375,7 @@ def run(args: Namespace) -> None:
         phoenix_logger.addHandler(handler)
 
     app = create_app(
+        tracer_provider=tracer_provider,
         db=factory,
         authentication_enabled=auth_settings.enable_auth,
         debug=args.debug,
@@ -421,6 +437,7 @@ def _create_db_session_factory(
     migrate: bool,
     log_to_stdout: bool,
     log_migrations: bool,
+    tracer_provider: Optional["TracerProvider"] = None,
 ) -> tuple[DbSessionFactory, list[Callable[[], None | Awaitable[None]]]]:
     primary_engine = create_engine(
         connection_str=db_connection_str,
@@ -428,8 +445,12 @@ def _create_db_session_factory(
         log_to_stdout=log_to_stdout,
         log_migrations=log_migrations,
     )
-    engines = [primary_engine]
-    shutdown_callbacks: list[Callable[[], None | Awaitable[None]]] = [primary_engine.dispose]
+    shutdown_callbacks: list[Callable[[], None | Awaitable[None]]] = []
+    if tracer_provider is not None:
+        shutdown_callbacks.append(
+            instrument_sqlalchemy_engine(primary_engine, tracer_provider=tracer_provider)
+        )
+    shutdown_callbacks.append(primary_engine.dispose)
 
     read_db = None
     if primary_engine.dialect.name == "sqlite":
@@ -439,7 +460,12 @@ def _create_db_session_factory(
             get_async_db_url(db_connection_str), log_to_stdout=log_to_stdout
         )
         if sqlite_read_engine is not None:
-            engines.append(sqlite_read_engine)
+            if tracer_provider is not None:
+                shutdown_callbacks.append(
+                    instrument_sqlalchemy_engine(
+                        sqlite_read_engine, tracer_provider=tracer_provider
+                    )
+                )
             shutdown_callbacks.append(sqlite_read_engine.dispose)
             read_db = _db(sqlite_read_engine)
             logger.info("Read-only SQLite engine created")
@@ -449,7 +475,10 @@ def _create_db_session_factory(
             migrate=False,
             log_to_stdout=log_to_stdout,
         )
-        engines.append(replica_engine)
+        if tracer_provider is not None:
+            shutdown_callbacks.append(
+                instrument_sqlalchemy_engine(replica_engine, tracer_provider=tracer_provider)
+            )
         shutdown_callbacks.append(replica_engine.dispose)
         read_db = _db(replica_engine)
         logger.info(
@@ -467,7 +496,6 @@ def _create_db_session_factory(
             db=_db(primary_engine),
             read_db=read_db,
             dialect=primary_engine.dialect.name,
-            engines=engines,
         ),
         shutdown_callbacks,
     )

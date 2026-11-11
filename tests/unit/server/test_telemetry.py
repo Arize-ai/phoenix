@@ -29,9 +29,7 @@ from sqlalchemy import make_url, text
 from sqlalchemy.ext.asyncio import AsyncEngine
 from typing_extensions import override
 
-from phoenix.config import ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT
 from phoenix.db.engines import aio_sqlite_engine, aio_sqlite_read_engine
-from phoenix.server import app as app_module
 from phoenix.server.api.redaction import Redacted, RedactingOpenTelemetryExtension
 from phoenix.server.app import CapacityInterceptor, create_app
 from phoenix.server.cli.commands.serve import _create_db_session_factory
@@ -617,47 +615,32 @@ class TestGrpcServerTracing:
 
 @pytest.mark.real_graphql_schema_build
 async def test_create_app_shares_single_tracer_provider_across_http_graphql_and_db_engines(
-    monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    monkeypatch.setenv(
-        ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT,
-        "http://127.0.0.1:4318",
-    )
     provider, exporter = _new_tracer_provider()
     shutdown_spy = MagicMock(wraps=provider.shutdown)
-    monkeypatch.setattr(provider, "shutdown", shutdown_spy)
-    provider_creations = 0
-
-    def _build_provider() -> TracerProvider:
-        nonlocal provider_creations
-        provider_creations += 1
-        return provider
-
-    monkeypatch.setattr(app_module, "initialize_opentelemetry_tracer_provider", _build_provider)
 
     factory, shutdown_callbacks = _create_db_session_factory(
         db_connection_str=f"sqlite:///{tmp_path / 'phoenix.db'}",
         read_replica_connection_str=None,
+        tracer_provider=provider,
         migrate=True,
         log_to_stdout=False,
         log_migrations=False,
     )
-    assert len(factory.engines) == 2
+    shutdown_callbacks.append(partial(asyncio.to_thread, shutdown_spy))
 
     async with contextlib.AsyncExitStack() as stack:
         await stack.enter_async_context(patch_dml_event_handler())
         await stack.enter_async_context(patch_grpc_server())
         app = create_app(
             db=factory,
+            tracer_provider=provider,
             authentication_enabled=False,
             serve_ui=False,
             bulk_inserter_factory=TestBulkInserter,
             shutdown_callbacks=shutdown_callbacks,
         )
-        assert provider_creations == 1
-        for engine in factory.engines:
-            assert len(engine.sync_engine.dispatch.before_cursor_execute) == 1
 
         async with LifespanManager(app) as manager:
             assert [
@@ -701,5 +684,3 @@ async def test_create_app_shares_single_tracer_provider_across_http_graphql_and_
             assert any(span.context.trace_id == trace_id for span in server_spans)
 
     assert shutdown_spy.call_count == 1
-    for engine in factory.engines:
-        assert len(engine.sync_engine.dispatch.before_cursor_execute) == 0

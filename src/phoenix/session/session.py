@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import os
@@ -6,6 +7,7 @@ import warnings
 from abc import ABC, abstractmethod
 from collections import UserList
 from enum import Enum
+from functools import partial
 from importlib.util import find_spec
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -31,6 +33,7 @@ from phoenix.config import (
     get_env_port,
     get_working_dir,
     is_unspecified_host,
+    server_instrumentation_is_enabled,
     url_host,
 )
 from phoenix.db import get_printable_db_url
@@ -40,6 +43,10 @@ from phoenix.server.app import (
     create_app,
 )
 from phoenix.server.email.sender import email_sender_from_env
+from phoenix.server.telemetry import (
+    initialize_opentelemetry_tracer_provider,
+    instrument_sqlalchemy_engine,
+)
 from phoenix.server.thread_server import ThreadServer
 from phoenix.server.types import DbSessionFactory
 from phoenix.services import AppService
@@ -207,21 +214,31 @@ class ThreadSession(Session):
             notebook_env=notebook_env,
         )
         auth_settings = get_env_auth_settings(self.host)
-        # Initialize an app service that keeps the server running
+        tracer_provider = (
+            initialize_opentelemetry_tracer_provider()
+            if server_instrumentation_is_enabled()
+            else None
+        )
         engine = create_engine(
             connection_str=database_url,
             migrate=not Settings.disable_migrations,
             log_to_stdout=get_env_log_sql(),
             log_migrations=self.notebook_env is None,
         )
-        # Ensure engine is disposed on shutdown to properly close database connections
-        shutdown_callbacks: list[Callable[[], None | Awaitable[None]]] = [engine.dispose]
+        shutdown_callbacks: list[Callable[[], None | Awaitable[None]]] = []
+        if tracer_provider is not None:
+            shutdown_callbacks.append(
+                instrument_sqlalchemy_engine(engine, tracer_provider=tracer_provider)
+            )
+        shutdown_callbacks.append(engine.dispose)
+        if tracer_provider is not None:
+            shutdown_callbacks.append(partial(asyncio.to_thread, tracer_provider.shutdown))
         factory = DbSessionFactory(
             db=_db(engine),
             dialect=engine.dialect.name,
-            engines=(engine,),
         )
         self.app = create_app(
+            tracer_provider=tracer_provider,
             db=factory,
             authentication_enabled=auth_settings.enable_auth,
             grpc_host=self.host,

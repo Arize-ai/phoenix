@@ -33,7 +33,6 @@ from phoenix.server.settings.registry import (
     AgentGitHubSetting,
     AgentTraceRecordingSetting,
 )
-from phoenix.server.telemetry import instrument_sqlalchemy_engine
 from phoenix.trace.schemas import Span, SpanContext, SpanKind, SpanStatusCode
 from phoenix.trace.trace_dataset import TraceDataset
 
@@ -298,7 +297,6 @@ async def test_create_db_session_factory_routes_reads_to_replica_for_postgres(
         log_migrations=False,
     )
     try:
-        assert len(factory.engines) == 2
         async with factory() as session:
             assert (
                 str(await session.scalar(text("SELECT current_database()")))
@@ -317,19 +315,17 @@ async def test_create_db_session_factory_routes_reads_to_replica_for_postgres(
 async def test_create_db_session_factory_engines_emit_primary_and_replica_spans(
     postgresql_primary_and_replica_urls: PostgresPrimaryAndReplicaUrls,
 ) -> None:
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
     factory, shutdown_callbacks = _create_db_session_factory(
         db_connection_str=postgresql_primary_and_replica_urls.primary_url,
         read_replica_connection_str=postgresql_primary_and_replica_urls.replica_url,
+        tracer_provider=provider,
         migrate=False,
         log_to_stdout=False,
         log_migrations=False,
     )
-    exporter = InMemorySpanExporter()
-    provider = TracerProvider()
-    provider.add_span_processor(SimpleSpanProcessor(exporter))
-    cleanups = [
-        instrument_sqlalchemy_engine(engine, tracer_provider=provider) for engine in factory.engines
-    ]
     try:
         with provider.get_tracer("test").start_as_current_span("request", kind=OtelSpanKind.SERVER):
             async with factory() as session:
@@ -351,10 +347,8 @@ async def test_create_db_session_factory_engines_emit_primary_and_replica_spans(
             postgresql_primary_and_replica_urls.replica_db_name
         )
     finally:
-        for cleanup in cleanups:
-            cleanup()
-        provider.shutdown()
         await _run_shutdown_callbacks(shutdown_callbacks)
+        provider.shutdown()
 
 
 @pytest.mark.postgres_only
@@ -369,7 +363,6 @@ async def test_create_db_session_factory_uses_primary_when_replica_not_configure
         log_migrations=False,
     )
     try:
-        assert len(factory.engines) == 1
         async with factory() as session:
             assert (
                 str(await session.scalar(text("SELECT current_database()")))

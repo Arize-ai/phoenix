@@ -84,7 +84,6 @@ from phoenix.config import (
     get_env_phoenix_agents_disable_bash,
     get_env_port,
     get_env_support_email,
-    server_instrumentation_is_enabled,
     server_log_export_is_enabled,
     verify_server_environment_variables,
 )
@@ -174,11 +173,7 @@ from phoenix.server.sandbox._download import prefetch_wasm_binary_if_needed
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.settings.registry import SETTINGS_REGISTRY
-from phoenix.server.telemetry import (
-    initialize_opentelemetry_logger_provider,
-    initialize_opentelemetry_tracer_provider,
-    instrument_sqlalchemy_engine,
-)
+from phoenix.server.telemetry import initialize_opentelemetry_logger_provider
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
     CanPutItem,
@@ -1002,7 +997,10 @@ def create_app(
     allowed_origins: Optional[list[str]] = None,
     management_url: Optional[str] = None,
     welcome_message: Optional[_WelcomeMessage] = None,
+    *,
+    tracer_provider: Optional["TracerProvider"] = None,
 ) -> FastAPI:
+    """Create an app using a tracer provider whose lifecycle is managed by the caller."""
     if grpc_host is None:
         grpc_host = get_env_host()
     verify_server_environment_variables()
@@ -1092,31 +1090,21 @@ def create_app(
         initial_batch_of_spans=initial_batch_of_spans,
         max_spans_queue_size=get_env_max_spans_queue_size(),
     )
-    tracer_provider = None
     graphql_schema_extensions: list[Union[type[SchemaExtension], Callable[[], SchemaExtension]]] = [
         lambda: QueryDepthLimiter(max_depth=20),
         lambda: MaxAliasesLimiter(max_alias_count=50),
     ]
     graphql_schema_extensions.extend(user_gql_extensions())
 
-    engine_uninstrument_callbacks: list[_Callback] = []
     logger_provider = None
     if server_log_export_is_enabled():
         logger_provider = initialize_opentelemetry_logger_provider()
-    if server_instrumentation_is_enabled():
-        tracer_provider = initialize_opentelemetry_tracer_provider()
-        for engine in db.engines:
-            engine_uninstrument_callbacks.append(
-                instrument_sqlalchemy_engine(engine, tracer_provider=tracer_provider)
-            )
+    if tracer_provider is not None:
         graphql_schema_extensions.append(
             partial(RedactingOpenTelemetryExtension, tracer_provider=tracer_provider)
         )
-        shutdown_callbacks_list.append(partial(asyncio.to_thread, tracer_provider.shutdown))
     if logger_provider is not None:
         shutdown_callbacks_list.append(partial(asyncio.to_thread, logger_provider.shutdown))
-    if engine_uninstrument_callbacks:
-        shutdown_callbacks_list = [*engine_uninstrument_callbacks, *shutdown_callbacks_list]
     encryption_service = EncryptionService(secret=secret)
     sandbox_runtime = SandboxRuntimeContext(monty=MontyRuntime())
     sandbox_session_manager = SandboxSessionManager()
