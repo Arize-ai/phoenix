@@ -18,8 +18,10 @@ class ToolInvocationEvaluator(ClassificationEvaluator):
 
     Args:
         llm (Union[LLM, DecisionModel]): The LLM or decision model to use for the evaluation.
-        **kwargs: Additional invocation parameters forwarded to the LLM client
-            (e.g., ``temperature=0.0``, ``max_tokens=256``).
+        **kwargs: Additional invocation parameters forwarded to the judge. What is accepted
+            depends on the judge: an ``LLM`` accepts generation parameters (e.g.
+            ``temperature``, ``max_tokens``); a decision model accepts request options (e.g.
+            ``timeout``).
 
     Notes:
         - Evaluates whether an AI agent's tool invocation was correct or incorrect based on
@@ -57,7 +59,7 @@ class ToolInvocationEvaluator(ClassificationEvaluator):
         tool_invocation_eval = ToolInvocationEvaluator(llm=llm)
 
         # With custom invocation parameters
-        tool_invocation_eval = ToolInvocationEvaluator(llm=llm, temperature=0.0)
+        tool_invocation_eval = ToolInvocationEvaluator(llm=llm, timeout=30)
 
         # Example with JSON schema format for available tools
         eval_input = {

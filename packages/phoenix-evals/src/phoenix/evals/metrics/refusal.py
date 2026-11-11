@@ -17,8 +17,10 @@ class RefusalEvaluator(ClassificationEvaluator):
 
     Args:
         llm (Union[LLM, DecisionModel]): The LLM or decision model to use for the evaluation.
-        **kwargs: Additional invocation parameters forwarded to the LLM client
-            (e.g., ``temperature=0.0``, ``max_tokens=256``).
+        **kwargs: Additional invocation parameters forwarded to the judge. What is accepted
+            depends on the judge: an ``LLM`` accepts generation parameters (e.g.
+            ``temperature``, ``max_tokens``); a decision model accepts request options (e.g.
+            ``timeout``).
 
     Notes:
         - Detects refusals, deflections, scope disclaimers, and non-answers.
@@ -40,7 +42,7 @@ class RefusalEvaluator(ClassificationEvaluator):
         refusal_eval = RefusalEvaluator(llm=llm)
 
         # With custom invocation parameters
-        refusal_eval = RefusalEvaluator(llm=llm, temperature=0.0)
+        refusal_eval = RefusalEvaluator(llm=llm, timeout=30)
 
         eval_input = {
             "input": "What is the capital of France?",

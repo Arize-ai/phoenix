@@ -42,7 +42,7 @@ The library provides a `createClassifier` function that allows you to create cus
 A classifier can be backed by either a **language model** or a **decision model**. A language model returns a label with a written explanation, while a decision model answers through a typed choices API, returning a label with per-label probabilities (and a confidence when the provider reports one) but no explanation.
 
 ```typescript
-import { createClassifier } from "@arizeai/phoenix-evals/llm";
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals/llm";
 import { openai } from "@ai-sdk/openai";
 
 const languageModel = openai("gpt-6-luna");
@@ -71,14 +71,15 @@ Is the answer above factual or hallucinated based on the query and reference tex
 `;
 
 // Create the classifier
-const evaluator = await createClassifier({
-  languageModel,
+const evaluator = await createClassificationEvaluator({
+  name: "hallucination",
+  model: languageModel,
   choices: { factual: 1, hallucinated: 0 },
   promptTemplate: promptTemplate,
 });
 
 // Use the classifier
-const result = await evaluator({
+const result = await evaluator.evaluate({
   output: "Arize is not open source.",
   input: "Is Arize Phoenix Open Source?",
   reference:
@@ -91,13 +92,14 @@ console.log(result);
 // The same classifier can be backed by a decision model instead
 const decisionModel = openai.decisionModel("gpt-6-luna");
 
-const decisionEvaluator = await createClassifier({
+const decisionEvaluator = await createClassificationEvaluator({
+  name: "hallucination",
   model: decisionModel,
   choices: { factual: 1, hallucinated: 0 },
   promptTemplate: promptTemplate,
 });
 
-const decisionResult = await decisionEvaluator({
+const decisionResult = await decisionEvaluator.evaluate({
   output: "Arize is not open source.",
   input: "Is Arize Phoenix Open Source?",
   reference:

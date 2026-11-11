@@ -142,8 +142,13 @@ The same evaluator can be backed by a **decision model** instead of a language m
     # Back the evaluator with a decision model instead of an LLM
     evaluator = PiiDetectionEvaluator(llm=DecisionModel(provider="openai", model="gpt-6-luna"))
 
-    # Evaluate the same input shown above
-    scores = evaluator.evaluate(eval_input)
+    scores = evaluator.evaluate({
+        "conversation": (
+            "User: Reset my account.\n"
+            "Assistant: What email is on the account?\n"
+            "User: jane.doe@acme.com"
+        ),
+    })
     print(scores[0])
     ```
   </Tab>

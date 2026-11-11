@@ -25,7 +25,7 @@ When creating a `DecisionModel`, specify:
 To see the currently supported decision providers and their availability, use the `show_decision_provider_availability` function:
 
 ```python
-from phoenix.evals import show_decision_provider_availability
+from phoenix.evals.decision import show_decision_provider_availability
 
 show_decision_provider_availability()
 ```
@@ -37,14 +37,14 @@ The output shows which providers are available based on installed dependencies:
 ------------------------------------------------
 Provider | Status      | Client   | Dependencies
 ------------------------------------------------
-openai   | ✓ Available | openai   | openai>=3.26.0
+openai   | ✓ Available | openai   | openai
 typesafe | ✓ Available | typesafe | typesafe-sdk
 ```
 
-The `status` column reads "Available" if the required dependencies are installed in the active Python environment.
+Each row's `status` reads "Available" only if that provider's dependency is installed in the active Python environment (for example, `typesafe` requires `typesafe-sdk`). The minimum `openai` version for the Decisions API is enforced when the client is created, not reflected in this table — see the OpenAI Decision Adapter below.
 
 <Note>
-Decision models answer through a typed choices API, so language-model generation parameters such as `temperature`, `max_tokens`, or `top_p` do not apply. Any `**kwargs` you pass when evaluating are forwarded to the decision SDK call (e.g., `timeout`, `extra_headers`).
+Decision models answer through a typed choices API, so language-model generation parameters such as `temperature`, `max_tokens`, or `top_p` do not apply. Any `**kwargs` you pass to the evaluator constructor are forwarded to the decision SDK call (e.g., `timeout`, `extra_headers`).
 </Note>
 
 ### OpenAI Decision Adapter
@@ -145,7 +145,7 @@ const evaluator = createClassificationEvaluator({
   name: "factual_check",
   model: openai.decisionModel("gpt-6-luna"),
   choices: { factual: 1, hallucinated: 0 },
-  promptTemplate: "Your evaluation prompt here: {input}",
+  promptTemplate: "Your evaluation prompt here: {{input}}",
 });
 ```
 

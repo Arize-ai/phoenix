@@ -17,8 +17,10 @@ class CorrectnessEvaluator(ClassificationEvaluator):
 
     Args:
         llm (Union[LLM, DecisionModel]): The LLM or decision model to use for the evaluation.
-        **kwargs: Additional invocation parameters forwarded to the LLM client
-            (e.g., ``temperature=0.0``, ``max_tokens=256``).
+        **kwargs: Additional invocation parameters forwarded to the judge. What is accepted
+            depends on the judge: an ``LLM`` accepts generation parameters (e.g.
+            ``temperature``, ``max_tokens``); a decision model accepts request options (e.g.
+            ``timeout``).
 
     Notes:
         - Evaluates whether the output to an input is correct or incorrect.
@@ -38,7 +40,7 @@ class CorrectnessEvaluator(ClassificationEvaluator):
         correctness_eval = CorrectnessEvaluator(llm=llm)
 
         # With custom invocation parameters
-        correctness_eval = CorrectnessEvaluator(llm=llm, temperature=0.0)
+        correctness_eval = CorrectnessEvaluator(llm=llm, timeout=30)
 
         eval_input = {
             "input": "What is the capital of France?",

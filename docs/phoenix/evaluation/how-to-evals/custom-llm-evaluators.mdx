@@ -15,6 +15,9 @@ The `ClassificationEvaluator` is a model-backed evaluator designed for classific
 
 A classification prompt template looks like the following with instructions for the evaluation as well as placeholders for the evaluation input data:
 
+<Tabs>
+  <Tab title="Python" icon="python">
+
 ```python
 CATEGORICAL_TEMPLATE = '''You are comparing a reference text to a question and trying to determine if the reference text
 contains information relevant to answering the question. Here is the data:
@@ -31,6 +34,31 @@ question can be answered by the information in the Reference text.
 "irrelevant" means that the reference text does not contain an answer to the Question.
 "relevant" means the reference text contains an answer to the Question. '''
 ```
+
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+
+```typescript
+// TypeScript prompt templates use Mustache, so placeholders are double-braced.
+const CATEGORICAL_TEMPLATE = `You are comparing a reference text to a question and trying to determine if the reference text
+contains information relevant to answering the question. Here is the data:
+    [BEGIN DATA]
+    ************
+    [Question]: {{query}}
+    ************
+    [Reference text]: {{reference}}
+    [END DATA]
+
+Compare the Question above to the Reference text. You must determine whether the Reference text
+contains information that can answer the Question. Please focus on whether the very specific
+question can be answered by the information in the Reference text.
+"irrelevant" means that the reference text does not contain an answer to the Question.
+"relevant" means the reference text contains an answer to the Question.`;
+```
+
+  </Tab>
+</Tabs>
 
 For more information about prompt templates, [Eval Prompt Templates](/docs/phoenix/evaluation/how-to-evals/prompt-formats). For more information about how to configure the LLM judge, see [Configuring the LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm).
 #### Label Choices
@@ -81,20 +109,7 @@ import { openai } from "@ai-sdk/openai";
 const relevanceClassifier = createClassificationEvaluator({
   name: "relevance",
   model: openai("gpt-4o"),
-  promptTemplate: `You are comparing a reference text to a question and trying to determine if the reference text
-contains information relevant to answering the question. Here is the data:
-    [BEGIN DATA]
-    ************
-    [Question]: {{query}}
-    ************
-    [Reference text]: {{reference}}
-    [END DATA]
-
-Compare the Question above to the Reference text. You must determine whether the Reference text
-contains information that can answer the Question. Please focus on whether the very specific
-question can be answered by the information in the Reference text.
-"irrelevant" means that the reference text does not contain an answer to the Question.
-"relevant" means the reference text contains an answer to the Question.`,
+  promptTemplate: CATEGORICAL_TEMPLATE,
   choices: { irrelevant: 0, relevant: 1 },
 });
 

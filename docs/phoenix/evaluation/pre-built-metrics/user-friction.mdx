@@ -109,8 +109,13 @@ The same evaluator can be backed by a **decision model** instead of a language m
     # Back the evaluator with a decision model instead of an LLM
     evaluator = UserFrictionEvaluator(llm=DecisionModel(provider="openai", model="gpt-6-luna"))
 
-    # Evaluate the same input shown above
-    scores = evaluator.evaluate(eval_input)
+    scores = evaluator.evaluate({
+        "conversation": (
+            "User: Show orders from this week.\n"
+            "Assistant: Here are last month's orders."
+        ),
+        "user_message": "No, I asked for this week.",
+    })
     print(scores[0])
     ```
   </Tab>

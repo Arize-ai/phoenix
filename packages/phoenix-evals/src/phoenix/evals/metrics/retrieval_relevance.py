@@ -24,8 +24,10 @@ class RetrievalRelevanceEvaluator(ClassificationEvaluator):
 
     Args:
         llm (Union[LLM, DecisionModel]): The LLM or decision model to use for the evaluation.
-        **kwargs: Additional invocation parameters forwarded to the LLM client
-            (e.g., ``temperature=0.0``, ``max_tokens=256``).
+        **kwargs: Additional invocation parameters forwarded to the judge. What is accepted
+            depends on the judge: an ``LLM`` accepts generation parameters (e.g.
+            ``temperature``, ``max_tokens``); a decision model accepts request options (e.g.
+            ``timeout``).
 
     Notes:
         - Evaluates whether the retrieved information contains content that
@@ -55,7 +57,7 @@ class RetrievalRelevanceEvaluator(ClassificationEvaluator):
         relevance_eval = RetrievalRelevanceEvaluator(llm=llm)
 
         # With custom invocation parameters
-        relevance_eval = RetrievalRelevanceEvaluator(llm=llm, temperature=0.0)
+        relevance_eval = RetrievalRelevanceEvaluator(llm=llm, timeout=30)
 
         eval_input = {
             "input": "What is the capital of France?",
