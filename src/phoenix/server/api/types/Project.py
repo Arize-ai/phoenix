@@ -2,7 +2,7 @@ import ast
 import json
 import logging
 import operator
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from datetime import datetime, timezone
 from difflib import get_close_matches
 from typing import TYPE_CHECKING, Annotated, Any, Optional, cast
@@ -13,8 +13,10 @@ from openinference.semconv.trace import SpanAttributes
 from pandas import DataFrame
 from sqlalchemy import (
     ColumnElement,
+    Row,
     Select,
     and_,
+    asc,
     case,
     desc,
     distinct,
@@ -22,6 +24,7 @@ from sqlalchemy import (
     nulls_last,
     or_,
     select,
+    true,
 )
 from sqlalchemy import cast as sqlalchemy_cast
 from sqlalchemy.dialects import postgresql, sqlite
@@ -130,6 +133,7 @@ from phoenix.server.session_filters import (
 )
 from phoenix.server.trace_filters import (
     TraceFilterConditionError,
+    apply_trace_filter_to_page,
     compile_trace_filter,
     get_filtered_trace_rowids_subquery,
     trace_filter_errors,
@@ -340,6 +344,85 @@ def _trace_annotation_names_stmt(project_rowid: int) -> Select[*tuple[Any, ...]]
         .join(models.Trace)
         .where(models.Trace.project_rowid == project_rowid)
     )
+
+
+def _spans_by_trace_start_time(
+    where_span_matches: Callable[[Select[*tuple[Any, ...]]], Select[*tuple[Any, ...]]],
+    trace_bounds: Sequence[ColumnElement[bool]],
+    *,
+    descending: bool,
+    limit: int,
+    after: Optional[Row[datetime, int, datetime, int]],
+    lateral: bool,
+) -> Select[*tuple[Any, ...]]:
+    """A page of span ids and start times ordered by trace start time and then span start
+    time, so that it reads traces off ix_traces_project_rowid_start_time and stops when the
+    page is full. `after` is the trace start time, trace id, span start time and span id of
+    the last row of the previous page."""
+    direction = desc if descending else asc
+    span_rowid: Any = models.Span.id
+    span_start_time: Any = models.Span.start_time
+    spans = select(span_rowid, span_start_time)
+    if lateral:
+        spans = spans.where(models.Span.trace_rowid == models.Trace.id)
+    else:
+        spans = spans.select_from(models.Trace).join(models.Span)
+    spans = where_span_matches(spans)
+    traces = list(trace_bounds)
+    if after:
+        trace_start_time, trace_rowid, after_start_time, after_rowid = after
+        traces.append(
+            (operator.le if descending else operator.ge)(
+                tuple_(models.Trace.start_time, models.Trace.id),
+                (trace_start_time, trace_rowid),
+            )
+        )
+        spans = spans.where(
+            or_(
+                models.Trace.id != trace_rowid,
+                (operator.lt if descending else operator.gt)(
+                    tuple_(span_start_time, span_rowid),
+                    (after_start_time, after_rowid),
+                ),
+            )
+        )
+    if lateral:
+        page = (
+            spans.order_by(direction(span_start_time), direction(span_rowid))
+            .limit(limit)
+            .correlate(models.Trace)
+            .lateral()
+        )
+        span_rowid, span_start_time = page.c.id, page.c.start_time
+        spans = select(span_rowid, span_start_time).select_from(models.Trace).join(page, true())
+    return (
+        spans.where(*traces)
+        .order_by(
+            direction(models.Trace.start_time),
+            direction(models.Trace.id),
+            direction(span_start_time),
+            direction(span_rowid),
+        )
+        .limit(limit)
+    )
+
+
+async def _position_by_trace_start_time(
+    session: AsyncSession,
+    span_rowid: int,
+) -> Optional[Row[datetime, int, datetime, int]]:
+    return (
+        await session.execute(
+            select(
+                models.Trace.start_time,
+                models.Trace.id,
+                models.Span.start_time,
+                models.Span.id,
+            )
+            .join_from(models.Span, models.Trace)
+            .where(models.Span.id == span_rowid)
+        )
+    ).first()
 
 
 async def _newest_spans(
@@ -809,78 +892,118 @@ class Project(Node):
         evaluator_scope = (
             _project_evaluator_span_scope(project_evaluator_id) if project_evaluator_id else None
         )
-        stmt: Select[*tuple[Any, ...]] = (
-            select(models.Span.id)
-            .select_from(models.Span)
-            .join(models.Trace)
-            .where(models.Trace.project_rowid == self.id)
+        span_filter = SpanFilter(condition=filter_condition) if filter_condition else None
+        start_time_dir = (
+            sort.dir
+            if sort and sort.col is SpanColumn.startTime and not sort.eval_result_key
+            else None
         )
-        if evaluator_scope is not None:
-            stmt = stmt.where(evaluator_scope)
         span_bounds: list[ColumnElement[bool]] = []
+        trace_bounds: list[ColumnElement[bool]] = [models.Trace.project_rowid == self.id]
         if time_range:
             if time_range.start:
                 span_bounds.append(time_range.start <= models.Span.start_time)
+                trace_bounds.append(time_range.start <= models.Trace.start_time)
             if time_range.end:
                 span_bounds.append(models.Span.start_time < time_range.end)
-        if trace_filter_condition:
-            filtered_trace_rowids = get_filtered_trace_rowids_subquery(
-                trace_filter_condition=trace_filter_condition,
-                project_rowids=[self.id],
-                start_time=time_range.start if time_range else None,
-                end_time=time_range.end if time_range else None,
-                lowering="probe",
-            )
-            stmt = stmt.where(models.Span.trace_rowid.in_(filtered_trace_rowids))
-        if filter_condition:
-            span_filter = SpanFilter(condition=filter_condition)
-            stmt = span_filter(stmt)
-        sort_config: Optional[SpanSortConfig] = None
-        cursor_rowid_column: Any = models.Span.id
-        if sort:
-            sort_config = sort.update_orm_expr(stmt)
-            stmt = sort_config.stmt
-            if sort_config.dir is SortDir.desc:
-                cursor_rowid_column = desc(cursor_rowid_column)
-        if after:
-            cursor = Cursor.from_string(after)
-            if sort_config and cursor.sort_column:
-                sort_column = cursor.sort_column
-                compare = operator.lt if sort_config.dir is SortDir.desc else operator.gt
-                if sort_column.type is CursorSortColumnDataType.NULL:
-                    span_bounds.append(sort_config.orm_expression.is_(None))
-                    span_bounds.append(compare(models.Span.id, cursor.rowid))
-                else:
-                    span_bounds.append(
-                        compare(
-                            tuple_(sort_config.orm_expression, models.Span.id),
-                            (sort_column.value, cursor.rowid),
-                        )
-                    )
-            else:
-                span_bounds.append(models.Span.id > cursor.rowid)
-        stmt = stmt.where(*span_bounds).order_by(cursor_rowid_column)
+                trace_bounds.append(models.Trace.start_time < time_range.end)
+
+        def where_span_matches(stmt: Select[*tuple[Any, ...]]) -> Select[*tuple[Any, ...]]:
+            stmt = stmt.where(*span_bounds)
+            if evaluator_scope is not None:
+                stmt = stmt.where(evaluator_scope)
+            return span_filter(stmt) if span_filter else stmt
+
+        cursor_data_type: Optional[CursorSortColumnDataType] = None
         rows: Sequence[Any]
         async with info.context.db.read() as session:
-            # A trace filter is worked out for the whole time range by every statement it is in.
-            if (
-                sort
-                and sort.col is SpanColumn.startTime
-                and not sort.eval_result_key
-                and sort.dir is SortDir.desc
-                and not trace_filter_condition
-                and info.context.db.dialect is SupportedSQLDialect.POSTGRESQL
-            ):
-                rows = await _newest_spans(session, stmt, span_bounds, first + 1)
+            by_trace = bool(
+                start_time_dir and filter_condition and root_span_scope(filter_condition)
+            )
+            position = None
+            if by_trace and after:
+                position = await _position_by_trace_start_time(
+                    session, Cursor.from_string(after).rowid
+                )
+                by_trace = position is not None
+            if by_trace:
+                stmt = _spans_by_trace_start_time(
+                    where_span_matches,
+                    trace_bounds,
+                    descending=start_time_dir is SortDir.desc,
+                    limit=first + 1,
+                    after=position,
+                    lateral=info.context.db.dialect is SupportedSQLDialect.POSTGRESQL,
+                )
+                if trace_filter_condition:
+                    stmt = apply_trace_filter_to_page(
+                        stmt,
+                        trace_filter_condition,
+                        [self.id],
+                        start_time=time_range.start if time_range else None,
+                        end_time=time_range.end if time_range else None,
+                    )
+                cursor_data_type = SpanColumn.startTime.data_type
+                rows = (await session.execute(stmt)).all()
             else:
-                rows = (await session.execute(stmt.limit(first + 1))).all()
+                stmt = where_span_matches(
+                    select(models.Span.id)
+                    .select_from(models.Span)
+                    .join(models.Trace)
+                    .where(models.Trace.project_rowid == self.id)
+                )
+                if trace_filter_condition:
+                    filtered_trace_rowids = get_filtered_trace_rowids_subquery(
+                        trace_filter_condition=trace_filter_condition,
+                        project_rowids=[self.id],
+                        start_time=time_range.start if time_range else None,
+                        end_time=time_range.end if time_range else None,
+                        lowering="probe",
+                    )
+                    stmt = stmt.where(models.Span.trace_rowid.in_(filtered_trace_rowids))
+                sort_config: Optional[SpanSortConfig] = None
+                cursor_rowid_column: Any = models.Span.id
+                if sort:
+                    sort_config = sort.update_orm_expr(stmt)
+                    stmt = sort_config.stmt
+                    cursor_data_type = sort_config.column_data_type
+                    if sort_config.dir is SortDir.desc:
+                        cursor_rowid_column = desc(cursor_rowid_column)
+                after_cursor: list[ColumnElement[bool]] = []
+                if after:
+                    cursor = Cursor.from_string(after)
+                    if sort_config and cursor.sort_column:
+                        sort_column = cursor.sort_column
+                        compare = operator.lt if sort_config.dir is SortDir.desc else operator.gt
+                        if sort_column.type is CursorSortColumnDataType.NULL:
+                            after_cursor.append(sort_config.orm_expression.is_(None))
+                            after_cursor.append(compare(models.Span.id, cursor.rowid))
+                        else:
+                            after_cursor.append(
+                                compare(
+                                    tuple_(sort_config.orm_expression, models.Span.id),
+                                    (sort_column.value, cursor.rowid),
+                                )
+                            )
+                    else:
+                        after_cursor.append(models.Span.id > cursor.rowid)
+                stmt = stmt.where(*after_cursor).order_by(cursor_rowid_column)
+                # A trace filter is worked out for the whole time range by every statement it is in.
+                if (
+                    start_time_dir is SortDir.desc
+                    and not trace_filter_condition
+                    and info.context.db.dialect is SupportedSQLDialect.POSTGRESQL
+                ):
+                    rows = await _newest_spans(
+                        session, stmt, [*span_bounds, *after_cursor], first + 1
+                    )
+                else:
+                    rows = (await session.execute(stmt.limit(first + 1))).all()
         cursors_and_nodes = []
         for row in rows[:first]:
             cursor = Cursor(rowid=row[0])
-            if sort_config:
-                cursor.sort_column = CursorSortColumn(
-                    type=sort_config.column_data_type, value=row[1]
-                )
+            if cursor_data_type:
+                cursor.sort_column = CursorSortColumn(type=cursor_data_type, value=row[1])
             cursors_and_nodes.append((cursor, Span(id=row[0])))
         return connection_from_cursors_and_nodes(
             cursors_and_nodes,
