@@ -66,7 +66,7 @@ describe("Counter", () => {
 
   it("abbreviates with compact notation", () => {
     render({ count: 1234, notation: "compact" });
-    expect(visibleText()).toBe("1.23k");
+    expect(visibleText()).toBe("1.23K");
     expect(hiddenText()).toBe(" (1,234)");
   });
 

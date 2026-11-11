@@ -1,8 +1,11 @@
 import { css } from "@emotion/react";
-import { format } from "d3-format";
 
 import { VisuallyHidden } from "@phoenix/components/core/content";
 import { useTheme } from "@phoenix/contexts/ThemeContext";
+import {
+  formatIntCompact,
+  formatIntGrouped,
+} from "@phoenix/utils/numberFormatUtils";
 
 import { derivedColorCSS, inheritedStateCSS } from "../styles";
 
@@ -34,14 +37,11 @@ export interface CounterProps {
    */
   variant?: CounterVariant;
   /**
-   * `compact` abbreviates to three significant digits (`12.3k`).
+   * `compact` abbreviates to three significant digits (`12.3K`).
    * @default "standard"
    */
   notation?: CounterNotation;
 }
-
-const compactFormat = format(".3~s");
-const standardFormat = format(",");
 
 const counterCSS = css`
   ${derivedColorCSS};
@@ -81,7 +81,8 @@ function formatCount({
   max?: number;
   notation: CounterNotation;
 }): string {
-  const formatter = notation === "compact" ? compactFormat : standardFormat;
+  const formatter =
+    notation === "compact" ? formatIntCompact : formatIntGrouped;
   if (max !== undefined && count > max) {
     return `${formatter(max)}+`;
   }
@@ -96,7 +97,7 @@ function formatCount({
  * The parent's accessible name picks the count up from its text, so a tab
  * reads as "Traces (12)" without the parent composing a label. The visible
  * number is hidden from assistive technology and replaced by a visually
- * hidden copy that always gives the full count, since `99+` and `12.3k` are
+ * hidden copy that always gives the full count, since `99+` and `12.3K` are
  * abbreviations for the eye. An unknown count adds nothing to the name.
  */
 export function Counter({
@@ -122,7 +123,7 @@ export function Counter({
         {count === null ? "--" : formatCount({ count, max, notation })}
       </span>
       {count === null ? null : (
-        <VisuallyHidden>{` (${standardFormat(count)})`}</VisuallyHidden>
+        <VisuallyHidden>{` (${formatIntGrouped(count)})`}</VisuallyHidden>
       )}
     </>
   );

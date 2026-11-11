@@ -26,7 +26,7 @@ import { Counter } from "@phoenix/components/core/counter";
 
 - `count` — the number, or `null` while it is not known yet, which renders a `--` placeholder
 - `max` — the largest count shown in full; a larger count renders as `max+` (e.g. `99+`)
-- `notation` — `standard` (default, grouped: `1,234`) or `compact` (three significant digits: `1.23k`)
+- `notation` — `standard` (default, grouped: `1,234`) or `compact` (three significant digits: `1.23K`)
 - `showZero` — default `true`; keep it for a set whose emptiness is worth seeing, such as a tab; set `false` for a notification count that should disappear at zero
 
 ## Variants
@@ -37,4 +37,4 @@ import { Counter } from "@phoenix/components/core/counter";
 
 ## Accessible name
 
-The parent's accessible name picks the count up from `Counter`'s text, so a tab reads as "Versions (3)" without composing an `aria-label`. The visible number is hidden from assistive technology and a visually hidden copy always gives the full count, so `99+` and `1.23k` still announce the exact value. A `null` count adds nothing to the name. This only works when the name comes from content: a parent with its own `aria-label` replaces that computed name, so its label must include the count (e.g. `aria-label="Exceptions, 3"`).
+The parent's accessible name picks the count up from `Counter`'s text, so a tab reads as "Versions (3)" without composing an `aria-label`. The visible number is hidden from assistive technology and a visually hidden copy always gives the full count, so `99+` and `1.23K` still announce the exact value. A `null` count adds nothing to the name. This only works when the name comes from content: a parent with its own `aria-label` replaces that computed name, so its label must include the count (e.g. `aria-label="Exceptions, 3"`).

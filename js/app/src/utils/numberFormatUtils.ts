@@ -14,6 +14,7 @@ type MaybeNumberFormatFn = (maybeNumber: MaybeNumber) => string;
 // specifiers are compiled once at module load.
 const commaFormat = format(",");
 const siPrefixFormat = format("0.2s");
+const threeSignificantSIPrefixFormat = format(".3~s");
 const twoDecimalFormat = format("0.2f");
 const exponentFormat = format(".2e");
 const percentDecimalFormat = format(".2f");
@@ -44,6 +45,24 @@ export function formatIntShort(int: number): string {
   // "0.2s" pads small ints with a misleading decimal (3 -> "3.0")
   if (absInt < 1000) return commaFormat(int);
   return siPrefixFormat(int).replace("G", "B").replace("k", "K");
+}
+
+/**
+ * Formats an int in full with thousands separators (1,234,567).
+ */
+export function formatIntGrouped(int: number): string {
+  return commaFormat(int);
+}
+
+/**
+ * Formats an int to at most three significant digits with the app's
+ * K/M/B suffixes (1.23K, 12.3M, 1.2B), and in full below 1,000.
+ */
+export function formatIntCompact(int: number): string {
+  if (Math.abs(int) < 1000) return commaFormat(int);
+  return threeSignificantSIPrefixFormat(int)
+    .replace("G", "B")
+    .replace("k", "K");
 }
 
 /**
