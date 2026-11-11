@@ -70,7 +70,6 @@ def test_thread_session_auth_follows_host(
     with (
         patch.object(session_module, "_session", None),
         patch("phoenix.session.session.create_engine", return_value=engine),
-        patch("phoenix.session.session.instrument_engine_if_enabled", return_value=[]),
         patch("phoenix.session.session.create_app") as mock_create_app,
     ):
         mock_create_app.return_value = Mock()

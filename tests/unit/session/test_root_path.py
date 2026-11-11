@@ -107,7 +107,6 @@ def test_launch_app_passes_trace_dataset_evaluations_to_create_app() -> None:
         patch.object(session_module, "_session", None),
         patch("phoenix.session.session.ensure_working_dir_if_needed"),
         patch("phoenix.session.session.create_engine", return_value=engine),
-        patch("phoenix.session.session.instrument_engine_if_enabled", return_value=[]),
         patch("phoenix.session.session.create_app") as mock_create_app,
         patch("phoenix.session.session.ThreadServer") as mock_server,
     ):

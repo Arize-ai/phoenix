@@ -8,6 +8,10 @@ from typing import Any, Awaitable, Callable, Iterator, NamedTuple
 
 import pandas as pd
 import pytest
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.trace import SpanKind as OtelSpanKind
 from pytest_postgresql.janitor import DatabaseJanitor
 from sqlalchemy import URL, text
 
@@ -29,6 +33,7 @@ from phoenix.server.settings.registry import (
     AgentGitHubSetting,
     AgentTraceRecordingSetting,
 )
+from phoenix.server.telemetry import instrument_sqlalchemy_engine
 from phoenix.trace.schemas import Span, SpanContext, SpanKind, SpanStatusCode
 from phoenix.trace.trace_dataset import TraceDataset
 
@@ -293,6 +298,7 @@ async def test_create_db_session_factory_routes_reads_to_replica_for_postgres(
         log_migrations=False,
     )
     try:
+        assert len(factory.engines) == 2
         async with factory() as session:
             assert (
                 str(await session.scalar(text("SELECT current_database()")))
@@ -308,6 +314,50 @@ async def test_create_db_session_factory_routes_reads_to_replica_for_postgres(
 
 
 @pytest.mark.postgres_only
+async def test_create_db_session_factory_engines_emit_primary_and_replica_spans(
+    postgresql_primary_and_replica_urls: PostgresPrimaryAndReplicaUrls,
+) -> None:
+    factory, shutdown_callbacks = _create_db_session_factory(
+        db_connection_str=postgresql_primary_and_replica_urls.primary_url,
+        read_replica_connection_str=postgresql_primary_and_replica_urls.replica_url,
+        migrate=False,
+        log_to_stdout=False,
+        log_migrations=False,
+    )
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    cleanups = [
+        instrument_sqlalchemy_engine(engine, tracer_provider=provider) for engine in factory.engines
+    ]
+    try:
+        with provider.get_tracer("test").start_as_current_span("request", kind=OtelSpanKind.SERVER):
+            async with factory() as session:
+                await session.scalar(text("SELECT 41"))
+            async with factory.read() as session:
+                await session.scalar(text("SELECT 42"))
+
+        db_names_by_statement = {
+            str(span.attributes["db.statement"]): str(span.attributes["db.name"])
+            for span in exporter.get_finished_spans()
+            if span.kind is OtelSpanKind.CLIENT
+            and span.attributes
+            and "db.statement" in span.attributes
+        }
+        assert db_names_by_statement["SELECT 41"] == (
+            postgresql_primary_and_replica_urls.primary_db_name
+        )
+        assert db_names_by_statement["SELECT 42"] == (
+            postgresql_primary_and_replica_urls.replica_db_name
+        )
+    finally:
+        for cleanup in cleanups:
+            cleanup()
+        provider.shutdown()
+        await _run_shutdown_callbacks(shutdown_callbacks)
+
+
+@pytest.mark.postgres_only
 async def test_create_db_session_factory_uses_primary_when_replica_not_configured_for_postgres(
     postgresql_primary_and_replica_urls: PostgresPrimaryAndReplicaUrls,
 ) -> None:
@@ -319,6 +369,7 @@ async def test_create_db_session_factory_uses_primary_when_replica_not_configure
         log_migrations=False,
     )
     try:
+        assert len(factory.engines) == 1
         async with factory() as session:
             assert (
                 str(await session.scalar(text("SELECT current_database()")))

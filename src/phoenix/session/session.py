@@ -38,7 +38,6 @@ from phoenix.db.engines import create_engine
 from phoenix.server.app import (
     _db,
     create_app,
-    instrument_engine_if_enabled,
 )
 from phoenix.server.email.sender import email_sender_from_env
 from phoenix.server.thread_server import ThreadServer
@@ -215,11 +214,13 @@ class ThreadSession(Session):
             log_to_stdout=get_env_log_sql(),
             log_migrations=self.notebook_env is None,
         )
-        shutdown_callbacks: list[Callable[[], None | Awaitable[None]]] = []
-        shutdown_callbacks.extend(instrument_engine_if_enabled(engine))
         # Ensure engine is disposed on shutdown to properly close database connections
-        shutdown_callbacks.append(engine.dispose)
-        factory = DbSessionFactory(db=_db(engine), dialect=engine.dialect.name)
+        shutdown_callbacks: list[Callable[[], None | Awaitable[None]]] = [engine.dispose]
+        factory = DbSessionFactory(
+            db=_db(engine),
+            dialect=engine.dialect.name,
+            engines=(engine,),
+        )
         self.app = create_app(
             db=factory,
             authentication_enabled=auth_settings.enable_auth,

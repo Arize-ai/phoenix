@@ -123,8 +123,6 @@ dev = [
   "openinference-semantic-conventions>=0.1.40",
   "openinference-instrumentation>=0.1.60",
   "opentelemetry-exporter-otlp",
-  "opentelemetry-instrumentation-grpc",
-  "opentelemetry-instrumentation-sqlalchemy",
   "opentelemetry-instrumentation-aiohttp-client",
   "opentelemetry-proto>=1.12.0",
   "opentelemetry-sdk>=1.35.0",
@@ -221,14 +219,6 @@ container = [
   "openai>=3.1.0,<4",
   "azure-identity>=1.18.0",  # MSAL-backed in-memory token cache for ManagedIdentityCredential
   "aiohttp",  # used by azure-identity via azure.core.pipeline.transport
-  # Note: when updating opentelemetry dependencies, all packages must use versions
-  # released on the same date (e.g., 1.45.0/0.66b0) to ensure compatibility.
-  "opentelemetry-sdk==1.45.0",
-  "opentelemetry-proto==1.45.0",
-  "opentelemetry-exporter-otlp==1.45.0",
-  "opentelemetry-semantic-conventions==0.66b0",
-  "opentelemetry-instrumentation-sqlalchemy==0.66b0",
-  "opentelemetry-instrumentation-grpc==0.66b0",
   "py-grpc-prometheus",
   "strawberry-graphql[opentelemetry]==0.341.2",
   "uvloop; platform_system != 'Windows'",

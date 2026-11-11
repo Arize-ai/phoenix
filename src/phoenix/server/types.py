@@ -4,7 +4,7 @@ import asyncio
 from abc import ABC, abstractmethod
 from asyncio import Task, create_task, sleep
 from collections import defaultdict
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -12,7 +12,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Generic, Optional, Protocol, TypeVar, final
 
 from cachetools import LRUCache
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from typing_extensions import Self
 
 from phoenix.auth import CanReadToken, ClaimSet, Token, TokenAttributes
@@ -38,10 +38,13 @@ class DbSessionFactory:
         db: Callable[[], AbstractAsyncContextManager[AsyncSession]],
         dialect: str,
         read_db: Optional[Callable[[], AbstractAsyncContextManager[AsyncSession]]] = None,
+        *,
+        engines: Sequence[AsyncEngine] = (),
     ):
         self._db = db
         self._read_db = read_db or db
         self.dialect = SupportedSQLDialect(dialect)
+        self.engines: tuple[AsyncEngine, ...] = tuple(engines)
         self.should_not_insert_or_update = False
         """An informational flag that allows different tasks to coordinate whether insert
         and update operations should be allowed. For example, this can be set to True when disk

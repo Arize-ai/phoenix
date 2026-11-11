@@ -63,7 +63,6 @@ from phoenix.server.app import (
     ScaffolderConfig,
     _db,
     create_app,
-    instrument_engine_if_enabled,
 )
 from phoenix.server.cli.boot_message import AssistantConfig, BootMessage
 from phoenix.server.daemons.system_settings import SystemSettings
@@ -429,9 +428,8 @@ def _create_db_session_factory(
         log_to_stdout=log_to_stdout,
         log_migrations=log_migrations,
     )
-    shutdown_callbacks: list[Callable[[], None | Awaitable[None]]] = []
-    shutdown_callbacks.extend(instrument_engine_if_enabled(primary_engine))
-    shutdown_callbacks.append(primary_engine.dispose)
+    engines = [primary_engine]
+    shutdown_callbacks: list[Callable[[], None | Awaitable[None]]] = [primary_engine.dispose]
 
     read_db = None
     if primary_engine.dialect.name == "sqlite":
@@ -441,7 +439,7 @@ def _create_db_session_factory(
             get_async_db_url(db_connection_str), log_to_stdout=log_to_stdout
         )
         if sqlite_read_engine is not None:
-            shutdown_callbacks.extend(instrument_engine_if_enabled(sqlite_read_engine))
+            engines.append(sqlite_read_engine)
             shutdown_callbacks.append(sqlite_read_engine.dispose)
             read_db = _db(sqlite_read_engine)
             logger.info("Read-only SQLite engine created")
@@ -451,7 +449,7 @@ def _create_db_session_factory(
             migrate=False,
             log_to_stdout=log_to_stdout,
         )
-        shutdown_callbacks.extend(instrument_engine_if_enabled(replica_engine))
+        engines.append(replica_engine)
         shutdown_callbacks.append(replica_engine.dispose)
         read_db = _db(replica_engine)
         logger.info(
@@ -469,6 +467,7 @@ def _create_db_session_factory(
             db=_db(primary_engine),
             read_db=read_db,
             dialect=primary_engine.dialect.name,
+            engines=engines,
         ),
         shutdown_callbacks,
     )
