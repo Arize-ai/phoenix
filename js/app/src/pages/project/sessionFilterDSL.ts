@@ -105,6 +105,10 @@ export const sessionFilterSnippets: DSLFilterSnippet[] = [
     snippet: "total_cost > ${1}",
   },
   {
+    label: "any single span cost more than",
+    snippet: "any(span.total_cost > ${0.1} for span in spans)",
+  },
+  {
     label: "filter by tool usage",
     snippet: "tool_span_count > 0",
   },
