@@ -354,6 +354,8 @@ class Query:
                     models.GenerativeModel.is_built_in.asc(),  # display custom models first
                     models.GenerativeModel.provider.nullslast(),
                     models.GenerativeModel.name,
+                    models.GenerativeModel.type,
+                    models.GenerativeModel.id,
                 )
             )
             data = [GenerativeModel(id=model.id, db_record=model) for model in result.unique()]

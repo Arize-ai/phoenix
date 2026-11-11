@@ -1383,22 +1383,38 @@ class TestGenerativeModelModelType:
                 .where(models.GenerativeModel.id == custom_model.id)
                 .values(type="EMBEDDING")
             )
+            # Same (is_built_in, provider, name) inserted after EMBEDDING so `type` order
+            # ("DECISION" before "EMBEDDING") differs from insertion/id order.
+            session.add(
+                models.GenerativeModel(
+                    name=custom_model.name,
+                    provider=custom_model.provider,
+                    name_pattern=custom_model.name_pattern,
+                    is_built_in=False,
+                    type="DECISION",
+                )
+            )
         result = await gql_client.execute(query=self.LIST_QUERY)
         assert not result.errors
         assert result.data is not None
-        nodes = {
-            edge["node"]["name"]: edge["node"] for edge in result.data["generativeModels"]["edges"]
-        }
-        assert nodes["default-model"] == {
-            "name": "default-model",
-            "kind": "BUILT_IN",
-            "modelType": "LLM",
-        }
-        assert nodes["custom-model"] == {
-            "name": "custom-model",
-            "kind": "CUSTOM",
-            "modelType": "EMBEDDING",
-        }
+        nodes = [edge["node"] for edge in result.data["generativeModels"]["edges"]]
+        assert nodes == [
+            {
+                "name": "custom-model",
+                "kind": "CUSTOM",
+                "modelType": "DECISION",
+            },
+            {
+                "name": "custom-model",
+                "kind": "CUSTOM",
+                "modelType": "EMBEDDING",
+            },
+            {
+                "name": "default-model",
+                "kind": "BUILT_IN",
+                "modelType": "LLM",
+            },
+        ]
 
     @pytest.mark.parametrize("model_type", ["LLM", "DECISION", "EMBEDDING"])
     async def test_node_query_returns_model_type(
