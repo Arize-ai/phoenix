@@ -299,7 +299,11 @@ def test_parses_non_llm_models_with_their_types() -> None:
     data = _manifest(
         non_llm_models=[
             _model("gpt-6-luna", type="DECISION"),
-            _model("embed-a", type="EMBEDDING"),
+            _model(
+                "embed-a",
+                type="EMBEDDING",
+                token_prices=[{"base_rate": 2e-8, "is_prompt": True, "token_type": "input"}],
+            ),
         ]
     )
     manifest = parse_manifest(json.dumps(data))
@@ -424,6 +428,12 @@ def test_reports_name_and_type_of_skipped_non_llm_entries() -> None:
             _model(" decision-a ", type="DECISION", token_prices=invalid_rate),
             # An LLM name that is valid as an LLM; its invalid DECISION entry is still reported.
             _model("model-a", type="DECISION", token_prices=invalid_rate),
+            # Embedding spans have no output tokens, so completion-only pricing is invalid.
+            _model(
+                "embed-output-only",
+                type="EMBEDDING",
+                token_prices=[{"base_rate": 1e-7, "is_prompt": False, "token_type": "output"}],
+            ),
             # Unknown types can't be attributed to a model.
             _model("unknown-type", type="AUDIO"),
             _model("unhashable-type", type=["DECISION"]),
@@ -436,5 +446,6 @@ def test_reports_name_and_type_of_skipped_non_llm_entries() -> None:
     assert manifest.skipped_models == {
         ("decision-a", "DECISION"),
         ("model-a", "DECISION"),
+        ("embed-output-only", "EMBEDDING"),
         ("llm-in-non-llm", "LLM"),
     }

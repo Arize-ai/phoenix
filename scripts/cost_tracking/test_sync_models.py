@@ -242,10 +242,11 @@ LITELLM_DATA: dict[str, Any] = {
         "input_cost_per_token": 3e-8,
         "output_cost_per_token": 0.0,
     },
-    "together_ai/some-embed-model": {
+    "together_ai/BAAI/bge-base-en-v1.5": {
         "litellm_provider": "together_ai",
         "mode": "embedding",
         "input_cost_per_token": 8e-9,
+        "input_cost_per_token_above_8k_tokens": 1.6e-8,
         "output_cost_per_token": 0.0,
     },
 }
@@ -265,10 +266,10 @@ def _tiers(entry: LiteLLMPricingEntry) -> dict[str, tuple[str, float, float] | N
 def test_extract_litellm_entries_assigns_types_by_mode() -> None:
     entries = extract_litellm_entries(LITELLM_DATA)
     by_key = {(entry.name, entry.type): entry for entry in entries}
-    # The embedding model is skipped: embedding spans aren't priced yet.
     assert sorted(by_key) == [
         ("gpt-6-luna", "DECISION"),
         ("gpt-6-luna", "LLM"),
+        ("together_ai/BAAI/bge-base-en-v1.5", "EMBEDDING"),
         ("typesafe/jev-decider", "DECISION"),
         ("typesafe/jev-latest", "DECISION"),
     ]
@@ -311,6 +312,71 @@ def test_extract_litellm_entries_assigns_types_by_mode() -> None:
     assert (jev.provider, jev.name_pattern) == ("typesafe", "jev-latest")
     assert _rates([jev])["typesafe/jev-latest"] == {("input", True): 4.2e-8, ("output", False): 0.0}
     assert _tiers(jev) == {"input": None, "output": None}
+
+    # Priced on input alone, with tiers keyed on llm.token_count.prompt; LiteLLM's published
+    # 0 output rate isn't used.
+    bge = by_key["together_ai/BAAI/bge-base-en-v1.5", "EMBEDDING"]
+    assert (bge.provider, bge.name_pattern) == ("together", "BAAI/bge-base-en-v1.5")
+    assert _rates([bge])["together_ai/BAAI/bge-base-en-v1.5"] == {("input", True): 8e-9}
+    assert _tiers(bge) == {"input": (prompt, 8000.0, 1.6e-8)}
+
+
+@pytest.mark.parametrize(
+    "fields, expected_rate",
+    [
+        # An LLM entry would need an output rate too.
+        pytest.param({"input_cost_per_token": 1e-7}, 1e-7, id="no-output-rate"),
+        # Multimodal embedding models keep their text rate (embedding spans carry no modality
+        # breakdown)...
+        pytest.param(
+            {"input_cost_per_token": 2e-7, "input_cost_per_audio_token": 6.5e-6},
+            2e-7,
+            id="multimodal-uses-text-rate",
+        ),
+        pytest.param({"input_cost_per_token": 0}, 0.0, id="free"),
+        # ...unless the text rate is 0, meaning the model is billed by modality or non-token unit.
+        pytest.param(
+            {"input_cost_per_token": 0, "input_cost_per_image_token": 4.5e-7},
+            None,
+            id="zero-rate-with-modality-token-price",
+        ),
+        pytest.param(
+            {"input_cost_per_token": 0, "input_cost_per_image": 1e-4},
+            None,
+            id="zero-rate-with-non-token-price",
+        ),
+        pytest.param({}, None, id="no-input-rate"),
+        pytest.param({"input_cost_per_token": -1e-7}, None, id="negative-rate"),
+    ],
+)
+def test_extract_litellm_entries_prices_embedding_models_on_input_only(
+    fields: dict[str, Any], expected_rate: float | None
+) -> None:
+    entries = extract_litellm_entries({"mistral/mistral-embed": {"mode": "embedding", **fields}})
+    assert _rates(entries) == (
+        {} if expected_rate is None else {"mistral/mistral-embed": {("input", True): expected_rate}}
+    )
+
+
+@pytest.mark.parametrize(
+    "model_id, synced",
+    [
+        # OpenAI's embedding models have their own include pattern...
+        ("text-embedding-3-small", True),
+        ("text-embedding-ada-002", True),
+        # ...which leaves out Google's, unprefixed like them.
+        ("text-embedding-005", False),
+        # Embedding names aren't excluded.
+        ("gemini-embedding-001", True),
+    ],
+)
+def test_extract_litellm_entries_filters_embedding_models_by_name(
+    model_id: str, synced: bool
+) -> None:
+    entries = extract_litellm_entries(
+        {model_id: {"mode": "embedding", "input_cost_per_token": 1e-7}}
+    )
+    assert [entry.name for entry in entries] == ([model_id] if synced else [])
 
 
 def test_extract_litellm_entries_decision_entry_does_not_borrow_chat_rates() -> None:

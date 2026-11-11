@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-11T07:24:21Z",
-  "models_sha256": "00f3fabfef2393c9cb7589cc1d71795679923d3f0834a9b02016cdb51450de8b",
+  "generated_at": "2026-11-11T16:00:05Z",
+  "models_sha256": "3b460843de1f89321f9ee4a26c52f3f09861134532432008fb6205be0593102a",
   "models": [
     {
       "name": "chatgpt-image-latest",
@@ -10859,6 +10859,45 @@
   ],
   "non_llm_models": [
     {
+      "name": "gemini-embedding-001",
+      "name_pattern": "gemini-embedding-001",
+      "source": "litellm",
+      "type": "EMBEDDING",
+      "token_prices": [
+        {
+          "base_rate": 1.5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        }
+      ]
+    },
+    {
+      "name": "gemini-embedding-2",
+      "name_pattern": "gemini-embedding-2",
+      "source": "litellm",
+      "type": "EMBEDDING",
+      "token_prices": [
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        }
+      ]
+    },
+    {
+      "name": "gemini-embedding-2-preview",
+      "name_pattern": "gemini-embedding-2-preview",
+      "source": "litellm",
+      "type": "EMBEDDING",
+      "token_prices": [
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        }
+      ]
+    },
+    {
       "name": "gpt-6-luna",
       "name_pattern": "gpt-6-luna",
       "source": "litellm",
@@ -10901,6 +10940,128 @@
             "threshold": 272000.0,
             "new_rate": 2.5e-7
           }
+        }
+      ]
+    },
+    {
+      "name": "text-embedding-3-large",
+      "name_pattern": "text-embedding-3-large",
+      "source": "litellm",
+      "type": "EMBEDDING",
+      "token_prices": [
+        {
+          "base_rate": 1.3e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        }
+      ]
+    },
+    {
+      "name": "text-embedding-3-small",
+      "name_pattern": "text-embedding-3-small",
+      "source": "litellm",
+      "type": "EMBEDDING",
+      "token_prices": [
+        {
+          "base_rate": 2e-8,
+          "is_prompt": true,
+          "token_type": "input"
+        }
+      ]
+    },
+    {
+      "name": "text-embedding-ada-002",
+      "name_pattern": "text-embedding-ada-002",
+      "source": "litellm",
+      "type": "EMBEDDING",
+      "token_prices": [
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        }
+      ]
+    },
+    {
+      "name": "text-embedding-ada-002-v2",
+      "name_pattern": "text-embedding-ada-002-v2",
+      "source": "litellm",
+      "type": "EMBEDDING",
+      "token_prices": [
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        }
+      ]
+    },
+    {
+      "name": "mistral/codestral-embed",
+      "name_pattern": "codestral-embed",
+      "source": "litellm",
+      "provider": "mistralai",
+      "type": "EMBEDDING",
+      "token_prices": [
+        {
+          "base_rate": 1.5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        }
+      ]
+    },
+    {
+      "name": "mistral/codestral-embed-2505",
+      "name_pattern": "codestral-embed-2505",
+      "source": "litellm",
+      "provider": "mistralai",
+      "type": "EMBEDDING",
+      "token_prices": [
+        {
+          "base_rate": 1.5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        }
+      ]
+    },
+    {
+      "name": "mistral/mistral-embed",
+      "name_pattern": "mistral-embed",
+      "source": "litellm",
+      "provider": "mistralai",
+      "type": "EMBEDDING",
+      "token_prices": [
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        }
+      ]
+    },
+    {
+      "name": "mistral/mistral-embed-2312",
+      "name_pattern": "mistral-embed-2312",
+      "source": "litellm",
+      "provider": "mistralai",
+      "type": "EMBEDDING",
+      "token_prices": [
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/BAAI/bge-base-en-v1.5",
+      "name_pattern": "BAAI/bge-base-en-v1\\.5",
+      "source": "litellm",
+      "provider": "together",
+      "type": "EMBEDDING",
+      "token_prices": [
+        {
+          "base_rate": 8e-9,
+          "is_prompt": true,
+          "token_type": "input"
         }
       ]
     },
