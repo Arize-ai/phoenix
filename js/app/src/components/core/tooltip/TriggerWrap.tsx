@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable } from "react-aria";
+import { Focusable } from "react-aria";
 
 /**
  * TriggerWrap
@@ -8,17 +8,23 @@ import { Pressable } from "react-aria";
  * graphics) so that they can be used as a trigger for tooltips. It ensures
  * the wrapped element is focusable and accessible for keyboard and mouse
  * interactions, which is required for tooltip triggers.
+ *
+ * It does not handle presses, so a click on the wrapped content still reaches
+ * an enclosing clickable surface such as a table row.
  */
 export function TriggerWrap({
   children,
+  className,
   ...props
-}: { children: React.ReactNode } & Omit<
-  React.ComponentProps<typeof Pressable>,
-  "children"
->) {
+}: {
+  children: React.ReactNode;
+  className?: string;
+} & Omit<React.ComponentProps<typeof Focusable>, "children">) {
   return (
-    <Pressable {...props}>
-      <div role="button">{children}</div>
-    </Pressable>
+    <Focusable {...props}>
+      <div role="button" className={className}>
+        {children}
+      </div>
+    </Focusable>
   );
 }

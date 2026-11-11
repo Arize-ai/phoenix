@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { Pressable } from "react-aria";
+import { Focusable } from "react-aria";
 
 import type { TextProps } from "@phoenix/components";
 import { RichTooltip, TooltipArrow, TooltipTrigger } from "@phoenix/components";
@@ -29,11 +29,11 @@ type SessionTokenCostsProps = {
 export function SessionTokenCosts(props: SessionTokenCostsProps) {
   return (
     <TooltipTrigger>
-      <Pressable>
+      <Focusable>
         <TokenCosts size={props.size} role="button" tabIndex={0}>
           {props.totalCost}
         </TokenCosts>
-      </Pressable>
+      </Focusable>
       <RichTooltip placement="end">
         <TooltipArrow />
         <Suspense
