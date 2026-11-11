@@ -163,6 +163,25 @@ describe("ProjectEvaluatorMeanScoreCell", () => {
     expect(new Set(mostlyPositive).size).toBe(3);
   });
 
+  it("draws the first config label in the neutral accent, not the name's word color", () => {
+    renderCell(
+      UNSCORED_TONE,
+      makeMetrics({
+        annotationName: "tone",
+        labelFractions: [
+          { label: "negative", fraction: 0.14 },
+          { label: "neutral", fraction: 0.36 },
+          { label: "positive", fraction: 0.5 },
+        ],
+      })
+    );
+    expect(getSegmentColors()).toEqual([
+      "var(--global-color-indigo-800)",
+      "var(--global-color-gray-300)",
+      "var(--global-color-gray-400)",
+    ]);
+  });
+
   it("shows the change in the leading label's share in percentage points", () => {
     renderCell(
       UNSCORED_TONE,
@@ -178,7 +197,7 @@ describe("ProjectEvaluatorMeanScoreCell", () => {
         ],
       })
     );
-    expect(container.textContent).toContain("▲ 12pp");
+    expect(container.textContent).toContain("▲ 12 pts");
   });
 
   it("counts a label missing from the previous window as a zero share", () => {
@@ -190,7 +209,7 @@ describe("ProjectEvaluatorMeanScoreCell", () => {
         previousLabelFractions: [{ label: "negative", fraction: 1 }],
       })
     );
-    expect(container.textContent).toContain("▲ 100pp");
+    expect(container.textContent).toContain("▲ 100 pts");
   });
 
   it("shows no change without previous labels", () => {
@@ -231,7 +250,7 @@ describe("ProjectEvaluatorMeanScoreCell", () => {
       })
     );
     expect(container.textContent).toContain("correct\u00a070%");
-    expect(container.textContent).toContain("▼ 10pp");
+    expect(container.textContent).toContain("▼ 10 pts");
     // The leading label is the good one, so its pill carries a direction
     expect(
       container.querySelector('[data-direction="positive"]')

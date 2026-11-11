@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import { Flex, Text } from "@phoenix/components";
 import {
+  ANNOTATION_LABEL_ACCENT_COLOR,
   getAnnotationLabelColor,
   useAnnotationLabelColors,
 } from "@phoenix/components/annotation/annotationLabelColors";
@@ -18,8 +19,8 @@ const CELL_MAX_WIDTH = 160;
 type LabelShare = { label: string; fraction: number };
 
 /**
- * Colors a distribution the way the evaluators table does: the annotation's
- * word color for its first label, grays for the rest, and a count per label
+ * Colors a distribution the way the evaluators table does: a neutral indigo
+ * accent for its first label, grays for the rest, and a count per label
  * from the labeled-annotation total.
  */
 function useSegments({
@@ -31,7 +32,9 @@ function useSegments({
   shares: LabelShare[];
   labelCount: number;
 }): LabelDistributionBarSegment[] {
-  const colors = useAnnotationLabelColors(annotationName);
+  const colors = useAnnotationLabelColors(annotationName, {
+    primaryColor: ANNOTATION_LABEL_ACCENT_COLOR,
+  });
   return shares.map((share, index) => ({
     ...share,
     count: Math.round(share.fraction * labelCount),
@@ -130,7 +133,7 @@ export const Default: Story = {
 
 /**
  * Two to five labels. Past the first label the palette runs through grays,
- * so the label that matters keeps the annotation's color and the rest read
+ * so the label that matters keeps the accent and the rest read
  * as its complement. A label with a sliver of a share stays visible.
  */
 export const LabelCounts: Story = {

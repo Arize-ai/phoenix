@@ -16,6 +16,7 @@ import {
   getOptimizationValueFromConfig,
 } from "@phoenix/components/annotation";
 import {
+  ANNOTATION_LABEL_ACCENT_COLOR,
   getAnnotationLabelColor,
   getAnnotationLabelOrder,
   useAnnotationLabelColors,
@@ -374,7 +375,7 @@ function getDeltaArrow(delta: number) {
 function formatSharePointsDelta(delta: number) {
   const points = Math.abs(delta * 100);
   const rounded = Math.round(points * 10) / 10;
-  return `${getDeltaArrow(delta)} ${rounded < 10 ? rounded.toFixed(1) : Math.round(points)}pp`;
+  return `${getDeltaArrow(delta)} ${rounded < 10 ? rounded.toFixed(1) : Math.round(points)} pts`;
 }
 
 /**
@@ -394,7 +395,12 @@ function AnnotationLabelDistributionView({
   summary: NonNullable<EvaluatorAnnotationScoreMetricsData["summary"]>;
   previousLabelFractions: ReadonlyArray<LabelFraction> | null | undefined;
 }) {
-  const colors = useAnnotationLabelColors(annotation.name);
+  // A neutral accent rather than the name's word color, which can land on a
+  // status hue (red for "correct") and read as a judgement. Whether a label
+  // is good or bad shows on the pill and delta when the config scores it.
+  const colors = useAnnotationLabelColors(annotation.name, {
+    primaryColor: ANNOTATION_LABEL_ACCENT_COLOR,
+  });
   const { config } = annotation;
   const { labelFractions, labelCount } = summary;
   // Draw labels in the config's order (the order their colors follow), then
@@ -492,6 +498,7 @@ function AnnotationLabelDistributionView({
             <SummaryValueBreakdown
               annotationName={annotation.name}
               labelFractions={orderedLabelFractions}
+              labelColors={colors}
               annotationConfig={config}
               count={summary.count}
               scoreCount={summary.scoreCount}

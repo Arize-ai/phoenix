@@ -436,6 +436,7 @@ export function SummaryValueBreakdown({
   count,
   scoreCount,
   labelCount,
+  labelColors,
 }: {
   annotationName: string;
   labelFractions?: readonly { label: string; fraction: number }[];
@@ -444,8 +445,14 @@ export function SummaryValueBreakdown({
   count?: number | null;
   scoreCount?: number | null;
   labelCount?: number | null;
+  /**
+   * The palette the label swatches are drawn from, so the breakdown can
+   * match a chart beside it. Defaults to the annotation's own palette.
+   */
+  labelColors?: string[];
 }) {
-  const colors = useAnnotationLabelColors(annotationName);
+  const defaultColors = useAnnotationLabelColors(annotationName);
+  const colors = labelColors ?? defaultColors;
   const hasMeanScore = typeof meanScore === "number" && !isNaN(meanScore);
   const hasLabelFractions = labelFractions && labelFractions.length > 0;
   const optimizationValue = getOptimizationValueFromConfig({

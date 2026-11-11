@@ -4,16 +4,28 @@ import { useWordColor } from "@phoenix/hooks/useWordColor";
 import type { AnnotationOptimizationConfig } from "./optimizationUtils";
 
 /**
+ * A neutral accent for an annotation's first label where the annotation's
+ * word color would mislead: the word color is a hash of the name, so a
+ * "correct" label can land on red. Indigo is no status hue, reads on both
+ * themes' backgrounds, and stands apart from the grays the other labels get.
+ */
+export const ANNOTATION_LABEL_ACCENT_COLOR = "var(--global-color-indigo-800)";
+
+/**
  * The palette an annotation's labels are drawn from: the annotation's own
  * word color for its first (best) label, then grays for the rest, so the
  * label that matters most carries the annotation's identity and the others
- * read as its complement.
+ * read as its complement. Pass `primaryColor` to draw the first label in
+ * another color, e.g. {@link ANNOTATION_LABEL_ACCENT_COLOR}.
  */
-export function useAnnotationLabelColors(annotationName: string): string[] {
+export function useAnnotationLabelColors(
+  annotationName: string,
+  { primaryColor }: { primaryColor?: string } = {}
+): string[] {
   const chartColors = useSequentialChartColors();
-  const primaryColor = useWordColor(annotationName);
+  const wordColor = useWordColor(annotationName);
   return [
-    primaryColor,
+    primaryColor ?? wordColor,
     chartColors.gray300,
     chartColors.gray400,
     chartColors.gray500,
