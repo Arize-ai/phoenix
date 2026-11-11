@@ -64,7 +64,7 @@ class TestProtectedResourceMetadata:
         assert data["resource_documentation"] == "http://test/auth.md"
 
     async def test_returns_json_honoring_x_forwarded_proto(
-        self, httpx_client: httpx.AsyncClient
+        self, httpx_client: httpx2.AsyncClient
     ) -> None:
         resp = await httpx_client.get(
             "/.well-known/oauth-protected-resource",
