@@ -29,6 +29,7 @@ export function datasetEvaluatorsLoader(args: LoaderFunctionArgs) {
   return loadQuery<datasetEvaluatorsLoaderQuery>(
     RelayEnvironment,
     datasetEvaluatorsLoaderGQL,
-    { id: datasetId }
+    { id: datasetId },
+    { fetchPolicy: "store-and-network" }
   );
 }

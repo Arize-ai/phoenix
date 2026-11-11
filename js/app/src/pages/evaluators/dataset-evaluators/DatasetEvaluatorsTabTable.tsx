@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import { graphql } from "relay-runtime";
@@ -51,7 +50,7 @@ export function DatasetEvaluatorsTabTable({
     query
   );
   const connectionId = data.datasetEvaluators.__id;
-  const connectionIds = useMemo(() => [connectionId], [connectionId]);
+  const connectionIds = [connectionId];
   const loadNext = (
     args: NonNullable<
       Parameters<typeof _loadNext>[1]

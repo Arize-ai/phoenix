@@ -1,4 +1,3 @@
-import { useCallback } from "react";
 import { graphql, useMutation, useRelayEnvironment } from "react-relay";
 
 import type { useDeleteDatasetEvaluatorsMutation } from "@phoenix/pages/dataset/evaluators/__generated__/useDeleteDatasetEvaluatorsMutation.graphql";
@@ -33,59 +32,54 @@ export function useDeleteDatasetEvaluators() {
         }
       }
     `);
-  const deleteDatasetEvaluators = useCallback(
-    ({
-      datasetEvaluatorIds,
-      deleteAssociatedPromptOrDecision,
-      connectionIds = [],
-      datasetId,
-      refetchCounts = true,
-    }: {
-      datasetEvaluatorIds: ReadonlyArray<string>;
-      deleteAssociatedPromptOrDecision: boolean;
-      connectionIds?: ReadonlyArray<string>;
-      /** The dataset every evaluator belongs to, whose count is refreshed. */
-      datasetId?: string;
-      /**
-       * Refetches the evaluator counts once deleted. Pass false when the
-       * caller refetches them after several deletes.
-       */
-      refetchCounts?: boolean;
-    }) =>
-      new Promise<void>((resolve, reject) => {
-        commitDelete({
-          variables: {
-            input: {
-              datasetEvaluatorIds,
-              deleteAssociatedPromptOrDecision,
-            },
-            connectionIds,
-            datasetId: datasetId ?? "",
-            hasDataset: datasetId != null,
+  const deleteDatasetEvaluators = ({
+    datasetEvaluatorIds,
+    deleteAssociatedPromptOrDecision,
+    connectionIds = [],
+    datasetId,
+    refetchCounts = true,
+  }: {
+    datasetEvaluatorIds: ReadonlyArray<string>;
+    deleteAssociatedPromptOrDecision: boolean;
+    connectionIds?: ReadonlyArray<string>;
+    /** The dataset every evaluator belongs to, whose count is refreshed. */
+    datasetId?: string;
+    /**
+     * Refetches the evaluator counts once deleted. Pass false when the
+     * caller refetches them after several deletes.
+     */
+    refetchCounts?: boolean;
+  }) =>
+    new Promise<void>((resolve, reject) => {
+      commitDelete({
+        variables: {
+          input: {
+            datasetEvaluatorIds,
+            deleteAssociatedPromptOrDecision,
           },
-          onCompleted: (_response, errors) => {
-            if (errors?.length) {
-              reject(
-                new Error(errors.map(({ message }) => message).join("\n"))
-              );
-              return;
-            }
-            if (refetchCounts) {
-              refetchEvaluatorCounts({ environment });
-            }
-            resolve();
-          },
-          onError: (mutationError) =>
-            reject(
-              new Error(
-                getErrorMessagesFromRelayMutationError(mutationError)?.join(
-                  "\n"
-                ) ?? mutationError.message
-              )
-            ),
-        });
-      }),
-    [commitDelete, environment]
-  );
+          connectionIds,
+          datasetId: datasetId ?? "",
+          hasDataset: datasetId != null,
+        },
+        onCompleted: (_response, errors) => {
+          if (errors?.length) {
+            reject(new Error(errors.map(({ message }) => message).join("\n")));
+            return;
+          }
+          if (refetchCounts) {
+            refetchEvaluatorCounts({ environment });
+          }
+          resolve();
+        },
+        onError: (mutationError) =>
+          reject(
+            new Error(
+              getErrorMessagesFromRelayMutationError(mutationError)?.join(
+                "\n"
+              ) ?? mutationError.message
+            )
+          ),
+      });
+    });
   return { deleteDatasetEvaluators, isDeleting };
 }

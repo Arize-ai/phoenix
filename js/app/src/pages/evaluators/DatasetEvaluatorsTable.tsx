@@ -384,17 +384,9 @@ export const DatasetEvaluatorsTable = ({
   }, [rowReferences]);
   // Only loaded rows count, so a refetch that drops a selected row also drops
   // it from what a delete would remove.
-  const selectedEvaluators = useMemo(
-    () =>
-      tableData
-        .filter((row) => rowSelection[row.id])
-        .map((row) => ({
-          id: row.id,
-          name: row.name,
-          kind: row.evaluator.kind,
-        })),
-    [tableData, rowSelection]
-  );
+  const selectedEvaluators = tableData
+    .filter((row) => rowSelection[row.id])
+    .map((row) => ({ id: row.id, name: row.name, kind: row.evaluator.kind }));
   const { selectRow } = useShiftClickRowSelection<TableRow>({
     resetKey: tableData,
   });
