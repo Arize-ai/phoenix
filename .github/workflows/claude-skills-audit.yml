@@ -60,6 +60,39 @@ jobs:
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
           echo "date=$DATE" >> "$GITHUB_OUTPUT"
 
+      - name: Choose the audit window
+        id: window
+        env:
+          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+        run: |
+          SINCE=$(date -u -d "$AUDIT_WINDOW" +%F)
+          WINDOW_DAYS=$(( ($(date -u +%s) - $(date -u -d "$SINCE" +%s)) / 86400 ))
+          # Open audits from this repo, oldest first; a fork may use the same branch
+          # names. One row each: number, creation date, recorded start date or "-".
+          OPEN=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls?state=open&per_page=100&direction=asc" \
+            | jq -r --arg repo "$GITHUB_REPOSITORY" '
+                .[]
+                | select(.head.repo.full_name == $repo and (.head.ref | startswith("skills-audit/")))
+                | "\(.number) \(.created_at[:10]) \(first((.body // "" | capture("<!-- skills-audit-since: (?<d>[0-9]{4}-[0-9]{2}-[0-9]{2}) -->").d), "-"))"')
+          STALE=""
+          while read -r NUMBER CREATED RECORDED; do
+            [[ -n "$NUMBER" ]] || continue
+            STALE="${STALE:+$STALE }$NUMBER"
+            # This run supersedes the open audit, so it must cover that audit's window
+            # too. An audit opened before runs recorded their start gets this run's window.
+            if [[ "$RECORDED" == "-" ]]; then
+              START=$(date -u -d "$CREATED - $WINDOW_DAYS days" +%F)
+            else
+              START="$RECORDED"
+            fi
+            if [[ "$START" < "$SINCE" ]]; then
+              SINCE="$START"
+            fi
+          done <<< "$OPEN"
+          echo "since=$SINCE" >> "$GITHUB_OUTPUT"
+          echo "stale=$STALE" >> "$GITHUB_OUTPUT"
+          echo "Auditing commits since $SINCE; open audits to supersede: ${STALE:-none}"
+
       - name: Install subprocess isolation deps
         # Required by CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1. The Claude CLI sandbox
         # needs both bubblewrap AND socat, and Ubuntu 24.04+ blocks the unprivileged
@@ -97,7 +130,7 @@ jobs:
           prompt: |
             /phoenix-skills-audit
 
-            Audit commits since "${{ env.AUDIT_WINDOW }}" on origin/main for changes to the
+            Audit commits since "${{ steps.window.outputs.since }}" on origin/main for changes to the
             Python clients, TypeScript clients, CLI, and REST/GraphQL APIs that should be
             reflected in the three external-facing skills:
 
@@ -167,6 +200,7 @@ jobs:
           AUDIT_DATE: ${{ steps.branch.outputs.date }}
           AUDIT_BRANCH: ${{ steps.branch.outputs.branch }}
           SUMMARY_FILE: ${{ steps.summary.outputs.path }}
+          SINCE: ${{ steps.window.outputs.since }}
         run: |
           if [[ -s "$SUMMARY_FILE" ]]; then
             BODY_FILE="$SUMMARY_FILE"
@@ -174,16 +208,42 @@ jobs:
             BODY_FILE=$(mktemp)
             echo "Automated weekly audit of the three external-facing skills against recent changes on \`origin/main\`. (Run summary file was missing — see commit diff for details.)" > "$BODY_FILE"
           fi
+          # Read back by later runs that supersede this audit, so they cover its window.
+          printf '\n<!-- skills-audit-since: %s -->\n' "$SINCE" >> "$BODY_FILE"
 
-          gh pr create \
+          PR_URL=$(gh pr create \
             --base main \
             --head "$AUDIT_BRANCH" \
             --title "docs(skills): weekly audit — $AUDIT_DATE" \
             --body-file "$BODY_FILE" \
-            --label "documentation"
+            --label "documentation")
           # Auto-merge once a reviewer approves and checks pass.
           gh pr merge "$AUDIT_BRANCH" --auto --squash || echo "::warning::Could not enable auto-merge on $AUDIT_BRANCH"
           echo "pr=$AUDIT_BRANCH" >> "$GITHUB_OUTPUT"
+          echo "url=$PR_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Close superseded pull requests
+        if: steps.window.outputs.stale != ''
+        env:
+          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          STALE: ${{ steps.window.outputs.stale }}
+          NEW_PR_URL: ${{ steps.publish.outputs.url }}
+          SINCE: ${{ steps.window.outputs.since }}
+          SUMMARY_FILE: ${{ steps.summary.outputs.path }}
+        run: |
+          RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          if [[ -n "$NEW_PR_URL" ]]; then
+            REASON="Superseded by $NEW_PR_URL, which audited every commit since $SINCE and so covers the changes proposed here."
+          elif [[ "$(head -n1 "$SUMMARY_FILE" 2>/dev/null)" == "NO_CHANGES" ]]; then
+            REASON="Closed by [this audit run]($RUN_URL): auditing every commit since $SINCE found nothing left to change in the skills, so the changes proposed here are already on \`main\` or no longer apply."
+          else
+            # No PR and no NO_CHANGES verdict means the audit did not conclude.
+            echo "::warning::The audit made no changes but did not report NO_CHANGES; leaving open audit pull request(s) $STALE as they are."
+            exit 0
+          fi
+          for NUMBER in $STALE; do
+            gh pr close "$NUMBER" --delete-branch --comment "$REASON"
+          done
 
   approve:
     needs: skills-audit
