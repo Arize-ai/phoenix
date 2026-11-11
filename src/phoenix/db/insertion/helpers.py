@@ -15,6 +15,7 @@ from typing_extensions import TypeAlias, assert_never
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, truncate_name
 from phoenix.db.models import Base
+from phoenix.server.cost_tracking.helpers import get_model_name
 from phoenix.trace.attributes import get_attribute_value
 
 
@@ -115,14 +116,28 @@ def as_kv(obj: models.Base) -> Iterator[tuple[str, Any]]:
         yield k, v
 
 
+_COST_SPAN_KINDS = frozenset(
+    (
+        OpenInferenceSpanKindValues.LLM.value,
+        OpenInferenceSpanKindValues.DECISION.value,
+        OpenInferenceSpanKindValues.EMBEDDING.value,
+    )
+)
+
+
 def should_calculate_span_cost(
     attributes: Optional[Mapping[str, Any]],
 ) -> bool:
-    return bool(
-        (span_kind := get_attribute_value(attributes, SpanAttributes.OPENINFERENCE_SPAN_KIND))
-        and isinstance(span_kind, str)
-        and span_kind == OpenInferenceSpanKindValues.LLM.value
-        and (llm_name := get_attribute_value(attributes, SpanAttributes.LLM_MODEL_NAME))
-        and isinstance(llm_name, str)
-        and llm_name.strip()
+    """
+    Whether the span is an LLM, DECISION or EMBEDDING span with a model name to price it by.
+    The name is picked the same way the cost lookup picks it (see `get_model_name`):
+    `*.response.model_name`, `*.model_name`, then `*.request.model_name`, from `decision.*`
+    (falling back to legacy `llm.*`) on DECISION spans, `embedding.model_name` (falling back
+    to `llm.*`) on EMBEDDING spans, and `llm.*` on LLM spans.
+    """
+    span_kind = get_attribute_value(attributes, SpanAttributes.OPENINFERENCE_SPAN_KIND)
+    return (
+        isinstance(span_kind, str)
+        and span_kind in _COST_SPAN_KINDS
+        and bool(get_model_name(attributes))
     )

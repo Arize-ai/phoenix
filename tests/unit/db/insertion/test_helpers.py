@@ -290,6 +290,115 @@ class TestShouldCalculateSpanCost:
                 True,
                 id="model_name_with_tab",
             ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "decision": {"model_name": "jev-1.13.0"},
+                },
+                True,
+                id="decision_span_with_decision_model_name",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "decision": {
+                        "request": {"model_name": "gpt-6-luna"},
+                        "response": {"model_name": "gpt-6-luna-2026-10-01"},
+                    },
+                },
+                True,
+                id="decision_span_with_response_and_request_model_names",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "LLM"}},
+                    "llm": {"request": {"model_name": "gpt-6-luna"}},
+                },
+                True,
+                id="llm_span_with_request_model_name",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "llm": {"model_name": "jev-latest"},
+                },
+                True,
+                id="legacy_decision_span_with_llm_model_name",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "decision": {"model_name": "  ", "token_count": {"input": 10}},
+                },
+                False,
+                id="decision_span_with_blank_model_name",
+            ),
+            pytest.param(
+                {"openinference": {"span": {"kind": "DECISION"}}, "decision": {}},
+                False,
+                id="decision_span_without_model_name",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "decision": {"model_name": 123},
+                },
+                False,
+                id="decision_span_with_non_string_model_name",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "LLM"}},
+                    "decision": {"model_name": "jev-1.13.0"},
+                },
+                False,
+                id="llm_span_with_only_decision_model_name",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "EMBEDDING"}},
+                    "embedding": {"model_name": "text-embedding-3-small"},
+                },
+                True,
+                id="embedding_span_with_embedding_model_name",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "EMBEDDING"}},
+                    "llm": {"model_name": "text-embedding-3-small"},
+                },
+                True,
+                id="embedding_span_with_llm_model_name_fallback",
+            ),
+            pytest.param(
+                {"openinference": {"span": {"kind": "EMBEDDING"}}, "embedding": {}},
+                False,
+                id="embedding_span_without_model_name",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "LLM"}},
+                    "embedding": {"model_name": "text-embedding-3-small"},
+                },
+                False,
+                id="llm_span_with_only_embedding_model_name",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": ["LLM"]}},
+                    "llm": {"model_name": "gpt-4"},
+                },
+                False,
+                id="list_span_kind",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": {"value": "DECISION"}}},
+                    "decision": {"model_name": "jev-1.13.0"},
+                },
+                False,
+                id="dict_span_kind",
+            ),
         ],
     )
     def test_should_calculate_span_cost(

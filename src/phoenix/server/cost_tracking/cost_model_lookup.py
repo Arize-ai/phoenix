@@ -1,17 +1,23 @@
 from datetime import datetime
 from typing import Any, Iterable, Mapping, Optional
 
-from openinference.semconv.trace import SpanAttributes
 from typing_extensions import TypeAlias
 
 from phoenix.datetime_utils import is_timezone_aware
 from phoenix.db import models
 from phoenix.server.cost_tracking import regex_specificity
-from phoenix.trace.attributes import get_attribute_value
+from phoenix.server.cost_tracking.helpers import (
+    PricedModelType,
+    get_model_name,
+    get_priced_model_type,
+    get_provider,
+)
 
 _RegexPatternStr: TypeAlias = str
 _RegexSpecificityScore: TypeAlias = int
 _TieBreakerId: TypeAlias = int
+
+_PRICED_MODEL_TYPES: frozenset[PricedModelType] = frozenset(("LLM", "DECISION", "EMBEDDING"))
 
 
 class CostModelLookup:
@@ -29,6 +35,10 @@ class CostModelLookup:
 
     def _add_or_update_model(self, model: models.GenerativeModel) -> None:
         """Add or update a single model in the lookup."""
+        if model.type not in _PRICED_MODEL_TYPES:
+            # Only LLM, DECISION and EMBEDDING models are priced.
+            self._remove_model(model.id)
+            return
         self._models_by_id[model.id] = model
 
         specificity_score = regex_specificity.score(model.name_pattern)
@@ -82,9 +92,16 @@ class CostModelLookup:
         Args:
             start_time: The timestamp for which to find a model. Must be timezone-aware.
                 Models with start_time greater than this value will be excluded.
-            attributes: A mapping containing span attributes. Must include:
-                - SpanAttributes.LLM_MODEL_NAME: The name of the LLM model to match
-                - SpanAttributes.LLM_PROVIDER: (Optional) The provider of the LLM model
+            attributes: A mapping containing span attributes. The span kind
+                (`openinference.span.kind`) picks the model type: DECISION spans match
+                only DECISION models, EMBEDDING spans only EMBEDDING models, and all
+                other spans only LLM models. Must include the model name
+                (`*.response.model_name`, `*.model_name`, or `*.request.model_name`, from
+                `decision.*` or legacy `llm.*` on DECISION spans and `llm.*` on LLM spans;
+                `embedding.model_name` or `llm.*` on EMBEDDING spans). The provider
+                (`decision.provider`, `decision.system` or `llm.provider` on DECISION
+                spans, `llm.provider` otherwise) is optional; EMBEDDING spans usually
+                have none.
 
         Raises:
             TypeError: If start_time is not timezone-aware (tzinfo is None)
@@ -95,7 +112,8 @@ class CostModelLookup:
 
         Model Selection Logic:
             1. **Input Validation**: Returns None if model name is empty or whitespace-only
-            2. **Time and Regex Filtering**: Only models that satisfy both conditions:
+            2. **Type, Time and Regex Filtering**: Only models that satisfy all conditions:
+               - type matches the span kind (no fallback across types)
                - start_time <= start_time or start_time=None (active models)
                - name_pattern regex matches the model name from attributes
             3. **Early Return Optimization**: If only one candidate remains, return it immediately
@@ -128,17 +146,17 @@ class CostModelLookup:
         if not is_timezone_aware(start_time):
             raise TypeError("start_time must be timezone-aware")
 
-        model_name = str(
-            get_attribute_value(attributes, SpanAttributes.LLM_MODEL_NAME) or ""
-        ).strip()
+        model_name = get_model_name(attributes)
         if not model_name:
             return None
+        model_type = get_priced_model_type(attributes)
 
-        # 2. only include models that are active and match the regex pattern
+        # 2. only include models of the span's type that are active and match the regex pattern
         candidates = [
             model
             for model in self._models_by_id.values()
-            if (not model.start_time or model.start_time <= start_time)
+            if model.type == model_type
+            and (not model.start_time or model.start_time <= start_time)
             and model.name_pattern.search(model_name)
         ]
         if not candidates:
@@ -148,7 +166,7 @@ class CostModelLookup:
         if len(candidates) == 1:
             return candidates[0]
 
-        provider = str(get_attribute_value(attributes, SpanAttributes.LLM_PROVIDER) or "").strip()
+        provider = get_provider(attributes)
 
         # 4. priority-based selection: user-defined models first, then built-in models
         for is_built_in in (False, True):  # False = user-defined, True = built-in

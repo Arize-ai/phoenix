@@ -74,7 +74,7 @@ With instrumentation enabled, each `system_one` call shows up in Phoenix as a **
 - `decision.request.model_name` (for example `jev-latest`), `decision.response.model_name` (the resolved model, for example `jev-1.13.0`), and `decision.model_name` (the response model when reported, else the requested one)
 - `decision.token_count.input` and `decision.token_count.output`, from the response's `usage`
 
-Phoenix names the decision model in the span's input card. The model and its usage follow the OpenInference [decision span conventions](https://github.com/Arize-ai/openinference/blob/main/spec/decision_spans.md) and live under `decision.*` rather than `llm.*`, so decision-model calls stay out of Phoenix's LLM token and cost reporting. Earlier releases recorded them under `llm.*`, and releases before 0.1.3 recorded them as LLM spans.
+Phoenix names the decision model in the span's input card. The model and its usage follow the OpenInference [decision span conventions](https://github.com/Arize-ai/openinference/blob/main/spec/decision_spans.md) and live under `decision.*` rather than `llm.*`, so decision-model calls stay out of Phoenix's LLM span token counts. Their tokens and cost appear in cost summaries, priced against decision-model prices (see [Cost Tracking](/docs/phoenix/tracing/how-to-tracing/cost-tracking#decision-spans)). Earlier releases recorded them under `llm.*`, and releases before 0.1.3 recorded them as LLM spans.
 
 A System One call is not a chat exchange, so the `state` and the `answers` are recorded only as `input.value` and `output.value`, not as `llm.input_messages` / `llm.output_messages`.
 

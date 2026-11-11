@@ -469,6 +469,8 @@ def test_coerce_otlp_span_attributes() -> None:
         ("llm.token_count.prompt", "123"),
         ("llm.token_count.completion", "456"),
         ("llm.token_count.total", "579"),
+        ("decision.token_count.input", "1000"),
+        ("decision.token_count.output", "3"),
         # Test attributes that should not be modified
         ("other.number", "789"),
         ("some.string", "hello"),
@@ -481,6 +483,8 @@ def test_coerce_otlp_span_attributes() -> None:
         ("llm.token_count.prompt", 123),
         ("llm.token_count.completion", 456),
         ("llm.token_count.total", 579),
+        ("decision.token_count.input", 1000),
+        ("decision.token_count.output", 3),
         ("other.number", "789"),
         ("some.string", "hello"),
         ("llm.other.field", "world"),
@@ -493,6 +497,8 @@ def test_coerce_otlp_span_attributes() -> None:
         ("llm.token_count.prompt", "not_a_number"),
         ("llm.token_count.completion", "invalid"),
         ("llm.token_count.total", ""),
+        ("decision.token_count.input", "many"),
+        ("decision.token_count.output", ""),
     ]
 
     result = list(coerce_otlp_span_attributes(invalid_attrs))
