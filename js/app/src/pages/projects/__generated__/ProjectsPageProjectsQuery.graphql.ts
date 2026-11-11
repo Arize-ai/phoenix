@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<59601a2106a4867e9bd3a6c4d941428f>>
+ * @generated SignedSource<<6e5a9a057c68705fd73028f0184805c7>>
  * @lightSyntaxTransform
  */
 
@@ -11,10 +11,12 @@ import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ProjectColumn = "endTime" | "name";
 export type ProjectFilterColumn = "name";
+export type ProjectKind = "EVALUATOR" | "EXPERIMENT" | "PLAYGROUND" | "STANDARD";
 export type SortDir = "asc" | "desc";
 export type ProjectFilter = {
-  col: ProjectFilterColumn;
-  value: string;
+  col?: ProjectFilterColumn | null;
+  kinds?: ReadonlyArray<ProjectKind> | null;
+  value?: string | null;
 };
 export type ProjectSort = {
   col: ProjectColumn;

@@ -6,6 +6,7 @@ from typing import Any, Literal, Optional, Sequence, TypeVar, TypeVarTuple, Unio
 
 import sqlalchemy as sa
 from sqlalchemy import (
+    ColumnElement,
     Insert,
     Select,
     SQLColumnExpression,
@@ -29,7 +30,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import QueryableAttribute, aliased
 from sqlalchemy.sql.roles import InElementRole
 from sqlalchemy.sql.selectable import CTE, Subquery
-from typing_extensions import assert_never
+from typing_extensions import TypeAlias, assert_never
 
 from phoenix.config import (
     PLAYGROUND_PROJECT_NAME,
@@ -450,6 +451,38 @@ def exclude_project_evaluator_trace_projects(
         models.ProjectEvaluator,
         models.Project.id == models.ProjectEvaluator.trace_project_id,
     ).where(models.ProjectEvaluator.trace_project_id.is_(None))
+
+
+ProjectKind: TypeAlias = Literal["STANDARD", "PLAYGROUND", "EXPERIMENT", "EVALUATOR"]
+
+
+def project_kind_expression() -> ColumnElement[ProjectKind]:
+    """
+    A correlated expression that classifies each project by what writes its traces.
+
+    A project is PLAYGROUND when it is the prompt playground project, EVALUATOR when it holds
+    the traces of a dataset evaluator or a project evaluator, EXPERIMENT when an experiment
+    records its runs in it, and STANDARD otherwise. The first matching kind wins.
+    """
+    is_evaluator_project = or_(
+        select(models.DatasetEvaluators.id)
+        .where(models.DatasetEvaluators.project_id == models.Project.id)
+        .exists(),
+        select(models.ProjectEvaluator.id)
+        .where(models.ProjectEvaluator.trace_project_id == models.Project.id)
+        .exists(),
+    )
+    is_experiment_project = (
+        select(models.Experiment.id)
+        .where(models.Experiment.project_name == models.Project.name)
+        .exists()
+    )
+    return case(
+        (models.Project.name == PLAYGROUND_PROJECT_NAME, literal("PLAYGROUND")),
+        (is_evaluator_project, literal("EVALUATOR")),
+        (is_experiment_project, literal("EXPERIMENT")),
+        else_=literal("STANDARD"),
+    )
 
 
 async def delete_projects_and_evaluator_trace_projects(
