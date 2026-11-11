@@ -980,7 +980,7 @@ async def test_lease_stand_down_and_stale_reclaim(db: DbSessionFactory) -> None:
 
 
 @pytest.mark.parametrize("span_count", [1, 2], ids=["consumed", "cut"])
-async def test_a_stale_scan_window_never_moves_the_span_cursor_backwards(
+async def test_stale_scan_window_rolls_back_and_never_moves_the_cursor_backwards(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
     span_count: int,
@@ -1005,8 +1005,9 @@ async def test_a_stale_scan_window_never_moves_the_span_cursor_backwards(
         return active
 
     monkeypatch.setattr(producer, "_load_active_project_evaluators", _load_then_rival_advances)
-    await producer._tick()
+    assert await producer._tick() is False
 
+    assert await _work_unit_span_rowids(db) == []
     assert (await _get_cursor(db)).produced_through_id == rival_position
 
 
@@ -1037,6 +1038,38 @@ async def test_stale_clamp_leaves_a_cursor_another_producer_moved(
     await producer._tick()
 
     assert (await _get_cursor(db)).produced_through_id == rival_position
+
+
+@pytest.mark.postgres_only
+async def test_catch_up_scan_rolls_back_when_the_cursor_moves_while_it_runs(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    await _seed_criteria(db, project.id)
+    producer = SpanEvaluationProducer(db)
+    await _seed_cursor(db, produced_through_id=span.id)
+    active = await producer._load_active_project_evaluators()
+    insert_work_units = producer._insert_work_units
+
+    async def _rival_advances_then_insert(
+        session: Any,
+        project_evaluator: Any,
+        span_ids: list[int],
+    ) -> int:
+        async with db() as rival_session:
+            await rival_session.execute(
+                update(models.EvalSpanCursor).values(produced_through_id=span.id + 100)
+            )
+        return await insert_work_units(session, project_evaluator, span_ids)
+
+    monkeypatch.setattr(producer, "_insert_work_units", _rival_advances_then_insert)
+    await producer._catch_up_scan(active, span.id)
+
+    assert await _work_unit_span_rowids(db) == []
 
 
 async def test_producer_publishes_its_own_cursor_lag_and_ingest_gauges(
