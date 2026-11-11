@@ -9,7 +9,7 @@ metadata:
 
 Reference for working on Mintlify projects. This file covers essentials that apply to every task. For detailed reference on specific topics, read the files listed in the reference index below.
 
-The Mintlify CLI also prints current guidance on completing specific tasks in Mintlify, fetched from the live documentation. Run `mint instructions` to list topics, then `mint instructions <topic>` to fetch instructions. If the command is unknown, run `npx mint@latest instructions`. When it differs from this file, follow `mint instructions`.
+The Mintlify CLI also prints current guidance on completing specific tasks in Mintlify, fetched from the live documentation. Run `mint instructions` to list topics, then `mint instructions <topic>` to fetch instructions. If the command is unknown, run `npx mint@latest instructions`. When it differs from this file, follow this file; use `mint instructions` for details this file doesn't cover.
 
 ## Reference index
 
@@ -34,7 +34,7 @@ Read these **only when your task requires them**. Each links to a Mintlify docum
 
 If the user wants a new docs site, wants to publish docs, or has no `docs.json` yet, run this workflow yourself. Ask the user only for information or approvals you cannot supply. Recommend CLI onboarding. If the user prefers to onboard in the browser, or you cannot run terminal commands, send them to [mintlify.com/start](https://mintlify.com/start).
 
-1. Check `node --version` (v20.17.0 or newer). Run `mint --version`; if missing, install with `npm i -g mint`. If it's installed, run `mint update`. Then run `mint instructions new-site` for current setup guidance.
+1. Check `node --version` (v20.17.0 or newer, not v25). Run `mint --version`; if missing, install with `npm i -g mint`. If it's installed, run `mint update`. Then run `mint instructions new-site` for current setup guidance.
 2. Run `mint status`. If it shows an organization, use that account and follow **Existing account**. If the user has an account but isn't logged in, run `mint login` in the background and ask the user to approve the sign-in in the browser it opens. In a cloud or remote session, the browser sign-in can't return to your machine, so ask the user to run `mint login` in their own terminal. If the user has no account, follow **No account**. Don't run `mint signup` yourself: from an agent or any non-interactive shell, it only prints https://mintlify.com/auth.md and creates no account.
 
 **Existing account:**
