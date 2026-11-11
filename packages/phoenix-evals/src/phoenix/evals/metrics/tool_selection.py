@@ -16,9 +16,11 @@ class ToolSelectionEvaluator(ClassificationEvaluator):
     A specialized evaluator for determining if the correct tool was selected for a given context.
 
     Args:
-        llm (LLM): The LLM instance to use for the evaluation.
-        **kwargs: Additional invocation parameters forwarded to the LLM client
-            (e.g., ``temperature=0.0``, ``max_tokens=256``).
+        llm (Union[LLM, DecisionModel]): The LLM or decision model to use for the evaluation.
+        **kwargs: Additional invocation parameters forwarded to the judge. What is accepted
+            depends on the judge: an ``LLM`` accepts generation parameters (e.g.
+            ``temperature``, ``max_tokens``); a decision model accepts request options (e.g.
+            ``timeout``).
 
     Notes:
         - Evaluates whether an AI agent's tool selection was correct or incorrect based on
@@ -27,20 +29,22 @@ class ToolSelectionEvaluator(ClassificationEvaluator):
         - This metric evaluates the correctness of the tool selection, not the correctness of the
           tool invocations or the tool outputs.
         - Returns one `Score` with `label` (correct or incorrect), `score` (1.0 if correct,
-          0.0 if incorrect), and an `explanation` from the LLM judge.
-        - Requires an LLM that supports tool calling or structured output.
+          0.0 if incorrect), and, when an `LLM` judge is used, an `explanation`
+          (decision models return a label and probabilities, not an explanation).
+        - When backed by an `LLM`, requires one that supports tool calling or structured
+          output; decision models answer through a typed choices API, so this does not apply.
 
     Examples::
 
         from phoenix.evals.metrics.tool_selection import ToolSelectionEvaluator
-        from phoenix.evals import LLM
-        llm = LLM(provider="openai", model="gpt-4o-mini")
+        from phoenix.evals import DecisionModel
+        llm = DecisionModel(provider="openai", model="gpt-6-luna")
 
         # Default usage
         tool_selection_eval = ToolSelectionEvaluator(llm=llm)
 
         # With custom invocation parameters
-        tool_selection_eval = ToolSelectionEvaluator(llm=llm, temperature=0.0)
+        tool_selection_eval = ToolSelectionEvaluator(llm=llm, timeout=30)
 
         eval_input = {
             "input": "User: What is the weather in San Francisco?",

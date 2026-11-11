@@ -4,7 +4,7 @@ import { openai } from "@ai-sdk/openai";
 /* eslint-disable no-console */
 import { createClassificationEvaluator } from "../src/llm";
 
-const model = openai("gpt-4o-mini");
+const model = openai("gpt-6-luna");
 
 const promptTemplate = `
 In this task, you will be presented with a query, a reference text and an answer. The answer is

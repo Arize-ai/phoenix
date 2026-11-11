@@ -1,0 +1,152 @@
+---
+title: "Configuring the Decision Model"
+sidebarTitle: "Configuring the Decision Model"
+---
+
+Classification evaluators can use a **decision model** as the judge instead of a language model. A decision model answers a typed choice question directly, returning a label with per-label probabilities (and a confidence when the provider reports one) but no explanation. See [Decision Models as a Judge](/docs/phoenix/evaluation/concepts-evals/decision-models-as-a-judge) for the concept.
+
+This page covers how to configure a decision model. For language-model judges, see [Configuring the LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm).
+
+## Python Configuration
+
+The Phoenix evals Python package wraps decision-provider SDKs with a `DecisionModel` adapter that mirrors the `LLM` interface. You pass a `DecisionModel` wherever an evaluator accepts a judge (the `llm` argument).
+
+Client configuration parameters (e.g., `api_key`, `base_url`) are passed as `**kwargs` when creating the `DecisionModel`. These configure the client itself.
+
+When creating a `DecisionModel`, specify:
+- `provider`: The decision provider name (e.g., `"openai"`, `"typesafe"`)
+- `model`: The model identifier
+- `client` (optional): Which client SDK to use if multiple are registered for the provider
+- `initial_per_second_request_rate` (optional): The initial per-second request rate for rate limiting
+- `sync_client_kwargs` (optional): Client configuration forwarded only to the sync client
+- `async_client_kwargs` (optional): Client configuration forwarded only to the async client
+- `**kwargs`: Client configuration parameters forwarded to both sync and async client constructors
+
+To see the currently supported decision providers and their availability, use the `show_decision_provider_availability` function:
+
+```python
+from phoenix.evals.decision import show_decision_provider_availability
+
+show_decision_provider_availability()
+```
+
+The output shows which providers are available based on installed dependencies:
+
+```
+📦 AVAILABLE DECISION PROVIDERS (sorted by client priority)
+------------------------------------------------
+Provider | Status      | Client   | Dependencies
+------------------------------------------------
+openai   | ✓ Available | openai   | openai
+typesafe | ✓ Available | typesafe | typesafe-sdk
+```
+
+Each row's `status` reads "Available" only if that provider's dependency is installed in the active Python environment (for example, `typesafe` requires `typesafe-sdk`). The minimum `openai` version for the Decisions API is enforced when the client is created, not reflected in this table — see the OpenAI Decision Adapter below.
+
+<Note>
+Decision models answer through a typed choices API, so language-model generation parameters such as `temperature`, `max_tokens`, or `top_p` do not apply. Any `**kwargs` you pass to the evaluator constructor are forwarded to the decision SDK call (e.g., `timeout`, `extra_headers`).
+</Note>
+
+### OpenAI Decision Adapter
+
+**Client**: `openai.OpenAI()` or `openai.AsyncOpenAI()`
+**Invocation**: `client.decisions` (the OpenAI Decisions API)
+**Requirements**: `openai>=3.26.0` — the installed SDK must expose the `decisions` resource.
+**Docs**: [OpenAI Decisions API](https://developers.openai.com/api/docs/guides/decisions)
+
+```python
+from phoenix.evals import ClassificationEvaluator, DecisionModel
+
+# Client config → DecisionModel creation
+decision_model = DecisionModel(
+    provider="openai",
+    model="gpt-6-luna",
+    api_key="your-api-key",  # Client config param (or set OPENAI_API_KEY)
+)
+
+evaluator = ClassificationEvaluator(
+    name="example",
+    prompt_template="Classify: {input}",
+    choices={"positive": 1, "negative": 0},
+    llm=decision_model,
+)
+```
+
+### TypeSafe Decision Adapter
+
+**Client**: `typesafe_sdk.TypeSafeClient()` or `typesafe_sdk.AsyncTypeSafeClient()`
+**Requirements**: `typesafe-sdk`
+
+```python
+from phoenix.evals import ClassificationEvaluator, DecisionModel
+
+decision_model = DecisionModel(
+    provider="typesafe",
+    model="jev-latest",
+    api_key="your-api-key",
+)
+
+evaluator = ClassificationEvaluator(
+    name="example",
+    prompt_template="Classify: {input}",
+    choices={"positive": 1, "negative": 0},
+    llm=decision_model,
+)
+```
+
+### Separate Sync/Async Client Configuration
+
+As with `LLM`, decision providers create separate sync and async SDK clients internally. Use `sync_client_kwargs` and `async_client_kwargs` to pass configuration that applies only to one client type (for example, a longer timeout for async batch operations).
+
+```python
+from phoenix.evals import DecisionModel
+
+decision_model = DecisionModel(
+    provider="openai",
+    model="gpt-6-luna",
+    api_key="your-api-key",
+    sync_client_kwargs={"timeout": 30.0},
+    async_client_kwargs={"timeout": 120.0},
+)
+```
+
+## TypeScript Configuration
+
+The TypeScript library uses the [AI SDK's](https://sdk.vercel.ai/docs) decision-model type. Create a decision model with a provider's `decisionModel()` function and pass it to an evaluator exactly like a language model.
+
+### Configuring the Decision Model
+
+```typescript
+import { openai } from "@ai-sdk/openai";
+
+// A decision model (not a language model)
+const decisionModel = openai.decisionModel("gpt-6-luna");
+```
+
+The AI SDK handles authentication via environment variables (e.g., `OPENAI_API_KEY`), or you can pass configuration directly with `createOpenAI`:
+
+```typescript
+import { createOpenAI } from "@ai-sdk/openai";
+
+const openai = createOpenAI({
+  apiKey: "my-openai-api-key",
+  baseURL: "https://custom-endpoint.com/v1",
+});
+const decisionModel = openai.decisionModel("gpt-6-luna");
+```
+
+### Using with Evaluators
+
+```typescript
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+import { openai } from "@ai-sdk/openai";
+
+const evaluator = createClassificationEvaluator({
+  name: "factual_check",
+  model: openai.decisionModel("gpt-6-luna"),
+  choices: { factual: 1, hallucinated: 0 },
+  promptTemplate: "Your evaluation prompt here: {{input}}",
+});
+```
+
+The evaluator returns a label and per-label probabilities in its result metadata. It does not return an explanation. For more provider settings, refer to the [AI SDK documentation](https://sdk.vercel.ai/providers/ai-sdk-providers).

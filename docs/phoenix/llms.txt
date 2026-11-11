@@ -123,6 +123,7 @@
 - [How to Evals](https://arize.com/docs/phoenix/evaluation/how-to-evals): Set up and run evaluations end-to-end
 - [Custom LLM Evaluators](https://arize.com/docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators): Build evaluators with custom prompts and scoring logic
 - [Configuring the LLM](https://arize.com/docs/phoenix/evaluation/how-to-evals/configuring-the-llm): Set up LLM providers for evaluations
+- [Configuring the Decision Model](https://arize.com/docs/phoenix/evaluation/how-to-evals/configuring-the-decision-model): Set up decision-model judges (OpenAI, TypeSafe) for classification evaluations
 - [Prompt Formats](https://arize.com/docs/phoenix/evaluation/how-to-evals/prompt-formats): Customize evaluator prompt structures
 - [Code Evaluators (SDK)](https://arize.com/docs/phoenix/evaluation/how-to-evals/code-evaluators): Deterministic evaluation with Python or TypeScript
 - [Code Evaluator Output Shapes](https://arize.com/docs/phoenix/evaluation/how-to-evals/code-evaluator-output-shapes): Return scores, labels, multiple outputs, or explanations from a code evaluator
@@ -569,6 +570,7 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 ### Evaluation
 
 - [LLM as a Judge](https://arize.com/docs/phoenix/evaluation/concepts-evals/llm-as-a-judge): LLM-based evaluation best practices
+- [Decision Models as a Judge](https://arize.com/docs/phoenix/evaluation/concepts-evals/decision-models-as-a-judge): Use decision models as classification judges that return labels and probabilities, not explanations
 
 ## Resources
 

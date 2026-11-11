@@ -59,7 +59,7 @@ _CHOICES = {"correct": 1.0, "partially_correct": 0.5, "incorrect": 0.0}
 
 # Each juror: (LLM, weight). Weights reflect how much you trust each model.
 _JURORS = [
-    (LLM(provider="openai", model="gpt-4o-mini"), 1.0),
+    (LLM(provider="openai", model="gpt-6-luna"), 1.0),
     (LLM(provider="anthropic", model="claude-haiku-4-5"), 1.0),
     (LLM(provider="google", model="gemini-2.5-flash"), 0.8),
 ]
@@ -154,7 +154,7 @@ const JURORS: Array<{
     weight: 1.0,
     evaluator: createClassificationEvaluator({
       name: "jury_openai",
-      model: openai("gpt-4o-mini"),
+      model: openai("gpt-6-luna"),
       promptTemplate: PROMPT,
       choices: CHOICES,
     }),
@@ -270,7 +270,7 @@ Continuous score in the range `0.0` to `1.0` (matches the weighted average of th
 <Warning>
 The jury makes **N API calls per example** — one per juror — and pays the full install cost for every provider SDK on cold start. `arize-phoenix-evals` alone pulls `pydantic`; each provider SDK adds another 10–40 MB. Bump the sandbox configuration's **Timeout** to comfortably cover N round-trips plus the install, and reuse the same configuration across runs so the provider can warm-cache it.
 
-The model IDs above (`gpt-4o-mini`, `claude-haiku-4-5`, `gemini-2.5-flash`) are reasonable defaults at the time of writing — swap them for the latest stable IDs from the provider's docs.
+The model IDs above (`gpt-6-luna`, `claude-haiku-4-5`, `gemini-2.5-flash`) are reasonable defaults at the time of writing — swap them for the latest stable IDs from the provider's docs.
 </Warning>
 
 ## Variants

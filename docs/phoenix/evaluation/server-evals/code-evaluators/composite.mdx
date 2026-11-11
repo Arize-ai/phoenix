@@ -44,7 +44,7 @@ import re
 
 from phoenix.evals import LLM, ClassificationEvaluator
 
-_llm = LLM(provider="openai", model="gpt-4o-mini")
+_llm = LLM(provider="openai", model="gpt-6-luna")
 
 _correctness = ClassificationEvaluator(
     name="correctness",
@@ -111,7 +111,7 @@ import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 
 const correctnessEval = createClassificationEvaluator({
   name: "correctness",
-  model: openai("gpt-4o-mini"),
+  model: openai("gpt-6-luna"),
   promptTemplate:
     "Is the answer factually correct given the reference?\n\n" +
     "Reference: {{ reference }}\n\nAnswer: {{ output }}",

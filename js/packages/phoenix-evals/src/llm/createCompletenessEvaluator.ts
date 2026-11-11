@@ -44,7 +44,7 @@ export type CompletenessEvaluationRecord = {
  *
  * @example
  * ```ts
- * const evaluator = createCompletenessEvaluator({ model: openai("gpt-4o-mini") });
+ * const evaluator = createCompletenessEvaluator({ model: openai.decisionModel("gpt-6-luna") });
  * const result = await evaluator.evaluate({
  *   conversation:
  *     "User: Reset my password and update the billing address.\nAssistant: Your password has been reset.",

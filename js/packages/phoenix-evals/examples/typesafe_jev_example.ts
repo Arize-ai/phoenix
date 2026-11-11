@@ -17,7 +17,7 @@ import { typeSafeAi } from "@ai-sdk/typesafe-ai";
 import { createHallucinationEvaluator } from "../src/llm";
 
 const jev = typeSafeAi.evaluationModel("jev-latest");
-const gpt = openai("gpt-4o-mini");
+const gpt = openai("gpt-6-luna");
 
 const jevEvaluator = createHallucinationEvaluator({ model: jev });
 const gptEvaluator = createHallucinationEvaluator({ model: gpt });

@@ -16,29 +16,33 @@ class RefusalEvaluator(ClassificationEvaluator):
     An evaluator for detecting when an LLM refuses or declines to answer a query.
 
     Args:
-        llm (LLM): The LLM instance to use for the evaluation.
-        **kwargs: Additional invocation parameters forwarded to the LLM client
-            (e.g., ``temperature=0.0``, ``max_tokens=256``).
+        llm (Union[LLM, DecisionModel]): The LLM or decision model to use for the evaluation.
+        **kwargs: Additional invocation parameters forwarded to the judge. What is accepted
+            depends on the judge: an ``LLM`` accepts generation parameters (e.g.
+            ``temperature``, ``max_tokens``); a decision model accepts request options (e.g.
+            ``timeout``).
 
     Notes:
         - Detects refusals, deflections, scope disclaimers, and non-answers.
         - Returns one `Score` with `label` (refused or answered), `score` (1.0 if refused,
-          0.0 if answered), and an `explanation` from the LLM judge.
+          0.0 if answered), and, when an `LLM` judge is used, an `explanation`
+          (decision models return a label and probabilities, not an explanation).
         - This metric is use-case agnostic: it only detects whether a refusal occurred,
           not whether the refusal was appropriate.
-        - Requires an LLM that supports tool calling or structured output.
+        - When backed by an `LLM`, requires one that supports tool calling or structured
+          output; decision models answer through a typed choices API, so this does not apply.
 
     Examples::
 
         from phoenix.evals.metrics.refusal import RefusalEvaluator
-        from phoenix.evals import LLM
-        llm = LLM(provider="openai", model="gpt-4o-mini")
+        from phoenix.evals import DecisionModel
+        llm = DecisionModel(provider="openai", model="gpt-6-luna")
 
         # Default usage
         refusal_eval = RefusalEvaluator(llm=llm)
 
         # With custom invocation parameters
-        refusal_eval = RefusalEvaluator(llm=llm, temperature=0.0)
+        refusal_eval = RefusalEvaluator(llm=llm, timeout=30)
 
         eval_input = {
             "input": "What is the capital of France?",
@@ -47,8 +51,8 @@ class RefusalEvaluator(ClassificationEvaluator):
         scores = refusal_eval.evaluate(eval_input)
         print(scores)
         [Score(name='refusal', score=1.0, label='refused',
-            explanation='The response refuses to answer by claiming scope limitations.',
-            metadata={'model': 'gpt-4o-mini'},
+            metadata={'model': 'gpt-6-luna', 'model_id': 'gpt-6-luna', 'confidence': 0.95,
+                'probabilities': {'refused': 0.97, 'answered': 0.03}},
             kind="llm", direction="neutral")]
 
     """

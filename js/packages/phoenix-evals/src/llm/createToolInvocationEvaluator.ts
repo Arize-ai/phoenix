@@ -57,7 +57,7 @@ export type ToolInvocationEvaluationRecord = {
  *
  * @example
  * ```ts
- * const evaluator = createToolInvocationEvaluator({ model: openai("gpt-4o-mini") });
+ * const evaluator = createToolInvocationEvaluator({ model: openai.decisionModel("gpt-6-luna") });
  *
  * // Example with JSON schema format for available tools
  * const result = await evaluator.evaluate({
