@@ -8,7 +8,10 @@ import { useEvaluatorPreviewRuns } from "@phoenix/pages/project/evaluators/Proje
 import type { RecordedRunRow } from "@phoenix/pages/project/evaluators/projectEvaluatorTestBenchTypes";
 import { DEFAULT_CODE_EVALUATOR_STORE_VALUES } from "@phoenix/store/evaluatorStore";
 
-const { subscribe } = vi.hoisted(() => ({ subscribe: vi.fn() }));
+const { subscribe, dispose } = vi.hoisted(() => ({
+  subscribe: vi.fn(),
+  dispose: vi.fn(),
+}));
 vi.mock("react-relay", async (importOriginal) => ({
   ...(await importOriginal<typeof ReactRelay>()),
   useRelayEnvironment: () => ({}),
@@ -17,7 +20,7 @@ vi.mock("relay-runtime", async (importOriginal) => ({
   ...(await importOriginal<typeof RelayRuntime>()),
   requestSubscription: (_environment: unknown, config: object) => {
     subscribe(config);
-    return { dispose: vi.fn() };
+    return { dispose };
   },
 }));
 vi.mock("@phoenix/contexts/CredentialsContext", () => ({
@@ -146,6 +149,16 @@ describe("useEvaluatorPreviewRuns with overlapping runs on one row", () => {
     await act(async () => subscription(0).onError(new Error("stale")));
     expect(previewRuns.runs.x).toMatchObject({ status: "running" });
     expect(previewRuns.runError).toBeNull();
+  });
+
+  it("closes every stream still running when the bench unmounts", async () => {
+    await startOverlappingRuns();
+    expect(dispose).not.toHaveBeenCalled();
+
+    await act(async () => root.unmount());
+
+    // Both overlapping streams were open, so both close and the server stops them.
+    expect(dispose).toHaveBeenCalledTimes(2);
   });
 
   it("does not mark the newer run's row missing when the older stream completes", async () => {
