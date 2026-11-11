@@ -398,7 +398,7 @@ class TestGetAggregatedTokens:
 
     def test_get_aggregated_tokens_type_conversion(self) -> None:
         """Test type conversion from various input types."""
-        # Test with boolean values (should convert to int: True=1, False=0)
+        # Booleans are not token counts even though bool subclasses int in Python.
         bool_attributes: dict[str, Any] = {
             "llm": {
                 "token_count": {
@@ -411,7 +411,7 @@ class TestGetAggregatedTokens:
         result: tuple[Optional[int], Optional[int], Optional[int]] = get_aggregated_tokens(
             bool_attributes
         )
-        assert result == (1, 0, 1)  # int(True) = 1, int(False) = 0
+        assert result == (0, 0, 0)
 
         # Test with None values (should default to 0)
         none_attributes: dict[str, Any] = {
@@ -694,6 +694,18 @@ class TestDecisionSpanAttributes:
                 {"prompt": 10, "completion": 5},
                 (10, 5, 15),
                 id="non_numeric_decision_count_keeps_llm_counts",
+            ),
+            pytest.param(
+                {"input": float("nan"), "output": float("inf")},
+                {"prompt": 10, "completion": 5},
+                (10, 5, 15),
+                id="non_finite_decision_count_keeps_llm_counts",
+            ),
+            pytest.param(
+                {"input": False},
+                {"prompt": 10, "completion": 5},
+                (10, 5, 15),
+                id="bool_decision_count_keeps_llm_counts",
             ),
         ],
     )

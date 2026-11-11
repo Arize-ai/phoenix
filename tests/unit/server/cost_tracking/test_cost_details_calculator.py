@@ -328,6 +328,9 @@ class TestSpanCostDetailsCalculator:
                             "prompt_details": {
                                 "image": "invalid",
                                 "audio": None,
+                                "cache_read": float("nan"),
+                                "cache_write": float("inf"),
+                                "document": True,
                             },
                             "completion_details": {
                                 "output": 50,
@@ -1048,3 +1051,37 @@ class TestDecisionSpanCostDetails:
         }
         details = _by_type(calculator.calculate_details(attributes))
         assert details["input"].cost == pytest.approx(1000 * 1e-7)
+
+    @pytest.mark.parametrize(
+        "invalid_input",
+        [
+            pytest.param("many", id="string"),
+            pytest.param(float("inf"), id="inf"),
+            pytest.param(float("nan"), id="nan"),
+            pytest.param({"raw": 300_000}, id="dict"),
+            pytest.param(True, id="bool"),
+        ],
+    )
+    def test_non_finite_or_non_numeric_threshold_value_uses_base_rate(
+        self, invalid_input: Any
+    ) -> None:
+        prices = [
+            models.TokenPrice(
+                token_type="output",
+                is_prompt=False,
+                **_tier(5e-7, 1e-6, "decision.token_count.input"),
+            ),
+        ]
+        calculator = SpanCostDetailsCalculator(prices)
+        attributes = {
+            "openinference": {"span": {"kind": "DECISION"}},
+            "decision": {
+                "model_name": "gpt-6-luna",
+                "token_count": {"input": invalid_input, "output": 10},
+            },
+        }
+        details = _by_type(calculator.calculate_details(attributes))
+        assert details.keys() == {"output"}
+        assert details["output"].tokens == 10
+        assert details["output"].cost == pytest.approx(10 * 5e-7)
+        assert details["output"].cost_per_token == pytest.approx(5e-7)

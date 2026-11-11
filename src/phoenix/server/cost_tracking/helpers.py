@@ -1,9 +1,9 @@
 import logging
 import math
-from typing import Any, Literal, Mapping, Optional
+from typing import Any, Literal, Mapping, Optional, Union
 
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
-from typing_extensions import TypeAlias
+from typing_extensions import TypeAlias, TypeGuard
 
 from phoenix.trace.attributes import get_attribute_value
 
@@ -94,12 +94,24 @@ def get_provider(attributes: Optional[Mapping[str, Any]]) -> str:
     return _get_str(attributes, SpanAttributes.LLM_PROVIDER)
 
 
+def is_finite_number(value: Any) -> TypeGuard[Union[int, float]]:
+    """Whether `value` is a finite `int` or `float` (excluding `bool`)."""
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def parse_token_count(value: Any) -> Optional[int]:
+    """Parse a span attribute value as a non-negative integer token count, or None if invalid."""
+    if not is_finite_number(value):
+        return None
+    return max(0, int(value))
+
+
 def uses_decision_token_counts(attributes: Optional[Mapping[str, Any]]) -> bool:
     """
     Whether the span's token counts come from `decision.token_count.*`.
 
-    True for a DECISION span that sets a numeric `decision.token_count.input` or `.output`. A
-    DECISION span that sets neither falls back to the legacy `llm.token_count.*` attributes.
+    True for a DECISION span that sets a finite numeric `decision.token_count.input` or `.output`.
+    A DECISION span that sets neither falls back to the legacy `llm.token_count.*` attributes.
     The two families are never mixed (the spec keeps decision usage in its own namespace): a
     span with `decision.token_count.input` and only `llm.token_count.completion` has 0 output
     tokens.
@@ -110,7 +122,7 @@ def uses_decision_token_counts(attributes: Optional[Mapping[str, Any]]) -> bool:
     if get_priced_model_type(attributes) != "DECISION":
         return False
     return any(
-        isinstance(get_attribute_value(attributes, key), (int, float))
+        parse_token_count(get_attribute_value(attributes, key)) is not None
         for key in (
             SpanAttributes.DECISION_TOKEN_COUNT_INPUT,
             SpanAttributes.DECISION_TOKEN_COUNT_OUTPUT,
@@ -118,14 +130,8 @@ def uses_decision_token_counts(attributes: Optional[Mapping[str, Any]]) -> bool:
     )
 
 
-def _parse_token_count(value: Any) -> int:
-    if not isinstance(value, (int, float)) or not math.isfinite(value):
-        return 0
-    return max(0, int(value))
-
-
 def _get_token_count(attributes: Mapping[str, Any], key: str) -> int:
-    return _parse_token_count(get_attribute_value(attributes, key))
+    return parse_token_count(get_attribute_value(attributes, key)) or 0
 
 
 def get_aggregated_tokens(

@@ -10,6 +10,7 @@ from phoenix.db.types.token_price_customization import (
 )
 from phoenix.server.cost_tracking.helpers import (
     get_priced_model_type,
+    is_finite_number,
     uses_decision_token_counts,
 )
 from phoenix.trace.attributes import get_attribute_value
@@ -62,9 +63,10 @@ class ThresholdBasedTokenCostCalculator(TokenCostCalculator):
         attributes: Mapping[str, Any],
         tokens: float,
     ) -> float:
-        if not (v := get_attribute_value(attributes, _threshold_key(self.key, attributes))):
+        threshold_value = get_attribute_value(attributes, _threshold_key(self.key, attributes))
+        if not is_finite_number(threshold_value):
             return tokens * self.base_rate
-        if v > self.threshold:
+        if threshold_value > self.threshold:
             return tokens * self.new_rate
         return tokens * self.base_rate
 

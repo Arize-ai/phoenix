@@ -6,6 +6,7 @@ from typing_extensions import TypeAlias
 from phoenix.db import models
 from phoenix.server.cost_tracking.helpers import (
     get_aggregated_tokens,
+    parse_token_count,
     uses_decision_token_counts,
 )
 from phoenix.server.cost_tracking.token_cost_calculator import (
@@ -138,10 +139,8 @@ class SpanCostDetailsCalculator:
             details = get_attribute_value(attributes, f"llm.token_count.{prefix}_details")
             if isinstance(details, dict) and details:
                 for token_type, token_count in details.items():
-                    # Validate token count is numeric
-                    if not isinstance(token_count, (int, float)):
+                    if (tokens := parse_token_count(token_count)) is None:
                         continue
-                    tokens = max(0, int(token_count))
 
                     # Calculate cost using specific calculator or fallback to default
                     calculator = None
