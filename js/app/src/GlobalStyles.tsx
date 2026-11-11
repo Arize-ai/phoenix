@@ -1664,6 +1664,10 @@ const chartCSS = css`
        separate; match the surface the chart sits on */
     --chart-bar-separator-color: var(--chart-panel-background-color);
     --chart-panel-border-color: var(--global-border-color-default);
+    /* Inline sparklines draw in text ink: data, not status. Text tokens
+       already flip with the theme */
+    --chart-sparkline-stroke-color: var(--global-text-color-900);
+    --chart-sparkline-coverage-fill-color: var(--global-text-color-300);
   }
   .theme--dark {
     --chart-tooltip-cursor-fill-color: rgba(255, 255, 255, 0.05);

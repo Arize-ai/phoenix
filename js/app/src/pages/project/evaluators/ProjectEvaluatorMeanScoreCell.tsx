@@ -16,11 +16,9 @@ import {
   getOptimizationValueFromConfig,
 } from "@phoenix/components/annotation";
 import {
-  ANNOTATION_LABEL_ACCENT_COLOR,
-  extendAnnotationLabelColors,
   getAnnotationLabelColor,
   getAnnotationLabelOrder,
-  useAnnotationLabelColors,
+  useLabelDistributionColors,
 } from "@phoenix/components/annotation/annotationLabelColors";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import {
@@ -95,15 +93,15 @@ const leadingLabelCSS = css`
  * One width for all rows puts each time bin at the same x on every row, so
  * a spike or a gap can be traced down the column; a chart that took the
  * room its row's pill leaves would put the same bin somewhere else on each
- * row.
+ * row. Exported so stories draw the column's charts at the column's width.
  */
-const CHART_WIDTH = 112;
+export const RESULTS_CHART_WIDTH = 112;
 
 /** The chart's slot at the cell's right edge, the same on every row. */
 const chartSlotCSS = css`
   display: flex;
   flex: none;
-  width: ${CHART_WIDTH}px;
+  width: ${RESULTS_CHART_WIDTH}px;
   margin-left: auto;
 `;
 
@@ -129,15 +127,12 @@ const SPARKLINE_MIN_RANGE_FRACTION = 0.2;
 /**
  * The line is data ink, not status: the score pill and the delta already
  * carry the judgement, and painting the whole history in a status color
- * would restate one number's sign across the entire window.
+ * would restate one number's sign across the entire window. The coverage
+ * strip sits well under the line, so where there is data reads as context
+ * beneath the steps rather than as a second series.
  */
-const SPARKLINE_COLOR = "var(--global-text-color-900)";
-
-/**
- * Well under the line, so where there is data reads as context beneath the
- * steps rather than as a second series.
- */
-const SPARKLINE_COVERAGE_COLOR = "var(--global-text-color-300)";
+const SPARKLINE_COLOR = "var(--chart-sparkline-stroke-color)";
+const SPARKLINE_COVERAGE_COLOR = "var(--chart-sparkline-coverage-fill-color)";
 
 /**
  * Whether the sparkline carries a coverage strip along its baseline, one cell
@@ -357,7 +352,7 @@ function AnnotationMeanScoreView({
           values={sparkValues}
           weights={sparkWeights}
           minRange={sparkMinRange}
-          maxWidth={CHART_WIDTH}
+          maxWidth={RESULTS_CHART_WIDTH}
           color={SPARKLINE_COLOR}
           showCoverage={SPARKLINE_SHOW_COVERAGE}
           coverageColor={SPARKLINE_COVERAGE_COLOR}
@@ -468,18 +463,11 @@ function AnnotationLabelDistributionView({
   series: EvaluatorAnnotationScoreMetricsData["series"];
   formatBinTime: (date: Date) => string;
 }) {
-  // A neutral accent rather than the name's word color, which can land on a
-  // status hue (red for "correct") and read as a judgement. Whether a label
-  // is good or bad shows on the pill and delta when the config scores it.
-  const palette = useAnnotationLabelColors(annotation.name, {
-    primaryColor: ANNOTATION_LABEL_ACCENT_COLOR,
-  });
   const { config } = annotation;
   const { labelFractions, labelCount } = summary;
-  // Past the palette's end, cycle the grays only: wrapping back to the accent
-  // would paint a later label like the leading one.
-  const colors = extendAnnotationLabelColors(
-    palette,
+  // Whether a label is good or bad shows on the pill and delta when the
+  // config scores it, so the chart's colors carry no judgement.
+  const colors = useLabelDistributionColors(
     Math.max(labelFractions.length, config?.values?.length ?? 0)
   );
   // Draw labels in the config's order (the order their colors follow), then
@@ -641,7 +629,7 @@ function LabelColumns({
       categories={categories}
       values={values}
       weights={weights}
-      maxWidth={CHART_WIDTH}
+      maxWidth={RESULTS_CHART_WIDTH}
       aria-label={`${annotationName} labels per bin over the last ${windowKey}`}
       renderBinDetail={({ range, shares, weight }) => {
         const startTime = series[range.start]?.timestamp;

@@ -3,10 +3,8 @@ import type { ReactNode } from "react";
 
 import { Flex, Text } from "@phoenix/components";
 import {
-  ANNOTATION_LABEL_ACCENT_COLOR,
-  extendAnnotationLabelColors,
   getAnnotationLabelColor,
-  useAnnotationLabelColors,
+  useLabelDistributionColors,
 } from "@phoenix/components/annotation/annotationLabelColors";
 import {
   ChartTooltipItem,
@@ -15,9 +13,7 @@ import {
   type StackedSparklineBinDetail,
   type StackedSparklineCategory,
 } from "@phoenix/components/chart";
-
-/** The width the evaluators table gives every row's chart. */
-const CHART_WIDTH = 112;
+import { RESULTS_CHART_WIDTH as CHART_WIDTH } from "@phoenix/pages/project/evaluators/ProjectEvaluatorMeanScoreCell";
 
 /**
  * A repeatable pseudo-random sequence in [0, 1), so the fixtures look like
@@ -78,16 +74,8 @@ function createDailyFixture({
 }
 
 /** Colors the labels the way the evaluators table does. */
-function useCategories(
-  annotationName: string,
-  labels: string[]
-): StackedSparklineCategory[] {
-  const colors = extendAnnotationLabelColors(
-    useAnnotationLabelColors(annotationName, {
-      primaryColor: ANNOTATION_LABEL_ACCENT_COLOR,
-    }),
-    labels.length
-  );
+function useCategories(labels: string[]): StackedSparklineCategory[] {
+  const colors = useLabelDistributionColors(labels.length);
   return labels.map((label, index) => ({
     key: label,
     color: getAnnotationLabelColor(colors, index, label),
@@ -133,7 +121,7 @@ function Columns({
   fixture: Fixture;
   maxWidth?: number;
 }) {
-  const categories = useCategories(annotationName, fixture.labels);
+  const categories = useCategories(fixture.labels);
   return (
     <StackedSparkline
       categories={categories}
@@ -178,7 +166,7 @@ const THREE_LABELS = createDailyFixture({
 });
 
 const meta: Meta<typeof StackedSparkline> = {
-  title: "Design System/Data visualization/StackedSparkline",
+  title: "Design System/Data visualization/Stacked Sparkline",
   component: StackedSparkline,
   parameters: {
     inset: true,
@@ -191,7 +179,7 @@ const meta: Meta<typeof StackedSparkline> = {
           "",
           "**Merged columns are weighted.** When the width can't give every bin 4px, adjacent bins merge into one column whose shares are the weighted mean of theirs. Pass how many results each bin's shares are of as `weights`, so a day with two results counts less than a day with fifty.",
           "",
-          "**Order and color by category, not by share.** Pass `categories` in a stable order (the annotation config's label order) with stable colors. The evaluators table stacks the first label at the bottom in the indigo accent and the rest in grays, cycling the grays past the palette's end.",
+          "**Order and color by category, not by share.** Pass `categories` in a stable order (the annotation config's label order) with stable colors. The evaluators table colors them with `useLabelDistributionColors`: the first label at the bottom in a categorical accent, the rest in the grayscale categorical grays, cycling past the palette's end.",
           "",
           "**Hover for the numbers.** With `renderBinDetail`, hovering a column shows its time span and each category's share and count, and fades the other columns.",
         ].join("\n"),
@@ -233,8 +221,8 @@ export const BesideASparkline: Story = {
           weights={YES_NO.weights}
           minRange={0.2}
           maxWidth={CHART_WIDTH}
-          color="var(--global-text-color-900)"
-          coverageColor="var(--global-text-color-300)"
+          color="var(--chart-sparkline-stroke-color)"
+          coverageColor="var(--chart-sparkline-coverage-fill-color)"
           showCoverage
         />
       </Row>
@@ -286,8 +274,8 @@ export const WidthDrivesResolution: Story = {
 };
 
 /**
- * Nine labels. Past the accent and four grays the grays repeat, so no later
- * label takes the first label's color.
+ * Nine labels. Past the accent and the four grays the grays repeat, so no
+ * later label takes the first label's color.
  */
 export const ManyLabels: Story = {
   render: () => (

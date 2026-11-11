@@ -1,36 +1,52 @@
-import { useSequentialChartColors } from "@phoenix/components/chart/colors";
+import {
+  GRAYSCALE_CATEGORICAL_COLORS,
+  useCategoryChartColors,
+  useGrayscaleCategoricalColors,
+  useSequentialChartColors,
+} from "@phoenix/components/chart/colors";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
 
 import type { AnnotationOptimizationConfig } from "./optimizationUtils";
 
 /**
- * A neutral accent for an annotation's first label where the annotation's
- * word color would mislead: the word color is a hash of the name, so a
- * "correct" label can land on red. Indigo is no status hue, reads on both
- * themes' backgrounds, and stands apart from the grays the other labels get.
- */
-export const ANNOTATION_LABEL_ACCENT_COLOR = "var(--global-color-indigo-800)";
-
-/**
  * The palette an annotation's labels are drawn from: the annotation's own
  * word color for its first (best) label, then grays for the rest, so the
  * label that matters most carries the annotation's identity and the others
- * read as its complement. Pass `primaryColor` to draw the first label in
- * another color, e.g. {@link ANNOTATION_LABEL_ACCENT_COLOR}.
+ * read as its complement.
  */
-export function useAnnotationLabelColors(
-  annotationName: string,
-  { primaryColor }: { primaryColor?: string } = {}
-): string[] {
+export function useAnnotationLabelColors(annotationName: string): string[] {
   const chartColors = useSequentialChartColors();
   const wordColor = useWordColor(annotationName);
   return [
-    primaryColor ?? wordColor,
+    wordColor,
     chartColors.gray300,
     chartColors.gray400,
     chartColors.gray500,
     chartColors.gray600,
   ];
+}
+
+/**
+ * The palette a label distribution chart draws `labelCount` labels from: a
+ * categorical accent for the first (leading) label, then the grayscale
+ * categorical grays for the rest, cycling past the end. Unlike
+ * {@link useAnnotationLabelColors}, the accent carries no meaning of its own:
+ * a name-derived word color can land on a status hue (red for "correct").
+ *
+ * The grays run from the faintest up, so the label after the leading one,
+ * usually the next most common, reads as its complement rather than
+ * outweighing it.
+ */
+export function useLabelDistributionColors(labelCount: number): string[] {
+  const categoryColors = useCategoryChartColors();
+  const grayscaleColors = useGrayscaleCategoricalColors();
+  const grays = [...GRAYSCALE_CATEGORICAL_COLORS]
+    .reverse()
+    .map((key) => grayscaleColors[key]);
+  return extendAnnotationLabelColors(
+    [categoryColors.category4, ...grays],
+    labelCount
+  );
 }
 
 /**

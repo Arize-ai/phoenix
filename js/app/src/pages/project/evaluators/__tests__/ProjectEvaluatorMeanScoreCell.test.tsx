@@ -216,7 +216,7 @@ describe("ProjectEvaluatorMeanScoreCell", () => {
     expect(new Set(mostlyPositive).size).toBe(3);
   });
 
-  it("draws the first config label in the neutral accent, not the name's word color", () => {
+  it("draws the first config label in the categorical accent, the rest in the faintest grays first", () => {
     renderCell(
       UNSCORED_TONE,
       makeMetrics({
@@ -229,9 +229,9 @@ describe("ProjectEvaluatorMeanScoreCell", () => {
       })
     );
     expect(getSegmentColors()).toEqual([
-      "var(--global-color-indigo-800)",
-      "var(--global-color-gray-300)",
+      "var(--global-color-indigo-600)",
       "var(--global-color-gray-400)",
+      "var(--global-color-gray-500)",
     ]);
   });
 
@@ -253,9 +253,17 @@ describe("ProjectEvaluatorMeanScoreCell", () => {
     );
     const colors = getSegmentColors();
     expect(colors).toHaveLength(7);
-    expect(colors[0]).toBe("var(--global-color-indigo-800)");
-    expect(colors.slice(1)).not.toContain("var(--global-color-indigo-800)");
-    expect(colors[5]).toBe("var(--global-color-gray-300)");
+    expect(colors[0]).toBe("var(--global-color-indigo-600)");
+    expect(colors.slice(1)).not.toContain("var(--global-color-indigo-600)");
+    // The four grays, then around again
+    expect(colors.slice(1)).toEqual([
+      "var(--global-color-gray-400)",
+      "var(--global-color-gray-500)",
+      "var(--global-color-gray-600)",
+      "var(--global-color-gray-800)",
+      "var(--global-color-gray-400)",
+      "var(--global-color-gray-500)",
+    ]);
   });
 
   it("shows the change in the leading label's share in percentage points", () => {
