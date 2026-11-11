@@ -442,9 +442,9 @@ async def _stream_experiments_over_dataset(
 
     async with info.context.db() as session:
         target = await _resolve_dataset_run_target(session, input)
-        # Building the evaluators up front rejects a bad definition (missing sandbox, judge
-        # prompt tools that do not match) before any experiment row exists. The runner
-        # rebuilds them from the frozen definition when it starts each experiment.
+        # Building the evaluators up front rejects a definition that cannot be built (missing
+        # sandbox, a judge with no tools or no outputs) before any experiment row exists. The
+        # runner rebuilds them from the frozen definition when it starts each experiment.
         resolved_evaluator_tasks = [
             await _resolve_evaluator_task(
                 task.evaluator, info=info, session=session, credentials=credentials

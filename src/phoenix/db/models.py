@@ -60,8 +60,6 @@ from phoenix.db.eval_work import (
     eval_work_status_check,
     failed_index_predicate,
     queued_index_predicate,
-    swept_target_terminal_index_predicate,
-    swept_target_work_status_check,
     terminal_index_predicate,
 )
 from phoenix.db.types.annotation_configs import (
@@ -214,9 +212,6 @@ DecisionSDK: TypeAlias = Literal["openai", "typesafe"]
 """A custom provider's decision client: OpenAI's Decisions API or System One."""
 ExperimentStatus: TypeAlias = Literal["RUNNING", "COMPLETED", "STOPPED", "ERROR"]
 EvalWorkStatus: TypeAlias = Literal[
-    "PENDING", "RUNNING", "DONE", "ERROR", "FAILED", "EXPIRED", "DROPPED"
-]
-SweptTargetWorkStatus: TypeAlias = Literal[
     "PENDING",
     "RUNNING",
     "DONE",
@@ -3636,6 +3631,20 @@ class LLMEvaluator(Evaluator):
     prompt_version_tag: Mapped[Optional["PromptVersionTag"]] = relationship(
         "PromptVersionTag", back_populates="llm_evaluators"
     )
+    selected_prompt_version: Mapped["PromptVersion"] = relationship(
+        "PromptVersion",
+        secondary=lambda: _LLM_EVALUATOR_SELECTED_PROMPT_VERSIONS,
+        primaryjoin=lambda: (
+            LLMEvaluator.id == foreign(_LLM_EVALUATOR_SELECTED_PROMPT_VERSIONS.c.llm_evaluator_id)
+        ),
+        secondaryjoin=lambda: (
+            PromptVersion.id == foreign(_LLM_EVALUATOR_SELECTED_PROMPT_VERSIONS.c.prompt_version_id)
+        ),
+        viewonly=True,
+        uselist=False,
+        innerjoin=True,
+        lazy="joined",
+    )
     __mapper_args__ = {
         "polymorphic_identity": "LLM",
     }
@@ -3646,6 +3655,30 @@ class LLMEvaluator(Evaluator):
             ondelete="CASCADE",
         ),
     )
+
+
+def _llm_evaluator_selected_prompt_versions() -> sa.Subquery:
+    """The prompt version each LLM evaluator runs: its tag's, or its prompt's newest."""
+    evaluators = LLMEvaluator.__table__
+    tags = PromptVersionTag.__table__
+    versions = PromptVersion.__table__
+    tagged = (
+        select(tags.c.prompt_version_id)
+        .where(tags.c.id == evaluators.c.prompt_version_tag_id)
+        .scalar_subquery()
+    )
+    newest = (
+        select(func.max(versions.c.id))
+        .where(versions.c.prompt_id == evaluators.c.prompt_id)
+        .scalar_subquery()
+    )
+    return select(
+        evaluators.c.id.label("llm_evaluator_id"),
+        func.coalesce(tagged, newest).label("prompt_version_id"),
+    ).subquery("llm_evaluator_selected_prompt_versions")
+
+
+_LLM_EVALUATOR_SELECTED_PROMPT_VERSIONS: sa.Subquery = _llm_evaluator_selected_prompt_versions()
 
 
 class Language(Base):
@@ -4241,8 +4274,6 @@ class EvalSpanCursor(Base):
         autoincrement=False,
     )
     produced_through_id: Mapped[int] = mapped_column(_Integer, nullable=False, server_default="0")
-    observed_high_water_id: Mapped[Optional[int]] = mapped_column(_Integer)
-    observed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
 
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -4343,8 +4374,8 @@ class EvalSessionWorkUnit(HasId):
         index=True,
     )
     decided_through: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
-    status: Mapped[SweptTargetWorkStatus] = mapped_column(
-        CheckConstraint(swept_target_work_status_check(), name="valid_eval_work_status"),
+    status: Mapped[EvalWorkStatus] = mapped_column(
+        CheckConstraint(eval_work_status_check(), name="valid_eval_work_status"),
         default="PENDING",
         server_default="PENDING",
     )
@@ -4385,8 +4416,8 @@ class EvalSessionWorkUnit(HasId):
         Index(
             "ix_eval_session_work_units_terminal",
             "updated_at",
-            postgresql_where=text(swept_target_terminal_index_predicate()),
-            sqlite_where=text(swept_target_terminal_index_predicate()),
+            postgresql_where=text(terminal_index_predicate()),
+            sqlite_where=text(terminal_index_predicate()),
         ),
         # Each evaluator's newest success and newest failure, found without walking its history.
         Index(
@@ -4420,8 +4451,8 @@ class EvalTraceWorkUnit(HasId):
         index=True,
     )
     decided_through: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
-    status: Mapped[SweptTargetWorkStatus] = mapped_column(
-        CheckConstraint(swept_target_work_status_check(), name="valid_eval_work_status"),
+    status: Mapped[EvalWorkStatus] = mapped_column(
+        CheckConstraint(eval_work_status_check(), name="valid_eval_work_status"),
         default="PENDING",
         server_default="PENDING",
     )
@@ -4462,8 +4493,8 @@ class EvalTraceWorkUnit(HasId):
         Index(
             "ix_eval_trace_work_units_terminal",
             "updated_at",
-            postgresql_where=text(swept_target_terminal_index_predicate()),
-            sqlite_where=text(swept_target_terminal_index_predicate()),
+            postgresql_where=text(terminal_index_predicate()),
+            sqlite_where=text(terminal_index_predicate()),
         ),
         # Each evaluator's newest success and newest failure, found without walking its history.
         Index(

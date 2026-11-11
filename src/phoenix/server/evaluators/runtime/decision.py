@@ -323,19 +323,11 @@ class DecisionEvaluator(BaseEvaluator):
             except Exception as error:
                 span.set_status(Status(StatusCode.ERROR, str(error)))
                 span.record_exception(error)
-                return [
-                    EvaluationResult(
-                        name=annotation_name,
-                        annotator_kind="LLM",
-                        label=None,
-                        score=None,
-                        explanation=None,
-                        metadata=self.error_metadata,
-                        error=str(error),
-                        error_exc=error,
-                        trace_id=trace_id,
-                        start_time=started,
-                        end_time=datetime.now(timezone.utc),
-                    )
-                    for annotation_name in annotation_names
-                ]
+                return self.error_results(
+                    name,
+                    output_configs,
+                    str(error),
+                    start_time=started,
+                    trace_id=trace_id,
+                    error_exc=error,
+                )

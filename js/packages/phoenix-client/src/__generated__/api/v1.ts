@@ -3386,7 +3386,7 @@ export interface components {
             description?: string | null;
             /**
              * Output Configs
-             * @description Null inherits the shared output configs. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema. A decision binding's configs are derived from its scoring policy, so they are accepted only if they equal the derived ones, and are not stored.
+             * @description Null inherits the shared output configs. An override needs at least one config, each with its own name; an LLM binding's configs must be categorical. Nothing checks them against the prompt. A decision binding's configs are derived from its scoring policy, so they are accepted only if they equal the derived ones, and are not stored.
              */
             output_configs?: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[] | null;
         };
@@ -3589,10 +3589,7 @@ export interface components {
             type: "llm";
             /** @description Unique among evaluators. */
             name: components["schemas"]["Identifier"];
-            /**
-             * Description
-             * @description Must equal the description of the prompt's tool function, since an LLM evaluator's description is the instruction its output tool carries.
-             */
+            /** Description */
             description?: string | null;
             /** @description The prompt version to run. Create the prompt and its version through the prompts API first. */
             prompt: components["schemas"]["LLMEvaluatorPromptInput"];
@@ -5157,10 +5154,7 @@ export interface components {
             /** Id */
             id: string;
             name: components["schemas"]["Identifier"];
-            /**
-             * Description
-             * @description Equals the description of the prompt's tool function.
-             */
+            /** Description */
             description: string | null;
             prompt: components["schemas"]["LLMEvaluatorPrompt"];
             /** Output Configs */
@@ -5819,7 +5813,7 @@ export interface components {
             description?: string | null;
             /**
              * Output Configs
-             * @description Omit to preserve; null restores inheritance. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema. A decision binding's configs are derived from its scoring policy, so they are accepted only if they equal the derived ones, and are not stored.
+             * @description Omit to preserve; null restores inheritance. An override needs at least one config, each with its own name; an LLM binding's configs must be categorical. Nothing checks them against the prompt. A decision binding's configs are derived from its scoring policy, so they are accepted only if they equal the derived ones, and are not stored.
              */
             output_configs?: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[] | null;
         };
@@ -5882,10 +5876,7 @@ export interface components {
              */
             type: "llm";
             name?: components["schemas"]["Identifier"];
-            /**
-             * Description
-             * @description Must equal the description of the prompt's tool function, since an LLM evaluator's description is the instruction its output tool carries.
-             */
+            /** Description */
             description?: string | null;
             /** @description Move the evaluator to another prompt version. Omit to keep it. */
             prompt?: components["schemas"]["LLMEvaluatorPromptInput"];

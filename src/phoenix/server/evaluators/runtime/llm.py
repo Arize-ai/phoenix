@@ -38,6 +38,7 @@ from phoenix.server.evaluators.runtime.base import (
     EvaluationResult,
     EvaluatorAnnotatorKind,
     EvaluatorProviderClient,
+    EvaluatorResultValidationError,
     RenderedMessageTooLargeError,
     result_annotation_names,
 )
@@ -142,24 +143,7 @@ class LLMEvaluator(BaseEvaluator):
         tracer: Optional[Tracer] = None,
     ) -> list[EvaluationResult]:
         start_time = datetime.now(timezone.utc)
-
-        # LLMEvaluator only supports categorical output configs
-        categorical_configs: list[CategoricalOutputConfig] = []
-        for config in output_configs:
-            if not isinstance(config, CategoricalOutputConfig):
-                raise ValueError(
-                    f"LLMEvaluator only supports CategoricalOutputConfig, "
-                    f"got {type(config).__name__}"
-                )
-            categorical_configs.append(config)
-
-        configs_by_name: dict[str, CategoricalOutputConfig] = {
-            config.name: config for config in categorical_configs
-        }
-        annotation_name_by_config_name = dict(
-            zip(configs_by_name, result_annotation_names(name, categorical_configs))
-        )
-
+        annotation_names = result_annotation_names(name, output_configs)
         tracer_ = tracer or NoOpTracer()
 
         with tracer_.start_as_current_span(
@@ -175,6 +159,15 @@ class LLMEvaluator(BaseEvaluator):
             )
 
             try:
+                categorical_configs: list[CategoricalOutputConfig] = []
+                for config in output_configs:
+                    if not isinstance(config, CategoricalOutputConfig):
+                        raise ValueError(
+                            f"LLMEvaluator only supports CategoricalOutputConfig, "
+                            f"got {type(config).__name__}"
+                        )
+                    categorical_configs.append(config)
+
                 with tracer_.start_as_current_span(
                     "Input Mapping",
                     attributes={
@@ -295,13 +288,13 @@ class LLMEvaluator(BaseEvaluator):
                                     for call_id, call in tool_call_by_id.items()
                                 },
                                 "output_configs": {
-                                    config_name: {
+                                    config.name: {
                                         "values": [
                                             {"label": v.label, "score": v.score}
                                             for v in config.values
                                         ]
                                     }
-                                    for config_name, config in configs_by_name.items()
+                                    for config in categorical_configs
                                 },
                             }
                         ),
@@ -310,40 +303,52 @@ class LLMEvaluator(BaseEvaluator):
                     if not tool_call_by_id:
                         raise ValueError("No tool calls received from LLM")
 
-                    # Match each tool call to its output config by name.
-                    # Tool calls whose name doesn't match any config are skipped.
-                    # Configs with no matching tool call are skipped.
+                    tool_call_by_name: dict[str, ToolCall] = {}
+                    for call in tool_call_by_id.values():
+                        tool_call_by_name.setdefault(call["name"], call)
                     results: list[EvaluationResult] = []
-                    for tool_call in tool_call_by_id.values():
-                        matched_config = configs_by_name.get(tool_call["name"])
-                        if matched_config is None:
-                            continue
-                        args = json.loads(tool_call["arguments"])
+                    for annotation_name, config in zip(annotation_names, categorical_configs):
+                        scores_by_label = {value.label: value.score for value in config.values}
+                        tool_call = tool_call_by_name.get(config.name)
+                        args = json.loads(tool_call["arguments"]) if tool_call is not None else {}
                         label = args.get("label")
-                        if label is None:
-                            raise ValueError(
+                        if tool_call is None:
+                            invalid = (
+                                f"categorical output {annotation_name!r} was not answered: "
+                                f"the model called no tool named {config.name!r}"
+                            )
+                        elif label is None:
+                            invalid = (
                                 "LLM response missing required 'label' field in tool call arguments"
                             )
-                        scores_by_label = {
-                            config_value.label: config_value.score
-                            for config_value in matched_config.values
-                        }
-                        score = scores_by_label.get(label)
-                        explanation = args.get("explanation")
-                        annotation_name = annotation_name_by_config_name[matched_config.name]
-                        end_time = datetime.now(timezone.utc)
+                        elif not isinstance(label, str) or label not in scores_by_label:
+                            invalid = (
+                                f"categorical output {annotation_name!r} returned invalid label "
+                                f"{label!r}; expected one of {sorted(scores_by_label)!r}"
+                            )
+                        else:
+                            results.append(
+                                EvaluationResult(
+                                    name=annotation_name,
+                                    annotator_kind="LLM",
+                                    label=label,
+                                    score=scores_by_label[label],
+                                    explanation=args.get("explanation"),
+                                    metadata={},
+                                    error=None,
+                                    trace_id=trace_id,
+                                    start_time=start_time,
+                                    end_time=datetime.now(timezone.utc),
+                                )
+                            )
+                            continue
                         results.append(
-                            EvaluationResult(
-                                name=annotation_name,
-                                annotator_kind="LLM",
-                                label=label,
-                                score=score,
-                                explanation=explanation,
-                                metadata={},
-                                error=None,
-                                trace_id=trace_id,
+                            self.error_result(
+                                annotation_name,
+                                invalid,
                                 start_time=start_time,
-                                end_time=end_time,
+                                trace_id=trace_id,
+                                error_exc=EvaluatorResultValidationError(invalid),
                             )
                         )
 
@@ -362,7 +367,14 @@ class LLMEvaluator(BaseEvaluator):
                             }
                         )
                     )
-                    chain_span.set_status(Status(StatusCode.OK))
+                    output_error = next(
+                        (result["error"] for result in results if result["error"] is not None), None
+                    )
+                    chain_span.set_status(
+                        Status(StatusCode.ERROR, output_error)
+                        if output_error is not None
+                        else Status(StatusCode.OK)
+                    )
 
                 evaluator_span.set_attributes(
                     oi.get_output_attributes(
@@ -379,28 +391,22 @@ class LLMEvaluator(BaseEvaluator):
                         }
                     )
                 )
-                evaluator_span.set_status(Status(StatusCode.OK))
+                evaluator_span.set_status(
+                    Status(StatusCode.ERROR, output_error)
+                    if output_error is not None
+                    else Status(StatusCode.OK)
+                )
 
             except Exception as e:
                 evaluator_span.record_exception(e)
                 evaluator_span.set_status(Status(StatusCode.ERROR, str(e)))
-
-                end_time = datetime.now(timezone.utc)
-                # On error, return a single error result for the evaluator.
-                results = [
-                    EvaluationResult(
-                        name=name,
-                        annotator_kind="LLM",
-                        label=None,
-                        score=None,
-                        explanation=None,
-                        metadata={},
-                        error=str(e),
-                        trace_id=trace_id,
-                        start_time=start_time,
-                        end_time=end_time,
-                        error_exc=e,
-                    )
-                ]
+                results = self.error_results(
+                    name,
+                    output_configs,
+                    str(e),
+                    start_time=start_time,
+                    trace_id=trace_id,
+                    error_exc=e,
+                )
 
         return results
