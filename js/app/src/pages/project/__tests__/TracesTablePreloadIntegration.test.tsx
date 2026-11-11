@@ -1,7 +1,9 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type * as ReactRelayModule from "react-relay";
+import { RelayEnvironmentProvider } from "react-relay";
 import { MemoryRouter, useLocation } from "react-router";
+import { createMockEnvironment } from "relay-test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
@@ -161,18 +163,23 @@ describe("TracesTable preload integration", () => {
   function renderTable() {
     return act(async () => {
       root.render(
-        <ThemeProvider themeMode="light" disableBodyTheme>
-          <MemoryRouter
-            initialEntries={[
-              `/projects/project-integration/traces?traceFilterCondition=${encodeURIComponent(seed)}`,
-            ]}
-          >
-            <TraceFiltersProvider>
-              <TracesTable project={{} as TracesTable_spans$key} seed={seed} />
-            </TraceFiltersProvider>
-            <SearchProbe />
-          </MemoryRouter>
-        </ThemeProvider>
+        <RelayEnvironmentProvider environment={createMockEnvironment()}>
+          <ThemeProvider themeMode="light" disableBodyTheme>
+            <MemoryRouter
+              initialEntries={[
+                `/projects/project-integration/traces?traceFilterCondition=${encodeURIComponent(seed)}`,
+              ]}
+            >
+              <TraceFiltersProvider>
+                <TracesTable
+                  project={{} as TracesTable_spans$key}
+                  seed={seed}
+                />
+              </TraceFiltersProvider>
+              <SearchProbe />
+            </MemoryRouter>
+          </ThemeProvider>
+        </RelayEnvironmentProvider>
       );
     });
   }

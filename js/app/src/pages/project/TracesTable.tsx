@@ -4,18 +4,29 @@ import { flexRender, useTable } from "@tanstack/react-table";
 /* eslint-disable react/prop-types */
 import type { ComponentProps, ReactNode } from "react";
 import React, {
+  createContext,
   Fragment,
   startTransition,
+  Suspense,
   useCallback,
+  useContext,
+  useDeferredValue,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
-import { graphql, usePaginationFragment } from "react-relay";
+import type { PreloadedQuery } from "react-relay";
+import {
+  graphql,
+  usePaginationFragment,
+  usePreloadedQuery,
+  useQueryLoader,
+} from "react-relay";
 import { useNavigate, useResolvedPath, useSearchParams } from "react-router";
 
 import {
+  ErrorBoundary,
   Flex,
   Heading,
   Icon,
@@ -23,6 +34,8 @@ import {
   Link,
   OverflowRow,
   Text,
+  TextErrorBoundaryFallback,
+  TextSkeleton,
   View,
 } from "@phoenix/components";
 import {
@@ -60,6 +73,7 @@ import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import type {
   CellContext,
   ColumnDef,
+  Row,
   Table,
 } from "@phoenix/components/table/tableFeatures";
 import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
@@ -88,6 +102,7 @@ import type {
   TracesTable_spans$data,
   TracesTable_spans$key,
 } from "./__generated__/TracesTable_spans.graphql";
+import type { TracesTableChildSpanDetailsQuery } from "./__generated__/TracesTableChildSpanDetailsQuery.graphql";
 import type { TracesTableQuery } from "./__generated__/TracesTableQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
 import { withFilterConditionParam } from "./filterConditionParam";
@@ -141,6 +156,136 @@ const renderTraceSpanAnnotationFilterActions = (annotation: Annotation) => (
   <TraceSpanAnnotationTooltipFilterActions annotation={annotation} />
 );
 const NUM_DESCENDANTS = 50;
+
+type RootSpan =
+  TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"];
+
+type SpanDetails = Pick<
+  RootSpan,
+  | "id"
+  | "input"
+  | "output"
+  | "spanAnnotations"
+  | "documentRetrievalMetrics"
+  | " $fragmentSpreads"
+>;
+
+function hasSpanDetails<TSpan extends object>(
+  span: TSpan
+): span is TSpan & SpanDetails {
+  return "spanAnnotations" in span;
+}
+
+const childSpanDetailsQuery = graphql`
+  query TracesTableChildSpanDetailsQuery(
+    $projectId: ID!
+    $rootSpanFilterCondition: String!
+    $rootSpanCount: Int!
+    $numDescendants: Int!
+  ) {
+    project: node(id: $projectId) {
+      ... on Project {
+        rootSpans: spans(
+          first: $rootSpanCount
+          filterCondition: $rootSpanFilterCondition
+        ) {
+          edges {
+            rootSpan: node {
+              id
+              # The default maxDepth, spelled out so these are stored apart from the table's descendants
+              descendants(first: $numDescendants, maxDepth: 3) {
+                edges {
+                  node {
+                    id
+                    input {
+                      value: truncatedValue
+                    }
+                    output {
+                      value: truncatedValue
+                    }
+                    spanAnnotations {
+                      id
+                      name
+                      label
+                      score
+                      annotatorKind
+                      createdAt
+                    }
+                    ...AnnotationSummaryGroup
+                    documentRetrievalMetrics {
+                      evaluationName
+                      ndcg
+                      precision
+                      hit
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+const ChildSpanDetailsQueryReferenceContext =
+  createContext<PreloadedQuery<TracesTableChildSpanDetailsQuery> | null>(null);
+
+function getRootSpanFilterCondition(spanIds: readonly string[]): string {
+  return `span_id in ${JSON.stringify(spanIds)}`;
+}
+
+function ChildSpanDetails({
+  queryReference,
+  rootSpanId,
+  spanId,
+  children,
+}: {
+  queryReference: PreloadedQuery<TracesTableChildSpanDetailsQuery>;
+  rootSpanId: string;
+  spanId: string;
+  children: (span: SpanDetails) => ReactNode;
+}) {
+  const data = usePreloadedQuery<TracesTableChildSpanDetailsQuery>(
+    childSpanDetailsQuery,
+    queryReference
+  );
+  const span = data.project.rootSpans?.edges
+    .find(({ rootSpan }) => rootSpan.id === rootSpanId)
+    ?.rootSpan.descendants.edges.find(({ node }) => node.id === spanId)?.node;
+  return span ? children(span) : <TextSkeleton />;
+}
+
+function SpanDetailsCell<TSpan extends { id: string }>({
+  row,
+  children,
+}: {
+  row: Row<TSpan>;
+  children: (span: SpanDetails) => ReactNode;
+}) {
+  const queryReference = useContext(ChildSpanDetailsQueryReferenceContext);
+  if (hasSpanDetails(row.original)) {
+    return children(row.original);
+  }
+  if (queryReference == null) {
+    return <TextSkeleton />;
+  }
+  const [rootRow] = row.getParentRows();
+  return (
+    <ErrorBoundary fallback={TextErrorBoundaryFallback}>
+      <Suspense fallback={<TextSkeleton />}>
+        <ChildSpanDetails
+          queryReference={queryReference}
+          rootSpanId={rootRow.original.id}
+          spanId={row.original.id}
+        >
+          {children}
+        </ChildSpanDetails>
+      </Suspense>
+    </ErrorBoundary>
+  );
+}
 
 const toolbarFilterFieldCSS = css`
   flex: 2 1 420px;
@@ -426,31 +571,10 @@ export function TracesTable(props: TracesTableProps) {
                       latencyMs
                       parentId
                       cumulativeTokenCountTotal: tokenCountTotal
-                      input {
-                        value: truncatedValue
-                      }
-                      output {
-                        value: truncatedValue
-                      }
                       spanId
                       trace {
                         id
                         traceId
-                      }
-                      spanAnnotations {
-                        id
-                        name
-                        label
-                        score
-                        annotatorKind
-                        createdAt
-                      }
-                      ...AnnotationSummaryGroup
-                      documentRetrievalMetrics {
-                        evaluationName
-                        ndcg
-                        precision
-                        hit
                       }
                     }
                   }
@@ -538,13 +662,17 @@ export function TracesTable(props: TracesTableProps) {
               return null;
             }
             return (
-              <AnnotationSummaryGroupToken
-                span={row.original}
-                annotationName={name}
-                annotationConfigsByName={annotationConfigsByName}
-                showFilterActions
-                renderFilterActions={renderTraceSpanAnnotationFilterActions}
-              />
+              <SpanDetailsCell row={row}>
+                {(span) => (
+                  <AnnotationSummaryGroupToken
+                    span={span}
+                    annotationName={name}
+                    annotationConfigsByName={annotationConfigsByName}
+                    showFilterActions
+                    renderFilterActions={renderTraceSpanAnnotationFilterActions}
+                  />
+                )}
+              </SpanDetailsCell>
             );
           },
         };
@@ -602,43 +730,51 @@ export function TracesTable(props: TracesTableProps) {
           if (row.original.__additionalRow) {
             return null;
           }
-          const hasNoFeedback =
-            row.original.spanAnnotations.length === 0 &&
-            row.original.documentRetrievalMetrics.length === 0;
           return (
-            <OverflowRow isExpanded={areRowsExpanded}>
-              <AnnotationSummaryGroupTokens
-                span={row.original}
-                annotationConfigsByName={annotationConfigsByName}
-                showFilterActions
-                renderFilterActions={renderTraceSpanAnnotationFilterActions}
-              />
-              {row.original.documentRetrievalMetrics.map((retrievalMetric) => {
+            <SpanDetailsCell row={row}>
+              {(span) => {
+                const hasNoFeedback =
+                  span.spanAnnotations.length === 0 &&
+                  span.documentRetrievalMetrics.length === 0;
                 return (
-                  <Fragment key="doc-evals">
-                    <RetrievalEvaluationLabel
-                      key="ndcg"
-                      name={retrievalMetric.evaluationName}
-                      metric="ndcg"
-                      score={retrievalMetric.ndcg}
+                  <OverflowRow isExpanded={areRowsExpanded}>
+                    <AnnotationSummaryGroupTokens
+                      span={span}
+                      annotationConfigsByName={annotationConfigsByName}
+                      showFilterActions
+                      renderFilterActions={
+                        renderTraceSpanAnnotationFilterActions
+                      }
                     />
-                    <RetrievalEvaluationLabel
-                      key="precision"
-                      name={retrievalMetric.evaluationName}
-                      metric="precision"
-                      score={retrievalMetric.precision}
-                    />
-                    <RetrievalEvaluationLabel
-                      key="hit"
-                      name={retrievalMetric.evaluationName}
-                      metric="hit"
-                      score={retrievalMetric.hit}
-                    />
-                  </Fragment>
+                    {span.documentRetrievalMetrics.map((retrievalMetric) => {
+                      return (
+                        <Fragment key="doc-evals">
+                          <RetrievalEvaluationLabel
+                            key="ndcg"
+                            name={retrievalMetric.evaluationName}
+                            metric="ndcg"
+                            score={retrievalMetric.ndcg}
+                          />
+                          <RetrievalEvaluationLabel
+                            key="precision"
+                            name={retrievalMetric.evaluationName}
+                            metric="precision"
+                            score={retrievalMetric.precision}
+                          />
+                          <RetrievalEvaluationLabel
+                            key="hit"
+                            name={retrievalMetric.evaluationName}
+                            metric="hit"
+                            score={retrievalMetric.hit}
+                          />
+                        </Fragment>
+                      );
+                    })}
+                    {hasNoFeedback ? "--" : null}
+                  </OverflowRow>
                 );
-              })}
-              {hasNoFeedback ? "--" : null}
-            </OverflowRow>
+              }}
+            </SpanDetailsCell>
           );
         },
       },
@@ -810,13 +946,18 @@ export function TracesTable(props: TracesTableProps) {
         // keep the id accessorKey "input.value" derived, which saved column
         // preferences refer to; a span without an input has no `input`
         id: "input_value",
-        accessorFn: (row) => row.input?.value,
+        accessorFn: (row) =>
+          hasSpanDetails(row) ? row.input?.value : undefined,
         enableSorting: false,
-        cell: ({ getValue, row }) => (
-          <SpanInputValueTooltipCell
-            nodeId={row.original.id}
-            preview={getValue()}
-          />
+        cell: ({ row }) => (
+          <SpanDetailsCell row={row}>
+            {(span) => (
+              <SpanInputValueTooltipCell
+                nodeId={span.id}
+                preview={span.input?.value}
+              />
+            )}
+          </SpanDetailsCell>
         ),
       },
       {
@@ -824,13 +965,18 @@ export function TracesTable(props: TracesTableProps) {
         // keep the id accessorKey "output.value" derived, which saved column
         // preferences refer to; a span without an output has no `output`
         id: "output_value",
-        accessorFn: (row) => row.output?.value,
+        accessorFn: (row) =>
+          hasSpanDetails(row) ? row.output?.value : undefined,
         enableSorting: false,
-        cell: ({ getValue, row }) => (
-          <SpanOutputValueTooltipCell
-            nodeId={row.original.id}
-            preview={getValue()}
-          />
+        cell: ({ row }) => (
+          <SpanDetailsCell row={row}>
+            {(span) => (
+              <SpanOutputValueTooltipCell
+                nodeId={span.id}
+                preview={span.output?.value}
+              />
+            )}
+          </SpanDetailsCell>
         ),
       },
       {
@@ -1014,6 +1160,37 @@ export function TracesTable(props: TracesTableProps) {
   }, [data.rootSpans.edges, setTraceSequence]);
 
   const [expanded, setExpanded] = useState<ExpandedState>({});
+  const isAnyRowExpanded =
+    expanded === true || Object.values(expanded).some(Boolean);
+  const [childSpanDetailsQueryReference, loadChildSpanDetailsQuery] =
+    useQueryLoader<TracesTableChildSpanDetailsQuery>(childSpanDetailsQuery);
+  const deferredChildSpanDetailsQueryReference = useDeferredValue(
+    childSpanDetailsQueryReference ?? null
+  );
+  const rootSpanIds = data.rootSpans.edges.map(
+    ({ rootSpan }) => rootSpan.spanId
+  );
+  const rootSpanFilterCondition = getRootSpanFilterCondition(rootSpanIds);
+  useEffect(() => {
+    if (!isAnyRowExpanded) {
+      return;
+    }
+    loadChildSpanDetailsQuery(
+      {
+        projectId: data.id,
+        rootSpanFilterCondition,
+        rootSpanCount: rootSpanIds.length,
+        numDescendants: NUM_DESCENDANTS,
+      },
+      { fetchPolicy: "store-and-network" }
+    );
+  }, [
+    isAnyRowExpanded,
+    rootSpanFilterCondition,
+    rootSpanIds.length,
+    data.id,
+    loadChildSpanDetailsQuery,
+  ]);
   const columnVisibility = useTracingContext((state) => state.columnVisibility);
   const setColumnSizing = useTracingContext((state) => state.setColumnSizing);
   const columnSizing = useTracingContext((state) => state.columnSizing);
@@ -1137,125 +1314,130 @@ export function TracesTable(props: TracesTableProps) {
             overflow: auto;
           `}
         >
-          <ColumnOrderingProvider
-            columnOrder={visibleColumnOrder}
-            onColumnOrderChange={onVisibleColumnOrderChange}
+          <ChildSpanDetailsQueryReferenceContext.Provider
+            value={deferredChildSpanDetailsQueryReference}
           >
-            <table
-              css={expandableSelectableTableCSS}
-              {...rowsExpandedTableProps}
-              style={{
-                ...columnSizeVars,
-                width: table.getTotalSize(),
-                minWidth: "100%",
-              }}
+            <ColumnOrderingProvider
+              columnOrder={visibleColumnOrder}
+              onColumnOrderChange={onVisibleColumnOrderChange}
             >
-              <thead>
-                {table
-                  .getHeaderGroups()
-                  .map((headerGroup, headerGroupIndex) => (
-                    <tr key={headerGroup.id}>
-                      {headerGroup.headers.map((header) => (
-                        <ColumnHeaderCell
-                          key={header.id}
-                          columnId={header.column.id}
-                          // Only the top header group is reorderable; sub-headers
-                          // of a group column move with it
-                          index={
-                            headerGroupIndex === 0
-                              ? getColumnOrderIndex(header.column.id)
-                              : -1
-                          }
-                          label={
-                            typeof header.column.columnDef.header === "string"
-                              ? header.column.columnDef.header
-                              : undefined
-                          }
-                          style={{
-                            ...getCommonPinningStyles(header.column),
-                            width: `calc(var(--header-${header.id}-size) * 1px)`,
-                          }}
-                          colSpan={header.colSpan}
-                        >
-                          {header.isPlaceholder ? null : (
-                            <>
-                              <div
-                                data-sortable={header.column.getCanSort()}
-                                {...{
-                                  className: header.column.getCanSort()
-                                    ? "sort"
-                                    : "",
-                                  onClick:
-                                    header.column.getToggleSortingHandler(),
-                                  style: {
-                                    left: header.getStart(),
-                                    width: header.getSize(),
-                                  },
-                                }}
-                              >
-                                <Truncate maxWidth="100%">
-                                  {flexRender(
-                                    header.column.columnDef.header,
-                                    header.getContext()
-                                  )}
-                                </Truncate>
-                                {header.column.getIsSorted() ? (
-                                  <Icon
-                                    className="sort-icon"
-                                    svg={
-                                      header.column.getIsSorted() === "asc" ? (
-                                        <Icons.CaretUpFilled />
-                                      ) : (
-                                        <Icons.CaretDownFilled />
-                                      )
-                                    }
-                                  />
-                                ) : null}
-                              </div>
-                              <div
-                                {...{
-                                  onMouseDown: header.getResizeHandler(),
-                                  onTouchStart: header.getResizeHandler(),
-                                  className: `resizer ${
-                                    header.column.getIsResizing()
-                                      ? "isResizing"
-                                      : ""
-                                  }`,
-                                }}
-                              />
-                            </>
-                          )}
-                        </ColumnHeaderCell>
-                      ))}
-                    </tr>
-                  ))}
-              </thead>
-              {isEmpty ? (
-                (props.emptyState ?? <ProjectTableEmpty />)
-              ) : columnResizing.isResizingColumn ? (
-                <MemoizedTableBody
-                  table={
-                    // We can't access the internal TableRowType in the TableBody component
-                    // so we cast to unknown and then to the correct type
-                    table as unknown as ComponentProps<
-                      typeof TableBody
-                    >["table"]
-                  }
-                />
-              ) : (
-                <TableBody
-                  selectedRowId={props.selectedRowId}
-                  table={
-                    // We can't access the internal TableRowType in the TableBody component
-                    // so we cast to unknown and then to the correct type
-                    table as unknown as ComponentProps<
-                      typeof TableBody
-                    >["table"]
-                  }
-                />
-              )}
-            </table>
-          </ColumnOrderingProvider>
+              <table
+                css={expandableSelectableTableCSS}
+                {...rowsExpandedTableProps}
+                style={{
+                  ...columnSizeVars,
+                  width: table.getTotalSize(),
+                  minWidth: "100%",
+                }}
+              >
+                <thead>
+                  {table
+                    .getHeaderGroups()
+                    .map((headerGroup, headerGroupIndex) => (
+                      <tr key={headerGroup.id}>
+                        {headerGroup.headers.map((header) => (
+                          <ColumnHeaderCell
+                            key={header.id}
+                            columnId={header.column.id}
+                            // Only the top header group is reorderable; sub-headers
+                            // of a group column move with it
+                            index={
+                              headerGroupIndex === 0
+                                ? getColumnOrderIndex(header.column.id)
+                                : -1
+                            }
+                            label={
+                              typeof header.column.columnDef.header === "string"
+                                ? header.column.columnDef.header
+                                : undefined
+                            }
+                            style={{
+                              ...getCommonPinningStyles(header.column),
+                              width: `calc(var(--header-${header.id}-size) * 1px)`,
+                            }}
+                            colSpan={header.colSpan}
+                          >
+                            {header.isPlaceholder ? null : (
+                              <>
+                                <div
+                                  data-sortable={header.column.getCanSort()}
+                                  {...{
+                                    className: header.column.getCanSort()
+                                      ? "sort"
+                                      : "",
+                                    onClick:
+                                      header.column.getToggleSortingHandler(),
+                                    style: {
+                                      left: header.getStart(),
+                                      width: header.getSize(),
+                                    },
+                                  }}
+                                >
+                                  <Truncate maxWidth="100%">
+                                    {flexRender(
+                                      header.column.columnDef.header,
+                                      header.getContext()
+                                    )}
+                                  </Truncate>
+                                  {header.column.getIsSorted() ? (
+                                    <Icon
+                                      className="sort-icon"
+                                      svg={
+                                        header.column.getIsSorted() ===
+                                        "asc" ? (
+                                          <Icons.CaretUpFilled />
+                                        ) : (
+                                          <Icons.CaretDownFilled />
+                                        )
+                                      }
+                                    />
+                                  ) : null}
+                                </div>
+                                <div
+                                  {...{
+                                    onMouseDown: header.getResizeHandler(),
+                                    onTouchStart: header.getResizeHandler(),
+                                    className: `resizer ${
+                                      header.column.getIsResizing()
+                                        ? "isResizing"
+                                        : ""
+                                    }`,
+                                  }}
+                                />
+                              </>
+                            )}
+                          </ColumnHeaderCell>
+                        ))}
+                      </tr>
+                    ))}
+                </thead>
+                {isEmpty ? (
+                  (props.emptyState ?? <ProjectTableEmpty />)
+                ) : columnResizing.isResizingColumn ? (
+                  <MemoizedTableBody
+                    table={
+                      // We can't access the internal TableRowType in the TableBody component
+                      // so we cast to unknown and then to the correct type
+                      table as unknown as ComponentProps<
+                        typeof TableBody
+                      >["table"]
+                    }
+                  />
+                ) : (
+                  <TableBody
+                    selectedRowId={props.selectedRowId}
+                    table={
+                      // We can't access the internal TableRowType in the TableBody component
+                      // so we cast to unknown and then to the correct type
+                      table as unknown as ComponentProps<
+                        typeof TableBody
+                      >["table"]
+                    }
+                  />
+                )}
+              </table>
+            </ColumnOrderingProvider>
+          </ChildSpanDetailsQueryReferenceContext.Provider>
           <div ref={loadMoreSentinelRef} />
         </div>
         {selectedRows.length ? (
