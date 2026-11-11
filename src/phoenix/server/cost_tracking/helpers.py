@@ -32,14 +32,6 @@ def get_priced_model_type(attributes: Optional[Mapping[str, Any]]) -> PricedMode
 
 
 def _get_str(attributes: Optional[Mapping[str, Any]], *keys: str) -> str:
-    """Return the first non-blank value among `keys` as a stripped string, or ""."""
-    for key in keys:
-        if value := str(get_attribute_value(attributes, key) or "").strip():
-            return value
-    return ""
-
-
-def _get_name(attributes: Optional[Mapping[str, Any]], *keys: str) -> str:
     """Return the first non-blank string among `keys`, stripped, or "". Non-strings are skipped."""
     for key in keys:
         value = get_attribute_value(attributes, key)
@@ -72,13 +64,14 @@ def get_model_name(attributes: Optional[Mapping[str, Any]]) -> str:
     read `llm.*`.
     """
     if get_priced_model_type(attributes) == "DECISION":
-        return _get_name(attributes, *_DECISION_MODEL_NAME_KEYS, *_LLM_MODEL_NAME_KEYS)
-    return _get_name(attributes, *_LLM_MODEL_NAME_KEYS)
+        return _get_str(attributes, *_DECISION_MODEL_NAME_KEYS, *_LLM_MODEL_NAME_KEYS)
+    return _get_str(attributes, *_LLM_MODEL_NAME_KEYS)
 
 
 def get_provider(attributes: Optional[Mapping[str, Any]]) -> str:
     """
     Return the provider used to break ties in cost lookup, or "" if the span has none.
+    Only string values count.
 
     DECISION spans read `decision.provider`, then `decision.system` (the spec sets the provider
     only when it differs from the system, and their well-known values are the same strings),

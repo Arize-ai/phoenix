@@ -608,6 +608,20 @@ class TestDecisionSpanAttributes:
             pytest.param(
                 {
                     "openinference": {"span": {"kind": "DECISION"}},
+                    "decision": {
+                        "model_name": "jev-1.13.0",
+                        "provider": {"region": "us-east-1"},
+                        "system": "typesafe",
+                    },
+                },
+                "DECISION",
+                "jev-1.13.0",
+                "typesafe",
+                id="non_string_decision_provider_falls_back_to_system",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
                     "llm": {
                         "response": {"model_name": "jev-1.13.0"},
                         "model_name": "jev-latest",
