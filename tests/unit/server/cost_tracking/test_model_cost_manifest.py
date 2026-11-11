@@ -315,6 +315,63 @@ def test_embedding_entries_carry_only_an_input_rate(manifest: dict[str, Any]) ->
         assert prices == [("input", True)], model["name"]
 
 
+@pytest.mark.parametrize(
+    "span_model_name, span_provider, expected_entry",
+    [
+        ("text-embedding-3-small", None, "text-embedding-3-small"),
+        ("text-embedding-3-large", None, "text-embedding-3-large"),
+        # Prefix pairs must resolve to their own entry rather than the shorter prefix.
+        ("text-embedding-ada-002", None, "text-embedding-ada-002"),
+        ("text-embedding-ada-002-v2", None, "text-embedding-ada-002-v2"),
+        ("gemini-embedding-001", None, "gemini-embedding-001"),
+        # google-genai prefixes embedding model IDs with ``models/``.
+        ("models/gemini-embedding-001", "google", "gemini-embedding-001"),
+        ("gemini-embedding-2", None, "gemini-embedding-2"),
+        ("gemini-embedding-2-preview", None, "gemini-embedding-2-preview"),
+        ("mistral-embed", "mistralai", "mistral/mistral-embed"),
+        ("mistral-embed", None, "mistral/mistral-embed"),
+        ("mistral-embed-2312", "mistralai", "mistral/mistral-embed-2312"),
+        ("codestral-embed", "mistralai", "mistral/codestral-embed"),
+        ("codestral-embed-2505", "mistralai", "mistral/codestral-embed-2505"),
+        ("BAAI/bge-base-en-v1.5", "together", "together_ai/BAAI/bge-base-en-v1.5"),
+    ],
+)
+def test_embedding_span_model_names_resolve_apart_from_other_types(
+    built_in_lookup: CostModelLookup,
+    span_model_name: str,
+    span_provider: str | None,
+    expected_entry: str,
+) -> None:
+    now = datetime.now(timezone.utc)
+    embedding_attrs: dict[str, Any] = {
+        "openinference": {"span": {"kind": "EMBEDDING"}},
+        "embedding": {"model_name": span_model_name},
+    }
+    if span_provider is not None:
+        embedding_attrs["llm"] = {"provider": span_provider}
+    embedding_model = built_in_lookup.find_model(start_time=now, attributes=embedding_attrs)
+    assert embedding_model is not None
+    assert (embedding_model.name, embedding_model.type) == (expected_entry, "EMBEDDING")
+
+    assert (
+        built_in_lookup.find_model(
+            start_time=now,
+            attributes={"llm": {"model_name": span_model_name}},
+        )
+        is None
+    )
+    assert (
+        built_in_lookup.find_model(
+            start_time=now,
+            attributes={
+                "openinference": {"span": {"kind": "DECISION"}},
+                "decision": {"model_name": span_model_name},
+            },
+        )
+        is None
+    )
+
+
 def test_checked_in_manifest_parses_without_skipping_entries(
     manifest: dict[str, Any],
 ) -> None:

@@ -1002,44 +1002,36 @@ class TestApplyManifestModelTypes:
             ("decision-a", "DECISION"): r"(?i)^(model-a)$",
         }
 
-    async def test_embedding_entry_with_only_an_input_price_is_applied(
-        self,
-        db: DbSessionFactory,
+    async def test_upgrade_adds_typed_models_next_to_existing_llm(
+        self, db: DbSessionFactory
     ) -> None:
-        # The sync prices embedding models on input tokens alone, so their entries have no output.
+        # A database synced from a manifest without types gets a same-name decision model
+        # and an input-only embedding model.
         await _ensure_enums(db)
+        assert await _apply(db, _manifest("gpt-6-luna", "model-b", day=1))
+        rows = await _built_in_rows(db)
+        updated_at = await _built_in_updated_at(db)
         embedding = {
             "name": "text-embedding-3-small",
             "name_pattern": "text-embedding-3-small",
             "type": "EMBEDDING",
             "token_prices": [{"base_rate": 2e-8, "is_prompt": True, "token_type": "input"}],
         }
-        manifest = _manifest_of([], non_llm_models=[embedding], day=1)
-        assert manifest.skipped_models == frozenset()
-        assert await _apply(db, manifest)
-        built_in = await _get_models(db, is_built_in=True)
-        assert {name: (m.type, _extract_token_prices(m)) for name, m in built_in.items()} == {
-            "text-embedding-3-small": ("EMBEDDING", {("input", True): 2e-8}),
-        }
-
-    async def test_upgrade_adds_decision_next_to_existing_llm(self, db: DbSessionFactory) -> None:
-        # A database synced from a manifest without types gets a same-name decision model.
-        await _ensure_enums(db)
-        assert await _apply(db, _manifest("gpt-6-luna", "model-b", day=1))
-        rows = await _built_in_rows(db)
-        updated_at = await _built_in_updated_at(db)
         manifest = _manifest_of(
             [_manifest_model("gpt-6-luna"), _manifest_model("model-b")],
-            non_llm_models=[_decision_model("gpt-6-luna")],
+            non_llm_models=[_decision_model("gpt-6-luna"), embedding],
             day=2,
         )
         applied = await apply_manifest_if_newer(db, manifest)
         assert applied is not None
-        assert (applied.num_added, applied.num_updated, applied.num_removed) == (1, 0, 0)
+        assert (applied.num_added, applied.num_updated, applied.num_removed) == (2, 0, 0)
         new_rows = await _built_in_rows(db)
         assert {key: id_ for key, id_ in new_rows.items() if key[1] == "LLM"} == rows
         assert ("gpt-6-luna", "DECISION", False) in new_rows
+        assert ("text-embedding-3-small", "EMBEDDING", False) in new_rows
         assert await _built_in_updated_at(db) == updated_at
+        embed_row = (await _get_models(db, is_built_in=True))["text-embedding-3-small"]
+        assert _extract_token_prices(embed_row) == {("input", True): 2e-8}
 
     async def test_manifest_applied_by_an_older_reader_is_applied_again(
         self,
