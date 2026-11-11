@@ -12,7 +12,7 @@ import {
   ToolPartCodeBlock,
   ToolPartLabel,
 } from "./ToolPartPrimitives";
-import type { ToolInvocationPart } from "./toolPartTypes";
+import type { ToolInvocationPart, ToolStatus } from "./toolPartTypes";
 import { formatToolState, stringifyToolValue } from "./toolPartTypes";
 
 const FIELD_LABELS: Record<PatchExperimentFieldDiff["field"], string> = {
@@ -29,28 +29,22 @@ export function getPatchExperimentToolPreview(
   return "Propose experiment edit";
 }
 
-export function getPatchExperimentStatusVariant(
-  part: ToolInvocationPart
-): "danger" | "warning" | "success" | undefined {
-  if (part.state === "output-error") return "danger";
-  if (part.state === "output-available") {
-    return getOutputStatus(part.output) === "rejected" ? "warning" : "success";
-  }
-  return undefined;
-}
-
-export function formatPatchExperimentState(part: ToolInvocationPart): string {
+export function getPatchExperimentStatus(part: ToolInvocationPart): ToolStatus {
   switch (part.state) {
     case "input-available":
-      return "Awaiting approval";
+      return { stateLabel: "Awaiting approval", statusCategory: "needs-input" };
     case "output-available": {
       const status = getOutputStatus(part.output);
-      if (status === "rejected") return "Rejected";
-      if (status === "no_change") return "No change";
-      return isAutoAccepted(part.output) ? "Auto-applied" : "Applied";
+      if (status === "rejected") {
+        return { stateLabel: "Rejected", statusCategory: "denied" };
+      }
+      if (status === "no_change") return { stateLabel: "No change" };
+      return {
+        stateLabel: isAutoAccepted(part.output) ? "Auto-applied" : "Applied",
+      };
     }
     default:
-      return formatToolState(part.state);
+      return { stateLabel: formatToolState(part.state) };
   }
 }
 

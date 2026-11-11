@@ -93,23 +93,6 @@ export function ToolPartCodeBlock({
 }
 
 /**
- * Status indicator for the tool part summary bar (e.g., "Running", "Error").
- */
-export function ToolPartStatus({
-  children,
-  variant,
-}: {
-  children: React.ReactNode;
-  variant?: "danger" | "warning" | "success";
-}) {
-  return (
-    <span className="tool-part__status" data-variant={variant}>
-      {children}
-    </span>
-  );
-}
-
-/**
  * A row of metadata key-value pairs (e.g., exit code, duration).
  */
 export function ToolPartMeta({

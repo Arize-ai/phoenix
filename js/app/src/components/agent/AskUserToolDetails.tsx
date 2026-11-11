@@ -11,7 +11,7 @@ import { parseElicitToolInput } from "@phoenix/agent/tools/elicit";
 
 import { useElicitationDraft } from "./ElicitationDraftContext";
 import { ToolPartCodeBlock, ToolPartLabel } from "./ToolPartPrimitives";
-import type { ToolInvocationPart, ToolUIPartState } from "./toolPartTypes";
+import type { ToolInvocationPart, ToolStatus } from "./toolPartTypes";
 import { formatToolState } from "./toolPartTypes";
 
 const FREEFORM_OPTION_ID = "__freeform__";
@@ -106,25 +106,26 @@ function getStreamingQuestionCount(input: unknown): number | null {
     : null;
 }
 
-/**
- * Formats an ask_user tool state into a human-readable label.
- */
-export function formatAskUserState(
-  state: ToolUIPartState,
-  part: ToolInvocationPart
-): string {
+const AWAITING_RESPONSE: ToolStatus = {
+  stateLabel: "Awaiting response",
+  statusCategory: "needs-input",
+};
+
+export function getAskUserStatus(part: ToolInvocationPart): ToolStatus {
   const input = parseElicitToolInput(part.input);
-  switch (state) {
+  switch (part.state) {
     case "input-streaming":
-      return "Preparing questions";
+      return { stateLabel: "Preparing questions" };
     case "input-available":
-      return input ? "Awaiting response" : "Preparing questions";
+      return input ? AWAITING_RESPONSE : { stateLabel: "Preparing questions" };
     case "output-available":
-      return part.output ? "Answered" : "Awaiting response";
+      return part.output ? { stateLabel: "Answered" } : AWAITING_RESPONSE;
     case "output-error":
-      return isAskUserCancellation(part) ? "Canceled" : "Error";
+      return isAskUserCancellation(part)
+        ? { stateLabel: "Canceled", statusCategory: "stopped" }
+        : { stateLabel: "Error" };
     default:
-      return formatToolState(state);
+      return { stateLabel: formatToolState(part.state) };
   }
 }
 

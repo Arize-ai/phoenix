@@ -7,12 +7,9 @@ import {
   Card,
   DocumentationHelp,
   Flex,
-  Icon,
-  Icons,
+  MarkerTrigger,
+  StatusIndicator,
   Text,
-  Tooltip,
-  TooltipTrigger,
-  TriggerWrap,
   View,
 } from "@phoenix/components";
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
@@ -124,7 +121,7 @@ function ProviderCell({
 }
 
 /**
- * Name cell component - shows warning icon if config has parse error
+ * Name cell component - shows a status if the config has a parse error
  */
 function NameCell({
   name,
@@ -138,21 +135,18 @@ function NameCell({
   }
 
   return (
-    <Flex direction="row" gap="size-50" alignItems="center">
+    <Flex direction="row" gap="size-100" alignItems="center">
       <span>{name}</span>
-      <TooltipTrigger>
-        <TriggerWrap>
-          <Icon
-            svg={<Icons.AlertTriangle />}
-            color="warning"
-            aria-label="Configuration error"
-          />
-        </TriggerWrap>
-        <Tooltip>
-          This provider&apos;s configuration could not be parsed. Use edit to
-          enter a new configuration.
-        </Tooltip>
-      </TooltipTrigger>
+      <MarkerTrigger
+        explanation={
+          <>
+            This provider&apos;s configuration could not be parsed. Use edit to
+            enter a new configuration.
+          </>
+        }
+      >
+        <StatusIndicator category="failed" label="Invalid configuration" />
+      </MarkerTrigger>
     </Flex>
   );
 }

@@ -6,7 +6,7 @@ import type { AnnotationOptimizationConfig } from "@phoenix/components/annotatio
 import type { AnnotationSummary } from "@phoenix/components/annotation/types";
 import { RowPreviewCard } from "@phoenix/components/trace/RowPreviewCard";
 import { SpanPreviewAnnotations } from "@phoenix/components/trace/SpanPreviewAnnotations";
-import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
+import { SpanStatusIndicator } from "@phoenix/components/trace/SpanStatusIndicator";
 import type { TokenDetailsBreakdownProps } from "@phoenix/components/trace/TokenDetailsBreakdown";
 import type { SpanStatusCodeType } from "@phoenix/components/trace/types";
 
@@ -106,7 +106,7 @@ export function SessionTurnPreviewCard({
           </Text>
           {turn.statusCode === "ERROR" ? (
             <span className="session-turn-preview__status">
-              <SpanStatusCodeIcon statusCode="ERROR" />
+              <SpanStatusIndicator statusCode="ERROR" />
             </span>
           ) : null}
         </>

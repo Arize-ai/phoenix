@@ -3,11 +3,14 @@ import { css } from "@emotion/react";
 import {
   Badge,
   Flex,
+  MarkerTrigger,
   RichTooltip,
+  StatusIndicator,
   Text,
   TooltipTrigger,
   TriggerWrap,
 } from "@phoenix/components";
+import type { StatusCategory } from "@phoenix/components";
 import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { getDependencyPackages } from "@phoenix/utils/packageSpecUtils";
@@ -21,55 +24,62 @@ import type {
 
 type Language = SandboxProvider["supportedLanguages"][number];
 
+const STATUS_CATEGORIES: Record<BackendInfo["status"], StatusCategory> = {
+  AVAILABLE: "succeeded",
+  MISSING_CREDENTIALS: "needs-credentials",
+  UNAVAILABLE: "failed",
+  NOT_INSTALLED: "unavailable",
+  DISABLED: "disabled",
+};
+
 export function StatusText({
   status,
   detail,
   dependencyHints = [],
+  configureCredentials,
 }: {
   status: BackendInfo["status"];
   detail?: BackendInfo["statusDetail"];
   dependencyHints?: BackendInfo["dependencyHints"];
+  /**
+   * Makes a missing-credentials status open the credentials dialog, for a
+   * viewer who can set them. `action` follows the visible status label in the
+   * trigger's accessible name.
+   */
+  configureCredentials?: { action: string; onPress: () => void };
 }) {
-  const color =
-    status === "AVAILABLE"
-      ? "var(--global-color-success)"
-      : status === "UNAVAILABLE" || status === "MISSING_CREDENTIALS"
-        ? "var(--global-color-warning)"
-        : "var(--global-text-color-700)";
   const label = statusLabel(status);
-  const tooltipLines = detail ? [detail] : dependencyHints;
+  const indicator = (
+    <StatusIndicator category={STATUS_CATEGORIES[status]} label={label} />
+  );
+  if (status === "MISSING_CREDENTIALS" && configureCredentials) {
+    return (
+      <MarkerTrigger
+        aria-label={`${label}: ${configureCredentials.action}`}
+        onPress={configureCredentials.onPress}
+      >
+        {indicator}
+      </MarkerTrigger>
+    );
+  }
+  const explanationLines = detail ? [detail] : dependencyHints;
 
-  if (status === "AVAILABLE" || tooltipLines.length === 0) {
-    return <span style={{ color }}>{label}</span>;
+  if (status === "AVAILABLE" || explanationLines.length === 0) {
+    return indicator;
   }
 
-  const textColor =
-    status === "NOT_INSTALLED" || status === "DISABLED"
-      ? "text-700"
-      : "warning";
-
   return (
-    <TooltipTrigger delay={100}>
-      <TriggerWrap>
-        <Text
-          color={textColor}
-          css={css`
-            text-decoration: underline dotted;
-            text-underline-offset: 2px;
-            cursor: help;
-          `}
-        >
-          {label}
-        </Text>
-      </TriggerWrap>
-      <RichTooltip width={320}>
+    <MarkerTrigger
+      explanation={
         <Flex direction="column" gap="size-50">
-          {tooltipLines.map((line) => (
+          {explanationLines.map((line) => (
             <Text key={line}>{line}</Text>
           ))}
         </Flex>
-      </RichTooltip>
-    </TooltipTrigger>
+      }
+    >
+      {indicator}
+    </MarkerTrigger>
   );
 }
 
@@ -129,7 +139,7 @@ export function statusLabel(status: BackendInfo["status"]) {
     case "AVAILABLE":
       return "Available";
     case "MISSING_CREDENTIALS":
-      return "Authentication required";
+      return "Needs credentials";
     case "UNAVAILABLE":
       return "Unavailable";
     case "NOT_INSTALLED":

@@ -67,7 +67,7 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
-import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
+import { SpanStatusIndicator } from "@phoenix/components/trace/SpanStatusIndicator";
 import { TraceTokenCosts } from "@phoenix/components/trace/TraceTokenCosts";
 import { TraceTokenCount } from "@phoenix/components/trace/TraceTokenCount";
 import type { ISpanItem } from "@phoenix/components/trace/types";
@@ -670,14 +670,14 @@ export function TracesTable(props: TracesTableProps) {
         header: "status",
         accessorKey: "statusCode",
         enableSorting: false,
-        minSize: 50,
-        maxSize: 50,
+        minSize: 80,
+        maxSize: 80,
         cell: ({ getValue, row }) => {
           if (row.original.__additionalRow) {
             return null;
           }
           const statusCode = getValue() as SpanStatusCode;
-          return <SpanStatusCodeIcon statusCode={statusCode} />;
+          return <SpanStatusIndicator statusCode={statusCode} isLabelHidden />;
         },
       },
       {

@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import { flexRender, useTable } from "@tanstack/react-table";
-import { useCallback, useContext, useMemo } from "react";
+import { useCallback, useContext, useMemo, useState } from "react";
 import { OverlayTriggerStateContext } from "react-aria-components";
 import { graphql, useFragment } from "react-relay";
 
@@ -13,12 +13,13 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-  DialogTrigger,
   DocumentationHelp,
   Flex,
   Icon,
   Icons,
   LazyTabPanel,
+  MarkerTrigger,
+  StatusIndicator,
   ViewportModal,
   ViewportModalOverlay,
   Tab,
@@ -27,11 +28,13 @@ import {
   Text,
   View,
 } from "@phoenix/components";
+import type { StatusCategory } from "@phoenix/components";
 import {
   GenerativeProviderIcon,
   ProviderBrowserCredentialsPanel,
   ProviderServerCredentialsPanel,
 } from "@phoenix/components/generative";
+import { getMissingCredentialsStatus } from "@phoenix/components/generative/modelProviderUtils";
 import { tableCSS } from "@phoenix/components/table/styles";
 import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
 import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
@@ -70,75 +73,76 @@ export function GenerativeProvidersCard({
 
   const tableData = useMemo(() => [...data.modelProviders], [data]);
   type DataRow = (typeof tableData)[number];
-  const columns = useMemo(() => {
-    return [
-      {
-        header: "Name",
-        accessorKey: "name",
-        cell: ({ row }) => {
-          return (
-            <Flex direction="row" alignItems="center" gap="size-100">
-              <GenerativeProviderIcon provider={row.original.key} height={18} />
-              {row.original.name}
-            </Flex>
-          );
-        },
+  const [editingProviderKey, setEditingProviderKey] = useState<
+    DataRow["key"] | null
+  >(null);
+  const [isEditingCredentials, setIsEditingCredentials] = useState(false);
+  const editingProvider = tableData.find(
+    (provider) => provider.key === editingProviderKey
+  );
+  const editCredentials = (providerKey: DataRow["key"]) => {
+    setEditingProviderKey(providerKey);
+    setIsEditingCredentials(true);
+  };
+  const columns = [
+    {
+      header: "Name",
+      accessorKey: "name",
+      cell: ({ row }) => {
+        return (
+          <Flex direction="row" alignItems="center" gap="size-100">
+            <GenerativeProviderIcon provider={row.original.key} height={18} />
+            {row.original.name}
+          </Flex>
+        );
       },
-      {
-        header: "Environment Variables",
-        accessorKey: "apiKeyEnvVar",
-        cell: ({ row }) => {
-          const envVars =
-            row.original.credentialRequirements
-              .map((config) => config.envVarName)
-              .join(", ") || "--";
-          return <Text>{envVars}</Text>;
-        },
+    },
+    {
+      header: "Environment Variables",
+      accessorKey: "apiKeyEnvVar",
+      cell: ({ row }) => {
+        const envVars =
+          row.original.credentialRequirements
+            .map((config) => config.envVarName)
+            .join(", ") || "--";
+        return <Text>{envVars}</Text>;
       },
-      {
-        header: "Configuration",
-        accessorKey: "credentialsSet",
-        cell: ({ row }) => {
-          return (
-            <ProviderCredentialsStatus
-              dependenciesInstalled={row.original.dependenciesInstalled}
-              credentialRequirements={row.original.credentialRequirements}
-              providerKey={row.original.key}
-              credentialsSet={row.original.credentialsSet}
+    },
+    {
+      header: "Configuration",
+      accessorKey: "credentialsSet",
+      cell: ({ row }) => {
+        return (
+          <ProviderCredentialsStatus
+            provider={row.original}
+            onConfigure={() => editCredentials(row.original.key)}
+          />
+        );
+      },
+    },
+    {
+      header: "",
+      accessorKey: "id",
+      cell: ({ row }) => {
+        return (
+          <Flex
+            direction="row"
+            justifyContent="end"
+            gap="size-100"
+            width="100%"
+          >
+            <Button
+              size="S"
+              aria-label={`Edit ${row.original.name} credentials`}
+              leadingVisual={<Icon svg={<Icons.Edit />} />}
+              isDisabled={row.original.credentialRequirements.length === 0}
+              onPress={() => editCredentials(row.original.key)}
             />
-          );
-        },
+          </Flex>
+        );
       },
-      {
-        header: "",
-        accessorKey: "id",
-        cell: ({ row }) => {
-          return (
-            <Flex
-              direction="row"
-              justifyContent="end"
-              gap="size-100"
-              width="100%"
-            >
-              <DialogTrigger>
-                <Button
-                  size="S"
-                  aria-label={`Edit ${row.original.name} credentials`}
-                  leadingVisual={<Icon svg={<Icons.Edit />} />}
-                  isDisabled={row.original.credentialRequirements.length === 0}
-                />
-                <ViewportModalOverlay>
-                  <ViewportModal size="M">
-                    <ProviderCredentialsDialog provider={row.original} />
-                  </ViewportModal>
-                </ViewportModalOverlay>
-              </DialogTrigger>
-            </Flex>
-          );
-        },
-      },
-    ] satisfies ColumnDef<DataRow>[];
-  }, []);
+    },
+  ] satisfies ColumnDef<DataRow>[];
 
   const table = useTable({
     features: appTableFeatures,
@@ -196,48 +200,86 @@ export function GenerativeProvidersCard({
           })}
         </tbody>
       </table>
+      <ViewportModalOverlay
+        isOpen={isEditingCredentials && editingProvider != null}
+        onOpenChange={setIsEditingCredentials}
+      >
+        <ViewportModal size="M">
+          {editingProvider ? (
+            <ProviderCredentialsDialog provider={editingProvider} />
+          ) : null}
+        </ViewportModal>
+      </ViewportModalOverlay>
     </Card>
   );
 }
 
+type ModelProvider =
+  GenerativeProvidersCard_data$data["modelProviders"][number];
+
 function ProviderCredentialsStatus({
-  dependenciesInstalled,
-  credentialRequirements,
-  providerKey,
-  credentialsSet,
+  provider,
+  onConfigure,
 }: {
-  dependenciesInstalled: boolean;
-  credentialRequirements: GenerativeProvidersCard_data$data["modelProviders"][number]["credentialRequirements"];
-  providerKey: GenerativeProvidersCard_data$data["modelProviders"][number]["key"];
-  credentialsSet: boolean;
+  provider: ModelProvider;
+  onConfigure: () => void;
 }) {
   const providerCredentials = useCredentialsContext((state) =>
-    isModelProvider(providerKey) ? state[providerKey] : undefined
+    isModelProvider(provider.key) ? state[provider.key] : undefined
   );
-  if (!dependenciesInstalled) {
-    return <Text color="warning">missing dependencies</Text>;
+  const hasLocalCredentials = provider.credentialRequirements.every(
+    ({ envVarName, isRequired }) =>
+      !!providerCredentials?.[envVarName] || !isRequired
+  );
+  const status = getProviderCredentialsStatus({
+    provider,
+    hasLocalCredentials,
+  });
+  const indicator = <StatusIndicator {...status} />;
+  if (status.category === "needs-credentials") {
+    return (
+      <MarkerTrigger
+        aria-label={`${status.label}: configure ${provider.name} credentials`}
+        onPress={onConfigure}
+      >
+        {indicator}
+      </MarkerTrigger>
+    );
   }
+  return indicator;
+}
 
-  // Check if any credentials are set locally
-  if (!isModelProvider(providerKey)) {
-    return <Text color="warning">unknown provider key</Text>;
+export function getProviderCredentialsStatus({
+  provider,
+  hasLocalCredentials,
+}: {
+  provider: ModelProvider;
+  hasLocalCredentials: boolean;
+}): { category: StatusCategory; label: string; detail?: string } {
+  if (!provider.dependenciesInstalled) {
+    return { category: "unavailable", label: "Not installed" };
   }
-  const hasLocalCredentials = credentialRequirements.every(
-    ({ envVarName, isRequired }) => {
-      const envVarSet = !!providerCredentials?.[envVarName];
-      return envVarSet || !isRequired;
-    }
-  );
-  if (credentialRequirements.length === 0) {
-    return <Text color="success">no credentials required</Text>;
+  if (!isModelProvider(provider.key)) {
+    return { category: "failed", label: "Unknown provider" };
+  }
+  if (provider.credentialRequirements.length === 0) {
+    return { category: "succeeded", label: "Ready" };
   }
   if (hasLocalCredentials) {
-    return <Text color="success">configured in this browser</Text>;
+    return {
+      category: "succeeded",
+      label: "Configured",
+      detail: "In this browser",
+    };
   }
-  if (credentialsSet) {
-    return <Text color="success">configured on the server</Text>;
+  if (provider.credentialsSet) {
+    return {
+      category: "succeeded",
+      label: "Configured",
+      detail: "On the server",
+    };
   }
-  return <Text color="text-700">not configured</Text>;
+  return getMissingCredentialsStatus({ providerKey: provider.key });
 }
 
 function CredentialsSetIndicator() {

@@ -1,11 +1,10 @@
-import { Icon, Icons } from "@phoenix/components";
+import { Icon, Icons, StatusIndicator } from "@phoenix/components";
 import type { ModelMenuLeadingItem } from "@phoenix/components/generative/ModelMenu";
 
 import {
   getBrowserBuiltInModel,
   useBrowserModelAvailability,
 } from "./browserModel";
-import { StatusText } from "./StatusText";
 
 /**
  * Identifies the Browser AI entry among the model picker's leading items.
@@ -13,7 +12,7 @@ import { StatusText } from "./StatusText";
 export const BROWSER_AI_MENU_ITEM_ID = "browser-ai";
 
 /**
- * Availability of the on-device model as a short dot-status, shown beside
+ * Availability of the on-device model as a short status, shown beside
  * the Browser AI entry in the picker and under the picker when Browser AI
  * is selected. With `warningOnly` the healthy states render nothing — the
  * compact settings dropdown stays quiet unless the model can't run here.
@@ -29,16 +28,26 @@ export function BrowserModelAvailabilityStatus({
   }
   switch (availability) {
     case "available":
-      return warningOnly ? null : <StatusText tone="success">Ready</StatusText>;
+      return warningOnly ? null : (
+        <StatusIndicator category="succeeded" label="Ready" />
+      );
     case "needs-download":
       return warningOnly ? null : (
-        <StatusText>Downloads on first use</StatusText>
+        <StatusIndicator
+          category="unavailable"
+          label="Downloads on first use"
+        />
       );
     case "downloading":
-      return warningOnly ? null : <StatusText>Downloading…</StatusText>;
+      return warningOnly ? null : (
+        <StatusIndicator category="running" label="Downloading" />
+      );
     default:
       return (
-        <StatusText tone="warning">Not supported in this browser</StatusText>
+        <StatusIndicator
+          category="unavailable"
+          label="Not supported in this browser"
+        />
       );
   }
 }

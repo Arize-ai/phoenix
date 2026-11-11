@@ -383,6 +383,23 @@ export const Bulb = () => (
   </svg>
 );
 
+export const Ban = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle fill="none" cx="12" cy="12" r="10" />
+    <path fill="none" d="m4.9 4.9 14.2 14.2" />
+  </svg>
+);
+
 //C
 export const Calendar = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
@@ -1230,6 +1247,28 @@ export const HalfMoonHalfSun = () => (
 
 //H
 
+export const Hand = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path fill="none" d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2" />
+    <path fill="none" d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2" />
+    <path fill="none" d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8" />
+    <path
+      fill="none"
+      d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"
+    />
+  </svg>
+);
+
 export const HardDrive = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <g data-name="Layer 2">
@@ -1318,18 +1357,22 @@ export const Info = () => (
 //K
 export const Key = () => (
   <svg
-    width="24"
-    height="24"
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
     viewBox="0 0 24 24"
     fill="none"
-    xmlns="http://www.w3.org/2000/svg"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
   >
+    <path fill="none" d="m2 21 9.6-9.6" />
     <path
-      fillRule="evenodd"
-      clipRule="evenodd"
-      d="M21.7071 2.70711L20.4142 4L22.7071 6.29289Q22.7768 6.36254 22.8315 6.44443Q22.8862 6.52632 22.9239 6.61732Q22.9616 6.70831 22.9808 6.80491Q23 6.90151 23 7Q23 7.09849 22.9808 7.19509Q22.9616 7.29169 22.9239 7.38268Q22.8862 7.47368 22.8315 7.55557Q22.7768 7.63746 22.7071 7.70711L19.2071 11.2071Q19.1375 11.2767 19.0556 11.3315Q18.9737 11.3862 18.8827 11.4239Q18.7917 11.4616 18.6951 11.4808Q18.5985 11.5 18.5 11.5Q18.4015 11.5 18.3049 11.4808Q18.2083 11.4616 18.1173 11.4239Q18.0263 11.3862 17.9444 11.3315Q17.8625 11.2767 17.7929 11.2071L15.5 8.91421L12.7592 11.655Q14.0197 13.3159 14.027 15.5033Q14.0361 18.2084 12.1232 20.1212Q10.2104 22.0341 7.50528 22.025Q4.80015 22.0159 2.90017 20.0904Q1.0452 18.1699 1.0683 15.5106Q1.0914 12.8513 2.97186 10.9709Q4.85233 9.0904 7.5116 9.0673Q9.66513 9.0486 11.3291 10.2566L14.7929 6.79289L18.2929 3.29289L20.2929 1.29289Q20.3625 1.22325 20.4444 1.16853Q20.5263 1.11381 20.6173 1.07612Q20.7083 1.03843 20.8049 1.01921Q20.9015 1 21 1Q21.0985 1 21.1951 1.01921Q21.2917 1.03843 21.3827 1.07612Q21.4737 1.11381 21.5556 1.16853Q21.6375 1.22325 21.7071 1.29289Q21.8478 1.43355 21.9239 1.61732Q22 1.80109 22 2Q22 2.19891 21.9239 2.38268Q21.8478 2.56645 21.7071 2.70711ZM20.5858 7L19 5.41421L16.9142 7.5L18.5 9.08579L20.5858 7ZM10.6943 12.3303Q10.708 12.3435 10.7222 12.3562Q12.0208 13.6616 12.027 15.51Q12.0333 17.3828 10.709 18.707Q9.38476 20.0313 7.51197 20.025Q5.63919 20.0187 4.32382 18.6856Q3.05224 17.369 3.06823 15.528Q3.08422 13.6869 4.38608 12.3851Q5.68794 11.0832 7.52897 11.0672Q9.37 11.0512 10.6943 12.3303Z"
-      fill="currentColor"
+      fill="none"
+      d="m7.5 15.5 2.3 2.3a1 1 0 0 1 0 1.4l-2.1 2.1a1 1 0 0 1-1.4 0L4 19"
     />
+    <circle fill="none" cx="15.5" cy="7.5" r="5.5" />
   </svg>
 );
 //L
@@ -1463,6 +1506,22 @@ export const LogOut = () => (
         <path d="M20.82 11.42l-2.82-4a1 1 0 0 0-1.39-.24 1 1 0 0 0-.24 1.4L18.09 11H10a1 1 0 0 0 0 2h8l-1.8 2.4a1 1 0 0 0 .2 1.4 1 1 0 0 0 .6.2 1 1 0 0 0 .8-.4l3-4a1 1 0 0 0 .02-1.18z" />
       </g>
     </g>
+  </svg>
+);
+
+export const LoaderCircle = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path fill="none" d="M21 12a9 9 0 1 1-6.219-8.56" />
   </svg>
 );
 
@@ -1608,6 +1667,27 @@ export const Options = () => (
         <path d="M15 5a3 3 0 1 0-4 2.82V21a1 1 0 0 0 2 0V7.82A3 3 0 0 0 15 5zm-3 1a1 1 0 1 1 1-1 1 1 0 0 1-1 1z" />
       </g>
     </g>
+  </svg>
+);
+
+export const MessageCircleQuestionMark = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path
+      fill="none"
+      d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"
+    />
+    <path fill="none" d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+    <path fill="none" d="M12 17h.01" />
   </svg>
 );
 
@@ -2153,7 +2233,7 @@ export const Subagent = () => (
 export const Stop = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <path
-      d="M20 5C20 4.44772 19.5523 4 19 4H5C4.44772 4 4 4.44772 4 5V19C4 19.5523 4.44772 20 5 20H19C19.5523 20 20 19.5523 20 19V5ZM22 19C22 20.6569 20.6569 22 19 22H5C3.34315 22 2 20.6569 2 19V5C2 3.34315 3.34315 2 5 2H19C20.6569 2 22 3.34315 22 5V19Z"
+      d="M19 6C19 5.44772 18.5523 5 18 5H6C5.44772 5 5 5.44772 5 6V18C5 18.5523 5.44772 19 6 19H18C18.5523 19 19 18.5523 19 18V6ZM21 18C21 19.6569 19.6569 21 18 21H6C4.34315 21 3 19.6569 3 18V6C3 4.34315 4.34315 3 6 3H18C19.6569 3 21 4.34315 21 6V18Z"
       fill="currentColor"
     />
   </svg>
