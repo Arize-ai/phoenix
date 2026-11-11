@@ -5,6 +5,7 @@ import { devtools, persist } from "zustand/middleware";
 import type { LastNTimeRangeKey } from "@phoenix/components/datetime/types";
 import type { AIQueryModelConfig } from "@phoenix/components/filter/ai/types";
 import { PREFERENCES_STORAGE_KEY } from "@phoenix/constants/storageConstants";
+import type { ProjectKind } from "@phoenix/pages/projects/types";
 import type { PackageManager, ProgrammingLanguage } from "@phoenix/types/code";
 import {
   pythonPackageManagers,
@@ -137,6 +138,11 @@ export interface PreferencesProps {
    */
   projectSortOrder: ProjectSortOrder;
   /**
+   * The kinds of projects listed on the projects page
+   * @default ["STANDARD", "PLAYGROUND"]
+   */
+  visibleProjectKinds: ProjectKind[];
+  /**
    * The last project selected on the dashboards page.
    */
   lastSelectedDashboardProjectId?: string;
@@ -261,6 +267,10 @@ export interface PreferencesState extends PreferencesProps {
    * Setter for the project sort order
    */
   setProjectSortOrder: (projectSortOrder: ProjectSortOrder) => void;
+  /**
+   * Setter for the kinds of projects listed on the projects page
+   */
+  setVisibleProjectKinds: (visibleProjectKinds: ProjectKind[]) => void;
   /**
    * Setter for the last project selected on the dashboards page.
    */
@@ -420,6 +430,10 @@ export const createPreferencesStore = (
     },
     setProjectSortOrder: (projectSortOrder) => {
       set({ projectSortOrder }, false, { type: "setProjectSortOrder" });
+    },
+    visibleProjectKinds: ["STANDARD", "PLAYGROUND"],
+    setVisibleProjectKinds: (visibleProjectKinds) => {
+      set({ visibleProjectKinds }, false, { type: "setVisibleProjectKinds" });
     },
     lastSelectedDashboardProjectId: undefined,
     setLastSelectedDashboardProjectId: (projectId) => {
