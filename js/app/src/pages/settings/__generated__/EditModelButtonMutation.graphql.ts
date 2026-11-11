@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ec055d902976abb8ce26d46ff2e49e88>>
+ * @generated SignedSource<<30501eda5d2a5fa67e2b38c95c064ba1>>
  * @lightSyntaxTransform
  */
 
@@ -8,11 +8,13 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type GenerativeModelType = "DECISION" | "EMBEDDING" | "LLM";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI" | "ZAI";
 export type TokenKind = "COMPLETION" | "PROMPT";
 export type UpdateModelMutationInput = {
   costs: ReadonlyArray<TokenPriceInput>;
   id: string;
+  modelType?: GenerativeModelType | null;
   name: string;
   namePattern: string;
   provider?: string | null;
