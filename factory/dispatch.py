@@ -1,3 +1,10 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "anthropic==1.12.1",
+#     "PyJWT[crypto]==2.15.1",
+# ]
+# ///
 """Run one Phoenix issue through the factory.
 
 `start` checks that the issue is ready for the factory, routes it to a lane from its
@@ -16,7 +23,7 @@ import subprocess
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 import anthropic
 from github_app import GitHubAppToken
@@ -28,6 +35,10 @@ VAULT_LOCK_KEY = "./vaults/github.yaml"
 GRAFANA_VAULT_LOCK_KEY = "./vaults/grafana.yaml"
 DATADOG_VAULT_LOCK_KEY = "./vaults/datadog.yaml"
 FACTORY_LABEL = "factory"
+PREVIEW_LABEL = "factory-preview"
+PREVIEW_LABEL_COLOR = "0E8A16"
+PREVIEW_LABEL_DESCRIPTION = "Deploy a seeded preview of this PR (Factory Preview)"
+PREVIEW_LANES = {"bug", "feature"}
 
 LANE_AGENT_LOCK_KEYS = {
     "docs": "./agents/docs-writer.md",
@@ -77,8 +88,108 @@ def run_gh(*args: str, token: Optional[str] = None, input_text: Optional[str] = 
     return completed_process.stdout
 
 
+def format_mention(*, login: Optional[str]) -> str:
+    """Return a line that names `login`, or "" when there is nobody to alert.
+
+    GitHub notifies someone only when a comment names them, and a factory comment is often
+    the only word whoever asked for the run gets, so every comment a lane posts ends with
+    this. A bot account is never notified, which covers both WORKFLOW_LOGIN and the
+    factory's own app, so those get no line. The line goes last: factory-candidates.yml
+    tells a factory comment by its "The factory" opening.
+    """
+    if not login or login.endswith("[bot]"):
+        return ""
+    return f"\n\ncc @{login}"
+
+
 def comment_on_issue(*, issue_number: int, body: str, token: Optional[str]) -> None:
     run_gh("issue", "comment", str(issue_number), "--body-file", "-", token=token, input_text=body)
+
+
+def post_status_comment(*, number: int, body: str, token: Optional[str]) -> int:
+    """Comment on an issue or PR and return the comment's ID, so the run can replace it later.
+
+    The status comment says the session started; the watch step turns it into the result
+    with report_on_status_comment.
+    """
+    comment_id = run_gh(
+        "api",
+        f"repos/{{owner}}/{{repo}}/issues/{number}/comments",
+        "--input",
+        "-",
+        "--jq",
+        ".id",
+        token=token,
+        input_text=json.dumps({"body": body}),
+    )
+    return int(comment_id.strip())
+
+
+def report_on_status_comment(
+    *,
+    number: int,
+    comment_id: Optional[int],
+    body: str,
+    token: Optional[str],
+    notify: bool,
+) -> None:
+    """Turn the run's status comment into `body`, so the run leaves one factory comment.
+
+    An edit sends no notification, so edit only when something else already told the
+    maintainer the run ended, such as the review it posted. With `notify`, post `body` as a
+    new comment and delete the status comment instead. Every report starts with "The
+    factory", which factory-candidates.yml looks for to tell that the factory ran on an issue.
+    """
+    if comment_id is not None and not notify:
+        try:
+            run_gh(
+                "api",
+                "--method",
+                "PATCH",
+                f"repos/{{owner}}/{{repo}}/issues/comments/{comment_id}",
+                "--input",
+                "-",
+                "--silent",
+                token=token,
+                input_text=json.dumps({"body": body}),
+            )
+            return
+        except subprocess.CalledProcessError as error:
+            print(f"::warning::Posting a new comment; editing comment {comment_id} failed: {error}")
+    comment_on_issue(issue_number=number, body=body, token=token)
+    if comment_id is not None:
+        try:
+            run_gh(
+                "api",
+                "--method",
+                "DELETE",
+                f"repos/{{owner}}/{{repo}}/issues/comments/{comment_id}",
+                "--silent",
+                token=token,
+            )
+        except subprocess.CalledProcessError as error:
+            print(f"::warning::Deleting status comment {comment_id} failed: {error}")
+
+
+def add_preview_label(*, pr_number: int, token: Optional[str]) -> bool:
+    try:
+        existing = run_gh("label", "list", "--search", PREVIEW_LABEL, "--json", "name", token=token)
+        if PREVIEW_LABEL not in {label["name"] for label in json.loads(existing)}:
+            run_gh(
+                "label",
+                "create",
+                PREVIEW_LABEL,
+                "--color",
+                PREVIEW_LABEL_COLOR,
+                "--description",
+                PREVIEW_LABEL_DESCRIPTION,
+                token=token,
+            )
+        run_gh("pr", "edit", str(pr_number), "--add-label", PREVIEW_LABEL, token=token)
+        return True
+    except subprocess.CalledProcessError as error:
+        print(f"::warning::Could not add the {PREVIEW_LABEL} label: {error.stderr}")
+        return False
 
 
 def remove_factory_label(*, issue_number: int, token: Optional[str]) -> None:
@@ -452,12 +563,13 @@ def watch_session(
     client: anthropic.Anthropic,
     session_id: str,
     lane: str,
-    issue_number: int,
+    find_pr: Callable[[], Optional[dict[str, Any]]],
     app_token: GitHubAppToken,
     watch_minutes: int,
 ) -> str:
-    """Drive the session's PR through CI and automated review; return the issue comment.
+    """Drive the session's PR through CI and automated review; return the report comment.
 
+    `find_pr` returns the session's open PR, or None once it is closed or was never opened.
     CI failures and review findings go back to the session, up to MAX_FEEDBACK_ROUNDS
     rounds, so a human is asked to review only once both are clean.
     """
@@ -477,7 +589,7 @@ def watch_session(
     latest_outcome = session.outcome_evaluations[-1] if session.outcome_evaluations else None
     outcome_result = latest_outcome.result if latest_outcome else "not graded"
     stop_reason = idle_event.stop_reason.type if idle_event else "terminated"
-    pr = find_factory_pr(issue_number=issue_number)
+    pr = find_pr()
 
     # How the run ended, so every failure turns into a fix: `success` ships, `flawed` means
     # the agent produced the wrong thing (fix a prompt, rubric or eval), `blocked` means the
@@ -497,6 +609,7 @@ def watch_session(
     else:
         status_line = f"left {pr['url']} before CI finished"
         ready_at = datetime.min.replace(tzinfo=timezone.utc)
+        preview_labeled = False
         for feedback_round in range(MAX_FEEDBACK_ROUNDS + 1):
             failing_checks = wait_for_required_checks(pr_number=pr["number"], deadline=deadline)
             if failing_checks is None:
@@ -516,6 +629,10 @@ def watch_session(
                     # Leaving draft is what starts the automated code review.
                     ready_at = datetime.now(timezone.utc) - timedelta(minutes=1)
                     run_gh("pr", "ready", str(pr["number"]), token=app_token.refresh())
+                if lane in PREVIEW_LANES and not preview_labeled:
+                    preview_labeled = add_preview_label(
+                        pr_number=pr["number"], token=app_token.refresh()
+                    )
                 if not wait_for_review_run(
                     head_sha=pr["headRefOid"], created_after=ready_at, deadline=deadline
                 ):
@@ -566,7 +683,7 @@ def watch_session(
             if idle_event is None:
                 status_line = f"left {pr['url']}; the session ended during a feedback round"
                 break
-            pr = find_factory_pr(issue_number=issue_number)
+            pr = find_pr()
             if pr is None:
                 status_line = "stopped: its PR was closed"
                 run_outcome = "manual"
@@ -649,7 +766,10 @@ def run_start(*, args: argparse.Namespace) -> None:
     if admission_problem is not None:
         comment_on_issue(
             issue_number=args.issue,
-            body=f"The factory skipped this issue: {admission_problem}.",
+            body=(
+                f"The factory skipped this issue: {admission_problem}."
+                f"{format_mention(login=requester_login)}"
+            ),
             token=app_token.refresh(),
         )
         remove_factory_label(issue_number=args.issue, token=app_token.refresh())
@@ -673,16 +793,23 @@ def run_start(*, args: argparse.Namespace) -> None:
         budget_cents=args.budget_cents,
     )
     print(f"session_id={session_id}")
-    comment_on_issue(
-        issue_number=args.issue,
+    status_comment_id = post_status_comment(
+        number=args.issue,
         body=(
-            f"The factory started the **{lane}** lane for this issue "
+            f"The factory is running the **{lane}** lane for this issue "
             f"(session {format_session_link(session_id=session_id)}). "
             f"It reports back here when the session ends."
+            f"{format_mention(login=requester_login)}"
         ),
         token=app_token.refresh(),
     )
-    write_github_outputs(started="true", lane=lane, session_id=session_id)
+    write_github_outputs(
+        started="true",
+        lane=lane,
+        requested_by=requester_login,
+        session_id=session_id,
+        status_comment_id=str(status_comment_id),
+    )
 
 
 def run_watch(*, args: argparse.Namespace) -> None:
@@ -700,7 +827,7 @@ def run_watch(*, args: argparse.Namespace) -> None:
             client=client,
             session_id=args.session_id,
             lane=args.lane,
-            issue_number=args.issue,
+            find_pr=lambda: find_factory_pr(issue_number=args.issue),
             app_token=app_token,
             watch_minutes=args.watch_minutes,
         )
@@ -712,7 +839,14 @@ def run_watch(*, args: argparse.Namespace) -> None:
             report_token = app_token.refresh() if app_token is not None else None
         except Exception as error:
             print(f"::warning::Reporting with GITHUB_TOKEN; the app token failed: {error}")
-        comment_on_issue(issue_number=args.issue, body=report, token=report_token)
+        # The lane's result is what the maintainer waits hours for, so it always notifies.
+        report_on_status_comment(
+            number=args.issue,
+            comment_id=args.status_comment_id,
+            body=report + format_mention(login=args.requested_by),
+            token=report_token,
+            notify=True,
+        )
         remove_factory_label(issue_number=args.issue, token=report_token)
 
 
@@ -737,6 +871,12 @@ def main() -> None:
     watch_parser = subparsers.add_parser("watch", help="Follow a session to a reviewable PR")
     watch_parser.add_argument("--session-id", required=True)
     watch_parser.add_argument("--lane", required=True)
+    watch_parser.add_argument(
+        "--requested-by", default="", help="Login the run answers to, named in the report"
+    )
+    watch_parser.add_argument(
+        "--status-comment-id", type=int, help="The start step's comment, edited into the report"
+    )
     watch_parser.add_argument("--watch-minutes", type=int, default=270)
 
     args = parser.parse_args()

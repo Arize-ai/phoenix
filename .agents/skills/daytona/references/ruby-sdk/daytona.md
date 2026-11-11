@@ -154,7 +154,7 @@ Creates a sandbox with the specified parameters
 **Raises**:
 
 - `Daytona:Sdk:Error` - If auto_stop_interval, auto_pause_interval, auto_archive_interval, or ttl_minutes is negative,
-or if auto_stop_interval and auto_pause_interval are both non-zero
+if queue_timeout is not a positive integer, or if auto_stop_interval and auto_pause_interval are both non-zero
 
 #### delete()
 

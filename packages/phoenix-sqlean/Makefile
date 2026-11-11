@@ -14,29 +14,18 @@ SQLEAN_REPO := https://github.com/nalgeon/sqlean.git
 # The release SQLEAN_COMMIT corresponds to, +<short sha> when the commit sits
 # ahead of it. check-sqlean-pin enforces that, and that setup.py's copy agrees
 # -- setup.py's is the one compiled in as what sqlean_version() reports.
-SQLEAN_VERSION := 0.28.5
+SQLEAN_VERSION := 0.29.0
 # Pinned by commit, not tag: a tag can be moved to different content, a commit
 # cannot, and git verifies every object it receives. Why a given pin was
 # chosen belongs in the commit that moved it.
-SQLEAN_COMMIT := c873e81cbe5ac951410ed11e2746d723ede5ec26
-# sqlean's crypto extension includes crypto/xxhash.impl.h but does not ship it.
-# XXHASH_TAG is the tag sqlean's own Makefile fetches; download-sqlean asserts
-# they still agree, so an upstream move stops the build.
-XXHASH_TAG := v0.8.3
-# Plain HTTP, unlike the sqlean fetch: curl verifies nothing. The commit fixes
-# which content is correct, XXHASH_SHA256 proves the bytes are it.
-XXHASH_COMMIT := e626a72bc2321cd320e953a0ccf1584cad60f363
-XXHASH_SHA256 := 17973c0dc49d9854ca26caa191f0e12f7a424b68858d9a78de3860d959d85e4b
+SQLEAN_COMMIT := 528537d8b768e0a2af4dba98f9d5aca2ceb76895
+SQLEAN_MODULES := crypto define fileio fuzzy ipaddr math regexp stats text time uuid vsv
 
 prepare-src:
 	mkdir -p sqlite
 	rm -rf sqlite/*
 
 download-sqlite:
-	# Vendored, not downloaded: SQLite removed this Windows opendir() shim in
-	# 3.51.0, so the copy in src/ is pinned at 3.50.4 and deliberately NOT tied
-	# to $(SQLITE_VERSION). Do not re-sync it on a bump.
-	cp src/test_windirent.h sqlite/test_windirent.h
 	curl -fL https://sqlite.org/$(SQLITE_RELEASE_YEAR)/sqlite-amalgamation-$(SQLITE_VERSION).zip --output sqlite.zip
 	echo "$(SQLITE_SHA256)  sqlite.zip" | shasum -a 256 -c -
 	unzip sqlite.zip
@@ -91,66 +80,48 @@ download-sqlean: check-sqlean-pin
 	git -C sqlean-src remote add origin $(SQLEAN_REPO)
 	git -C sqlean-src fetch -q --depth 1 origin $(SQLEAN_COMMIT)
 	git -C sqlean-src checkout -q FETCH_HEAD
-	# Here rather than in check-sqlean-pin because it reads sqlean's Makefile,
-	# which exists only between the checkout above and the cleanup below. An
-	# empty $$ref -- sqlean sourcing xxHash some other way -- fails too.
-	@ref=$$(sed -n 's|.*xxhash/raw/\([^/]*\)/xxhash.h.*|\1|p' sqlean-src/Makefile | head -1); \
-	if [ "$$ref" != "$(XXHASH_TAG)" ]; then \
-		echo "sqlean $(SQLEAN_COMMIT) fetches xxHash '$$ref', but XXHASH_TAG is $(XXHASH_TAG)" >&2; \
+	# Tripwires against upstream changing shape: sqlean >= 0.29 vendors all
+	# extension sources in-tree and ships the fixed module set in SQLEAN_MODULES.
+	@ext_urls=$$(grep -E 'curl ' sqlean-src/Makefile | grep -v 'sqlite-amalgamation-' || true); \
+	if [ -n "$$ext_urls" ]; then \
+		echo "sqlean $(SQLEAN_COMMIT) fetches external sources in its Makefile:" >&2; \
+		echo "$$ext_urls" >&2; \
 		exit 1; \
 	fi; \
-	echo "xxHash pin OK: sqlean asks for $(XXHASH_TAG)"
-	# Into the sqlean tree, so the crypto/*.h copy below picks it up.
-	curl -fL https://github.com/cyan4973/xxhash/raw/$(XXHASH_COMMIT)/xxhash.h --output sqlean-src/src/crypto/xxhash.impl.h
-	echo "$(XXHASH_SHA256)  sqlean-src/src/crypto/xxhash.impl.h" | shasum -a 256 -c -
+	mods=$$(ls sqlean-src/src/sqlite3-*.c | sed 's|.*/sqlite3-\(.*\)\.c|\1|' | grep -v '^sqlean$$' | sort | tr '\n' ' ' | sed 's/ $$//'); \
+	if [ "$$mods" != "$(SQLEAN_MODULES)" ]; then \
+		echo "sqlean $(SQLEAN_COMMIT) modules ($$mods) != expected ($(SQLEAN_MODULES))" >&2; \
+		exit 1; \
+	fi
 	mkdir -p \
 		  sqlite/crypto \
 		  sqlite/define \
 		  sqlite/fileio \
 		  sqlite/fuzzy \
 		  sqlite/ipaddr \
-		  sqlite/math \
 		  sqlite/regexp/pcre2 \
 		  sqlite/stats \
 		  sqlite/text \
-		  sqlite/text/utf8 \
 		  sqlite/time \
-		  sqlite/unicode \
 		  sqlite/uuid \
 		  sqlite/vsv
-	cp sqlean-src/src/crypto/*.h sqlite/crypto/
-	cp sqlean-src/src/define/*.h sqlite/define/
-	cp sqlean-src/src/fileio/*.h sqlite/fileio/
-	cp sqlean-src/src/fuzzy/*.h sqlite/fuzzy/
-	cp sqlean-src/src/ipaddr/*.h sqlite/ipaddr/
-	cp sqlean-src/src/math/*.h sqlite/math/
-	cp sqlean-src/src/regexp/*.h sqlite/regexp/
-	cp sqlean-src/src/regexp/pcre2/*.h sqlite/regexp/pcre2
-	cp sqlean-src/src/stats/*.h sqlite/stats/
-	cp sqlean-src/src/text/*.h sqlite/text/
-	cp sqlean-src/src/text/utf8/*.h sqlite/text/utf8
-	cp sqlean-src/src/time/*.h sqlite/time/
-	cp sqlean-src/src/unicode/*.h sqlite/unicode/
-	cp sqlean-src/src/uuid/*.h sqlite/uuid/
-	cp sqlean-src/src/vsv/*.h sqlite/vsv/
-	cp sqlean-src/src/*.h sqlite/
-	cat sqlean-src/src/crypto/*.c > sqlite/sqlean-crypto.c
-	cat sqlean-src/src/define/*.c > sqlite/sqlean-define.c
-	cat sqlean-src/src/fileio/*.c > sqlite/sqlean-fileio.c
-	cat sqlean-src/src/fuzzy/*.c > sqlite/sqlean-fuzzy.c
-	cat sqlean-src/src/ipaddr/*.c > sqlite/sqlean-ipaddr.c
-	cat sqlean-src/src/math/*.c > sqlite/sqlean-math.c
-	cat sqlean-src/src/regexp/pcre2/*.c sqlean-src/src/regexp/*.c > sqlite/sqlean-regexp.c
-	cat sqlean-src/src/stats/*.c > sqlite/sqlean-stats.c
-	cat sqlean-src/src/text/utf8/*.c sqlean-src/src/text/*.c > sqlite/sqlean-text.c
-	cat sqlean-src/src/time/*.c > sqlite/sqlean-time.c
+	cp sqlean-src/src/crypto/*.[ch] sqlite/crypto/
+	cp sqlean-src/src/define/*.[ch] sqlite/define/
+	cp sqlean-src/src/fileio/*.[ch] sqlite/fileio/
+	cp sqlean-src/src/fuzzy/*.[ch] sqlite/fuzzy/
+	cp sqlean-src/src/ipaddr/*.[ch] sqlite/ipaddr/
+	cp sqlean-src/src/regexp/*.[ch] sqlite/regexp/
+	cp sqlean-src/src/regexp/pcre2/*.[ch] sqlite/regexp/pcre2/
+	cp sqlean-src/src/stats/*.[ch] sqlite/stats/
+	cp sqlean-src/src/text/*.[ch] sqlite/text/
+	cp sqlean-src/src/time/*.[ch] sqlite/time/
 	# MSVC rejects file-scope consts initialized from other consts (C2099),
 	# which gcc and clang accept; the patch swaps them for literals. patch(1)
 	# failing on a bump is the tripwire -- otherwise it breaks Windows only.
-	patch sqlite/sqlean-time.c src/sqlean-time-msvc.patch
-	cat sqlean-src/src/unicode/*.c > sqlite/sqlean-unicode.c
-	cat sqlean-src/src/uuid/*.c > sqlite/sqlean-uuid.c
-	cat sqlean-src/src/vsv/*.c > sqlite/sqlean-vsv.c
+	patch -p1 -d sqlite < src/sqlean-time-msvc.patch
+	cp sqlean-src/src/uuid/*.[ch] sqlite/uuid/
+	cp sqlean-src/src/vsv/*.[ch] sqlite/vsv/
+	cp sqlean-src/src/*.h sqlite/
 	cat src/init.c >> sqlite/sqlite3.c
 	cp src/init.h sqlite
 	rm -rf sqlean-src

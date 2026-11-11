@@ -185,11 +185,12 @@ returns), so spans read from one project can be logged straight into another.
 
 ```python
 from phoenix.client import Client
+from phoenix.client.__generated__ import v1
 from phoenix.client.exceptions import SpanCreationError
 
 client = Client()
 
-spans = [
+spans: list[v1.Span] = [
     {
         "name": "answer_question",
         "span_kind": "AGENT",

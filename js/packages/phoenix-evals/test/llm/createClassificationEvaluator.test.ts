@@ -1,9 +1,9 @@
 import { context, propagation, trace } from "@opentelemetry/api";
 import {
   InMemorySpanExporter,
-  NodeTracerProvider,
+  TracerProvider,
   SimpleSpanProcessor,
-} from "@opentelemetry/sdk-trace-node";
+} from "@opentelemetry/sdk-trace";
 import { MockLanguageModelV3 } from "ai/test";
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 
@@ -172,10 +172,10 @@ describe("createClassificationEvaluator", () => {
 
   it("should follow the current global tracer provider across provider swaps", async () => {
     const firstExporter = new InMemorySpanExporter();
-    const firstProvider = new NodeTracerProvider({
-      spanProcessors: [new SimpleSpanProcessor(firstExporter)],
+    const firstProvider = new TracerProvider({
+      spanProcessors: [new SimpleSpanProcessor({ exporter: firstExporter })],
     });
-    firstProvider.register();
+    trace.setGlobalTracerProvider(firstProvider);
 
     const evaluator = createClassificationEvaluator<{ question: string }>({
       name: "isValid",
@@ -220,10 +220,10 @@ describe("createClassificationEvaluator", () => {
     propagation.disable();
 
     const secondExporter = new InMemorySpanExporter();
-    const secondProvider = new NodeTracerProvider({
-      spanProcessors: [new SimpleSpanProcessor(secondExporter)],
+    const secondProvider = new TracerProvider({
+      spanProcessors: [new SimpleSpanProcessor({ exporter: secondExporter })],
     });
-    secondProvider.register();
+    trace.setGlobalTracerProvider(secondProvider);
 
     await evaluator.evaluate({
       question: "Is this still a valid question?",

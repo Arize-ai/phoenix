@@ -8,12 +8,14 @@ import {
   createApiCommand,
   createAuthCommand,
   createDatasetCommand,
+  createDatasetVersionsCommand,
   createDocsCommand,
   createExperimentCommand,
   createModelProviderCommand,
   createProfileCommand,
   createProjectCommand,
   createPromptCommand,
+  createPromptVersionsCommand,
   createSessionAnnotationsCommand,
   createSessionCommand,
   createSelfCommand,
@@ -49,11 +51,13 @@ export function createProgram(): Command {
   program.addCommand(createSpanCommand());
   program.addCommand(createSpanAnnotationsCommand());
   program.addCommand(createDatasetCommand());
+  program.addCommand(createDatasetVersionsCommand());
   program.addCommand(createSessionCommand());
   program.addCommand(createSessionAnnotationsCommand());
   program.addCommand(createExperimentCommand());
   program.addCommand(createPromptCommand());
   program.addCommand(createModelProviderCommand());
+  program.addCommand(createPromptVersionsCommand());
   program.addCommand(createApiCommand());
   program.addCommand(createDocsCommand());
   program.addCommand(createSelfCommand());

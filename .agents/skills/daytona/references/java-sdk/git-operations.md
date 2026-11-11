@@ -87,7 +87,7 @@ System.out.println("Current branch: " + status.getCurrentBranch());
 System.out.println("Commits ahead: " + status.getAhead());
 System.out.println("Commits behind: " + status.getBehind());
 for (GitStatus.FileStatus file : status.getFileStatus()) {
-    System.out.println("File: " + file.getName());
+    System.out.println("File: " + file.getPath());
 }
 
 // List branches

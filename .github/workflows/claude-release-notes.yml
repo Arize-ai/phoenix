@@ -34,8 +34,7 @@ jobs:
 
       - name: Create branch
         run: |
-          DATE=$(date -u +%Y-%m-%d)
-          BRANCH="claude/release-notes-$DATE"
+          BRANCH="claude/release-notes"
           git checkout -b "$BRANCH"
           echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
           mkdir -p .scratch
@@ -130,18 +129,23 @@ jobs:
           fi
           git add -A
           git commit -m "docs: add Phoenix release notes"
-          git push -u origin "$BRANCH"
+          git push --force -u origin "$BRANCH"
           if [ -s .scratch/pr-body.md ]; then
             BODY_FILE=.scratch/pr-body.md
           else
             BODY_FILE=$(mktemp)
             echo "Automated weekly release notes update." > "$BODY_FILE"
           fi
-          gh pr create \
-            --base main \
-            --head "$BRANCH" \
-            --title "docs: Add Phoenix release notes — $TODAY" \
-            --body-file "$BODY_FILE"
+          TITLE="docs: Add Phoenix release notes — $TODAY"
+          if [ "$(gh pr view "$BRANCH" --json state --jq .state 2>/dev/null)" = "OPEN" ]; then
+            gh pr edit "$BRANCH" --title "$TITLE" --body-file "$BODY_FILE"
+          else
+            gh pr create \
+              --base main \
+              --head "$BRANCH" \
+              --title "$TITLE" \
+              --body-file "$BODY_FILE"
+          fi
           # Auto-merge once a reviewer approves and checks pass.
           gh pr merge "$BRANCH" --auto --squash || echo "::warning::Could not enable auto-merge on $BRANCH"
       - name: Approve pull request

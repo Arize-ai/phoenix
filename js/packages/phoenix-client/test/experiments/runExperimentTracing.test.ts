@@ -150,6 +150,41 @@ describe("runExperiment tracing", () => {
     );
   });
 
+  it.each([
+    ["success", false, phoenixOtel.SpanStatusCode.OK],
+    ["task failed", true, phoenixOtel.SpanStatusCode.ERROR],
+    ["", true, phoenixOtel.SpanStatusCode.ERROR],
+  ])("exports the task span status for %j", async (message, fails, code) => {
+    const statuses: { code: number }[] = [];
+    const { register } = await vi.importActual<typeof PhoenixOtel>(
+      "@arizeai/phoenix-otel"
+    );
+    const provider = register({
+      global: false,
+      spanProcessors: [
+        {
+          onStart: vi.fn(),
+          onEnd: (span) => statuses.push(span.status),
+          forceFlush: async () => {},
+          shutdown: async () => {},
+        },
+      ],
+    });
+    vi.mocked(phoenixOtel.register).mockReturnValueOnce(provider);
+
+    await runExperiment({
+      client: createTestClient(),
+      dataset: { datasetId: mockDataset.id },
+      task: async () => {
+        if (fails) throw new Error(message);
+        return "output";
+      },
+      setGlobalTracerProvider: false,
+    });
+
+    expect(statuses).toEqual([{ code }]);
+  });
+
   it("uses separate tracer providers for task and evaluation tracing", async () => {
     const evaluator = asEvaluator({
       name: "correctness",

@@ -1,4 +1,4 @@
-import type { SpanProcessor } from "@opentelemetry/sdk-trace-node";
+import type { SpanProcessor } from "@opentelemetry/sdk-trace";
 import { afterEach, describe, expect, test } from "vitest";
 
 import {

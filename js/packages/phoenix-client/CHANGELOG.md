@@ -1,5 +1,35 @@
 # @arizeai/phoenix-client
 
+## 8.0.0
+
+### Major Changes
+
+- 80bac51: Move `@arizeai/phoenix-otel` to OpenTelemetry JS 3 (`@opentelemetry/sdk-trace` 3.x, `@opentelemetry/api` 1.10) so spans created by apps on OpenTelemetry JS 3 are recorded after `register()`. `register()` now returns the `@opentelemetry/sdk-trace` `TracerProvider` (still exported as the `NodeTracerProvider` type), which no longer has a `register()` method. Custom `spanProcessors` must come from `@opentelemetry/sdk-trace` and take an options object, e.g. `new BatchSpanProcessor({ exporter })`; `BatchSpanProcessor` and `SimpleSpanProcessor` are now re-exported from `@arizeai/phoenix-otel`. See the package's `MIGRATION.md`. A `tracerProvider` passed to `@arizeai/phoenix-client` `evaluateExperiment()` must now be an `@opentelemetry/sdk-trace` 3.x `TracerProvider`. `register()` no longer applies the `OTEL_TRACES_SAMPLER`, `OTEL_SPAN_*`, `OTEL_ATTRIBUTE_*`, or `OTEL_BSP_*` environment variables. Node.js 22.15 or newer is now required.
+
+### Patch Changes
+
+- Updated dependencies [80bac51]
+  - @arizeai/phoenix-otel@3.0.0
+
+## 7.18.2
+
+### Patch Changes
+
+- 6e6e101: fix(phoenix-client): preserve literal dollar sequences in prompt variables
+
+## 7.18.1
+
+### Patch Changes
+
+- 6a60c71: fix(phoenix-client): preserve the error status of failed experiment task spans
+- 491ae7a: fix(phoenix-client): preserve system and developer instructions when converting prompts to Anthropic, omitting empty text blocks from the system array
+
+## 7.18.0
+
+### Minor Changes
+
+- ead7dd8: Add typed dataset-label resource and assignment helpers to the existing `@arizeai/phoenix-client/datasets` scope. Callers can manage reusable global labels, list them with cursor pagination, and assign or replace labels on datasets selected by name or GlobalID.
+
 ## 7.17.0
 
 ### Minor Changes

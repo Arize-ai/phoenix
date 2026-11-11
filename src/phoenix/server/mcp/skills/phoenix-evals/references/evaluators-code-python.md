@@ -53,7 +53,7 @@ def matches_expected(output: str, expected: dict) -> bool:
 | `float`/`int` | Used as the `score` value directly |
 | `str` (short, ≤3 words) | Used as the `label` value |
 | `str` (long, ≥4 words) | Used as the `explanation` value |
-| `dict` with `score`/`label`/`explanation` | Mapped to Score fields directly |
+| `dict` with `score`/`label`/`explanation`/`metadata` | Mapped to Score fields directly |
 | `Score` object | Used as-is |
 
 ## Important: Code vs LLM Evaluators

@@ -9,8 +9,6 @@
 
 When `spanProcessors` is provided, those are used directly. Otherwise `getDefaultSpanProcessor()` creates an OTLP-backed processor.
 
-Processors come from `@arizeai/openinference-vercel` (`OpenInferenceBatchSpanProcessor` / `OpenInferenceSimpleSpanProcessor`), not from `@opentelemetry/sdk-trace-base`.
-
 ## Environment Variable Fallbacks
 
 `PHOENIX_COLLECTOR_ENDPOINT` and `PHOENIX_API_KEY` are used as fallbacks for the `url` and `apiKey` params respectively. Explicit params always take precedence.
