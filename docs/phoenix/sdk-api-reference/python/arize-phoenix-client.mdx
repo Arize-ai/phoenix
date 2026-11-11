@@ -395,7 +395,7 @@ When the server explains a failure with [RFC 9457](https://www.rfc-editor.org/rf
 - `code` is a stable category, published as `urn:phoenix:problem:<code>` on `problem["type"]`: `validation_error`, `invalid_argument`, `not_found`, `already_exists`, `conflict`, `forbidden`, `insufficient_storage`, or `error`. Treat a `code` you don't recognize by `error.response.status_code` — new codes are additive.
 - `reason` is a finer condition under `code`, present on some `conflict` responses. Treat a `reason` you don't recognize by `code` alone. The reasons today:
   - `still_bound` (deleting a definition something still binds): detach the bindings first, then delete.
-  - `bindings_being_deleted` (deleting a definition whose bindings were deleted but not yet purged): retry the definition delete shortly.
+  - `bindings_being_deleted` (another request deleted one of the definition's bindings while this delete ran): retry the definition delete.
   - `version_mismatch` (`expected_current_version_id` didn't match): re-read the evaluator and reconcile before retrying — never blindly resubmit with the version the error reports as current, since another deploy can land before you do.
   - `concurrent_change` (another write touched the same row mid-request): retry the same request unchanged.
 - The recovery fields, present only for the `reason` (or, for `existing_id`, `code`) named:
