@@ -1335,19 +1335,26 @@ class TestCostModelLookupByType:
         "generative_models,attributes,expected_model_id",
         [
             pytest.param(
-                [_model(1, "LLM"), _model(2, "LLM", is_built_in=False)],
+                [
+                    _model(1, "LLM"),
+                    _model(2, "LLM", is_built_in=False),
+                    _model(3, "EMBEDDING", is_built_in=False),
+                ],
                 _decision(model_name="gpt-6-luna"),
                 None,
-                id="decision_span_never_falls_back_to_llm_models",
+                id="decision_span_never_falls_back_to_other_types",
             ),
             pytest.param(
-                [_model(1, "DECISION", name_pattern="^gpt-6-luna$", is_built_in=False)],
+                [
+                    _model(1, "DECISION", name_pattern="^gpt-6-luna$", is_built_in=False),
+                    _model(2, "EMBEDDING", name_pattern="^gpt-6-luna$", is_built_in=False),
+                ],
                 {
                     "openinference": {"span": {"kind": "LLM"}},
                     "llm": {"model_name": "gpt-6-luna"},
                 },
                 None,
-                id="llm_span_never_falls_back_to_decision_models",
+                id="llm_span_never_falls_back_to_other_types",
             ),
             pytest.param(
                 [_model(1, "LLM"), _model(2, "DECISION")],
@@ -1386,31 +1393,10 @@ class TestCostModelLookupByType:
                 id="non_string_decision_model_name_falls_back_to_llm_model_name",
             ),
             pytest.param(
-                [_model(1, "LLM"), _model(2, "DECISION"), _model(3, "EMBEDDING")],
-                _embedding(),
-                3,
-                id="embedding_span_matches_embedding_model",
-            ),
-            pytest.param(
                 [_model(1, "LLM"), _model(2, "DECISION", is_built_in=False)],
                 _embedding(),
                 None,
                 id="embedding_span_never_falls_back_to_other_types",
-            ),
-            pytest.param(
-                [_model(1, "EMBEDDING", is_built_in=False)],
-                {
-                    "openinference": {"span": {"kind": "LLM"}},
-                    "llm": {"model_name": "gpt-6-luna"},
-                },
-                None,
-                id="llm_span_never_falls_back_to_embedding_models",
-            ),
-            pytest.param(
-                [_model(1, "EMBEDDING", is_built_in=False)],
-                _decision(model_name="gpt-6-luna"),
-                None,
-                id="decision_span_never_falls_back_to_embedding_models",
             ),
             pytest.param(
                 [_model(1, "EMBEDDING"), _model(2, "EMBEDDING", provider="azure")],

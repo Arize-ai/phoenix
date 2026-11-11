@@ -711,7 +711,7 @@ async def test_decision_span_gets_a_cost_row(db: DbSessionFactory) -> None:
     assert cost.total_cost == pytest.approx(1000 * 1e-7)
 
 
-def _otlp_embedding_span(model_name: str) -> otlp.Span:
+def _otlp_embedding_span(model_name: str, *, span_id: bytes) -> otlp.Span:
     """Attributes from the embedding spec's text input example (it sets no provider), as OTLP."""
     attributes = [
         KeyValue(key=key, value=value)
@@ -731,19 +731,16 @@ def _otlp_embedding_span(model_name: str) -> otlp.Span:
     ]
     start = int(_START.timestamp() * 1e9)
     return otlp.Span(
-        trace_id=bytes(range(16)),
-        span_id=bytes(range(8)),
-        name="CreateEmbeddings",
+        trace_id=bytes(range(1, 17)),
+        span_id=span_id,
+        name=model_name,
         start_time_unix_nano=start,
         end_time_unix_nano=start + 200_000_000,
         attributes=attributes,
     )
 
 
-@pytest.mark.parametrize("model_name", ["text-embedding-3-small", "nomic-embed-text"])
-async def test_embedding_span_from_otlp_gets_a_cost_row(
-    db: DbSessionFactory, model_name: str
-) -> None:
+async def test_embedding_span_from_otlp_gets_a_cost_row(db: DbSessionFactory) -> None:
     # An LLM row with the same pattern must not price the embedding span, and an embedding span
     # with no EMBEDDING row still gets a row with its tokens and NULL costs.
     rows = {
@@ -761,20 +758,33 @@ async def test_embedding_span_from_otlp_gets_a_cost_row(
         session.add_all(rows.values())
     store = GenerativeModelStore(db=db)
     await store._fetch_models()
-    inserter = _inserter(db, decode_otlp_span(_otlp_embedding_span(model_name)))
+    inserter = _inserter(
+        db,
+        decode_otlp_span(
+            _otlp_embedding_span("text-embedding-3-small", span_id=bytes(range(1, 9)))
+        ),
+        decode_otlp_span(_otlp_embedding_span("nomic-embed-text", span_id=bytes(range(9, 17)))),
+    )
     inserter._span_cost_calculator = SpanCostCalculator(model_store=store)
-    await inserter._insert_spans(1)
+    await inserter._insert_spans(2)
     async with db() as session:
-        cost = await session.scalar(select(models.SpanCost))
-    assert cost is not None
-    assert (cost.prompt_tokens, cost.completion_tokens, cost.total_tokens) == (2, None, 2)
-    assert cost.completion_cost is None
-    if model_name == "text-embedding-3-small":
-        assert cost.model_id == rows["EMBEDDING"].id
-        assert cost.total_cost == pytest.approx(2 * 2e-8)
-    else:
-        assert cost.model_id is None
-        assert cost.total_cost is None
+        costs_by_name = dict(
+            (
+                await session.execute(
+                    select(models.Span.name, models.SpanCost).join(
+                        models.SpanCost, models.SpanCost.span_rowid == models.Span.id
+                    )
+                )
+            ).all()
+        )
+    assert set(costs_by_name) == {"text-embedding-3-small", "nomic-embed-text"}
+    for cost in costs_by_name.values():
+        assert (cost.prompt_tokens, cost.completion_tokens, cost.total_tokens) == (2, None, 2)
+        assert cost.completion_cost is None
+    assert costs_by_name["text-embedding-3-small"].model_id == rows["EMBEDDING"].id
+    assert costs_by_name["text-embedding-3-small"].total_cost == pytest.approx(2 * 2e-8)
+    assert costs_by_name["nomic-embed-text"].model_id is None
+    assert costs_by_name["nomic-embed-text"].total_cost is None
 
 
 @pytest.mark.parametrize("sqlstate", ["40P01", "40001", "08006"])
