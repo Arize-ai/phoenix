@@ -16,12 +16,15 @@ import {
   type AnnotationOptimizationConfig,
 } from "@phoenix/components/annotation";
 import type { ProjectAnnotationConfigsByNameFragment$key } from "@phoenix/components/annotation/__generated__/ProjectAnnotationConfigsByNameFragment.graphql";
+import {
+  getAnnotationLabelColor,
+  useAnnotationLabelColors,
+} from "@phoenix/components/annotation/annotationLabelColors";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import {
   ChartTooltipDivider,
   ChartTooltipItem,
-  useSequentialChartColors,
 } from "@phoenix/components/chart";
 import type {
   ComponentSize,
@@ -31,7 +34,6 @@ import type {
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { useRefetchOnStreamAdvance } from "@phoenix/hooks/useRefetchOnStreamAdvance";
-import { useWordColor } from "@phoenix/hooks/useWordColor";
 import type { Mutable } from "@phoenix/typeUtils";
 import { formatPercent } from "@phoenix/utils/numberFormatUtils";
 
@@ -241,66 +243,6 @@ const SizesMap: Record<
   },
 };
 
-/**
- * Generate a stable-ish color for a given label and annotation config.
- * If there is no annotation config, or the annotation config is not categorical,
- * we will use the fallback index to generate a color.
- *
- * Otherwise, we will sort the categorical values by label, and then use the index of the label
- * to generate a color.
- *
- * This ensures that the color is stable for a given label, and will only change if the label changes.
- *
- * @param colors
- * @param index
- * @param label
- * @param annotationConfig
- */
-function getStableColor(
-  colors: string[],
-  fallbackIndex: number,
-  label: string,
-  annotationConfig?: AnnotationOptimizationConfig
-) {
-  if (
-    !annotationConfig ||
-    annotationConfig.annotationType !== "CATEGORICAL" ||
-    !annotationConfig.values
-  ) {
-    return colors[fallbackIndex % colors.length];
-  }
-
-  const sortedLabels = [...annotationConfig.values]
-    .sort((a, b) => {
-      // sort by score + annotationConfig.optimizationDirection
-      const aScore = a.score ?? 0;
-      const bScore = b.score ?? 0;
-      return (
-        (annotationConfig.optimizationDirection === "MAXIMIZE" ? -1 : 1) *
-        (aScore - bScore)
-      );
-    })
-    .map((v) => v.label)
-    .filter((label): label is string => label != null);
-  const index = sortedLabels.indexOf(label);
-  return colors[
-    index === -1 ? fallbackIndex % colors.length : index % colors.length
-  ];
-}
-
-function useAnnotationSummaryChartColors(name: string) {
-  const chartColors = useSequentialChartColors();
-  const primaryColor = useWordColor(name);
-  const colors = [
-    primaryColor,
-    chartColors.gray300,
-    chartColors.gray400,
-    chartColors.gray500,
-    chartColors.gray600,
-  ];
-  return colors;
-}
-
 type SummaryValueProps = SummaryValuePreviewProps & {
   count?: number | null;
   scoreCount?: number | null;
@@ -380,7 +322,7 @@ export function SummaryValuePreview({
   meanScoreFallback,
   annotationConfig,
 }: SummaryValuePreviewProps) {
-  const colors = useAnnotationSummaryChartColors(name);
+  const colors = useAnnotationLabelColors(name);
   const hasMeanScore = typeof meanScore === "number";
   const hasLabelFractions = labelFractions && labelFractions.length > 0;
   if (!hasMeanScore && !hasLabelFractions) {
@@ -410,7 +352,7 @@ export function SummaryValuePreview({
             {labelFractions.map((entry, index) => (
               <Cell
                 key={`cell-${index}`}
-                fill={getStableColor(
+                fill={getAnnotationLabelColor(
                   colors,
                   index,
                   entry.label,
@@ -503,7 +445,7 @@ export function SummaryValueBreakdown({
   scoreCount?: number | null;
   labelCount?: number | null;
 }) {
-  const colors = useAnnotationSummaryChartColors(annotationName);
+  const colors = useAnnotationLabelColors(annotationName);
   const hasMeanScore = typeof meanScore === "number" && !isNaN(meanScore);
   const hasLabelFractions = labelFractions && labelFractions.length > 0;
   const optimizationValue = getOptimizationValueFromConfig({
@@ -532,7 +474,7 @@ export function SummaryValueBreakdown({
             {labelFractions.map((entry, index) => (
               <li key={entry.label}>
                 <ChartTooltipItem
-                  color={getStableColor(
+                  color={getAnnotationLabelColor(
                     colors,
                     index,
                     entry.label,
