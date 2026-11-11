@@ -710,8 +710,8 @@ export function previewSubjectBatches<Row extends { key: string }>(
 
 const subscribeToNothing = () => () => {};
 
-/** The preview runs, keyed by row; results survive a load-more. */
-function useEvaluatorPreviewRuns({
+/** The preview runs, keyed by row; results survive a load-more. Exported for tests. */
+export function useEvaluatorPreviewRuns({
   codeEvaluatorId,
   inlineCode,
   decision,
@@ -733,6 +733,12 @@ function useEvaluatorPreviewRuns({
   const startPreview = useEvaluatorPreviewStream();
   // Closing the bench closes its streams, and the server stops their work.
   const activePreviewsRef = useRef(new Set<Disposable>());
+  // The run that owns each row: the latest one started on it. A row tested
+  // again (or caught by a second Test all) while a stream is still running
+  // belongs to the newer run, and the older stream's results and errors for
+  // it are ignored.
+  const rowRunIdsRef = useRef(new Map<string, number>());
+  const nextRunIdRef = useRef(0);
   useEffect(() => {
     const activePreviews = activePreviewsRef.current;
     return () => {
@@ -799,6 +805,12 @@ function useEvaluatorPreviewRuns({
       rows.map(({ key, context }) => [key, context])
     );
     const pendingKeys = new Set(subjectContextByKey.keys());
+    const runId = ++nextRunIdRef.current;
+    for (const rowKey of pendingKeys) {
+      rowRunIdsRef.current.set(rowKey, runId);
+    }
+    const ownsRow = (rowKey: string) =>
+      rowRunIdsRef.current.get(rowKey) === runId;
     setRunError(null);
     setRuns((current) => {
       const next = { ...current };
@@ -815,6 +827,10 @@ function useEvaluatorPreviewRuns({
     });
     const settle = (rowKey: string, run: FinishedRecordedRun) => {
       pendingKeys.delete(rowKey);
+      if (!ownsRow(rowKey)) {
+        return;
+      }
+      rowRunIdsRef.current.delete(rowKey);
       setRuns((current) => ({ ...current, [rowKey]: run }));
     };
     let isFinished = false;
@@ -847,12 +863,20 @@ function useEvaluatorPreviewRuns({
         },
         onError(message) {
           finish();
+          // Rows a newer run has taken over are that run's to report on.
+          const ownedKeys = [...pendingKeys].filter(ownsRow);
+          if (ownedKeys.length === 0) {
+            return;
+          }
+          for (const rowKey of ownedKeys) {
+            rowRunIdsRef.current.delete(rowKey);
+          }
           // The definition could not run at all, so no row has a verdict
           // from it: the error shows once, and the rows keep what they had.
           setRunError(message);
           setRuns((current) => {
             const next = { ...current };
-            for (const rowKey of pendingKeys) {
+            for (const rowKey of ownedKeys) {
               const run = current[rowKey];
               if (run?.status !== "running") {
                 continue;
