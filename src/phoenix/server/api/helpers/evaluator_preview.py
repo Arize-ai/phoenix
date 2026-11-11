@@ -142,13 +142,17 @@ async def stream_evaluator_preview(
         _evaluate_subjects(evaluator, input.subjects, input_mapping, send_stream)
     )
     reported = 0
+    # Set once every subject the producer sent has been read; left unset when the
+    # client closes the stream.
+    stream_ended = False
     try:
         async with receive_stream:
             async for result in receive_stream:
                 reported += 1
                 yield result
+        stream_ended = True
     finally:
-        if not producer.done():
+        if not stream_ended and not producer.done():
             logger.info(
                 "Evaluator preview closed with %d of %d subjects unreported; cancelling them",
                 len(input.subjects) - reported,
@@ -157,14 +161,21 @@ async def stream_evaluator_preview(
             producer.cancel()
         (outcome,) = await asyncio.gather(producer, return_exceptions=True)
         # Each subject's own failures become its result, so anything else that stops
-        # the producer (a failed send, an error outside a subject) would otherwise end
-        # the stream early with no trace of why.
-        if isinstance(outcome, BaseException) and not isinstance(outcome, asyncio.CancelledError):
+        # the producer (a failed send, an error outside a subject, a cancellation that
+        # leaks out of one subject and stops the rest) would otherwise end the stream
+        # early with no trace of why.
+        failure = (
+            outcome
+            if isinstance(outcome, BaseException)
+            and not isinstance(outcome, asyncio.CancelledError)
+            else None
+        )
+        if failure is not None or (stream_ended and reported < len(input.subjects)):
             logger.error(
                 "Evaluator preview stopped with %d of %d subjects unreported",
                 len(input.subjects) - reported,
                 len(input.subjects),
-                exc_info=outcome,
+                exc_info=failure,
             )
 
 

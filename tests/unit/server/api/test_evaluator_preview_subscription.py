@@ -338,6 +338,42 @@ class TestEvaluatorPreviewSubscription:
         }
         assert results["boom"] == {"key": "boom", "error": UNEXPECTED_SUBJECT_ERROR, "results": []}
 
+    async def test_a_cancellation_leaking_out_of_a_subject_is_logged(
+        self,
+        gql_client: AsyncGraphQLClient,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        # A cancelled inner task (a sandbox or LLM client's) can leak CancelledError
+        # out of one subject while the client still reads the stream. The task group
+        # treats it as a cancellation, stops the other subjects and exits cleanly, so
+        # the stream ends with subjects unreported and nothing raised.
+        async def evaluate(**kwargs: Any) -> list[EvaluationResultDict]:
+            if kwargs["context"]["output"] == "leak":
+                raise asyncio.CancelledError()
+            await asyncio.sleep(0.05)
+            return [_eval_result("fake")]
+
+        with (
+            _patch_built_evaluator(_FakeEvaluator(evaluate)),
+            caplog.at_level("INFO", logger=evaluator_preview.__name__),
+        ):
+            results = await _preview(
+                gql_client,
+                evaluator=_BUILTIN_PLACEHOLDER,
+                inputMapping=_EMPTY_MAPPING,
+                subjects=[
+                    dict(key="leak", context={"output": "leak"}),
+                    *(dict(key=f"s{i}", context={"output": str(i)}) for i in range(3)),
+                ],
+            )
+
+        unreported = 4 - len(results)
+        assert unreported > 0
+        records = [r for r in caplog.records if r.name == evaluator_preview.__name__]
+        assert [(r.levelname, r.getMessage()) for r in records] == [
+            ("ERROR", f"Evaluator preview stopped with {unreported} of 4 subjects unreported")
+        ]
+
     async def test_runs_at_most_the_concurrency_cap_at_once(
         self,
         gql_client: AsyncGraphQLClient,
