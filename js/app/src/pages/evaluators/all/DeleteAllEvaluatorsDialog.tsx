@@ -65,7 +65,7 @@ export function DeleteAllEvaluatorsDialog({
         // Refetched once both deletes settle, so neither response can
         // overwrite the other's count with an older one.
         if (results.some((result) => result.status === "fulfilled")) {
-          void refetchEvaluatorCounts({ environment }).catch(() => {});
+          refetchEvaluatorCounts({ environment });
         }
         const failure = results.find(
           (result): result is PromiseRejectedResult =>

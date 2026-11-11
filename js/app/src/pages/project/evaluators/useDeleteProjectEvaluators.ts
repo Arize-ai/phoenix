@@ -53,9 +53,7 @@ export function useDeleteProjectEvaluators() {
               return;
             }
             if (refetchCounts) {
-              // The delete succeeded; a stale count corrects itself on the
-              // next visit, so a failed refresh isn't reported.
-              void refetchEvaluatorCounts({ environment }).catch(() => {});
+              refetchEvaluatorCounts({ environment });
             }
             resolve();
           },

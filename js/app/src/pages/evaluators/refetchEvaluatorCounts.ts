@@ -12,17 +12,18 @@ const query = graphql`
 
 /**
  * Refetches the project and dataset evaluator counts, which the sidebar and
- * the Evaluators page's tabs show.
+ * the Evaluators page's tabs show. A failed refetch is ignored: the counts
+ * refresh again the next time those queries load.
  */
-export async function refetchEvaluatorCounts({
+export function refetchEvaluatorCounts({
   environment,
 }: {
   environment: Environment;
-}): Promise<void> {
-  await fetchQuery<refetchEvaluatorCountsQuery>(
+}) {
+  fetchQuery<refetchEvaluatorCountsQuery>(
     environment,
     query,
     {},
     { fetchPolicy: "network-only" }
-  ).toPromise();
+  ).subscribe({ error: () => {} });
 }
