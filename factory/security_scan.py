@@ -421,7 +421,7 @@ def find_admission_problem(
     snapshot: Optional[dict[str, Any]] = None,
     subject: Optional[dict[str, Any]] = None,
 ) -> Optional[str]:
-    from security_scan_agent import scan
+    from security_scan_llm import scan
 
     try:
         snapshot = snapshot if snapshot is not None else read_thread(number=number, kind=kind)
@@ -453,27 +453,25 @@ def find_admission_problem(
             )
             if len(bundle) > MAX_INPUT_BYTES:
                 raise ValueError("too-large-to-scan: combined input exceeds 512 KiB")
-            lock = json.loads((FACTORY_DIR / "claude-lock.json").read_text())
             policy = b"".join(
                 (FACTORY_DIR / p).read_bytes()
                 for p in (
                     "security_scan.py",
-                    "security_scan_agent.py",
+                    "security_scan_llm.py",
                     "security_rules.yml",
-                    "agents/admission-scanner.md",
-                    "environments/security-scan.yaml",
+                    "security_scan_prompt.md",
                 )
             )
-            fingerprint = hashlib.sha256(bundle + policy + canonical_json(lock)).hexdigest()
+            fingerprint = hashlib.sha256(bundle + policy).hexdigest()
             cache_dir = os.environ.get("FACTORY_SCAN_CACHE_DIR")
             cache = Path(cache_dir) / f"{fingerprint}.json" if cache_dir else None
             if cache is not None and cache.is_file():
-                from security_scan_agent import parse_verdict
+                from security_scan_llm import parse_verdict
 
                 verdict = parse_verdict(cache.read_text())
                 write_summary(f"Admission scan cache hit: {fingerprint}")
             else:
-                verdict = scan(bundle=bundle, lock=lock)
+                verdict = scan(bundle=bundle)
                 if cache is not None:
                     cache.parent.mkdir(parents=True, exist_ok=True)
                     cache.write_bytes(canonical_json(verdict))

@@ -54,9 +54,9 @@ jobs:
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
           path: ${{ runner.temp }}/factory-admission-cache
-          key: ${{ runner.os }}-factory-admission-v1-${{ hashFiles('factory/security*', 'factory/agents/admission-scanner.md', 'factory/environments/security-scan.yaml', 'factory/claude-lock.json') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: ${{ runner.os }}-factory-admission-v2-${{ hashFiles('factory/security*', 'factory/security_scan_prompt.md') }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
-            ${{ runner.os }}-factory-admission-v1-${{ hashFiles('factory/security*', 'factory/agents/admission-scanner.md', 'factory/environments/security-scan.yaml', 'factory/claude-lock.json') }}-
+            ${{ runner.os }}-factory-admission-v2-${{ hashFiles('factory/security*', 'factory/security_scan_prompt.md') }}-
 
       - name: Start session
         id: start
