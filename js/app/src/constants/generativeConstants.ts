@@ -17,6 +17,7 @@ export const ModelProviders: Record<ModelProvider, string> = {
   MINIMAX: "MiniMax",
   PERPLEXITY: "Perplexity",
   TOGETHER: "Together",
+  MISTRAL: "Mistral AI",
   ZAI: "Z.ai",
   META: "Meta",
 };
@@ -74,6 +75,7 @@ export const ProviderToCredentialsConfigMap: Record<
   MINIMAX: [{ envVarName: "MINIMAX_API_KEY", isRequired: true }],
   PERPLEXITY: [{ envVarName: "PERPLEXITY_API_KEY", isRequired: true }],
   TOGETHER: [{ envVarName: "TOGETHER_API_KEY", isRequired: true }],
+  MISTRAL: [{ envVarName: "MISTRAL_API_KEY", isRequired: true }],
   ZAI: [{ envVarName: "ZAI_API_KEY", isRequired: true }],
   META: [{ envVarName: "META_API_KEY", isRequired: true }],
   AWS: [
@@ -156,6 +158,8 @@ export const STRING_TO_PROVIDER_MAP: Readonly<Record<string, ModelProvider>> = {
   minimax: "MINIMAX",
   perplexity: "PERPLEXITY",
   together: "TOGETHER",
+  mistral: "MISTRAL",
+  mistralai: "MISTRAL",
   zai: "ZAI",
   meta: "META",
 } as const;

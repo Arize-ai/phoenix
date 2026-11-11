@@ -55,6 +55,8 @@ function getInvocationParameters(
       return parameters.perplexity;
     case "together":
       return parameters.together;
+    case "mistral":
+      return parameters.mistral;
     case "zai":
       return parameters.zai;
     case "meta":

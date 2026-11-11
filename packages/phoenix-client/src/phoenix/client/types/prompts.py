@@ -77,6 +77,7 @@ class PromptVersion:
             "MINIMAX",
             "PERPLEXITY",
             "TOGETHER",
+            "MISTRAL",
             "ZAI",
             "META",
         ] = "OPENAI",
@@ -118,6 +119,7 @@ class PromptVersion:
             "MINIMAX",
             "PERPLEXITY",
             "TOGETHER",
+            "MISTRAL",
             "ZAI",
             "META",
         ] = model_provider
@@ -139,6 +141,7 @@ class PromptVersion:
             v1.PromptMoonshotInvocationParameters,
             v1.PromptPerplexityInvocationParameters,
             v1.PromptTogetherInvocationParameters,
+            v1.PromptMistralInvocationParameters,
             v1.PromptZAIInvocationParameters,
             v1.PromptMetaInvocationParameters,
         ]
@@ -218,6 +221,11 @@ class PromptVersion:
             self._invocation_parameters = v1.PromptTogetherInvocationParameters(
                 type="together",
                 together=v1.PromptTogetherInvocationParametersContent(),
+            )
+        elif model_provider == "MISTRAL":
+            self._invocation_parameters = v1.PromptMistralInvocationParameters(
+                type="mistral",
+                mistral=v1.PromptMistralInvocationParametersContent(),
             )
         elif model_provider == "ZAI":
             self._invocation_parameters = v1.PromptZAIInvocationParameters(
@@ -573,6 +581,7 @@ def _to_sdk(
         "MINIMAX",
         "PERPLEXITY",
         "TOGETHER",
+        "MISTRAL",
         "ZAI",
         "META",
     ],
@@ -606,6 +615,8 @@ def _to_sdk(
     if model_provider == "PERPLEXITY":
         return "openai"
     if model_provider == "TOGETHER":
+        return "openai"
+    if model_provider == "MISTRAL":
         return "openai"
     if model_provider == "ZAI":
         return "openai"
