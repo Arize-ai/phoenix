@@ -1,6 +1,7 @@
 import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
-import { context, trace } from "@opentelemetry/api";
-import type { Span, SpanProcessor } from "@opentelemetry/sdk-trace-node";
+import { context, trace, type TracerProvider } from "@opentelemetry/api";
+import type { Span, SpanProcessor } from "@opentelemetry/sdk-trace";
+import { TracerProvider as SdkTracerProvider } from "@opentelemetry/sdk-trace";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { DiagLogLevel } from "../src";
@@ -101,6 +102,32 @@ describe("register", () => {
     expect(provider).toBeDefined();
   });
 
+  test("should attach any OpenTelemetry API tracer provider", async () => {
+    let starts = 0;
+    const sdkProvider = new SdkTracerProvider({
+      spanProcessors: [
+        {
+          onStart: () => {
+            starts += 1;
+          },
+          onEnd: () => {},
+          forceFlush: async () => {},
+          shutdown: async () => {},
+        },
+      ],
+    });
+    const apiProvider: TracerProvider = {
+      getTracer: (...args) => sdkProvider.getTracer(...args),
+    };
+
+    const registration = attachGlobalTracerProvider(apiProvider);
+    trace.getTracer("api-provider").startSpan("span").end();
+    registration.detach();
+
+    expect(starts).toBe(1);
+    await sdkProvider.shutdown();
+  });
+
   test("should detach the global tracer provider so a new one can be attached", async () => {
     let firstProviderStarts = 0;
     let secondProviderStarts = 0;
@@ -186,7 +213,7 @@ describe("register", () => {
       global: false,
     });
 
-    externalProvider.register();
+    trace.setGlobalTracerProvider(externalProvider);
     trace.getTracer("global-test").startSpan("external-before").end();
 
     const mountedRegistration = attachGlobalTracerProvider(mountedProvider);

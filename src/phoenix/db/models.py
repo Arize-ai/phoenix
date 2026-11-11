@@ -96,6 +96,7 @@ from phoenix.trace.attributes import get_attribute_value
 
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE.split(".")
 INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")
+LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME.split(".")
 LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL.split(".")
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT.split(".")
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION.split(".")
@@ -977,6 +978,15 @@ class Span(HasId):
     @classmethod
     def _user_id_expression(cls) -> ColumnElement[Any]:
         return cls.attributes[USER_ID]
+
+    @hybrid_property
+    def llm_model_name(self) -> Any:
+        return get_attribute_value(self.attributes, LLM_MODEL_NAME)
+
+    @llm_model_name.inplace.expression
+    @classmethod
+    def _llm_model_name_expression(cls) -> ColumnElement[Any]:
+        return cls.attributes[LLM_MODEL_NAME]
 
     @hybrid_property
     def metadata_(self) -> Any:
@@ -2948,7 +2958,9 @@ class SpanCost(HasId):
 
     @hybrid_property
     def total_cost_per_token(self) -> Optional[float]:
-        return ((self.total_cost or 0) / self.total_tokens) if self.total_tokens else None
+        if self.total_cost is None or not self.total_tokens:
+            return None
+        return self.total_cost / self.total_tokens
 
     @total_cost_per_token.inplace.expression
     @classmethod
@@ -2965,7 +2977,9 @@ class SpanCost(HasId):
 
     @hybrid_property
     def prompt_cost_per_token(self) -> Optional[float]:
-        return ((self.prompt_cost or 0) / self.prompt_tokens) if self.prompt_tokens else None
+        if self.prompt_cost is None or not self.prompt_tokens:
+            return None
+        return self.prompt_cost / self.prompt_tokens
 
     @prompt_cost_per_token.inplace.expression
     @classmethod
@@ -2982,11 +2996,9 @@ class SpanCost(HasId):
 
     @hybrid_property
     def completion_cost_per_token(self) -> Optional[float]:
-        return (
-            ((self.completion_cost or 0) / self.completion_tokens)
-            if self.completion_tokens
-            else None
-        )
+        if self.completion_cost is None or not self.completion_tokens:
+            return None
+        return self.completion_cost / self.completion_tokens
 
     @completion_cost_per_token.inplace.expression
     @classmethod

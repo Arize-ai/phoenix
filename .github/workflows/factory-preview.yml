@@ -1,0 +1,156 @@
+name: Factory Preview
+
+# This job holds write tokens: PR code must run only inside the Docker build.
+# Keep scripts and the preview Dockerfile on the base branch; do not restore caches.
+on:
+  # zizmor: ignore[dangerous-triggers] See above: the PR's checkout is a build context only.
+  pull_request_target:
+    types: [opened, edited, labeled, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  authorize:
+    name: Check preview eligibility
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.state == 'open' &&
+      ((github.event.action == 'labeled' && github.event.label.name == 'factory-preview') ||
+       ((contains(fromJSON('["opened", "synchronize", "reopened"]'), github.event.action) ||
+         (github.event.action == 'edited' && github.event.changes.body)) &&
+        contains(github.event.pull_request.labels.*.name, 'factory-preview')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      allowed: ${{ steps.author.outputs.allowed }}
+    steps:
+      - name: Check the PR opener's repository access
+        id: author
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          FACTORY_LOGIN: ${{ vars.FACTORY_GITHUB_LOGIN }}
+        run: |
+          set -euo pipefail
+          # finish.py copies a contributor's body verbatim into a factory-authored PR.
+          # Its reserved branches must not gain seed execution through the bot's identity.
+          if [[ "$PR_BRANCH" == factory/pr-* ]]; then
+            echo "allowed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Previews are disabled for factory-finish copies."
+            exit 0
+          fi
+          if [ -n "$FACTORY_LOGIN" ] && [ "$PR_AUTHOR" = "$FACTORY_LOGIN" ]; then
+            echo "allowed=true" >> "$GITHUB_OUTPUT"
+          else
+            permission=$(gh api "repos/$GH_REPO/collaborators/$PR_AUTHOR/permission" --jq '.permission')
+            case "$permission" in
+              admin|write|maintain) echo "allowed=true" >> "$GITHUB_OUTPUT" ;;
+              *)
+                echo "allowed=false" >> "$GITHUB_OUTPUT"
+                echo "::notice::Previews require a PR opened by the factory or a maintainer."
+                ;;
+            esac
+          fi
+
+  deploy:
+    name: Build and deploy
+    needs: authorize
+    if: needs.authorize.outputs.allowed == 'true'
+    concurrency:
+      group: factory-preview-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+      pull-requests: write
+    env:
+      GH_REPO: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Check out the base branch for the scripts
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          path: base
+          persist-credentials: false
+      - name: Check out the PR as the build context
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: head
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: base/pyproject.toml
+          resolution-strategy: "lowest"
+          python-version: "3.12"
+          enable-cache: false
+
+      - name: Decide what to build
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/$(echo "$GH_REPO" | tr '[:upper:]' '[:lower:]' | cut -d/ -f1)/phoenix-preview"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          uv run --script base/factory/preview/plan.py --pr "$PR_NUMBER" --head-sha "$HEAD_SHA" --seed-dir "$GITHUB_WORKSPACE/seed" > "$RUNNER_TEMP/plan.out"
+          cat "$RUNNER_TEMP/plan.out" >> "$GITHUB_OUTPUT"
+          base_image=$(sed -n 's/^base-image=//p' "$RUNNER_TEMP/plan.out")
+          if [ -n "$base_image" ]; then
+            echo "base-context=docker-image://$base_image" >> "$GITHUB_OUTPUT"
+          else
+            echo "base-context=target:base" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+      - name: Log in to GHCR
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      # Shared runner IPs exhaust Docker Hub's anonymous pull limit.
+      - name: Log in to Docker Hub
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Build and push the preview image
+        uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
+        env:
+          HEAD_DIR: ${{ github.workspace }}/head
+          PREVIEW_DIR: ${{ github.workspace }}/base/factory/preview
+          SEED_DIR: ${{ github.workspace }}/seed
+          BASE_CONTEXT: ${{ steps.plan.outputs.base-context }}
+          FRONTEND_CONTEXT: ${{ steps.plan.outputs.frontend == 'true' && 'target:frontend' || steps.plan.outputs.base-context }}
+          STATIC_SOURCE: ${{ steps.plan.outputs.frontend == 'true' && 'frontend' || 'base' }}
+          TAGS: ${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }},${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }}-${{ steps.plan.outputs.short-sha }}
+          SOURCE_URL: ${{ github.server_url }}/${{ github.repository }}
+          REVISION: ${{ github.event.pull_request.head.sha }}
+        with:
+          source: .
+          files: base/factory/preview/docker-bake.hcl
+          targets: preview
+          push: true
+
+      - name: Deploy to Railway
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RAILWAY_TOKEN: ${{ secrets.FACTORY_RAILWAY_TOKEN }}
+          IMAGE: ${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }}-${{ steps.plan.outputs.short-sha }}
+          SEED_SUMMARY: ${{ steps.plan.outputs.seed-summary }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: >-
+          uv run --script base/factory/preview/deploy.py deploy
+          --pr "$PR_NUMBER" --image "$IMAGE" --head-sha "$HEAD_SHA"
+          --seed "$SEED_SUMMARY" --run-url "$RUN_URL"

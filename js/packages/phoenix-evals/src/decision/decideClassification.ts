@@ -18,6 +18,12 @@ import { promptToDecisionState } from "./decisionPrompt";
 const QUESTION_ID = "label";
 
 /**
+ * Instructions sent with the choice question. The OpenAI Decisions API rejects
+ * a choice question that has no instructions.
+ */
+const CHOICE_INSTRUCTIONS = "Select the single best label for the input.";
+
+/**
  * Classify with an AI SDK decision model by asking one choice question whose
  * options are the labels. Decision models don't generate text, so the
  * result has no explanation. Label probabilities, the provider's confidence
@@ -39,6 +45,7 @@ export async function decideClassification(args: {
     questions: {
       [QUESTION_ID]: {
         type: "choice",
+        instructions: CHOICE_INSTRUCTIONS,
         criteria: Object.fromEntries(labels.map((label) => [label, null])),
       },
     },

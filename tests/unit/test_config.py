@@ -15,6 +15,7 @@ from phoenix.config import (
     OAuth2ClientConfig,
     ensure_working_dir_if_needed,
     get_env_admins,
+    get_env_allowed_origins,
     get_env_auth_settings,
     get_env_database_schema,
     get_env_model_cost_manifest_url,
@@ -2464,6 +2465,46 @@ class TestValidateEnvAllowedProviders:
 
         with pytest.raises(ValueError, match="INVALID_PROVIDER"):
             validate_env_allowed_providers()
+
+
+class TestGetEnvAllowedOrigins:
+    def test_unset_returns_none(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_ALLOWED_ORIGINS", raising=False)
+
+        assert get_env_allowed_origins() is None
+
+    def test_basic_parsing(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173")
+
+        assert get_env_allowed_origins() == ["http://localhost:3000", "http://localhost:5173"]
+
+    def test_whitespace_around_commas_is_stripped(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv(
+            "PHOENIX_ALLOWED_ORIGINS", "http://localhost:3000, http://localhost:5173 ,https://a.io"
+        )
+
+        assert get_env_allowed_origins() == [
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "https://a.io",
+        ]
+
+    @pytest.mark.parametrize(
+        "value, expected",
+        [
+            pytest.param("", [], id="empty"),
+            pytest.param(" , ", [], id="only-separators"),
+            pytest.param(
+                "http://localhost:3000,,", ["http://localhost:3000"], id="trailing-commas"
+            ),
+        ],
+    )
+    def test_empty_entries_are_ignored(
+        self, monkeypatch: MonkeyPatch, value: str, expected: list[str]
+    ) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_ORIGINS", value)
+
+        assert get_env_allowed_origins() == expected
 
 
 class TestGetEnvAllowedSandboxProviders:

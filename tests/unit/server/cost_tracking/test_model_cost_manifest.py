@@ -59,10 +59,6 @@ def models_by_name(manifest: dict[str, Any]) -> dict[str, dict[str, Any]]:
 @pytest.mark.parametrize(
     "model_name, token_type, threshold, base_rate, elevated_rate",
     [
-        ("claude-sonnet-4-5", "input", 200_000, 3e-6, 6e-6),
-        ("claude-sonnet-4-5", "output", 200_000, 1.5e-5, 2.25e-5),
-        ("claude-sonnet-4-5", "cache_read", 200_000, 3e-7, 6e-7),
-        ("claude-sonnet-4-5", "cache_write", 200_000, 3.75e-6, 7.5e-6),
         ("gemini-2.5-pro", "input", 200_000, 1.25e-6, 2.5e-6),
         ("gemini-2.5-pro", "output", 200_000, 1e-5, 1.5e-5),
         ("gpt-5.4", "input", 272_000, 2.5e-6, 5e-6),
@@ -218,9 +214,9 @@ def test_direct_mistral_models_carry_openinference_provider_and_rates(
         ("mistral-large-latest", None, "mistral/mistral-large-latest"),
         # Together-hosted Mistral stays on the together provider entry.
         (
-            "mistralai/Mistral-7B-Instruct-v0.1",
+            "mistralai/Mistral-7B-Instruct-v0.3",
             "together",
-            "together_ai/mistralai/Mistral-7B-Instruct-v0.1",
+            "together_ai/mistralai/Mistral-7B-Instruct-v0.3",
         ),
         # Unknown model name does not resolve.
         ("totally-unknown-mistral-model", "mistralai", None),

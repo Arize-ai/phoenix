@@ -1,6 +1,6 @@
---- sqlean-time.c
-+++ sqlean-time.c
-@@ -13,11 +13,11 @@
+--- a/time/duration.c
++++ b/time/duration.c
+@@ -14,11 +14,11 @@
  
  // Common durations.
  const Duration Nanosecond = 1;
@@ -17,7 +17,9 @@
  
  #pragma region Conversion
  
-@@ -939,9 +939,9 @@
+--- a/time/time.c
++++ b/time/time.c
+@@ -25,9 +25,9 @@
  #pragma region Private
  
  static const int64_t seconds_per_minute = 60;
@@ -30,7 +32,7 @@
  static const int64_t days_per_400_years = 365 * 400 + 97;
  static const int64_t days_per_100_years = 365 * 100 + 24;
  static const int64_t days_per_4_years = 365 * 4 + 1;
-@@ -954,11 +954,10 @@
+@@ -40,11 +40,10 @@
  // Offsets to convert between internal and absolute or Unix times.
  // = (absoluteZeroYear - internalYear) * 365.2425 * secondsPerDay
  static const int64_t absolute_to_internal = -9223371966579724800LL;

@@ -1,7 +1,4 @@
-import {
-  InMemorySpanExporter,
-  NodeTracerProvider,
-} from "@opentelemetry/sdk-trace-node";
+import { InMemorySpanExporter, TracerProvider } from "@opentelemetry/sdk-trace";
 import { describe, expect, test } from "vitest";
 
 import { LazyOpenInferenceSpanProcessor } from "../src/lazyOpenInferenceSpanProcessor";
@@ -13,7 +10,7 @@ describe("LazyOpenInferenceSpanProcessor", () => {
       exporter,
       batch: false,
     });
-    const provider = new NodeTracerProvider({ spanProcessors: [processor] });
+    const provider = new TracerProvider({ spanProcessors: [processor] });
 
     // Record a span synchronously — before the dynamic import of
     // @arizeai/openinference-vercel can possibly have resolved.
@@ -33,7 +30,7 @@ describe("LazyOpenInferenceSpanProcessor", () => {
       exporter,
       batch: false,
     });
-    const provider = new NodeTracerProvider({ spanProcessors: [processor] });
+    const provider = new TracerProvider({ spanProcessors: [processor] });
 
     // forceFlush awaits the delegate, so the processor is loaded after this.
     await provider.forceFlush();

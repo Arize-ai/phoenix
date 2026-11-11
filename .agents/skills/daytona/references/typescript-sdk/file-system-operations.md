@@ -147,6 +147,8 @@ results.forEach(result => {
         `  status=${result.errorDetails.statusCode} code=${result.errorDetails.errorCode}`
       )
     }
+  } else if (Buffer.isBuffer(result.result)) {
+    console.log(`Downloaded ${result.source} to memory (${result.result.length} bytes)`)
   } else if (result.result) {
     console.log(`Downloaded ${result.source} to ${result.result}`)
   }

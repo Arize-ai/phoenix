@@ -118,6 +118,7 @@ from jsonpath_ng.jsonpath import (
     Index,
     Root,
     Slice,
+    Wildcard,
 )
 from jsonpath_ng.parser import JsonPathParser
 from pydantic import AfterValidator
@@ -165,7 +166,8 @@ _INVALID_IDENTIFIER_PATTERN = re.compile(
 #   - Child (.field)
 #   - Fields (field names)
 #   - Index ([n] or [-n])
-#   - Slice ([start:end:step], also used for wildcard [*])
+#   - Slice ([start:end:step])
+#   - Wildcard ([*] or .*)
 #
 # NOT allowed:
 #   - Descendants (..) - too complex
@@ -175,6 +177,7 @@ _ALLOWED_JSONPATH_NODES = (
     Fields,
     Index,
     Slice,
+    Wildcard,
 )
 
 
@@ -187,7 +190,7 @@ def _walk_jsonpath_ast(node: JSONPathAST) -> None:
         Child(left=Fields('foo'), right=Fields('bar'))
 
     Node types fall into two categories:
-      - Leaf nodes (Fields, Index, Slice): no children to recurse into
+      - Leaf nodes (Fields, Index, Slice, Wildcard): no children to recurse into
       - Binary nodes (Child): have 'left' and 'right' subtrees
     """
     if not isinstance(node, _ALLOWED_JSONPATH_NODES):

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-sqlean-v0.2.1...arize-phoenix-sqlean-v0.2.2) (2026-11-09)
+
+
+### Bug Fixes
+
+* **phoenix-sqlean:** bump bundled sqlean to 0.29.0 ([#17798](https://github.com/Arize-ai/phoenix/issues/17798)) ([a0a8b49](https://github.com/Arize-ai/phoenix/commit/a0a8b492cf0fc27b6a6a7c66888b91beafd04463))
+
 ## [0.2.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-sqlean-v0.2.0...arize-phoenix-sqlean-v0.2.1) (2026-10-19)
 
 

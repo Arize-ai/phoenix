@@ -48,14 +48,14 @@ curl 'https://app.daytona.io/api/shared-regions' \
 
 Earth is not a physical region. It is not returned by the regions or shared regions endpoints, and it is a reserved region ID that cannot be assigned to a [custom region](#custom-regions). GPU sandboxes and snapshots on [dedicated](#dedicated-regions) and [custom](#custom-regions) regions keep their real region ID and remain targetable.
 
-The Earth region ID appears in:
+The earth region ID appears in:
 
 - **`target`** of a GPU sandbox on a shared region
 - **`regionIds`** of a GPU snapshot on a shared region
 - **`regionUsage`** entries of the [usage overview](../platform/organizations.md#usage-overview): one **`earth`** entry per sandbox class aggregates the shared GPU quota and usage; shared region entries report no GPU quota
 - [Available sandbox classes](../platform/organizations.md#list-available-sandbox-classes): one **`earth`** entry per sandbox class with **`gpuAvailable`** and **`allowedGpuTypes`**; shared region entries report **`gpuAvailable: false`**
 - **Region quota of a GPU sandbox**: GPU quota fields aggregated under **`earth`**
-- **`region.id`** attribute of the GPU [organization metrics](https://www.daytona.io/docs/en/observability/otel-collection#organization-metrics)
+- **`region.id`** attribute of the GPU [organization metrics](../platform/otel-collection.md#organization-metrics)
 - **Error messages** that reference the region of a GPU workload
 
 ## Dedicated regions
@@ -66,7 +66,7 @@ Dedicated regions are managed by Daytona and provisioned exclusively for an orga
 
 ## Custom regions
 
-Custom regions run on compute that your organization provides and manages. Attach your own machines through [bring your own compute (BYOC)](https://www.daytona.io/docs/en/bring-your-own-compute) to control data locality, compliance, and infrastructure configuration, and scale capacity independently within each region.
+Custom regions run on compute that your organization provides and manages. Attach your own machines through [bring your own compute (BYOC)](../platform/bring-your-own-compute.md) to control data locality, compliance, and infrastructure configuration, and scale capacity independently within each region.
 
 Custom regions have no limits on concurrent resource usage: capacity is bounded only by the compute you attach.
 

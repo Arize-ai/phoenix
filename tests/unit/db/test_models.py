@@ -780,6 +780,80 @@ class TestNumDocuments:
                 )
 
 
+class TestSpanCostPerToken:
+    """The cost-per-token hybrids agree in Python and SQL for missing, $0 and priced costs."""
+
+    async def test_span_cost_per_token_hybrids_agree(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        start_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+        # (cost, tokens, expected cost per token)
+        test_cases: list[tuple[float | None, float | None, float | None]] = [
+            (None, 100, None),  # no price applies
+            (0.0, 100, 0.0),  # $0 rate
+            (0.5, 100, 0.005),
+        ]
+        async with db() as session:
+            project = models.Project(name=f"test_project_{token_hex(4)}")
+            session.add(project)
+            await session.flush()
+            trace = models.Trace(
+                project_rowid=project.id,
+                trace_id=f"test-trace-{token_hex(4)}",
+                start_time=start_time,
+                end_time=start_time,
+            )
+            session.add(trace)
+            await session.flush()
+            span = models.Span(
+                trace_rowid=trace.id,
+                span_id=f"span-{token_hex(4)}",
+                name="test-span",
+                span_kind="LLM",
+                start_time=start_time,
+                end_time=start_time,
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+            session.add(span)
+            await session.flush()
+
+            for i, (cost, tokens, expected) in enumerate(test_cases):
+                span_cost = models.SpanCost(
+                    span_rowid=span.id,
+                    trace_rowid=trace.id,
+                    span_start_time=start_time,
+                    total_cost=cost,
+                    total_tokens=tokens,
+                    prompt_cost=cost,
+                    prompt_tokens=tokens,
+                    completion_cost=cost,
+                    completion_tokens=tokens,
+                )
+                session.add(span_cost)
+                await session.flush()
+
+                python_values = (
+                    span_cost.total_cost_per_token,
+                    span_cost.prompt_cost_per_token,
+                    span_cost.completion_cost_per_token,
+                )
+                stmt = select(
+                    models.SpanCost.total_cost_per_token,
+                    models.SpanCost.prompt_cost_per_token,
+                    models.SpanCost.completion_cost_per_token,
+                ).where(models.SpanCost.id == span_cost.id)
+                sql_values = tuple((await session.execute(stmt)).one())
+                assert python_values == pytest.approx((expected,) * 3), f"Case {i} (Python)"
+                assert sql_values == pytest.approx((expected,) * 3), f"Case {i} (SQL)"
+
+
 @pytest.mark.pristine_db
 class TestEvaluatorPolymorphism:
     """Test polymorphic evaluator models with dataset relationships.

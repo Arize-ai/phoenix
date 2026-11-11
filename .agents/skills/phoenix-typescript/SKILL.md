@@ -7,7 +7,7 @@ metadata:
 
 # Phoenix TypeScript Conventions
 
-These conventions apply to **all** TypeScript in the Phoenix monorepo — the `js/app/` frontend, the `js/packages/` libraries (phoenix-client, phoenix-cli, phoenix-evals, phoenix-mcp, phoenix-otel, phoenix-config), examples, and benchmarks.
+These conventions apply to **all** TypeScript in the Phoenix monorepo — the `js/app/` frontend, the `js/packages/` libraries (phoenix-client, phoenix-cli, phoenix-evals, phoenix-otel, phoenix-config), examples, and benchmarks.
 
 Before writing new code, explore the directory you're working in to understand existing patterns — then follow these rules.
 
