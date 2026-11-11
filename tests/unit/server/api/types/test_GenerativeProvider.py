@@ -74,6 +74,7 @@ class TestGenerativeProvider:
         Tests scenarios in a single function to minimize server initialization:
         1. No credential requirements (OLLAMA) → True
         2. No credentials set → False
+        2b. Blank env var → False
         3. Env var set → True
         4. Database secret set → True
         5. Partial multi-credentials (AWS) → False
@@ -131,6 +132,10 @@ class TestGenerativeProvider:
         # 2. No credentials set → False
         assert await get_credentials_set("OPENAI") is False
 
+        # 2b. Blank env var → False
+        monkeypatch.setenv("OPENAI_API_KEY", "   ")
+        assert await get_credentials_set("OPENAI") is False
+
         # 3. Env var set → True
         monkeypatch.setenv("OPENAI_API_KEY", "test-key")
         assert await get_credentials_set("OPENAI") is True
@@ -148,3 +153,49 @@ class TestGenerativeProvider:
         # 6. All multi-credentials set (mixed env + db) → True
         await upsert_secret("AWS_SECRET_ACCESS_KEY", "test-key")
         assert await get_credentials_set("AWS") is True
+
+    async def test_is_set_in_server_environment_reports_each_env_var(
+        self,
+        gql_client: AsyncGraphQLClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        query = """
+            query {
+                modelProviders {
+                    key
+                    credentialRequirements {
+                        envVarName
+                        isSetInServerEnvironment
+                    }
+                }
+            }
+        """
+
+        async def get_presence(provider_key: str) -> dict[str, bool]:
+            result = await gql_client.execute(query=query)
+            assert not result.errors, f"GraphQL errors: {result.errors}"
+            assert result.data is not None
+            for provider in result.data["modelProviders"]:
+                if provider["key"] == provider_key:
+                    return {
+                        requirement["envVarName"]: requirement["isSetInServerEnvironment"]
+                        for requirement in provider["credentialRequirements"]
+                    }
+            raise ValueError(f"Provider {provider_key} not found")
+
+        for key in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN"):
+            monkeypatch.delenv(key, raising=False)
+        assert await get_presence("AWS") == {
+            "AWS_ACCESS_KEY_ID": False,
+            "AWS_SECRET_ACCESS_KEY": False,
+            "AWS_SESSION_TOKEN": False,
+        }
+
+        monkeypatch.setenv("AWS_ACCESS_KEY_ID", "test-key")
+        monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "   ")
+        monkeypatch.setenv("AWS_SESSION_TOKEN", "test-token")
+        assert await get_presence("AWS") == {
+            "AWS_ACCESS_KEY_ID": True,
+            "AWS_SECRET_ACCESS_KEY": False,
+            "AWS_SESSION_TOKEN": True,
+        }

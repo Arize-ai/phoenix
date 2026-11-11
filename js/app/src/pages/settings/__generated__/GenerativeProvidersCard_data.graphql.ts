@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2677ba9c0fe1d005a3300059d0c97ec1>>
+ * @generated SignedSource<<f6849076d283d657684ed381fc659230>>
  * @lightSyntaxTransform
  */
 
@@ -15,6 +15,7 @@ export type GenerativeProvidersCard_data$data = {
     readonly credentialRequirements: ReadonlyArray<{
       readonly envVarName: string;
       readonly isRequired: boolean;
+      readonly isSetInServerEnvironment: boolean;
     }>;
     readonly credentialsSet: boolean;
     readonly dependencies: ReadonlyArray<string>;
@@ -29,10 +30,18 @@ export type GenerativeProvidersCard_data$key = {
   readonly " $fragmentSpreads": FragmentRefs<"GenerativeProvidersCard_data">;
 };
 
+import GenerativeProvidersCardRefetchQuery_graphql from './GenerativeProvidersCardRefetchQuery.graphql';
+
 const node: ReaderFragment = {
   "argumentDefinitions": [],
   "kind": "Fragment",
-  "metadata": null,
+  "metadata": {
+    "refetch": {
+      "connection": null,
+      "fragmentPathInResult": [],
+      "operation": GenerativeProvidersCardRefetchQuery_graphql
+    }
+  },
   "name": "GenerativeProvidersCard_data",
   "selections": [
     {
@@ -92,6 +101,13 @@ const node: ReaderFragment = {
               "kind": "ScalarField",
               "name": "isRequired",
               "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "isSetInServerEnvironment",
+              "storageKey": null
             }
           ],
           "storageKey": null
@@ -111,6 +127,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "4062531cfa3f77e541172a44101f5331";
+(node as any).hash = "90505b62d6c29e5583fccf62df111f09";
 
 export default node;
