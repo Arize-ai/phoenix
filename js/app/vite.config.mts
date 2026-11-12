@@ -9,10 +9,13 @@ import reactFallbackThrottlePlugin from "vite-plugin-react-fallback-throttle";
 import relay from "vite-plugin-relay";
 
 import { backendProxyPlugin } from "./vite/backendProxyPlugin.mts";
+import { reactDevtoolsMcpPlugin } from "./vite/reactDevtoolsMcpPlugin.mts";
 
 // We default to not exporting source maps since the JS bundle gets added to the python package.
 // We however want to enable source maps on the containers for debugging purposes.
 const enableSourceMap = process.env.PHOENIX_ENABLE_SOURCE_MAP === "True";
+
+const appEntry = resolve(import.meta.dirname, "src/index.tsx");
 
 export default defineConfig(({ mode }) => {
   const plugins = [
@@ -25,6 +28,8 @@ export default defineConfig(({ mode }) => {
     }),
     relay,
     lezer(),
+    // dev server only: exposes React tools to Chrome DevTools MCP
+    reactDevtoolsMcpPlugin({ entry: appEntry }),
   ];
   if (mode === "ui-only") {
     const backendUrl = process.env.PHOENIX_BACKEND_URL;
@@ -101,7 +106,7 @@ export default defineConfig(({ mode }) => {
       emptyOutDir: true,
       sourcemap: enableSourceMap,
       rolldownOptions: {
-        input: resolve(import.meta.dirname, "src/index.tsx"),
+        input: appEntry,
         output: {
           codeSplitting: {
             groups: [

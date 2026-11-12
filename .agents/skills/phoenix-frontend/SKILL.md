@@ -34,6 +34,8 @@ When a PXI write changes the membership or filters of a mounted Relay query, use
 
 After visual changes, use the available browser tooling to verify the UI looks correct. When modifying a shared component, check its usages across the app.
 
+For render performance work, profile before and after the change with the `react_*` tools that Chrome DevTools MCP exposes on the dev server. Setup is under "MCP servers" in `js/app/README.md`. If the tools are missing, tell the user the setup is missing instead of working around it. The tools are experimental: rely on commit counts and `renderDuration`, and check per-component reports against the code.
+
 ## Route Metadata
 
 When adding, removing, renaming, or materially changing what a page contains, update the route's `handle.agentRoute` metadata in `js/app/src/Routes.tsx` if an assistant agent should be able to link users to that destination. Keep metadata small and search-oriented:

@@ -168,6 +168,7 @@
     "oxlint": "~1.79.0",
     "oxlint-tsgolint": "~7.0.2006",
     "playwright": "^1.65.0",
+    "react-devtools-cdt-mcp": "0.1.0",
     "relay-compiler": "^21.0.1",
     "relay-test-utils": "^21.0.1",
     "rollup-plugin-visualizer": "^7.1.3",
