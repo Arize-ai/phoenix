@@ -355,7 +355,7 @@ class BulkInserter:
                     or (isinstance(error, DBAPIError) and error.connection_invalidated)
                 )
             )
-            sqlstate = get_sqlstate(error) if isinstance(error, DBAPIError) else None
+            error_type, sqlstate, locations = _error_fields(error)
             # A failure to connect cannot be caused by the batch, so it never exhausts.
             limited = phase != "connect"
             if retryable and (
@@ -371,18 +371,33 @@ class BulkInserter:
                     * uniform(0.5, 1.5),
                 )
                 self._span_retry_at = perf_counter() + delay
-                logger.warning(
-                    "Span transaction failed before commit or confirmed rollback; retaining "
-                    "%s spans for retry %s in %.2fs: error_type=%s sqlstate=%s "
-                    "phase=%s locations=%s",
-                    len(self._span_batch),
-                    self._span_retry_attempts,
-                    delay,
-                    type(error).__name__,
-                    sqlstate,
-                    phase,
-                    _span_error_locations(error),
-                )
+                if limited:
+                    logger.debug(
+                        "Retaining %s spans for retry %s/%s in %.2fs: "
+                        "error_type=%s sqlstate=%s phase=%s locations=%s",
+                        len(self._span_batch),
+                        self._span_limited_retries,
+                        self._span_retry_allowance,
+                        delay,
+                        error_type,
+                        sqlstate,
+                        phase,
+                        locations,
+                    )
+                else:
+                    # Connection failures never exhaust into the ERROR branch, so warn here.
+                    logger.warning(
+                        "Database connection failed during span ingestion; retaining "
+                        "%s spans for retry %s in %.2fs: error_type=%s sqlstate=%s "
+                        "phase=%s locations=%s",
+                        len(self._span_batch),
+                        self._span_retry_attempts,
+                        delay,
+                        error_type,
+                        sqlstate,
+                        phase,
+                        locations,
+                    )
             else:
                 if commit_may_have_started and not retryable:
                     outcome = "unresolved_commit"
@@ -397,10 +412,10 @@ class BulkInserter:
                     "unresolved commit may have saved them without notifications.",
                     len(self._span_batch),
                     outcome,
-                    type(error).__name__,
+                    error_type,
                     sqlstate,
                     phase,
-                    _span_error_locations(error),
+                    locations,
                 )
                 self._span_batch.clear()
                 self._span_retry_attempts = 0
