@@ -27,10 +27,13 @@ import {
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
 /** Whether two choice configs say the same thing; the name is the store's alone. */
-function isSameChoiceConfig(
-  left: { optimizationDirection?: unknown; values?: unknown },
-  right: { optimizationDirection?: unknown; values?: unknown }
-): boolean {
+function isSameChoiceConfig({
+  left,
+  right,
+}: {
+  left: { optimizationDirection?: unknown; values?: unknown };
+  right: { optimizationDirection?: unknown; values?: unknown };
+}): boolean {
   return (
     left.optimizationDirection === right.optimizationDirection &&
     JSON.stringify(left.values) === JSON.stringify(right.values)
@@ -68,7 +71,7 @@ const useEvaluatorLLMChoiceForm = () => {
     const current = form.getValues();
     if (
       current.includeExplanation === includeExplanation &&
-      isSameChoiceConfig(current.outputConfig, outputConfig)
+      isSameChoiceConfig({ left: current.outputConfig, right: outputConfig })
     ) {
       return;
     }
