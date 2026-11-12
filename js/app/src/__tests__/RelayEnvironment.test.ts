@@ -188,7 +188,7 @@ describe("fetchRelay with @defer", () => {
     ]);
   });
 
-  it("errors the operation when a deferred fragment fails", async () => {
+  it("emits the initial part, then errors with the deferred fragment's errors", async () => {
     authFetchMock.mockResolvedValue(
       createMultipartResponse({
         body: buildStrawberryMultipartBody([
@@ -208,8 +208,23 @@ describe("fetchRelay with @defer", () => {
       })
     );
 
-    await expect(collectPayloads(DEFER_REQUEST)).rejects.toMatchObject({
-      message: expect.stringContaining("scores failed"),
+    const payloads: unknown[] = [];
+    const error = await new Promise<unknown>((resolve, reject) => {
+      executeObservable(DEFER_REQUEST).subscribe({
+        next: (payload) => payloads.push(payload),
+        complete: () => reject(new Error("Expected the operation to error")),
+        error: resolve,
+      });
+    });
+
+    expect(payloads).toEqual([
+      [{ data: DEFER_INITIAL_PART.data, extensions: { is_final: false } }],
+    ]);
+    expect(error).not.toBeInstanceOf(ServerResponseError);
+    expect(error).toMatchObject({
+      message: expect.stringMatching(
+        /^Error fetching GraphQL query 'DeferTestQuery': .*scores failed/
+      ),
     });
   });
 
