@@ -1,17 +1,30 @@
 import logging
+from collections.abc import AsyncGenerator
+from contextlib import aclosing
 from itertools import chain
 from typing import Any, Callable, Iterable, Iterator, Optional, Union
 
 import strawberry
-from graphql import GraphQLError
+from graphql import (
+    ExperimentalIncrementalExecutionResults,
+    GraphQLError,
+    SubsequentIncrementalExecutionResult,
+    parse,
+)
 from pydantic import SecretStr
 from strawberry.extensions import SchemaExtension
 from strawberry.schema.config import StrawberryConfig
 from strawberry.types.base import StrawberryObjectDefinition, StrawberryType
-from strawberry.types.execution import ExecutionContext
+from strawberry.types.execution import ExecutionContext, ExecutionResult
+from strawberry.types.graphql import OperationType
+from strawberry.utils.operation import get_first_operation
 
 from phoenix.db.types.identifier import Identifier
-from phoenix.server.api.exceptions import get_mask_errors_extension, is_expected_error
+from phoenix.server.api.exceptions import (
+    get_mask_errors_extension,
+    is_expected_error,
+    mask_error,
+)
 from phoenix.server.api.mutations import Mutation
 from phoenix.server.api.queries import Query
 from phoenix.server.api.subscriptions import Subscription
@@ -43,6 +56,10 @@ class PhoenixSchema(strawberry.Schema):
     excerpt of the request document, and does so before the extensions mask it for
     the client. Expected errors echo what the user sent, so they are not logged at
     all; the rest are logged by operation and position only.
+
+    The payloads that follow the first one in an incremental (``@defer``) response
+    are sent after the extensions have exited, so their errors are logged and
+    masked here instead.
     """
 
     def process_errors(
@@ -51,19 +68,69 @@ class PhoenixSchema(strawberry.Schema):
         execution_context: Optional[ExecutionContext] = None,
     ) -> None:
         operation_name = execution_context.operation_name if execution_context else None
-        for error in errors:
-            if is_expected_error(error):
-                continue
-            if error.original_error is None:
-                locations = [(loc.line, loc.column) for loc in error.locations or ()]
-                logger.warning("GraphQL operation %s rejected at %s", operation_name, locations)
-            else:
-                logger.error(
-                    "GraphQL operation %s failed at path %s",
-                    operation_name,
-                    error.path,
-                    exc_info=error.original_error,
+        _log_errors(errors, operation_name=operation_name)
+
+    async def execute(  # noqa: PLR0917
+        self,
+        query: Optional[str],
+        variable_values: Optional[dict[str, Any]] = None,
+        context_value: Optional[Any] = None,
+        root_value: Optional[Any] = None,
+        operation_name: Optional[str] = None,
+        allowed_operation_types: Optional[Iterable[OperationType]] = None,
+        operation_extensions: Optional[dict[str, Any]] = None,
+    ) -> ExecutionResult:
+        result = await super().execute(
+            query,
+            variable_values=variable_values,
+            context_value=context_value,
+            root_value=root_value,
+            operation_name=operation_name,
+            allowed_operation_types=allowed_operation_types,
+            operation_extensions=operation_extensions,
+        )
+        if isinstance(result, ExperimentalIncrementalExecutionResults):
+            return result._replace(
+                subsequent_results=_process_subsequent_errors(
+                    result.subsequent_results, query=query, operation_name=operation_name
                 )
+            )
+        return result
+
+
+def _log_errors(errors: Iterable[GraphQLError], *, operation_name: Optional[str]) -> None:
+    for error in errors:
+        if is_expected_error(error):
+            continue
+        if error.original_error is None:
+            locations = [(loc.line, loc.column) for loc in error.locations or ()]
+            logger.warning("GraphQL operation %s rejected at %s", operation_name, locations)
+        else:
+            logger.error(
+                "GraphQL operation %s failed at path %s",
+                operation_name,
+                error.path,
+                exc_info=error.original_error,
+            )
+
+
+async def _process_subsequent_errors(
+    results: AsyncGenerator[SubsequentIncrementalExecutionResult, None],
+    *,
+    query: Optional[str],
+    operation_name: Optional[str],
+) -> AsyncGenerator[SubsequentIncrementalExecutionResult, None]:
+    async with aclosing(results):
+        async for result in results:
+            for entry in chain(result.incremental or (), result.completed or ()):
+                if not entry.errors:
+                    continue
+                if operation_name is None and query:
+                    operation = get_first_operation(parse(query))
+                    operation_name = operation.name.value if operation and operation.name else None
+                _log_errors(entry.errors, operation_name=operation_name)
+                entry.errors = [mask_error(error) for error in entry.errors]
+            yield result
 
 
 def build_graphql_schema(
