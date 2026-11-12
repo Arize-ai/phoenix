@@ -60,17 +60,17 @@
     "typecheck": "tsc --noEmit && tsc -p examples/tsconfig.examples.json"
   },
   "dependencies": {
-    "@arizeai/openinference-core": "^2.8.1",
-    "@arizeai/openinference-semantic-conventions": "^2.15.0",
-    "@arizeai/openinference-vercel": "^3.3.1",
+    "@arizeai/openinference-core": "^2.8.3",
+    "@arizeai/openinference-semantic-conventions": "^2.17.0",
+    "@arizeai/openinference-vercel": "^3.3.3",
     "@arizeai/phoenix-config": "workspace:*",
     "@opentelemetry/api": "^1.10.0",
-    "@opentelemetry/context-async-hooks": "^3.1.0",
-    "@opentelemetry/core": "^3.1.0",
-    "@opentelemetry/exporter-trace-otlp-proto": "^0.301.0",
-    "@opentelemetry/instrumentation": "^0.301.0",
-    "@opentelemetry/resources": "^3.1.0",
-    "@opentelemetry/sdk-trace": "^3.1.0"
+    "@opentelemetry/context-async-hooks": "^3.1.1",
+    "@opentelemetry/core": "^3.1.1",
+    "@opentelemetry/exporter-trace-otlp-proto": "^0.301.1",
+    "@opentelemetry/instrumentation": "^0.301.1",
+    "@opentelemetry/resources": "^3.1.1",
+    "@opentelemetry/sdk-trace": "^3.1.1"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
