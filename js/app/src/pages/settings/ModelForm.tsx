@@ -313,6 +313,7 @@ export function ModelForm({
             render={({ field }) => (
               <Select
                 {...field}
+                size="S"
                 onChange={(key) => {
                   if (key == null) {
                     return;
