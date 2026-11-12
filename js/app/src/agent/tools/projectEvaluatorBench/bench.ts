@@ -229,7 +229,9 @@ export function selectBenchRunEntries({
 function describeUnrunnable(entry: RecordedRunEntry): string {
   switch (entry.resultState.kind) {
     case "unavailable":
-      return entry.row.unavailableReason ?? "the server built no context for it";
+      return (
+        entry.row.unavailableReason ?? "the server built no context for it"
+      );
     case "missing":
       return `${entry.resultState.count} required input(s) bind nothing on it; fix the input mapping`;
     case "running":

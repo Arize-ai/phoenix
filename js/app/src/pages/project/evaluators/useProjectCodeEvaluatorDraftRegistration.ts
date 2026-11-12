@@ -256,3 +256,11 @@ export function useProjectCodeEvaluatorDraftRegistration({
     };
   }, [agentStore, store, mode, evaluatorNodeId]);
 }
+
+/** The registration as an element, for forms that create their evaluator store inline. */
+export function ProjectCodeEvaluatorDraftRegistration(
+  props: Parameters<typeof useProjectCodeEvaluatorDraftRegistration>[0]
+) {
+  useProjectCodeEvaluatorDraftRegistration(props);
+  return null;
+}

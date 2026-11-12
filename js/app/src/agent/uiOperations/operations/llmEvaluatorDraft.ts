@@ -8,8 +8,11 @@ import { defineUIOperation } from "../types";
  * LLM-evaluator form dialog is open.
  */
 const LLM_EVALUATOR_DRAFT_ROUTE_HINT =
-  "an open evaluator form dialog — call evaluators.code.openForm, " +
-  "evaluators.llm.openForm, or evaluators.openForEdit first";
+  "an open LLM-evaluator form: a dataset form (call evaluators.llm.openForm " +
+  "from the playground, or evaluators.openForEdit) or a project (online) " +
+  "form (navigate with navigation.goTo to " +
+  "/projects/<projectId>/evaluators/new/llm, or to " +
+  "/projects/<projectId>/evaluators/<encodeURIComponent(projectEvaluatorId)>/edit)";
 
 /**
  * No-argument input, mirroring the Python schema's
@@ -230,7 +233,9 @@ export const readLlmEvaluatorDraftOperation = defineUIOperation({
     "judge prompt messages, model, provider, invocationParameters, outputConfigs, " +
     "inputMapping, includeExplanation, testPayload, and form mode " +
     "(`create` or `edit`). Call this before `evaluators.llm.edit` or " +
-    "`evaluators.llm.test` to see the current draft.",
+    "`evaluators.llm.test` to see the current draft. On a project (online) " +
+    "evaluator form, `testPayload` is the bench's focused record and the " +
+    "scope is read with evaluators.project.scope.read.",
   inputSchema: emptyInputSchema,
   operationKind: "read",
   defaultSuccessOutput: "LLM evaluator draft read.",
@@ -286,14 +291,19 @@ export const editLlmEvaluatorDraftOperation = defineUIOperation({
 export const testLlmEvaluatorDraftOperation = defineUIOperation({
   name: "evaluators.llm.test",
   description:
-    "Run the open LLM-evaluator draft against its current test payload through " +
+    "Run the open dataset LLM-evaluator draft against its current test payload through " +
     "the form preview path. This runs the judge model and returns the preview " +
-    "result; it does not persist, create, or update an evaluator.",
+    "result; it does not persist, create, or update an evaluator. Dataset " +
+    "forms only: on a project (online) evaluator form, test with " +
+    "evaluators.project.bench.run.",
   inputSchema: emptyInputSchema,
   operationKind: "write",
   defaultSuccessOutput: "LLM evaluator draft test run completed.",
   availability: {
-    routeHint: LLM_EVALUATOR_DRAFT_ROUTE_HINT,
+    routeHint:
+      "an open dataset LLM-evaluator form (evaluators.llm.openForm or " +
+      "evaluators.openForEdit); project evaluator forms test with " +
+      "evaluators.project.bench.run instead",
   },
 });
 

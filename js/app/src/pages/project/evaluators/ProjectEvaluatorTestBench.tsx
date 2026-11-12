@@ -1,6 +1,4 @@
 import { css } from "@emotion/react";
-
-import { summarizeBenchEntry } from "@phoenix/agent/tools/projectEvaluatorBench/bench";
 import type { ReactNode } from "react";
 import { Fragment, Suspense, useState, useSyncExternalStore } from "react";
 import { graphql, useMutation } from "react-relay";
@@ -8,6 +6,7 @@ import { Group, Panel } from "react-resizable-panels";
 import invariant from "tiny-invariant";
 import { useShallow } from "zustand/react/shallow";
 
+import { summarizeBenchEntry } from "@phoenix/agent/tools/projectEvaluatorBench/bench";
 import {
   Button,
   EdgeFade,
@@ -60,7 +59,6 @@ import {
 import { formatEvaluationTargetPlural } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import { ProjectEvaluatorRecordInspector } from "@phoenix/pages/project/evaluators/ProjectEvaluatorRecordInspector";
 import { ProjectEvaluatorRecordTable } from "@phoenix/pages/project/evaluators/ProjectEvaluatorRecordTable";
-import { usePublishProjectEvaluatorBench } from "@phoenix/pages/project/evaluators/useProjectEvaluatorBenchRegistration";
 import {
   type FinishedRecordedRun,
   formatBulkTestLabel,
@@ -76,6 +74,7 @@ import type {
   ProjectEvaluatorRecordKind,
   ProjectEvaluatorTarget,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { usePublishProjectEvaluatorBench } from "@phoenix/pages/project/evaluators/useProjectEvaluatorBenchRegistration";
 import type { EvaluatorStore } from "@phoenix/store/evaluatorStore";
 import type {
   CodeEvaluatorLanguage,

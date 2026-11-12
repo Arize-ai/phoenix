@@ -9,7 +9,6 @@ import {
   type BenchSnapshot,
   runProjectEvaluatorBenchInputSchema,
   selectBenchRunEntries,
-  summarizeBenchEntry,
   summarizeFinishedRun,
 } from "./bench";
 
@@ -30,7 +29,10 @@ export type ProjectEvaluatorBenchHost = {
 export type ProjectEvaluatorBenchAccess = {
   getHost: () => ProjectEvaluatorBenchHost | null;
   /** The scope the form holds now; a bench for another scope is still loading. */
-  getScope: () => { targetType: ProjectEvaluatorTarget; filterCondition: string };
+  getScope: () => {
+    targetType: ProjectEvaluatorTarget;
+    filterCondition: string;
+  };
   /** How long to wait for the bench to load the current scope's records. */
   loadTimeoutMs?: number;
   pollIntervalMs?: number;
