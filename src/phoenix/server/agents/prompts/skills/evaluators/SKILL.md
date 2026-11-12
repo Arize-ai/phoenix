@@ -108,6 +108,9 @@ the scope.
 - Set the scope before testing: the bench lists only records that match it, so a test on the wrong
   scope calibrates against the wrong traffic.
 - The scope is saved with the evaluator. A saved evaluator keeps its target.
+- Attaching an existing code or decision evaluator keeps its definition: the project sets only the
+  scope and how the evaluator's inputs map to the record. Check the mapping on the bench before
+  attaching; to change the logic, edit the evaluator itself instead.
 
 ## Things To Avoid
 
