@@ -106,8 +106,7 @@ export function PlaygroundEvaluatorSelect(
           leadingVisual={<Icon svg={<Icons.Scale />} />}
           isDisabled={isDisabled}
         >
-          Evaluators{" "}
-          {selectedIds.length > 0 && <Counter>{selectedIds.length}</Counter>}
+          Evaluators <Counter count={selectedIds.length} showZero={false} />
         </Button>
         <MenuContainer placement="top end" shouldFlip={true} minHeight="0">
           {evaluators.length > 0 && (

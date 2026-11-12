@@ -152,7 +152,7 @@ export function PromptLayout() {
         <TabList>
           <Tab id="prompt">Prompt</Tab>
           <Tab id="versions">
-            Versions <Counter>{data.versionCount}</Counter>
+            Versions <Counter variant="quiet" count={data.versionCount} />
           </Tab>
           <Tab id="config">Config</Tab>
         </TabList>

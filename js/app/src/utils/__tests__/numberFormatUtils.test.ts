@@ -8,6 +8,8 @@ import {
   errorRateFormatter,
   formatFloat,
   formatInt,
+  formatIntCompact,
+  formatIntGrouped,
   formatCostPrecise,
   formatLatencyMs,
   formatPercentShort,
@@ -20,6 +22,24 @@ describe("formatInt", () => {
     expect(formatInt(12379)).toEqual("12,379");
     expect(formatInt(-12379)).toEqual("−12,379");
     expect(formatInt(123)).toEqual("123");
+  });
+});
+
+describe("formatIntGrouped", () => {
+  it("formats integers in full with separators", () => {
+    expect(formatIntGrouped(1234567)).toEqual("1,234,567");
+    expect(formatIntGrouped(12)).toEqual("12");
+  });
+});
+
+describe("formatIntCompact", () => {
+  it("abbreviates to three significant digits with app suffixes", () => {
+    expect(formatIntCompact(42)).toEqual("42");
+    expect(formatIntCompact(999)).toEqual("999");
+    expect(formatIntCompact(1000)).toEqual("1K");
+    expect(formatIntCompact(1234)).toEqual("1.23K");
+    expect(formatIntCompact(12345678)).toEqual("12.3M");
+    expect(formatIntCompact(1_200_000_000)).toEqual("1.2B");
   });
 });
 

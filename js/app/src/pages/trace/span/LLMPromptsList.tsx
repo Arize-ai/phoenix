@@ -1,11 +1,6 @@
 import { css } from "@emotion/react";
 
-import {
-  Card,
-  CopyToClipboardButton,
-  Counter,
-  Text,
-} from "@phoenix/components";
+import { Card, CopyToClipboardButton, Text } from "@phoenix/components";
 
 import { defaultCardProps } from "./constants";
 import { MimeTypeCodeBlock } from "./MimeTypeCodeBlock";
@@ -21,7 +16,11 @@ function LLMPrompt({ prompt, index }: { prompt: string; index: number }) {
       backgroundColor="gray-100"
       borderColor="gray-300"
       title={<Text weight="heavy">Prompt</Text>}
-      titleExtra={<Counter>#{index + 1}</Counter>}
+      titleExtra={
+        <Text color="text-700" fontFamily="mono">
+          #{index + 1}
+        </Text>
+      }
       extra={<CopyToClipboardButton text={prompt} />}
     >
       <MimeTypeCodeBlock value={prompt} mimeType="text" />

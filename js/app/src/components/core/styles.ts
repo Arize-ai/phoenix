@@ -93,3 +93,70 @@ export const dotSeparatedRowCSS = css`
     margin-right: var(--global-dimension-size-100);
   }
 `;
+
+/**
+ * The fill, border and text a member of the badge family (`Badge`,
+ * `Counter`) derives from its base color (`--family-base-color`), so the
+ * members share one color scale. Requires `data-theme` on the element, since
+ * the lightness steps invert between themes.
+ */
+export const derivedColorCSS = css`
+  --family-base-color: var(--global-color-gray-600);
+  background-color: var(--family-bg-color);
+  border: 1px solid var(--family-border-color);
+  color: var(--family-text-color);
+
+  &[data-theme="light"] {
+    --family-bg-color: lch(from var(--family-base-color) 96 calc(c * 0.3) h);
+    --family-bg-color-hover: lch(
+      from var(--family-base-color) 92 calc(c * 0.45) h
+    );
+    --family-bg-color-pressed: lch(
+      from var(--family-base-color) 88 calc(c * 0.6) h
+    );
+    --family-border-color: lch(
+      from var(--family-base-color) 88 calc(c * 0.4) h
+    );
+    --family-border-color-hover: lch(
+      from var(--family-base-color) 76 calc(c * 0.8) h
+    );
+    --family-text-color: lch(from var(--family-base-color) 45 c h);
+  }
+  &[data-theme="dark"] {
+    --family-bg-color: lch(from var(--family-base-color) 18 calc(c * 0.2) h);
+    --family-bg-color-hover: lch(
+      from var(--family-base-color) 24 calc(c * 0.35) h
+    );
+    --family-bg-color-pressed: lch(
+      from var(--family-base-color) 30 calc(c * 0.5) h
+    );
+    --family-border-color: lch(
+      from var(--family-base-color) 28 calc(c * 0.3) h
+    );
+    --family-border-color-hover: lch(
+      from var(--family-base-color) 40 calc(c * 0.6) h
+    );
+    --family-text-color: lch(from var(--family-base-color) 90 calc(c * 0.8) h);
+  }
+`;
+
+/**
+ * A property marker (Badge, Counter) shows the state of the `MarkerTrigger`
+ * it is the whole visible face of, keyed to React Aria's state attributes on
+ * that trigger. Scoped to `MarkerTrigger` so a marker inside any other
+ * control, which draws its own hover, does not change. The marker never
+ * handles an event itself.
+ */
+export const inheritedStateCSS = css`
+  .marker-trigger[data-hovered] > & {
+    background-color: var(--family-bg-color-hover);
+    border-color: var(--family-border-color-hover);
+  }
+  .marker-trigger[data-pressed] > & {
+    background-color: var(--family-bg-color-pressed);
+    border-color: var(--family-border-color-hover);
+  }
+  .marker-trigger[data-disabled] > & {
+    opacity: var(--global-opacity-disabled);
+  }
+`;
