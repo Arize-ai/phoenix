@@ -15,7 +15,7 @@ import {
 import { getTimeBinScale } from "@phoenix/hooks/useTimeBin";
 
 /**
- * The mean score column aggregates over at most this much of the page time
+ * The results column aggregates over at most this much of the page time
  * range, keeping the per-page annotation scans bounded on long ranges.
  */
 export const MAX_SCORE_WINDOW_MS = 30 * ONE_DAY_MS;
@@ -24,7 +24,7 @@ export const MAX_SCORE_WINDOW_MS = 30 * ONE_DAY_MS;
 const MAX_SCORE_WINDOW_KEY: LastNTimeRangeKey = "30d";
 
 /**
- * The window and binning the mean score column aggregates over. Derived from
+ * The window and binning the results column aggregates over. Derived from
  * the page time range by the route loader and by the table (for refetches),
  * which must agree exactly so a fresh mount reuses the loader's response.
  */
@@ -64,7 +64,7 @@ export function isSameEvaluatorScoreWindow(
 }
 
 /**
- * Resolves the page time range into the mean score column's clamped window.
+ * Resolves the page time range into the results column's clamped window.
  * A live last-N range derives everything from its key and its snapped start,
  * never from "now", so the loader and the table produce identical query
  * variables and repeated derivations stay cache-friendly. A live range longer
