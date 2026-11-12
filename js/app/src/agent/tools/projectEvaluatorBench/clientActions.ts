@@ -97,6 +97,9 @@ export function createRunProjectEvaluatorBenchClientAction(
         error: "Invalid evaluators.project.bench.run input.",
       };
     }
+    // Let the form render an edit made just before this call, so the run
+    // uses the draft the human now sees.
+    await new Promise((resolve) => setTimeout(resolve, 0));
     const host = await waitForCurrentBench(access);
     if (!host) {
       return { ok: false, error: LOADING_ERROR };
