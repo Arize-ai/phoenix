@@ -4,8 +4,8 @@ from typing import Any, Literal, Optional, Type, Union
 
 import pandas as pd
 from aioitertools.itertools import groupby
-from cachetools import LFUCache, TTLCache
-from sqlalchemy import Select, and_, case, distinct, func, or_, select
+from cachetools import LRUCache, TTLCache
+from sqlalchemy import Select, case, func, or_, select
 from sqlalchemy.orm import InstrumentedAttribute
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias, assert_never
@@ -82,13 +82,18 @@ class AnnotationSummaryCache(
             # interval endpoints are rounded down to the hour by the UI, so anything
             # older than an hour most likely won't be a cache-hit anyway.
             main_cache=TTLCache(maxsize=64 * 32 * 2, ttl=3600),
-            sub_cache_factory=lambda: LFUCache(maxsize=2 * 2),
+            # LRU, not LFU: under LFU a fresh window enters at frequency 1 —
+            # the immediate eviction victim while stale high-frequency windows
+            # squat, so switching ranges could permanently miss. LRU keeps the
+            # recently viewed windows, which is the actual access pattern.
+            # Each viewed window costs two sub-keys (the window and its
+            # previous-window comparison), so eight entries retain the four
+            # most recently viewed windows.
+            sub_cache_factory=lambda: LRUCache(maxsize=2 * 4),
         )
 
     def invalidate_project(self, project_rowid: ProjectRowId) -> None:
-        for section in self._cache.keys():
-            if section[0] == project_rowid:
-                del self._cache[section]
+        self.invalidate_matching(lambda section: section[0] == project_rowid)
 
     def _cache_key(self, key: Key) -> tuple[_Section, _SubKey]:
         (
@@ -212,9 +217,9 @@ def _get_stmt(
         if end_time:
             time_range_conditions.append(time_column < end_time)
 
-    # The entity-count query below is the denominator of the reported fractions and the main
-    # query is the numerator, so the two have to select from the same rows. Both get their
-    # scope from this one function, and both reuse the one compiled session-filter subquery.
+    # Every aggregate below, including the entity count that is the denominator of the
+    # reported fractions, derives from the one scoped scan in `base_subquery`, so numerator and
+    # denominator always select from the same rows.
     span_filter = SpanFilter(filter_condition) if kind == "span" and filter_condition else None
     filtered_session_rowids = (
         get_filtered_session_rowids_subquery(
@@ -240,14 +245,6 @@ def _get_stmt(
         stmt = stmt.where(name_column.in_(annotation_names))
         return stmt.where(*time_range_conditions)
 
-    # First query: count distinct entities per annotation name
-    # This is used later to calculate accurate fractions that account for entities without labels
-    entity_count_subquery = (
-        scoped(select(name_column, func.count(distinct(entity_id_column)).label("entity_count")))
-        .group_by(name_column)
-        .subquery()
-    )
-
     # Main query: gets raw annotation data with counts per (span/trace)+name+label
     base_stmt = scoped(
         select(
@@ -264,91 +261,76 @@ def _get_stmt(
     # Group to get one row per (span/trace)+name+label combination
     base_stmt = base_stmt.group_by(entity_id_column, name_column, label_column)
 
-    base_subquery = base_stmt.subquery()
+    # A CTE, not a subquery: every aggregate below reads it, and Postgres (12+) and SQLite
+    # both materialize a CTE that is referenced more than once. As inlined subqueries, the
+    # scoped annotation-entity join ran once per reference, five times per statement.
+    base_subquery = base_stmt.cte("annotation_entity_rows")
 
-    # Calculate total counts per (span/trace)+name for computing fractions
-    entity_totals = (
+    # Each (span/trace)+name+label row, with its entity's totals across labels as window
+    # aggregates, which spares a self-join. `entity_row` numbers the entity's rows, so the
+    # per-name aggregates below can count each entity once. A CTE, because both read it.
+    entity = [base_subquery.c.entity_id, base_subquery.c.name]
+    entity_label_rows = select(
+        base_subquery.c.entity_id,
+        base_subquery.c.name,
+        base_subquery.c.label,
+        base_subquery.c.label_count,
+        base_subquery.c.score_count,
+        base_subquery.c.score_sum,
+        func.sum(base_subquery.c.label_count).over(partition_by=entity).label("total_label_count"),
+        func.sum(base_subquery.c.score_count).over(partition_by=entity).label("total_score_count"),
+        func.sum(base_subquery.c.score_sum).over(partition_by=entity).label("entity_score_sum"),
+        func.row_number().over(partition_by=entity).label("entity_row"),
+    ).cte("annotation_entity_label_rows")
+
+    # Per name: the entity count, which is the denominator for fractions that account for
+    # entities without labels, and the average of per-entity average scores, so each entity
+    # counts once.
+    name_aggregates = (
         select(
-            base_subquery.c.entity_id,
-            base_subquery.c.name,
-            func.sum(base_subquery.c.label_count).label("total_label_count"),
-            func.sum(base_subquery.c.score_count).label("total_score_count"),
-            func.sum(base_subquery.c.score_sum).label("entity_score_sum"),
+            entity_label_rows.c.name,
+            func.count().label("entity_count"),
+            func.avg(
+                case(
+                    (
+                        entity_label_rows.c.total_score_count > 0,
+                        entity_label_rows.c.entity_score_sum
+                        * 1.0
+                        / entity_label_rows.c.total_score_count,
+                    ),
+                    else_=None,
+                )
+            ).label("overall_avg_score"),
         )
-        .group_by(base_subquery.c.entity_id, base_subquery.c.name)
+        .where(entity_label_rows.c.entity_row == 1)
+        .group_by(entity_label_rows.c.name)
         .subquery()
     )
 
-    per_entity_fractions = (
-        select(
-            base_subquery.c.entity_id,
-            base_subquery.c.name,
-            base_subquery.c.label,
-            base_subquery.c.record_count,
-            base_subquery.c.label_count,
-            base_subquery.c.score_count,
-            base_subquery.c.score_sum,
-            # Calculate label fraction, avoiding division by zero when total_label_count is 0
-            case(
-                (
-                    entity_totals.c.total_label_count > 0,
-                    base_subquery.c.label_count * 1.0 / entity_totals.c.total_label_count,
-                ),
-                else_=None,
-            ).label("label_fraction"),
-            # Calculate average score for the entity (if there are any scores)
-            case(
-                (
-                    entity_totals.c.total_score_count > 0,
-                    entity_totals.c.entity_score_sum * 1.0 / entity_totals.c.total_score_count,
-                ),
-                else_=None,
-            ).label("entity_avg_score"),
-        )
-        .join(
-            entity_totals,
-            and_(
-                base_subquery.c.entity_id == entity_totals.c.entity_id,
-                base_subquery.c.name == entity_totals.c.name,
-            ),
-        )
-        .subquery()
-    )
-
-    # Aggregate metrics across (spans/traces) for each name+label combination.
+    # Aggregate metrics across (spans/traces) for each name+label combination. Rows are
+    # unique per (span/trace)+name+label, so counting rows counts entities with the label.
     label_entity_metrics = (
         select(
-            per_entity_fractions.c.name,
-            per_entity_fractions.c.label,
-            func.count(distinct(per_entity_fractions.c.entity_id)).label("entities_with_label"),
-            func.sum(per_entity_fractions.c.label_count).label("total_label_count"),
-            func.sum(per_entity_fractions.c.score_count).label("total_score_count"),
-            func.sum(per_entity_fractions.c.score_sum).label("total_score_sum"),
+            entity_label_rows.c.name,
+            entity_label_rows.c.label,
+            func.count().label("entities_with_label"),
+            func.sum(entity_label_rows.c.label_count).label("total_label_count"),
+            func.sum(entity_label_rows.c.score_count).label("total_score_count"),
+            func.sum(entity_label_rows.c.score_sum).label("total_score_sum"),
             # Average of label fractions for entities that have this label
-            func.avg(per_entity_fractions.c.label_fraction).label("avg_label_fraction_present"),
-            # Average of per-entity average scores (but we handle overall aggregation separately)
+            func.avg(
+                case(
+                    (
+                        entity_label_rows.c.total_label_count > 0,
+                        entity_label_rows.c.label_count
+                        * 1.0
+                        / entity_label_rows.c.total_label_count,
+                    ),
+                    else_=None,
+                )
+            ).label("avg_label_fraction_present"),
         )
-        .group_by(per_entity_fractions.c.name, per_entity_fractions.c.label)
-        .subquery()
-    )
-
-    # Compute distinct per-entity average scores to ensure each entity counts only once.
-    distinct_entity_scores = (
-        select(
-            per_entity_fractions.c.entity_id,
-            per_entity_fractions.c.name,
-            per_entity_fractions.c.entity_avg_score,
-        )
-        .distinct()
-        .subquery()
-    )
-
-    overall_score_aggregates = (
-        select(
-            distinct_entity_scores.c.name,
-            func.avg(distinct_entity_scores.c.entity_avg_score).label("overall_avg_score"),
-        )
-        .group_by(distinct_entity_scores.c.name)
+        .group_by(entity_label_rows.c.name, entity_label_rows.c.label)
         .subquery()
     )
 
@@ -361,24 +343,20 @@ def _get_stmt(
             # Adjust label fraction, guarding against division by zero in entity_count
             case(
                 (
-                    entity_count_subquery.c.entity_count > 0,
+                    name_aggregates.c.entity_count > 0,
                     label_entity_metrics.c.avg_label_fraction_present
                     * label_entity_metrics.c.entities_with_label
-                    / entity_count_subquery.c.entity_count,
+                    / name_aggregates.c.entity_count,
                 ),
                 else_=None,
             ).label("avg_label_fraction"),
-            overall_score_aggregates.c.overall_avg_score.label("avg_score"),  # same for all labels
+            name_aggregates.c.overall_avg_score.label("avg_score"),  # same for all labels
             label_entity_metrics.c.total_label_count.label("label_count"),
             label_entity_metrics.c.total_score_count.label("score_count"),
             label_entity_metrics.c.total_score_sum.label("score_sum"),
             label_entity_metrics.c.entities_with_label.label("record_count"),
         )
-        .join(entity_count_subquery, label_entity_metrics.c.name == entity_count_subquery.c.name)
-        .join(
-            overall_score_aggregates,
-            label_entity_metrics.c.name == overall_score_aggregates.c.name,
-        )
+        .join(name_aggregates, label_entity_metrics.c.name == name_aggregates.c.name)
         .order_by(label_entity_metrics.c.name, label_entity_metrics.c.label)
     )
 

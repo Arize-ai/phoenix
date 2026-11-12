@@ -83,7 +83,10 @@ import {
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import { ProjectEvaluatorQueueCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueCell";
 import type { EvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
-import { getEvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
+import {
+  getEvaluatorScoreWindow,
+  isSameEvaluatorScoreWindow,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
 import {
   reconcileProjectEvaluatorSelection,
   type ProjectEvaluatorSelection,
@@ -275,11 +278,13 @@ const readRow = (
       @inline
       @argumentDefinitions(
         scoreTimeRange: { type: "TimeRange!" }
+        scorePreviousTimeRange: { type: "TimeRange!" }
         scoreTimeBinConfig: { type: "TimeBinConfig!" }
         includeMeanScore: { type: "Boolean!" }
       ) {
         annotationScoreMetrics(
           timeRange: $scoreTimeRange
+          previousTimeRange: $scorePreviousTimeRange
           timeBinConfig: $scoreTimeBinConfig
         ) @include(if: $includeMeanScore) {
           annotationName
@@ -363,6 +368,7 @@ export function ProjectEvaluatorsTable({
         filter: { type: "ProjectEvaluatorFilter", defaultValue: null }
         timeRange: { type: "TimeRange!" }
         scoreTimeRange: { type: "TimeRange!" }
+        scorePreviousTimeRange: { type: "TimeRange!" }
         scoreTimeBinConfig: { type: "TimeBinConfig!" }
         includeMeanScore: { type: "Boolean!" }
       ) {
@@ -378,6 +384,7 @@ export function ProjectEvaluatorsTable({
               ...ProjectEvaluatorsTable_scores
                 @arguments(
                   scoreTimeRange: $scoreTimeRange
+                  scorePreviousTimeRange: $scorePreviousTimeRange
                   scoreTimeBinConfig: $scoreTimeBinConfig
                   includeMeanScore: $includeMeanScore
                 )
@@ -422,11 +429,10 @@ export function ProjectEvaluatorsTable({
       const hasInitialTimeRange =
         timeRange.start === initialTimeRange.start &&
         timeRange.end === initialTimeRange.end;
-      const hasInitialScoreWindow =
-        scoreWindow.timeRange.start === initialScoreWindow.timeRange.start &&
-        scoreWindow.timeRange.end === initialScoreWindow.timeRange.end &&
-        scoreWindow.timeBinConfig.scale ===
-          initialScoreWindow.timeBinConfig.scale;
+      const hasInitialScoreWindow = isSameEvaluatorScoreWindow(
+        scoreWindow,
+        initialScoreWindow
+      );
       const hasInitialIncludeMeanScore =
         includeMeanScore === initialIncludeMeanScore;
       // Avoid a duplicate request only when the rows supplied by the owner
@@ -448,6 +454,7 @@ export function ProjectEvaluatorsTable({
           filter: trimmedFilter ? { col: "name", value: trimmedFilter } : null,
           timeRange,
           scoreTimeRange: scoreWindow.timeRange,
+          scorePreviousTimeRange: scoreWindow.previousTimeRange,
           scoreTimeBinConfig: scoreWindow.timeBinConfig,
           includeMeanScore,
         },
@@ -472,6 +479,7 @@ export function ProjectEvaluatorsTable({
         filter: trimmedFilter ? { col: "name", value: trimmedFilter } : null,
         timeRange,
         scoreTimeRange: scoreWindow.timeRange,
+        scorePreviousTimeRange: scoreWindow.previousTimeRange,
         scoreTimeBinConfig: scoreWindow.timeBinConfig,
         includeMeanScore,
       },
