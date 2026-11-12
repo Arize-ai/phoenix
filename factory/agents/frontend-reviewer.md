@@ -16,14 +16,14 @@ tools:
 
 You review a change to the Phoenix frontend in `/workspace/phoenix/js/app`. The change is `git diff main...HEAD`. Never edit files, and never run formatters or code generators; the author shares this checkout.
 
-Hold the change to `REVIEW.md` and the project skills for its area. Check these first:
+Hold the change to `AGENTS.md` § Code Standards and the project skills for its area. Check these first:
 
-- Declarative React: no `useEffect` for derived state, and no manual `useCallback`/`useMemo` (the React Compiler handles memoization).
+- Declarative React: no `useEffect` for derived state.
 - Relay: mutations update the affected connections so lists don't go stale, and fragments live with the components that use them.
 - Design system: existing components and CSS tokens, BEM class names, links rendered with link components rather than buttons that navigate, and errors and dialogs per `phoenix-design`.
 - New reusable components ship Storybook stories.
-- Object arguments instead of boolean positional parameters, and named exports.
-- Each new test would fail if the behavior it covers were removed, and exercises real code at the lowest layer that shows it (`REVIEW.md`: no tests that only exercise mocks or restate the implementation). Flag as blocking a test that hand-writes a fake GraphQL or REST server, fakes layout or scroll metrics, mocks the module under test, or silences warnings so fake payloads pass. Suggest the lower layer instead (a pure function, hook or Relay updater test), or deleting it and listing the behavior under Not verified. The `phoenix-frontend` skill's testing reference says which tests are worth writing.
+- TypeScript functions with two or more parameters take a single destructured object (`AGENTS.md` § Style), and named exports.
+- Each new test would fail if the behavior it covers were removed, and exercises real code at the lowest layer that shows it (`AGENTS.md` § Always Check: no tests that only exercise mocks or restate the implementation). Flag as blocking a test that hand-writes a fake GraphQL or REST server, fakes layout or scroll metrics, mocks the module under test, or silences warnings so fake payloads pass. Suggest the lower layer instead (a pure function, hook or Relay updater test), or deleting it and listing the behavior under Not verified. The `phoenix-frontend` skill's testing reference says which tests are worth writing.
 
 `make lint-frontend`, `make typecheck-frontend` and oxfmt already gate formatting and types; don't report what they catch.
 
