@@ -16,7 +16,7 @@ type CompletionTokenTypeOption = TokenTypeOption & {
   kind: "COMPLETION";
 };
 
-export const DEFAULT_TOKEN_PROMPT_OPTIONS = [
+const DEFAULT_TOKEN_PROMPT_OPTIONS = [
   {
     tokenType: "input",
     kind: "PROMPT",
@@ -35,7 +35,7 @@ export const DEFAULT_TOKEN_PROMPT_OPTIONS = [
   },
 ] satisfies PromptTokenTypeOption[];
 
-export const DEFAULT_TOKEN_COMPLETION_OPTIONS = [
+const DEFAULT_TOKEN_COMPLETION_OPTIONS = [
   {
     tokenType: "output",
     kind: "COMPLETION",
