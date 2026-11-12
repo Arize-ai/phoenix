@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<30501eda5d2a5fa67e2b38c95c064ba1>>
+ * @generated SignedSource<<fd02b2b4bb92a67ca2e5318673c08d7f>>
  * @lightSyntaxTransform
  */
 
@@ -33,6 +33,7 @@ export type EditModelButtonMutation$data = {
     readonly __typename: "UpdateModelMutationPayload";
     readonly model: {
       readonly id: string;
+      readonly modelType: GenerativeModelType;
       readonly name: string;
       readonly namePattern: string;
       readonly provider: string | null;
@@ -94,6 +95,13 @@ v1 = [
             "args": null,
             "kind": "ScalarField",
             "name": "name",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "modelType",
             "storageKey": null
           },
           {
@@ -188,16 +196,16 @@ return {
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "527afcf6cbbf906d8ddc80b5a34cdb3a",
+    "cacheID": "fd097f89a11242af9e4638d307f5d12a",
     "id": null,
     "metadata": {},
     "name": "EditModelButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation EditModelButtonMutation(\n  $input: UpdateModelMutationInput!\n) {\n  updateModel(input: $input) {\n    model {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      startTime\n      tokenPrices {\n        tokenType\n        kind\n        costPerMillionTokens\n      }\n    }\n    __typename\n  }\n}\n"
+    "text": "mutation EditModelButtonMutation(\n  $input: UpdateModelMutationInput!\n) {\n  updateModel(input: $input) {\n    model {\n      id\n      name\n      modelType\n      provider\n      namePattern\n      providerKey\n      startTime\n      tokenPrices {\n        tokenType\n        kind\n        costPerMillionTokens\n      }\n    }\n    __typename\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ffba87369eaaf51ba050d13e4f417efa";
+(node as any).hash = "5b398dc9dcbaf09d598902d16797867a";
 
 export default node;

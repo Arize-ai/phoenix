@@ -1,7 +1,7 @@
 import { parseAbsoluteToLocal } from "@internationalized/date";
 import { useMemo } from "react";
 import type { DateValue, Key } from "react-aria-components";
-import { Controller, useFieldArray, useForm } from "react-hook-form";
+import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 
 import {
   Button,
@@ -15,18 +15,28 @@ import {
   Form,
   Input,
   Label,
+  ListBox,
+  Popover,
+  Select,
+  SelectChevronUpDownIcon,
+  SelectItem,
+  SelectValue,
   Text,
   TextField,
   View,
 } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { RegexField } from "@phoenix/components/RegexField";
+import type { GenerativeModelType } from "@phoenix/constants/generativeConstants";
+import {
+  DEFAULT_GENERATIVE_MODEL_TYPE,
+  GENERATIVE_MODEL_TYPE_OPTIONS,
+} from "@phoenix/constants/generativeConstants";
 import { ModelTokenCostControlTable } from "@phoenix/pages/settings/ModelTokenCostControlTable";
 import type { ModelTokenKind } from "@phoenix/pages/settings/ModelTokenTypeComboBox";
 import {
-  DEFAULT_TOKEN_COMPLETION_OPTIONS,
-  DEFAULT_TOKEN_PROMPT_OPTIONS,
   normalizeTokenType,
+  TOKEN_TYPE_OPTIONS_BY_MODEL_TYPE,
 } from "@phoenix/pages/settings/ModelTokenTypeComboBox";
 import {
   getProviderName,
@@ -41,6 +51,7 @@ export type TokenPrice = {
 
 export type ModelFormParams = {
   name: string;
+  modelType: GenerativeModelType;
   provider?: string;
   namePattern: string;
   promptCosts: TokenPrice[];
@@ -117,7 +128,12 @@ function normalizeModelFormParams(params: ModelFormParams): ModelFormParams {
     ...params,
     provider: provider && (findProviderOption(provider)?.value ?? provider),
     promptCosts: normalizeTokenTypes(params.promptCosts),
-    completionCosts: normalizeTokenTypes(params.completionCosts),
+    // Embedding models have no completion side, so completion rows left over
+    // from another type are dropped
+    completionCosts:
+      params.modelType === "EMBEDDING"
+        ? []
+        : normalizeTokenTypes(params.completionCosts),
   };
 }
 
@@ -168,6 +184,7 @@ function ModelProviderComboBox({
 
 export function ModelForm({
   modelName,
+  modelType,
   modelProvider,
   modelNamePattern,
   modelCost,
@@ -178,6 +195,7 @@ export function ModelForm({
   startDate,
 }: {
   modelName?: string | null;
+  modelType?: GenerativeModelType | null;
   modelProvider?: string | null;
   modelNamePattern?: string | null;
   modelCost?: TokenPrice[] | null;
@@ -217,12 +235,14 @@ export function ModelForm({
   const {
     control,
     handleSubmit,
+    getValues,
     getFieldState,
     trigger,
     formState: { isDirty },
   } = useForm<ModelFormParams>({
     defaultValues: {
       name: modelName ?? "",
+      modelType: modelType ?? DEFAULT_GENERATIVE_MODEL_TYPE,
       provider: modelProvider || "",
       namePattern: modelNamePattern ?? "",
       promptCosts: defaultPromptCostFields,
@@ -248,6 +268,9 @@ export function ModelForm({
     control,
     name: "completionCosts",
   });
+
+  const selectedModelType = useWatch({ control, name: "modelType" });
+  const tokenTypeOptions = TOKEN_TYPE_OPTIONS_BY_MODEL_TYPE[selectedModelType];
 
   return (
     <Form
@@ -282,6 +305,56 @@ export function ModelForm({
                 <Input placeholder="e.g. gpt-4, claude-3-sonnet" />
                 {error?.message && <FieldError>{error.message}</FieldError>}
               </TextField>
+            )}
+          />
+          <Controller
+            name="modelType"
+            control={control}
+            render={({ field }) => (
+              <Select
+                {...field}
+                onChange={(key) => {
+                  if (key == null) {
+                    return;
+                  }
+                  field.onChange(key);
+                  // Every type but embedding needs an output price, so a model
+                  // that had no completion side gets an output row back
+                  if (
+                    key !== "EMBEDDING" &&
+                    getValues("completionCosts").length === 0
+                  ) {
+                    appendCompletionCost({
+                      kind: "COMPLETION",
+                      tokenType: "output",
+                      costPerMillionTokens: 0,
+                    });
+                  }
+                }}
+              >
+                <Label>Type</Label>
+                <Button>
+                  <SelectValue />
+                  <SelectChevronUpDownIcon />
+                </Button>
+                <Popover>
+                  <ListBox>
+                    {GENERATIVE_MODEL_TYPE_OPTIONS.map((option) => (
+                      <SelectItem
+                        key={option.id}
+                        id={option.id}
+                        textValue={option.label}
+                      >
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </ListBox>
+                </Popover>
+                <Text slot="description">
+                  The kind of span this model prices. Embedding models are
+                  priced on input tokens only.
+                </Text>
+              </Select>
             )}
           />
           <Controller
@@ -368,24 +441,26 @@ export function ModelForm({
             control={control}
             getFieldState={getFieldState}
             trigger={trigger}
-            tokenTypeOptions={DEFAULT_TOKEN_PROMPT_OPTIONS}
+            tokenTypeOptions={tokenTypeOptions.prompt}
             onAppend={appendPromptCost}
             onRemove={removePromptCost}
             appendKind="PROMPT"
           />
 
-          <ModelTokenCostControlTable
-            title="Completion tokens"
-            namePrefix="completionCosts"
-            fields={completionCostFields}
-            control={control}
-            getFieldState={getFieldState}
-            trigger={trigger}
-            tokenTypeOptions={DEFAULT_TOKEN_COMPLETION_OPTIONS}
-            onAppend={appendCompletionCost}
-            onRemove={removeCompletionCost}
-            appendKind="COMPLETION"
-          />
+          {selectedModelType !== "EMBEDDING" && (
+            <ModelTokenCostControlTable
+              title="Completion tokens"
+              namePrefix="completionCosts"
+              fields={completionCostFields}
+              control={control}
+              getFieldState={getFieldState}
+              trigger={trigger}
+              tokenTypeOptions={tokenTypeOptions.completion}
+              onAppend={appendCompletionCost}
+              onRemove={removeCompletionCost}
+              appendKind="COMPLETION"
+            />
+          )}
         </Flex>
       </View>
 
