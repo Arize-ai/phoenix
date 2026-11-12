@@ -56,7 +56,7 @@ FINISH_OUTCOME = (
 )
 PR_FIELDS = (
     "number,url,state,isDraft,isCrossRepository,baseRefName,headRefName,headRefOid,"
-    "title,body,author,comments,closingIssuesReferences"
+    "title,body,author,comments,closingIssuesReferences,reviewRequests,assignees"
 )
 
 
@@ -237,6 +237,7 @@ def copy_fork_pr(*, repo: str, pr: dict[str, Any], token: str) -> dict[str, Any]
         input_text=body,
     ).strip()
     copy_number = int(copy_url.rsplit("/", 1)[1])
+    copy_reviewers_and_assignees(pr=pr, copy_number=copy_number, token=token)
     run_gh(
         "pr",
         "close",
@@ -248,6 +249,29 @@ def copy_fork_pr(*, repo: str, pr: dict[str, Any], token: str) -> dict[str, Any]
         token=token,
     )
     return read_pr(pr_number=copy_number, token=token)
+
+
+def copy_reviewers_and_assignees(*, pr: dict[str, Any], copy_number: int, token: str) -> None:
+    """Carry the original's pending review requests and assignees over to the copy.
+
+    Best effort: the copy is open and the run goes on without them, so a request GitHub
+    refuses, such as a team the app cannot read, only warns.
+    """
+    reviewers = [
+        reviewer["slug"] if reviewer["__typename"] == "Team" else reviewer["login"]
+        for reviewer in pr["reviewRequests"]
+    ]
+    assignees = [assignee["login"] for assignee in pr["assignees"]]
+    for role, logins in (("reviewer", reviewers), ("assignee", assignees)):
+        if not logins:
+            continue
+        try:
+            run_gh("pr", "edit", str(copy_number), f"--add-{role}", ",".join(logins), token=token)
+        except subprocess.CalledProcessError as error:
+            print(
+                f"::warning::Could not copy {role}s {', '.join(logins)} to #{copy_number}: "
+                f"{error.stderr.strip()}"
+            )
 
 
 def start_session(
