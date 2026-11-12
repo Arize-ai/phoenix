@@ -57,6 +57,7 @@ import {
   useEvaluatorFormDirtyCheck,
 } from "@phoenix/pages/project/evaluators/useEvaluatorFormDirtyCheck";
 import { useProjectDecisionEvaluatorDraftRegistration } from "@phoenix/pages/project/evaluators/useProjectDecisionEvaluatorDraftRegistration";
+import { useProjectEvaluatorAttachRegistration } from "@phoenix/pages/project/evaluators/useProjectEvaluatorAttachRegistration";
 import { getMutationErrorMessage } from "@phoenix/utils/errorUtils";
 
 type ScopeProps = {
@@ -362,7 +363,7 @@ export function AttachProjectDecisionEvaluatorDialogContent({
   });
   trackStoreForDirtyCheck(store);
 
-  const onSubmit = () =>
+  const attachEvaluator = () =>
     attach({
       input: {
         projectId,
@@ -373,6 +374,29 @@ export function AttachProjectDecisionEvaluatorDialogContent({
         enabled: true,
       },
     });
+  const onSubmit = () => void attachEvaluator();
+  useProjectEvaluatorAttachRegistration({
+    target: {
+      evaluatorId: evaluator.id,
+      name: evaluator.name,
+      kind: "DECISION",
+      variables,
+      // The layout holds the save while any variable is unbound.
+      requiredVariables: variables,
+    },
+    submit: async (): Promise<EvaluatorSubmitResult> => {
+      const result = await attachEvaluator();
+      if (!result.ok) {
+        return result;
+      }
+      const saved = result.response.createProjectDecisionEvaluator.evaluator;
+      return {
+        ok: true,
+        acceptedBy: "auto",
+        evaluator: { id: saved.id, name: saved.name },
+      };
+    },
+  });
 
   return (
     <ProjectDecisionEvaluatorLayout
