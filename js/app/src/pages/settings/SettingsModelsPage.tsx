@@ -17,6 +17,8 @@ import {
   SelectValue,
   Text,
 } from "@phoenix/components";
+import type { GenerativeModelType } from "@phoenix/constants/generativeConstants";
+import { GENERATIVE_MODEL_TYPE_OPTIONS } from "@phoenix/constants/generativeConstants";
 import type { GenerativeModelKind } from "@phoenix/pages/settings/__generated__/ModelsTable_generativeModels.graphql";
 import type { settingsModelsLoaderQuery } from "@phoenix/pages/settings/__generated__/settingsModelsLoaderQuery.graphql";
 import type { SettingsModelsLoaderType } from "@phoenix/pages/settings/settingsModelsLoader";
@@ -32,8 +34,16 @@ const ModelKindFilterOptions = [
   { label: "Built-in", id: "BUILT_IN" },
 ];
 
+const ModelTypeFilterOptions = [
+  { label: "All types", id: "ALL" },
+  ...GENERATIVE_MODEL_TYPE_OPTIONS,
+];
+
 export function SettingsModelsPage() {
   const [kindFilter, setKindFilter] = useState<"ALL" | GenerativeModelKind>(
+    "ALL"
+  );
+  const [typeFilter, setTypeFilter] = useState<"ALL" | GenerativeModelType>(
     "ALL"
   );
   const [search, setSearch] = useState("");
@@ -56,30 +66,56 @@ export function SettingsModelsPage() {
           }}
           defaultValue={search}
         />
-        <Select
-          aria-label="Model kind filter"
-          value={kindFilter}
-          onChange={(value) => {
-            startTransition(() => {
-              setKindFilter(value as typeof kindFilter);
-            });
-          }}
-          selectionMode="single"
-        >
-          <Button>
-            <SelectValue />
-            <SelectChevronUpDownIcon />
-          </Button>
-          <Popover>
-            <ListBox items={ModelKindFilterOptions}>
-              {(item) => (
-                <SelectItem id={item.id} textValue={item.id}>
-                  {item.label}
-                </SelectItem>
-              )}
-            </ListBox>
-          </Popover>
-        </Select>
+        <Flex gap="size-100" alignItems="center">
+          <Select
+            aria-label="Model type filter"
+            value={typeFilter}
+            onChange={(value) => {
+              startTransition(() => {
+                setTypeFilter(value as typeof typeFilter);
+              });
+            }}
+            selectionMode="single"
+          >
+            <Button>
+              <SelectValue />
+              <SelectChevronUpDownIcon />
+            </Button>
+            <Popover>
+              <ListBox items={ModelTypeFilterOptions}>
+                {(item) => (
+                  <SelectItem id={item.id} textValue={item.label}>
+                    {item.label}
+                  </SelectItem>
+                )}
+              </ListBox>
+            </Popover>
+          </Select>
+          <Select
+            aria-label="Model kind filter"
+            value={kindFilter}
+            onChange={(value) => {
+              startTransition(() => {
+                setKindFilter(value as typeof kindFilter);
+              });
+            }}
+            selectionMode="single"
+          >
+            <Button>
+              <SelectValue />
+              <SelectChevronUpDownIcon />
+            </Button>
+            <Popover>
+              <ListBox items={ModelKindFilterOptions}>
+                {(item) => (
+                  <SelectItem id={item.id} textValue={item.id}>
+                    {item.label}
+                  </SelectItem>
+                )}
+              </ListBox>
+            </Popover>
+          </Select>
+        </Flex>
       </Flex>
       <Card
         title="Models"
@@ -102,7 +138,12 @@ export function SettingsModelsPage() {
           </Flex>
         }
       >
-        <ModelsTable modelsRef={data} kindFilter={kindFilter} search={search} />
+        <ModelsTable
+          modelsRef={data}
+          kindFilter={kindFilter}
+          typeFilter={typeFilter}
+          search={search}
+        />
       </Card>
     </Flex>
   );
