@@ -741,6 +741,13 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
             labels = choices
         else:
             first_value = next(iter(choices.values()))
+            # The format is read from the first value, so every value must use the same one
+            for key, value in choices.items():
+                if isinstance(value, tuple) != isinstance(first_value, tuple):
+                    raise ValueError(
+                        "choices must use one format for every label: a score, or a "
+                        f"(score, description) tuple. Label {key!r} does not match the first label."
+                    )
             # Case 2: Score and description provided
             if isinstance(first_value, tuple):
                 # Extract score and description from tuple
