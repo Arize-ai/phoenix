@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from phoenix.evals import ClassificationEvaluator, DecisionModel
-from phoenix.evals.decision.types import BaseDecisionAdapter
 
 
 def _response(
@@ -141,6 +140,96 @@ def test_invocation_kwargs_reach_system_one_but_evaluator_params_do_not(monkeypa
     assert "method" not in kwargs
 
 
+def _multi_response(
+    answers_by_name,
+    model="mock-evaluation-model",
+    confidence=0.9,
+    input_tokens=20,
+    output_tokens=6,
+):
+    """Build a fake SystemOneResponse with `.choices[name]` for several questions.
+
+    answers_by_name maps each question name to a (choice, probabilities) pair.
+    """
+    choices = {
+        name: SimpleNamespace(choice=choice, probabilities=probs, confidence=confidence)
+        for name, (choice, probs) in answers_by_name.items()
+    }
+    usage = SimpleNamespace(input_tokens=input_tokens, output_tokens=output_tokens)
+    return SimpleNamespace(model=model, choices=choices, usage=usage)
+
+
+def test_generate_classifications_sends_one_request_with_n_questions(monkeypatch):
+    client = MagicMock()
+    client.system_one.return_value = _multi_response(
+        {
+            "helpfulness": ("good", {"good": 0.7, "bad": 0.3}),
+            "accuracy": ("wrong", {"right": 0.2, "wrong": 0.8}),
+        }
+    )
+    _patch_clients(monkeypatch, sync_client=client)
+
+    decision = DecisionModel(provider="typesafe", model="jev-latest")
+    results = decision.generate_classifications(
+        "some text",
+        [
+            {"name": "helpfulness", "labels": ["good", "bad"], "instructions": "how helpful"},
+            {"name": "accuracy", "labels": {"right": "ok", "wrong": "nope"}},
+        ],
+    )
+
+    assert results == [
+        {
+            "name": "helpfulness",
+            "label": "good",
+            "metadata": {
+                "probabilities": {"good": 0.7, "bad": 0.3},
+                "model_id": "mock-evaluation-model",
+                "confidence": 0.9,
+            },
+        },
+        {
+            "name": "accuracy",
+            "label": "wrong",
+            "metadata": {
+                "probabilities": {"right": 0.2, "wrong": 0.8},
+                "model_id": "mock-evaluation-model",
+                "confidence": 0.9,
+            },
+        },
+    ]
+
+    # One request, N questions keyed by name, per-criterion instructions and criteria.
+    client.system_one.assert_called_once()
+    _, kwargs = client.system_one.call_args
+    questions = kwargs["questions"]
+    assert list(questions.keys()) == ["helpfulness", "accuracy"]
+    assert questions["helpfulness"].criteria == {"good": None, "bad": None}
+    assert questions["helpfulness"].instructions == "how helpful"
+    assert questions["accuracy"].criteria == {"right": "ok", "wrong": "nope"}
+    assert questions["accuracy"].instructions is None
+
+
+async def test_async_generate_classifications(monkeypatch):
+    async_client = MagicMock()
+    async_client.system_one = AsyncMock(
+        return_value=_multi_response(
+            {"a": ("x", {"x": 0.6, "y": 0.4}), "b": ("y", {"x": 0.1, "y": 0.9})}
+        )
+    )
+    _patch_clients(monkeypatch, async_client=async_client)
+
+    decision = DecisionModel(provider="typesafe", model="jev-latest")
+    results = await decision.async_generate_classifications(
+        "text",
+        [{"name": "a", "labels": ["x", "y"]}, {"name": "b", "labels": ["x", "y"]}],
+    )
+
+    assert [r["name"] for r in results] == ["a", "b"]
+    assert [r["label"] for r in results] == ["x", "y"]
+    async_client.system_one.assert_awaited_once()
+
+
 def test_missing_sdk_raises_a_helpful_error(monkeypatch):
     import builtins
 
@@ -156,40 +245,6 @@ def test_missing_sdk_raises_a_helpful_error(monkeypatch):
     # client-construction failures in a ValueError whose message still names the package.
     with pytest.raises(ValueError, match="typesafe-sdk"):
         DecisionModel(provider="typesafe", model="jev-latest")
-
-
-def test_to_state_passes_a_string_prompt_through_unchanged():
-    assert BaseDecisionAdapter._to_state("just some text") == "just some text"
-
-
-def test_to_state_joins_a_message_list_and_drops_roles():
-    prompt = [
-        {"role": "system", "content": "You are a judge."},
-        {"role": "user", "content": "Is 2 + 2 = 4?"},
-    ]
-    assert BaseDecisionAdapter._to_state(prompt) == "You are a judge.\n\nIs 2 + 2 = 4?"
-
-
-def test_to_state_keeps_only_text_content_parts():
-    prompt = [
-        {
-            "role": "user",
-            "content": [
-                {"type": "text", "text": "first"},
-                {"type": "image_url", "image_url": {"url": "http://example.com/x.png"}},
-                {"type": "text", "text": "second"},
-            ],
-        },
-    ]
-    assert BaseDecisionAdapter._to_state(prompt) == "first\nsecond"
-
-
-def test_to_state_skips_empty_pieces():
-    prompt = [
-        {"role": "system", "content": ""},
-        {"role": "user", "content": "only this"},
-    ]
-    assert BaseDecisionAdapter._to_state(prompt) == "only this"
 
 
 def test_typesafe_to_input_flattens_like_to_state():

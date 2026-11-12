@@ -32,9 +32,127 @@ def _response(
     return SimpleNamespace(model=model, answers=[answer], usage=usage)
 
 
+def _multi_response(
+    answers,
+    model="mock-evaluation-model",
+    confidence=0.9,
+    input_tokens=20,
+    output_tokens=6,
+):
+    """Build a fake Decision whose `.answers` list holds one entry per question.
+
+    answers is a list of (name, choice, probabilities dict) triples.
+    """
+    ans = [
+        SimpleNamespace(
+            type="choice",
+            name=name,
+            choice=choice,
+            probabilities=[SimpleNamespace(value=v, probability=p) for v, p in probs.items()],
+            confidence=confidence,
+        )
+        for name, choice, probs in answers
+    ]
+    usage = SimpleNamespace(
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        total_tokens=input_tokens + output_tokens,
+    )
+    return SimpleNamespace(model=model, answers=ans, usage=usage)
+
+
 def _patch_clients(monkeypatch, sync_client=None, async_client=None):
     monkeypatch.setattr("openai.OpenAI", MagicMock(return_value=sync_client or MagicMock()))
     monkeypatch.setattr("openai.AsyncOpenAI", MagicMock(return_value=async_client or MagicMock()))
+
+
+def test_generate_classifications_sends_one_request_with_n_questions(monkeypatch):
+    client = MagicMock()
+    client.decisions.create.return_value = _multi_response(
+        [
+            ("helpfulness", "good", {"good": 0.7, "bad": 0.3}),
+            ("accuracy", "wrong", {"right": 0.2, "wrong": 0.8}),
+        ]
+    )
+    _patch_clients(monkeypatch, sync_client=client)
+
+    decision = DecisionModel(provider="openai", model="gpt-6-luna")
+    results = decision.generate_classifications(
+        "some text",
+        [
+            {"name": "helpfulness", "labels": ["good", "bad"], "instructions": "how helpful"},
+            {"name": "accuracy", "labels": {"right": "ok", "wrong": "nope"}},
+        ],
+    )
+
+    assert [r["name"] for r in results] == ["helpfulness", "accuracy"]
+    assert results[0]["label"] == "good"
+    assert results[0]["metadata"]["probabilities"] == {"good": 0.7, "bad": 0.3}
+    assert results[1]["label"] == "wrong"
+
+    client.decisions.create.assert_called_once()
+    _, kwargs = client.decisions.create.call_args
+    questions = kwargs["questions"]
+    assert [q["name"] for q in questions] == ["helpfulness", "accuracy"]
+    assert questions[0]["instructions"] == "how helpful"
+    assert questions[0]["choices"] == [{"value": "good"}, {"value": "bad"}]
+    # No per-criterion instructions -> the default choice instructions are used.
+    assert questions[1]["instructions"] == "Select the single best label for the input."
+    assert questions[1]["choices"] == [
+        {"value": "right", "description": "ok"},
+        {"value": "wrong", "description": "nope"},
+    ]
+
+
+def test_generate_classifications_matches_answers_by_name_not_order(monkeypatch):
+    client = MagicMock()
+    # Answers returned in REVERSE order; the adapter must align them by name.
+    client.decisions.create.return_value = _multi_response(
+        [
+            ("accuracy", "wrong", {"right": 0.2, "wrong": 0.8}),
+            ("helpfulness", "good", {"good": 0.7, "bad": 0.3}),
+        ]
+    )
+    _patch_clients(monkeypatch, sync_client=client)
+
+    decision = DecisionModel(provider="openai", model="gpt-6-luna")
+    results = decision.generate_classifications(
+        "t",
+        [
+            {"name": "helpfulness", "labels": ["good", "bad"]},
+            {"name": "accuracy", "labels": ["right", "wrong"]},
+        ],
+    )
+
+    assert [r["name"] for r in results] == ["helpfulness", "accuracy"]
+    assert results[0]["label"] == "good"
+    assert results[1]["label"] == "wrong"
+
+
+async def test_async_generate_classifications(monkeypatch):
+    async_client = MagicMock()
+    async_client.decisions.create = AsyncMock(
+        return_value=_multi_response([("a", "x", {"x": 0.6, "y": 0.4})])
+    )
+    _patch_clients(monkeypatch, async_client=async_client)
+
+    decision = DecisionModel(provider="openai", model="gpt-6-luna")
+    results = await decision.async_generate_classifications(
+        "text", [{"name": "a", "labels": ["x", "y"]}]
+    )
+
+    assert results == [
+        {
+            "name": "a",
+            "label": "x",
+            "metadata": {
+                "probabilities": {"x": 0.6, "y": 0.4},
+                "model_id": "mock-evaluation-model",
+                "confidence": 0.9,
+            },
+        }
+    ]
+    async_client.decisions.create.assert_awaited_once()
 
 
 def test_routes_a_text_prompt_through_a_single_choice_question(monkeypatch):
