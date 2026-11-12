@@ -11,16 +11,30 @@ import {
   TriggerWrap,
 } from "@phoenix/components";
 import {
+  AnnotationScoreText,
   getOptimizationBounds,
   getOptimizationValueFromConfig,
 } from "@phoenix/components/annotation";
+import {
+  getAnnotationLabelColor,
+  getAnnotationLabelOrder,
+  useLabelDistributionColors,
+} from "@phoenix/components/annotation/annotationLabelColors";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
-import { Sparkline, useBinTimeTickFormatter } from "@phoenix/components/chart";
+import {
+  ChartTooltipItem,
+  Sparkline,
+  StackedSparkline,
+  useBinTimeTickFormatter,
+} from "@phoenix/components/chart";
 import type { ProjectEvaluatorResultAnnotation } from "@phoenix/hooks/useProjectEvaluatorResultAnnotations";
 import { SummaryValueBreakdown } from "@phoenix/pages/project/AnnotationSummary";
 import type { ProjectEvaluatorsTable_scores$data } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_scores.graphql";
 import type { EvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
-import { formatFloat } from "@phoenix/utils/numberFormatUtils";
+import {
+  formatFloat,
+  formatPercentShort,
+} from "@phoenix/utils/numberFormatUtils";
 
 /**
  * One annotation's score aggregates as the scores fragment selects them from
@@ -62,10 +76,45 @@ const meanScoreFallback = (
 );
 
 /**
- * Widest the sparkline grows. Past this it stops being glanceable: a 20px
- * tall line stretched across a wide column reads as an axis-less chart.
+ * Keeps a long leading label from crowding the delta and the bar out of the
+ * column; the full label is in the tooltip.
  */
-const SPARKLINE_MAX_WIDTH = 160;
+const leadingLabelCSS = css`
+  display: inline-block;
+  max-width: 7em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+`;
+
+/**
+ * The width of every row's chart, score sparkline and label columns alike.
+ * One width for all rows puts each time bin at the same x on every row, so
+ * a spike or a gap can be traced down the column; a chart that took the
+ * room its row's pill leaves would put the same bin somewhere else on each
+ * row. Exported so stories draw the column's charts at the column's width.
+ */
+export const RESULTS_CHART_WIDTH = 112;
+
+/** The chart's slot at the cell's right edge, the same on every row. */
+const chartSlotCSS = css`
+  display: flex;
+  flex: none;
+  width: ${RESULTS_CHART_WIDTH}px;
+  margin-left: auto;
+`;
+
+/**
+ * The pill and change take the room left of the chart and clip past it, so
+ * an unusually wide pill can't push the chart off its shared x.
+ */
+const summarySlotCSS = css`
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+`;
 
 /**
  * The least of the annotation's score range the sparkline's vertical axis
@@ -78,15 +127,12 @@ const SPARKLINE_MIN_RANGE_FRACTION = 0.2;
 /**
  * The line is data ink, not status: the score pill and the delta already
  * carry the judgement, and painting the whole history in a status color
- * would restate one number's sign across the entire window.
+ * would restate one number's sign across the entire window. The coverage
+ * strip sits well under the line, so where there is data reads as context
+ * beneath the steps rather than as a second series.
  */
-const SPARKLINE_COLOR = "var(--global-text-color-900)";
-
-/**
- * Well under the line, so where there is data reads as context beneath the
- * steps rather than as a second series.
- */
-const SPARKLINE_COVERAGE_COLOR = "var(--global-text-color-300)";
+const SPARKLINE_COLOR = "var(--chart-sparkline-stroke-color)";
+const SPARKLINE_COVERAGE_COLOR = "var(--chart-sparkline-coverage-fill-color)";
 
 /**
  * Whether the sparkline carries a coverage strip along its baseline, one cell
@@ -100,7 +146,7 @@ const EvaluatorScoreWindowContext = createContext<EvaluatorScoreWindow | null>(
 );
 
 /**
- * Provides the score window to the mean score column's header and cells.
+ * Provides the score window to the results column's header and cells.
  *
  * Context rather than a prop threaded through the column defs: a column def
  * closing over the window would rebuild — and, because tanstack renders the
@@ -120,13 +166,13 @@ function useEvaluatorScoreWindow(): EvaluatorScoreWindow {
   return scoreWindow;
 }
 
-/** The mean score column's header: the label plus the window it covers. */
+/** The results column's header: the label plus the window it covers. */
 export function ProjectEvaluatorMeanScoreHeader() {
   const scoreWindow = useEvaluatorScoreWindow();
   return (
     <Flex direction="row" gap="size-50" alignItems="baseline">
-      <span title="Mean score of the annotations this evaluator produced in the selected time range (at most the last 30 days), with the change vs. the previous window.">
-        mean score
+      <span title="Mean score, or label distribution for label-only evaluators, over the selected time range (at most the last 30 days), with the change vs. the previous window.">
+        results
       </span>
       <Text size="XS" fontFamily="mono" color="text-500">
         {scoreWindow.windowKey}
@@ -136,9 +182,11 @@ export function ProjectEvaluatorMeanScoreHeader() {
 }
 
 /**
- * The evaluators table's mean score cell: for each annotation the evaluator
+ * The evaluators table's results cell: for each annotation the evaluator
  * writes, the mean score over the (clamped) page time range, its change vs.
- * the previous window, and a sparkline of per-bin means. The data arrives
+ * the previous window, and a sparkline of per-bin means. An annotation that
+ * only carries labels shows its leading label's share, that share's change,
+ * and a stacked bar of the label distribution instead. The data arrives
  * with the row via `ProjectEvaluator.annotationScoreMetrics`, which the
  * connection only fetches while the column is visible.
  */
@@ -190,6 +238,9 @@ function AnnotationMeanScoreView({
   // emptiness. The clock is read once on mount: the cutoff only has to be
   // right to within a bin, and the cells remount when their data refetches.
   const [now] = useState(() => Date.now());
+  const series = (metrics?.series ?? []).filter(
+    (bin) => Date.parse(bin.timestamp) <= now
+  );
   const summary = metrics?.summary;
   const previousMeanScore = metrics?.previousSummary?.meanScore;
   const meanScore = summary?.meanScore;
@@ -197,6 +248,18 @@ function AnnotationMeanScoreView({
   const hasLabels = (summary?.labelFractions.length ?? 0) > 0;
   if (!hasScore && !hasLabels) {
     return meanScoreFallback;
+  }
+  if (!hasScore && summary != null) {
+    return (
+      <AnnotationLabelDistributionView
+        annotation={annotation}
+        windowKey={windowKey}
+        summary={summary}
+        previousLabelFractions={metrics?.previousSummary?.labelFractions}
+        series={series}
+        formatBinTime={binTimeFormatter}
+      />
+    );
   }
   const delta =
     hasScore && typeof previousMeanScore === "number"
@@ -218,9 +281,6 @@ function AnnotationMeanScoreView({
     delta == null
       ? null
       : `${delta > 0 ? "▲" : delta < 0 ? "▼" : "—"} ${Math.abs(delta).toFixed(2)}`;
-  const series = (metrics?.series ?? []).filter(
-    (bin) => Date.parse(bin.timestamp) <= now
-  );
   const sparkValues = series.map((bin) =>
     typeof bin.meanScore === "number" ? bin.meanScore : null
   );
@@ -233,91 +293,376 @@ function AnnotationMeanScoreView({
     <Flex direction="row" alignItems="center" gap="size-100" minWidth={0}>
       {/* The score and delta carry the summary breakdown; the sparkline sits
           outside the trigger so its hover shows per-point detail instead. */}
-      <TooltipTrigger delay={0}>
-        <TriggerWrap>
-          <Flex direction="row" alignItems="center" gap="size-100" flex="none">
-            <CellMeanScore
-              value={meanScore}
-              optimizationValue={getOptimizationValueFromConfig({
-                config: annotation.config,
-                score: meanScore,
-              })}
-            />
-            {deltaText != null ? (
-              <Text
-                size="XS"
-                fontFamily="mono"
-                flex="none"
-                color={
-                  isImprovement == null
-                    ? "text-500"
-                    : isImprovement
-                      ? "success"
-                      : "danger"
-                }
-              >
-                {deltaText}
-              </Text>
-            ) : null}
-          </Flex>
-        </TriggerWrap>
-        <RichTooltip placement="bottom">
-          <Flex direction="column" gap="size-50">
-            <SummaryValueBreakdown
-              annotationName={annotation.name}
-              labelFractions={summary?.labelFractions}
-              meanScore={meanScore}
-              annotationConfig={annotation.config}
-              count={summary?.count}
-              scoreCount={summary?.scoreCount}
-              labelCount={summary?.labelCount}
-            />
-            {deltaText != null ? (
-              <Text size="S" color="text-700">
-                {deltaText} vs. the previous {windowKey}
-              </Text>
-            ) : null}
-          </Flex>
-        </RichTooltip>
-      </TooltipTrigger>
-      <Sparkline
-        values={sparkValues}
-        weights={sparkWeights}
-        minRange={sparkMinRange}
-        maxWidth={SPARKLINE_MAX_WIDTH}
-        color={SPARKLINE_COLOR}
-        showCoverage={SPARKLINE_SHOW_COVERAGE}
-        coverageColor={SPARKLINE_COVERAGE_COLOR}
-        aria-label={`Mean ${annotation.name} score over the last ${windowKey}`}
-        renderPointDetail={({ start, end }) => {
-          // The point may cover several bins merged to fit the width: the
-          // weighted mean of their scores, over the span of their times.
-          let weightedSum = 0;
-          let count = 0;
-          for (let index = start; index <= end; index++) {
-            const value = sparkValues[index];
-            if (value == null) {
-              continue;
+      <div css={summarySlotCSS}>
+        <TooltipTrigger delay={0}>
+          <TriggerWrap>
+            <Flex
+              direction="row"
+              alignItems="center"
+              gap="size-100"
+              flex="none"
+            >
+              <CellMeanScore
+                value={meanScore}
+                optimizationValue={getOptimizationValueFromConfig({
+                  config: annotation.config,
+                  score: meanScore,
+                })}
+              />
+              {deltaText != null ? (
+                <Text
+                  size="XS"
+                  fontFamily="mono"
+                  flex="none"
+                  color={
+                    isImprovement == null
+                      ? "text-500"
+                      : isImprovement
+                        ? "success"
+                        : "danger"
+                  }
+                >
+                  {deltaText}
+                </Text>
+              ) : null}
+            </Flex>
+          </TriggerWrap>
+          <RichTooltip placement="bottom">
+            <Flex direction="column" gap="size-50">
+              <SummaryValueBreakdown
+                annotationName={annotation.name}
+                labelFractions={summary?.labelFractions}
+                meanScore={meanScore}
+                annotationConfig={annotation.config}
+                count={summary?.count}
+                scoreCount={summary?.scoreCount}
+                labelCount={summary?.labelCount}
+              />
+              {deltaText != null ? (
+                <Text size="S" color="text-700">
+                  {deltaText} vs. the previous {windowKey}
+                </Text>
+              ) : null}
+            </Flex>
+          </RichTooltip>
+        </TooltipTrigger>
+      </div>
+      <div css={chartSlotCSS}>
+        <Sparkline
+          values={sparkValues}
+          weights={sparkWeights}
+          minRange={sparkMinRange}
+          maxWidth={RESULTS_CHART_WIDTH}
+          color={SPARKLINE_COLOR}
+          showCoverage={SPARKLINE_SHOW_COVERAGE}
+          coverageColor={SPARKLINE_COVERAGE_COLOR}
+          aria-label={`Mean ${annotation.name} score over the last ${windowKey}`}
+          renderPointDetail={({ start, end }) => {
+            // The point may cover several bins merged to fit the width: the
+            // weighted mean of their scores, over the span of their times.
+            let weightedSum = 0;
+            let count = 0;
+            for (let index = start; index <= end; index++) {
+              const value = sparkValues[index];
+              if (value == null) {
+                continue;
+              }
+              weightedSum += value * sparkWeights[index];
+              count += sparkWeights[index];
             }
-            weightedSum += value * sparkWeights[index];
-            count += sparkWeights[index];
-          }
-          const startTime = series[start]?.timestamp;
-          const endTime = series[end]?.timestamp;
-          if (startTime == null || endTime == null || count === 0) {
-            return null;
-          }
-          const timeLabel =
-            start === end
-              ? binTimeFormatter(new Date(startTime))
-              : `${binTimeFormatter(new Date(startTime))} – ${binTimeFormatter(new Date(endTime))}`;
-          return (
-            <Text size="S">
-              {timeLabel} · μ {formatFloat(weightedSum / count)} · n={count}
-            </Text>
-          );
-        }}
-      />
+            const startTime = series[start]?.timestamp;
+            const endTime = series[end]?.timestamp;
+            if (startTime == null || endTime == null || count === 0) {
+              return null;
+            }
+            const timeLabel =
+              start === end
+                ? binTimeFormatter(new Date(startTime))
+                : `${binTimeFormatter(new Date(startTime))} – ${binTimeFormatter(new Date(endTime))}`;
+            return (
+              <Text size="S">
+                {timeLabel} · μ {formatFloat(weightedSum / count)} · n={count}
+              </Text>
+            );
+          }}
+        />
+      </div>
     </Flex>
+  );
+}
+
+type LabelFraction = { readonly label: string; readonly fraction: number };
+
+/** The arrow-and-magnitude form shared by the score and the share deltas. */
+function getDeltaArrow(delta: number) {
+  return delta > 0 ? "▲" : delta < 0 ? "▼" : "—";
+}
+
+/**
+ * A share change in percentage points: one decimal under 10, whole points
+ * above, matching how the shares themselves are rounded.
+ */
+function formatSharePointsDelta(delta: number) {
+  const points = Math.abs(delta * 100);
+  const rounded = Math.round(points * 10) / 10;
+  return `${getDeltaArrow(delta)} ${rounded < 10 ? rounded.toFixed(1) : Math.round(points)} pts`;
+}
+
+/**
+ * How the leading label's share moved since the previous window, and whether
+ * that is good news. No previous labels means nothing to compare against; a
+ * previous window that had labels but not this one had a share of zero.
+ */
+function getLeadingShareChange({
+  label,
+  fraction,
+  previousLabelFractions,
+  optimizationValue,
+}: {
+  label: string;
+  fraction: number;
+  previousLabelFractions: ReadonlyArray<LabelFraction> | null | undefined;
+  /** The label's own optimization value, when the config scores it. */
+  optimizationValue: number | null;
+}) {
+  const previousShare =
+    previousLabelFractions != null && previousLabelFractions.length > 0
+      ? (previousLabelFractions.find((entry) => entry.label === label)
+          ?.fraction ?? 0)
+      : null;
+  const delta = previousShare == null ? null : fraction - previousShare;
+  const isImprovement =
+    delta == null ||
+    delta === 0 ||
+    optimizationValue == null ||
+    optimizationValue === 0
+      ? null
+      : delta > 0 === optimizationValue > 0;
+  return { previousShare, delta, isImprovement };
+}
+
+/**
+ * The cell for an annotation that carries labels but no scores: the leading
+ * label and its share where the mean score would be, the change in that
+ * share vs. the previous window, and the label distribution per time bin
+ * as stacked columns in the sparkline's place, on the sparkline's axis.
+ */
+function AnnotationLabelDistributionView({
+  annotation,
+  windowKey,
+  summary,
+  previousLabelFractions,
+  series,
+  formatBinTime,
+}: {
+  annotation: ProjectEvaluatorResultAnnotation;
+  windowKey: string;
+  summary: NonNullable<EvaluatorAnnotationScoreMetricsData["summary"]>;
+  previousLabelFractions: ReadonlyArray<LabelFraction> | null | undefined;
+  /** The window's time bins, up to now. */
+  series: EvaluatorAnnotationScoreMetricsData["series"];
+  formatBinTime: (date: Date) => string;
+}) {
+  const { config } = annotation;
+  const { labelFractions, labelCount } = summary;
+  // Whether a label is good or bad shows on the pill and delta when the
+  // config scores it, so the chart's colors carry no judgement.
+  const colors = useLabelDistributionColors(
+    Math.max(labelFractions.length, config?.values?.length ?? 0)
+  );
+  // Draw labels in the config's order (the order their colors follow), then
+  // the server's order for labels the config doesn't list, so each label
+  // holds its place in the bar as the shares shift.
+  const configOrder = getAnnotationLabelOrder(config) ?? [];
+  const getRank = (label: string) => {
+    const rank = configOrder.indexOf(label);
+    return rank === -1 ? configOrder.length : rank;
+  };
+  const orderedLabelFractions = labelFractions
+    .map((entry, index) => ({ entry, index }))
+    .sort(
+      (left, right) =>
+        getRank(left.entry.label) - getRank(right.entry.label) ||
+        left.index - right.index
+    )
+    .map(({ entry }) => entry);
+  // The bar and the summary tooltip list the labels in the same order, and
+  // color them alike: by config order, falling back to that shared position.
+  const segments = orderedLabelFractions.map((entry, index) => ({
+    label: entry.label,
+    fraction: entry.fraction,
+    // The summary carries one labeled-annotation count, not one per label
+    count:
+      typeof labelCount === "number"
+        ? Math.round(entry.fraction * labelCount)
+        : null,
+    color: getAnnotationLabelColor(colors, index, entry.label, config),
+  }));
+  // The largest share; ties go to the label drawn first.
+  const leading = segments.reduce((best, segment) =>
+    segment.fraction > best.fraction ? segment : best
+  );
+  // A label the config scores reads as good or bad the way that score would.
+  const leadingOptimizationValue = getOptimizationValueFromConfig({
+    config,
+    score: config?.values?.find((value) => value.label === leading.label)
+      ?.score,
+  });
+  const { delta, isImprovement } = getLeadingShareChange({
+    label: leading.label,
+    fraction: leading.fraction,
+    previousLabelFractions,
+    optimizationValue: leadingOptimizationValue,
+  });
+  const deltaText = delta == null ? null : formatSharePointsDelta(delta);
+  const shareText = formatPercentShort(leading.fraction * 100);
+  return (
+    <Flex direction="row" alignItems="center" gap="size-100" minWidth={0}>
+      <div css={summarySlotCSS}>
+        <TooltipTrigger delay={0}>
+          <TriggerWrap>
+            <Flex
+              direction="row"
+              alignItems="center"
+              gap="size-100"
+              flex="none"
+            >
+              <AlignedScore>
+                <Text>
+                  <AnnotationScoreText
+                    elementType="span"
+                    fontFamily="mono"
+                    optimizationValue={leadingOptimizationValue}
+                  >
+                    <span css={leadingLabelCSS}>{leading.label}</span>
+                    &nbsp;{shareText}
+                  </AnnotationScoreText>
+                </Text>
+              </AlignedScore>
+              {deltaText != null ? (
+                <Text
+                  size="XS"
+                  fontFamily="mono"
+                  flex="none"
+                  color={
+                    isImprovement == null
+                      ? "text-500"
+                      : isImprovement
+                        ? "success"
+                        : "danger"
+                  }
+                >
+                  {deltaText}
+                </Text>
+              ) : null}
+            </Flex>
+          </TriggerWrap>
+          <RichTooltip placement="bottom">
+            <Flex direction="column" gap="size-50">
+              <SummaryValueBreakdown
+                annotationName={annotation.name}
+                labelFractions={orderedLabelFractions}
+                labelColors={colors}
+                annotationConfig={config}
+                count={summary.count}
+                scoreCount={summary.scoreCount}
+                labelCount={labelCount}
+              />
+              {deltaText != null ? (
+                <Text size="S" color="text-700">
+                  {deltaText} in {leading.label}&apos;s share vs. the previous{" "}
+                  {windowKey}
+                </Text>
+              ) : null}
+            </Flex>
+          </RichTooltip>
+        </TooltipTrigger>
+      </div>
+      <div css={chartSlotCSS}>
+        <LabelColumns
+          annotationName={annotation.name}
+          windowKey={windowKey}
+          segments={segments}
+          series={series}
+          formatBinTime={formatBinTime}
+        />
+      </div>
+    </Flex>
+  );
+}
+
+/**
+ * The label distribution per time bin, as stacked columns on the sparkline's
+ * axis, in the same label order and colors as the pill's breakdown.
+ */
+function LabelColumns({
+  annotationName,
+  windowKey,
+  segments,
+  series,
+  formatBinTime,
+}: {
+  annotationName: string;
+  windowKey: string;
+  /** The window's labels in drawing order, with their colors. */
+  segments: ReadonlyArray<{ label: string; color: string }>;
+  series: EvaluatorAnnotationScoreMetricsData["series"];
+  formatBinTime: (date: Date) => string;
+}) {
+  const categories = segments.map((segment) => ({
+    key: segment.label,
+    color: segment.color,
+  }));
+  // A bin's labels are a subset of the window's, which the summary lists.
+  const values = series.map((bin) =>
+    bin.resultCount > 0
+      ? categories.map(
+          (category) =>
+            bin.labelFractions.find((entry) => entry.label === category.key)
+              ?.fraction ?? 0
+        )
+      : null
+  );
+  const weights = series.map((bin) => bin.resultCount);
+  return (
+    <StackedSparkline
+      categories={categories}
+      values={values}
+      weights={weights}
+      maxWidth={RESULTS_CHART_WIDTH}
+      aria-label={`${annotationName} labels per bin over the last ${windowKey}`}
+      renderBinDetail={({ range, shares, weight }) => {
+        const startTime = series[range.start]?.timestamp;
+        const endTime = series[range.end]?.timestamp;
+        if (startTime == null || endTime == null) {
+          return null;
+        }
+        const timeLabel =
+          range.start === range.end
+            ? formatBinTime(new Date(startTime))
+            : `${formatBinTime(new Date(startTime))} – ${formatBinTime(new Date(endTime))}`;
+        return (
+          <Flex direction="column" gap="size-50">
+            <Text size="S">
+              {timeLabel} · n={weight}
+            </Text>
+            <ul>
+              {categories.map((category, index) =>
+                shares[index] > 0 ? (
+                  <li key={category.key}>
+                    <ChartTooltipItem
+                      color={category.color}
+                      shape="square"
+                      name={category.key}
+                      value={`${formatPercentShort(shares[index] * 100)} · n=${Math.round(shares[index] * weight)}`}
+                    />
+                  </li>
+                ) : null
+              )}
+            </ul>
+          </Flex>
+        );
+      }}
+    />
   );
 }

@@ -18,7 +18,7 @@ const PROJECT_EVALUATOR_COLUMNS = [
   { id: "lag", label: "lag p95" },
   { id: "failures", label: "failure rate" },
   { id: "kind", label: "kind" },
-  { id: "meanScore", label: "mean score" },
+  { id: "results", label: "results" },
   { id: "prompt", label: "prompt / decision" },
   { id: "model", label: "model" },
   { id: "cost", label: "total cost" },

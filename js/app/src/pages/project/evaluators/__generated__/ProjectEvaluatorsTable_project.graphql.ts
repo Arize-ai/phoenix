@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2bafb2cc2479c85a962087f45250fec5>>
+ * @generated SignedSource<<fa299c6bb1a0090d9c440c5c7cf4621f>>
  * @lightSyntaxTransform
  */
 
@@ -160,6 +160,25 @@ v21 = {
   "args": null,
   "kind": "ScalarField",
   "name": "count",
+  "storageKey": null
+},
+v22 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "LabelFraction",
+  "kind": "LinkedField",
+  "name": "labelFractions",
+  "plural": true,
+  "selections": [
+    (v11/*:: as any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "fraction",
+      "storageKey": null
+    }
+  ],
   "storageKey": null
 };
 return {
@@ -841,25 +860,7 @@ return {
                                   "name": "labelCount",
                                   "storageKey": null
                                 },
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "concreteType": "LabelFraction",
-                                  "kind": "LinkedField",
-                                  "name": "labelFractions",
-                                  "plural": true,
-                                  "selections": [
-                                    (v11/*:: as any*/),
-                                    {
-                                      "alias": null,
-                                      "args": null,
-                                      "kind": "ScalarField",
-                                      "name": "fraction",
-                                      "storageKey": null
-                                    }
-                                  ],
-                                  "storageKey": null
-                                }
+                                (v22/*:: as any*/)
                               ],
                               "storageKey": null
                             },
@@ -871,7 +872,8 @@ return {
                               "name": "previousSummary",
                               "plural": false,
                               "selections": [
-                                (v20/*:: as any*/)
+                                (v20/*:: as any*/),
+                                (v22/*:: as any*/)
                               ],
                               "storageKey": null
                             },
@@ -891,7 +893,15 @@ return {
                                   "storageKey": null
                                 },
                                 (v20/*:: as any*/),
-                                (v21/*:: as any*/)
+                                (v21/*:: as any*/),
+                                (v22/*:: as any*/),
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "resultCount",
+                                  "storageKey": null
+                                }
                               ],
                               "storageKey": null
                             }
