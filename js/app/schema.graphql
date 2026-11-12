@@ -5279,14 +5279,34 @@ type ProjectEvaluatorRunSummary {
   lastError: String
 }
 
-"""The filter key and value for project connections"""
+"""A filter for project connections"""
 input ProjectFilter {
-  col: ProjectFilterColumn!
-  value: String!
+  col: ProjectFilterColumn = null
+  value: String = null
+
+  """
+  Return only projects of these kinds. Defaults to standard and playground projects.
+  """
+  kinds: [ProjectKind!]
 }
 
 enum ProjectFilterColumn {
   name
+}
+
+"""What writes a project's traces."""
+enum ProjectKind {
+  """A project that holds traces sent by an application."""
+  STANDARD
+
+  """The project that holds traces from the prompt playground."""
+  PLAYGROUND
+
+  """A project that holds the traces of an experiment's runs."""
+  EXPERIMENT
+
+  """A project that holds the traces of a dataset or project evaluator."""
+  EVALUATOR
 }
 
 type ProjectMutationPayload {
