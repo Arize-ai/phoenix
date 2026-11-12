@@ -1,4 +1,6 @@
 import { css } from "@emotion/react";
+
+import { summarizeBenchEntry } from "@phoenix/agent/tools/projectEvaluatorBench/bench";
 import type { ReactNode } from "react";
 import { Fragment, Suspense, useState, useSyncExternalStore } from "react";
 import { graphql, useMutation } from "react-relay";
@@ -58,7 +60,9 @@ import {
 import { formatEvaluationTargetPlural } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import { ProjectEvaluatorRecordInspector } from "@phoenix/pages/project/evaluators/ProjectEvaluatorRecordInspector";
 import { ProjectEvaluatorRecordTable } from "@phoenix/pages/project/evaluators/ProjectEvaluatorRecordTable";
+import { usePublishProjectEvaluatorBench } from "@phoenix/pages/project/evaluators/useProjectEvaluatorBenchRegistration";
 import {
+  type FinishedRecordedRun,
   formatBulkTestLabel,
   formatRecordedRunSummary,
   getRecordedRunResultState,
@@ -147,6 +151,7 @@ export type TestBenchHeaderProps = {
  */
 export function ProjectEvaluatorTestBench({
   rows,
+  filterCondition,
   recordKind,
   hasMore,
   isLoadingMore,
@@ -159,6 +164,8 @@ export function ProjectEvaluatorTestBench({
   ...headerProps
 }: TestBenchHeaderProps & {
   rows: RecordedRunRow[];
+  /** The scope's filter these rows were listed for. */
+  filterCondition: string;
   recordKind: ProjectEvaluatorRecordKind;
   hasMore: boolean;
   isLoadingMore: boolean;
@@ -225,6 +232,26 @@ export function ProjectEvaluatorTestBench({
   // kind of evaluator ran them; a form's provided output configs still apply.
   const previewOutputConfigs = useEvaluatorPreviewOutputConfigs();
   const previewEvaluatorName = useEvaluatorStore(selectPreviewEvaluatorName);
+  usePublishProjectEvaluatorBench({
+    targetType: headerProps.targetType,
+    filterCondition,
+    getEntries: () => entries,
+    getSnapshot: () => ({
+      targetType: headerProps.targetType,
+      recordKind,
+      timeWindow: headerProps.timeWindow.presetId,
+      records: entries.map(summarizeBenchEntry),
+      hasMore,
+      runBlocker,
+    }),
+    runEntries: (selected) => {
+      // Focus the first record run, so the inspector shows what PXI tested.
+      if (selected[0]) {
+        setFocusedKey(selected[0].row.key);
+      }
+      return Promise.all(selected.map(({ row }) => runOnRow(row)));
+    },
+  });
   const bench = (
     <div css={benchCSS} data-testid="project-evaluator-test-bench">
       <TestBenchHeader
@@ -294,7 +321,7 @@ export function ProjectEvaluatorTestBench({
               requiredVariables={requiredVariables}
               isRunnable={isRunnable}
               runBlocker={runBlocker}
-              onRun={() => runOnRow(focusedEntry.row)}
+              onRun={() => void runOnRow(focusedEntry.row)}
             />
           ) : null}
         </Panel>
@@ -745,7 +772,8 @@ function useEvaluatorPreviewRuns({
     : (decisionBlocker ??
       "Fix the evaluator's annotation configuration to test");
 
-  const runOnRow = (row: RecordedRunRow) => {
+  /** Runs the draft on one row; resolves with the run once it finishes. */
+  const runOnRow = (row: RecordedRunRow): Promise<FinishedRecordedRun> => {
     const state = evaluatorStore.getState();
     const evaluator = buildPreviewEvaluator({
       codeEvaluatorId,
@@ -772,54 +800,57 @@ function useEvaluatorPreviewRuns({
         },
       };
     });
-    previewEvaluator({
-      variables: {
-        input: {
-          previews: [
-            {
-              context: row.context,
-              evaluator,
-              inputMapping: state.evaluator.inputMapping,
-              applyOnlineEvaluationLimits: true,
-            },
-          ],
-          credentials: toGqlCredentials(credentials),
+    const finish = (run: FinishedRecordedRun) => {
+      setRuns((current) => ({ ...current, [rowKey]: run }));
+      return run;
+    };
+    return new Promise<FinishedRecordedRun>((resolve) => {
+      previewEvaluator({
+        variables: {
+          input: {
+            previews: [
+              {
+                context: row.context,
+                evaluator,
+                inputMapping: state.evaluator.inputMapping,
+                applyOnlineEvaluationLimits: true,
+              },
+            ],
+            credentials: toGqlCredentials(credentials),
+          },
         },
-      },
-      onCompleted(response, errors) {
-        if (errors?.length) {
-          setRuns((current) => ({
-            ...current,
-            [rowKey]: {
+        onCompleted(response, errors) {
+          if (errors?.length) {
+            resolve(
+              finish({
+                status: "error",
+                fingerprint,
+                message: errors.map(({ message }) => message).join("\n"),
+              })
+            );
+            return;
+          }
+          resolve(
+            finish({
+              status: "done",
+              fingerprint,
+              results: [...response.evaluatorPreviews.results],
+            })
+          );
+        },
+        onError(mutationError) {
+          resolve(
+            finish({
               status: "error",
               fingerprint,
-              message: errors.map(({ message }) => message).join("\n"),
-            },
-          }));
-          return;
-        }
-        setRuns((current) => ({
-          ...current,
-          [rowKey]: {
-            status: "done",
-            fingerprint,
-            results: [...response.evaluatorPreviews.results],
-          },
-        }));
-      },
-      onError(mutationError) {
-        setRuns((current) => ({
-          ...current,
-          [rowKey]: {
-            status: "error",
-            fingerprint,
-            message:
-              getErrorMessagesFromRelayMutationError(mutationError)?.join(
-                "\n"
-              ) ?? mutationError.message,
-          },
-        }));
-      },
+              message:
+                getErrorMessagesFromRelayMutationError(mutationError)?.join(
+                  "\n"
+                ) ?? mutationError.message,
+            })
+          );
+        },
+      });
     });
   };
 
