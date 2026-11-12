@@ -104,8 +104,12 @@ describe("useEvaluatorPreviewRuns with overlapping runs on one row", () => {
 
   /** Test all over x and y (stream A), then x again (stream B). */
   const startOverlappingRuns = async () => {
-    await act(async () => previewRuns.runOnRows([row("x"), row("y")]));
-    await act(async () => previewRuns.runOnRows([row("x")]));
+    await act(async () => {
+      void previewRuns.runOnRows([row("x"), row("y")]);
+    });
+    await act(async () => {
+      void previewRuns.runOnRows([row("x")]);
+    });
     expect(subscribe).toHaveBeenCalledTimes(2);
     return { older: subscription(0), newer: subscription(1) };
   };
@@ -144,8 +148,12 @@ describe("useEvaluatorPreviewRuns with overlapping runs on one row", () => {
   });
 
   it("ignores an older stream's error once every row it ran belongs to a newer run", async () => {
-    await act(async () => previewRuns.runOnRows([row("x")]));
-    await act(async () => previewRuns.runOnRows([row("x")]));
+    await act(async () => {
+      void previewRuns.runOnRows([row("x")]);
+    });
+    await act(async () => {
+      void previewRuns.runOnRows([row("x")]);
+    });
     await act(async () => subscription(0).onError(new Error("stale")));
     expect(previewRuns.runs.x).toMatchObject({ status: "running" });
     expect(previewRuns.runError).toBeNull();
@@ -169,5 +177,36 @@ describe("useEvaluatorPreviewRuns with overlapping runs on one row", () => {
       status: "error",
       message: "The preview returned no result for this record",
     });
+  });
+
+  it("resolves with each row's run, in row order, once its stream settles", async () => {
+    let finished: Awaited<ReturnType<PreviewRuns["runOnRows"]>> | undefined;
+    await act(async () => {
+      void previewRuns
+        .runOnRows([row("x"), row("y")])
+        .then((runs) => (finished = runs));
+    });
+    const stream = subscription(0);
+    await act(async () => stream.onNext(scored("y", 0)));
+    expect(finished).toBeUndefined();
+    await act(async () => stream.onNext(scored("x", 1)));
+    await act(async () => stream.onCompleted());
+    expect(finished?.map((run) => run.status)).toEqual(["done", "done"]);
+    expect(
+      finished?.map(
+        (run) => run.status === "done" && run.results[0]?.annotation?.score
+      )
+    ).toEqual([1, 0]);
+  });
+
+  it("resolves every pending row as an error when the stream fails", async () => {
+    let finished: Awaited<ReturnType<PreviewRuns["runOnRows"]>> | undefined;
+    await act(async () => {
+      void previewRuns.runOnRows([row("x")]).then((runs) => (finished = runs));
+    });
+    await act(async () => subscription(0).onError(new Error("boom")));
+    expect(finished).toEqual([
+      expect.objectContaining({ status: "error", message: "boom" }),
+    ]);
   });
 });
