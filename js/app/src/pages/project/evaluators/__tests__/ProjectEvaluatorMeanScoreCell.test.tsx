@@ -7,7 +7,7 @@ import { PreferencesProvider, ThemeProvider } from "@phoenix/contexts";
 import type { ProjectEvaluatorResultAnnotation } from "@phoenix/hooks/useProjectEvaluatorResultAnnotations";
 import {
   type EvaluatorAnnotationScoreMetricsData,
-  EvaluatorScoreWindowProvider,
+  EvaluatorResultsProvider,
   ProjectEvaluatorMeanScoreCell,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorMeanScoreCell";
 import type { EvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
@@ -96,12 +96,15 @@ function renderCell(
     root.render(
       <ThemeProvider themeMode="light">
         <PreferencesProvider>
-          <EvaluatorScoreWindowProvider value={SCORE_WINDOW}>
+          <EvaluatorResultsProvider
+            scoreWindow={SCORE_WINDOW}
+            scoresError={null}
+          >
             <ProjectEvaluatorMeanScoreCell
               annotations={[annotation]}
               scoreMetrics={[metrics]}
             />
-          </EvaluatorScoreWindowProvider>
+          </EvaluatorResultsProvider>
         </PreferencesProvider>
       </ThemeProvider>
     );

@@ -1,5 +1,9 @@
 import { createFetchMultipartSubscription } from "@apollo/client/utilities/subscriptions/relay";
-import type { FetchFunction } from "relay-runtime";
+import type {
+  FetchFunction,
+  GraphQLResponse,
+  GraphQLSingularResponse,
+} from "relay-runtime";
 import {
   Environment,
   Network,
@@ -17,7 +21,14 @@ import {
   instrumentRelayEnvironment,
   isRelayDebugEnabled,
 } from "./relayDebugInstrumentation";
-import { isObject } from "./typeUtils";
+import {
+  INCREMENTAL_ACCEPT_HEADER,
+  isMultipartMixedResponse,
+  readMultipartMixed,
+  usesIncrementalDelivery,
+} from "./relayIncrementalDelivery";
+import { createIncrementalDeliveryConverter } from "./relayIncrementalDeliveryConverter";
+import { isObject, isStringKeyedObject } from "./typeUtils";
 
 const graphQLPath = BASE_URL + "/graphql";
 
@@ -29,30 +40,69 @@ const graphQLFetch = isAuthenticationEnabled ? authFetch : fetch;
 // gateway error page and reach the actual error, small enough to stay readable.
 const ERROR_BODY_SNIPPET_LENGTH = 1000;
 
+function isGraphQLSingularResponse(
+  value: unknown
+): value is GraphQLSingularResponse {
+  return (
+    isStringKeyedObject(value) &&
+    !Array.isArray(value) &&
+    ("data" in value || "errors" in value)
+  );
+}
+
 /**
- * Create an observable that fetches JSON from the given input and returns an error if
- * the data has errors.
+ * Create an observable that fetches a GraphQL response from the given input and returns
+ * an error if a payload has errors. A `multipart/mixed` response emits once per part.
  *
  * The observable aborts in-flight network requests when the unsubscribe function is
  * called. A request that has already finished is not aborted.
  *
  * @param input - The input to fetch from.
  * @param init - The request init options.
- * @param hasErrors - A function that returns an error if the data has errors.
- * @returns An observable that emits the data or an error.
+ * @param hasErrors - A function that returns an error if a payload has errors.
+ * @returns An observable that emits the payloads or an error.
  */
-function fetchJsonObservable<T>(
+function fetchGraphQLObservable(
   input: RequestInfo | URL,
-  init?: RequestInit,
-  hasErrors?: (data: unknown) => Error | undefined
-): Observable<T> {
+  init: RequestInit,
+  hasErrors: (data: unknown) => Error | undefined
+): Observable<GraphQLResponse> {
   return Observable.create((sink) => {
     const controller = new AbortController();
     let isFinished = false;
 
+    const emit = (payload: GraphQLResponse) => {
+      const payloads = "length" in payload ? payload : [payload];
+      for (const response of payloads) {
+        const error = hasErrors(response);
+        if (error) {
+          throw error;
+        }
+      }
+      sink.next(payload);
+    };
+
     graphQLFetch(input, { ...init, signal: controller.signal })
       .then(async (response) => {
         invariant(response instanceof Response, "response must be a Response");
+        if (isMultipartMixedResponse(response)) {
+          if (!response.ok) {
+            throw new ServerResponseError(
+              `GraphQL request failed with status ${response.status} ${response.statusText}`,
+              response.status
+            );
+          }
+          // TODO: pass parts to Relay unconverted once relay-runtime ships its
+          // own converter (facebook/relay@c270fbf).
+          const converter = createIncrementalDeliveryConverter();
+          for await (const part of readMultipartMixed(response)) {
+            const payloads = converter.convert(part);
+            if (payloads.length > 0) {
+              emit(payloads);
+            }
+          }
+          return;
+        }
         // Clone the response so the raw body is still readable as text if
         // response.json() fails — an empty or non-JSON response (for example a
         // gateway timeout or an upstream 5xx returning an HTML error page)
@@ -95,15 +145,17 @@ function fetchJsonObservable<T>(
             response.status
           );
         }
-        return data;
-      })
-      .then((data) => {
-        const error = hasErrors?.(data);
-        if (error) {
-          throw error;
+        if (!isGraphQLSingularResponse(data)) {
+          throw new ServerResponseError(
+            `GraphQL request failed: the response has neither data nor errors (status ${response.status} ${response.statusText}).`,
+            response.status
+          );
         }
         isFinished = true;
-        sink.next(data as T);
+        emit(data);
+      })
+      .then(() => {
+        isFinished = true;
         sink.complete();
       })
       .catch((error) => {
@@ -137,12 +189,15 @@ function fetchJsonObservable<T>(
  * https://relay.dev/docs/en/quick-start-guide#relay-environment.
  */
 export const fetchRelay: FetchFunction = (params, variables, _cacheConfig) =>
-  fetchJsonObservable(
+  fetchGraphQLObservable(
     graphQLPath,
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...(usesIncrementalDelivery(params.text)
+          ? { Accept: INCREMENTAL_ACCEPT_HEADER }
+          : {}),
       },
       body: JSON.stringify({
         query: params.text,
