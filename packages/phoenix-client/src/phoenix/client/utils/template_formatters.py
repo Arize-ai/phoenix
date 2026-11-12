@@ -122,6 +122,13 @@ class MustacheBaseTemplateFormatter(BaseTemplateFormatter):
     This formatter uses Mustache-style syntax with double curly braces
     and optional whitespace to substitute variables in templates.
 
+    A dotted name such as ``{{ input.query }}`` is a single variable whose key is
+    the full dotted string ``"input.query"``. It is looked up as a flat key in
+    ``variables`` and nested mappings are not traversed, unlike the server-side
+    Mustache renderer, so ``{"input": ...}`` does not satisfy it. A missing
+    variable raises ``TemplateFormatterError`` rather than leaving the
+    placeholder in the output.
+
     Example::
 
         formatter = MustacheBaseTemplateFormatter()
@@ -129,7 +136,7 @@ class MustacheBaseTemplateFormatter(BaseTemplateFormatter):
         # result == "world"
     """
 
-    PATTERN = re.compile(r"(?<!\\){{\s*(\w+)\s*}}")
+    PATTERN = re.compile(r"(?<!\\){{\s*(\w+(?:\.\w+)*)\s*}}")
 
     def parse(self, template: str) -> set[str]:
         return set(match for match in re.findall(self.PATTERN, template))
