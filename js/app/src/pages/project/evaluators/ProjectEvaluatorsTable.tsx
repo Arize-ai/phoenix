@@ -279,8 +279,6 @@ const readRow = (
     ...costData,
     ...failuresData,
     ...lagData,
-    // The results cell reads its deferred scores fragment from this reference
-    // itself, so the slow aggregates never block the rest of the row.
     scores: row,
   };
 };
@@ -346,9 +344,6 @@ export function ProjectEvaluatorsTable({
               ...ProjectEvaluatorsTable_failures
                 @arguments(timeRange: $timeRange)
               ...ProjectEvaluatorsTable_lag @arguments(timeRange: $timeRange)
-              # Deferred: the score aggregates are the slowest part of the
-              # query, so the rows render first and each results cell
-              # suspends until its own payload streams in.
               ...ProjectEvaluatorMeanScoreCell_scores
                 @defer
                 @arguments(
@@ -596,8 +591,6 @@ export function ProjectEvaluatorsTable({
             name: row.original.name,
             outputConfigs: row.original.evaluator.outputConfigs,
           });
-          // One boundary per cell: each row's deferred scores arrive on their
-          // own, and a pending cell never suspends the table around it.
           return (
             <Suspense
               fallback={

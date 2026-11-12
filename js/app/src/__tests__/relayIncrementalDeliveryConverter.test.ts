@@ -11,8 +11,6 @@ function convertAll(parts: unknown[]) {
 
 describe("createIncrementalDeliveryConverter", () => {
   it("sends a deferred fragment whole, with the fields the server deduplicated", () => {
-    // The fragment selects `name` and `meanScore`; the initial part already
-    // sent `name`, so the server's incremental result carries only the rest.
     const [initial, subsequent] = convertAll([
       {
         data: { evaluator: { id: "1", name: "correctness" } },
@@ -190,10 +188,9 @@ describe("createIncrementalDeliveryConverter", () => {
     expect(convertAll([part])).toEqual([[{ data: { node: { id: "1" } } }]]);
   });
 
-  it("treats a part with hasNext but no format-only field as the earlier draft", () => {
-    expect(convertAll([{ data: { node: null }, hasNext: true }])).toEqual([
-      [{ data: { node: null } }],
-    ]);
+  it("passes a part with hasNext but no field only the new format has through", () => {
+    const part = { data: { node: null }, hasNext: true };
+    expect(convertAll([part])).toEqual([[{ data: { node: null } }]]);
   });
 
   it("rejects a part that is not an object", () => {

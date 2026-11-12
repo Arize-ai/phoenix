@@ -1,11 +1,3 @@
-"""The GraphQL endpoint serves @defer as a multipart/mixed incremental response.
-
-The frontend's Relay network layer (js/app/src/relayIncrementalDelivery.ts)
-reads this wire format: the first part carries `data` and `pending`, and later
-parts carry `incremental` results with the `path` and `label` of their pending
-fragment.
-"""
-
 import json
 from typing import Any
 
@@ -30,7 +22,7 @@ query {
 """
 
 
-def _parts(body: str, boundary: str) -> list[dict[str, Any]]:
+def _parse_multipart_parts(*, body: str, boundary: str) -> list[dict[str, Any]]:
     delimiter = f"\r\n--{boundary}"
     segments = ("\r\n" + body).split(delimiter)[1:]
     parts = []
@@ -58,15 +50,13 @@ async def test_defer_streams_the_deferred_fragment_after_the_initial_data(
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("multipart/mixed")
-    initial, *subsequent = _parts(response.text, "-")
-    # The initial part leaves the deferred field out and names what is pending.
+    initial, *subsequent = _parse_multipart_parts(body=response.text, boundary="-")
     edges = initial["data"]["projects"]["edges"]
     deferred_names = [edge["node"]["name"] for edge in edges]
     assert "deferred" in deferred_names
     assert all("traceCount" not in edge["node"] for edge in edges)
     assert initial["hasNext"] is True
     assert {pending["label"] for pending in initial["pending"]} == {"counts"}
-    # Every deferred result carries the path and label Relay routes it by.
     results = [result for part in subsequent for result in part.get("incremental", [])]
     assert len(results) == len(edges)
     for result in results:

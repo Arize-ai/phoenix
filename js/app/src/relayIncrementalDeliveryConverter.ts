@@ -64,7 +64,6 @@ const payloadErrorSchema = z.looseObject({
   extensions: extensionsSchema,
 });
 
-/** Any part the server streams, in either incremental delivery format. */
 const streamedResponseSchema = z.looseObject({
   data: payloadDataSchema.nullish(),
   errors: z.array(payloadErrorSchema).optional(),
@@ -79,10 +78,6 @@ const streamedResponseSchema = z.looseObject({
 
 type StreamedResponse = z.infer<typeof streamedResponseSchema>;
 
-/**
- * A part in GraphQL's incremental delivery format (graphql-js 17), whose
- * results are addressed by the `id` of a `pending` entry.
- */
 const incrementalDeliveryResponseSchema = z.object({
   data: payloadDataSchema.nullish(),
   errors: z.array(payloadErrorSchema).optional(),
@@ -118,13 +113,6 @@ const incrementalDeliveryResponseSchema = z.object({
   hasNext: z.boolean(),
 });
 
-/**
- * Creates a converter for one request's streamed parts. It turns parts in
- * GraphQL's incremental delivery format into the label/path payloads Relay
- * applies: each deferred fragment whole, from the data the request's parts
- * have sent so far, and each streamed item at `[...path, index]`. Parts in
- * any other format pass through.
- */
 export function createIncrementalDeliveryConverter() {
   let sentData: unknown = undefined;
   const sentErrors: PayloadErrorWithExtensions[] = [];
@@ -171,11 +159,7 @@ export function createIncrementalDeliveryConverter() {
         isKnownFormat: isIncrementalDelivery,
       })
     ) {
-      return [
-        response.hasNext != null
-          ? convertEarlierDraftResponse(response)
-          : toRelayResponse(response),
-      ];
+      return [toRelayResponse(response)];
     }
     isIncrementalDelivery = true;
     const {
@@ -273,10 +257,6 @@ function markFinal(payload: GraphQLSingularResponse): GraphQLSingularResponse {
   };
 }
 
-/**
- * A plain response, or a label/path payload, as the Relay response it
- * already is.
- */
 function toRelayResponse(response: StreamedResponse): GraphQLSingularResponse {
   const { data, errors, extensions } = response;
   const label = response.label ?? undefined;
@@ -288,34 +268,6 @@ function toRelayResponse(response: StreamedResponse): GraphQLSingularResponse {
     return { data: null, extensions };
   }
   return { errors: errors ?? [], extensions, label, path };
-}
-
-/**
- * A response of an earlier draft of incremental delivery (graphql-js 16's
- * experimental `@defer` and `@stream`), as Relay applies it: errors relative
- * to its `path`, and the bare `{hasNext: false}` that ends a stream as the end
- * of the request.
- */
-function convertEarlierDraftResponse(
-  response: StreamedResponse
-): GraphQLSingularResponse {
-  const isBareEndOfStream = Object.keys(response).length === 1;
-  if (isBareEndOfStream) {
-    return { data: null, extensions: { is_final: true } };
-  }
-  const { data, errors, extensions, label, path } = response;
-  if (errors == null || path == null) {
-    return toRelayResponse(response);
-  }
-  const relativeErrors = errors.map((error) =>
-    isPathUnder({ fullPath: error.path ?? [], path })
-      ? makeErrorRelative({ error, path })
-      : error
-  );
-  const relayLabel = label ?? undefined;
-  return data != null
-    ? { data, errors: relativeErrors, extensions, label: relayLabel, path }
-    : { errors: relativeErrors, extensions, label: relayLabel, path };
 }
 
 function makeErrorRelative({
@@ -348,12 +300,6 @@ function isPathUnder({
   );
 }
 
-/**
- * Whether `response` is in GraphQL's incremental delivery format: it has
- * `hasNext`, no `label` or `path`, and a field only this format has, or the
- * request's earlier parts were in this format. The first part of the 2022
- * draft format, `{data, hasNext}`, followed by label/path results, is not.
- */
 function isIncrementalDeliveryResponse({
   response,
   isKnownFormat,

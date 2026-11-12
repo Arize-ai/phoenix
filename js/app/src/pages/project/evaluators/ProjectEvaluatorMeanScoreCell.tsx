@@ -186,21 +186,10 @@ export function ProjectEvaluatorMeanScoreHeader() {
   );
 }
 
-/**
- * The evaluators table's results cell, reading its score aggregates from the
- * row's scores fragment.
- *
- * The table spreads this fragment with `@defer`: the aggregates are the
- * slowest part of the evaluators query, so the rows render first and each
- * results cell suspends until its deferred payload arrives. Render it inside a
- * `Suspense` boundary with {@link ProjectEvaluatorMeanScoreCellSkeleton} as the
- * fallback, one boundary per cell, so a slow row never holds back the table.
- */
 export function ProjectEvaluatorResultsCell({
   annotations,
   projectEvaluator,
 }: {
-  /** The annotations the evaluator writes, named the way its runs persist them. */
   annotations: ReadonlyArray<ProjectEvaluatorResultAnnotation>;
   projectEvaluator: ProjectEvaluatorMeanScoreCell_scores$key;
 }) {
@@ -259,18 +248,12 @@ export function ProjectEvaluatorResultsCell({
   );
 }
 
-/**
- * The results cell's loading state while its deferred aggregates are in
- * flight: one row per annotation, shaped like the score and the chart slot so
- * the row height and the column's chart alignment hold when the data lands.
- */
 export function ProjectEvaluatorMeanScoreCellSkeleton({
   annotations,
 }: {
   annotations: ReadonlyArray<ProjectEvaluatorResultAnnotation>;
 }) {
   return (
-    // On a plain element: Flex filters out aria attributes.
     <div aria-busy="true" aria-label="Loading scores">
       <Flex direction="column" gap="size-50">
         {annotations.map((annotation) => (
@@ -301,8 +284,7 @@ export function ProjectEvaluatorMeanScoreCellSkeleton({
  * only carries labels shows its leading label's share, that share's change,
  * and a stacked bar of the label distribution instead. The data comes from
  * `ProjectEvaluator.annotationScoreMetrics`, which the connection only
- * fetches while the column is visible; {@link ProjectEvaluatorResultsCell}
- * reads it from the row's deferred scores fragment.
+ * fetches while the column is visible.
  */
 export function ProjectEvaluatorMeanScoreCell({
   annotations,
