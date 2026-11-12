@@ -1,6 +1,6 @@
 ---
 name: phoenix-harbor
-description: Build and review Harbor evaluations with Phoenix. Use when configuring the Phoenix Harbor plugin, designing tasks, tests, verifiers, or rewards, comparing Harbor experiments, or debugging their scores, traces, and recording failures.
+description: Build, run, and review Harbor agent evaluations, and record them in Phoenix with the `arize-phoenix` Harbor plugin. Use when writing or reviewing Harbor tasks, instructions, verifiers, rewards, or expected answers; adding the plugin to `harbor run`; choosing ATIF tracing; comparing agents, models, or skills as Phoenix experiments; resuming jobs; or debugging suspicious scores, missing traces, or missing Harbor records in Phoenix.
 license: Apache-2.0
 metadata:
   targets: "agents mcp"
@@ -102,9 +102,9 @@ The plugin also records trial duration, execution errors, and the final reply wh
 
 You define success in the task's verifier. Write the result to Harbor's reward file, and the plugin copies each numeric key into a Phoenix experiment evaluation. Use `reward` for the overall result. It can combine several checks with AND, OR, or a documented partial-credit calculation. The plugin does not choose or combine those checks for you.
 
-Add other keys when useful, such as individual criteria or tool-call counts. The plugin does not calculate these scores. Prefer the recorded duration and trace usage for latency, tokens, and cost instead of duplicating them in the verifier.
+Add other keys when useful, such as individual criteria, tool-call or turn counts, or whether a skill loaded. The plugin does not calculate these scores. Keep efficiency and behavior keys out of `reward`, so success stays comparable across agents that take different paths. Don't write keys for latency, tokens, or cost. The recorded duration and trace usage already cover them.
 
-An expected answer is optional task data. Configure a reference output to display it in Phoenix; the verifier must separately read it if it uses that answer for grading.
+An expected answer is optional task data. A reference output only displays it in Phoenix. If the verifier grades against that answer, the verifier reads the file itself.
 
 ## Add optional reference outputs
 

@@ -4,11 +4,37 @@ Use a `phoenix-evals` classifier to compare an agent's final reply with a refere
 
 ## Prepare the verifier
 
-Install `arize-phoenix-evals` and `openai` in the verifier image. In `task.toml`, supply `OPENAI_API_KEY` and `JUDGE_MODEL` through `[verifier.env]` and allow access to `api.openai.com`. Set `JUDGE_MODEL` to the OpenAI model you want to use for grading.
+Install `arize-phoenix-evals` and `openai` in the verifier image. For a separate verifier, Harbor builds that image from `tests/Dockerfile` when the file exists, and otherwise reuses the task's environment image:
+
+```dockerfile
+FROM python:3.13-slim
+RUN pip install --no-cache-dir arize-phoenix-evals openai
+COPY . /tests/
+```
 
 Save your reference in `tests/expected.json` with a nonempty `reference` string and an optional `notes` string. Use notes for task-specific criteria and acceptable alternatives. Keep this file out of the agent image. To also display it in Phoenix, set `[metadata.arize-phoenix] reference_output_path = "tests/expected.json"`.
 
 This example reads `/logs/agent/trajectory.json`. For a separate verifier environment, include that path in the task's `artifacts` list so Harbor transfers it. Choose an agent that records a final text reply before verification; some agents end with a completion tool call instead.
+
+A `task.toml` for a separate verifier looks like this. Replace `JUDGE_MODEL_NAME` with the judge model, and keep your existing agent and environment settings:
+
+```toml
+artifacts = ["/logs/agent/trajectory.json"]
+
+[metadata.arize-phoenix]
+reference_output_path = "tests/expected.json"
+
+[verifier]
+environment_mode = "separate"
+
+[verifier.environment]
+network_mode = "allowlist"
+allowed_hosts = ["api.openai.com"]
+
+[verifier.env]
+OPENAI_API_KEY = "${OPENAI_API_KEY}"
+JUDGE_MODEL = "JUDGE_MODEL_NAME"
+```
 
 ## Grade the reply
 
