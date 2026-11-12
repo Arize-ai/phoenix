@@ -1,7 +1,7 @@
 ---
 name: evaluators
 description: >
-  Author or refine a Phoenix evaluator — code or LLM-as-a-judge — that scores a run's output. Trigger when the user wants to create a new evaluator, improve an existing one's logic or rubric, choose labels, or decide what to measure on a dataset or experiment. Do NOT trigger on: (1) manual prompt drafting (use `playground`), (2) running or comparing experiments themselves (use `experiments`), (3) cross-trace failure diagnosis with no evaluator in scope (use `phoenix-error-analysis`).
+  Author or refine a Phoenix evaluator — code or LLM-as-a-judge — that scores a run's output. Trigger when the user wants to create a new evaluator, improve an existing one's logic or rubric, choose labels, or decide what to measure on a dataset, an experiment, or a project's live traffic (online evaluators). Do NOT trigger on: (1) manual prompt drafting (use `playground`), (2) running or comparing experiments themselves (use `experiments`), (3) cross-trace failure diagnosis with no evaluator in scope (use `phoenix-error-analysis`).
 summary: Design or refine a code or LLM evaluator — labels, logic or rubric, the field it reads, and representative preview cases.
 ---
 
@@ -94,6 +94,20 @@ floor** of primitives plus **judged dimensions** for what the floor cannot settl
 - Prefer reading fields directly and parsing nested or stringified JSON in the logic over a custom
   input mapping; in relational checks, normalize `output` and `reference` the same way before
   comparing, or matching values will spuriously diverge.
+
+## Online (Project) Evaluators
+
+A project evaluator runs on a project's live records instead of a dataset's examples. Its form adds
+a **scope** — the target (span, trace, or session), a filter in that target's filter language, a
+sampling rate, and for traces and sessions a delay — and a **test bench** of real records that match
+the scope.
+
+- Calibrate on the bench's records, not hand-written payloads: they are the inputs the evaluator
+  will see. Read a record's fields before writing the judgment; a session's or trace's `input` and
+  `output` are not a single LLM span's.
+- Set the scope before testing: the bench lists only records that match it, so a test on the wrong
+  scope calibrates against the wrong traffic.
+- The scope is saved with the evaluator. A saved evaluator keeps its target.
 
 ## Things To Avoid
 
