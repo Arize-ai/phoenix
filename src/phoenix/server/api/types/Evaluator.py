@@ -49,6 +49,7 @@ from phoenix.server.api.types.EvaluatorDistribution import (
     EvaluatorDistribution,
     resolve_evaluator_distribution,
 )
+from phoenix.server.api.types.LabelFraction import LabelFraction
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -1448,7 +1449,7 @@ class DatasetEvaluator(Node):
 
 @strawberry.type
 class EvaluatorScoreSeriesBin:
-    """One time bin of an evaluator annotation's mean score."""
+    """One time bin of an evaluator annotation's mean score and label distribution."""
 
     timestamp: datetime
     mean_score: Optional[float]
@@ -1456,6 +1457,21 @@ class EvaluatorScoreSeriesBin:
         description=(
             "How many scored spans, traces, or sessions the bin's mean averages over; "
             "the weight to use when merging adjacent bins. Zero for an empty bin."
+        )
+    )
+    label_fractions: list[LabelFraction] = strawberry.field(
+        description=(
+            "Each label's share of the bin's resultCount spans, traces, or sessions, "
+            "weighting each one equally however many annotations it holds, in label order. "
+            "Shares of entities that carry only a score are left out, so the fractions can "
+            "sum to less than one. Empty for an empty bin."
+        )
+    )
+    result_count: int = strawberry.field(
+        description=(
+            "How many spans, traces, or sessions carry a score or a label in the bin; "
+            "the denominator of labelFractions and the weight to use when merging "
+            "adjacent bins' fractions. Zero for an empty bin."
         )
     )
 
@@ -1699,7 +1715,7 @@ class ProjectEvaluator(Node):
         project_rowid = record.project_id
 
         async def load_metrics(annotation_name: str) -> EvaluatorAnnotationScoreMetrics:
-            summary, previous_summary, mean_scores_by_bucket = await asyncio.gather(
+            summary, previous_summary, bins_by_bucket = await asyncio.gather(
                 loaders.annotation_summaries.load(
                     (kind, project_rowid, time_range, None, None, annotation_name)
                 ),
@@ -1719,8 +1735,15 @@ class ProjectEvaluator(Node):
             series = [
                 EvaluatorScoreSeriesBin(
                     timestamp=timestamp,
-                    mean_score=mean_bin.mean_score if mean_bin is not None else None,
-                    count=mean_bin.scored_entity_count if mean_bin is not None else 0,
+                    mean_score=series_bin.mean_score if series_bin is not None else None,
+                    count=series_bin.scored_entity_count if series_bin is not None else 0,
+                    label_fractions=[
+                        LabelFraction(label=label, fraction=fraction)
+                        for label, fraction in (
+                            series_bin.label_fractions if series_bin is not None else ()
+                        )
+                    ],
+                    result_count=series_bin.result_entity_count if series_bin is not None else 0,
                 )
                 for timestamp in time_bins.timestamps(
                     window_start,
@@ -1728,7 +1751,7 @@ class ProjectEvaluator(Node):
                     # stay valid while the axis keeps growing between writes.
                     window_end if window_end is not None else datetime.now(timezone.utc),
                 )
-                for mean_bin in (mean_scores_by_bucket.get(timestamp),)
+                for series_bin in (bins_by_bucket.get(timestamp),)
             ]
             return EvaluatorAnnotationScoreMetrics(
                 annotation_name=annotation_name,
