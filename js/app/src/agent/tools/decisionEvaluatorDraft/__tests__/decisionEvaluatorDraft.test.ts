@@ -189,6 +189,7 @@ describe("decision draft edit client action", () => {
   it("returns the host's refusal without applying anything", async () => {
     const host: DecisionEvaluatorDraftHost = {
       getSnapshot: vi.fn(),
+      loadAvailableModels: vi.fn(async () => []),
       applyOperations: vi.fn(() => ({
         ok: false as const,
         error: "The decision version is still loading",

@@ -14,11 +14,15 @@ import {
   editDecisionEvaluatorDraftInputSchema,
   type EditDecisionEvaluatorDraftOperation,
 } from "./draft";
+import type { DecisionModelOption } from "./models";
 
 export type DecisionEvaluatorDraftHost = {
   getSnapshot: () => DecisionEvaluatorDraftSnapshot;
+  /** The decision models the form's model menu offers. */
+  loadAvailableModels: () => Promise<DecisionModelOption[]>;
   applyOperations: (
-    operations: EditDecisionEvaluatorDraftOperation[]
+    operations: EditDecisionEvaluatorDraftOperation[],
+    options?: { availableModels?: readonly DecisionModelOption[] }
   ) =>
     | { ok: true; output: DecisionEvaluatorDraftSnapshot }
     | { ok: false; error: string };
@@ -40,7 +44,19 @@ export function createReadDecisionEvaluatorDraftClientAction({
     if (!host) {
       return { ok: false, error: NOT_MOUNTED_ERROR };
     }
-    return { ok: true, output: host.getSnapshot() };
+    const snapshot = host.getSnapshot();
+    try {
+      return {
+        ok: true,
+        output: {
+          ...snapshot,
+          availableModels: await host.loadAvailableModels(),
+        },
+      };
+    } catch {
+      // The draft is still worth reading when the model catalog is not.
+      return { ok: true, output: { ...snapshot, availableModels: null } };
+    }
   };
 }
 
@@ -93,7 +109,24 @@ export function createEditDecisionEvaluatorDraftClientAction({
     if (!host) {
       return { ok: false, error: NOT_MOUNTED_ERROR };
     }
-    const applied = host.applyOperations(parsed.data.operations);
+    const { operations } = parsed.data;
+    let availableModels: DecisionModelOption[] | undefined;
+    if (operations.some(({ type }) => type === "set_model")) {
+      try {
+        availableModels = await host.loadAvailableModels();
+      } catch (error) {
+        return {
+          ok: false,
+          error: `Could not load the decision models, so nothing was changed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        };
+      }
+      if (getDraftHost() !== host) {
+        return { ok: false, error: NOT_MOUNTED_ERROR };
+      }
+    }
+    const applied = host.applyOperations(operations, { availableModels });
     if (!applied.ok) {
       return applied;
     }

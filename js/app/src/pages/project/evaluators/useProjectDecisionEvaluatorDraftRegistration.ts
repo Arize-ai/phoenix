@@ -1,4 +1,5 @@
 import { useContext, useEffect, useRef } from "react";
+import { fetchQuery, useRelayEnvironment } from "react-relay";
 
 import { createEvaluatorHostSubmit } from "@phoenix/agent/tools/approval";
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/approval";
@@ -9,7 +10,9 @@ import {
   createSubmitDecisionEvaluatorDraftClientAction,
   type DecisionEvaluatorDraftHost,
   type DecisionEvaluatorDraftSnapshot,
+  type DecisionModelOption,
   formatDecisionDraftErrors,
+  toDecisionModelOptions,
   toQuestionSnapshot,
 } from "@phoenix/agent/tools/decisionEvaluatorDraft";
 import { registerUIOperations } from "@phoenix/agent/uiOperations/catalog";
@@ -24,6 +27,9 @@ import {
   type DecisionEvaluatorDraft,
   toDecisionQuestionDefinitionsFromDrafts,
 } from "@phoenix/components/evaluators/decision/useDecisionEvaluatorDraft";
+import modelMenuDataQuery, {
+  type useModelMenuDataQuery,
+} from "@phoenix/components/generative/__generated__/useModelMenuDataQuery.graphql";
 import { AgentContext } from "@phoenix/contexts/AgentContext";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
@@ -54,6 +60,7 @@ export function useProjectDecisionEvaluatorDraftRegistration({
   const agentStore = useContext(AgentContext);
   const store = useEvaluatorStoreInstance();
   const playgroundStore = usePlaygroundStore();
+  const environment = useRelayEnvironment();
   const latestRef = useRef({ draft, submit });
   // eslint-disable-next-line react/refs
   latestRef.current = { draft, submit };
@@ -95,6 +102,8 @@ export function useProjectDecisionEvaluatorDraftRegistration({
         model: {
           provider: instance?.model.provider ?? "",
           modelName: instance?.model.modelName ?? null,
+          customProviderId: instance?.model.customProvider?.id ?? null,
+          customProviderName: instance?.model.customProvider?.name ?? null,
         },
         templateFormat,
         state: {
@@ -119,8 +128,62 @@ export function useProjectDecisionEvaluatorDraftRegistration({
         ],
       };
     };
+    // The catalog the form's model menu shows; read from the store it has
+    // already loaded, so a set_model is checked against what the human sees.
+    const loadAvailableModels = async () => {
+      const data = await fetchQuery<useModelMenuDataQuery>(
+        environment,
+        modelMenuDataQuery,
+        { includeDecisionModels: true },
+        { fetchPolicy: "store-or-network" }
+      ).toPromise();
+      if (!data) {
+        throw new Error("The model catalog returned no data.");
+      }
+      return toDecisionModelOptions(data);
+    };
+    // Written the way the model menu's Decision tab writes a pick.
+    const applyModel = (option: DecisionModelOption) => {
+      const instance = playgroundStore
+        .getState()
+        .instances.find(
+          ({ id }) => id === DECISION_EVALUATOR_DRAFT_INSTANCE_ID
+        );
+      if (!instance) {
+        return;
+      }
+      const customProvider =
+        option.target.type === "custom"
+          ? {
+              id: option.target.customProviderId,
+              name: option.customProviderName ?? "",
+            }
+          : null;
+      playgroundStore.getState().updateInstance({
+        instanceId: DECISION_EVALUATOR_DRAFT_INSTANCE_ID,
+        dirty: true,
+        patch: {
+          model: {
+            ...instance.model,
+            provider: option.provider as typeof instance.model.provider,
+            modelName: option.target.modelName,
+            modelType: "DECISION",
+            customProvider,
+            // A base URL points at one built-in provider's decision endpoint;
+            // a custom provider brings its own.
+            baseUrl:
+              customProvider == null &&
+              instance.model.customProvider == null &&
+              option.provider === instance.model.provider
+                ? instance.model.baseUrl
+                : null,
+          },
+        },
+      });
+    };
     const applyOperations: DecisionEvaluatorDraftHost["applyOperations"] = (
-      operations
+      operations,
+      options
     ) => {
       const { draft: currentDraft } = latestRef.current;
       if (currentDraft.isLoading || !currentDraft.isVersionReady) {
@@ -139,9 +202,13 @@ export function useProjectDecisionEvaluatorDraftRegistration({
         inputMapping: state.evaluator.inputMapping,
         templateFormat: playgroundStore.getState().templateFormat,
         operations,
+        availableModels: options?.availableModels,
       });
       if (!result.ok) {
         return result;
+      }
+      if (result.model) {
+        applyModel(result.model);
       }
       if (result.name !== state.evaluator.globalName) {
         state.setEvaluatorGlobalName(result.name);
@@ -179,6 +246,7 @@ export function useProjectDecisionEvaluatorDraftRegistration({
     };
     let host: DecisionEvaluatorDraftHost | null = {
       getSnapshot: buildSnapshot,
+      loadAvailableModels,
       applyOperations,
       submit: createEvaluatorHostSubmit({
         getHandleSubmit: () => latestRef.current.submit,
@@ -218,5 +286,5 @@ export function useProjectDecisionEvaluatorDraftRegistration({
       host = null;
       unregister();
     };
-  }, [agentStore, store, playgroundStore, mode, evaluatorNodeId]);
+  }, [agentStore, store, playgroundStore, environment, mode, evaluatorNodeId]);
 }

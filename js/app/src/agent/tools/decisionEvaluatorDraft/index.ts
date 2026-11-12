@@ -2,3 +2,4 @@
 // questions, scoring and mapping, and save it through the form.
 export * from "./clientActions";
 export * from "./draft";
+export * from "./models";
