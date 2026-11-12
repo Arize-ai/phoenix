@@ -11,11 +11,14 @@ const tokenTypeInput = (table: Locator, index: number) =>
 
 /**
  * Tabbing out closes the suggestions popover, which would otherwise swallow
- * the next click outside the combobox.
+ * the next click outside the combobox. Tab goes to the focused combobox
+ * rather than through the locator: while the suggestions are open the other
+ * comboboxes are hidden from the accessibility tree, so a locator that picks
+ * one by index can stop matching.
  */
 async function fillComboBox(comboBox: Locator, value: string) {
   await comboBox.fill(value);
-  await comboBox.press("Tab");
+  await comboBox.page().keyboard.press("Tab");
 }
 
 function uniqueModelName() {
