@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a1c380472e69e2322c43904f18f99f5e>>
+ * @generated SignedSource<<442c93557f748685eefdab9b0eb5a582>>
  * @lightSyntaxTransform
  */
 
@@ -23,31 +23,11 @@ export type TracesTable_spans$data = {
           readonly edges: ReadonlyArray<{
             readonly node: {
               readonly cumulativeTokenCountTotal: number | null;
-              readonly documentRetrievalMetrics: ReadonlyArray<{
-                readonly evaluationName: string;
-                readonly hit: number | null;
-                readonly ndcg: number | null;
-                readonly precision: number | null;
-              }>;
               readonly endTime: string | null;
               readonly id: string;
-              readonly input: {
-                readonly value: string;
-              } | null;
               readonly latencyMs: number | null;
               readonly name: string;
-              readonly output: {
-                readonly value: string;
-              } | null;
               readonly parentId: string | null;
-              readonly spanAnnotations: ReadonlyArray<{
-                readonly annotatorKind: AnnotatorKind;
-                readonly createdAt: string;
-                readonly id: string;
-                readonly label: string | null;
-                readonly name: string;
-                readonly score: number | null;
-              }>;
               readonly spanId: string;
               readonly spanKind: SpanKind;
               readonly startTime: string;
@@ -57,7 +37,6 @@ export type TracesTable_spans$data = {
                 readonly id: string;
                 readonly traceId: string;
               };
-              readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
             };
           }>;
         };
@@ -190,120 +169,15 @@ v9 = [
 v10 = {
   "alias": null,
   "args": null,
-  "concreteType": "SpanIOValue",
-  "kind": "LinkedField",
-  "name": "input",
-  "plural": false,
-  "selections": (v9/*:: as any*/),
+  "kind": "ScalarField",
+  "name": "spanId",
   "storageKey": null
 },
 v11 = {
   "alias": null,
   "args": null,
-  "concreteType": "SpanIOValue",
-  "kind": "LinkedField",
-  "name": "output",
-  "plural": false,
-  "selections": (v9/*:: as any*/),
-  "storageKey": null
-},
-v12 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "spanId",
-  "storageKey": null
-},
-v13 = {
-  "alias": null,
-  "args": null,
   "kind": "ScalarField",
   "name": "traceId",
-  "storageKey": null
-},
-v14 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "SpanAnnotation",
-  "kind": "LinkedField",
-  "name": "spanAnnotations",
-  "plural": true,
-  "selections": [
-    (v1/*:: as any*/),
-    (v2/*:: as any*/),
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "label",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "score",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "annotatorKind",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "createdAt",
-      "storageKey": null
-    }
-  ],
-  "storageKey": null
-},
-v15 = {
-  "args": null,
-  "kind": "FragmentSpread",
-  "name": "AnnotationSummaryGroup"
-},
-v16 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "DocumentRetrievalMetrics",
-  "kind": "LinkedField",
-  "name": "documentRetrievalMetrics",
-  "plural": true,
-  "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "evaluationName",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "ndcg",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "precision",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "hit",
-      "storageKey": null
-    }
-  ],
   "storageKey": null
 };
 return {
@@ -463,9 +337,27 @@ return {
                   "storageKey": null
                 },
                 (v8/*:: as any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "SpanIOValue",
+                  "kind": "LinkedField",
+                  "name": "input",
+                  "plural": false,
+                  "selections": (v9/*:: as any*/),
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "SpanIOValue",
+                  "kind": "LinkedField",
+                  "name": "output",
+                  "plural": false,
+                  "selections": (v9/*:: as any*/),
+                  "storageKey": null
+                },
                 (v10/*:: as any*/),
-                (v11/*:: as any*/),
-                (v12/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -475,7 +367,7 @@ return {
                   "plural": false,
                   "selections": [
                     (v1/*:: as any*/),
-                    (v13/*:: as any*/),
+                    (v11/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -527,9 +419,91 @@ return {
                   ],
                   "storageKey": null
                 },
-                (v14/*:: as any*/),
-                (v15/*:: as any*/),
-                (v16/*:: as any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "SpanAnnotation",
+                  "kind": "LinkedField",
+                  "name": "spanAnnotations",
+                  "plural": true,
+                  "selections": [
+                    (v1/*:: as any*/),
+                    (v2/*:: as any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "label",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "score",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "annotatorKind",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "createdAt",
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
+                },
+                {
+                  "args": null,
+                  "kind": "FragmentSpread",
+                  "name": "AnnotationSummaryGroup"
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "DocumentRetrievalMetrics",
+                  "kind": "LinkedField",
+                  "name": "documentRetrievalMetrics",
+                  "plural": true,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "evaluationName",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "ndcg",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "precision",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "hit",
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
+                },
                 {
                   "alias": null,
                   "args": [
@@ -583,8 +557,6 @@ return {
                               "storageKey": null
                             },
                             (v10/*:: as any*/),
-                            (v11/*:: as any*/),
-                            (v12/*:: as any*/),
                             {
                               "alias": null,
                               "args": null,
@@ -594,13 +566,10 @@ return {
                               "plural": false,
                               "selections": [
                                 (v1/*:: as any*/),
-                                (v13/*:: as any*/)
+                                (v11/*:: as any*/)
                               ],
                               "storageKey": null
-                            },
-                            (v14/*:: as any*/),
-                            (v15/*:: as any*/),
-                            (v16/*:: as any*/)
+                            }
                           ],
                           "storageKey": null
                         }
@@ -675,6 +644,6 @@ return {
 };
 })();
 
-(node as any).hash = "ecd2b25fcf05120a75d45782fa89471b";
+(node as any).hash = "9178466c02438872e92f30769720ec2d";
 
 export default node;

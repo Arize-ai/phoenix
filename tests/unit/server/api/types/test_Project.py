@@ -3395,7 +3395,8 @@ class TestProject:
         httpx_client: httpx2.AsyncClient,
     ) -> None:
         """``parent_span is None`` lists every root candidate (no parent, or a parent that was
-        never received), newest first, and pages by cursor alongside a trace filter."""
+        never received), newest trace first and newest root first within a trace, and pages by
+        cursor alongside a trace filter."""
         project = _orphan_spans.projects[0]
         existing_span_ids = {s.span_id for s in _orphan_spans.spans}
         roots = [
@@ -3403,7 +3404,11 @@ class TestProject:
             for s in _orphan_spans.spans
             if s.parent_id is None or s.parent_id not in existing_span_ids
         ]
-        roots.sort(key=lambda s: (s.start_time, s.id), reverse=True)
+        trace_start_times = {t.id: t.start_time for t in _orphan_spans.traces}
+        roots.sort(
+            key=lambda s: (trace_start_times[s.trace_rowid], s.trace_rowid, s.start_time, s.id),
+            reverse=True,
+        )
         gids = list(map(_gid, roots))
         n = len(gids)
         first = n // 2 + 1
@@ -5298,7 +5303,7 @@ async def test_root_span_clause_pages_every_root_candidate(
     Key behaviors tested:
     - Every root candidate is returned: spans with no parent, and orphans whose parent was
       never received. Child spans are not.
-    - Ordering and time-range filtering are by span start time
+    - Ordering is by trace start time, then span start time; the time range applies to both
     - Cursors page without skipping or repeating
 
     Test Data Setup:
@@ -5517,7 +5522,7 @@ async def test_root_span_clause_pages_every_root_candidate(
     assert names(page) == ["root-span-1", "second-root-span-1", "orphan-span-2"]
     assert page["pageInfo"]["hasNextPage"] is True
 
-    # Time range on span start time: [02:00, 04:00) keeps the roots of traces 2 and 3.
+    # Time range [02:00, 04:00) keeps the roots of traces 2 and 3.
     page = await fetch(
         first=100,
         timeRange={
@@ -5597,7 +5602,9 @@ async def test_spans_sorted_by_start_time_page_through_the_unpaged_list(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Pages of a list sorted by start time add up to what one unpaged statement sorted by
-    span start time returns, whatever the filter, time range, direction and page size."""
+    span start time returns, whatever the filter, time range, direction and page size. A list
+    of root spans differs in two ways: it leaves out the roots of traces that started outside
+    the time range, and it orders by trace start time before span start time."""
     rng = Random(0)
     base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
     async with db() as session:
@@ -5657,9 +5664,14 @@ async def test_spans_sorted_by_start_time_page_through_the_unpaged_list(
         project_rowid = projects[0].id
     start, end = base_time + timedelta(minutes=20), base_time + timedelta(minutes=45)
 
-    async def unpaged(condition: Optional[str], time_range: dict[str, datetime]) -> list[int]:
+    async def unpaged(condition: Optional[str], time_range: dict[str, datetime]) -> list[Any]:
         stmt = (
-            select(models.Span.id)
+            select(
+                models.Span.id,
+                models.Span.start_time,
+                models.Trace.id.label("trace_rowid"),
+                models.Trace.start_time.label("trace_start_time"),
+            )
             .join(models.Trace)
             .where(models.Trace.project_rowid == project_rowid)
         )
@@ -5671,7 +5683,7 @@ async def test_spans_sorted_by_start_time_page_through_the_unpaged_list(
             stmt = SpanFilter(condition=condition)(stmt)
         stmt = stmt.order_by(models.Span.start_time.desc(), models.Span.id.desc())
         async with db() as session:
-            return list(await session.scalars(stmt))
+            return list(await session.execute(stmt))
 
     async def paged(first: int, **variables: Any) -> list[int]:
         rowids: list[int] = []
@@ -5698,22 +5710,39 @@ async def test_spans_sorted_by_start_time_page_through_the_unpaged_list(
             assert len(page) == first
             after = connection["pageInfo"]["endCursor"]
 
+    left_out_roots = reordered_roots = False
     cases = product(
         [
-            None,
-            "span_kind == 'LLM'",
-            "parent_id is None",
-            "parent_span is None",
-            "parent_span is None and annotations['quality'].score > 0.3",
+            (None, False),
+            ("span_kind == 'LLM'", False),
+            ("parent_id is None", True),
+            ("parent_span is None", True),
+            ("parent_span is None and annotations['quality'].score > 0.3", True),
         ],
         [{}, {"start": start}, {"start": start, "end": end}],
         [True, False],
     )
     page_sizes_and_walk_limits = cycle(product([1, 4, 30], [1, 10, 5000]))
-    for (condition, time_range, descending), (first, walk_limit) in zip(
+    for ((condition, selects_roots), time_range, descending), (first, walk_limit) in zip(
         cases, page_sizes_and_walk_limits
     ):
-        expected = await unpaged(condition, time_range)
+        rows = await unpaged(condition, time_range)
+        if selects_roots:
+            in_time_range = [
+                row
+                for row in rows
+                if ("start" not in time_range or time_range["start"] <= row.trace_start_time)
+                and ("end" not in time_range or row.trace_start_time < time_range["end"])
+            ]
+            by_trace = sorted(
+                in_time_range,
+                key=lambda row: (row.trace_start_time, row.trace_rowid, row.start_time, row.id),
+                reverse=True,
+            )
+            left_out_roots = left_out_roots or len(in_time_range) < len(rows)
+            reordered_roots = reordered_roots or by_trace != in_time_range
+            rows = by_trace
+        expected = [row.id for row in rows]
         monkeypatch.setattr("phoenix.server.api.types.Project._NEWEST_SPANS_WALK_LIMIT", walk_limit)
         actual = await paged(
             first,
@@ -5728,6 +5757,7 @@ async def test_spans_sorted_by_start_time_page_through_the_unpaged_list(
             first,
             walk_limit,
         )
+    assert left_out_roots and reordered_roots
 
 
 @pytest.mark.parametrize(
@@ -5735,6 +5765,7 @@ async def test_spans_sorted_by_start_time_page_through_the_unpaged_list(
     [
         pytest.param("busy", None, id="busy-project-range-only"),
         pytest.param("quiet", None, id="quiet-project-range-only"),
+        pytest.param("quiet", "parent_span is None", id="root-spans"),
     ],
 )
 async def test_first_page_of_newest_spans_reads_few_spans_on_postgresql(

@@ -29,6 +29,7 @@ import {
   Text,
 } from "@phoenix/components";
 import { SelectChevronUpDownIcon } from "@phoenix/components/core/icon";
+import { getTimeRangeFromLastNTimeRangeKey } from "@phoenix/components/datetime/utils";
 import { withoutOptimizationDirections } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
 import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
 import {
@@ -102,10 +103,10 @@ export type ProjectEvaluatorDecisionPreview =
  * lowercase phrases rather than titles.
  */
 export const TIME_WINDOW_PRESETS = [
-  { id: "1h", label: "last hour", ms: 3_600_000 },
-  { id: "24h", label: "last 24 hours", ms: 86_400_000 },
-  { id: "7d", label: "last 7 days", ms: 7 * 86_400_000 },
-  { id: "30d", label: "last 30 days", ms: 30 * 86_400_000 },
+  { id: "1h", label: "last hour" },
+  { id: "24h", label: "last 24 hours" },
+  { id: "7d", label: "last 7 days" },
+  { id: "30d", label: "last 30 days" },
 ] as const;
 
 const isTimeWindowPresetId = (value: string): value is TimeWindowPresetId =>
@@ -123,12 +124,9 @@ export type TimeWindow = {
 };
 
 export function makeTimeWindow(presetId: TimeWindowPresetId): TimeWindow {
-  const preset = TIME_WINDOW_PRESETS.find(({ id }) => id === presetId);
-  invariant(preset, `unknown time window preset: ${presetId}`);
-  return {
-    presetId,
-    startIso: new Date(Date.now() - preset.ms).toISOString(),
-  };
+  const { start } = getTimeRangeFromLastNTimeRangeKey(presetId);
+  invariant(start, `time window preset ${presetId} has no start`);
+  return { presetId, startIso: start.toISOString() };
 }
 
 const TimeWindowContext = createContext<
