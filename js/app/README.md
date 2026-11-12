@@ -129,4 +129,26 @@ The following browser extensions are recommended for developing the Phoenix app:
 
 ### React DevTools MCP
 
-The Vite dev server registers [`react-devtools-cdt-mcp`](https://www.npmjs.com/package/react-devtools-cdt-mcp) on the page (see `vite/reactDevtoolsMcpPlugin.mts`). Coding agents that drive Chrome through [Chrome DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp) can then read the component tree, props, and hooks, and profile render timing. Production builds do not include it. Start Chrome DevTools MCP with `--categoryExperimentalThirdParty=true` to expose the tools. Agent usage is in `.agents/skills/phoenix-frontend/references/react-devtools-mcp.md`.
+The Vite dev server registers [`react-devtools-cdt-mcp`](https://www.npmjs.com/package/react-devtools-cdt-mcp) on the page (see `vite/reactDevtoolsMcpPlugin.mts`). Coding agents that drive Chrome through [Chrome DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp) can then read the component tree, props, and hooks, and profile render timing. Production builds do not include it.
+
+To set it up:
+
+1. Add Chrome DevTools MCP 1.3.0 or later to your agent's MCP config, with third-party tools enabled:
+
+   ```json
+   {
+     "mcpServers": {
+       "chrome-devtools": {
+         "command": "npx",
+         "args": [
+           "-y",
+           "chrome-devtools-mcp@latest",
+           "--categoryExperimentalThirdParty=true"
+         ]
+       }
+     }
+   }
+   ```
+
+2. Run the app with a dev server (`pnpm dev` or `pnpm dev:ui-only`). A production build (`pnpm prod`, `phoenix serve`) has no React tools.
+3. Have the agent open the app in the Chrome DevTools MCP browser and call `list_3p_developer_tools`. The list includes the `react_*` tools.

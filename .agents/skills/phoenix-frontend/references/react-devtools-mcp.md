@@ -4,23 +4,7 @@ The Vite dev server injects [`react-devtools-cdt-mcp`](https://www.npmjs.com/pac
 
 Use it to find which component rendered an element, read props and hooks, and measure render cost of an interaction.
 
-## Setup
-
-1. Run the app with a dev server (`pnpm dev` or `pnpm dev:ui-only`). A production build (`pnpm prod`, `phoenix serve`) has no React tools.
-2. Configure Chrome DevTools MCP 1.3.0 or later with third-party tools enabled:
-
-   ```json
-   {
-     "mcpServers": {
-       "chrome-devtools": {
-         "command": "npx",
-         "args": ["-y", "chrome-devtools-mcp@latest", "--categoryExperimentalThirdParty=true"]
-       }
-     }
-   }
-   ```
-
-3. Open the app in the Chrome DevTools MCP browser, then call `list_3p_developer_tools`. The `react_*` tools are listed when the page is selected.
+It needs the dev server and Chrome DevTools MCP with third-party tools enabled. Setup is under "React DevTools MCP" in `js/app/README.md`. If `list_3p_developer_tools` shows no `react_*` tools, tell the user the setup is missing instead of working around it.
 
 Call a tool with `execute_3p_developer_tool({ toolName, params })`, or with `evaluate_script` and `window.__dtmcp.executeTool(toolName, params)`.
 
@@ -29,7 +13,7 @@ Call a tool with `execute_3p_developer_tool({ toolName, params })`, or with `eva
 1. `react_start_profiling` with a `traceName`.
 2. Do the interaction (click, type, navigate).
 3. `react_stop_profiling`.
-4. `react_get_trace_overview` with the `traceName`. Find the commits with the largest `renderDuration` or `componentsChanged`.
+4. `react_get_trace_overview` with the `traceName`. Find the commits with the largest `renderDuration`.
 5. `react_get_commit_report` with the `traceName` and `commitIndex`. Components are sorted by `actualDuration`. A large `selfDuration` points at the component's own render. A large `actualDuration` with a small `selfDuration` points at its subtree.
 
 Compare a trace before and after the change. Durations come from a dev build with the hook attached, so use them as relative numbers, not absolute.
