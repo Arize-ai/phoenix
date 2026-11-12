@@ -1,7 +1,7 @@
 import functools
 import json
 from inspect import BoundArguments
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 import opentelemetry.trace as trace_api
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
@@ -13,6 +13,7 @@ from phoenix.evals.tracing import trace
 from ..llm.prompts import PromptLike
 from .adapters import register_adapters
 from .registries import DECISION_PROVIDER_REGISTRY, adapter_availability_table
+from .types import ClassificationCriterion
 
 register_adapters()
 
@@ -39,7 +40,7 @@ def _get_decision_input(bound: BoundArguments) -> str:
     payload = {
         "input": decision_model._sync_adapter._to_input(prompt) if prompt is not None else "",
         "model": decision_model.model,
-        "questions": bound.arguments.get("labels"),
+        "questions": bound.arguments.get("labels") or bound.arguments.get("criteria"),
     }
     return json.dumps(payload, default=str)
 
@@ -175,18 +176,32 @@ class DecisionModel:
         ]
 
     @staticmethod
-    def _record_usage_on_span(result: Dict[str, Any]) -> None:
-        """Moves usage and the response model from the result onto the current span."""
-        usage = result.pop("usage", None) or {}
+    def _record_usage_values(usage: Optional[Dict[str, Any]], model_id: Any) -> None:
+        """Record token usage and the response model on the current span."""
+        usage = usage or {}
         span = trace_api.get_current_span()
         attributes = {
-            SpanAttributes.DECISION_RESPONSE_MODEL_NAME: result.get("metadata", {}).get("model_id"),
+            SpanAttributes.DECISION_RESPONSE_MODEL_NAME: model_id,
             SpanAttributes.DECISION_TOKEN_COUNT_INPUT: usage.get("input_tokens"),
             SpanAttributes.DECISION_TOKEN_COUNT_OUTPUT: usage.get("output_tokens"),
         }
         for key, value in attributes.items():
             if value is not None:
                 span.set_attribute(key, value)
+
+    @classmethod
+    def _record_single_classification_usage(cls, result: Dict[str, Any]) -> None:
+        """Moves usage and the response model from a single-classification result onto the span."""
+        usage = result.pop("usage", None)
+        cls._record_usage_values(usage, result.get("metadata", {}).get("model_id"))
+
+    @classmethod
+    def _record_multiple_classifications_usage(cls, raw: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Record usage from a multi-classification adapter result and return its ``results``."""
+        results: List[Dict[str, Any]] = raw.get("results", [])
+        model_id = results[0].get("metadata", {}).get("model_id") if results else None
+        cls._record_usage_values(raw.get("usage"), model_id)
+        return results
 
     @trace(
         span_kind=OpenInferenceSpanKindValues.DECISION,
@@ -230,7 +245,7 @@ class DecisionModel:
             lambda fn, limiter: limiter.limit(fn), self._rate_limiters, fn
         )
         result: Dict[str, Any] = rate_limited(prompt, labels, **kwargs)
-        self._record_usage_on_span(result)
+        self._record_single_classification_usage(result)
         return result
 
     @trace(
@@ -275,8 +290,74 @@ class DecisionModel:
             lambda fn, limiter: limiter.alimit(fn), self._rate_limiters, fn
         )
         result: Dict[str, Any] = await rate_limited(prompt, labels, **kwargs)
-        self._record_usage_on_span(result)
+        self._record_single_classification_usage(result)
         return result
+
+    @trace(
+        span_kind=OpenInferenceSpanKindValues.DECISION,
+        process_input={
+            SpanAttributes.DECISION_SYSTEM: _get_decision_system,
+            SpanAttributes.DECISION_PROVIDER: _get_decision_provider,
+            SpanAttributes.DECISION_REQUEST_MODEL_NAME: _get_decision_model_name,
+            SpanAttributes.INPUT_VALUE: _get_decision_input,
+        },
+        process_output={SpanAttributes.OUTPUT_VALUE: _jsonify_output},
+    )
+    def generate_classifications(
+        self,
+        prompt: PromptLike,
+        criteria: Sequence[ClassificationCriterion],
+        tracer: Optional[Tracer] = None,
+        **kwargs: Any,
+    ) -> List[Dict[str, Any]]:
+        """Answer several named classification questions about one prompt in a single request.
+
+        Args:
+            prompt (Union[str, List[Dict[str, Any]]]): The prompt to classify.
+            criteria (Sequence[ClassificationCriterion]): The questions to answer; each has a
+                ``name``, its ``labels`` (a list or a label->description dict), and optional
+                ``instructions``.
+            tracer (Optional[Tracer]): Optional tracer for the DECISION span.
+            **kwargs: Additional keyword arguments forwarded to the decision SDK call.
+
+        Returns:
+            List[Dict[str, Any]]: One ``{"name", "label", "metadata"}`` dict per criterion, in the
+            order given.
+        """
+        fn = self._sync_adapter.generate_classifications
+        rate_limited = functools.reduce(
+            lambda fn, limiter: limiter.limit(fn), self._rate_limiters, fn
+        )
+        raw: Dict[str, Any] = rate_limited(prompt, criteria, **kwargs)
+        return self._record_multiple_classifications_usage(raw)
+
+    @trace(
+        span_kind=OpenInferenceSpanKindValues.DECISION,
+        process_input={
+            SpanAttributes.DECISION_SYSTEM: _get_decision_system,
+            SpanAttributes.DECISION_PROVIDER: _get_decision_provider,
+            SpanAttributes.DECISION_REQUEST_MODEL_NAME: _get_decision_model_name,
+            SpanAttributes.INPUT_VALUE: _get_decision_input,
+        },
+        process_output={SpanAttributes.OUTPUT_VALUE: _jsonify_output},
+    )
+    async def async_generate_classifications(
+        self,
+        prompt: PromptLike,
+        criteria: Sequence[ClassificationCriterion],
+        tracer: Optional[Tracer] = None,
+        **kwargs: Any,
+    ) -> List[Dict[str, Any]]:
+        """Asynchronously answer several named classification questions in a single request.
+
+        See :meth:`generate_classifications`.
+        """
+        fn = self._async_adapter.async_generate_classifications
+        rate_limited = functools.reduce(
+            lambda fn, limiter: limiter.alimit(fn), self._rate_limiters, fn
+        )
+        raw: Dict[str, Any] = await rate_limited(prompt, criteria, **kwargs)
+        return self._record_multiple_classifications_usage(raw)
 
 
 def show_decision_provider_availability() -> None:
