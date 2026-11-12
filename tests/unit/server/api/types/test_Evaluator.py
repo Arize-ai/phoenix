@@ -1,13 +1,20 @@
+import contextlib
+import re
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
-from typing import Any, AsyncIterator
+from typing import Any, AsyncIterator, Optional
+from unittest.mock import patch
 
+import httpx2
 import pytest
+import sqlalchemy
+from asgi_lifespan import LifespanManager
 from sqlalchemy import select, update
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.eval_work import MAX_ATTEMPTS
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     CategoricalOutputConfig,
@@ -24,14 +31,24 @@ from phoenix.db.types.prompts import (
     PromptTemplateFormat,
     PromptTemplateType,
 )
-from phoenix.server.api.dataloaders import project_evaluator_run_counts
+from phoenix.server import app as server_app
+from phoenix.server.api.dataloaders import CacheForDataLoaders, project_evaluator_run_counts
 from phoenix.server.api.types.Evaluator import (
     BuiltInEvaluator,
     DatasetEvaluator,
     LLMEvaluator,
 )
-from phoenix.server.types import DbSessionFactory
+from phoenix.server.app import create_app
+from phoenix.server.dml_event import SpanAnnotationInsertEvent
+from phoenix.server.dml_event_handler import DmlEventHandler
+from phoenix.server.types import DbSessionFactory, LastUpdatedAt
 from tests.unit._helpers import _add_project, _add_span, _add_trace, _user_role_id
+from tests.unit.conftest import (
+    TestBulkInserter,
+    patch_dml_event_handler,
+    patch_grpc_server,
+    patch_online_eval_daemons,
+)
 from tests.unit.graphql import AsyncGraphQLClient
 
 
@@ -2826,10 +2843,19 @@ async def test_project_evaluator_trace_project_spans_are_scoped_to_the_evaluator
 class TestProjectEvaluatorAnnotationScoreMetrics:
     """Tests for ProjectEvaluator.annotationScoreMetrics."""
 
-    _QUERY = """query ($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig!) {
+    _QUERY = """query (
+        $id: ID!
+        $timeRange: TimeRange!
+        $timeBinConfig: TimeBinConfig!
+        $previousTimeRange: TimeRange
+    ) {
         node(id: $id) {
             ... on ProjectEvaluator {
-                annotationScoreMetrics(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {
+                annotationScoreMetrics(
+                    timeRange: $timeRange
+                    timeBinConfig: $timeBinConfig
+                    previousTimeRange: $previousTimeRange
+                ) {
                     annotationName
                     summary { meanScore count scoreCount labelFractions { label fraction } }
                     previousSummary { meanScore }
@@ -2938,9 +2964,130 @@ class TestProjectEvaluatorAnnotationScoreMetrics:
                 await add_annotated_span(window_start - timedelta(days=1, hours=-hour), score)
 
         yield {
+            "project": project.id,
             "project_evaluator": project_evaluator.id,
             "window_start": window_start,
         }
+
+    @pytest.fixture
+    async def _cached_app(
+        self, db: DbSessionFactory
+    ) -> AsyncIterator[tuple[AsyncGraphQLClient, CacheForDataLoaders]]:
+        """The app with its dataloader caches on, which the shared `app`
+        fixture turns off. The DML daemon stays off; tests deliver events to
+        a handler themselves."""
+        if db.dialect is not SupportedSQLDialect.SQLITE:
+            pytest.skip("the dataloader caches are SQLite-only")
+        cache = CacheForDataLoaders()
+        async with contextlib.AsyncExitStack() as stack:
+            await stack.enter_async_context(patch_dml_event_handler())
+            await stack.enter_async_context(patch_online_eval_daemons())
+            await stack.enter_async_context(patch_grpc_server())
+            stack.enter_context(patch.object(server_app, "CacheForDataLoaders", lambda: cache))
+            app = create_app(
+                db=db,
+                authentication_enabled=False,
+                serve_ui=False,
+                bulk_inserter_factory=TestBulkInserter,
+            )
+            manager = await stack.enter_async_context(LifespanManager(app))
+            transport = httpx2.ASGITransport(app=manager.app)
+            client = httpx2.AsyncClient(transport=transport, base_url="http://test")
+            yield AsyncGraphQLClient(client), cache
+
+    async def test_annotation_writes_invalidate_the_cached_metrics(
+        self,
+        db: DbSessionFactory,
+        _test_data: dict[str, Any],
+        _cached_app: tuple[AsyncGraphQLClient, CacheForDataLoaders],
+    ) -> None:
+        """A live window is served from the cache until an annotation write
+        reaches the DML event handler, which clears the summary and series."""
+        gql_client, cache = _cached_app
+        window_start = _test_data["window_start"]
+        variables = {
+            "id": str(GlobalID("ProjectEvaluator", str(_test_data["project_evaluator"]))),
+            "timeRange": {"start": window_start.isoformat()},
+            "previousTimeRange": {
+                "start": (window_start - timedelta(days=2)).isoformat(),
+                "end": window_start.isoformat(),
+            },
+            "timeBinConfig": {"scale": "YEAR", "utcOffsetMinutes": 0},
+        }
+
+        async def metrics() -> dict[str, Any]:
+            resp = await gql_client.execute(self._QUERY, variables=variables)
+            assert not resp.errors
+            assert resp.data is not None
+            (result,) = resp.data["node"]["annotationScoreMetrics"]
+            return dict(result)
+
+        before = await metrics()
+        assert before["summary"]["count"] == 6
+        assert before["summary"]["meanScore"] == pytest.approx(0.5)
+        assert before["series"][0]["meanScore"] == pytest.approx(0.5)
+
+        # A seventh passing score inside the window
+        start_time = window_start + timedelta(hours=5)
+        async with db() as session:
+            trace = models.Trace(
+                trace_id=token_hex(16),
+                project_rowid=_test_data["project"],
+                start_time=start_time,
+                end_time=start_time + timedelta(seconds=1),
+            )
+            session.add(trace)
+            await session.flush()
+            span = models.Span(
+                trace_rowid=trace.id,
+                span_id=token_hex(8),
+                parent_id=None,
+                name=token_hex(8),
+                span_kind="LLM",
+                start_time=start_time,
+                end_time=start_time + timedelta(seconds=1),
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+            session.add(span)
+            await session.flush()
+            annotation = models.SpanAnnotation(
+                span_rowid=span.id,
+                name="quality",
+                label="pass",
+                score=1.0,
+                annotator_kind="CODE",
+                source="API",
+                metadata_={},
+                identifier=token_hex(4),
+            )
+            session.add(annotation)
+            await session.flush()
+            annotation_id = annotation.id
+
+        # Same variables, same cache keys: the cached values come back
+        assert await metrics() == before
+
+        handler = DmlEventHandler(
+            db=db, last_updated_at=LastUpdatedAt(), cache_for_dataloaders=cache
+        )
+        handler.put(SpanAnnotationInsertEvent(ids=(annotation_id,)))
+        # One pass of each handler's daemon loop, run inline
+        for batched in handler._all_handlers:
+            if not batched._batch.empty:
+                await batched()
+                batched._batch.clear()
+
+        after = await metrics()
+        assert after["summary"]["count"] == 7
+        assert after["summary"]["meanScore"] == pytest.approx(4 / 7)
+        assert after["series"][0]["meanScore"] == pytest.approx(4 / 7)
+        assert after["series"][0]["count"] == 7
 
     async def test_returns_window_previous_window_and_series(
         self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
@@ -3006,7 +3153,76 @@ class TestProjectEvaluatorAnnotationScoreMetrics:
         ]
         assert [bin["count"] for bin in metrics["series"]] == [4, 2, 0, 0]
 
-    async def test_open_time_range_is_rejected(
+    async def test_each_statement_reads_the_annotations_once(
+        self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        """Every statement the field runs reads span_annotations once in its query plan.
+        Re-reading the scoped annotation join in each aggregate made the page take
+        minutes on large projects."""
+        reads_by_statement: list[int] = []
+
+        def count_annotation_reads(
+            conn: Any,
+            cursor: Any,
+            statement: str,
+            parameters: Any,
+            context: Any,
+            executemany: bool,
+        ) -> None:
+            if "span_annotations" not in statement:
+                return
+            explain_cursor = conn.connection.cursor()
+            try:
+                if conn.dialect.name == "sqlite":
+                    explain_cursor.execute("EXPLAIN QUERY PLAN " + statement, parameters)
+                    steps = [row[3] for row in explain_cursor.fetchall()]
+                    pattern = r"(SCAN|SEARCH) span_annotations\b"
+                else:
+                    explain_cursor.execute("EXPLAIN " + statement, parameters)
+                    steps = [row[0] for row in explain_cursor.fetchall()]
+                    pattern = r".*\bon span_annotations\b"
+            finally:
+                explain_cursor.close()
+            reads_by_statement.append(sum(bool(re.match(pattern, step)) for step in steps))
+
+        window_start = _test_data["window_start"]
+        sqlalchemy.event.listen(
+            sqlalchemy.engine.Engine, "before_cursor_execute", count_annotation_reads
+        )
+        try:
+            resp = await gql_client.execute(
+                """query ($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig!) {
+                    node(id: $id) {
+                        ... on ProjectEvaluator {
+                            annotationScoreMetrics(
+                                timeRange: $timeRange
+                                timeBinConfig: $timeBinConfig
+                            ) {
+                                summary { meanScore }
+                                series { meanScore }
+                            }
+                        }
+                    }
+                }""",
+                variables={
+                    "id": str(GlobalID("ProjectEvaluator", str(_test_data["project_evaluator"]))),
+                    "timeRange": {
+                        "start": window_start.isoformat(),
+                        "end": (window_start + timedelta(days=2)).isoformat(),
+                    },
+                    "timeBinConfig": {"scale": "DAY", "utcOffsetMinutes": 0},
+                },
+            )
+        finally:
+            sqlalchemy.event.remove(
+                sqlalchemy.engine.Engine, "before_cursor_execute", count_annotation_reads
+            )
+        assert not resp.errors
+        # The window summary, the previous-window summary and the series
+        assert len(reads_by_statement) >= 3
+        assert reads_by_statement == [1] * len(reads_by_statement)
+
+    async def test_open_end_requires_an_explicit_previous_window(
         self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
     ) -> None:
         resp = await gql_client.execute(
@@ -3018,7 +3234,103 @@ class TestProjectEvaluatorAnnotationScoreMetrics:
             },
         )
         assert resp.errors
-        assert "start and an end" in resp.errors[0].message
+        assert "previous_time_range is required" in resp.errors[0].message
+
+    async def test_open_ended_window_covers_up_to_now(
+        self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        """A live window: open end plus an explicit previous window. YEAR bins
+        keep the axis small (the fixture's 2024 data through the present)."""
+        window_start = _test_data["window_start"]
+        resp = await gql_client.execute(
+            self._QUERY,
+            variables={
+                "id": str(GlobalID("ProjectEvaluator", str(_test_data["project_evaluator"]))),
+                "timeRange": {"start": window_start.isoformat()},
+                "previousTimeRange": {
+                    "start": (window_start - timedelta(days=2)).isoformat(),
+                    "end": window_start.isoformat(),
+                },
+                "timeBinConfig": {"scale": "YEAR", "utcOffsetMinutes": 0},
+            },
+        )
+        assert not resp.errors
+        assert resp.data is not None
+        (metrics,) = resp.data["node"]["annotationScoreMetrics"]
+        summary = metrics["summary"]
+        # Everything from the window start onward: 6 annotations, mean 0.5
+        assert summary["count"] == 6
+        assert summary["meanScore"] == pytest.approx(0.5)
+        assert metrics["previousSummary"]["meanScore"] == pytest.approx(1.0)
+        series = metrics["series"]
+        # The axis runs to "now": the 2024 bucket holds the data, later years none
+        assert len(series) >= 2
+        assert series[0]["meanScore"] == pytest.approx(0.5)
+        assert all(bin["meanScore"] is None for bin in series[1:])
+
+    async def test_explicit_previous_window_overrides_the_derived_one(
+        self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        """A closed range given an explicit previous window uses it rather than
+        the equal-length window before the range, which holds two passing scores."""
+        window_start = _test_data["window_start"]
+        resp = await gql_client.execute(
+            self._QUERY,
+            variables={
+                "id": str(GlobalID("ProjectEvaluator", str(_test_data["project_evaluator"]))),
+                "timeRange": {
+                    "start": window_start.isoformat(),
+                    "end": (window_start + timedelta(days=2)).isoformat(),
+                },
+                "previousTimeRange": {
+                    "start": (window_start - timedelta(days=10)).isoformat(),
+                    "end": (window_start - timedelta(days=5)).isoformat(),
+                },
+                "timeBinConfig": {"scale": "DAY", "utcOffsetMinutes": 0},
+            },
+        )
+        assert not resp.errors
+        assert resp.data is not None
+        (metrics,) = resp.data["node"]["annotationScoreMetrics"]
+        assert metrics["summary"]["meanScore"] == pytest.approx(0.5)
+        assert metrics["previousSummary"] is None
+
+    @pytest.mark.parametrize(
+        "time_range, previous_time_range, message",
+        [
+            pytest.param(
+                {"end": "2024-06-12T00:00:00+00:00"},
+                None,
+                "time_range must have a start",
+                id="window-without-start",
+            ),
+            pytest.param(
+                {"start": "2024-06-10T00:00:00+00:00"},
+                {"start": "2024-06-08T00:00:00+00:00"},
+                "previous_time_range must have both a start and an end",
+                id="previous-window-without-end",
+            ),
+        ],
+    )
+    async def test_incomplete_windows_are_rejected(
+        self,
+        _test_data: dict[str, Any],
+        gql_client: AsyncGraphQLClient,
+        time_range: dict[str, str],
+        previous_time_range: Optional[dict[str, str]],
+        message: str,
+    ) -> None:
+        resp = await gql_client.execute(
+            self._QUERY,
+            variables={
+                "id": str(GlobalID("ProjectEvaluator", str(_test_data["project_evaluator"]))),
+                "timeRange": time_range,
+                "previousTimeRange": previous_time_range,
+                "timeBinConfig": {"scale": "DAY", "utcOffsetMinutes": 0},
+            },
+        )
+        assert resp.errors
+        assert message in resp.errors[0].message
 
     async def test_series_honors_units_per_bin_alongside_single_unit_bins(
         self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
