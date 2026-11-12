@@ -1,5 +1,0 @@
-You are reviewing a run of our research agent. Here is the trace:
-
-{trace}
-
-Did the agent do a good job? Answer "yes" or "no".

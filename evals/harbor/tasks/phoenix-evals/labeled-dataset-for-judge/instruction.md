@@ -1,1 +1,0 @@
-We're going to build an LLM judge that catches tool-selection mistakes in our `research-assistant` agent. Our annotators already flagged agent mistakes in that project with `trail_error` annotations. Make a dataset in Phoenix called `tool-selection-labels` with about 50 traces we can validate the judge on, with the annotators' verdict as each example's expected output.

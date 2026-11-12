@@ -1,1 +1,0 @@
-For the support bot in the `mobile-review-queue` project, I want to know two things about every bot response: whether the user was frustrated by the bot's previous reply, and whether the bot stated a dollar amount that no tool call returned. Score both and put the results on the traces in Phoenix. We work in Python, and you can use `claude-haiku-5-5` if you need a model.
