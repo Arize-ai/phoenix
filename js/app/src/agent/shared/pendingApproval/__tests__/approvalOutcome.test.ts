@@ -55,6 +55,7 @@ describe("approval marker coverage", () => {
           "shared/pendingApproval/stageApprovalOperation.ts",
           "tools/approval.ts",
           "tools/decisionEvaluatorDraft/clientActions.ts",
+          "tools/projectEvaluatorAttach/clientActions.ts",
           "tools/projectEvaluatorScope/clientActions.ts",
           "uiOperations/executeBrowserActionTool.ts",
         ]
