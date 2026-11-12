@@ -207,6 +207,25 @@ describe("a project evaluator's mapping as its variables change", () => {
     expect(store!.getState().evaluator.inputMapping.pathMapping).toEqual({});
   });
 
+  it("keeps a mapping PXI replaced when the rows next write to the store", async () => {
+    // The rows read the store once; without rebuilding on PXI's write, their
+    // next write-back (here, from a variable going away) restores the old one.
+    await renderDock(["context", "input"]);
+    const replaced = {
+      context: "attributes.retrieval.documents",
+      input: "attributes.input.value",
+    };
+    await act(async () => {
+      store!
+        .getState()
+        .replaceInputMapping({ pathMapping: replaced, literalMapping: {} });
+    });
+    await renderDock(["input"]);
+    expect(store!.getState().evaluator.inputMapping.pathMapping).toEqual({
+      input: replaced.input,
+    });
+  });
+
   const renderDescribed = (canDescribeInputs: boolean) =>
     act(async () => {
       root.render(
