@@ -25,10 +25,10 @@ import {
   INCREMENTAL_ACCEPT_HEADER,
   isMultipartMixedResponse,
   readMultipartMixed,
-  toRelayResponses,
   usesIncrementalDelivery,
 } from "./relayIncrementalDelivery";
-import { isObject } from "./typeUtils";
+import { createIncrementalDeliveryConverter } from "./relayIncrementalDeliveryConverter";
+import { isObject, isStringKeyedObject } from "./typeUtils";
 
 const graphQLPath = BASE_URL + "/graphql";
 
@@ -89,6 +89,22 @@ async function readJsonResponse(response: Response): Promise<unknown> {
   return data;
 }
 
+function isResponseList(
+  payload: GraphQLResponse
+): payload is ReadonlyArray<GraphQLSingularResponse> {
+  return Array.isArray(payload);
+}
+
+function isGraphQLSingularResponse(
+  value: unknown
+): value is GraphQLSingularResponse {
+  return (
+    isStringKeyedObject(value) &&
+    !Array.isArray(value) &&
+    ("data" in value || "errors" in value)
+  );
+}
+
 /**
  * Create an observable that fetches a GraphQL response from the given input
  * and returns an error if any payload has errors.
@@ -115,11 +131,7 @@ function fetchGraphQLObservable(
     let isFinished = false;
 
     const emit = (payload: GraphQLResponse) => {
-      const payloads: ReadonlyArray<GraphQLSingularResponse> = Array.isArray(
-        payload
-      )
-        ? payload
-        : [payload as GraphQLSingularResponse];
+      const payloads = isResponseList(payload) ? payload : [payload];
       for (const response of payloads) {
         const error = hasErrors(response);
         if (error) {
@@ -133,7 +145,14 @@ function fetchGraphQLObservable(
       .then(async (response) => {
         invariant(response instanceof Response, "response must be a Response");
         if (!isMultipartMixedResponse(response)) {
-          emit((await readJsonResponse(response)) as GraphQLResponse);
+          const data = await readJsonResponse(response);
+          if (!isGraphQLSingularResponse(data)) {
+            throw new ServerResponseError(
+              `GraphQL request failed: the response has neither data nor errors (status ${response.status} ${response.statusText}).`,
+              response.status
+            );
+          }
+          emit(data);
           return;
         }
         if (!response.ok) {
@@ -142,8 +161,13 @@ function fetchGraphQLObservable(
             response.status
           );
         }
+        // One converter per request: it keeps the data the request has sent,
+        // to send each deferred fragment whole when it completes.
+        // TODO: pass parts to Relay unconverted once relay-runtime ships its
+        // own converter (facebook/relay@c270fbf).
+        const converter = createIncrementalDeliveryConverter();
         for await (const part of readMultipartMixed(response)) {
-          const payloads = toRelayResponses(part);
+          const payloads = converter.convert(part);
           if (payloads.length > 0) {
             emit(payloads);
           }

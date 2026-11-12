@@ -4,19 +4,10 @@
  * The server (Strawberry on graphql-core 3.3) streams a deferred operation as
  * a `multipart/mixed` response in the current incremental delivery format:
  * the first part carries `data` and the `pending` fragments, and later parts
- * carry `incremental` results keyed by those pending ids. Relay still reads
- * the earlier format, one payload per deferred fragment with its `path` and
- * `label`, so each part is translated before it reaches Relay. Strawberry
- * already copies `path` and `label` onto every incremental result, which keeps
- * the translation stateless.
+ * carry `incremental` results keyed by those pending ids. This module reads
+ * the parts off the wire; `RelayIncrementalDeliveryConverter` turns them into
+ * the label/path payloads relay-runtime 21 applies.
  */
-import type {
-  GraphQLSingularResponse,
-  PayloadData,
-  PayloadError,
-} from "relay-runtime";
-
-import { isObject } from "./typeUtils";
 
 /** The `Accept` header for an operation that may stream deferred results. */
 export const INCREMENTAL_ACCEPT_HEADER =
@@ -85,66 +76,4 @@ export async function* readMultipartMixed(
       index = buffer.indexOf(delimiter);
     }
   }
-}
-
-type Path = Array<string | number>;
-
-/** One part of an incremental response, as the server streams it. */
-type IncrementalPart = {
-  data?: PayloadData | null;
-  errors?: PayloadError[];
-  incremental?: ReadonlyArray<{
-    data?: PayloadData;
-    items?: unknown;
-    path: Path;
-    subPath?: Path;
-    label?: string | null;
-    errors?: PayloadError[];
-  }>;
-  completed?: ReadonlyArray<{ id: string; errors?: PayloadError[] }>;
-};
-
-/**
- * Translates one part of an incremental response into the payloads Relay
- * reads: the initial part becomes a plain response, and every deferred result
- * in a later part becomes its own payload addressed by `path` and `label`.
- * Errors stay on their payload; the caller decides how to surface them.
- */
-export function toRelayResponses(part: unknown): GraphQLSingularResponse[] {
-  if (!isObject(part)) {
-    throw new Error("Malformed incremental response part");
-  }
-  const { data, errors, incremental, completed } = part as IncrementalPart;
-  const responses: GraphQLSingularResponse[] = [];
-  if ("data" in part) {
-    responses.push(
-      errors != null
-        ? { data: data ?? undefined, errors }
-        : { data: data ?? {} }
-    );
-  }
-  for (const result of incremental ?? []) {
-    if ("items" in result) {
-      throw new Error("@stream results are not supported");
-    }
-    if (result.label == null) {
-      // Relay labels every @defer it compiles and routes payloads by label.
-      throw new Error("Deferred result is missing its label");
-    }
-    responses.push({
-      data: result.data ?? {},
-      path: [...result.path, ...(result.subPath ?? [])],
-      label: result.label,
-      ...(result.errors != null ? { errors: result.errors } : {}),
-    });
-  }
-  // A deferred fragment that failed as a whole completes with errors and no
-  // incremental result.
-  const completedErrors = (completed ?? []).flatMap(
-    (entry) => entry.errors ?? []
-  );
-  if (completedErrors.length > 0) {
-    responses.push({ errors: completedErrors });
-  }
-  return responses;
 }

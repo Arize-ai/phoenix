@@ -12,11 +12,9 @@ import { fetchRelay } from "../RelayEnvironment";
 import {
   INCREMENTAL_ACCEPT_HEADER,
   readMultipartMixed,
-  toRelayResponses,
   usesIncrementalDelivery,
 } from "../relayIncrementalDelivery";
 
-/** A multipart body exactly as Strawberry streams it (boundary "-"). */
 function strawberryBody(parts: unknown[]): string {
   const encoded = parts.map((part) => {
     const json = JSON.stringify(part);
@@ -25,7 +23,6 @@ function strawberryBody(parts: unknown[]): string {
   return `---${encoded.join("")}--\r\n`;
 }
 
-/** A response whose body arrives in chunks of the given size. */
 function multipartResponse(body: string, chunkSize = body.length): Response {
   const bytes = new TextEncoder().encode(body);
   const stream = new ReadableStream<Uint8Array>({
@@ -89,49 +86,6 @@ describe("readMultipartMixed", () => {
   });
 });
 
-describe("toRelayResponses", () => {
-  it("passes the initial part's data through without the incremental fields", () => {
-    expect(toRelayResponses(INITIAL)).toEqual([{ data: INITIAL.data }]);
-  });
-
-  it("addresses each deferred result by its path and label", () => {
-    expect(toRelayResponses(SUBSEQUENT)).toEqual([
-      { data: { traceCount: 264 }, path: ["node"], label: "Scores$defer" },
-    ]);
-  });
-
-  it("appends a result's subPath to its pending path", () => {
-    const [response] = toRelayResponses({
-      incremental: [
-        {
-          data: { meanScore: 0.5 },
-          id: "0",
-          path: ["node"],
-          subPath: ["summary"],
-          label: "Scores$defer",
-        },
-      ],
-      hasNext: false,
-    });
-    expect(response).toMatchObject({ path: ["node", "summary"] });
-  });
-
-  it("surfaces errors on a deferred fragment that failed as a whole", () => {
-    const errors = [{ message: "boom", path: ["node", "traceCount"] }];
-    expect(
-      toRelayResponses({ completed: [{ id: "0", errors }], hasNext: false })
-    ).toEqual([{ errors }]);
-  });
-
-  it("rejects @stream results, which the network layer does not translate", () => {
-    expect(() =>
-      toRelayResponses({
-        incremental: [{ items: [1], id: "0", path: ["list"], label: "L" }],
-      })
-    ).toThrow("@stream");
-  });
-});
-
 describe("usesIncrementalDelivery", () => {
   it("detects @defer in the operation text", () => {
     expect(usesIncrementalDelivery('query Q { ...F @defer(label: "x") }')).toBe(
@@ -176,13 +130,22 @@ describe("fetchRelay with @defer", () => {
         error: reject,
       });
     });
-    const init = authFetchMock.mock.calls[0][1] as RequestInit;
-    expect(new Headers(init.headers).get("Accept")).toBe(
-      INCREMENTAL_ACCEPT_HEADER
+    expect(authFetchMock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        headers: expect.objectContaining({ Accept: INCREMENTAL_ACCEPT_HEADER }),
+      })
     );
     expect(payloads).toEqual([
-      [{ data: INITIAL.data }],
-      [{ data: { traceCount: 264 }, path: ["node"], label: "Scores$defer" }],
+      [{ data: INITIAL.data, extensions: { is_final: false } }],
+      [
+        {
+          data: { id: "UHJvamVjdDox", name: "default", traceCount: 264 },
+          path: ["node"],
+          label: "Scores$defer",
+          extensions: { is_final: true },
+        },
+      ],
     ]);
   });
 
@@ -205,7 +168,14 @@ describe("fetchRelay with @defer", () => {
           INITIAL,
           {
             hasNext: false,
-            completed: [{ id: "0", errors: [{ message: "scores failed" }] }],
+            completed: [
+              {
+                id: "0",
+                errors: [
+                  { message: "scores failed", path: ["node", "traceCount"] },
+                ],
+              },
+            ],
           },
         ])
       )

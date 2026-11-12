@@ -281,7 +281,7 @@ const readRow = (
     ...lagData,
     // The results cell reads its deferred scores fragment from this reference
     // itself, so the slow aggregates never block the rest of the row.
-    scores: row as ProjectEvaluatorMeanScoreCell_scores$key,
+    scores: row,
   };
 };
 
