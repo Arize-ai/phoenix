@@ -8,6 +8,7 @@ import strawberry
 from fastmcp import FastMCP
 from mcp_types import TextContent
 from strawberry.extensions import MaxAliasesLimiter
+from strawberry.schema.config import StrawberryConfig
 from strawberry.schema.exceptions import InvalidOperationTypeError
 
 import phoenix.server.app
@@ -253,6 +254,47 @@ async def test_mutation_gate_is_enforced_by_the_schema_too(
             context=cast(Context, None),
             allow_mutations=False,
         )
+
+
+@strawberry.type
+class DatasetMutation:
+    @strawberry.mutation
+    async def delete_dataset(self, dataset_id: strawberry.ID) -> Dataset:
+        DELETED_DATASET_IDS.append(dataset_id)
+        return Dataset(id=dataset_id, name="rag-eval")
+
+
+@pytest.mark.parametrize(
+    "query,allow_mutations",
+    [
+        pytest.param("{ datasets { id ... @defer { name } } }", False, id="deferred-query"),
+        pytest.param("{ datasets @stream { name } }", False, id="streamed-query"),
+        pytest.param(
+            'mutation { deleteDataset(datasetId: "1") { id ... @defer { name } } }',
+            True,
+            id="deferred-mutation",
+        ),
+    ],
+)
+async def test_incremental_delivery_is_refused_before_execution(
+    query: str, allow_mutations: bool
+) -> None:
+    DELETED_DATASET_IDS.clear()
+    schema = strawberry.Schema(
+        query=Query,
+        mutation=DatasetMutation,
+        config=StrawberryConfig(enable_experimental_incremental_execution=True),
+    )
+    with pytest.raises(GraphQLRefusal) as caught:
+        await execute_operation(
+            schema,
+            query=query,
+            variables=None,
+            context=cast(Context, None),
+            allow_mutations=allow_mutations,
+        )
+    assert caught.value.code is GraphQLRefusalCode.INCREMENTAL_DELIVERY_NOT_SUPPORTED
+    assert DELETED_DATASET_IDS == []
 
 
 def test_the_size_limit_counts_utf8_bytes() -> None:
