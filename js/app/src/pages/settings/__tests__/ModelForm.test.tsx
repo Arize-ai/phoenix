@@ -7,6 +7,8 @@ import { createMockEnvironment } from "relay-test-utils";
 import { userEvent } from "storybook/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
+
 import type { ModelFormParams } from "../ModelForm";
 import { ModelForm } from "../ModelForm";
 
@@ -18,23 +20,33 @@ describe("ModelForm", () => {
   const renderForm = (props: Partial<ComponentProps<typeof ModelForm>> = {}) =>
     act(async () => {
       root.render(
-        <RelayEnvironmentProvider environment={createMockEnvironment()}>
-          <ModelForm
-            // Remount so the form takes the new default values
-            key={JSON.stringify(props)}
-            modelName="my-model"
-            modelNamePattern="^my-model$"
-            onSubmit={onSubmit}
-            isSubmitting={false}
-            submitButtonText="Create Model"
-            formMode="create"
-            {...props}
-          />
-        </RelayEnvironmentProvider>
+        <ThemeProvider themeMode="dark">
+          <RelayEnvironmentProvider environment={createMockEnvironment()}>
+            <ModelForm
+              // Remount so the form takes the new default values
+              key={JSON.stringify(props)}
+              modelName="my-model"
+              modelNamePattern="^my-model$"
+              onSubmit={onSubmit}
+              isSubmitting={false}
+              submitButtonText="Create Model"
+              formMode="create"
+              {...props}
+            />
+          </RelayEnvironmentProvider>
+        </ThemeProvider>
       );
     });
 
   beforeEach(async () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn().mockReturnValue({
+        matches: false,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })
+    );
     onSubmit.mockClear();
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -45,6 +57,7 @@ describe("ModelForm", () => {
   afterEach(() => {
     act(() => root.unmount());
     container.remove();
+    vi.unstubAllGlobals();
   });
 
   const providerInput = () =>

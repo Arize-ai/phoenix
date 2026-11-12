@@ -4,6 +4,7 @@ import type { DateValue, Key } from "react-aria-components";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 
 import {
+  Alert,
   Button,
   ComboBox,
   ComboBoxItem,
@@ -460,12 +461,12 @@ export function ModelForm({
             appendKind="PROMPT"
           />
           {unusedPromptTokenTypes.length > 0 && (
-            <Text color="warning">
+            <Alert variant="warning">
               Embedding spans are priced on input tokens only, so the{" "}
               {unusedPromptTokenTypes.join(", ")}{" "}
               {unusedPromptTokenTypes.length === 1 ? "price" : "prices"} will
               not be used.
-            </Text>
+            </Alert>
           )}
 
           {selectedModelType !== "EMBEDDING" && (
