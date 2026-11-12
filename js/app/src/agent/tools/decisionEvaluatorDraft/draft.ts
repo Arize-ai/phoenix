@@ -15,6 +15,12 @@ import type {
 } from "@phoenix/store/playground";
 import type { EvaluatorInputMapping } from "@phoenix/types";
 
+import {
+  decisionModelTargetSchema,
+  type DecisionModelOption,
+  findDecisionModelOption,
+} from "./models";
+
 const optimizationDirectionSchema = z.enum(["MAXIMIZE", "MINIMIZE", "NONE"]);
 
 const questionSchema = z
@@ -127,6 +133,10 @@ export const editDecisionEvaluatorDraftOperationSchema = z.discriminatedUnion(
       scoringPolicy: scoringPolicySchema,
     }),
     z.strictObject({
+      type: z.literal("set_model"),
+      target: decisionModelTargetSchema,
+    }),
+    z.strictObject({
       type: z.literal("set_input_mapping"),
       inputMapping: z.strictObject({
         pathMapping: z.record(z.string(), z.string()).optional(),
@@ -164,7 +174,13 @@ export type DecisionEvaluatorDraftSnapshot = {
   mode: "create" | "edit";
   evaluatorNodeId: string | null;
   name: string;
-  model: { provider: string; modelName: string | null };
+  model: {
+    provider: string;
+    modelName: string | null;
+    /** Set when the model runs on a custom provider. */
+    customProviderId: string | null;
+    customProviderName: string | null;
+  };
   templateFormat: TemplateFormat;
   state: { mode: "text" | "json"; template: string };
   questions: DecisionEvaluatorQuestionSnapshot[];
@@ -273,6 +289,8 @@ export type DecisionDraftEditResult =
       prompt: DecisionPromptDraft;
       scoringPolicy: DecisionScoringPolicyValue | null;
       inputMapping: EvaluatorInputMapping;
+      /** The model a set_model chose; null when the model is unchanged. */
+      model: DecisionModelOption | null;
     }
   | { ok: false; error: string };
 
@@ -288,6 +306,7 @@ export function applyDecisionDraftOperations({
   inputMapping,
   templateFormat,
   operations,
+  availableModels,
 }: {
   name: string;
   prompt: DecisionPromptDraft;
@@ -295,8 +314,16 @@ export function applyDecisionDraftOperations({
   inputMapping: EvaluatorInputMapping;
   templateFormat: TemplateFormat;
   operations: readonly EditDecisionEvaluatorDraftOperation[];
+  /** The decision models the form offers; needed only for set_model. */
+  availableModels?: readonly DecisionModelOption[];
 }): DecisionDraftEditResult {
-  let next = { name, prompt, scoringPolicy, inputMapping };
+  let next: {
+    name: string;
+    prompt: DecisionPromptDraft;
+    scoringPolicy: DecisionScoringPolicyValue | null;
+    inputMapping: EvaluatorInputMapping;
+    model: DecisionModelOption | null;
+  } = { name, prompt, scoringPolicy, inputMapping, model: null };
   for (const operation of operations) {
     switch (operation.type) {
       case "set_name":
@@ -334,6 +361,17 @@ export function applyDecisionDraftOperations({
       case "set_scoring_policy":
         next = { ...next, scoringPolicy: operation.scoringPolicy };
         break;
+      case "set_model": {
+        const found = findDecisionModelOption({
+          target: operation.target,
+          options: availableModels ?? [],
+        });
+        if (!found.ok) {
+          return found;
+        }
+        next = { ...next, model: found.option };
+        break;
+      }
       case "set_input_mapping":
         next = {
           ...next,
