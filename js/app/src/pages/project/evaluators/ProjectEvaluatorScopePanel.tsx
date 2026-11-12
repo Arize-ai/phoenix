@@ -11,13 +11,13 @@ import type { ProjectEvaluatorScopePanelSpansQuery } from "@phoenix/pages/projec
 import type { ProjectEvaluatorScopePanelTraceCountQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelTraceCountQuery.graphql";
 import type { ProjectEvaluatorScopePanelTracesQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelTracesQuery.graphql";
 import {
-  makeTimeWindow,
   type ProjectEvaluatorDecisionPreview,
   type ProjectEvaluatorInlineCode,
   ProjectEvaluatorTestBench,
   ProjectEvaluatorTestBenchFallback,
   type TestBenchHeaderProps,
   type TimeWindow,
+  useProjectEvaluatorTimeWindow,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTestBench";
 import {
   getContextSnippet,
@@ -93,7 +93,7 @@ export const ProjectEvaluatorScopePanel = ({
   decision?: ProjectEvaluatorDecisionPreview;
   requiredVariables?: string[];
 }) => {
-  const [timeWindow, setTimeWindow] = useState(() => makeTimeWindow("7d"));
+  const [timeWindow, setTimeWindow] = useProjectEvaluatorTimeWindow();
   const [, startWindowTransition] = useTransition();
   // A target or filter change swaps the records wholesale, so the bench shows
   // its loading state under the new title: the switch of level is the point.
