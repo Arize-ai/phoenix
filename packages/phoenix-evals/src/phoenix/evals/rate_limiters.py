@@ -173,7 +173,10 @@ class AdaptiveTokenBucket:
                 self.make_request_if_ready()
                 break
             except UnavailableTokensError:
-                time.sleep(0.1 / self.rate)
+                # Never sleep past the caller's budget: 0.1 / rate can be much
+                # larger than what is left of max_wait_time at low rates.
+                remaining = max(0.0, max_wait_time - (time.time() - start))
+                time.sleep(min(0.1 / self.rate, remaining))
                 continue
 
     async def async_wait_until_ready(
@@ -187,7 +190,8 @@ class AdaptiveTokenBucket:
                 self.make_request_if_ready()
                 break
             except UnavailableTokensError:
-                await asyncio.sleep(0.1 / self.rate)
+                remaining = max(0.0, max_wait_time - (time.time() - start))
+                await asyncio.sleep(min(0.1 / self.rate, remaining))
                 continue
 
 
