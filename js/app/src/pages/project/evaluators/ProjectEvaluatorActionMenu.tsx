@@ -90,10 +90,10 @@ export function ProjectEvaluatorActionMenu({
         </Popover>
       </MenuTrigger>
       <DeleteProjectEvaluatorDialog
-        projectEvaluatorId={projectEvaluatorId}
+        projectEvaluators={[
+          { id: projectEvaluatorId, name: evaluatorName, kind: evaluatorKind },
+        ]}
         projectId={projectId}
-        evaluatorName={evaluatorName}
-        evaluatorKind={evaluatorKind}
         isOpen={isDeleteOpen}
         onOpenChange={setIsDeleteOpen}
       />

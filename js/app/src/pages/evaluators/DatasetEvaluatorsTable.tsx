@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 import type {
   ColumnSizingState,
+  RowSelectionState,
   SortingState,
   Updater,
 } from "@tanstack/react-table";
@@ -26,10 +27,17 @@ import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { DatasetLink } from "@phoenix/components/dataset/DatasetLink";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
+import { EvaluatorSelectionToolbar } from "@phoenix/components/evaluators/EvaluatorSelectionToolbar";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import { SandboxConfigLabel } from "@phoenix/components/sandbox/SandboxConfigLabel";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
-import { ACTIONS_COLUMN_ID, TextCell } from "@phoenix/components/table";
+import {
+  ACTIONS_COLUMN_ID,
+  CHECKBOX_COLUMN_ID,
+  createRowSelectionColumn,
+  TextCell,
+  useShiftClickRowSelection,
+} from "@phoenix/components/table";
 import {
   getCommonPinningStyles,
   selectableTableCSS,
@@ -45,6 +53,7 @@ import type {
   DatasetEvaluatorSort,
 } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsTableEvaluatorsQuery.graphql";
 import { DatasetEvaluatorActionMenu } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorActionMenu";
+import { DeleteDatasetEvaluatorDialog } from "@phoenix/pages/dataset/evaluators/DeleteDatasetEvaluatorDialog";
 import type {
   DatasetEvaluatorsTable_row$key,
   EvaluatorKind,
@@ -321,7 +330,7 @@ type DatasetEvaluatorsTableProps = {
    */
   datasetId?: string;
   /**
-   * If provided, these connections will be updated when a row is edited or deleted.
+   * If provided, these connections will be updated when rows are edited or deleted.
    */
   updateConnectionIds?: string[];
   /**
@@ -368,9 +377,19 @@ export const DatasetEvaluatorsTable = ({
     [setSort]
   );
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const tableData = useMemo(() => {
     return rowReferences.map(readRow);
   }, [rowReferences]);
+  // Only loaded rows count, so a refetch that drops a selected row also drops
+  // it from what a delete would remove.
+  const selectedEvaluators = tableData
+    .filter((row) => rowSelection[row.id])
+    .map((row) => ({ id: row.id, name: row.name, kind: row.evaluator.kind }));
+  const { selectRow } = useShiftClickRowSelection<TableRow>({
+    resetKey: tableData,
+  });
   // Across datasets the column holds only Playground buttons, so it is left
   // out when no loaded row has one.
   const hasActionsColumn =
@@ -378,6 +397,7 @@ export const DatasetEvaluatorsTable = ({
     tableData.some((row) => canOpenInPlayground(row.evaluator.kind));
   const columns = useMemo(() => {
     const cols: ColumnDef<TableRow>[] = [
+      createRowSelectionColumn<TableRow>({ selectRow }),
       {
         header: "kind",
         accessorKey: "kind", // special case for sorting that's handled by the backend
@@ -563,7 +583,7 @@ export const DatasetEvaluatorsTable = ({
       ),
     });
     return cols;
-  }, [datasetId, hasActionsColumn, updateConnectionIds]);
+  }, [datasetId, hasActionsColumn, selectRow, updateConnectionIds]);
 
   const table = useTable({
     features: appTableFeatures,
@@ -572,11 +592,14 @@ export const DatasetEvaluatorsTable = ({
     state: {
       sorting,
       columnSizing,
-      columnPinning: { start: [], end: [ACTIONS_COLUMN_ID] },
+      columnPinning: { start: [CHECKBOX_COLUMN_ID], end: [ACTIONS_COLUMN_ID] },
+      rowSelection,
     },
     columnResizeMode: "onChange",
+    enableRowSelection: true,
     onSortingChange: setSorting,
     onColumnSizingChange: setColumnSizing,
+    onRowSelectionChange: setRowSelection,
     getRowId: (row) => row.id,
   });
 
@@ -745,6 +768,23 @@ export const DatasetEvaluatorsTable = ({
           </tbody>
         )}
       </table>
+      {selectedEvaluators.length > 0 ? (
+        <>
+          <EvaluatorSelectionToolbar
+            selectedCount={selectedEvaluators.length}
+            onClearSelection={() => setRowSelection({})}
+            onDelete={() => setIsDeleteDialogOpen(true)}
+          />
+          <DeleteDatasetEvaluatorDialog
+            datasetEvaluators={selectedEvaluators}
+            datasetId={datasetId}
+            isOpen={isDeleteDialogOpen}
+            onOpenChange={setIsDeleteDialogOpen}
+            onDeleted={() => setRowSelection({})}
+            updateConnectionIds={updateConnectionIds}
+          />
+        </>
+      ) : null}
     </div>
   );
 };

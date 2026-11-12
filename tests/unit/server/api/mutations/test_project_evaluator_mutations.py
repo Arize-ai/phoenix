@@ -2325,6 +2325,37 @@ async def test_delete_hides_the_binding_at_once_and_frees_its_name(
         assert await session.get(models.Project, trace_project_id) is None
 
 
+async def test_one_delete_removes_evaluators_from_several_projects(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+) -> None:
+    created_ids: list[str] = []
+    for _ in range(2):
+        project = await _add_project(db)
+        result = await gql_client.execute(
+            _CREATE_CODE, {"input": _code_create_input(project, sandbox_config)}
+        )
+        assert result.data and not result.errors
+        created_ids.append(result.data["createProjectCodeEvaluator"]["evaluator"]["id"])
+
+    delete_result = await gql_client.execute(
+        """
+        mutation($input: DeleteProjectEvaluatorsInput!) {
+          deleteProjectEvaluators(input: $input) {
+            projectEvaluatorIds
+            query { projectEvaluatorCount }
+          }
+        }
+        """,
+        {"input": {"projectEvaluatorIds": created_ids}},
+    )
+    assert delete_result.data and not delete_result.errors
+    payload = delete_result.data["deleteProjectEvaluators"]
+    assert sorted(payload["projectEvaluatorIds"]) == sorted(created_ids)
+    assert payload["query"]["projectEvaluatorCount"] == 0
+
+
 async def test_create_mints_a_dedicated_trace_project_and_delete_removes_it(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,

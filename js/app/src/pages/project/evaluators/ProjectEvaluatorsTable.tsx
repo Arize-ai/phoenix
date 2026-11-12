@@ -39,6 +39,7 @@ import {
   ColumnOrderingProvider,
   createRowSelectionColumn,
   useColumnOrder,
+  useShiftClickRowSelection,
 } from "@phoenix/components/table";
 import {
   getCommonPinningStyles,
@@ -498,10 +499,13 @@ export function ProjectEvaluatorsTable({
     () => data.evaluators.edges.map(({ node }) => readRow(node)),
     [data.evaluators.edges]
   );
-  const targetsById = useMemo(
+  const evaluatorsById = useMemo<ProjectEvaluatorSelection>(
     () =>
       Object.fromEntries(
-        tableData.map(({ id, evaluationTarget }) => [id, evaluationTarget])
+        tableData.map(({ id, name, evaluationTarget, evaluator }) => [
+          id,
+          { evaluationTarget, name, kind: evaluator.kind },
+        ])
       ),
     [tableData]
   );
@@ -516,11 +520,11 @@ export function ProjectEvaluatorsTable({
         reconcileProjectEvaluatorSelection({
           nextRowSelection,
           previousSelection: selection,
-          targetsById,
+          evaluatorsById,
         })
       );
     },
-    [onSelectionChange, rowSelection, selection, targetsById]
+    [onSelectionChange, rowSelection, selection, evaluatorsById]
   );
   const navigate = useNavigate();
   const paths = useProjectEvaluatorPaths();
@@ -528,12 +532,12 @@ export function ProjectEvaluatorsTable({
     (projectEvaluatorId: string) => navigate(paths.edit(projectEvaluatorId)),
     [navigate, paths]
   );
+  const { selectRow } = useShiftClickRowSelection<TableRow>({
+    resetKey: tableData,
+  });
   const columns = useMemo<ColumnDef<TableRow>[]>(
     () => [
-      createRowSelectionColumn<TableRow>({
-        showSelectAllHeader: false,
-        size: 40,
-      }),
+      createRowSelectionColumn<TableRow>({ selectRow, size: 40 }),
       {
         id: "enabled",
         header: "enabled",
@@ -834,7 +838,7 @@ export function ProjectEvaluatorsTable({
         ),
       },
     ],
-    [projectId, openEditSlideover, paths]
+    [projectId, openEditSlideover, paths, selectRow]
   );
   const columnVisibility = useProjectEvaluatorsTableContext(
     (state) => state.columnVisibility
@@ -1042,7 +1046,9 @@ export function ProjectEvaluatorsTable({
       </EvaluatorScoreWindowProvider>
       {Object.keys(selection).length > 0 ? (
         <ProjectEvaluatorSelectionToolbar
+          projectId={projectId}
           selection={selection}
+          evaluatorsById={evaluatorsById}
           onClearSelection={() => onSelectionChange({})}
         />
       ) : null}

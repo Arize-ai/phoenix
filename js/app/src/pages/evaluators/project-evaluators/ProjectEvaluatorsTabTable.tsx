@@ -1,6 +1,11 @@
 import { css } from "@emotion/react";
-import type { OnChangeFn, SortingState } from "@tanstack/react-table";
+import type {
+  OnChangeFn,
+  RowSelectionState,
+  SortingState,
+} from "@tanstack/react-table";
 import { flexRender, useTable } from "@tanstack/react-table";
+import { useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { Flex, Icon, Icons, Link, Text } from "@phoenix/components";
@@ -8,8 +13,14 @@ import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
+import { EvaluatorSelectionToolbar } from "@phoenix/components/evaluators/EvaluatorSelectionToolbar";
 import { ProjectLink } from "@phoenix/components/project/ProjectLink";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
+import {
+  CHECKBOX_COLUMN_ID,
+  createRowSelectionColumn,
+  useShiftClickRowSelection,
+} from "@phoenix/components/table";
 import { ColumnHeaderWithHelp } from "@phoenix/components/table/ColumnHeaderWithHelp";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableColumnHeader } from "@phoenix/components/table/TableColumnHeader";
@@ -17,6 +28,7 @@ import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
 import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import type { ProjectEvaluatorsTabTableQuery } from "@phoenix/pages/evaluators/project-evaluators/__generated__/ProjectEvaluatorsTabTableQuery.graphql";
+import { DeleteProjectEvaluatorDialog } from "@phoenix/pages/project/evaluators/DeleteProjectEvaluatorDialog";
 import { getClearableCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
 import {
   ProjectEvaluatorAverageCost,
@@ -155,6 +167,7 @@ export function ProjectEvaluatorsTabTable({
   fetchKey,
   sorting,
   onSortingChange,
+  onEvaluatorsDeleted,
 }: {
   /** Matches an evaluator's name or its project's name. */
   filter: string;
@@ -164,8 +177,12 @@ export function ProjectEvaluatorsTabTable({
   fetchKey: number;
   sorting: SortingState;
   onSortingChange: OnChangeFn<SortingState>;
+  /** Called once selected evaluators are deleted, to refetch the page. */
+  onEvaluatorsDeleted: () => void;
 }) {
   const { timeRangeISOStrings } = useTimeRange();
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const data = useLazyLoadQuery<ProjectEvaluatorsTabTableQuery>(
     graphql`
       query ProjectEvaluatorsTabTableQuery(
@@ -267,7 +284,16 @@ export function ProjectEvaluatorsTabTable({
           serverQueuedCount,
         })
       : new Set<string>();
+  // Only shown rows count, so a filter that hides a selected row also keeps
+  // it out of a delete.
+  const selectedEvaluators = rows
+    .filter((row) => rowSelection[row.id])
+    .map((row) => ({ id: row.id, name: row.name, kind: row.evaluator.kind }));
+  const { selectRow } = useShiftClickRowSelection<TableRow>({
+    resetKey: data,
+  });
   const columns: ColumnDef<TableRow>[] = [
+    createRowSelectionColumn<TableRow>({ selectRow }),
     {
       id: "enabled",
       header: "enabled",
@@ -472,52 +498,78 @@ export function ProjectEvaluatorsTabTable({
     features: appTableFeatures,
     data: rows as TableRow[],
     columns,
-    state: { sorting },
+    state: { sorting, rowSelection },
     onSortingChange,
+    enableRowSelection: true,
+    onRowSelectionChange: setRowSelection,
     getRowId: (row) => row.id,
   });
   const tableRows = table.getRowModel().rows;
   return (
-    <table css={tableCSS} aria-label="Project evaluators across all projects">
-      <thead>
-        {table.getHeaderGroups().map((headerGroup) => (
-          <tr key={headerGroup.id}>
-            {headerGroup.headers.map((header) => (
-              <TableColumnHeader key={header.id} header={header} />
-            ))}
-          </tr>
-        ))}
-      </thead>
-      {tableRows.length === 0 ? (
-        <TableEmptyWrap>
-          <CompactEmptyState
-            icon={<Icon svg={<Icons.Scale />} />}
-            description="No project evaluators"
-            isFiltered={trimmedFilter.length > 0 || picked.size > 0}
-          />
-        </TableEmptyWrap>
-      ) : (
-        <tbody>
-          {tableRows.map((row) => (
-            <tr key={row.id}>
-              {row.getVisibleCells().map((cell) => (
-                <td
-                  key={cell.id}
-                  style={{
-                    width: cell.column.getSize(),
-                    maxWidth: cell.column.getSize(),
-                    overflow: "hidden",
-                    whiteSpace: "nowrap",
-                    textAlign: cell.column.columnDef.meta?.textAlign,
-                  }}
-                >
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
+    <>
+      <table css={tableCSS} aria-label="Project evaluators across all projects">
+        <thead>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <tr key={headerGroup.id}>
+              {headerGroup.headers.map((header) => (
+                <TableColumnHeader key={header.id} header={header} />
               ))}
             </tr>
           ))}
-        </tbody>
-      )}
-    </table>
+        </thead>
+        {tableRows.length === 0 ? (
+          <TableEmptyWrap>
+            <CompactEmptyState
+              icon={<Icon svg={<Icons.Scale />} />}
+              description="No project evaluators"
+              isFiltered={trimmedFilter.length > 0 || picked.size > 0}
+            />
+          </TableEmptyWrap>
+        ) : (
+          <tbody>
+            {tableRows.map((row) => (
+              <tr key={row.id}>
+                {row.getVisibleCells().map((cell) => (
+                  <td
+                    key={cell.id}
+                    style={{
+                      width: cell.column.getSize(),
+                      maxWidth: cell.column.getSize(),
+                      overflow: "hidden",
+                      whiteSpace: "nowrap",
+                      textAlign: cell.column.columnDef.meta?.textAlign,
+                      userSelect:
+                        cell.column.id === CHECKBOX_COLUMN_ID
+                          ? "none"
+                          : undefined,
+                    }}
+                  >
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        )}
+      </table>
+      {selectedEvaluators.length > 0 ? (
+        <>
+          <EvaluatorSelectionToolbar
+            selectedCount={selectedEvaluators.length}
+            onClearSelection={() => setRowSelection({})}
+            onDelete={() => setIsDeleteDialogOpen(true)}
+          />
+          <DeleteProjectEvaluatorDialog
+            projectEvaluators={selectedEvaluators}
+            isOpen={isDeleteDialogOpen}
+            onOpenChange={setIsDeleteDialogOpen}
+            onDeleted={() => {
+              setRowSelection({});
+              onEvaluatorsDeleted();
+            }}
+          />
+        </>
+      ) : null}
+    </>
   );
 }

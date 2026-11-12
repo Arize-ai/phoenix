@@ -125,6 +125,7 @@ function ProjectEvaluatorsTabContent() {
               fetchKey={refreshKey}
               sorting={sorting}
               onSortingChange={setSorting}
+              onEvaluatorsDeleted={refresh}
             />
           </Suspense>
         </div>

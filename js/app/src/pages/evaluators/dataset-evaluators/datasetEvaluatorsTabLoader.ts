@@ -13,7 +13,8 @@ export const datasetEvaluatorsTabLoader = () => {
   return loadQuery<datasetEvaluatorsTabLoaderQuery>(
     RelayEnvironment,
     datasetEvaluatorsTabLoaderGql,
-    {}
+    {},
+    { fetchPolicy: "store-and-network" }
   );
 };
 

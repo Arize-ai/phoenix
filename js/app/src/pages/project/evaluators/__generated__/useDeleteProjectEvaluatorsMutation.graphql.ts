@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<eed09fa3ddab0c82f2de772843c89760>>
+ * @generated SignedSource<<4ccb2495dc824c50228a110f3db30b19>>
  * @lightSyntaxTransform
  */
 
@@ -12,17 +12,17 @@ export type DeleteProjectEvaluatorsInput = {
   deleteAssociatedPromptOrDecision?: boolean;
   projectEvaluatorIds: ReadonlyArray<string>;
 };
-export type DeleteProjectEvaluatorDialogMutation$variables = {
+export type useDeleteProjectEvaluatorsMutation$variables = {
   input: DeleteProjectEvaluatorsInput;
 };
-export type DeleteProjectEvaluatorDialogMutation$data = {
+export type useDeleteProjectEvaluatorsMutation$data = {
   readonly deleteProjectEvaluators: {
     readonly projectEvaluatorIds: ReadonlyArray<string>;
   };
 };
-export type DeleteProjectEvaluatorDialogMutation = {
-  response: DeleteProjectEvaluatorDialogMutation$data;
-  variables: DeleteProjectEvaluatorDialogMutation$variables;
+export type useDeleteProjectEvaluatorsMutation = {
+  response: useDeleteProjectEvaluatorsMutation$data;
+  variables: useDeleteProjectEvaluatorsMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -64,7 +64,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "DeleteProjectEvaluatorDialogMutation",
+    "name": "useDeleteProjectEvaluatorsMutation",
     "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -73,20 +73,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "DeleteProjectEvaluatorDialogMutation",
+    "name": "useDeleteProjectEvaluatorsMutation",
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "8e69293a1397a603535ae76aa8bf3d8c",
+    "cacheID": "e61ad20b361cc2b00405efb7fda21f5c",
     "id": null,
     "metadata": {},
-    "name": "DeleteProjectEvaluatorDialogMutation",
+    "name": "useDeleteProjectEvaluatorsMutation",
     "operationKind": "mutation",
-    "text": "mutation DeleteProjectEvaluatorDialogMutation(\n  $input: DeleteProjectEvaluatorsInput!\n) {\n  deleteProjectEvaluators(input: $input) {\n    projectEvaluatorIds\n  }\n}\n"
+    "text": "mutation useDeleteProjectEvaluatorsMutation(\n  $input: DeleteProjectEvaluatorsInput!\n) {\n  deleteProjectEvaluators(input: $input) {\n    projectEvaluatorIds\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "4b4583e4fab10216c432ce2bf4882263";
+(node as any).hash = "b496ee7131da52874920109f3f28fa5c";
 
 export default node;

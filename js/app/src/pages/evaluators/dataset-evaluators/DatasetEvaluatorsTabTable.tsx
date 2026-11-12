@@ -38,6 +38,7 @@ export function DatasetEvaluatorsTabTable({
           sort: $sort
           filter: $filter
         ) @connection(key: "DatasetEvaluatorsTabTable_datasetEvaluators") {
+          __id
           edges {
             node {
               ...DatasetEvaluatorsTable_row
@@ -48,6 +49,8 @@ export function DatasetEvaluatorsTabTable({
     `,
     query
   );
+  const connectionId = data.datasetEvaluators.__id;
+  const connectionIds = [connectionId];
   const loadNext = (
     args: NonNullable<
       Parameters<typeof _loadNext>[1]
@@ -65,6 +68,7 @@ export function DatasetEvaluatorsTabTable({
       hasNext={hasNext}
       loadNext={loadNext}
       refetch={refetch}
+      updateConnectionIds={connectionIds}
       onRowClick={(row) => {
         navigate(`/datasets/${row.dataset.id}/evaluators/${row.id}`);
       }}
