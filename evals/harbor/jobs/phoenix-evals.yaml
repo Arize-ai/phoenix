@@ -1,7 +1,7 @@
-# Measure how well a coding agent builds evals with Phoenix, with and without the public
-# skills. Run `evals/harbor/scripts/snapshot_skills.sh <ref> baseline` first; the
+# Measure how well a coding agent does evaluation work with Phoenix, with and without the
+# public skills. Run `evals/harbor/scripts/snapshot_skills.sh 2fd49f842b baseline` first; the
 # `claude-code-skills-baseline` condition loads the skills as they were at that ref.
-# The plugin records all results in the phoenix-evals Phoenix dataset.
+# Tasks: evals/harbor/tasks/phoenix-evals/README.md.
 datasets:
   - path: evals/harbor/tasks/phoenix-evals
 agents:

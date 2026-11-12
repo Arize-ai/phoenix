@@ -22,6 +22,8 @@ RUN chown agent:agent /app
 COPY wheels/ /wheels/
 RUN uv pip install --system --no-cache /wheels/*.whl
 COPY container_assets/ /opt/phoenix-eval/
+# The task's starting files, such as app code and eval scripts, owned by the agent.
+COPY --chown=agent:agent workdir/ /app/
 COPY data/ /data/
 # Root-only: the agent phase runs as `agent` and reaches the data only through Phoenix.
 RUN chmod 700 /data && chmod 600 /data/phoenix.db

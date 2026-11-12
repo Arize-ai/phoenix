@@ -32,7 +32,7 @@ from typing import Any, Literal
 
 from phoenix.evals.metrics import exact_match
 
-ANSWER_PATH = Path("/app/answer.txt")
+ANSWER_PATH = Path(os.environ.get("TASK_APP_DIR", "/app")) / "answer.txt"
 TRAJECTORY_PATH = Path(
     os.environ.get("PHOENIX_EVAL_TRAJECTORY_PATH", "/logs/agent/trajectory.json")
 )

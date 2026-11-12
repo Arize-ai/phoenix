@@ -345,6 +345,8 @@ exclude = [
   "dist/",
   "evals/harbor/verifiers/harbor_verifiers/graphql/__generated__/",
   "evals/harbor/tasks/trail-benchmark-dev/",
+  # Every task has its own tests/test.py and fixture/build.py; the names would collide.
+  "evals/harbor/tasks/phoenix-evals/",
   "examples/",
   "packages/",
   "scripts/",
