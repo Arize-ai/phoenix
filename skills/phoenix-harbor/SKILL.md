@@ -1,6 +1,6 @@
 ---
 name: phoenix-harbor
-description: Configure and interpret the Phoenix plugin for Harbor agent evaluations, and write Harbor tasks and verifiers whose scores you can trust. Use when adding `arize-phoenix` to Harbor jobs, choosing ATIF tracing, mapping Harbor tasks and rewards to Phoenix experiments, writing or reviewing Harbor tasks, verifiers, or expected answers, comparing agents, models, or skills, investigating suspicious Harbor scores, resuming jobs, or troubleshooting Harbor records in Phoenix.
+description: Build and review Harbor evaluations with Phoenix. Use when configuring the Phoenix Harbor plugin, designing tasks, tests, verifiers, or rewards, comparing Harbor experiments, or debugging their scores, traces, and recording failures.
 license: Apache-2.0
 metadata:
   targets: "agents mcp"
@@ -12,15 +12,9 @@ metadata:
 
 Use the Phoenix Harbor plugin to record Harbor agent evaluations as versioned Phoenix datasets, experiments, runs, scores, and ATIF traces.
 
-Harbor runs agents and verifiers. Phoenix records and compares their results. Do not describe Phoenix as executing Harbor tasks or recalculating Harbor rewards.
+Harbor runs agents and verifiers. Phoenix records and compares their results.
 
-This file covers the plugin. For the tasks and verifiers themselves, read:
-
-| Need | Read |
-| --- | --- |
-| Write, review, or debug a Harbor task or verifier | [references/best-practices.md](references/best-practices.md) |
-| A Harbor setting that fails silently or costs money | [references/gotchas.md](references/gotchas.md) |
-| A worked verifier that uses a `phoenix-evals` LLM judge | [references/phoenix-evals-verifier.md](references/phoenix-evals-verifier.md) |
+For a new evaluation, start with [Build and run Harbor tasks](references/best-practices.md) to create and validate a task. Then follow this file to record runs and compare results in Phoenix. To grade an agent's answer with an LLM, see [Use Phoenix Evals in a verifier](references/phoenix-evals-verifier.md).
 
 ## Requirements
 
@@ -34,18 +28,6 @@ Install the client and Harbor in the same Python environment:
 ```bash
 uv pip install "arize-phoenix-client[harbor]"
 ```
-
-## Choose the trace mode
-
-Use `atif` unless the agent has no ATIF trajectory or the user does not want traces. ATIF is the default. It reads trajectory files after the final trial attempt, so the sandbox needs no Phoenix endpoint, credentials, instrumentation, or outbound network access.
-
-Use `null` to record datasets, experiments, runs, and evaluations without traces:
-
-```bash
---plugin-kwarg trace_mode=null
-```
-
-Live OpenTelemetry Protocol (OTLP) support is deferred to a follow-up. This release accepts `atif` or `null`, and does not link live OpenTelemetry agent traces to experiment runs.
 
 ## Set the Phoenix destination
 
@@ -64,14 +46,28 @@ Add `--plugin arize-phoenix` to the user's existing `harbor run` command. Preser
 
 ```bash
 harbor run \
-  -d terminal-bench/terminal-bench-2 \
-  -a terminus-2 \
-  -m openai/gpt-5-mini \
-  --plugin arize-phoenix \
-  --yes
+  -p TASK_PATH \
+  -a AGENT \
+  -m MODEL \
+  -e SANDBOX \
+  --plugin arize-phoenix
 ```
 
-Do not invent or replace Harbor settings that are unrelated to Phoenix.
+Replace the placeholders with your task directory, Harbor agent, model, and sandbox provider. Supply the agent's required credentials. For an existing job file, add the plugin to `harbor run -c JOB_CONFIG` instead.
+
+After the run, open the dataset's **Experiments** tab in Phoenix. Compare rewards and errors, then open a run's linked trace to inspect its model and tool calls. Run another agent or model on the same tasks to add a comparison experiment.
+
+## Choose the trace mode
+
+Use `atif` unless the agent has no ATIF trajectory or the user does not want traces. ATIF is the default. It reads trajectory files after the final trial attempt, so the sandbox needs no Phoenix endpoint, credentials, instrumentation, or outbound network access.
+
+Use `null` to record datasets, experiments, runs, and evaluations without traces:
+
+```bash
+--plugin-kwarg trace_mode=null
+```
+
+The plugin accepts `atif` or `null`. It does not link live OpenTelemetry agent traces to experiment runs.
 
 ## Predict the Phoenix records
 
@@ -98,23 +94,17 @@ When a saved terminal ATIF trajectory ends with a user-facing textual agent turn
 
 Successful runs written by older plugin versions keep their legacy Harbor metadata output because Phoenix runs are immutable. Resume recognizes that exact legacy shape and reuses the run.
 
-## Know what the plugin records and what you add
+## Define task scores
 
-The plugin records some signals without any task changes. Others only exist if the task's verifier writes them.
+Most built-in Harbor agents produce ATIF trajectories by default. Custom agents can implement [ATIF output](https://docs.harborframework.com/agents/atif) too. With the default `atif` trace mode, the plugin converts these trajectories into OpenTelemetry traces with recorded timing, token usage, cost, metadata, and nested agent and tool calls. See [ATIF trace details](#interpret-atif-traces) for supported fields and timing limits.
 
-| Signal | Source | Where it shows in Phoenix |
-| --- | --- | --- |
-| Trial latency | Plugin, from Harbor's start and end times | Run duration |
-| Token counts and cost | Plugin, from the ATIF trajectory when it reports them | LLM spans in the linked trace, summed per run and experiment |
-| Final agent reply | Plugin | Run output |
-| Each model call and tool call | Plugin | Spans in the linked trace |
-| Infrastructure health | Plugin | `infra_ok` and the run error |
-| Task success | Your verifier, as `reward` | Experiment evaluation |
-| Tool-call or turn counts | Your verifier, counted from the trajectory | Experiment evaluations, averaged per experiment |
-| Behavior, such as which skill loaded | Your verifier | Experiment evaluations |
-| Expected answer | Your task, with `reference_output_path` | Dataset example output, beside each run |
+The plugin also records trial duration, execution errors, and the final reply when available. These records need no verifier code. Missing usage is unknown, not zero.
 
-Don't write verifier keys for tokens, cost, or latency. The trace already carries them, and token counts and cost need the default `atif` trace mode. Do write keys for tool calls or turns when you want to compare them, because the trace shows each call but not a per-run count. Keep these keys separate from `reward`.
+You define success in the task's verifier. Write the result to Harbor's reward file, and the plugin copies each numeric key into a Phoenix experiment evaluation. Use `reward` for the overall result. It can combine several checks with AND, OR, or a documented partial-credit calculation. The plugin does not choose or combine those checks for you.
+
+Add other keys when useful, such as individual criteria or tool-call counts. The plugin does not calculate these scores. Prefer the recorded duration and trace usage for latency, tokens, and cost instead of duplicating them in the verifier.
+
+An expected answer is optional task data. Configure a reference output to display it in Phoenix; the verifier must separately read it if it uses that answer for grading.
 
 ## Add optional reference outputs
 
@@ -269,7 +259,7 @@ The plugin does not support:
 
 - Harbor regrade jobs and other jobs derived from previous Harbor results;
 - post-hoc ingestion of a completed job;
-- live OTLP trace linkage, which is deferred to a follow-up;
+- live OTLP trace linkage;
 - several configured datasets in one job;
 - mixed configured datasets and direct tasks; or
 - concurrent ingestion of one Harbor job.

@@ -1,106 +1,113 @@
-# Build Harbor tasks you can trust
+# Build and run Harbor tasks
 
-A Harbor score is only as good as the task and verifier behind it. Use this guide when you write or review a task, or when scores look wrong.
+Use this guide to design, review, or debug Harbor tasks whose results you record in Phoenix. Start with the user's evaluation question, existing tasks, and representative requests or traces. Choose cases that measure the capability of interest and reflect the agent's actual tools and environment.
 
-For the task layout, `task.toml` fields, and network settings, use Harbor's `create-task` skill. For reward criteria and judge files, use Harbor's `rewardkit` skill. If they aren't installed, offer to install them with `npx skills add harbor-framework/harbor`.
+For task scaffolding and configuration, use Harbor's `create-task` skill or [task documentation](https://docs.harborframework.com/tasks/overview). If you need Harbor's skills and they aren't installed, offer `npx skills add harbor-framework/harbor`. Write verifiers with plain code, [Phoenix Evals](phoenix-evals-verifier.md), or Harbor's [Rewardkit](https://docs.harborframework.com/rewardkit/quick-start), depending on the criteria.
 
-## Decide what proves success
+## Task structure
 
-Before you write any file, finish this sentence: "Pass if and only if OBSERVABLE_OUTCOME." Then grade what the agent produced:
+A Harbor task packages a request, an execution environment, and a verifier. Create a task with `harbor task init ORG/TASK_NAME`. For a single-step task:
 
-- the state it left, such as files or records in a service;
-- code it wrote, which the verifier runs;
-- its final reply, read from the trajectory.
+- `instruction.md` contains the request the agent receives.
+- `task.toml` configures resources, timeouts, network access, artifacts, and verifier settings.
+- `environment/` defines the sandbox and its initial files and data.
+- `tests/test.sh` runs the verifier and writes rewards. Other files in `tests/` hold grading code and reference data.
+- `solution/solve.sh` is an optional reference solution, run by Harbor's oracle agent.
 
-When the deliverable is a file or a change, name it in the instruction. When the deliverable is an answer, grade the final reply. Don't ask the agent to write an answer file so the verifier has something easy to parse. Users don't ask agents for one, so the task stops matching real use.
+A job selects tasks, agents, and run settings. A trial is one agent attempt at a task. Use Harbor's `create-task` skill for scaffolding and details such as multi-step tasks and separate verifier images.
 
-## Score the outcome, not the path
+## Define success
 
-Make `reward` depend on what the agent achieved, not on how it got there:
+Decide which observable results establish success. A task can require several outcomes, accept alternative outcomes, or award partial credit. For example, a data-cleanup task might require both removing invalid records and preserving valid ones. A diagnosis task might accept either of two supported explanations.
 
-- A verifier that ignores tool names, tool-call style, and which agent ran keeps working when you change the agent or compare agents.
-- A verifier that doesn't expect one trajectory doesn't fail a valid path you didn't anticipate.
+Check the relevant evidence: service state, files, executable code, the agent's trajectory, or its final reply. A trajectory can show tool inputs, observations, and intermediate actions. Keep expected results independent of the agent's claims; a successful tool call alone does not establish that the requested change occurred.
 
-Record efficiency and behavior as separate keys that don't change `reward`, such as tool-call count, turn count, or whether a skill loaded. Add them after `reward` works. When the path is the thing you're testing, check the path; this is a design goal, not a rule.
+Prefer checks that accept valid approaches across agents and implementations. Test a particular tool, sequence, or behavior when that is the capability being evaluated. Otherwise, report those observations separately from task success.
 
-## Write the instruction
+## Write a realistic instruction
 
-- Write it the way a user would ask. State the end state, not the steps.
-- Leave out hints about grading. Hints make the task easier than real use.
-- Remove ambiguity, such as rounding, units, or whether to count spans or traces, instead of accepting several answers in the verifier.
-- Keep it static. Put conditions such as the agent, model, skills, and MCP servers in the job file, so every condition sees the same task and Phoenix compares them on one dataset version.
+Use language and detail that a user would plausibly provide. A script, database change, set of annotations, or Markdown review can be a natural deliverable. Asking for a JSON answer file solely to simplify grading often isn't. Choose the deliverable to fit the task; this is a design consideration, not a ban on structured output.
 
-## Store the expected answer with the verifier
+Include requirements that matter to the user's goal. Avoid adding formatting, rounding, units, or implementation steps only to satisfy a narrow verifier. Let the verifier accept equivalent representations and reasonable interpretations. If ambiguity makes success impossible to assess fairly, revise the task or its criteria.
 
-Put expected values in `tests/`. Harbor uploads `tests/` only after the agent stops, so the agent can't read them. Derive the value with the reference solution, through the same interfaces the agent uses, and rerun it when the fixture changes. If the fixture changes often, compute the expected value in the verifier instead.
+Keep hidden answers and grading details out of `instruction.md`. For comparisons, use the same instruction and task data across conditions. Configure agent, model, skills, and tools in the job.
 
-Point `reference_output_path` at the file, as described in "Add optional reference outputs" in `SKILL.md`. Phoenix then shows the expected answer beside each run.
+## Prepare the environment and expected results
 
-## Build the environment
+Provide the data, services, and permissions the task needs. Harbor creates a fresh sandbox for each trial. Seed reproducible fixtures in the image or at startup. If a task uses shared external services, isolate its data across trials too.
 
-- Pin Harbor and agent versions. A new agent version can change results.
-- Seed data offline and deterministically, once per build rather than once per trial. Plant the failures the task asks about, so the expected answer is computable.
-- Use an allowlist network policy with only the hosts each phase needs. Install dependencies in the image, because downloads at install time fail under an allowlist.
-- If the task forbids outside material, turn off the agent's hosted web and fetch tools in its config. A provider allowlist doesn't stop the provider from fetching URLs.
+Keep expected values and grading criteria under `tests/`, outside the agent's build context and workspace. Harbor supplies tests during verification, but copying them into the agent image would expose them earlier. In shared multi-step environments, also protect files left by previous verifier steps.
 
-## Choose the verifier mode
+Derive expected results independently, for example with a reference solution using the same data and access available to the agent. Recompute them when fixtures change. If the data varies per trial, calculate the expected result from that trial's data during verification.
 
-Use a separate verifier environment by default. It keeps grading code, judge prompts, and keys away from the agent.
+For a stored reference, set `[metadata.arize-phoenix] reference_output_path` in `task.toml`. Phoenix displays that JSON file as the dataset example output. This setting does not configure grading. See the [Add optional reference outputs section in this skill](../SKILL.md#add-optional-reference-outputs) for the format and path rules.
 
-Use the shared mode when the verifier must read live services or state the agent changed. Then set `[agent] user` to an unprivileged user and keep hidden files unreadable to it. In a multi-step task, an agent can otherwise read files left by earlier steps' verifiers.
+Keep generated jobs and reports outside task source. Task content changes can create a new Phoenix dataset version, which affects comparisons.
 
-## Write the verifier
+## Configure the sandbox and verifier
 
-- Use code for facts, such as counts, IDs, file contents, and service state. Use an LLM judge only for meaning.
-- Don't grade a free-text reply by keyword or substring, because it can't tell "X" from "not X". Substring checks are fine for code and config files.
-- Expect judges to reject correct paraphrases. Put accepted aliases and task rules in per-task grading notes rather than a longer shared rubric. Don't tell the judge how the agent should produce the answer.
-- Write one primary `reward`, pass or fail when you can. If you use partial credit, name the aggregate `reward` so Phoenix treats it as the primary score.
-- Score missing or malformed agent output as 0. Let a failure in the verifier itself, such as a judge error or a missing fixture, raise. Harbor then records an error instead of a 0 that looks like an agent failure.
-- In a multi-step task, emit the same reward keys at every step. Harbor counts a missing key as 0 when it averages steps.
+Use the project's supported Harbor version and check its CLI help and configuration schema. The plugin's minimum Harbor version does not guarantee that every newer task feature is available.
 
-Write verifiers with `phoenix-evals`, `rewardkit`, or plain code. With `phoenix-evals`, you can use the same evaluators on traces, experiments, and Harbor tasks; see [phoenix-evals-verifier.md](phoenix-evals-verifier.md) for a worked example. Whichever you use, validate an LLM judge against labeled examples before you trust it. The `phoenix-evals` skill covers how.
+Choose a sandbox provider that supports the task's image, services, artifact transfer, and network requirements. Consult Harbor's [sandbox documentation](https://docs.harborframework.com/sandboxes/pre-integrated-sandboxes) and [network capability tables](https://docs.harborframework.com/tasks/network-policies) for the selected provider and version. Startup commands, multi-container support, and network enforcement vary by provider.
 
-## Prove the task before you pay for a model
+Prefer a separate verifier environment when grading needs only exported files or other artifacts. Declare the required artifacts explicitly; a separate verifier does not inherit the agent's filesystem. Use shared verification when the verifier needs live state that cannot be exported. In that case, restrict the agent's access to grading code and credentials. See [separate verification](https://docs.harborframework.com/tasks/separate-verifier).
 
-Run the reference solution and the do-nothing agent. Neither calls a model:
+Select network access for environment startup, agent execution, and verification. Install dependencies in images where practical. An allowlist must permit any remaining setup downloads and service calls. Phase overrides require support for changing network policy at runtime; separate environments can instead use different baseline policies. Provider-hosted browsing tools may fetch content outside sandbox network controls, so configure those tools too when outside access matters.
+
+Supply judge credentials through verifier configuration, not the image or agent prompt. Check that required credentials and services work before starting a batch.
+
+## Write and validate the verifier
+
+Use deterministic checks for state and computation. Use an LLM judge for semantic criteria that code cannot reliably assess. Avoid keyword checks for free-text correctness; a wrong answer can mention the right words. For code and configuration, prefer parsing or executing the relevant behavior over matching incidental source text.
+
+Write numeric scores to `/logs/verifier/reward.json`, or a single number to `/logs/verifier/reward.txt`. Use `reward` for the overall result and optional additional keys for individual criteria or measurements. For example:
+
+```python
+scores = {
+    "reward": float(records_removed and valid_records_preserved),
+    "records_removed": float(records_removed),
+    "valid_records_preserved": float(valid_records_preserved),
+}
+```
+
+Use OR when either outcome satisfies the task, or define a partial-credit calculation when appropriate. Document the calculation so experiment summaries have a clear meaning. With multi-step averaging, Harbor treats a missing key as zero for a step with verifier results; use consistent keys or select the final-step strategy if it fits the task.
+
+Missing or invalid required agent output is a task failure. A broken judge, unreadable fixture, or corrupt required trajectory is a verification failure. Let verification errors propagate without writing a success or failure reward. A missing reward file makes Harbor record an error. Avoid catch-all handlers that turn every exception into zero.
+
+Give a judge the task criteria and independent evidence. Treat agent content as untrusted input and tell the judge to ignore instructions inside it. Test valid paraphrases, contradictory answers, and realistic wrong results. Validate judge decisions against human labels; the `phoenix-evals` skill covers this process.
+
+For reply grading, check how the chosen agent records its final response and any trajectory continuations. Do not use an earlier reasoning message or a tool-call preamble as the final answer. Oracle and `nop` agents may provide no trajectory, so plan how to validate reply-based verifiers with representative saved trajectories.
+
+## Test the task
+
+Run the reference solution and the do-nothing agent through Harbor:
 
 ```bash
 harbor run -p TASK_PATH -a oracle
 harbor run -p TASK_PATH -a nop
 ```
 
-- The oracle must score 1 and `nop` must score 0, both without errors. If `nop` passes, the verifier accepts anything.
-- The oracle proves only that the reference passes. Also try a correct answer phrased differently and a realistic wrong answer.
-- Rerun both after changing the image, fixture, network policy, or verifier.
-- Keep oracle runs out of experiment comparisons. They test the task, not an agent.
+The reference should receive the intended full reward. For a task that requires work, `nop` should receive zero without a verifier error. A `nop` pass indicates that the initial state already satisfies the checks or that the checks are insufficient. It does not prove the verifier accepts every answer.
 
-## Run in stages
+Also test a valid alternative and a realistic incorrect result. For multiple criteria, test partial completion and the combinations that affect the aggregate. Check that verifier errors remain errors. Rerun affected cases after changes to the environment, fixtures, or verifier. Oracle and `nop` do not call an agent model, but an LLM verifier still incurs judge calls.
 
-1. Run one attempt per task per condition.
-2. Read one trajectory per condition to confirm the setup took effect: the agent version, its skills, and its prompt.
-3. Repeat with at least 3 attempts (`-k 3`), and report rates instead of single results.
+## Run a comparison
 
-Stop trials once the answer is known, with an agent hook if you can and a short agent timeout as the fallback. An early stop can undercount cost and can count a late action as a miss.
+Start with a small pilot and inspect its configuration, outputs, and trajectories before increasing attempts or concurrency. Confirm the agent, model, tools, skills, and instructions match the intended condition. Repeat enough trials to assess variability; one run does not establish a regression. Keep oracle validation runs separate from agent comparisons.
 
-Keep agent evals out of pull-request gates until you have pass-rate history. A gate that fails without a real regression teaches people to ignore it.
+Check these Harbor configuration details when a run differs from the job you intended:
 
-## Read the results
+- Put agent-specific constructor options, including supported version pins, under `kwargs`. Check the selected adapter's options.
+- Give custom agents distinct names. A built-in name can take precedence over `import_path`.
+- With `-c`, command-line agent selection can replace configured agents. Preserve their tools, environment, and skills when selecting a subset.
+- `-k` controls attempts per task and agent; `--n-concurrent` controls concurrency.
+- Check inherited environment variables, especially provider endpoints. They can change routing even when the job file is unchanged.
+- Read trial results. A successful Harbor process exit does not mean every trial succeeded.
 
-Filter on `infra_ok` first. A trial that never started can pass a should-not-happen check.
+## Interpret results in Phoenix
 
-Read full trajectories, for failures and for surprising passes. Before you change anything, name the cause of each failure:
+Check `infra_ok`, reward coverage, and recorded errors before comparing task scores. Report execution failures separately rather than silently excluding them from the results. `infra_ok=1` means Harbor recorded no exception; it does not establish that the task or verifier is correct.
 
-| Cause | What went wrong | Where to look in Harbor |
-| --- | --- | --- |
-| Agent | The agent had what it needed and still got it wrong. Keep the score. | Trajectory |
-| Task | The instruction or data was missing information, was ambiguous, or exposed the answer. | `instruction.md`, environment |
-| Setup | The agent's tools, prompts, runtime, or services didn't match real use. | Trajectory, `trial.log` |
-| Grader | The verifier failed a valid result or passed a wrong one. | Verifier output in the trial's `verifier/` folder |
-| Infrastructure | Something crashed, timed out, or lacked a credential. The run gets no score. | `infra_ok`, run error |
+Inspect failed runs and unexpected passes using their trajectories, verifier logs, and final state. Distinguish an agent error from an unclear task, an incorrect setup, a grader error, or an execution failure. Fix evaluation defects before drawing conclusions about the agent. Preserve original scores when correcting a grader, and compare reruns under the same grading logic.
 
-Then:
-
-- Fix the eval before you trust its score. Only the agent cause is a result.
-- Keep grader fixes separate from agent changes, and keep the original scores for comparison.
-- If every agent scores 1 or every agent scores 0, check for leaks and defects before you change the task's difficulty.
-- To measure a skill, run the same tasks with and without it on one dataset version, on more than one agent.
+Compare configurations on the same tasks and dataset version. Change one factor at a time when you need to attribute a difference. Uniformly high or low scores can reflect task difficulty, weak checks, or similar agent performance; inspect the evidence before changing the benchmark.
