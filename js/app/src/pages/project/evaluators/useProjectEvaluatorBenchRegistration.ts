@@ -22,13 +22,33 @@ import type { ProjectEvaluatorTarget } from "@phoenix/pages/project/evaluators/p
 
 /** Where the mounted bench publishes itself for the bench operations. */
 export type ProjectEvaluatorBenchRegistry = {
-  current: ProjectEvaluatorBenchHost | null;
+  get: () => ProjectEvaluatorBenchHost | null;
+  /** Publishes a host; returns the matching unpublish. */
+  publish: (host: ProjectEvaluatorBenchHost) => () => void;
 };
+
+function createBenchRegistry(): ProjectEvaluatorBenchRegistry {
+  let current: ProjectEvaluatorBenchHost | null = null;
+  return {
+    get: () => current,
+    publish: (host) => {
+      current = host;
+      return () => {
+        if (current === host) {
+          current = null;
+        }
+      };
+    },
+  };
+}
 
 export const ProjectEvaluatorBenchRegistryContext =
   createContext<ProjectEvaluatorBenchRegistry | null>(null);
 
-type BenchScope = { targetType: ProjectEvaluatorTarget; filterCondition: string };
+type BenchScope = {
+  targetType: ProjectEvaluatorTarget;
+  filterCondition: string;
+};
 
 /**
  * Registers the bench operations for as long as the scope panel is open.
@@ -40,9 +60,7 @@ export function useProjectEvaluatorBenchRegistration(
   scope: BenchScope
 ): ProjectEvaluatorBenchRegistry {
   const agentStore = useContext(AgentContext);
-  const [registry] = useState<ProjectEvaluatorBenchRegistry>(() => ({
-    current: null,
-  }));
+  const [registry] = useState(createBenchRegistry);
   const scopeRef = useRef(scope);
   // eslint-disable-next-line react/refs
   scopeRef.current = scope;
@@ -51,7 +69,7 @@ export function useProjectEvaluatorBenchRegistration(
       return undefined;
     }
     const access = {
-      getHost: () => registry.current,
+      getHost: registry.get,
       getScope: () => scopeRef.current,
     };
     return registerUIOperations({
@@ -94,11 +112,6 @@ export function usePublishProjectEvaluatorBench(
       getSnapshot: () => hostRef.current.getSnapshot(),
       runEntries: (entries) => hostRef.current.runEntries(entries),
     };
-    registry.current = published;
-    return () => {
-      if (registry.current === published) {
-        registry.current = null;
-      }
-    };
+    return registry.publish(published);
   }, [registry, targetType, filterCondition]);
 }

@@ -77,7 +77,12 @@ export function useProjectEvaluatorScopeRegistration({
     applyScope,
   });
   // eslint-disable-next-line react/refs
-  latestRef.current = { scope, isTargetEditable, rememberedFilters, applyScope };
+  latestRef.current = {
+    scope,
+    isTargetEditable,
+    rememberedFilters,
+    applyScope,
+  };
   useEffect(() => {
     if (!agentStore) {
       return undefined;

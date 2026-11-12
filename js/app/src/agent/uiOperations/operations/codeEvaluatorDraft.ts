@@ -10,8 +10,11 @@ import { defineUIOperation } from "../types";
  * code-evaluator form dialog is open.
  */
 const CODE_EVALUATOR_DRAFT_ROUTE_HINT =
-  "an open evaluator form dialog — call evaluators.code.openForm, " +
-  "evaluators.llm.openForm, or evaluators.openForEdit first";
+  "an open code-evaluator form: a dataset form (call evaluators.code.openForm " +
+  "from the playground, or evaluators.openForEdit) or a project (online) " +
+  "form (navigate with navigation.goTo to " +
+  "/projects/<projectId>/evaluators/new/code, or to " +
+  "/projects/<projectId>/evaluators/<encodeURIComponent(projectEvaluatorId)>/edit)";
 
 /**
  * No-argument input, mirroring the Python schema's
@@ -57,6 +60,8 @@ export const readCodeEvaluatorDraftOperation = defineUIOperation({
     "testPayload, form mode (`create` or `edit`), and `availableSandboxConfigs` " +
     "(id, name, language, backendType) — pick the `sandboxConfigId` for " +
     "`set_sandbox_config` from that list instead of querying the API. " +
+    "On a project (online) evaluator form, `testPayload` is the bench's " +
+    "focused record and the scope is read with evaluators.project.scope.read. " +
     "Call this before `evaluators.code.edit` or " +
     "`evaluators.code.test` to see the current draft.",
   inputSchema: emptyInputSchema,
@@ -90,7 +95,10 @@ export const editCodeEvaluatorDraftOperation = defineUIOperation({
     '"output":{"messages":[{"role":"assistant","content":"ok"}]},' +
     '"reference":{},"metadata":{}}}. ' +
     "Do not emit `set_sandbox_config` when the read draft already has a compatible " +
-    "sandbox and the user did not ask to change it.",
+    "sandbox and the user did not ask to change it. On a project (online) " +
+    "evaluator form, `set_test_payload` is refused (test on real records with " +
+    "evaluators.project.bench.run), an edit form cannot change the language, " +
+    "and the scope is edited with evaluators.project.scope.edit.",
   inputSchema: editCodeEvaluatorDraftInputSchema,
   operationKind: "approval",
   requireSession: true,
@@ -113,14 +121,18 @@ export const editCodeEvaluatorDraftOperation = defineUIOperation({
 export const testCodeEvaluatorDraftOperation = defineUIOperation({
   name: "evaluators.code.test",
   description:
-    "Run the open code-evaluator draft against its current test payload through " +
+    "Run the open dataset code-evaluator draft against its current test payload through " +
     "the form preview path. This previews the draft only and does " +
-    "not persist, create, or update an evaluator.",
+    "not persist, create, or update an evaluator. Dataset forms only: on a " +
+    "project (online) evaluator form, test with evaluators.project.bench.run.",
   inputSchema: emptyInputSchema,
   operationKind: "write",
   defaultSuccessOutput: "Code evaluator draft test run completed.",
   availability: {
-    routeHint: CODE_EVALUATOR_DRAFT_ROUTE_HINT,
+    routeHint:
+      "an open dataset code-evaluator form (evaluators.code.openForm or " +
+      "evaluators.openForEdit); project evaluator forms test with " +
+      "evaluators.project.bench.run instead",
   },
 });
 
