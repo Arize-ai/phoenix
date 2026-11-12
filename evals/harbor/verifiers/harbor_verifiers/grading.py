@@ -373,14 +373,23 @@ class RunResult:
         }
 
 
-def run_as_agent(command: str, timeout: float = 900, cwd: str | None = None) -> RunResult:
+def run_as_agent(
+    command: str,
+    timeout: float = 900,
+    cwd: str | None = None,
+    env: Mapping[str, str] | None = None,
+) -> RunResult:
     """Runs a shell command as the agent user, as the agent's own nightly job would.
 
     The verifier runs as root so the agent can't read `/tests`; dropping to the agent
     user keeps the rerun from reading hidden labels too. Outside a container (local
-    tests), the command runs as the current user.
+    tests), the command runs as the current user. `env` adds variables, such as the
+    ones that route model requests through `judge_practice.record_llm_calls`.
     """
-    env = {k: v for k, v in os.environ.items() if not k.startswith("PHOENIX_EVAL_")}
+    env = {
+        **{k: v for k, v in os.environ.items() if not k.startswith("PHOENIX_EVAL_")},
+        **(env or {}),
+    }
     argv = ["sh", "-c", command]
     if os.geteuid() == 0:
         env.update(HOME="/home/agent", USER="agent", LOGNAME="agent")
@@ -532,13 +541,22 @@ def check_report_claims(
     return checks
 
 
-def finish(checks: Mapping[str, bool], details: Mapping[str, Any]) -> None:
-    """Writes reward 1 if every check passed, plus each check as a 0/1 component."""
+def finish(
+    checks: Mapping[str, bool],
+    details: Mapping[str, Any],
+    measures: Mapping[str, float] | None = None,
+) -> None:
+    """Writes reward 1 if every check passed, plus each check as a 0/1 component.
+
+    `measures` are extra 0-to-1 scores, such as `judge_practice.practice_scores`, that
+    Harbor reports beside the reward without changing it.
+    """
     from harbor_verifiers.verify import write_reward
 
     reward = float(bool(checks) and all(checks.values()))
     components: dict[str, Any] = {
         f"check_{re.sub(r'[^a-z0-9]+', '_', k.lower())}": v for k, v in checks.items()
     }
+    components.update(measures or {})
     write_reward(reward, {**details, "checks": dict(checks)}, **components)
-    print(json.dumps({"reward": reward, "checks": dict(checks)}, indent=1))
+    print(json.dumps({"reward": reward, "checks": dict(checks), **(measures or {})}, indent=1))

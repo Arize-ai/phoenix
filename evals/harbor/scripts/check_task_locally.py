@@ -39,6 +39,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("task", help="task directory name under tasks/phoenix-evals")
     parser.add_argument("--solution", action="store_true", help="run solution/solve.sh first")
+    parser.add_argument(
+        "--evals",
+        type=Path,
+        help="copy this directory to /app/evals first, for example an agent's eval code",
+    )
+    parser.add_argument("--run", help="shell command to run in /app before grading")
     parser.add_argument("--suite", default="phoenix-evals")
     args = parser.parse_args()
     task = HARBOR / "tasks" / args.suite / args.task
@@ -69,6 +75,10 @@ def main() -> None:
                 for container, local in (("/app", app), ("/solution", solution)):
                     script = script.replace(container, str(local))
                 subprocess.run(["sh", "-c", script], cwd=app, env=env, check=True)
+            if args.evals:
+                shutil.copytree(args.evals, app / "evals", dirs_exist_ok=True)
+            if args.run:
+                subprocess.run(["sh", "-c", args.run], cwd=app, env=env, check=False)
             test = (tests / "test.py").read_text().replace("/tests", str(tests))
             subprocess.run([sys.executable, "-c", test], cwd=app, env=env, check=True)
             details = scratch / "logs" / "details.json"

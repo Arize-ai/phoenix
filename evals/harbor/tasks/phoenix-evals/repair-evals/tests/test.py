@@ -7,7 +7,7 @@
    the new traces.
 """
 
-from harbor_verifiers import grading
+from harbor_verifiers import grading, judge_practice
 
 TRUTH = grading.load_test_json("truth.json")
 PROJECT = TRUTH["project"]
@@ -15,6 +15,16 @@ ANNOTATION = "grounded"
 MIN_RECALL = 0.8
 MIN_COVERAGE = 0.95
 RERUN = "python evals/nightly_grounding.py"
+
+# Reported beside the reward, never part of it. See `judge_practice`.
+APP = "An order-support bot for an online store. It answers customer chat messages and emails about order status, tracking, delivery dates, and address changes, using an order lookup, carrier tracking, and help center articles."
+CRITERIA = {
+    "grounded": "Every factual claim in the reply is supported by what the bot looked up: the order record, the tracking data, and the help center articles."
+}
+EVIDENCE = {
+    "grounded": "the customer's message (chat message or email subject and body), the reply, the order record, the tracking data, and the help center articles"
+}
+DETERMINISTIC = ()
 
 checks: dict[str, bool] = {}
 details: dict = {}
@@ -28,7 +38,17 @@ def grade(cohort: str, labels: dict[str, bool]) -> None:
 
 
 grade("production", TRUTH["visible"])
+seen_spans = grading.project_spans(PROJECT)
 grading.inject_spans(PROJECT, TRUTH["unseen"]["spans"])
-details["rerun"] = grading.run_as_agent(RERUN, timeout=900).as_dict()
+with judge_practice.record_llm_calls() as recorder:
+    details["rerun"] = grading.run_as_agent(RERUN, timeout=900, env=recorder.env).as_dict()
 grade("new_traces", TRUTH["unseen"]["labels"])
-grading.finish(checks, details)
+measures, details["practice"] = judge_practice.practice_scores(
+    recorder.calls,
+    system=APP,
+    criteria=CRITERIA,
+    evidence=EVIDENCE,
+    deterministic=DETERMINISTIC,
+    copied=judge_practice.seen_only_shingles(seen_spans, TRUTH["unseen"]["spans"]),
+)
+grading.finish(checks, details, measures)

@@ -7,7 +7,6 @@ annotation yet, so the nightly job only pays for new traffic.
 from __future__ import annotations
 
 import json
-import os
 import re
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
@@ -21,28 +20,37 @@ PHONE = re.compile(r"\(?\b\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}\b")
 AMOUNT = re.compile(r"""["']refund_amount["']\s*:\s*["']?\$?\s*([0-9]+(?:\.[0-9]+)?)""")
 MESSAGE = re.compile(r"""["']message["']\s*:\s*["'](.*?)["']\s*[,}]""", re.S)
 
-GROUNDED_PROMPT = """You check a customer-support reply for unsupported claims.
+GROUNDED_PROMPT = """You check one reply from a refund-support bot for an online store. For each refund
+request, the bot looks up the customer's order record, searches the refund policies, and
+finds similar past tickets, then writes a message to the customer. The message must not
+state anything the bot didn't look up.
 
-The bot looked up the information below. A claim is supported only if this information
-states it or directly implies it. Timelines, fees, credits, shipping, return windows,
-and actions the bot says it took all count as claims. Greetings and restating the
-customer's request are not claims. Only judge support: whether the reply should share
-a detail, such as another customer's contact information, is a separate check.
+How to judge:
+- Go through the message sentence by sentence. For each factual claim, find the part of
+  the looked-up information that states it or directly implies it.
+- A claim with no source is unsupported, even if it sounds reasonable or nothing in the
+  information contradicts it.
+- Claims include refund amounts and fees, timelines and how fast money arrives, credits,
+  shipping, what the customer must or needn't do (such as sending the item back), and
+  actions the bot says it took.
+- Greetings, thanks, and restating the customer's request aren't claims.
+- Only judge support. Whether the message should share a detail, such as another
+  customer's contact information, is a separate check.
 
 [BEGIN LOOKED-UP INFORMATION]
 {context}
 [END LOOKED-UP INFORMATION]
 
-[BEGIN REPLY MESSAGE]
+[BEGIN MESSAGE]
 {message}
-[END REPLY MESSAGE]
+[END MESSAGE]
 
-Is every factual claim in the reply message supported by the looked-up information?
-Answer "grounded" if all claims are supported, or "ungrounded" if any claim is not."""
+Answer "grounded" if every claim in the message has a source in the looked-up
+information, or "ungrounded" if any claim doesn't."""
 
 judge = ClassificationEvaluator(
     name="grounded",
-    llm=LLM(provider="openai", model=os.environ.get("EVAL_MODEL", "gpt-5.6-luna")),
+    llm=LLM(provider="openai", model="gpt-5.4-nano"),
     prompt_template=GROUNDED_PROMPT,
     choices={"grounded": 1.0, "ungrounded": 0.0},
 )

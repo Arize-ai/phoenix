@@ -9,13 +9,15 @@
    point, and applies the bars in step 1 to the new traces.
 """
 
-from harbor_verifiers import grading
+from harbor_verifiers import grading, judge_practice
 from harbor_verifiers.verify import ANSWER_PATH, TRAJECTORY_PATH, read_reply
 
 TRUTH = grading.load_test_json("truth.json")
 PROJECT = TRUTH["project"]
 MIN_RECALL = {"relevant": 0.85, "grounded": 0.8}
 MIN_COVERAGE = 0.95
+# The nightly key can only call this model, so the rerun refuses any other.
+JUDGE_MODEL = "gpt-5.4-nano"
 RERUN = "python evals/rag_evals.py"
 DIAGNOSIS = {
     "bigger_problem": (
@@ -25,6 +27,18 @@ DIAGNOSIS = {
         "'retrieval' or 'generation'."
     )
 }
+
+# Reported beside the reward, never part of it. See `judge_practice`.
+APP = "A policy assistant for an online store. It retrieves 4 policy passages for a customer's question and answers from them, saying it doesn't know when they don't cover the question."
+CRITERIA = {
+    "relevant": "The retrieved document contains the policy that answers the customer's question.",
+    "grounded": "The answer states only what the retrieved passages say, or says it can't find the answer.",
+}
+EVIDENCE = {
+    "relevant": "the customer's question and the document's text",
+    "grounded": "the answer and the text of every retrieved passage",
+}
+DETERMINISTIC = ()
 
 checks: dict[str, bool] = {}
 details: dict = {}
@@ -57,7 +71,17 @@ checks["reply.bigger_problem"] = grading.check_report_claims(claims, expected, r
     "bigger_problem"
 ]
 details["reply"] = {"source": source, "claims": claims}
+seen_spans = grading.project_spans(PROJECT)
 grading.inject_spans(PROJECT, TRUTH["unseen"]["spans"])
-details["rerun"] = grading.run_as_agent(RERUN, timeout=900).as_dict()
+with judge_practice.record_llm_calls(allowed_models={JUDGE_MODEL}) as recorder:
+    details["rerun"] = grading.run_as_agent(RERUN, timeout=900, env=recorder.env).as_dict()
 grade("new_traces", TRUTH["unseen"])
-grading.finish(checks, details)
+measures, details["practice"] = judge_practice.practice_scores(
+    recorder.calls,
+    system=APP,
+    criteria=CRITERIA,
+    evidence=EVIDENCE,
+    deterministic=DETERMINISTIC,
+    copied=judge_practice.seen_only_shingles(seen_spans, TRUTH["unseen"]["spans"]),
+)
+grading.finish(checks, details, measures)

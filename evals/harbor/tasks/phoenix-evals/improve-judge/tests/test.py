@@ -13,14 +13,26 @@ hidden labels, and every trace starts with a stale annotation from the old judge
 
 from collections import Counter
 
-from harbor_verifiers import grading
+from harbor_verifiers import grading, judge_practice
 
 TRUTH = grading.load_test_json("truth.json")
 PROJECT = TRUTH["project"]
 ANNOTATION = "policy_compliant"
 MIN_RECALL = 0.8
 MIN_COVERAGE = 0.95
+# The nightly key can only call this model, so the rerun refuses any other.
+JUDGE_MODEL = "gpt-5.4-nano"
 RERUN = "python evals/policy_judge.py"
+
+# Reported beside the reward, never part of it. See `judge_practice`.
+APP = "A refund-decision agent for an online store. For each refund request it looks up the order record and the refund policies, then approves or denies the refund and states the amount."
+CRITERIA = {
+    "policy_compliant": "The agent's decision and refund amount follow the refund policy for this order."
+}
+EVIDENCE = {
+    "policy_compliant": "the order record (category, price, shipping paid, final-sale flag, days since delivery, condition, opened flag), the governing policy passages, and the agent's decision and amount"
+}
+DETERMINISTIC = ()
 
 checks: dict[str, bool] = {}
 details: dict = {}
@@ -40,7 +52,17 @@ def grade(cohort: str, truth: dict) -> None:
 
 
 grade("visible", TRUTH["hidden"])
+seen_spans = grading.project_spans(PROJECT)
 grading.inject_spans(PROJECT, TRUTH["unseen"]["spans"])
-details["rerun"] = grading.run_as_agent(RERUN, timeout=900).as_dict()
+with judge_practice.record_llm_calls(allowed_models={JUDGE_MODEL}) as recorder:
+    details["rerun"] = grading.run_as_agent(RERUN, timeout=900, env=recorder.env).as_dict()
 grade("new_traces", TRUTH["unseen"])
-grading.finish(checks, details)
+measures, details["practice"] = judge_practice.practice_scores(
+    recorder.calls,
+    system=APP,
+    criteria=CRITERIA,
+    evidence=EVIDENCE,
+    deterministic=DETERMINISTIC,
+    copied=judge_practice.seen_only_shingles(seen_spans, TRUTH["unseen"]["spans"]),
+)
+grading.finish(checks, details, measures)

@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
@@ -65,7 +64,7 @@ Is the agent's decision compliant or noncompliant?"""
 
 judge = ClassificationEvaluator(
     name=ANNOTATION,
-    llm=LLM(provider="openai", model=os.environ.get("EVAL_MODEL", "gpt-5.6-luna")),
+    llm=LLM(provider="openai", model="gpt-5.4-nano"),
     prompt_template=PROMPT,
     choices={"compliant": 1.0, "noncompliant": 0.0},
 )

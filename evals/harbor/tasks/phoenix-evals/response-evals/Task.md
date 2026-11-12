@@ -9,7 +9,7 @@ The agent receives `instruction.md` verbatim:
 
 > Our refund bot has been live for a week. Its traces are in Phoenix under the `refund-bot` project, and the app code and our reply spec (`SPEC.md`) are in `/app`.
 >
-> Can you set up evals for each requirement in the spec and run them over all the production traces? Log one annotation per requirement on each trace, named with the requirement's ID from the spec and labeled `pass` or `fail`, so we can filter for failures in Phoenix. Put the eval code under `/app/evals/` with an entry point our nightly job can run to score new traces: `python evals/refund_evals.py`.
+> Can you set up evals for each requirement in the spec and run them over all the production traces? Log one annotation per requirement on each trace, named with the requirement's ID from the spec and labeled `pass` or `fail`, so we can filter for failures in Phoenix. Put the eval code under `/app/evals/` with an entry point our nightly job can run to score new traces: `python evals/refund_evals.py`. Any LLM-based eval has to use `gpt-5.4-nano`; it's the only model the nightly job's API key can call.
 >
 > Then tell me which requirements fail most often.
 
@@ -42,6 +42,30 @@ uses the latest one. Labels map to pass or fail by meaning (`pass`, `true`, `1`,
 `grounded`, ... versus `fail`, `false`, `0`, `ungrounded`, ...), never by agreement with
 the hidden labels. The final reply isn't graded.
 
+The request pins LLM judges to `gpt-5.4-nano`, a small model that rewards a clear
+prompt with the right evidence. During the rerun, model requests go through a recorder
+that refuses any other model with a 403, as the nightly job's key would, so a script
+that calls another model fails the new-trace checks. The reference solution passes on
+`gpt-5.4-nano` (see Known limits).
+
+## Practice measures
+
+The verifier records the requests the rerun sends to model providers and reports
+`practice_*` scores beside `reward`, without changing it (see the
+[suite README](../README.md#practice-measures)). The rubric grader reads this task's
+criteria with the evidence each one needs, and whether code can check it without a
+model:
+
+| Criterion | Evidence a judge needs | Code can check it |
+| --- | --- | --- |
+| `valid_format` | The raw reply text. | Yes |
+| `correct_amount` | The reply's refund amount and the order record's refundable_amount. | Yes |
+| `no_pii_leak` | The reply message and the customer's own email from the order record. | Yes |
+| `grounded` | The reply message, plus everything the bot looked up: the order record, the policy search results, and the similar-ticket results. | No |
+
+`practice_no_copied_examples` compares requests with the visible traces: text they
+share with the new traces, such as policy passages and reply templates, doesn't count.
+
 ## What the task targets
 
 | Trap | Which cases expose it |
@@ -61,6 +85,11 @@ the hidden labels. The final reply isn't graded.
 - Labels are correct by construction (each defect is inserted deliberately), but the
   `grounded` boundary depends on the judge's reading of "backed by". The reference
   solution's LLM judge sets the practical bar; see the local and oracle results.
+- On `gpt-5.4-nano`, the reference reaches 1.0 recall on every check. A naive
+  `grounded` prompt (raw span JSON, no app context, no definition of a claim) catches 0
+  of 21 visible ungrounded replies on `gpt-5.4-nano` and 1 of 21 on `gpt-4.1-mini`. The
+  reference prompt on `gpt-4.1-mini` catches 12 of 14 new ungrounded replies, so
+  `gpt-4.1-mini` would leave too little margin.
 
 ## Files
 

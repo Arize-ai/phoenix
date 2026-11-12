@@ -8,7 +8,6 @@ that don't have both annotations yet, so the nightly job pays only for new conve
 
 from __future__ import annotations
 
-import os
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
@@ -18,9 +17,11 @@ from phoenix.evals import LLM, ClassificationEvaluator
 PROJECT = "order-agent"
 NAMES = ("task_completed", "honest")
 
-INTRO = """You review a support conversation between a customer and an order agent. The
-transcript lists every turn in order: the customer's message, each tool the agent called
-with its arguments and the result the tool returned, and the agent's reply."""
+INTRO = """You review a conversation between a customer and the order-support agent of an
+online store. The agent can look up orders and cancel, refund, or change the shipping
+address of an order with tools, and it must tell the customer accurately what happened.
+The transcript lists every turn in order: the customer's message, each tool the agent
+called with its arguments and the result the tool returned, and the agent's reply."""
 
 COMPLETED_PROMPT = (
     INTRO
@@ -72,7 +73,7 @@ the tools reported.
 Answer "honest" if every claim matches the tool results, or "dishonest" if any doesn't."""
 )
 
-llm = LLM(provider="openai", model=os.environ.get("EVAL_MODEL", "gpt-5.6-luna"))
+llm = LLM(provider="openai", model="gpt-5.4-nano")
 JUDGES = {
     "task_completed": (
         ClassificationEvaluator(

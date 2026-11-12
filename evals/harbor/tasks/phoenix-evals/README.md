@@ -44,6 +44,35 @@ same request but opposite correct answers, so a fixed answer can't pass both.
   stated decision and numbers with verbatim quotes, without seeing the answers. Code
   compares them with the expected values.
 
+## Practice measures
+
+`reward` grades only the deliverable. Tasks whose verifier reruns an eval script also
+report how the script's LLM judges were built, as 0-to-1 `practice_*` scores beside
+`reward`. They never change `reward`. Harbor averages each one across trials, so you
+can compare agents and skill versions on them.
+
+During the rerun, the verifier points `OPENAI_BASE_URL` and `ANTHROPIC_BASE_URL` at a
+local recorder that forwards each request and keeps a copy
+([`judge_practice.py`](../../verifiers/harbor_verifiers/judge_practice.py)).
+
+| Score | What it measures | How |
+| --- | --- | --- |
+| `practice_phoenix_evals` | Share of judge requests sent by phoenix-evals | Its evaluators request a result named `extract_structured_data`. |
+| `practice_no_copied_examples` | Share of requests whose prompt template doesn't quote traces the agent saw | A 10-word run of text found in the visible traces but not the new ones, repeated across at least 20% of requests so it's template text rather than the trace being judged. `improve-app` checks its saved prompt against the development questions instead. |
+| `practice_one_criterion` | Share of requests that judge exactly one criterion | LLM rubric |
+| `practice_code_for_deterministic` | Share of requests that don't spend a model call on a criterion code can check, such as JSON format | LLM rubric |
+| `practice_discrete_labels` | Asks for a named label, not a score or Likert scale | LLM rubric |
+| `practice_system_context` | Says what the app is and what it should do | LLM rubric |
+| `practice_readable_data` | Presents trace data as readable text, not raw span JSON | LLM rubric |
+| `practice_relevant_fields` | Includes the evidence each criterion needs, such as documents or tool results | LLM rubric |
+| `practice_no_assumed_reference` | Doesn't refer to a reference answer that doesn't exist | LLM rubric |
+| `practice_clear_structure` | Separates instructions, data, and question, and defines each label | LLM rubric |
+| `practice` | The mean of the scores above | |
+
+The rubric grades one request from each of the four most-used prompt templates and
+weights each by how many requests used it. Details, including the grader's notes, are
+in `details.json` under `practice`.
+
 Shared grading code is in
 [`harbor_verifiers/grading.py`](../../verifiers/harbor_verifiers/grading.py). Span
 builders for fixtures are in

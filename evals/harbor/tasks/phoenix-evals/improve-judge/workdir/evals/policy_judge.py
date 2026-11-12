@@ -28,7 +28,7 @@ A compliant reply is polite and professional, and it reminds the customer of our
 
 judge = ClassificationEvaluator(
     name=ANNOTATION,
-    llm=LLM(provider="openai", model="gpt-5.6-luna"),
+    llm=LLM(provider="openai", model="gpt-5.4-nano"),
     prompt_template=PROMPT,
     choices={"pass": 1.0, "fail": 0.0},
 )

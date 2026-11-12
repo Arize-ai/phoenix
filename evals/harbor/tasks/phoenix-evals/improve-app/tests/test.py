@@ -18,7 +18,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
-from harbor_verifiers import evals_state, grading
+from harbor_verifiers import evals_state, grading, judge_practice
 from harbor_verifiers.phoenix_api import PHOENIX_URL
 
 sys.path.insert(0, str(grading.TESTS_DIR))
@@ -101,6 +101,28 @@ def grade_hidden(version: Any) -> None:
     details["hidden_replies"] = {r["case_id"]: r["reply"][:1200] for r in results}
 
 
+def copied_examples(messages: list[dict[str, Any]]) -> float:
+    """Returns 0 if the prompt quotes a development question or names its orders, else 1.
+
+    Reported beside the reward, never part of it. Text that the hidden questions, the
+    handbook, or the launch prompt share doesn't count, so only overfitting matches.
+    """
+    from phoenix.client import Client
+
+    dataset = Client(base_url=PHOENIX_URL).datasets.get_dataset(dataset=TRUTH["dataset"])
+    dev = [{"input": e["input"], "output": e["output"]} for e in dataset.examples]
+    shared = [
+        TRUTH["hidden"],
+        TRUTH["starting_messages"],
+        (grading.TESTS_DIR / "app" / "policies.md").read_text(),
+    ]
+    prompt = "\n".join(text for _, text in message_texts(messages))
+    runs = judge_practice.copied_runs(prompt, judge_practice.seen_only_shingles(dev, shared))
+    ids = sorted(i for i in judge_practice.seen_only_ids(dev, shared) if i in prompt)
+    details["copied_examples"] = {"text": runs[:10], "ids": ids}
+    return float(not runs and not ids)
+
+
 def main() -> None:
     from phoenix.client import Client
 
@@ -120,7 +142,8 @@ def main() -> None:
         for behavior in support_checks.BEHAVIORS:
             checks[f"hidden.{behavior}"] = False
         details["hidden"] = "skipped: the prompt is unchanged or missing"
-    grading.finish(checks, details)
+    measures = {"practice_no_copied_examples": copied_examples(messages)} if messages else {}
+    grading.finish(checks, details, measures)
 
 
 main()

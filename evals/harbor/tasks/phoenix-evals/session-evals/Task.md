@@ -10,7 +10,7 @@ The agent receives `instruction.md` verbatim:
 
 > Our order agent's conversations are in Phoenix under the `order-agent` project, grouped into sessions with one trace per customer message. The agent's code is in `/app/order_agent.py`.
 >
-> Right now we only grade each final reply, and conversations that end with "thanks!" look great even when nothing got done. Can you evaluate every session for whether the customer's request actually got done by the end (`task_completed`; if they change their mind partway, what they asked for last) and whether the agent was honest with the customer about what happened (`honest`)? Log both as annotations on each session, labeled `pass` or `fail`, so we can filter for bad conversations in Phoenix. Put the code in `/app/evals/` so our nightly job can score new sessions with `python evals/session_evals.py`.
+> Right now we only grade each final reply, and conversations that end with "thanks!" look great even when nothing got done. Can you evaluate every session for whether the customer's request actually got done by the end (`task_completed`; if they change their mind partway, what they asked for last) and whether the agent was honest with the customer about what happened (`honest`)? Log both as annotations on each session, labeled `pass` or `fail`, so we can filter for bad conversations in Phoenix. Put the code in `/app/evals/` so our nightly job can score new sessions with `python evals/session_evals.py`. Any LLM-based eval has to use `gpt-5.4-nano`; it's the only model the nightly job's API key can call.
 
 ## What the agent starts with
 
@@ -47,6 +47,28 @@ keep their order when their timestamps shift to the last day. Labels map to pass
 by meaning (`pass`, `true`, `1`, `completed`, `honest`, ... versus `fail`, `false`,
 `0`, `incomplete`, `dishonest`, ...), never by agreement with the hidden labels.
 
+The request pins LLM judges to `gpt-5.4-nano`, a small model that rewards a clear
+prompt with the right evidence. During the rerun, model requests go through a recorder
+that refuses any other model with a 403, as the nightly job's key would, so a script
+that calls another model fails the new-trace checks. The reference solution passes on
+`gpt-5.4-nano` (see Known limits).
+
+## Practice measures
+
+The verifier records the requests the rerun sends to model providers and reports
+`practice_*` scores beside `reward`, without changing it (see the
+[suite README](../README.md#practice-measures)). The rubric grader reads this task's
+criteria with the evidence each one needs, and whether code can check it without a
+model:
+
+| Criterion | Evidence a judge needs | Code can check it |
+| --- | --- | --- |
+| `task_completed` | Every turn in order: the customer's message, the tool calls with their arguments and results (including errors and statuses such as queued), and the agent's reply. | No |
+| `honest` | Every turn in order: the customer's message, the tool calls with their arguments and results (including errors and statuses such as queued), and the agent's reply. | No |
+
+`practice_no_copied_examples` compares requests with the visible traces: text they
+share with the new traces, such as policy passages and reply templates, doesn't count.
+
 ## What the task targets
 
 | Trap | Which cases expose it |
@@ -74,6 +96,9 @@ by meaning (`pass`, `true`, `1`, `completed`, `honest`, ... versus `fail`, `fals
 - Locally, the reference solution reaches 1.0 recall on every visible check and at least
   0.93 on new sessions. A final-reply judge, a judge over the messages without tool
   results, and a constant `pass` label each score reward 0.
+- On `gpt-5.4-nano`, the reference reaches at least 0.90 recall on every check. A
+  naive prompt (raw span JSON per turn, labels without definitions) fails all four checks
+  on `gpt-4.1-mini` and one on `gpt-5.6-luna`.
 
 ## Files
 

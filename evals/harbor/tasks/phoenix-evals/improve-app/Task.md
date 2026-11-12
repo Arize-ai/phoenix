@@ -52,6 +52,14 @@ The judges were calibrated on 49 hand-written replies (32 for promises and 17 fo
 privacy, about half good and half bad). They agreed with every label in five passes,
 the last one with the final judge wording.
 
+## Practice measures
+
+The verifier reports `practice_no_copied_examples` beside `reward`, without changing
+it (see the [suite README](../README.md#practice-measures)). It's 0 when the saved
+prompt quotes a 10-word run from a development question or its notes, or names one of
+their order or customer IDs. Text that the hidden questions, the handbook, or the launch
+prompt share doesn't count.
+
 ## What the task targets
 
 | Trap | Which cases expose it |

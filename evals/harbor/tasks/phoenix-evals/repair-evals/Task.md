@@ -54,6 +54,21 @@ reaches 1.0 on both classes in local runs (once 0.94 on grounded new traces). Th
 partial fix measured, every bug fixed except the judge's inputs and question, reaches
 0.62 on ungrounded replies.
 
+## Practice measures
+
+The verifier records the requests the rerun sends to model providers and reports
+`practice_*` scores beside `reward`, without changing it (see the
+[suite README](../README.md#practice-measures)). The rubric grader reads this task's
+criteria with the evidence each one needs, and whether code can check it without a
+model:
+
+| Criterion | Evidence a judge needs | Code can check it |
+| --- | --- | --- |
+| `grounded` | The customer's message (chat message or email subject and body), the reply, the order record, the tracking data, and the help center articles. | No |
+
+`practice_no_copied_examples` compares requests with the visible traces: text they
+share with the new traces, such as policy passages and reply templates, doesn't count.
+
 ## What the task targets
 
 The shipped script has five planted bugs. Each one alone fails a check: the last

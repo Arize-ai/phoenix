@@ -9,7 +9,6 @@ a JSON summary of the traces it scored as the last line.
 from __future__ import annotations
 
 import json
-import os
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
@@ -50,7 +49,7 @@ The assistant must answer only from the passages below. Every factual claim in t
 
 Answer "grounded" if every claim in the answer is supported by the passages, or "ungrounded" if any claim is missing from or contradicts them."""
 
-llm = LLM(provider="openai", model=os.environ.get("EVAL_MODEL", "gpt-5.6-luna"))
+llm = LLM(provider="openai", model="gpt-5.4-nano")
 relevance_judge = ClassificationEvaluator(
     name="relevant",
     llm=llm,
