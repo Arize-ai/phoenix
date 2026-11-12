@@ -1,0 +1,2458 @@
+{
+ "project": "policy-rag",
+ "bigger_problem": "retrieval",
+ "visible": {
+  "relevant": {
+   "08b08ee0d8516d00:0": false,
+   "08b08ee0d8516d00:1": false,
+   "08b08ee0d8516d00:2": false,
+   "08b08ee0d8516d00:3": false,
+   "04eb443121b5d764:0": false,
+   "04eb443121b5d764:1": true,
+   "04eb443121b5d764:2": false,
+   "04eb443121b5d764:3": false,
+   "4fabefd116940bad:0": true,
+   "4fabefd116940bad:1": false,
+   "4fabefd116940bad:2": false,
+   "4fabefd116940bad:3": false,
+   "4d8c275447db6e58:0": false,
+   "4d8c275447db6e58:1": false,
+   "4d8c275447db6e58:2": false,
+   "4d8c275447db6e58:3": false,
+   "837f8c724e98d3ef:0": false,
+   "837f8c724e98d3ef:1": false,
+   "837f8c724e98d3ef:2": false,
+   "837f8c724e98d3ef:3": false,
+   "f05782fa17530d6c:0": false,
+   "f05782fa17530d6c:1": false,
+   "f05782fa17530d6c:2": false,
+   "f05782fa17530d6c:3": false,
+   "18a9600997cca6a0:0": true,
+   "18a9600997cca6a0:1": false,
+   "18a9600997cca6a0:2": false,
+   "18a9600997cca6a0:3": false,
+   "b229ec18abf3c925:0": false,
+   "b229ec18abf3c925:1": false,
+   "b229ec18abf3c925:2": false,
+   "b229ec18abf3c925:3": false,
+   "155e943810a0d400:0": false,
+   "155e943810a0d400:1": false,
+   "155e943810a0d400:2": true,
+   "155e943810a0d400:3": false,
+   "499d6556cb957e97:0": true,
+   "499d6556cb957e97:1": false,
+   "499d6556cb957e97:2": false,
+   "499d6556cb957e97:3": false,
+   "27ccc10d79c1e6f3:0": true,
+   "27ccc10d79c1e6f3:1": false,
+   "27ccc10d79c1e6f3:2": false,
+   "27ccc10d79c1e6f3:3": false,
+   "1a610cf731722af1:0": false,
+   "1a610cf731722af1:1": false,
+   "1a610cf731722af1:2": false,
+   "1a610cf731722af1:3": false,
+   "00fd5bd8a0433038:0": true,
+   "00fd5bd8a0433038:1": false,
+   "00fd5bd8a0433038:2": false,
+   "00fd5bd8a0433038:3": false,
+   "f709c7e863f87882:0": false,
+   "f709c7e863f87882:1": false,
+   "f709c7e863f87882:2": false,
+   "f709c7e863f87882:3": false,
+   "96814418cea4c646:0": true,
+   "96814418cea4c646:1": false,
+   "96814418cea4c646:2": false,
+   "96814418cea4c646:3": false,
+   "0fa22decb16faee4:0": false,
+   "0fa22decb16faee4:1": false,
+   "0fa22decb16faee4:2": false,
+   "0fa22decb16faee4:3": false,
+   "a602d02776d8be64:0": true,
+   "a602d02776d8be64:1": false,
+   "a602d02776d8be64:2": false,
+   "a602d02776d8be64:3": false,
+   "cb9d011e91c42bd8:0": true,
+   "cb9d011e91c42bd8:1": false,
+   "cb9d011e91c42bd8:2": false,
+   "cb9d011e91c42bd8:3": false,
+   "a6ad332131af1c69:0": true,
+   "a6ad332131af1c69:1": false,
+   "a6ad332131af1c69:2": false,
+   "a6ad332131af1c69:3": false,
+   "ff0968ee94a6ee93:0": false,
+   "ff0968ee94a6ee93:1": false,
+   "ff0968ee94a6ee93:2": false,
+   "ff0968ee94a6ee93:3": true,
+   "c70ff5680d425533:0": false,
+   "c70ff5680d425533:1": false,
+   "c70ff5680d425533:2": false,
+   "c70ff5680d425533:3": false,
+   "10b19230da0f0ad3:0": false,
+   "10b19230da0f0ad3:1": false,
+   "10b19230da0f0ad3:2": false,
+   "10b19230da0f0ad3:3": false,
+   "07924bad7319b6bc:0": false,
+   "07924bad7319b6bc:1": true,
+   "07924bad7319b6bc:2": false,
+   "07924bad7319b6bc:3": false,
+   "846ec20a373f6206:0": false,
+   "846ec20a373f6206:1": false,
+   "846ec20a373f6206:2": false,
+   "846ec20a373f6206:3": false,
+   "909c8ecb02efde3e:0": false,
+   "909c8ecb02efde3e:1": false,
+   "909c8ecb02efde3e:2": true,
+   "909c8ecb02efde3e:3": false,
+   "1704288b5e21ec71:0": false,
+   "1704288b5e21ec71:1": false,
+   "1704288b5e21ec71:2": false,
+   "1704288b5e21ec71:3": true,
+   "3c2eed63dd01dc00:0": true,
+   "3c2eed63dd01dc00:1": false,
+   "3c2eed63dd01dc00:2": false,
+   "3c2eed63dd01dc00:3": false,
+   "e12cff31a884de59:0": true,
+   "e12cff31a884de59:1": false,
+   "e12cff31a884de59:2": false,
+   "e12cff31a884de59:3": false,
+   "f0c9b98c89caa736:0": true,
+   "f0c9b98c89caa736:1": false,
+   "f0c9b98c89caa736:2": false,
+   "f0c9b98c89caa736:3": false,
+   "8d63193f33a77a8e:0": false,
+   "8d63193f33a77a8e:1": true,
+   "8d63193f33a77a8e:2": false,
+   "8d63193f33a77a8e:3": false,
+   "933d970437085632:0": false,
+   "933d970437085632:1": false,
+   "933d970437085632:2": false,
+   "933d970437085632:3": false,
+   "adf68df3927c7b5b:0": true,
+   "adf68df3927c7b5b:1": false,
+   "adf68df3927c7b5b:2": false,
+   "adf68df3927c7b5b:3": false,
+   "e544a682e3dff759:0": false,
+   "e544a682e3dff759:1": false,
+   "e544a682e3dff759:2": false,
+   "e544a682e3dff759:3": false,
+   "87336e71f880538d:0": false,
+   "87336e71f880538d:1": false,
+   "87336e71f880538d:2": true,
+   "87336e71f880538d:3": false,
+   "dde21e10361ab955:0": false,
+   "dde21e10361ab955:1": false,
+   "dde21e10361ab955:2": false,
+   "dde21e10361ab955:3": false,
+   "6106c8eb4f4f9d95:0": false,
+   "6106c8eb4f4f9d95:1": false,
+   "6106c8eb4f4f9d95:2": false,
+   "6106c8eb4f4f9d95:3": true,
+   "b1e0e38419eaa4d3:0": false,
+   "b1e0e38419eaa4d3:1": false,
+   "b1e0e38419eaa4d3:2": false,
+   "b1e0e38419eaa4d3:3": false,
+   "ea9ec2240f5d9f1f:0": false,
+   "ea9ec2240f5d9f1f:1": false,
+   "ea9ec2240f5d9f1f:2": false,
+   "ea9ec2240f5d9f1f:3": false,
+   "2f2bea8ea3944d4a:0": true,
+   "2f2bea8ea3944d4a:1": false,
+   "2f2bea8ea3944d4a:2": false,
+   "2f2bea8ea3944d4a:3": false,
+   "c03ff50e5a6b266a:0": false,
+   "c03ff50e5a6b266a:1": false,
+   "c03ff50e5a6b266a:2": false,
+   "c03ff50e5a6b266a:3": false,
+   "0bdf4e066c954057:0": true,
+   "0bdf4e066c954057:1": false,
+   "0bdf4e066c954057:2": false,
+   "0bdf4e066c954057:3": false,
+   "c7647728ee9d42b5:0": true,
+   "c7647728ee9d42b5:1": false,
+   "c7647728ee9d42b5:2": false,
+   "c7647728ee9d42b5:3": false,
+   "3fe87c3e4885fbb1:0": false,
+   "3fe87c3e4885fbb1:1": true,
+   "3fe87c3e4885fbb1:2": false,
+   "3fe87c3e4885fbb1:3": false,
+   "48ea763129c002bd:0": true,
+   "48ea763129c002bd:1": false,
+   "48ea763129c002bd:2": false,
+   "48ea763129c002bd:3": false,
+   "29033a4c28f83f63:0": false,
+   "29033a4c28f83f63:1": false,
+   "29033a4c28f83f63:2": false,
+   "29033a4c28f83f63:3": false,
+   "0bd04dce6fe83456:0": false,
+   "0bd04dce6fe83456:1": false,
+   "0bd04dce6fe83456:2": true,
+   "0bd04dce6fe83456:3": false,
+   "8f78183d3eeffa5b:0": true,
+   "8f78183d3eeffa5b:1": false,
+   "8f78183d3eeffa5b:2": false,
+   "8f78183d3eeffa5b:3": false,
+   "1902d0a7f2e26958:0": false,
+   "1902d0a7f2e26958:1": false,
+   "1902d0a7f2e26958:2": false,
+   "1902d0a7f2e26958:3": true,
+   "eb1cbeb2ef766033:0": false,
+   "eb1cbeb2ef766033:1": false,
+   "eb1cbeb2ef766033:2": false,
+   "eb1cbeb2ef766033:3": false,
+   "8067e24479911d59:0": false,
+   "8067e24479911d59:1": true,
+   "8067e24479911d59:2": false,
+   "8067e24479911d59:3": false,
+   "6bc5784ef7464592:0": false,
+   "6bc5784ef7464592:1": false,
+   "6bc5784ef7464592:2": false,
+   "6bc5784ef7464592:3": false,
+   "36cd54df0db5c24a:0": true,
+   "36cd54df0db5c24a:1": false,
+   "36cd54df0db5c24a:2": false,
+   "36cd54df0db5c24a:3": false,
+   "6c02c036c5a60e88:0": false,
+   "6c02c036c5a60e88:1": false,
+   "6c02c036c5a60e88:2": false,
+   "6c02c036c5a60e88:3": false,
+   "9f2e16765ee94b58:0": false,
+   "9f2e16765ee94b58:1": false,
+   "9f2e16765ee94b58:2": false,
+   "9f2e16765ee94b58:3": false
+  },
+  "grounded": {
+   "a11a1c1a33c17a57c1f69e96a5e02a05": false,
+   "1fee1a357be539c803a310bab6711993": true,
+   "f67a0b47ee0474f7cb3187128a71158f": true,
+   "3463b488924e883d3406232de0af60a9": true,
+   "d1245e8dfa35ea3805cc174209c5c7df": true,
+   "69998385eeb6da769d37d76b5f1a022b": true,
+   "0f9fc7da0eb1a744125ed1c8b8cb20a4": true,
+   "0554a2537bdce72ae42fe1a9cd5fa899": true,
+   "d83e3ab5500e76c1873f572583a8875e": true,
+   "abd65ca1329665735c1d67c150d77d81": true,
+   "262ed7aaa56e040ba0a414c230152135": true,
+   "d17071d0995dba99910129d22c549546": true,
+   "b7b53f3cbaa1f4ad65c1c12f327855d6": true,
+   "2bc9066a12bb1f43dd7cb512cf964567": true,
+   "09eafc4dc67fb3cd04851545dff88d38": true,
+   "00f29fd98ca88b2519d81412c1a870a5": false,
+   "c14070eed56b8ae03006c6bc2a50b60d": true,
+   "389f7228398551469b16c63c1f32e30c": true,
+   "5690bb4de932b502fadd217f2c294889": true,
+   "47b86f3118cc68113976d09768a6cee6": false,
+   "a9966845c575ec51ae094d1c6dcd521f": false,
+   "3c7b61d989fc086aa68f3ce52951ffb8": false,
+   "5e212e359c4b806b3440ff6432b77265": true,
+   "ae243ee5bc99f4e72a7799f0462f1884": true,
+   "0b76f68d4f112faed9ae27e04b6d9fda": true,
+   "dfe70667949733610078ff7c55fc9c86": true,
+   "dcfc88ea35eaf4dfdda8def1735ec16c": false,
+   "7ecda9a127cf55f47ddfd93c45ebfabd": true,
+   "3ca325773fb51f069c4db85842684231": true,
+   "fbf206bab832a55fb7e298dfb964db30": true,
+   "587bde84226db63f24e2a59762e0d4e1": true,
+   "fc778af306e88b8fad3d7a98ca8d5432": true,
+   "d3479a177f99e9e24253419e74ff8bcc": false,
+   "7b6ade7ddb06dcd8074f6158cf85d204": true,
+   "766ee32ef84af0f8fdf2f56673ce4cde": true,
+   "836cf7dc1cc008be5ffa07adb2906159": true,
+   "f1d60acde976c01a907484fd6b116748": true,
+   "6583cae61a3d52ebe23bfd71812a5d96": true,
+   "5761afe32a5db4f5c292f2a2e41efa01": false,
+   "5c327a4ca0ef15b8b2389e1601c819d8": false,
+   "24373ef409a2004fc2eb6a7205975d23": false,
+   "ba209646c9aaf19572f3ce62a4be0ae4": true,
+   "7d475c5965375de34910e5704b38b161": false,
+   "462904fcf58d3de919169ebec918e8ba": true,
+   "2f5faadb5876a1c7dc2e8e0465180fea": false,
+   "96ccbc2cbe1490b3e22331f279b5dcfd": true,
+   "8046a21775dbad53059c3bbf3247e8ff": true,
+   "323f9f12c8fc13dfd9b7a741413ff724": true,
+   "d7abbf7ad34f37ce99bd98348ca23ced": false,
+   "c17ba46a1db4a7eab704ab963cfb18f1": true,
+   "f00083d33b7ed21ef692a6687e77e187": false,
+   "84629361d7e7e7d3bf07e3e8163082a8": true,
+   "1036efa7ec743fe636f2af9916922424": false,
+   "39f5a81a6f35abbb210b133fd35f1f33": true
+  },
+  "cases": {
+   "a11a1c1a33c17a57c1f69e96a5e02a05": {
+    "policy": "gift-cards",
+    "retrieval": "miss",
+    "answer": "made_up"
+   },
+   "1fee1a357be539c803a310bab6711993": {
+    "policy": "billing-price-adjustment",
+    "retrieval": "lower",
+    "answer": "faithful"
+   },
+   "f67a0b47ee0474f7cb3187128a71158f": {
+    "policy": "returns-final-sale",
+    "retrieval": "top",
+    "answer": "faithful"
+   },
+   "3463b488924e883d3406232de0af60a9": {
+    "policy": "billing-duplicate-charge",
+    "retrieval": "miss",
+    "answer": "declines"
+   },
+   "d1245e8dfa35ea3805cc174209c5c7df": {
+    "policy": "orders-cancel",
+    "retrieval": "miss",
+    "answer": "declines"
+   },
+   "69998385eeb6da769d37d76b5f1a022b": {
+    "policy": "billing-duplicate-charge",
+    "retrieval": "miss",
+    "answer": "declines"
+   },
+   "0f9fc7da0eb1a744125ed1c8b8cb20a4": {
+    "policy": "returns-window",
+    "retrieval": "top",
+    "answer": "faithful"
+   },
+   "0554a2537bdce72ae42fe1a9cd5fa899": {
+    "policy": "shipping-lost-package",
+    "retrieval": "miss",
+    "answer": "declines"
+   },
+   "d83e3ab5500e76c1873f572583a8875e": {
+    "policy": "returns-label-fee",
+    "retrieval": "lower",
+    "answer": "faithful"
+   },
+   "abd65ca1329665735c1d67c150d77d81": {
+    "policy": "shipping-international",
+    "retrieval": "top",
+    "answer": "faithful"
+   },
+   "262ed7aaa56e040ba0a414c230152135": {
+    "policy": "billing-price-adjustment",
+    "retrieval": "top",
+    "answer": "faithful"
+   },
+   "d17071d0995dba99910129d22c549546": {
+    "policy": "shipping-express",
+    "retrieval": "miss",
+    "answer": "declines"
+   },
+   "b7b53f3cbaa1f4ad65c1c12f327855d6": {
+    "policy": "shipping-lost-package",
+    "retrieval": "top",
+    "answer": "faithful"
+   },
+   "2bc9066a12bb1f43dd7cb512cf964567": {
+    "policy": "billing-price-adjustment",
+    "retrieval": "miss",
+    "answer": "declines"
+   },
+   "09eafc4dc67fb3cd04851545dff88d38": {
+    "policy": "warranty-coverage",
+    "retrieval": "top",
+    "answer": "faithful"
+   },
+   "00f29fd98ca88b2519d81412c1a870a5": {
+    "policy": "shipping-international",
+    "retrieval": "miss",
+    "answer": "made_up"
+   },
+   "c14070eed56b8ae03006c6bc2a50b60d": {
+    "policy": "billing-payment-methods",
+    "retrieval": "top",
+    "answer": "faithful"
+   },
+   "389f7228398551469b16c63c1f32e30c": {
+    "policy": "billing-installments",
+    "retrieval": "top",
+    "answer": "faithful"
+   },
+   "5690bb4de932b502fadd217f2c294889": {
+    "policy": "account-password",
+    "retrieval": "top",
+    "answer": "faithful"
+   },
+   "47b86f3118cc68113976d09768a6cee6": {
+    "policy": "returns-in-store",
+    "retrieval": "lower",
+    "answer": "adds_claim"
+   },
+   "a9966845c575ec51ae094d1c6dcd521f": {
+    "policy": "promo-codes",
+    "retrieval": "miss",
+    "answer": "made_up"
+   },
+   "3c7b61d989fc086aa68f3ce52951ffb8": {
+    "policy": "orders-address-change",
+    "retrieval": "miss",
+    "answer": "made_up"
+   },
+   "5e212e359c4b806b3440ff6432b77265": {
+    "policy": "billing-installments",
+    "retrieval": "lower",
+    "answer": "faithful"
+   },
+   "ae243ee5bc99f4e72a7799f0462f1884": {
+    "policy": "returns-label-fee",
+    "retrieval": "miss",
+    "answer": "declines"
+   },
+   "0b76f68d4f112faed9ae27e04b6d9fda": {
+    "policy": "returns-in-store",
+    "retrieval": "lower",
+    "answer": "faithful"
+   },
+   "dfe70667949733610078ff7c55fc9c86": {
+    "policy": "refund-timing",
+    "retrieval": "lower",
+    "answer": "faithful"
+   },
+   "dcfc88ea35eaf4dfdda8def1735ec16c": {
+    "policy": "shipping-standard",
+    "retrieval": "top",
+    "answer": "contradicts"
+   },
+   "7ecda9a127cf55f47ddfd93c45ebfabd": {
+    "policy": "gift-cards",
+    "retrieval": "top",
+    "answer": "faithful"
+   },
+   "3ca325773fb51f069c4db85842684231": {
+    "policy": "warranty-coverage",
+    "retrieval": "top",
+    "answer": "faithful"
+   },
+   "fbf206bab832a55fb7e298dfb964db30": {
+    "policy": "warranty-coverage",
+    "retrieval": "lower",
+    "answer": "faithful"
+   },
+   "587bde84226db63f24e2a59762e0d4e1": {
+    "policy": "billing-payment-methods",
+    "retrieval": "miss",
+    "answer": "declines"
+   },
+   "fc778af306e88b8fad3d7a98ca8d5432": {
+    "policy": "refund-timing",
+    "retrieval": "top",
+    "answer": "faithful"
+   },
+   "d3479a177f99e9e24253419e74ff8bcc": {
+    "policy": "shipping-standard",
+    "retrieval": "miss",
+    "answer": "unretrieved_truth"
+   },
+   "7b6ade7ddb06dcd8074f6158cf85d204": {
+    "policy": "orders-address-change",
+    "retrieval": "lower",
+    "answer": "faithful"
+   },
+   "766ee32ef84af0f8fdf2f56673ce4cde": {
+    "policy": "shipping-express",
+    "retrieval": "miss",
+    "answer": "declines"
+   },
+   "836cf7dc1cc008be5ffa07adb2906159": {
+    "policy": "loyalty-points",
+    "retrieval": "lower",
+    "answer": "faithful"
+   },
+   "f1d60acde976c01a907484fd6b116748": {
+    "policy": "warranty-claim",
+    "retrieval": "miss",
+    "answer": "declines"
+   },
+   "6583cae61a3d52ebe23bfd71812a5d96": {
+    "policy": "warranty-claim",
+    "retrieval": "miss",
+    "answer": "declines"
+   },
+   "5761afe32a5db4f5c292f2a2e41efa01": {
+    "policy": "returns-final-sale",
+    "retrieval": "top",
+    "answer": "adds_claim"
+   },
+   "5c327a4ca0ef15b8b2389e1601c819d8": {
+    "policy": "account-delete",
+    "retrieval": "miss",
+    "answer": "made_up"
+   },
+   "24373ef409a2004fc2eb6a7205975d23": {
+    "policy": "promo-codes",
+    "retrieval": "top",
+    "answer": "contradicts"
+   },
+   "ba209646c9aaf19572f3ce62a4be0ae4": {
+    "policy": "account-delete",
+    "retrieval": "top",
+    "answer": "faithful"
+   },
+   "7d475c5965375de34910e5704b38b161": {
+    "policy": "refund-timing",
+    "retrieval": "lower",
+    "answer": "contradicts"
+   },
+   "462904fcf58d3de919169ebec918e8ba": {
+    "policy": "orders-cancel",
+    "retrieval": "top",
+    "answer": "faithful"
+   },
+   "2f5faadb5876a1c7dc2e8e0465180fea": {
+    "policy": "promo-codes",
+    "retrieval": "miss",
+    "answer": "unretrieved_truth"
+   },
+   "96ccbc2cbe1490b3e22331f279b5dcfd": {
+    "policy": "returns-restocking",
+    "retrieval": "lower",
+    "answer": "faithful"
+   },
+   "8046a21775dbad53059c3bbf3247e8ff": {
+    "policy": "returns-window",
+    "retrieval": "top",
+    "answer": "faithful"
+   },
+   "323f9f12c8fc13dfd9b7a741413ff724": {
+    "policy": "account-password",
+    "retrieval": "lower",
+    "answer": "faithful"
+   },
+   "d7abbf7ad34f37ce99bd98348ca23ced": {
+    "policy": "returns-in-store",
+    "retrieval": "miss",
+    "answer": "made_up"
+   },
+   "c17ba46a1db4a7eab704ab963cfb18f1": {
+    "policy": "shipping-standard",
+    "retrieval": "lower",
+    "answer": "faithful"
+   },
+   "f00083d33b7ed21ef692a6687e77e187": {
+    "policy": "loyalty-points",
+    "retrieval": "miss",
+    "answer": "unretrieved_truth"
+   },
+   "84629361d7e7e7d3bf07e3e8163082a8": {
+    "policy": "returns-restocking",
+    "retrieval": "top",
+    "answer": "faithful"
+   },
+   "1036efa7ec743fe636f2af9916922424": {
+    "policy": "shipping-international",
+    "retrieval": "miss",
+    "answer": "unretrieved_truth"
+   },
+   "39f5a81a6f35abbb210b133fd35f1f33": {
+    "policy": "returns-window",
+    "retrieval": "miss",
+    "answer": "declines"
+   }
+  }
+ },
+ "unseen": {
+  "spans": [
+   {
+    "name": "rag-query",
+    "context": {
+     "trace_id": "ece8fb77540c8bf15592081bda6d8522",
+     "span_id": "2a90cc47a6f44ec2"
+    },
+    "span_kind": "CHAIN",
+    "start_time": "2026-11-12T09:00:00+00:00",
+    "end_time": "2026-11-12T09:00:02.200000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "There's a branch of yours near my office. Will they take back an order I placed through the app?",
+     "output.value": "Any of our retail stores can take back an online order, as long as you bring the packing slip or the confirmation email."
+    }
+   },
+   {
+    "name": "retrieve_policies",
+    "context": {
+     "trace_id": "ece8fb77540c8bf15592081bda6d8522",
+     "span_id": "65c014470c206918"
+    },
+    "parent_id": "2a90cc47a6f44ec2",
+    "span_kind": "RETRIEVER",
+    "start_time": "2026-11-12T09:00:00+00:00",
+    "end_time": "2026-11-12T09:00:00.400000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "There's a branch of yours near my office. Will they take back an order I placed through the app?",
+     "retrieval.documents.0.document.id": "kb-4152",
+     "retrieval.documents.0.document.content": "Online orders can be returned at any of our retail stores. Bring the packing slip or the order confirmation email.",
+     "retrieval.documents.0.document.score": 0.821,
+     "retrieval.documents.1.document.id": "kb-4113",
+     "retrieval.documents.1.document.content": "Items marked Final Sale on the product page can't be returned or exchanged for any reason.",
+     "retrieval.documents.1.document.score": 0.77,
+     "retrieval.documents.2.document.id": "kb-4295",
+     "retrieval.documents.2.document.content": "If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.",
+     "retrieval.documents.2.document.score": 0.75,
+     "retrieval.documents.3.document.id": "kb-4282",
+     "retrieval.documents.3.document.content": "You can cancel an order from your account until it ships. Most orders ship within 24 hours.",
+     "retrieval.documents.3.document.score": 0.696
+    }
+   },
+   {
+    "name": "ChatCompletion",
+    "context": {
+     "trace_id": "ece8fb77540c8bf15592081bda6d8522",
+     "span_id": "9c46b790ce9daa73"
+    },
+    "parent_id": "2a90cc47a6f44ec2",
+    "span_kind": "LLM",
+    "start_time": "2026-11-12T09:00:00.400000+00:00",
+    "end_time": "2026-11-12T09:00:02+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "llm.model_name": "gpt-5.6-mini",
+     "llm.provider": "openai",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Online orders can be returned at any of our retail stores. Bring the packing slip or the order confirmation email.\\n[2] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\\n[3] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\\n[4] You can cancel an order from your account until it ships. Most orders ship within 24 hours.\\n\\nCustomer question: There's a branch of yours near my office. Will they take back an order I placed through the app?\"}]}",
+     "input.mime_type": "application/json",
+     "output.value": "Any of our retail stores can take back an online order, as long as you bring the packing slip or the confirmation email.",
+     "llm.token_count.prompt": 190,
+     "llm.token_count.completion": 30,
+     "llm.input_messages.0.message.role": "system",
+     "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
+     "llm.input_messages.1.message.role": "user",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] Online orders can be returned at any of our retail stores. Bring the packing slip or the order confirmation email.\n[2] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\n[3] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\n[4] You can cancel an order from your account until it ships. Most orders ship within 24 hours.\n\nCustomer question: There's a branch of yours near my office. Will they take back an order I placed through the app?",
+     "llm.output_messages.0.message.role": "assistant",
+     "llm.output_messages.0.message.content": "Any of our retail stores can take back an online order, as long as you bring the packing slip or the confirmation email."
+    }
+   },
+   {
+    "name": "rag-query",
+    "context": {
+     "trace_id": "997783997b7c6b387344d6da3e040501",
+     "span_id": "839084328ec13505"
+    },
+    "span_kind": "CHAIN",
+    "start_time": "2026-11-12T11:54:00+00:00",
+    "end_time": "2026-11-12T11:54:02.200000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "I lost a gift card I got for my birthday. Can you replace it?",
+     "output.value": "We can replace a lost gift card only if you have the original receipt. Gift cards don't expire, but they can't be turned into cash."
+    }
+   },
+   {
+    "name": "retrieve_policies",
+    "context": {
+     "trace_id": "997783997b7c6b387344d6da3e040501",
+     "span_id": "4f66f5418b2d80ca"
+    },
+    "parent_id": "839084328ec13505",
+    "span_kind": "RETRIEVER",
+    "start_time": "2026-11-12T11:54:00+00:00",
+    "end_time": "2026-11-12T11:54:00.400000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "I lost a gift card I got for my birthday. Can you replace it?",
+     "retrieval.documents.0.document.id": "kb-4386",
+     "retrieval.documents.0.document.content": "Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.",
+     "retrieval.documents.0.document.score": 0.815,
+     "retrieval.documents.1.document.id": "kb-4347",
+     "retrieval.documents.1.document.content": "You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.",
+     "retrieval.documents.1.document.score": 0.795,
+     "retrieval.documents.2.document.id": "kb-4191",
+     "retrieval.documents.2.document.content": "We accept Visa, Mastercard, American Express, PayPal, and Apple Pay. We don't accept checks, money orders, or cryptocurrency.",
+     "retrieval.documents.2.document.score": 0.762,
+     "retrieval.documents.3.document.id": "kb-4373",
+     "retrieval.documents.3.document.content": "Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.",
+     "retrieval.documents.3.document.score": 0.731
+    }
+   },
+   {
+    "name": "ChatCompletion",
+    "context": {
+     "trace_id": "997783997b7c6b387344d6da3e040501",
+     "span_id": "84a4caf48bdcbfc4"
+    },
+    "parent_id": "839084328ec13505",
+    "span_kind": "LLM",
+    "start_time": "2026-11-12T11:54:00.400000+00:00",
+    "end_time": "2026-11-12T11:54:02+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "llm.model_name": "gpt-5.6-mini",
+     "llm.provider": "openai",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\\n[2] You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.\\n[3] We accept Visa, Mastercard, American Express, PayPal, and Apple Pay. We don't accept checks, money orders, or cryptocurrency.\\n[4] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\\n\\nCustomer question: I lost a gift card I got for my birthday. Can you replace it?\"}]}",
+     "input.mime_type": "application/json",
+     "output.value": "We can replace a lost gift card only if you have the original receipt. Gift cards don't expire, but they can't be turned into cash.",
+     "llm.token_count.prompt": 196,
+     "llm.token_count.completion": 32,
+     "llm.input_messages.0.message.role": "system",
+     "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
+     "llm.input_messages.1.message.role": "user",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\n[2] You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.\n[3] We accept Visa, Mastercard, American Express, PayPal, and Apple Pay. We don't accept checks, money orders, or cryptocurrency.\n[4] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\n\nCustomer question: I lost a gift card I got for my birthday. Can you replace it?",
+     "llm.output_messages.0.message.role": "assistant",
+     "llm.output_messages.0.message.content": "We can replace a lost gift card only if you have the original receipt. Gift cards don't expire, but they can't be turned into cash."
+    }
+   },
+   {
+    "name": "rag-query",
+    "context": {
+     "trace_id": "0d8c853c474b048a2418a9c63bffe39d",
+     "span_id": "ec0d32fbd610fb03"
+    },
+    "span_kind": "CHAIN",
+    "start_time": "2026-11-12T14:48:00+00:00",
+    "end_time": "2026-11-12T14:48:02.200000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "My order shows as delivered but it was never in my mailbox. How long do I have to let you know?",
+     "output.value": "I'm afraid that isn't covered by the policy information available to me."
+    }
+   },
+   {
+    "name": "retrieve_policies",
+    "context": {
+     "trace_id": "0d8c853c474b048a2418a9c63bffe39d",
+     "span_id": "330a20d47b158be5"
+    },
+    "parent_id": "ec0d32fbd610fb03",
+    "span_kind": "RETRIEVER",
+    "start_time": "2026-11-12T14:48:00+00:00",
+    "end_time": "2026-11-12T14:48:00.400000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "My order shows as delivered but it was never in my mailbox. How long do I have to let you know?",
+     "retrieval.documents.0.document.id": "kb-4243",
+     "retrieval.documents.0.document.content": "Express shipping costs $14.95 and delivers in 1 to 2 business days for orders placed before 1 p.m. Eastern.",
+     "retrieval.documents.0.document.score": 0.825,
+     "retrieval.documents.1.document.id": "kb-4152",
+     "retrieval.documents.1.document.content": "Online orders can be returned at any of our retail stores. Bring the packing slip or the order confirmation email.",
+     "retrieval.documents.1.document.score": 0.808,
+     "retrieval.documents.2.document.id": "kb-4256",
+     "retrieval.documents.2.document.content": "We ship only within the US and to Canada. Canadian orders take 7 to 14 business days, and the recipient pays any customs duties.",
+     "retrieval.documents.2.document.score": 0.779,
+     "retrieval.documents.3.document.id": "kb-4321",
+     "retrieval.documents.3.document.content": "To start a warranty claim, upload a photo of the defect with your order number on the Warranty page. Approved claims get a replacement within 10 business days.",
+     "retrieval.documents.3.document.score": 0.729
+    }
+   },
+   {
+    "name": "ChatCompletion",
+    "context": {
+     "trace_id": "0d8c853c474b048a2418a9c63bffe39d",
+     "span_id": "b261c90140e92c8c"
+    },
+    "parent_id": "ec0d32fbd610fb03",
+    "span_kind": "LLM",
+    "start_time": "2026-11-12T14:48:00.400000+00:00",
+    "end_time": "2026-11-12T14:48:02+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "llm.model_name": "gpt-5.6-mini",
+     "llm.provider": "openai",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Express shipping costs $14.95 and delivers in 1 to 2 business days for orders placed before 1 p.m. Eastern.\\n[2] Online orders can be returned at any of our retail stores. Bring the packing slip or the order confirmation email.\\n[3] We ship only within the US and to Canada. Canadian orders take 7 to 14 business days, and the recipient pays any customs duties.\\n[4] To start a warranty claim, upload a photo of the defect with your order number on the Warranty page. Approved claims get a replacement within 10 business days.\\n\\nCustomer question: My order shows as delivered but it was never in my mailbox. How long do I have to let you know?\"}]}",
+     "input.mime_type": "application/json",
+     "output.value": "I'm afraid that isn't covered by the policy information available to me.",
+     "llm.token_count.prompt": 213,
+     "llm.token_count.completion": 18,
+     "llm.input_messages.0.message.role": "system",
+     "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
+     "llm.input_messages.1.message.role": "user",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] Express shipping costs $14.95 and delivers in 1 to 2 business days for orders placed before 1 p.m. Eastern.\n[2] Online orders can be returned at any of our retail stores. Bring the packing slip or the order confirmation email.\n[3] We ship only within the US and to Canada. Canadian orders take 7 to 14 business days, and the recipient pays any customs duties.\n[4] To start a warranty claim, upload a photo of the defect with your order number on the Warranty page. Approved claims get a replacement within 10 business days.\n\nCustomer question: My order shows as delivered but it was never in my mailbox. How long do I have to let you know?",
+     "llm.output_messages.0.message.role": "assistant",
+     "llm.output_messages.0.message.content": "I'm afraid that isn't covered by the policy information available to me."
+    }
+   },
+   {
+    "name": "rag-query",
+    "context": {
+     "trace_id": "dbe611f364c024a0cf616c9784170f78",
+     "span_id": "5cbc9f65771bdd9d"
+    },
+    "span_kind": "CHAIN",
+    "start_time": "2026-11-12T17:42:00+00:00",
+    "end_time": "2026-11-12T17:42:02.200000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "I see the same amount from you two times on my card. Should I dispute one of them?",
+     "output.value": "The second charge is a membership fee that's billed with your first order."
+    }
+   },
+   {
+    "name": "retrieve_policies",
+    "context": {
+     "trace_id": "dbe611f364c024a0cf616c9784170f78",
+     "span_id": "68ece3161fa832dd"
+    },
+    "parent_id": "5cbc9f65771bdd9d",
+    "span_kind": "RETRIEVER",
+    "start_time": "2026-11-12T17:42:00+00:00",
+    "end_time": "2026-11-12T17:42:00.400000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "I see the same amount from you two times on my card. Should I dispute one of them?",
+     "retrieval.documents.0.document.id": "kb-4373",
+     "retrieval.documents.0.document.content": "Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.",
+     "retrieval.documents.0.document.score": 0.875,
+     "retrieval.documents.1.document.id": "kb-4191",
+     "retrieval.documents.1.document.content": "We accept Visa, Mastercard, American Express, PayPal, and Apple Pay. We don't accept checks, money orders, or cryptocurrency.",
+     "retrieval.documents.1.document.score": 0.843,
+     "retrieval.documents.2.document.id": "kb-4165",
+     "retrieval.documents.2.document.content": "After the warehouse receives a return, the refund reaches your original payment method within 5 to 7 business days.",
+     "retrieval.documents.2.document.score": 0.816,
+     "retrieval.documents.3.document.id": "kb-4204",
+     "retrieval.documents.3.document.content": "If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.",
+     "retrieval.documents.3.document.score": 0.774
+    }
+   },
+   {
+    "name": "ChatCompletion",
+    "context": {
+     "trace_id": "dbe611f364c024a0cf616c9784170f78",
+     "span_id": "c428f146556ebe66"
+    },
+    "parent_id": "5cbc9f65771bdd9d",
+    "span_kind": "LLM",
+    "start_time": "2026-11-12T17:42:00.400000+00:00",
+    "end_time": "2026-11-12T17:42:02+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "llm.model_name": "gpt-5.6-mini",
+     "llm.provider": "openai",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\\n[2] We accept Visa, Mastercard, American Express, PayPal, and Apple Pay. We don't accept checks, money orders, or cryptocurrency.\\n[3] After the warehouse receives a return, the refund reaches your original payment method within 5 to 7 business days.\\n[4] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\\n\\nCustomer question: I see the same amount from you two times on my card. Should I dispute one of them?\"}]}",
+     "input.mime_type": "application/json",
+     "output.value": "The second charge is a membership fee that's billed with your first order.",
+     "llm.token_count.prompt": 207,
+     "llm.token_count.completion": 18,
+     "llm.input_messages.0.message.role": "system",
+     "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
+     "llm.input_messages.1.message.role": "user",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\n[2] We accept Visa, Mastercard, American Express, PayPal, and Apple Pay. We don't accept checks, money orders, or cryptocurrency.\n[3] After the warehouse receives a return, the refund reaches your original payment method within 5 to 7 business days.\n[4] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\n\nCustomer question: I see the same amount from you two times on my card. Should I dispute one of them?",
+     "llm.output_messages.0.message.role": "assistant",
+     "llm.output_messages.0.message.content": "The second charge is a membership fee that's billed with your first order."
+    }
+   },
+   {
+    "name": "rag-query",
+    "context": {
+     "trace_id": "0a3549a8bb1f5d0e1f77114a9985ddb1",
+     "span_id": "17850c58583d846c"
+    },
+    "span_kind": "CHAIN",
+    "start_time": "2026-11-12T20:36:00+00:00",
+    "end_time": "2026-11-12T20:36:02.200000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "I unboxed a bluetooth speaker and tried it once. If I send it back, is anything taken off my refund for that?",
+     "output.value": "Because it's opened electronics, the refund is the price minus a 15% restocking fee."
+    }
+   },
+   {
+    "name": "retrieve_policies",
+    "context": {
+     "trace_id": "0a3549a8bb1f5d0e1f77114a9985ddb1",
+     "span_id": "2eee69ec963cd129"
+    },
+    "parent_id": "17850c58583d846c",
+    "span_kind": "RETRIEVER",
+    "start_time": "2026-11-12T20:36:00+00:00",
+    "end_time": "2026-11-12T20:36:00.400000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "I unboxed a bluetooth speaker and tried it once. If I send it back, is anything taken off my refund for that?",
+     "retrieval.documents.0.document.id": "kb-4139",
+     "retrieval.documents.0.document.content": "Opened electronics, such as headphones, speakers, and smart watches, are refunded minus a 15% restocking fee.",
+     "retrieval.documents.0.document.score": 0.897,
+     "retrieval.documents.1.document.id": "kb-4113",
+     "retrieval.documents.1.document.content": "Items marked Final Sale on the product page can't be returned or exchanged for any reason.",
+     "retrieval.documents.1.document.score": 0.857,
+     "retrieval.documents.2.document.id": "kb-4308",
+     "retrieval.documents.2.document.content": "Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered.",
+     "retrieval.documents.2.document.score": 0.806,
+     "retrieval.documents.3.document.id": "kb-4100",
+     "retrieval.documents.3.document.content": "Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.",
+     "retrieval.documents.3.document.score": 0.787
+    }
+   },
+   {
+    "name": "ChatCompletion",
+    "context": {
+     "trace_id": "0a3549a8bb1f5d0e1f77114a9985ddb1",
+     "span_id": "c483298bf51efd7a"
+    },
+    "parent_id": "17850c58583d846c",
+    "span_kind": "LLM",
+    "start_time": "2026-11-12T20:36:00.400000+00:00",
+    "end_time": "2026-11-12T20:36:02+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "llm.model_name": "gpt-5.6-mini",
+     "llm.provider": "openai",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Opened electronics, such as headphones, speakers, and smart watches, are refunded minus a 15% restocking fee.\\n[2] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\\n[3] Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered.\\n[4] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\\n\\nCustomer question: I unboxed a bluetooth speaker and tried it once. If I send it back, is anything taken off my refund for that?\"}]}",
+     "input.mime_type": "application/json",
+     "output.value": "Because it's opened electronics, the refund is the price minus a 15% restocking fee.",
+     "llm.token_count.prompt": 205,
+     "llm.token_count.completion": 21,
+     "llm.input_messages.0.message.role": "system",
+     "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
+     "llm.input_messages.1.message.role": "user",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] Opened electronics, such as headphones, speakers, and smart watches, are refunded minus a 15% restocking fee.\n[2] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\n[3] Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered.\n[4] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\n\nCustomer question: I unboxed a bluetooth speaker and tried it once. If I send it back, is anything taken off my refund for that?",
+     "llm.output_messages.0.message.role": "assistant",
+     "llm.output_messages.0.message.content": "Because it's opened electronics, the refund is the price minus a 15% restocking fee."
+    }
+   },
+   {
+    "name": "rag-query",
+    "context": {
+     "trace_id": "7b087aa8d14fd5c74eb7817309d5c2b5",
+     "span_id": "bb62e70864bc860d"
+    },
+    "span_kind": "CHAIN",
+    "start_time": "2026-11-12T23:30:00+00:00",
+    "end_time": "2026-11-12T23:30:02.200000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "What does it cost me to mail back a jacket I don't want anymore?",
+     "output.value": "Exchanges come with a free return label, while refunds have a $6.95 label fee taken out of the amount we send back."
+    }
+   },
+   {
+    "name": "retrieve_policies",
+    "context": {
+     "trace_id": "7b087aa8d14fd5c74eb7817309d5c2b5",
+     "span_id": "c6c284e352fe10c4"
+    },
+    "parent_id": "bb62e70864bc860d",
+    "span_kind": "RETRIEVER",
+    "start_time": "2026-11-12T23:30:00+00:00",
+    "end_time": "2026-11-12T23:30:00.400000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "What does it cost me to mail back a jacket I don't want anymore?",
+     "retrieval.documents.0.document.id": "kb-4230",
+     "retrieval.documents.0.document.content": "Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.",
+     "retrieval.documents.0.document.score": 0.865,
+     "retrieval.documents.1.document.id": "kb-4126",
+     "retrieval.documents.1.document.content": "Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.",
+     "retrieval.documents.1.document.score": 0.831,
+     "retrieval.documents.2.document.id": "kb-4321",
+     "retrieval.documents.2.document.content": "To start a warranty claim, upload a photo of the defect with your order number on the Warranty page. Approved claims get a replacement within 10 business days.",
+     "retrieval.documents.2.document.score": 0.774,
+     "retrieval.documents.3.document.id": "kb-4243",
+     "retrieval.documents.3.document.content": "Express shipping costs $14.95 and delivers in 1 to 2 business days for orders placed before 1 p.m. Eastern.",
+     "retrieval.documents.3.document.score": 0.758
+    }
+   },
+   {
+    "name": "ChatCompletion",
+    "context": {
+     "trace_id": "7b087aa8d14fd5c74eb7817309d5c2b5",
+     "span_id": "c3d8743af3fedf3c"
+    },
+    "parent_id": "bb62e70864bc860d",
+    "span_kind": "LLM",
+    "start_time": "2026-11-12T23:30:00.400000+00:00",
+    "end_time": "2026-11-12T23:30:02+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "llm.model_name": "gpt-5.6-mini",
+     "llm.provider": "openai",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\\n[2] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\\n[3] To start a warranty claim, upload a photo of the defect with your order number on the Warranty page. Approved claims get a replacement within 10 business days.\\n[4] Express shipping costs $14.95 and delivers in 1 to 2 business days for orders placed before 1 p.m. Eastern.\\n\\nCustomer question: What does it cost me to mail back a jacket I don't want anymore?\"}]}",
+     "input.mime_type": "application/json",
+     "output.value": "Exchanges come with a free return label, while refunds have a $6.95 label fee taken out of the amount we send back.",
+     "llm.token_count.prompt": 202,
+     "llm.token_count.completion": 28,
+     "llm.input_messages.0.message.role": "system",
+     "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
+     "llm.input_messages.1.message.role": "user",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\n[2] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\n[3] To start a warranty claim, upload a photo of the defect with your order number on the Warranty page. Approved claims get a replacement within 10 business days.\n[4] Express shipping costs $14.95 and delivers in 1 to 2 business days for orders placed before 1 p.m. Eastern.\n\nCustomer question: What does it cost me to mail back a jacket I don't want anymore?",
+     "llm.output_messages.0.message.role": "assistant",
+     "llm.output_messages.0.message.content": "Exchanges come with a free return label, while refunds have a $6.95 label fee taken out of the amount we send back."
+    }
+   },
+   {
+    "name": "rag-query",
+    "context": {
+     "trace_id": "5083e80b5191ae28d202ca02c18950e8",
+     "span_id": "0db745f8241f972d"
+    },
+    "span_kind": "CHAIN",
+    "start_time": "2026-11-13T02:24:00+00:00",
+    "end_time": "2026-11-13T02:24:02.200000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "I have a 10% off code and a free-gift code. Can I enter both at checkout?",
+     "output.value": "Promo codes can be stacked as long as your order is over $100."
+    }
+   },
+   {
+    "name": "retrieve_policies",
+    "context": {
+     "trace_id": "5083e80b5191ae28d202ca02c18950e8",
+     "span_id": "3f7d3923d1f14ad7"
+    },
+    "parent_id": "0db745f8241f972d",
+    "span_kind": "RETRIEVER",
+    "start_time": "2026-11-13T02:24:00+00:00",
+    "end_time": "2026-11-13T02:24:00.400000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "I have a 10% off code and a free-gift code. Can I enter both at checkout?",
+     "retrieval.documents.0.document.id": "kb-4373",
+     "retrieval.documents.0.document.content": "Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.",
+     "retrieval.documents.0.document.score": 0.886,
+     "retrieval.documents.1.document.id": "kb-4230",
+     "retrieval.documents.1.document.content": "Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.",
+     "retrieval.documents.1.document.score": 0.843,
+     "retrieval.documents.2.document.id": "kb-4217",
+     "retrieval.documents.2.document.content": "Orders over $150 can be split into 4 interest-free payments made every two weeks. Choose Pay in 4 at checkout.",
+     "retrieval.documents.2.document.score": 0.785,
+     "retrieval.documents.3.document.id": "kb-4113",
+     "retrieval.documents.3.document.content": "Items marked Final Sale on the product page can't be returned or exchanged for any reason.",
+     "retrieval.documents.3.document.score": 0.732
+    }
+   },
+   {
+    "name": "ChatCompletion",
+    "context": {
+     "trace_id": "5083e80b5191ae28d202ca02c18950e8",
+     "span_id": "14ad2192c076af30"
+    },
+    "parent_id": "0db745f8241f972d",
+    "span_kind": "LLM",
+    "start_time": "2026-11-13T02:24:00.400000+00:00",
+    "end_time": "2026-11-13T02:24:02+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "llm.model_name": "gpt-5.6-mini",
+     "llm.provider": "openai",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\\n[2] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\\n[3] Orders over $150 can be split into 4 interest-free payments made every two weeks. Choose Pay in 4 at checkout.\\n[4] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\\n\\nCustomer question: I have a 10% off code and a free-gift code. Can I enter both at checkout?\"}]}",
+     "input.mime_type": "application/json",
+     "output.value": "Promo codes can be stacked as long as your order is over $100.",
+     "llm.token_count.prompt": 182,
+     "llm.token_count.completion": 15,
+     "llm.input_messages.0.message.role": "system",
+     "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
+     "llm.input_messages.1.message.role": "user",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\n[2] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\n[3] Orders over $150 can be split into 4 interest-free payments made every two weeks. Choose Pay in 4 at checkout.\n[4] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\n\nCustomer question: I have a 10% off code and a free-gift code. Can I enter both at checkout?",
+     "llm.output_messages.0.message.role": "assistant",
+     "llm.output_messages.0.message.content": "Promo codes can be stacked as long as your order is over $100."
+    }
+   },
+   {
+    "name": "rag-query",
+    "context": {
+     "trace_id": "99c24b50c07bf70383a11837fb0fbd99",
+     "span_id": "069a1b76c444a8a3"
+    },
+    "span_kind": "CHAIN",
+    "start_time": "2026-11-13T05:18:00+00:00",
+    "end_time": "2026-11-13T05:18:02.200000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "I haven't shopped in a while. Will I lose the points I've built up?",
+     "output.value": "Points expire 90 days after you earn them, whether or not you shop."
+    }
+   },
+   {
+    "name": "retrieve_policies",
+    "context": {
+     "trace_id": "99c24b50c07bf70383a11837fb0fbd99",
+     "span_id": "ee99ef061cd33277"
+    },
+    "parent_id": "069a1b76c444a8a3",
+    "span_kind": "RETRIEVER",
+    "start_time": "2026-11-13T05:18:00+00:00",
+    "end_time": "2026-11-13T05:18:00.400000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "I haven't shopped in a while. Will I lose the points I've built up?",
+     "retrieval.documents.0.document.id": "kb-4373",
+     "retrieval.documents.0.document.content": "Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.",
+     "retrieval.documents.0.document.score": 0.899,
+     "retrieval.documents.1.document.id": "kb-4204",
+     "retrieval.documents.1.document.content": "If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.",
+     "retrieval.documents.1.document.score": 0.841,
+     "retrieval.documents.2.document.id": "kb-4360",
+     "retrieval.documents.2.document.content": "Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.",
+     "retrieval.documents.2.document.score": 0.795,
+     "retrieval.documents.3.document.id": "kb-4347",
+     "retrieval.documents.3.document.content": "You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.",
+     "retrieval.documents.3.document.score": 0.772
+    }
+   },
+   {
+    "name": "ChatCompletion",
+    "context": {
+     "trace_id": "99c24b50c07bf70383a11837fb0fbd99",
+     "span_id": "3691676d59fab27a"
+    },
+    "parent_id": "069a1b76c444a8a3",
+    "span_kind": "LLM",
+    "start_time": "2026-11-13T05:18:00.400000+00:00",
+    "end_time": "2026-11-13T05:18:02+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "llm.model_name": "gpt-5.6-mini",
+     "llm.provider": "openai",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\\n[2] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\\n[3] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\\n[4] You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.\\n\\nCustomer question: I haven't shopped in a while. Will I lose the points I've built up?\"}]}",
+     "input.mime_type": "application/json",
+     "output.value": "Points expire 90 days after you earn them, whether or not you shop.",
+     "llm.token_count.prompt": 208,
+     "llm.token_count.completion": 16,
+     "llm.input_messages.0.message.role": "system",
+     "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
+     "llm.input_messages.1.message.role": "user",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\n[2] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\n[3] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\n[4] You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.\n\nCustomer question: I haven't shopped in a while. Will I lose the points I've built up?",
+     "llm.output_messages.0.message.role": "assistant",
+     "llm.output_messages.0.message.content": "Points expire 90 days after you earn them, whether or not you shop."
+    }
+   },
+   {
+    "name": "rag-query",
+    "context": {
+     "trace_id": "f5b77edcfe7d2f315c8438c4f39e5c71",
+     "span_id": "9c663d527308c248"
+    },
+    "span_kind": "CHAIN",
+    "start_time": "2026-11-13T08:12:00+00:00",
+    "end_time": "2026-11-13T08:12:02.200000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "Quick question about returns: is there a time limit, and when does it start counting?",
+     "output.value": "You can return an unused item in its original packaging up to 30 days after it's delivered. After that, returns aren't accepted."
+    }
+   },
+   {
+    "name": "retrieve_policies",
+    "context": {
+     "trace_id": "f5b77edcfe7d2f315c8438c4f39e5c71",
+     "span_id": "a40de4f9e16ed986"
+    },
+    "parent_id": "9c663d527308c248",
+    "span_kind": "RETRIEVER",
+    "start_time": "2026-11-13T08:12:00+00:00",
+    "end_time": "2026-11-13T08:12:00.400000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "Quick question about returns: is there a time limit, and when does it start counting?",
+     "retrieval.documents.0.document.id": "kb-4100",
+     "retrieval.documents.0.document.content": "Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.",
+     "retrieval.documents.0.document.score": 0.857,
+     "retrieval.documents.1.document.id": "kb-4126",
+     "retrieval.documents.1.document.content": "Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.",
+     "retrieval.documents.1.document.score": 0.816,
+     "retrieval.documents.2.document.id": "kb-4113",
+     "retrieval.documents.2.document.content": "Items marked Final Sale on the product page can't be returned or exchanged for any reason.",
+     "retrieval.documents.2.document.score": 0.778,
+     "retrieval.documents.3.document.id": "kb-4347",
+     "retrieval.documents.3.document.content": "You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.",
+     "retrieval.documents.3.document.score": 0.758
+    }
+   },
+   {
+    "name": "ChatCompletion",
+    "context": {
+     "trace_id": "f5b77edcfe7d2f315c8438c4f39e5c71",
+     "span_id": "9c73b0e8f994ef4d"
+    },
+    "parent_id": "9c663d527308c248",
+    "span_kind": "LLM",
+    "start_time": "2026-11-13T08:12:00.400000+00:00",
+    "end_time": "2026-11-13T08:12:02+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "llm.model_name": "gpt-5.6-mini",
+     "llm.provider": "openai",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\\n[2] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\\n[3] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\\n[4] You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.\\n\\nCustomer question: Quick question about returns: is there a time limit, and when does it start counting?\"}]}",
+     "input.mime_type": "application/json",
+     "output.value": "You can return an unused item in its original packaging up to 30 days after it's delivered. After that, returns aren't accepted.",
+     "llm.token_count.prompt": 200,
+     "llm.token_count.completion": 32,
+     "llm.input_messages.0.message.role": "system",
+     "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
+     "llm.input_messages.1.message.role": "user",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\n[2] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\n[3] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\n[4] You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.\n\nCustomer question: Quick question about returns: is there a time limit, and when does it start counting?",
+     "llm.output_messages.0.message.role": "assistant",
+     "llm.output_messages.0.message.content": "You can return an unused item in its original packaging up to 30 days after it's delivered. After that, returns aren't accepted."
+    }
+   },
+   {
+    "name": "rag-query",
+    "context": {
+     "trace_id": "17f6c15e20bf50d431c18957bebf9a3e",
+     "span_id": "f24b5e7afcf2c7a2"
+    },
+    "span_kind": "CHAIN",
+    "start_time": "2026-11-13T11:06:00+00:00",
+    "end_time": "2026-11-13T11:06:02.200000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "Changed my mind about yesterday's purchase. Can I still call it off?",
+     "output.value": "There's a $5 fee to cancel an order. Orders can be canceled from your account up until they ship, which usually happens within 24 hours."
+    }
+   },
+   {
+    "name": "retrieve_policies",
+    "context": {
+     "trace_id": "17f6c15e20bf50d431c18957bebf9a3e",
+     "span_id": "71911fae7c9c3f67"
+    },
+    "parent_id": "f24b5e7afcf2c7a2",
+    "span_kind": "RETRIEVER",
+    "start_time": "2026-11-13T11:06:00+00:00",
+    "end_time": "2026-11-13T11:06:00.400000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "Changed my mind about yesterday's purchase. Can I still call it off?",
+     "retrieval.documents.0.document.id": "kb-4282",
+     "retrieval.documents.0.document.content": "You can cancel an order from your account until it ships. Most orders ship within 24 hours.",
+     "retrieval.documents.0.document.score": 0.751,
+     "retrieval.documents.1.document.id": "kb-4373",
+     "retrieval.documents.1.document.content": "Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.",
+     "retrieval.documents.1.document.score": 0.735,
+     "retrieval.documents.2.document.id": "kb-4100",
+     "retrieval.documents.2.document.content": "Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.",
+     "retrieval.documents.2.document.score": 0.718,
+     "retrieval.documents.3.document.id": "kb-4295",
+     "retrieval.documents.3.document.content": "If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.",
+     "retrieval.documents.3.document.score": 0.695
+    }
+   },
+   {
+    "name": "ChatCompletion",
+    "context": {
+     "trace_id": "17f6c15e20bf50d431c18957bebf9a3e",
+     "span_id": "186dcb7d7a56ffef"
+    },
+    "parent_id": "f24b5e7afcf2c7a2",
+    "span_kind": "LLM",
+    "start_time": "2026-11-13T11:06:00.400000+00:00",
+    "end_time": "2026-11-13T11:06:02+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "llm.model_name": "gpt-5.6-mini",
+     "llm.provider": "openai",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] You can cancel an order from your account until it ships. Most orders ship within 24 hours.\\n[2] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\\n[3] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\\n[4] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\\n\\nCustomer question: Changed my mind about yesterday's purchase. Can I still call it off?\"}]}",
+     "input.mime_type": "application/json",
+     "output.value": "There's a $5 fee to cancel an order. Orders can be canceled from your account up until they ship, which usually happens within 24 hours.",
+     "llm.token_count.prompt": 189,
+     "llm.token_count.completion": 34,
+     "llm.input_messages.0.message.role": "system",
+     "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
+     "llm.input_messages.1.message.role": "user",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] You can cancel an order from your account until it ships. Most orders ship within 24 hours.\n[2] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\n[3] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\n[4] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\n\nCustomer question: Changed my mind about yesterday's purchase. Can I still call it off?",
+     "llm.output_messages.0.message.role": "assistant",
+     "llm.output_messages.0.message.content": "There's a $5 fee to cancel an order. Orders can be canceled from your account up until they ship, which usually happens within 24 hours."
+    }
+   },
+   {
+    "name": "rag-query",
+    "context": {
+     "trace_id": "3286357198fd2431ad8975cddc8edecd",
+     "span_id": "357c0d00a2b68c32"
+    },
+    "span_kind": "CHAIN",
+    "start_time": "2026-11-13T14:00:00+00:00",
+    "end_time": "2026-11-13T14:00:02.200000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "I'd like to remove my profile and all my data. How do I do that?",
+     "output.value": "Go to Settings > Privacy to delete your account. It can't be undone, and your order history is erased 30 days later."
+    }
+   },
+   {
+    "name": "retrieve_policies",
+    "context": {
+     "trace_id": "3286357198fd2431ad8975cddc8edecd",
+     "span_id": "36ac34107a02a7ac"
+    },
+    "parent_id": "357c0d00a2b68c32",
+    "span_kind": "RETRIEVER",
+    "start_time": "2026-11-13T14:00:00+00:00",
+    "end_time": "2026-11-13T14:00:00.400000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "I'd like to remove my profile and all my data. How do I do that?",
+     "retrieval.documents.0.document.id": "kb-4386",
+     "retrieval.documents.0.document.content": "Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.",
+     "retrieval.documents.0.document.score": 0.825,
+     "retrieval.documents.1.document.id": "kb-4282",
+     "retrieval.documents.1.document.content": "You can cancel an order from your account until it ships. Most orders ship within 24 hours.",
+     "retrieval.documents.1.document.score": 0.784,
+     "retrieval.documents.2.document.id": "kb-4373",
+     "retrieval.documents.2.document.content": "Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.",
+     "retrieval.documents.2.document.score": 0.769,
+     "retrieval.documents.3.document.id": "kb-4347",
+     "retrieval.documents.3.document.content": "You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.",
+     "retrieval.documents.3.document.score": 0.75
+    }
+   },
+   {
+    "name": "ChatCompletion",
+    "context": {
+     "trace_id": "3286357198fd2431ad8975cddc8edecd",
+     "span_id": "e86f649a7a4141f0"
+    },
+    "parent_id": "357c0d00a2b68c32",
+    "span_kind": "LLM",
+    "start_time": "2026-11-13T14:00:00.400000+00:00",
+    "end_time": "2026-11-13T14:00:02+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "llm.model_name": "gpt-5.6-mini",
+     "llm.provider": "openai",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\\n[2] You can cancel an order from your account until it ships. Most orders ship within 24 hours.\\n[3] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\\n[4] You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.\\n\\nCustomer question: I'd like to remove my profile and all my data. How do I do that?\"}]}",
+     "input.mime_type": "application/json",
+     "output.value": "Go to Settings > Privacy to delete your account. It can't be undone, and your order history is erased 30 days later.",
+     "llm.token_count.prompt": 189,
+     "llm.token_count.completion": 29,
+     "llm.input_messages.0.message.role": "system",
+     "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
+     "llm.input_messages.1.message.role": "user",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\n[2] You can cancel an order from your account until it ships. Most orders ship within 24 hours.\n[3] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\n[4] You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.\n\nCustomer question: I'd like to remove my profile and all my data. How do I do that?",
+     "llm.output_messages.0.message.role": "assistant",
+     "llm.output_messages.0.message.content": "Go to Settings > Privacy to delete your account. It can't be undone, and your order history is erased 30 days later."
+    }
+   },
+   {
+    "name": "rag-query",
+    "context": {
+     "trace_id": "eec484d0037e8b550bc006ef12182b24",
+     "span_id": "9ab1ee45b403e8c5"
+    },
+    "span_kind": "CHAIN",
+    "start_time": "2026-11-13T16:54:00+00:00",
+    "end_time": "2026-11-13T16:54:02.200000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "I'm locked out of my account. What are the steps to set a new password?",
+     "output.value": "Select Forgot password on the sign-in page. We'll email you a link to set a new password, and it's valid for 1 hour."
+    }
+   },
+   {
+    "name": "retrieve_policies",
+    "context": {
+     "trace_id": "eec484d0037e8b550bc006ef12182b24",
+     "span_id": "f275b1f0251b04b1"
+    },
+    "parent_id": "9ab1ee45b403e8c5",
+    "span_kind": "RETRIEVER",
+    "start_time": "2026-11-13T16:54:00+00:00",
+    "end_time": "2026-11-13T16:54:00.400000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "I'm locked out of my account. What are the steps to set a new password?",
+     "retrieval.documents.0.document.id": "kb-4282",
+     "retrieval.documents.0.document.content": "You can cancel an order from your account until it ships. Most orders ship within 24 hours.",
+     "retrieval.documents.0.document.score": 0.88,
+     "retrieval.documents.1.document.id": "kb-4334",
+     "retrieval.documents.1.document.content": "To reset your password, choose Forgot password on the sign-in page. The reset link we email you expires after 1 hour.",
+     "retrieval.documents.1.document.score": 0.855,
+     "retrieval.documents.2.document.id": "kb-4360",
+     "retrieval.documents.2.document.content": "Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.",
+     "retrieval.documents.2.document.score": 0.837,
+     "retrieval.documents.3.document.id": "kb-4347",
+     "retrieval.documents.3.document.content": "You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.",
+     "retrieval.documents.3.document.score": 0.817
+    }
+   },
+   {
+    "name": "ChatCompletion",
+    "context": {
+     "trace_id": "eec484d0037e8b550bc006ef12182b24",
+     "span_id": "508f3d636ecfadc0"
+    },
+    "parent_id": "9ab1ee45b403e8c5",
+    "span_kind": "LLM",
+    "start_time": "2026-11-13T16:54:00.400000+00:00",
+    "end_time": "2026-11-13T16:54:02+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "llm.model_name": "gpt-5.6-mini",
+     "llm.provider": "openai",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] You can cancel an order from your account until it ships. Most orders ship within 24 hours.\\n[2] To reset your password, choose Forgot password on the sign-in page. The reset link we email you expires after 1 hour.\\n[3] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\\n[4] You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.\\n\\nCustomer question: I'm locked out of my account. What are the steps to set a new password?\"}]}",
+     "input.mime_type": "application/json",
+     "output.value": "Select Forgot password on the sign-in page. We'll email you a link to set a new password, and it's valid for 1 hour.",
+     "llm.token_count.prompt": 196,
+     "llm.token_count.completion": 29,
+     "llm.input_messages.0.message.role": "system",
+     "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
+     "llm.input_messages.1.message.role": "user",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] You can cancel an order from your account until it ships. Most orders ship within 24 hours.\n[2] To reset your password, choose Forgot password on the sign-in page. The reset link we email you expires after 1 hour.\n[3] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\n[4] You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.\n\nCustomer question: I'm locked out of my account. What are the steps to set a new password?",
+     "llm.output_messages.0.message.role": "assistant",
+     "llm.output_messages.0.message.content": "Select Forgot password on the sign-in page. We'll email you a link to set a new password, and it's valid for 1 hour."
+    }
+   },
+   {
+    "name": "rag-query",
+    "context": {
+     "trace_id": "eb545a0d11413139cbe5ce29fa2cdd39",
+     "span_id": "59a63e83ca890e14"
+    },
+    "span_kind": "CHAIN",
+    "start_time": "2026-11-13T19:48:00+00:00",
+    "end_time": "2026-11-13T19:48:02.200000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "My tent showed up on the 2nd and it's still sealed in the box. Today is the 24th. Can I still return it?",
+     "output.value": "You can return an unused item in its original packaging up to 30 days after it's delivered. After that, returns aren't accepted."
+    }
+   },
+   {
+    "name": "retrieve_policies",
+    "context": {
+     "trace_id": "eb545a0d11413139cbe5ce29fa2cdd39",
+     "span_id": "94f8d1c6edf5e2c0"
+    },
+    "parent_id": "59a63e83ca890e14",
+    "span_kind": "RETRIEVER",
+    "start_time": "2026-11-13T19:48:00+00:00",
+    "end_time": "2026-11-13T19:48:00.400000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "My tent showed up on the 2nd and it's still sealed in the box. Today is the 24th. Can I still return it?",
+     "retrieval.documents.0.document.id": "kb-4100",
+     "retrieval.documents.0.document.content": "Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.",
+     "retrieval.documents.0.document.score": 0.778,
+     "retrieval.documents.1.document.id": "kb-4113",
+     "retrieval.documents.1.document.content": "Items marked Final Sale on the product page can't be returned or exchanged for any reason.",
+     "retrieval.documents.1.document.score": 0.723,
+     "retrieval.documents.2.document.id": "kb-4386",
+     "retrieval.documents.2.document.content": "Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.",
+     "retrieval.documents.2.document.score": 0.684,
+     "retrieval.documents.3.document.id": "kb-4152",
+     "retrieval.documents.3.document.content": "Online orders can be returned at any of our retail stores. Bring the packing slip or the order confirmation email.",
+     "retrieval.documents.3.document.score": 0.644
+    }
+   },
+   {
+    "name": "ChatCompletion",
+    "context": {
+     "trace_id": "eb545a0d11413139cbe5ce29fa2cdd39",
+     "span_id": "17abad8a7baf9669"
+    },
+    "parent_id": "59a63e83ca890e14",
+    "span_kind": "LLM",
+    "start_time": "2026-11-13T19:48:00.400000+00:00",
+    "end_time": "2026-11-13T19:48:02+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "llm.model_name": "gpt-5.6-mini",
+     "llm.provider": "openai",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\\n[2] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\\n[3] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\\n[4] Online orders can be returned at any of our retail stores. Bring the packing slip or the order confirmation email.\\n\\nCustomer question: My tent showed up on the 2nd and it's still sealed in the box. Today is the 24th. Can I still return it?\"}]}",
+     "input.mime_type": "application/json",
+     "output.value": "You can return an unused item in its original packaging up to 30 days after it's delivered. After that, returns aren't accepted.",
+     "llm.token_count.prompt": 200,
+     "llm.token_count.completion": 32,
+     "llm.input_messages.0.message.role": "system",
+     "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
+     "llm.input_messages.1.message.role": "user",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\n[2] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\n[3] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\n[4] Online orders can be returned at any of our retail stores. Bring the packing slip or the order confirmation email.\n\nCustomer question: My tent showed up on the 2nd and it's still sealed in the box. Today is the 24th. Can I still return it?",
+     "llm.output_messages.0.message.role": "assistant",
+     "llm.output_messages.0.message.content": "You can return an unused item in its original packaging up to 30 days after it's delivered. After that, returns aren't accepted."
+    }
+   },
+   {
+    "name": "rag-query",
+    "context": {
+     "trace_id": "926cbde3597d77fb49e4ab2b7c8e1ca3",
+     "span_id": "133093028df47e4a"
+    },
+    "span_kind": "CHAIN",
+    "start_time": "2026-11-13T22:42:00+00:00",
+    "end_time": "2026-11-13T22:42:02.200000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "Ugh, the backpack I paid full price for 10 days ago is on sale now. Any chance of a partial refund?",
+     "output.value": "We'll match any lower price within 60 days, including competitors' prices."
+    }
+   },
+   {
+    "name": "retrieve_policies",
+    "context": {
+     "trace_id": "926cbde3597d77fb49e4ab2b7c8e1ca3",
+     "span_id": "ca5cc82ee68603de"
+    },
+    "parent_id": "133093028df47e4a",
+    "span_kind": "RETRIEVER",
+    "start_time": "2026-11-13T22:42:00+00:00",
+    "end_time": "2026-11-13T22:42:00.400000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "Ugh, the backpack I paid full price for 10 days ago is on sale now. Any chance of a partial refund?",
+     "retrieval.documents.0.document.id": "kb-4178",
+     "retrieval.documents.0.document.content": "Seeing two charges for one order? The second is a temporary card authorization, and it disappears on its own within 3 business days.",
+     "retrieval.documents.0.document.score": 0.819,
+     "retrieval.documents.1.document.id": "kb-4100",
+     "retrieval.documents.1.document.content": "Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.",
+     "retrieval.documents.1.document.score": 0.779,
+     "retrieval.documents.2.document.id": "kb-4373",
+     "retrieval.documents.2.document.content": "Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.",
+     "retrieval.documents.2.document.score": 0.721,
+     "retrieval.documents.3.document.id": "kb-4165",
+     "retrieval.documents.3.document.content": "After the warehouse receives a return, the refund reaches your original payment method within 5 to 7 business days.",
+     "retrieval.documents.3.document.score": 0.687
+    }
+   },
+   {
+    "name": "ChatCompletion",
+    "context": {
+     "trace_id": "926cbde3597d77fb49e4ab2b7c8e1ca3",
+     "span_id": "b434fa05aa962a5c"
+    },
+    "parent_id": "133093028df47e4a",
+    "span_kind": "LLM",
+    "start_time": "2026-11-13T22:42:00.400000+00:00",
+    "end_time": "2026-11-13T22:42:02+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "llm.model_name": "gpt-5.6-mini",
+     "llm.provider": "openai",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Seeing two charges for one order? The second is a temporary card authorization, and it disappears on its own within 3 business days.\\n[2] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\\n[3] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\\n[4] After the warehouse receives a return, the refund reaches your original payment method within 5 to 7 business days.\\n\\nCustomer question: Ugh, the backpack I paid full price for 10 days ago is on sale now. Any chance of a partial refund?\"}]}",
+     "input.mime_type": "application/json",
+     "output.value": "We'll match any lower price within 60 days, including competitors' prices.",
+     "llm.token_count.prompt": 206,
+     "llm.token_count.completion": 18,
+     "llm.input_messages.0.message.role": "system",
+     "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
+     "llm.input_messages.1.message.role": "user",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] Seeing two charges for one order? The second is a temporary card authorization, and it disappears on its own within 3 business days.\n[2] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\n[3] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\n[4] After the warehouse receives a return, the refund reaches your original payment method within 5 to 7 business days.\n\nCustomer question: Ugh, the backpack I paid full price for 10 days ago is on sale now. Any chance of a partial refund?",
+     "llm.output_messages.0.message.role": "assistant",
+     "llm.output_messages.0.message.content": "We'll match any lower price within 60 days, including competitors' prices."
+    }
+   },
+   {
+    "name": "rag-query",
+    "context": {
+     "trace_id": "376168a410a3349bb81fbe1e4761dd87",
+     "span_id": "a331553e2eb8048a"
+    },
+    "span_kind": "CHAIN",
+    "start_time": "2026-11-14T01:36:00+00:00",
+    "end_time": "2026-11-14T01:36:02.200000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "Tracking says you got my returned boots on Monday. Roughly when does the credit hit my account?",
+     "output.value": "None of the policies I found address this, so I'd rather not give you a wrong answer."
+    }
+   },
+   {
+    "name": "retrieve_policies",
+    "context": {
+     "trace_id": "376168a410a3349bb81fbe1e4761dd87",
+     "span_id": "d10e62cd76e56491"
+    },
+    "parent_id": "a331553e2eb8048a",
+    "span_kind": "RETRIEVER",
+    "start_time": "2026-11-14T01:36:00+00:00",
+    "end_time": "2026-11-14T01:36:00.400000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "Tracking says you got my returned boots on Monday. Roughly when does the credit hit my account?",
+     "retrieval.documents.0.document.id": "kb-4204",
+     "retrieval.documents.0.document.content": "If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.",
+     "retrieval.documents.0.document.score": 0.762,
+     "retrieval.documents.1.document.id": "kb-4230",
+     "retrieval.documents.1.document.content": "Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.",
+     "retrieval.documents.1.document.score": 0.704,
+     "retrieval.documents.2.document.id": "kb-4100",
+     "retrieval.documents.2.document.content": "Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.",
+     "retrieval.documents.2.document.score": 0.683,
+     "retrieval.documents.3.document.id": "kb-4360",
+     "retrieval.documents.3.document.content": "Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.",
+     "retrieval.documents.3.document.score": 0.648
+    }
+   },
+   {
+    "name": "ChatCompletion",
+    "context": {
+     "trace_id": "376168a410a3349bb81fbe1e4761dd87",
+     "span_id": "a906f355b7904291"
+    },
+    "parent_id": "a331553e2eb8048a",
+    "span_kind": "LLM",
+    "start_time": "2026-11-14T01:36:00.400000+00:00",
+    "end_time": "2026-11-14T01:36:02+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "llm.model_name": "gpt-5.6-mini",
+     "llm.provider": "openai",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\\n[2] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\\n[3] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\\n[4] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\\n\\nCustomer question: Tracking says you got my returned boots on Monday. Roughly when does the credit hit my account?\"}]}",
+     "input.mime_type": "application/json",
+     "output.value": "None of the policies I found address this, so I'd rather not give you a wrong answer.",
+     "llm.token_count.prompt": 212,
+     "llm.token_count.completion": 21,
+     "llm.input_messages.0.message.role": "system",
+     "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
+     "llm.input_messages.1.message.role": "user",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\n[2] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\n[3] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\n[4] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\n\nCustomer question: Tracking says you got my returned boots on Monday. Roughly when does the credit hit my account?",
+     "llm.output_messages.0.message.role": "assistant",
+     "llm.output_messages.0.message.content": "None of the policies I found address this, so I'd rather not give you a wrong answer."
+    }
+   },
+   {
+    "name": "rag-query",
+    "context": {
+     "trace_id": "252cb919636766007a7f31060bfff642",
+     "span_id": "3037e88a83b96ab4"
+    },
+    "span_kind": "CHAIN",
+    "start_time": "2026-11-14T04:30:00+00:00",
+    "end_time": "2026-11-14T04:30:02.200000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "I need these boots by Friday. What's your fastest delivery and what does it cost?",
+     "output.value": "Overnight shipping costs $29 and is guaranteed by 10 a.m."
+    }
+   },
+   {
+    "name": "retrieve_policies",
+    "context": {
+     "trace_id": "252cb919636766007a7f31060bfff642",
+     "span_id": "d5fed317dbe2a411"
+    },
+    "parent_id": "3037e88a83b96ab4",
+    "span_kind": "RETRIEVER",
+    "start_time": "2026-11-14T04:30:00+00:00",
+    "end_time": "2026-11-14T04:30:00.400000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "I need these boots by Friday. What's your fastest delivery and what does it cost?",
+     "retrieval.documents.0.document.id": "kb-4126",
+     "retrieval.documents.0.document.content": "Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.",
+     "retrieval.documents.0.document.score": 0.865,
+     "retrieval.documents.1.document.id": "kb-4217",
+     "retrieval.documents.1.document.content": "Orders over $150 can be split into 4 interest-free payments made every two weeks. Choose Pay in 4 at checkout.",
+     "retrieval.documents.1.document.score": 0.828,
+     "retrieval.documents.2.document.id": "kb-4256",
+     "retrieval.documents.2.document.content": "We ship only within the US and to Canada. Canadian orders take 7 to 14 business days, and the recipient pays any customs duties.",
+     "retrieval.documents.2.document.score": 0.808,
+     "retrieval.documents.3.document.id": "kb-4295",
+     "retrieval.documents.3.document.content": "If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.",
+     "retrieval.documents.3.document.score": 0.782
+    }
+   },
+   {
+    "name": "ChatCompletion",
+    "context": {
+     "trace_id": "252cb919636766007a7f31060bfff642",
+     "span_id": "36afbceed5ed50f1"
+    },
+    "parent_id": "3037e88a83b96ab4",
+    "span_kind": "LLM",
+    "start_time": "2026-11-14T04:30:00.400000+00:00",
+    "end_time": "2026-11-14T04:30:02+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "llm.model_name": "gpt-5.6-mini",
+     "llm.provider": "openai",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\\n[2] Orders over $150 can be split into 4 interest-free payments made every two weeks. Choose Pay in 4 at checkout.\\n[3] We ship only within the US and to Canada. Canadian orders take 7 to 14 business days, and the recipient pays any customs duties.\\n[4] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\\n\\nCustomer question: I need these boots by Friday. What's your fastest delivery and what does it cost?\"}]}",
+     "input.mime_type": "application/json",
+     "output.value": "Overnight shipping costs $29 and is guaranteed by 10 a.m.",
+     "llm.token_count.prompt": 205,
+     "llm.token_count.completion": 14,
+     "llm.input_messages.0.message.role": "system",
+     "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
+     "llm.input_messages.1.message.role": "user",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\n[2] Orders over $150 can be split into 4 interest-free payments made every two weeks. Choose Pay in 4 at checkout.\n[3] We ship only within the US and to Canada. Canadian orders take 7 to 14 business days, and the recipient pays any customs duties.\n[4] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\n\nCustomer question: I need these boots by Friday. What's your fastest delivery and what does it cost?",
+     "llm.output_messages.0.message.role": "assistant",
+     "llm.output_messages.0.message.content": "Overnight shipping costs $29 and is guaranteed by 10 a.m."
+    }
+   },
+   {
+    "name": "rag-query",
+    "context": {
+     "trace_id": "edfee62f44f65cc3d447cbcbc36308a3",
+     "span_id": "e1dfa9c5ae399f07"
+    },
+    "span_kind": "CHAIN",
+    "start_time": "2026-11-14T07:24:00+00:00",
+    "end_time": "2026-11-14T07:24:02.200000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "Is Amex okay, or only Visa and Mastercard?",
+     "output.value": "You can pay with Visa, Mastercard, American Express, PayPal, or Apple Pay, but not with checks, money orders, or crypto."
+    }
+   },
+   {
+    "name": "retrieve_policies",
+    "context": {
+     "trace_id": "edfee62f44f65cc3d447cbcbc36308a3",
+     "span_id": "5231933437918a35"
+    },
+    "parent_id": "e1dfa9c5ae399f07",
+    "span_kind": "RETRIEVER",
+    "start_time": "2026-11-14T07:24:00+00:00",
+    "end_time": "2026-11-14T07:24:00.400000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "Is Amex okay, or only Visa and Mastercard?",
+     "retrieval.documents.0.document.id": "kb-4191",
+     "retrieval.documents.0.document.content": "We accept Visa, Mastercard, American Express, PayPal, and Apple Pay. We don't accept checks, money orders, or cryptocurrency.",
+     "retrieval.documents.0.document.score": 0.834,
+     "retrieval.documents.1.document.id": "kb-4178",
+     "retrieval.documents.1.document.content": "Seeing two charges for one order? The second is a temporary card authorization, and it disappears on its own within 3 business days.",
+     "retrieval.documents.1.document.score": 0.789,
+     "retrieval.documents.2.document.id": "kb-4360",
+     "retrieval.documents.2.document.content": "Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.",
+     "retrieval.documents.2.document.score": 0.732,
+     "retrieval.documents.3.document.id": "kb-4386",
+     "retrieval.documents.3.document.content": "Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.",
+     "retrieval.documents.3.document.score": 0.673
+    }
+   },
+   {
+    "name": "ChatCompletion",
+    "context": {
+     "trace_id": "edfee62f44f65cc3d447cbcbc36308a3",
+     "span_id": "b7db2ffccd745a6c"
+    },
+    "parent_id": "e1dfa9c5ae399f07",
+    "span_kind": "LLM",
+    "start_time": "2026-11-14T07:24:00.400000+00:00",
+    "end_time": "2026-11-14T07:24:02+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "llm.model_name": "gpt-5.6-mini",
+     "llm.provider": "openai",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] We accept Visa, Mastercard, American Express, PayPal, and Apple Pay. We don't accept checks, money orders, or cryptocurrency.\\n[2] Seeing two charges for one order? The second is a temporary card authorization, and it disappears on its own within 3 business days.\\n[3] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\\n[4] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\\n\\nCustomer question: Is Amex okay, or only Visa and Mastercard?\"}]}",
+     "input.mime_type": "application/json",
+     "output.value": "You can pay with Visa, Mastercard, American Express, PayPal, or Apple Pay, but not with checks, money orders, or crypto.",
+     "llm.token_count.prompt": 200,
+     "llm.token_count.completion": 30,
+     "llm.input_messages.0.message.role": "system",
+     "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
+     "llm.input_messages.1.message.role": "user",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] We accept Visa, Mastercard, American Express, PayPal, and Apple Pay. We don't accept checks, money orders, or cryptocurrency.\n[2] Seeing two charges for one order? The second is a temporary card authorization, and it disappears on its own within 3 business days.\n[3] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\n[4] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\n\nCustomer question: Is Amex okay, or only Visa and Mastercard?",
+     "llm.output_messages.0.message.role": "assistant",
+     "llm.output_messages.0.message.content": "You can pay with Visa, Mastercard, American Express, PayPal, or Apple Pay, but not with checks, money orders, or crypto."
+    }
+   },
+   {
+    "name": "rag-query",
+    "context": {
+     "trace_id": "78db4a92fd1557901827b7ffab155b65",
+     "span_id": "f534a097f2f6c1b7"
+    },
+    "span_kind": "CHAIN",
+    "start_time": "2026-11-14T10:18:00+00:00",
+    "end_time": "2026-11-14T10:18:02.200000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "Is there a way to avoid paying for my whole order up front?",
+     "output.value": "If your order is over $150, you can pick Pay in 4 at checkout and pay in 4 interest-free installments, one every two weeks."
+    }
+   },
+   {
+    "name": "retrieve_policies",
+    "context": {
+     "trace_id": "78db4a92fd1557901827b7ffab155b65",
+     "span_id": "6189a818eccc195c"
+    },
+    "parent_id": "f534a097f2f6c1b7",
+    "span_kind": "RETRIEVER",
+    "start_time": "2026-11-14T10:18:00+00:00",
+    "end_time": "2026-11-14T10:18:00.400000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "Is there a way to avoid paying for my whole order up front?",
+     "retrieval.documents.0.document.id": "kb-4360",
+     "retrieval.documents.0.document.content": "Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.",
+     "retrieval.documents.0.document.score": 0.786,
+     "retrieval.documents.1.document.id": "kb-4191",
+     "retrieval.documents.1.document.content": "We accept Visa, Mastercard, American Express, PayPal, and Apple Pay. We don't accept checks, money orders, or cryptocurrency.",
+     "retrieval.documents.1.document.score": 0.736,
+     "retrieval.documents.2.document.id": "kb-4178",
+     "retrieval.documents.2.document.content": "Seeing two charges for one order? The second is a temporary card authorization, and it disappears on its own within 3 business days.",
+     "retrieval.documents.2.document.score": 0.697,
+     "retrieval.documents.3.document.id": "kb-4386",
+     "retrieval.documents.3.document.content": "Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.",
+     "retrieval.documents.3.document.score": 0.665
+    }
+   },
+   {
+    "name": "ChatCompletion",
+    "context": {
+     "trace_id": "78db4a92fd1557901827b7ffab155b65",
+     "span_id": "cfb344724babdb3c"
+    },
+    "parent_id": "f534a097f2f6c1b7",
+    "span_kind": "LLM",
+    "start_time": "2026-11-14T10:18:00.400000+00:00",
+    "end_time": "2026-11-14T10:18:02+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "llm.model_name": "gpt-5.6-mini",
+     "llm.provider": "openai",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\\n[2] We accept Visa, Mastercard, American Express, PayPal, and Apple Pay. We don't accept checks, money orders, or cryptocurrency.\\n[3] Seeing two charges for one order? The second is a temporary card authorization, and it disappears on its own within 3 business days.\\n[4] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\\n\\nCustomer question: Is there a way to avoid paying for my whole order up front?\"}]}",
+     "input.mime_type": "application/json",
+     "output.value": "If your order is over $150, you can pick Pay in 4 at checkout and pay in 4 interest-free installments, one every two weeks.",
+     "llm.token_count.prompt": 204,
+     "llm.token_count.completion": 30,
+     "llm.input_messages.0.message.role": "system",
+     "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
+     "llm.input_messages.1.message.role": "user",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\n[2] We accept Visa, Mastercard, American Express, PayPal, and Apple Pay. We don't accept checks, money orders, or cryptocurrency.\n[3] Seeing two charges for one order? The second is a temporary card authorization, and it disappears on its own within 3 business days.\n[4] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\n\nCustomer question: Is there a way to avoid paying for my whole order up front?",
+     "llm.output_messages.0.message.role": "assistant",
+     "llm.output_messages.0.message.content": "If your order is over $150, you can pick Pay in 4 at checkout and pay in 4 interest-free installments, one every two weeks."
+    }
+   },
+   {
+    "name": "rag-query",
+    "context": {
+     "trace_id": "ff99f834d78d9efad23a37530948d109",
+     "span_id": "dd7642d5c6ef77da"
+    },
+    "span_kind": "CHAIN",
+    "start_time": "2026-11-14T13:12:00+00:00",
+    "end_time": "2026-11-14T13:12:02.200000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "I need to make a warranty claim on my stove. What do I have to send you, and where?",
+     "output.value": "Go to the Warranty page and upload a photo of the defect with your order number. Most claims are approved within 2 business days. If the claim is approved, you'll get a replacement within 10 business days."
+    }
+   },
+   {
+    "name": "retrieve_policies",
+    "context": {
+     "trace_id": "ff99f834d78d9efad23a37530948d109",
+     "span_id": "bc4b78c0cf6e929f"
+    },
+    "parent_id": "dd7642d5c6ef77da",
+    "span_kind": "RETRIEVER",
+    "start_time": "2026-11-14T13:12:00+00:00",
+    "end_time": "2026-11-14T13:12:00.400000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "I need to make a warranty claim on my stove. What do I have to send you, and where?",
+     "retrieval.documents.0.document.id": "kb-4308",
+     "retrieval.documents.0.document.content": "Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered.",
+     "retrieval.documents.0.document.score": 0.826,
+     "retrieval.documents.1.document.id": "kb-4334",
+     "retrieval.documents.1.document.content": "To reset your password, choose Forgot password on the sign-in page. The reset link we email you expires after 1 hour.",
+     "retrieval.documents.1.document.score": 0.775,
+     "retrieval.documents.2.document.id": "kb-4321",
+     "retrieval.documents.2.document.content": "To start a warranty claim, upload a photo of the defect with your order number on the Warranty page. Approved claims get a replacement within 10 business days.",
+     "retrieval.documents.2.document.score": 0.734,
+     "retrieval.documents.3.document.id": "kb-4126",
+     "retrieval.documents.3.document.content": "Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.",
+     "retrieval.documents.3.document.score": 0.701
+    }
+   },
+   {
+    "name": "ChatCompletion",
+    "context": {
+     "trace_id": "ff99f834d78d9efad23a37530948d109",
+     "span_id": "65158d1faf4360cb"
+    },
+    "parent_id": "dd7642d5c6ef77da",
+    "span_kind": "LLM",
+    "start_time": "2026-11-14T13:12:00.400000+00:00",
+    "end_time": "2026-11-14T13:12:02+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "llm.model_name": "gpt-5.6-mini",
+     "llm.provider": "openai",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered.\\n[2] To reset your password, choose Forgot password on the sign-in page. The reset link we email you expires after 1 hour.\\n[3] To start a warranty claim, upload a photo of the defect with your order number on the Warranty page. Approved claims get a replacement within 10 business days.\\n[4] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\\n\\nCustomer question: I need to make a warranty claim on my stove. What do I have to send you, and where?\"}]}",
+     "input.mime_type": "application/json",
+     "output.value": "Go to the Warranty page and upload a photo of the defect with your order number. Most claims are approved within 2 business days. If the claim is approved, you'll get a replacement within 10 business days.",
+     "llm.token_count.prompt": 220,
+     "llm.token_count.completion": 51,
+     "llm.input_messages.0.message.role": "system",
+     "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
+     "llm.input_messages.1.message.role": "user",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered.\n[2] To reset your password, choose Forgot password on the sign-in page. The reset link we email you expires after 1 hour.\n[3] To start a warranty claim, upload a photo of the defect with your order number on the Warranty page. Approved claims get a replacement within 10 business days.\n[4] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\n\nCustomer question: I need to make a warranty claim on my stove. What do I have to send you, and where?",
+     "llm.output_messages.0.message.role": "assistant",
+     "llm.output_messages.0.message.content": "Go to the Warranty page and upload a photo of the defect with your order number. Most claims are approved within 2 business days. If the claim is approved, you'll get a replacement within 10 business days."
+    }
+   },
+   {
+    "name": "rag-query",
+    "context": {
+     "trace_id": "a6b282681746d1eac9caea33444eac2b",
+     "span_id": "1a42d9c4ec0e6382"
+    },
+    "span_kind": "CHAIN",
+    "start_time": "2026-11-14T16:06:00+00:00",
+    "end_time": "2026-11-14T16:06:02.200000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "I just moved and the order I placed yesterday has my old address. Is it too late to update it?",
+     "output.value": "Addresses can be changed on the Orders page only within 1 hour of checkout. Once that hour passes, the order is at the warehouse and the address can't be changed."
+    }
+   },
+   {
+    "name": "retrieve_policies",
+    "context": {
+     "trace_id": "a6b282681746d1eac9caea33444eac2b",
+     "span_id": "c249aa4dea1d8972"
+    },
+    "parent_id": "1a42d9c4ec0e6382",
+    "span_kind": "RETRIEVER",
+    "start_time": "2026-11-14T16:06:00+00:00",
+    "end_time": "2026-11-14T16:06:00.400000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "I just moved and the order I placed yesterday has my old address. Is it too late to update it?",
+     "retrieval.documents.0.document.id": "kb-4347",
+     "retrieval.documents.0.document.content": "You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.",
+     "retrieval.documents.0.document.score": 0.822,
+     "retrieval.documents.1.document.id": "kb-4295",
+     "retrieval.documents.1.document.content": "If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.",
+     "retrieval.documents.1.document.score": 0.793,
+     "retrieval.documents.2.document.id": "kb-4243",
+     "retrieval.documents.2.document.content": "Express shipping costs $14.95 and delivers in 1 to 2 business days for orders placed before 1 p.m. Eastern.",
+     "retrieval.documents.2.document.score": 0.735,
+     "retrieval.documents.3.document.id": "kb-4269",
+     "retrieval.documents.3.document.content": "You can edit the shipping address from the Orders page for 1 hour after checkout. After that, the order has gone to the warehouse and the address is locked.",
+     "retrieval.documents.3.document.score": 0.696
+    }
+   },
+   {
+    "name": "ChatCompletion",
+    "context": {
+     "trace_id": "a6b282681746d1eac9caea33444eac2b",
+     "span_id": "0431717e39f794e2"
+    },
+    "parent_id": "1a42d9c4ec0e6382",
+    "span_kind": "LLM",
+    "start_time": "2026-11-14T16:06:00.400000+00:00",
+    "end_time": "2026-11-14T16:06:02+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "llm.model_name": "gpt-5.6-mini",
+     "llm.provider": "openai",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.\\n[2] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\\n[3] Express shipping costs $14.95 and delivers in 1 to 2 business days for orders placed before 1 p.m. Eastern.\\n[4] You can edit the shipping address from the Orders page for 1 hour after checkout. After that, the order has gone to the warehouse and the address is locked.\\n\\nCustomer question: I just moved and the order I placed yesterday has my old address. Is it too late to update it?\"}]}",
+     "input.mime_type": "application/json",
+     "output.value": "Addresses can be changed on the Orders page only within 1 hour of checkout. Once that hour passes, the order is at the warehouse and the address can't be changed.",
+     "llm.token_count.prompt": 213,
+     "llm.token_count.completion": 40,
+     "llm.input_messages.0.message.role": "system",
+     "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
+     "llm.input_messages.1.message.role": "user",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.\n[2] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\n[3] Express shipping costs $14.95 and delivers in 1 to 2 business days for orders placed before 1 p.m. Eastern.\n[4] You can edit the shipping address from the Orders page for 1 hour after checkout. After that, the order has gone to the warehouse and the address is locked.\n\nCustomer question: I just moved and the order I placed yesterday has my old address. Is it too late to update it?",
+     "llm.output_messages.0.message.role": "assistant",
+     "llm.output_messages.0.message.content": "Addresses can be changed on the Orders page only within 1 hour of checkout. Once that hour passes, the order is at the warehouse and the address can't be changed."
+    }
+   },
+   {
+    "name": "rag-query",
+    "context": {
+     "trace_id": "2f43ffbac6db0a68e6ba9a357c78d077",
+     "span_id": "b6fdbdce8ecf047c"
+    },
+    "span_kind": "CHAIN",
+    "start_time": "2026-11-14T19:00:00+00:00",
+    "end_time": "2026-11-14T19:00:02.200000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "The seam on my 10-month-old jacket split open on its own. Is that something the warranty handles?",
+     "output.value": "The warranty lasts 1 year and covers defects in materials or workmanship, but not normal wear, accidents, or misuse."
+    }
+   },
+   {
+    "name": "retrieve_policies",
+    "context": {
+     "trace_id": "2f43ffbac6db0a68e6ba9a357c78d077",
+     "span_id": "ecf6ffcef26333f5"
+    },
+    "parent_id": "b6fdbdce8ecf047c",
+    "span_kind": "RETRIEVER",
+    "start_time": "2026-11-14T19:00:00+00:00",
+    "end_time": "2026-11-14T19:00:00.400000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "The seam on my 10-month-old jacket split open on its own. Is that something the warranty handles?",
+     "retrieval.documents.0.document.id": "kb-4321",
+     "retrieval.documents.0.document.content": "To start a warranty claim, upload a photo of the defect with your order number on the Warranty page. Approved claims get a replacement within 10 business days.",
+     "retrieval.documents.0.document.score": 0.748,
+     "retrieval.documents.1.document.id": "kb-4347",
+     "retrieval.documents.1.document.content": "You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.",
+     "retrieval.documents.1.document.score": 0.707,
+     "retrieval.documents.2.document.id": "kb-4295",
+     "retrieval.documents.2.document.content": "If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.",
+     "retrieval.documents.2.document.score": 0.689,
+     "retrieval.documents.3.document.id": "kb-4100",
+     "retrieval.documents.3.document.content": "Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.",
+     "retrieval.documents.3.document.score": 0.657
+    }
+   },
+   {
+    "name": "ChatCompletion",
+    "context": {
+     "trace_id": "2f43ffbac6db0a68e6ba9a357c78d077",
+     "span_id": "920e70d73e6fb9da"
+    },
+    "parent_id": "b6fdbdce8ecf047c",
+    "span_kind": "LLM",
+    "start_time": "2026-11-14T19:00:00.400000+00:00",
+    "end_time": "2026-11-14T19:00:02+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "llm.model_name": "gpt-5.6-mini",
+     "llm.provider": "openai",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] To start a warranty claim, upload a photo of the defect with your order number on the Warranty page. Approved claims get a replacement within 10 business days.\\n[2] You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.\\n[3] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\\n[4] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\\n\\nCustomer question: The seam on my 10-month-old jacket split open on its own. Is that something the warranty handles?\"}]}",
+     "input.mime_type": "application/json",
+     "output.value": "The warranty lasts 1 year and covers defects in materials or workmanship, but not normal wear, accidents, or misuse.",
+     "llm.token_count.prompt": 218,
+     "llm.token_count.completion": 29,
+     "llm.input_messages.0.message.role": "system",
+     "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
+     "llm.input_messages.1.message.role": "user",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] To start a warranty claim, upload a photo of the defect with your order number on the Warranty page. Approved claims get a replacement within 10 business days.\n[2] You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.\n[3] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\n[4] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\n\nCustomer question: The seam on my 10-month-old jacket split open on its own. Is that something the warranty handles?",
+     "llm.output_messages.0.message.role": "assistant",
+     "llm.output_messages.0.message.content": "The warranty lasts 1 year and covers defects in materials or workmanship, but not normal wear, accidents, or misuse."
+    }
+   },
+   {
+    "name": "rag-query",
+    "context": {
+     "trace_id": "da110370fb6e7c544989dd5952541dc5",
+     "span_id": "583e3ee437fa6723"
+    },
+    "span_kind": "CHAIN",
+    "start_time": "2026-11-14T21:54:00+00:00",
+    "end_time": "2026-11-14T21:54:02.200000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "I'm in the UK. Can I order from you?",
+     "output.value": "I found our policies on return label fees and address changes, but neither one answers your question, so I can't say for sure."
+    }
+   },
+   {
+    "name": "retrieve_policies",
+    "context": {
+     "trace_id": "da110370fb6e7c544989dd5952541dc5",
+     "span_id": "4d3a9ae574a0c6d3"
+    },
+    "parent_id": "583e3ee437fa6723",
+    "span_kind": "RETRIEVER",
+    "start_time": "2026-11-14T21:54:00+00:00",
+    "end_time": "2026-11-14T21:54:00.400000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "I'm in the UK. Can I order from you?",
+     "retrieval.documents.0.document.id": "kb-4126",
+     "retrieval.documents.0.document.content": "Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.",
+     "retrieval.documents.0.document.score": 0.814,
+     "retrieval.documents.1.document.id": "kb-4269",
+     "retrieval.documents.1.document.content": "You can edit the shipping address from the Orders page for 1 hour after checkout. After that, the order has gone to the warehouse and the address is locked.",
+     "retrieval.documents.1.document.score": 0.77,
+     "retrieval.documents.2.document.id": "kb-4282",
+     "retrieval.documents.2.document.content": "You can cancel an order from your account until it ships. Most orders ship within 24 hours.",
+     "retrieval.documents.2.document.score": 0.718,
+     "retrieval.documents.3.document.id": "kb-4295",
+     "retrieval.documents.3.document.content": "If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.",
+     "retrieval.documents.3.document.score": 0.689
+    }
+   },
+   {
+    "name": "ChatCompletion",
+    "context": {
+     "trace_id": "da110370fb6e7c544989dd5952541dc5",
+     "span_id": "7336d36b87f020bd"
+    },
+    "parent_id": "583e3ee437fa6723",
+    "span_kind": "LLM",
+    "start_time": "2026-11-14T21:54:00.400000+00:00",
+    "end_time": "2026-11-14T21:54:02+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "llm.model_name": "gpt-5.6-mini",
+     "llm.provider": "openai",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\\n[2] You can edit the shipping address from the Orders page for 1 hour after checkout. After that, the order has gone to the warehouse and the address is locked.\\n[3] You can cancel an order from your account until it ships. Most orders ship within 24 hours.\\n[4] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\\n\\nCustomer question: I'm in the UK. Can I order from you?\"}]}",
+     "input.mime_type": "application/json",
+     "output.value": "I found our policies on return label fees and address changes, but neither one answers your question, so I can't say for sure.",
+     "llm.token_count.prompt": 196,
+     "llm.token_count.completion": 31,
+     "llm.input_messages.0.message.role": "system",
+     "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
+     "llm.input_messages.1.message.role": "user",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\n[2] You can edit the shipping address from the Orders page for 1 hour after checkout. After that, the order has gone to the warehouse and the address is locked.\n[3] You can cancel an order from your account until it ships. Most orders ship within 24 hours.\n[4] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\n\nCustomer question: I'm in the UK. Can I order from you?",
+     "llm.output_messages.0.message.role": "assistant",
+     "llm.output_messages.0.message.content": "I found our policies on return label fees and address changes, but neither one answers your question, so I can't say for sure."
+    }
+   },
+   {
+    "name": "rag-query",
+    "context": {
+     "trace_id": "afa1e022c0f8efdb86879948f012c61a",
+     "span_id": "e2fef40eca4cc56c"
+    },
+    "span_kind": "CHAIN",
+    "start_time": "2026-11-15T00:48:00+00:00",
+    "end_time": "2026-11-15T00:48:02.200000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "The sleeping bag I got was one of those final sale deals. Am I stuck with it?",
+     "output.value": "Final Sale items aren't eligible for a return or an exchange, whatever the reason."
+    }
+   },
+   {
+    "name": "retrieve_policies",
+    "context": {
+     "trace_id": "afa1e022c0f8efdb86879948f012c61a",
+     "span_id": "aef0cdbd4799a0c8"
+    },
+    "parent_id": "e2fef40eca4cc56c",
+    "span_kind": "RETRIEVER",
+    "start_time": "2026-11-15T00:48:00+00:00",
+    "end_time": "2026-11-15T00:48:00.400000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "The sleeping bag I got was one of those final sale deals. Am I stuck with it?",
+     "retrieval.documents.0.document.id": "kb-4204",
+     "retrieval.documents.0.document.content": "If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.",
+     "retrieval.documents.0.document.score": 0.817,
+     "retrieval.documents.1.document.id": "kb-4126",
+     "retrieval.documents.1.document.content": "Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.",
+     "retrieval.documents.1.document.score": 0.801,
+     "retrieval.documents.2.document.id": "kb-4152",
+     "retrieval.documents.2.document.content": "Online orders can be returned at any of our retail stores. Bring the packing slip or the order confirmation email.",
+     "retrieval.documents.2.document.score": 0.747,
+     "retrieval.documents.3.document.id": "kb-4386",
+     "retrieval.documents.3.document.content": "Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.",
+     "retrieval.documents.3.document.score": 0.708
+    }
+   },
+   {
+    "name": "ChatCompletion",
+    "context": {
+     "trace_id": "afa1e022c0f8efdb86879948f012c61a",
+     "span_id": "f694f4bb1de0b00b"
+    },
+    "parent_id": "e2fef40eca4cc56c",
+    "span_kind": "LLM",
+    "start_time": "2026-11-15T00:48:00.400000+00:00",
+    "end_time": "2026-11-15T00:48:02+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "llm.model_name": "gpt-5.6-mini",
+     "llm.provider": "openai",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\\n[2] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\\n[3] Online orders can be returned at any of our retail stores. Bring the packing slip or the order confirmation email.\\n[4] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\\n\\nCustomer question: The sleeping bag I got was one of those final sale deals. Am I stuck with it?\"}]}",
+     "input.mime_type": "application/json",
+     "output.value": "Final Sale items aren't eligible for a return or an exchange, whatever the reason.",
+     "llm.token_count.prompt": 211,
+     "llm.token_count.completion": 20,
+     "llm.input_messages.0.message.role": "system",
+     "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
+     "llm.input_messages.1.message.role": "user",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\n[2] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\n[3] Online orders can be returned at any of our retail stores. Bring the packing slip or the order confirmation email.\n[4] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\n\nCustomer question: The sleeping bag I got was one of those final sale deals. Am I stuck with it?",
+     "llm.output_messages.0.message.role": "assistant",
+     "llm.output_messages.0.message.content": "Final Sale items aren't eligible for a return or an exchange, whatever the reason."
+    }
+   },
+   {
+    "name": "rag-query",
+    "context": {
+     "trace_id": "18cecb95958ec620b7f656b2952238eb",
+     "span_id": "20381cf1cc902dce"
+    },
+    "span_kind": "CHAIN",
+    "start_time": "2026-11-15T03:42:00+00:00",
+    "end_time": "2026-11-15T03:42:02.200000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "My cart is at $42. Will I pay for standard delivery?",
+     "output.value": "You need to spend $100 for free shipping, and standard delivery takes about 10 business days."
+    }
+   },
+   {
+    "name": "retrieve_policies",
+    "context": {
+     "trace_id": "18cecb95958ec620b7f656b2952238eb",
+     "span_id": "6c6617a5bcdc7aac"
+    },
+    "parent_id": "20381cf1cc902dce",
+    "span_kind": "RETRIEVER",
+    "start_time": "2026-11-15T03:42:00+00:00",
+    "end_time": "2026-11-15T03:42:00.400000+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "input.value": "My cart is at $42. Will I pay for standard delivery?",
+     "retrieval.documents.0.document.id": "kb-4230",
+     "retrieval.documents.0.document.content": "Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.",
+     "retrieval.documents.0.document.score": 0.788,
+     "retrieval.documents.1.document.id": "kb-4126",
+     "retrieval.documents.1.document.content": "Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.",
+     "retrieval.documents.1.document.score": 0.731,
+     "retrieval.documents.2.document.id": "kb-4373",
+     "retrieval.documents.2.document.content": "Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.",
+     "retrieval.documents.2.document.score": 0.697,
+     "retrieval.documents.3.document.id": "kb-4256",
+     "retrieval.documents.3.document.content": "We ship only within the US and to Canada. Canadian orders take 7 to 14 business days, and the recipient pays any customs duties.",
+     "retrieval.documents.3.document.score": 0.66
+    }
+   },
+   {
+    "name": "ChatCompletion",
+    "context": {
+     "trace_id": "18cecb95958ec620b7f656b2952238eb",
+     "span_id": "8c6d479983b450a8"
+    },
+    "parent_id": "20381cf1cc902dce",
+    "span_kind": "LLM",
+    "start_time": "2026-11-15T03:42:00.400000+00:00",
+    "end_time": "2026-11-15T03:42:02+00:00",
+    "status_code": "OK",
+    "attributes": {
+     "llm.model_name": "gpt-5.6-mini",
+     "llm.provider": "openai",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\\n[2] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\\n[3] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\\n[4] We ship only within the US and to Canada. Canadian orders take 7 to 14 business days, and the recipient pays any customs duties.\\n\\nCustomer question: My cart is at $42. Will I pay for standard delivery?\"}]}",
+     "input.mime_type": "application/json",
+     "output.value": "You need to spend $100 for free shipping, and standard delivery takes about 10 business days.",
+     "llm.token_count.prompt": 191,
+     "llm.token_count.completion": 23,
+     "llm.input_messages.0.message.role": "system",
+     "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
+     "llm.input_messages.1.message.role": "user",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\n[2] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\n[3] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\n[4] We ship only within the US and to Canada. Canadian orders take 7 to 14 business days, and the recipient pays any customs duties.\n\nCustomer question: My cart is at $42. Will I pay for standard delivery?",
+     "llm.output_messages.0.message.role": "assistant",
+     "llm.output_messages.0.message.content": "You need to spend $100 for free shipping, and standard delivery takes about 10 business days."
+    }
+   }
+  ],
+  "relevant": {
+   "65c014470c206918:0": true,
+   "65c014470c206918:1": false,
+   "65c014470c206918:2": false,
+   "65c014470c206918:3": false,
+   "4f66f5418b2d80ca:0": true,
+   "4f66f5418b2d80ca:1": false,
+   "4f66f5418b2d80ca:2": false,
+   "4f66f5418b2d80ca:3": false,
+   "330a20d47b158be5:0": false,
+   "330a20d47b158be5:1": false,
+   "330a20d47b158be5:2": false,
+   "330a20d47b158be5:3": false,
+   "68ece3161fa832dd:0": false,
+   "68ece3161fa832dd:1": false,
+   "68ece3161fa832dd:2": false,
+   "68ece3161fa832dd:3": false,
+   "2eee69ec963cd129:0": true,
+   "2eee69ec963cd129:1": false,
+   "2eee69ec963cd129:2": false,
+   "2eee69ec963cd129:3": false,
+   "c6c284e352fe10c4:0": false,
+   "c6c284e352fe10c4:1": true,
+   "c6c284e352fe10c4:2": false,
+   "c6c284e352fe10c4:3": false,
+   "3f7d3923d1f14ad7:0": true,
+   "3f7d3923d1f14ad7:1": false,
+   "3f7d3923d1f14ad7:2": false,
+   "3f7d3923d1f14ad7:3": false,
+   "ee99ef061cd33277:0": false,
+   "ee99ef061cd33277:1": false,
+   "ee99ef061cd33277:2": true,
+   "ee99ef061cd33277:3": false,
+   "a40de4f9e16ed986:0": true,
+   "a40de4f9e16ed986:1": false,
+   "a40de4f9e16ed986:2": false,
+   "a40de4f9e16ed986:3": false,
+   "71911fae7c9c3f67:0": true,
+   "71911fae7c9c3f67:1": false,
+   "71911fae7c9c3f67:2": false,
+   "71911fae7c9c3f67:3": false,
+   "36ac34107a02a7ac:0": false,
+   "36ac34107a02a7ac:1": false,
+   "36ac34107a02a7ac:2": false,
+   "36ac34107a02a7ac:3": true,
+   "f275b1f0251b04b1:0": false,
+   "f275b1f0251b04b1:1": true,
+   "f275b1f0251b04b1:2": false,
+   "f275b1f0251b04b1:3": false,
+   "94f8d1c6edf5e2c0:0": true,
+   "94f8d1c6edf5e2c0:1": false,
+   "94f8d1c6edf5e2c0:2": false,
+   "94f8d1c6edf5e2c0:3": false,
+   "ca5cc82ee68603de:0": false,
+   "ca5cc82ee68603de:1": false,
+   "ca5cc82ee68603de:2": false,
+   "ca5cc82ee68603de:3": false,
+   "d10e62cd76e56491:0": false,
+   "d10e62cd76e56491:1": false,
+   "d10e62cd76e56491:2": false,
+   "d10e62cd76e56491:3": false,
+   "d5fed317dbe2a411:0": false,
+   "d5fed317dbe2a411:1": false,
+   "d5fed317dbe2a411:2": false,
+   "d5fed317dbe2a411:3": false,
+   "5231933437918a35:0": true,
+   "5231933437918a35:1": false,
+   "5231933437918a35:2": false,
+   "5231933437918a35:3": false,
+   "6189a818eccc195c:0": false,
+   "6189a818eccc195c:1": false,
+   "6189a818eccc195c:2": false,
+   "6189a818eccc195c:3": false,
+   "bc4b78c0cf6e929f:0": false,
+   "bc4b78c0cf6e929f:1": false,
+   "bc4b78c0cf6e929f:2": true,
+   "bc4b78c0cf6e929f:3": false,
+   "c249aa4dea1d8972:0": false,
+   "c249aa4dea1d8972:1": false,
+   "c249aa4dea1d8972:2": false,
+   "c249aa4dea1d8972:3": true,
+   "ecf6ffcef26333f5:0": false,
+   "ecf6ffcef26333f5:1": false,
+   "ecf6ffcef26333f5:2": false,
+   "ecf6ffcef26333f5:3": false,
+   "4d3a9ae574a0c6d3:0": false,
+   "4d3a9ae574a0c6d3:1": false,
+   "4d3a9ae574a0c6d3:2": false,
+   "4d3a9ae574a0c6d3:3": false,
+   "aef0cdbd4799a0c8:0": false,
+   "aef0cdbd4799a0c8:1": false,
+   "aef0cdbd4799a0c8:2": false,
+   "aef0cdbd4799a0c8:3": false,
+   "6c6617a5bcdc7aac:0": true,
+   "6c6617a5bcdc7aac:1": false,
+   "6c6617a5bcdc7aac:2": false,
+   "6c6617a5bcdc7aac:3": false
+  },
+  "grounded": {
+   "ece8fb77540c8bf15592081bda6d8522": true,
+   "997783997b7c6b387344d6da3e040501": true,
+   "0d8c853c474b048a2418a9c63bffe39d": true,
+   "dbe611f364c024a0cf616c9784170f78": false,
+   "0a3549a8bb1f5d0e1f77114a9985ddb1": true,
+   "7b087aa8d14fd5c74eb7817309d5c2b5": true,
+   "5083e80b5191ae28d202ca02c18950e8": false,
+   "99c24b50c07bf70383a11837fb0fbd99": false,
+   "f5b77edcfe7d2f315c8438c4f39e5c71": true,
+   "17f6c15e20bf50d431c18957bebf9a3e": false,
+   "3286357198fd2431ad8975cddc8edecd": true,
+   "eec484d0037e8b550bc006ef12182b24": true,
+   "eb545a0d11413139cbe5ce29fa2cdd39": true,
+   "926cbde3597d77fb49e4ab2b7c8e1ca3": false,
+   "376168a410a3349bb81fbe1e4761dd87": true,
+   "252cb919636766007a7f31060bfff642": false,
+   "edfee62f44f65cc3d447cbcbc36308a3": true,
+   "78db4a92fd1557901827b7ffab155b65": false,
+   "ff99f834d78d9efad23a37530948d109": false,
+   "a6b282681746d1eac9caea33444eac2b": true,
+   "2f43ffbac6db0a68e6ba9a357c78d077": false,
+   "da110370fb6e7c544989dd5952541dc5": true,
+   "afa1e022c0f8efdb86879948f012c61a": false,
+   "18cecb95958ec620b7f656b2952238eb": false
+  },
+  "cases": {
+   "ece8fb77540c8bf15592081bda6d8522": {
+    "policy": "returns-in-store",
+    "retrieval": "top",
+    "answer": "faithful"
+   },
+   "997783997b7c6b387344d6da3e040501": {
+    "policy": "gift-cards",
+    "retrieval": "top",
+    "answer": "faithful"
+   },
+   "0d8c853c474b048a2418a9c63bffe39d": {
+    "policy": "shipping-lost-package",
+    "retrieval": "miss",
+    "answer": "declines"
+   },
+   "dbe611f364c024a0cf616c9784170f78": {
+    "policy": "billing-duplicate-charge",
+    "retrieval": "miss",
+    "answer": "made_up"
+   },
+   "0a3549a8bb1f5d0e1f77114a9985ddb1": {
+    "policy": "returns-restocking",
+    "retrieval": "top",
+    "answer": "faithful"
+   },
+   "7b087aa8d14fd5c74eb7817309d5c2b5": {
+    "policy": "returns-label-fee",
+    "retrieval": "lower",
+    "answer": "faithful"
+   },
+   "5083e80b5191ae28d202ca02c18950e8": {
+    "policy": "promo-codes",
+    "retrieval": "top",
+    "answer": "contradicts"
+   },
+   "99c24b50c07bf70383a11837fb0fbd99": {
+    "policy": "loyalty-points",
+    "retrieval": "lower",
+    "answer": "contradicts"
+   },
+   "f5b77edcfe7d2f315c8438c4f39e5c71": {
+    "policy": "returns-window",
+    "retrieval": "top",
+    "answer": "faithful"
+   },
+   "17f6c15e20bf50d431c18957bebf9a3e": {
+    "policy": "orders-cancel",
+    "retrieval": "top",
+    "answer": "adds_claim"
+   },
+   "3286357198fd2431ad8975cddc8edecd": {
+    "policy": "account-delete",
+    "retrieval": "lower",
+    "answer": "faithful"
+   },
+   "eec484d0037e8b550bc006ef12182b24": {
+    "policy": "account-password",
+    "retrieval": "lower",
+    "answer": "faithful"
+   },
+   "eb545a0d11413139cbe5ce29fa2cdd39": {
+    "policy": "returns-window",
+    "retrieval": "top",
+    "answer": "faithful"
+   },
+   "926cbde3597d77fb49e4ab2b7c8e1ca3": {
+    "policy": "billing-price-adjustment",
+    "retrieval": "miss",
+    "answer": "made_up"
+   },
+   "376168a410a3349bb81fbe1e4761dd87": {
+    "policy": "refund-timing",
+    "retrieval": "miss",
+    "answer": "declines"
+   },
+   "252cb919636766007a7f31060bfff642": {
+    "policy": "shipping-express",
+    "retrieval": "miss",
+    "answer": "made_up"
+   },
+   "edfee62f44f65cc3d447cbcbc36308a3": {
+    "policy": "billing-payment-methods",
+    "retrieval": "top",
+    "answer": "faithful"
+   },
+   "78db4a92fd1557901827b7ffab155b65": {
+    "policy": "billing-installments",
+    "retrieval": "miss",
+    "answer": "unretrieved_truth"
+   },
+   "ff99f834d78d9efad23a37530948d109": {
+    "policy": "warranty-claim",
+    "retrieval": "lower",
+    "answer": "adds_claim"
+   },
+   "a6b282681746d1eac9caea33444eac2b": {
+    "policy": "orders-address-change",
+    "retrieval": "lower",
+    "answer": "faithful"
+   },
+   "2f43ffbac6db0a68e6ba9a357c78d077": {
+    "policy": "warranty-coverage",
+    "retrieval": "miss",
+    "answer": "unretrieved_truth"
+   },
+   "da110370fb6e7c544989dd5952541dc5": {
+    "policy": "shipping-international",
+    "retrieval": "miss",
+    "answer": "declines"
+   },
+   "afa1e022c0f8efdb86879948f012c61a": {
+    "policy": "returns-final-sale",
+    "retrieval": "miss",
+    "answer": "unretrieved_truth"
+   },
+   "18cecb95958ec620b7f656b2952238eb": {
+    "policy": "shipping-standard",
+    "retrieval": "top",
+    "answer": "contradicts"
+   }
+  }
+ }
+}

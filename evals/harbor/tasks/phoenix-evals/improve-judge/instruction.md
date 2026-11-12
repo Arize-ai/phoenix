@@ -1,0 +1,3 @@
+Our `policy_compliant` judge (`/app/evals/policy_judge.py`) disagrees with our reviewers too often to be useful. It checks whether the refund decisions our support agent makes follow our refund policy, and the agent's traces are in Phoenix under the `refund-decisions` project. Our reviewers' verdicts are on 40 of those traces as `human_review` annotations.
+
+Can you improve the judge so it agrees with them, and rerun it over the whole project so every trace has a fresh `policy_compliant` annotation labeled `pass` or `fail`? Keep the script path and annotation name: our nightly job runs `python evals/policy_judge.py` on new traces, and we'll check it against reviews of traffic you haven't seen.
