@@ -27,6 +27,7 @@ import {
   type ProjectEvaluatorTarget,
   withProjectEvaluatorTarget,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { useProjectEvaluatorScopeRegistration } from "@phoenix/pages/project/evaluators/useProjectEvaluatorScopeRegistration";
 import {
   EMPTY_SESSION_FILTER_VOCABULARY,
   SessionFilterConditionFieldCore,
@@ -67,31 +68,52 @@ export const ProjectEvaluatorScopeFieldGroup = ({
   const [filterByTarget, setFilterByTarget] = useState<
     Partial<Record<ProjectEvaluatorTarget, string>>
   >({});
+  // Bumped when PXI writes the scope, so the filter field, which keeps its
+  // own draft of the condition, remounts on the value it was given.
+  const [filterRevision, setFilterRevision] = useState(0);
+  /** Every scope change goes through here, from the fields or from PXI. */
+  const applyScope = (next: ProjectEvaluatorScope) => {
+    if (next.targetType !== scope.targetType) {
+      setFilterByTarget((current) => ({
+        ...current,
+        [scope.targetType]: scope.filterCondition,
+      }));
+      const recordKind = toEvaluatorRecordKind(next.targetType);
+      if (recordKind !== toEvaluatorRecordKind(scope.targetType)) {
+        const state = evaluatorStore.getState();
+        state.setEvaluatorRecordKind(recordKind);
+        state.setPathMapping(
+          dropOtherRecordKindPathMappings(
+            state.evaluator.inputMapping,
+            recordKind
+          ).pathMapping
+        );
+      }
+    }
+    onScopeChange(next);
+  };
   const handleTargetChange = (targetType: ProjectEvaluatorTarget) => {
     if (targetType === scope.targetType) {
       return;
     }
-    setFilterByTarget((current) => ({
-      ...current,
-      [scope.targetType]: scope.filterCondition,
-    }));
-    const recordKind = toEvaluatorRecordKind(targetType);
-    if (recordKind !== toEvaluatorRecordKind(scope.targetType)) {
-      const state = evaluatorStore.getState();
-      state.setEvaluatorRecordKind(recordKind);
-      state.setPathMapping(
-        dropOtherRecordKindPathMappings(
-          state.evaluator.inputMapping,
-          recordKind
-        ).pathMapping
-      );
-    }
     const next = withProjectEvaluatorTarget({ scope, targetType });
-    onScopeChange({
+    applyScope({
       ...next,
       filterCondition: filterByTarget[targetType] ?? next.filterCondition,
     });
   };
+  useProjectEvaluatorScopeRegistration({
+    projectId,
+    scope,
+    isTargetEditable: !isTargetDisabled,
+    rememberedFilters: filterByTarget,
+    applyScope: (next) => {
+      applyScope(next);
+      if (next.filterCondition !== scope.filterCondition) {
+        setFilterRevision((revision) => revision + 1);
+      }
+    },
+  });
   const rememberedFilters = PROJECT_EVALUATOR_TARGETS.filter(
     (target) =>
       target !== scope.targetType &&
@@ -129,9 +151,9 @@ export const ProjectEvaluatorScopeFieldGroup = ({
         </Text>
       ) : null}
       {/* Remounted per target so the draft condition does not survive a switch
-          into a language that cannot parse it. */}
+          into a language that cannot parse it, and when PXI sets the filter. */}
       <ProjectEvaluatorFilterField
-        key={scope.targetType}
+        key={`${scope.targetType}:${filterRevision}`}
         projectId={projectId}
         targetType={scope.targetType}
         value={scope.filterCondition}

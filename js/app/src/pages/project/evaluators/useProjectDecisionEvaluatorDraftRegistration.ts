@@ -1,0 +1,285 @@
+import { useContext, useEffect, useRef } from "react";
+import { fetchQuery, useRelayEnvironment } from "react-relay";
+
+import { createEvaluatorHostSubmit } from "@phoenix/agent/tools/approval";
+import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/approval";
+import {
+  applyDecisionDraftOperations,
+  createEditDecisionEvaluatorDraftClientAction,
+  createReadDecisionEvaluatorDraftClientAction,
+  createSubmitDecisionEvaluatorDraftClientAction,
+  type DecisionEvaluatorDraftHost,
+  type DecisionEvaluatorDraftSnapshot,
+  type DecisionModelOption,
+  formatDecisionDraftErrors,
+  toDecisionModelOptions,
+  toQuestionSnapshot,
+} from "@phoenix/agent/tools/decisionEvaluatorDraft";
+import { registerUIOperations } from "@phoenix/agent/uiOperations/catalog";
+import {
+  editDecisionEvaluatorDraftOperation,
+  readDecisionEvaluatorDraftOperation,
+  submitDecisionEvaluatorDraftOperation,
+} from "@phoenix/agent/uiOperations/operations/decisionEvaluatorDraft";
+import { DECISION_EVALUATOR_DRAFT_INSTANCE_ID } from "@phoenix/components/evaluators/decision/DecisionEvaluatorDraftProvider";
+import { normalizePolicy } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
+import {
+  type DecisionEvaluatorDraft,
+  toDecisionQuestionDefinitionsFromDrafts,
+} from "@phoenix/components/evaluators/decision/useDecisionEvaluatorDraft";
+import modelMenuDataQuery, {
+  type useModelMenuDataQuery,
+} from "@phoenix/components/generative/__generated__/useModelMenuDataQuery.graphql";
+import { AgentContext } from "@phoenix/contexts/AgentContext";
+import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
+import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
+import {
+  createDecisionDraft,
+  extractDecisionVariables,
+  validateDecisionDraft,
+} from "@phoenix/pages/playground/decisionUtils";
+import { selectPlaygroundInstanceDecisionPrompt } from "@phoenix/store/playground/selectors";
+
+/**
+ * Lets PXI read, edit, and save the open project decision-evaluator form
+ * (create or edit). The state and questions live in the form's playground
+ * store, the scoring policy in the draft hook, the name and mapping in the
+ * evaluator store; edits go to each the way the form's own editors write.
+ */
+export function useProjectDecisionEvaluatorDraftRegistration({
+  mode,
+  evaluatorNodeId,
+  draft,
+  submit,
+}: {
+  mode: "create" | "edit";
+  evaluatorNodeId: string | null;
+  draft: DecisionEvaluatorDraft;
+  submit: () => Promise<EvaluatorSubmitResult>;
+}) {
+  const agentStore = useContext(AgentContext);
+  const store = useEvaluatorStoreInstance();
+  const playgroundStore = usePlaygroundStore();
+  const environment = useRelayEnvironment();
+  const latestRef = useRef({ draft, submit });
+  // eslint-disable-next-line react/refs
+  latestRef.current = { draft, submit };
+  useEffect(() => {
+    if (!agentStore) {
+      return undefined;
+    }
+    const readPrompt = () =>
+      selectPlaygroundInstanceDecisionPrompt(
+        DECISION_EVALUATOR_DRAFT_INSTANCE_ID
+      )(playgroundStore.getState()) ?? createDecisionDraft();
+    // A policy PXI wrote lands in the hook's state on the next render; until
+    // the hook's policy moves off the one it replaced, read PXI's.
+    let pending: {
+      policy: DecisionEvaluatorDraft["policy"];
+      replaced: DecisionEvaluatorDraft["policy"];
+    } | null = null;
+    const readPolicy = () => {
+      const { policy } = latestRef.current.draft;
+      return pending && pending.replaced === policy ? pending.policy : policy;
+    };
+    const buildSnapshot = (): DecisionEvaluatorDraftSnapshot => {
+      const playground = playgroundStore.getState();
+      const prompt = readPrompt();
+      const { templateFormat } = playground;
+      const instance = playground.instances.find(
+        ({ id }) => id === DECISION_EVALUATOR_DRAFT_INSTANCE_ID
+      );
+      const state = store.getState();
+      const { draft: currentDraft } = latestRef.current;
+      const policy = normalizePolicy(
+        toDecisionQuestionDefinitionsFromDrafts(prompt.questions),
+        readPolicy()
+      );
+      return {
+        mode,
+        evaluatorNodeId,
+        name: state.evaluator.globalName,
+        model: {
+          provider: instance?.model.provider ?? "",
+          modelName: instance?.model.modelName ?? null,
+          customProviderId: instance?.model.customProvider?.id ?? null,
+          customProviderName: instance?.model.customProvider?.name ?? null,
+        },
+        templateFormat,
+        state: {
+          mode: prompt.state.mode,
+          template:
+            prompt.state.mode === "json"
+              ? prompt.state.json
+              : prompt.state.text,
+        },
+        questions: prompt.questions.map(toQuestionSnapshot),
+        scoringPolicy: policy,
+        variables: [
+          ...extractDecisionVariables({ draft: prompt, templateFormat }),
+        ],
+        inputMapping: state.evaluator.inputMapping,
+        definitionErrors: [
+          ...(currentDraft.loadError ? [currentDraft.loadError] : []),
+          ...formatDecisionDraftErrors({
+            errors: validateDecisionDraft({ draft: prompt, templateFormat }),
+            draft: prompt,
+          }),
+        ],
+      };
+    };
+    // The catalog the form's model menu shows; read from the store it has
+    // already loaded, so a set_model is checked against what the human sees.
+    const loadAvailableModels = async () => {
+      const data = await fetchQuery<useModelMenuDataQuery>(
+        environment,
+        modelMenuDataQuery,
+        { includeDecisionModels: true },
+        { fetchPolicy: "store-or-network" }
+      ).toPromise();
+      if (!data) {
+        throw new Error("The model catalog returned no data.");
+      }
+      return toDecisionModelOptions(data);
+    };
+    // Written the way the model menu's Decision tab writes a pick.
+    const applyModel = (option: DecisionModelOption) => {
+      const instance = playgroundStore
+        .getState()
+        .instances.find(
+          ({ id }) => id === DECISION_EVALUATOR_DRAFT_INSTANCE_ID
+        );
+      if (!instance) {
+        return;
+      }
+      const customProvider =
+        option.target.type === "custom"
+          ? {
+              id: option.target.customProviderId,
+              name: option.customProviderName ?? "",
+            }
+          : null;
+      playgroundStore.getState().updateInstance({
+        instanceId: DECISION_EVALUATOR_DRAFT_INSTANCE_ID,
+        dirty: true,
+        patch: {
+          model: {
+            ...instance.model,
+            provider: option.provider as typeof instance.model.provider,
+            modelName: option.target.modelName,
+            modelType: "DECISION",
+            customProvider,
+            // A base URL points at one built-in provider's decision endpoint;
+            // a custom provider brings its own.
+            baseUrl:
+              customProvider == null &&
+              instance.model.customProvider == null &&
+              option.provider === instance.model.provider
+                ? instance.model.baseUrl
+                : null,
+          },
+        },
+      });
+    };
+    const applyOperations: DecisionEvaluatorDraftHost["applyOperations"] = (
+      operations,
+      options
+    ) => {
+      const { draft: currentDraft } = latestRef.current;
+      if (currentDraft.isLoading || !currentDraft.isVersionReady) {
+        return {
+          ok: false,
+          error:
+            "The decision version is still loading; read the draft again shortly.",
+        };
+      }
+      const state = store.getState();
+      const prompt = readPrompt();
+      const result = applyDecisionDraftOperations({
+        name: state.evaluator.globalName,
+        prompt,
+        scoringPolicy: readPolicy(),
+        inputMapping: state.evaluator.inputMapping,
+        templateFormat: playgroundStore.getState().templateFormat,
+        operations,
+        availableModels: options?.availableModels,
+      });
+      if (!result.ok) {
+        return result;
+      }
+      if (result.model) {
+        applyModel(result.model);
+      }
+      if (result.name !== state.evaluator.globalName) {
+        state.setEvaluatorGlobalName(result.name);
+        state.setEvaluatorName(result.name);
+      }
+      if (result.prompt !== prompt) {
+        playgroundStore.getState().updateDecisionPrompt({
+          instanceId: DECISION_EVALUATOR_DRAFT_INSTANCE_ID,
+          request: result.prompt,
+        });
+      }
+      if (
+        operations.some(({ type }) => type === "set_scoring_policy") &&
+        result.scoringPolicy
+      ) {
+        pending = {
+          policy: result.scoringPolicy,
+          replaced: currentDraft.policy,
+        };
+        currentDraft.setPolicy(result.scoringPolicy);
+      }
+      if (
+        JSON.stringify(result.inputMapping) !==
+        JSON.stringify(state.evaluator.inputMapping)
+      ) {
+        // Replaced, not set, so the mapping rows rebuild from it.
+        state.replaceInputMapping(result.inputMapping);
+      }
+      return { ok: true, output: buildSnapshot() };
+    };
+    let host: DecisionEvaluatorDraftHost | null = {
+      getSnapshot: buildSnapshot,
+      loadAvailableModels,
+      applyOperations,
+      submit: createEvaluatorHostSubmit({
+        getHandleSubmit: () => latestRef.current.submit,
+        unmountedError:
+          "The project decision-evaluator form is not mounted; cannot submit.",
+      }),
+    };
+    const getDraftHost = () => host;
+    const shouldAutoAccept = () =>
+      agentStore.getState().permissions.edits === "bypass";
+    const unregister = registerUIOperations({
+      agentStore,
+      operations: [
+        {
+          descriptor: readDecisionEvaluatorDraftOperation,
+          handler: createReadDecisionEvaluatorDraftClientAction({
+            getDraftHost,
+          }),
+        },
+        {
+          descriptor: editDecisionEvaluatorDraftOperation,
+          handler: createEditDecisionEvaluatorDraftClientAction({
+            getDraftHost,
+            shouldAutoAccept,
+          }),
+        },
+        {
+          descriptor: submitDecisionEvaluatorDraftOperation,
+          handler: createSubmitDecisionEvaluatorDraftClientAction({
+            getDraftHost,
+            shouldAutoAccept,
+          }),
+        },
+      ],
+    });
+    return () => {
+      host = null;
+      unregister();
+    };
+  }, [agentStore, store, playgroundStore, environment, mode, evaluatorNodeId]);
+}
