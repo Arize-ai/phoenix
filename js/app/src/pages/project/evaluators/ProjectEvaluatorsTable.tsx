@@ -3,6 +3,7 @@ import type { OnChangeFn, RowSelectionState } from "@tanstack/react-table";
 import { functionalUpdate, flexRender, useTable } from "@tanstack/react-table";
 import {
   startTransition,
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -11,6 +12,7 @@ import {
 } from "react";
 import { graphql, readInlineData, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
+import type { GraphQLResponse, Observable } from "relay-runtime";
 
 import {
   Flex,
@@ -54,12 +56,12 @@ import { getProjectEvaluatorResultAnnotations } from "@phoenix/hooks/useProjectE
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import { DecisionCell } from "@phoenix/pages/evaluators/DecisionCell";
 import { PromptCell } from "@phoenix/pages/evaluators/PromptCell";
+import type { ProjectEvaluatorMeanScoreCell_scores$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorMeanScoreCell_scores.graphql";
 import type { ProjectEvaluatorsTable_costs$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_costs.graphql";
 import type { ProjectEvaluatorsTable_failures$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_failures.graphql";
 import type { ProjectEvaluatorsTable_lag$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_lag.graphql";
 import type { ProjectEvaluatorsTable_project$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_project.graphql";
 import type { ProjectEvaluatorsTable_row$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_row.graphql";
-import type { ProjectEvaluatorsTable_scores$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_scores.graphql";
 import { getClearableCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
 import { ProjectEvaluatorActionMenu } from "@phoenix/pages/project/evaluators/ProjectEvaluatorActionMenu";
 import {
@@ -76,9 +78,10 @@ import {
 import { ProjectEvaluatorLagCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorLagCell";
 import { ProjectEvaluatorLoadCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorLoadCell";
 import {
-  EvaluatorScoreWindowProvider,
-  ProjectEvaluatorMeanScoreCell,
+  EvaluatorResultsProvider,
+  ProjectEvaluatorMeanScoreCellSkeleton,
   ProjectEvaluatorMeanScoreHeader,
+  ProjectEvaluatorResultsCell,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorMeanScoreCell";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import { ProjectEvaluatorQueueCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueCell";
@@ -115,7 +118,7 @@ const readRow = (
     ProjectEvaluatorsTable_costs$key &
     ProjectEvaluatorsTable_failures$key &
     ProjectEvaluatorsTable_lag$key &
-    ProjectEvaluatorsTable_scores$key
+    ProjectEvaluatorMeanScoreCell_scores$key
 ) => {
   const rowData = readInlineData<ProjectEvaluatorsTable_row$key>(
     graphql`
@@ -272,60 +275,12 @@ const readRow = (
     `,
     row
   );
-  const scoresData = readInlineData<ProjectEvaluatorsTable_scores$key>(
-    graphql`
-      fragment ProjectEvaluatorsTable_scores on ProjectEvaluator
-      @inline
-      @argumentDefinitions(
-        scoreTimeRange: { type: "TimeRange!" }
-        scorePreviousTimeRange: { type: "TimeRange!" }
-        scoreTimeBinConfig: { type: "TimeBinConfig!" }
-        includeMeanScore: { type: "Boolean!" }
-      ) {
-        annotationScoreMetrics(
-          timeRange: $scoreTimeRange
-          previousTimeRange: $scorePreviousTimeRange
-          timeBinConfig: $scoreTimeBinConfig
-        ) @include(if: $includeMeanScore) {
-          annotationName
-          summary {
-            meanScore
-            count
-            scoreCount
-            labelCount
-            labelFractions {
-              label
-              fraction
-            }
-          }
-          previousSummary {
-            meanScore
-            labelFractions {
-              label
-              fraction
-            }
-          }
-          series {
-            timestamp
-            meanScore
-            count
-            labelFractions {
-              label
-              fraction
-            }
-            resultCount
-          }
-        }
-      }
-    `,
-    row
-  );
   return {
     ...rowData,
     ...costData,
     ...failuresData,
     ...lagData,
-    ...scoresData,
+    scores: row,
   };
 };
 
@@ -340,6 +295,7 @@ export function ProjectEvaluatorsTable({
   initialTimeRange,
   initialScoreWindow,
   initialIncludeMeanScore,
+  initialRequest,
   selection,
   onSelectionChange,
 }: {
@@ -357,6 +313,8 @@ export function ProjectEvaluatorsTable({
   initialScoreWindow: EvaluatorScoreWindow;
   /** Whether the owner query fetched the results column's data. */
   initialIncludeMeanScore: boolean;
+  /** The owner query's request, read for a failure after the rows render. */
+  initialRequest: Observable<GraphQLResponse> | null | undefined;
   selection: ProjectEvaluatorSelection;
   onSelectionChange: (selection: ProjectEvaluatorSelection) => void;
 }) {
@@ -390,7 +348,8 @@ export function ProjectEvaluatorsTable({
               ...ProjectEvaluatorsTable_failures
                 @arguments(timeRange: $timeRange)
               ...ProjectEvaluatorsTable_lag @arguments(timeRange: $timeRange)
-              ...ProjectEvaluatorsTable_scores
+              ...ProjectEvaluatorMeanScoreCell_scores
+                @defer
                 @arguments(
                   scoreTimeRange: $scoreTimeRange
                   scorePreviousTimeRange: $scorePreviousTimeRange
@@ -426,6 +385,13 @@ export function ProjectEvaluatorsTable({
   if (isMeanScoreColumnVisible && !includeMeanScore) {
     setIncludeMeanScore(true);
   }
+  const [scoresError, setScoresError] = useState<string | null>(null);
+  useEffect(() => {
+    const subscription = initialRequest?.subscribe({
+      error: (error: Error) => setScoresError(error.message),
+    });
+    return () => subscription?.unsubscribe();
+  }, [initialRequest]);
   // Advances while the project page streams and new spans or evaluation
   // results land, so the rows refetch as evaluations run.
   const { fetchKey } = useStreamState();
@@ -467,7 +433,10 @@ export function ProjectEvaluatorsTable({
           scoreTimeBinConfig: scoreWindow.timeBinConfig,
           includeMeanScore,
         },
-        { fetchPolicy: "store-and-network" }
+        {
+          fetchPolicy: "store-and-network",
+          onComplete: (error) => setScoresError(error?.message ?? null),
+        }
       );
     });
   }, [
@@ -491,6 +460,11 @@ export function ProjectEvaluatorsTable({
         scorePreviousTimeRange: scoreWindow.previousTimeRange,
         scoreTimeBinConfig: scoreWindow.timeBinConfig,
         includeMeanScore,
+      },
+      onComplete: (error) => {
+        if (error != null) {
+          setScoresError(error.message);
+        }
       },
     });
   }, [_loadNext, trimmedFilter, timeRange, scoreWindow, includeMeanScore]);
@@ -631,15 +605,26 @@ export function ProjectEvaluatorsTable({
         // "positive 50% ▼ 8.6 pts") beside the fixed-width chart every row
         // shares, so the charts line up.
         size: 352,
-        cell: ({ row }) => (
-          <ProjectEvaluatorMeanScoreCell
-            annotations={getProjectEvaluatorResultAnnotations({
-              name: row.original.name,
-              outputConfigs: row.original.evaluator.outputConfigs,
-            })}
-            scoreMetrics={row.original.annotationScoreMetrics}
-          />
-        ),
+        cell: ({ row }) => {
+          const annotations = getProjectEvaluatorResultAnnotations({
+            name: row.original.name,
+            outputConfigs: row.original.evaluator.outputConfigs,
+          });
+          return (
+            <Suspense
+              fallback={
+                <ProjectEvaluatorMeanScoreCellSkeleton
+                  annotations={annotations}
+                />
+              }
+            >
+              <ProjectEvaluatorResultsCell
+                annotations={annotations}
+                projectEvaluator={row.original.scores}
+              />
+            </Suspense>
+          );
+        },
       },
       {
         id: "prompt",
@@ -921,7 +906,10 @@ export function ProjectEvaluatorsTable({
   }
   return (
     <div css={scrollableAreaCSS}>
-      <EvaluatorScoreWindowProvider value={scoreWindow}>
+      <EvaluatorResultsProvider
+        scoreWindow={scoreWindow}
+        scoresError={scoresError}
+      >
         <ColumnOrderingProvider
           columnOrder={visibleColumnOrder}
           onColumnOrderChange={onVisibleColumnOrderChange}
@@ -1039,7 +1027,7 @@ export function ProjectEvaluatorsTable({
             )}
           </table>
         </ColumnOrderingProvider>
-      </EvaluatorScoreWindowProvider>
+      </EvaluatorResultsProvider>
       {Object.keys(selection).length > 0 ? (
         <ProjectEvaluatorSelectionToolbar
           selection={selection}
