@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fa299c6bb1a0090d9c440c5c7cf4621f>>
+ * @generated SignedSource<<438b8a819541c2a23df54df3fee1e853>>
  * @lightSyntaxTransform
  */
 
@@ -13,7 +13,7 @@ export type ProjectEvaluatorsTable_project$data = {
   readonly evaluators: {
     readonly edges: ReadonlyArray<{
       readonly node: {
-        readonly " $fragmentSpreads": FragmentRefs<"ProjectEvaluatorsTable_costs" | "ProjectEvaluatorsTable_failures" | "ProjectEvaluatorsTable_lag" | "ProjectEvaluatorsTable_row" | "ProjectEvaluatorsTable_scores">;
+        readonly " $fragmentSpreads": FragmentRefs<"ProjectEvaluatorMeanScoreCell_scores" | "ProjectEvaluatorsTable_costs" | "ProjectEvaluatorsTable_failures" | "ProjectEvaluatorsTable_lag" | "ProjectEvaluatorsTable_row">;
       };
     }>;
   };
@@ -31,112 +31,85 @@ const node: ReaderFragment = (function(){
 var v0 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "includeMeanScore"
-},
-v1 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "scorePreviousTimeRange"
-},
-v2 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "scoreTimeBinConfig"
-},
-v3 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "scoreTimeRange"
-},
-v4 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
   "name": "timeRange"
 },
-v5 = [
+v1 = [
   "evaluators"
 ],
-v6 = {
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v7 = {
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v8 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "evaluatedCount",
   "storageKey": null
 },
-v9 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "failedCount",
   "storageKey": null
 },
-v10 = {
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "optimizationDirection",
   "storageKey": null
 },
-v11 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "label",
-  "storageKey": null
-},
-v12 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "lowerBound",
   "storageKey": null
 },
-v13 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "upperBound",
   "storageKey": null
 },
-v14 = [
-  (v7/*:: as any*/)
+v9 = [
+  (v3/*:: as any*/)
 ],
-v15 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "modelName",
   "storageKey": null
 },
-v16 = {
+v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "modelProvider",
   "storageKey": null
 },
-v17 = [
+v12 = [
   {
     "kind": "Variable",
     "name": "timeRange",
     "variableName": "timeRange"
   }
 ],
-v18 = [
+v13 = [
   {
     "alias": null,
     "args": null,
@@ -145,42 +118,9 @@ v18 = [
     "storageKey": null
   }
 ],
-v19 = [
-  (v4/*:: as any*/)
-],
-v20 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "meanScore",
-  "storageKey": null
-},
-v21 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "count",
-  "storageKey": null
-},
-v22 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "LabelFraction",
-  "kind": "LinkedField",
-  "name": "labelFractions",
-  "plural": true,
-  "selections": [
-    (v11/*:: as any*/),
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "fraction",
-      "storageKey": null
-    }
-  ],
-  "storageKey": null
-};
+v14 = [
+  (v0/*:: as any*/)
+];
 return {
   "argumentDefinitions": [
     {
@@ -198,11 +138,27 @@ return {
       "kind": "LocalArgument",
       "name": "first"
     },
-    (v0/*:: as any*/),
-    (v1/*:: as any*/),
-    (v2/*:: as any*/),
-    (v3/*:: as any*/),
-    (v4/*:: as any*/)
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "includeMeanScore"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "scorePreviousTimeRange"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "scoreTimeBinConfig"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "scoreTimeRange"
+    },
+    (v0/*:: as any*/)
   ],
   "kind": "Fragment",
   "metadata": {
@@ -211,7 +167,7 @@ return {
         "count": "first",
         "cursor": "after",
         "direction": "forward",
-        "path": (v5/*:: as any*/)
+        "path": (v1/*:: as any*/)
       }
     ],
     "refetch": {
@@ -221,7 +177,7 @@ return {
           "cursor": "after"
         },
         "backward": null,
-        "path": (v5/*:: as any*/)
+        "path": (v1/*:: as any*/)
       },
       "fragmentPathInResult": [
         "node"
@@ -269,8 +225,8 @@ return {
                   "kind": "InlineDataFragmentSpread",
                   "name": "ProjectEvaluatorsTable_row",
                   "selections": [
-                    (v6/*:: as any*/),
-                    (v7/*:: as any*/),
+                    (v2/*:: as any*/),
+                    (v3/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -342,8 +298,8 @@ return {
                           "name": "runningCount",
                           "storageKey": null
                         },
-                        (v8/*:: as any*/),
-                        (v9/*:: as any*/),
+                        (v4/*:: as any*/),
+                        (v5/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -415,7 +371,7 @@ return {
                       "name": "evaluator",
                       "plural": false,
                       "selections": [
-                        (v6/*:: as any*/),
+                        (v2/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -434,7 +390,7 @@ return {
                             {
                               "kind": "InlineFragment",
                               "selections": [
-                                (v7/*:: as any*/),
+                                (v3/*:: as any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -449,7 +405,7 @@ return {
                             {
                               "kind": "InlineFragment",
                               "selections": [
-                                (v10/*:: as any*/),
+                                (v6/*:: as any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -458,7 +414,13 @@ return {
                                   "name": "values",
                                   "plural": true,
                                   "selections": [
-                                    (v11/*:: as any*/),
+                                    {
+                                      "alias": null,
+                                      "args": null,
+                                      "kind": "ScalarField",
+                                      "name": "label",
+                                      "storageKey": null
+                                    },
                                     {
                                       "alias": null,
                                       "args": null,
@@ -476,9 +438,9 @@ return {
                             {
                               "kind": "InlineFragment",
                               "selections": [
-                                (v10/*:: as any*/),
-                                (v12/*:: as any*/),
-                                (v13/*:: as any*/)
+                                (v6/*:: as any*/),
+                                (v7/*:: as any*/),
+                                (v8/*:: as any*/)
                               ],
                               "type": "ContinuousAnnotationConfig",
                               "abstractKey": null
@@ -486,7 +448,7 @@ return {
                             {
                               "kind": "InlineFragment",
                               "selections": [
-                                (v10/*:: as any*/),
+                                (v6/*:: as any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -494,8 +456,8 @@ return {
                                   "name": "threshold",
                                   "storageKey": null
                                 },
-                                (v12/*:: as any*/),
-                                (v13/*:: as any*/)
+                                (v7/*:: as any*/),
+                                (v8/*:: as any*/)
                               ],
                               "type": "FreeformAnnotationConfig",
                               "abstractKey": null
@@ -514,8 +476,8 @@ return {
                               "name": "prompt",
                               "plural": false,
                               "selections": [
-                                (v6/*:: as any*/),
-                                (v7/*:: as any*/)
+                                (v2/*:: as any*/),
+                                (v3/*:: as any*/)
                               ],
                               "storageKey": null
                             },
@@ -526,7 +488,7 @@ return {
                               "kind": "LinkedField",
                               "name": "promptVersionTag",
                               "plural": false,
-                              "selections": (v14/*:: as any*/),
+                              "selections": (v9/*:: as any*/),
                               "storageKey": null
                             },
                             {
@@ -537,8 +499,8 @@ return {
                               "name": "promptVersion",
                               "plural": false,
                               "selections": [
-                                (v15/*:: as any*/),
-                                (v16/*:: as any*/)
+                                (v10/*:: as any*/),
+                                (v11/*:: as any*/)
                               ],
                               "storageKey": null
                             }
@@ -556,7 +518,7 @@ return {
                               "kind": "LinkedField",
                               "name": "decisionVersionTag",
                               "plural": false,
-                              "selections": (v14/*:: as any*/),
+                              "selections": (v9/*:: as any*/),
                               "storageKey": null
                             },
                             {
@@ -567,7 +529,7 @@ return {
                               "name": "decisionVersion",
                               "plural": false,
                               "selections": [
-                                (v6/*:: as any*/),
+                                (v2/*:: as any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -582,11 +544,11 @@ return {
                                   "kind": "LinkedField",
                                   "name": "decision",
                                   "plural": false,
-                                  "selections": (v14/*:: as any*/),
+                                  "selections": (v9/*:: as any*/),
                                   "storageKey": null
                                 },
-                                (v15/*:: as any*/),
-                                (v16/*:: as any*/)
+                                (v10/*:: as any*/),
+                                (v11/*:: as any*/)
                               ],
                               "storageKey": null
                             }
@@ -612,8 +574,8 @@ return {
                               "name": "sandboxConfig",
                               "plural": false,
                               "selections": [
-                                (v6/*:: as any*/),
-                                (v7/*:: as any*/),
+                                (v2/*:: as any*/),
+                                (v3/*:: as any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -658,17 +620,17 @@ return {
                       "name": "traceProject",
                       "plural": false,
                       "selections": [
-                        (v6/*:: as any*/),
+                        (v2/*:: as any*/),
                         {
                           "alias": null,
-                          "args": (v17/*:: as any*/),
+                          "args": (v12/*:: as any*/),
                           "kind": "ScalarField",
                           "name": "traceCount",
                           "storageKey": null
                         },
                         {
                           "alias": null,
-                          "args": (v17/*:: as any*/),
+                          "args": (v12/*:: as any*/),
                           "concreteType": "SpanCostSummary",
                           "kind": "LinkedField",
                           "name": "costSummary",
@@ -681,7 +643,7 @@ return {
                               "kind": "LinkedField",
                               "name": "total",
                               "plural": false,
-                              "selections": (v18/*:: as any*/),
+                              "selections": (v13/*:: as any*/),
                               "storageKey": null
                             },
                             {
@@ -691,7 +653,7 @@ return {
                               "kind": "LinkedField",
                               "name": "prompt",
                               "plural": false,
-                              "selections": (v18/*:: as any*/),
+                              "selections": (v13/*:: as any*/),
                               "storageKey": null
                             },
                             {
@@ -701,7 +663,7 @@ return {
                               "kind": "LinkedField",
                               "name": "completion",
                               "plural": false,
-                              "selections": (v18/*:: as any*/),
+                              "selections": (v13/*:: as any*/),
                               "storageKey": null
                             }
                           ],
@@ -711,8 +673,8 @@ return {
                       "storageKey": null
                     }
                   ],
-                  "args": (v17/*:: as any*/),
-                  "argumentDefinitions": (v19/*:: as any*/)
+                  "args": (v12/*:: as any*/),
+                  "argumentDefinitions": (v14/*:: as any*/)
                 },
                 {
                   "kind": "InlineDataFragmentSpread",
@@ -720,14 +682,14 @@ return {
                   "selections": [
                     {
                       "alias": null,
-                      "args": (v17/*:: as any*/),
+                      "args": (v12/*:: as any*/),
                       "concreteType": "ProjectEvaluatorFailureSummary",
                       "kind": "LinkedField",
                       "name": "failureSummary",
                       "plural": false,
                       "selections": [
-                        (v9/*:: as any*/),
-                        (v8/*:: as any*/),
+                        (v5/*:: as any*/),
+                        (v4/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -753,8 +715,8 @@ return {
                       "storageKey": null
                     }
                   ],
-                  "args": (v17/*:: as any*/),
-                  "argumentDefinitions": (v19/*:: as any*/)
+                  "args": (v12/*:: as any*/),
+                  "argumentDefinitions": (v14/*:: as any*/)
                 },
                 {
                   "kind": "InlineDataFragmentSpread",
@@ -762,7 +724,7 @@ return {
                   "selections": [
                     {
                       "alias": null,
-                      "args": (v17/*:: as any*/),
+                      "args": (v12/*:: as any*/),
                       "concreteType": "EvaluationLag",
                       "kind": "LinkedField",
                       "name": "lag",
@@ -793,151 +755,38 @@ return {
                       "storageKey": null
                     }
                   ],
-                  "args": (v17/*:: as any*/),
-                  "argumentDefinitions": (v19/*:: as any*/)
+                  "args": (v12/*:: as any*/),
+                  "argumentDefinitions": (v14/*:: as any*/)
                 },
                 {
-                  "kind": "InlineDataFragmentSpread",
-                  "name": "ProjectEvaluatorsTable_scores",
+                  "kind": "Defer",
                   "selections": [
                     {
-                      "condition": "includeMeanScore",
-                      "kind": "Condition",
-                      "passingValue": true,
-                      "selections": [
+                      "args": [
                         {
-                          "alias": null,
-                          "args": [
-                            {
-                              "kind": "Variable",
-                              "name": "previousTimeRange",
-                              "variableName": "scorePreviousTimeRange"
-                            },
-                            {
-                              "kind": "Variable",
-                              "name": "timeBinConfig",
-                              "variableName": "scoreTimeBinConfig"
-                            },
-                            {
-                              "kind": "Variable",
-                              "name": "timeRange",
-                              "variableName": "scoreTimeRange"
-                            }
-                          ],
-                          "concreteType": "EvaluatorAnnotationScoreMetrics",
-                          "kind": "LinkedField",
-                          "name": "annotationScoreMetrics",
-                          "plural": true,
-                          "selections": [
-                            {
-                              "alias": null,
-                              "args": null,
-                              "kind": "ScalarField",
-                              "name": "annotationName",
-                              "storageKey": null
-                            },
-                            {
-                              "alias": null,
-                              "args": null,
-                              "concreteType": "AnnotationSummary",
-                              "kind": "LinkedField",
-                              "name": "summary",
-                              "plural": false,
-                              "selections": [
-                                (v20/*:: as any*/),
-                                (v21/*:: as any*/),
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "scoreCount",
-                                  "storageKey": null
-                                },
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "labelCount",
-                                  "storageKey": null
-                                },
-                                (v22/*:: as any*/)
-                              ],
-                              "storageKey": null
-                            },
-                            {
-                              "alias": null,
-                              "args": null,
-                              "concreteType": "AnnotationSummary",
-                              "kind": "LinkedField",
-                              "name": "previousSummary",
-                              "plural": false,
-                              "selections": [
-                                (v20/*:: as any*/),
-                                (v22/*:: as any*/)
-                              ],
-                              "storageKey": null
-                            },
-                            {
-                              "alias": null,
-                              "args": null,
-                              "concreteType": "EvaluatorScoreSeriesBin",
-                              "kind": "LinkedField",
-                              "name": "series",
-                              "plural": true,
-                              "selections": [
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "timestamp",
-                                  "storageKey": null
-                                },
-                                (v20/*:: as any*/),
-                                (v21/*:: as any*/),
-                                (v22/*:: as any*/),
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "resultCount",
-                                  "storageKey": null
-                                }
-                              ],
-                              "storageKey": null
-                            }
-                          ],
-                          "storageKey": null
+                          "kind": "Variable",
+                          "name": "includeMeanScore",
+                          "variableName": "includeMeanScore"
+                        },
+                        {
+                          "kind": "Variable",
+                          "name": "scorePreviousTimeRange",
+                          "variableName": "scorePreviousTimeRange"
+                        },
+                        {
+                          "kind": "Variable",
+                          "name": "scoreTimeBinConfig",
+                          "variableName": "scoreTimeBinConfig"
+                        },
+                        {
+                          "kind": "Variable",
+                          "name": "scoreTimeRange",
+                          "variableName": "scoreTimeRange"
                         }
-                      ]
+                      ],
+                      "kind": "FragmentSpread",
+                      "name": "ProjectEvaluatorMeanScoreCell_scores"
                     }
-                  ],
-                  "args": [
-                    {
-                      "kind": "Variable",
-                      "name": "includeMeanScore",
-                      "variableName": "includeMeanScore"
-                    },
-                    {
-                      "kind": "Variable",
-                      "name": "scorePreviousTimeRange",
-                      "variableName": "scorePreviousTimeRange"
-                    },
-                    {
-                      "kind": "Variable",
-                      "name": "scoreTimeBinConfig",
-                      "variableName": "scoreTimeBinConfig"
-                    },
-                    {
-                      "kind": "Variable",
-                      "name": "scoreTimeRange",
-                      "variableName": "scoreTimeRange"
-                    }
-                  ],
-                  "argumentDefinitions": [
-                    (v0/*:: as any*/),
-                    (v1/*:: as any*/),
-                    (v2/*:: as any*/),
-                    (v3/*:: as any*/)
                   ]
                 },
                 {
@@ -988,13 +837,13 @@ return {
       ],
       "storageKey": null
     },
-    (v6/*:: as any*/)
+    (v2/*:: as any*/)
   ],
   "type": "Project",
   "abstractKey": null
 };
 })();
 
-(node as any).hash = "56407e52c77366e911a9fc84e6869893";
+(node as any).hash = "43527f8116f1c0150a7c7b20a2813a7f";
 
 export default node;
