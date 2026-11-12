@@ -4,7 +4,7 @@ The Vite dev server injects [`react-devtools-cdt-mcp`](https://www.npmjs.com/pac
 
 Use it to find which component rendered an element, read props and hooks, and measure render cost of an interaction.
 
-It needs the dev server and Chrome DevTools MCP with third-party tools enabled. Setup is under "React DevTools MCP" in `js/app/README.md`. If `list_3p_developer_tools` shows no `react_*` tools, tell the user the setup is missing instead of working around it.
+It needs the dev server and Chrome DevTools MCP with third-party tools enabled. Setup is under "MCP servers" in `js/app/README.md`. If Chrome DevTools MCP is not connected, or `list_3p_developer_tools` shows no `react_*` tools, tell the user the setup is missing instead of working around it. Other browser tools cannot call the React tools.
 
 Call a tool with `execute_3p_developer_tool({ toolName, params })`, or with `evaluate_script` and `window.__dtmcp.executeTool(toolName, params)`.
 
@@ -22,7 +22,7 @@ Trust the commit count and `renderDuration`. Do not trust the component list in 
 
 ## Inspect components
 
-- `react_get_component_by_dom_element`: start from an element on screen.
+- `react_get_component_by_dom_element` with `element: { uid }`, using an element uid from `take_snapshot`: start from an element on screen.
 - `react_find_components` with `name`: search by component name. React Compiler components show as `Forget(Name)`.
 - `react_get_component_by_uid` with `includeHooks: true`: props and hook values.
 - `react_get_owner_stack`, `react_get_component_source`: which JSX created a component and where it is defined.

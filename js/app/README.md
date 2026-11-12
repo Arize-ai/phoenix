@@ -127,9 +127,16 @@ The following browser extensions are recommended for developing the Phoenix app:
 
 - **[Relay Developer Tools](https://chromewebstore.google.com/detail/relay-developer-tools/ncedobpgnmkhcmnnkcimnobpfepidadl)** - For inspecting data in the Relay store and how data changes over time in response to GraphQL queries and mutations. Essential for debugging the React Relay data-fetching layer used throughout Phoenix.
 
-### React DevTools MCP
+### MCP servers
 
-The Vite dev server registers [`react-devtools-cdt-mcp`](https://www.npmjs.com/package/react-devtools-cdt-mcp) on the page (see `vite/reactDevtoolsMcpPlugin.mts`). Coding agents that drive Chrome through [Chrome DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp) can then read the component tree, props, and hooks, and profile render timing. Production builds do not include it.
+These MCP servers help coding agents debug the app:
+
+- **Phoenix MCP** – built into the Phoenix server at `/mcp` (`http://localhost:6006/mcp` for `pnpm dev`). Agents can read the traces, spans, datasets and experiments behind what the UI shows. Setup for each MCP client is in [`docs/phoenix/integrations/mcp.mdx`](../../docs/phoenix/integrations/mcp.mdx).
+- **[Chrome DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp)** – drives Chrome. Agents can take screenshots and read the console and network requests. With the React DevTools tools below, they can also read the component tree, props and hooks, and profile render timing.
+
+#### Chrome DevTools MCP with React DevTools
+
+The Vite dev server registers [`react-devtools-cdt-mcp`](https://www.npmjs.com/package/react-devtools-cdt-mcp) on the page (see `vite/reactDevtoolsMcpPlugin.mts`). Chrome DevTools MCP discovers its `react_*` tools there. Production builds do not include it.
 
 To set it up:
 
@@ -151,4 +158,4 @@ To set it up:
    ```
 
 2. Run the app with a dev server (`pnpm dev` or `pnpm dev:ui-only`). A production build (`pnpm prod`, `phoenix serve`) has no React tools.
-3. Have the agent open the app in the Chrome DevTools MCP browser and call `list_3p_developer_tools`. The list includes the `react_*` tools.
+3. Have the agent open the app in the Chrome DevTools MCP browser and call `list_3p_developer_tools`. The list includes the `react_*` tools. With `pnpm dev`, open the Phoenix server (`http://localhost:6006` by default), not the Vite port. With `pnpm dev:ui-only`, open the Vite server (`http://localhost:5173` by default).

@@ -1,4 +1,4 @@
-import type { Plugin } from "vite";
+import { normalizePath, type Plugin } from "vite";
 
 const REGISTER_IMPORT = 'import "react-devtools-cdt-mcp/register";';
 
@@ -8,13 +8,16 @@ const REGISTER_IMPORT = 'import "react-devtools-cdt-mcp/register";';
  *
  * The register module must run before react-dom initializes, so the import is
  * prepended to the app entry instead of living in source. It is kept on the
- * entry's first line so the entry's line numbers and source maps do not shift.
+ * entry's first line so the entry's line numbers do not shift; only columns on
+ * line 1 move.
  * `apply: "serve"` keeps the package, and its per-commit overhead, out of
  * production builds.
  *
  * @see https://www.npmjs.com/package/react-devtools-cdt-mcp
  */
 export function reactDevtoolsMcpPlugin({ entry }: { entry: string }): Plugin {
+  // Vite module ids use forward slashes on every platform
+  const entryId = normalizePath(entry);
   return {
     name: "phoenix:react-devtools-mcp",
     apply: "serve",
@@ -25,7 +28,7 @@ export function reactDevtoolsMcpPlugin({ entry }: { entry: string }): Plugin {
       optimizeDeps: { include: ["react-devtools-cdt-mcp/register"] },
     }),
     transform(code, id) {
-      if (id.split("?")[0] !== entry) {
+      if (id.split("?")[0] !== entryId) {
         return null;
       }
       return { code: `${REGISTER_IMPORT}${code}`, map: null };
