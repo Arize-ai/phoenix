@@ -34,6 +34,8 @@ Call a tool with `execute_3p_developer_tool({ toolName, params })`, or with `eva
 
 Compare a trace before and after the change. Durations come from a dev build with the hook attached, so use them as relative numbers, not absolute.
 
+Trust the commit count and `renderDuration`. Do not trust the component list in `react_get_commit_report` or the `componentsChanged` count. In 0.1.0 they also include components from subtrees that did not re-render, with timings from an earlier render. To find which components rendered in a commit, wrap `window.__REACT_DEVTOOLS_GLOBAL_HOOK__.onCommitFiberRoot`, then walk from `root.current` and its `alternate`. Recurse only where `next.child !== prev.child`, and count a component as rendered when its `flags & 1` (PerformedWork) bit is set.
+
 ## Inspect components
 
 - `react_get_component_by_dom_element`: start from an element on screen.
