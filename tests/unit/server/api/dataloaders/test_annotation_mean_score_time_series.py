@@ -17,8 +17,8 @@ from phoenix.server.api.dataloaders.annotation_mean_score_time_series import (
     AnnotationMeanScoreTimeSeriesCache,
     AnnotationMeanScoreTimeSeriesDataLoader,
     Key,
-    MeanScoreBin,
     Result,
+    SeriesBin,
     _as_datetime,
 )
 from phoenix.server.api.input_types.TimeBinConfig import TimeBucketSpec
@@ -149,6 +149,18 @@ def _annotation(
     return models.ProjectSessionAnnotation(project_session_id=entity_id, **fields)
 
 
+def _rounded(result: Result) -> Result:
+    """The result with its label fractions rounded, to compare against exact ratios."""
+    return {
+        bucket: series_bin._replace(
+            label_fractions=tuple(
+                (label, round(fraction, 6)) for label, fraction in series_bin.label_fractions
+            )
+        )
+        for bucket, series_bin in result.items()
+    }
+
+
 class TestAnnotationMeanScoreTimeSeriesDataLoader:
     @pytest.mark.parametrize("kind", ["span", "trace", "session"])
     async def test_series_matches_the_entity_weighted_metrics(
@@ -181,27 +193,79 @@ class TestAnnotationMeanScoreTimeSeriesDataLoader:
 
         segment = (kind, project.id, (_DAY_0, None), _DAY_BINS)
         loader = AnnotationMeanScoreTimeSeriesDataLoader(db)
-        quality, other = await loader.load_many([(*segment, "quality"), (*segment, "other")])
+        quality, other = map(
+            _rounded,
+            await loader.load_many([(*segment, "quality"), (*segment, "other")]),
+        )
+        # Day 0 holds three result-bearing entities: the first splits its labels
+        # evenly, the second is all "pass", the third has only a score.
         assert quality == {
-            _DAY_0: MeanScoreBin(0.75, 2),
-            _DAY_0 + timedelta(days=1): MeanScoreBin(0.25, 1),
+            _DAY_0: SeriesBin(
+                0.75, 2, 3, (("fail", round(0.5 / 3, 6)), ("pass", round(1.5 / 3, 6)))
+            ),
+            _DAY_0 + timedelta(days=1): SeriesBin(0.25, 1, 1, (("meh", 1.0),)),
         }
-        assert other == {_DAY_0 + timedelta(days=1): MeanScoreBin(0.0, 1)}
+        assert other == {_DAY_0 + timedelta(days=1): SeriesBin(0.0, 1, 1)}
 
-        reference: dict[tuple[str, datetime], MeanScoreBin] = {}
+        reference_means: dict[tuple[str, datetime], tuple[float, int]] = {}
+        reference_fractions: dict[tuple[str, datetime], dict[str, float]] = {}
         rows_stmt = loader._get_rows_stmt(segment, "quality", "other")
         async with db() as session:
             for row in await session.execute(
                 build_entity_weighted_annotation_metrics_stmt(rows_stmt)
             ):
+                bucket_key = (row.name, _as_datetime(row.bucket))
                 if row.avg_score is not None:
-                    reference.setdefault(
-                        (row.name, _as_datetime(row.bucket)),
-                        MeanScoreBin(float(row.avg_score), int(row.scored_entity_count)),
+                    reference_means.setdefault(
+                        bucket_key, (float(row.avg_score), int(row.scored_entity_count))
                     )
-        lean = {("quality", bucket): mean_bin for bucket, mean_bin in quality.items()}
-        lean.update({("other", bucket): mean_bin for bucket, mean_bin in other.items()})
-        assert lean == reference
+                if row.label is not None:
+                    reference_fractions.setdefault(bucket_key, {})[row.label] = float(
+                        row.avg_label_fraction
+                    )
+        lean = {("quality", bucket): series_bin for bucket, series_bin in quality.items()}
+        lean.update({("other", bucket): series_bin for bucket, series_bin in other.items()})
+        assert {
+            bucket_key: (series_bin.mean_score, series_bin.scored_entity_count)
+            for bucket_key, series_bin in lean.items()
+            if series_bin.mean_score is not None
+        } == reference_means
+        lean_fractions = {
+            bucket_key: dict(series_bin.label_fractions)
+            for bucket_key, series_bin in lean.items()
+            if series_bin.label_fractions
+        }
+        assert lean_fractions.keys() == reference_fractions.keys()
+        for bucket_key, fractions in lean_fractions.items():
+            assert fractions == pytest.approx(reference_fractions[bucket_key], abs=1e-6)
+
+    @pytest.mark.parametrize("kind", ["span", "trace", "session"])
+    async def test_label_only_buckets_have_fractions_and_no_mean(
+        self,
+        db: DbSessionFactory,
+        kind: Literal["span", "trace", "session"],
+    ) -> None:
+        """A bucket whose entities carry only labels still appears, with no mean
+        or scored entities, and repeated annotations on one entity weigh as one."""
+        async with db() as session:
+            project = await _add_project(session)
+            for day, labels in [(0, ["yes", "yes", "no"]), (0, ["no"]), (2, ["yes"])]:
+                entity_id = await _add_entity(
+                    session, project, kind, _DAY_0 + timedelta(days=day, hours=3)
+                )
+                for label in labels:
+                    session.add(_annotation(kind, entity_id, "verdict", label, None))
+            await session.flush()
+
+        loader = AnnotationMeanScoreTimeSeriesDataLoader(db)
+        verdict = _rounded(
+            await loader.load((kind, project.id, (_DAY_0, None), _DAY_BINS, "verdict"))
+        )
+        assert verdict == {
+            # (1/3 + 1) / 2 entities are "no", (2/3) / 2 are "yes"
+            _DAY_0: SeriesBin(None, 0, 2, (("no", round(2 / 3, 6)), ("yes", round(1 / 3, 6)))),
+            _DAY_0 + timedelta(days=2): SeriesBin(None, 0, 1, (("yes", 1.0),)),
+        }
 
     @pytest.mark.parametrize("kind", ["span", "trace", "session"])
     @pytest.mark.parametrize(
@@ -265,26 +329,36 @@ class TestSeriesCacheInvalidation:
                     await batched()
                     batched._batch.clear()
 
-        assert await load() == {_DAY_0: MeanScoreBin(1.0, 1)}
+        assert await load() == {_DAY_0: SeriesBin(1.0, 1, 1)}
         async with db() as session:
             written = _annotation("span", span_rowids[1], "quality", None, 0.0)
             assert isinstance(written, models.SpanAnnotation)
             session.add(written)
             await session.flush()
         # Served from the cache until an event says the annotations changed.
-        assert await load() == {_DAY_0: MeanScoreBin(1.0, 1)}
+        assert await load() == {_DAY_0: SeriesBin(1.0, 1, 1)}
 
         await handle(SpanAnnotationInsertEvent((written.id,)))
-        assert await load() == {_DAY_0: MeanScoreBin(0.5, 2)}
+        assert await load() == {_DAY_0: SeriesBin(0.5, 2, 2)}
 
         async with db() as session:
             await session.execute(
                 delete(models.SpanAnnotation).where(models.SpanAnnotation.id == written.id)
             )
         # Still the cached series until the delete event arrives
-        assert await load() == {_DAY_0: MeanScoreBin(0.5, 2)}
+        assert await load() == {_DAY_0: SeriesBin(0.5, 2, 2)}
         await handle(SpanAnnotationDeleteEvent((written.id,)))
-        assert await load() == {_DAY_0: MeanScoreBin(1.0, 1)}
+        assert await load() == {_DAY_0: SeriesBin(1.0, 1, 1)}
+
+        # A label write lands in the cached fractions the same way.
+        async with db() as session:
+            labeled = _annotation("span", span_rowids[1], "quality", "good", None)
+            assert isinstance(labeled, models.SpanAnnotation)
+            session.add(labeled)
+            await session.flush()
+        assert await load() == {_DAY_0: SeriesBin(1.0, 1, 1)}
+        await handle(SpanAnnotationInsertEvent((labeled.id,)))
+        assert await load() == {_DAY_0: SeriesBin(1.0, 1, 2, (("good", 0.5),))}
 
         assert cache.annotation_mean_score_time_series.get(key) is not None
         await handle(SpanDeleteEvent((project.id,)))

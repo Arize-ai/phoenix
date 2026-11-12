@@ -10,8 +10,8 @@ import {
 
 /** The evaluators table's styling, which every story renders with. */
 const PRODUCTION_STYLE = {
-  color: "var(--global-text-color-900)",
-  coverageColor: "var(--global-text-color-300)",
+  color: "var(--chart-sparkline-stroke-color)",
+  coverageColor: "var(--chart-sparkline-coverage-fill-color)",
   showCoverage: true,
 } satisfies Partial<SparklineProps>;
 
