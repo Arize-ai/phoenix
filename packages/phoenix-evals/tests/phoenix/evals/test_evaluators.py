@@ -40,6 +40,25 @@ class MockLLM(LLM):
     ):
         return {"label": "good", "explanation": "This is a good result"}
 
+    @staticmethod
+    def _first_label(labels):
+        return labels[0] if isinstance(labels, list) else next(iter(labels))
+
+    def generate_classifications(self, prompt, criteria, include_explanation=True, method=None):
+        return [
+            {
+                "name": c["name"],
+                "label": self._first_label(c["labels"]),
+                "explanation": "This is a good result",
+            }
+            for c in criteria
+        ]
+
+    async def async_generate_classifications(
+        self, prompt, criteria, include_explanation=True, method=None
+    ):
+        return self.generate_classifications(prompt, criteria, include_explanation, method)
+
 
 class TestScore:
     """Test the Score dataclass functionality."""
@@ -531,6 +550,28 @@ class TestClassificationEvaluator:
         with pytest.raises(ValueError, match=match):
             Criterion(**kwargs)
 
+    def test_criterion_backend_labels(self):
+        """backend_labels is a bare list without descriptions, a label->description dict with."""
+        bare = Criterion(name="c", description="d", choices=["a", "b"])
+        assert bare.backend_labels == ["a", "b"]
+
+        described = Criterion(
+            name="c",
+            description="d",
+            choices={"a": 1, "b": 0},
+            label_descriptions={"a": "A", "b": "B"},
+        )
+        assert described.backend_labels == {"a": "A", "b": "B"}
+
+    def test_criterion_rejects_unknown_label_description(self):
+        with pytest.raises(ValueError, match="unknown labels"):
+            Criterion(
+                name="c",
+                description="d",
+                choices=["a", "b"],
+                label_descriptions={"a": "A", "z": "Z"},
+            )
+
     def test_classification_evaluator_evaluate_success(self):
         """Test successful classification evaluation."""
         llm = MockLLM()
@@ -564,7 +605,9 @@ class TestClassificationEvaluator:
     def test_classification_evaluator_invalid_label(self):
         """Test classification evaluation with invalid label."""
         llm = MockLLM()
-        llm.generate_classification = MagicMock(return_value={"label": "invalid"})
+        llm.generate_classifications = MagicMock(
+            return_value=[{"name": "test_evaluator", "label": "invalid"}]
+        )
 
         template = "Test template with {input}"
         choices = ["good", "bad"]
@@ -618,6 +661,83 @@ class TestClassificationEvaluator:
         assert len(result) == 1
         assert result[0].name == "sentiment"
         assert result[0].label == "good"  # MockLLM returns "good"
+
+    def test_multiple_criteria_return_one_score_each(self):
+        """A List[Criterion] evaluator yields one Score per criterion, each with its own
+        name, score map, and direction."""
+        evaluator = ClassificationEvaluator(
+            name="review",
+            llm=MockLLM(),
+            prompt_template="review: {text}",
+            choices=[
+                Criterion(
+                    name="helpfulness", description="How helpful?", choices={"good": 1, "bad": 0}
+                ),
+                Criterion(
+                    name="accuracy",
+                    description="How accurate?",
+                    choices=["right", "wrong"],
+                    direction="minimize",
+                ),
+            ],
+        )
+
+        scores = evaluator._evaluate({"text": "..."})
+
+        assert [s.name for s in scores] == ["helpfulness", "accuracy"]
+        # MockLLM returns each criterion's first label.
+        assert scores[0].label == "good" and scores[0].score == 1
+        assert scores[1].label == "right" and scores[1].score is None
+        assert scores[0].direction == "maximize"  # inherited from the evaluator default
+        assert scores[1].direction == "minimize"  # per-criterion override
+        assert all(s.metadata["model"] == "test-model" for s in scores)
+
+    async def test_multiple_criteria_async(self):
+        evaluator = ClassificationEvaluator(
+            name="review",
+            llm=MockLLM(),
+            prompt_template="review: {text}",
+            choices=[
+                Criterion(name="a", description="qa", choices=["x", "y"]),
+                Criterion(name="b", description="qb", choices=["x", "y"]),
+            ],
+        )
+
+        scores = await evaluator._async_evaluate({"text": "..."})
+
+        assert [s.name for s in scores] == ["a", "b"]
+
+    def test_multiple_criteria_invalid_label_raises(self):
+        """An off-list label for any one criterion raises (Answered/Unanswered is later work)."""
+        llm = MockLLM()
+        llm.generate_classifications = MagicMock(
+            return_value=[
+                {"name": "a", "label": "x"},
+                {"name": "b", "label": "nope"},  # not a valid label for criterion b
+            ]
+        )
+        evaluator = ClassificationEvaluator(
+            name="review",
+            llm=llm,
+            prompt_template="review: {text}",
+            choices=[
+                Criterion(name="a", description="qa", choices=["x", "y"]),
+                Criterion(name="b", description="qb", choices=["x", "y"]),
+            ],
+        )
+
+        with pytest.raises(ValueError, match="'b' received invalid label 'nope'"):
+            evaluator._evaluate({"text": "..."})
+
+    def test_multi_criterion_requires_non_empty_description(self):
+        """User-supplied criteria must each carry a non-empty description (the question)."""
+        with pytest.raises(ValueError, match="non-empty description"):
+            ClassificationEvaluator(
+                name="review",
+                llm=MockLLM(),
+                prompt_template="review: {text}",
+                choices=[Criterion(name="a", description="", choices=["x", "y"])],
+            )
 
 
 class TestCreateEvaluatorAsync:
