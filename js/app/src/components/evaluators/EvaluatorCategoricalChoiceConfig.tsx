@@ -26,6 +26,17 @@ import {
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
+/** Whether two choice configs say the same thing; the name is the store's alone. */
+function isSameChoiceConfig(
+  left: { optimizationDirection?: unknown; values?: unknown },
+  right: { optimizationDirection?: unknown; values?: unknown }
+): boolean {
+  return (
+    left.optimizationDirection === right.optimizationDirection &&
+    JSON.stringify(left.values) === JSON.stringify(right.values)
+  );
+}
+
 const useEvaluatorLLMChoiceForm = () => {
   // pull in zustand
   const store = useEvaluatorStoreInstance();
@@ -49,6 +60,20 @@ const useEvaluatorLLMChoiceForm = () => {
     defaultValues: { outputConfig, includeExplanation },
     mode: "onChange",
   });
+  // The store can change without this form: PXI writes the labels through
+  // the store. The form keeps what it mounted with, and pushes it back on
+  // its next validation (a submit validates every field), so an outside
+  // change has to be read into the form or it is silently undone.
+  useEffect(() => {
+    const current = form.getValues();
+    if (
+      current.includeExplanation === includeExplanation &&
+      isSameChoiceConfig(current.outputConfig, outputConfig)
+    ) {
+      return;
+    }
+    form.reset({ outputConfig, includeExplanation });
+  }, [form, outputConfig, includeExplanation]);
   const subscribe = form.subscribe;
   // watch form fields, push valid updates back to zustand
   useEffect(() => {
