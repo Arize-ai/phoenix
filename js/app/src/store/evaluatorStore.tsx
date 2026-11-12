@@ -75,6 +75,13 @@ export type EvaluatorStoreProps = {
   showPromptPreview: boolean;
   /** The variable whose mapping path is being edited, if any. */
   focusedMappingVariable?: string | null;
+  /**
+   * Bumped when the mapping is replaced from outside the mapping rows, such
+   * as by PXI. The rows read the store once when they mount, so they key on
+   * this to rebuild from the new mapping instead of writing their stale one
+   * back on the next edit.
+   */
+  inputMappingRevision?: number;
 };
 
 export type EvaluatorStoreActions = {
@@ -98,6 +105,12 @@ export type EvaluatorStoreActions = {
   setLiteralMapping: (
     literalMapping: EvaluatorInputMapping["literalMapping"]
   ) => void;
+  /**
+   * Replaces the mapping from outside the mapping rows and bumps
+   * `inputMappingRevision` so they rebuild from it. Callers skip a mapping
+   * equal to the current one, so the rows don't rebuild for nothing.
+   */
+  replaceInputMapping: (inputMapping: EvaluatorInputMapping) => void;
   /** Sets the dataset configuration for the evaluator. */
   setDataset: (dataset: EvaluatorStoreProps["dataset"]) => void;
   /** Sets the dataset ID, or clears the dataset if null. */
@@ -377,6 +390,7 @@ export const DEFAULT_STORE_VALUES = {
     source: EVALUATOR_MAPPING_SOURCE_DEFAULT,
   },
   showPromptPreview: false,
+  inputMappingRevision: 0,
   outputConfigs: [] as AnnotationConfig[],
 } satisfies DeepPartial<EvaluatorStoreProps>;
 
@@ -545,6 +559,30 @@ export const createEvaluatorStore = (
               },
               undefined,
               "setLiteralMapping"
+            );
+          },
+          replaceInputMapping(inputMapping) {
+            const current = get().evaluator.inputMapping;
+            set(
+              {
+                evaluator: {
+                  ...get().evaluator,
+                  inputMapping: {
+                    ...current,
+                    pathMapping: (compressObject(inputMapping.pathMapping) ??
+                      {}) as unknown as Record<string, string>,
+                    literalMapping: (compressObject(
+                      inputMapping.literalMapping
+                    ) ?? {}) as unknown as Record<
+                      string,
+                      boolean | string | number
+                    >,
+                  },
+                },
+                inputMappingRevision: (get().inputMappingRevision ?? 0) + 1,
+              },
+              undefined,
+              "replaceInputMapping"
             );
           },
           setInputMappingPath(path, value) {

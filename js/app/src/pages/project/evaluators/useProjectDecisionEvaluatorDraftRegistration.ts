@@ -231,16 +231,11 @@ export function useProjectDecisionEvaluatorDraftRegistration({
         currentDraft.setPolicy(result.scoringPolicy);
       }
       if (
-        JSON.stringify(result.inputMapping.pathMapping) !==
-        JSON.stringify(state.evaluator.inputMapping.pathMapping)
+        JSON.stringify(result.inputMapping) !==
+        JSON.stringify(state.evaluator.inputMapping)
       ) {
-        state.setPathMapping(result.inputMapping.pathMapping);
-      }
-      if (
-        JSON.stringify(result.inputMapping.literalMapping) !==
-        JSON.stringify(state.evaluator.inputMapping.literalMapping)
-      ) {
-        state.setLiteralMapping(result.inputMapping.literalMapping);
+        // Replaced, not set, so the mapping rows rebuild from it.
+        state.replaceInputMapping(result.inputMapping);
       }
       return { ok: true, output: buildSnapshot() };
     };

@@ -18,7 +18,7 @@ import {
 } from "@phoenix/agent/uiOperations/operations/projectEvaluator";
 import { AgentContext } from "@phoenix/contexts/AgentContext";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
-import type { EvaluatorInputMapping } from "@phoenix/types";
+import { isSameInputMapping } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 export type ProjectEvaluatorAttachTarget = {
   evaluatorId: string;
@@ -28,13 +28,6 @@ export type ProjectEvaluatorAttachTarget = {
   requiredVariables: readonly string[];
   inputDescriptions?: Record<string, string>;
 };
-
-const isSameMapping = (
-  left: EvaluatorInputMapping,
-  right: EvaluatorInputMapping
-) =>
-  JSON.stringify(left.pathMapping) === JSON.stringify(right.pathMapping) &&
-  JSON.stringify(left.literalMapping) === JSON.stringify(right.literalMapping);
 
 /**
  * Lets PXI read and change what an attach form will save, and attach it.
@@ -73,13 +66,15 @@ export function useProjectEvaluatorAttachRegistration({
           requiredVariables: [...current.requiredVariables],
           inputDescriptions: current.inputDescriptions ?? {},
           inputMapping,
-          isDefaultMapping: isSameMapping(inputMapping, openedWith),
+          isDefaultMapping: isSameInputMapping(inputMapping, openedWith),
         };
       },
       applyInputMapping: (inputMapping) => {
         const state = store.getState();
-        state.setPathMapping(inputMapping.pathMapping);
-        state.setLiteralMapping(inputMapping.literalMapping);
+        if (!isSameInputMapping(state.evaluator.inputMapping, inputMapping)) {
+          // Replaced, not set, so the mapping rows rebuild from it.
+          state.replaceInputMapping(inputMapping);
+        }
       },
       submit: createEvaluatorHostSubmit({
         getHandleSubmit: () => latestRef.current.submit,
