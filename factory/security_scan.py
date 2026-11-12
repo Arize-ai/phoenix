@@ -352,7 +352,7 @@ def code_bundle(
                 "--",
                 path,
             )
-        diff_parts.append(patch)
+        diff_parts.append(patch.rstrip("\n") + "\n")
         if sum(len(part.encode()) for part in diff_parts) > MAX_DIFF_BYTES:
             raise ValueError("too-large-to-scan: diff exceeds 256 KiB")
         if after is not None and image_type(after.data) is None:
