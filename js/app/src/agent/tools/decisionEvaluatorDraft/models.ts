@@ -74,7 +74,13 @@ export function toDecisionModelOptions(
   return [...builtins, ...customs];
 }
 
-const isSameTarget = (left: DecisionModelTarget, right: DecisionModelTarget) =>
+const isSameTarget = ({
+  left,
+  right,
+}: {
+  left: DecisionModelTarget;
+  right: DecisionModelTarget;
+}) =>
   left.type === "builtin" && right.type === "builtin"
     ? left.provider === right.provider && left.modelName === right.modelName
     : left.type === "custom" && right.type === "custom"
@@ -91,7 +97,7 @@ export function findDecisionModelOption({
   options: readonly DecisionModelOption[];
 }): { ok: true; option: DecisionModelOption } | { ok: false; error: string } {
   const option = options.find((candidate) =>
-    isSameTarget(candidate.target, target)
+    isSameTarget({ left: candidate.target, right: target })
   );
   if (option) {
     return { ok: true, option };

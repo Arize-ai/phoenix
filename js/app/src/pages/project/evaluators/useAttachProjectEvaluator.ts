@@ -67,6 +67,9 @@ export function useAttachProjectEvaluator<
               ConnectionHandler.deleteNode(galleryConnection, evaluatorId);
             }
           });
+          // The attach has landed: a failed refresh is the list's problem,
+          // not the attach's, so it is shown without reporting a failure that
+          // would invite a retry.
           void refetchProjectEvaluators({
             environment,
             projectId,
@@ -76,13 +79,16 @@ export function useAttachProjectEvaluator<
               resolve({ ok: true, response });
               onSuccess();
             })
-            .catch((refetchError: unknown) =>
-              fail(
-                refetchError instanceof Error
-                  ? refetchError.message
-                  : "Unable to refresh project evaluators"
-              )
-            );
+            .catch((refetchError: unknown) => {
+              setError(
+                `Attached, but the evaluator list could not refresh: ${
+                  refetchError instanceof Error
+                    ? refetchError.message
+                    : "unknown error"
+                }`
+              );
+              resolve({ ok: true, response });
+            });
         },
         onError: (mutationError) =>
           fail(
