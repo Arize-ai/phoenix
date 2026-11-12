@@ -27,10 +27,13 @@ export type UIOperationDispatchContext = {
  * still be loading the data its operations register with, so this waits for
  * it there instead of failing the script's first call on the new page.
  */
-async function getMountedHandlerAfterRouteSettle(
-  agentStore: AgentStore,
-  operationName: string
-) {
+async function getMountedHandlerAfterRouteSettle({
+  agentStore,
+  operationName,
+}: {
+  agentStore: AgentStore;
+  operationName: string;
+}) {
   const handler = getMountedUIOperationHandler(agentStore, operationName);
   const settleWaitMs = getRouteSettleWaitMs();
   if (handler != null || settleWaitMs === 0) {
@@ -105,10 +108,10 @@ export async function dispatchUIOperationCall({
     };
   }
 
-  const handler = await getMountedHandlerAfterRouteSettle(
+  const handler = await getMountedHandlerAfterRouteSettle({
     agentStore,
-    operationName
-  );
+    operationName,
+  });
   if (handler == null) {
     const routeHint = descriptor.availability?.routeHint;
     return {
