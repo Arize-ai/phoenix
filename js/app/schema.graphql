@@ -3250,6 +3250,16 @@ type EvaluatorScoreSeriesBin {
   How many scored spans, traces, or sessions the bin's mean averages over; the weight to use when merging adjacent bins. Zero for an empty bin.
   """
   count: Int!
+
+  """
+  Each label's share of the bin's resultCount spans, traces, or sessions, weighting each one equally however many annotations it holds, in label order. Shares of entities that carry only a score are left out, so the fractions can sum to less than one. Empty for an empty bin.
+  """
+  labelFractions: [LabelFraction!]!
+
+  """
+  How many spans, traces, or sessions carry a score or a label in the bin; the denominator of labelFractions and the weight to use when merging adjacent bins' fractions. Zero for an empty bin.
+  """
+  resultCount: Int!
 }
 
 type EvaluatorScoreValueCount {

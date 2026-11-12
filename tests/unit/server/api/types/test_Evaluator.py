@@ -2859,7 +2859,9 @@ class TestProjectEvaluatorAnnotationScoreMetrics:
                     annotationName
                     summary { meanScore count scoreCount labelFractions { label fraction } }
                     previousSummary { meanScore }
-                    series { timestamp meanScore count }
+                    series {
+                        timestamp meanScore count labelFractions { label fraction } resultCount
+                    }
                 }
             }
         }
@@ -3126,6 +3128,18 @@ class TestProjectEvaluatorAnnotationScoreMetrics:
         # The weight of each bin's mean: four scored spans on day 0, two on day 1
         assert [bin["count"] for bin in series] == [4, 2]
         assert series[0]["timestamp"] == window_start.isoformat()
+        # Each bin's label shares, in label order, over its result-bearing spans
+        assert [
+            {entry["label"]: entry["fraction"] for entry in bin["labelFractions"]} for bin in series
+        ] == [
+            {"fail": pytest.approx(0.25), "pass": pytest.approx(0.75)},
+            {"fail": pytest.approx(1.0)},
+        ]
+        assert [[entry["label"] for entry in bin["labelFractions"]] for bin in series] == [
+            ["fail", "pass"],
+            ["fail"],
+        ]
+        assert [bin["resultCount"] for bin in series] == [4, 2]
 
     async def test_series_fills_empty_bins_with_null_means(
         self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
@@ -3152,6 +3166,8 @@ class TestProjectEvaluatorAnnotationScoreMetrics:
             None,
         ]
         assert [bin["count"] for bin in metrics["series"]] == [4, 2, 0, 0]
+        assert [len(bin["labelFractions"]) for bin in metrics["series"]] == [2, 1, 0, 0]
+        assert [bin["resultCount"] for bin in metrics["series"]] == [4, 2, 0, 0]
 
     async def test_each_statement_reads_the_annotations_once(
         self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
