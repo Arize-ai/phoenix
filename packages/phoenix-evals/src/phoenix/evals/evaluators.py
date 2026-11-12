@@ -830,6 +830,11 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
             criteria: List[Criterion] = []
             for choice in cast("List[Union[Criterion, Dict[str, Any]]]", choices):
                 criterion = choice if isinstance(choice, Criterion) else Criterion(**choice)
+                if not criterion.description:
+                    raise ValueError(
+                        f"Criterion '{criterion.name}' must have a non-empty description; it "
+                        f"becomes the question asked about this criterion."
+                    )
                 if criterion.direction is None:
                     criterion = replace(criterion, direction=direction)
                 criteria.append(criterion)
