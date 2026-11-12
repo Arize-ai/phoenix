@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { editProjectEvaluatorAttachInputSchema } from "@phoenix/agent/tools/projectEvaluatorAttach/attach";
 import {
   DEFAULT_BENCH_RUN_COUNT,
   MAX_BENCH_RUN_COUNT,
@@ -152,9 +153,88 @@ export const runProjectEvaluatorBenchOperation = defineUIOperation({
   availability: { routeHint: PROJECT_EVALUATOR_FORM_ROUTE_HINT },
 });
 
+/**
+ * Where the attach operations mount: the form that attaches an existing code
+ * or decision evaluator to a project.
+ */
+const PROJECT_EVALUATOR_ATTACH_ROUTE_HINT =
+  "an open attach form for an existing code or decision evaluator: navigate " +
+  "with navigation.goTo to " +
+  "/projects/<projectId>/evaluators/new/attach/<encodeURIComponent(evaluatorId)>";
+
+const attachSnapshotSchema = z.object({
+  evaluatorId: z.string(),
+  name: z.string(),
+  kind: z.enum(["CODE", "DECISION"]),
+  variables: z.array(z.string()),
+  requiredVariables: z.array(z.string()),
+  inputDescriptions: z.record(z.string(), z.string()),
+  inputMapping: z.object({
+    pathMapping: z.record(z.string(), z.string()),
+    literalMapping: z.record(
+      z.string(),
+      z.union([z.string(), z.number(), z.boolean()])
+    ),
+  }),
+  isDefaultMapping: z.boolean(),
+});
+
+export const readProjectEvaluatorAttachOperation = defineUIOperation({
+  name: "evaluators.project.attach.read",
+  description:
+    "Read the open attach form: the existing evaluator it attaches " +
+    "(`evaluatorId`, `name`, `kind` CODE or DECISION), the `variables` it " +
+    "reads and which are `requiredVariables`, their `inputDescriptions`, and " +
+    "the `inputMapping` the project will read them through " +
+    "(`isDefaultMapping` while it is still the one the form opened with). " +
+    "Attaching keeps the evaluator's definition, so evaluators.code.read and " +
+    "evaluators.decision.read do not apply here. The scope is read with " +
+    "evaluators.project.scope.read; test with evaluators.project.bench.run.",
+  inputSchema: emptyInputSchema,
+  outputSchema: attachSnapshotSchema,
+  operationKind: "read",
+  defaultSuccessOutput: "Attach form read.",
+  availability: { routeHint: PROJECT_EVALUATOR_ATTACH_ROUTE_HINT },
+});
+
+export const editProjectEvaluatorAttachOperation = defineUIOperation({
+  name: "evaluators.project.attach.edit",
+  description:
+    "Change the input mapping on the open attach form: which path on each " +
+    "record (or which literal) feeds each of the evaluator's inputs, e.g. " +
+    '{"inputMapping":{"pathMapping":{"output":"attributes.output.value"}}}. ' +
+    "A half that is given replaces that half whole; the other half is kept. " +
+    "Only the evaluator's own inputs can be mapped. Nothing is saved until " +
+    "evaluators.project.attach.submit.",
+  inputSchema: editProjectEvaluatorAttachInputSchema,
+  outputSchema: z.object({
+    status: z.literal("accepted"),
+    attach: attachSnapshotSchema,
+  }),
+  operationKind: "approval",
+  requireSession: true,
+  defaultSuccessOutput: "Attach form mapping updated.",
+  availability: { routeHint: PROJECT_EVALUATOR_ATTACH_ROUTE_HINT },
+});
+
+export const submitProjectEvaluatorAttachOperation = defineUIOperation({
+  name: "evaluators.project.attach.submit",
+  description:
+    "Attach the evaluator to the project with the form's scope and mapping, " +
+    "through the form's own Attach button. Resolves once the project " +
+    "evaluator is saved, or with the error the form shows.",
+  inputSchema: emptyInputSchema,
+  operationKind: "write",
+  defaultSuccessOutput: "Evaluator attached.",
+  availability: { routeHint: PROJECT_EVALUATOR_ATTACH_ROUTE_HINT },
+});
+
 export const projectEvaluatorOperations: UIOperationDescriptor[] = [
   readProjectEvaluatorScopeOperation,
   editProjectEvaluatorScopeOperation,
   readProjectEvaluatorBenchOperation,
   runProjectEvaluatorBenchOperation,
+  readProjectEvaluatorAttachOperation,
+  editProjectEvaluatorAttachOperation,
+  submitProjectEvaluatorAttachOperation,
 ];
