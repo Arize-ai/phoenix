@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   clampTimeRangeToMaxDuration,
+  getDurationMsFromLastNTimeRangeKey,
   getLastNTimeRangeLabel,
   getMillisecondsUntilNextLastNTimeRangeRefresh,
   getTimeRangeFromSearchParams,
@@ -47,6 +48,12 @@ describe("datetime utils", () => {
     expect(isLastNTimeRangeKey("25")).toBe(false);
     expect(isLastNTimeRangeKey("m")).toBe(false);
     expect(isLastNTimeRangeKey("custom")).toBe(false);
+  });
+
+  it("gives the exact duration a last-N key denotes", () => {
+    expect(getDurationMsFromLastNTimeRangeKey("90m")).toBe(90 * 60_000);
+    expect(getDurationMsFromLastNTimeRangeKey("2h")).toBe(2 * 3_600_000);
+    expect(getDurationMsFromLastNTimeRangeKey("30d")).toBe(30 * 86_400_000);
   });
 
   it("labels presets with their curated labels and other keys spelled out", () => {

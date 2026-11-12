@@ -1,4 +1,4 @@
-import { startTransition } from "react";
+import { startTransition, useTransition } from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
 import { useParams } from "react-router";
 
@@ -54,6 +54,7 @@ export function ProjectTimeRangeControls(props: {
   const refreshIntervalMs = REFRESH_INTERVAL_MS_BY_TAB.get(tab) ?? null;
   const isStreamingTab = refreshIntervalMs != null;
   const isLiveStreaming = isStreamingTab && !isDetailOpen && isStreamingState;
+  const [isRefreshing, startRefreshTransition] = useTransition();
 
   const [lastUpdatedAt, refetchLastUpdatedAt] = useRefetchableFragment(
     graphql`
@@ -70,7 +71,7 @@ export function ProjectTimeRangeControls(props: {
         refetchLastUpdatedAt({}, { fetchPolicy: "store-and-network" });
       });
     },
-    isLiveStreaming ? refreshIntervalMs : null
+    isLiveStreaming && !isRefreshing ? refreshIntervalMs : null
   );
 
   // New data landed: slide a live time range forward and refetch the tables
@@ -78,7 +79,7 @@ export function ProjectTimeRangeControls(props: {
   useOnTimestampAdvance(
     lastUpdatedAt.streamingLastUpdatedAt,
     (currentLastUpdatedAt) => {
-      startTransition(() => {
+      startRefreshTransition(() => {
         refreshLiveTimeRange();
         setFetchKey(`fetch-traces-${currentLastUpdatedAt}`);
       });

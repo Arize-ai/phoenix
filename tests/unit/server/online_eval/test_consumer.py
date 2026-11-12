@@ -4,7 +4,7 @@ from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from queue import SimpleQueue
 from secrets import token_hex
-from typing import Any, AsyncIterator, Mapping, Optional, Sequence, cast
+from typing import Any, AsyncIterator, Callable, Mapping, Optional, Sequence, cast
 from unittest.mock import ANY, AsyncMock, Mock, call, patch
 
 import httpx
@@ -12,6 +12,7 @@ import pytest
 from opentelemetry.context import Context
 from opentelemetry.trace import format_trace_id
 from sqlalchemy import func, select, text, update
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import with_polymorphic
 from strawberry.relay import GlobalID
 from typing_extensions import Never
@@ -2623,18 +2624,22 @@ async def test_code_mixed_result_set_writes_nothing(db: DbSessionFactory) -> Non
     assert await _annotations(db) == []
 
 
-_EVALUATOR_SECONDS = 0.05
+class _SteppedEvaluator(_StubEvaluator):
+    def __init__(self, results: list[dict[str, Any]], advance_clock: Callable[[], None]) -> None:
+        super().__init__(results)
+        self._advance_clock = advance_clock
 
-
-class _SlowEvaluator(_StubEvaluator):
     async def evaluate(self, **kwargs: Any) -> list[dict[str, Any]]:
-        await asyncio.sleep(_EVALUATOR_SECONDS)
+        self._advance_clock()
         return await super().evaluate(**kwargs)
 
 
-class _SlowRaisingEvaluator:
+class _SteppedRaisingEvaluator:
+    def __init__(self, advance_clock: Callable[[], None]) -> None:
+        self._advance_clock = advance_clock
+
     async def evaluate(self, **_: Any) -> Never:
-        await asyncio.sleep(_EVALUATOR_SECONDS)
+        self._advance_clock()
         raise RuntimeError("evaluator crashed")
 
 
@@ -2651,7 +2656,20 @@ class _HangingEvaluator:
 async def test_evaluator_run_time_is_observed_whatever_its_result(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    clock = [0.0]
+
+    def advance_clock(seconds: float) -> None:
+        clock[0] += seconds
+
+    @asynccontextmanager
+    async def timed_session() -> AsyncIterator[AsyncSession]:
+        advance_clock(10.0)
+        async with db() as session:
+            yield session
+
+    timed_db = DbSessionFactory(timed_session, db.dialect.value)
     duration = Mock()
+    monkeypatch.setattr(executor_module, "perf_counter", lambda: clock[0])
     monkeypatch.setattr(executor_module, "get_env_enable_prometheus", lambda: True)
     monkeypatch.setattr(executor_module, "ONLINE_EVAL_EVALUATOR_DURATION_SECONDS", duration)
     async with db() as session:
@@ -2668,41 +2686,41 @@ async def test_evaluator_run_time_is_observed_whatever_its_result(
             evaluator_kind="CODE",
             output_configs=[_output_config("quality"), _output_config("relevance")],
         ),
-        evaluator=cast(Any, _SlowEvaluator(results)),
+        evaluator=cast(Any, _SteppedEvaluator(results, lambda: advance_clock(1.0))),
     )
-    raising = replace(succeeding, evaluator=cast(Any, _SlowRaisingEvaluator()))
+    raising = replace(
+        succeeding, evaluator=cast(Any, _SteppedRaisingEvaluator(lambda: advance_clock(2.0)))
+    )
     hanging_evaluator = _HangingEvaluator()
     hanging = replace(succeeding, evaluator=cast(Any, hanging_evaluator))
-    executor = _executor(db)
+    executor = _executor(timed_db, tracer_factory=lambda: Tracer(span_cost_calculator=Mock()))
     duration.labels.reset_mock()  # construction creates every evaluator kind's series
 
     await executor.evaluate_and_annotate(
-        await _claim_queued_unit(db, project_id=project.id, span_rowid=span.id),
+        await _claim_queued_unit(timed_db, project_id=project.id, span_rowid=span.id),
         succeeding,
     )
     with pytest.raises(RuntimeError, match="evaluator crashed"):
         await executor.evaluate_and_annotate(
-            await _claim_queued_unit(db, project_id=project.id, span_rowid=span.id),
+            await _claim_queued_unit(timed_db, project_id=project.id, span_rowid=span.id),
             raising,
         )
     # The consumer cancels a run at its execution deadline.
     cut_off = asyncio.create_task(
         executor.evaluate_and_annotate(
-            await _claim_queued_unit(db, project_id=project.id, span_rowid=span.id),
+            await _claim_queued_unit(timed_db, project_id=project.id, span_rowid=span.id),
             hanging,
         )
     )
     await hanging_evaluator.started.wait()
-    await asyncio.sleep(_EVALUATOR_SECONDS)
+    advance_clock(3.0)
     cut_off.cancel()
     with pytest.raises(asyncio.CancelledError):
         await cut_off
 
     assert duration.labels.call_args_list == [call(evaluator_kind="CODE")] * 3
-    observed = [args[0] for args, _ in duration.labels.return_value.observe.call_args_list]
-    assert len(observed) == 3
-    # Each value covers the evaluator's whole run, not just the time around it.
-    assert all(seconds >= _EVALUATOR_SECONDS for seconds in observed)
+    # Each value covers only evaluate(), excluding claiming and trace/result writes.
+    assert duration.labels.return_value.observe.call_args_list == [call(1.0), call(2.0), call(3.0)]
 
 
 async def test_deleted_criteria_cannot_publish_annotation(db: DbSessionFactory) -> None:

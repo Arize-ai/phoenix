@@ -3008,7 +3008,7 @@ type EvaluatorAnnotationScoreMetrics {
   summary: AnnotationSummary
 
   """
-  Aggregates over the window of equal length immediately before the requested time range, for change-over-time comparisons.
+  Aggregates over the previous window, for change-over-time comparisons: previousTimeRange when given, otherwise the equal-length window immediately before the requested time range.
   """
   previousSummary: AnnotationSummary
 
@@ -3276,6 +3276,16 @@ type EvaluatorScoreSeriesBin {
   How many scored spans, traces, or sessions the bin's mean averages over; the weight to use when merging adjacent bins. Zero for an empty bin.
   """
   count: Int!
+
+  """
+  Each label's share of the bin's resultCount spans, traces, or sessions, weighting each one equally however many annotations it holds, in label order. Shares of entities that carry only a score are left out, so the fractions can sum to less than one. Empty for an empty bin.
+  """
+  labelFractions: [LabelFraction!]!
+
+  """
+  How many spans, traces, or sessions carry a score or a label in the bin; the denominator of labelFractions and the weight to use when merging adjacent bins' fractions. Zero for an empty bin.
+  """
+  resultCount: Int!
 }
 
 type EvaluatorScoreValueCount {
@@ -5105,9 +5115,9 @@ type ProjectEvaluator implements Node {
   distribution(timeRange: TimeRange!, annotationName: String = null): EvaluatorDistribution!
 
   """
-  Score aggregates for each annotation this evaluator writes on the evaluated project: totals over the requested time range, totals over the equal-length window immediately before it, and a binned mean-score series. Loading is batched across the project's evaluators, so requesting this for a page of evaluators costs a fixed number of queries.
+  Score aggregates for each annotation this evaluator writes on the evaluated project: totals over the requested time range, totals over the previous window, and a binned mean-score series. An open-ended time range means "up to now" and requires an explicit previousTimeRange, since an open window has no duration to mirror backward; a closed range derives the previous window as the equal-length range before it when previousTimeRange is omitted. Loading is batched across the project's evaluators, so requesting this for a page of evaluators costs a fixed number of queries.
   """
-  annotationScoreMetrics(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): [EvaluatorAnnotationScoreMetrics!]!
+  annotationScoreMetrics(timeRange: TimeRange!, timeBinConfig: TimeBinConfig, previousTimeRange: TimeRange): [EvaluatorAnnotationScoreMetrics!]!
 
   """
   Seconds a trace or session must stay quiet before evaluation is scheduled. Values must be at least 10 seconds. When no value is provided, TRACE and SESSION evaluators store the default of 300 seconds. A trace or session is evaluated only once, and later activity does not schedule another evaluation. The delay applies to TRACE and SESSION targets; SPAN evaluators store 0 because spans are evaluated as they arrive, and an explicit delay is rejected for them.
@@ -5299,14 +5309,34 @@ type ProjectEvaluatorRunSummary {
   lastError: String
 }
 
-"""The filter key and value for project connections"""
+"""A filter for project connections"""
 input ProjectFilter {
-  col: ProjectFilterColumn!
-  value: String!
+  col: ProjectFilterColumn = null
+  value: String = null
+
+  """
+  Return only projects of these kinds. Defaults to standard and playground projects.
+  """
+  kinds: [ProjectKind!]
 }
 
 enum ProjectFilterColumn {
   name
+}
+
+"""What writes a project's traces."""
+enum ProjectKind {
+  """A project that holds traces sent by an application."""
+  STANDARD
+
+  """The project that holds traces from the prompt playground."""
+  PLAYGROUND
+
+  """A project that holds the traces of an experiment's runs."""
+  EXPERIMENT
+
+  """A project that holds the traces of a dataset or project evaluator."""
+  EVALUATOR
 }
 
 type ProjectMutationPayload {

@@ -1,8 +1,10 @@
 import { css } from "@emotion/react";
-import type { ReactNode } from "react";
+import type { Dispatch, ReactNode, SetStateAction } from "react";
 import {
+  createContext,
   Fragment,
   Suspense,
+  useContext,
   useEffect,
   useRef,
   useState,
@@ -133,6 +135,33 @@ export function makeTimeWindow(presetId: TimeWindowPresetId): TimeWindow {
     presetId,
     startIso: new Date(Date.now() - preset.ms).toISOString(),
   };
+}
+
+const TimeWindowContext = createContext<
+  [TimeWindow, Dispatch<SetStateAction<TimeWindow>>] | null
+>(null);
+
+/** Lives above the form's Suspense boundary so its retries keep the window. */
+export function ProjectEvaluatorTimeWindowProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  const timeWindowState = useState(() => makeTimeWindow("7d"));
+  return (
+    <TimeWindowContext.Provider value={timeWindowState}>
+      {children}
+    </TimeWindowContext.Provider>
+  );
+}
+
+export function useProjectEvaluatorTimeWindow() {
+  const timeWindowState = useContext(TimeWindowContext);
+  invariant(
+    timeWindowState,
+    "useProjectEvaluatorTimeWindow must be used within ProjectEvaluatorTimeWindowProvider"
+  );
+  return timeWindowState;
 }
 
 /** What the bench's header needs before and after the records load. */

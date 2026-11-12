@@ -57,9 +57,7 @@ class DocumentEvaluationSummaryCache(
         )
 
     def invalidate_project(self, project_rowid: ProjectRowId) -> None:
-        for section in self._cache.keys():
-            if section[0] == project_rowid:
-                del self._cache[section]
+        self.invalidate_matching(lambda section: section[0] == project_rowid)
 
     def _cache_key(self, key: Key) -> tuple[_Section, _SubKey]:
         (project_rowid, interval, filter_condition), eval_name = _cache_key_fn(key)

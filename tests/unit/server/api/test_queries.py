@@ -7,6 +7,7 @@ import pytest
 from sqlalchemy import insert
 from strawberry.relay import GlobalID
 
+from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.models import SandboxBackendType
 from phoenix.db.types.annotation_configs import (
@@ -1403,6 +1404,114 @@ async def test_projects_omits_project_evaluator_trace_projects(
     assert not response.errors
     assert response.data == {
         "projects": {"edges": [{"project": {"name": "evaluated-project-name"}}]}
+    }
+
+
+@pytest.fixture
+async def playground_project_with_an_experiment(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        session.add(models.Project(name=PLAYGROUND_PROJECT_NAME))
+        dataset = models.Dataset(name="playground-dataset-name", metadata_={})
+        session.add(dataset)
+        await session.flush()
+        version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+        session.add(version)
+        await session.flush()
+        session.add(
+            models.Experiment(
+                dataset_id=dataset.id,
+                dataset_version_id=version.id,
+                name="playground-experiment-name",
+                repetitions=1,
+                metadata_={},
+                project_name=PLAYGROUND_PROJECT_NAME,
+            )
+        )
+        await session.flush()
+
+
+@pytest.mark.parametrize(
+    "project_filter, expected_names",
+    [
+        pytest.param(
+            None,
+            ["evaluated-project-name", "non-experiment-project-name", PLAYGROUND_PROJECT_NAME],
+            id="default",
+        ),
+        pytest.param(
+            {"kinds": ["STANDARD"]},
+            ["evaluated-project-name", "non-experiment-project-name"],
+            id="standard",
+        ),
+        pytest.param({"kinds": ["PLAYGROUND"]}, [PLAYGROUND_PROJECT_NAME], id="playground"),
+        pytest.param({"kinds": ["EXPERIMENT"]}, ["experiment-project-name"], id="experiment"),
+        pytest.param({"kinds": ["EVALUATOR"]}, ["trace-sink-name"], id="evaluator"),
+        pytest.param(
+            {"kinds": ["EXPERIMENT", "EVALUATOR"]},
+            ["experiment-project-name", "trace-sink-name"],
+            id="experiment-and-evaluator",
+        ),
+        pytest.param({"kinds": []}, [], id="none"),
+        pytest.param(
+            {"col": "name", "value": "experiment"},
+            ["non-experiment-project-name"],
+            id="name-with-default-kinds",
+        ),
+        pytest.param(
+            {"col": "name", "value": "experiment", "kinds": ["STANDARD", "EXPERIMENT"]},
+            ["experiment-project-name", "non-experiment-project-name"],
+            id="name-and-kinds",
+        ),
+    ],
+)
+async def test_projects_filters_by_kind(
+    gql_client: AsyncGraphQLClient,
+    projects_with_and_without_experiments: Any,
+    project_with_a_project_evaluator_trace_project: Any,
+    playground_project_with_an_experiment: Any,
+    project_filter: Optional[dict[str, Any]],
+    expected_names: list[str],
+) -> None:
+    query = """
+      query ($filter: ProjectFilter) {
+        projects(filter: $filter) {
+          edges {
+            project: node {
+              name
+            }
+          }
+        }
+      }
+    """
+    variables = {} if project_filter is None else {"filter": project_filter}
+    response = await gql_client.execute(query=query, variables=variables)
+    assert not response.errors
+    assert response.data is not None
+    names = sorted(edge["project"]["name"] for edge in response.data["projects"]["edges"])
+    assert names == expected_names
+
+
+async def test_projects_filters_dataset_evaluator_projects_as_evaluators(
+    gql_client: AsyncGraphQLClient,
+    projects_with_and_without_dataset_evaluators: Any,
+) -> None:
+    query = """
+      query {
+        projects(filter: {kinds: [EVALUATOR]}) {
+          edges {
+            project: node {
+              name
+            }
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(query=query)
+    assert not response.errors
+    assert response.data == {
+        "projects": {"edges": [{"project": {"name": "dataset-evaluator-project-name"}}]}
     }
 
 
