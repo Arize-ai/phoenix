@@ -15,7 +15,8 @@ import strawberry
 from graphql import GraphQLSyntaxError, specified_rules
 from graphql import OperationType as GraphQLOperationType
 from graphql import parse as parse_graphql
-from graphql.language.ast import OperationDefinitionNode
+from graphql.language import BREAK, Visitor, visit
+from graphql.language.ast import DirectiveNode, OperationDefinitionNode
 from strawberry.extensions import AddValidationRules
 from strawberry.schema.schema import validate_document as validate_with_strawberry
 from strawberry.types.graphql import OperationType
@@ -31,6 +32,7 @@ class GraphQLRefusalCode(str, Enum):
     QUERY_TOO_LARGE = "query_too_large"
     PARSE_ERROR = "parse_error"
     SUBSCRIPTION_NOT_SUPPORTED = "subscription_not_supported"
+    INCREMENTAL_DELIVERY_NOT_SUPPORTED = "incremental_delivery_not_supported"
     MUTATION_NOT_ALLOWED = "mutation_not_allowed"
     VALIDATION_FAILED = "validation_failed"
     AMBIGUOUS_OPERATION = "ambiguous_operation"
@@ -116,6 +118,37 @@ def operation_types(query: str) -> set[GraphQLOperationType]:
     }
 
 
+class _IncrementalDeliveryFinder(Visitor):
+    def __init__(self) -> None:
+        super().__init__()
+        self.found = False
+
+    def enter_directive(self, node: DirectiveNode, *_: Any) -> Any:
+        if node.name.value in ("defer", "stream"):
+            self.found = True
+            return BREAK
+        return None
+
+
+def uses_incremental_delivery(query: str) -> bool:
+    """Whether ``query`` uses ``@defer`` or ``@stream``.
+
+    Invalid syntax counts as not, and is left for execution to report.
+
+    >>> uses_incremental_delivery("{ datasets { id ... @defer { name } } }")
+    True
+    >>> uses_incremental_delivery("{ datasets { name } }")
+    False
+    """
+    try:
+        document = parse_graphql(query)
+    except GraphQLSyntaxError:
+        return False
+    finder = _IncrementalDeliveryFinder()
+    visit(document, finder)
+    return finder.found
+
+
 def admit(
     query: str, *, allow_mutations: bool, operation_name: Optional[str] = None
 ) -> set[GraphQLOperationType]:
@@ -133,8 +166,8 @@ def admit(
 
     Raises:
         GraphQLRefusal: The operation is too large, contains a subscription,
-            contains a mutation the caller may not run, or is one of several
-            and not named.
+            contains a mutation the caller may not run, uses ``@defer`` or
+            ``@stream``, or is one of several and not named.
     """
     if len(query.encode("utf-8")) > MAX_QUERY_BYTES:
         raise GraphQLRefusal(
@@ -153,6 +186,11 @@ def admit(
         raise GraphQLRefusal(
             GraphQLRefusalCode.MUTATION_NOT_ALLOWED,
             "Mutations are not permitted.",
+        )
+    if uses_incremental_delivery(query):
+        raise GraphQLRefusal(
+            GraphQLRefusalCode.INCREMENTAL_DELIVERY_NOT_SUPPORTED,
+            "@defer and @stream are not supported. Remove the directive.",
         )
     if operation_name is None and operation_count(query) > 1:
         raise GraphQLRefusal(

@@ -1,11 +1,13 @@
 import { css } from "@emotion/react";
 import type { ComponentProps, ReactNode } from "react";
 import { createContext, useContext, useState } from "react";
+import { graphql, useFragment } from "react-relay";
 import invariant from "tiny-invariant";
 
 import {
   Flex,
   RichTooltip,
+  Skeleton,
   Text,
   TooltipTrigger,
   TriggerWrap,
@@ -27,9 +29,13 @@ import {
   StackedSparkline,
   useBinTimeTickFormatter,
 } from "@phoenix/components/chart";
+import { TextErrorBoundaryFallback } from "@phoenix/components/exception";
 import type { ProjectEvaluatorResultAnnotation } from "@phoenix/hooks/useProjectEvaluatorResultAnnotations";
 import { SummaryValueBreakdown } from "@phoenix/pages/project/AnnotationSummary";
-import type { ProjectEvaluatorsTable_scores$data } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_scores.graphql";
+import type {
+  ProjectEvaluatorMeanScoreCell_scores$data,
+  ProjectEvaluatorMeanScoreCell_scores$key,
+} from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorMeanScoreCell_scores.graphql";
 import type { EvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
 import {
   formatFloat,
@@ -41,7 +47,7 @@ import {
  * `ProjectEvaluator.annotationScoreMetrics`.
  */
 export type EvaluatorAnnotationScoreMetricsData = NonNullable<
-  ProjectEvaluatorsTable_scores$data["annotationScoreMetrics"]
+  ProjectEvaluatorMeanScoreCell_scores$data["annotationScoreMetrics"]
 >[number];
 
 const meanScoreAlignmentCSS = css`
@@ -145,8 +151,13 @@ const EvaluatorScoreWindowContext = createContext<EvaluatorScoreWindow | null>(
   null
 );
 
+const EvaluatorScoresErrorContext = createContext<string | null>(null);
+
 /**
- * Provides the score window to the results column's header and cells.
+ * Provides the score window to the results column's header and cells, and
+ * the message of the request that last fetched their data if it failed.
+ * Relay does not report a failure that arrives after a response's first
+ * part, so a cell whose deferred scores never arrived reads it here.
  *
  * Context rather than a prop threaded through the column defs: a column def
  * closing over the window would rebuild — and, because tanstack renders the
@@ -154,14 +165,29 @@ const EvaluatorScoreWindowContext = createContext<EvaluatorScoreWindow | null>(
  * the window changes, including the live range's once-a-minute/hour
  * re-anchor. A context update just re-renders.
  */
-export const EvaluatorScoreWindowProvider =
-  EvaluatorScoreWindowContext.Provider;
+export function EvaluatorResultsProvider({
+  scoreWindow,
+  scoresError,
+  children,
+}: {
+  scoreWindow: EvaluatorScoreWindow;
+  scoresError: string | null;
+  children: ReactNode;
+}) {
+  return (
+    <EvaluatorScoreWindowContext.Provider value={scoreWindow}>
+      <EvaluatorScoresErrorContext.Provider value={scoresError}>
+        {children}
+      </EvaluatorScoresErrorContext.Provider>
+    </EvaluatorScoreWindowContext.Provider>
+  );
+}
 
 function useEvaluatorScoreWindow(): EvaluatorScoreWindow {
   const scoreWindow = useContext(EvaluatorScoreWindowContext);
   invariant(
     scoreWindow != null,
-    "useEvaluatorScoreWindow requires an EvaluatorScoreWindowProvider"
+    "useEvaluatorScoreWindow requires an EvaluatorResultsProvider"
   );
   return scoreWindow;
 }
@@ -181,14 +207,109 @@ export function ProjectEvaluatorMeanScoreHeader() {
   );
 }
 
+export function ProjectEvaluatorResultsCell({
+  annotations,
+  projectEvaluator,
+}: {
+  annotations: ReadonlyArray<ProjectEvaluatorResultAnnotation>;
+  projectEvaluator: ProjectEvaluatorMeanScoreCell_scores$key;
+}) {
+  const { annotationScoreMetrics } = useFragment(
+    graphql`
+      fragment ProjectEvaluatorMeanScoreCell_scores on ProjectEvaluator
+      @argumentDefinitions(
+        scoreTimeRange: { type: "TimeRange!" }
+        scorePreviousTimeRange: { type: "TimeRange!" }
+        scoreTimeBinConfig: { type: "TimeBinConfig!" }
+        includeMeanScore: { type: "Boolean!" }
+      ) {
+        annotationScoreMetrics(
+          timeRange: $scoreTimeRange
+          previousTimeRange: $scorePreviousTimeRange
+          timeBinConfig: $scoreTimeBinConfig
+        ) @include(if: $includeMeanScore) {
+          annotationName
+          summary {
+            meanScore
+            count
+            scoreCount
+            labelCount
+            labelFractions {
+              label
+              fraction
+            }
+          }
+          previousSummary {
+            meanScore
+            labelFractions {
+              label
+              fraction
+            }
+          }
+          series {
+            timestamp
+            meanScore
+            count
+            labelFractions {
+              label
+              fraction
+            }
+            resultCount
+          }
+        }
+      }
+    `,
+    projectEvaluator
+  );
+  const scoresError = useContext(EvaluatorScoresErrorContext);
+  if (annotationScoreMetrics === undefined && scoresError != null) {
+    return <TextErrorBoundaryFallback error="Scores failed to load." />;
+  }
+  return (
+    <ProjectEvaluatorMeanScoreCell
+      annotations={annotations}
+      scoreMetrics={annotationScoreMetrics}
+    />
+  );
+}
+
+export function ProjectEvaluatorMeanScoreCellSkeleton({
+  annotations,
+}: {
+  annotations: ReadonlyArray<ProjectEvaluatorResultAnnotation>;
+}) {
+  return (
+    <div aria-busy="true" aria-label="Loading scores">
+      <Flex direction="column" gap="size-50">
+        {annotations.map((annotation) => (
+          <Flex
+            key={annotation.name}
+            direction="row"
+            alignItems="center"
+            gap="size-100"
+            minWidth={0}
+          >
+            <div css={summarySlotCSS}>
+              <Skeleton width={72} height={20} borderRadius="medium" />
+            </div>
+            <div css={chartSlotCSS}>
+              <Skeleton width={RESULTS_CHART_WIDTH} height={20} />
+            </div>
+          </Flex>
+        ))}
+      </Flex>
+    </div>
+  );
+}
+
 /**
  * The evaluators table's results cell: for each annotation the evaluator
  * writes, the mean score over the (clamped) page time range, its change vs.
  * the previous window, and a sparkline of per-bin means. An annotation that
  * only carries labels shows its leading label's share, that share's change,
- * and a stacked bar of the label distribution instead. The data arrives
- * with the row via `ProjectEvaluator.annotationScoreMetrics`, which the
- * connection only fetches while the column is visible.
+ * and a stacked bar of the label distribution instead. The data comes from
+ * `ProjectEvaluator.annotationScoreMetrics`, which the connection only
+ * fetches while the column is visible.
  */
 export function ProjectEvaluatorMeanScoreCell({
   annotations,
