@@ -17,7 +17,8 @@ export const readDecisionEvaluatorDraftOperation = defineUIOperation({
   name: "evaluators.decision.read",
   description:
     "Read the open project decision-evaluator draft: `name`, the decision " +
-    "`model` (read-only here; the human changes it in the form), " +
+    "`model`, the `availableModels` the form's model menu offers (each with a " +
+    "ready-made `target` for set_model; null when the catalog cannot load), " +
     "`templateFormat`, the `state` template (the evidence the model reads), " +
     "the `questions` (predicate yes/no, choice, or scale), the " +
     "`scoringPolicy` that turns answers into labels and scores, the " +
@@ -42,7 +43,9 @@ export const editDecisionEvaluatorDraftOperation = defineUIOperation({
     '"instructions":"Does the response resolve the request?"}]}; ' +
     '{"type":"set_scoring_policy","scoringPolicy":{"questions":[{"predicate":' +
     '{"name":"resolved","threshold":0.5,"optimizationDirection":"MAXIMIZE"}}]}}; ' +
-    '{"type":"set_input_mapping","inputMapping":{"pathMapping":{"input":"input"}}}. ' +
+    '{"type":"set_input_mapping","inputMapping":{"pathMapping":{"input":"input"}}}; ' +
+    '{"type":"set_model","target":{"type":"builtin","provider":"TYPESAFE","modelName":"jev-1.14.0"}}, ' +
+    "with the target taken verbatim from `availableModels`. " +
     "Questions are replaced as a whole list; a question that keeps its name " +
     "keeps its place in the editor. An edit that leaves the decision invalid " +
     "is refused whole with the reasons. On an edit form, definition changes " +
