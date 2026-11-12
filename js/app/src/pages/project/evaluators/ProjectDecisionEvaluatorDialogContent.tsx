@@ -2,6 +2,7 @@ import { type ReactNode, useState } from "react";
 import { graphql, useMutation, useRelayEnvironment } from "react-relay";
 import { useRevalidator } from "react-router";
 
+import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/approval";
 import type { AnnotationConfig } from "@phoenix/components/annotation/types";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { DecisionEvaluatorDraftProvider } from "@phoenix/components/evaluators/decision/DecisionEvaluatorDraftProvider";
@@ -55,6 +56,7 @@ import {
   type EvaluatorFormDirtyCheck,
   useEvaluatorFormDirtyCheck,
 } from "@phoenix/pages/project/evaluators/useEvaluatorFormDirtyCheck";
+import { useProjectDecisionEvaluatorDraftRegistration } from "@phoenix/pages/project/evaluators/useProjectDecisionEvaluatorDraftRegistration";
 import { getMutationErrorMessage } from "@phoenix/utils/errorUtils";
 
 type ScopeProps = {
@@ -246,15 +248,18 @@ function CreateProjectDecisionEvaluatorForm({
   });
   trackStoreForDirtyCheck(store);
 
-  const onSubmit = async () => {
+  const onSubmit = async (): Promise<EvaluatorSubmitResult> => {
     setSubmitError(undefined);
     setShowValidationError(false);
+    if (!isFilterValid) {
+      return { ok: false, error: "Fix the filter condition." };
+    }
     try {
       const input = await buildCreateInput(
         store.getState().evaluator.globalName
       );
       setIsSubmitting(true);
-      await commitAsync(create, {
+      const response = await commitAsync(create, {
         input: {
           ...input,
           projectId,
@@ -268,16 +273,36 @@ function CreateProjectDecisionEvaluatorForm({
         timeRange: timeRangeISOStrings,
       });
       onSuccess();
+      const { evaluator } = response.createProjectDecisionEvaluator;
+      return {
+        ok: true,
+        acceptedBy: "user",
+        evaluator: { id: evaluator.id, name: evaluator.name },
+      };
     } catch (error) {
-      if (error instanceof DecisionEvaluatorValidationError) {
-        setShowValidationError(true);
-      } else {
-        setSubmitError(getMutationErrorMessage(error));
-      }
+      return handleSubmitError(error);
     } finally {
       setIsSubmitting(false);
     }
   };
+  const handleSubmitError = (error: unknown): EvaluatorSubmitResult => {
+    if (error instanceof DecisionEvaluatorValidationError) {
+      setShowValidationError(true);
+      return {
+        ok: false,
+        error: `The form refused to save: ${error.message}`,
+      };
+    }
+    const message = getMutationErrorMessage(error);
+    setSubmitError(message);
+    return { ok: false, error: message };
+  };
+  useProjectDecisionEvaluatorDraftRegistration({
+    mode: "create",
+    evaluatorNodeId: null,
+    draft,
+    submit: onSubmit,
+  });
 
   return (
     <ProjectDecisionEvaluatorLayout
@@ -450,15 +475,18 @@ function EditProjectDecisionEvaluatorForm({
   const [submitError, setSubmitError] = useState<string>();
   const [showValidationError, setShowValidationError] = useState(false);
 
-  const onSubmit = async () => {
+  const onSubmit = async (): Promise<EvaluatorSubmitResult> => {
     setSubmitError(undefined);
     setShowValidationError(false);
+    if (!isFilterValid) {
+      return { ok: false, error: "Fix the filter condition." };
+    }
     try {
       const input = await buildUpdateInput(
         store.getState().evaluator.globalName
       );
       setIsSubmitting(true);
-      await commitAsync(update, {
+      const response = await commitAsync(update, {
         input: {
           ...input,
           projectEvaluatorId,
@@ -468,16 +496,33 @@ function EditProjectDecisionEvaluatorForm({
       notifySuccess({ title: "Evaluator updated" });
       void revalidate();
       onClose();
+      const { evaluator } = response.updateProjectDecisionEvaluator;
+      return {
+        ok: true,
+        acceptedBy: "user",
+        evaluator: { id: evaluator.id, name: evaluator.name },
+      };
     } catch (error) {
       if (error instanceof DecisionEvaluatorValidationError) {
         setShowValidationError(true);
-      } else {
-        setSubmitError(getMutationErrorMessage(error));
+        return {
+          ok: false,
+          error: `The form refused to save: ${error.message}`,
+        };
       }
+      const message = getMutationErrorMessage(error);
+      setSubmitError(message);
+      return { ok: false, error: message };
     } finally {
       setIsSubmitting(false);
     }
   };
+  useProjectDecisionEvaluatorDraftRegistration({
+    mode: "edit",
+    evaluatorNodeId: draft.initialEvaluator?.id ?? null,
+    draft,
+    submit: onSubmit,
+  });
 
   return (
     <>

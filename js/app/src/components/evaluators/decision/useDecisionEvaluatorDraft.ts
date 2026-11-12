@@ -18,10 +18,32 @@ import {
 import { extractDecisionVariables } from "@phoenix/pages/playground/decisionUtils";
 import { fetchPlaygroundDecisionAsInstance } from "@phoenix/pages/playground/fetchPlaygroundDecision";
 import { toDecisionVersionInput } from "@phoenix/pages/playground/savedDecisionUtils";
+import type { DecisionQuestionDraft } from "@phoenix/store/playground";
 import { selectPlaygroundInstanceDecisionPrompt } from "@phoenix/store/playground/selectors";
 import { getMutationErrorMessage } from "@phoenix/utils/errorUtils";
 
 type DecisionVersionInput = ReturnType<typeof toDecisionVersionInput>;
+
+/** The questions of a decision draft as the scoring policy reads them. */
+export function toDecisionQuestionDefinitionsFromDrafts(
+  questions: readonly DecisionQuestionDraft[]
+): DecisionQuestionDefinition[] {
+  return questions.map((question) =>
+    question.type === "choice"
+      ? {
+          type: "choice",
+          name: question.name,
+          choices: question.choices.map(({ value }) => value),
+        }
+      : question.type === "scale"
+        ? {
+            type: "scale",
+            name: question.name,
+            levels: question.levels.map(({ label }) => label),
+          }
+        : { type: "predicate", name: question.name }
+  );
+}
 
 /** Must render inside a {@link DecisionEvaluatorDraftProvider}. */
 export function useDecisionEvaluatorDraft({
@@ -108,22 +130,8 @@ export function useDecisionEvaluatorDraft({
     };
   }, [playground, selectedDecisionId, selectedVersionId, selectedTagName]);
 
-  const questions: DecisionQuestionDefinition[] = (
+  const questions = toDecisionQuestionDefinitionsFromDrafts(
     decisionPrompt?.questions ?? []
-  ).map((question) =>
-    question.type === "choice"
-      ? {
-          type: "choice",
-          name: question.name,
-          choices: question.choices.map(({ value }) => value),
-        }
-      : question.type === "scale"
-        ? {
-            type: "scale",
-            name: question.name,
-            levels: question.levels.map(({ label }) => label),
-          }
-        : { type: "predicate", name: question.name }
   );
   const variables = extractDecisionVariables({
     draft: decisionPrompt!,
