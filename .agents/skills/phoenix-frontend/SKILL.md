@@ -21,7 +21,6 @@ Read the relevant file(s) based on the task:
 | `references/testing.md` | Writing or reviewing Vitest unit tests in `js/app/` |
 | `references/test-ids.md` | Adding or changing `data-testid` attributes for E2E tests |
 | `references/resize-svg-logo-assets.md` | Adding or updating provider/integration logo icons |
-| `references/react-devtools-mcp.md` | Profiling render performance or inspecting components, props, and hooks in the running app |
 
 ## Storybook
 
@@ -35,7 +34,7 @@ When a PXI write changes the membership or filters of a mounted Relay query, use
 
 After visual changes, use the available browser tooling to verify the UI looks correct. When modifying a shared component, check its usages across the app.
 
-For performance work, measure render cost in the dev server with the React DevTools MCP tools before and after the change. See `references/react-devtools-mcp.md`.
+For render performance work, profile before and after the change with the `react_*` tools that Chrome DevTools MCP exposes on the dev server. Setup is under "MCP servers" in `js/app/README.md`. If the tools are missing, tell the user the setup is missing instead of working around it. The tools are experimental: rely on commit counts and `renderDuration`, and check per-component reports against the code.
 
 ## Route Metadata
 
