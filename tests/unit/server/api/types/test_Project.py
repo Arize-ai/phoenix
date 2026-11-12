@@ -5709,12 +5709,10 @@ async def test_spans_sorted_by_start_time_page_through_the_unpaged_list(
         [{}, {"start": start}, {"start": start, "end": end}],
         [True, False],
     )
-    page_sizes_and_walk_limits = cycle(product([1, 4, 30], [1, 10, 5000]))
-    for (condition, time_range, descending), (first, walk_limit) in zip(
-        cases, page_sizes_and_walk_limits
-    ):
+    page_sizes_and_looks = cycle(product([1, 4, 30], [(1,), (2, 20), (500, 5000)]))
+    for (condition, time_range, descending), (first, looks) in zip(cases, page_sizes_and_looks):
         expected = await unpaged(condition, time_range)
-        monkeypatch.setattr("phoenix.server.api.types.Project._NEWEST_SPANS_WALK_LIMIT", walk_limit)
+        monkeypatch.setattr("phoenix.server.api.types.Project._NEWEST_SPANS_LOOKS", looks)
         actual = await paged(
             first,
             dir="desc" if descending else "asc",
@@ -5726,36 +5724,40 @@ async def test_spans_sorted_by_start_time_page_through_the_unpaged_list(
             time_range,
             descending,
             first,
-            walk_limit,
+            looks,
         )
 
 
 @pytest.mark.parametrize(
-    "project_name, filter_condition",
+    "project_name, filter_condition, falls_back",
     [
-        pytest.param("busy", None, id="busy-project-range-only"),
-        pytest.param("quiet", None, id="quiet-project-range-only"),
+        pytest.param("busy", None, False, id="busy-project-range-only"),
+        pytest.param("quiet", None, False, id="quiet-project-range-only"),
+        pytest.param("stale", "parent_span is None", True, id="stale-project-root-spans"),
     ],
 )
 async def test_first_page_of_newest_spans_reads_few_spans_on_postgresql(
     project_name: str,
     filter_condition: Optional[str],
+    falls_back: bool,
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
     request: pytest.FixtureRequest,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The first page of a project's newest spans reads a number of span rows set by the page
-    and the walk limit, not by how many spans the project has in the time range, whether the
-    project receives most of the recent spans or a small share of them."""
+    """The first page of a project's newest spans reads a handful of span rows, not every
+    span the project has in the time range, whether the project receives most of the recent
+    spans or a small share of them. A list of root spans that finds none in its first look
+    skips the wider look and falls back to one more statement, which reads that project's
+    spans and none of the newer spans of other projects."""
     if db.dialect is not SupportedSQLDialect.POSTGRESQL:
         pytest.skip("counts the rows PostgreSQL reads")
     engine: AsyncEngine = request.getfixturevalue("postgresql_engine")
-    walk_limit = 20
-    monkeypatch.setattr("phoenix.server.api.types.Project._NEWEST_SPANS_WALK_LIMIT", walk_limit)
+    first_look = 20
+    monkeypatch.setattr("phoenix.server.api.types.Project._NEWEST_SPANS_LOOKS", (first_look, 400))
     base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
     async with db() as session:
-        projects = {name: models.Project(name=name) for name in ("busy", "quiet")}
+        projects = {name: models.Project(name=name) for name in ("busy", "quiet", "stale")}
         session.add_all(projects.values())
         await session.flush()
         traces = [
@@ -5767,6 +5769,16 @@ async def test_first_page_of_newest_spans_reads_few_spans_on_postgresql(
             )
             for i in range(400)
         ]
+        stale_traces = [
+            models.Trace(
+                trace_id=token_hex(16),
+                project_rowid=projects["stale"].id,
+                start_time=base_time - timedelta(seconds=i + 1),
+                end_time=base_time - timedelta(seconds=i),
+            )
+            for i in range(2)
+        ]
+        traces.extend(stale_traces)
         session.add_all(traces)
         await session.flush()
         for trace in traces:
@@ -5800,7 +5812,7 @@ async def test_first_page_of_newest_spans_reads_few_spans_on_postgresql(
                 "first": 2,
                 "dir": "desc",
                 "filterCondition": filter_condition,
-                "timeRange": {"start": base_time.isoformat()},
+                "timeRange": {"start": (base_time - timedelta(hours=1)).isoformat()},
             },
         )
     finally:
@@ -5808,7 +5820,8 @@ async def test_first_page_of_newest_spans_reads_few_spans_on_postgresql(
     assert not response.errors
     assert response.data is not None
     assert len(response.data["node"]["spans"]["edges"]) == 2
-    assert statements
+    assert len(statements) == (2 if falls_back else 1)
+    assert ("NULLS LAST" in statements[-1][0]) is falls_back
     async with engine.connect() as conn:
         # The tables are small enough that reading them whole is the cheapest plan, which
         # hides whether a statement stops once the page is full.
@@ -5823,7 +5836,7 @@ async def test_first_page_of_newest_spans_reads_few_spans_on_postgresql(
         for statement, parameters in statements:
             await conn.exec_driver_sql(statement, parameters)
         spans_read = (await conn.exec_driver_sql(spans_read_so_far)).scalar_one() - read_before
-    assert spans_read <= 4 * walk_limit
+    assert spans_read <= 4 * first_look + (2 * len(stale_traces) if falls_back else 0)
 
 
 async def test_cost_summary_returns_expected_results(

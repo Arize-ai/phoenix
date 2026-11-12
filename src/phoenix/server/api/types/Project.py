@@ -14,7 +14,6 @@ from pandas import DataFrame
 from sqlalchemy import (
     ColumnElement,
     Select,
-    and_,
     case,
     desc,
     distinct,
@@ -22,6 +21,7 @@ from sqlalchemy import (
     nulls_last,
     or_,
     select,
+    true,
 )
 from sqlalchemy import cast as sqlalchemy_cast
 from sqlalchemy.dialects import postgresql, sqlite
@@ -144,7 +144,7 @@ from phoenix.trace.dsl.filter import (
 logger = logging.getLogger(__name__)
 
 DEFAULT_PAGE_SIZE = 30
-_NEWEST_SPANS_WALK_LIMIT = 5000
+_NEWEST_SPANS_LOOKS = (500, 5000)
 _VOCABULARY_ATTRIBUTE_SCAN_LIMIT = 1000
 # A backstop on the attribute scan's cost: the row bound alone says nothing about how much
 # each root span carries, and the scan reads whole attribute blobs.
@@ -346,40 +346,67 @@ async def _newest_spans(
     session: AsyncSession,
     stmt: Select[*tuple[Any, ...]],
     span_bounds: Sequence[ColumnElement[bool]],
+    project_rowid: int,
+    looks: Sequence[int],
     limit: int,
 ) -> Sequence[Any]:
-    """The first `limit` rows of `stmt`, a select of span id and start time, newest first.
-    Looks among the newest _NEWEST_SPANS_WALK_LIMIT spans within `span_bounds`, which `stmt`
-    must also apply, and runs `stmt` on its own only when they hold fewer than `limit` rows."""
-    newest = (
-        select(models.Span.id, models.Span.start_time, models.Span.trace_rowid)
-        .where(*span_bounds)
-        .order_by(models.Span.start_time.desc(), models.Span.id.desc())
-        .limit(_NEWEST_SPANS_WALK_LIMIT)
-        .subquery()
-    )
-    rows = list(
-        await session.execute(
-            stmt.join(
-                newest,
-                and_(newest.c.id == models.Span.id, newest.c.trace_rowid == models.Trace.id),
-            )
-            .order_by(None)
-            .order_by(newest.c.start_time.desc(), newest.c.id.desc())
-            .limit(limit)
+    """The first `limit` rows of `stmt`, a select of one project's span ids and start times,
+    newest first. Looks for them among the newest spans within `span_bounds`, which `stmt`
+    must also apply, as many spans at a time as `looks` says, going on to the next look
+    while the rows found so far promise a full page. Otherwise it runs `stmt` on its own for
+    the rest."""
+    rows: list[Any] = []
+    older: list[ColumnElement[bool]] = []
+    for looked, wider in zip(looks, (*looks[1:], 0)):
+        newest = (
+            select(models.Span.id, models.Span.start_time, models.Span.trace_rowid)
+            .where(*span_bounds, *older)
+            .order_by(models.Span.start_time.desc(), models.Span.id.desc())
+            .limit(looked)
+            .subquery()
         )
-    )
-    if len(rows) < limit:
+        # OFFSET 0 keeps PostgreSQL to this order whatever it estimates: a span, its project,
+        # then the filters. Joined directly, it has rescanned traces once per span.
+        in_project = (
+            select(models.Trace.id)
+            .where(models.Trace.id == newest.c.trace_rowid)
+            .where(models.Trace.project_rowid == project_rowid)
+            .offset(0)
+            .correlate(newest)
+            .lateral()
+        )
+        match = (
+            stmt.where(models.Span.id == newest.c.id)
+            .where(models.Trace.id == in_project.c.id)
+            .order_by(None)
+            .offset(0)
+            .correlate(newest, in_project)
+            .lateral()
+        )
+        rows.extend(
+            await session.execute(
+                select(*match.c)
+                .select_from(newest)
+                .join(in_project, true())
+                .join(match, true())
+                .order_by(newest.c.start_time.desc(), newest.c.id.desc())
+                .limit(limit - len(rows))
+            )
+        )
+        if len(rows) == limit:
+            return rows
         if rows:
             last_rowid, last_start_time = rows[-1]
-            stmt = stmt.where(
-                tuple_(models.Span.start_time, models.Span.id) < (last_start_time, last_rowid)
-            )
-        # NULLS LAST keeps PostgreSQL from walking every project's spans along ix_spans_start_time.
-        stmt = stmt.order_by(None).order_by(
-            nulls_last(models.Span.start_time.desc()), models.Span.id.desc()
-        )
-        rows.extend(await session.execute(stmt.limit(limit - len(rows))))
+            older = [tuple_(models.Span.start_time, models.Span.id) < (last_start_time, last_rowid)]
+        if len(rows) * wider < limit * looked:
+            break
+    # NULLS LAST keeps PostgreSQL from walking every project's spans along ix_spans_start_time.
+    stmt = (
+        stmt.where(*older)
+        .order_by(None)
+        .order_by(nulls_last(models.Span.start_time.desc()), models.Span.id.desc())
+    )
+    rows.extend(await session.execute(stmt.limit(limit - len(rows))))
     return rows
 
 
@@ -871,7 +898,14 @@ class Project(Node):
                 and not trace_filter_condition
                 and info.context.db.dialect is SupportedSQLDialect.POSTGRESQL
             ):
-                rows = await _newest_spans(session, stmt, span_bounds, first + 1)
+                # A root span is one in every trace, so a small look shows whether traces are
+                # small enough for the wide one to hold a page of them.
+                looks = (
+                    _NEWEST_SPANS_LOOKS
+                    if filter_condition and root_span_scope(filter_condition)
+                    else _NEWEST_SPANS_LOOKS[-1:]
+                )
+                rows = await _newest_spans(session, stmt, span_bounds, self.id, looks, first + 1)
             else:
                 rows = (await session.execute(stmt.limit(first + 1))).all()
         cursors_and_nodes = []
