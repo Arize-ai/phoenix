@@ -162,6 +162,7 @@ from phoenix.server.middleware.anonymous_cors import (
     AnonymousPaths,
     anonymous_paths,
 )
+from phoenix.server.middleware.client_disconnect import ClientDisconnectMiddleware
 from phoenix.server.middleware.gzip import GZipMiddleware
 from phoenix.server.middleware.js_sandbox_worker_csp import JSSandboxWorkerCSPMiddleware
 from phoenix.server.monty_runtime import MontyRuntime
@@ -1157,6 +1158,8 @@ def create_app(
         from phoenix.server.prometheus import PrometheusMiddleware
 
         middlewares.append(Middleware(PrometheusMiddleware))
+    # Innermost, so every BaseHTTPMiddleware above gets a response (see its docstring).
+    middlewares.append(Middleware(ClientDisconnectMiddleware))
     grpc_interceptors: list[ServerInterceptor] = []
     grpc_interceptors.append(DbDiskUsageInterceptor(db))
     docs_mcp_server = (
