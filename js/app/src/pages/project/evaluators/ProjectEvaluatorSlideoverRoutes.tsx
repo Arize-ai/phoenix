@@ -11,10 +11,8 @@ import {
   CreateProjectEvaluatorSlideover,
   type ProjectEvaluatorCreationMode,
 } from "@phoenix/pages/project/evaluators/CreateProjectEvaluatorSlideover";
-import {
-  EditProjectEvaluatorSlideover,
-  useProjectEvaluator,
-} from "@phoenix/pages/project/evaluators/EditProjectEvaluatorSlideover";
+import { EditProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/EditProjectEvaluatorSlideover";
+import { useProjectEvaluatorDetailsOutletContext } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsOutletContext";
 import {
   buildAttachCodeCreationMode,
   buildCopyCodeCreationMode,
@@ -275,19 +273,14 @@ function CopyCodeProjectEvaluatorRoute({
 }
 
 export function EditProjectEvaluatorPage() {
-  const { projectEvaluatorId } = useParams();
-  invariant(projectEvaluatorId, "projectEvaluatorId is required");
   const onOpenChange = useCloseSlideover();
-  const { evaluator, sandboxConfigs } = useProjectEvaluator(projectEvaluatorId);
-  if (
-    evaluator.evaluator.kind !== "LLM" &&
-    evaluator.evaluator.kind !== "CODE" &&
-    evaluator.evaluator.kind !== "DECISION"
-  ) {
+  const { projectEvaluator } = useProjectEvaluatorDetailsOutletContext();
+  const { kind } = projectEvaluator.evaluator;
+  if (kind !== "LLM" && kind !== "CODE" && kind !== "DECISION") {
     return (
       <ProjectEvaluatorSlideoverError
         title="Cannot edit evaluator"
-        message={`“${evaluator.name}” is a built-in evaluator, which cannot be edited. Copy it to author your own version.`}
+        message={`“${projectEvaluator.name}” is a built-in evaluator, which cannot be edited. Copy it to author your own version.`}
         onOpenChange={onOpenChange}
       />
     );
@@ -296,8 +289,9 @@ export function EditProjectEvaluatorPage() {
     <EditProjectEvaluatorSlideover
       isOpen
       onOpenChange={onOpenChange}
-      evaluator={evaluator}
-      sandboxConfigs={sandboxConfigs}
+      projectEvaluatorId={projectEvaluator.id}
+      kind={kind}
+      name={projectEvaluator.name}
     />
   );
 }
