@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "4.0.108",
-    "@arizeai/openinference-vercel": "^3.3.1",
+    "@arizeai/openinference-vercel": "^3.3.3",
     "@arizeai/phoenix-otel": "workspace:*",
     "ai": "^7.0.152",
     "eve": "^0.25.3",
