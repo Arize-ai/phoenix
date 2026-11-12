@@ -26,6 +26,7 @@ import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/Evalu
 import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
 import { EvaluatorSectionHeader } from "@phoenix/components/evaluators/EvaluatorSectionHeader";
 import { LLMEvaluatorForm } from "@phoenix/components/evaluators/LLMEvaluatorForm";
+import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import { formatEvaluationTargetPlural } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import { ProjectEvaluatorInputMapping } from "@phoenix/pages/project/evaluators/ProjectEvaluatorInputMapping";
 import { ProjectEvaluatorScopeFieldGroup } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeFields";
@@ -178,6 +179,9 @@ export const ProjectEvaluatorInputMappingDock = ({
     variables,
     requiredVariables,
   });
+  const inputMappingRevision = useEvaluatorStore(
+    (state) => state.inputMappingRevision ?? 0
+  );
   const [isExpanded, setIsExpanded] = useState(true);
   // Reopen a dock the author closed when the first unbound variable appears,
   // and leave it alone until the count goes back to zero and climbs again.
@@ -219,9 +223,10 @@ export const ProjectEvaluatorInputMappingDock = ({
                 </Text>
               ) : null}
               {/* Keyed so the rows rebuild against the new record kind rather than
-                  carrying the previous one's paths forward. */}
+                  carrying the previous one's paths forward, and against a
+                  mapping PXI replaced rather than writing the old one back. */}
               <ProjectEvaluatorInputMapping
-                key={recordKind}
+                key={`${recordKind}:${inputMappingRevision}`}
                 recordKind={recordKind}
                 requiredVariables={requiredVariables}
                 canDescribeInputs={canDescribeInputs}

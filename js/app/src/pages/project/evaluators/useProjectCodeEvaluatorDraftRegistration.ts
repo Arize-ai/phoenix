@@ -192,16 +192,11 @@ export function useProjectCodeEvaluatorDraftRegistration({
         state.setOutputConfigs(next.outputConfigs.map(fromOutputConfigDraft));
       }
       if (
-        JSON.stringify(next.inputMapping.pathMapping) !==
-        JSON.stringify(current.inputMapping.pathMapping)
+        JSON.stringify(next.inputMapping) !==
+        JSON.stringify(current.inputMapping)
       ) {
-        state.setPathMapping(next.inputMapping.pathMapping);
-      }
-      if (
-        JSON.stringify(next.inputMapping.literalMapping) !==
-        JSON.stringify(current.inputMapping.literalMapping)
-      ) {
-        state.setLiteralMapping(next.inputMapping.literalMapping);
+        // Replaced, not set, so the mapping rows rebuild from it.
+        state.replaceInputMapping(next.inputMapping);
       }
       return { ok: true as const, output: buildSnapshot() };
     };
