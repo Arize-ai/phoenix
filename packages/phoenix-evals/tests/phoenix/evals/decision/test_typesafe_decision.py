@@ -1,9 +1,10 @@
+from collections import defaultdict
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from phoenix.evals import ClassificationEvaluator, DecisionModel
+from phoenix.evals import ClassificationEvaluator, Criterion, DecisionModel
 
 
 def _response(
@@ -14,10 +15,15 @@ def _response(
     input_tokens=11,
     output_tokens=3,
 ):
-    """Build a fake SystemOneResponse exposing `.choices[name]`, `.model`, and `.usage`."""
+    """Build a fake SystemOneResponse exposing `.choices[name]`, `.model`, and `.usage`.
+
+    ``choices`` answers any question name with the same single answer, so this fixture works
+    both for the direct single-question path (keyed ``"label"``) and the ClassificationEvaluator
+    path (keyed by the criterion/evaluator name).
+    """
     answer = SimpleNamespace(choice=choice, probabilities=probabilities, confidence=confidence)
     usage = SimpleNamespace(input_tokens=input_tokens, output_tokens=output_tokens)
-    return SimpleNamespace(model=model, choices={"label": answer}, usage=usage)
+    return SimpleNamespace(model=model, choices=defaultdict(lambda: answer), usage=usage)
 
 
 def _patch_clients(monkeypatch, sync_client=None, async_client=None):
@@ -113,7 +119,7 @@ def test_tuple_style_choices_pass_descriptions_as_criteria(monkeypatch):
     assert score.score == 1
 
     _, kwargs = client.system_one.call_args
-    question = kwargs["questions"]["label"]
+    question = kwargs["questions"]["isValid"]
     assert question.criteria == {
         "valid": "the question is well formed",
         "invalid": "the question is malformed",
@@ -228,6 +234,48 @@ async def test_async_generate_classifications(monkeypatch):
     assert [r["name"] for r in results] == ["a", "b"]
     assert [r["label"] for r in results] == ["x", "y"]
     async_client.system_one.assert_awaited_once()
+
+
+def test_evaluator_multiple_criteria_one_request_one_score_each(monkeypatch):
+    """A multi-criterion ClassificationEvaluator issues one request and returns one Score per
+    criterion, each with its own label, score, and direction."""
+    client = MagicMock()
+    client.system_one.return_value = _multi_response(
+        {
+            "helpfulness": ("good", {"good": 0.7, "bad": 0.3}),
+            "accuracy": ("wrong", {"right": 0.2, "wrong": 0.8}),
+        }
+    )
+    _patch_clients(monkeypatch, sync_client=client)
+
+    evaluator = ClassificationEvaluator(
+        name="review",
+        llm=DecisionModel(provider="typesafe", model="jev-latest"),
+        prompt_template="review: {text}",
+        choices=[
+            Criterion(
+                name="helpfulness", description="How helpful?", choices={"good": 1, "bad": 0}
+            ),
+            Criterion(
+                name="accuracy",
+                description="How accurate?",
+                choices={"right": 1, "wrong": 0},
+                direction="minimize",
+            ),
+        ],
+    )
+    scores = evaluator.evaluate({"text": "..."})
+
+    assert [s.name for s in scores] == ["helpfulness", "accuracy"]
+    assert scores[0].label == "good" and scores[0].score == 1
+    assert scores[1].label == "wrong" and scores[1].score == 0
+    assert scores[0].direction == "maximize"
+    assert scores[1].direction == "minimize"
+
+    # One request carrying both questions, keyed by criterion name.
+    client.system_one.assert_called_once()
+    _, kwargs = client.system_one.call_args
+    assert list(kwargs["questions"].keys()) == ["helpfulness", "accuracy"]
 
 
 def test_missing_sdk_raises_a_helpful_error(monkeypatch):

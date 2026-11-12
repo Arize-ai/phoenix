@@ -14,15 +14,18 @@ def _response(
     confidence=0.95,
     input_tokens=11,
     output_tokens=3,
+    name="label",
 ):
     """Build a fake Decision exposing `.answers`, `.model`, and `.usage`.
 
     OpenAI reports probabilities as a list of {value, probability}; the fixture takes the
-    value -> probability dict the adapter produces and re-expands it to that list shape.
+    value -> probability dict the adapter produces and re-expands it to that list shape. The
+    answer's ``name`` must match the question name (``"label"`` for the direct single-question
+    path, or the criterion/evaluator name when going through ClassificationEvaluator).
     """
     probs = [SimpleNamespace(value=v, probability=p) for v, p in probabilities.items()]
     answer = SimpleNamespace(
-        type="choice", name="label", choice=choice, probabilities=probs, confidence=confidence
+        type="choice", name=name, choice=choice, probabilities=probs, confidence=confidence
     )
     usage = SimpleNamespace(
         input_tokens=input_tokens,
@@ -204,7 +207,9 @@ async def test_async_routes_a_text_prompt_through_a_single_choice_question(monke
 
 def test_evaluator_maps_the_chosen_label_to_a_score_without_an_explanation(monkeypatch):
     client = MagicMock()
-    client.decisions.create.return_value = _response("invalid", {"valid": 0.1, "invalid": 0.9})
+    client.decisions.create.return_value = _response(
+        "invalid", {"valid": 0.1, "invalid": 0.9}, name="isValid"
+    )
     _patch_clients(monkeypatch, sync_client=client)
 
     evaluator = ClassificationEvaluator(
@@ -225,7 +230,9 @@ def test_evaluator_maps_the_chosen_label_to_a_score_without_an_explanation(monke
 
 def test_tuple_style_choices_pass_descriptions_as_choice_descriptions(monkeypatch):
     client = MagicMock()
-    client.decisions.create.return_value = _response("valid", {"valid": 0.8, "invalid": 0.2})
+    client.decisions.create.return_value = _response(
+        "valid", {"valid": 0.8, "invalid": 0.2}, name="isValid"
+    )
     _patch_clients(monkeypatch, sync_client=client)
 
     evaluator = ClassificationEvaluator(
@@ -252,7 +259,9 @@ def test_tuple_style_choices_pass_descriptions_as_choice_descriptions(monkeypatc
 
 def test_invocation_kwargs_reach_create_but_evaluator_params_do_not(monkeypatch):
     client = MagicMock()
-    client.decisions.create.return_value = _response("correct", {"correct": 0.9, "incorrect": 0.1})
+    client.decisions.create.return_value = _response(
+        "correct", {"correct": 0.9, "incorrect": 0.1}, name="correctness"
+    )
     _patch_clients(monkeypatch, sync_client=client)
 
     evaluator = ClassificationEvaluator(
@@ -363,7 +372,7 @@ def test_builtin_evaluator_sends_a_single_user_message(monkeypatch):
 
     client = MagicMock()
     client.decisions.create.return_value = _response(
-        "grounded", {"grounded": 0.8, "hallucinated": 0.2}
+        "grounded", {"grounded": 0.8, "hallucinated": 0.2}, name="hallucination"
     )
     _patch_clients(monkeypatch, sync_client=client)
 
@@ -387,7 +396,9 @@ def test_builtin_evaluator_sends_a_single_user_message(monkeypatch):
 
 def test_system_and_user_roles_are_preserved(monkeypatch):
     client = MagicMock()
-    client.decisions.create.return_value = _response("valid", {"valid": 0.9, "invalid": 0.1})
+    client.decisions.create.return_value = _response(
+        "valid", {"valid": 0.9, "invalid": 0.1}, name="isValid"
+    )
     _patch_clients(monkeypatch, sync_client=client)
 
     evaluator = ClassificationEvaluator(
@@ -433,7 +444,7 @@ def test_assistant_text_is_mapped_to_output_text(monkeypatch):
 async def test_async_evaluate_through_classification_evaluator(monkeypatch):
     async_client = MagicMock()
     async_client.decisions.create = AsyncMock(
-        return_value=_response("valid", {"valid": 0.7, "invalid": 0.3})
+        return_value=_response("valid", {"valid": 0.7, "invalid": 0.3}, name="isValid")
     )
     _patch_clients(monkeypatch, async_client=async_client)
 
