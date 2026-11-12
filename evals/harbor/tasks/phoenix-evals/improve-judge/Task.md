@@ -71,7 +71,7 @@ model:
 
 | Criterion | Evidence a judge needs | Code can check it |
 | --- | --- | --- |
-| `policy_compliant` | The order record (category, price, shipping paid, final-sale flag, days since delivery, condition, opened flag), the governing policy passages, and the agent's decision and amount. | No |
+| `policy_compliant` | The order record (category, price, shipping paid, final-sale flag, days since delivery, condition, opened flag), the governing policy passages, and the agent's reply with its decision and the refund amount, if it states one. | No |
 
 `practice_no_copied_examples` compares requests with the visible traces: text they
 share with the new traces, such as policy passages and reply templates, doesn't count.

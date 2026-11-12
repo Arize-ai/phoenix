@@ -22,7 +22,7 @@ CRITERIA = {
     "grounded": "Every factual claim in the reply is supported by what the bot looked up: the order record, the tracking data, and the help center articles."
 }
 EVIDENCE = {
-    "grounded": "the customer's message (chat message or email subject and body), the reply, the order record, the tracking data, and the help center articles"
+    "grounded": "the customer's message (chat message or email subject and body), the reply, the order record, the help center articles, and the carrier tracking data when the order has shipped"
 }
 DETERMINISTIC = ()
 

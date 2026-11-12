@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
@@ -109,6 +111,22 @@ def score(trace: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def retrying(function: Callable[[Any], Any]) -> Callable[[Any], Any]:
+    """Retries a scoring call twice, then skips the item, so one stuck API call doesn't
+    lose the whole nightly run."""
+
+    def call(item: Any) -> Any:
+        for attempt in range(3):
+            try:
+                return function(item)
+            except Exception as error:
+                print(f"Scoring failed (attempt {attempt + 1} of 3): {error!r}")
+                time.sleep(5 * (attempt + 1))
+        return None
+
+    return call
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--rescore", action="store_true", help="score every trace again")
@@ -134,7 +152,7 @@ def main() -> None:
         if args.rescore or not any(s["context"]["span_id"] in scored for s in trace)
     ]
     with ThreadPoolExecutor(8) as pool:
-        annotations = list(pool.map(score, todo))
+        annotations = [a for a in pool.map(retrying(score), todo) if a is not None]
     if annotations:
         client.spans.log_span_annotations(span_annotations=annotations, sync=True)
     print(f"Scored {len(annotations)} traces.")

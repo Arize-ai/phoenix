@@ -18,6 +18,8 @@ import json
 import os
 import re
 import sys
+import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
@@ -134,6 +136,22 @@ def score(trace: list[dict[str, Any]]) -> tuple[str, dict[str, Any] | None, str]
     return span_id, None, error
 
 
+def retrying(function: Callable[[Any], Any]) -> Callable[[Any], Any]:
+    """Retries a scoring call twice, then skips the item, so one stuck API call doesn't
+    lose the whole nightly run."""
+
+    def call(item: Any) -> Any:
+        for attempt in range(3):
+            try:
+                return function(item)
+            except Exception as error:
+                print(f"Scoring failed (attempt {attempt + 1} of 3): {error!r}")
+                time.sleep(5 * (attempt + 1))
+        return None
+
+    return call
+
+
 def main() -> None:
     client = Client()
     spans = client.spans.get_spans(project_identifier=PROJECT, limit=1_000_000)
@@ -142,7 +160,7 @@ def main() -> None:
         traces.setdefault(span["context"]["trace_id"], []).append(dict(span))
     complete = [t for t in traces.values() if any(not s.get("parent_id") for s in t)]
     with ThreadPoolExecutor(max_workers=8) as pool:
-        results = list(pool.map(score, complete))
+        results = [r for r in pool.map(retrying(score), complete) if r is not None]
     annotations = [
         {"span_id": span_id, "name": ANNOTATION, "annotator_kind": "LLM", "result": result}
         for span_id, result, _ in results

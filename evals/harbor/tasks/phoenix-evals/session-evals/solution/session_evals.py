@@ -8,6 +8,8 @@ that don't have both annotations yet, so the nightly job pays only for new conve
 
 from __future__ import annotations
 
+import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
@@ -156,13 +158,30 @@ def score(turns: list[Trace]) -> dict[str, tuple[bool, str]]:
     return verdicts
 
 
+def retrying(function: Callable[[Any], Any]) -> Callable[[Any], Any]:
+    """Retries a scoring call twice, then skips the item, so one stuck API call doesn't
+    lose the whole nightly run."""
+
+    def call(item: Any) -> Any:
+        for attempt in range(3):
+            try:
+                return function(item)
+            except Exception as error:
+                print(f"Scoring failed (attempt {attempt + 1} of 3): {error!r}")
+                time.sleep(5 * (attempt + 1))
+        return None
+
+    return call
+
+
 def main() -> None:
     client = Client()
     sessions = load_sessions(client)
     unscored = unscored_sessions(client)
     todo = {session: turns for session, turns in sessions.items() if session in unscored}
     with ThreadPoolExecutor(8) as pool:
-        results = dict(zip(todo, pool.map(score, todo.values())))
+        scored = zip(todo, pool.map(retrying(score), todo.values()))
+        results = {session: verdicts for session, verdicts in scored if verdicts is not None}
     annotations = [
         {
             "session_id": session,

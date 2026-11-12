@@ -9,6 +9,8 @@ a JSON summary of the traces it scored as the last line.
 from __future__ import annotations
 
 import json
+import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
@@ -17,7 +19,7 @@ from phoenix.evals import LLM, ClassificationEvaluator
 
 PROJECT = "policy-rag"
 
-RELEVANCE_PROMPT = """You check whether a passage from a store's policy knowledge base answers a customer's question.
+RELEVANCE_PROMPT = """You check one passage that an online store's policy assistant retrieved for a customer's question. The assistant retrieves 4 passages from the store's policy knowledge base for each question and answers only from them, so a passage helps only if it answers the question.
 
 Label the passage "relevant" only if it states the policy the question asks about, so an assistant could answer the question from this passage. Label it "irrelevant" if it covers a different policy, even one on a nearby topic or one that shares words with the question.
 
@@ -100,6 +102,22 @@ def score(trace: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def retrying(function: Callable[[Any], Any]) -> Callable[[Any], Any]:
+    """Retries a scoring call twice, then skips the item, so one stuck API call doesn't
+    lose the whole nightly run."""
+
+    def call(item: Any) -> Any:
+        for attempt in range(3):
+            try:
+                return function(item)
+            except Exception as error:
+                print(f"Scoring failed (attempt {attempt + 1} of 3): {error!r}")
+                time.sleep(5 * (attempt + 1))
+        return None
+
+    return call
+
+
 def main() -> None:
     client = Client()
     spans = client.spans.get_spans(project_identifier=PROJECT, limit=1_000_000)
@@ -117,7 +135,7 @@ def main() -> None:
     }
     todo = [t for t in traces.values() if not any(s["context"]["span_id"] in scored for s in t)]
     with ThreadPoolExecutor(12) as pool:
-        results = list(pool.map(score, todo))
+        results = [r for r in pool.map(retrying(score), todo) if r is not None]
 
     documents = [
         {

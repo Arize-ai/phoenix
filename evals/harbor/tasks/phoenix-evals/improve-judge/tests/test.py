@@ -30,7 +30,7 @@ CRITERIA = {
     "policy_compliant": "The agent's decision and refund amount follow the refund policy for this order."
 }
 EVIDENCE = {
-    "policy_compliant": "the order record (category, price, shipping paid, final-sale flag, days since delivery, condition, opened flag), the governing policy passages, and the agent's decision and amount"
+    "policy_compliant": "the order record (category, price, shipping paid, final-sale flag, days since delivery, condition, opened flag), the governing policy passages, and the agent's reply with its decision and the refund amount, if it states one"
 }
 DETERMINISTIC = ()
 

@@ -64,7 +64,7 @@ model:
 
 | Criterion | Evidence a judge needs | Code can check it |
 | --- | --- | --- |
-| `grounded` | The customer's message (chat message or email subject and body), the reply, the order record, the tracking data, and the help center articles. | No |
+| `grounded` | The customer's message (chat message or email subject and body), the reply, the order record, the help center articles, and the carrier tracking data when the order has shipped. | No |
 
 `practice_no_copied_examples` compares requests with the visible traces: text they
 share with the new traces, such as policy passages and reply templates, doesn't count.
