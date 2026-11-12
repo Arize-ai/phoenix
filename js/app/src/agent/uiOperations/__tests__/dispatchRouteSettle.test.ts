@@ -57,12 +57,10 @@ describe("dispatch after a route change", () => {
     markRouteChanged();
     const pending = dispatch(agentStore);
     await vi.advanceTimersByTimeAsync(800);
-    agentStore
-      .getState()
-      .registerClientAction(READ_OP, async () => ({
-        ok: true,
-        output: "read",
-      }));
+    agentStore.getState().registerClientAction(READ_OP, async () => ({
+      ok: true,
+      output: "read",
+    }));
     await expect(pending).resolves.toEqual({ ok: true, output: "read" });
   });
 
