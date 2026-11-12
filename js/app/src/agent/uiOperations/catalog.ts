@@ -20,6 +20,7 @@ import { playgroundRunOperations } from "./operations/playgroundRun";
 import { playgroundSavePromptOperations } from "./operations/playgroundSavePrompt";
 import { playgroundSettingsOperations } from "./operations/playgroundSettings";
 import { playgroundTaskOperations } from "./operations/playgroundTask";
+import { projectEvaluatorOperations } from "./operations/projectEvaluator";
 import { setTimeRangeOperation } from "./operations/setTimeRange";
 import { spanOperations } from "./operations/spans";
 import { spansFilterOperations } from "./operations/spansFilter";
@@ -49,6 +50,7 @@ const knownUIOperations: UIOperationDescriptor[] = [
   ...datasetEvaluatorOperations,
   ...codeEvaluatorDraftOperations,
   ...llmEvaluatorDraftOperations,
+  ...projectEvaluatorOperations,
   ...datasetWriteOperations,
   ...datasetSplitOperations,
   ...datasetLabelOperations,
