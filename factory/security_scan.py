@@ -19,6 +19,7 @@ MAX_DIFF_BYTES = 256 * 1024
 MAX_FILE_BYTES = 8 * 1024 * 1024
 MAX_CHANGED_BYTES = 32 * 1024 * 1024
 CONTEXT_BYTES = 8 * 1024
+MAX_IMAGE_TEXT_BYTES = 128 * 1024
 MAX_FILES = 100
 SEMGREP_VERSION = "1.144.0"
 INVISIBLE = re.compile(
@@ -109,23 +110,35 @@ def read_blob(*, revision: str, path: str) -> Optional[GitBlob]:
 
 def image_type(
     data: bytes,
+    *,
+    path: str,
 ) -> Optional[Literal["image/png", "image/jpeg", "image/gif", "image/webp"]]:
-    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+    suffix = PurePosixPath(path).suffix.lower()
+    if suffix == ".png" and data.startswith(b"\x89PNG\r\n\x1a\n"):
         return "image/png"
-    if data.startswith(b"\xff\xd8\xff"):
+    if suffix in (".jpg", ".jpeg") and data.startswith(b"\xff\xd8\xff"):
         return "image/jpeg"
-    if data.startswith((b"GIF87a", b"GIF89a")):
+    if suffix == ".gif" and data.startswith((b"GIF87a", b"GIF89a")):
         return "image/gif"
-    if data.startswith(b"RIFF") and data[8:12] == b"WEBP":
+    if suffix == ".webp" and data.startswith(b"RIFF") and data[8:12] == b"WEBP":
         return "image/webp"
     return None
+
+
+def image_text(data: bytes) -> str:
+    text = "\n".join(
+        re.findall(r"[^\x00-\x1f\x7f-\x9f\ufffd]{4,}", data.decode("utf-8", errors="replace"))
+    )
+    if len(text.encode()) > MAX_IMAGE_TEXT_BYTES:
+        raise ValueError("too-large-to-scan: readable image text exceeds 128 KiB")
+    return text
 
 
 def image_diff(*, path: str, before: Optional[GitBlob], after: Optional[GitBlob]) -> str:
     def lines(blob: Optional[GitBlob]) -> list[str]:
         if blob is None:
             return []
-        if media_type := image_type(blob.data):
+        if media_type := image_type(blob.data, path=path):
             return [f"[Image supplied visually: {media_type}, blob {blob.oid}]\n"]
         return blob.data.decode("utf-8", errors="backslashreplace").splitlines(keepends=True)
 
@@ -315,6 +328,7 @@ def code_bundle(
     findings: list[Finding] = []
     ranges: dict[str, list[tuple[int, int]]] = {}
     images: list[ScanImage] = []
+    image_context = []
     text_paths = []
     image_patches = {}
     diff_parts = []
@@ -333,9 +347,16 @@ def code_bundle(
             total_bytes += len(blob.data)
             if total_bytes > MAX_CHANGED_BYTES:
                 raise ValueError("too-large-to-scan: changed file versions exceed 32 MiB")
-            if media_type := image_type(blob.data):
+            if media_type := image_type(blob.data, path=path):
                 has_image = True
                 images.append(ScanImage(path, revision, media_type, blob.oid, blob.data))
+                embedded_text = image_text(blob.data)
+                image_context.append(
+                    {"path": path, "revision": revision, "readable_text": embedded_text}
+                )
+                findings.extend(
+                    text_findings(path=f"{path} ({revision} image text)", text=embedded_text)
+                )
         validate_images(images)
         if has_image:
             patch = image_diff(path=path, before=before, after=after)
@@ -355,7 +376,7 @@ def code_bundle(
         diff_parts.append(patch.rstrip("\n") + "\n")
         if sum(len(part.encode()) for part in diff_parts) > MAX_DIFF_BYTES:
             raise ValueError("too-large-to-scan: diff exceeds 256 KiB")
-        if after is not None and image_type(after.data) is None:
+        if after is not None and image_type(after.data, path=path) is None:
             target = destination / path
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(after.data)
@@ -447,6 +468,7 @@ def code_bundle(
             "diff": diff,
             "files": context,
             "images": [image.metadata() for image in images],
+            "image_text": image_context,
             "commit_messages": git("log", "--format=%B", f"{base}..{sha}"),
         },
         findings,
