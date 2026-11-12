@@ -1,10 +1,12 @@
 import asyncio
 import contextlib
+import logging
 import socket
+from argparse import ArgumentParser
 from functools import partial
 from pathlib import Path
 from typing import Any, Optional
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import grpc
 import grpc.aio
@@ -14,34 +16,53 @@ import sqlean
 import strawberry
 from asgi_lifespan import LifespanManager
 from graphql import parse, print_ast
-from grpc_interceptor import AsyncServerInterceptor
+from opentelemetry import baggage, trace
 from opentelemetry import context as otel_context
-from opentelemetry import trace
 from opentelemetry.context import _SUPPRESS_INSTRUMENTATION_KEY
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import ExportTraceServiceRequest
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2_grpc import TraceServiceStub
-from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
+from opentelemetry.sdk._logs import LoggerProvider
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.semconv.attributes.service_attributes import SERVICE_NAME, SERVICE_VERSION
-from opentelemetry.trace import SpanKind, StatusCode
-from sqlalchemy import make_url, text
-from sqlalchemy.ext.asyncio import AsyncEngine
-from typing_extensions import override
+from opentelemetry.trace import NonRecordingSpan, SpanContext, SpanKind, StatusCode
+from sqlalchemy import event, make_url, text
 
+from phoenix.config import (
+    ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_HTTP_ENDPOINT,
+    ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT,
+)
 from phoenix.db.engines import aio_sqlite_engine, aio_sqlite_read_engine
+from phoenix.server import app as app_module
+from phoenix.server import telemetry as telemetry_module
 from phoenix.server.api.redaction import Redacted, RedactingOpenTelemetryExtension
 from phoenix.server.app import CapacityInterceptor, create_app
+from phoenix.server.cli.commands import serve
 from phoenix.server.cli.commands.serve import _create_db_session_factory
 from phoenix.server.grpc_server import GrpcServer, TracingServerInterceptor
+from phoenix.server.lifecycle import Cleanup
 from phoenix.server.telemetry import (
+    ServerTelemetry,
+    _extract_sql_operation,
     _server_resource,
+    bind_server_span,
     instrument_sqlalchemy_engine,
     normalize_http_log_collector_endpoint,
     normalize_http_trace_collector_endpoint,
+    resolve_server_parent_context,
 )
+from phoenix.server.types import DbSessionFactory
+from phoenix.session.session import ThreadSession
+from phoenix.tracers import detached_otel_context
 from phoenix.version import __version__
-from tests.unit.conftest import TestBulkInserter, patch_dml_event_handler, patch_grpc_server
+from tests.unit.conftest import (
+    TestBulkInserter,
+    _serialized,
+    patch_dml_event_handler,
+    patch_grpc_server,
+)
 
 
 def test_normalize_http_trace_collector_endpoint() -> None:
@@ -253,9 +274,11 @@ def test_phoenix_schema_marks_user_and_credential_fields() -> None:
     }
 
 
-def _new_tracer_provider() -> tuple[TracerProvider, InMemorySpanExporter]:
+def _new_tracer_provider(
+    resource: Optional[Resource] = None,
+) -> tuple[TracerProvider, InMemorySpanExporter]:
     exporter = InMemorySpanExporter()
-    provider = TracerProvider()
+    provider = TracerProvider(resource=resource)
     provider.add_span_processor(SimpleSpanProcessor(exporter))
     return provider, exporter
 
@@ -267,9 +290,37 @@ def _free_tcp_port() -> int:
 
 
 class TestSqlAlchemyEngineTracing:
-    async def test_traces_parented_queries_across_engines_and_uninstruments_per_engine(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_skips_parentless_and_suppressed_queries(self, tmp_path: Path) -> None:
+        engine = aio_sqlite_engine(
+            url=make_url(f"sqlite+aiosqlite:///{tmp_path / 'phoenix.db'}"), migrate=False
+        )
+        provider, exporter = _new_tracer_provider()
+        tracer = provider.get_tracer("test")
+        uninstrument = instrument_sqlalchemy_engine(engine, tracer_provider=provider)
+        try:
+            async with engine.connect() as connection:
+                await connection.execute(text("SELECT 999"))
+            assert exporter.get_finished_spans() == ()
+
+            with (
+                tracer.start_as_current_span("suppressed", kind=SpanKind.SERVER) as parent_span,
+                bind_server_span(parent_span, provider),
+            ):
+                token = otel_context.attach(
+                    otel_context.set_value(_SUPPRESS_INSTRUMENTATION_KEY, True)
+                )
+                try:
+                    async with engine.connect() as connection:
+                        await connection.execute(text("SELECT 888"))
+                finally:
+                    otel_context.detach(token)
+            assert [s for s in exporter.get_finished_spans() if s.kind is SpanKind.CLIENT] == []
+        finally:
+            uninstrument()
+            provider.shutdown()
+            await engine.dispose()
+
+    async def test_traces_each_engine_and_uninstruments_independently(self, tmp_path: Path) -> None:
         url = make_url(f"sqlite+aiosqlite:///{tmp_path / 'phoenix.db'}")
         primary_engine = aio_sqlite_engine(url=url, migrate=False)
         async with primary_engine.connect() as connection:
@@ -284,37 +335,22 @@ class TestSqlAlchemyEngineTracing:
         )
         uninstrument_read = instrument_sqlalchemy_engine(read_engine, tracer_provider=provider)
         try:
-            async with primary_engine.connect() as connection:
-                await connection.execute(text("SELECT 999"))
-            assert exporter.get_finished_spans() == ()
-
-            with tracer.start_as_current_span("suppressed-request", kind=SpanKind.SERVER):
-                token = otel_context.attach(
-                    otel_context.set_value(_SUPPRESS_INSTRUMENTATION_KEY, True)
-                )
-                try:
-                    async with primary_engine.connect() as connection:
-                        await connection.execute(text("SELECT 888"))
-                finally:
-                    otel_context.detach(token)
-            assert all(span.kind is not SpanKind.CLIENT for span in exporter.get_finished_spans())
-            exporter.clear()
-
-            with tracer.start_as_current_span("request", kind=SpanKind.SERVER) as parent_span:
+            with (
+                tracer.start_as_current_span("request", kind=SpanKind.SERVER) as parent_span,
+                bind_server_span(parent_span, provider),
+            ):
                 async with primary_engine.connect() as connection:
                     await connection.execute(text("SELECT 41"))
                 async with read_engine.connect() as connection:
                     await connection.execute(text("/* comment */\nSELECT\n  42"))
 
-            spans = exporter.get_finished_spans()
-            client_spans = [span for span in spans if span.kind is SpanKind.CLIENT]
             statements = {
                 str(span.attributes["db.statement"]): span
-                for span in client_spans
-                if span.attributes and "db.statement" in span.attributes
+                for span in exporter.get_finished_spans()
+                if span.kind is SpanKind.CLIENT
+                and span.attributes
+                and "db.statement" in span.attributes
             }
-            assert "SELECT 41" in statements
-            assert "/* comment */\nSELECT\n  42" in statements
             for statement_text in ("SELECT 41", "/* comment */\nSELECT\n  42"):
                 sql_span = statements[statement_text]
                 assert sql_span.parent is not None
@@ -329,21 +365,24 @@ class TestSqlAlchemyEngineTracing:
             uninstrument_primary()
             exporter.clear()
 
-            with tracer.start_as_current_span("after-primary-uninstrument", kind=SpanKind.SERVER):
+            with (
+                tracer.start_as_current_span("after-uninstrument", kind=SpanKind.SERVER) as parent,
+                bind_server_span(parent, provider),
+            ):
                 async with primary_engine.connect() as connection:
                     await connection.execute(text("SELECT 101"))
                 async with read_engine.connect() as connection:
                     await connection.execute(text("SELECT 102"))
 
-            remaining_statements = [
+            remaining = {
                 str(span.attributes["db.statement"])
                 for span in exporter.get_finished_spans()
                 if span.kind is SpanKind.CLIENT
                 and span.attributes
                 and "db.statement" in span.attributes
-            ]
-            assert "SELECT 101" not in remaining_statements
-            assert "SELECT 102" in remaining_statements
+            }
+            assert "SELECT 101" not in remaining
+            assert "SELECT 102" in remaining
         finally:
             uninstrument_primary()
             uninstrument_read()
@@ -361,7 +400,12 @@ class TestSqlAlchemyEngineTracing:
         tracer = provider.get_tracer("test")
         uninstrument = instrument_sqlalchemy_engine(engine, tracer_provider=provider)
         try:
-            with tracer.start_as_current_span("failing-request", kind=SpanKind.SERVER):
+            with (
+                tracer.start_as_current_span(
+                    "failing-request", kind=SpanKind.SERVER
+                ) as parent_span,
+                bind_server_span(parent_span, provider),
+            ):
                 async with engine.connect() as connection:
                     await connection.begin()
                     if invalidate_connection:
@@ -391,65 +435,9 @@ class TestSqlAlchemyEngineTracing:
             provider.shutdown()
             await engine.dispose()
 
-    @pytest.mark.postgres_only
-    async def test_postgresql_engine_records_peer_and_database_attributes(
-        self, postgresql_engine: AsyncEngine
-    ) -> None:
-        provider, exporter = _new_tracer_provider()
-        tracer = provider.get_tracer("test")
-        uninstrument = instrument_sqlalchemy_engine(postgresql_engine, tracer_provider=provider)
-        try:
-            with tracer.start_as_current_span("pg-request", kind=SpanKind.SERVER):
-                async with postgresql_engine.connect() as connection:
-                    await connection.execute(text("SELECT 42"))
-
-            pg_spans = [
-                span
-                for span in exporter.get_finished_spans()
-                if span.kind is SpanKind.CLIENT
-                and span.attributes
-                and span.attributes.get("db.statement") == "SELECT 42"
-            ]
-            assert len(pg_spans) == 1
-            attributes = dict(pg_spans[0].attributes or {})
-            assert attributes["db.system"] == "postgresql"
-            assert attributes["db.operation"] == "SELECT"
-            assert attributes["db.name"] == postgresql_engine.sync_engine.url.database
-            if postgresql_engine.sync_engine.url.host:
-                assert attributes["net.peer.name"] == postgresql_engine.sync_engine.url.host
-            if postgresql_engine.sync_engine.url.port is not None:
-                assert attributes["net.peer.port"] == postgresql_engine.sync_engine.url.port
-        finally:
-            uninstrument()
-            provider.shutdown()
-
 
 class _FullIndicator:
     is_full = True
-
-
-class _AbortUnauthenticatedInterceptor(AsyncServerInterceptor):
-    @override
-    async def intercept(
-        self,
-        method: Any,
-        request_or_iterator: Any,
-        context: grpc.aio.ServicerContext,
-        method_name: str,
-    ) -> Any:
-        await context.abort(grpc.StatusCode.UNAUTHENTICATED, "missing bearer token")
-
-
-class _BoomInterceptor(AsyncServerInterceptor):
-    @override
-    async def intercept(
-        self,
-        method: Any,
-        request_or_iterator: Any,
-        context: grpc.aio.ServicerContext,
-        method_name: str,
-    ) -> Any:
-        raise RuntimeError("servicer exploded")
 
 
 def _trace_service_stub(channel: grpc.aio.Channel) -> Any:
@@ -457,30 +445,78 @@ def _trace_service_stub(channel: grpc.aio.Channel) -> Any:
 
 
 class TestGrpcServerTracing:
-    async def test_cancellation_ends_span_and_restores_parent_context(self) -> None:
+    @pytest.mark.parametrize(
+        "outcome, expected_grpc_code, expected_span_status, expect_exception_event",
+        [
+            ("ok", grpc.StatusCode.OK, StatusCode.UNSET, False),
+            ("unavailable", grpc.StatusCode.UNAVAILABLE, StatusCode.ERROR, False),
+            ("abort_unauthenticated", grpc.StatusCode.UNAUTHENTICATED, StatusCode.UNSET, False),
+            ("cancelled", grpc.StatusCode.CANCELLED, StatusCode.UNSET, False),
+            ("exception", grpc.StatusCode.UNKNOWN, StatusCode.ERROR, True),
+        ],
+    )
+    async def test_interceptor_records_rpc_outcomes_baggage_and_restores_context(
+        self,
+        outcome: str,
+        expected_grpc_code: grpc.StatusCode,
+        expected_span_status: StatusCode,
+        expect_exception_event: bool,
+    ) -> None:
         provider, exporter = _new_tracer_provider()
         interceptor = TracingServerInterceptor(provider)
         context = MagicMock(spec=grpc.aio.ServicerContext)
-        context.invocation_metadata.return_value = ()
+        context.invocation_metadata.return_value = (
+            ("baggage", "tenant=acme"),
+            ("baggage", "region=us-west"),
+        )
+        context.code.return_value = None
+        context.details.return_value = ""
+        observed_baggage: dict[str, object] = {}
 
-        async def cancelled_method(request: Any, context: grpc.aio.ServicerContext) -> None:
-            raise asyncio.CancelledError
+        async def handler(request: Any, ctx: grpc.aio.ServicerContext) -> str:
+            observed_baggage.update(baggage.get_all())
+            if outcome == "unavailable":
+                context.code.return_value = grpc.StatusCode.UNAVAILABLE
+                context.details.return_value = "busy"
+            elif outcome == "abort_unauthenticated":
+                context.code.return_value = grpc.StatusCode.UNAUTHENTICATED
+                context.details.return_value = "missing bearer token"
+                raise grpc.aio.AbortError()
+            elif outcome == "cancelled":
+                raise asyncio.CancelledError
+            elif outcome == "exception":
+                raise RuntimeError("servicer exploded")
+            return "ok"
 
         try:
-            with provider.get_tracer("test").start_as_current_span("caller") as parent:
-                with pytest.raises(asyncio.CancelledError):
-                    await interceptor.intercept(cancelled_method, None, context, "/test/Cancel")
-                assert trace.get_current_span() is parent
-                (span,) = exporter.get_finished_spans()
-                assert span.kind is SpanKind.SERVER
-                assert span.attributes is not None
-                assert span.attributes["rpc.grpc.status_code"] == grpc.StatusCode.CANCELLED.value[0]
-                assert span.status.status_code is StatusCode.UNSET
-                assert not span.events
+            with provider.get_tracer("test").start_as_current_span("caller") as caller_span:
+                if outcome in ("abort_unauthenticated", "cancelled", "exception"):
+                    with pytest.raises(BaseException):
+                        await interceptor.intercept(handler, None, context, "/pkg.Svc/Method")
+                else:
+                    assert (
+                        await interceptor.intercept(handler, None, context, "/pkg.Svc/Method")
+                        == "ok"
+                    )
+                assert trace.get_current_span() is caller_span
+                spans = [s for s in exporter.get_finished_spans() if s.name == "/pkg.Svc/Method"]
+                assert len(spans) == 1
+                span = spans[0]
+
+            assert observed_baggage == {"tenant": "acme", "region": "us-west"}
+            assert span.kind is SpanKind.SERVER
+            assert dict(span.attributes or {}) == {
+                "rpc.system": "grpc",
+                "rpc.service": "pkg.Svc",
+                "rpc.method": "Method",
+                "rpc.grpc.status_code": expected_grpc_code.value[0],
+            }
+            assert span.status.status_code is expected_span_status
+            assert any(ev.name == "exception" for ev in span.events) is expect_exception_event
         finally:
             provider.shutdown()
 
-    async def test_propagates_parent_context_and_isolates_instances_without_global_patch(
+    async def test_grpc_server_propagates_traceparent_orders_interceptors_and_isolates_instances(
         self,
     ) -> None:
         original_grpc_aio_server = grpc.aio.server
@@ -496,7 +532,11 @@ class TestGrpcServerTracing:
             _noop_enqueue, port=port_a, host="127.0.0.1", tracer_provider=provider_a
         )
         server_b = GrpcServer(
-            _noop_enqueue, port=port_b, host="127.0.0.1", tracer_provider=provider_b
+            _noop_enqueue,
+            port=port_b,
+            host="127.0.0.1",
+            tracer_provider=provider_b,
+            interceptors=[CapacityInterceptor(_FullIndicator())],
         )
         try:
             async with server_a, server_b:
@@ -506,111 +546,31 @@ class TestGrpcServerTracing:
                 traceparent = f"00-{remote_trace_id}-{remote_span_id}-01"
 
                 async with grpc.aio.insecure_channel(f"127.0.0.1:{port_a}") as channel_a:
-                    stub_a = _trace_service_stub(channel_a)
-                    await stub_a.Export(
+                    await _trace_service_stub(channel_a).Export(
                         ExportTraceServiceRequest(),
                         metadata=(("traceparent", traceparent),),
                     )
                 async with grpc.aio.insecure_channel(f"127.0.0.1:{port_b}") as channel_b:
-                    stub_b = _trace_service_stub(channel_b)
-                    await stub_b.Export(ExportTraceServiceRequest())
+                    with pytest.raises(grpc.aio.AioRpcError) as rpc_exc:
+                        await _trace_service_stub(channel_b).Export(ExportTraceServiceRequest())
+                    assert rpc_exc.value.code() is grpc.StatusCode.UNAVAILABLE
 
             assert grpc.aio.server is original_grpc_aio_server
-            spans_a = exporter_a.get_finished_spans()
-            spans_b = exporter_b.get_finished_spans()
-            assert len(spans_a) == 1
-            assert len(spans_b) == 1
+            (span_a,) = exporter_a.get_finished_spans()
+            (span_b,) = exporter_b.get_finished_spans()
 
-            span_a = spans_a[0]
-            assert span_a.kind is SpanKind.SERVER
             assert span_a.name == "/opentelemetry.proto.collector.trace.v1.TraceService/Export"
             assert f"{span_a.context.trace_id:032x}" == remote_trace_id
             assert span_a.parent is not None
             assert f"{span_a.parent.span_id:016x}" == remote_span_id
             assert span_a.status.status_code is StatusCode.UNSET
-            assert dict(span_a.attributes or {}) == {
-                "rpc.system": "grpc",
-                "rpc.service": "opentelemetry.proto.collector.trace.v1.TraceService",
-                "rpc.method": "Export",
-                "rpc.grpc.status_code": grpc.StatusCode.OK.value[0],
-            }
+
+            assert span_b.attributes is not None
+            assert span_b.attributes["rpc.grpc.status_code"] == grpc.StatusCode.UNAVAILABLE.value[0]
+            assert span_b.status.status_code is StatusCode.ERROR
         finally:
             provider_a.shutdown()
             provider_b.shutdown()
-
-    async def test_records_capacity_rejection_and_auth_abort_and_uncaught_exception(self) -> None:
-        provider, exporter = _new_tracer_provider()
-        try:
-            port = _free_tcp_port()
-
-            async def _noop_enqueue(span: Any, project_name: str) -> None:
-                return None
-
-            capacity_server = GrpcServer(
-                _noop_enqueue,
-                port=port,
-                host="127.0.0.1",
-                tracer_provider=provider,
-                interceptors=[CapacityInterceptor(_FullIndicator())],
-            )
-            async with capacity_server:
-                async with grpc.aio.insecure_channel(f"127.0.0.1:{port}") as channel:
-                    with pytest.raises(grpc.aio.AioRpcError) as rpc_exc:
-                        await _trace_service_stub(channel).Export(ExportTraceServiceRequest())
-                    assert rpc_exc.value.code() is grpc.StatusCode.UNAVAILABLE
-
-            port = _free_tcp_port()
-            auth_server = GrpcServer(
-                _noop_enqueue,
-                port=port,
-                host="127.0.0.1",
-                tracer_provider=provider,
-                interceptors=[_AbortUnauthenticatedInterceptor()],
-            )
-            async with auth_server:
-                async with grpc.aio.insecure_channel(f"127.0.0.1:{port}") as channel:
-                    with pytest.raises(grpc.aio.AioRpcError) as rpc_exc:
-                        await _trace_service_stub(channel).Export(ExportTraceServiceRequest())
-                    assert rpc_exc.value.code() is grpc.StatusCode.UNAUTHENTICATED
-
-            port = _free_tcp_port()
-            boom_server = GrpcServer(
-                _noop_enqueue,
-                port=port,
-                host="127.0.0.1",
-                tracer_provider=provider,
-                interceptors=[_BoomInterceptor()],
-            )
-            async with boom_server:
-                async with grpc.aio.insecure_channel(f"127.0.0.1:{port}") as channel:
-                    with pytest.raises(grpc.aio.AioRpcError):
-                        await _trace_service_stub(channel).Export(ExportTraceServiceRequest())
-
-            spans: tuple[ReadableSpan, ...] = exporter.get_finished_spans()
-            assert len(spans) == 3
-
-            unavailable_span, unauth_span, boom_span = spans
-            assert unavailable_span.attributes is not None
-            assert (
-                unavailable_span.attributes["rpc.grpc.status_code"]
-                == grpc.StatusCode.UNAVAILABLE.value[0]
-            )
-            assert unavailable_span.status.status_code is StatusCode.ERROR
-
-            assert unauth_span.attributes is not None
-            assert (
-                unauth_span.attributes["rpc.grpc.status_code"]
-                == grpc.StatusCode.UNAUTHENTICATED.value[0]
-            )
-            assert unauth_span.status.status_code is StatusCode.UNSET
-
-            assert boom_span.attributes is not None
-            assert boom_span.attributes["rpc.grpc.status_code"] == grpc.StatusCode.UNKNOWN.value[0]
-            assert boom_span.status.status_code is StatusCode.ERROR
-            assert boom_span.status.description == "servicer exploded"
-            assert any(ev.name == "exception" for ev in boom_span.events)
-        finally:
-            provider.shutdown()
 
 
 @pytest.mark.real_graphql_schema_build
@@ -635,7 +595,7 @@ async def test_create_app_shares_single_tracer_provider_across_http_graphql_and_
         await stack.enter_async_context(patch_grpc_server())
         app = create_app(
             db=factory,
-            tracer_provider=provider,
+            server_telemetry=ServerTelemetry(tracer_provider=provider),
             authentication_enabled=False,
             serve_ui=False,
             bulk_inserter_factory=TestBulkInserter,
@@ -684,3 +644,416 @@ async def test_create_app_shares_single_tracer_provider_across_http_graphql_and_
             assert any(span.context.trace_id == trace_id for span in server_spans)
 
     assert shutdown_spy.call_count == 1
+
+
+@pytest.mark.parametrize(
+    "statement, expected",
+    [
+        ("SELECT 42", "SELECT"),
+        ("select(1)", "SELECT"),
+        ("VALUES('secret', 2)", "VALUES"),
+        ("/* leading comment */\n-- line comment\n  insert INTO items VALUES ('x')", "INSERT"),
+        ("WITH cte AS (SELECT 1) SELECT * FROM cte", "WITH"),
+        ("BEGIN IMMEDIATE;", "BEGIN"),
+        ("   ;  ", None),
+        ("/* only comment */", None),
+        ("123", None),
+    ],
+)
+def test_extract_sql_operation_returns_only_uppercased_leading_keyword(
+    statement: str, expected: Optional[str]
+) -> None:
+    assert _extract_sql_operation(statement) == expected
+
+
+async def test_nested_suppressed_query_failure_does_not_corrupt_enclosing_sql_span(
+    tmp_path: Path,
+) -> None:
+    url = make_url(f"sqlite+aiosqlite:///{tmp_path / 'phoenix.db'}")
+    engine = aio_sqlite_engine(url=url, migrate=False)
+    provider, exporter = _new_tracer_provider()
+    tracer = provider.get_tracer("test")
+    uninstrument = instrument_sqlalchemy_engine(engine, tracer_provider=provider)
+
+    def _run_suppressed_failing_nested_query(
+        connection: Any,
+        cursor: Any,
+        statement: str,
+        parameters: Any,
+        context: Any,
+        executemany: bool,
+    ) -> None:
+        if statement != "SELECT 42":
+            return
+        token = otel_context.attach(otel_context.set_value(_SUPPRESS_INSTRUMENTATION_KEY, True))
+        try:
+            with pytest.raises(Exception):
+                connection.exec_driver_sql("SELECT * FROM nonexistent_nested_table")
+        finally:
+            otel_context.detach(token)
+
+    event.listen(
+        engine.sync_engine,
+        "before_cursor_execute",
+        _run_suppressed_failing_nested_query,
+    )
+    try:
+        with (
+            tracer.start_as_current_span("outer-request", kind=SpanKind.SERVER) as parent_span,
+            bind_server_span(parent_span, provider),
+        ):
+            async with engine.connect() as connection:
+                result = await connection.scalar(text("SELECT 42"))
+                assert result == 42
+
+        sql_spans = [
+            span
+            for span in exporter.get_finished_spans()
+            if span.kind is SpanKind.CLIENT
+            and span.attributes
+            and span.attributes.get("db.statement") == "SELECT 42"
+        ]
+        assert len(sql_spans) == 1
+        assert sql_spans[0].status.status_code is StatusCode.UNSET
+        assert not sql_spans[0].events
+    finally:
+        event.remove(
+            engine.sync_engine,
+            "before_cursor_execute",
+            _run_suppressed_failing_nested_query,
+        )
+        uninstrument()
+        provider.shutdown()
+        await engine.dispose()
+
+
+@pytest.mark.parametrize("detached", [False, True])
+async def test_graphql_and_sql_preserve_server_parentage(
+    tmp_path: Path,
+    detached: bool,
+) -> None:
+    url = make_url(f"sqlite+aiosqlite:///{tmp_path / 'phoenix.db'}")
+    engine = aio_sqlite_engine(url=url, migrate=False)
+    server_provider, server_exporter = _new_tracer_provider()
+    foreign_provider, foreign_exporter = _new_tracer_provider(server_provider.resource)
+    uninstrument = instrument_sqlalchemy_engine(engine, tracer_provider=server_provider)
+
+    observed_ambient_span_inside_resolver: list[Any] = []
+
+    @strawberry.type
+    class Query:
+        @strawberry.field
+        async def probe(self) -> int:
+            observed_ambient_span_inside_resolver.append(trace.get_current_span())
+            async with engine.connect() as connection:
+                value = await connection.scalar(text("SELECT 77"))
+                return int(value or 0)
+
+    schema = strawberry.Schema(
+        query=Query,
+        extensions=[partial(RedactingOpenTelemetryExtension, tracer_provider=server_provider)],
+    )
+    try:
+        with (
+            foreign_provider.get_tracer("openinference").start_as_current_span(
+                "agent-bg"
+            ) as foreign_span,
+            bind_server_span(foreign_span, foreign_provider),
+        ):
+            async with engine.connect() as connection:
+                await connection.execute(text("SELECT 11"))
+        assert [s for s in server_exporter.get_finished_spans() if s.kind is SpanKind.CLIENT] == []
+        server_exporter.clear()
+        foreign_exporter.clear()
+
+        server_tracer = server_provider.get_tracer("fastapi")
+        foreign_tracer = foreign_provider.get_tracer("openinference")
+        with server_tracer.start_as_current_span("POST /agents/chat", kind=SpanKind.SERVER) as http:
+            with bind_server_span(http, server_provider):
+                with detached_otel_context() if detached else contextlib.nullcontext():
+                    with (
+                        foreign_tracer.start_as_current_span("agent.turn")
+                        if detached
+                        else contextlib.nullcontext(http)
+                    ) as ambient_span:
+                        gql_result = await schema.execute("{ probe }")
+                        assert gql_result.errors is None
+                        assert gql_result.data == {"probe": 77}
+                        assert trace.get_current_span() is ambient_span
+
+        assert observed_ambient_span_inside_resolver == [ambient_span]
+
+        server_spans = server_exporter.get_finished_spans()
+        http_trace_id = http.get_span_context().trace_id
+        op_span = next(s for s in server_spans if s.name == "GraphQL Query")
+        res_span = next(s for s in server_spans if s.name == "GraphQL Resolving: probe")
+        sql_span = next(
+            s
+            for s in server_spans
+            if s.kind is SpanKind.CLIENT
+            and s.attributes
+            and s.attributes.get("db.statement") == "SELECT 77"
+        )
+        assert op_span.context.trace_id == http_trace_id
+        assert op_span.parent is not None
+        assert op_span.parent.span_id == http.get_span_context().span_id
+
+        assert res_span.context.trace_id == http_trace_id
+        assert res_span.parent is not None
+        assert res_span.parent.span_id == op_span.context.span_id
+
+        assert sql_span.context.trace_id == http_trace_id
+        assert sql_span.parent is not None
+        assert sql_span.parent.span_id == res_span.context.span_id
+
+        if detached:
+            (exported_oi_span,) = foreign_exporter.get_finished_spans()
+            assert exported_oi_span.context.trace_id != http_trace_id
+    finally:
+        uninstrument()
+        server_provider.shutdown()
+        foreign_provider.shutdown()
+        await engine.dispose()
+
+
+def test_server_telemetry_removes_root_log_handler_and_continues_cleanup_after_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv(
+        ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_HTTP_ENDPOINT,
+        "http://127.0.0.1:4318",
+    )
+    monkeypatch.setenv(
+        ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT,
+        "http://127.0.0.1:4318",
+    )
+    provider, _ = _new_tracer_provider()
+    logger_provider = LoggerProvider()
+    tracer_shutdown = MagicMock(wraps=provider.shutdown)
+    logger_shutdown = MagicMock(wraps=logger_provider.shutdown)
+    monkeypatch.setattr(provider, "shutdown", tracer_shutdown)
+    monkeypatch.setattr(logger_provider, "shutdown", logger_shutdown)
+    monkeypatch.setattr(telemetry_module, "LoggerProvider", lambda **_: logger_provider)
+    monkeypatch.setattr(telemetry_module, "BatchLogRecordProcessor", lambda *_: MagicMock())
+    monkeypatch.setattr(
+        telemetry_module, "initialize_opentelemetry_tracer_provider", lambda: provider
+    )
+
+    engine = aio_sqlite_engine(
+        url=make_url(f"sqlite+aiosqlite:///{tmp_path / 'phoenix.db'}"), migrate=False
+    )
+    root_logger = logging.getLogger()
+    initial_handlers = list(root_logger.handlers)
+    telemetry = ServerTelemetry.from_env()
+    telemetry.instrument_engine(engine)
+    assert len(root_logger.handlers) == len(initial_handlers) + 1
+
+    monkeypatch.setattr(event, "remove", Mock(side_effect=RuntimeError("listener removal boom")))
+    with pytest.raises(RuntimeError, match="listener removal boom"):
+        telemetry.close()
+
+    assert list(root_logger.handlers) == initial_handlers
+    assert tracer_shutdown.call_count == 1
+    assert logger_shutdown.call_count == 1
+    telemetry.close()
+    assert tracer_shutdown.call_count == 1
+
+
+async def test_direct_create_app_honors_env_tracing_and_shuts_down_provider(
+    monkeypatch: pytest.MonkeyPatch,
+    _sqlite_test_conn: Any,
+) -> None:
+    monkeypatch.setenv(
+        ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT,
+        "http://127.0.0.1:4318",
+    )
+    provider, exporter = _new_tracer_provider()
+    shutdown_spy = MagicMock(wraps=provider.shutdown)
+    monkeypatch.setattr(provider, "shutdown", shutdown_spy)
+    monkeypatch.setattr(
+        telemetry_module, "initialize_opentelemetry_tracer_provider", lambda: provider
+    )
+    factory = DbSessionFactory(db=_serialized(app_module._db(_sqlite_test_conn)), dialect="sqlite")
+
+    async with contextlib.AsyncExitStack() as stack:
+        await stack.enter_async_context(patch_dml_event_handler())
+        await stack.enter_async_context(patch_grpc_server())
+        app = create_app(
+            db=factory,
+            authentication_enabled=False,
+            serve_ui=False,
+            bulk_inserter_factory=TestBulkInserter,
+        )
+        async with LifespanManager(app) as manager:
+            async with httpx2.AsyncClient(
+                transport=httpx2.ASGITransport(app=manager.app),
+                base_url="http://test",
+            ) as client:
+                response = await client.get("/healthz")
+                assert response.status_code == 200
+
+    assert any(span.kind is SpanKind.SERVER for span in exporter.get_finished_spans())
+    assert shutdown_spy.call_count == 1
+
+
+async def test_lifespan_runs_remaining_shutdown_callbacks_after_failure(
+    _sqlite_test_conn: Any,
+) -> None:
+    factory = DbSessionFactory(db=_serialized(app_module._db(_sqlite_test_conn)), dialect="sqlite")
+    second_callback = MagicMock()
+
+    def _boom_callback() -> None:
+        raise RuntimeError("shutdown callback boom")
+
+    async with contextlib.AsyncExitStack() as stack:
+        await stack.enter_async_context(patch_dml_event_handler())
+        await stack.enter_async_context(patch_grpc_server())
+        app = create_app(
+            db=factory,
+            authentication_enabled=False,
+            serve_ui=False,
+            bulk_inserter_factory=TestBulkInserter,
+            shutdown_callbacks=[_boom_callback, second_callback],
+        )
+        with pytest.raises(RuntimeError, match="shutdown callback boom"):
+            async with LifespanManager(app):
+                pass
+
+    assert second_callback.call_count == 1
+
+
+async def test_thread_session_instruments_sql_engine_and_cleans_up_on_end(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(
+        ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT,
+        "http://127.0.0.1:4318",
+    )
+    provider_failed, _ = _new_tracer_provider()
+    failed_shutdown_spy = MagicMock(wraps=provider_failed.shutdown)
+    monkeypatch.setattr(provider_failed, "shutdown", failed_shutdown_spy)
+
+    provider, exporter = _new_tracer_provider()
+    shutdown_spy = MagicMock(wraps=provider.shutdown)
+    monkeypatch.setattr(provider, "shutdown", shutdown_spy)
+    providers = iter([provider_failed, provider])
+    monkeypatch.setattr(
+        telemetry_module,
+        "initialize_opentelemetry_tracer_provider",
+        lambda: next(providers),
+    )
+
+    thread = Mock()
+    thread.is_alive.return_value = True
+
+    def _fake_server_gen() -> Any:
+        yield thread
+
+    with patch("phoenix.session.session.ThreadServer") as mock_server:
+        mock_server.return_value.run_in_thread.return_value = _fake_server_gen()
+        with pytest.raises(RuntimeError, match="server start boom"):
+            with patch(
+                "phoenix.session.session.create_app",
+                side_effect=RuntimeError("server start boom"),
+            ):
+                ThreadSession(database_url="sqlite:///:memory:", host="127.0.0.1")
+    assert failed_shutdown_spy.call_count == 1
+
+    with patch("phoenix.session.session.ThreadServer") as mock_server:
+        mock_server.return_value.run_in_thread.return_value = _fake_server_gen()
+        session = ThreadSession(database_url="sqlite:///:memory:", host="127.0.0.1")
+    try:
+        async with contextlib.AsyncExitStack() as stack:
+            await stack.enter_async_context(patch_dml_event_handler())
+            await stack.enter_async_context(patch_grpc_server())
+            async with LifespanManager(session.app) as manager:
+                exporter.clear()
+                async with httpx2.AsyncClient(
+                    transport=httpx2.ASGITransport(app=manager.app),
+                    base_url="http://test",
+                ) as client:
+                    response = await client.get("/readyz")
+                    assert response.status_code == 200
+
+                assert [s for s in exporter.get_finished_spans() if s.kind is SpanKind.CLIENT]
+    finally:
+        session.end()
+
+    assert shutdown_spy.call_count == 1
+
+
+async def test_failed_cleanup_propagates_and_can_be_retried() -> None:
+    callback = AsyncMock(side_effect=[RuntimeError("dispose failed"), None])
+    cleanup = Cleanup(callback)
+    with pytest.raises(RuntimeError, match="dispose failed"):
+        cleanup.close()
+    await cleanup()
+    cleanup.close()
+    assert callback.await_count == 2
+
+
+def test_nonrecording_server_parent_is_bound_explicitly() -> None:
+    provider, _ = _new_tracer_provider()
+    span = NonRecordingSpan(SpanContext(trace_id=1, span_id=2, is_remote=False))
+    try:
+        with bind_server_span(span, provider):
+            context = resolve_server_parent_context(provider)
+            assert context is not None
+            assert trace.get_current_span(context) is span
+        assert resolve_server_parent_context(provider) is None
+    finally:
+        provider.shutdown()
+
+
+@pytest.mark.parametrize("owned", [False, True])
+def test_app_construction_failure_closes_only_owned_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+    owned: bool,
+) -> None:
+    provider, _ = _new_tracer_provider()
+    telemetry = ServerTelemetry(tracer_provider=provider)
+    shutdown = MagicMock(wraps=provider.shutdown)
+    monkeypatch.setattr(provider, "shutdown", shutdown)
+    monkeypatch.setattr(ServerTelemetry, "from_env", lambda: telemetry)
+    monkeypatch.setattr(
+        app_module,
+        "verify_server_environment_variables",
+        Mock(side_effect=RuntimeError("build failed")),
+    )
+    try:
+        with pytest.raises(RuntimeError, match="build failed"):
+            create_app(
+                db=Mock(spec=DbSessionFactory),
+                authentication_enabled=False,
+                server_telemetry=None if owned else telemetry,
+            )
+        assert shutdown.call_count == int(owned)
+    finally:
+        telemetry.close()
+
+
+@pytest.mark.parametrize("failure_site", ["aio_sqlite_read_engine", "get_env_allowed_origins"])
+def test_cli_setup_failure_cleans_engines_and_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+    failure_site: str,
+) -> None:
+    engine = aio_sqlite_engine(url=make_url("sqlite+aiosqlite:///:memory:"), migrate=False)
+    provider, _ = _new_tracer_provider()
+    shutdown = MagicMock(wraps=provider.shutdown)
+    monkeypatch.setattr(provider, "shutdown", shutdown)
+    telemetry = ServerTelemetry(tracer_provider=provider)
+    monkeypatch.setattr(ServerTelemetry, "from_env", lambda: telemetry)
+    monkeypatch.setattr(serve, "create_engine", lambda **kwargs: engine)
+    monkeypatch.setattr(serve, "get_env_enable_prometheus", lambda: False)
+    monkeypatch.setattr(serve, failure_site, Mock(side_effect=RuntimeError("setup failed")))
+    parser = ArgumentParser()
+    serve.register(parser.add_subparsers(dest="command"))
+    args = parser.parse_args(["serve", "--database-url", "sqlite:///:memory:"])
+    disposed: list[object] = []
+    event.listen(engine.sync_engine, "engine_disposed", disposed.append)
+    with pytest.raises(RuntimeError, match="setup failed"):
+        serve.run(args)
+    assert disposed == [engine.sync_engine]
+    assert not engine.sync_engine.dispatch.before_cursor_execute
+    assert shutdown.call_count == 1

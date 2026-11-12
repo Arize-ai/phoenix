@@ -1,12 +1,13 @@
 import asyncio
+from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, Final, Iterable, Optional
 
 import grpc
 from grpc.aio import RpcContext, Server, ServerInterceptor
 from grpc_interceptor import AsyncServerInterceptor
 from opentelemetry import context as otel_context
-from opentelemetry.context import _SUPPRESS_INSTRUMENTATION_KEY
 from opentelemetry.propagate import extract
+from opentelemetry.propagators.textmap import Getter
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
     ExportTraceServiceResponse,
@@ -27,6 +28,7 @@ from phoenix.config import (
     get_env_tls_enabled_for_grpc,
 )
 from phoenix.server.bearer_auth import ApiKeyInterceptor
+from phoenix.server.telemetry import bind_server_span, is_otel_instrumentation_suppressed
 from phoenix.trace.otel import decode_otlp_span
 from phoenix.trace.schemas import Span
 from phoenix.utilities.project import get_project_name
@@ -72,10 +74,27 @@ def _record_grpc_status(
         span.set_status(Status(StatusCode.ERROR, description))
 
 
+class _GrpcMetadataGetter(Getter[dict[str, list[str]]]):
+    def get(self, carrier: dict[str, list[str]], key: str) -> list[str] | None:
+        values = carrier.get(key.lower())
+        if not values:
+            return None
+        if key.lower() == "baggage":
+            return [",".join(values)]
+        return values
+
+    def keys(self, carrier: dict[str, list[str]]) -> list[str]:
+        return list(carrier.keys())
+
+
+_GRPC_METADATA_GETTER = _GrpcMetadataGetter()
+
+
 class TracingServerInterceptor(AsyncServerInterceptor):
     """Trace inbound unary gRPC calls with the server-owned provider."""
 
     def __init__(self, tracer_provider: "TracerProvider") -> None:
+        self._tracer_provider = tracer_provider
         self._tracer = tracer_provider.get_tracer("phoenix.server.grpc", phoenix_version)
 
     @override
@@ -86,14 +105,13 @@ class TracingServerInterceptor(AsyncServerInterceptor):
         context: grpc.aio.ServicerContext,
         method_name: str,
     ) -> Any:
-        if bool(otel_context.get_value(_SUPPRESS_INSTRUMENTATION_KEY)):
+        if is_otel_instrumentation_suppressed():
             return await method(request_or_iterator, context)
-        carrier = {
-            key.lower(): value
-            for key, value in (context.invocation_metadata() or ())
-            if isinstance(value, str)
-        }
-        token = otel_context.attach(extract(carrier))
+        carrier: dict[str, list[str]] = defaultdict(list)
+        for key, value in context.invocation_metadata() or ():
+            if isinstance(value, str):
+                carrier[key.lower()].append(value)
+        token = otel_context.attach(extract(carrier, getter=_GRPC_METADATA_GETTER))
         attributes: dict[str, str | int] = {_RPC_SYSTEM: "grpc"}
         service, separator, rpc_method = method_name.lstrip("/").partition("/")
         if separator:
@@ -107,35 +125,36 @@ class TracingServerInterceptor(AsyncServerInterceptor):
                 record_exception=False,
                 set_status_on_exception=False,
             ) as span:
-                try:
-                    response = await method(request_or_iterator, context)
-                except grpc.aio.AbortError:
+                with bind_server_span(span, self._tracer_provider):
+                    try:
+                        response = await method(request_or_iterator, context)
+                    except grpc.aio.AbortError:
+                        _record_grpc_status(
+                            span,
+                            context.code() or grpc.StatusCode.UNKNOWN,
+                            context.details(),
+                        )
+                        raise
+                    except asyncio.CancelledError:
+                        if span.is_recording():
+                            span.set_attribute(
+                                _RPC_GRPC_STATUS_CODE,
+                                grpc.StatusCode.CANCELLED.value[0],
+                            )
+                        raise
+                    except Exception as exception:
+                        status_code = context.code() or grpc.StatusCode.UNKNOWN
+                        if span.is_recording():
+                            span.record_exception(exception)
+                            span.set_attribute(_RPC_GRPC_STATUS_CODE, status_code.value[0])
+                            span.set_status(Status(StatusCode.ERROR, str(exception)))
+                        raise
                     _record_grpc_status(
                         span,
-                        context.code() or grpc.StatusCode.UNKNOWN,
+                        context.code() or grpc.StatusCode.OK,
                         context.details(),
                     )
-                    raise
-                except asyncio.CancelledError:
-                    if span.is_recording():
-                        span.set_attribute(
-                            _RPC_GRPC_STATUS_CODE,
-                            grpc.StatusCode.CANCELLED.value[0],
-                        )
-                    raise
-                except Exception as exception:
-                    status_code = context.code() or grpc.StatusCode.UNKNOWN
-                    if span.is_recording():
-                        span.record_exception(exception)
-                        span.set_attribute(_RPC_GRPC_STATUS_CODE, status_code.value[0])
-                        span.set_status(Status(StatusCode.ERROR, str(exception)))
-                    raise
-                _record_grpc_status(
-                    span,
-                    context.code() or grpc.StatusCode.OK,
-                    context.details(),
-                )
-                return response
+                    return response
         finally:
             otel_context.detach(token)
 

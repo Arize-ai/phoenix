@@ -5,6 +5,7 @@ import atexit
 import logging
 import os
 from argparse import SUPPRESS, ArgumentParser, Namespace
+from contextlib import ExitStack
 from dataclasses import replace
 from functools import partial
 from pathlib import Path
@@ -19,6 +20,7 @@ if TYPE_CHECKING:
 
     from opentelemetry.trace import TracerProvider
 
+from sqlalchemy.ext.asyncio import AsyncEngine
 from uvicorn import Config, Server
 from uvicorn.config import LOGGING_CONFIG
 
@@ -54,7 +56,6 @@ from phoenix.config import (
     get_pids_path,
     is_unspecified_host,
     local_url_host,
-    server_instrumentation_is_enabled,
     server_log_export_is_enabled,
     url_host,
 )
@@ -71,8 +72,9 @@ from phoenix.server.app import (
 from phoenix.server.cli.boot_message import AssistantConfig, BootMessage
 from phoenix.server.daemons.system_settings import SystemSettings
 from phoenix.server.email.sender import email_sender_from_env
+from phoenix.server.lifecycle import Cleanup, run_cleanup_sync
 from phoenix.server.telemetry import (
-    initialize_opentelemetry_tracer_provider,
+    ServerTelemetry,
     instrument_sqlalchemy_engine,
 )
 from phoenix.server.types import DbSessionFactory
@@ -270,160 +272,160 @@ def run(args: Namespace) -> None:
         start_prometheus(host)
 
     read_replica_connection_str = get_env_read_replica_url()
-    tracer_provider = (
-        initialize_opentelemetry_tracer_provider() if server_instrumentation_is_enabled() else None
-    )
-    factory, shutdown_callbacks = _create_db_session_factory(
-        db_connection_str=db_connection_str,
-        tracer_provider=tracer_provider,
-        read_replica_connection_str=read_replica_connection_str,
-        migrate=not Settings.disable_migrations,
-        log_to_stdout=get_env_log_sql(),
-        log_migrations=Settings.log_migrations,
-    )
-
-    if tracer_provider is not None:
-        shutdown_callbacks.append(partial(asyncio.to_thread, tracer_provider.shutdown))
-
-    allowed_origins = get_env_allowed_origins()
-    management_url = get_env_management_url()
-
-    tls_enabled_for_http = get_env_tls_enabled_for_http()
-    tls_enabled_for_grpc = get_env_tls_enabled_for_grpc()
-    tls_config = get_env_tls_config()
-    tls_verify_client = tls_config is not None and isinstance(tls_config, TLSConfigVerifyClient)
-
-    http_scheme = "https" if tls_enabled_for_http else "http"
-    grpc_scheme = "https" if tls_enabled_for_grpc else "http"
-    display_host = "localhost" if is_unspecified_host(host) else url_host(host)
-    root_path = urljoin(f"{http_scheme}://{local_host}:{port}", host_root_path)
-    display_root_path = urljoin(f"{http_scheme}://{display_host}:{port}", host_root_path)
-    oauth2_client_configs = get_env_oauth2_settings()
-    smtp_hostname = get_env_smtp_hostname()
-    agent_assistant_enabled = not get_env_disable_agent_assistant()
-    # Read eagerly so a malformed PHOENIX_AGENTS_* value fails here, before any
-    # migrations run or ports are bound, rather than when the banner renders.
-    agents_env = AgentsEnvConfig.from_env()
-    # Dev tooling ports set by the frontend dev scripts (e.g. `pnpm dev:server`)
-    vite_port = os.getenv("VITE_PORT") or (str(args.dev_vite_port) if args.dev else None)
-    debugpy_port = os.getenv("DEBUGPY_PORT")
-    boot_message = BootMessage(
-        version=phoenix_version,
-        ui_url=display_root_path,
-        rest_api_url=_join_url_path(display_root_path, "v1"),
-        graphql_url=_join_url_path(display_root_path, "graphql"),
-        mcp_url=(
-            _join_url_path(display_root_path, _MCP_MOUNT_PATH)
-            if get_env_enable_mcp_server()
-            else None
-        ),
-        read_only=read_only,
-        otlp_grpc_url=f"{grpc_scheme}://{display_host}:{grpc_port}",
-        otlp_http_url=_join_url_path(display_root_path, "v1/traces"),
-        database=get_printable_db_url(db_connection_str),
-        database_schema=get_env_database_schema(),
-        read_replica=(
-            get_printable_db_url(read_replica_connection_str)
-            if read_replica_connection_str
-            else None
-        ),
-        storage_capacity_gibibytes=get_env_database_allocated_storage_capacity_gibibytes(),
-        retention_policy_days=get_env_default_retention_policy_days(),
-        auth_enabled=auth_settings.enable_auth,
-        basic_auth_disabled=auth_settings.disable_basic_auth,
-        oauth2_idp_names=[config.idp_display_name for config in oauth2_client_configs],
-        ldap_enabled=auth_settings.ldap_config is not None,
-        tls_enabled_for_http=tls_enabled_for_http,
-        tls_enabled_for_grpc=tls_enabled_for_grpc,
-        tls_verify_client=tls_verify_client,
-        allowed_origins=allowed_origins,
-        sandbox_providers=_get_sandbox_provider_statuses(),
-        agent_assistant_enabled=agent_assistant_enabled,
-        docs_mcp_url=(
-            MintlifyDocsMCPServer.URL
-            if agent_assistant_enabled and get_env_allow_external_resources()
-            else None
-        ),
-        prometheus_enabled=bool(enable_prometheus),
-        otlp_log_export_enabled=server_log_export_is_enabled(),
-        smtp_hostname=smtp_hostname,
-        telemetry_enabled=get_env_telemetry_enabled(),
-        skills_paths=[str(path) for path in get_env_skills_paths()],
-        dev_mode=args.dev,
-        debug_logging=args.debug,
-        dev_vite_url=f"http://localhost:{vite_port}" if vite_port else None,
-        debugpy_url=f"localhost:{debugpy_port}" if debugpy_port else None,
-    )
-
-    scaffolder_config = ScaffolderConfig(
-        db=factory,
-        tracing_fixture_names=tracing_fixture_names,
-        force_fixture_ingestion=force_fixture_ingestion,
-        scaffold_datasets=scaffold_datasets,
-        phoenix_url=root_path,
-    )
-
-    email_sender = email_sender_from_env()
-
-    if args.debug:
-        phoenix_logger = logging.getLogger("phoenix")
-        phoenix_logger.setLevel(logging.DEBUG)
-        handler = logging.StreamHandler()
-        handler.setFormatter(
-            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    with ServerTelemetry.from_env() as server_telemetry, ExitStack() as database_cleanup:
+        factory, shutdown_callbacks = _create_db_session_factory(
+            db_connection_str=db_connection_str,
+            tracer_provider=server_telemetry.tracer_provider,
+            read_replica_connection_str=read_replica_connection_str,
+            migrate=not Settings.disable_migrations,
+            log_to_stdout=get_env_log_sql(),
+            log_migrations=Settings.log_migrations,
         )
-        phoenix_logger.addHandler(handler)
+        cleanups = [Cleanup(callback) for callback in shutdown_callbacks]
+        for cleanup in reversed(cleanups):
+            database_cleanup.callback(cleanup.close)
+        shutdown_callbacks = list(cleanups)
+        shutdown_callbacks.append(partial(asyncio.to_thread, server_telemetry.close))
 
-    app = create_app(
-        tracer_provider=tracer_provider,
-        db=factory,
-        authentication_enabled=auth_settings.enable_auth,
-        debug=args.debug,
-        dev=args.dev,
-        dev_vite_port=args.dev_vite_port,
-        serve_ui=not args.no_ui,
-        read_only=read_only,
-        grpc_port=grpc_port,
-        grpc_host=host,
-        enable_prometheus=enable_prometheus,
-        initial_spans=fixture_spans,
-        initial_annotation_precursors=fixture_annotation_precursors,
-        welcome_message=partial(_render_boot_message, boot_message, agents_env),
-        shutdown_callbacks=shutdown_callbacks,
-        scaffolder_config=scaffolder_config,
-        email_sender=email_sender,
-        allowed_origins=allowed_origins,
-        management_url=management_url,
-        **app_auth_kwargs(auth_settings),
-    )
+        allowed_origins = get_env_allowed_origins()
+        management_url = get_env_management_url()
 
-    server_config = Config(
-        app=app,
-        # uvicorn binds IPv4 and IPv6 separately for None, which :: alone does not do.
-        host=None if host == "::" else host,  # type: ignore[arg-type]
-        port=port,
-        root_path=host_root_path,
-        log_level=Settings.logging_level,
-        log_config=None if Settings.logging_mode is LoggingMode.STRUCTURED else LOGGING_CONFIG,
-    )
+        tls_enabled_for_http = get_env_tls_enabled_for_http()
+        tls_enabled_for_grpc = get_env_tls_enabled_for_grpc()
+        tls_config = get_env_tls_config()
+        tls_verify_client = tls_config is not None and isinstance(tls_config, TLSConfigVerifyClient)
 
-    if tls_enabled_for_http:
-        assert tls_config
-        server_config.ssl_keyfile = str(tls_config.key_file)
-        server_config.ssl_keyfile_password = tls_config.key_file_password
-        server_config.ssl_certfile = str(tls_config.cert_file)
+        http_scheme = "https" if tls_enabled_for_http else "http"
+        grpc_scheme = "https" if tls_enabled_for_grpc else "http"
+        display_host = "localhost" if is_unspecified_host(host) else url_host(host)
+        root_path = urljoin(f"{http_scheme}://{local_host}:{port}", host_root_path)
+        display_root_path = urljoin(f"{http_scheme}://{display_host}:{port}", host_root_path)
+        oauth2_client_configs = get_env_oauth2_settings()
+        smtp_hostname = get_env_smtp_hostname()
+        agent_assistant_enabled = not get_env_disable_agent_assistant()
+        # Read eagerly so a malformed PHOENIX_AGENTS_* value fails here, before any
+        # migrations run or ports are bound, rather than when the banner renders.
+        agents_env = AgentsEnvConfig.from_env()
+        # Dev tooling ports set by the frontend dev scripts (e.g. `pnpm dev:server`)
+        vite_port = os.getenv("VITE_PORT") or (str(args.dev_vite_port) if args.dev else None)
+        debugpy_port = os.getenv("DEBUGPY_PORT")
+        boot_message = BootMessage(
+            version=phoenix_version,
+            ui_url=display_root_path,
+            rest_api_url=_join_url_path(display_root_path, "v1"),
+            graphql_url=_join_url_path(display_root_path, "graphql"),
+            mcp_url=(
+                _join_url_path(display_root_path, _MCP_MOUNT_PATH)
+                if get_env_enable_mcp_server()
+                else None
+            ),
+            read_only=read_only,
+            otlp_grpc_url=f"{grpc_scheme}://{display_host}:{grpc_port}",
+            otlp_http_url=_join_url_path(display_root_path, "v1/traces"),
+            database=get_printable_db_url(db_connection_str),
+            database_schema=get_env_database_schema(),
+            read_replica=(
+                get_printable_db_url(read_replica_connection_str)
+                if read_replica_connection_str
+                else None
+            ),
+            storage_capacity_gibibytes=get_env_database_allocated_storage_capacity_gibibytes(),
+            retention_policy_days=get_env_default_retention_policy_days(),
+            auth_enabled=auth_settings.enable_auth,
+            basic_auth_disabled=auth_settings.disable_basic_auth,
+            oauth2_idp_names=[config.idp_display_name for config in oauth2_client_configs],
+            ldap_enabled=auth_settings.ldap_config is not None,
+            tls_enabled_for_http=tls_enabled_for_http,
+            tls_enabled_for_grpc=tls_enabled_for_grpc,
+            tls_verify_client=tls_verify_client,
+            allowed_origins=allowed_origins,
+            sandbox_providers=_get_sandbox_provider_statuses(),
+            agent_assistant_enabled=agent_assistant_enabled,
+            docs_mcp_url=(
+                MintlifyDocsMCPServer.URL
+                if agent_assistant_enabled and get_env_allow_external_resources()
+                else None
+            ),
+            prometheus_enabled=bool(enable_prometheus),
+            otlp_log_export_enabled=server_log_export_is_enabled(),
+            smtp_hostname=smtp_hostname,
+            telemetry_enabled=get_env_telemetry_enabled(),
+            skills_paths=[str(path) for path in get_env_skills_paths()],
+            dev_mode=args.dev,
+            debug_logging=args.debug,
+            dev_vite_url=f"http://localhost:{vite_port}" if vite_port else None,
+            debugpy_url=f"localhost:{debugpy_port}" if debugpy_port else None,
+        )
 
-        if isinstance(tls_config, TLSConfigVerifyClient):
-            server_config.ssl_ca_certs = str(tls_config.ca_file)
-            server_config.ssl_cert_reqs = CERT_REQUIRED
+        scaffolder_config = ScaffolderConfig(
+            db=factory,
+            tracing_fixture_names=tracing_fixture_names,
+            force_fixture_ingestion=force_fixture_ingestion,
+            scaffold_datasets=scaffold_datasets,
+            phoenix_url=root_path,
+        )
 
-    server = Server(config=server_config)
-    Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
+        email_sender = email_sender_from_env()
 
-    try:
-        server.run()
-    except KeyboardInterrupt:
-        pass  # don't bother the user with a stack trace on Ctrl-C
+        if args.debug:
+            phoenix_logger = logging.getLogger("phoenix")
+            phoenix_logger.setLevel(logging.DEBUG)
+            handler = logging.StreamHandler()
+            handler.setFormatter(
+                logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+            )
+            phoenix_logger.addHandler(handler)
+
+        app = create_app(
+            server_telemetry=server_telemetry,
+            db=factory,
+            authentication_enabled=auth_settings.enable_auth,
+            debug=args.debug,
+            dev=args.dev,
+            dev_vite_port=args.dev_vite_port,
+            serve_ui=not args.no_ui,
+            read_only=read_only,
+            grpc_port=grpc_port,
+            grpc_host=host,
+            enable_prometheus=enable_prometheus,
+            initial_spans=fixture_spans,
+            initial_annotation_precursors=fixture_annotation_precursors,
+            welcome_message=partial(_render_boot_message, boot_message, agents_env),
+            shutdown_callbacks=shutdown_callbacks,
+            scaffolder_config=scaffolder_config,
+            email_sender=email_sender,
+            allowed_origins=allowed_origins,
+            management_url=management_url,
+            **app_auth_kwargs(auth_settings),
+        )
+
+        server_config = Config(
+            app=app,
+            # uvicorn binds IPv4 and IPv6 separately for None, which :: alone does not do.
+            host=None if host == "::" else host,  # type: ignore[arg-type]
+            port=port,
+            root_path=host_root_path,
+            log_level=Settings.logging_level,
+            log_config=None if Settings.logging_mode is LoggingMode.STRUCTURED else LOGGING_CONFIG,
+        )
+
+        if tls_enabled_for_http:
+            assert tls_config
+            server_config.ssl_keyfile = str(tls_config.key_file)
+            server_config.ssl_keyfile_password = tls_config.key_file_password
+            server_config.ssl_certfile = str(tls_config.cert_file)
+
+            if isinstance(tls_config, TLSConfigVerifyClient):
+                server_config.ssl_ca_certs = str(tls_config.ca_file)
+                server_config.ssl_cert_reqs = CERT_REQUIRED
+
+        server = Server(config=server_config)
+        Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
+
+        try:
+            server.run()
+        except KeyboardInterrupt:
+            pass  # don't bother the user with a stack trace on Ctrl-C
 
 
 def _resolve_grpc_port(args: Namespace) -> int:
@@ -439,66 +441,69 @@ def _create_db_session_factory(
     log_migrations: bool,
     tracer_provider: Optional["TracerProvider"] = None,
 ) -> tuple[DbSessionFactory, list[Callable[[], None | Awaitable[None]]]]:
-    primary_engine = create_engine(
-        connection_str=db_connection_str,
-        migrate=migrate,
-        log_to_stdout=log_to_stdout,
-        log_migrations=log_migrations,
-    )
     shutdown_callbacks: list[Callable[[], None | Awaitable[None]]] = []
-    if tracer_provider is not None:
-        shutdown_callbacks.append(
-            instrument_sqlalchemy_engine(primary_engine, tracer_provider=tracer_provider)
-        )
-    shutdown_callbacks.append(primary_engine.dispose)
 
-    read_db = None
-    if primary_engine.dialect.name == "sqlite":
-        # Lets reads run concurrently instead of queueing behind the writer's
-        # single connection; None for in-memory. See aio_sqlite_read_engine.
-        sqlite_read_engine = aio_sqlite_read_engine(
-            get_async_db_url(db_connection_str), log_to_stdout=log_to_stdout
-        )
-        if sqlite_read_engine is not None:
-            if tracer_provider is not None:
-                shutdown_callbacks.append(
-                    instrument_sqlalchemy_engine(
-                        sqlite_read_engine, tracer_provider=tracer_provider
-                    )
-                )
-            shutdown_callbacks.append(sqlite_read_engine.dispose)
-            read_db = _db(sqlite_read_engine)
-            logger.info("Read-only SQLite engine created")
-    if read_replica_connection_str and primary_engine.dialect.name == "postgresql":
-        replica_engine = create_engine(
-            connection_str=read_replica_connection_str,
-            migrate=False,
-            log_to_stdout=log_to_stdout,
-        )
+    def _register_engine(engine: AsyncEngine) -> None:
+        shutdown_callbacks.append(engine.dispose)
         if tracer_provider is not None:
-            shutdown_callbacks.append(
-                instrument_sqlalchemy_engine(replica_engine, tracer_provider=tracer_provider)
+            shutdown_callbacks.insert(
+                len(shutdown_callbacks) - 1,
+                instrument_sqlalchemy_engine(engine, tracer_provider=tracer_provider),
             )
-        shutdown_callbacks.append(replica_engine.dispose)
-        read_db = _db(replica_engine)
-        logger.info(
-            "Read replica engine created for %s",
-            read_replica_connection_str.split("@")[-1],
-        )
-    elif read_replica_connection_str:
-        logger.warning(
-            "PHOENIX_SQL_DATABASE_READ_REPLICA_URL is set but ignored for %s dialect",
-            primary_engine.dialect.name,
-        )
 
-    return (
-        DbSessionFactory(
-            db=_db(primary_engine),
-            read_db=read_db,
-            dialect=primary_engine.dialect.name,
-        ),
-        shutdown_callbacks,
-    )
+    try:
+        primary_engine = create_engine(
+            connection_str=db_connection_str,
+            migrate=migrate,
+            log_to_stdout=log_to_stdout,
+            log_migrations=log_migrations,
+        )
+        _register_engine(primary_engine)
+
+        read_db = None
+        if primary_engine.dialect.name == "sqlite":
+            # Lets reads run concurrently instead of queueing behind the writer's
+            # single connection; None for in-memory. See aio_sqlite_read_engine.
+            sqlite_read_engine = aio_sqlite_read_engine(
+                get_async_db_url(db_connection_str), log_to_stdout=log_to_stdout
+            )
+            if sqlite_read_engine is not None:
+                _register_engine(sqlite_read_engine)
+                read_db = _db(sqlite_read_engine)
+                logger.info("Read-only SQLite engine created")
+        if read_replica_connection_str and primary_engine.dialect.name == "postgresql":
+            replica_engine = create_engine(
+                connection_str=read_replica_connection_str,
+                migrate=False,
+                log_to_stdout=log_to_stdout,
+            )
+            _register_engine(replica_engine)
+            read_db = _db(replica_engine)
+            logger.info(
+                "Read replica engine created for %s",
+                read_replica_connection_str.split("@")[-1],
+            )
+        elif read_replica_connection_str:
+            logger.warning(
+                "PHOENIX_SQL_DATABASE_READ_REPLICA_URL is set but ignored for %s dialect",
+                primary_engine.dialect.name,
+            )
+
+        return (
+            DbSessionFactory(
+                db=_db(primary_engine),
+                read_db=read_db,
+                dialect=primary_engine.dialect.name,
+            ),
+            shutdown_callbacks,
+        )
+    except BaseException:
+        for callback in shutdown_callbacks:
+            try:
+                run_cleanup_sync(callback)
+            except Exception:
+                logger.exception("Error cleaning up engine after failed database setup")
+        raise
 
 
 def _load_trace_fixture_initial_batches(

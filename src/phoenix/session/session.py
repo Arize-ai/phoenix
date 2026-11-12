@@ -6,6 +6,7 @@ import shutil
 import warnings
 from abc import ABC, abstractmethod
 from collections import UserList
+from contextlib import ExitStack
 from enum import Enum
 from functools import partial
 from importlib.util import find_spec
@@ -33,7 +34,6 @@ from phoenix.config import (
     get_env_port,
     get_working_dir,
     is_unspecified_host,
-    server_instrumentation_is_enabled,
     url_host,
 )
 from phoenix.db import get_printable_db_url
@@ -43,10 +43,8 @@ from phoenix.server.app import (
     create_app,
 )
 from phoenix.server.email.sender import email_sender_from_env
-from phoenix.server.telemetry import (
-    initialize_opentelemetry_tracer_provider,
-    instrument_sqlalchemy_engine,
-)
+from phoenix.server.lifecycle import Cleanup
+from phoenix.server.telemetry import ServerTelemetry
 from phoenix.server.thread_server import ThreadServer
 from phoenix.server.types import DbSessionFactory
 from phoenix.services import AppService
@@ -213,61 +211,66 @@ class ThreadSession(Session):
             root_path=root_path,
             notebook_env=notebook_env,
         )
-        auth_settings = get_env_auth_settings(self.host)
-        tracer_provider = (
-            initialize_opentelemetry_tracer_provider()
-            if server_instrumentation_is_enabled()
-            else None
-        )
-        engine = create_engine(
-            connection_str=database_url,
-            migrate=not Settings.disable_migrations,
-            log_to_stdout=get_env_log_sql(),
-            log_migrations=self.notebook_env is None,
-        )
-        shutdown_callbacks: list[Callable[[], None | Awaitable[None]]] = []
-        if tracer_provider is not None:
-            shutdown_callbacks.append(
-                instrument_sqlalchemy_engine(engine, tracer_provider=tracer_provider)
+        self._exit_stack = ExitStack()
+        self._exit_stack.callback(self.temp_dir.cleanup)
+        try:
+            auth_settings = get_env_auth_settings(self.host)
+            server_telemetry = self._exit_stack.enter_context(ServerTelemetry.from_env())
+            engine = create_engine(
+                connection_str=database_url,
+                migrate=not Settings.disable_migrations,
+                log_to_stdout=get_env_log_sql(),
+                log_migrations=self.notebook_env is None,
             )
-        shutdown_callbacks.append(engine.dispose)
-        if tracer_provider is not None:
-            shutdown_callbacks.append(partial(asyncio.to_thread, tracer_provider.shutdown))
-        factory = DbSessionFactory(
-            db=_db(engine),
-            dialect=engine.dialect.name,
-        )
-        self.app = create_app(
-            tracer_provider=tracer_provider,
-            db=factory,
-            authentication_enabled=auth_settings.enable_auth,
-            grpc_host=self.host,
-            initial_spans=trace_dataset.to_spans() if trace_dataset else None,
-            initial_annotation_precursors=(
-                [p for e in trace_dataset.evaluations for p in evaluations_to_precursors(e)]
-                if trace_dataset is not None and trace_dataset.evaluations
-                else None
-            ),
-            shutdown_callbacks=shutdown_callbacks,
-            email_sender=email_sender_from_env(),
-            **app_auth_kwargs(auth_settings),
-        )
-        self.server = ThreadServer(
-            app=self.app,
-            host=self.host,
-            port=self.port,
-            root_path=self.root_path,
-        ).run_in_thread()
-        # start the server
-        self.server_thread = next(self.server)
+            dispose_engine = Cleanup(engine.dispose)
+            self._exit_stack.callback(dispose_engine.close)
+            uninstrument = server_telemetry.instrument_engine(engine)
+            self._exit_stack.callback(uninstrument)
+            shutdown_callbacks: list[Callable[[], None | Awaitable[None]]] = [
+                uninstrument,
+                dispose_engine,
+                partial(asyncio.to_thread, server_telemetry.close),
+            ]
+            factory = DbSessionFactory(
+                db=_db(engine),
+                dialect=engine.dialect.name,
+            )
+            self.app = create_app(
+                server_telemetry=server_telemetry,
+                db=factory,
+                authentication_enabled=auth_settings.enable_auth,
+                grpc_host=self.host,
+                initial_spans=trace_dataset.to_spans() if trace_dataset else None,
+                initial_annotation_precursors=(
+                    [p for e in trace_dataset.evaluations for p in evaluations_to_precursors(e)]
+                    if trace_dataset is not None and trace_dataset.evaluations
+                    else None
+                ),
+                shutdown_callbacks=shutdown_callbacks,
+                email_sender=email_sender_from_env(),
+                **app_auth_kwargs(auth_settings),
+            )
+            self.server = ThreadServer(
+                app=self.app,
+                host=self.host,
+                port=self.port,
+                root_path=self.root_path,
+            ).run_in_thread()
+            # start the server
+            self.server_thread = next(self.server)
+        except BaseException:
+            self._exit_stack.close()
+            raise
 
     @property
     def active(self) -> bool:
         return self.server_thread.is_alive()
 
     def end(self) -> None:
-        self.server.close()
-        self.temp_dir.cleanup()
+        try:
+            self.server.close()
+        finally:
+            self._exit_stack.close()
 
 
 def delete_all(prompt_before_delete: Optional[bool] = True) -> None:
