@@ -26,10 +26,19 @@ import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
 import type { Instrumentation } from "@opentelemetry/instrumentation";
 import { registerInstrumentations } from "@opentelemetry/instrumentation";
 import { resourceFromAttributes } from "@opentelemetry/resources";
-import type { SpanProcessor } from "@opentelemetry/sdk-trace";
+import type {
+  Sampler,
+  SpanLimits,
+  SpanProcessor,
+} from "@opentelemetry/sdk-trace";
 import { TracerProvider as SdkTracerProvider } from "@opentelemetry/sdk-trace";
 
 import { getEnvConfig, getEnvProjectName } from "./config";
+import {
+  IGNORED_BSP_ENV_VARS,
+  IGNORED_SPAN_LIMIT_ENV_VARS,
+  warnAboutIgnoredOtelEnvVars,
+} from "./ignoredOtelEnvVars";
 import { LazyOpenInferenceSpanProcessor } from "./lazyOpenInferenceSpanProcessor";
 
 /**
@@ -150,6 +159,34 @@ export type RegisterParams = {
    * ```
    */
   spanProcessors?: SpanProcessor[];
+
+  /**
+   * The sampler that decides which spans are recorded and exported.
+   *
+   * OpenTelemetry JS 3 does not read `OTEL_TRACES_SAMPLER` or
+   * `OTEL_TRACES_SAMPLER_ARG`, so set sampling here.
+   *
+   * @default ParentBasedSampler({ root: AlwaysOnSampler })
+   * @example
+   * ```typescript
+   * import { ParentBasedSampler, TraceIdRatioBasedSampler, register } from "@arizeai/phoenix-otel";
+   *
+   * register({
+   *   sampler: new ParentBasedSampler({ root: new TraceIdRatioBasedSampler(0.1) }),
+   * });
+   * ```
+   */
+  sampler?: Sampler;
+
+  /**
+   * Limits on span attributes, events and links.
+   *
+   * OpenTelemetry JS 3 does not read the `OTEL_SPAN_*` or `OTEL_ATTRIBUTE_*`
+   * limit variables, so set limits here.
+   *
+   * @example { attributeValueLengthLimit: 4096, attributeCountLimit: 256 }
+   */
+  spanLimits?: SpanLimits;
 
   /**
    * Whether to register the tracer provider as the global provider.
@@ -383,6 +420,37 @@ function bindGlobalTracerProviderRegistrationToShutdown({
 }
 
 /**
+ * Warns once per variable about `OTEL_*` variables that OpenTelemetry JS 2.x
+ * applied to this call's provider and JS 3 ignores. A variable is skipped
+ * when the call configures the same setting in code.
+ */
+function warnAboutIgnoredOtelEnvVarsForRegister(params: RegisterParams): void {
+  if (params.sampler === undefined) {
+    warnAboutIgnoredOtelEnvVars(
+      ["OTEL_TRACES_SAMPLER", "OTEL_TRACES_SAMPLER_ARG"],
+      "the `sampler` option of register()"
+    );
+  }
+  warnAboutIgnoredOtelEnvVars(
+    IGNORED_SPAN_LIMIT_ENV_VARS.filter(
+      ([, field]) => params.spanLimits?.[field] === undefined
+    ).map(([key]) => key),
+    "the `spanLimits` option of register()"
+  );
+  // Custom span processors are covered by the BatchSpanProcessor subclass,
+  // which knows which batch options were left out. The default simple
+  // processor (batch: false) never read OTEL_BSP_*.
+  if (params.spanProcessors === undefined && params.batch !== false) {
+    warnAboutIgnoredOtelEnvVars(
+      IGNORED_BSP_ENV_VARS.map(([key]) => key),
+      "a `BatchSpanProcessor` with options in the `spanProcessors` option of register()"
+    );
+  }
+}
+
+export { resetIgnoredOtelEnvVarWarningsForTesting } from "./ignoredOtelEnvVars";
+
+/**
  * Registers Phoenix OpenTelemetry tracing with the specified configuration.
  *
  * This function sets up a complete OpenTelemetry tracing pipeline configured
@@ -473,16 +541,22 @@ export function register(params: RegisterParams): SdkTracerProvider {
     global = true,
     diagLogLevel,
     spanProcessors,
+    sampler,
+    spanLimits,
   } = params;
 
   if (diagLogLevel) {
     diag.setLogger(new DiagConsoleLogger(), diagLogLevel);
   }
 
+  warnAboutIgnoredOtelEnvVarsForRegister(params);
+
   const provider = new SdkTracerProvider({
     resource: resourceFromAttributes({
       [SEMRESATTRS_PROJECT_NAME]: projectName,
     }),
+    sampler,
+    spanLimits,
     spanProcessors: spanProcessors || [getDefaultSpanProcessor(params)],
   });
 
