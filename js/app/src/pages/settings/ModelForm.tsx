@@ -271,6 +271,18 @@ export function ModelForm({
 
   const selectedModelType = useWatch({ control, name: "modelType" });
   const tokenTypeOptions = TOKEN_TYPE_OPTIONS_BY_MODEL_TYPE[selectedModelType];
+  const promptCosts = useWatch({ control, name: "promptCosts" });
+  // Embedding spans are priced on their input token count alone, so any other
+  // prompt price (e.g. cache_read left over from an LLM clone) never applies.
+  // The rows are kept, since token types are free-form, but flagged.
+  const unusedPromptTokenTypes =
+    selectedModelType === "EMBEDDING"
+      ? promptCosts
+          .map((cost) => cost.tokenType.trim())
+          .filter(
+            (tokenType) => tokenType && tokenType.toLowerCase() !== "input"
+          )
+      : [];
 
   return (
     <Form
@@ -447,6 +459,14 @@ export function ModelForm({
             onRemove={removePromptCost}
             appendKind="PROMPT"
           />
+          {unusedPromptTokenTypes.length > 0 && (
+            <Text color="warning">
+              Embedding spans are priced on input tokens only, so the{" "}
+              {unusedPromptTokenTypes.join(", ")}{" "}
+              {unusedPromptTokenTypes.length === 1 ? "price" : "prices"} will
+              not be used.
+            </Text>
+          )}
 
           {selectedModelType !== "EMBEDDING" && (
             <ModelTokenCostControlTable

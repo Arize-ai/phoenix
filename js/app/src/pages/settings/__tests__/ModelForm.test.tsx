@@ -242,6 +242,33 @@ describe("ModelForm", () => {
     expect(onSubmit.mock.calls[0][0].completionCosts).toEqual([]);
   });
 
+  it("flags, but keeps, prompt prices an embedding model never uses", async () => {
+    const unusedHint = /will not be used/;
+    await addPromptRow();
+    await replaceText(promptRowTokenTypeInput(1), "cache_read");
+    await selectModelType("LLM", "Embedding");
+
+    expect(container.textContent).toMatch(unusedHint);
+    expect(container.textContent).toContain("so the cache_read price will");
+    expect(promptRows()).toHaveLength(2);
+
+    await selectModelType("Embedding", "LLM");
+    expect(container.textContent).not.toMatch(unusedHint);
+    expect(promptRowTokenTypeInput(1).value).toBe("cache_read");
+
+    await selectModelType("LLM", "Embedding");
+    await submit();
+    expect(
+      onSubmit.mock.calls[0][0].promptCosts.map((cost) => cost.tokenType)
+    ).toEqual(["input", "cache_read"]);
+  });
+
+  it("does not flag an embedding model priced on input alone", async () => {
+    await selectModelType("LLM", "Embedding");
+
+    expect(container.textContent).not.toMatch(/will not be used/);
+  });
+
   it("keeps the type of a model it is given", async () => {
     await renderForm({
       modelType: "DECISION",
