@@ -187,26 +187,46 @@ def _node_id(global_id: GlobalID, expected_type_name: str, noun: str) -> int:
 
 
 @strawberry.input
-class EvaluatorPreviewsInput:
-    """Input for the evaluatorPreviews mutation."""
+class EvaluatorPreviewSubjectInput:
+    """One record to run the previewed evaluator on."""
 
-    previews: list["EvaluatorPreviewItemInput"]
-    credentials: Optional[list[GenerativeCredentialInput]] = UNSET
+    key: str = strawberry.field(
+        description=(
+            "Chosen by the caller and echoed on the subject's result; unique per request. "
+            "Not an id, so a client cache that normalizes by id leaves the subject alone."
+        )
+    )
+    context: Redacted[JSON]
+
+
+# Subjects one preview request may carry. Every subject's context is held in memory
+# and gets a task for the whole request, so this bounds one request's footprint. The
+# bench sends its loaded records in requests of at most this many; the harbor
+# hill-climb verifier sends 5.
+MAX_EVALUATOR_PREVIEW_SUBJECTS = 100
 
 
 @strawberry.input
-class EvaluatorPreviewItemInput:
-    """A single evaluator preview request with one or more contexts."""
+class EvaluatorPreviewInput:
+    """Input for the evaluatorPreview subscription: one evaluator, many subjects."""
 
-    evaluator: Optional[EvaluatorDefinitionInput] = None
-    context: Redacted[JSON]
-    input_mapping: EvaluatorInputMappingInput
+    evaluator: Optional[EvaluatorDefinitionInput] = strawberry.field(
+        default=None,
+        description="The evaluator to run. Optional only when datasetEvaluatorId names one.",
+    )
     dataset_evaluator_id: Optional[GlobalID] = strawberry.field(
         default=None,
         description=(
             "Preview a saved decision judge as this dataset evaluator binding: it runs under "
             "the binding's name and provenance, using the evaluator's scoring policy. "
             "Omit to preview the judge on its own, under its own name and policy."
+        ),
+    )
+    input_mapping: EvaluatorInputMappingInput
+    subjects: list[EvaluatorPreviewSubjectInput] = strawberry.field(
+        description=(
+            "The records to evaluate, each under its own key. A request takes at most "
+            f"{MAX_EVALUATOR_PREVIEW_SUBJECTS}; split larger sets across requests."
         ),
     )
     apply_online_evaluation_limits: bool = strawberry.field(
@@ -220,3 +240,4 @@ class EvaluatorPreviewItemInput:
             "configuration, never from this request."
         ),
     )
+    credentials: Optional[list[GenerativeCredentialInput]] = UNSET
