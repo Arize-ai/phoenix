@@ -108,6 +108,36 @@ def is_expected_error(error: BaseException) -> bool:
     return _find_custom_error(error) is not None
 
 
+def mask_error(error: GraphQLError) -> GraphQLError:
+    """Return the error as the client sees it; see `PhoenixErrorMasker`."""
+    inner = _find_custom_error(error)
+    if inner is not None:
+        return GraphQLError(
+            message=str(inner),
+            nodes=error.nodes,
+            source=error.source,
+            positions=error.positions,
+            path=error.path,
+            original_error=None,
+        )
+    # Only mask errors that bubbled up from an uncaught exception inside a
+    # resolver. Validation/syntax errors (missing fields, malformed queries)
+    # are produced during the parse/validate phase, have no original_error,
+    # and should pass through to the client unmasked.
+    if error.original_error is None:
+        return error
+    if not get_env_mask_internal_server_errors():
+        return error
+    return GraphQLError(
+        message=_GENERIC_MASK_MESSAGE,
+        nodes=error.nodes,
+        source=error.source,
+        positions=error.positions,
+        path=error.path,
+        original_error=None,
+    )
+
+
 class PhoenixErrorMasker(SchemaExtension):
     """Replace error messages with the inner safe public error's message
     (a CustomGraphQLError or one of the filter-condition errors) if present;
@@ -120,34 +150,6 @@ class PhoenixErrorMasker(SchemaExtension):
     would otherwise be masked to a generic message under the default config.
     """
 
-    def _rewrite(self, error: GraphQLError) -> GraphQLError:
-        inner = _find_custom_error(error)
-        if inner is not None:
-            return GraphQLError(
-                message=str(inner),
-                nodes=error.nodes,
-                source=error.source,
-                positions=error.positions,
-                path=error.path,
-                original_error=None,
-            )
-        # Only mask errors that bubbled up from an uncaught exception inside a
-        # resolver. Validation/syntax errors (missing fields, malformed queries)
-        # are produced during the parse/validate phase, have no original_error,
-        # and should pass through to the client unmasked.
-        if error.original_error is None:
-            return error
-        if not get_env_mask_internal_server_errors():
-            return error
-        return GraphQLError(
-            message=_GENERIC_MASK_MESSAGE,
-            nodes=error.nodes,
-            source=error.source,
-            positions=error.positions,
-            path=error.path,
-            original_error=None,
-        )
-
     def _process_result(
         self,
         result: Union[
@@ -156,7 +158,7 @@ class PhoenixErrorMasker(SchemaExtension):
     ) -> None:
         if not result.errors:
             return
-        result.errors = [self._rewrite(e) for e in result.errors]
+        result.errors = [mask_error(e) for e in result.errors]
 
     def on_operation(self) -> Iterator[None]:
         yield

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1cde23df23fa571b73995622aa2297bb>>
+ * @generated SignedSource<<9e868ec76768b86cff58156c9577eea1>>
  * @lightSyntaxTransform
  */
 
@@ -877,112 +877,119 @@ return {
                             "storageKey": null
                           },
                           {
-                            "condition": "includeMeanScore",
-                            "kind": "Condition",
-                            "passingValue": true,
+                            "if": null,
+                            "kind": "Defer",
+                            "label": "ProjectEvaluatorsTable_project$defer$ProjectEvaluatorMeanScoreCell_scores_1qAmj3",
                             "selections": [
                               {
-                                "alias": null,
-                                "args": [
-                                  {
-                                    "kind": "Variable",
-                                    "name": "previousTimeRange",
-                                    "variableName": "scorePreviousTimeRange"
-                                  },
-                                  {
-                                    "kind": "Variable",
-                                    "name": "timeBinConfig",
-                                    "variableName": "scoreTimeBinConfig"
-                                  },
-                                  {
-                                    "kind": "Variable",
-                                    "name": "timeRange",
-                                    "variableName": "scoreTimeRange"
-                                  }
-                                ],
-                                "concreteType": "EvaluatorAnnotationScoreMetrics",
-                                "kind": "LinkedField",
-                                "name": "annotationScoreMetrics",
-                                "plural": true,
+                                "condition": "includeMeanScore",
+                                "kind": "Condition",
+                                "passingValue": true,
                                 "selections": [
                                   {
                                     "alias": null,
-                                    "args": null,
-                                    "kind": "ScalarField",
-                                    "name": "annotationName",
-                                    "storageKey": null
-                                  },
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "concreteType": "AnnotationSummary",
-                                    "kind": "LinkedField",
-                                    "name": "summary",
-                                    "plural": false,
-                                    "selections": [
-                                      (v29/*:: as any*/),
-                                      (v30/*:: as any*/),
+                                    "args": [
                                       {
-                                        "alias": null,
-                                        "args": null,
-                                        "kind": "ScalarField",
-                                        "name": "scoreCount",
-                                        "storageKey": null
+                                        "kind": "Variable",
+                                        "name": "previousTimeRange",
+                                        "variableName": "scorePreviousTimeRange"
                                       },
                                       {
-                                        "alias": null,
-                                        "args": null,
-                                        "kind": "ScalarField",
-                                        "name": "labelCount",
-                                        "storageKey": null
+                                        "kind": "Variable",
+                                        "name": "timeBinConfig",
+                                        "variableName": "scoreTimeBinConfig"
                                       },
-                                      (v31/*:: as any*/)
+                                      {
+                                        "kind": "Variable",
+                                        "name": "timeRange",
+                                        "variableName": "scoreTimeRange"
+                                      }
                                     ],
-                                    "storageKey": null
-                                  },
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "concreteType": "AnnotationSummary",
+                                    "concreteType": "EvaluatorAnnotationScoreMetrics",
                                     "kind": "LinkedField",
-                                    "name": "previousSummary",
-                                    "plural": false,
-                                    "selections": [
-                                      (v29/*:: as any*/),
-                                      (v31/*:: as any*/)
-                                    ],
-                                    "storageKey": null
-                                  },
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "concreteType": "EvaluatorScoreSeriesBin",
-                                    "kind": "LinkedField",
-                                    "name": "series",
+                                    "name": "annotationScoreMetrics",
                                     "plural": true,
                                     "selections": [
                                       {
                                         "alias": null,
                                         "args": null,
                                         "kind": "ScalarField",
-                                        "name": "timestamp",
+                                        "name": "annotationName",
                                         "storageKey": null
                                       },
-                                      (v29/*:: as any*/),
-                                      (v30/*:: as any*/),
-                                      (v31/*:: as any*/),
                                       {
                                         "alias": null,
                                         "args": null,
-                                        "kind": "ScalarField",
-                                        "name": "resultCount",
+                                        "concreteType": "AnnotationSummary",
+                                        "kind": "LinkedField",
+                                        "name": "summary",
+                                        "plural": false,
+                                        "selections": [
+                                          (v29/*:: as any*/),
+                                          (v30/*:: as any*/),
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "scoreCount",
+                                            "storageKey": null
+                                          },
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "labelCount",
+                                            "storageKey": null
+                                          },
+                                          (v31/*:: as any*/)
+                                        ],
+                                        "storageKey": null
+                                      },
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "concreteType": "AnnotationSummary",
+                                        "kind": "LinkedField",
+                                        "name": "previousSummary",
+                                        "plural": false,
+                                        "selections": [
+                                          (v29/*:: as any*/),
+                                          (v31/*:: as any*/)
+                                        ],
+                                        "storageKey": null
+                                      },
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "concreteType": "EvaluatorScoreSeriesBin",
+                                        "kind": "LinkedField",
+                                        "name": "series",
+                                        "plural": true,
+                                        "selections": [
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "timestamp",
+                                            "storageKey": null
+                                          },
+                                          (v29/*:: as any*/),
+                                          (v30/*:: as any*/),
+                                          (v31/*:: as any*/),
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "resultCount",
+                                            "storageKey": null
+                                          }
+                                        ],
                                         "storageKey": null
                                       }
                                     ],
                                     "storageKey": null
                                   }
-                                ],
-                                "storageKey": null
+                                ]
                               }
                             ]
                           },
@@ -1049,16 +1056,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e8e74230b5f4c0cb6ad189dc11e9b259",
+    "cacheID": "523ce5e57aa3017bf0a2430931a13242",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorsTablePaginationQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorsTablePaginationQuery(\n  $after: String = null\n  $filter: ProjectEvaluatorFilter = null\n  $first: Int = 30\n  $includeMeanScore: Boolean!\n  $scorePreviousTimeRange: TimeRange!\n  $scoreTimeBinConfig: TimeBinConfig!\n  $scoreTimeRange: TimeRange!\n  $timeRange: TimeRange!\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectEvaluatorsTable_project_3PAQ0g\n    id\n  }\n}\n\nfragment ProjectEvaluatorsTable_costs_3E0ZE6 on ProjectEvaluator {\n  traceProject {\n    id\n    traceCount(timeRange: $timeRange)\n    costSummary(timeRange: $timeRange) {\n      total {\n        cost\n      }\n      prompt {\n        cost\n      }\n      completion {\n        cost\n      }\n    }\n  }\n}\n\nfragment ProjectEvaluatorsTable_failures_3E0ZE6 on ProjectEvaluator {\n  failureSummary(timeRange: $timeRange) {\n    failedCount\n    evaluatedCount\n    failureRate\n    lastFailedAt\n    lastError\n  }\n}\n\nfragment ProjectEvaluatorsTable_lag_3E0ZE6 on ProjectEvaluator {\n  lag(timeRange: $timeRange) {\n    p50Seconds\n    p95Seconds\n    p99Seconds\n  }\n}\n\nfragment ProjectEvaluatorsTable_project_3PAQ0g on Project {\n  evaluators(first: $first, after: $after, filter: $filter) {\n    edges {\n      node {\n        ...ProjectEvaluatorsTable_row\n        ...ProjectEvaluatorsTable_costs_3E0ZE6\n        ...ProjectEvaluatorsTable_failures_3E0ZE6\n        ...ProjectEvaluatorsTable_lag_3E0ZE6\n        ...ProjectEvaluatorsTable_scores_1qAmj3\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment ProjectEvaluatorsTable_row on ProjectEvaluator {\n  id\n  name\n  evaluationTarget\n  filterCondition\n  samplingRate\n  enabled\n  updatedAt\n  runSummary {\n    status\n    lastRunAt\n    queuedCount\n    runningCount\n    evaluatedCount\n    failedCount\n    clearedCount\n    oldestWaitingOrRetryingAt\n  }\n  tracingEnabled\n  evaluationLoad {\n    evaluationCount\n    meanEvaluationSeconds\n    shareOfEvaluationTime\n    excludesUntracedEvaluators\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    outputConfigs {\n      __typename\n      ... on AnnotationConfigBase {\n        __isAnnotationConfigBase: __typename\n        name\n        annotationType\n      }\n      ... on CategoricalAnnotationConfig {\n        optimizationDirection\n        values {\n          label\n          score\n        }\n      }\n      ... on ContinuousAnnotationConfig {\n        optimizationDirection\n        lowerBound\n        upperBound\n      }\n      ... on FreeformAnnotationConfig {\n        optimizationDirection\n        threshold\n        lowerBound\n        upperBound\n      }\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on DecisionEvaluator {\n      decisionVersionTag {\n        name\n        id\n      }\n      decisionVersion {\n        id\n        decisionId\n        decision {\n          name\n          id\n        }\n        modelName\n        modelProvider\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment ProjectEvaluatorsTable_scores_1qAmj3 on ProjectEvaluator {\n  annotationScoreMetrics(timeRange: $scoreTimeRange, previousTimeRange: $scorePreviousTimeRange, timeBinConfig: $scoreTimeBinConfig) @include(if: $includeMeanScore) {\n    annotationName\n    summary {\n      meanScore\n      count\n      scoreCount\n      labelCount\n      labelFractions {\n        label\n        fraction\n      }\n    }\n    previousSummary {\n      meanScore\n      labelFractions {\n        label\n        fraction\n      }\n    }\n    series {\n      timestamp\n      meanScore\n      count\n      labelFractions {\n        label\n        fraction\n      }\n      resultCount\n    }\n  }\n}\n"
+    "text": "query ProjectEvaluatorsTablePaginationQuery(\n  $after: String = null\n  $filter: ProjectEvaluatorFilter = null\n  $first: Int = 30\n  $includeMeanScore: Boolean!\n  $scorePreviousTimeRange: TimeRange!\n  $scoreTimeBinConfig: TimeBinConfig!\n  $scoreTimeRange: TimeRange!\n  $timeRange: TimeRange!\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectEvaluatorsTable_project_3PAQ0g\n    id\n  }\n}\n\nfragment ProjectEvaluatorMeanScoreCell_scores_1qAmj3 on ProjectEvaluator {\n  annotationScoreMetrics(timeRange: $scoreTimeRange, previousTimeRange: $scorePreviousTimeRange, timeBinConfig: $scoreTimeBinConfig) @include(if: $includeMeanScore) {\n    annotationName\n    summary {\n      meanScore\n      count\n      scoreCount\n      labelCount\n      labelFractions {\n        label\n        fraction\n      }\n    }\n    previousSummary {\n      meanScore\n      labelFractions {\n        label\n        fraction\n      }\n    }\n    series {\n      timestamp\n      meanScore\n      count\n      labelFractions {\n        label\n        fraction\n      }\n      resultCount\n    }\n  }\n}\n\nfragment ProjectEvaluatorsTable_costs_3E0ZE6 on ProjectEvaluator {\n  traceProject {\n    id\n    traceCount(timeRange: $timeRange)\n    costSummary(timeRange: $timeRange) {\n      total {\n        cost\n      }\n      prompt {\n        cost\n      }\n      completion {\n        cost\n      }\n    }\n  }\n}\n\nfragment ProjectEvaluatorsTable_failures_3E0ZE6 on ProjectEvaluator {\n  failureSummary(timeRange: $timeRange) {\n    failedCount\n    evaluatedCount\n    failureRate\n    lastFailedAt\n    lastError\n  }\n}\n\nfragment ProjectEvaluatorsTable_lag_3E0ZE6 on ProjectEvaluator {\n  lag(timeRange: $timeRange) {\n    p50Seconds\n    p95Seconds\n    p99Seconds\n  }\n}\n\nfragment ProjectEvaluatorsTable_project_3PAQ0g on Project {\n  evaluators(first: $first, after: $after, filter: $filter) {\n    edges {\n      node {\n        ...ProjectEvaluatorsTable_row\n        ...ProjectEvaluatorsTable_costs_3E0ZE6\n        ...ProjectEvaluatorsTable_failures_3E0ZE6\n        ...ProjectEvaluatorsTable_lag_3E0ZE6\n        ...ProjectEvaluatorMeanScoreCell_scores_1qAmj3 @defer(label: \"ProjectEvaluatorsTable_project$defer$ProjectEvaluatorMeanScoreCell_scores_1qAmj3\")\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment ProjectEvaluatorsTable_row on ProjectEvaluator {\n  id\n  name\n  evaluationTarget\n  filterCondition\n  samplingRate\n  enabled\n  updatedAt\n  runSummary {\n    status\n    lastRunAt\n    queuedCount\n    runningCount\n    evaluatedCount\n    failedCount\n    clearedCount\n    oldestWaitingOrRetryingAt\n  }\n  tracingEnabled\n  evaluationLoad {\n    evaluationCount\n    meanEvaluationSeconds\n    shareOfEvaluationTime\n    excludesUntracedEvaluators\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    outputConfigs {\n      __typename\n      ... on AnnotationConfigBase {\n        __isAnnotationConfigBase: __typename\n        name\n        annotationType\n      }\n      ... on CategoricalAnnotationConfig {\n        optimizationDirection\n        values {\n          label\n          score\n        }\n      }\n      ... on ContinuousAnnotationConfig {\n        optimizationDirection\n        lowerBound\n        upperBound\n      }\n      ... on FreeformAnnotationConfig {\n        optimizationDirection\n        threshold\n        lowerBound\n        upperBound\n      }\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on DecisionEvaluator {\n      decisionVersionTag {\n        name\n        id\n      }\n      decisionVersion {\n        id\n        decisionId\n        decision {\n          name\n          id\n        }\n        modelName\n        modelProvider\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "56407e52c77366e911a9fc84e6869893";
+(node as any).hash = "43527f8116f1c0150a7c7b20a2813a7f";
 
 export default node;
