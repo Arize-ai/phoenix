@@ -513,10 +513,10 @@ erDiagram
         datetime span_start_time
         double total_cost
         double total_tokens
-        double prompt_cost
-        double prompt_tokens
-        double completion_cost
-        double completion_tokens
+        double input_cost
+        double input_tokens
+        double output_cost
+        double output_tokens
     }
 
     SpanCostDetail {

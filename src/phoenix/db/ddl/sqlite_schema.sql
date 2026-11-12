@@ -328,10 +328,10 @@ CREATE TABLE span_costs (
     span_start_time TIMESTAMP NOT NULL,
     total_cost FLOAT,
     total_tokens FLOAT,
-    prompt_cost FLOAT,
-    prompt_tokens FLOAT,
-    completion_cost FLOAT,
-    completion_tokens FLOAT,
+    input_cost FLOAT,
+    input_tokens FLOAT,
+    output_cost FLOAT,
+    output_tokens FLOAT,
     CONSTRAINT pk_span_costs PRIMARY KEY (id),
     CONSTRAINT fk_span_costs_model_id_generative_models
         FOREIGN KEY (model_id)

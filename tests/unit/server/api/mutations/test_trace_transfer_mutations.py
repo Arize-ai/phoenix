@@ -300,10 +300,10 @@ async def trace_transfer_fixture(db: DbSessionFactory) -> dict[str, int]:
                 span_start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
                 total_cost=1.50,
                 total_tokens=100,
-                prompt_cost=1.00,
-                prompt_tokens=80,
-                completion_cost=0.50,
-                completion_tokens=20,
+                input_cost=1.00,
+                input_tokens=80,
+                output_cost=0.50,
+                output_tokens=20,
             )
             .returning(models.SpanCost.id)
         )
@@ -372,10 +372,10 @@ async def trace_transfer_fixture(db: DbSessionFactory) -> dict[str, int]:
                 span_start_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
                 total_cost=2.00,
                 total_tokens=150,
-                prompt_cost=1.50,
-                prompt_tokens=120,
-                completion_cost=0.50,
-                completion_tokens=30,
+                input_cost=1.50,
+                input_tokens=120,
+                output_cost=0.50,
+                output_tokens=30,
             )
             .returning(models.SpanCost.id)
         )

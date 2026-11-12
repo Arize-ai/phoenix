@@ -182,12 +182,17 @@ def _span_cost_binding(member: str) -> str:
 
 # Cost scalars are bound from `span_costs` at evaluation time and are intentionally absent
 # from `_FLOAT_NAMES`, whose columns are also available to `Projector`. Missing values are 0.
-_SPAN_COST_SCALARS: typing.Mapping[str, "FilterValueType"] = MappingProxyType(
+# The filter names predate the generic column names, so each is mapped to its column.
+_SPAN_COST_COLUMNS: typing.Mapping[str, str] = MappingProxyType(
     {
-        "total_cost": "number",
-        "prompt_cost": "number",
-        "completion_cost": "number",
+        "total_cost": "total_cost",
+        "prompt_cost": "input_cost",
+        "completion_cost": "output_cost",
     }
+)
+# Derived from `_SPAN_COST_COLUMNS` so the two can't drift apart. Every cost scalar is a number.
+_SPAN_COST_SCALARS: typing.Mapping[str, "FilterValueType"] = MappingProxyType(
+    {name: "number" for name in _SPAN_COST_COLUMNS}
 )
 _SPAN_COST_DETAILS = "cost_details"
 # Detail fields remain nullable; a missing element value fails every comparison.
@@ -1181,7 +1186,7 @@ def _join_span_cost(
         # An absent cost row and a recorded-but-null column are the same answer to the
         # user's question, so both coalesce.
         bindings[_span_cost_binding(member)] = sqlalchemy.func.coalesce(
-            getattr(span_cost, member), 0
+            getattr(span_cost, _SPAN_COST_COLUMNS[member]), 0
         )
     # The alias is returned so a caller that nests the predicate in a subquery can correlate
     # it, rather than have the relation re-rendered there as a cross join.

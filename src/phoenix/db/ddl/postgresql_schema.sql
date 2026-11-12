@@ -348,10 +348,10 @@ CREATE TABLE public.span_costs (
     span_start_time TIMESTAMP WITH TIME ZONE NOT NULL,
     total_cost DOUBLE PRECISION,
     total_tokens DOUBLE PRECISION,
-    prompt_cost DOUBLE PRECISION,
-    prompt_tokens DOUBLE PRECISION,
-    completion_cost DOUBLE PRECISION,
-    completion_tokens DOUBLE PRECISION,
+    input_cost DOUBLE PRECISION,
+    input_tokens DOUBLE PRECISION,
+    output_cost DOUBLE PRECISION,
+    output_tokens DOUBLE PRECISION,
     CONSTRAINT pk_span_costs PRIMARY KEY (id),
     CONSTRAINT fk_span_costs_model_id_generative_models
         FOREIGN KEY (model_id)

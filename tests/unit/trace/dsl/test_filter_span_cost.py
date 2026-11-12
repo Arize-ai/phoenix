@@ -78,11 +78,11 @@ async def cost_project(db: DbSessionFactory) -> None:
                     trace_rowid=trace_rowid,
                     span_start_time=_TS,
                     total_cost=total_cost,
-                    prompt_cost=prompt_cost,
-                    completion_cost=completion_cost,
+                    input_cost=prompt_cost,
+                    output_cost=completion_cost,
                     total_tokens=total_tokens,
-                    prompt_tokens=total_tokens,
-                    completion_tokens=0.0,
+                    input_tokens=total_tokens,
+                    output_tokens=0.0,
                 )
                 .returning(models.SpanCost.id)
             )
