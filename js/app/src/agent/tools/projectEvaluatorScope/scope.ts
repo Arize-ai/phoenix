@@ -137,10 +137,7 @@ export function applyProjectEvaluatorScopePatch({
         "cannot change. Create a new evaluator to evaluate another target.",
     };
   }
-  if (
-    patch.evaluationDelaySeconds != null &&
-    !hasEvaluationDelay(targetType)
-  ) {
+  if (patch.evaluationDelaySeconds != null && !hasEvaluationDelay(targetType)) {
     return {
       ok: false,
       error:

@@ -15,6 +15,7 @@ import type { Disposable } from "relay-runtime";
 import invariant from "tiny-invariant";
 import { useShallow } from "zustand/react/shallow";
 
+import { summarizeBenchEntry } from "@phoenix/agent/tools/projectEvaluatorBench/bench";
 import {
   Alert,
   Button,
@@ -31,7 +32,6 @@ import {
   Skeleton,
   Text,
 } from "@phoenix/components";
-import { summarizeBenchEntry } from "@phoenix/agent/tools/projectEvaluatorBench/bench";
 import { SelectChevronUpDownIcon } from "@phoenix/components/core/icon";
 import type {
   InlineCodeEvaluatorInput,
@@ -72,7 +72,6 @@ import {
 import { formatEvaluationTargetPlural } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import { ProjectEvaluatorRecordInspector } from "@phoenix/pages/project/evaluators/ProjectEvaluatorRecordInspector";
 import { ProjectEvaluatorRecordTable } from "@phoenix/pages/project/evaluators/ProjectEvaluatorRecordTable";
-import { usePublishProjectEvaluatorBench } from "@phoenix/pages/project/evaluators/useProjectEvaluatorBenchRegistration";
 import {
   formatBulkTestLabel,
   formatRecordedRunSummary,
@@ -88,6 +87,7 @@ import type {
   ProjectEvaluatorRecordKind,
   ProjectEvaluatorTarget,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { usePublishProjectEvaluatorBench } from "@phoenix/pages/project/evaluators/useProjectEvaluatorBenchRegistration";
 import type { EvaluatorStore } from "@phoenix/store/evaluatorStore";
 import type {
   CodeEvaluatorLanguage,

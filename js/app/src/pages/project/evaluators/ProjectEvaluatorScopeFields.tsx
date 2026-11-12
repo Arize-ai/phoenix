@@ -27,6 +27,7 @@ import {
   type ProjectEvaluatorTarget,
   withProjectEvaluatorTarget,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { useProjectEvaluatorScopeRegistration } from "@phoenix/pages/project/evaluators/useProjectEvaluatorScopeRegistration";
 import {
   EMPTY_SESSION_FILTER_VOCABULARY,
   SessionFilterConditionFieldCore,
@@ -43,7 +44,6 @@ import {
   type TraceFilterConditionFieldCoreProps,
   useTraceFilterVocabulary,
 } from "@phoenix/pages/project/TraceFilterConditionField";
-import { useProjectEvaluatorScopeRegistration } from "@phoenix/pages/project/evaluators/useProjectEvaluatorScopeRegistration";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 /** The target, sampling, delay, and filter fields wired to a scope object. */
