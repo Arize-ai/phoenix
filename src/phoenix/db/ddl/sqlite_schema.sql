@@ -838,8 +838,10 @@ CREATE TABLE dataset_evaluators (
     project_id INTEGER NOT NULL,
     created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
     updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+    deleted_at TIMESTAMP,
+    delete_unused_evaluator BOOLEAN DEFAULT 0 NOT NULL,
+    delete_associated_prompt_or_decision BOOLEAN DEFAULT 0 NOT NULL,
     CONSTRAINT pk_dataset_evaluators PRIMARY KEY (id),
-    CONSTRAINT uq_dataset_evaluators_dataset_id_name UNIQUE (dataset_id, name),
     CONSTRAINT fk_dataset_evaluators_dataset_id_datasets
         FOREIGN KEY (dataset_id)
         REFERENCES datasets (id)
@@ -858,6 +860,11 @@ CREATE TABLE dataset_evaluators (
         ON DELETE SET NULL
 );
 
+CREATE UNIQUE INDEX ix_dataset_evaluators_dataset_id_name ON dataset_evaluators
+    (dataset_id, name)
+    WHERE deleted_at IS NULL;
+CREATE INDEX ix_dataset_evaluators_deleted_at ON dataset_evaluators (deleted_at)
+    WHERE deleted_at IS NOT NULL;
 CREATE INDEX ix_dataset_evaluators_evaluator_id ON dataset_evaluators (evaluator_id);
 CREATE INDEX ix_dataset_evaluators_project_id ON dataset_evaluators (project_id);
 CREATE INDEX ix_dataset_evaluators_user_id ON dataset_evaluators (user_id);
@@ -1507,26 +1514,28 @@ CREATE TABLE project_evaluators (
     evaluator_id INTEGER NOT NULL,
     trace_project_id INTEGER NOT NULL,
     name VARCHAR NOT NULL,
-    filter_condition VARCHAR DEFAULT '' NOT NULL,
-    sampling_rate FLOAT NOT NULL
-        CONSTRAINT "ck_project_evaluators_`valid_sampling_rate`"
-        CHECK (0.0 <= sampling_rate AND sampling_rate <= 1.0),
-    evaluation_target VARCHAR NOT NULL
-        CONSTRAINT "ck_project_evaluators_`valid_evaluation_target`"
-        CHECK (evaluation_target IN ('SPAN', 'TRACE', 'SESSION')),
-    evaluation_delay_seconds INTEGER NOT NULL
-        CONSTRAINT "ck_project_evaluators_`valid_evaluation_delay_seconds`"
+    filter_condition VARCHAR DEFAULT ('') NOT NULL,
+    sampling_rate FLOAT NOT NULL,
+    evaluation_target VARCHAR NOT NULL,
+    evaluation_delay_seconds INTEGER NOT NULL,
+    input_mapping JSONB,
+    enabled BOOLEAN DEFAULT (true) NOT NULL,
+    tracing_enabled BOOLEAN DEFAULT (true) NOT NULL,
+    created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+    updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+    deleted_at TIMESTAMP,
+    delete_unused_evaluator BOOLEAN DEFAULT 0 NOT NULL,
+    delete_associated_prompt_or_decision BOOLEAN DEFAULT 0 NOT NULL,
+    CONSTRAINT pk_project_evaluators PRIMARY KEY (id),
+    CONSTRAINT "ck_project_evaluators_`valid_evaluation_delay_seconds`"
         CHECK (
             (evaluation_target = 'SPAN' AND evaluation_delay_seconds = 0)
             OR (evaluation_target <> 'SPAN' AND evaluation_delay_seconds >= 10)
         ),
-    input_mapping JSONB,
-    enabled BOOLEAN DEFAULT true NOT NULL,
-    tracing_enabled BOOLEAN DEFAULT true NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT pk_project_evaluators PRIMARY KEY (id),
-    CONSTRAINT uq_project_evaluators_project_id_name UNIQUE (project_id, name),
+    CONSTRAINT "ck_project_evaluators_`valid_evaluation_target`"
+        CHECK (evaluation_target IN ('SPAN', 'TRACE', 'SESSION')),
+    CONSTRAINT "ck_project_evaluators_`valid_sampling_rate`"
+        CHECK (0.0 <= sampling_rate AND sampling_rate <= 1.0),
     CONSTRAINT fk_project_evaluators_evaluator_id_evaluators
         FOREIGN KEY (evaluator_id)
         REFERENCES evaluators (id)
@@ -1541,8 +1550,13 @@ CREATE TABLE project_evaluators (
         ON DELETE RESTRICT
 );
 
+CREATE INDEX ix_project_evaluators_deleted_at ON project_evaluators (deleted_at)
+    WHERE deleted_at IS NOT NULL;
 CREATE INDEX ix_project_evaluators_evaluator_id ON project_evaluators (evaluator_id);
 CREATE INDEX ix_project_evaluators_project_id ON project_evaluators (project_id);
+CREATE UNIQUE INDEX ix_project_evaluators_project_id_name ON project_evaluators
+    (project_id, name)
+    WHERE deleted_at IS NULL;
 CREATE INDEX ix_project_evaluators_trace_project_id ON project_evaluators
     (trace_project_id);
 

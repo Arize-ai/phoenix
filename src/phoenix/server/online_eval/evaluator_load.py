@@ -80,6 +80,7 @@ async def load_evaluation_loads(
                 )
                 .join(trace, trace.project_rowid == models.ProjectEvaluator.trace_project_id)
                 .where(
+                    models.ProjectEvaluator.deleted_at.is_(None),
                     trace.start_time >= now - EVALUATION_LOAD_WINDOW,
                     trace.start_time < now,
                 )

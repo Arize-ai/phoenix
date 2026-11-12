@@ -774,8 +774,10 @@ async def delete_evaluator(request: Request, evaluator_id: str) -> Response:
     """Delete a definition that nothing binds; a missing evaluator is ignored.
 
     A definition still bound by a project or dataset is refused with 409; delete those
-    bindings first. Deleting an LLM evaluator removes the tag that pins its version and keeps
-    the prompt. Built-in evaluators cannot be deleted.
+    bindings first. Bindings deleted but not yet removed in the background are removed first;
+    one deleted meanwhile is refused with 409 and reason bindings_being_deleted. Deleting an
+    LLM evaluator removes the tag that pins its version and keeps the prompt. Built-in
+    evaluators cannot be deleted.
     """
     with evaluator_api_errors():
         global_id = parse_global_id(evaluator_id)

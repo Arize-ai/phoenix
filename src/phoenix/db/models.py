@@ -3903,12 +3903,35 @@ class DatasetEvaluators(HasId):
     dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="dataset_evaluators")
     evaluator: Mapped["Evaluator"] = relationship("Evaluator", back_populates="dataset_evaluators")
     user: Mapped[Optional["User"]] = relationship("User")
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
+    """When the binding was deleted. A deleted binding is invisible to readers and gives up
+    its name; the evaluator purger later removes it with its trace project."""
+    delete_unused_evaluator: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=sa.false()
+    )
+    """Whether the purger should also delete the evaluator definition once nothing binds it.
+    Built-in evaluators are always kept."""
+    delete_associated_prompt_or_decision: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=sa.false()
+    )
+    """Whether the purger should also delete the evaluator's prompt or decision once no
+    evaluator uses it."""
     project: Mapped["Project"] = relationship("Project")
 
     __table_args__ = (
-        UniqueConstraint(
+        Index(
+            "ix_dataset_evaluators_dataset_id_name",
             "dataset_id",
             "name",
+            unique=True,
+            postgresql_where=sa.text("deleted_at IS NULL"),
+            sqlite_where=sa.text("deleted_at IS NULL"),
+        ),
+        Index(
+            "ix_dataset_evaluators_deleted_at",
+            "deleted_at",
+            postgresql_where=sa.text("deleted_at IS NOT NULL"),
+            sqlite_where=sa.text("deleted_at IS NOT NULL"),
         ),
     )
 
@@ -4215,12 +4238,41 @@ class ProjectEvaluator(HasId):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
+    """When the binding was deleted. A deleted binding is invisible to readers, gets no new
+    work and gives up its name; the evaluator purger later removes it with its trace
+    project and work units."""
+    delete_unused_evaluator: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=sa.false()
+    )
+    """Whether the purger should also delete the evaluator definition once nothing binds it.
+    Built-in evaluators are always kept."""
+    delete_associated_prompt_or_decision: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=sa.false()
+    )
+    """Whether the purger should also delete the evaluator's prompt or decision once no
+    evaluator uses it."""
 
     project: Mapped["Project"] = relationship("Project", foreign_keys=[project_id])
     trace_project: Mapped["Project"] = relationship("Project", foreign_keys=[trace_project_id])
     evaluator: Mapped["Evaluator"] = relationship("Evaluator")
 
-    __table_args__ = (UniqueConstraint("project_id", "name"),)
+    __table_args__ = (
+        Index(
+            "ix_project_evaluators_project_id_name",
+            "project_id",
+            "name",
+            unique=True,
+            postgresql_where=sa.text("deleted_at IS NULL"),
+            sqlite_where=sa.text("deleted_at IS NULL"),
+        ),
+        Index(
+            "ix_project_evaluators_deleted_at",
+            "deleted_at",
+            postgresql_where=sa.text("deleted_at IS NOT NULL"),
+            sqlite_where=sa.text("deleted_at IS NOT NULL"),
+        ),
+    )
 
 
 class ProjectEvaluatorState(Base):

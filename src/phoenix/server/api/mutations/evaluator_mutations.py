@@ -1,3 +1,4 @@
+from functools import partial
 from typing import Optional
 
 import strawberry
@@ -38,6 +39,7 @@ from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.SandboxConfig import (
     Language,
 )
+from phoenix.server.daemons.evaluator_purger import wake_evaluator_purger
 from phoenix.server.evaluators.services import (
     dataset_bindings,
     definitions,
@@ -58,6 +60,7 @@ def _evaluator_service_context(context: Context) -> definitions.EvaluatorService
         db=context.db,
         sandbox_runtime=context.sandbox_runtime,
         user_id=int(request.user.identity) if "user" in request.scope else None,
+        wake_evaluator_purger=partial(wake_evaluator_purger, request.app.state),
     )
 
 
@@ -177,11 +180,12 @@ class DeleteEvaluatorsPayload:
 @strawberry.input
 class DeleteDatasetEvaluatorsInput:
     dataset_evaluator_ids: list[GlobalID]
-    delete_associated_prompt: bool = strawberry.field(
+    delete_associated_prompt_or_decision: bool = strawberry.field(
         default=False,
         description=(
-            "Also delete each LLM evaluator's prompt when no other evaluator references it. "
-            "Off by default so that a prompt adopted from the prompt hub survives the binding."
+            "Also delete each LLM evaluator's prompt or decision evaluator's decision when no "
+            "other evaluator references it. Off by default so that a prompt or decision adopted "
+            "from its hub survives the binding."
         ),
     )
 
@@ -421,11 +425,12 @@ class ClearAllQueuedEvaluationsPayload:
 @strawberry.input
 class DeleteProjectEvaluatorsInput:
     project_evaluator_ids: list[GlobalID]
-    delete_associated_prompt: bool = strawberry.field(
+    delete_associated_prompt_or_decision: bool = strawberry.field(
         default=False,
         description=(
-            "Also delete each LLM evaluator's prompt when no other evaluator references it. "
-            "Off by default so that a prompt adopted from the prompt hub survives the binding."
+            "Also delete each LLM evaluator's prompt or decision evaluator's decision when no "
+            "other evaluator references it. Off by default so that a prompt or decision adopted "
+            "from its hub survives the binding."
         ),
     )
 
@@ -756,7 +761,7 @@ class EvaluatorMutationMixin:
     ) -> DeleteProjectEvaluatorsPayload:
         command = project_bindings.DeleteProjectEvaluatorsInput(
             project_evaluator_ids=input.project_evaluator_ids,
-            delete_associated_prompt=input.delete_associated_prompt,
+            delete_associated_prompt_or_decision=input.delete_associated_prompt_or_decision,
         )
         context = _evaluator_service_context(info.context)
         result = await project_bindings.delete_project_evaluators(context, command)
@@ -827,7 +832,7 @@ class EvaluatorMutationMixin:
     ) -> DeleteDatasetEvaluatorsPayload:
         command = dataset_bindings.DeleteDatasetEvaluatorsInput(
             dataset_evaluator_ids=input.dataset_evaluator_ids,
-            delete_associated_prompt=input.delete_associated_prompt,
+            delete_associated_prompt_or_decision=input.delete_associated_prompt_or_decision,
         )
         result = await dataset_bindings.delete_dataset_evaluators(
             _evaluator_service_context(info.context), command

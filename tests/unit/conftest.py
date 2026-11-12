@@ -88,6 +88,7 @@ from phoenix.server import app as server_app
 from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
 from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.app import _db, create_app
+from phoenix.server.daemons.evaluator_purger import EvaluatorPurger
 from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.grpc_server import GrpcServer
@@ -1122,15 +1123,21 @@ async def _no_op(*_: Any, **__: Any) -> None:
 
 @contextlib.asynccontextmanager
 async def patch_online_eval_daemons() -> AsyncIterator[None]:
-    """Run the app without its online-evaluation producers and consumers.
+    """Run the app without its online-evaluation producers and consumers or its evaluator
+    purger.
 
     Like the DML event daemon, they query the database from background tasks, and a
     query cancelled at shutdown invalidates the one connection a test's sessions
     share. Tests of the daemons themselves drive them directly instead.
     """
-    classes = (SpanEvaluationProducer, EvaluationConsumer, SweepingEvaluationProducer)
+    classes = (
+        SpanEvaluationProducer,
+        EvaluationConsumer,
+        SweepingEvaluationProducer,
+        EvaluatorPurger,
+    )
     names = ("__aenter__", "__aexit__")
-    # All three inherit both methods from DaemonTask; shadowing them per class
+    # All of them inherit both methods from DaemonTask; shadowing them per class
     # leaves every other daemon running as before.
     for cls in classes:
         for name in names:

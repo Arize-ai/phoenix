@@ -151,7 +151,10 @@ async def _project_evaluator(session: AsyncSession, project_evaluator_id: str) -
         await session.execute(
             select(models.ProjectEvaluator, models.Evaluator.kind)
             .join(models.Evaluator, models.ProjectEvaluator.evaluator_id == models.Evaluator.id)
-            .where(models.ProjectEvaluator.id == row_id)
+            .where(
+                models.ProjectEvaluator.id == row_id,
+                models.ProjectEvaluator.deleted_at.is_(None),
+            )
         )
     ).one_or_none()
     if pair is None:
@@ -255,7 +258,10 @@ async def get_project_evaluators(
             stmt = (
                 select(models.ProjectEvaluator, models.Evaluator.kind)
                 .join(models.Evaluator, models.ProjectEvaluator.evaluator_id == models.Evaluator.id)
-                .where(models.ProjectEvaluator.project_id == project.id)
+                .where(
+                    models.ProjectEvaluator.project_id == project.id,
+                    models.ProjectEvaluator.deleted_at.is_(None),
+                )
                 .order_by(models.ProjectEvaluator.id.desc())
             )
             if cursor is not None:
@@ -328,9 +334,9 @@ async def patch_project_evaluator(
 async def delete_project_evaluator(request: Request, project_evaluator_id: str) -> Response:
     """Delete a binding; a missing binding is ignored.
 
-    The binding's trace project and recorded traces are deleted. Its evaluator definition and
-    prompt are kept. Delete a definition that nothing binds with
-    DELETE /v1/evaluators/{evaluator_id}.
+    The binding disappears at once; its trace project and recorded traces are removed in the
+    background. Its evaluator definition and prompt are kept. Delete a definition that nothing
+    binds with DELETE /v1/evaluators/{evaluator_id}.
     """
     with evaluator_api_errors():
         await project_bindings.detach_project_evaluators(
@@ -360,8 +366,8 @@ async def delete_project_evaluators(
     """Delete up to 1000 of a project's bindings in one transaction.
 
     Missing bindings are ignored; a binding of another project is refused with 422 before
-    any change. Each deleted binding's trace project and recorded traces are removed; evaluator
-    definitions and prompts are kept.
+    any change. Each deleted binding's trace project and recorded traces are removed in the
+    background; evaluator definitions and prompts are kept.
     """
     with evaluator_api_errors():
         async with request.app.state.db() as session:

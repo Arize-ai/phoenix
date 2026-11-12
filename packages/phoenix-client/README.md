@@ -646,7 +646,7 @@ client.evaluators.dataset_evaluators.update(
 )
 
 # Deleting a binding removes its dedicated evaluator trace project and
-# recorded evaluator traces; the shared definition, prompt, and dataset remain.
+# recorded evaluator traces in the background; the shared definition, prompt, and dataset remain.
 client.evaluators.dataset_evaluators.delete(dataset_evaluator_id=binding["id"])
 client.evaluators.dataset_evaluators.delete_many(
     dataset="golden-questions", dataset_evaluator_ids=["RGF0YXNldEV2YWx1YXRvcjoy"]
@@ -677,7 +677,7 @@ client.evaluators.project_evaluators.update(project_evaluator_id=binding["id"], 
 client.evaluators.project_evaluators.update(project_evaluator_id=binding["id"], filter_condition="")
 
 # Deleting a binding removes its dedicated evaluator trace project and
-# recorded evaluator traces; the shared definition, prompt, source project,
+# recorded evaluator traces in the background; the shared definition, prompt, source project,
 # and its original traces remain.
 client.evaluators.project_evaluators.delete(project_evaluator_id=binding["id"])
 client.evaluators.project_evaluators.delete_many(

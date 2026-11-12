@@ -16,7 +16,10 @@ class ProjectEvaluatorByIdDataLoader(DataLoader[int, Optional[models.ProjectEval
         records_by_id: dict[int, models.ProjectEvaluator] = {}
         async with self._db.read() as session:
             records = await session.scalars(
-                select(models.ProjectEvaluator).where(models.ProjectEvaluator.id.in_(keys))
+                select(models.ProjectEvaluator).where(
+                    models.ProjectEvaluator.id.in_(keys),
+                    models.ProjectEvaluator.deleted_at.is_(None),
+                )
             )
             for record in records:
                 records_by_id[record.id] = record

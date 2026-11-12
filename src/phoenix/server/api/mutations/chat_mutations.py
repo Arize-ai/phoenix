@@ -155,7 +155,7 @@ async def _capture_binding_definition(
     if definition is not None and not isinstance(definition, StoredDecisionEvaluatorDefinition):
         raise BadRequest("datasetEvaluatorId requires a saved decision evaluator")
     binding = await session.get(models.DatasetEvaluators, binding_id)
-    if binding is None:
+    if binding is None or binding.deleted_at is not None:
         raise NotFound(f"Dataset evaluator not found: {binding_id}")
     if (
         isinstance(definition, StoredDecisionEvaluatorDefinition)

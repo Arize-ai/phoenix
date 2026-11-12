@@ -31,6 +31,7 @@ from phoenix.server.app import _db
 from phoenix.server.evaluators.services import dataset_bindings, project_bindings
 from phoenix.server.evaluators.services.definitions import EvaluatorServiceContext
 from phoenix.server.evaluators.services.prompt_source import FromPromptVersion, NewPrompt
+from phoenix.server.evaluators.services.purge import purge_deleted_bindings
 from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.types import DbSessionFactory
 
@@ -173,5 +174,9 @@ async def test_concurrent_edit_and_delete_of_one_binding_both_return(
     # The edit may lose the race and find nothing to edit; neither call fails the server.
     assert not isinstance(edited, BaseException) or isinstance(edited, NotFound), edited
     assert deleted == [binding_gid]
+    async with db() as session:
+        row = await session.get(binding_model, binding.id)
+        assert row is not None and row.deleted_at is not None
+    await purge_deleted_bindings(db)
     async with db() as session:
         assert await session.get(binding_model, binding.id) is None

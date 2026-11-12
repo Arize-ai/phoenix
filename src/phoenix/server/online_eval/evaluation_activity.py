@@ -158,7 +158,9 @@ async def load_added_and_completed(
 
 
 def _scope(project_id: Optional[int]) -> sa.Select[Any]:
-    scope = sa.select(models.ProjectEvaluator.id)
+    scope = sa.select(models.ProjectEvaluator.id).where(
+        models.ProjectEvaluator.deleted_at.is_(None)
+    )
     if project_id is not None:
         scope = scope.where(models.ProjectEvaluator.project_id == project_id)
     return scope

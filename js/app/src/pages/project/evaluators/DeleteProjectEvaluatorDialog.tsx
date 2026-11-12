@@ -48,7 +48,7 @@ export function DeleteProjectEvaluatorDialog({
             variables: {
               input: {
                 projectEvaluatorIds: [projectEvaluatorId],
-                deleteAssociatedPrompt,
+                deleteAssociatedPromptOrDecision: deleteAssociatedPrompt,
               },
             },
             onCompleted: (_response, errors) => {

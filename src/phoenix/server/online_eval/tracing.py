@@ -86,7 +86,8 @@ async def persist_evaluator_traces(
     async with db() as session:
         project_id = await session.scalar(
             select(models.ProjectEvaluator.trace_project_id).where(
-                models.ProjectEvaluator.id == project_evaluator_id
+                models.ProjectEvaluator.id == project_evaluator_id,
+                models.ProjectEvaluator.deleted_at.is_(None),
             )
         )
         if project_id is None:

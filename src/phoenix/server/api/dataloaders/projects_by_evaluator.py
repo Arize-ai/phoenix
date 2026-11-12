@@ -29,7 +29,10 @@ class ProjectsByEvaluatorDataLoader(DataLoader[Key, Result]):
                     models.Project,
                     models.ProjectEvaluator.project_id == models.Project.id,
                 )
-                .where(models.ProjectEvaluator.evaluator_id.in_(keys))
+                .where(
+                    models.ProjectEvaluator.evaluator_id.in_(keys),
+                    models.ProjectEvaluator.deleted_at.is_(None),
+                )
                 .distinct()
                 .order_by(models.Project.name.asc())
             )

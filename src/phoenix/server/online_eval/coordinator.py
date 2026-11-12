@@ -320,12 +320,13 @@ class EvalWorkCoordinator:
                 )
             project_evaluator_enabled = await session.scalar(
                 select(models.ProjectEvaluator.enabled).where(
-                    models.ProjectEvaluator.id == project_evaluator_id
+                    models.ProjectEvaluator.id == project_evaluator_id,
+                    models.ProjectEvaluator.deleted_at.is_(None),
                 )
             )
             if project_evaluator_enabled is not True:
                 raise PublicationEvaluatorDisabledError(
-                    f"work unit {work_unit_id} project evaluator is disabled or missing"
+                    f"work unit {work_unit_id} project evaluator is disabled, deleted or missing"
                 )
             await write(session)
             ended = await session.execute(

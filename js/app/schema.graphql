@@ -2466,9 +2466,9 @@ input DeleteDatasetEvaluatorsInput {
   datasetEvaluatorIds: [ID!]!
 
   """
-  Also delete each LLM evaluator's prompt when no other evaluator references it. Off by default so that a prompt adopted from the prompt hub survives the binding.
+  Also delete each LLM evaluator's prompt or decision evaluator's decision when no other evaluator references it. Off by default so that a prompt or decision adopted from its hub survives the binding.
   """
-  deleteAssociatedPrompt: Boolean! = false
+  deleteAssociatedPromptOrDecision: Boolean! = false
 }
 
 type DeleteDatasetEvaluatorsPayload {
@@ -2578,9 +2578,9 @@ input DeleteProjectEvaluatorsInput {
   projectEvaluatorIds: [ID!]!
 
   """
-  Also delete each LLM evaluator's prompt when no other evaluator references it. Off by default so that a prompt adopted from the prompt hub survives the binding.
+  Also delete each LLM evaluator's prompt or decision evaluator's decision when no other evaluator references it. Off by default so that a prompt or decision adopted from its hub survives the binding.
   """
-  deleteAssociatedPrompt: Boolean! = false
+  deleteAssociatedPromptOrDecision: Boolean! = false
 }
 
 type DeleteProjectEvaluatorsPayload {
