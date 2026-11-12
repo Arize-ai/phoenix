@@ -278,11 +278,15 @@ export function ModelForm({
   // The rows are kept, since token types are free-form, but flagged.
   const unusedPromptTokenTypes =
     selectedModelType === "EMBEDDING"
-      ? promptCosts
-          .map((cost) => cost.tokenType.trim())
-          .filter(
-            (tokenType) => tokenType && tokenType.toLowerCase() !== "input"
-          )
+      ? [
+          ...new Set(
+            promptCosts
+              .map((cost) => cost.tokenType.trim())
+              .filter(
+                (tokenType) => tokenType && tokenType.toLowerCase() !== "input"
+              )
+          ),
+        ]
       : [];
 
   return (

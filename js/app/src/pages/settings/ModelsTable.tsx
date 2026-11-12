@@ -217,7 +217,7 @@ export function ModelsTable({
         header: "type",
         id: "modelType",
         accessorFn: (row) => row.modelType,
-        size: 110,
+        size: 100,
         // The model type is the kind of span the model prices, so it is shown
         // the way span kinds are
         cell: ({ row }) => (

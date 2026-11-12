@@ -29,7 +29,7 @@ import { NewModelButton } from "./NewModelButton";
 import { useModelCostManifestDescription } from "./useModelCostManifestDescription";
 
 const ModelKindFilterOptions = [
-  { label: "All", id: "ALL" },
+  { label: "All kinds", id: "ALL" },
   { label: "Custom", id: "CUSTOM" },
   { label: "Built-in", id: "BUILT_IN" },
 ];
