@@ -1,5 +1,9 @@
 import { createFetchMultipartSubscription } from "@apollo/client/utilities/subscriptions/relay";
-import type { FetchFunction } from "relay-runtime";
+import type {
+  FetchFunction,
+  GraphQLResponse,
+  GraphQLSingularResponse,
+} from "relay-runtime";
 import {
   Environment,
   Network,
@@ -17,6 +21,13 @@ import {
   instrumentRelayEnvironment,
   isRelayDebugEnabled,
 } from "./relayDebugInstrumentation";
+import {
+  INCREMENTAL_ACCEPT_HEADER,
+  isMultipartMixedResponse,
+  readMultipartMixed,
+  toRelayResponses,
+  usesIncrementalDelivery,
+} from "./relayIncrementalDelivery";
 import { isObject } from "./typeUtils";
 
 const graphQLPath = BASE_URL + "/graphql";
@@ -30,80 +41,116 @@ const graphQLFetch = isAuthenticationEnabled ? authFetch : fetch;
 const ERROR_BODY_SNIPPET_LENGTH = 1000;
 
 /**
- * Create an observable that fetches JSON from the given input and returns an error if
- * the data has errors.
+ * Reads a single JSON GraphQL response body, failing with a descriptive
+ * {@link ServerResponseError} when the body is empty, not JSON, or a non-OK
+ * status without a GraphQL error envelope.
+ */
+async function readJsonResponse(response: Response): Promise<unknown> {
+  invariant(response instanceof Response, "response must be a Response");
+  // Clone the response so the raw body is still readable as text if
+  // response.json() fails — an empty or non-JSON response (for example a
+  // gateway timeout or an upstream 5xx returning an HTML error page)
+  // should surface a descriptive error instead of the opaque
+  // "Unexpected end of JSON input" thrown by response.json().
+  const responseClone = response.clone();
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch {
+    const text = (await responseClone.text()).trim();
+    if (text === "") {
+      throw new ServerResponseError(
+        `GraphQL request failed: the server returned an empty response (status ${response.status} ${response.statusText}).`,
+        response.status
+      );
+    }
+    // The body is likely an HTML error page from a gateway or proxy.
+    // Include a snippet to make the failure easier to diagnose.
+    const snippet = text.slice(0, ERROR_BODY_SNIPPET_LENGTH);
+    throw new ServerResponseError(
+      `GraphQL request failed: the server returned a non-JSON response (status ${response.status} ${response.statusText}): ${snippet}`,
+      response.status
+    );
+  }
+  // A non-OK status with a parseable body still indicates a failure.
+  // Defer to the GraphQL "errors" handling below when the body carries
+  // them (so the precise GraphQL error is surfaced); otherwise fail
+  // loudly with the HTTP status rather than treating the body as data.
+  if (!response.ok && !(isObject(data) && "errors" in data)) {
+    // The body parsed as JSON but is not a GraphQL error envelope (for
+    // example a load balancer or auth layer error). Include a snippet so
+    // the failure is diagnosable rather than reported as a bare status.
+    const snippet = JSON.stringify(data).slice(0, ERROR_BODY_SNIPPET_LENGTH);
+    throw new ServerResponseError(
+      `GraphQL request failed with status ${response.status} ${response.statusText}: ${snippet}`,
+      response.status
+    );
+  }
+  return data;
+}
+
+/**
+ * Create an observable that fetches a GraphQL response from the given input
+ * and returns an error if any payload has errors.
+ *
+ * A JSON response emits once. A `multipart/mixed` response (an operation with
+ * `@defer`) emits once per part, as the payloads Relay reads, so the initial
+ * data renders while deferred fragments are still on their way.
  *
  * The observable aborts in-flight network requests when the unsubscribe function is
  * called. A request that has already finished is not aborted.
  *
  * @param input - The input to fetch from.
  * @param init - The request init options.
- * @param hasErrors - A function that returns an error if the data has errors.
- * @returns An observable that emits the data or an error.
+ * @param hasErrors - A function that returns an error if a payload has errors.
+ * @returns An observable that emits the payloads or an error.
  */
-function fetchJsonObservable<T>(
+function fetchGraphQLObservable(
   input: RequestInfo | URL,
-  init?: RequestInit,
-  hasErrors?: (data: unknown) => Error | undefined
-): Observable<T> {
+  init: RequestInit,
+  hasErrors: (data: unknown) => Error | undefined
+): Observable<GraphQLResponse> {
   return Observable.create((sink) => {
     const controller = new AbortController();
     let isFinished = false;
 
-    graphQLFetch(input, { ...init, signal: controller.signal })
-      .then(async (response) => {
-        invariant(response instanceof Response, "response must be a Response");
-        // Clone the response so the raw body is still readable as text if
-        // response.json() fails — an empty or non-JSON response (for example a
-        // gateway timeout or an upstream 5xx returning an HTML error page)
-        // should surface a descriptive error instead of the opaque
-        // "Unexpected end of JSON input" thrown by response.json().
-        const responseClone = response.clone();
-        let data: unknown;
-        try {
-          data = await response.json();
-        } catch {
-          const text = (await responseClone.text()).trim();
-          if (text === "") {
-            throw new ServerResponseError(
-              `GraphQL request failed: the server returned an empty response (status ${response.status} ${response.statusText}).`,
-              response.status
-            );
-          }
-          // The body is likely an HTML error page from a gateway or proxy.
-          // Include a snippet to make the failure easier to diagnose.
-          const snippet = text.slice(0, ERROR_BODY_SNIPPET_LENGTH);
-          throw new ServerResponseError(
-            `GraphQL request failed: the server returned a non-JSON response (status ${response.status} ${response.statusText}): ${snippet}`,
-            response.status
-          );
-        }
-        // A non-OK status with a parseable body still indicates a failure.
-        // Defer to the GraphQL "errors" handling below when the body carries
-        // them (so the precise GraphQL error is surfaced); otherwise fail
-        // loudly with the HTTP status rather than treating the body as data.
-        if (!response.ok && !(isObject(data) && "errors" in data)) {
-          // The body parsed as JSON but is not a GraphQL error envelope (for
-          // example a load balancer or auth layer error). Include a snippet so
-          // the failure is diagnosable rather than reported as a bare status.
-          const snippet = JSON.stringify(data).slice(
-            0,
-            ERROR_BODY_SNIPPET_LENGTH
-          );
-          throw new ServerResponseError(
-            `GraphQL request failed with status ${response.status} ${response.statusText}: ${snippet}`,
-            response.status
-          );
-        }
-        return data;
-      })
-      .then((data) => {
-        const error = hasErrors?.(data);
+    const emit = (payload: GraphQLResponse) => {
+      const payloads: ReadonlyArray<GraphQLSingularResponse> = Array.isArray(
+        payload
+      )
+        ? payload
+        : [payload as GraphQLSingularResponse];
+      for (const response of payloads) {
+        const error = hasErrors(response);
         if (error) {
           throw error;
         }
+      }
+      sink.next(payload);
+    };
+
+    graphQLFetch(input, { ...init, signal: controller.signal })
+      .then(async (response) => {
+        invariant(response instanceof Response, "response must be a Response");
+        if (!isMultipartMixedResponse(response)) {
+          emit((await readJsonResponse(response)) as GraphQLResponse);
+          return;
+        }
+        if (!response.ok) {
+          throw new ServerResponseError(
+            `GraphQL request failed with status ${response.status} ${response.statusText}`,
+            response.status
+          );
+        }
+        for await (const part of readMultipartMixed(response)) {
+          const payloads = toRelayResponses(part);
+          if (payloads.length > 0) {
+            emit(payloads);
+          }
+        }
+      })
+      .then(() => {
         isFinished = true;
-        sink.next(data as T);
         sink.complete();
       })
       .catch((error) => {
@@ -137,12 +184,17 @@ function fetchJsonObservable<T>(
  * https://relay.dev/docs/en/quick-start-guide#relay-environment.
  */
 export const fetchRelay: FetchFunction = (params, variables, _cacheConfig) =>
-  fetchJsonObservable(
+  fetchGraphQLObservable(
     graphQLPath,
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        // Only operations with @defer ask for a streamed response, so every
+        // other operation keeps its single JSON body.
+        ...(usesIncrementalDelivery(params.text)
+          ? { Accept: INCREMENTAL_ACCEPT_HEADER }
+          : {}),
       },
       body: JSON.stringify({
         query: params.text,

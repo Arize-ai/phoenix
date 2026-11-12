@@ -1,11 +1,13 @@
 import { css } from "@emotion/react";
 import type { ComponentProps, ReactNode } from "react";
 import { createContext, useContext, useState } from "react";
+import { graphql, useFragment } from "react-relay";
 import invariant from "tiny-invariant";
 
 import {
   Flex,
   RichTooltip,
+  Skeleton,
   Text,
   TooltipTrigger,
   TriggerWrap,
@@ -29,7 +31,10 @@ import {
 } from "@phoenix/components/chart";
 import type { ProjectEvaluatorResultAnnotation } from "@phoenix/hooks/useProjectEvaluatorResultAnnotations";
 import { SummaryValueBreakdown } from "@phoenix/pages/project/AnnotationSummary";
-import type { ProjectEvaluatorsTable_scores$data } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_scores.graphql";
+import type {
+  ProjectEvaluatorMeanScoreCell_scores$data,
+  ProjectEvaluatorMeanScoreCell_scores$key,
+} from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorMeanScoreCell_scores.graphql";
 import type { EvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
 import {
   formatFloat,
@@ -41,7 +46,7 @@ import {
  * `ProjectEvaluator.annotationScoreMetrics`.
  */
 export type EvaluatorAnnotationScoreMetricsData = NonNullable<
-  ProjectEvaluatorsTable_scores$data["annotationScoreMetrics"]
+  ProjectEvaluatorMeanScoreCell_scores$data["annotationScoreMetrics"]
 >[number];
 
 const meanScoreAlignmentCSS = css`
@@ -182,13 +187,122 @@ export function ProjectEvaluatorMeanScoreHeader() {
 }
 
 /**
+ * The evaluators table's results cell, reading its score aggregates from the
+ * row's scores fragment.
+ *
+ * The table spreads this fragment with `@defer`: the aggregates are the
+ * slowest part of the evaluators query, so the rows render first and each
+ * results cell suspends until its deferred payload arrives. Render it inside a
+ * `Suspense` boundary with {@link ProjectEvaluatorMeanScoreCellSkeleton} as the
+ * fallback, one boundary per cell, so a slow row never holds back the table.
+ */
+export function ProjectEvaluatorResultsCell({
+  annotations,
+  projectEvaluator,
+}: {
+  /** The annotations the evaluator writes, named the way its runs persist them. */
+  annotations: ReadonlyArray<ProjectEvaluatorResultAnnotation>;
+  projectEvaluator: ProjectEvaluatorMeanScoreCell_scores$key;
+}) {
+  const { annotationScoreMetrics } = useFragment(
+    graphql`
+      fragment ProjectEvaluatorMeanScoreCell_scores on ProjectEvaluator
+      @argumentDefinitions(
+        scoreTimeRange: { type: "TimeRange!" }
+        scorePreviousTimeRange: { type: "TimeRange!" }
+        scoreTimeBinConfig: { type: "TimeBinConfig!" }
+        includeMeanScore: { type: "Boolean!" }
+      ) {
+        annotationScoreMetrics(
+          timeRange: $scoreTimeRange
+          previousTimeRange: $scorePreviousTimeRange
+          timeBinConfig: $scoreTimeBinConfig
+        ) @include(if: $includeMeanScore) {
+          annotationName
+          summary {
+            meanScore
+            count
+            scoreCount
+            labelCount
+            labelFractions {
+              label
+              fraction
+            }
+          }
+          previousSummary {
+            meanScore
+            labelFractions {
+              label
+              fraction
+            }
+          }
+          series {
+            timestamp
+            meanScore
+            count
+            labelFractions {
+              label
+              fraction
+            }
+            resultCount
+          }
+        }
+      }
+    `,
+    projectEvaluator
+  );
+  return (
+    <ProjectEvaluatorMeanScoreCell
+      annotations={annotations}
+      scoreMetrics={annotationScoreMetrics}
+    />
+  );
+}
+
+/**
+ * The results cell's loading state while its deferred aggregates are in
+ * flight: one row per annotation, shaped like the score and the chart slot so
+ * the row height and the column's chart alignment hold when the data lands.
+ */
+export function ProjectEvaluatorMeanScoreCellSkeleton({
+  annotations,
+}: {
+  annotations: ReadonlyArray<ProjectEvaluatorResultAnnotation>;
+}) {
+  return (
+    // On a plain element: Flex filters out aria attributes.
+    <div aria-busy="true" aria-label="Loading scores">
+      <Flex direction="column" gap="size-50">
+        {annotations.map((annotation) => (
+          <Flex
+            key={annotation.name}
+            direction="row"
+            alignItems="center"
+            gap="size-100"
+            minWidth={0}
+          >
+            <div css={summarySlotCSS}>
+              <Skeleton width={72} height={20} borderRadius="medium" />
+            </div>
+            <div css={chartSlotCSS}>
+              <Skeleton width={RESULTS_CHART_WIDTH} height={20} />
+            </div>
+          </Flex>
+        ))}
+      </Flex>
+    </div>
+  );
+}
+
+/**
  * The evaluators table's results cell: for each annotation the evaluator
  * writes, the mean score over the (clamped) page time range, its change vs.
  * the previous window, and a sparkline of per-bin means. An annotation that
  * only carries labels shows its leading label's share, that share's change,
- * and a stacked bar of the label distribution instead. The data arrives
- * with the row via `ProjectEvaluator.annotationScoreMetrics`, which the
- * connection only fetches while the column is visible.
+ * and a stacked bar of the label distribution instead. The data comes from
+ * `ProjectEvaluator.annotationScoreMetrics`, which the connection only
+ * fetches while the column is visible; {@link ProjectEvaluatorResultsCell}
+ * reads it from the row's deferred scores fragment.
  */
 export function ProjectEvaluatorMeanScoreCell({
   annotations,

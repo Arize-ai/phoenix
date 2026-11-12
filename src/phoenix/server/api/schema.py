@@ -80,6 +80,9 @@ def build_graphql_schema(
         extensions=list(chain(extensions or [], [get_mask_errors_extension()])),
         subscription=Subscription,
         config=StrawberryConfig(
+            # Serves @defer (and @stream) as multipart/mixed incremental
+            # responses, so slow fields can arrive after the rest of a query.
+            enable_experimental_incremental_execution=True,
             scalar_map={
                 Identifier: identifier_scalar_definition,
                 CronExpression: cron_expression_scalar_definition,

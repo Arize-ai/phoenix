@@ -3,6 +3,7 @@ import type { OnChangeFn, RowSelectionState } from "@tanstack/react-table";
 import { functionalUpdate, flexRender, useTable } from "@tanstack/react-table";
 import {
   startTransition,
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -54,12 +55,12 @@ import { getProjectEvaluatorResultAnnotations } from "@phoenix/hooks/useProjectE
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import { DecisionCell } from "@phoenix/pages/evaluators/DecisionCell";
 import { PromptCell } from "@phoenix/pages/evaluators/PromptCell";
+import type { ProjectEvaluatorMeanScoreCell_scores$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorMeanScoreCell_scores.graphql";
 import type { ProjectEvaluatorsTable_costs$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_costs.graphql";
 import type { ProjectEvaluatorsTable_failures$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_failures.graphql";
 import type { ProjectEvaluatorsTable_lag$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_lag.graphql";
 import type { ProjectEvaluatorsTable_project$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_project.graphql";
 import type { ProjectEvaluatorsTable_row$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_row.graphql";
-import type { ProjectEvaluatorsTable_scores$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_scores.graphql";
 import { getClearableCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
 import { ProjectEvaluatorActionMenu } from "@phoenix/pages/project/evaluators/ProjectEvaluatorActionMenu";
 import {
@@ -77,8 +78,9 @@ import { ProjectEvaluatorLagCell } from "@phoenix/pages/project/evaluators/Proje
 import { ProjectEvaluatorLoadCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorLoadCell";
 import {
   EvaluatorScoreWindowProvider,
-  ProjectEvaluatorMeanScoreCell,
+  ProjectEvaluatorMeanScoreCellSkeleton,
   ProjectEvaluatorMeanScoreHeader,
+  ProjectEvaluatorResultsCell,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorMeanScoreCell";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import { ProjectEvaluatorQueueCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueCell";
@@ -115,7 +117,7 @@ const readRow = (
     ProjectEvaluatorsTable_costs$key &
     ProjectEvaluatorsTable_failures$key &
     ProjectEvaluatorsTable_lag$key &
-    ProjectEvaluatorsTable_scores$key
+    ProjectEvaluatorMeanScoreCell_scores$key
 ) => {
   const rowData = readInlineData<ProjectEvaluatorsTable_row$key>(
     graphql`
@@ -272,60 +274,14 @@ const readRow = (
     `,
     row
   );
-  const scoresData = readInlineData<ProjectEvaluatorsTable_scores$key>(
-    graphql`
-      fragment ProjectEvaluatorsTable_scores on ProjectEvaluator
-      @inline
-      @argumentDefinitions(
-        scoreTimeRange: { type: "TimeRange!" }
-        scorePreviousTimeRange: { type: "TimeRange!" }
-        scoreTimeBinConfig: { type: "TimeBinConfig!" }
-        includeMeanScore: { type: "Boolean!" }
-      ) {
-        annotationScoreMetrics(
-          timeRange: $scoreTimeRange
-          previousTimeRange: $scorePreviousTimeRange
-          timeBinConfig: $scoreTimeBinConfig
-        ) @include(if: $includeMeanScore) {
-          annotationName
-          summary {
-            meanScore
-            count
-            scoreCount
-            labelCount
-            labelFractions {
-              label
-              fraction
-            }
-          }
-          previousSummary {
-            meanScore
-            labelFractions {
-              label
-              fraction
-            }
-          }
-          series {
-            timestamp
-            meanScore
-            count
-            labelFractions {
-              label
-              fraction
-            }
-            resultCount
-          }
-        }
-      }
-    `,
-    row
-  );
   return {
     ...rowData,
     ...costData,
     ...failuresData,
     ...lagData,
-    ...scoresData,
+    // The results cell reads its deferred scores fragment from this reference
+    // itself, so the slow aggregates never block the rest of the row.
+    scores: row as ProjectEvaluatorMeanScoreCell_scores$key,
   };
 };
 
@@ -390,7 +346,11 @@ export function ProjectEvaluatorsTable({
               ...ProjectEvaluatorsTable_failures
                 @arguments(timeRange: $timeRange)
               ...ProjectEvaluatorsTable_lag @arguments(timeRange: $timeRange)
-              ...ProjectEvaluatorsTable_scores
+              # Deferred: the score aggregates are the slowest part of the
+              # query, so the rows render first and each results cell
+              # suspends until its own payload streams in.
+              ...ProjectEvaluatorMeanScoreCell_scores
+                @defer
                 @arguments(
                   scoreTimeRange: $scoreTimeRange
                   scorePreviousTimeRange: $scorePreviousTimeRange
@@ -631,15 +591,28 @@ export function ProjectEvaluatorsTable({
         // "positive 50% ▼ 8.6 pts") beside the fixed-width chart every row
         // shares, so the charts line up.
         size: 352,
-        cell: ({ row }) => (
-          <ProjectEvaluatorMeanScoreCell
-            annotations={getProjectEvaluatorResultAnnotations({
-              name: row.original.name,
-              outputConfigs: row.original.evaluator.outputConfigs,
-            })}
-            scoreMetrics={row.original.annotationScoreMetrics}
-          />
-        ),
+        cell: ({ row }) => {
+          const annotations = getProjectEvaluatorResultAnnotations({
+            name: row.original.name,
+            outputConfigs: row.original.evaluator.outputConfigs,
+          });
+          // One boundary per cell: each row's deferred scores arrive on their
+          // own, and a pending cell never suspends the table around it.
+          return (
+            <Suspense
+              fallback={
+                <ProjectEvaluatorMeanScoreCellSkeleton
+                  annotations={annotations}
+                />
+              }
+            >
+              <ProjectEvaluatorResultsCell
+                annotations={annotations}
+                projectEvaluator={row.original.scores}
+              />
+            </Suspense>
+          );
+        },
       },
       {
         id: "prompt",
