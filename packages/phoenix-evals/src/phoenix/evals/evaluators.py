@@ -29,6 +29,7 @@ from typing_extensions import Annotated, Mapping, TypeVar
 
 from phoenix.evals.executors import AsyncExecutor, ExecutionDetails, SyncExecutor
 
+from ._criteria import ClassificationCriterion
 from .decision import DecisionModel
 from .llm import LLM, PromptLike
 from .llm.prompts import PromptTemplate, Template
@@ -280,16 +281,20 @@ class Criterion:
 
     Args:
         name: The criterion name; used as the resulting ``Score.name``.
-        description: Instructions for this criterion (the question). May be empty.
+        description: Instructions for this criterion as a whole (the question). May be empty.
         choices: Either a list of label strings, or a dict mapping each label to a numeric score.
         direction: Optional per-criterion score direction. When ``None``, the evaluator's
             direction is used.
+        label_descriptions: Optional per-label descriptions (one string per label), sent to the
+            backend to explain what each individual choice means. Distinct from ``description``,
+            which describes the question as a whole.
     """
 
     name: str
     description: str
     choices: Union[List[str], Dict[str, Union[float, int]]]
     direction: Optional[DirectionType] = None
+    label_descriptions: Optional[Dict[str, str]] = None
 
     def __post_init__(self) -> None:
         if not self.name or not isinstance(self.name, str):
@@ -307,6 +312,12 @@ class Criterion:
                 f"Criterion '{self.name}' choices must be a list of label strings or a "
                 f"label->score dict."
             )
+        if self.label_descriptions is not None:
+            unknown = set(self.label_descriptions) - set(self.labels)
+            if unknown:
+                raise ValueError(
+                    f"Criterion '{self.name}' label_descriptions has unknown labels: {unknown}."
+                )
 
     @property
     def labels(self) -> List[str]:
@@ -317,6 +328,14 @@ class Criterion:
     def label_score_map(self) -> Optional[Dict[str, Union[float, int]]]:
         """Mapping of label to score, or ``None`` when choices are a bare label list."""
         return dict(self.choices) if isinstance(self.choices, dict) else None
+
+    @property
+    def backend_labels(self) -> Union[List[str], Dict[str, str]]:
+        """Labels as sent to the backend: a ``label -> description`` dict when per-label
+        descriptions exist, otherwise a bare list of label strings."""
+        if self.label_descriptions:
+            return {label: self.label_descriptions.get(label, "") for label in self.labels}
+        return self.labels
 
 
 def _is_criteria_list(choices: Any) -> bool:
@@ -817,6 +836,7 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
             return criteria
 
         # Cases 1-3: a single legacy classification -> one criterion named after the evaluator.
+        label_descriptions: Optional[Dict[str, str]] = None
         if isinstance(choices, list):
             leaf: Union[List[str], Dict[str, Union[float, int]]] = [
                 label for label in choices if isinstance(label, str)
@@ -825,10 +845,17 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
             first_value = next(iter(choices.values()))
             if isinstance(first_value, tuple):
                 leaf = {key: value[0] for key, value in choices.items()}  # type: ignore[index]
+                label_descriptions = {key: value[1] for key, value in choices.items()}  # type: ignore[index]
             else:
                 leaf = dict(choices)  # type: ignore[arg-type]
         return [
-            Criterion(name=self.name, description="", choices=leaf, direction=direction),
+            Criterion(
+                name=self.name,
+                description="",
+                choices=leaf,
+                direction=direction,
+                label_descriptions=label_descriptions,
+            ),
         ]
 
     def _legacy_labels(
@@ -850,89 +877,71 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
             return {key: value[1] for key, value in choices.items()}  # type: ignore[index]
         return list(choices.keys())
 
-    def _evaluate(self, eval_input: EvalInput) -> List[Score]:
-        # Render template using PromptTemplate
-        prompt_filled = self._prompt_template.render(variables=eval_input)
+    def _criteria_payload(self) -> List[ClassificationCriterion]:
+        """The criteria as the backend-level questions sent to ``generate_classifications``."""
+        payload: List[ClassificationCriterion] = []
+        for criterion in self._criteria:
+            item: ClassificationCriterion = {
+                "name": criterion.name,
+                "labels": criterion.backend_labels,
+            }
+            # An empty question-level description is omitted so the backend uses its default.
+            if criterion.description:
+                item["instructions"] = criterion.description
+            payload.append(item)
+        return payload
 
-        method = (
-            ObjectGenerationMethod.TOOL_CALLING
-            if isinstance(self.labels, dict)
-            else ObjectGenerationMethod.AUTO
-        )
-        response = self.llm.generate_classification(
+    def _resolve_method(self) -> ObjectGenerationMethod:
+        any_dict = any(isinstance(c.backend_labels, dict) for c in self._criteria)
+        return ObjectGenerationMethod.TOOL_CALLING if any_dict else ObjectGenerationMethod.AUTO
+
+    def _scores_from_results(self, results: List[Dict[str, Any]]) -> List[Score]:
+        """Turn one backend result per criterion into one Score per criterion."""
+        by_name = {result["name"]: result for result in results}
+        scores: List[Score] = []
+        for criterion in self._criteria:
+            result = by_name[criterion.name]
+            label = result["label"]
+            if label not in criterion.labels:
+                raise ValueError(
+                    f"ClassificationEvaluator '{criterion.name}' received invalid label "
+                    f"'{label}'. Valid labels are: {criterion.labels}. "
+                )
+            score = criterion.label_score_map.get(label) if criterion.label_score_map else None
+            scores.append(
+                Score(
+                    score=score,
+                    name=criterion.name,
+                    label=label,
+                    explanation=result.get("explanation", None),
+                    metadata={"model": self.llm.model, **result.get("metadata", {})},
+                    kind=self.kind,
+                    direction=criterion.direction,
+                )
+            )
+        return scores
+
+    def _evaluate(self, eval_input: EvalInput) -> List[Score]:
+        prompt_filled = self._prompt_template.render(variables=eval_input)
+        results = self.llm.generate_classifications(
             prompt=prompt_filled,
-            labels=self.labels,
+            criteria=self._criteria_payload(),
             include_explanation=self.include_explanation,
-            method=method,
+            method=self._resolve_method(),
             **self.invocation_parameters,
         )
-        label = response["label"]
-        explanation = response.get("explanation", None)
-
-        # Validate that the returned label is one of the valid choices
-        valid_labels = (
-            list(self.labels) if isinstance(self.labels, list) else list(self.labels.keys())
-        )
-        if label not in valid_labels:
-            raise ValueError(
-                f"ClassificationEvaluator '{self.name}' received invalid label '{label}'. "
-                f"Valid labels are: {valid_labels}. "
-            )
-
-        score = self.label_score_map.get(label) if self.label_score_map else None
-        return [
-            Score(
-                score=score,
-                name=self.name,
-                label=label,
-                explanation=explanation,
-                metadata={"model": self.llm.model, **response.get("metadata", {})},
-                kind=self.kind,
-                direction=self.direction,
-            )
-        ]
+        return self._scores_from_results(results)
 
     async def _async_evaluate(self, eval_input: EvalInput) -> List[Score]:
-        # Render template using PromptTemplate
         prompt_filled = self._prompt_template.render(variables=eval_input)
-
-        method = (
-            ObjectGenerationMethod.TOOL_CALLING
-            if isinstance(self.labels, dict)
-            else ObjectGenerationMethod.AUTO
-        )
-        response = await self.llm.async_generate_classification(
+        results = await self.llm.async_generate_classifications(
             prompt=prompt_filled,
-            labels=self.labels,
+            criteria=self._criteria_payload(),
             include_explanation=self.include_explanation,
-            method=method,
+            method=self._resolve_method(),
             **self.invocation_parameters,
         )
-        label = response["label"]
-        explanation = response.get("explanation", None)
-
-        # Validate that the returned label is one of the valid choices
-        valid_labels = (
-            list(self.labels) if isinstance(self.labels, list) else list(self.labels.keys())
-        )
-        if label not in valid_labels:
-            raise ValueError(
-                f"ClassificationEvaluator '{self.name}' received invalid label '{label}'. "
-                f"Valid labels are: {valid_labels}. "
-            )
-
-        score = self.label_score_map.get(label) if self.label_score_map else None
-        return [
-            Score(
-                score=score,
-                name=self.name,
-                label=label,
-                explanation=explanation,
-                metadata={"model": self.llm.model, **response.get("metadata", {})},
-                kind=self.kind,
-                direction=self.direction,
-            )
-        ]
+        return self._scores_from_results(results)
 
 
 def create_evaluator(
