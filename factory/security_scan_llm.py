@@ -1,6 +1,8 @@
+import base64
 import json
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, Sequence
 
 import anthropic
 
@@ -9,6 +11,9 @@ MODEL = "claude-opus-5-5"
 EFFORT = "medium"
 MAX_TOKENS = 8192
 TIMEOUT_SECONDS = 300
+MAX_IMAGES = 20
+MAX_IMAGE_BYTES = 7 * 1024 * 1024
+MAX_TOTAL_IMAGE_BYTES = 16 * 1024 * 1024
 VERDICT_SCHEMA = {
     "type": "object",
     "properties": {
@@ -18,6 +23,33 @@ VERDICT_SCHEMA = {
     "required": ["verdict", "reason"],
     "additionalProperties": False,
 }
+
+
+@dataclass(frozen=True)
+class ScanImage:
+    path: str
+    revision: Literal["before", "after"]
+    media_type: Literal["image/jpeg", "image/png", "image/gif", "image/webp"]
+    blob_oid: str
+    data: bytes
+
+    def metadata(self) -> dict[str, Any]:
+        return {
+            "path": self.path,
+            "revision": self.revision,
+            "media_type": self.media_type,
+            "blob_oid": self.blob_oid,
+            "size_bytes": len(self.data),
+        }
+
+
+def validate_images(images: Sequence[ScanImage]) -> None:
+    if len(images) > MAX_IMAGES:
+        raise ValueError("too-large-to-scan: more than 20 image versions")
+    if any(len(image.data) > MAX_IMAGE_BYTES for image in images):
+        raise ValueError("too-large-to-scan: image exceeds 7 MiB")
+    if sum(len(image.data) for image in images) > MAX_TOTAL_IMAGE_BYTES:
+        raise ValueError("too-large-to-scan: image content exceeds 16 MiB")
 
 
 def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -41,9 +73,28 @@ def parse_verdict(text: str) -> dict[str, str]:
     return result
 
 
-def scan(*, bundle: bytes) -> dict[str, str]:
+def scan(*, bundle: bytes, images: Sequence[ScanImage] = ()) -> dict[str, str]:
     from security_scan import write_summary
 
+    validate_images(images)
+    content: Any = bundle.decode("utf-8")
+    if images:
+        content = []
+        for image in images:
+            content.extend(
+                [
+                    {"type": "text", "text": "Untrusted image: " + json.dumps(image.metadata())},
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": image.media_type,
+                            "data": base64.b64encode(image.data).decode("ascii"),
+                        },
+                    },
+                ]
+            )
+        content.append({"type": "text", "text": bundle.decode("utf-8")})
     with anthropic.Anthropic(timeout=TIMEOUT_SECONDS, max_retries=0) as client:
         response = client.messages.create(
             model=MODEL,
@@ -54,7 +105,7 @@ def scan(*, bundle: bytes) -> dict[str, str]:
                 "format": {"type": "json_schema", "schema": VERDICT_SCHEMA},
             },
             system=(FACTORY_DIR / "security_scan_prompt.md").read_text(),
-            messages=[{"role": "user", "content": bundle.decode("utf-8")}],
+            messages=[{"role": "user", "content": content}],
         )
     write_summary(
         f"Security scan {response.id}: model={MODEL}, effort={EFFORT}, "

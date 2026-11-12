@@ -6,9 +6,12 @@ import re
 import subprocess
 import tempfile
 from dataclasses import asdict, dataclass
+from difflib import unified_diff
 from html.parser import HTMLParser
 from pathlib import Path, PurePosixPath
 from typing import Any, Literal, Optional
+
+from security_scan_llm import ScanImage, validate_images
 
 FACTORY_DIR = Path(__file__).resolve().parent
 MAX_INPUT_BYTES = 512 * 1024
@@ -78,6 +81,62 @@ class Finding:
     rule: str
     excerpt: str
     source: Literal["static", "agent"] = "static"
+
+
+@dataclass(frozen=True)
+class GitBlob:
+    oid: str
+    mode: str
+    data: bytes
+
+
+def read_blob(*, revision: str, path: str) -> Optional[GitBlob]:
+    entry = git("ls-tree", "-l", "-z", revision, "--", path, binary=True)
+    if not entry:
+        return None
+    metadata, raw_path = entry.rstrip(b"\0").split(b"\t", 1)
+    mode, kind, oid, size = metadata.split()
+    if raw_path.decode("utf-8") != path or kind != b"blob":
+        raise ValueError("Unsupported changed entry (including submodules)")
+    if int(size) > MAX_FILE_BYTES:
+        raise ValueError("too-large-to-scan: changed file exceeds 8 MiB")
+    return GitBlob(
+        oid.decode("ascii"),
+        mode.decode("ascii"),
+        git("cat-file", "blob", oid.decode("ascii"), binary=True),
+    )
+
+
+def image_type(
+    data: bytes,
+) -> Optional[Literal["image/png", "image/jpeg", "image/gif", "image/webp"]]:
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if data.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if data.startswith((b"GIF87a", b"GIF89a")):
+        return "image/gif"
+    if data.startswith(b"RIFF") and data[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
+def image_diff(*, path: str, before: Optional[GitBlob], after: Optional[GitBlob]) -> str:
+    def lines(blob: Optional[GitBlob]) -> list[str]:
+        if blob is None:
+            return []
+        if media_type := image_type(blob.data):
+            return [f"[Image supplied visually: {media_type}, blob {blob.oid}]\n"]
+        return blob.data.decode("utf-8", errors="backslashreplace").splitlines(keepends=True)
+
+    header = (
+        f"diff --git {path!r} {path!r}\n"
+        f"before mode: {before.mode if before else 'absent'}\n"
+        f"after mode: {after.mode if after else 'absent'}\n"
+    )
+    return header + "".join(
+        unified_diff(lines(before), lines(after), fromfile=f"a/{path}", tofile=f"b/{path}", n=0)
+    )
 
 
 class HiddenHTML(HTMLParser):
@@ -205,7 +264,14 @@ def text_findings(*, path: str, text: str) -> list[Finding]:
 
 def git(*args: str, binary: bool = False) -> Any:
     result = subprocess.run(
-        ["git", "--no-optional-locks", "-c", "core.hooksPath=/dev/null", *args],
+        [
+            "git",
+            "--no-optional-locks",
+            "--literal-pathspecs",
+            "-c",
+            "core.hooksPath=/dev/null",
+            *args,
+        ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         check=True,
@@ -226,7 +292,9 @@ def changed_line(line: int, end: int, ranges: list[tuple[int, int]]) -> bool:
     return any(line < stop and end >= start for start, stop in ranges)
 
 
-def code_bundle(*, pr: dict[str, Any], destination: Path) -> tuple[dict[str, Any], list[Finding]]:
+def code_bundle(
+    *, pr: dict[str, Any], destination: Path
+) -> tuple[dict[str, Any], list[Finding], list[ScanImage]]:
     sha, base_sha = pr["headRefOid"], pr["baseRefOid"]
     if not all(re.fullmatch(r"[0-9a-f]{40}", s) for s in (sha, base_sha)):
         raise ValueError("Invalid commit identity")
@@ -235,44 +303,67 @@ def code_bundle(*, pr: dict[str, Any], destination: Path) -> tuple[dict[str, Any
         fetch.append("--unshallow")
     git(*fetch, "origin", sha, base_sha)
     base = git("merge-base", base_sha, sha)
-    diff = git("diff", "--text", "--no-ext-diff", "--no-textconv", "--no-color", base, sha, "--")
-    if len(diff.encode()) > MAX_DIFF_BYTES:
-        raise ValueError("too-large-to-scan: diff exceeds 256 KiB")
     entries = git("diff", "--name-status", "--no-renames", "-z", base, sha, "--", binary=True)
     tokens = entries.rstrip(b"\0").split(b"\0") if entries else []
     changes = {tokens[i + 1].decode(): tokens[i].decode() for i in range(0, len(tokens), 2)}
     if len(changes) > MAX_FILES:
         raise ValueError("too-large-to-scan: more than 100 changed files")
-    paths = [p for p, status in changes.items() if status != "D"]
-    for path in paths:
+    for path in changes:
         parts = PurePosixPath(path)
         if parts.is_absolute() or ".." in parts.parts or not parts.parts:
             raise ValueError("Unsafe changed path")
     findings: list[Finding] = []
     ranges: dict[str, list[tuple[int, int]]] = {}
-    if paths:
-        entries = git("ls-tree", "-r", "-l", "-z", "--full-tree", sha, "--", *paths, binary=True)
-        total_bytes = 0
-        for entry in entries.rstrip(b"\0").split(b"\0"):
-            metadata, raw_path = entry.split(b"\t", 1)
-            mode, kind, oid, size = metadata.split()
-            path = raw_path.decode("utf-8")
-            if path not in paths or kind != b"blob" or mode not in (b"100644", b"100755"):
-                raise ValueError(
-                    "Unsupported changed entry: links and special files are not admitted"
-                )
-            num_bytes = int(size)
-            if num_bytes > MAX_FILE_BYTES:
-                raise ValueError("too-large-to-scan: changed file exceeds 8 MiB")
-            total_bytes += num_bytes
+    images: list[ScanImage] = []
+    text_paths = []
+    image_patches = {}
+    diff_parts = []
+    total_bytes = 0
+    for path, status in changes.items():
+        before = read_blob(revision=base, path=path)
+        after = read_blob(revision=sha, path=path)
+        if after is not None and after.mode not in ("100644", "100755"):
+            raise ValueError("Unsupported changed entry: links and special files are not admitted")
+        if status != "D" and after is None:
+            raise ValueError("Missing changed file")
+        has_image = False
+        for revision, blob in (("before", before), ("after", after)):
+            if blob is None:
+                continue
+            total_bytes += len(blob.data)
             if total_bytes > MAX_CHANGED_BYTES:
-                raise ValueError("too-large-to-scan: changed files exceed 32 MiB")
+                raise ValueError("too-large-to-scan: changed file versions exceed 32 MiB")
+            if media_type := image_type(blob.data):
+                has_image = True
+                images.append(ScanImage(path, revision, media_type, blob.oid, blob.data))
+        validate_images(images)
+        if has_image:
+            patch = image_diff(path=path, before=before, after=after)
+            image_patches[path] = patch
+        else:
+            patch = git(
+                "diff",
+                "--text",
+                "--no-ext-diff",
+                "--no-textconv",
+                "--no-color",
+                base,
+                sha,
+                "--",
+                path,
+            )
+        diff_parts.append(patch)
+        if sum(len(part.encode()) for part in diff_parts) > MAX_DIFF_BYTES:
+            raise ValueError("too-large-to-scan: diff exceeds 256 KiB")
+        if after is not None and image_type(after.data) is None:
             target = destination / path
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(git("cat-file", "blob", oid.decode("ascii"), binary=True))
+            target.write_bytes(after.data)
+            text_paths.append(path)
+    diff = "".join(diff_parts)
     context = []
     names = {PurePosixPath(p).name for p in changes}
-    for path in paths:
+    for path in text_paths:
         target = destination / path
         if not target.is_file():
             raise ValueError("Unsupported changed entry (including submodules)")
@@ -286,7 +377,7 @@ def code_bundle(*, pr: dict[str, Any], destination: Path) -> tuple[dict[str, Any
         except UnicodeDecodeError:
             findings.append(Finding(path, 1, "non-utf8-file", "Invalid bytes escaped as \\xNN"))
             text = raw.decode("utf-8", errors="backslashreplace")
-        patch = git(
+        patch = image_patches.get(path) or git(
             "diff", "--text", "--no-ext-diff", "--no-textconv", "--unified=0", base, sha, "--", path
         )
         ranges[path] = added_ranges(patch)
@@ -346,16 +437,21 @@ def code_bundle(*, pr: dict[str, Any], destination: Path) -> tuple[dict[str, Any
                 "context_truncated": len(snippet.encode()) < len(raw),
             }
         )
-    if paths:
-        findings.extend(semgrep_findings(destination=destination, paths=paths, ranges=ranges))
-    return {
-        "sha": sha,
-        "base_sha": base_sha,
-        "merge_base": base,
-        "diff": diff,
-        "files": context,
-        "commit_messages": git("log", "--format=%B", f"{base}..{sha}"),
-    }, findings
+    if text_paths:
+        findings.extend(semgrep_findings(destination=destination, paths=text_paths, ranges=ranges))
+    return (
+        {
+            "sha": sha,
+            "base_sha": base_sha,
+            "merge_base": base,
+            "diff": diff,
+            "files": context,
+            "images": [image.metadata() for image in images],
+            "commit_messages": git("log", "--format=%B", f"{base}..{sha}"),
+        },
+        findings,
+        images,
+    )
 
 
 def semgrep_findings(
@@ -449,7 +545,9 @@ def find_admission_problem(
         with tempfile.TemporaryDirectory(prefix="factory-scan-") as directory:
             destination = Path(directory) / "files"
             destination.mkdir()
-            code, code_findings = code_bundle(pr=pr, destination=destination) if pr else ({}, [])
+            code, code_findings, images = (
+                code_bundle(pr=pr, destination=destination) if pr else ({}, [], [])
+            )
             findings.extend(code_findings)
             bundle = canonical_json(
                 {"thread": snapshot, "code": code, "static_findings": [asdict(f) for f in findings]}
@@ -474,7 +572,7 @@ def find_admission_problem(
                 verdict = parse_verdict(cache.read_text())
                 write_summary(f"Admission scan cache hit: {fingerprint}")
             else:
-                verdict = scan(bundle=bundle)
+                verdict = scan(bundle=bundle, images=images)
                 if cache is not None:
                     cache.parent.mkdir(parents=True, exist_ok=True)
                     cache.write_bytes(canonical_json(verdict))

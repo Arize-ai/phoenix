@@ -1,3 +1,4 @@
+import base64
 import json
 import os
 import sys
@@ -83,6 +84,45 @@ class TestSecurityScan(unittest.TestCase):
     def test_thinking_is_not_parsed_as_the_verdict(self) -> None:
         self.content.insert(0, {"type": "thinking", "thinking": "Inspecting.", "signature": "sig"})
         self.assertEqual(security_scan_llm.scan(bundle=b"{}")["verdict"], "pass")
+
+    def test_images_are_sent_as_labeled_image_blocks(self) -> None:
+        before = security_scan_llm.ScanImage(
+            "docs/screenshot.png", "before", "image/png", "a" * 40, b"before"
+        )
+        after = security_scan_llm.ScanImage(
+            "docs/screenshot.png", "after", "image/png", "b" * 40, b"after"
+        )
+        self.assertEqual(
+            security_scan_llm.scan(bundle=b'{"diff":"image changed"}', images=[before, after])[
+                "verdict"
+            ],
+            "pass",
+        )
+        blocks = self.requests[0]["messages"][0]["content"]
+        self.assertEqual(len(blocks), 5)
+        for index, image in ((0, before), (2, after)):
+            self.assertEqual(blocks[index]["type"], "text")
+            self.assertIn(json.dumps(image.path), blocks[index]["text"])
+            self.assertIn(json.dumps(image.revision), blocks[index]["text"])
+            self.assertEqual(blocks[index + 1]["type"], "image")
+            source = blocks[index + 1]["source"]
+            self.assertEqual(source["type"], "base64")
+            self.assertEqual(source["media_type"], "image/png")
+            self.assertEqual(base64.b64decode(source["data"]), image.data)
+        self.assertEqual(blocks[-1], {"type": "text", "text": '{"diff":"image changed"}'})
+        self.assertNotIn("tools", self.requests[0])
+
+    def test_image_limits_refuse_before_requesting_a_verdict(self) -> None:
+        image = security_scan_llm.ScanImage("image.png", "after", "image/png", "a" * 40, b"1234")
+        for overrides, images in (
+            ({"MAX_IMAGES": 1}, [image, image]),
+            ({"MAX_IMAGE_BYTES": 3}, [image]),
+            ({"MAX_TOTAL_IMAGE_BYTES": 7}, [image, image]),
+        ):
+            with self.subTest(overrides=overrides), patch.multiple(security_scan_llm, **overrides):
+                with self.assertRaisesRegex(ValueError, "too-large-to-scan"):
+                    security_scan_llm.scan(bundle=b"{}", images=images)
+        self.client_factory.assert_not_called()
 
     def test_incomplete_and_refused_responses_cannot_admit(self) -> None:
         for reason in ("max_tokens", "refusal", "tool_use", "pause_turn", None):
@@ -181,7 +221,7 @@ class TestSecurityScan(unittest.TestCase):
                 patch.object(
                     security_scan,
                     "code_bundle",
-                    side_effect=lambda *, pr, destination: ({"sha": pr["headRefOid"]}, []),
+                    side_effect=lambda *, pr, destination: ({"sha": pr["headRefOid"]}, [], []),
                 ),
             ):
                 self.assertIsNone(
