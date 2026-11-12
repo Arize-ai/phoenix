@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { ServerResponseError } from "../components/exception/serverConnectionError";
 import {
   readMultipartMixed,
   usesIncrementalDelivery,
@@ -47,6 +48,23 @@ describe("readMultipartMixed", () => {
         await collectParts(createMultipartResponse({ body, chunkSize }))
       ).toEqual([INITIAL, SUBSEQUENT]);
     }
+  });
+
+  it("rejects a body that ends before its closing delimiter", async () => {
+    const body = buildStrawberryMultipartBody([INITIAL, SUBSEQUENT]);
+    const parts: unknown[] = [];
+    const reading = (async () => {
+      for await (const part of readMultipartMixed(
+        createMultipartResponse({
+          body: body.slice(0, body.lastIndexOf("--\r\n")),
+        })
+      )) {
+        parts.push(part);
+      }
+    })();
+
+    await expect(reading).rejects.toBeInstanceOf(ServerResponseError);
+    expect(parts).toEqual([INITIAL, SUBSEQUENT]);
   });
 });
 

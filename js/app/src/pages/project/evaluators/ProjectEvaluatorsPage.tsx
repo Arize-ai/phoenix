@@ -130,6 +130,7 @@ function ProjectEvaluatorsPageContent({
   invariant(loaderData?.queryRef, "loaderData with a queryRef is required");
   // Frozen at mount: a loader revalidation must not re-key the table below.
   const [initialTimeRange] = useState(() => loaderData.timeRange);
+  const [initialRequest] = useState(() => loaderData.queryRef.source);
   const data = useOwnedPreloadedQuery<projectEvaluatorsLoaderQuery>({
     query: projectEvaluatorsLoaderGQL,
     queryRef: loaderData.queryRef,
@@ -193,6 +194,7 @@ function ProjectEvaluatorsPageContent({
                 initialTimeRange={initialTimeRange}
                 initialScoreWindow={loaderData.scoreWindow}
                 initialIncludeMeanScore={loaderData.includeMeanScore}
+                initialRequest={initialRequest}
                 selection={selection}
                 onSelectionChange={onSelectionChange}
               />

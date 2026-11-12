@@ -1,3 +1,5 @@
+import { ServerResponseError } from "@phoenix/components/exception/serverConnectionError";
+
 export const INCREMENTAL_ACCEPT_HEADER =
   "multipart/mixed; deferSpec=20220824, application/json";
 
@@ -31,7 +33,10 @@ export async function* readMultipartMixed(
   while (true) {
     const { done, value } = await reader.read();
     if (done) {
-      return;
+      throw new ServerResponseError(
+        "GraphQL request failed: the response ended before it was complete.",
+        response.status
+      );
     }
     buffer += value;
     let index = buffer.indexOf(delimiter);
@@ -46,12 +51,12 @@ export async function* readMultipartMixed(
         }
       }
       isPastPreamble = true;
-      const isClosingDelimiter = buffer.startsWith("--");
-      if (isClosingDelimiter) {
-        await reader.cancel();
-        return;
-      }
       index = buffer.indexOf(delimiter);
+    }
+    const isClosingDelimiter = isPastPreamble && buffer.startsWith("--");
+    if (isClosingDelimiter) {
+      await reader.cancel();
+      return;
     }
   }
 }

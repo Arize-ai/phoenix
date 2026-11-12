@@ -12,6 +12,7 @@ import {
 } from "react";
 import { graphql, readInlineData, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
+import type { GraphQLResponse, Observable } from "relay-runtime";
 
 import {
   Flex,
@@ -77,7 +78,7 @@ import {
 import { ProjectEvaluatorLagCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorLagCell";
 import { ProjectEvaluatorLoadCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorLoadCell";
 import {
-  EvaluatorScoreWindowProvider,
+  EvaluatorResultsProvider,
   ProjectEvaluatorMeanScoreCellSkeleton,
   ProjectEvaluatorMeanScoreHeader,
   ProjectEvaluatorResultsCell,
@@ -294,6 +295,7 @@ export function ProjectEvaluatorsTable({
   initialTimeRange,
   initialScoreWindow,
   initialIncludeMeanScore,
+  initialRequest,
   selection,
   onSelectionChange,
 }: {
@@ -311,6 +313,8 @@ export function ProjectEvaluatorsTable({
   initialScoreWindow: EvaluatorScoreWindow;
   /** Whether the owner query fetched the results column's data. */
   initialIncludeMeanScore: boolean;
+  /** The owner query's request, read for a failure after the rows render. */
+  initialRequest: Observable<GraphQLResponse> | null | undefined;
   selection: ProjectEvaluatorSelection;
   onSelectionChange: (selection: ProjectEvaluatorSelection) => void;
 }) {
@@ -381,6 +385,13 @@ export function ProjectEvaluatorsTable({
   if (isMeanScoreColumnVisible && !includeMeanScore) {
     setIncludeMeanScore(true);
   }
+  const [scoresError, setScoresError] = useState<string | null>(null);
+  useEffect(() => {
+    const subscription = initialRequest?.subscribe({
+      error: (error: Error) => setScoresError(error.message),
+    });
+    return () => subscription?.unsubscribe();
+  }, [initialRequest]);
   // Advances while the project page streams and new spans or evaluation
   // results land, so the rows refetch as evaluations run.
   const { fetchKey } = useStreamState();
@@ -422,7 +433,10 @@ export function ProjectEvaluatorsTable({
           scoreTimeBinConfig: scoreWindow.timeBinConfig,
           includeMeanScore,
         },
-        { fetchPolicy: "store-and-network" }
+        {
+          fetchPolicy: "store-and-network",
+          onComplete: (error) => setScoresError(error?.message ?? null),
+        }
       );
     });
   }, [
@@ -446,6 +460,11 @@ export function ProjectEvaluatorsTable({
         scorePreviousTimeRange: scoreWindow.previousTimeRange,
         scoreTimeBinConfig: scoreWindow.timeBinConfig,
         includeMeanScore,
+      },
+      onComplete: (error) => {
+        if (error != null) {
+          setScoresError(error.message);
+        }
       },
     });
   }, [_loadNext, trimmedFilter, timeRange, scoreWindow, includeMeanScore]);
@@ -887,7 +906,10 @@ export function ProjectEvaluatorsTable({
   }
   return (
     <div css={scrollableAreaCSS}>
-      <EvaluatorScoreWindowProvider value={scoreWindow}>
+      <EvaluatorResultsProvider
+        scoreWindow={scoreWindow}
+        scoresError={scoresError}
+      >
         <ColumnOrderingProvider
           columnOrder={visibleColumnOrder}
           onColumnOrderChange={onVisibleColumnOrderChange}
@@ -1005,7 +1027,7 @@ export function ProjectEvaluatorsTable({
             )}
           </table>
         </ColumnOrderingProvider>
-      </EvaluatorScoreWindowProvider>
+      </EvaluatorResultsProvider>
       {Object.keys(selection).length > 0 ? (
         <ProjectEvaluatorSelectionToolbar
           selection={selection}

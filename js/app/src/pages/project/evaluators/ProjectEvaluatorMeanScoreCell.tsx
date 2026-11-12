@@ -29,6 +29,7 @@ import {
   StackedSparkline,
   useBinTimeTickFormatter,
 } from "@phoenix/components/chart";
+import { TextErrorBoundaryFallback } from "@phoenix/components/exception";
 import type { ProjectEvaluatorResultAnnotation } from "@phoenix/hooks/useProjectEvaluatorResultAnnotations";
 import { SummaryValueBreakdown } from "@phoenix/pages/project/AnnotationSummary";
 import type {
@@ -150,8 +151,13 @@ const EvaluatorScoreWindowContext = createContext<EvaluatorScoreWindow | null>(
   null
 );
 
+const EvaluatorScoresErrorContext = createContext<string | null>(null);
+
 /**
- * Provides the score window to the results column's header and cells.
+ * Provides the score window to the results column's header and cells, and
+ * the message of the request that last fetched their data if it failed.
+ * Relay does not report a failure that arrives after a response's first
+ * part, so a cell whose deferred scores never arrived reads it here.
  *
  * Context rather than a prop threaded through the column defs: a column def
  * closing over the window would rebuild — and, because tanstack renders the
@@ -159,14 +165,29 @@ const EvaluatorScoreWindowContext = createContext<EvaluatorScoreWindow | null>(
  * the window changes, including the live range's once-a-minute/hour
  * re-anchor. A context update just re-renders.
  */
-export const EvaluatorScoreWindowProvider =
-  EvaluatorScoreWindowContext.Provider;
+export function EvaluatorResultsProvider({
+  scoreWindow,
+  scoresError,
+  children,
+}: {
+  scoreWindow: EvaluatorScoreWindow;
+  scoresError: string | null;
+  children: ReactNode;
+}) {
+  return (
+    <EvaluatorScoreWindowContext.Provider value={scoreWindow}>
+      <EvaluatorScoresErrorContext.Provider value={scoresError}>
+        {children}
+      </EvaluatorScoresErrorContext.Provider>
+    </EvaluatorScoreWindowContext.Provider>
+  );
+}
 
 function useEvaluatorScoreWindow(): EvaluatorScoreWindow {
   const scoreWindow = useContext(EvaluatorScoreWindowContext);
   invariant(
     scoreWindow != null,
-    "useEvaluatorScoreWindow requires an EvaluatorScoreWindowProvider"
+    "useEvaluatorScoreWindow requires an EvaluatorResultsProvider"
   );
   return scoreWindow;
 }
@@ -240,6 +261,10 @@ export function ProjectEvaluatorResultsCell({
     `,
     projectEvaluator
   );
+  const scoresError = useContext(EvaluatorScoresErrorContext);
+  if (annotationScoreMetrics === undefined && scoresError != null) {
+    return <TextErrorBoundaryFallback error={scoresError} />;
+  }
   return (
     <ProjectEvaluatorMeanScoreCell
       annotations={annotations}
