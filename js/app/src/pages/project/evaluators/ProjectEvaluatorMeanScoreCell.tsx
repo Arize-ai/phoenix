@@ -263,7 +263,7 @@ export function ProjectEvaluatorResultsCell({
   );
   const scoresError = useContext(EvaluatorScoresErrorContext);
   if (annotationScoreMetrics === undefined && scoresError != null) {
-    return <TextErrorBoundaryFallback error={scoresError} />;
+    return <TextErrorBoundaryFallback error="Scores failed to load." />;
   }
   return (
     <ProjectEvaluatorMeanScoreCell
