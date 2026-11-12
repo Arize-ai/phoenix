@@ -1,6 +1,8 @@
 # Use Phoenix Evals in a verifier
 
-Use a `phoenix-evals` classifier to compare an agent's final reply with a reference answer and task-specific grading notes. The verifier writes the score to Harbor; the Phoenix plugin records it as an experiment evaluation.
+This example uses a `phoenix-evals` LLM classifier to compare an agent's final reply with a reference answer and task-specific grading notes. The verifier writes the score to Harbor; the Phoenix plugin records it as an experiment evaluation.
+
+Phoenix Evals also has code evaluators (`create_evaluator`), and you can run the same evaluators on traces and experiments outside Harbor. Plain code and Rewardkit work too. Use an LLM classifier, as here, only when code can't judge the criteria, such as whether free text means the same thing as a reference.
 
 ## Prepare the verifier
 
@@ -14,18 +16,16 @@ COPY . /tests/
 
 Save your reference in `tests/expected.json` with a nonempty `reference` string and an optional `notes` string. Use notes for task-specific criteria and acceptable alternatives. Keep this file out of the agent image. To also display it in Phoenix, set `[metadata.arize-phoenix] reference_output_path = "tests/expected.json"`.
 
-This example reads `/logs/agent/trajectory.json`. For a separate verifier environment, include that path in the task's `artifacts` list so Harbor transfers it. Choose an agent that records a final text reply before verification; some agents end with a completion tool call instead.
+This example reads `/logs/agent/trajectory.json`. Choose an agent that records a final text reply before verification; some agents end with a completion tool call instead.
 
-A `task.toml` for a separate verifier looks like this. Replace `JUDGE_MODEL_NAME` with the judge model, and keep your existing agent and environment settings:
+Add these settings to `task.toml`. Replace `JUDGE_MODEL_NAME` with the judge model, and keep your existing agent and environment settings. A `[verifier.environment]` table runs the verifier in its own container, which receives only the files listed in `artifacts`:
 
 ```toml
+# Copy the agent's trajectory into the verifier container.
 artifacts = ["/logs/agent/trajectory.json"]
 
 [metadata.arize-phoenix]
 reference_output_path = "tests/expected.json"
-
-[verifier]
-environment_mode = "separate"
 
 [verifier.environment]
 network_mode = "allowlist"

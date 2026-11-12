@@ -1,6 +1,6 @@
 ---
 name: phoenix-harbor
-description: Build, run, and review Harbor agent evaluations, and record them in Phoenix with the `arize-phoenix` Harbor plugin. Use when writing or reviewing Harbor tasks, instructions, verifiers, rewards, or expected answers; adding the plugin to `harbor run`; choosing ATIF tracing; comparing agents, models, or skills as Phoenix experiments; resuming jobs; or debugging suspicious scores, missing traces, or missing Harbor records in Phoenix.
+description: Build and review Harbor evaluations with Phoenix. Use when configuring the Phoenix Harbor plugin, designing tasks, tests, verifiers, or rewards, comparing Harbor experiments, or debugging their scores, traces, and recording failures.
 license: Apache-2.0
 metadata:
   targets: "agents mcp"
@@ -14,7 +14,7 @@ Use the Phoenix Harbor plugin to record Harbor agent evaluations as versioned Ph
 
 Harbor runs agents and verifiers. Phoenix records and compares their results.
 
-For a new evaluation, start with [Build and run Harbor tasks](references/best-practices.md) to create and validate a task. Then follow this file to record runs and compare results in Phoenix. To grade an agent's answer with an LLM, see [Use Phoenix Evals in a verifier](references/phoenix-evals-verifier.md).
+For a new evaluation, start with [Build and run Harbor tasks](references/best-practices.md) to create and validate a task. Then follow this file to record runs and compare results in Phoenix. For a worked verifier built with Phoenix Evals, see [Use Phoenix Evals in a verifier](references/phoenix-evals-verifier.md).
 
 ## Requirements
 
@@ -57,6 +57,8 @@ Replace the placeholders with your task directory, Harbor agent, model, and sand
 
 After the run, open the dataset's **Experiments** tab in Phoenix. Compare rewards and errors, then open a run's linked trace to inspect its model and tool calls. Run another agent or model on the same tasks to add a comparison experiment.
 
+To read the same results from a terminal or an agent, use the `phoenix-cli` skill (`px experiment list --dataset NAME`, `px experiment get ID`), the Phoenix MCP server, or the REST API.
+
 ## Choose the trace mode
 
 Use `atif` unless the agent has no ATIF trajectory or the user does not want traces. ATIF is the default. It reads trajectory files after the final trial attempt, so the sandbox needs no Phoenix endpoint, credentials, instrumentation, or outbound network access.
@@ -94,11 +96,11 @@ When a saved terminal ATIF trajectory ends with a user-facing textual agent turn
 
 Successful runs written by older plugin versions keep their legacy Harbor metadata output because Phoenix runs are immutable. Resume recognizes that exact legacy shape and reuses the run.
 
-## Define task scores
+## Separate recorded metrics from verifier scores
 
 Most built-in Harbor agents produce ATIF trajectories by default. Custom agents can implement [ATIF output](https://docs.harborframework.com/agents/atif) too. With the default `atif` trace mode, the plugin converts these trajectories into OpenTelemetry traces with recorded timing, token usage, cost, metadata, and nested agent and tool calls. See [ATIF trace details](#interpret-atif-traces) for supported fields and timing limits.
 
-The plugin also records trial duration, execution errors, and the final reply when available. These records need no verifier code. Missing usage is unknown, not zero.
+The plugin also records trial duration, execution errors, and the final reply when available. These records need no verifier code.
 
 You define success in the task's verifier. Write the result to Harbor's reward file, and the plugin copies each numeric key into a Phoenix experiment evaluation. Use `reward` for the overall result. It can combine several checks with AND, OR, or a documented partial-credit calculation. The plugin does not choose or combine those checks for you.
 

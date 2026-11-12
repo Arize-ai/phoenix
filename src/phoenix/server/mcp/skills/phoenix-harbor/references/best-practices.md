@@ -56,7 +56,7 @@ Select network access for environment startup, agent execution, and verification
 
 - Install dependencies in images where practical. An allowlist must permit any remaining setup downloads and service calls. For example, a Rewardkit `test.sh` downloads `harbor-rewardkit` with `uvx` during verification, so install it in the verifier image or allow PyPI for that phase.
 - A per-phase network override needs a provider that can change network policy after the sandbox starts. Otherwise, give a separate verifier environment its own baseline policy.
-- Provider-hosted browsing tools can fetch content outside sandbox network controls. When outside access matters, turn those tools off in the agent's configuration too.
+- An allowlist controls traffic from the sandbox, not from the model provider. If the provider's host is allowed, hosted tools that run on the provider's servers, such as web search, still reach outside content. When outside access matters, turn those tools off in the agent's configuration.
 
 Supply judge credentials through verifier configuration, not the image or agent prompt. Check that required credentials and services work before starting a batch.
 
@@ -115,16 +115,6 @@ Check these Harbor configuration details when a run differs from the job you int
 
 Check `infra_ok`, reward coverage, and recorded errors before comparing task scores. Report execution failures separately rather than silently excluding them from the results. `infra_ok=1` means Harbor recorded no exception; it does not establish that the task or verifier is correct.
 
-Inspect failed runs and unexpected passes using their trajectories, verifier logs, and final state. Before you change anything, name the cause of each failure:
-
-| Cause | What went wrong | Where to look |
-| --- | --- | --- |
-| Agent | The agent had what it needed and still got it wrong. Only this cause is a result about the agent. | Trajectory, final state |
-| Task | The instruction or data was missing information, was ambiguous, or exposed the answer. | `instruction.md`, `environment/` |
-| Setup | The agent's tools, prompt, skills, runtime, or services didn't match the intended condition. | Trajectory, `trial.log`, job config |
-| Grader | The verifier failed a valid result or passed a wrong one. | The trial's `verifier/` output |
-| Infrastructure | Something crashed, timed out, or lacked a credential. The run has no valid score. | `infra_ok`, run error |
-
-Fix task, setup, grader, and infrastructure defects before drawing conclusions about the agent. Preserve original scores when correcting a grader, and compare reruns under the same grading logic.
+Inspect failed runs and unexpected passes using their trajectories, verifier logs, and final state. Before you change anything, name each failure's cause: the agent, the task (missing information, ambiguity, or a leaked answer), the setup (tools, prompt, skills, or services that don't match the intended condition), the grader, or infrastructure. Only an agent failure is a result; fix the other four before drawing conclusions about the agent. Preserve original scores when correcting a grader, and compare reruns under the same grading logic.
 
 Compare configurations on the same tasks and dataset version. Change one factor at a time when you need to attribute a difference. Uniformly high or low scores can reflect task difficulty, weak checks, or similar agent performance; inspect the evidence before changing the benchmark.
