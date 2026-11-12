@@ -1,13 +1,17 @@
 import { z } from "zod";
 
 import type { AgentCapabilities } from "@phoenix/agent/extensions/capabilities";
-import type { AgentStore } from "@phoenix/store/agentStore";
+import {
+  type AgentStore,
+  waitForRegisteredClientActions,
+} from "@phoenix/store/agentStore";
 
 import {
   getMountedUIOperationHandler,
   getUIOperationDescriptor,
   suggestUIOperationNames,
 } from "./catalog";
+import { getRouteSettleWaitMs } from "./routeSettle";
 import { isOperationCallApprovalGranted } from "./scriptApprovalGrant";
 import type { UIOperationCallContext, UIOperationResult } from "./types";
 
@@ -17,6 +21,28 @@ export type UIOperationDispatchContext = {
   sessionId: string | null;
   capabilities: AgentCapabilities;
 };
+
+/**
+ * The operation's mounted handler. Just after a route change the page may
+ * still be loading the data its operations register with, so this waits for
+ * it there instead of failing the script's first call on the new page.
+ */
+async function getMountedHandlerAfterRouteSettle(
+  agentStore: AgentStore,
+  operationName: string
+) {
+  const handler = getMountedUIOperationHandler(agentStore, operationName);
+  const settleWaitMs = getRouteSettleWaitMs();
+  if (handler != null || settleWaitMs === 0) {
+    return handler;
+  }
+  await waitForRegisteredClientActions({
+    agentStore,
+    names: [operationName],
+    timeoutMs: settleWaitMs,
+  });
+  return getMountedUIOperationHandler(agentStore, operationName);
+}
 
 /**
  * Execute one operation call on behalf of a running `execute_browser_action` script.
@@ -79,7 +105,10 @@ export async function dispatchUIOperationCall({
     };
   }
 
-  const handler = getMountedUIOperationHandler(agentStore, operationName);
+  const handler = await getMountedHandlerAfterRouteSettle(
+    agentStore,
+    operationName
+  );
   if (handler == null) {
     const routeHint = descriptor.availability?.routeHint;
     return {

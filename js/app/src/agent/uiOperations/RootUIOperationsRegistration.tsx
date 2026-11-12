@@ -60,6 +60,7 @@ import {
 import { patchExperimentOperation } from "./operations/experiment";
 import { navigationGoToOperation } from "./operations/navigation";
 import { batchSpanAnnotateOperation } from "./operations/spans";
+import { markRouteChanged } from "./routeSettle";
 
 /**
  * Registers the UI operations that are not tied to any page's UI surface —
@@ -84,6 +85,11 @@ export function RootUIOperationsRegistration() {
     navigateRef.current = navigate;
     pathRef.current = location.pathname;
   }, [navigate, location.pathname]);
+  // Any route change, the agent's or the human's, opens the window in which
+  // dispatch waits for the new page's operations to mount.
+  useEffect(() => {
+    markRouteChanged();
+  }, [location.pathname]);
 
   useEffect(
     () =>
@@ -175,7 +181,13 @@ export function RootUIOperationsRegistration() {
             descriptor: navigationGoToOperation,
             handler: createNavigationGoToClientAction({
               agentStore,
-              navigate: (path) => navigateRef.current(path),
+              navigate: (path) => {
+                // Marked before navigating: goTo resolves when the route
+                // commits, before the effect below runs, and the script's
+                // next call must already see the route as changing.
+                markRouteChanged();
+                navigateRef.current(path);
+              },
               getCurrentPath: () => pathRef.current,
             }),
           },
