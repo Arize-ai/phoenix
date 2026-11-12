@@ -59,6 +59,7 @@ from .._helpers import (
     _Expectation,
     _extract_html,
     _GetUser,
+    _gql_subscription,
     _GqlId,
     _Headers,
     _httpx_client,
@@ -998,7 +999,7 @@ class TestGraphQLQuery:
 
 class TestSandboxAndCodeEvaluatorPermissions:
     # Tier 1 (admin-only): sandbox-config mutations + updateSandboxProvider.
-    # Tier 2 (IsNotViewer): code-evaluator mutations + evaluatorPreviews.
+    # Tier 2 (IsNotViewer): code-evaluator mutations + evaluator previews (subscription, mutation).
     # Tier 3 (unrestricted): sandbox/provider/config reads + code-evaluator source.
 
     QUERY = """
@@ -1040,10 +1041,12 @@ class TestSandboxAndCodeEvaluatorPermissions:
         createCodeEvaluatorVersion(input: $input) { wasCreated }
       }
 
-      mutation EvaluatorPreviews($input: EvaluatorPreviewsInput!) {
-        evaluatorPreviews(input: $input) {
-          results { evaluatorName }
-        }
+      subscription EvaluatorPreview($input: EvaluatorPreviewInput!) {
+        evaluatorPreview(input: $input) { key }
+      }
+
+      mutation PreviewEvaluator($input: EvaluatorPreviewInput!) {
+        previewEvaluator(input: $input) { results { key } }
       }
 
       mutation CreateDataset($input: CreateDatasetInput!) {
@@ -1247,8 +1250,32 @@ class TestSandboxAndCodeEvaluatorPermissions:
                 }
             },
         )
-        # Empty previews list exercises the IsNotViewer gate without a live backend.
-        check(members_allowed, "EvaluatorPreviews", {"input": {"previews": []}})
+        # No subjects exercises the IsNotViewer gate without a live backend.
+        preview_variables = {
+            "input": {
+                "evaluator": {"codeEvaluatorId": code_evaluator_id},
+                "inputMapping": self._INPUT_MAPPING,
+                "subjects": [],
+            }
+        }
+        check(members_allowed, "PreviewEvaluator", preview_variables)
+        if members_allowed:
+            _gql_subscription(
+                _app,
+                user,
+                query=self.QUERY,
+                operation_name="EvaluatorPreview",
+                variables=preview_variables,
+            )
+        else:
+            with pytest.raises(Unauthorized):
+                _gql_subscription(
+                    _app,
+                    user,
+                    query=self.QUERY,
+                    operation_name="EvaluatorPreview",
+                    variables=preview_variables,
+                )
 
         # Tier 3 — unrestricted reads (succeed for every role, viewers included)
         sandbox_read, _ = user.gql(_app, query=self.QUERY, operation_name="SandboxReadAccess")

@@ -1,0 +1,15 @@
+mutation PreviewEvaluator($input: EvaluatorPreviewInput!) {
+  previewEvaluator(input: $input) {
+    results {
+      key
+      error
+      results {
+        error
+        annotation {
+          score
+          label
+        }
+      }
+    }
+  }
+}

@@ -28,7 +28,7 @@ against `js/app/schema.graphql`. The shared `harbor_verifiers` package is instal
      - `evaluator_is_exact_match`: for every example, the evaluator passes the reference as
        is, fenced, and padded with a score of exactly 1, and fails one changed token and an empty
        output with exactly 0. The candidates run
-       through Phoenix's `evaluatorPreviews` mutation on the evaluator's own sandbox. LLM
+       through Phoenix's `previewEvaluator` mutation on the evaluator's own sandbox. LLM
        evaluators fail outright.
      - `no_experiments_yet`: no experiments exist and the dataset still has 28 examples.
 2. `step_02_hill_climb`

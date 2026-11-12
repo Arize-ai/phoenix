@@ -29,12 +29,6 @@ from .enums import (
     PromptMessageRole,
     PromptTemplateFormat,
 )
-from .evaluator_previews import (
-    EvaluatorPreviews,
-    EvaluatorPreviewsEvaluatorPreviews,
-    EvaluatorPreviewsEvaluatorPreviewsResults,
-    EvaluatorPreviewsEvaluatorPreviewsResultsAnnotation,
-)
 from .exceptions import (
     GraphQLClientError,
     GraphQLClientGraphQLError,
@@ -91,8 +85,8 @@ from .input_types import (
     DecisionVersionInput,
     EvaluatorDefinitionInput,
     EvaluatorInputMappingInput,
-    EvaluatorPreviewItemInput,
-    EvaluatorPreviewsInput,
+    EvaluatorPreviewInput,
+    EvaluatorPreviewSubjectInput,
     FreeformAnnotationConfigInput,
     GenerativeCredentialInput,
     InlineCodeEvaluatorInput,
@@ -122,6 +116,13 @@ from .input_types import (
     ToolCallContentValueInput,
     ToolCallFunctionInput,
     ToolResultContentValueInput,
+)
+from .preview_evaluator import (
+    PreviewEvaluator,
+    PreviewEvaluatorPreviewEvaluator,
+    PreviewEvaluatorPreviewEvaluatorResults,
+    PreviewEvaluatorPreviewEvaluatorResultsResults,
+    PreviewEvaluatorPreviewEvaluatorResultsResultsAnnotation,
 )
 
 __all__ = [
@@ -178,12 +179,8 @@ __all__ = [
     "EvaluatorDefinitionInput",
     "EvaluatorInputMappingInput",
     "EvaluatorKind",
-    "EvaluatorPreviewItemInput",
-    "EvaluatorPreviews",
-    "EvaluatorPreviewsEvaluatorPreviews",
-    "EvaluatorPreviewsEvaluatorPreviewsResults",
-    "EvaluatorPreviewsEvaluatorPreviewsResultsAnnotation",
-    "EvaluatorPreviewsInput",
+    "EvaluatorPreviewInput",
+    "EvaluatorPreviewSubjectInput",
     "ExperimentFields",
     "ExperimentFieldsCostSummary",
     "ExperimentFieldsCostSummaryTotal",
@@ -212,6 +209,11 @@ __all__ = [
     "OptimizationDirection",
     "PredicateCriteriaInput",
     "PredicateQuestionInput",
+    "PreviewEvaluator",
+    "PreviewEvaluatorPreviewEvaluator",
+    "PreviewEvaluatorPreviewEvaluatorResults",
+    "PreviewEvaluatorPreviewEvaluatorResultsResults",
+    "PreviewEvaluatorPreviewEvaluatorResultsResultsAnnotation",
     "PromptAnthropicInvocationParametersInput",
     "PromptAnthropicOutputConfigInput",
     "PromptAnthropicThinkingConfigInput",

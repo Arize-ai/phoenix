@@ -3,8 +3,8 @@ from typing import Any
 from .base_client import BaseClient
 from .dataset_evaluators import DatasetEvaluators
 from .dataset_experiments import DatasetExperiments
-from .evaluator_previews import EvaluatorPreviews
-from .input_types import EvaluatorPreviewsInput
+from .input_types import EvaluatorPreviewInput
+from .preview_evaluator import PreviewEvaluator
 
 
 def gql(q: str) -> str:
@@ -158,17 +158,21 @@ class Client(BaseClient):
         data = self.get_data(response)
         return DatasetExperiments.model_validate(data)
 
-    def evaluator_previews(
-        self, input: EvaluatorPreviewsInput, **kwargs: Any
-    ) -> EvaluatorPreviews:
+    def preview_evaluator(
+        self, input: EvaluatorPreviewInput, **kwargs: Any
+    ) -> PreviewEvaluator:
         query = gql("""
-            mutation EvaluatorPreviews($input: EvaluatorPreviewsInput!) {
-              evaluatorPreviews(input: $input) {
+            mutation PreviewEvaluator($input: EvaluatorPreviewInput!) {
+              previewEvaluator(input: $input) {
                 results {
+                  key
                   error
-                  annotation {
-                    score
-                    label
+                  results {
+                    error
+                    annotation {
+                      score
+                      label
+                    }
                   }
                 }
               }
@@ -177,9 +181,9 @@ class Client(BaseClient):
         variables: dict[str, object] = {"input": input}
         response = self.execute(
             query=query,
-            operation_name="EvaluatorPreviews",
+            operation_name="PreviewEvaluator",
             variables=variables,
             **kwargs,
         )
         data = self.get_data(response)
-        return EvaluatorPreviews.model_validate(data)
+        return PreviewEvaluator.model_validate(data)

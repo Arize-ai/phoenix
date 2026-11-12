@@ -1,6 +1,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type * as ReactRelay from "react-relay";
+import type * as RelayRuntime from "relay-runtime";
 
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import { Dialog } from "@phoenix/components/core/dialog";
@@ -21,7 +22,8 @@ import { createDecisionTaskInstance } from "@phoenix/store/playground";
 
 import { DecisionDatasetEvaluatorForm } from "../DecisionDatasetEvaluatorForm";
 
-const { commit, notifySuccess, loadVersion } = vi.hoisted(() => ({
+const { commit, notifySuccess, loadVersion, subscribe } = vi.hoisted(() => ({
+  subscribe: vi.fn(),
   commit: vi.fn(),
   notifySuccess: vi.fn(),
   loadVersion: vi.fn(),
@@ -32,6 +34,14 @@ vi.mock("react-relay", async (importOriginal) => ({
     (config: object) => commit(node.params.name, config),
     false,
   ],
+  useRelayEnvironment: () => ({}),
+}));
+vi.mock("relay-runtime", async (importOriginal) => ({
+  ...(await importOriginal<typeof RelayRuntime>()),
+  requestSubscription: (_environment: unknown, config: object) => {
+    subscribe(config);
+    return { dispose: vi.fn() };
+  },
 }));
 vi.mock("@phoenix/contexts/NotificationContext", () => ({
   useNotifySuccess: () => notifySuccess,
@@ -200,7 +210,6 @@ const saved: DecisionEvaluatorData = {
 };
 const CREATE = "DecisionDatasetEvaluatorForm_createMutation";
 const UPDATE = "DecisionDatasetEvaluatorForm_updateMutation";
-const PREVIEW = "useEvaluatorPreviewMutation";
 
 describe("Decision dataset evaluator authoring", () => {
   let container: HTMLDivElement;
@@ -318,8 +327,10 @@ describe("Decision dataset evaluator authoring", () => {
     await click("Map answer");
     await click("Test");
     expect(calls(CREATE)).toHaveLength(0);
-    expect(calls(PREVIEW)).toHaveLength(1);
-    expect(calls(PREVIEW)[0][1].variables.input.previews[0]).toMatchObject({
+    expect(subscribe).toHaveBeenCalledTimes(1);
+    const { input } = subscribe.mock.calls[0][0].variables;
+    expect(input.subjects).toHaveLength(1);
+    expect(input).toMatchObject({
       evaluator: {
         inlineDecisionEvaluator: {
           name: "quality",

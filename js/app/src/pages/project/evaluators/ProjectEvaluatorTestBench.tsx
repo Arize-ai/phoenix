@@ -5,15 +5,18 @@ import {
   Fragment,
   Suspense,
   useContext,
+  useEffect,
+  useRef,
   useState,
   useSyncExternalStore,
 } from "react";
-import { graphql, useMutation } from "react-relay";
 import { Group, Panel } from "react-resizable-panels";
+import type { Disposable } from "relay-runtime";
 import invariant from "tiny-invariant";
 import { useShallow } from "zustand/react/shallow";
 
 import {
+  Alert,
   Button,
   EdgeFade,
   Flex,
@@ -29,12 +32,21 @@ import {
   Text,
 } from "@phoenix/components";
 import { SelectChevronUpDownIcon } from "@phoenix/components/core/icon";
+import type {
+  InlineCodeEvaluatorInput,
+  InlineDecisionEvaluatorInput,
+  InlineLLMEvaluatorInput,
+} from "@phoenix/components/evaluators/__generated__/useEvaluatorPreviewSubscription.graphql";
 import { withoutOptimizationDirections } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
 import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
 import {
   EvaluatorPreviewOutputConfigsProvider,
   useEvaluatorPreviewOutputConfigs,
 } from "@phoenix/components/evaluators/EvaluatorPreviewOutputConfigsContext";
+import {
+  EVALUATOR_PREVIEW_MAX_SUBJECTS,
+  useEvaluatorPreviewStream,
+} from "@phoenix/components/evaluators/useEvaluatorPreview";
 import {
   buildOutputConfigsInput,
   createLLMEvaluatorPayload,
@@ -52,12 +64,6 @@ import {
 } from "@phoenix/contexts/EvaluatorContext";
 import type { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { toGqlCredentials } from "@phoenix/pages/playground/playgroundUtils";
-import type {
-  InlineCodeEvaluatorInput,
-  InlineDecisionEvaluatorInput,
-  InlineLLMEvaluatorInput,
-  ProjectEvaluatorTestBenchPreviewMutation,
-} from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorTestBenchPreviewMutation.graphql";
 import {
   getRecordMappingDiagnostics,
   useEvaluatorMappingSourceBoundToRow,
@@ -70,6 +76,7 @@ import {
   formatRecordedRunSummary,
   getRecordedRunResultState,
   isRecordedRunEntryRunnable,
+  type FinishedRecordedRun,
   type RecordedRun,
   type RecordedRunEntry,
   type RecordedRunRow,
@@ -84,7 +91,6 @@ import type {
   CodeEvaluatorLanguage,
   EvaluatorInputMapping,
 } from "@phoenix/types";
-import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 export type ProjectEvaluatorInlineCode = {
   language: CodeEvaluatorLanguage;
@@ -216,13 +222,19 @@ export function ProjectEvaluatorTestBench({
     rowKey: focusedRow?.key ?? null,
     context: focusedRow?.context,
   });
-  const { runs, runOnRow, isRunnable, runBlocker, currentFingerprint } =
-    useEvaluatorPreviewRuns({
-      codeEvaluatorId,
-      inlineCode,
-      decision,
-      playgroundStore,
-    });
+  const {
+    runs,
+    runOnRows,
+    runError,
+    isRunnable,
+    runBlocker,
+    currentFingerprint,
+  } = useEvaluatorPreviewRuns({
+    codeEvaluatorId,
+    inlineCode,
+    decision,
+    playgroundStore,
+  });
   const declaredVariables = useEvaluatorInputVariables();
   const entries: RecordedRunEntry[] = rows.map((row) => {
     const missingCount = getRecordMappingDiagnostics({
@@ -269,6 +281,7 @@ export function ProjectEvaluatorTestBench({
           "previews are not saved to the project",
         ]}
         blocker={runBlocker}
+        runError={runError}
       >
         <Button
           size="S"
@@ -277,11 +290,7 @@ export function ProjectEvaluatorTestBench({
             <Icon svg={isRetest ? <Icons.Refresh /> : <Icons.Play />} />
           }
           isDisabled={!isRunnable || runnableEntries.length === 0}
-          onPress={() => {
-            for (const { row } of runnableEntries) {
-              runOnRow(row);
-            }
-          }}
+          onPress={() => runOnRows(runnableEntries.map(({ row }) => row))}
         >
           {formatBulkTestLabel({
             runnableCount: runnableEntries.length,
@@ -308,7 +317,7 @@ export function ProjectEvaluatorTestBench({
             onFocusRow={setFocusedKey}
             isRunnable={isRunnable}
             runBlocker={runBlocker}
-            onRunRow={runOnRow}
+            onRunRow={(row) => runOnRows([row])}
             hasMore={hasMore}
             isLoadingMore={isLoadingMore}
             onLoadMore={onLoadMore}
@@ -328,7 +337,7 @@ export function ProjectEvaluatorTestBench({
               requiredVariables={requiredVariables}
               isRunnable={isRunnable}
               runBlocker={runBlocker}
-              onRun={() => runOnRow(focusedEntry.row)}
+              onRun={() => runOnRows([focusedEntry.row])}
             />
           ) : null}
         </Panel>
@@ -397,10 +406,13 @@ function TestBenchHeader({
   countLine,
   summaryParts,
   blocker,
+  runError,
   children,
 }: TestBenchHeaderProps & {
   summaryParts: readonly (string | null)[];
   blocker: string | null;
+  /** Why the last test could not run at all; the same for every row. */
+  runError?: string | null;
   children: ReactNode;
 }) {
   const records = formatEvaluationTargetPlural(targetType);
@@ -442,6 +454,7 @@ function TestBenchHeader({
           </Text>
         </div>
       ) : null}
+      {runError ? <Alert variant="danger">{runError}</Alert> : null}
     </div>
   );
 }
@@ -608,7 +621,7 @@ function withPreviewName(
 }
 
 /**
- * The evaluator the preview mutation runs, built the same way at render time
+ * The evaluator the preview runs, built the same way at render time
  * for the fingerprint and at click time for the request, so a run's
  * fingerprint and the bench's current one can only differ when the
  * definition did.
@@ -700,10 +713,31 @@ export function fingerprintDefinition(
   return JSON.stringify({ evaluator: fingerprinted, inputMapping });
 }
 
+/**
+ * The rows to send, one request's worth per batch. A record can be listed
+ * twice under one key (an in-progress trace with two root spans) and the
+ * server rejects a repeated key, so each key is sent once; and the server
+ * takes at most EVALUATOR_PREVIEW_MAX_SUBJECTS subjects per request.
+ */
+export function previewSubjectBatches<Row extends { key: string }>(
+  rows: readonly Row[]
+): Row[][] {
+  const unique = [...new Map(rows.map((row) => [row.key, row])).values()];
+  const batches: Row[][] = [];
+  for (
+    let start = 0;
+    start < unique.length;
+    start += EVALUATOR_PREVIEW_MAX_SUBJECTS
+  ) {
+    batches.push(unique.slice(start, start + EVALUATOR_PREVIEW_MAX_SUBJECTS));
+  }
+  return batches;
+}
+
 const subscribeToNothing = () => () => {};
 
-/** The preview runs, keyed by row; results survive a load-more. */
-function useEvaluatorPreviewRuns({
+/** The preview runs, keyed by row; results survive a load-more. Exported for tests. */
+export function useEvaluatorPreviewRuns({
   codeEvaluatorId,
   inlineCode,
   decision,
@@ -721,26 +755,25 @@ function useEvaluatorPreviewRuns({
   const evaluatorStore = useEvaluatorStoreInstance();
   const credentials = useCredentialsContext((state) => state);
   const [runs, setRuns] = useState<Record<string, RecordedRun>>({});
-  const [previewEvaluator] =
-    useMutation<ProjectEvaluatorTestBenchPreviewMutation>(graphql`
-      mutation ProjectEvaluatorTestBenchPreviewMutation(
-        $input: EvaluatorPreviewsInput!
-      ) {
-        evaluatorPreviews(input: $input) {
-          results {
-            evaluatorName
-            annotation {
-              ...decisionAnnotation_annotation @relay(mask: false)
-              name
-              label
-              score
-              explanation
-            }
-            error
-          }
-        }
+  const [runError, setRunError] = useState<string | null>(null);
+  const startPreview = useEvaluatorPreviewStream();
+  // Closing the bench closes its streams, and the server stops their work.
+  const activePreviewsRef = useRef(new Set<Disposable>());
+  // The run that owns each row: the latest one started on it. A row tested
+  // again (or caught by a second Test all) while a stream is still running
+  // belongs to the newer run, and the older stream's results and errors for
+  // it are ignored.
+  const rowRunIdsRef = useRef(new Map<string, number>());
+  const nextRunIdRef = useRef(0);
+  useEffect(() => {
+    const activePreviews = activePreviewsRef.current;
+    return () => {
+      for (const preview of activePreviews) {
+        preview.dispose();
       }
-    `);
+      activePreviews.clear();
+    };
+  }, []);
   // Subscribed so an edit to the prompt, model, mapping, or annotation config
   // re-renders the bench and the fingerprint below moves with it.
   const definitionState = useEvaluatorStore(
@@ -779,7 +812,8 @@ function useEvaluatorPreviewRuns({
     : (decisionBlocker ??
       "Fix the evaluator's annotation configuration to test");
 
-  const runOnRow = (row: RecordedRunRow) => {
+  /** Tests one request's worth of rows, each key once, in one stream. */
+  const runOnBatch = (rows: readonly RecordedRunRow[]) => {
     const state = evaluatorStore.getState();
     const evaluator = buildPreviewEvaluator({
       codeEvaluatorId,
@@ -793,69 +827,126 @@ function useEvaluatorPreviewRuns({
       evaluator,
       state.evaluator.inputMapping
     );
-    const rowKey = row.key;
+    const subjectContextByKey = new Map(
+      rows.map(({ key, context }) => [key, context])
+    );
+    const pendingKeys = new Set(subjectContextByKey.keys());
+    const runId = ++nextRunIdRef.current;
+    for (const rowKey of pendingKeys) {
+      rowRunIdsRef.current.set(rowKey, runId);
+    }
+    const ownsRow = (rowKey: string) =>
+      rowRunIdsRef.current.get(rowKey) === runId;
+    setRunError(null);
     setRuns((current) => {
-      const previous = current[rowKey];
-      return {
-        ...current,
-        [rowKey]: {
+      const next = { ...current };
+      for (const rowKey of pendingKeys) {
+        const previous = current[rowKey];
+        next[rowKey] = {
           status: "running",
           fingerprint,
           previous:
             previous?.status === "running" ? previous.previous : previous,
-        },
-      };
+        };
+      }
+      return next;
     });
-    previewEvaluator({
-      variables: {
-        input: {
-          previews: [
-            {
-              context: row.context,
-              evaluator,
-              inputMapping: state.evaluator.inputMapping,
-              applyOnlineEvaluationLimits: true,
-            },
-          ],
-          credentials: toGqlCredentials(credentials),
-        },
+    const settle = (rowKey: string, run: FinishedRecordedRun) => {
+      pendingKeys.delete(rowKey);
+      if (!ownsRow(rowKey)) {
+        return;
+      }
+      rowRunIdsRef.current.delete(rowKey);
+      setRuns((current) => ({ ...current, [rowKey]: run }));
+    };
+    let isFinished = false;
+    let preview: Disposable | null = null;
+    const finish = () => {
+      isFinished = true;
+      if (preview != null) {
+        activePreviewsRef.current.delete(preview);
+      }
+    };
+    preview = startPreview({
+      input: {
+        evaluator,
+        inputMapping: state.evaluator.inputMapping,
+        subjects: [...subjectContextByKey].map(([key, context]) => ({
+          key,
+          context,
+        })),
+        applyOnlineEvaluationLimits: true,
+        credentials: toGqlCredentials(credentials),
       },
-      onCompleted(response, errors) {
-        if (errors?.length) {
-          setRuns((current) => ({
-            ...current,
-            [rowKey]: {
-              status: "error",
-              fingerprint,
-              message: errors.map(({ message }) => message).join("\n"),
-            },
-          }));
+      onSubjectResult(result) {
+        settle(
+          result.key,
+          result.error != null
+            ? { status: "error", fingerprint, message: result.error }
+            : { status: "done", fingerprint, results: [...result.results] }
+        );
+      },
+      onError(message) {
+        finish();
+        // Rows a newer run has taken over are that run's to report on.
+        const ownedKeys = [...pendingKeys].filter(ownsRow);
+        if (ownedKeys.length === 0) {
           return;
         }
-        setRuns((current) => ({
-          ...current,
-          [rowKey]: {
-            status: "done",
-            fingerprint,
-            results: [...response.evaluatorPreviews.results],
-          },
-        }));
+        for (const rowKey of ownedKeys) {
+          rowRunIdsRef.current.delete(rowKey);
+        }
+        // The definition could not run at all, so no row has a verdict
+        // from it: the error shows once, and the rows keep what they had.
+        setRunError(message);
+        setRuns((current) => {
+          const next = { ...current };
+          for (const rowKey of ownedKeys) {
+            const run = current[rowKey];
+            if (run?.status !== "running") {
+              continue;
+            }
+            if (run.previous) {
+              next[rowKey] = run.previous;
+            } else {
+              delete next[rowKey];
+            }
+          }
+          return next;
+        });
       },
-      onError(mutationError) {
-        setRuns((current) => ({
-          ...current,
-          [rowKey]: {
+      onCompleted() {
+        finish();
+        for (const rowKey of [...pendingKeys]) {
+          settle(rowKey, {
             status: "error",
             fingerprint,
-            message:
-              getErrorMessagesFromRelayMutationError(mutationError)?.join(
-                "\n"
-              ) ?? mutationError.message,
-          },
-        }));
+            message: "The preview returned no result for this record",
+          });
+        }
       },
     });
+    if (!isFinished) {
+      activePreviewsRef.current.add(preview);
+    }
   };
 
-  return { runs, runOnRow, isRunnable, runBlocker, currentFingerprint };
+  /**
+   * Tests the rows in as few streams as the server's subject cap allows;
+   * each row fills in as its result arrives.
+   */
+  const runOnRows = (rows: readonly RecordedRunRow[]) => {
+    for (const batch of previewSubjectBatches(rows)) {
+      runOnBatch(batch);
+    }
+  };
+
+  return {
+    runs,
+    runOnRows,
+    runError,
+    isRunnable,
+    runBlocker,
+    currentFingerprint,
+  };
 }
