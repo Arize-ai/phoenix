@@ -104,10 +104,14 @@ def _bind_evaluator_signature(sig: inspect.Signature, **kwargs: Any) -> inspect.
     params = sig.parameters
     if len(params) == 1:
         parameter_name = next(iter(params))
+        parameter = params[parameter_name]
         if parameter_name in parameter_mapping:
-            return sig.bind(parameter_mapping[parameter_name])
+            value = parameter_mapping[parameter_name]
         else:
-            return sig.bind(parameter_mapping["output"])
+            value = parameter_mapping["output"]
+        if parameter.kind is inspect.Parameter.KEYWORD_ONLY:
+            return sig.bind(**{parameter_name: value})
+        return sig.bind(value)
     return sig.bind_partial(
         **{name: parameter_mapping[name] for name in set(parameter_mapping).intersection(params)}
     )
