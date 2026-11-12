@@ -126,3 +126,7 @@ The following browser extensions are recommended for developing the Phoenix app:
 - **[GraphQL Network Inspector](https://chromewebstore.google.com/detail/graphql-network-inspector/ndlbedplllcgconngcnfmkadhokfaaln)** - For inspecting GraphQL requests, including support for query batching. Useful for debugging the GraphQL API interactions between the Phoenix app and server.
 
 - **[Relay Developer Tools](https://chromewebstore.google.com/detail/relay-developer-tools/ncedobpgnmkhcmnnkcimnobpfepidadl)** - For inspecting data in the Relay store and how data changes over time in response to GraphQL queries and mutations. Essential for debugging the React Relay data-fetching layer used throughout Phoenix.
+
+### React DevTools MCP
+
+The Vite dev server registers [`react-devtools-cdt-mcp`](https://www.npmjs.com/package/react-devtools-cdt-mcp) on the page (see `vite/reactDevtoolsMcpPlugin.mts`). Coding agents that drive Chrome through [Chrome DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp) can then read the component tree, props, and hooks, and profile render timing. Production builds do not include it. Start Chrome DevTools MCP with `--categoryExperimentalThirdParty=true` to expose the tools. Agent usage is in `.agents/skills/phoenix-frontend/references/react-devtools-mcp.md`.
