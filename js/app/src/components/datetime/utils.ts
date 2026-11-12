@@ -115,6 +115,21 @@ export function getMillisecondsUntilNextLastNTimeRangeRefresh(
 export function isLastNTimeRangeKey(key: unknown): key is LastNTimeRangeKey {
   return parseLastNTimeRangeKey(key) !== null;
 }
+
+/**
+ * The exact duration a last-N key denotes (e.g. "7d" -> seven days in
+ * milliseconds), independent of any resolved window. Useful for deriving a
+ * stable "previous window" without resolving "now".
+ */
+export function getDurationMsFromLastNTimeRangeKey(
+  key: LastNTimeRangeKey
+): number {
+  const parsed = parseLastNTimeRangeKey(key);
+  if (!parsed) {
+    throw new Error(`Invalid last N time range key: ${key}`);
+  }
+  return getLastNTimeRangeDurationMs(parsed);
+}
 /**
  * Type guard for the time range key
  */
