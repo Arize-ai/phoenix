@@ -148,18 +148,21 @@ export function SpanCountTimeSeries({
                 {...defaultTooltipProps}
               />
               <Bar
+                isAnimationActive={false}
                 dataKey="error"
                 stackId="a"
                 fill={SemanticChartColors.danger}
                 hide={isDataKeyHidden("error")}
               />
               <Bar
+                isAnimationActive={false}
                 dataKey="unset"
                 stackId="a"
                 fill={colors.gray500}
                 hide={isDataKeyHidden("unset")}
               />
               <Bar
+                isAnimationActive={false}
                 dataKey="ok"
                 stackId="a"
                 fill={colors.gray300}

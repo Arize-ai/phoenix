@@ -142,6 +142,7 @@ export function TopModelsByCost({
           />
           {series.map((tokenSeries) => (
             <Bar
+              isAnimationActive={false}
               dataKey={tokenSeries.dataKey}
               fill={colorByDataKey.get(tokenSeries.dataKey)}
               hide={isDataKeyHidden(tokenSeries.dataKey)}

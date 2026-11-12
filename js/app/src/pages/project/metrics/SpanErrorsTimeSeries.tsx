@@ -119,6 +119,7 @@ export function SpanErrorsTimeSeries({
                 {...defaultTooltipProps}
               />
               <Bar
+                isAnimationActive={false}
                 dataKey="error"
                 stackId="a"
                 fill={SemanticChartColors.danger}

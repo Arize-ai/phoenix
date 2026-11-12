@@ -101,6 +101,7 @@ function AnnotationLine({
   const color = useWordColor(name);
   return (
     <Line
+      isAnimationActive={false}
       type="monotone"
       dataKey={name}
       stroke={color}
