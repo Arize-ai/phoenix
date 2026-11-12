@@ -50,9 +50,6 @@ function getSpansAsideValues(project: SpansAsideProject) {
     latencyMsP50: project?.latencyMsP50,
     latencyMsP99: project?.latencyMsP99,
     name: project?.name,
-    spanAnnotationNames: getNonNoteAnnotationNames(
-      project?.spanAnnotationNames ?? []
-    ),
     traceAnnotationNames: getNonNoteAnnotationNames(
       project?.traceAnnotationNames ?? []
     ),
@@ -60,7 +57,10 @@ function getSpansAsideValues(project: SpansAsideProject) {
   };
 }
 
-export function SpansTableAside(props: { filterCondition?: string | null }) {
+export function SpansTableAside(props: {
+  filterCondition?: string | null;
+  spanAnnotationNames: readonly string[];
+}) {
   const filterCondition = props.filterCondition || null;
   const projectId = useTracingContext((state) => state.projectId);
   const { timeRangeISOStrings } = useTimeRange();
@@ -104,7 +104,6 @@ export function SpansTableAside(props: { filterCondition?: string | null }) {
               timeRange: $timeRange
               filterCondition: $filterCondition
             )
-            spanAnnotationNames
             traceAnnotationNames
             documentEvaluationNames
           }
@@ -128,11 +127,13 @@ export function SpansTableAside(props: { filterCondition?: string | null }) {
     latencyMsP99,
     name,
     promptCost,
-    spanAnnotationNames,
     totalCost,
     traceAnnotationNames,
     traceCount,
   } = getSpansAsideValues(project);
+  const spanAnnotationNames = getNonNoteAnnotationNames(
+    props.spanAnnotationNames
+  );
 
   return (
     <Group orientation="vertical">
