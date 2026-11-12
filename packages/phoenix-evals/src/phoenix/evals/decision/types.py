@@ -1,11 +1,13 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Type, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Type, Union
 
+from .._criteria import ClassificationCriterion
 from ..llm.prompts import PromptLike
 
 __all__ = [
     "BaseDecisionAdapter",
+    "ClassificationCriterion",
     "ProviderRegistration",
 ]
 
@@ -61,6 +63,52 @@ class BaseDecisionAdapter(ABC):
     ) -> Dict[str, Any]:
         """Async version of generate_classification."""
         pass
+
+    def generate_classifications(
+        self,
+        prompt: PromptLike,
+        criteria: Sequence[ClassificationCriterion],
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """Answer several named classification questions about one prompt.
+
+        Adapters whose SDK can batch questions in a single request should override this.
+        The default fans out to one :meth:`generate_classification` call per criterion.
+
+        Returns:
+            A dict with ``results`` (one ``{"name", "label", "metadata"}`` dict per criterion,
+            in the order given) and ``usage`` (aggregate token usage, or ``None``).
+        """
+        results: List[Dict[str, Any]] = []
+        for criterion in criteria:
+            result = self.generate_classification(prompt, criterion["labels"], **kwargs)
+            results.append(
+                {
+                    "name": criterion["name"],
+                    "label": result["label"],
+                    "metadata": result.get("metadata", {}),
+                }
+            )
+        return {"results": results, "usage": None}
+
+    async def async_generate_classifications(
+        self,
+        prompt: PromptLike,
+        criteria: Sequence[ClassificationCriterion],
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """Async version of :meth:`generate_classifications`."""
+        results: List[Dict[str, Any]] = []
+        for criterion in criteria:
+            result = await self.async_generate_classification(prompt, criterion["labels"], **kwargs)
+            results.append(
+                {
+                    "name": criterion["name"],
+                    "label": result["label"],
+                    "metadata": result.get("metadata", {}),
+                }
+            )
+        return {"results": results, "usage": None}
 
     @property
     def model_name(self) -> str:
