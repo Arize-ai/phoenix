@@ -1,0 +1,4 @@
+# Written by each task's fixture scripts; GitHub collapses them in diffs.
+*/fixture/spec.json linguist-generated=true
+*/tests/truth.json linguist-generated=true
+improve-app/fixture/baseline.json linguist-generated=true
