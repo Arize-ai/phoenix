@@ -739,6 +739,16 @@ class TestClassificationEvaluator:
                 choices=[Criterion(name="a", description="", choices=["x", "y"])],
             )
 
+    def test_choices_list_mixing_criterion_and_string_raises(self):
+        """A list mixing a Criterion with plain strings is rejected, not silently filtered."""
+        with pytest.raises(ValueError, match="mixing them is not supported"):
+            ClassificationEvaluator(
+                name="e",
+                llm=MockLLM(),
+                prompt_template="t {x}",
+                choices=[Criterion(name="q", description="d", choices=["a", "b"]), "a"],
+            )
+
     def test_multi_criterion_rejects_duplicate_names(self):
         """Two criteria sharing a name would collapse to one question, so it is rejected."""
         with pytest.raises(ValueError, match="names must be unique.*'q'"):

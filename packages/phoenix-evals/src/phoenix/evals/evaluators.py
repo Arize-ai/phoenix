@@ -850,9 +850,12 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
         # Cases 1-3: a single legacy classification -> one criterion named after the evaluator.
         label_descriptions: Optional[Dict[str, str]] = None
         if isinstance(choices, list):
-            leaf: Union[List[str], Dict[str, Union[float, int]]] = [
-                label for label in choices if isinstance(label, str)
-            ]
+            if not all(isinstance(label, str) for label in choices):
+                raise ValueError(
+                    "`choices` given as a list must be either all label strings or all "
+                    "Criterion (or criterion dicts); mixing them is not supported."
+                )
+            leaf: Union[List[str], Dict[str, Union[float, int]]] = cast("List[str]", choices)
         else:
             first_value = next(iter(choices.values()))
             if isinstance(first_value, tuple):
