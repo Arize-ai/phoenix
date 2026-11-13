@@ -1,0 +1,11 @@
+{
+  "skill": "phoenix-cli",
+  "skills_expected": [],
+  "skills_unexpected": [
+    "phoenix-cli",
+    "phoenix-error-analysis",
+    "phoenix-evals",
+    "phoenix-harbor",
+    "phoenix-tracing"
+  ]
+}
