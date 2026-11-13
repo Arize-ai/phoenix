@@ -5791,6 +5791,7 @@ async def test_first_page_of_newest_spans_reads_few_spans_on_postgresql(
         # then sorts every trace's spans instead of stopping at the page.
         await conn.exec_driver_sql("ANALYZE traces, spans")
     statements: list[tuple[str, Any]] = []
+    streamed: list[bool] = []
 
     def capture(
         conn: Any,
@@ -5802,6 +5803,7 @@ async def test_first_page_of_newest_spans_reads_few_spans_on_postgresql(
     ) -> None:
         if "FROM spans" in statement:
             statements.append((statement, parameters))
+            streamed.append(bool(context.execution_options.get("stream_results")))
 
     event.listen(engine.sync_engine, "before_cursor_execute", capture)
     try:
@@ -5822,6 +5824,8 @@ async def test_first_page_of_newest_spans_reads_few_spans_on_postgresql(
     assert len(response.data["node"]["spans"]["edges"]) == 2
     assert len(statements) == (2 if falls_back else 1)
     assert ("NULLS LAST" in statements[-1][0]) is falls_back
+    # PostgreSQL gives a statement read through a cursor no parallel workers.
+    assert streamed[-1] is falls_back
     async with engine.connect() as conn:
         # The tables are small enough that reading them whole is the cheapest plan, which
         # hides whether a statement stops once the page is full.
