@@ -551,6 +551,105 @@ async def test_numeric_coercion_executes_against_the_database(
     assert span_ids == expected
 
 
+@pytest.fixture
+async def annotation_score_project(db: DbSessionFactory) -> None:
+    """Three spans scored 1.0, whose `num` attribute is a number, a numeric
+    string, and plain text."""
+    async with db() as session:
+        project_rowid = await session.scalar(
+            insert(models.Project).values(name="annotation-score").returning(models.Project.id)
+        )
+        trace_rowid = await session.scalar(
+            insert(models.Trace)
+            .values(
+                trace_id="trace-annotation-score",
+                project_rowid=project_rowid,
+                start_time=_PARENT_PREDICATE_TS,
+                end_time=_PARENT_PREDICATE_TS,
+            )
+            .returning(models.Trace.id)
+        )
+        await session.execute(
+            insert(models.TraceAnnotation).values(
+                trace_rowid=trace_rowid,
+                name="g",
+                score=1.0,
+                metadata_={},
+                annotator_kind="HUMAN",
+                identifier="",
+                source="APP",
+            )
+        )
+        for span_id, attributes in (
+            ("one", {"num": 1, "llm": {"token_count": {"total": 1}}}),
+            ("two", {"num": "2", "llm": {"token_count": {"total": 3}}}),
+            ("text", {"num": "not-a-number"}),
+        ):
+            span_rowid = await session.scalar(
+                insert(models.Span)
+                .values(
+                    trace_rowid=trace_rowid,
+                    span_id=span_id,
+                    parent_id=None,
+                    name=span_id,
+                    span_kind="LLM",
+                    start_time=_PARENT_PREDICATE_TS,
+                    end_time=_PARENT_PREDICATE_TS,
+                    attributes=attributes,
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+                .returning(models.Span.id)
+            )
+            await session.execute(
+                insert(models.SpanAnnotation).values(
+                    span_rowid=span_rowid,
+                    name="g",
+                    score=1.0,
+                    metadata_={},
+                    annotator_kind="HUMAN",
+                    identifier="",
+                    source="APP",
+                )
+            )
+
+
+@pytest.mark.parametrize(
+    "condition,expected",
+    [
+        pytest.param("annotations['g'].score != undefined", [], id="bare-name"),
+        pytest.param("annotations['g'].score != null", [], id="bare-name-null"),
+        pytest.param("annotations['g'].score != attributes['num']", ["two"], id="not-equal"),
+        pytest.param("attributes['num'] == annotations['g'].score", ["one"], id="score-on-right"),
+        pytest.param("annotations['g'].score < attributes['num']", ["two"], id="ordered"),
+        pytest.param("annotations['g'].score in [attributes['num'], 5]", ["one"], id="membership"),
+        pytest.param(
+            "annotations['g'].score != llm.token_count.total", ["two"], id="numeric-attribute"
+        ),
+        pytest.param(
+            "trace_annotations['g'].score != attributes['num']", ["two"], id="trace-annotation"
+        ),
+    ],
+)
+async def test_annotation_score_against_a_json_value_compares_as_numbers(
+    db: DbSessionFactory,
+    annotation_score_project: None,
+    condition: str,
+    expected: list[str],
+) -> None:
+    async with db() as session:
+        span_ids = list(
+            await session.scalars(
+                SpanFilter(condition)(select(models.Span.span_id)).order_by(models.Span.span_id)
+            )
+        )
+    assert span_ids == expected
+
+
 @pytest.mark.parametrize(
     "condition",
     [

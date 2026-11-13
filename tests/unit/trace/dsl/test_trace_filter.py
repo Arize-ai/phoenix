@@ -275,6 +275,39 @@ async def test_root_attribute_casts_execute(
 
 
 @pytest.mark.parametrize("lowering", ["scan", "probe"])
+async def test_annotation_score_against_a_root_attribute_compares_as_numbers(
+    db: DbSessionFactory,
+    lowering: FilterLowering,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        traces: dict[Any, models.Trace] = {}
+        for num in (1, "2", "not-a-number"):
+            trace = await _add_trace(session, project)
+            await _add_span(session, trace, attributes={"num": num})
+            session.add(
+                models.TraceAnnotation(
+                    trace_rowid=trace.id,
+                    name="g",
+                    score=1.0,
+                    metadata_={},
+                    annotator_kind="HUMAN",
+                    source="APP",
+                    identifier="",
+                )
+            )
+            traces[num] = trace
+        await session.flush()
+
+        assert await _matched_rowids(
+            session,
+            TraceFilter("trace_annotations['g'].score != attributes['num']"),
+            project,
+            lowering,
+        ) == {traces["2"].id}
+
+
+@pytest.mark.parametrize("lowering", ["scan", "probe"])
 async def test_root_io_uses_wire_key_candidate_paths(
     db: DbSessionFactory,
     lowering: FilterLowering,

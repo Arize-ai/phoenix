@@ -11,9 +11,21 @@ import strawberry
 from aioitertools.itertools import islice
 from openinference.semconv.trace import SpanAttributes
 from pandas import DataFrame
-from sqlalchemy import ColumnElement, Select, case, desc, distinct, func, or_, select
+from sqlalchemy import (
+    ColumnElement,
+    Select,
+    case,
+    desc,
+    distinct,
+    func,
+    nulls_last,
+    or_,
+    select,
+    true,
+)
 from sqlalchemy import cast as sqlalchemy_cast
 from sqlalchemy.dialects import postgresql, sqlite
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.expression import tuple_
 from sqlalchemy.sql.functions import percentile_cont
@@ -32,7 +44,7 @@ from phoenix.db.trace_aggregates import (
 )
 from phoenix.db.trace_aggregates import (
     TRACE_ROWID,
-    representative_root_span_by_trace,
+    representative_root_span_of_traces,
 )
 from phoenix.db.types.annotation_configs import as_output_configs
 from phoenix.server.api.annotation_metrics import build_entity_weighted_annotation_metrics_stmt
@@ -44,7 +56,7 @@ from phoenix.server.api.input_types.ProjectSessionSort import (
     ProjectSessionSort,
     ProjectSessionSortConfig,
 )
-from phoenix.server.api.input_types.SpanSort import SpanSort, SpanSortConfig
+from phoenix.server.api.input_types.SpanSort import SpanColumn, SpanSort, SpanSortConfig
 from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBucketSpec
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
@@ -132,6 +144,7 @@ from phoenix.trace.dsl.filter import (
 logger = logging.getLogger(__name__)
 
 DEFAULT_PAGE_SIZE = 30
+_NEWEST_SPANS_LOOKS = (500, 5000)
 _VOCABULARY_ATTRIBUTE_SCAN_LIMIT = 1000
 # A backstop on the attribute scan's cost: the row bound alone says nothing about how much
 # each root span carries, and the scan reads whole attribute blobs.
@@ -327,6 +340,74 @@ def _trace_annotation_names_stmt(project_rowid: int) -> Select[*tuple[Any, ...]]
         .join(models.Trace)
         .where(models.Trace.project_rowid == project_rowid)
     )
+
+
+async def _newest_spans(
+    session: AsyncSession,
+    stmt: Select[*tuple[Any, ...]],
+    span_bounds: Sequence[ColumnElement[bool]],
+    project_rowid: int,
+    looks: Sequence[int],
+    limit: int,
+) -> Sequence[Any]:
+    """The first `limit` rows of `stmt`, a select of one project's span ids and start times,
+    newest first. Looks for them among the newest spans within `span_bounds`, which `stmt`
+    must also apply, as many spans at a time as `looks` says, going on to the next look
+    while the rows found so far promise a full page. Otherwise it runs `stmt` on its own for
+    the rest."""
+    rows: list[Any] = []
+    older: list[ColumnElement[bool]] = []
+    for looked, wider in zip(looks, (*looks[1:], 0)):
+        newest = (
+            select(models.Span.id, models.Span.start_time, models.Span.trace_rowid)
+            .where(*span_bounds, *older)
+            .order_by(models.Span.start_time.desc(), models.Span.id.desc())
+            .limit(looked)
+            .subquery()
+        )
+        # OFFSET 0 keeps PostgreSQL to this order whatever it estimates: a span, its project,
+        # then the filters. Joined directly, it has rescanned traces once per span.
+        in_project = (
+            select(models.Trace.id)
+            .where(models.Trace.id == newest.c.trace_rowid)
+            .where(models.Trace.project_rowid == project_rowid)
+            .offset(0)
+            .correlate(newest)
+            .lateral()
+        )
+        match = (
+            stmt.where(models.Span.id == newest.c.id)
+            .where(models.Trace.id == in_project.c.id)
+            .order_by(None)
+            .offset(0)
+            .correlate(newest, in_project)
+            .lateral()
+        )
+        rows.extend(
+            await session.execute(
+                select(*match.c)
+                .select_from(newest)
+                .join(in_project, true())
+                .join(match, true())
+                .order_by(newest.c.start_time.desc(), newest.c.id.desc())
+                .limit(limit - len(rows))
+            )
+        )
+        if len(rows) == limit:
+            return rows
+        if rows:
+            last_rowid, last_start_time = rows[-1]
+            older = [tuple_(models.Span.start_time, models.Span.id) < (last_start_time, last_rowid)]
+        if len(rows) * wider < limit * looked:
+            break
+    # NULLS LAST keeps PostgreSQL from walking every project's spans along ix_spans_start_time.
+    stmt = (
+        stmt.where(*older)
+        .order_by(None)
+        .order_by(nulls_last(models.Span.start_time.desc()), models.Span.id.desc())
+    )
+    rows.extend(await session.execute(stmt.limit(limit - len(rows))))
+    return rows
 
 
 def _project_evaluator_span_scope(project_evaluator_id: GlobalID) -> ColumnElement[bool]:
@@ -755,7 +836,7 @@ class Project(Node):
         evaluator_scope = (
             _project_evaluator_span_scope(project_evaluator_id) if project_evaluator_id else None
         )
-        stmt: Select[int, *tuple[Any, ...]] = (
+        stmt: Select[*tuple[Any, ...]] = (
             select(models.Span.id)
             .select_from(models.Span)
             .join(models.Trace)
@@ -763,11 +844,12 @@ class Project(Node):
         )
         if evaluator_scope is not None:
             stmt = stmt.where(evaluator_scope)
+        span_bounds: list[ColumnElement[bool]] = []
         if time_range:
             if time_range.start:
-                stmt = stmt.where(time_range.start <= models.Span.start_time)
+                span_bounds.append(time_range.start <= models.Span.start_time)
             if time_range.end:
-                stmt = stmt.where(models.Span.start_time < time_range.end)
+                span_bounds.append(models.Span.start_time < time_range.end)
         if trace_filter_condition:
             filtered_trace_rowids = get_filtered_trace_rowids_subquery(
                 trace_filter_condition=trace_filter_condition,
@@ -793,44 +875,51 @@ class Project(Node):
                 sort_column = cursor.sort_column
                 compare = operator.lt if sort_config.dir is SortDir.desc else operator.gt
                 if sort_column.type is CursorSortColumnDataType.NULL:
-                    stmt = stmt.where(sort_config.orm_expression.is_(None))
-                    stmt = stmt.where(compare(models.Span.id, cursor.rowid))
+                    span_bounds.append(sort_config.orm_expression.is_(None))
+                    span_bounds.append(compare(models.Span.id, cursor.rowid))
                 else:
-                    stmt = stmt.where(
+                    span_bounds.append(
                         compare(
                             tuple_(sort_config.orm_expression, models.Span.id),
                             (sort_column.value, cursor.rowid),
                         )
                     )
             else:
-                stmt = stmt.where(models.Span.id > cursor.rowid)
-        stmt = stmt.order_by(cursor_rowid_column)
-        stmt = stmt.limit(
-            first + 1  # overfetch by one to determine whether there's a next page
-        )
-        cursors_and_nodes = []
+                span_bounds.append(models.Span.id > cursor.rowid)
+        stmt = stmt.where(*span_bounds).order_by(cursor_rowid_column)
+        rows: Sequence[Any]
         async with info.context.db.read() as session:
-            span_records = await session.stream(stmt)
-            async for span_record in islice(span_records, first):
-                span_rowid: int = span_record[0]
-                cursor = Cursor(rowid=span_rowid)
-                if sort_config:
-                    assert len(span_record) > 1
-                    cursor.sort_column = CursorSortColumn(
-                        type=sort_config.column_data_type,
-                        value=span_record[1],
-                    )
-                cursors_and_nodes.append((cursor, Span(id=span_rowid)))
-            has_next_page = True
-            try:
-                await span_records.__anext__()
-            except StopAsyncIteration:
-                has_next_page = False
-
+            # A trace filter is worked out for the whole time range by every statement it is in.
+            if (
+                sort
+                and sort.col is SpanColumn.startTime
+                and not sort.eval_result_key
+                and sort.dir is SortDir.desc
+                and not trace_filter_condition
+                and info.context.db.dialect is SupportedSQLDialect.POSTGRESQL
+            ):
+                # A root span is one in every trace, so a small look shows whether traces are
+                # small enough for the wide one to hold a page of them.
+                looks = (
+                    _NEWEST_SPANS_LOOKS
+                    if filter_condition and root_span_scope(filter_condition)
+                    else _NEWEST_SPANS_LOOKS[-1:]
+                )
+                rows = await _newest_spans(session, stmt, span_bounds, self.id, looks, first + 1)
+            else:
+                rows = (await session.execute(stmt.limit(first + 1))).all()
+        cursors_and_nodes = []
+        for row in rows[:first]:
+            cursor = Cursor(rowid=row[0])
+            if sort_config:
+                cursor.sort_column = CursorSortColumn(
+                    type=sort_config.column_data_type, value=row[1]
+                )
+            cursors_and_nodes.append((cursor, Span(id=row[0])))
         return connection_from_cursors_and_nodes(
             cursors_and_nodes,
             has_previous_page=False,
-            has_next_page=has_next_page,
+            has_next_page=len(rows) > first,
         )
 
     @strawberry.field(
@@ -1636,8 +1725,8 @@ class Project(Node):
                 and scanned_bytes < _VOCABULARY_ATTRIBUTE_SCAN_BYTE_LIMIT
             ):
                 trace_rowids = recent_trace_rowids[chunk_start : chunk_start + chunk_size]
-                root_spans = representative_root_span_by_trace(
-                    keys=trace_rowids,
+                root_spans = representative_root_span_of_traces(
+                    trace_rowids,
                     project_rowids=[self.id],
                     start_time=time_range.start if time_range else None,
                     end_time=time_range.end if time_range else None,
