@@ -7,7 +7,7 @@ This folder holds every [skill](https://agentskills.io) Phoenix ships to users. 
 | [phoenix-cli](phoenix-cli/) | Debug LLM applications using the Phoenix CLI. Fetch traces, annotate spans and traces, analyze errors, inspect datasets, and query the GraphQL API. |
 | [phoenix-error-analysis](phoenix-error-analysis/) | Read sampled traces, spans, or sessions, write free-form notes, then group them into narrow one-dimension annotations with counts that pick eval targets and fix priorities. |
 | [phoenix-evals](phoenix-evals/) | Build, run, and validate evaluators for AI/LLM applications using Phoenix. Code first, LLM for nuance, validate against humans. |
-| [phoenix-harbor](phoenix-harbor/) | Configure and interpret the Phoenix plugin for Harbor agent evaluations. |
+| [phoenix-harbor](phoenix-harbor/) | Build and review Harbor tasks and verifiers, and record and compare their results in Phoenix. |
 | [phoenix-tracing](phoenix-tracing/) | OpenInference semantic conventions and instrumentation for tracing LLM applications with Phoenix. Covers setup, span types, and production deployment. |
 
 ## Where a skill goes
