@@ -63,6 +63,37 @@ interface DatasetListOptions extends CommonOptions<OutputFormat> {
 }
 
 /**
+ * Export formats accepted by `px dataset export`, each backed by a dedicated
+ * server endpoint.
+ */
+const DATASET_EXPORT_FORMATS = [
+  "csv",
+  "jsonl",
+  "openai-evals",
+  "openai-ft",
+] as const;
+
+type DatasetExportFormat = (typeof DATASET_EXPORT_FORMATS)[number];
+
+/**
+ * Options for `px dataset export <dataset-identifier>`.
+ */
+interface DatasetExportOptions extends CommonOptions<DatasetExportFormat> {
+  /**
+   * `--output <path>`: Write the export to a file instead of stdout.
+   *
+   * @example "./dataset.jsonl"
+   */
+  output?: string;
+  /**
+   * `--version <id>`: Export a specific dataset version instead of the latest.
+   *
+   * @example "RGF0YXNldFZlcnNpb246MQ=="
+   */
+  version?: string;
+}
+
+/**
  * Fetch all datasets from Phoenix
  */
 async function fetchDatasets(
@@ -152,6 +183,80 @@ async function fetchDatasetName(
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Validate and normalize the `--format` flag for `dataset export`.
+ *
+ * Defaults to `"jsonl"` when unset, lower-cases and trims the input, and throws
+ * a clear error for anything outside the supported set so the handler can turn
+ * it into an INVALID_ARGUMENT exit instead of a confusing downstream failure.
+ */
+function normalizeDatasetExportFormat(
+  format: string | undefined
+): DatasetExportFormat {
+  const normalized = (format ?? "jsonl").trim().toLowerCase();
+  if ((DATASET_EXPORT_FORMATS as readonly string[]).includes(normalized)) {
+    return normalized as DatasetExportFormat;
+  }
+  throw new Error(
+    `Invalid --format "${format}". Supported formats: ${DATASET_EXPORT_FORMATS.join(", ")}.`
+  );
+}
+
+/**
+ * Download a dataset's examples as text in the requested format.
+ *
+ * Each format maps to a dedicated endpoint; the typed `client.GET` calls are
+ * kept per path so the generated OpenAPI types still narrow, and the response
+ * validation is shared so the error handling lives in one place.
+ */
+async function downloadDataset(
+  client: PhoenixClient,
+  datasetId: string,
+  format: DatasetExportFormat,
+  versionId?: string
+): Promise<string> {
+  const path = { id: datasetId };
+  const query = { version_id: versionId };
+  let response;
+  switch (format) {
+    case "csv":
+      response = await client.GET("/v1/datasets/{id}/csv", {
+        params: { path, query },
+        parseAs: "text",
+      });
+      break;
+    case "openai-evals":
+      response = await client.GET("/v1/datasets/{id}/jsonl/openai_evals", {
+        params: { path, query },
+        parseAs: "text",
+      });
+      break;
+    case "openai-ft":
+      response = await client.GET("/v1/datasets/{id}/jsonl/openai_ft", {
+        params: { path, query },
+        parseAs: "text",
+      });
+      break;
+    case "jsonl":
+    default:
+      response = await client.GET("/v1/datasets/{id}/jsonl", {
+        params: { path, query },
+        parseAs: "text",
+      });
+      break;
+  }
+
+  if (response.error || response.data === undefined) {
+    const detail =
+      typeof response.error === "string"
+        ? response.error
+        : JSON.stringify(response.error);
+    throw new Error(`Failed to export dataset: ${detail}`);
+  }
+
+  return response.data as string;
 }
 
 /**
@@ -246,6 +351,79 @@ async function datasetHandler(
   } catch (error) {
     writeError({
       message: `Error fetching dataset: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    process.exit(getExitCodeForError(error));
+  }
+}
+
+/**
+ * Handler for `dataset export`
+ */
+async function datasetExportHandler(
+  datasetIdentifier: string,
+  options: DatasetExportOptions
+): Promise<void> {
+  let format: DatasetExportFormat;
+  try {
+    format = normalizeDatasetExportFormat(options.format);
+  } catch (error) {
+    writeError({
+      message: error instanceof Error ? error.message : String(error),
+    });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
+
+  try {
+    const config = resolveConfig({
+      cliOptions: {
+        endpoint: options.endpoint,
+        apiKey: options.apiKey,
+      },
+    });
+
+    const validation = validateConfig({ config, projectRequired: false });
+    if (!validation.valid) {
+      writeError({
+        message: getConfigErrorMessage({ errors: validation.errors }),
+      });
+      process.exit(ExitCode.INVALID_ARGUMENT);
+    }
+
+    const client = createPhoenixClient({ config });
+
+    writeProgress({
+      message: `Resolving dataset: ${datasetIdentifier}`,
+      noProgress: !options.progress,
+    });
+
+    const datasetId = await resolveDatasetId({ client, datasetIdentifier });
+
+    writeProgress({
+      message: `Exporting dataset ${datasetIdentifier} as ${format}...`,
+      noProgress: !options.progress,
+    });
+
+    const data = await downloadDataset(
+      client,
+      datasetId,
+      format,
+      options.version
+    );
+
+    if (options.output) {
+      fs.writeFileSync(options.output, data, "utf-8");
+      writeProgress({
+        message: `Wrote dataset ${datasetIdentifier} to ${options.output}`,
+        noProgress: !options.progress,
+      });
+    } else {
+      // Write the body exactly as the server returned it (no trailing newline
+      // added) so `export --format csv > out.csv` matches `--output out.csv`.
+      process.stdout.write(data);
+    }
+  } catch (error) {
+    writeError({
+      message: `Error exporting dataset: ${error instanceof Error ? error.message : String(error)}`,
     });
     process.exit(getExitCodeForError(error));
   }
@@ -408,6 +586,26 @@ export function createDatasetListCommand(): Command {
 }
 
 /**
+ * Create the `dataset export` command
+ */
+export function createDatasetExportCommand(): Command {
+  return new Command("export")
+    .description("Export a dataset's examples as CSV or JSONL")
+    .argument("<dataset-identifier>", "Dataset name or ID")
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option(
+      "--format <format>",
+      "Export format: csv, jsonl, openai-evals, or openai-ft",
+      "jsonl"
+    )
+    .option("--output <path>", "Write export to a file instead of stdout")
+    .option("--version <id>", "Export a specific dataset version")
+    .option("--no-progress", "Disable progress indicators")
+    .action(datasetExportHandler);
+}
+
+/**
  * Create the `dataset delete` command
  */
 export function createDatasetDeleteCommand(): Command {
@@ -429,6 +627,7 @@ export function createDatasetCommand(): Command {
   command.description("Manage Phoenix datasets");
   command.addCommand(createDatasetListCommand());
   command.addCommand(createDatasetGetCommand());
+  command.addCommand(createDatasetExportCommand());
   command.addCommand(createDatasetDeleteCommand());
   return command;
 }

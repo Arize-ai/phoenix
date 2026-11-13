@@ -474,6 +474,21 @@ version objects, including `metadata`, and preserve the original timestamp strin
 
 ---
 
+### `px dataset export <dataset-identifier>`
+
+Export a dataset's examples in a downloadable format. `--format` defaults to `jsonl`; output goes to stdout unless `--output` is given.
+
+```bash
+px dataset export my-dataset                              # JSONL to stdout
+px dataset export my-dataset --format csv --output data.csv
+px dataset export my-dataset --format openai-ft           # OpenAI fine-tuning JSONL
+px dataset export my-dataset --format openai-evals --version <version-id>
+```
+
+Formats: `csv`, `jsonl`, `openai-evals`, `openai-ft`.
+
+---
+
 ### `px experiment list --dataset <name-or-id>`
 
 List experiments for a dataset.
