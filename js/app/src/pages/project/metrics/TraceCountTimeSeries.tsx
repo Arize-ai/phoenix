@@ -130,12 +130,14 @@ export function TraceCountTimeSeries({
                 {...defaultTooltipProps}
               />
               <Bar
+                isAnimationActive={false}
                 dataKey="error"
                 stackId="a"
                 fill={SemanticChartColors.danger}
                 hide={isDataKeyHidden("error")}
               />
               <Bar
+                isAnimationActive={false}
                 dataKey="ok"
                 stackId="a"
                 fill={colors.gray300}

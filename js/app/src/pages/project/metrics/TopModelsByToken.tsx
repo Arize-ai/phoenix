@@ -129,6 +129,7 @@ export function TopModelsByToken({
           />
           {series.map((tokenSeries) => (
             <Bar
+              isAnimationActive={false}
               dataKey={tokenSeries.dataKey}
               stackId="a"
               fill={colorByDataKey.get(tokenSeries.dataKey)}
