@@ -57,6 +57,7 @@ from phoenix.server.telemetry import (
     bind_server_span,
     get_bound_server_span,
     record_span_exception,
+    report_instrumentation_failure,
     resolve_server_parent_context,
 )
 
@@ -556,12 +557,12 @@ class RedactingOpenTelemetryExtension(OpenTelemetryExtension):
             try:
                 if not self._operation_name and self.execution_context.operation_name:
                     span.update_name(_operation_span_name(self.execution_context.operation_name))
-                if (
-                    document := self.execution_context.graphql_document
-                ) is not None and not self.execution_context.pre_execution_errors:
+                if (document := self.execution_context.graphql_document) is not None:
                     span.set_attribute(
                         "query", redact_document(document, self.execution_context.schema._schema)
                     )
+            except Exception:
+                report_instrumentation_failure("RedactingOpenTelemetryExtension.on_operation")
             finally:
                 span.end()
 
@@ -570,7 +571,10 @@ class RedactingOpenTelemetryExtension(OpenTelemetryExtension):
         if operation_span is None or self._tracer_provider is None:
             yield
             return
-        _ensure_subscription_fields_wrapped(self.execution_context.schema._schema)
+        try:
+            _ensure_subscription_fields_wrapped(self.execution_context.schema._schema)
+        except Exception:
+            report_instrumentation_failure("RedactingOpenTelemetryExtension.on_execute")
         with bind_server_span(operation_span, self._tracer_provider):
             yield
 
@@ -608,7 +612,10 @@ class RedactingOpenTelemetryExtension(OpenTelemetryExtension):
             context=parent_context,
         )
         try:
-            self.add_tags(span, info, kwargs)
+            try:
+                self.add_tags(span, info, kwargs)
+            except Exception:
+                report_instrumentation_failure("RedactingOpenTelemetryExtension.add_tags")
             with bind_server_span(span, self._tracer_provider):
                 result = _next(root, info, *args, **kwargs)
                 if isawaitable(result):

@@ -22,13 +22,14 @@ records until closed.
 from __future__ import annotations
 
 import asyncio
+import functools
 import logging
 import os
 import re
 import threading
 import weakref
 from collections.abc import Callable, Generator, Mapping, Sequence
-from contextlib import ExitStack, contextmanager, suppress
+from contextlib import ExitStack, contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
@@ -75,6 +76,7 @@ from opentelemetry.trace import (
     Tracer,
     TracerProvider,
 )
+from opentelemetry.util._decorator import _agnosticcontextmanager
 from opentelemetry.util.types import Attributes
 from sqlalchemy import URL, event
 from sqlalchemy.engine import Connection as SAConnection
@@ -166,18 +168,14 @@ class _ProviderSpanRegistry(SpanProcessor):
         parent_span = trace.get_current_span(parent_context)
         parent_ctx = parent_span.get_span_context()
         with self._lock:
-            try:
-                parent_ancestors = self._ancestors_by_span.get(parent_span)
-            except TypeError:
-                parent_ancestors = None
+            parent_ancestors = self._ancestors_by_span.get(parent_span)
             if parent_ancestors is not None:
                 ancestors = parent_ancestors | {parent_ctx.span_id}
             elif parent_ctx.is_valid and not parent_ctx.is_remote:
                 ancestors = frozenset({parent_ctx.span_id})
             else:
                 ancestors = frozenset()
-            with suppress(TypeError):
-                self._ancestors_by_span[span] = ancestors
+            self._ancestors_by_span[span] = ancestors
 
     def on_end(self, span: ReadableSpan) -> None:
         return None
@@ -186,10 +184,7 @@ class _ProviderSpanRegistry(SpanProcessor):
         if not span.get_span_context().is_valid:
             return False
         with self._lock:
-            try:
-                return span in self._ancestors_by_span
-            except TypeError:
-                return False
+            return span in self._ancestors_by_span
 
     def is_descendant(self, candidate: Span, ancestor: Span) -> bool:
         candidate_ctx = candidate.get_span_context()
@@ -202,10 +197,7 @@ class _ProviderSpanRegistry(SpanProcessor):
         ):
             return False
         with self._lock:
-            try:
-                ancestors = self._ancestors_by_span.get(candidate)
-            except TypeError:
-                return False
+            ancestors = self._ancestors_by_span.get(candidate)
             return ancestors is not None and ancestor_ctx.span_id in ancestors
 
 
@@ -216,10 +208,8 @@ _SPAN_REGISTRIES: weakref.WeakKeyDictionary[Any, _ProviderSpanRegistry] = (
 
 
 def _ensure_span_registry(tracer_provider: TracerProvider) -> _ProviderSpanRegistry | None:
-    with suppress(TypeError):
-        existing = _SPAN_REGISTRIES.get(tracer_provider)
-        if existing is not None:
-            return existing
+    if (existing := _SPAN_REGISTRIES.get(tracer_provider)) is not None:
+        return existing
     add_processor = getattr(tracer_provider, "add_span_processor", None)
     if not callable(add_processor):
         return None
@@ -260,19 +250,55 @@ def exception_type_name(exception: BaseException) -> str:
     )
 
 
+_REPORTED_INSTRUMENTATION_FAILURES: set[str] = set()
+
+
+def report_instrumentation_failure(site: str) -> None:
+    """Log a telemetry failure at ``site`` without letting it reach the instrumented code.
+
+    Must be called from an ``except`` block. Logs the traceback once per site and
+    then at ``DEBUG`` so a persistent failure on a hot path cannot flood logs.
+    """
+    if site in _REPORTED_INSTRUMENTATION_FAILURES:
+        logger.debug("Server instrumentation failed in %s", site, exc_info=True)
+        return
+    _REPORTED_INSTRUMENTATION_FAILURES.add(site)
+    logger.exception("Server instrumentation failed in %s; telemetry may be incomplete", site)
+
+
+def _fail_open(fn: Callable[..., None]) -> Callable[..., None]:
+    """Wrap a SQLAlchemy listener so telemetry errors never affect the query."""
+
+    @functools.wraps(fn)
+    def wrapper(*args: Any, **kwargs: Any) -> None:
+        try:
+            fn(*args, **kwargs)
+        except Exception:
+            report_instrumentation_failure(fn.__qualname__)
+
+    return wrapper
+
+
 def record_span_exception(
     span: Span,
     exception: BaseException,
     *,
     set_error_type: bool = True,
 ) -> None:
-    """Record an exception event and ``ERROR`` status on ``span`` when recording."""
-    if not span.is_recording():
-        return
-    if set_error_type:
-        span.set_attribute(ERROR_TYPE, exception_type_name(exception))
-    span.record_exception(exception)
-    span.set_status(Status(StatusCode.ERROR, str(exception)))
+    """Record an exception event and ``ERROR`` status on ``span`` when recording.
+
+    Never raises, so callers can use it in an ``except`` block before re-raising
+    the original exception.
+    """
+    try:
+        if not span.is_recording():
+            return
+        if set_error_type:
+            span.set_attribute(ERROR_TYPE, exception_type_name(exception))
+        span.record_exception(exception)
+        span.set_status(Status(StatusCode.ERROR, str(exception)))
+    except Exception:
+        report_instrumentation_failure("record_span_exception")
 
 
 def _unwrap_tracer_provider(tracer_provider: TracerProvider | None) -> TracerProvider | None:
@@ -329,9 +355,7 @@ def resolve_server_parent_context(
         return None
     ambient_span = trace.get_current_span()
     binding = _CURRENT_SERVER_SPAN.get()
-    registry: _ProviderSpanRegistry | None = None
-    with suppress(TypeError):
-        registry = _SPAN_REGISTRIES.get(active_provider)
+    registry = _SPAN_REGISTRIES.get(active_provider)
     if binding is not None and binding.tracer_provider is active_provider:
         if registry is not None and registry.is_descendant(ambient_span, binding.span):
             return trace.set_span_in_context(ambient_span, otel_context.Context())
@@ -775,6 +799,7 @@ class _DelegatingTracer(Tracer):
             set_status_on_exception=set_status_on_exception,
         )
 
+    @_agnosticcontextmanager
     def start_as_current_span(
         self,
         name: str,
@@ -786,8 +811,8 @@ class _DelegatingTracer(Tracer):
         record_exception: bool = True,
         set_status_on_exception: bool = True,
         end_on_exit: bool = True,
-    ) -> Any:
-        return self._target().start_as_current_span(
+    ) -> Generator[Span, None, None]:
+        with self._target().start_as_current_span(
             name=name,
             context=context,
             kind=kind,
@@ -797,7 +822,8 @@ class _DelegatingTracer(Tracer):
             record_exception=record_exception,
             set_status_on_exception=set_status_on_exception,
             end_on_exit=end_on_exit,
-        )
+        ) as span:
+            yield span
 
 
 class _LifespanTracerProvider(TracerProvider):
@@ -975,7 +1001,7 @@ def _sanitize_db_namespace(db_system_name: str, database: str | None) -> str | N
         return database
     if database == ":memory:" or database.startswith("file::memory:"):
         return ":memory:"
-    name = Path(database).name
+    name = Path(database.removeprefix("file:")).name
     return name or None
 
 
@@ -1080,9 +1106,9 @@ class _SqlAlchemyEngineTracer:
             SAConnection, list[tuple[object, Span]]
         ] = weakref.WeakKeyDictionary()
         self._listeners: list[tuple[str, Callable[..., Any]]] = [
-            ("before_cursor_execute", self._before_cursor_execute),
-            ("after_cursor_execute", self._after_cursor_execute),
-            ("handle_error", self._handle_error),
+            ("before_cursor_execute", _fail_open(self._before_cursor_execute)),
+            ("after_cursor_execute", _fail_open(self._after_cursor_execute)),
+            ("handle_error", _fail_open(self._handle_error)),
         ]
         for identifier, fn in self._listeners:
             event.listen(self._sync_engine, identifier, fn)

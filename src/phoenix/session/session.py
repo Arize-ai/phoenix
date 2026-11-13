@@ -215,9 +215,11 @@ class ThreadSession(Session):
         self._exit_stack = ExitStack()
         self._exit_stack.callback(self.temp_dir.cleanup)
         self._thread_server: Optional[ThreadServer] = None
+        self._server_telemetry: Optional[ServerTelemetry] = None
         try:
             auth_settings = get_env_auth_settings(self.host)
             server_telemetry = self._exit_stack.enter_context(ServerTelemetry.from_env())
+            self._server_telemetry = server_telemetry
             engine = create_engine(
                 connection_str=database_url,
                 migrate=not Settings.disable_migrations,
@@ -279,26 +281,15 @@ class ThreadSession(Session):
             if isinstance(candidate, Thread):
                 thread = candidate
         if thread is not None and thread.is_alive():
+            # Disposing the engine or deleting the working directory under a live
+            # server thread is unsafe, so leave them; only detach telemetry so the
+            # root log handler does not outlive the session.
             logger.warning(
                 "Phoenix server thread is still running after shutdown timeout; "
-                "deferring synchronous resource cleanup until the thread exits."
+                "skipping engine disposal and temporary directory removal."
             )
-            if isinstance(thread, Thread):
-                exit_stack = self._exit_stack
-                self._exit_stack = ExitStack()
-
-                def _cleanup_after_exit() -> None:
-                    thread.join()
-                    try:
-                        exit_stack.close()
-                    except Exception:
-                        logger.exception("Error cleaning up deferred Phoenix session resources")
-
-                Thread(
-                    target=_cleanup_after_exit,
-                    name="phoenix-session-cleanup",
-                    daemon=True,
-                ).start()
+            if self._server_telemetry is not None:
+                self._server_telemetry.close(flush=False)
             return
         self._exit_stack.close()
 

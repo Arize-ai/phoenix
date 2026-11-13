@@ -126,6 +126,10 @@ class TestGraphQLTracingExtension:
         def spans(self, filter_condition: str) -> str:
             return filter_condition
 
+        @strawberry.field
+        def boom(self) -> str:
+            raise RuntimeError("boom")
+
     @strawberry.type
     class Mutation:
         @strawberry.mutation
@@ -283,7 +287,19 @@ class TestGraphQLTracingExtension:
 
         assert result.errors
         spans = self._spans(exporter)
+        operation = next(attrs for name, attrs in spans.items() if name.startswith("GraphQL Query"))
+        assert "[redacted]" in operation["query"]
         assert all("secret-hunter2" not in str(attributes) for attributes in spans.values())
+
+    async def test_operation_with_resolver_error_still_records_query(
+        self, schema: strawberry.Schema, exporter: InMemorySpanExporter
+    ) -> None:
+        result = await schema.execute("query Partial { boom }")
+
+        assert result.errors
+        assert (
+            self._spans(exporter)["GraphQL Query: Partial"]["query"] == "query Partial {\n  boom\n}"
+        )
 
     async def test_other_resolver_arguments_are_recorded(
         self, schema: strawberry.Schema, exporter: InMemorySpanExporter
@@ -316,6 +332,23 @@ class TestGraphQLTracingExtension:
         spans = self._spans(exporter)
         assert "GraphQL Query: Count" in spans
         assert "counter" in spans["GraphQL Query: Count"]["query"]
+
+    async def test_tracing_failures_never_affect_graphql_results(
+        self, schema: strawberry.Schema, exporter: InMemorySpanExporter
+    ) -> None:
+        with (
+            patch.object(
+                RedactingOpenTelemetryExtension, "add_tags", side_effect=RuntimeError("bug")
+            ),
+            patch("phoenix.server.api.redaction.redact_document", side_effect=RuntimeError("bug")),
+        ):
+            result = await schema.execute('mutation CreateProject { createProject(name: "demo") }')
+
+        assert result.errors is None
+        assert result.data == {"createProject": "demo"}
+        spans = self._spans(exporter)
+        assert "query" not in spans["GraphQL Query: CreateProject"]
+        assert "graphql.param.name" not in spans["GraphQL Resolving: createProject"]
 
     async def test_subscription_stream_work_is_parented_to_the_operation_span(
         self, schema: strawberry.Schema, exporter: InMemorySpanExporter
@@ -482,6 +515,30 @@ class TestSqlAlchemyEngineTracing:
                 finally:
                     otel_context.detach(token)
             assert [s for s in exporter.get_finished_spans() if s.kind is SpanKind.CLIENT] == []
+        finally:
+            uninstrument()
+            provider.shutdown()
+            await engine.dispose()
+
+    async def test_listener_failures_never_affect_queries(self, tmp_path: Path) -> None:
+        engine = aio_sqlite_engine(
+            url=make_url(f"sqlite+aiosqlite:///{tmp_path / 'phoenix.db'}"), migrate=False
+        )
+        provider, _ = _new_tracer_provider()
+        tracer = provider.get_tracer("test")
+        uninstrument = instrument_sqlalchemy_engine(engine, tracer_provider=provider)
+        try:
+            with (
+                patch.object(
+                    telemetry_module, "_extract_sql_operation", side_effect=RuntimeError("bug")
+                ),
+                tracer.start_as_current_span("request", kind=SpanKind.SERVER) as parent_span,
+                bind_server_span(parent_span, provider),
+            ):
+                async with engine.connect() as connection:
+                    assert (await connection.execute(text("SELECT 7"))).scalar() == 7
+                    with pytest.raises(Exception, match="no such table"):
+                        await connection.execute(text("SELECT * FROM missing_table"))
         finally:
             uninstrument()
             provider.shutdown()
@@ -718,6 +775,8 @@ class TestGrpcServerTracing:
             ),
             ("ipv6:[::1]x", {}),
             ("ipv4:127.0.0.1:not-a-port", {}),
+            ("ipv4:1.2.3.4:\u00b2", {}),
+            ("ipv4:1.2.3.4:99999", {}),
             (
                 "ipv4:10.0.0.1:4000,10.0.0.2:5000",
                 {"network.peer.address": "10.0.0.1", "network.peer.port": 4000},
@@ -1795,3 +1854,16 @@ async def test_cli_setup_failure_cleans_engines_and_telemetry(
         assert [s for s in exporter.get_finished_spans() if s.kind is SpanKind.CLIENT] == []
     finally:
         await engine.dispose()
+
+
+def test_record_span_exception_never_raises() -> None:
+    class Unprintable(Exception):
+        def __str__(self) -> str:
+            raise RuntimeError("broken __str__")
+
+    provider, exporter = _new_tracer_provider()
+    span = provider.get_tracer("test").start_span("s")
+    telemetry_module.record_span_exception(span, Unprintable())
+    span.end()
+    provider.shutdown()
+    assert len(exporter.get_finished_spans()) == 1

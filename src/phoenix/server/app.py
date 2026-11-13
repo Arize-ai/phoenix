@@ -178,6 +178,7 @@ from phoenix.server.telemetry import (
     LifespanServerTelemetry,
     ServerTelemetry,
     bind_server_span,
+    report_instrumentation_failure,
 )
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
@@ -716,23 +717,20 @@ def _lifespan(
         try:
             if lifespan_telemetry is not None:
                 entered_telemetry = lifespan_telemetry.enter()
-                seen_engines: set[int] = set()
-
-                def _maybe_instrument_session_bind(session: AsyncSession) -> None:
-                    assert entered_telemetry is not None
-                    bind = getattr(session, "bind", None)
-                    engine: Any = (
-                        bind if isinstance(bind, AsyncEngine) else getattr(bind, "engine", None)
-                    )
-                    if isinstance(engine, AsyncEngine) and id(engine) not in seen_engines:
-                        seen_engines.add(id(engine))
-                        entered_telemetry.instrument_engine(engine)
-
-                async with db() as probe_session:
-                    _maybe_instrument_session_bind(probe_session)
-                if db._read_db is not db._db:
-                    async with db.read() as probe_read_session:
-                        _maybe_instrument_session_bind(probe_read_session)
+                if entered_telemetry.tracer_provider is not None:
+                    # Direct ``create_app`` callers own their engines; discover them
+                    # through session binds. Opening a session issues no SQL.
+                    seen_engines: set[int] = set()
+                    for open_session in (db, db.read):
+                        try:
+                            async with open_session() as session:
+                                bind: Any = session.bind
+                            engine = bind if isinstance(bind, AsyncEngine) else bind.engine
+                            if id(engine) not in seen_engines:
+                                seen_engines.add(id(engine))
+                                entered_telemetry.instrument_engine(engine)
+                        except Exception:
+                            report_instrumentation_failure("create_app engine probe")
             seed = await load_deployment_seed(db)
             effective_secret = secret or SecretStr("")
             app.state.redactor = Redactor(

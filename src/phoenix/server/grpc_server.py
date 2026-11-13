@@ -67,6 +67,7 @@ from phoenix.server.telemetry import (
     bind_server_span,
     is_otel_instrumentation_suppressed,
     record_span_exception,
+    report_instrumentation_failure,
 )
 from phoenix.trace.otel import decode_otlp_span
 from phoenix.trace.schemas import Span
@@ -110,6 +111,10 @@ def _network_peer_dict(address: str, port_str: str) -> dict[str, str | int]:
     return attrs
 
 
+def _is_port(value: str) -> bool:
+    return value.isascii() and value.isdecimal() and int(value) <= 65535
+
+
 def _peer_attributes(peer: str | None) -> dict[str, str | int]:
     if not peer:
         return {}
@@ -128,7 +133,7 @@ def _peer_attributes(peer: str | None) -> dict[str, str | int]:
             remainder = endpoint[bracket_end + 1 :]
             if not remainder:
                 return _network_peer_dict(address, "")
-            if remainder.startswith(":") and remainder[1:].isdigit():
+            if remainder.startswith(":") and _is_port(remainder[1:]):
                 return _network_peer_dict(address, remainder[1:])
             return {}
         return _network_peer_dict(endpoint, "")
@@ -136,7 +141,7 @@ def _peer_attributes(peer: str | None) -> dict[str, str | int]:
         endpoint = unquote(first_peer.removeprefix("ipv4:"))
         host, separator, port_str = endpoint.rpartition(":")
         if separator:
-            if not port_str.isdigit():
+            if not _is_port(port_str):
                 return {}
             return _network_peer_dict(host, port_str)
         return _network_peer_dict(endpoint, "")
@@ -148,18 +153,21 @@ def _record_grpc_status(
     status_code: grpc.StatusCode,
     raw_details: str | bytes | None,
 ) -> None:
-    if not span.is_recording():
-        return
-    span.set_attribute(RPC_RESPONSE_STATUS_CODE, status_code.name)
-    if status_code in _GRPC_SERVER_ERROR_CODES:
-        span.set_attribute(ERROR_TYPE, status_code.name)
-        details = (
-            raw_details.decode("utf-8", errors="replace")
-            if isinstance(raw_details, bytes)
-            else (raw_details or "")
-        )
-        description = f"{status_code.name}: {details}" if details else status_code.name
-        span.set_status(Status(StatusCode.ERROR, description))
+    try:
+        if not span.is_recording():
+            return
+        span.set_attribute(RPC_RESPONSE_STATUS_CODE, status_code.name)
+        if status_code in _GRPC_SERVER_ERROR_CODES:
+            span.set_attribute(ERROR_TYPE, status_code.name)
+            details = (
+                raw_details.decode("utf-8", errors="replace")
+                if isinstance(raw_details, bytes)
+                else (raw_details or "")
+            )
+            description = f"{status_code.name}: {details}" if details else status_code.name
+            span.set_status(Status(StatusCode.ERROR, description))
+    except Exception:
+        report_instrumentation_failure("_record_grpc_status")
 
 
 class _GrpcMetadataGetter(Getter[dict[str, list[str]]]):
@@ -238,19 +246,23 @@ class TracingServerInterceptor(AsyncServerInterceptor):
         next_handler = await continuation(handler_call_details)
         if next_handler is None:
             if not is_otel_instrumentation_suppressed():
-                # ``grpc.HandlerCallDetails`` exposes only ``method`` and ``invocation_metadata``.
-                span_name, parent_context, attributes = self._prepare_rpc_span(
-                    handler_call_details.method or "",
-                    handler_call_details.invocation_metadata,
-                )
-                span = self._tracer.start_span(
-                    span_name,
-                    context=parent_context,
-                    kind=SpanKind.SERVER,
-                    attributes=attributes,
-                )
-                _record_grpc_status(span, grpc.StatusCode.UNIMPLEMENTED, None)
-                span.end()
+                try:
+                    # ``grpc.HandlerCallDetails`` exposes only ``method`` and
+                    # ``invocation_metadata``.
+                    span_name, parent_context, attributes = self._prepare_rpc_span(
+                        handler_call_details.method or "",
+                        handler_call_details.invocation_metadata,
+                    )
+                    span = self._tracer.start_span(
+                        span_name,
+                        context=parent_context,
+                        kind=SpanKind.SERVER,
+                        attributes=attributes,
+                    )
+                    _record_grpc_status(span, grpc.StatusCode.UNIMPLEMENTED, None)
+                    span.end()
+                except Exception:
+                    report_instrumentation_failure("TracingServerInterceptor.intercept_service")
             return None
 
         async def _resolved_continuation(_: grpc.HandlerCallDetails) -> Any:
@@ -270,11 +282,15 @@ class TracingServerInterceptor(AsyncServerInterceptor):
     ) -> Any:
         if is_otel_instrumentation_suppressed():
             return await method(request_or_iterator, context)
-        span_name, parent_context, attributes = self._prepare_rpc_span(
-            method_name,
-            context.invocation_metadata(),
-            peer=context.peer(),
-        )
+        try:
+            span_name, parent_context, attributes = self._prepare_rpc_span(
+                method_name,
+                context.invocation_metadata(),
+                peer=context.peer(),
+            )
+        except Exception:
+            report_instrumentation_failure("TracingServerInterceptor.intercept")
+            return await method(request_or_iterator, context)
         with (
             self._tracer.start_as_current_span(
                 span_name,
