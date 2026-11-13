@@ -26,7 +26,9 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
     def client_name(cls) -> str:
         return "typesafe"
 
-    def _build_choice(self, labels: Union[List[str], Dict[str, str]], instructions: Optional[str]):
+    def _build_choice(
+        self, labels: Union[List[str], Dict[str, str]], instructions: Optional[str]
+    ) -> Any:
         from typesafe_sdk import Choice
 
         criteria: Dict[str, Optional[str]] = (
