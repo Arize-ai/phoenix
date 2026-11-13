@@ -328,6 +328,9 @@ class MustacheFormatter(TemplateFormatter):
         When the same variable name appears as both a section and a string node
         (uncommon but valid), ``"section"`` takes precedence.
 
+        Variables inside an inverted section (``{{^var}}...{{/var}}``) are
+        included, because an inverted section renders with the same context.
+
         Args:
             template: The mustache template string.
 
@@ -343,12 +346,18 @@ class MustacheFormatter(TemplateFormatter):
             parse_tree = parsed
 
         variables: Dict[str, Literal["string", "section"]] = {}
-        for node in parse_tree:
+        nodes = list(parse_tree)
+        while nodes:
+            node = nodes.pop(0)
             if isinstance(node, (_SectionNode, _InvertedNode)):
                 key = getattr(node, "key", None)
                 if key and isinstance(key, str):
                     root = key if key == "." else key.split(".")[0]
                     variables[root] = "section"
+                # Unlike a section, an inverted section pushes no new context,
+                # so the variables inside it come from the template's inputs.
+                if isinstance(node, _InvertedNode):
+                    nodes[:0] = node.parsed_section._parse_tree
             elif isinstance(node, (_EscapeNode, _LiteralNode)):
                 key = getattr(node, "key", None)
                 if key and isinstance(key, str):

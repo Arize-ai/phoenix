@@ -2010,6 +2010,11 @@ class TestLLMEvaluatorStructuredInputEndToEnd:
         rendered = self._render_prompt(template, {"query": "find me"})
         assert rendered == "Query: find me"
 
+    def test_var_inside_inverted_section_renders(self) -> None:
+        template = "Customer: {{^urgent}}{{customer_name}}{{/urgent}}"
+        rendered = self._render_prompt(template, {"urgent": False, "customer_name": "Ada"})
+        assert rendered == "Customer: Ada"
+
     def test_dotted_mustache_var_renders_from_root_object(self) -> None:
         template = "User: {{user.name}}"
         rendered = self._render_prompt(template, {"user": {"name": "Alice"}})
