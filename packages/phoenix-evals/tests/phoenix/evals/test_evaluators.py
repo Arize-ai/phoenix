@@ -605,9 +605,7 @@ class TestClassificationEvaluator:
     def test_classification_evaluator_invalid_label(self):
         """Test classification evaluation with invalid label."""
         llm = MockLLM()
-        llm.generate_classifications = MagicMock(
-            return_value=[{"name": "test_evaluator", "label": "invalid"}]
-        )
+        llm.generate_classification = MagicMock(return_value={"label": "invalid"})
 
         template = "Test template with {input}"
         choices = ["good", "bad"]
@@ -738,6 +736,31 @@ class TestClassificationEvaluator:
                 prompt_template="review: {text}",
                 choices=[Criterion(name="a", description="", choices=["x", "y"])],
             )
+
+    def test_legacy_single_criterion_uses_flat_schema_and_label_question(self, openai_api_key):
+        """Parity: a legacy (non-List[Criterion]) evaluator still sends the flat {label,
+        explanation} schema, not a nested property keyed by the evaluator name."""
+        from phoenix.evals import LLM
+
+        llm = LLM(provider="openai", model="gpt-4o", client="openai")
+        llm._sync_adapter = MagicMock()
+        llm._sync_adapter.generate_object.return_value = {"label": "yes", "explanation": "e"}
+
+        evaluator = ClassificationEvaluator(
+            name="my eval",
+            llm=llm,
+            prompt_template="decide: {x}",
+            choices={"yes": 1, "no": 0},
+        )
+        [score] = evaluator._evaluate({"x": "1"})
+
+        assert score.label == "yes" and score.score == 1
+
+        args, _ = llm._sync_adapter.generate_object.call_args
+        schema = args[1]
+        # Flat single-criterion schema, not nested under the evaluator name.
+        assert set(schema["properties"]) == {"label", "explanation"}
+        assert "my eval" not in schema["properties"]
 
     def test_choices_list_mixing_criterion_and_string_raises(self):
         """A list mixing a Criterion with plain strings is rejected, not silently filtered."""

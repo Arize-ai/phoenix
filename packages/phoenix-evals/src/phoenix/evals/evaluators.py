@@ -805,6 +805,10 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
         )
 
         self.include_explanation = include_explanation
+        # Only the explicit multi-criterion format (List[Criterion]) uses the plural backend
+        # path; legacy single-classification formats keep the original single-question request
+        # (same schema and question name) so existing evaluators are unchanged.
+        self._uses_criteria_list = _is_criteria_list(choices)
         self._criteria: List[Criterion] = self._normalize_choices(choices, direction)
         self.label_score_map = self._criteria[0].label_score_map
         self.labels: Union[List[str], Dict[str, str]] = self._legacy_labels(choices)
@@ -936,8 +940,49 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
             )
         return scores
 
+    def _legacy_method(self) -> ObjectGenerationMethod:
+        return (
+            ObjectGenerationMethod.TOOL_CALLING
+            if isinstance(self.labels, dict)
+            else ObjectGenerationMethod.AUTO
+        )
+
+    def _legacy_score(self, response: Dict[str, Any]) -> List[Score]:
+        """Build the single Score for a legacy (one-criterion) classification, as before."""
+        label = response["label"]
+        valid_labels = (
+            list(self.labels) if isinstance(self.labels, list) else list(self.labels.keys())
+        )
+        if label not in valid_labels:
+            raise ValueError(
+                f"ClassificationEvaluator '{self.name}' received invalid label '{label}'. "
+                f"Valid labels are: {valid_labels}. "
+            )
+        score = self.label_score_map.get(label) if self.label_score_map else None
+        return [
+            Score(
+                score=score,
+                name=self.name,
+                label=label,
+                explanation=response.get("explanation", None),
+                metadata={"model": self.llm.model, **response.get("metadata", {})},
+                kind=self.kind,
+                direction=self.direction,
+            )
+        ]
+
     def _evaluate(self, eval_input: EvalInput) -> List[Score]:
         prompt_filled = self._prompt_template.render(variables=eval_input)
+        if not self._uses_criteria_list:
+            # Legacy single-classification path: one question named "label", flat schema.
+            response = self.llm.generate_classification(
+                prompt=prompt_filled,
+                labels=self.labels,
+                include_explanation=self.include_explanation,
+                method=self._legacy_method(),
+                **self.invocation_parameters,
+            )
+            return self._legacy_score(response)
         results = self.llm.generate_classifications(
             prompt=prompt_filled,
             criteria=self._criteria_payload(),
@@ -949,6 +994,15 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
 
     async def _async_evaluate(self, eval_input: EvalInput) -> List[Score]:
         prompt_filled = self._prompt_template.render(variables=eval_input)
+        if not self._uses_criteria_list:
+            response = await self.llm.async_generate_classification(
+                prompt=prompt_filled,
+                labels=self.labels,
+                include_explanation=self.include_explanation,
+                method=self._legacy_method(),
+                **self.invocation_parameters,
+            )
+            return self._legacy_score(response)
         results = await self.llm.async_generate_classifications(
             prompt=prompt_filled,
             criteria=self._criteria_payload(),

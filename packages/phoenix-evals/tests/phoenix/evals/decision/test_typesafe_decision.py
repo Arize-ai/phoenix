@@ -119,7 +119,7 @@ def test_tuple_style_choices_pass_descriptions_as_criteria(monkeypatch):
     assert score.score == 1
 
     _, kwargs = client.system_one.call_args
-    question = kwargs["questions"]["isValid"]
+    question = kwargs["questions"]["label"]
     assert question.criteria == {
         "valid": "the question is well formed",
         "invalid": "the question is malformed",
