@@ -760,6 +760,45 @@ async def test_session_filter_root_span_and_annotation(db: DbSessionFactory) -> 
         assert silver.id not in by_annotation
 
 
+@pytest.mark.parametrize("lowering", ["scan", "probe"])
+async def test_session_annotation_score_against_a_root_attribute_compares_as_numbers(
+    db: DbSessionFactory, lowering: FilterLowering
+) -> None:
+    start = datetime.now(timezone.utc)
+    async with db() as session:
+        project = await _add_project(session)
+        sessions: dict[Any, models.ProjectSession] = {}
+        for num in (1, "2", "not-a-number"):
+            project_session = await _seed_session(
+                session,
+                project,
+                num_traces=1,
+                total_cost=0.0,
+                start_time=start,
+                root_attributes={"num": num},
+            )
+            session.add(
+                models.ProjectSessionAnnotation(
+                    project_session_id=project_session.id,
+                    name="g",
+                    score=1.0,
+                    metadata_={},
+                    annotator_kind="HUMAN",
+                    source="APP",
+                    identifier="",
+                )
+            )
+            sessions[num] = project_session
+        await session.flush()
+
+        assert await _matched_rowids(
+            session,
+            SessionFilter("session_annotations['g'].score != attributes['num']"),
+            project,
+            lowering=lowering,
+        ) == {sessions["2"].id}
+
+
 async def _seed_reference_session(
     session: AsyncSession,
     project: models.Project,
