@@ -2,9 +2,9 @@
 
 Phoenix uses an instance-scoped ``TracingServerInterceptor`` rather than
 ``opentelemetry-instrumentation-grpc`` because ``GrpcAioInstrumentorServer`` is a
-process-wide singleton that monkey-patches ``grpc.aio.server``, does not bind
+process-wide singleton that monkey-patches ``grpc.aio.server`` and does not bind
 Phoenix's explicit server-span ``ContextVar`` across OpenInference context
-detachment, and is published only as a ``0.XXbN`` pre-release package.
+detachment.
 
 Design boundaries:
 - Inbound ``traceparent`` / ``tracestate`` metadata is extracted via W3C

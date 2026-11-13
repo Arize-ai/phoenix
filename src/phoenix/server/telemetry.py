@@ -12,8 +12,6 @@ deprecated ``LoggingHandler`` because:
    in-process OpenInference tracing for agents/evaluators). Upstream
    instrumentors always parent spans to the ambient OpenTelemetry ``Context``,
    which ``detached_otel_context()`` replaces during OpenInference runs.
-3. Upstream's replacement stdlib log handler lives in a ``0.XXbN`` pre-release
-   package excluded from production ``pyproject.toml`` dependencies.
 
 Note on multiple live apps in one Python process: ``ServerTelemetry.from_env()``
 attaches its ``_OtelLoggingHandler`` to Python's root logger when OTLP log export
