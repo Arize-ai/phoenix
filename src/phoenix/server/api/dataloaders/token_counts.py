@@ -3,13 +3,11 @@ from datetime import datetime
 from typing import Any, Literal, Optional
 
 from cachetools import LFUCache, TTLCache
-from sqlalchemy import ColumnElement, Select, func, select
-from sqlalchemy.orm import aliased
-from sqlalchemy.sql.functions import coalesce
+from sqlalchemy import Select
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias
 
-from phoenix.db import models
+from phoenix.db.project_aggregates import token_counts_by_project
 from phoenix.server.api.dataloaders.cache import TwoTierCache
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.types import DbSessionFactory
@@ -95,45 +93,13 @@ class TokenCountDataLoader(DataLoader[Key, Result]):
         return results
 
 
-def _has_llm_child() -> ColumnElement[bool]:
-    child = aliased(models.Span, name="child_span")
-    # Span IDs are unique across traces, so parent_id alone identifies the parent.
-    return (
-        select(1)
-        .where(child.parent_id == models.Span.span_id)
-        .where(func.upper(child.span_kind) == "LLM")
-        .exists()
-    )
-
-
 def _get_stmt(
     segment: Segment,
     *params: Param,
 ) -> Select[*tuple[Any, ...]]:
     (start_time, end_time), filter_condition = segment
-    prompt = coalesce(func.sum(models.Span.llm_token_count_prompt), 0)
-    completion = coalesce(func.sum(models.Span.llm_token_count_completion), 0)
-    total = prompt + completion
-    pid = models.Trace.project_rowid
-    stmt: Select[*tuple[Any, ...]] = (
-        select(
-            pid,
-            prompt.label("prompt"),
-            completion.label("completion"),
-            total.label("total"),
-        )
-        .join_from(models.Trace, models.Span)
-        # Wrapping spans can repeat their children's token counts (#12768).
-        .where(func.upper(models.Span.span_kind) == "LLM")
-        .where(~_has_llm_child())
-        .group_by(pid)
-    )
-    if start_time:
-        stmt = stmt.where(start_time <= models.Span.start_time)
-    if end_time:
-        stmt = stmt.where(models.Span.start_time < end_time)
+    stmt = token_counts_by_project([rowid for rowid, _ in params], start_time, end_time)
     if filter_condition:
         sf = SpanFilter(filter_condition)
         stmt = sf(stmt)
-    stmt = stmt.where(pid.in_([rowid for rowid, _ in params]))
     return stmt

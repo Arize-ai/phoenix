@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
@@ -7,12 +8,14 @@ from starlette.requests import Request
 from strawberry.relay import GlobalID
 
 from phoenix.config import DEFAULT_PROJECT_NAME
+from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.helpers import (
     exclude_dataset_evaluator_projects,
     exclude_experiment_projects,
 )
+from phoenix.db.project_aggregates import cost_summary_by_project, token_counts_by_project
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
@@ -187,6 +190,59 @@ async def get_project(
         project = await get_project_by_identifier(session, project_identifier)
     data = _to_project_response(project)
     return GetProjectResponseBody(data=data)
+
+
+class ProjectCostSummary(V1RoutesBaseModel):
+    token_count_prompt: int = Field(description="Number of prompt tokens")
+    token_count_completion: int = Field(description="Number of completion tokens")
+    token_count_total: int = Field(description="Total number of tokens")
+    cost_usd_prompt: float = Field(description="Cost of the prompt tokens in USD")
+    cost_usd_completion: float = Field(description="Cost of the completion tokens in USD")
+    cost_usd_total: float = Field(description="Total cost in USD")
+
+
+class GetProjectCostSummaryResponseBody(ResponseBody[ProjectCostSummary]):
+    pass
+
+
+@router.get(
+    "/projects/{project_identifier}/cost_summary",
+    operation_id="getProjectCostSummary",
+    summary="Get token counts and costs for a project",
+    description="Return the project's prompt, completion, and total token counts and costs (in "
+    "USD), the same totals the project page shows. Token counts sum the project's LLM spans that "
+    "start within the time range; costs sum the span costs of traces that start within it.",
+    response_description="The project's token count and cost summary",
+    responses=add_errors_to_responses([404, 422]),
+)
+async def get_project_cost_summary(
+    request: Request,
+    project_identifier: str = Path(
+        description="The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",  # noqa: E501
+    ),
+    start_time: Optional[datetime] = Query(
+        default=None, description="Inclusive lower bound on start time"
+    ),
+    end_time: Optional[datetime] = Query(
+        default=None, description="Exclusive upper bound on start time"
+    ),
+) -> GetProjectCostSummaryResponseBody:
+    start = normalize_datetime(start_time, timezone.utc)
+    end = normalize_datetime(end_time, timezone.utc)
+    async with request.app.state.db.read() as session:
+        project = await get_project_by_identifier(session, project_identifier)
+        tokens = (await session.execute(token_counts_by_project([project.id], start, end))).first()
+        costs = (await session.execute(cost_summary_by_project([project.id], start, end))).first()
+    return GetProjectCostSummaryResponseBody(
+        data=ProjectCostSummary(
+            token_count_prompt=tokens.prompt if tokens else 0,
+            token_count_completion=tokens.completion if tokens else 0,
+            token_count_total=tokens.total if tokens else 0,
+            cost_usd_prompt=costs.prompt_cost if costs else 0,
+            cost_usd_completion=costs.completion_cost if costs else 0,
+            cost_usd_total=costs.total_cost if costs else 0,
+        )
+    )
 
 
 @router.post(
