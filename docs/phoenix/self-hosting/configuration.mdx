@@ -49,6 +49,10 @@ The following environment variables will control how your phoenix server runs.
 
 * **PHOENIX\_SQL\_DATABASE\_READ\_REPLICA\_URL:** Optional PostgreSQL read replica URL used for read-only queries. Writes continue to use your primary database connection. This setting is ignored for SQLite deployments. Example: `postgresql://user:password@replica-host:5432/phoenix`. Available since version 14.0.0.
 
+* **PHOENIX\_SQL\_DATABASE\_POOL\_SIZE:** The number of PostgreSQL connections that Phoenix keeps in each connection pool. Defaults to `5`. The value must be a positive integer. The primary database and the read replica each have their own pool. Without a read replica, the UI, span ingestion and login share one pool. If the UI uses all connections, increase this value. Make sure that `max_connections` on each PostgreSQL server allows the pool size plus the maximum overflow for each Phoenix instance. This setting is ignored for SQLite deployments.
+
+* **PHOENIX\_SQL\_DATABASE\_MAX\_OVERFLOW:** The number of extra PostgreSQL connections that each pool can open above **PHOENIX\_SQL\_DATABASE\_POOL\_SIZE** when all pooled connections are in use. Phoenix closes these connections when they are no longer in use. Defaults to `10`. The value must be zero or a positive integer. This setting is ignored for SQLite deployments.
+
 * **PHOENIX\_POSTGRES\_HOST:** As an alternative to setting **PHOENIX\_SQL\_DATABASE\_URL**, you can set the following environment variables to connect to a PostgreSQL database:
 
   * PHOENIX\_POSTGRES\_HOST
