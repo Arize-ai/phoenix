@@ -19,6 +19,7 @@ import {
   View,
 } from "@phoenix/components";
 import type { OptimizationDirectionResult } from "@phoenix/components/annotation";
+import { getOptimizationBounds } from "@phoenix/components/annotation/optimizationUtils";
 import { ColorSwatch } from "@phoenix/components/color/ColorSwatch";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import {
@@ -31,6 +32,7 @@ import { useTheme } from "@phoenix/contexts";
 import { ExperimentComparePageQueriesCompareMetricsQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
 import { compareAnnotationMeanScores } from "@phoenix/pages/experiment/utils";
 import { getWordColor } from "@phoenix/utils/colorUtils";
+import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
 import {
   costFormatter,
   latencyMsFormatter,
@@ -162,6 +164,37 @@ export function ExperimentCompareMetricsPage({
                 }
               }
             }
+            datasetEvaluators(first: 100) {
+              edges {
+                node {
+                  name
+                  outputConfigs {
+                    __typename
+                    ... on CategoricalAnnotationConfig {
+                      name
+                      optimizationDirection
+                      values {
+                        label
+                        score
+                      }
+                    }
+                    ... on ContinuousAnnotationConfig {
+                      name
+                      optimizationDirection
+                      lowerBound
+                      upperBound
+                    }
+                    ... on FreeformAnnotationConfig {
+                      name
+                      optimizationDirection
+                      threshold
+                      lowerBound
+                      upperBound
+                    }
+                  }
+                }
+              }
+            }
           }
         }
         experimentRunMetricComparisons(
@@ -199,6 +232,12 @@ export function ExperimentCompareMetricsPage({
             numRunsEqual
           }
           completionCost {
+            numRunsImproved
+            numRunsRegressed
+            numRunsEqual
+          }
+          annotations {
+            annotationName
             numRunsImproved
             numRunsRegressed
             numRunsEqual
@@ -390,6 +429,35 @@ export function ExperimentCompareMetricsPage({
         completionTokensMetric,
       ];
 
+      // Evaluator scores are compared in the direction their evaluator optimizes for, as in
+      // the compare table and list views. Evaluators sharing an annotation name that disagree
+      // on the direction leave it neutral, as the server leaves out their counts.
+      const optimizationDirectionsByName = new Map<
+        string,
+        OptimizationDirectionResult
+      >();
+      for (const config of datasetEvaluatorsToAnnotationConfigs(
+        data.dataset.datasetEvaluators?.edges.map((edge) => edge.node) ?? []
+      )) {
+        const { optimizationDirection } = getOptimizationBounds(config);
+        if (optimizationDirection == null) {
+          continue;
+        }
+        optimizationDirectionsByName.set(
+          config.name,
+          optimizationDirectionsByName.has(config.name) &&
+            optimizationDirectionsByName.get(config.name) !==
+              optimizationDirection
+            ? undefined
+            : optimizationDirection
+        );
+      }
+      const annotationComparisonsByName = new Map(
+        comparisons?.annotations.map((annotationComparison) => [
+          annotationComparison.annotationName,
+          annotationComparison,
+        ])
+      );
       const annotationMetrics: MetricCardProps[] = compareAnnotationMeanScores(
         baseExperiment,
         compareExperiments
@@ -398,22 +466,33 @@ export function ExperimentCompareMetricsPage({
           annotationName,
           baseExperimentMeanScore,
           compareExperimentMeanScores,
-        }) => ({
-          icon: (
-            <ColorSwatch
-              color={getWordColor({ word: annotationName, theme })}
-            />
-          ),
-          title: annotationName,
-          baseExperimentValue: baseExperimentMeanScore,
-          compareExperiments: compareExperimentMeanScores.map(
-            ({ experimentId, meanScore }, experimentIndex) => ({
-              id: experimentId,
-              value: meanScore,
-              color: getExperimentColor(experimentIndex),
-            })
-          ),
-        })
+        }) => {
+          const annotationComparison =
+            annotationComparisonsByName.get(annotationName);
+          return {
+            icon: (
+              <ColorSwatch
+                color={getWordColor({ word: annotationName, theme })}
+              />
+            ),
+            title: annotationName,
+            baseExperimentValue: baseExperimentMeanScore,
+            comparison: annotationComparison && {
+              numImprovements: annotationComparison.numRunsImproved,
+              numRegressions: annotationComparison.numRunsRegressed,
+              numEqual: annotationComparison.numRunsEqual,
+            },
+            optimizationDirection:
+              optimizationDirectionsByName.get(annotationName),
+            compareExperiments: compareExperimentMeanScores.map(
+              ({ experimentId, meanScore }, experimentIndex) => ({
+                id: experimentId,
+                value: meanScore,
+                color: getExperimentColor(experimentIndex),
+              })
+            ),
+          };
+        }
       );
       return {
         annotationMetrics,
@@ -663,19 +742,19 @@ function ImprovementAndRegressionCounter({
     if (numImprovements > 0) {
       tooltipItems.push({
         key: "improved",
-        text: `${numImprovements} run${numImprovements > 1 ? "s" : ""} improved`,
+        text: `Base experiment did better on ${numImprovements} run${numImprovements > 1 ? "s" : ""}`,
       });
     }
     if (numRegressions > 0) {
       tooltipItems.push({
         key: "regressed",
-        text: `${numRegressions} run${numRegressions > 1 ? "s" : ""} regressed`,
+        text: `Base experiment did worse on ${numRegressions} run${numRegressions > 1 ? "s" : ""}`,
       });
     }
     if (numEqual > 0) {
       tooltipItems.push({
         key: "equal",
-        text: `${numEqual} run${numEqual > 1 ? "s" : ""} stayed the same`,
+        text: `Base experiment tied on ${numEqual} run${numEqual > 1 ? "s" : ""}`,
       });
     }
     return { disableTooltip: tooltipItems.length === 0, tooltipItems };
