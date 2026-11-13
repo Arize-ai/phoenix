@@ -43,7 +43,7 @@ from phoenix.server.app import (
     create_app,
 )
 from phoenix.server.email.sender import email_sender_from_env
-from phoenix.server.lifecycle import Cleanup
+from phoenix.server.lifecycle import Cleanup, dispose_engine_sync_fallback
 from phoenix.server.telemetry import ServerTelemetry
 from phoenix.server.thread_server import ThreadServer
 from phoenix.server.types import DbSessionFactory
@@ -212,7 +212,7 @@ class ThreadSession(Session):
             notebook_env=notebook_env,
         )
         self._exit_stack = ExitStack()
-        self._exit_stack.callback(self.temp_dir.cleanup)
+        self._exit_stack.callback(self._cleanup_temp_dir_if_stopped)
         try:
             auth_settings = get_env_auth_settings(self.host)
             server_telemetry = self._exit_stack.enter_context(ServerTelemetry.from_env())
@@ -222,10 +222,12 @@ class ThreadSession(Session):
                 log_to_stdout=get_env_log_sql(),
                 log_migrations=self.notebook_env is None,
             )
-            dispose_engine = Cleanup(engine.dispose)
+            dispose_engine = Cleanup(
+                engine.dispose,
+                sync_fallback=partial(dispose_engine_sync_fallback, engine),
+            )
             self._exit_stack.callback(dispose_engine.close)
             uninstrument = server_telemetry.instrument_engine(engine)
-            self._exit_stack.callback(uninstrument)
             shutdown_callbacks: list[Callable[[], None | Awaitable[None]]] = [
                 uninstrument,
                 dispose_engine,
@@ -258,9 +260,24 @@ class ThreadSession(Session):
             ).run_in_thread()
             # start the server
             self.server_thread = next(self.server)
-        except BaseException:
-            self._exit_stack.close()
+        except BaseException as setup_err:
+            try:
+                self._exit_stack.close()
+            except Exception as cleanup_err:
+                setup_err.add_note(
+                    f"Session cleanup after failed start also raised: {cleanup_err!r}"
+                )
             raise
+
+    def _cleanup_temp_dir_if_stopped(self) -> None:
+        server_thread = getattr(self, "server_thread", None)
+        if server_thread is not None and server_thread.is_alive():
+            logger.warning(
+                "Phoenix server thread is still running after shutdown timeout; "
+                "skipping temporary directory removal."
+            )
+            return
+        self.temp_dir.cleanup()
 
     @property
     def active(self) -> bool:
@@ -270,7 +287,13 @@ class ThreadSession(Session):
         try:
             self.server.close()
         finally:
-            self._exit_stack.close()
+            if self.server_thread.is_alive():
+                logger.warning(
+                    "Phoenix server thread is still running after shutdown timeout; "
+                    "skipping synchronous resource cleanup to avoid concurrent teardown."
+                )
+            else:
+                self._exit_stack.close()
 
 
 def delete_all(prompt_before_delete: Optional[bool] = True) -> None:

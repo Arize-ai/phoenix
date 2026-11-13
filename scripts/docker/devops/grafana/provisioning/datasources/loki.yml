@@ -9,6 +9,7 @@ datasources:
     editable: true
     jsonData:
       derivedFields:
+        # Matching OTLP structured metadata `trace_id` via `matcherType: label` requires Grafana >= 10.4.
         - datasourceUid: tempo
           matcherType: label
           matcherRegex: "(.+)"

@@ -21,6 +21,7 @@ COMPOSE_FILES="-f docker-compose.yml"
 PROFILE_FLAGS=""
 COMMAND=""
 ASSUME_YES=false
+BUILD_ON_UP=false
 
 # Logging helpers
 log_info() { echo "🔵 $1"; }
@@ -216,6 +217,10 @@ parse_args() {
                 ;;
             -y|--yes)
                 ASSUME_YES=true
+                shift
+                ;;
+            -b|--build)
+                BUILD_ON_UP=true
                 shift
                 ;;
             *)
@@ -450,7 +455,11 @@ case "${COMMAND:-help}" in
         fi
         
         echo "📦 Starting all services..."
-        DOCKER_BUILDKIT=1 compose_cmd up -d --build
+        if [[ "$BUILD_ON_UP" == "true" ]]; then
+            DOCKER_BUILDKIT=1 compose_cmd up -d --build
+        else
+            compose_cmd up -d
+        fi
         
         if wait_for_phoenix; then
             log_success "Environment ready!"
@@ -600,11 +609,11 @@ case "${COMMAND:-help}" in
 Phoenix Development Environment
 
 🚀 Commands:
-  up [--profile NAME]      Start services (DEFAULT - use for code changes)
-  rebuild [--profile NAME] Full rebuild (slowest - when dependencies change)
-  down                     Stop all services  
-  reset                    Remove all images (rebuild on next 'up')
-  destroy                  Wipe data volumes (database, grafana, prometheus)
+  up [--profile NAME] [-b|--build]  Start services (pass --build to rebuild changed layers)
+  rebuild [--profile NAME]          Full no-cache rebuild (when dependencies change)
+  down                              Stop all services
+  reset                             Remove all images (rebuild on next 'up')
+  destroy [-y|--yes]                Wipe data volumes (database, grafana, prometheus, tempo, loki)
   prune                    Clean Docker build cache (frees disk space)
   clean                    Full Docker cleanup (WARNING: removes everything)
   status                   Show running services and current profile

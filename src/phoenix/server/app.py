@@ -37,6 +37,7 @@ from fastapi.telemetry import TelemetryConfig
 from fastapi.utils import is_body_allowed_for_status_code
 from grpc.aio import ServerInterceptor
 from grpc_interceptor import AsyncServerInterceptor
+from opentelemetry import trace as otel_trace
 from pydantic import SecretStr
 from pydantic_ai.mcp import MCPToolset
 from sqlalchemy import select
@@ -142,6 +143,7 @@ from phoenix.server.email.types import EmailSender
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.jwt_store import JwtStore
+from phoenix.server.lifecycle import raise_cleanup_errors
 from phoenix.server.mcp.skills import (
     PXI_SKILLS_ROOTS,
     load_external_skills,
@@ -173,9 +175,9 @@ from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.settings.registry import SETTINGS_REGISTRY
 from phoenix.server.telemetry import (
+    LifespanServerTelemetry,
     ServerTelemetry,
     bind_server_span,
-    raise_cleanup_errors,
 )
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
@@ -444,7 +446,13 @@ class RedactorMiddleware(BaseHTTPMiddleware):
 
 
 class ServerSpanContextMiddleware:
-    """Binds FastAPI's active HTTP/WebSocket server span into Phoenix's server-span ContextVar."""
+    """Bind FastAPI's active HTTP/WebSocket server span into Phoenix's server-span ContextVar.
+
+    Must remain ahead of auth and route middlewares in ``create_app``: FastAPI's
+    ``NativeTelemetry`` wraps ``super().__call__`` outside ``user_middleware``, so
+    the request's ``SERVER`` span is already active here and is captured before
+    any downstream middleware or route handler detaches OpenTelemetry's Context.
+    """
 
     def __init__(self, app: ASGIApp, tracer_provider: Optional["TracerProvider"]) -> None:
         self._app = app
@@ -454,9 +462,7 @@ class ServerSpanContextMiddleware:
         if scope["type"] not in ("http", "websocket"):
             await self._app(scope, receive, send)
             return
-        from opentelemetry import trace
-
-        with bind_server_span(trace.get_current_span(), self._tracer_provider):
+        with bind_server_span(otel_trace.get_current_span(), self._tracer_provider):
             await self._app(scope, receive, send)
 
 
@@ -509,6 +515,8 @@ def _db(engine: AsyncEngine) -> Callable[[], AbstractAsyncContextManager[AsyncSe
         async with Session.begin() as session:
             yield session
 
+    if isinstance(engine, AsyncEngine):
+        setattr(factory, "_phoenix_engine", engine)
     return factory
 
 
@@ -688,6 +696,8 @@ def _lifespan(
     sandbox_runtime: SandboxRuntimeContext,
     token_store: Optional[TokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
+    lifespan_telemetry: Optional[LifespanServerTelemetry] = None,
+    borrowed_telemetry: Optional[ServerTelemetry] = None,
     enable_prometheus: bool = False,
     startup_callbacks: Iterable[_Callback] = (),
     shutdown_callbacks: Iterable[_Callback] = (),
@@ -703,7 +713,17 @@ def _lifespan(
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[dict[str, Any]]:
+        cancelled = False
+        primary_exc: Optional[BaseException] = None
         try:
+            if lifespan_telemetry is not None:
+                active_telemetry = lifespan_telemetry.enter()
+                seen_engines: set[int] = set()
+                for session_maker in (db._db, db._read_db):
+                    candidate = getattr(session_maker, "_phoenix_engine", None)
+                    if isinstance(candidate, AsyncEngine) and id(candidate) not in seen_engines:
+                        seen_engines.add(id(candidate))
+                        active_telemetry.instrument_engine(candidate)
             seed = await load_deployment_seed(db)
             effective_secret = secret or SecretStr("")
             app.state.redactor = Redactor(
@@ -836,16 +856,48 @@ def _lifespan(
                 # the yielded state into its request scopes.
                 app.state.lifespan_state = lifespan_state
                 yield lifespan_state
+        except asyncio.CancelledError as exc:
+            cancelled = True
+            primary_exc = exc
+            raise
+        except BaseException as exc:
+            primary_exc = exc
+            raise
         finally:
-            shutdown_errors: list[BaseException] = []
-            for callback in shutdown_callbacks:
-                try:
-                    if isinstance((res := callback()), Awaitable):
-                        await res
-                except BaseException as exc:
-                    shutdown_errors.append(exc)
-                    logger.exception("Error while running server shutdown callback")
-            raise_cleanup_errors("One or more server shutdown callbacks failed", shutdown_errors)
+            shutdown_errors: list[Exception] = []
+            if cancelled:
+                if lifespan_telemetry is not None:
+                    try:
+                        lifespan_telemetry.close(flush=False)
+                    except Exception as exc:
+                        shutdown_errors.append(exc)
+                if borrowed_telemetry is not None:
+                    try:
+                        borrowed_telemetry.close(flush=False)
+                    except Exception as exc:
+                        shutdown_errors.append(exc)
+            else:
+                for callback in shutdown_callbacks:
+                    try:
+                        if isinstance((res := callback()), Awaitable):
+                            await res
+                    except Exception as exc:
+                        shutdown_errors.append(exc)
+                        logger.exception("Error while running server shutdown callback")
+                if lifespan_telemetry is not None:
+                    try:
+                        await asyncio.to_thread(lifespan_telemetry.close)
+                    except Exception as exc:
+                        shutdown_errors.append(exc)
+                        logger.exception("Error while closing app-owned server telemetry")
+            if shutdown_errors:
+                if primary_exc is not None:
+                    for err in shutdown_errors:
+                        primary_exc.add_note(f"Server shutdown callback also failed: {err!r}")
+                else:
+                    raise_cleanup_errors(
+                        "One or more server shutdown callbacks failed", shutdown_errors
+                    )
 
     return lifespan
 
@@ -1033,79 +1085,13 @@ def create_app(
     *,
     server_telemetry: Optional[ServerTelemetry] = None,
 ) -> FastAPI:
-    """Create an app; omitted telemetry is owned by its lifespan."""
-    with contextlib.ExitStack() as stack:
-        if server_telemetry is None:
-            server_telemetry = stack.enter_context(ServerTelemetry.from_env())
-            shutdown_callbacks = [
-                *shutdown_callbacks,
-                partial(asyncio.to_thread, server_telemetry.close),
-            ]
-        app = _create_app(
-            db=db,
-            authentication_enabled=authentication_enabled,
-            debug=debug,
-            dev=dev,
-            dev_vite_port=dev_vite_port,
-            read_only=read_only,
-            grpc_port=grpc_port,
-            grpc_host=grpc_host,
-            enable_prometheus=enable_prometheus,
-            initial_spans=initial_spans,
-            initial_annotation_precursors=initial_annotation_precursors,
-            serve_ui=serve_ui,
-            startup_callbacks=startup_callbacks,
-            shutdown_callbacks=shutdown_callbacks,
-            secret=secret,
-            password_reset_token_expiry=password_reset_token_expiry,
-            access_token_expiry=access_token_expiry,
-            refresh_token_expiry=refresh_token_expiry,
-            scaffolder_config=scaffolder_config,
-            email_sender=email_sender,
-            oauth2_client_configs=oauth2_client_configs,
-            ldap_config=ldap_config,
-            basic_auth_disabled=basic_auth_disabled,
-            bulk_inserter_factory=bulk_inserter_factory,
-            allowed_origins=allowed_origins,
-            management_url=management_url,
-            welcome_message=welcome_message,
-            server_telemetry=server_telemetry,
-        )
-        stack.pop_all()
-        return app
+    """Create the Phoenix FastAPI application.
 
-
-def _create_app(
-    db: DbSessionFactory,
-    authentication_enabled: bool,
-    debug: bool = False,
-    dev: bool = False,
-    dev_vite_port: int = 5173,
-    read_only: bool = False,
-    grpc_port: Optional[int] = None,
-    grpc_host: Optional[str] = None,
-    enable_prometheus: bool = False,
-    initial_spans: Optional[Iterable[Union[Span, tuple[Span, str]]]] = None,
-    initial_annotation_precursors: Optional[Iterable[AnnotationPrecursor]] = None,
-    serve_ui: bool = True,
-    startup_callbacks: Iterable[_Callback] = (),
-    shutdown_callbacks: Iterable[_Callback] = (),
-    secret: Optional[SecretStr] = None,
-    password_reset_token_expiry: Optional[timedelta] = None,
-    access_token_expiry: Optional[timedelta] = None,
-    refresh_token_expiry: Optional[timedelta] = None,
-    scaffolder_config: Optional[ScaffolderConfig] = None,
-    email_sender: Optional[EmailSender] = None,
-    oauth2_client_configs: Optional[list[OAuth2ClientConfig]] = None,
-    ldap_config: Optional["LDAPConfig"] = None,
-    basic_auth_disabled: bool = False,
-    bulk_inserter_factory: Optional[Callable[..., BulkInserter]] = None,
-    allowed_origins: Optional[list[str]] = None,
-    management_url: Optional[str] = None,
-    welcome_message: Optional[_WelcomeMessage] = None,
-    *,
-    server_telemetry: ServerTelemetry,
-) -> FastAPI:
+    Callers that also instrument database engines pass a shared ``ServerTelemetry``
+    whose lifecycle they own; direct callers that omit ``server_telemetry`` get
+    lifespan-scoped telemetry configured from ``PHOENIX_SERVER_INSTRUMENTATION_OTLP_*``
+    on each lifespan entry.
+    """
     if grpc_host is None:
         grpc_host = get_env_host()
     verify_server_environment_variables()
@@ -1130,6 +1116,17 @@ def _create_app(
         CacheForDataLoaders() if db.dialect is SupportedSQLDialect.SQLITE else None
     )
     last_updated_at = LastUpdatedAt()
+    lifespan_telemetry = LifespanServerTelemetry() if server_telemetry is None else None
+    tracer_provider: Optional["TracerProvider"] = (
+        server_telemetry.tracer_provider
+        if server_telemetry is not None
+        else (lifespan_telemetry.tracer_provider if lifespan_telemetry is not None else None)
+    )
+    logger_provider: Optional["LoggerProvider"] = (
+        server_telemetry.logger_provider
+        if server_telemetry is not None
+        else (lifespan_telemetry.logger_provider if lifespan_telemetry is not None else None)
+    )
     # Resolved before the middleware stack: the anonymous-surface path set feeds
     # both the CSRF origin validator below and AnonymousCorsMiddleware at the end
     # of this function, and it depends on whether the MCP endpoint is mounted
@@ -1139,7 +1136,7 @@ def _create_app(
         mcp_mount_path = MCP_MOUNT_PATH
     anonymous_surfaces = anonymous_paths(mcp_mount_path)
     middlewares: list[Middleware] = [
-        Middleware(ServerSpanContextMiddleware, tracer_provider=server_telemetry.tracer_provider),
+        Middleware(ServerSpanContextMiddleware, tracer_provider=tracer_provider),
         Middleware(HeadersMiddleware),
         Middleware(RedactorMiddleware),
     ]
@@ -1202,12 +1199,9 @@ def _create_app(
     ]
     graphql_schema_extensions.extend(user_gql_extensions())
 
-    resolved_tracer_provider = server_telemetry.tracer_provider
-    logger_provider = server_telemetry.logger_provider
-
-    if resolved_tracer_provider is not None:
+    if tracer_provider is not None:
         graphql_schema_extensions.append(
-            partial(RedactingOpenTelemetryExtension, tracer_provider=resolved_tracer_provider)
+            partial(RedactingOpenTelemetryExtension, tracer_provider=tracer_provider)
         )
     encryption_service = EncryptionService(secret=secret)
     sandbox_runtime = SandboxRuntimeContext(monty=MontyRuntime())
@@ -1273,7 +1267,9 @@ def _create_app(
             sandbox_runtime=sandbox_runtime,
             grpc_interceptors=grpc_interceptors,
             token_store=token_store,
-            tracer_provider=resolved_tracer_provider,
+            tracer_provider=tracer_provider,
+            lifespan_telemetry=lifespan_telemetry,
+            borrowed_telemetry=server_telemetry,
             enable_prometheus=enable_prometheus,
             shutdown_callbacks=shutdown_callbacks_list,
             startup_callbacks=startup_callbacks_list,
@@ -1290,7 +1286,7 @@ def _create_app(
         },
         debug=debug,
         telemetry=_native_telemetry_config(
-            tracer_provider=resolved_tracer_provider, logger_provider=logger_provider
+            tracer_provider=tracer_provider, logger_provider=logger_provider
         ),
         swagger_ui_parameters={
             "defaultModelsExpandDepth": -1,  # hides the schema section in the Swagger UI
@@ -1591,7 +1587,7 @@ def _native_telemetry_config(
     process may have configured. Metrics stay off because the server exposes its
     metrics through Prometheus instead.
     """
-    config: TelemetryConfig = {"metrics": False}
+    config: TelemetryConfig = {"metrics": False, "auto_configure": False}
     if tracer_provider is not None:
         config["tracer_provider"] = tracer_provider
     else:

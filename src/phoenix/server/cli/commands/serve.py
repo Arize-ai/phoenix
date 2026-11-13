@@ -5,7 +5,8 @@ import atexit
 import logging
 import os
 from argparse import SUPPRESS, ArgumentParser, Namespace
-from contextlib import ExitStack
+from collections.abc import Iterator
+from contextlib import ExitStack, contextmanager
 from dataclasses import replace
 from functools import partial
 from pathlib import Path
@@ -17,8 +18,6 @@ from urllib.parse import urljoin
 
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
-
-    from opentelemetry.trace import TracerProvider
 
 from sqlalchemy.ext.asyncio import AsyncEngine
 from uvicorn import Config, Server
@@ -72,11 +71,8 @@ from phoenix.server.app import (
 from phoenix.server.cli.boot_message import AssistantConfig, BootMessage
 from phoenix.server.daemons.system_settings import SystemSettings
 from phoenix.server.email.sender import email_sender_from_env
-from phoenix.server.lifecycle import Cleanup, run_cleanup_sync
-from phoenix.server.telemetry import (
-    ServerTelemetry,
-    instrument_sqlalchemy_engine,
-)
+from phoenix.server.lifecycle import Cleanup, dispose_engine_sync_fallback
+from phoenix.server.telemetry import ServerTelemetry
 from phoenix.server.types import DbSessionFactory
 from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
@@ -271,22 +267,17 @@ def run(args: Namespace) -> None:
 
         start_prometheus(host)
 
+    # Read eagerly so a malformed PHOENIX_AGENTS_* value fails here, before any
+    # migrations run or ports are bound, rather than when the banner renders.
+    agents_env = AgentsEnvConfig.from_env()
     read_replica_connection_str = get_env_read_replica_url()
-    with ServerTelemetry.from_env() as server_telemetry, ExitStack() as database_cleanup:
-        factory, shutdown_callbacks = _create_db_session_factory(
-            db_connection_str=db_connection_str,
-            tracer_provider=server_telemetry.tracer_provider,
-            read_replica_connection_str=read_replica_connection_str,
-            migrate=not Settings.disable_migrations,
-            log_to_stdout=get_env_log_sql(),
-            log_migrations=Settings.log_migrations,
-        )
-        cleanups = [Cleanup(callback) for callback in shutdown_callbacks]
-        for cleanup in reversed(cleanups):
-            database_cleanup.callback(cleanup.close)
-        shutdown_callbacks = list(cleanups)
-        shutdown_callbacks.append(partial(asyncio.to_thread, server_telemetry.close))
-
+    with _open_server_resources(
+        db_connection_str=db_connection_str,
+        read_replica_connection_str=read_replica_connection_str,
+        migrate=not Settings.disable_migrations,
+        log_to_stdout=get_env_log_sql(),
+        log_migrations=Settings.log_migrations,
+    ) as (server_telemetry, factory, shutdown_callbacks):
         allowed_origins = get_env_allowed_origins()
         management_url = get_env_management_url()
 
@@ -303,9 +294,6 @@ def run(args: Namespace) -> None:
         oauth2_client_configs = get_env_oauth2_settings()
         smtp_hostname = get_env_smtp_hostname()
         agent_assistant_enabled = not get_env_disable_agent_assistant()
-        # Read eagerly so a malformed PHOENIX_AGENTS_* value fails here, before any
-        # migrations run or ports are bound, rather than when the banner renders.
-        agents_env = AgentsEnvConfig.from_env()
         # Dev tooling ports set by the frontend dev scripts (e.g. `pnpm dev:server`)
         vite_port = os.getenv("VITE_PORT") or (str(args.dev_vite_port) if args.dev else None)
         debugpy_port = os.getenv("DEBUGPY_PORT")
@@ -432,6 +420,33 @@ def _resolve_grpc_port(args: Namespace) -> int:
     return args.grpc_port if args.grpc_port is not None else get_env_grpc_port()
 
 
+@contextmanager
+def _open_server_resources(
+    *,
+    db_connection_str: str,
+    read_replica_connection_str: Optional[str],
+    migrate: bool,
+    log_to_stdout: bool,
+    log_migrations: bool,
+) -> Iterator[tuple[ServerTelemetry, DbSessionFactory, list[Callable[[], None | Awaitable[None]]]]]:
+    with ServerTelemetry.from_env() as server_telemetry, ExitStack() as database_cleanup:
+        factory, cleanups = _create_db_session_factory(
+            db_connection_str=db_connection_str,
+            read_replica_connection_str=read_replica_connection_str,
+            migrate=migrate,
+            log_to_stdout=log_to_stdout,
+            log_migrations=log_migrations,
+            server_telemetry=server_telemetry,
+        )
+        for cleanup in reversed(cleanups):
+            database_cleanup.callback(cleanup.close)
+        shutdown_callbacks: list[Callable[[], None | Awaitable[None]]] = [
+            *cleanups,
+            partial(asyncio.to_thread, server_telemetry.close),
+        ]
+        yield server_telemetry, factory, shutdown_callbacks
+
+
 def _create_db_session_factory(
     *,
     db_connection_str: str,
@@ -439,17 +454,19 @@ def _create_db_session_factory(
     migrate: bool,
     log_to_stdout: bool,
     log_migrations: bool,
-    tracer_provider: Optional["TracerProvider"] = None,
-) -> tuple[DbSessionFactory, list[Callable[[], None | Awaitable[None]]]]:
-    shutdown_callbacks: list[Callable[[], None | Awaitable[None]]] = []
+    server_telemetry: Optional[ServerTelemetry] = None,
+) -> tuple[DbSessionFactory, list[Cleanup]]:
+    cleanups: list[Cleanup] = []
 
     def _register_engine(engine: AsyncEngine) -> None:
-        shutdown_callbacks.append(engine.dispose)
-        if tracer_provider is not None:
-            shutdown_callbacks.insert(
-                len(shutdown_callbacks) - 1,
-                instrument_sqlalchemy_engine(engine, tracer_provider=tracer_provider),
+        if server_telemetry is not None:
+            cleanups.append(Cleanup(server_telemetry.instrument_engine(engine)))
+        cleanups.append(
+            Cleanup(
+                engine.dispose,
+                sync_fallback=partial(dispose_engine_sync_fallback, engine),
             )
+        )
 
     try:
         primary_engine = create_engine(
@@ -495,13 +512,16 @@ def _create_db_session_factory(
                 read_db=read_db,
                 dialect=primary_engine.dialect.name,
             ),
-            shutdown_callbacks,
+            cleanups,
         )
-    except BaseException:
-        for callback in shutdown_callbacks:
+    except BaseException as setup_err:
+        for cleanup in reversed(cleanups):
             try:
-                run_cleanup_sync(callback)
-            except Exception:
+                cleanup.close()
+            except Exception as cleanup_err:
+                setup_err.add_note(
+                    f"Engine cleanup after failed setup also raised: {cleanup_err!r}"
+                )
                 logger.exception("Error cleaning up engine after failed database setup")
         raise
 

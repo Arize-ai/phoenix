@@ -1,44 +1,94 @@
-"""Cleanup callbacks shared by synchronous setup and asynchronous server lifespans."""
+"""Cleanup primitives shared by synchronous setup and asynchronous server lifespans."""
+
+from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable
+import threading
+from collections.abc import Awaitable, Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from inspect import isawaitable
+from typing import Any
+
+
+def raise_cleanup_errors(message: str, errors: Sequence[Exception]) -> None:
+    """Raise a single cleanup ``Exception`` directly or bundle multiple into ``ExceptionGroup``."""
+    if not errors:
+        return
+    if len(errors) == 1:
+        raise errors[0]
+    raise ExceptionGroup(message, list(errors))
 
 
 def run_cleanup_sync(callback: Callable[[], None | Awaitable[None]]) -> None:
-    """Run cleanup to completion, propagating failures from a worker event loop."""
+    """Run ``callback`` to completion, using a worker event loop if an awaitable is returned."""
+    result = callback()
+    if not isawaitable(result):
+        return
 
-    async def run() -> None:
-        result = callback()
-        if isawaitable(result):
-            await result
+    async def _await_result() -> None:
+        await result
 
     try:
         asyncio.get_running_loop()
     except RuntimeError:
-        asyncio.run(run())
+        asyncio.run(_await_result())
     else:
         with ThreadPoolExecutor(max_workers=1, thread_name_prefix="phoenix-cleanup") as executor:
-            executor.submit(lambda: asyncio.run(run())).result()
+            executor.submit(lambda: asyncio.run(_await_result())).result()
+
+
+def dispose_engine_sync_fallback(engine: Any) -> None:
+    """Dispose an engine synchronously when its owning event loop is unavailable.
+
+    PostgreSQL ``asyncpg`` connections are bound to the event loop that created
+    them, so awaiting ``engine.dispose()`` on a fresh loop raises cross-loop
+    errors; ``sync_engine.dispose(close=False)`` releases the pool without
+    touching loop-bound sockets. ``aiosqlite`` worker threads are loop-agnostic
+    and can be closed via ``run_cleanup_sync``.
+    """
+    dialect_name = getattr(getattr(engine, "dialect", None), "name", None)
+    sync_engine = getattr(engine, "sync_engine", None)
+    if dialect_name == "postgresql" and sync_engine is not None:
+        sync_engine.dispose(close=False)
+        return
+    dispose = getattr(engine, "dispose", None)
+    if callable(dispose):
+        run_cleanup_sync(dispose)
 
 
 class Cleanup:
-    """Share successful cleanup between lifespan shutdown and setup failure handling."""
+    """Run a resource cleanup at most once across async lifespan teardown and sync fallback."""
 
-    def __init__(self, callback: Callable[[], None | Awaitable[None]]) -> None:
+    def __init__(
+        self,
+        callback: Callable[[], None | Awaitable[None]],
+        *,
+        sync_fallback: Callable[[], None] | None = None,
+    ) -> None:
         self._callback = callback
-        self._completed = False
+        self._sync_fallback = sync_fallback
+        self._lock = threading.Lock()
+        self._started = False
+
+    def _claim(self) -> bool:
+        with self._lock:
+            if self._started:
+                return False
+            self._started = True
+            return True
 
     async def __call__(self) -> None:
-        if self._completed:
+        if not self._claim():
             return
         result = self._callback()
         if isawaitable(result):
             await result
-        self._completed = True
 
     def close(self) -> None:
-        """Run cleanup synchronously unless it has already succeeded."""
-        if not self._completed:
-            run_cleanup_sync(self)
+        """Run synchronous fallback unless cleanup has already started."""
+        if not self._claim():
+            return
+        if self._sync_fallback is not None:
+            self._sync_fallback()
+        else:
+            run_cleanup_sync(self._callback)

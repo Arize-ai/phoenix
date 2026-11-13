@@ -18,7 +18,6 @@ datasources:
         datasourceUid: loki
         spanStartTimeShift: "-1m"
         spanEndTimeShift: "1m"
-        filterByTraceID: true
         filterBySpanID: false
         customQuery: true
-        query: '{service_name="arize-phoenix-server"} | trace_id="$${__trace.traceId}"'
+        query: '{service_name=~".+"} | trace_id="$${__trace.traceId}"'

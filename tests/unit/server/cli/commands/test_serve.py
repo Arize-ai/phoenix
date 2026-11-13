@@ -4,7 +4,7 @@ from dataclasses import replace
 from datetime import datetime, timezone
 from secrets import token_hex
 from types import SimpleNamespace
-from typing import Any, Awaitable, Callable, Iterator, NamedTuple
+from typing import Any, Awaitable, Callable, Iterator, NamedTuple, Sequence
 
 import pandas as pd
 import pytest
@@ -33,7 +33,7 @@ from phoenix.server.settings.registry import (
     AgentGitHubSetting,
     AgentTraceRecordingSetting,
 )
-from phoenix.server.telemetry import bind_server_span
+from phoenix.server.telemetry import ServerTelemetry, bind_server_span
 from phoenix.trace.schemas import Span, SpanContext, SpanKind, SpanStatusCode
 from phoenix.trace.trace_dataset import TraceDataset
 
@@ -230,7 +230,7 @@ def test_render_boot_message_falls_back_when_project_name_is_blank(ascii_banner:
 
 
 async def _run_shutdown_callbacks(
-    shutdown_callbacks: list[Callable[[], None | Awaitable[None]]],
+    shutdown_callbacks: Sequence[Callable[[], None | Awaitable[None]]],
 ) -> None:
     for callback in shutdown_callbacks:
         maybe_awaitable = callback()
@@ -293,10 +293,11 @@ async def test_create_db_session_factory_routes_reads_to_replica_for_postgres(
     exporter = InMemorySpanExporter()
     provider = TracerProvider()
     provider.add_span_processor(SimpleSpanProcessor(exporter))
+    telemetry = ServerTelemetry(tracer_provider=provider)
     factory, shutdown_callbacks = _create_db_session_factory(
         db_connection_str=postgresql_primary_and_replica_urls.primary_url,
         read_replica_connection_str=postgresql_primary_and_replica_urls.replica_url,
-        tracer_provider=provider,
+        server_telemetry=telemetry,
         migrate=False,
         log_to_stdout=False,
         log_migrations=False,

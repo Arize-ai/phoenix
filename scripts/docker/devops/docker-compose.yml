@@ -383,6 +383,7 @@ services:
   tempo:
     image: grafana/tempo:2.7.1
     profiles: ["grafana"]
+    # Named Docker volumes mount root-owned by default; upstream image runs as UID 10001.
     user: "0:0"
     restart: unless-stopped
     command: ["-config.file=/etc/tempo/tempo.yml"]
@@ -405,6 +406,7 @@ services:
   loki:
     image: grafana/loki:3.4.2
     profiles: ["grafana"]
+    # Named Docker volumes mount root-owned by default; upstream image runs as UID 10001.
     user: "0:0"
     restart: unless-stopped
     command: ["-config.file=/etc/loki/loki.yml"]

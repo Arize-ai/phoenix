@@ -16,10 +16,15 @@ from graphql import (
     GraphQLNonNull,
     GraphQLResolveInfo,
     GraphQLSchema,
+    ListValueNode,
+    NullValueNode,
     ObjectFieldNode,
+    ObjectValueNode,
     StringValueNode,
     TypeInfo,
     TypeInfoVisitor,
+    ValueNode,
+    VariableDefinitionNode,
     VariableNode,
     Visitor,
     get_named_type,
@@ -72,33 +77,92 @@ def redact_arguments(args: dict[str, Any], info: GraphQLResolveInfo[Any]) -> dic
 
 
 def redact_document(document: DocumentNode, schema: GraphQLSchema) -> str:
-    """Variables are left as written: their values are not part of the document."""
+    """Return ``document`` printed with redacted literals and variable defaults blanked."""
     type_info = TypeInfo(schema)
-    return print_ast(visit(document, TypeInfoVisitor(type_info, _RedactLiterals(type_info))))
+    literal_visitor = _RedactLiterals(type_info)
+    redacted_doc = visit(document, TypeInfoVisitor(type_info, literal_visitor))
+    if literal_visitor.redacted_variable_names:
+        redacted_doc = visit(
+            redacted_doc,
+            _RedactVariableDefaults(literal_visitor.redacted_variable_names),
+        )
+    return print_ast(redacted_doc)
+
+
+def _redact_ast_value(value: ValueNode, redacted_variable_names: set[str]) -> ValueNode:
+    if isinstance(value, VariableNode):
+        redacted_variable_names.add(value.name.value)
+        return value
+    if isinstance(value, NullValueNode):
+        return value
+    if isinstance(value, ListValueNode):
+        return ListValueNode(
+            values=tuple(_redact_ast_value(item, redacted_variable_names) for item in value.values)
+        )
+    if isinstance(value, ObjectValueNode):
+        return ObjectValueNode(
+            fields=tuple(
+                ObjectFieldNode(
+                    name=field.name,
+                    value=_redact_ast_value(field.value, redacted_variable_names),
+                )
+                for field in value.fields
+            )
+        )
+    return _REDACTED_LITERAL
 
 
 class _RedactLiterals(Visitor):
     def __init__(self, type_info: TypeInfo) -> None:
         super().__init__()
         self._type_info = type_info
+        self.redacted_variable_names: set[str] = set()
 
     def enter_argument(self, node: ArgumentNode, *_: Any) -> ArgumentNode | None:
         graphql_argument = self._type_info.get_argument()
-        if (
-            graphql_argument is not None
-            and not isinstance(node.value, VariableNode)
-            and _is_redacted_argument(graphql_argument)
-        ):
-            return ArgumentNode(name=node.name, value=_REDACTED_LITERAL)
+        if graphql_argument is not None and _is_redacted_argument(graphql_argument):
+            new_value = _redact_ast_value(node.value, self.redacted_variable_names)
+            return (
+                ArgumentNode(name=node.name, value=new_value)
+                if new_value is not node.value
+                else None
+            )
         return None
 
     def enter_object_field(self, node: ObjectFieldNode, *_: Any) -> ObjectFieldNode | None:
         parent = get_named_type(self._type_info.get_parent_input_type())
-        if not isinstance(parent, GraphQLInputObjectType) or isinstance(node.value, VariableNode):
+        if not isinstance(parent, GraphQLInputObjectType):
             return None
         graphql_field = parent.fields.get(node.name.value)
         if graphql_field is not None and _is_redacted_input_field(graphql_field):
-            return ObjectFieldNode(name=node.name, value=_REDACTED_LITERAL)
+            new_value = _redact_ast_value(node.value, self.redacted_variable_names)
+            return (
+                ObjectFieldNode(name=node.name, value=new_value)
+                if new_value is not node.value
+                else None
+            )
+        return None
+
+
+class _RedactVariableDefaults(Visitor):
+    def __init__(self, redacted_variable_names: set[str]) -> None:
+        super().__init__()
+        self._redacted_variable_names = redacted_variable_names
+
+    def enter_variable_definition(
+        self, node: VariableDefinitionNode, *_: Any
+    ) -> VariableDefinitionNode | None:
+        if (
+            node.variable.name.value in self._redacted_variable_names
+            and node.default_value is not None
+            and not isinstance(node.default_value, NullValueNode)
+        ):
+            return VariableDefinitionNode(
+                variable=node.variable,
+                type=node.type,
+                default_value=_REDACTED_LITERAL,
+                directives=node.directives,
+            )
         return None
 
 
@@ -108,10 +172,15 @@ _REDACTED_LITERAL = StringValueNode(value=REDACTED_VALUE)
 class RedactingOpenTelemetryExtension(OpenTelemetryExtension):
     """Redact GraphQL inputs and preserve server parentage across OpenInference contexts."""
 
-    def __init__(self, **kwargs: Any) -> None:
-        self._tracer_provider: Optional[TracerProvider] = kwargs.get("tracer_provider")
+    def __init__(
+        self,
+        *,
+        tracer_provider: Optional[TracerProvider] = None,
+        **kwargs: Any,
+    ) -> None:
+        self._tracer_provider = tracer_provider
         kwargs.setdefault("arg_filter", redact_arguments)
-        super().__init__(**kwargs)
+        super().__init__(tracer_provider=tracer_provider, **kwargs)
 
     def on_operation(self) -> Generator[None, None, None]:
         self._operation_name = self.execution_context.operation_name
@@ -128,15 +197,19 @@ class RedactingOpenTelemetryExtension(OpenTelemetryExtension):
         span.set_attribute("component", "graphql")
         self._span_holder[LifecycleStep.OPERATION] = span
         try:
-            with bind_server_span(span, self._tracer_provider):
-                yield
+            yield
+        except Exception as exc:
+            if span.is_recording():
+                span.record_exception(exc)
+                span.set_status(Status(StatusCode.ERROR, str(exc)))
+            raise
+        finally:
             if not self._operation_name and self.execution_context.operation_name:
                 span.update_name(_operation_span_name(self.execution_context.operation_name))
             if (document := self.execution_context.graphql_document) is not None:
                 span.set_attribute(
                     "query", redact_document(document, self.execution_context.schema._schema)
                 )
-        finally:
             span.end()
 
     async def resolve(
@@ -147,6 +220,12 @@ class RedactingOpenTelemetryExtension(OpenTelemetryExtension):
         *args: str,
         **kwargs: Any,
     ) -> Any:
+        """Trace field resolution while leaving OpenTelemetry's ambient ``Context`` untouched.
+
+        ``span`` is published via :func:`bind_server_span` rather than made
+        OTel-current so in-process GraphQL executions inside OpenInference runs
+        keep their active OpenInference span in ``trace.get_current_span()``.
+        """
         if should_skip_tracing(_next, info):
             result = _next(root, info, *args, **kwargs)
             if isawaitable(result):

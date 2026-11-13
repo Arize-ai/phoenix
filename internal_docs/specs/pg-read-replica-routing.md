@@ -90,7 +90,7 @@ The `DbSessionFactory` is constructed in **two places**, not one:
 1. **`src/phoenix/server/cli/commands/serve.py:257-266`** — the main CLI entrypoint:
    ```python
    engine = create_engine(connection_str=db_connection_str, ...)
-   shutdown_callbacks.extend(instrument_engine_if_enabled(engine))
+   shutdown_callbacks.append(server_telemetry.instrument_engine(engine))
    shutdown_callbacks.append(engine.dispose)
    factory = DbSessionFactory(db=_db(engine), dialect=engine.dialect.name)
    ```
@@ -98,7 +98,7 @@ The `DbSessionFactory` is constructed in **two places**, not one:
 2. **`src/phoenix/session/session.py:203-213`** — the notebook/embedded entrypoint:
    ```python
    engine = create_engine(connection_str=database_url, ...)
-   shutdown_callbacks.extend(instrument_engine_if_enabled(engine))
+   shutdown_callbacks.append(server_telemetry.instrument_engine(engine))
    shutdown_callbacks.append(engine.dispose)
    factory = DbSessionFactory(db=_db(engine), dialect=engine.dialect.name)
    ```
@@ -267,7 +267,7 @@ In `serve.py` (and `session.py`), engine creation changes from:
 
 ```python
 engine = create_engine(connection_str=db_connection_str, migrate=True, ...)
-shutdown_callbacks.extend(instrument_engine_if_enabled(engine))
+shutdown_callbacks.append(server_telemetry.instrument_engine(engine))
 shutdown_callbacks.append(engine.dispose)
 factory = DbSessionFactory(db=_db(engine), dialect=engine.dialect.name)
 ```
@@ -276,14 +276,14 @@ To:
 
 ```python
 primary_engine = create_engine(connection_str=db_connection_str, migrate=True, ...)
-shutdown_callbacks.extend(instrument_engine_if_enabled(primary_engine))
+shutdown_callbacks.append(server_telemetry.instrument_engine(primary_engine))
 shutdown_callbacks.append(primary_engine.dispose)
 
 replica_engine = None
 replica_url = get_env_read_replica_url()  # new config function
 if replica_url and SupportedSQLDialect(primary_engine.dialect.name) is SupportedSQLDialect.POSTGRESQL:
     replica_engine = create_engine(connection_str=replica_url, migrate=False, ...)
-    shutdown_callbacks.extend(instrument_engine_if_enabled(replica_engine))
+    shutdown_callbacks.append(server_telemetry.instrument_engine(replica_engine))
     shutdown_callbacks.append(replica_engine.dispose)
 
 factory = DbSessionFactory(
@@ -305,7 +305,7 @@ No special schema configuration is needed for the replica engine. Phoenix sets t
 
 - **Both engines must be disposed on shutdown.** Add `replica_engine.dispose` to shutdown callbacks alongside primary. The current shutdown pattern in the lifespan function (`app.py:695-697`) iterates all callbacks.
 
-- **Both engines must be instrumented.** `instrument_engine_if_enabled()` (`app.py:960+`) attaches OpenTelemetry tracing to the engine. Call it for the replica engine too, so query telemetry covers both pools. The returned cleanup callbacks must also be registered for shutdown.
+- **Both engines must be instrumented.** `ServerTelemetry.instrument_engine()` (`telemetry.py`) attaches OpenTelemetry tracing to each engine. Call it for the replica engine too, so query telemetry covers both pools. The returned cleanup callbacks must also be registered for shutdown.
 
 - **Pool sizing.** Each engine gets its own SQLAlchemy connection pool (default: `QueuePool` with `pool_size=5`, `max_overflow=10`). Two engines means up to 30 connections total (15 per engine) by default. Operators can tune per-engine via URL parameters (e.g., `?pool_size=10&max_overflow=20`). Document that total max connections = primary pool + replica pool.
 
@@ -566,7 +566,7 @@ Integration tests for routing can be added later if a misroute occurs in practic
 
 - **Session route counter:** Increment a Prometheus counter on each `db.read()` or `db()` call, tagged by route. This tells operators how traffic splits between primary and replica.
 - **Structured log on startup:** Log the replica engine URL (password-hidden) at INFO level when the replica engine is created, so operators can confirm configuration.
-- **Standard SQLAlchemy pool metrics:** If `instrument_engine_if_enabled` is called on both engines, existing pool telemetry (checkout time, pool size, overflow) automatically covers the replica pool.
+- **Database span tracing across pools:** Calling `server_telemetry.instrument_engine` on both engines ensures exported SQL client spans cover both primary and replica pools.
 
 Defer until post-MVP: per-endpoint latency histograms by route, fallback counters (when fallback is added), lag tracking.
 
