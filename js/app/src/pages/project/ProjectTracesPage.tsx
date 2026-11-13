@@ -53,7 +53,12 @@ function TracesTabContent({
   const { traceId } = useParams();
 
   return (
-    <TracesTable project={data.project} seed={seed} selectedRowId={traceId} />
+    <TracesTable
+      project={data.project}
+      seed={seed}
+      selectedRowId={traceId}
+      initialRequest={tracesQueryReference.source}
+    />
   );
 }
 
