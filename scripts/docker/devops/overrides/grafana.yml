@@ -1,0 +1,11 @@
+services:
+  phoenix:
+    depends_on:
+      otel-collector:
+        condition: service_started
+    environment:
+      - PHOENIX_LOGGING_MODE=structured
+      - PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT=http://otel-collector:4318
+      - PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_HTTP_ENDPOINT=http://otel-collector:4318
+    labels:
+      - "phoenix.self_instrumentation=enabled"

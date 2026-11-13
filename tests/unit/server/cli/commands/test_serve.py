@@ -4,12 +4,16 @@ from dataclasses import replace
 from datetime import datetime, timezone
 from secrets import token_hex
 from types import SimpleNamespace
-from typing import Any, Awaitable, Callable, Iterator, NamedTuple
+from typing import Any, Awaitable, Callable, Iterator, NamedTuple, Sequence
 
 import pandas as pd
 import pytest
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.trace import SpanKind as OtelSpanKind
 from pytest_postgresql.janitor import DatabaseJanitor
-from sqlalchemy import URL, text
+from sqlalchemy import URL, make_url, text
 
 from phoenix.db import models
 from phoenix.db.insertion.types import Precursors
@@ -29,6 +33,7 @@ from phoenix.server.settings.registry import (
     AgentGitHubSetting,
     AgentTraceRecordingSetting,
 )
+from phoenix.server.telemetry import ServerTelemetry, bind_server_span
 from phoenix.trace.schemas import Span, SpanContext, SpanKind, SpanStatusCode
 from phoenix.trace.trace_dataset import TraceDataset
 
@@ -225,7 +230,7 @@ def test_render_boot_message_falls_back_when_project_name_is_blank(ascii_banner:
 
 
 async def _run_shutdown_callbacks(
-    shutdown_callbacks: list[Callable[[], None | Awaitable[None]]],
+    shutdown_callbacks: Sequence[Callable[[], None | Awaitable[None]]],
 ) -> None:
     for callback in shutdown_callbacks:
         maybe_awaitable = callback()
@@ -285,26 +290,59 @@ def postgresql_primary_and_replica_urls(
 async def test_create_db_session_factory_routes_reads_to_replica_for_postgres(
     postgresql_primary_and_replica_urls: PostgresPrimaryAndReplicaUrls,
 ) -> None:
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    telemetry = ServerTelemetry(tracer_provider=provider)
     factory, shutdown_callbacks = _create_db_session_factory(
         db_connection_str=postgresql_primary_and_replica_urls.primary_url,
         read_replica_connection_str=postgresql_primary_and_replica_urls.replica_url,
+        server_telemetry=telemetry,
         migrate=False,
         log_to_stdout=False,
         log_migrations=False,
     )
     try:
-        async with factory() as session:
-            assert (
-                str(await session.scalar(text("SELECT current_database()")))
-                == postgresql_primary_and_replica_urls.primary_db_name
-            )
-        async with factory.read() as session:
-            assert (
-                str(await session.scalar(text("SELECT current_database()")))
-                == postgresql_primary_and_replica_urls.replica_db_name
-            )
+        with (
+            provider.get_tracer("test").start_as_current_span(
+                "request", kind=OtelSpanKind.SERVER
+            ) as parent_span,
+            bind_server_span(parent_span, provider),
+        ):
+            async with factory() as session:
+                assert (
+                    str(await session.scalar(text("SELECT current_database() -- primary")))
+                    == postgresql_primary_and_replica_urls.primary_db_name
+                )
+            async with factory.read() as session:
+                assert (
+                    str(await session.scalar(text("SELECT current_database() -- replica")))
+                    == postgresql_primary_and_replica_urls.replica_db_name
+                )
+
+        spans_by_statement = {
+            str(span.attributes["db.query.text"]): dict(span.attributes)
+            for span in exporter.get_finished_spans()
+            if span.kind is OtelSpanKind.CLIENT
+            and span.attributes
+            and "db.query.text" in span.attributes
+        }
+        primary_attrs = spans_by_statement["SELECT current_database() -- primary"]
+        replica_attrs = spans_by_statement["SELECT current_database() -- replica"]
+        assert primary_attrs["db.system.name"] == "postgresql"
+        assert primary_attrs["db.operation.name"] == "SELECT"
+        assert primary_attrs["db.namespace"] == postgresql_primary_and_replica_urls.primary_db_name
+        assert replica_attrs["db.namespace"] == postgresql_primary_and_replica_urls.replica_db_name
+        primary_url = make_url(postgresql_primary_and_replica_urls.primary_url)
+        if primary_url.host:
+            assert primary_attrs["server.address"] == primary_url.host
+        if primary_url.port is not None and primary_url.port != 5432:
+            assert primary_attrs["server.port"] == primary_url.port
+        else:
+            assert "server.port" not in primary_attrs
     finally:
         await _run_shutdown_callbacks(shutdown_callbacks)
+        provider.shutdown()
 
 
 @pytest.mark.postgres_only

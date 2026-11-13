@@ -37,6 +37,7 @@ from fastapi.telemetry import TelemetryConfig
 from fastapi.utils import is_body_allowed_for_status_code
 from grpc.aio import ServerInterceptor
 from grpc_interceptor import AsyncServerInterceptor
+from opentelemetry import trace as otel_trace
 from pydantic import SecretStr
 from pydantic_ai.mcp import MCPToolset
 from sqlalchemy import select
@@ -51,7 +52,7 @@ from starlette.requests import ClientDisconnect, Request
 from starlette.responses import JSONResponse, PlainTextResponse, RedirectResponse, Response
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
-from starlette.types import Scope, StatefulLifespan
+from starlette.types import ASGIApp, Receive, Scope, Send, StatefulLifespan
 from strawberry.extensions import MaxAliasesLimiter, QueryDepthLimiter, SchemaExtension
 from strawberry.fastapi import GraphQLRouter
 from strawberry.subscriptions import MULTIPART_SUBSCRIPTION_PROTOCOL
@@ -84,8 +85,6 @@ from phoenix.config import (
     get_env_phoenix_agents_disable_bash,
     get_env_port,
     get_env_support_email,
-    server_instrumentation_is_enabled,
-    server_log_export_is_enabled,
     verify_server_environment_variables,
 )
 from phoenix.db import models
@@ -144,6 +143,7 @@ from phoenix.server.email.types import EmailSender
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.jwt_store import JwtStore
+from phoenix.server.lifecycle import raise_cleanup_errors
 from phoenix.server.mcp.skills import (
     PXI_SKILLS_ROOTS,
     load_external_skills,
@@ -175,8 +175,10 @@ from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.settings.registry import SETTINGS_REGISTRY
 from phoenix.server.telemetry import (
-    initialize_opentelemetry_logger_provider,
-    initialize_opentelemetry_tracer_provider,
+    LifespanServerTelemetry,
+    ServerTelemetry,
+    bind_server_span,
+    report_instrumentation_failure,
 )
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
@@ -444,6 +446,27 @@ class RedactorMiddleware(BaseHTTPMiddleware):
             current_redactor.reset(token)
 
 
+class ServerSpanContextMiddleware:
+    """Bind FastAPI's active HTTP/WebSocket server span into Phoenix's server-span ContextVar.
+
+    Must remain ahead of auth and route middlewares in ``create_app``: FastAPI's
+    ``NativeTelemetry`` wraps ``super().__call__`` outside ``user_middleware``, so
+    the request's ``SERVER`` span is already active here and is captured before
+    any downstream middleware or route handler detaches OpenTelemetry's Context.
+    """
+
+    def __init__(self, app: ASGIApp, tracer_provider: Optional["TracerProvider"]) -> None:
+        self._app = app
+        self._tracer_provider = tracer_provider
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] not in ("http", "websocket"):
+            await self._app(scope, receive, send)
+            return
+        with bind_server_span(otel_trace.get_current_span(), self._tracer_provider):
+            await self._app(scope, receive, send)
+
+
 def user_fastapi_middlewares() -> list[Middleware]:
     paths = get_env_fastapi_middleware_paths()
     middlewares = []
@@ -672,6 +695,7 @@ def _lifespan(
     sandbox_runtime: SandboxRuntimeContext,
     token_store: Optional[TokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
+    lifespan_telemetry: Optional[LifespanServerTelemetry] = None,
     enable_prometheus: bool = False,
     startup_callbacks: Iterable[_Callback] = (),
     shutdown_callbacks: Iterable[_Callback] = (),
@@ -687,136 +711,201 @@ def _lifespan(
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[dict[str, Any]]:
-        seed = await load_deployment_seed(db)
-        effective_secret = secret or SecretStr("")
-        app.state.redactor = Redactor(
-            derive_deployment_key(
+        cancelled = False
+        primary_exc: Optional[BaseException] = None
+        entered_telemetry: Optional[ServerTelemetry] = None
+        try:
+            if lifespan_telemetry is not None:
+                entered_telemetry = lifespan_telemetry.enter()
+                if entered_telemetry.tracer_provider is not None:
+                    # Direct ``create_app`` callers own their engines; discover them
+                    # through session binds. Opening a session issues no SQL.
+                    seen_engines: set[int] = set()
+                    for open_session in (db, db.read):
+                        try:
+                            async with open_session() as session:
+                                bind: Any = session.bind
+                            engine = bind if isinstance(bind, AsyncEngine) else bind.engine
+                            if id(engine) not in seen_engines:
+                                seen_engines.add(id(engine))
+                                entered_telemetry.instrument_engine(engine)
+                        except Exception:
+                            report_instrumentation_failure("create_app engine probe")
+            seed = await load_deployment_seed(db)
+            effective_secret = secret or SecretStr("")
+            app.state.redactor = Redactor(
+                derive_deployment_key(
+                    seed=seed,
+                    secret=effective_secret,
+                    purpose=REDACTION_KEY_PURPOSE,
+                )
+            )
+            app.state.oauth2_login_context_key = derive_deployment_key(
                 seed=seed,
                 secret=effective_secret,
-                purpose=REDACTION_KEY_PURPOSE,
+                purpose=OAUTH2_LOGIN_CONTEXT_KEY_PURPOSE,
             )
-        )
-        app.state.oauth2_login_context_key = derive_deployment_key(
-            seed=seed,
-            secret=effective_secret,
-            purpose=OAUTH2_LOGIN_CONTEXT_KEY_PURPOSE,
-        )
-        if isinstance(token_store, JwtStore):
-            if secret:
-                token_store.set_signing_key(secret.get_secret_value(), require_stored_hash=False)
-            else:
-                token_store.set_signing_key(
-                    derive_deployment_key(
-                        seed=seed, secret=SecretStr(""), purpose=TOKEN_SIGNING_KEY_PURPOSE
-                    ),
-                    require_stored_hash=True,
-                )
-        resolved_grpc_port = get_env_grpc_port() if grpc_port is None else grpc_port
-        for callback in startup_callbacks:
-            if isinstance((res := callback()), Awaitable):
-                await res
-        await system_settings.bootstrap()
-        async with AsyncExitStack() as stack:
-            (
-                enqueue_annotations,
-                enqueue_span,
-                enqueue_operation,
-            ) = await stack.enter_async_context(bulk_inserter)
-            interceptors = [
-                CapacityInterceptor(bulk_inserter),
-                *user_grpc_interceptors(),
-                *grpc_interceptors,
-            ]
-            grpc_server = GrpcServer(
-                enqueue_span,
-                port=resolved_grpc_port,
-                host=grpc_host,
-                disabled=read_only,
-                tracer_provider=tracer_provider,
-                enable_prometheus=enable_prometheus,
-                token_store=token_store,
-                interceptors=interceptors,
-            )
-            await stack.enter_async_context(grpc_server)
-            await stack.enter_async_context(dml_event_handler)
-            for precursor in initial_annotation_precursors:
-                await enqueue_annotations(precursor)
-            if trace_data_sweeper:
-                await stack.enter_async_context(trace_data_sweeper)
-            await stack.enter_async_context(agent_session_sweeper)
-            await stack.enter_async_context(experiment_sweeper)
-            await stack.enter_async_context(generative_model_store)
-            if model_cost_manifest_fetcher:
-                await stack.enter_async_context(model_cost_manifest_fetcher)
-            await stack.enter_async_context(system_settings)
-            await stack.enter_async_context(db_disk_usage_monitor)
-            await stack.enter_async_context(sandbox_runtime.monty)
-            # ``sandbox_session_manager`` must enter before ``experiment_runner``
-            # so ``AsyncExitStack`` tears them down in reverse and the runner
-            # (which consumes the manager) stops first. If the runner outlived
-            # its manager, any ``acquire`` it issued after the manager's
-            # shutdown snapshot would leak a provider session past the daemon.
-            await stack.enter_async_context(sandbox_session_manager)
-            await stack.enter_async_context(experiment_runner)
-            if docs_mcp_server is not None:
-                # The docs MCP server connects to an external host during
-                # startup. Never let its initialization (which can hang until a
-                # deadline when egress is blocked) abort server startup; degrade
-                # to the assistant running without docs tools instead.
-                try:
-                    await stack.enter_async_context(docs_mcp_server)
-                except Exception:
-                    logger.warning(
-                        "Failed to initialize docs MCP server; continuing without docs capability.",
-                        exc_info=True,
+            if isinstance(token_store, JwtStore):
+                if secret:
+                    token_store.set_signing_key(
+                        secret.get_secret_value(), require_stored_hash=False
                     )
-            # Probe the shared runtime once when any consumer can use it.
-            # Failure is non-fatal because Monty is an optional server feature.
-            mounted_mcp_code_mode = getattr(app.state, "mcp_code_mode_sandbox", None) is not None
-            agent_mcp_code_mode = getattr(app.state, "pxi_mcp_sandbox", None) is not None
-            monty_allowed_by_config = "MONTY" in get_env_allowed_sandbox_providers()
-            if mounted_mcp_code_mode or agent_mcp_code_mode or monty_allowed_by_config:
-                try:
-                    await sandbox_runtime.monty.probe_runtime()
-                except Exception:
-                    logger.warning(
-                        "Monty runtime startup probe failed; continuing startup.",
-                        exc_info=True,
+                else:
+                    token_store.set_signing_key(
+                        derive_deployment_key(
+                            seed=seed, secret=SecretStr(""), purpose=TOKEN_SIGNING_KEY_PURPOSE
+                        ),
+                        require_stored_hash=True,
                     )
-            # Start the mounted MCP server's session manager (set in create_app).
-            if (mcp_http_app := getattr(app.state, "mcp_http_app", None)) is not None:
-                await stack.enter_async_context(mcp_http_app.lifespan(app))
-            if scaffolder_config:
-                scaffolder = Scaffolder(
-                    config=scaffolder_config,
-                    enqueue_span=enqueue_span,
-                    enqueue_annotations=enqueue_annotations,
+            resolved_grpc_port = get_env_grpc_port() if grpc_port is None else grpc_port
+            for callback in startup_callbacks:
+                if isinstance((res := callback()), Awaitable):
+                    await res
+            await system_settings.bootstrap()
+            async with AsyncExitStack() as stack:
+                (
+                    enqueue_annotations,
+                    enqueue_span,
+                    enqueue_operation,
+                ) = await stack.enter_async_context(bulk_inserter)
+                interceptors = [
+                    CapacityInterceptor(bulk_inserter),
+                    *user_grpc_interceptors(),
+                    *grpc_interceptors,
+                ]
+                grpc_server = GrpcServer(
+                    enqueue_span,
+                    port=resolved_grpc_port,
+                    host=grpc_host,
+                    disabled=read_only,
+                    tracer_provider=tracer_provider,
+                    enable_prometheus=enable_prometheus,
+                    token_store=token_store,
+                    interceptors=interceptors,
                 )
-                await stack.enter_async_context(scaffolder)
-            if isinstance(token_store, AbstractAsyncContextManager):
-                await stack.enter_async_context(token_store)
-            _warn_if_missing_aioboto3()
-            if welcome_message:
-                # The banner is cosmetic and renders after migrations have run and
-                # ports are bound, so a defect in it must not abort a started server.
-                try:
-                    print(welcome_message(system_settings), flush=True)
-                except Exception:
-                    logger.exception("Failed to render the startup banner")
-            lifespan_state: dict[str, Any] = {
-                "event_queue": dml_event_handler,
-                "enqueue_annotations": enqueue_annotations,
-                "enqueue_span": enqueue_span,
-                "enqueue_operation": enqueue_operation,
-                "experiment_runner": experiment_runner,
-            }
-            # Read by the in-process MCP dispatch, which has no server to copy
-            # the yielded state into its request scopes.
-            app.state.lifespan_state = lifespan_state
-            yield lifespan_state
-        for callback in shutdown_callbacks:
-            if isinstance((res := callback()), Awaitable):
-                await res
+                await stack.enter_async_context(grpc_server)
+                await stack.enter_async_context(dml_event_handler)
+                for precursor in initial_annotation_precursors:
+                    await enqueue_annotations(precursor)
+                if trace_data_sweeper:
+                    await stack.enter_async_context(trace_data_sweeper)
+                await stack.enter_async_context(agent_session_sweeper)
+                await stack.enter_async_context(experiment_sweeper)
+                await stack.enter_async_context(generative_model_store)
+                if model_cost_manifest_fetcher:
+                    await stack.enter_async_context(model_cost_manifest_fetcher)
+                await stack.enter_async_context(system_settings)
+                await stack.enter_async_context(db_disk_usage_monitor)
+                await stack.enter_async_context(sandbox_runtime.monty)
+                # ``sandbox_session_manager`` must enter before ``experiment_runner``
+                # so ``AsyncExitStack`` tears them down in reverse and the runner
+                # (which consumes the manager) stops first. If the runner outlived
+                # its manager, any ``acquire`` it issued after the manager's
+                # shutdown snapshot would leak a provider session past the daemon.
+                await stack.enter_async_context(sandbox_session_manager)
+                await stack.enter_async_context(experiment_runner)
+                if docs_mcp_server is not None:
+                    # The docs MCP server connects to an external host during
+                    # startup. Never let its initialization (which can hang until a
+                    # deadline when egress is blocked) abort server startup; degrade
+                    # to the assistant running without docs tools instead.
+                    try:
+                        await stack.enter_async_context(docs_mcp_server)
+                    except Exception:
+                        logger.warning(
+                            "Failed to initialize docs MCP server; "
+                            "continuing without docs capability.",
+                            exc_info=True,
+                        )
+                # Probe the shared runtime once when any consumer can use it.
+                # Failure is non-fatal because Monty is an optional server feature.
+                mounted_mcp_code_mode = (
+                    getattr(app.state, "mcp_code_mode_sandbox", None) is not None
+                )
+                agent_mcp_code_mode = getattr(app.state, "pxi_mcp_sandbox", None) is not None
+                monty_allowed_by_config = "MONTY" in get_env_allowed_sandbox_providers()
+                if mounted_mcp_code_mode or agent_mcp_code_mode or monty_allowed_by_config:
+                    try:
+                        await sandbox_runtime.monty.probe_runtime()
+                    except Exception:
+                        logger.warning(
+                            "Monty runtime startup probe failed; continuing startup.",
+                            exc_info=True,
+                        )
+                # Start the mounted MCP server's session manager (set in create_app).
+                if (mcp_http_app := getattr(app.state, "mcp_http_app", None)) is not None:
+                    await stack.enter_async_context(mcp_http_app.lifespan(app))
+                if scaffolder_config:
+                    scaffolder = Scaffolder(
+                        config=scaffolder_config,
+                        enqueue_span=enqueue_span,
+                        enqueue_annotations=enqueue_annotations,
+                    )
+                    await stack.enter_async_context(scaffolder)
+                if isinstance(token_store, AbstractAsyncContextManager):
+                    await stack.enter_async_context(token_store)
+                _warn_if_missing_aioboto3()
+                if welcome_message:
+                    # The banner is cosmetic and renders after migrations have run and
+                    # ports are bound, so a defect in it must not abort a started server.
+                    try:
+                        print(welcome_message(system_settings), flush=True)
+                    except Exception:
+                        logger.exception("Failed to render the startup banner")
+                lifespan_state: dict[str, Any] = {
+                    "event_queue": dml_event_handler,
+                    "enqueue_annotations": enqueue_annotations,
+                    "enqueue_span": enqueue_span,
+                    "enqueue_operation": enqueue_operation,
+                    "experiment_runner": experiment_runner,
+                }
+                # Read by the in-process MCP dispatch, which has no server to copy
+                # the yielded state into its request scopes.
+                app.state.lifespan_state = lifespan_state
+                yield lifespan_state
+        except asyncio.CancelledError as exc:
+            cancelled = True
+            primary_exc = exc
+            raise
+        except BaseException as exc:
+            primary_exc = exc
+            raise
+        finally:
+            shutdown_errors: list[Exception] = []
+            try:
+                if not cancelled:
+                    for callback in shutdown_callbacks:
+                        try:
+                            if isinstance((res := callback()), Awaitable):
+                                await res
+                        except Exception as exc:
+                            shutdown_errors.append(exc)
+                            logger.exception("Error while running server shutdown callback")
+            except asyncio.CancelledError as cancel_exc:
+                cancelled = True
+                if primary_exc is None:
+                    primary_exc = cancel_exc
+                raise
+            finally:
+                if lifespan_telemetry is not None and entered_telemetry is not None:
+                    try:
+                        if cancelled:
+                            lifespan_telemetry.exit(entered_telemetry, flush=False)
+                        else:
+                            await asyncio.to_thread(
+                                partial(lifespan_telemetry.exit, entered_telemetry, flush=True)
+                            )
+                    except Exception as exc:
+                        shutdown_errors.append(exc)
+                        logger.exception("Error while closing app-owned server telemetry")
+                if shutdown_errors:
+                    if primary_exc is not None:
+                        for err in shutdown_errors:
+                            primary_exc.add_note(f"Server shutdown callback also failed: {err!r}")
+                    else:
+                        raise_cleanup_errors(
+                            "One or more server shutdown callbacks failed", shutdown_errors
+                        )
 
     return lifespan
 
@@ -911,20 +1000,6 @@ def create_graphql_router(
     return router
 
 
-def instrument_engine_if_enabled(engine: AsyncEngine) -> list[Callable[[], None]]:
-    instrumentation_cleanups = []
-    if server_instrumentation_is_enabled():
-        from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
-
-        tracer_provider = initialize_opentelemetry_tracer_provider()
-        SQLAlchemyInstrumentor().instrument(
-            engine=engine.sync_engine,
-            tracer_provider=tracer_provider,
-        )
-        instrumentation_cleanups.append(SQLAlchemyInstrumentor().uninstrument)
-    return instrumentation_cleanups
-
-
 async def plain_text_http_exception_handler(request: Request, exc: HTTPException) -> Response:
     """
     Overrides the default handler for HTTPExceptions to return a plain text
@@ -1015,7 +1090,16 @@ def create_app(
     allowed_origins: Optional[list[str]] = None,
     management_url: Optional[str] = None,
     welcome_message: Optional[_WelcomeMessage] = None,
+    *,
+    server_telemetry: Optional[ServerTelemetry] = None,
 ) -> FastAPI:
+    """Create the Phoenix FastAPI application.
+
+    Callers that also instrument database engines pass a shared ``ServerTelemetry``
+    whose lifecycle they own; direct callers that omit ``server_telemetry`` get
+    lifespan-scoped telemetry configured from ``PHOENIX_SERVER_INSTRUMENTATION_OTLP_*``
+    on each lifespan entry.
+    """
     if grpc_host is None:
         grpc_host = get_env_host()
     verify_server_environment_variables()
@@ -1040,6 +1124,16 @@ def create_app(
         CacheForDataLoaders() if db.dialect is SupportedSQLDialect.SQLITE else None
     )
     last_updated_at = LastUpdatedAt()
+    lifespan_telemetry: Optional[LifespanServerTelemetry] = None
+    tracer_provider: Optional["TracerProvider"]
+    logger_provider: Optional["LoggerProvider"]
+    if server_telemetry is not None:
+        tracer_provider = server_telemetry.tracer_provider
+        logger_provider = server_telemetry.logger_provider
+    else:
+        lifespan_telemetry = LifespanServerTelemetry()
+        tracer_provider = lifespan_telemetry.tracer_provider
+        logger_provider = lifespan_telemetry.logger_provider
     # Resolved before the middleware stack: the anonymous-surface path set feeds
     # both the CSRF origin validator below and AnonymousCorsMiddleware at the end
     # of this function, and it depends on whether the MCP endpoint is mounted
@@ -1048,10 +1142,10 @@ def create_app(
     if get_env_enable_mcp_server():
         mcp_mount_path = MCP_MOUNT_PATH
     anonymous_surfaces = anonymous_paths(mcp_mount_path)
-    middlewares: list[Middleware] = [
-        Middleware(HeadersMiddleware),
-        Middleware(RedactorMiddleware),
-    ]
+    middlewares: list[Middleware] = []
+    if tracer_provider is not None:
+        middlewares.append(Middleware(ServerSpanContextMiddleware, tracer_provider=tracer_provider))
+    middlewares.extend([Middleware(HeadersMiddleware), Middleware(RedactorMiddleware)])
     middlewares.extend(user_fastapi_middlewares())
     if origins := get_env_csrf_trusted_origins():
         trusted_hostnames = [h for o in origins if o and (h := urlparse(o).hostname)]
@@ -1105,24 +1199,16 @@ def create_app(
         initial_batch_of_spans=initial_batch_of_spans,
         max_spans_queue_size=get_env_max_spans_queue_size(),
     )
-    tracer_provider = None
     graphql_schema_extensions: list[Union[type[SchemaExtension], Callable[[], SchemaExtension]]] = [
         lambda: QueryDepthLimiter(max_depth=20),
         lambda: MaxAliasesLimiter(max_alias_count=50),
     ]
     graphql_schema_extensions.extend(user_gql_extensions())
 
-    if server_instrumentation_is_enabled():
-        tracer_provider = initialize_opentelemetry_tracer_provider()
-        # Bound to this provider rather than the global one, which in a notebook
-        # could be the provider OpenInference is using.
+    if tracer_provider is not None:
         graphql_schema_extensions.append(
             partial(RedactingOpenTelemetryExtension, tracer_provider=tracer_provider)
         )
-    logger_provider = None
-    if server_log_export_is_enabled():
-        logger_provider = initialize_opentelemetry_logger_provider()
-        shutdown_callbacks_list.append(logger_provider.shutdown)
     encryption_service = EncryptionService(secret=secret)
     sandbox_runtime = SandboxRuntimeContext(monty=MontyRuntime())
     sandbox_session_manager = SandboxSessionManager()
@@ -1188,6 +1274,7 @@ def create_app(
             grpc_interceptors=grpc_interceptors,
             token_store=token_store,
             tracer_provider=tracer_provider,
+            lifespan_telemetry=lifespan_telemetry,
             enable_prometheus=enable_prometheus,
             shutdown_callbacks=shutdown_callbacks_list,
             startup_callbacks=startup_callbacks_list,
@@ -1505,7 +1592,7 @@ def _native_telemetry_config(
     process may have configured. Metrics stay off because the server exposes its
     metrics through Prometheus instead.
     """
-    config: TelemetryConfig = {"metrics": False}
+    config: TelemetryConfig = {"metrics": False, "auto_configure": False}
     if tracer_provider is not None:
         config["tracer_provider"] = tracer_provider
     else:

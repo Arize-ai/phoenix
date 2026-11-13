@@ -1,8 +1,8 @@
 import contextlib
 import os
-import socket
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Iterator
 from unittest.mock import AsyncMock, Mock, patch
 from urllib.parse import parse_qs, urlparse
 
@@ -31,6 +31,7 @@ from phoenix.config import (
 )
 from phoenix.db import models
 from phoenix.server.email.sender import SimpleEmailSender, email_sender_from_env
+from phoenix.server.telemetry import ServerTelemetry
 from phoenix.session.session import ThreadSession, launch_app
 from tests.unit.conftest import (
     patch_dml_event_handler,
@@ -38,10 +39,13 @@ from tests.unit.conftest import (
 )
 
 
-def _free_port() -> int:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.bind(("127.0.0.1", 0))
-        return int(sock.getsockname()[1])
+def _fake_server_generator() -> Iterator[Mock]:
+    thread = Mock()
+    thread.is_alive.return_value = True
+    try:
+        yield thread
+    finally:
+        thread.is_alive.return_value = False
 
 
 def _clear_login_providers(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -64,19 +68,21 @@ def test_thread_session_auth_follows_host(
     monkeypatch.delenv(ENV_PHOENIX_ENABLE_AUTH, raising=False)
     monkeypatch.delenv(ENV_PHOENIX_DISABLE_BASIC_AUTH, raising=False)
     _clear_login_providers(monkeypatch)
-    engine = SimpleNamespace(dialect=SimpleNamespace(name="sqlite"), dispose=Mock())
-    thread = Mock()
-    thread.is_alive.return_value = True
-    with (
-        patch.object(session_module, "_session", None),
-        patch("phoenix.session.session.create_engine", return_value=engine),
-        patch("phoenix.session.session.instrument_engine_if_enabled", return_value=[]),
-        patch("phoenix.session.session.create_app") as mock_create_app,
-    ):
-        mock_create_app.return_value = Mock()
-        with patch("phoenix.session.session.ThreadServer") as mock_server:
-            mock_server.return_value.run_in_thread.return_value = iter([thread])
-            ThreadSession(database_url="sqlite://", host=host)
+    engine = SimpleNamespace(dialect=SimpleNamespace(name="sqlite"), dispose=AsyncMock())
+    session: ThreadSession | None = None
+    try:
+        with (
+            patch.object(session_module, "_session", None),
+            patch("phoenix.session.session.create_engine", return_value=engine),
+            patch("phoenix.session.session.create_app") as mock_create_app,
+        ):
+            mock_create_app.return_value = Mock()
+            with patch("phoenix.session.session.ThreadServer") as mock_server:
+                mock_server.return_value.run_in_thread.return_value = _fake_server_generator()
+                session = ThreadSession(database_url="sqlite://", host=host)
+    finally:
+        if session is not None:
+            session.end()
     assert mock_create_app.call_args is not None
     kwargs = mock_create_app.call_args.kwargs
     assert kwargs["authentication_enabled"] is expected
@@ -85,6 +91,7 @@ def test_thread_session_auth_follows_host(
     assert kwargs["access_token_expiry"] == get_env_access_token_expiry()
     assert kwargs["refresh_token_expiry"] == get_env_refresh_token_expiry()
     assert kwargs["password_reset_token_expiry"] == get_env_password_reset_token_expiry()
+    assert isinstance(kwargs["server_telemetry"], ServerTelemetry)
 
 
 async def test_thread_session_login_with_auth(
@@ -95,26 +102,27 @@ async def test_thread_session_login_with_auth(
     monkeypatch.delenv("PHOENIX_DISABLE_BASIC_AUTH", raising=False)
     monkeypatch.delenv("PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD", raising=False)
     database = tmp_path / "phoenix.db"
-    thread = Mock()
-    thread.is_alive.return_value = True
     with patch("phoenix.session.session.ThreadServer") as mock_server:
-        mock_server.return_value.run_in_thread.return_value = iter([thread])
+        mock_server.return_value.run_in_thread.return_value = _fake_server_generator()
         session = ThreadSession(
             database_url=f"sqlite:///{database}",
             host="127.0.0.1",
         )
-    async with contextlib.AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_grpc_server())
-        await stack.enter_async_context(patch_dml_event_handler())
-        await stack.enter_async_context(LifespanManager(session.app))
-        async with httpx2.AsyncClient(
-            transport=httpx2.ASGITransport(app=session.app),
-            base_url="http://test",
-        ) as client:
-            response = await client.post(
-                "/auth/login",
-                json={"email": DEFAULT_ADMIN_EMAIL, "password": DEFAULT_ADMIN_PASSWORD},
-            )
+    try:
+        async with contextlib.AsyncExitStack() as stack:
+            await stack.enter_async_context(patch_grpc_server())
+            await stack.enter_async_context(patch_dml_event_handler())
+            await stack.enter_async_context(LifespanManager(session.app))
+            async with httpx2.AsyncClient(
+                transport=httpx2.ASGITransport(app=session.app),
+                base_url="http://test",
+            ) as client:
+                response = await client.post(
+                    "/auth/login",
+                    json={"email": DEFAULT_ADMIN_EMAIL, "password": DEFAULT_ADMIN_PASSWORD},
+                )
+    finally:
+        session.end()
     assert response.status_code == 403
     body = response.json()
     assert isinstance(body.get("password_reset_token"), str)
@@ -167,50 +175,51 @@ async def test_thread_session_password_reset_uses_configured_smtp(
     monkeypatch.setenv(ENV_PHOENIX_SMTP_PASSWORD, smtp_password)
     monkeypatch.setenv(ENV_PHOENIX_SMTP_MAIL_FROM, smtp_mail_from)
     monkeypatch.setenv(ENV_PHOENIX_SMTP_VALIDATE_CERTS, "false")
-    thread = Mock()
-    thread.is_alive.return_value = True
     with patch("phoenix.session.session.ThreadServer") as mock_server:
-        mock_server.return_value.run_in_thread.return_value = iter([thread])
+        mock_server.return_value.run_in_thread.return_value = _fake_server_generator()
         session = ThreadSession(
             database_url=f"sqlite:///{tmp_path / 'phoenix.db'}",
             host="127.0.0.1",
         )
-    sender = session.app.state.email_sender
-    assert isinstance(sender, SimpleEmailSender)
-    assert sender.smtp_server == smtp_hostname
-    assert sender.smtp_port == smtp_port
-    assert sender.username == smtp_username
-    assert sender.password == smtp_password
-    assert sender.sender_email == smtp_mail_from
-    async with contextlib.AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_grpc_server())
-        await stack.enter_async_context(patch_dml_event_handler())
-        await stack.enter_async_context(LifespanManager(session.app))
-        async with session.app.state.db() as db_session:
-            role_id = await db_session.scalar(select(models.UserRole.id).limit(1))
-            assert role_id is not None
-            db_session.add(
-                models.User(
-                    email=user_email,
-                    username="local-reset",
-                    user_role_id=role_id,
-                    reset_password=False,
-                    auth_method="LOCAL",
-                    password_hash=b"hash",
-                    password_salt=b"salt",
+    try:
+        sender = session.app.state.email_sender
+        assert isinstance(sender, SimpleEmailSender)
+        assert sender.smtp_server == smtp_hostname
+        assert sender.smtp_port == smtp_port
+        assert sender.username == smtp_username
+        assert sender.password == smtp_password
+        assert sender.sender_email == smtp_mail_from
+        async with contextlib.AsyncExitStack() as stack:
+            await stack.enter_async_context(patch_grpc_server())
+            await stack.enter_async_context(patch_dml_event_handler())
+            await stack.enter_async_context(LifespanManager(session.app))
+            async with session.app.state.db() as db_session:
+                role_id = await db_session.scalar(select(models.UserRole.id).limit(1))
+                assert role_id is not None
+                db_session.add(
+                    models.User(
+                        email=user_email,
+                        username="local-reset",
+                        user_role_id=role_id,
+                        reset_password=False,
+                        auth_method="LOCAL",
+                        password_hash=b"hash",
+                        password_salt=b"salt",
+                    )
                 )
-            )
-        async with httpx2.AsyncClient(
-            transport=httpx2.ASGITransport(app=session.app),
-            base_url="http://test",
-        ) as client:
-            with patch.object(
-                sender, "send_password_reset_email", new_callable=AsyncMock
-            ) as send_password_reset_email:
-                response = await client.post(
-                    "/auth/password-reset-email",
-                    json={"email": user_email},
-                )
+            async with httpx2.AsyncClient(
+                transport=httpx2.ASGITransport(app=session.app),
+                base_url="http://test",
+            ) as client:
+                with patch.object(
+                    sender, "send_password_reset_email", new_callable=AsyncMock
+                ) as send_password_reset_email:
+                    response = await client.post(
+                        "/auth/password-reset-email",
+                        json={"email": user_email},
+                    )
+    finally:
+        session.end()
     assert response.status_code == 204
     assert response.text != "SMTP server not configured"
     send_password_reset_email.assert_awaited_once()
@@ -249,15 +258,13 @@ def test_launch_app_prints_auth_notice(
     monkeypatch.setenv("PHOENIX_HOST", host)
     monkeypatch.delenv(ENV_PHOENIX_DISABLE_BASIC_AUTH, raising=False)
     _clear_login_providers(monkeypatch)
-    thread = Mock()
-    thread.is_alive.return_value = True
     try:
         with (
             patch("phoenix.session.session.ThreadServer") as mock_server,
             patch.object(session_module, "_session", None),
         ):
-            mock_server.return_value.run_in_thread.return_value = (t for t in [thread])
-            session = launch_app(port=_free_port())
+            mock_server.return_value.run_in_thread.return_value = _fake_server_generator()
+            session = launch_app()
             assert session is not None
             session.end()
     finally:

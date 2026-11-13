@@ -48,6 +48,12 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession, c
 from starlette.types import ASGIApp
 from strawberry.extensions import SchemaExtension
 
+from phoenix.config import (
+    ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_GRPC_ENDPOINT,
+    ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_HTTP_ENDPOINT,
+    ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT,
+    ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT,
+)
 from phoenix.db import models
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import (
@@ -177,6 +183,24 @@ def _mcp_mount_off(monkeypatch: pytest.MonkeyPatch) -> None:
     OpenAPI document, about half a second per app. Off suite-wide; the MCP
     tests patch ``get_env_enable_mcp_server`` on, which wins over the env var."""
     monkeypatch.setenv("PHOENIX_ENABLE_MCP_SERVER", "false")
+
+
+@pytest.fixture(autouse=True)
+def _server_instrumentation_env_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Isolate unit tests from ambient ``PHOENIX_SERVER_INSTRUMENTATION_*`` env vars.
+
+    Developers running the local Grafana/Tempo/Loki stack often have these set
+    in their shell; leaving them set would attach real OTLP exporters and root
+    log handlers during unrelated unit tests. Tests that exercise env-driven
+    telemetry explicitly set them via ``monkeypatch.setenv`` after this runs.
+    """
+    for env_var in (
+        ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT,
+        ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT,
+        ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_HTTP_ENDPOINT,
+        ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_GRPC_ENDPOINT,
+    ):
+        monkeypatch.delenv(env_var, raising=False)
 
 
 class OfflineDocsMCPServer(MintlifyDocsMCPServer):

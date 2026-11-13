@@ -251,7 +251,7 @@ services:
           cpus: "8.0"
 
   # ==========================================================================
-  # GRAFANA PROFILE (Grafana + Prometheus Monitoring)
+  # GRAFANA PROFILE (Grafana + Prometheus + Tempo + Loki + OTel Collector)
   # ==========================================================================
   
   prometheus:
@@ -380,6 +380,85 @@ services:
       - "monitoring.priority=low"
       - "network.simulation=false"
 
+  tempo:
+    image: grafana/tempo:2.7.1
+    profiles: ["grafana"]
+    # Named Docker volumes mount root-owned by default; upstream image runs as UID 10001.
+    user: "0:0"
+    restart: unless-stopped
+    command: ["-config.file=/etc/tempo/tempo.yml"]
+    expose:
+      - "3200"
+      - "4317"
+      - "4318"
+    ports:
+      - "127.0.0.1:3200:3200"
+    volumes:
+      - ./tempo.yml:/etc/tempo/tempo.yml:ro
+      - dev_tempo_data:/var/tempo
+    healthcheck:
+      test: ["CMD", "/usr/bin/wget", "-q", "--spider", "http://127.0.0.1:3200/status/version"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    labels:
+      - "traefik.enable=false"
+      - "service.name=tempo"
+      - "service.type=monitoring"
+      - "monitoring.priority=low"
+      - "network.simulation=false"
+
+  loki:
+    image: grafana/loki:3.4.2
+    profiles: ["grafana"]
+    # Named Docker volumes mount root-owned by default; upstream image runs as UID 10001.
+    user: "0:0"
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/loki.yml"]
+    expose:
+      - "3100"
+    ports:
+      - "127.0.0.1:3100:3100"
+    volumes:
+      - ./loki.yml:/etc/loki/loki.yml:ro
+      - dev_loki_data:/loki
+    healthcheck:
+      test: ["CMD", "/busybox/wget", "-q", "--spider", "http://127.0.0.1:3100/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    labels:
+      - "traefik.enable=false"
+      - "service.name=loki"
+      - "service.type=monitoring"
+      - "monitoring.priority=low"
+      - "network.simulation=false"
+
+  otel-collector:
+    image: otel/opentelemetry-collector:0.120.0
+    profiles: ["grafana"]
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol/config.yml"]
+    depends_on:
+      tempo:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+    expose:
+      - "4317"
+      - "4318"
+    ports:
+      - "127.0.0.1:14317:4317"
+      - "127.0.0.1:14318:4318"
+    volumes:
+      - ./otel-collector.yml:/etc/otelcol/config.yml:ro
+    labels:
+      - "traefik.enable=false"
+      - "service.name=otel-collector"
+      - "service.type=monitoring"
+      - "monitoring.priority=low"
+      - "network.simulation=false"
+
   # ==========================================================================
   # TOXIPROXY PROFILE (Network Simulation)
   # ==========================================================================
@@ -423,6 +502,10 @@ volumes:
   dev_prometheus_data:
     driver: local
   dev_grafana_data:
+    driver: local
+  dev_tempo_data:
+    driver: local
+  dev_loki_data:
     driver: local
   dev_cursor_server_data:
     driver: local
