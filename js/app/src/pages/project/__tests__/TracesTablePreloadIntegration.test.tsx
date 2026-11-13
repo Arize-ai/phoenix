@@ -104,6 +104,16 @@ vi.mock("../TraceFilterConditionField", async () => {
   };
 });
 
+const spanAnnotationNamesState = vi.hoisted(() => ({
+  spanAnnotationNames: [],
+  hasSpanAnnotationNamesError: false,
+  onRequestComplete: () => {},
+}));
+
+vi.mock("../useSpanAnnotationNames", () => ({
+  useSpanAnnotationNames: () => spanAnnotationNamesState,
+}));
+
 vi.mock("../SpanColumnSelector", () => ({
   SpanColumnSelector: () => null,
 }));
@@ -168,7 +178,11 @@ describe("TracesTable preload integration", () => {
             ]}
           >
             <TraceFiltersProvider>
-              <TracesTable project={{} as TracesTable_spans$key} seed={seed} />
+              <TracesTable
+                project={{} as TracesTable_spans$key}
+                seed={seed}
+                initialRequest={null}
+              />
             </TraceFiltersProvider>
             <SearchProbe />
           </MemoryRouter>

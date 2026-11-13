@@ -45,7 +45,12 @@ function SpansTabContent({
   const { traceId } = useParams();
 
   return (
-    <SpansTable project={data.project} seed={seed} selectedRowId={traceId} />
+    <SpansTable
+      project={data.project}
+      seed={seed}
+      selectedRowId={traceId}
+      initialRequest={queryReference.source}
+    />
   );
 }
 
