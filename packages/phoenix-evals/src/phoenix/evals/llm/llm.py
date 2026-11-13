@@ -605,8 +605,13 @@ def _parse_classifications(
     results: List[Dict[str, Any]] = []
     for criterion in criteria:
         name = criterion["name"]
-        answer = raw.get(name) or {}
-        result: Dict[str, Any] = {"name": name, "label": answer.get("label")}
+        answer = raw.get(name)
+        if not isinstance(answer, dict) or "label" not in answer:
+            raise ValueError(
+                f"The model returned a malformed or missing answer for criterion '{name}': "
+                f"{answer!r}. Expected an object with a 'label' field."
+            )
+        result: Dict[str, Any] = {"name": name, "label": answer["label"]}
         if "explanation" in answer:
             result["explanation"] = answer["explanation"]
         results.append(result)

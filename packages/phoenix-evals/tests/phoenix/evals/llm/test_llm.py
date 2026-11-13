@@ -382,10 +382,21 @@ class TestParseClassifications:
         results = _parse_classifications({"a": {"label": "x"}}, criteria)
         assert results == [{"name": "a", "label": "x"}]
 
-    def test_missing_property_yields_none_label(self):
+    def test_missing_criterion_raises(self):
         criteria = [{"name": "a", "labels": ["x", "y"]}]
-        results = _parse_classifications({}, criteria)
-        assert results == [{"name": "a", "label": None}]
+        with pytest.raises(ValueError, match="malformed or missing answer for criterion 'a'"):
+            _parse_classifications({}, criteria)
+
+    def test_non_dict_answer_raises(self):
+        """A model returning a bare string for a criterion errors clearly, not an AttributeError."""
+        criteria = [{"name": "a", "labels": ["x", "y"]}]
+        with pytest.raises(ValueError, match="malformed or missing answer for criterion 'a'"):
+            _parse_classifications({"a": "x"}, criteria)
+
+    def test_dict_answer_without_label_raises(self):
+        criteria = [{"name": "a", "labels": ["x", "y"]}]
+        with pytest.raises(ValueError, match="malformed or missing answer for criterion 'a'"):
+            _parse_classifications({"a": {"explanation": "no label here"}}, criteria)
 
 
 class TestLLMGenerateClassifications:
