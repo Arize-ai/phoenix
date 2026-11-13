@@ -77,7 +77,7 @@ import {
   ExperimentDetailPage,
   ExperimentsPage,
   ForgotPasswordPage,
-  homeLoader,
+  HomePage,
   LoggedOutPage,
   LoginPage,
   OAuth2ConsentPage,
@@ -365,7 +365,7 @@ export const appRouteObjects = createRoutesFromElements(
           />
           <Route path="*" />
         </Route>
-        <Route index loader={homeLoader} />
+        <Route index element={<HomePage />} />
         <Route
           path="/projects"
           handle={{
