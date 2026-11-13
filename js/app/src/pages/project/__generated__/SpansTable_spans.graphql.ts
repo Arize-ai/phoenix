@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4a61ddabea884e1704dfe6d30e79c4c1>>
+ * @generated SignedSource<<a6beee92f4a41bc1fc41fdb497868b05>>
  * @lightSyntaxTransform
  */
 
@@ -15,7 +15,6 @@ import { FragmentRefs } from "relay-runtime";
 export type SpansTable_spans$data = {
   readonly id: string;
   readonly name: string;
-  readonly spanAnnotationNames: ReadonlyArray<string>;
   readonly spans: {
     readonly edges: ReadonlyArray<{
       readonly span: {
@@ -37,6 +36,7 @@ export type SpansTable_spans$data = {
         } | null;
         readonly latencyMs: number | null;
         readonly metadata: string | null;
+        readonly modelName: string | null;
         readonly name: string;
         readonly output: {
           readonly value: string;
@@ -74,7 +74,7 @@ export type SpansTable_spans$data = {
       };
     }>;
   };
-  readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment" | "SpanColumnSelector_annotations" | "SpanColumnSelector_traceAnnotations">;
+  readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment" | "SpanColumnSelector_traceAnnotations" | "useSpanAnnotationNames_project">;
   readonly " $fragmentType": "SpansTable_spans";
 };
 export type SpansTable_spans$key = {
@@ -213,21 +213,29 @@ return {
   "selections": [
     (v1/*:: as any*/),
     {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "spanAnnotationNames",
-      "storageKey": null
+      "kind": "Defer",
+      "selections": [
+        {
+          "kind": "InlineDataFragmentSpread",
+          "name": "useSpanAnnotationNames_project",
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "spanAnnotationNames",
+              "storageKey": null
+            }
+          ],
+          "args": null,
+          "argumentDefinitions": []
+        }
+      ]
     },
     {
       "args": null,
       "kind": "FragmentSpread",
       "name": "ProjectAnnotationConfigsByNameFragment"
-    },
-    {
-      "args": null,
-      "kind": "FragmentSpread",
-      "name": "SpanColumnSelector_annotations"
     },
     {
       "args": null,
@@ -300,6 +308,13 @@ return {
                   "args": null,
                   "kind": "ScalarField",
                   "name": "userId",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "modelName",
                   "storageKey": null
                 },
                 {
@@ -588,6 +603,6 @@ return {
 };
 })();
 
-(node as any).hash = "9f87998132bb9b45c5213dc30f86043e";
+(node as any).hash = "8b12d5d04d2a0374a5036e0b4d34109e";
 
 export default node;

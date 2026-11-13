@@ -14,6 +14,7 @@ import React, {
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate, useResolvedPath, useSearchParams } from "react-router";
+import type { GraphQLResponse, Observable } from "relay-runtime";
 
 import {
   Flex,
@@ -113,6 +114,7 @@ import {
 import type { TraceFilterValidConditionArgs } from "./TraceFilterConditionField";
 import { TraceFilterConditionFieldWithVocabulary } from "./TraceFilterConditionField";
 import { useTraceFilters } from "./TraceFiltersContext";
+import { useSpanAnnotationNames } from "./useSpanAnnotationNames";
 
 type TracesTableProps = {
   selectedRowId?: string;
@@ -133,6 +135,8 @@ type TracesTableProps = {
    * from their filter provider's condition and leave the URL alone.
    */
   seed?: string;
+  /** The owner query's request, read for a failure after the rows render. */
+  initialRequest: Observable<GraphQLResponse> | null | undefined;
 };
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
@@ -356,7 +360,7 @@ export function TracesTable(props: TracesTableProps) {
           id
           name
           ...ProjectAnnotationConfigsByNameFragment
-          ...SpanColumnSelector_annotations
+          ...useSpanAnnotationNames_project @defer
           ...SpanColumnSelector_traceAnnotations
           rootSpans: spans(
             first: $first
@@ -463,6 +467,14 @@ export function TracesTable(props: TracesTableProps) {
       props.project
     );
   const annotationConfigsByName = useProjectAnnotationConfigsByName(data);
+  const {
+    spanAnnotationNames,
+    hasSpanAnnotationNamesError,
+    onRequestComplete,
+  } = useSpanAnnotationNames({
+    project: data,
+    initialRequest: props.initialRequest,
+  });
 
   const annotationColumnVisibility = useTracingContext(
     (state) => state.annotationColumnVisibility
@@ -977,6 +989,7 @@ export function TracesTable(props: TracesTableProps) {
         },
         {
           fetchPolicy: "store-and-network",
+          onComplete: onRequestComplete,
         }
       );
     });
@@ -986,6 +999,7 @@ export function TracesTable(props: TracesTableProps) {
     validTraceFilterCondition,
     fetchKey,
     timeRangeISOStrings,
+    onRequestComplete,
   ]);
 
   const loadMoreSentinelRef = useLoadMoreSentinel<HTMLDivElement>({
@@ -1124,7 +1138,12 @@ export function TracesTable(props: TracesTableProps) {
               />
             </div>
             <TableMetricsChartSelector view="traces" />
-            <SpanColumnSelector columns={table.getAllColumns()} query={data} />
+            <SpanColumnSelector
+              columns={table.getAllColumns()}
+              query={data}
+              spanAnnotationNames={spanAnnotationNames}
+              hasSpanAnnotationNamesError={hasSpanAnnotationNamesError}
+            />
             <RowExpandToggleButton
               isExpanded={areRowsExpanded}
               onChange={setAreRowsExpanded}

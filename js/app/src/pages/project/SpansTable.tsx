@@ -13,6 +13,7 @@ import React, {
 import { graphql, usePaginationFragment } from "react-relay";
 import { Group, Panel } from "react-resizable-panels";
 import { useNavigate, useResolvedPath, useSearchParams } from "react-router";
+import type { GraphQLResponse, Observable } from "relay-runtime";
 
 import {
   Flex,
@@ -121,6 +122,7 @@ import {
   TRACE_ANNOTATIONS_COLUMN_ID,
 } from "./tableUtils";
 import { TraceNotesTableCell } from "./TraceNotesTableCell";
+import { useSpanAnnotationNames } from "./useSpanAnnotationNames";
 
 type SpansTableProps = {
   selectedRowId?: string;
@@ -147,6 +149,8 @@ type SpansTableProps = {
    * for in-progress edits.
    */
   onFilterConditionApplied?: (condition: string) => void;
+  /** The owner query's request, read for a failure after the rows render. */
+  initialRequest: Observable<GraphQLResponse> | null | undefined;
 };
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
@@ -377,9 +381,8 @@ export function SpansTable(props: SpansTableProps) {
           projectEvaluatorId: { type: "ID", defaultValue: null }
         ) {
           name
-          spanAnnotationNames
+          ...useSpanAnnotationNames_project @defer
           ...ProjectAnnotationConfigsByNameFragment
-          ...SpanColumnSelector_annotations
           ...SpanColumnSelector_traceAnnotations
           spans(
             first: $first
@@ -452,6 +455,14 @@ export function SpansTable(props: SpansTableProps) {
       props.project
     );
   const annotationConfigsByName = useProjectAnnotationConfigsByName(data);
+  const {
+    spanAnnotationNames,
+    hasSpanAnnotationNamesError,
+    onRequestComplete,
+  } = useSpanAnnotationNames({
+    project: data,
+    initialRequest: props.initialRequest,
+  });
 
   const pagination = useTracePagination();
   const setTraceSequence = pagination?.setTraceSequence;
@@ -475,10 +486,10 @@ export function SpansTable(props: SpansTableProps) {
   );
   const visibleAnnotationColumnNames = useMemo(() => {
     return getVisibleSpanAnnotationColumnNames({
-      spanAnnotationNames: data.spanAnnotationNames,
+      spanAnnotationNames,
       annotationVisibility: annotationColumnVisibility,
     });
-  }, [data.spanAnnotationNames, annotationColumnVisibility]);
+  }, [spanAnnotationNames, annotationColumnVisibility]);
   const traceAnnotationColumnVisibility = useTracingContext(
     (state) => state.traceAnnotationColumnVisibility
   );
@@ -894,7 +905,7 @@ export function SpansTable(props: SpansTableProps) {
           projectEvaluatorId,
           timeRange: timeRangeISOStrings,
         },
-        { fetchPolicy: "store-and-network" }
+        { fetchPolicy: "store-and-network", onComplete: onRequestComplete }
       );
     });
   }, [
@@ -905,6 +916,7 @@ export function SpansTable(props: SpansTableProps) {
     rootSpansOnly,
     projectEvaluatorId,
     timeRangeISOStrings,
+    onRequestComplete,
   ]);
   const loadMoreSentinelRef = useLoadMoreSentinel<HTMLDivElement>({
     hasNext,
@@ -1011,7 +1023,12 @@ export function SpansTable(props: SpansTableProps) {
             />
 
             <TableMetricsChartSelector view="spans" />
-            <SpanColumnSelector columns={table.getAllColumns()} query={data} />
+            <SpanColumnSelector
+              columns={table.getAllColumns()}
+              query={data}
+              spanAnnotationNames={spanAnnotationNames}
+              hasSpanAnnotationNamesError={hasSpanAnnotationNamesError}
+            />
             <RowExpandToggleButton
               isExpanded={areRowsExpanded}
               onChange={setAreRowsExpanded}
@@ -1164,7 +1181,7 @@ export function SpansTable(props: SpansTableProps) {
           <TableAsidePanel>
             <SpansTableAside
               filterCondition={filterCondition}
-              spanAnnotationNames={data.spanAnnotationNames}
+              spanAnnotationNames={spanAnnotationNames}
             />
           </TableAsidePanel>
         </Group>
