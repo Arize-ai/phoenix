@@ -253,6 +253,26 @@ class TestGraphQLTracingExtension:
         assert "query" not in spans["GraphQL Query"]
         assert all("alice@example.com" not in str(attributes) for attributes in spans.values())
 
+    @pytest.mark.parametrize(
+        "document",
+        [
+            'mutation BadVarType($input: WrongInputType! = {password: "secret-hunter2"}) { createUser(input: $input) }',
+            'mutation MismatchedVarType($input: String! = "secret-hunter2") { createUser(input: $input) }',
+            'mutation UnusedVar($unused: String = "secret-hunter2") { createProject(name: "demo") }',
+            'mutation BadArgName { createUser(inp_typo: {password: "secret-hunter2"}) }',
+            'mutation BadFieldName { createUser(input: {email: "a@b.com", role: "ADMIN", passwrod: "secret-hunter2"}) }',
+            'mutation BadInputShape { createUser(input: ["secret-hunter2"]) }',
+        ],
+    )
+    async def test_validation_failing_queries_fail_closed_and_redact_literals(
+        self, schema: strawberry.Schema, exporter: InMemorySpanExporter, document: str
+    ) -> None:
+        result = await schema.execute(document)
+
+        assert result.errors
+        spans = self._spans(exporter)
+        assert all("secret-hunter2" not in str(attributes) for attributes in spans.values())
+
     async def test_other_resolver_arguments_are_recorded(
         self, schema: strawberry.Schema, exporter: InMemorySpanExporter
     ) -> None:
