@@ -22,6 +22,7 @@ from opentelemetry.context import _SUPPRESS_INSTRUMENTATION_KEY
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import ExportTraceServiceRequest
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2_grpc import TraceServiceStub
 from opentelemetry.sdk._logs import LoggerProvider
+from opentelemetry.sdk._logs.export import InMemoryLogRecordExporter, SimpleLogRecordProcessor
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
@@ -345,21 +346,26 @@ class TestSqlAlchemyEngineTracing:
                     await connection.execute(text("/* comment */\nSELECT\n  42"))
 
             statements = {
-                str(span.attributes["db.statement"]): span
+                str(span.attributes["db.query.text"]): span
                 for span in exporter.get_finished_spans()
                 if span.kind is SpanKind.CLIENT
                 and span.attributes
-                and "db.statement" in span.attributes
+                and "db.query.text" in span.attributes
             }
             for statement_text in ("SELECT 41", "/* comment */\nSELECT\n  42"):
                 sql_span = statements[statement_text]
                 assert sql_span.parent is not None
                 assert sql_span.parent.span_id == parent_span.get_span_context().span_id
                 assert sql_span.context.trace_id == parent_span.get_span_context().trace_id
+                assert sql_span.instrumentation_scope is not None
+                assert (
+                    sql_span.instrumentation_scope.schema_url
+                    == "https://opentelemetry.io/schemas/1.44.0"
+                )
                 assert sql_span.attributes is not None
-                assert sql_span.attributes["db.system"] == "sqlite"
-                assert sql_span.attributes["db.operation"] == "SELECT"
-                assert str(tmp_path / "phoenix.db") in str(sql_span.attributes["db.name"])
+                assert sql_span.attributes["db.system.name"] == "sqlite"
+                assert sql_span.attributes["db.operation.name"] == "SELECT"
+                assert str(tmp_path / "phoenix.db") in str(sql_span.attributes["db.namespace"])
 
             uninstrument_primary()
             uninstrument_primary()
@@ -375,11 +381,11 @@ class TestSqlAlchemyEngineTracing:
                     await connection.execute(text("SELECT 102"))
 
             remaining = {
-                str(span.attributes["db.statement"])
+                str(span.attributes["db.query.text"])
                 for span in exporter.get_finished_spans()
                 if span.kind is SpanKind.CLIENT
                 and span.attributes
-                and "db.statement" in span.attributes
+                and "db.query.text" in span.attributes
             }
             assert "SELECT 101" not in remaining
             assert "SELECT 102" in remaining
@@ -424,12 +430,55 @@ class TestSqlAlchemyEngineTracing:
                 for span in exporter.get_finished_spans()
                 if span.kind is SpanKind.CLIENT
                 and span.attributes
-                and span.attributes.get("db.statement") == "SELECT * FROM missing_table"
+                and span.attributes.get("db.query.text") == "SELECT * FROM missing_table"
             ]
             assert len(failed_spans) == 1
             failed_span = failed_spans[0]
             assert failed_span.status.status_code is StatusCode.ERROR
+            assert failed_span.attributes is not None
+            assert str(failed_span.attributes["error.type"]).endswith("OperationalError")
+            if not invalidate_connection:
+                assert failed_span.attributes["db.response.status_code"] == "1"
             assert any(ev.name == "exception" for ev in failed_span.events)
+        finally:
+            uninstrument()
+            provider.shutdown()
+            await engine.dispose()
+
+    async def test_records_batch_size_and_batch_operation_name_for_executemany(
+        self, tmp_path: Path
+    ) -> None:
+        engine = aio_sqlite_engine(
+            url=make_url(f"sqlite+aiosqlite:///{tmp_path / 'phoenix.db'}"), migrate=False
+        )
+        provider, exporter = _new_tracer_provider()
+        tracer = provider.get_tracer("test")
+        uninstrument = instrument_sqlalchemy_engine(engine, tracer_provider=provider)
+        try:
+            async with engine.begin() as connection:
+                await connection.execute(text("CREATE TABLE items (val INTEGER)"))
+            with (
+                tracer.start_as_current_span("batch-request", kind=SpanKind.SERVER) as parent_span,
+                bind_server_span(parent_span, provider),
+            ):
+                async with engine.begin() as connection:
+                    await connection.execute(
+                        text("INSERT INTO items (val) VALUES (:val)"),
+                        [{"val": 1}, {"val": 2}, {"val": 3}],
+                    )
+
+            insert_spans = [
+                span
+                for span in exporter.get_finished_spans()
+                if span.kind is SpanKind.CLIENT
+                and span.attributes
+                and "INSERT INTO items" in str(span.attributes.get("db.query.text", ""))
+            ]
+            assert len(insert_spans) == 1
+            attrs = dict(insert_spans[0].attributes or {})
+            assert attrs["db.operation.name"] == "BATCH INSERT"
+            assert attrs["db.operation.batch.size"] == 3
+            assert insert_spans[0].name.startswith("BATCH INSERT ")
         finally:
             uninstrument()
             provider.shutdown()
@@ -446,20 +495,69 @@ def _trace_service_stub(channel: grpc.aio.Channel) -> Any:
 
 class TestGrpcServerTracing:
     @pytest.mark.parametrize(
-        "outcome, expected_grpc_code, expected_span_status, expect_exception_event",
+        "method_name, outcome, expected_span_name, expected_rpc_method, expected_status, expected_span_status, expected_error_type, expect_exception_event",
         [
-            ("ok", grpc.StatusCode.OK, StatusCode.UNSET, False),
-            ("unavailable", grpc.StatusCode.UNAVAILABLE, StatusCode.ERROR, False),
-            ("abort_unauthenticated", grpc.StatusCode.UNAUTHENTICATED, StatusCode.UNSET, False),
-            ("cancelled", grpc.StatusCode.CANCELLED, StatusCode.UNSET, False),
-            ("exception", grpc.StatusCode.UNKNOWN, StatusCode.ERROR, True),
+            (
+                "/opentelemetry.proto.collector.trace.v1.TraceService/Export",
+                "ok",
+                "opentelemetry.proto.collector.trace.v1.TraceService/Export",
+                "opentelemetry.proto.collector.trace.v1.TraceService/Export",
+                "OK",
+                StatusCode.UNSET,
+                None,
+                False,
+            ),
+            (
+                "/opentelemetry.proto.collector.trace.v1.TraceService/Export",
+                "unavailable",
+                "opentelemetry.proto.collector.trace.v1.TraceService/Export",
+                "opentelemetry.proto.collector.trace.v1.TraceService/Export",
+                "UNAVAILABLE",
+                StatusCode.ERROR,
+                "UNAVAILABLE",
+                False,
+            ),
+            (
+                "/opentelemetry.proto.collector.trace.v1.TraceService/Export",
+                "abort_unauthenticated",
+                "opentelemetry.proto.collector.trace.v1.TraceService/Export",
+                "opentelemetry.proto.collector.trace.v1.TraceService/Export",
+                "UNAUTHENTICATED",
+                StatusCode.UNSET,
+                None,
+                False,
+            ),
+            (
+                "/opentelemetry.proto.collector.trace.v1.TraceService/Export",
+                "cancelled",
+                "opentelemetry.proto.collector.trace.v1.TraceService/Export",
+                "opentelemetry.proto.collector.trace.v1.TraceService/Export",
+                "CANCELLED",
+                StatusCode.UNSET,
+                None,
+                False,
+            ),
+            (
+                "/pkg.UnknownSvc/UnknownMethod",
+                "exception",
+                "grpc",
+                "_OTHER",
+                "UNKNOWN",
+                StatusCode.ERROR,
+                "RuntimeError",
+                True,
+            ),
         ],
     )
     async def test_interceptor_records_rpc_outcomes_baggage_and_restores_context(
         self,
+        method_name: str,
         outcome: str,
-        expected_grpc_code: grpc.StatusCode,
+        expected_span_name: str,
+        expected_rpc_method: str,
+        expected_status: str,
         expected_span_status: StatusCode,
+        expected_error_type: str | None,
         expect_exception_event: bool,
     ) -> None:
         provider, exporter = _new_tracer_provider()
@@ -469,6 +567,7 @@ class TestGrpcServerTracing:
             ("baggage", "tenant=acme"),
             ("baggage", "region=us-west"),
         )
+        context.peer.return_value = "ipv4:127.0.0.1:54321"
         context.code.return_value = None
         context.details.return_value = ""
         observed_baggage: dict[str, object] = {}
@@ -492,25 +591,32 @@ class TestGrpcServerTracing:
             with provider.get_tracer("test").start_as_current_span("caller") as caller_span:
                 if outcome in ("abort_unauthenticated", "cancelled", "exception"):
                     with pytest.raises(BaseException):
-                        await interceptor.intercept(handler, None, context, "/pkg.Svc/Method")
+                        await interceptor.intercept(handler, None, context, method_name)
                 else:
-                    assert (
-                        await interceptor.intercept(handler, None, context, "/pkg.Svc/Method")
-                        == "ok"
-                    )
+                    assert await interceptor.intercept(handler, None, context, method_name) == "ok"
                 assert trace.get_current_span() is caller_span
-                spans = [s for s in exporter.get_finished_spans() if s.name == "/pkg.Svc/Method"]
+                spans = [s for s in exporter.get_finished_spans() if s.name == expected_span_name]
                 assert len(spans) == 1
                 span = spans[0]
 
             assert observed_baggage == {"tenant": "acme", "region": "us-west"}
             assert span.kind is SpanKind.SERVER
-            assert dict(span.attributes or {}) == {
-                "rpc.system": "grpc",
-                "rpc.service": "pkg.Svc",
-                "rpc.method": "Method",
-                "rpc.grpc.status_code": expected_grpc_code.value[0],
+            assert span.instrumentation_scope is not None
+            assert (
+                span.instrumentation_scope.schema_url == "https://opentelemetry.io/schemas/1.44.0"
+            )
+            expected_attrs: dict[str, Any] = {
+                "rpc.system.name": "grpc",
+                "rpc.method": expected_rpc_method,
+                "rpc.status_code": expected_status,
+                "network.peer.address": "127.0.0.1",
+                "network.peer.port": 54321,
             }
+            if expected_rpc_method == "_OTHER":
+                expected_attrs["rpc.method_original"] = method_name.lstrip("/")
+            if expected_error_type is not None:
+                expected_attrs["error.type"] = expected_error_type
+            assert dict(span.attributes or {}) == expected_attrs
             assert span.status.status_code is expected_span_status
             assert any(ev.name == "exception" for ev in span.events) is expect_exception_event
         finally:
@@ -559,14 +665,15 @@ class TestGrpcServerTracing:
             (span_a,) = exporter_a.get_finished_spans()
             (span_b,) = exporter_b.get_finished_spans()
 
-            assert span_a.name == "/opentelemetry.proto.collector.trace.v1.TraceService/Export"
+            assert span_a.name == "opentelemetry.proto.collector.trace.v1.TraceService/Export"
             assert f"{span_a.context.trace_id:032x}" == remote_trace_id
             assert span_a.parent is not None
             assert f"{span_a.parent.span_id:016x}" == remote_span_id
             assert span_a.status.status_code is StatusCode.UNSET
 
             assert span_b.attributes is not None
-            assert span_b.attributes["rpc.grpc.status_code"] == grpc.StatusCode.UNAVAILABLE.value[0]
+            assert span_b.attributes["rpc.status_code"] == "UNAVAILABLE"
+            assert span_b.attributes["error.type"] == "UNAVAILABLE"
             assert span_b.status.status_code is StatusCode.ERROR
         finally:
             provider_a.shutdown()
@@ -633,7 +740,7 @@ async def test_create_app_shares_single_tracer_provider_across_http_graphql_and_
                 for span in spans
                 if span.kind is SpanKind.CLIENT
                 and span.attributes
-                and "SELECT" in str(span.attributes.get("db.statement", ""))
+                and "SELECT" in str(span.attributes.get("db.query.text", ""))
             ]
             assert server_spans
             assert gql_resolving_spans
@@ -711,7 +818,7 @@ async def test_nested_suppressed_query_failure_does_not_corrupt_enclosing_sql_sp
             for span in exporter.get_finished_spans()
             if span.kind is SpanKind.CLIENT
             and span.attributes
-            and span.attributes.get("db.statement") == "SELECT 42"
+            and span.attributes.get("db.query.text") == "SELECT 42"
         ]
         assert len(sql_spans) == 1
         assert sql_spans[0].status.status_code is StatusCode.UNSET
@@ -792,7 +899,7 @@ async def test_graphql_and_sql_preserve_server_parentage(
             for s in server_spans
             if s.kind is SpanKind.CLIENT
             and s.attributes
-            and s.attributes.get("db.statement") == "SELECT 77"
+            and s.attributes.get("db.query.text") == "SELECT 77"
         )
         assert op_span.context.trace_id == http_trace_id
         assert op_span.parent is not None
@@ -816,7 +923,7 @@ async def test_graphql_and_sql_preserve_server_parentage(
         await engine.dispose()
 
 
-def test_server_telemetry_removes_root_log_handler_and_continues_cleanup_after_failure(
+def test_server_telemetry_exports_correlated_logs_removes_handler_and_groups_cleanup_errors(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -829,8 +936,10 @@ def test_server_telemetry_removes_root_log_handler_and_continues_cleanup_after_f
         "http://127.0.0.1:4318",
     )
     provider, _ = _new_tracer_provider()
+    log_exporter = InMemoryLogRecordExporter()  # type: ignore[no-untyped-call]
     logger_provider = LoggerProvider()
-    tracer_shutdown = MagicMock(wraps=provider.shutdown)
+    logger_provider.add_log_record_processor(SimpleLogRecordProcessor(log_exporter))
+    tracer_shutdown = MagicMock(side_effect=RuntimeError("tracer shutdown boom"))
     logger_shutdown = MagicMock(wraps=logger_provider.shutdown)
     monkeypatch.setattr(provider, "shutdown", tracer_shutdown)
     monkeypatch.setattr(logger_provider, "shutdown", logger_shutdown)
@@ -849,9 +958,39 @@ def test_server_telemetry_removes_root_log_handler_and_continues_cleanup_after_f
     telemetry.instrument_engine(engine)
     assert len(root_logger.handlers) == len(initial_handlers) + 1
 
+    # Verify log export attaches server span trace_id even inside detached OpenInference context.
+    test_logger = logging.getLogger("phoenix.test.log_correlation")
+    with provider.get_tracer("fastapi").start_as_current_span("GET /test") as http_span:
+        with bind_server_span(http_span, provider):
+            with detached_otel_context():
+                try:
+                    raise ValueError("bad input")
+                except ValueError:
+                    test_logger.warning("handled warning", exc_info=True)
+
+    exported_logs = [
+        rec
+        for rec in log_exporter.get_finished_logs()
+        if rec.instrumentation_scope and rec.instrumentation_scope.name == test_logger.name
+    ]
+    assert len(exported_logs) == 1
+    log_record = exported_logs[0].log_record
+    assert log_record.trace_id == http_span.get_span_context().trace_id
+    assert log_record.span_id == http_span.get_span_context().span_id
+    assert log_record.severity_text == "WARN"
+    assert log_record.attributes is not None
+    assert log_record.attributes["exception.type"] == "ValueError"
+    assert log_record.attributes["exception.message"] == "bad input"
+    assert "code.file.path" in log_record.attributes
+
     monkeypatch.setattr(event, "remove", Mock(side_effect=RuntimeError("listener removal boom")))
-    with pytest.raises(RuntimeError, match="listener removal boom"):
+    with pytest.raises(ExceptionGroup) as exc_group:
         telemetry.close()
+    assert len(exc_group.value.exceptions) == 2
+    assert {str(e) for e in exc_group.value.exceptions} == {
+        "listener removal boom",
+        "tracer shutdown boom",
+    }
 
     assert list(root_logger.handlers) == initial_handlers
     assert tracer_shutdown.call_count == 1
@@ -893,6 +1032,11 @@ async def test_direct_create_app_honors_env_tracing_and_shuts_down_provider(
                 response = await client.get("/healthz")
                 assert response.status_code == 200
 
+    # Verify inner FastAPI operation span (fastapi.endpoint) parents REST SQL queries.
+    endpoint_spans = [
+        span for span in exporter.get_finished_spans() if span.name == "fastapi.endpoint"
+    ]
+    assert endpoint_spans
     assert any(span.kind is SpanKind.SERVER for span in exporter.get_finished_spans())
     assert shutdown_spy.call_count == 1
 
@@ -976,7 +1120,14 @@ async def test_thread_session_instruments_sql_engine_and_cleans_up_on_end(
                     response = await client.get("/readyz")
                     assert response.status_code == 200
 
-                assert [s for s in exporter.get_finished_spans() if s.kind is SpanKind.CLIENT]
+                spans = exporter.get_finished_spans()
+                endpoint_span = next(s for s in spans if s.name == "fastapi.endpoint")
+                sql_spans = [s for s in spans if s.kind is SpanKind.CLIENT]
+                assert sql_spans
+                assert all(
+                    s.parent is not None and s.parent.span_id == endpoint_span.context.span_id
+                    for s in sql_spans
+                )
     finally:
         session.end()
 

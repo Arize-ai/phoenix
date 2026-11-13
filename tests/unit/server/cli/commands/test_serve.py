@@ -320,23 +320,25 @@ async def test_create_db_session_factory_routes_reads_to_replica_for_postgres(
                 )
 
         spans_by_statement = {
-            str(span.attributes["db.statement"]): dict(span.attributes)
+            str(span.attributes["db.query.text"]): dict(span.attributes)
             for span in exporter.get_finished_spans()
             if span.kind is OtelSpanKind.CLIENT
             and span.attributes
-            and "db.statement" in span.attributes
+            and "db.query.text" in span.attributes
         }
         primary_attrs = spans_by_statement["SELECT current_database() -- primary"]
         replica_attrs = spans_by_statement["SELECT current_database() -- replica"]
-        assert primary_attrs["db.system"] == "postgresql"
-        assert primary_attrs["db.operation"] == "SELECT"
-        assert primary_attrs["db.name"] == postgresql_primary_and_replica_urls.primary_db_name
-        assert replica_attrs["db.name"] == postgresql_primary_and_replica_urls.replica_db_name
+        assert primary_attrs["db.system.name"] == "postgresql"
+        assert primary_attrs["db.operation.name"] == "SELECT"
+        assert primary_attrs["db.namespace"] == postgresql_primary_and_replica_urls.primary_db_name
+        assert replica_attrs["db.namespace"] == postgresql_primary_and_replica_urls.replica_db_name
         primary_url = make_url(postgresql_primary_and_replica_urls.primary_url)
         if primary_url.host:
-            assert primary_attrs["net.peer.name"] == primary_url.host
-        if primary_url.port is not None:
-            assert primary_attrs["net.peer.port"] == primary_url.port
+            assert primary_attrs["server.address"] == primary_url.host
+        if primary_url.port is not None and primary_url.port != 5432:
+            assert primary_attrs["server.port"] == primary_url.port
+        else:
+            assert "server.port" not in primary_attrs
     finally:
         await _run_shutdown_callbacks(shutdown_callbacks)
         provider.shutdown()

@@ -1,6 +1,10 @@
+from __future__ import annotations
+
 import asyncio
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Final, Iterable, Optional
+from collections.abc import Awaitable, Callable, Iterable
+from typing import TYPE_CHECKING, Any, Final, TypeAlias
+from urllib.parse import unquote
 
 import grpc
 from grpc.aio import RpcContext, Server, ServerInterceptor
@@ -16,10 +20,16 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2_grpc import (
     TraceServiceServicer,
     add_TraceServiceServicer_to_server,
 )
+from opentelemetry.semconv.attributes.error_attributes import ERROR_TYPE
+from opentelemetry.semconv.attributes.network_attributes import (
+    NETWORK_PEER_ADDRESS,
+    NETWORK_PEER_PORT,
+)
+from opentelemetry.semconv.schemas import Schemas
 from opentelemetry.trace import Span as OtelSpan
 from opentelemetry.trace import SpanKind, Status, StatusCode
 from starlette.concurrency import run_in_threadpool
-from typing_extensions import TypeAlias, override
+from typing_extensions import override
 
 from phoenix.auth import CanReadToken
 from phoenix.config import (
@@ -28,7 +38,11 @@ from phoenix.config import (
     get_env_tls_enabled_for_grpc,
 )
 from phoenix.server.bearer_auth import ApiKeyInterceptor
-from phoenix.server.telemetry import bind_server_span, is_otel_instrumentation_suppressed
+from phoenix.server.telemetry import (
+    bind_server_span,
+    exception_type_name,
+    is_otel_instrumentation_suppressed,
+)
 from phoenix.trace.otel import decode_otlp_span
 from phoenix.trace.schemas import Span
 from phoenix.utilities.project import get_project_name
@@ -39,10 +53,17 @@ if TYPE_CHECKING:
 
 ProjectName: TypeAlias = str
 
-_RPC_SYSTEM: Final[str] = "rpc.system"
-_RPC_SERVICE: Final[str] = "rpc.service"
+# Stabilized OpenTelemetry RPC / gRPC server semantic conventions (docs/rpc/grpc.md).
+_SCHEMA_URL: Final[str] = Schemas.V1_44_0.value
+_RPC_SYSTEM_NAME: Final[str] = "rpc.system.name"
 _RPC_METHOD: Final[str] = "rpc.method"
-_RPC_GRPC_STATUS_CODE: Final[str] = "rpc.grpc.status_code"
+_RPC_METHOD_ORIGINAL: Final[str] = "rpc.method_original"
+_RPC_STATUS_CODE: Final[str] = "rpc.status_code"
+_RPC_OTHER_METHOD: Final[str] = "_OTHER"
+
+_KNOWN_GRPC_METHODS: Final[frozenset[str]] = frozenset(
+    {"opentelemetry.proto.collector.trace.v1.TraceService/Export"}
+)
 
 _GRPC_SERVER_ERROR_CODES: Final[frozenset[grpc.StatusCode]] = frozenset(
     {
@@ -56,6 +77,28 @@ _GRPC_SERVER_ERROR_CODES: Final[frozenset[grpc.StatusCode]] = frozenset(
 )
 
 
+def _peer_attributes(peer: str | None) -> dict[str, str | int]:
+    if not peer:
+        return {}
+    first_peer = peer.split(",", 1)[0]
+    if first_peer.startswith("unix:"):
+        socket_path = first_peer.removeprefix("unix:")
+        return {NETWORK_PEER_ADDRESS: socket_path} if socket_path else {}
+    if not first_peer.startswith(("ipv4:", "ipv6:")):
+        return {}
+    _, _, endpoint = first_peer.partition(":")
+    host, separator, port_str = endpoint.rpartition(":")
+    if not separator or not host:
+        return {}
+    address = unquote(host).strip("[]")
+    if not address:
+        return {}
+    attributes: dict[str, str | int] = {NETWORK_PEER_ADDRESS: address}
+    if port_str.isdigit():
+        attributes[NETWORK_PEER_PORT] = int(port_str)
+    return attributes
+
+
 def _record_grpc_status(
     span: OtelSpan,
     status_code: grpc.StatusCode,
@@ -63,14 +106,15 @@ def _record_grpc_status(
 ) -> None:
     if not span.is_recording():
         return
-    span.set_attribute(_RPC_GRPC_STATUS_CODE, status_code.value[0])
+    span.set_attribute(_RPC_STATUS_CODE, status_code.name)
     if status_code in _GRPC_SERVER_ERROR_CODES:
+        span.set_attribute(ERROR_TYPE, status_code.name)
         details = (
             raw_details.decode("utf-8", errors="replace")
             if isinstance(raw_details, bytes)
             else (raw_details or "")
         )
-        description = f"{status_code}: {details}" if details else str(status_code)
+        description = f"{status_code.name}: {details}" if details else status_code.name
         span.set_status(Status(StatusCode.ERROR, description))
 
 
@@ -91,11 +135,21 @@ _GRPC_METADATA_GETTER = _GrpcMetadataGetter()
 
 
 class TracingServerInterceptor(AsyncServerInterceptor):
-    """Trace inbound unary gRPC calls with the server-owned provider."""
+    """Trace inbound unary gRPC calls using stabilized OpenTelemetry gRPC semantic conventions."""
 
-    def __init__(self, tracer_provider: "TracerProvider") -> None:
+    def __init__(
+        self,
+        tracer_provider: TracerProvider,
+        *,
+        known_methods: frozenset[str] = _KNOWN_GRPC_METHODS,
+    ) -> None:
         self._tracer_provider = tracer_provider
-        self._tracer = tracer_provider.get_tracer("phoenix.server.grpc", phoenix_version)
+        self._known_methods = known_methods
+        self._tracer = tracer_provider.get_tracer(
+            "phoenix.server.grpc",
+            phoenix_version,
+            schema_url=_SCHEMA_URL,
+        )
 
     @override
     async def intercept(
@@ -112,14 +166,26 @@ class TracingServerInterceptor(AsyncServerInterceptor):
             if isinstance(value, str):
                 carrier[key.lower()].append(value)
         token = otel_context.attach(extract(carrier, getter=_GRPC_METADATA_GETTER))
-        attributes: dict[str, str | int] = {_RPC_SYSTEM: "grpc"}
-        service, separator, rpc_method = method_name.lstrip("/").partition("/")
-        if separator:
-            attributes[_RPC_SERVICE] = service
-            attributes[_RPC_METHOD] = rpc_method
+
+        normalized_method = method_name.lstrip("/")
+        if normalized_method in self._known_methods:
+            rpc_method = normalized_method
+            span_name = normalized_method
+        else:
+            rpc_method = _RPC_OTHER_METHOD
+            span_name = "grpc"
+
+        attributes: dict[str, str | int] = {
+            _RPC_SYSTEM_NAME: "grpc",
+            _RPC_METHOD: rpc_method,
+            **_peer_attributes(context.peer()),
+        }
+        if rpc_method == _RPC_OTHER_METHOD and normalized_method:
+            attributes[_RPC_METHOD_ORIGINAL] = normalized_method
+
         try:
             with self._tracer.start_as_current_span(
-                method_name,
+                span_name,
                 kind=SpanKind.SERVER,
                 attributes=attributes,
                 record_exception=False,
@@ -137,16 +203,14 @@ class TracingServerInterceptor(AsyncServerInterceptor):
                         raise
                     except asyncio.CancelledError:
                         if span.is_recording():
-                            span.set_attribute(
-                                _RPC_GRPC_STATUS_CODE,
-                                grpc.StatusCode.CANCELLED.value[0],
-                            )
+                            span.set_attribute(_RPC_STATUS_CODE, grpc.StatusCode.CANCELLED.name)
                         raise
                     except Exception as exception:
                         status_code = context.code() or grpc.StatusCode.UNKNOWN
                         if span.is_recording():
                             span.record_exception(exception)
-                            span.set_attribute(_RPC_GRPC_STATUS_CODE, status_code.value[0])
+                            span.set_attribute(_RPC_STATUS_CODE, status_code.name)
+                            span.set_attribute(ERROR_TYPE, exception_type_name(exception))
                             span.set_status(Status(StatusCode.ERROR, str(exception)))
                         raise
                     _record_grpc_status(
@@ -187,14 +251,14 @@ class GrpcServer:
         enqueue_span: Callable[[Span, ProjectName], Awaitable[None]],
         port: int,
         host: str,
-        tracer_provider: Optional["TracerProvider"] = None,
+        tracer_provider: TracerProvider | None = None,
         enable_prometheus: bool = False,
         disabled: bool = False,
-        token_store: Optional[CanReadToken] = None,
+        token_store: CanReadToken | None = None,
         interceptors: Iterable[ServerInterceptor] = (),
     ) -> None:
         self._enqueue_span = enqueue_span
-        self._server: Optional[Server] = None
+        self._server: Server | None = None
         self._tracer_provider = tracer_provider
         self._enable_prometheus = enable_prometheus
         self._disabled = disabled

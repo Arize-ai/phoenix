@@ -175,6 +175,7 @@ from phoenix.server.settings.registry import SETTINGS_REGISTRY
 from phoenix.server.telemetry import (
     ServerTelemetry,
     bind_server_span,
+    raise_cleanup_errors,
 )
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
@@ -836,17 +837,15 @@ def _lifespan(
                 app.state.lifespan_state = lifespan_state
                 yield lifespan_state
         finally:
-            first_shutdown_error: Optional[BaseException] = None
+            shutdown_errors: list[BaseException] = []
             for callback in shutdown_callbacks:
                 try:
                     if isinstance((res := callback()), Awaitable):
                         await res
                 except BaseException as exc:
-                    if first_shutdown_error is None:
-                        first_shutdown_error = exc
+                    shutdown_errors.append(exc)
                     logger.exception("Error while running server shutdown callback")
-            if first_shutdown_error is not None:
-                raise first_shutdown_error
+            raise_cleanup_errors("One or more server shutdown callbacks failed", shutdown_errors)
 
     return lifespan
 
