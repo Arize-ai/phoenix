@@ -406,7 +406,9 @@ async def _newest_spans(
         .order_by(None)
         .order_by(nulls_last(models.Span.start_time.desc()), models.Span.id.desc())
     )
-    rows.extend(await session.execute(stmt.limit(limit - len(rows))))
+    # A server-side cursor keeps PostgreSQL from giving this statement parallel workers, whose
+    # shared memory adds to that of the request's other statements.
+    rows.extend([row async for row in await session.stream(stmt.limit(limit - len(rows)))])
     return rows
 
 
@@ -907,7 +909,7 @@ class Project(Node):
                 )
                 rows = await _newest_spans(session, stmt, span_bounds, self.id, looks, first + 1)
             else:
-                rows = (await session.execute(stmt.limit(first + 1))).all()
+                rows = [row async for row in await session.stream(stmt.limit(first + 1))]
         cursors_and_nodes = []
         for row in rows[:first]:
             cursor = Cursor(rowid=row[0])
