@@ -1,11 +1,13 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Type, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Type, Union
 
+from .._criteria import ClassificationCriterion
 from ..llm.prompts import PromptLike
 
 __all__ = [
     "BaseDecisionAdapter",
+    "ClassificationCriterion",
     "ProviderRegistration",
 ]
 
@@ -61,6 +63,76 @@ class BaseDecisionAdapter(ABC):
     ) -> Dict[str, Any]:
         """Async version of generate_classification."""
         pass
+
+    @staticmethod
+    def _assemble_fanout(
+        criteria: Sequence[ClassificationCriterion], raw_results: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """Combine the per-criterion single-classification results into the multi result.
+
+        Token usage from each call is summed (so the DECISION span still records token counts
+        on this fan-out path); ``usage`` is ``None`` only when no call reported any.
+        """
+        results = [
+            {
+                "name": criterion["name"],
+                "label": result["label"],
+                "metadata": result.get("metadata", {}),
+            }
+            for criterion, result in zip(criteria, raw_results)
+        ]
+        usages: List[Dict[str, Any]] = []
+        for result in raw_results:
+            usage = result.get("usage")
+            if usage:
+                usages.append(usage)
+        aggregate: Optional[Dict[str, Any]] = None
+        if usages:
+            aggregate = {
+                "input_tokens": sum(u.get("input_tokens") or 0 for u in usages),
+                "output_tokens": sum(u.get("output_tokens") or 0 for u in usages),
+            }
+        return {"results": results, "usage": aggregate}
+
+    def generate_classifications(
+        self,
+        prompt: PromptLike,
+        criteria: Sequence[ClassificationCriterion],
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """Answer several named classification questions about one prompt.
+
+        Adapters whose SDK can batch questions in a single request should override this.
+        The default fans out to one :meth:`generate_classification` call per criterion and sums
+        their token usage.
+
+        Note: each criterion's ``instructions`` is not forwarded, because the single-question
+        :meth:`generate_classification` has no instructions parameter. Adapters that need to send
+        per-question instructions must override this method.
+
+        Returns:
+            A dict with ``results`` (one ``{"name", "label", "metadata"}`` dict per criterion,
+            in the order given) and ``usage`` (summed token usage, or ``None`` if none reported).
+        """
+        raw_results = [
+            self.generate_classification(prompt, criterion["labels"], **kwargs)
+            for criterion in criteria
+        ]
+        return self._assemble_fanout(criteria, raw_results)
+
+    async def async_generate_classifications(
+        self,
+        prompt: PromptLike,
+        criteria: Sequence[ClassificationCriterion],
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """Async version of :meth:`generate_classifications`."""
+        raw_results: List[Dict[str, Any]] = []
+        for criterion in criteria:
+            raw_results.append(
+                await self.async_generate_classification(prompt, criterion["labels"], **kwargs)
+            )
+        return self._assemble_fanout(criteria, raw_results)
 
     @property
     def model_name(self) -> str:
