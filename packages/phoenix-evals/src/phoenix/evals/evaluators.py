@@ -838,6 +838,13 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
                 if criterion.direction is None:
                     criterion = replace(criterion, direction=direction)
                 criteria.append(criterion)
+            seen = [c.name for c in criteria]
+            duplicates = sorted({name for name in seen if seen.count(name) > 1})
+            if duplicates:
+                raise ValueError(
+                    f"Criterion names must be unique; duplicated: {duplicates}. Each criterion's "
+                    f"name keys its question and resulting Score."
+                )
             return criteria
 
         # Cases 1-3: a single legacy classification -> one criterion named after the evaluator.

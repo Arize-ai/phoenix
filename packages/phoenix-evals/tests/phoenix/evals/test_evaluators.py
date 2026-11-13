@@ -739,6 +739,19 @@ class TestClassificationEvaluator:
                 choices=[Criterion(name="a", description="", choices=["x", "y"])],
             )
 
+    def test_multi_criterion_rejects_duplicate_names(self):
+        """Two criteria sharing a name would collapse to one question, so it is rejected."""
+        with pytest.raises(ValueError, match="names must be unique.*'q'"):
+            ClassificationEvaluator(
+                name="review",
+                llm=MockLLM(),
+                prompt_template="review: {text}",
+                choices=[
+                    Criterion(name="q", description="d", choices=["a", "b"]),
+                    Criterion(name="q", description="d2", choices=["a", "c"]),
+                ],
+            )
+
 
 class TestCreateEvaluatorAsync:
     """Test async support in create_evaluator decorator."""
