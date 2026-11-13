@@ -20,10 +20,12 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Hashable, cast
+from typing import Any, Hashable, TypeVar, cast
 
 from harbor_verifiers import evals_state
 from harbor_verifiers.phoenix_api import PHOENIX_URL
+
+Unit = TypeVar("Unit", bound=Hashable)
 
 # Overridable so `scripts/check_task_locally.py` can grade a task outside a container.
 APP_DIR = os.environ.get("TASK_APP_DIR", "/app")
@@ -284,7 +286,7 @@ class Agreement:
 
 
 def agreement(
-    predictions: Mapping[Hashable, Prediction | bool | None], truth: Mapping[Hashable, bool]
+    predictions: Mapping[Unit, Prediction | bool | None], truth: Mapping[Unit, bool]
 ) -> Agreement:
     """Scores predictions against truth. Missing or unclear predictions count as wrong.
 

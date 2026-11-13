@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from harbor_verifiers import grading
+from harbor_verifiers import evals_state, grading
 from harbor_verifiers.grading import Prediction
 
 
@@ -80,7 +80,7 @@ def test_trace_predictions_map_span_annotations_to_traces(monkeypatch: pytest.Mo
             ]
         return [{"name": "grounded", "trace_id": "t2", "result": {"score": 1}}]
 
-    monkeypatch.setattr(grading.evals_state, "_paginate", fake_paginate)
+    monkeypatch.setattr(evals_state, "_paginate", fake_paginate)
     predictions = grading.trace_predictions("p", "grounded", spans)
     assert predictions["t1"].value is False
     assert predictions["t2"].value is True
