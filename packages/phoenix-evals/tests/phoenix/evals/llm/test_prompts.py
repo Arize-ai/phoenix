@@ -180,6 +180,12 @@ class TestTemplateFormatDetection:
             ("Numbers: {123} and {true}", TemplateFormat.F_STRING),
             ("Python literals: {True} and {False}", TemplateFormat.MUSTACHE),
             ("Mixed: {None} and {null}", TemplateFormat.F_STRING),
+            ("Score: {score:.2f} of {count:04d}", TemplateFormat.F_STRING),
+            ("First {items[0]}, last {records[-1]}", TemplateFormat.F_STRING),
+            ("Timeout: {config['timeout']}", TemplateFormat.F_STRING),
+            ("Name: {user.name!r:>10}", TemplateFormat.F_STRING),
+            ('Config: {"debug": true} with {score:.2f}', TemplateFormat.F_STRING),
+            ('Pairs: {"a": 1, "b": 2}', TemplateFormat.MUSTACHE),
         ],
     )
     def test_format_detection(self, template: str, expected: TemplateFormat) -> None:
@@ -251,6 +257,7 @@ class TestTemplate:
         [
             ("Classify: {{text}}", None, TemplateFormat.MUSTACHE, ["text"]),
             ("Classify: {text}", None, TemplateFormat.F_STRING, ["text"]),
+            ("Score: {score:.2f}", None, TemplateFormat.F_STRING, ["score"]),
             (
                 'Analyze: {{"config": true}} for {user_id}',
                 None,
