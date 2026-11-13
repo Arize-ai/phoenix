@@ -3,7 +3,8 @@ import json
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from random import random
+from itertools import cycle, product
+from random import Random, random
 from secrets import token_hex
 from typing import Any, Literal, Optional, cast
 
@@ -11,13 +12,14 @@ import httpx2
 import pandas as pd
 import pytest
 from faker import Faker
-from sqlalchemy import insert
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import event, insert, select
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from strawberry.relay import GlobalID
 from typing_extensions import assert_never
 
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.types.annotation_configs import (
     AnnotationType,
     CategoricalAnnotationConfig,
@@ -33,6 +35,7 @@ from phoenix.server.api.types.pagination import Cursor, CursorSortColumn, Cursor
 from phoenix.server.api.types.Project import Project
 from phoenix.server.sandbox.sync import sync_languages
 from phoenix.server.types import DbSessionFactory
+from phoenix.trace.dsl import SpanFilter
 from tests.unit.graphql import AsyncGraphQLClient
 
 from ...._helpers import _add_project, _add_project_session, _add_span, _add_trace, _gid, _node
@@ -5528,6 +5531,312 @@ async def test_root_span_clause_pages_every_root_candidate(
         "second-orphan-span-2",
         "orphan-span-2",
     ]
+
+
+def _span(
+    trace: models.Trace,
+    start_time: datetime,
+    parent_id: Optional[str] = None,
+    span_kind: str = "CHAIN",
+) -> models.Span:
+    return models.Span(
+        trace_rowid=trace.id,
+        span_id=token_hex(8),
+        parent_id=parent_id,
+        name=token_hex(4),
+        span_kind=span_kind,
+        start_time=start_time,
+        end_time=start_time + timedelta(seconds=1),
+        attributes={},
+        events=[],
+        status_code="OK",
+        status_message="",
+        cumulative_error_count=0,
+        cumulative_llm_token_count_prompt=0,
+        cumulative_llm_token_count_completion=0,
+    )
+
+
+_SPANS_BY_START_TIME_QUERY = """
+    query (
+        $projectId: ID!
+        $first: Int!
+        $after: String
+        $dir: SortDir!
+        $filterCondition: String
+        $timeRange: TimeRange
+    ) {
+        node(id: $projectId) {
+            ... on Project {
+                spans(
+                    first: $first
+                    after: $after
+                    sort: {col: startTime, dir: $dir}
+                    filterCondition: $filterCondition
+                    timeRange: $timeRange
+                ) {
+                    edges {
+                        node {
+                            id
+                        }
+                    }
+                    pageInfo {
+                        hasNextPage
+                        endCursor
+                    }
+                }
+            }
+        }
+    }
+"""
+
+
+async def test_spans_sorted_by_start_time_page_through_the_unpaged_list(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Pages of a list sorted by start time add up to what one unpaged statement sorted by
+    span start time returns, whatever the filter, time range, direction and page size."""
+    rng = Random(0)
+    base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+    async with db() as session:
+        projects = [models.Project(name=token_hex(8)) for _ in range(3)]
+        session.add_all(projects)
+        await session.flush()
+        traces = []
+        for project in projects:
+            for _ in range(25):
+                trace_start_time = base_time + timedelta(minutes=rng.randrange(60))
+                traces.append(
+                    models.Trace(
+                        trace_id=token_hex(16),
+                        project_rowid=project.id,
+                        start_time=trace_start_time,
+                        end_time=trace_start_time + timedelta(minutes=20),
+                    )
+                )
+        rng.shuffle(traces)
+        session.add_all(traces)
+        await session.flush()
+        spans = []
+        for trace in traces:
+            root = _span(trace, trace.start_time)
+            spans.append(root)
+            spans.append(
+                _span(
+                    trace,
+                    trace.start_time + timedelta(minutes=rng.randrange(4)),
+                    parent_id=root.span_id,
+                    span_kind="LLM",
+                )
+            )
+            if rng.random() < 0.5:
+                spans.append(
+                    _span(
+                        trace,
+                        trace.start_time + timedelta(minutes=rng.randrange(1, 20)),
+                        parent_id=rng.choice([None, token_hex(8)]),
+                        span_kind=rng.choice(["CHAIN", "LLM"]),
+                    )
+                )
+        rng.shuffle(spans)
+        session.add_all(spans)
+        await session.flush()
+        session.add_all(
+            models.SpanAnnotation(
+                span_rowid=span.id,
+                name="quality",
+                score=rng.random(),
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="APP",
+            )
+            for span in spans
+        )
+        project_rowid = projects[0].id
+    start, end = base_time + timedelta(minutes=20), base_time + timedelta(minutes=45)
+
+    async def unpaged(condition: Optional[str], time_range: dict[str, datetime]) -> list[int]:
+        stmt = (
+            select(models.Span.id)
+            .join(models.Trace)
+            .where(models.Trace.project_rowid == project_rowid)
+        )
+        if "start" in time_range:
+            stmt = stmt.where(time_range["start"] <= models.Span.start_time)
+        if "end" in time_range:
+            stmt = stmt.where(models.Span.start_time < time_range["end"])
+        if condition:
+            stmt = SpanFilter(condition=condition)(stmt)
+        stmt = stmt.order_by(models.Span.start_time.desc(), models.Span.id.desc())
+        async with db() as session:
+            return list(await session.scalars(stmt))
+
+    async def paged(first: int, **variables: Any) -> list[int]:
+        rowids: list[int] = []
+        after = None
+        while True:
+            response = await gql_client.execute(
+                query=_SPANS_BY_START_TIME_QUERY,
+                variables={
+                    "projectId": str(GlobalID("Project", str(project_rowid))),
+                    "first": first,
+                    "after": after,
+                    **variables,
+                },
+            )
+            assert not response.errors
+            assert response.data is not None
+            connection = response.data["node"]["spans"]
+            page = [
+                int(GlobalID.from_id(edge["node"]["id"]).node_id) for edge in connection["edges"]
+            ]
+            rowids.extend(page)
+            if not connection["pageInfo"]["hasNextPage"]:
+                return rowids
+            assert len(page) == first
+            after = connection["pageInfo"]["endCursor"]
+
+    cases = product(
+        [
+            None,
+            "span_kind == 'LLM'",
+            "parent_id is None",
+            "parent_span is None",
+            "parent_span is None and annotations['quality'].score > 0.3",
+        ],
+        [{}, {"start": start}, {"start": start, "end": end}],
+        [True, False],
+    )
+    page_sizes_and_looks = cycle(product([1, 4, 30], [(1,), (2, 20), (500, 5000)]))
+    for (condition, time_range, descending), (first, looks) in zip(cases, page_sizes_and_looks):
+        expected = await unpaged(condition, time_range)
+        monkeypatch.setattr("phoenix.server.api.types.Project._NEWEST_SPANS_LOOKS", looks)
+        actual = await paged(
+            first,
+            dir="desc" if descending else "asc",
+            filterCondition=condition,
+            timeRange={key: value.isoformat() for key, value in time_range.items()} or None,
+        )
+        assert actual == (expected if descending else expected[::-1]), (
+            condition,
+            time_range,
+            descending,
+            first,
+            looks,
+        )
+
+
+@pytest.mark.parametrize(
+    "project_name, filter_condition, falls_back",
+    [
+        pytest.param("busy", None, False, id="busy-project-range-only"),
+        pytest.param("quiet", None, False, id="quiet-project-range-only"),
+        pytest.param("stale", "parent_span is None", True, id="stale-project-root-spans"),
+    ],
+)
+async def test_first_page_of_newest_spans_reads_few_spans_on_postgresql(
+    project_name: str,
+    filter_condition: Optional[str],
+    falls_back: bool,
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+    request: pytest.FixtureRequest,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The first page of a project's newest spans reads a handful of span rows, not every
+    span the project has in the time range, whether the project receives most of the recent
+    spans or a small share of them. A list of root spans that finds none in its first look
+    skips the wider look and falls back to one more statement, which reads that project's
+    spans and none of the newer spans of other projects."""
+    if db.dialect is not SupportedSQLDialect.POSTGRESQL:
+        pytest.skip("counts the rows PostgreSQL reads")
+    engine: AsyncEngine = request.getfixturevalue("postgresql_engine")
+    first_look = 20
+    monkeypatch.setattr("phoenix.server.api.types.Project._NEWEST_SPANS_LOOKS", (first_look, 400))
+    base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+    async with db() as session:
+        projects = {name: models.Project(name=name) for name in ("busy", "quiet", "stale")}
+        session.add_all(projects.values())
+        await session.flush()
+        traces = [
+            models.Trace(
+                trace_id=token_hex(16),
+                project_rowid=projects["busy" if i % 4 else "quiet"].id,
+                start_time=base_time + timedelta(seconds=i),
+                end_time=base_time + timedelta(seconds=i + 1),
+            )
+            for i in range(400)
+        ]
+        stale_traces = [
+            models.Trace(
+                trace_id=token_hex(16),
+                project_rowid=projects["stale"].id,
+                start_time=base_time - timedelta(seconds=i + 1),
+                end_time=base_time - timedelta(seconds=i),
+            )
+            for i in range(2)
+        ]
+        traces.extend(stale_traces)
+        session.add_all(traces)
+        await session.flush()
+        for trace in traces:
+            root = _span(trace, trace.start_time)
+            session.add_all([root, _span(trace, trace.start_time, parent_id=root.span_id)])
+        await session.flush()
+        project_rowid = projects[project_name].id
+    async with engine.begin() as conn:
+        # Without statistics the planner expects one trace in the project, and PostgreSQL 14
+        # then sorts every trace's spans instead of stopping at the page.
+        await conn.exec_driver_sql("ANALYZE traces, spans")
+    statements: list[tuple[str, Any]] = []
+
+    def capture(
+        conn: Any,
+        cursor: Any,
+        statement: str,
+        parameters: Any,
+        context: Any,
+        executemany: bool,
+    ) -> None:
+        if "FROM spans" in statement:
+            statements.append((statement, parameters))
+
+    event.listen(engine.sync_engine, "before_cursor_execute", capture)
+    try:
+        response = await gql_client.execute(
+            query=_SPANS_BY_START_TIME_QUERY,
+            variables={
+                "projectId": str(GlobalID("Project", str(project_rowid))),
+                "first": 2,
+                "dir": "desc",
+                "filterCondition": filter_condition,
+                "timeRange": {"start": (base_time - timedelta(hours=1)).isoformat()},
+            },
+        )
+    finally:
+        event.remove(engine.sync_engine, "before_cursor_execute", capture)
+    assert not response.errors
+    assert response.data is not None
+    assert len(response.data["node"]["spans"]["edges"]) == 2
+    assert len(statements) == (2 if falls_back else 1)
+    assert ("NULLS LAST" in statements[-1][0]) is falls_back
+    async with engine.connect() as conn:
+        # The tables are small enough that reading them whole is the cheapest plan, which
+        # hides whether a statement stops once the page is full.
+        for setting in ("enable_seqscan", "enable_bitmapscan"):
+            await conn.exec_driver_sql(f"SET LOCAL {setting} = off")
+        # The view also counts what this connection read in transactions before this one.
+        spans_read_so_far = (
+            "SELECT seq_tup_read + idx_tup_fetch FROM pg_stat_xact_user_tables "
+            "WHERE relname = 'spans'"
+        )
+        read_before = (await conn.exec_driver_sql(spans_read_so_far)).scalar_one()
+        for statement, parameters in statements:
+            await conn.exec_driver_sql(statement, parameters)
+        spans_read = (await conn.exec_driver_sql(spans_read_so_far)).scalar_one() - read_before
+    assert spans_read <= 4 * first_look + (2 * len(stale_traces) if falls_back else 0)
 
 
 async def test_cost_summary_returns_expected_results(
