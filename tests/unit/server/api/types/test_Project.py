@@ -2776,6 +2776,16 @@ class TestProject:
         ]
         assert res["pageInfo"]["hasNextPage"] is False
 
+        # A page that ends on the last non-NULL score is followed by the NULLs
+        for direction, nulls in (("asc", [1, 4, 7]), ("desc", [7, 4, 1])):
+            field = f'sessions(sort:{{annoResultKey:{{name:"Quality",attr:score}},dir:{direction}}},first:5){{pageInfo{{endCursor}}}}'
+            res = await self._node(field, project, httpx_client)
+            end_cursor = res["pageInfo"]["endCursor"]
+            field = f'sessions(sort:{{annoResultKey:{{name:"Quality",attr:score}},dir:{direction}}},first:5,after:"{end_cursor}"){{edges{{node{{id}}}}pageInfo{{hasNextPage}}}}'
+            res = await self._node(field, project, httpx_client)
+            assert [e["node"]["id"] for e in res["edges"]] == [_gid(sessions[i]) for i in nulls]
+            assert res["pageInfo"]["hasNextPage"] is False
+
     async def test_sessions_sort_by_annotation_label(
         self,
         db: DbSessionFactory,
@@ -5642,6 +5652,35 @@ async def test_pagination_spans_by_annotation_score(
     assert start_cursor.sort_column is not None
     assert start_cursor.sort_column.type == CursorSortColumnDataType.NULL
     assert start_cursor.sort_column.value is None
+
+    # A page that ends on the last span with a score is followed by the spans without one
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "projectId": project_gid,
+            "first": 1,
+            "sort": {"evalResultKey": {"name": "Quality", "attr": "score"}, "dir": "desc"},
+        },
+    )
+    assert not response.errors
+    assert (data := response.data) is not None
+    assert [e["node"]["name"] for e in data["node"]["spans"]["edges"]] == [spans[0].name]
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "projectId": project_gid,
+            "first": 2,
+            "after": data["node"]["spans"]["pageInfo"]["endCursor"],
+            "sort": {"evalResultKey": {"name": "Quality", "attr": "score"}, "dir": "desc"},
+        },
+    )
+    assert not response.errors
+    assert (data := response.data) is not None
+    assert [e["node"]["name"] for e in data["node"]["spans"]["edges"]] == [
+        spans[2].name,
+        spans[1].name,
+    ]
+    assert data["node"]["spans"]["pageInfo"]["hasNextPage"] is False
 
 
 async def test_trace_count_returns_expected_count(
