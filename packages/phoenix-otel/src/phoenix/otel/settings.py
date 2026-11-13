@@ -212,7 +212,11 @@ def clear_env_file_cache() -> None:
 
 
 def _load_process_env_values(keys: Iterable[str]) -> Dict[str, str]:
-    return {key: value.strip() for key in keys if (value := os.getenv(key)) is not None}
+    # A value that is empty after trimming counts as unset — the same rule the
+    # phoenix-client configuration documents — so `export PHOENIX_API_KEY=`
+    # does not suppress the env-file tier or pin resolution to a value nothing
+    # can use.
+    return {key: value for key in keys if (value := (os.getenv(key) or "").strip())}
 
 
 def _resolve_env_tier(keys: Iterable[str]) -> Dict[str, str]:
@@ -259,7 +263,10 @@ def warn_if_using_file_endpoint_with_credentials(*, credential_source: Optional[
 
 def _reject_invalid_env_value(env_key: str, value: str, message: str) -> None:
     """Raise for an invalid process-env value; warn once and ignore an env-file value."""
-    if os.getenv(env_key) is not None:
+    # Same empty-counts-as-unset rule as _load_process_env_values: an empty
+    # process value must not turn the raise branch on for an env-file value.
+    process_value = os.getenv(env_key)
+    if process_value is not None and process_value.strip():
         raise ValueError(f"Invalid value for environment variable {env_key}: {value}. {message}")
     if env_key not in _warned_invalid_env_file_values:
         _warned_invalid_env_file_values.add(env_key)
