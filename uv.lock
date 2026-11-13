@@ -1041,7 +1041,7 @@ dev = [
 
 [[package]]
 name = "arize-phoenix-otel"
-version = "0.17.3"
+version = "0.17.4"
 source = { editable = "packages/phoenix-otel" }
 dependencies = [
     { name = "openinference-instrumentation" },
