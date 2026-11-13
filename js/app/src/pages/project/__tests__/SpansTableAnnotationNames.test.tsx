@@ -293,10 +293,7 @@ function readColumnHeaders() {
   );
 }
 
-/**
- * Opens the column selector and counts the failed states in it: an "error"
- * label that is not a column's own row, like the error column's.
- */
+/** Opens the column selector and counts the failed states in it. */
 async function countColumnSelectorFailures() {
   const columnsButton = [...container.querySelectorAll("button")].find(
     (button) => button.textContent === "Columns"
@@ -308,8 +305,7 @@ async function countColumnSelectorFailures() {
   return [...(popover?.querySelectorAll("*") ?? [])].filter(
     (element) =>
       element.children.length === 0 &&
-      element.textContent === "error" &&
-      element.closest("li") == null
+      element.textContent === "Span annotation names failed to load."
   ).length;
 }
 

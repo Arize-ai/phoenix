@@ -1,6 +1,6 @@
 import type { RowData } from "@tanstack/react-table";
 
-import { TextErrorBoundaryFallback, View } from "@phoenix/components";
+import { Text, View } from "@phoenix/components";
 import { AnnotationTargetTypeToken } from "@phoenix/components/annotation/AnnotationTargetTypeToken";
 import type { AnnotationTargetType } from "@phoenix/components/annotation/types";
 import type { ColumnSelectorColumn } from "@phoenix/components/table";
@@ -185,7 +185,9 @@ export function TracingColumnSelector<TData extends RowData>({
       {annotationKinds.map((kind) =>
         kind.namesError == null ? null : (
           <View key={kind.targetType} paddingX="size-150" paddingY="size-50">
-            <TextErrorBoundaryFallback error={kind.namesError} />
+            <Text size="XS" color="text-300">
+              {kind.namesError}
+            </Text>
           </View>
         )
       )}
