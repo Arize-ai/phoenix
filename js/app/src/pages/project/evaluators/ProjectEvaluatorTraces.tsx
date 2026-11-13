@@ -152,6 +152,7 @@ function ProjectEvaluatorTracesTable({
       seed={seed}
       selectedRowId={traceId}
       projectEvaluatorId={projectEvaluatorId}
+      initialRequest={null}
       emptyState={
         <ProjectEvaluatorTracesEmpty
           hasEverRun={hasEverRun}
