@@ -111,6 +111,16 @@ vi.mock("../SpanFilterConditionField", async () => {
   };
 });
 
+const spanAnnotationNamesState = vi.hoisted(() => ({
+  spanAnnotationNames: [],
+  hasSpanAnnotationNamesError: false,
+  onRequestComplete: () => {},
+}));
+
+vi.mock("../useSpanAnnotationNames", () => ({
+  useSpanAnnotationNames: () => spanAnnotationNamesState,
+}));
+
 vi.mock("../SpanColumnSelector", () => ({
   SpanColumnSelector: () => null,
 }));
@@ -170,7 +180,6 @@ describe("SpansTable seed loading integration", () => {
     relayMocks.usePaginationFragment.mockReturnValue({
       data: {
         name: "integration project",
-        spanAnnotationNames: [],
         spans: { edges: [] },
       },
       hasNext: false,
@@ -195,6 +204,7 @@ describe("SpansTable seed loading integration", () => {
             <SpansTable
               project={{} as SpansTable_spans$key}
               seed={settledSeed}
+              initialRequest={null}
             />
             <SearchProbe />
           </MemoryRouter>

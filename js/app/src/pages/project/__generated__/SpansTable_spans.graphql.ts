@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2e1cbabb2bb3cdc7abaaf70a7182e144>>
+ * @generated SignedSource<<a6beee92f4a41bc1fc41fdb497868b05>>
  * @lightSyntaxTransform
  */
 
@@ -15,7 +15,6 @@ import { FragmentRefs } from "relay-runtime";
 export type SpansTable_spans$data = {
   readonly id: string;
   readonly name: string;
-  readonly spanAnnotationNames: ReadonlyArray<string>;
   readonly spans: {
     readonly edges: ReadonlyArray<{
       readonly span: {
@@ -75,7 +74,7 @@ export type SpansTable_spans$data = {
       };
     }>;
   };
-  readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment" | "SpanColumnSelector_annotations" | "SpanColumnSelector_traceAnnotations">;
+  readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment" | "SpanColumnSelector_traceAnnotations" | "useSpanAnnotationNames_project">;
   readonly " $fragmentType": "SpansTable_spans";
 };
 export type SpansTable_spans$key = {
@@ -214,21 +213,29 @@ return {
   "selections": [
     (v1/*:: as any*/),
     {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "spanAnnotationNames",
-      "storageKey": null
+      "kind": "Defer",
+      "selections": [
+        {
+          "kind": "InlineDataFragmentSpread",
+          "name": "useSpanAnnotationNames_project",
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "spanAnnotationNames",
+              "storageKey": null
+            }
+          ],
+          "args": null,
+          "argumentDefinitions": []
+        }
+      ]
     },
     {
       "args": null,
       "kind": "FragmentSpread",
       "name": "ProjectAnnotationConfigsByNameFragment"
-    },
-    {
-      "args": null,
-      "kind": "FragmentSpread",
-      "name": "SpanColumnSelector_annotations"
     },
     {
       "args": null,
@@ -596,6 +603,6 @@ return {
 };
 })();
 
-(node as any).hash = "cc1385e0d11123430a0c24617b974656";
+(node as any).hash = "8b12d5d04d2a0374a5036e0b4d34109e";
 
 export default node;
