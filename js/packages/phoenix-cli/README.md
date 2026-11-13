@@ -558,6 +558,39 @@ Use `px prompt-versions list <prompt-identifier>` to discover version IDs for
 
 ---
 
+### `px prompt create`
+
+Create a prompt from a template. The template is saved as a single user
+message. If a prompt with the same name already exists, the template is added
+as its new latest version; pass `--if-not-exists` to print the existing latest
+version instead. Prints the created (or existing) prompt version.
+
+```bash
+px prompt create --name greeting --template 'Hello {{name}}'
+px prompt create --name summarizer --template-file ./summarize.txt --model-name gpt-4o
+px prompt create --name helper --template 'Help with {{task}}' --model-provider ANTHROPIC --model-name claude-sonnet-5-5 --max-tokens 1024
+cat summarize.txt | px prompt create --name summarizer --template-file - --if-not-exists --format raw --no-progress | jq -r '.id'
+```
+
+| Option                        | Description                                                                         | Default                     |
+| ----------------------------- | ----------------------------------------------------------------------------------- | --------------------------- |
+| `--name <name>`               | Prompt name (required)                                                              | —                           |
+| `--template <text>`           | Template text                                                                       | —                           |
+| `--template-file <path>`      | Read the template from a file, or from stdin with `-`                               | —                           |
+| `--description <description>` | Prompt description (only applied when the prompt is new)                            | —                           |
+| `--model-provider <provider>` | `OPENAI`, `AZURE_OPENAI`, `ANTHROPIC`, `GOOGLE`, `DEEPSEEK`, `XAI`, `OLLAMA`, `AWS` | `OPENAI`                    |
+| `--model-name <name>`         | Model name (required unless the provider is `OPENAI`)                               | `gpt-5.6-luna` for `OPENAI` |
+| `--max-tokens <number>`       | Maximum tokens to generate (required for `ANTHROPIC`)                               | —                           |
+| `--if-not-exists`             | If the prompt exists, print its latest version instead of adding one                | —                           |
+| `--template-format <format>`  | `MUSTACHE`, `F_STRING`, or `NONE`                                                   | `MUSTACHE`                  |
+| `--format <format>`           | `pretty`, `json`, `raw`, or `text`                                                  | `pretty`                    |
+
+Pass exactly one of `--template` or `--template-file`. Names may contain only
+lowercase letters, digits, `-`, and `_`, and must start and end with a letter or
+digit (for example `my-prompt`).
+
+---
+
 ### `px project list`
 
 List all available Phoenix projects.
