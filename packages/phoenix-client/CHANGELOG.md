@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v3.7.0...arize-phoenix-client-v3.8.0) (2026-11-13)
+
+
+### Features
+
+* **client:** add secrets resource to the Python client ([#17447](https://github.com/Arize-ai/phoenix/issues/17447)) ([fe8ed61](https://github.com/Arize-ai/phoenix/commit/fe8ed61fe92ea6b3019fdce4f8079ade66eb2f62))
+
 ## [3.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v3.6.0...arize-phoenix-client-v3.7.0) (2026-11-05)
 
 
