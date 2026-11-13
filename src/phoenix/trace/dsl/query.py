@@ -176,6 +176,7 @@ class Explosion(_HasTmpSuffix, Projection):
                 stmt.where(func.jsonb_typeof(array) == "array")
                 .where(func.jsonb_typeof(obj) == "object")
                 .add_columns(position_label, *columns)
+                .order_by(position)
             )
             return stmt
         else:
@@ -594,6 +595,8 @@ class SpanQuery(_HasTmpSuffix):
             stmt = stmt.where(start_time <= models.Span.start_time)
         if end_time:
             stmt = stmt.where(models.Span.start_time < end_time)
+        # Default newest-first ordering by start_time, with id as a stable tiebreaker
+        stmt = stmt.order_by(models.Span.start_time.desc(), models.Span.id.desc())
         if limit is not None:
             stmt = stmt.limit(limit)
         # The flag is redundant when the filter already restricts at least as
