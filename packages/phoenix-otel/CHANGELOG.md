@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.4](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.17.3...arize-phoenix-otel-v0.17.4) (2026-11-13)
+
+
+### Bug Fixes
+
+* **otel:** keep IPv6 brackets in the inferred gRPC collector endpoint ([#17820](https://github.com/Arize-ai/phoenix/issues/17820)) ([a676b54](https://github.com/Arize-ai/phoenix/commit/a676b5429ff826cab12726f5a63998c51f7bb85c))
+
 ## [0.17.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.17.2...arize-phoenix-otel-v0.17.3) (2026-11-06)
 
 
