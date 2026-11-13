@@ -3,6 +3,7 @@ import logging
 from collections.abc import Generator
 from threading import Thread
 from time import sleep, time
+from typing import Optional
 
 from fastapi import FastAPI
 from uvicorn import Config, Server
@@ -19,7 +20,7 @@ def _nest_asyncio_applied() -> bool:
 
 
 class ThreadServer(Server):
-    """Server that runs in a (non-daemon) thread"""
+    """Server that runs in a daemon thread."""
 
     def __init__(
         self,
@@ -42,13 +43,15 @@ class ThreadServer(Server):
             loop=loop,
         )
         super().__init__(config=config)
+        self.thread: Optional[Thread] = None
 
     def install_signal_handlers(self) -> None:
         pass
 
     def run_in_thread(self) -> Generator[Thread, None, None]:
-        """A coroutine to keep the server running in a thread."""
+        """Keep the server running in a background daemon thread."""
         thread = Thread(target=self.run, daemon=True)
+        self.thread = thread
         thread.start()
         time_limit = time() + 5  # 5 seconds
         try:

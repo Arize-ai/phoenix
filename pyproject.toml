@@ -42,6 +42,8 @@ dependencies = [
   "tqdm",
   "httpx2[http2]",
   "certifi>=2026.10.19",
+  # `opentelemetry-semantic-conventions` is published only as `0.XXb0` pre-releases;
+  # `opentelemetry-sdk>=1.45.0` pins the matching `>=0.66b0` release without a direct `--pre` pin.
   "opentelemetry-sdk>=1.45.0",
   "opentelemetry-proto>=1.45.0",
   "opentelemetry-exporter-otlp>=1.45.0",

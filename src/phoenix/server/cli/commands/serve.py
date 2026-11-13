@@ -268,7 +268,7 @@ def run(args: Namespace) -> None:
         start_prometheus(host)
 
     # Read eagerly so a malformed PHOENIX_AGENTS_* value fails here, before any
-    # migrations run or ports are bound, rather than when the banner renders.
+    # migrations run, rather than when the banner renders.
     agents_env = AgentsEnvConfig.from_env()
     read_replica_connection_str = get_env_read_replica_url()
     with _open_server_resources(
@@ -429,7 +429,9 @@ def _open_server_resources(
     log_to_stdout: bool,
     log_migrations: bool,
 ) -> Iterator[tuple[ServerTelemetry, DbSessionFactory, list[Callable[[], None | Awaitable[None]]]]]:
-    with ServerTelemetry.from_env() as server_telemetry, ExitStack() as database_cleanup:
+    stack = ExitStack()
+    try:
+        server_telemetry = stack.enter_context(ServerTelemetry.from_env())
         factory, cleanups = _create_db_session_factory(
             db_connection_str=db_connection_str,
             read_replica_connection_str=read_replica_connection_str,
@@ -438,13 +440,23 @@ def _open_server_resources(
             log_migrations=log_migrations,
             server_telemetry=server_telemetry,
         )
+        # ``cleanups`` is in LIFO teardown order; push onto ``ExitStack`` in reverse
+        # (= creation order) so fallback teardown runs in the same LIFO order.
         for cleanup in reversed(cleanups):
-            database_cleanup.callback(cleanup.close)
+            stack.callback(cleanup.close)
         shutdown_callbacks: list[Callable[[], None | Awaitable[None]]] = [
             *cleanups,
             partial(asyncio.to_thread, server_telemetry.close),
         ]
         yield server_telemetry, factory, shutdown_callbacks
+    except BaseException as exc:
+        try:
+            stack.close()
+        except Exception as cleanup_err:
+            exc.add_note(f"Server resource cleanup after failure also raised: {cleanup_err!r}")
+        raise
+    else:
+        stack.close()
 
 
 def _create_db_session_factory(
@@ -456,17 +468,17 @@ def _create_db_session_factory(
     log_migrations: bool,
     server_telemetry: Optional[ServerTelemetry] = None,
 ) -> tuple[DbSessionFactory, list[Cleanup]]:
-    cleanups: list[Cleanup] = []
+    creation_cleanups: list[Cleanup] = []
 
     def _register_engine(engine: AsyncEngine) -> None:
-        if server_telemetry is not None:
-            cleanups.append(Cleanup(server_telemetry.instrument_engine(engine)))
-        cleanups.append(
+        creation_cleanups.append(
             Cleanup(
                 engine.dispose,
                 sync_fallback=partial(dispose_engine_sync_fallback, engine),
             )
         )
+        if server_telemetry is not None:
+            creation_cleanups.append(server_telemetry.instrument_engine(engine))
 
     try:
         primary_engine = create_engine(
@@ -512,10 +524,10 @@ def _create_db_session_factory(
                 read_db=read_db,
                 dialect=primary_engine.dialect.name,
             ),
-            cleanups,
+            list(reversed(creation_cleanups)),
         )
     except BaseException as setup_err:
-        for cleanup in reversed(cleanups):
+        for cleanup in reversed(creation_cleanups):
             try:
                 cleanup.close()
             except Exception as cleanup_err:

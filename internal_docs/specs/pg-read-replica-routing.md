@@ -87,19 +87,31 @@ Each `async with db() as session:` block is a single transaction. `Session.begin
 
 The `DbSessionFactory` is constructed in **two places**, not one:
 
-1. **`src/phoenix/server/cli/commands/serve.py:257-266`** — the main CLI entrypoint:
+1. **`src/phoenix/server/cli/commands/serve.py`** — the main CLI entrypoint (`_create_db_session_factory`):
    ```python
    engine = create_engine(connection_str=db_connection_str, ...)
-   shutdown_callbacks.append(server_telemetry.instrument_engine(engine))
-   shutdown_callbacks.append(engine.dispose)
+   uninstrument = server_telemetry.instrument_engine(engine)
+   dispose = Cleanup(
+       engine.dispose,
+       sync_fallback=partial(dispose_engine_sync_fallback, engine),
+   )
+   cleanups.extend([uninstrument, dispose])
    factory = DbSessionFactory(db=_db(engine), dialect=engine.dialect.name)
    ```
 
-2. **`src/phoenix/session/session.py:203-213`** — the notebook/embedded entrypoint:
+2. **`src/phoenix/session/session.py`** — the notebook/embedded entrypoint (`ThreadSession`):
    ```python
    engine = create_engine(connection_str=database_url, ...)
-   shutdown_callbacks.append(server_telemetry.instrument_engine(engine))
-   shutdown_callbacks.append(engine.dispose)
+   dispose_engine = Cleanup(
+       engine.dispose,
+       sync_fallback=partial(dispose_engine_sync_fallback, engine),
+   )
+   uninstrument = server_telemetry.instrument_engine(engine)
+   shutdown_callbacks = [
+       uninstrument,
+       dispose_engine,
+       partial(asyncio.to_thread, server_telemetry.close),
+   ]
    factory = DbSessionFactory(db=_db(engine), dialect=engine.dialect.name)
    ```
 
@@ -263,28 +275,34 @@ class DbSessionFactory:
 
 ## Engine Wiring
 
-In `serve.py` (and `session.py`), engine creation changes from:
+In `serve.py` (`_create_db_session_factory`), engine creation changes from:
 
 ```python
 engine = create_engine(connection_str=db_connection_str, migrate=True, ...)
-shutdown_callbacks.append(server_telemetry.instrument_engine(engine))
-shutdown_callbacks.append(engine.dispose)
+_register_engine(engine)
 factory = DbSessionFactory(db=_db(engine), dialect=engine.dialect.name)
 ```
 
 To:
 
 ```python
+def _register_engine(engine: AsyncEngine) -> None:
+    cleanups.append(
+        Cleanup(
+            engine.dispose,
+            sync_fallback=partial(dispose_engine_sync_fallback, engine),
+        )
+    )
+    if server_telemetry is not None:
+        cleanups.append(server_telemetry.instrument_engine(engine))
+
 primary_engine = create_engine(connection_str=db_connection_str, migrate=True, ...)
-shutdown_callbacks.append(server_telemetry.instrument_engine(primary_engine))
-shutdown_callbacks.append(primary_engine.dispose)
+_register_engine(primary_engine)
 
 replica_engine = None
-replica_url = get_env_read_replica_url()  # new config function
-if replica_url and SupportedSQLDialect(primary_engine.dialect.name) is SupportedSQLDialect.POSTGRESQL:
-    replica_engine = create_engine(connection_str=replica_url, migrate=False, ...)
-    shutdown_callbacks.append(server_telemetry.instrument_engine(replica_engine))
-    shutdown_callbacks.append(replica_engine.dispose)
+if read_replica_connection_str and SupportedSQLDialect(primary_engine.dialect.name) is SupportedSQLDialect.POSTGRESQL:
+    replica_engine = create_engine(connection_str=read_replica_connection_str, migrate=False, ...)
+    _register_engine(replica_engine)
 
 factory = DbSessionFactory(
     db=_db(primary_engine),
@@ -295,17 +313,17 @@ factory = DbSessionFactory(
 
 ### `create_engine` with `migrate=False`
 
-When `migrate=False`, `aio_postgresql_engine()` (`engines.py:201-202`) returns the configured engine immediately without creating a migration engine or running Alembic. The engine is otherwise identical to the primary engine — same connection args, same SSL config, same JSON serializer, same IAM auth handling.
+When `migrate=False`, `aio_postgresql_engine()` (`engines.py`) returns the configured engine immediately without creating a migration engine or running Alembic. The engine is otherwise identical to the primary engine — same connection args, same SSL config, same JSON serializer, same IAM auth handling.
 
 ### Schema handling
 
-No special schema configuration is needed for the replica engine. Phoenix sets the schema at the ORM metadata level (`models.py:634: MetaData(schema=get_env_database_schema())`), which causes SQLAlchemy to emit fully-qualified table names in all generated SQL. The only `SET search_path` call is in the migration runner (`migrations/env.py:99`), which doesn't run on the replica (`migrate=False`).
+No special schema configuration is needed for the replica engine. Phoenix sets the schema at the ORM metadata level (`models.py`: `MetaData(schema=get_env_database_schema())`), which causes SQLAlchemy to emit fully-qualified table names in all generated SQL. The only `SET search_path` call is in the migration runner (`migrations/env.py`), which doesn't run on the replica (`migrate=False`).
 
 ### Considerations
 
-- **Both engines must be disposed on shutdown.** Add `replica_engine.dispose` to shutdown callbacks alongside primary. The current shutdown pattern in the lifespan function (`app.py:695-697`) iterates all callbacks.
+- **Both engines must be disposed on shutdown.** Register `Cleanup(replica_engine.dispose, sync_fallback=...)` alongside the primary engine so the lifespan function (`app.py`) disposes both pools in reverse creation order.
 
-- **Both engines must be instrumented.** `ServerTelemetry.instrument_engine()` (`telemetry.py`) attaches OpenTelemetry tracing to each engine. Call it for the replica engine too, so query telemetry covers both pools. The returned cleanup callbacks must also be registered for shutdown.
+- **Both engines must be instrumented.** `ServerTelemetry.instrument_engine()` (`telemetry.py`) attaches OpenTelemetry tracing to each engine and returns a `Cleanup` handle. Call it for the replica engine too, so query telemetry covers both pools.
 
 - **Pool sizing.** Each engine gets its own SQLAlchemy connection pool (default: `QueuePool` with `pool_size=5`, `max_overflow=10`). Two engines means up to 30 connections total (15 per engine) by default. Operators can tune per-engine via URL parameters (e.g., `?pool_size=10&max_overflow=20`). Document that total max connections = primary pool + replica pool.
 

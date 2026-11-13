@@ -515,8 +515,6 @@ def _db(engine: AsyncEngine) -> Callable[[], AbstractAsyncContextManager[AsyncSe
         async with Session.begin() as session:
             yield session
 
-    if isinstance(engine, AsyncEngine):
-        setattr(factory, "_phoenix_engine", engine)
     return factory
 
 
@@ -697,7 +695,6 @@ def _lifespan(
     token_store: Optional[TokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
     lifespan_telemetry: Optional[LifespanServerTelemetry] = None,
-    borrowed_telemetry: Optional[ServerTelemetry] = None,
     enable_prometheus: bool = False,
     startup_callbacks: Iterable[_Callback] = (),
     shutdown_callbacks: Iterable[_Callback] = (),
@@ -715,15 +712,27 @@ def _lifespan(
     async def lifespan(app: FastAPI) -> AsyncIterator[dict[str, Any]]:
         cancelled = False
         primary_exc: Optional[BaseException] = None
+        entered_telemetry: Optional[ServerTelemetry] = None
         try:
             if lifespan_telemetry is not None:
-                active_telemetry = lifespan_telemetry.enter()
+                entered_telemetry = lifespan_telemetry.enter()
                 seen_engines: set[int] = set()
-                for session_maker in (db._db, db._read_db):
-                    candidate = getattr(session_maker, "_phoenix_engine", None)
-                    if isinstance(candidate, AsyncEngine) and id(candidate) not in seen_engines:
-                        seen_engines.add(id(candidate))
-                        active_telemetry.instrument_engine(candidate)
+
+                def _maybe_instrument_session_bind(session: AsyncSession) -> None:
+                    assert entered_telemetry is not None
+                    bind = getattr(session, "bind", None)
+                    engine: Any = (
+                        bind if isinstance(bind, AsyncEngine) else getattr(bind, "engine", None)
+                    )
+                    if isinstance(engine, AsyncEngine) and id(engine) not in seen_engines:
+                        seen_engines.add(id(engine))
+                        entered_telemetry.instrument_engine(engine)
+
+                async with db() as probe_session:
+                    _maybe_instrument_session_bind(probe_session)
+                if db._read_db is not db._db:
+                    async with db.read() as probe_read_session:
+                        _maybe_instrument_session_bind(probe_read_session)
             seed = await load_deployment_seed(db)
             effective_secret = secret or SecretStr("")
             app.state.redactor = Redactor(
@@ -865,39 +874,40 @@ def _lifespan(
             raise
         finally:
             shutdown_errors: list[Exception] = []
-            if cancelled:
-                if lifespan_telemetry is not None:
+            try:
+                if not cancelled:
+                    for callback in shutdown_callbacks:
+                        try:
+                            if isinstance((res := callback()), Awaitable):
+                                await res
+                        except Exception as exc:
+                            shutdown_errors.append(exc)
+                            logger.exception("Error while running server shutdown callback")
+            except asyncio.CancelledError as cancel_exc:
+                cancelled = True
+                if primary_exc is None:
+                    primary_exc = cancel_exc
+                raise
+            finally:
+                if lifespan_telemetry is not None and entered_telemetry is not None:
                     try:
-                        lifespan_telemetry.close(flush=False)
-                    except Exception as exc:
-                        shutdown_errors.append(exc)
-                if borrowed_telemetry is not None:
-                    try:
-                        borrowed_telemetry.close(flush=False)
-                    except Exception as exc:
-                        shutdown_errors.append(exc)
-            else:
-                for callback in shutdown_callbacks:
-                    try:
-                        if isinstance((res := callback()), Awaitable):
-                            await res
-                    except Exception as exc:
-                        shutdown_errors.append(exc)
-                        logger.exception("Error while running server shutdown callback")
-                if lifespan_telemetry is not None:
-                    try:
-                        await asyncio.to_thread(lifespan_telemetry.close)
+                        if cancelled:
+                            lifespan_telemetry.exit(entered_telemetry, flush=False)
+                        else:
+                            await asyncio.to_thread(
+                                partial(lifespan_telemetry.exit, entered_telemetry, flush=True)
+                            )
                     except Exception as exc:
                         shutdown_errors.append(exc)
                         logger.exception("Error while closing app-owned server telemetry")
-            if shutdown_errors:
-                if primary_exc is not None:
-                    for err in shutdown_errors:
-                        primary_exc.add_note(f"Server shutdown callback also failed: {err!r}")
-                else:
-                    raise_cleanup_errors(
-                        "One or more server shutdown callbacks failed", shutdown_errors
-                    )
+                if shutdown_errors:
+                    if primary_exc is not None:
+                        for err in shutdown_errors:
+                            primary_exc.add_note(f"Server shutdown callback also failed: {err!r}")
+                    else:
+                        raise_cleanup_errors(
+                            "One or more server shutdown callbacks failed", shutdown_errors
+                        )
 
     return lifespan
 
@@ -1116,17 +1126,16 @@ def create_app(
         CacheForDataLoaders() if db.dialect is SupportedSQLDialect.SQLITE else None
     )
     last_updated_at = LastUpdatedAt()
-    lifespan_telemetry = LifespanServerTelemetry() if server_telemetry is None else None
-    tracer_provider: Optional["TracerProvider"] = (
-        server_telemetry.tracer_provider
-        if server_telemetry is not None
-        else (lifespan_telemetry.tracer_provider if lifespan_telemetry is not None else None)
-    )
-    logger_provider: Optional["LoggerProvider"] = (
-        server_telemetry.logger_provider
-        if server_telemetry is not None
-        else (lifespan_telemetry.logger_provider if lifespan_telemetry is not None else None)
-    )
+    lifespan_telemetry: Optional[LifespanServerTelemetry] = None
+    tracer_provider: Optional["TracerProvider"]
+    logger_provider: Optional["LoggerProvider"]
+    if server_telemetry is not None:
+        tracer_provider = server_telemetry.tracer_provider
+        logger_provider = server_telemetry.logger_provider
+    else:
+        lifespan_telemetry = LifespanServerTelemetry()
+        tracer_provider = lifespan_telemetry.tracer_provider
+        logger_provider = lifespan_telemetry.logger_provider
     # Resolved before the middleware stack: the anonymous-surface path set feeds
     # both the CSRF origin validator below and AnonymousCorsMiddleware at the end
     # of this function, and it depends on whether the MCP endpoint is mounted
@@ -1269,7 +1278,6 @@ def create_app(
             token_store=token_store,
             tracer_provider=tracer_provider,
             lifespan_telemetry=lifespan_telemetry,
-            borrowed_telemetry=server_telemetry,
             enable_prometheus=enable_prometheus,
             shutdown_callbacks=shutdown_callbacks_list,
             startup_callbacks=startup_callbacks_list,

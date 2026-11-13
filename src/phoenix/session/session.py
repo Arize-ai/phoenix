@@ -12,6 +12,7 @@ from functools import partial
 from importlib.util import find_spec
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from threading import Thread
 from typing import TYPE_CHECKING, Awaitable, Callable, NamedTuple, Optional, Union
 from urllib.parse import urljoin
 
@@ -212,7 +213,8 @@ class ThreadSession(Session):
             notebook_env=notebook_env,
         )
         self._exit_stack = ExitStack()
-        self._exit_stack.callback(self._cleanup_temp_dir_if_stopped)
+        self._exit_stack.callback(self.temp_dir.cleanup)
+        self._thread_server: Optional[ThreadServer] = None
         try:
             auth_settings = get_env_auth_settings(self.host)
             server_telemetry = self._exit_stack.enter_context(ServerTelemetry.from_env())
@@ -252,32 +254,53 @@ class ThreadSession(Session):
                 email_sender=email_sender_from_env(),
                 **app_auth_kwargs(auth_settings),
             )
-            self.server = ThreadServer(
+            self._thread_server = ThreadServer(
                 app=self.app,
                 host=self.host,
                 port=self.port,
                 root_path=self.root_path,
-            ).run_in_thread()
+            )
+            self.server = self._thread_server.run_in_thread()
             # start the server
             self.server_thread = next(self.server)
         except BaseException as setup_err:
             try:
-                self._exit_stack.close()
+                self._close_exit_stack_safely()
             except Exception as cleanup_err:
                 setup_err.add_note(
                     f"Session cleanup after failed start also raised: {cleanup_err!r}"
                 )
             raise
 
-    def _cleanup_temp_dir_if_stopped(self) -> None:
-        server_thread = getattr(self, "server_thread", None)
-        if server_thread is not None and server_thread.is_alive():
+    def _close_exit_stack_safely(self) -> None:
+        thread = getattr(self, "server_thread", None)
+        if thread is None and self._thread_server is not None:
+            candidate = getattr(self._thread_server, "thread", None)
+            if isinstance(candidate, Thread):
+                thread = candidate
+        if thread is not None and thread.is_alive():
             logger.warning(
                 "Phoenix server thread is still running after shutdown timeout; "
-                "skipping temporary directory removal."
+                "deferring synchronous resource cleanup until the thread exits."
             )
+            if isinstance(thread, Thread):
+                exit_stack = self._exit_stack
+                self._exit_stack = ExitStack()
+
+                def _cleanup_after_exit() -> None:
+                    thread.join()
+                    try:
+                        exit_stack.close()
+                    except Exception:
+                        logger.exception("Error cleaning up deferred Phoenix session resources")
+
+                Thread(
+                    target=_cleanup_after_exit,
+                    name="phoenix-session-cleanup",
+                    daemon=True,
+                ).start()
             return
-        self.temp_dir.cleanup()
+        self._exit_stack.close()
 
     @property
     def active(self) -> bool:
@@ -287,13 +310,7 @@ class ThreadSession(Session):
         try:
             self.server.close()
         finally:
-            if self.server_thread.is_alive():
-                logger.warning(
-                    "Phoenix server thread is still running after shutdown timeout; "
-                    "skipping synchronous resource cleanup to avoid concurrent teardown."
-                )
-            else:
-                self._exit_stack.close()
+            self._close_exit_stack_safely()
 
 
 def delete_all(prompt_before_delete: Optional[bool] = True) -> None:

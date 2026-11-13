@@ -58,6 +58,7 @@ from phoenix.server.telemetry import (
     _OtelLoggingHandler,
     _server_resource,
     bind_server_span,
+    get_bound_server_span,
     instrument_sqlalchemy_engine,
     normalize_http_log_collector_endpoint,
     normalize_http_trace_collector_endpoint,
@@ -145,6 +146,17 @@ class TestGraphQLTracingExtension:
         async def counter(self) -> AsyncIterator[int]:
             yield 1
             yield 2
+
+        @strawberry.subscription
+        async def traced_counter(self) -> AsyncIterator[int]:
+            for value in (1, 2):
+                binding = get_bound_server_span()
+                assert binding is not None
+                _, provider = binding
+                provider.get_tracer("test").start_span(
+                    f"stream step {value}", context=resolve_server_parent_context(provider)
+                ).end()
+                yield value
 
     @pytest.fixture
     def exporter(self) -> InMemorySpanExporter:
@@ -304,6 +316,36 @@ class TestGraphQLTracingExtension:
         spans = self._spans(exporter)
         assert "GraphQL Query: Count" in spans
         assert "counter" in spans["GraphQL Query: Count"]["query"]
+
+    async def test_subscription_stream_work_is_parented_to_the_operation_span(
+        self, schema: strawberry.Schema, exporter: InMemorySpanExporter
+    ) -> None:
+        stream: Any = await schema.subscribe("subscription Traced { tracedCounter }")
+        values = [result.data async for result in stream]
+
+        assert values == [{"tracedCounter": 1}, {"tracedCounter": 2}]
+        spans = {span.name: span for span in exporter.get_finished_spans()}
+        operation = spans["GraphQL Query: Traced"]
+        for name in ("stream step 1", "stream step 2"):
+            parent = spans[name].parent
+            assert parent is not None
+            assert parent.span_id == operation.context.span_id
+
+    async def test_variable_redaction_is_scoped_per_operation(
+        self, schema: strawberry.Schema, exporter: InMemorySpanExporter
+    ) -> None:
+        document = (
+            'mutation Public($v: String! = "public-demo") { createProject(name: $v) }\n'
+            'mutation Secret($v: String! = "secret-note") { createUser('
+            'input: {email: "a@b.com", role: "ADMIN"}, note: $v) }'
+        )
+
+        result = await schema.execute(document, operation_name="Public")
+
+        assert result.errors is None
+        query = self._spans(exporter)["GraphQL Query: Public"]["query"]
+        assert '"public-demo"' in query
+        assert "secret-note" not in query
 
 
 def test_phoenix_schema_marks_user_and_credential_fields() -> None:
@@ -670,6 +712,12 @@ class TestGrpcServerTracing:
                 {"network.peer.address": "fe80::1%eth0", "network.peer.port": 54321},
             ),
             ("ipv6:[::1]", {"network.peer.address": "::1"}),
+            (
+                "ipv6:%5B::1%5D:49994",
+                {"network.peer.address": "::1", "network.peer.port": 49994},
+            ),
+            ("ipv6:[::1]x", {}),
+            ("ipv4:127.0.0.1:not-a-port", {}),
             (
                 "ipv4:10.0.0.1:4000,10.0.0.2:5000",
                 {"network.peer.address": "10.0.0.1", "network.peer.port": 4000},

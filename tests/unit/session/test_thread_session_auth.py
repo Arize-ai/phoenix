@@ -1,6 +1,5 @@
 import contextlib
 import os
-import socket
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Iterator
@@ -38,12 +37,6 @@ from tests.unit.conftest import (
     patch_dml_event_handler,
     patch_grpc_server,
 )
-
-
-def _free_port() -> int:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.bind(("127.0.0.1", 0))
-        return int(sock.getsockname()[1])
 
 
 def _fake_server_generator() -> Iterator[Mock]:
@@ -271,7 +264,7 @@ def test_launch_app_prints_auth_notice(
             patch.object(session_module, "_session", None),
         ):
             mock_server.return_value.run_in_thread.return_value = _fake_server_generator()
-            session = launch_app(port=_free_port())
+            session = launch_app()
             assert session is not None
             session.end()
     finally:

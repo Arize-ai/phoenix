@@ -20,21 +20,29 @@ def raise_cleanup_errors(message: str, errors: Sequence[Exception]) -> None:
 
 
 def run_cleanup_sync(callback: Callable[[], None | Awaitable[None]]) -> None:
-    """Run ``callback`` to completion, using a worker event loop if an awaitable is returned."""
-    result = callback()
-    if not isawaitable(result):
-        return
+    """Run ``callback`` to completion, using a worker event loop if an awaitable is returned.
 
-    async def _await_result() -> None:
-        await result
+    ``callback`` must construct any coroutine when called rather than returning a
+    pre-existing ``Future`` or ``Task`` already bound to another event loop.
+    """
+
+    async def _await_awaitable(awaitable: Awaitable[None]) -> None:
+        await awaitable
+
+    async def _invoke_and_await() -> None:
+        res = callback()
+        if isawaitable(res):
+            await res
 
     try:
         asyncio.get_running_loop()
     except RuntimeError:
-        asyncio.run(_await_result())
+        result = callback()
+        if isawaitable(result):
+            asyncio.run(_await_awaitable(result))
     else:
         with ThreadPoolExecutor(max_workers=1, thread_name_prefix="phoenix-cleanup") as executor:
-            executor.submit(lambda: asyncio.run(_await_result())).result()
+            executor.submit(lambda: asyncio.run(_invoke_and_await())).result()
 
 
 def dispose_engine_sync_fallback(engine: Any) -> None:

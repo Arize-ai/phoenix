@@ -12,6 +12,13 @@ deprecated ``LoggingHandler`` because:
    in-process OpenInference tracing for agents/evaluators). Upstream
    instrumentors always parent spans to the ambient OpenTelemetry ``Context``,
    which ``detached_otel_context()`` replaces during OpenInference runs.
+3. Upstream's replacement stdlib log handler lives in a ``0.XXbN`` pre-release
+   package excluded from production ``pyproject.toml`` dependencies.
+
+Note on multiple live apps in one Python process: ``ServerTelemetry.from_env()``
+attaches its ``_OtelLoggingHandler`` to Python's root logger when OTLP log export
+is enabled, so concurrent server instances in one process observe all root-logged
+records until closed.
 """
 
 from __future__ import annotations
@@ -28,7 +35,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
 from time import time_ns
-from typing import Any, Final, Self
+from typing import Any, Final, Self, TypeVar
 
 from opentelemetry import _logs as otel_logs
 from opentelemetry import context as otel_context
@@ -40,7 +47,7 @@ from opentelemetry._logs import NoOpLogger, NoOpLoggerProvider, SeverityNumber
 from opentelemetry.sdk._logs import LoggerProvider
 from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import ReadableSpan, SpanLimits, SpanProcessor
+from opentelemetry.sdk.trace import ReadableSpan, SpanProcessor
 from opentelemetry.sdk.trace import TracerProvider as SdkTracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.semconv.attributes.code_attributes import (
@@ -70,7 +77,6 @@ from opentelemetry.trace import (
     Tracer,
     TracerProvider,
 )
-from opentelemetry.util._decorator import _agnosticcontextmanager
 from opentelemetry.util.types import Attributes
 from sqlalchemy import URL, event
 from sqlalchemy.engine import Connection as SAConnection
@@ -85,7 +91,7 @@ from phoenix.config import (
     server_instrumentation_is_enabled,
     server_log_export_is_enabled,
 )
-from phoenix.server.lifecycle import raise_cleanup_errors
+from phoenix.server.lifecycle import Cleanup, raise_cleanup_errors
 from phoenix.version import __version__
 
 logger = logging.getLogger(__name__)
@@ -95,7 +101,7 @@ _OTLP_HTTP_TRACES_PATH: Final[str] = "/v1/traces"
 _OTLP_HTTP_LOGS_PATH: Final[str] = "/v1/logs"
 SCHEMA_URL: Final[str] = Schemas.V1_44_0.value
 _POSTGRESQL_DEFAULT_PORT: Final[int] = 5432
-_MAX_SPAN_ATTRIBUTE_LENGTH: Final[int] = 8192
+_MAX_DB_QUERY_TEXT_LENGTH: Final[int] = 8192
 _MAX_LOG_ATTR_DEPTH: Final[int] = 8
 
 _SUPPRESS_INSTRUMENTATION_KEY: Final[str | None] = getattr(
@@ -137,38 +143,55 @@ _PYTHON_TO_OTEL_SEVERITY_TEXT: Final[dict[str, str]] = {
     "CRITICAL": "FATAL",
 }
 
+_ProviderT = TypeVar("_ProviderT")
+
 
 class _ProviderSpanRegistry(SpanProcessor):
-    """Track live spans created by a specific ``SdkTracerProvider`` using public hooks."""
+    """Track spans created by a specific ``SdkTracerProvider`` using public hooks.
+
+    Entries are stored in a ``WeakKeyDictionary`` keyed by ``Span`` so memory is
+    bounded by reachable span objects rather than paired ``end()`` calls, and
+    ancestor sets are materialized at ``on_start`` for $O(1)$ descendant checks.
+    """
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._parent_by_span_id: dict[int, int | None] = {}
+        self._ancestors_by_span: weakref.WeakKeyDictionary[Span, frozenset[int]] = (
+            weakref.WeakKeyDictionary()
+        )
 
     def on_start(
         self,
         span: Span,
         parent_context: otel_context.Context | None = None,
     ) -> None:
-        span_id = span.get_span_context().span_id
-        parent = span.parent if isinstance(span, ReadableSpan) else None
-        parent_id = parent.span_id if parent is not None else None
+        parent_span = trace.get_current_span(parent_context)
+        parent_ctx = parent_span.get_span_context()
         with self._lock:
-            self._parent_by_span_id[span_id] = parent_id
+            try:
+                parent_ancestors = self._ancestors_by_span.get(parent_span)
+            except TypeError:
+                parent_ancestors = None
+            if parent_ancestors is not None:
+                ancestors = parent_ancestors | {parent_ctx.span_id}
+            elif parent_ctx.is_valid and not parent_ctx.is_remote:
+                ancestors = frozenset({parent_ctx.span_id})
+            else:
+                ancestors = frozenset()
+            with suppress(TypeError):
+                self._ancestors_by_span[span] = ancestors
 
     def on_end(self, span: ReadableSpan) -> None:
-        ctx = span.get_span_context()
-        if ctx is None:
-            return
-        with self._lock:
-            self._parent_by_span_id.pop(ctx.span_id, None)
+        return None
 
     def contains(self, span: Span) -> bool:
-        context = span.get_span_context()
-        if not context.is_valid:
+        if not span.get_span_context().is_valid:
             return False
         with self._lock:
-            return context.span_id in self._parent_by_span_id
+            try:
+                return span in self._ancestors_by_span
+            except TypeError:
+                return False
 
     def is_descendant(self, candidate: Span, ancestor: Span) -> bool:
         candidate_ctx = candidate.get_span_context()
@@ -180,17 +203,12 @@ class _ProviderSpanRegistry(SpanProcessor):
             or candidate_ctx.span_id == ancestor_ctx.span_id
         ):
             return False
-        target_id = ancestor_ctx.span_id
         with self._lock:
-            current_id: int | None = candidate_ctx.span_id
-            for _ in range(64):
-                if current_id is None or current_id not in self._parent_by_span_id:
-                    return False
-                parent_id = self._parent_by_span_id[current_id]
-                if parent_id == target_id:
-                    return True
-                current_id = parent_id
-        return False
+            try:
+                ancestors = self._ancestors_by_span.get(candidate)
+            except TypeError:
+                return False
+            return ancestors is not None and ancestor_ctx.span_id in ancestors
 
 
 _SPAN_REGISTRIES_LOCK = threading.Lock()
@@ -200,6 +218,10 @@ _SPAN_REGISTRIES: weakref.WeakKeyDictionary[Any, _ProviderSpanRegistry] = (
 
 
 def _ensure_span_registry(tracer_provider: TracerProvider) -> _ProviderSpanRegistry | None:
+    with suppress(TypeError):
+        existing = _SPAN_REGISTRIES.get(tracer_provider)
+        if existing is not None:
+            return existing
     add_processor = getattr(tracer_provider, "add_span_processor", None)
     if not callable(add_processor):
         return None
@@ -240,10 +262,33 @@ def exception_type_name(exception: BaseException) -> str:
     )
 
 
+def record_span_exception(
+    span: Span,
+    exception: BaseException,
+    *,
+    set_error_type: bool = True,
+) -> None:
+    """Record an exception event and ``ERROR`` status on ``span`` when recording."""
+    if not span.is_recording():
+        return
+    if set_error_type:
+        span.set_attribute(ERROR_TYPE, exception_type_name(exception))
+    span.record_exception(exception)
+    span.set_status(Status(StatusCode.ERROR, str(exception)))
+
+
 def _unwrap_tracer_provider(tracer_provider: TracerProvider | None) -> TracerProvider | None:
     if isinstance(tracer_provider, _LifespanTracerProvider):
         return tracer_provider.current_provider
     return tracer_provider
+
+
+def get_bound_server_span() -> tuple[Span, TracerProvider] | None:
+    """Return the ``(span, tracer_provider)`` currently bound in ``_CURRENT_SERVER_SPAN``."""
+    binding = _CURRENT_SERVER_SPAN.get()
+    if binding is None:
+        return None
+    return binding.span, binding.tracer_provider
 
 
 @contextmanager
@@ -272,17 +317,23 @@ def resolve_server_parent_context(
 ) -> otel_context.Context | None:
     """Return an OpenTelemetry ``Context`` carrying ``tracer_provider``'s active server span.
 
-    When a server span is bound in ``_CURRENT_SERVER_SPAN``, prefers an ambient
-    span only if it is a live descendant of that bound span on ``tracer_provider``
-    (such as FastAPI's ``fastapi.endpoint`` inside ``GET /path``), and otherwise
-    uses the bound span itself.
+    Selection rule:
+    1. When a server span is bound in ``_CURRENT_SERVER_SPAN`` for ``tracer_provider``,
+       prefer the ambient OTel span only if it is a descendant of that bound span on
+       ``tracer_provider`` (such as FastAPI's ``fastapi.endpoint`` inside ``GET /path``),
+       and otherwise use the bound span itself.
+    2. When nothing is bound in ``_CURRENT_SERVER_SPAN``, accept the ambient span if
+       it was created by ``tracer_provider`` (including spans kept current with
+       ``end_on_exit=False`` until detached).
     """
     active_provider = _unwrap_tracer_provider(tracer_provider)
     if active_provider is None:
         return None
     ambient_span = trace.get_current_span()
     binding = _CURRENT_SERVER_SPAN.get()
-    registry = _SPAN_REGISTRIES.get(active_provider)
+    registry: _ProviderSpanRegistry | None = None
+    with suppress(TypeError):
+        registry = _SPAN_REGISTRIES.get(active_provider)
     if binding is not None and binding.tracer_provider is active_provider:
         if registry is not None and registry.is_descendant(ambient_span, binding.span):
             return trace.set_span_in_context(ambient_span, otel_context.Context())
@@ -360,15 +411,7 @@ class _OtelLoggingHandler(logging.Handler):
             if self.formatter is not None:
                 body: Any = self.format(record)
             elif not record.args and not isinstance(record.msg, str):
-                body = (
-                    record.msg
-                    if isinstance(record.msg, (type(None), bool, bytes, int, float))
-                    or (
-                        isinstance(record.msg, (Sequence, Mapping))
-                        and not isinstance(record.msg, bytearray)
-                    )
-                    else str(record.msg)
-                )
+                body = None if record.msg is None else _coerce_otel_attribute_value(record.msg)
             else:
                 body = record.getMessage()
 
@@ -432,77 +475,97 @@ def _server_resource() -> Resource:
     )
 
 
+def _build_otlp_provider(
+    *,
+    label: str,
+    endpoint_noun: str,
+    create_provider: Callable[[], _ProviderT],
+    shutdown_provider: Callable[[_ProviderT], None],
+    http_env_var: str,
+    grpc_env_var: str,
+    attach_http: Callable[[_ProviderT, str], None],
+    attach_grpc: Callable[[_ProviderT, str], None],
+) -> _ProviderT:
+    logger.info(f"Initializing OpenTelemetry {label} provider")
+    with ExitStack() as stack:
+        provider = create_provider()
+        stack.callback(shutdown_provider, provider)
+        if http_endpoint := os.getenv(http_env_var):
+            logger.info(f"Using HTTP {endpoint_noun} endpoint: {http_endpoint}")
+            attach_http(provider, http_endpoint)
+        if grpc_endpoint := os.getenv(grpc_env_var):
+            logger.info(f"Using gRPC {endpoint_noun} endpoint: {grpc_endpoint}")
+            attach_grpc(provider, grpc_endpoint)
+        logger.info(f"🔭 OpenTelemetry {label} provider initialized")
+        stack.pop_all()
+        return provider
+
+
 def initialize_opentelemetry_tracer_provider() -> SdkTracerProvider:
     """Construct the server's ``SdkTracerProvider`` with configured OTLP span exporters."""
-    logger.info("Initializing OpenTelemetry tracer provider")
-    with ExitStack() as stack:
-        tracer_provider = SdkTracerProvider(
-            resource=_server_resource(),
-            shutdown_on_exit=False,
-            span_limits=SpanLimits(max_attribute_length=_MAX_SPAN_ATTRIBUTE_LENGTH),
+
+    def _create() -> SdkTracerProvider:
+        provider = SdkTracerProvider(resource=_server_resource(), shutdown_on_exit=False)
+        _ensure_span_registry(provider)
+        return provider
+
+    def _attach_http(provider: SdkTracerProvider, endpoint: str) -> None:
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
+            OTLPSpanExporter as HttpExporter,
         )
-        stack.callback(tracer_provider.shutdown)
-        _ensure_span_registry(tracer_provider)
-        if http_endpoint := os.getenv(
-            ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT
-        ):
-            logger.info(f"Using HTTP collector endpoint: {http_endpoint}")
-            from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
-                OTLPSpanExporter as HttpExporter,
-            )
 
-            tracer_provider.add_span_processor(
-                BatchSpanProcessor(
-                    HttpExporter(normalize_http_trace_collector_endpoint(http_endpoint))
-                )
-            )
-        if grpc_endpoint := os.getenv(
-            ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT
-        ):
-            logger.info(f"Using gRPC collector endpoint: {grpc_endpoint}")
-            from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
-                OTLPSpanExporter as GrpcExporter,
-            )
+        provider.add_span_processor(
+            BatchSpanProcessor(HttpExporter(normalize_http_trace_collector_endpoint(endpoint)))
+        )
 
-            tracer_provider.add_span_processor(BatchSpanProcessor(GrpcExporter(grpc_endpoint)))
-        logger.info("🔭 OpenTelemetry tracer provider initialized")
-        stack.pop_all()
-        return tracer_provider
+    def _attach_grpc(provider: SdkTracerProvider, endpoint: str) -> None:
+        from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+            OTLPSpanExporter as GrpcExporter,
+        )
+
+        provider.add_span_processor(BatchSpanProcessor(GrpcExporter(endpoint)))
+
+    return _build_otlp_provider(
+        label="tracer",
+        endpoint_noun="collector",
+        create_provider=_create,
+        shutdown_provider=SdkTracerProvider.shutdown,
+        http_env_var=ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT,
+        grpc_env_var=ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT,
+        attach_http=_attach_http,
+        attach_grpc=_attach_grpc,
+    )
 
 
 def initialize_opentelemetry_logger_provider() -> LoggerProvider:
     """Construct the server's ``LoggerProvider`` with configured OTLP log exporters."""
-    logger.info("Initializing OpenTelemetry logger provider")
-    with ExitStack() as stack:
-        logger_provider = LoggerProvider(resource=_server_resource(), shutdown_on_exit=False)
-        stack.callback(logger_provider.shutdown)
-        if http_endpoint := os.getenv(
-            ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_HTTP_ENDPOINT
-        ):
-            logger.info(f"Using HTTP log collector endpoint: {http_endpoint}")
-            from opentelemetry.exporter.otlp.proto.http._log_exporter import (
-                OTLPLogExporter as HttpExporter,
-            )
 
-            logger_provider.add_log_record_processor(
-                BatchLogRecordProcessor(
-                    HttpExporter(normalize_http_log_collector_endpoint(http_endpoint))
-                )
-            )
-        if grpc_endpoint := os.getenv(
-            ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_GRPC_ENDPOINT
-        ):
-            logger.info(f"Using gRPC log collector endpoint: {grpc_endpoint}")
-            from opentelemetry.exporter.otlp.proto.grpc._log_exporter import (
-                OTLPLogExporter as GrpcExporter,
-            )
+    def _attach_http(provider: LoggerProvider, endpoint: str) -> None:
+        from opentelemetry.exporter.otlp.proto.http._log_exporter import (
+            OTLPLogExporter as HttpExporter,
+        )
 
-            logger_provider.add_log_record_processor(
-                BatchLogRecordProcessor(GrpcExporter(grpc_endpoint))
-            )
-        logger.info("🔭 OpenTelemetry logger provider initialized")
-        stack.pop_all()
-        return logger_provider
+        provider.add_log_record_processor(
+            BatchLogRecordProcessor(HttpExporter(normalize_http_log_collector_endpoint(endpoint)))
+        )
+
+    def _attach_grpc(provider: LoggerProvider, endpoint: str) -> None:
+        from opentelemetry.exporter.otlp.proto.grpc._log_exporter import (
+            OTLPLogExporter as GrpcExporter,
+        )
+
+        provider.add_log_record_processor(BatchLogRecordProcessor(GrpcExporter(endpoint)))
+
+    return _build_otlp_provider(
+        label="logger",
+        endpoint_noun="log collector",
+        create_provider=lambda: LoggerProvider(resource=_server_resource(), shutdown_on_exit=False),
+        shutdown_provider=LoggerProvider.shutdown,
+        http_env_var=ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_HTTP_ENDPOINT,
+        grpc_env_var=ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_GRPC_ENDPOINT,
+        attach_http=_attach_http,
+        attach_grpc=_attach_grpc,
+    )
 
 
 class ServerTelemetry:
@@ -524,14 +587,23 @@ class ServerTelemetry:
         self._closed = False
 
     @classmethod
-    def from_env(cls) -> Self:
+    def from_env(
+        cls,
+        *,
+        enable_tracing: bool | None = None,
+        enable_logging: bool | None = None,
+    ) -> Self:
         """Construct server telemetry from ``PHOENIX_SERVER_INSTRUMENTATION_OTLP_*`` env vars."""
+        tracing_on = (
+            server_instrumentation_is_enabled() if enable_tracing is None else enable_tracing
+        )
+        logging_on = server_log_export_is_enabled() if enable_logging is None else enable_logging
         telemetry = cls()
         try:
-            if server_instrumentation_is_enabled():
+            if tracing_on:
                 telemetry.tracer_provider = initialize_opentelemetry_tracer_provider()
                 _ensure_span_registry(telemetry.tracer_provider)
-            if server_log_export_is_enabled():
+            if logging_on:
                 logger_provider = initialize_opentelemetry_logger_provider()
                 telemetry.logger_provider = logger_provider
                 handler = _OtelLoggingHandler(
@@ -551,21 +623,28 @@ class ServerTelemetry:
             raise
         return telemetry
 
-    def instrument_engine(self, engine: AsyncEngine) -> Callable[[], None]:
-        """Instrument ``engine`` when server tracing is enabled and register cleanup on close."""
+    def instrument_engine(self, engine: AsyncEngine) -> Cleanup:
+        """Instrument ``engine`` when server tracing is enabled and return a ``Cleanup`` handle."""
         with self._lock:
             if self._closed:
                 raise RuntimeError("Cannot instrument engine on closed ServerTelemetry")
             if self.tracer_provider is None:
-                return lambda: None
+                return Cleanup(lambda: None)
             uninstrument = instrument_sqlalchemy_engine(
                 engine, tracer_provider=self.tracer_provider
             )
-            self._cleanups.append(uninstrument)
-            return uninstrument
+            cleanup = Cleanup(uninstrument)
+            self._cleanups.append(cleanup.close)
+            return cleanup
 
     def close(self, *, flush: bool = True) -> None:
-        """Detach engine listeners, remove the root log handler, and shut down providers."""
+        """Detach engine listeners, remove the root log handler, and shut down providers.
+
+        When ``flush=False`` (e.g. during task cancellation), synchronous listener
+        and log-handler removal happen immediately while provider shutdown runs on
+        a daemon thread so batch processor threads and transports do not leak or
+        block the caller.
+        """
         with self._lock:
             if self._closed:
                 return
@@ -574,33 +653,62 @@ class ServerTelemetry:
             self._cleanups.clear()
             handler = self._log_handler
             self._log_handler = None
+            tracer_provider = self.tracer_provider
+            logger_provider = self.logger_provider
 
-            errors: list[Exception] = []
-            for cleanup in cleanups:
+        errors: list[Exception] = []
+        base_exc: BaseException | None = None
+        for cleanup in cleanups:
+            try:
+                cleanup()
+            except Exception as exc:
+                errors.append(exc)
+                logger.exception("Error while detaching server telemetry listener")
+            except BaseException as exc:
+                if base_exc is None:
+                    base_exc = exc
+
+        if handler is not None:
+            logging.getLogger().removeHandler(handler)
+
+        def _shutdown_providers(*, collect_errors: bool) -> None:
+            nonlocal base_exc
+            if tracer_provider is not None:
                 try:
-                    cleanup()
+                    tracer_provider.shutdown()
                 except Exception as exc:
-                    errors.append(exc)
-                    logger.exception("Error while detaching server telemetry listener")
-
-            if handler is not None:
-                logging.getLogger().removeHandler(handler)
-
-            if flush and self.tracer_provider is not None:
-                try:
-                    self.tracer_provider.shutdown()
-                except Exception as exc:
-                    errors.append(exc)
+                    if collect_errors:
+                        errors.append(exc)
                     logger.exception("Error shutting down server tracer provider")
-
-            if flush and self.logger_provider is not None:
+                except BaseException as exc:
+                    if collect_errors and base_exc is None:
+                        base_exc = exc
+            if logger_provider is not None:
                 try:
-                    self.logger_provider.shutdown()
+                    logger_provider.shutdown()
                 except Exception as exc:
-                    errors.append(exc)
+                    if collect_errors:
+                        errors.append(exc)
                     logger.exception("Error shutting down server logger provider")
+                except BaseException as exc:
+                    if collect_errors and base_exc is None:
+                        base_exc = exc
 
-            raise_cleanup_errors("Failed to close server telemetry cleanly", errors)
+        if flush and base_exc is None:
+            _shutdown_providers(collect_errors=True)
+        elif tracer_provider is not None or logger_provider is not None:
+            threading.Thread(
+                target=_shutdown_providers,
+                kwargs={"collect_errors": False},
+                name="phoenix-telemetry-shutdown",
+                daemon=True,
+            ).start()
+
+        if base_exc is not None:
+            for err in errors:
+                base_exc.add_note(f"Cleanup also raised: {err!r}")
+            raise base_exc
+        raise_cleanup_errors("Failed to close server telemetry cleanly", errors)
 
     def __enter__(self) -> Self:
         return self
@@ -623,15 +731,29 @@ class _DelegatingTracer(Tracer):
         self._version = instrumenting_library_version
         self._schema_url = schema_url
         self._attributes = attributes
+        self._cached: tuple[SdkTracerProvider, Tracer] | None = None
+        self._noop = NoOpTracerProvider().get_tracer(
+            instrumenting_module_name,
+            instrumenting_library_version,
+            schema_url,
+            attributes,
+        )
 
     def _target(self) -> Tracer:
-        provider = self._owner.current_provider or NoOpTracerProvider()
-        return provider.get_tracer(
+        provider = self._owner.current_provider
+        if provider is None:
+            return self._noop
+        cached = self._cached
+        if cached is not None and cached[0] is provider:
+            return cached[1]
+        target = provider.get_tracer(
             self._module_name,
             self._version,
             self._schema_url,
             self._attributes,
         )
+        self._cached = (provider, target)
+        return target
 
     def start_span(
         self,
@@ -655,7 +777,6 @@ class _DelegatingTracer(Tracer):
             set_status_on_exception=set_status_on_exception,
         )
 
-    @_agnosticcontextmanager
     def start_as_current_span(
         self,
         name: str,
@@ -667,8 +788,8 @@ class _DelegatingTracer(Tracer):
         record_exception: bool = True,
         set_status_on_exception: bool = True,
         end_on_exit: bool = True,
-    ) -> Generator[Span, None, None]:
-        with self._target().start_as_current_span(
+    ) -> Any:
+        return self._target().start_as_current_span(
             name=name,
             context=context,
             kind=kind,
@@ -678,8 +799,7 @@ class _DelegatingTracer(Tracer):
             record_exception=record_exception,
             set_status_on_exception=set_status_on_exception,
             end_on_exit=end_on_exit,
-        ) as span:
-            yield span
+        )
 
 
 class _LifespanTracerProvider(TracerProvider):
@@ -720,10 +840,19 @@ class _DelegatingLogger(ApiLogger):
     ) -> None:
         super().__init__(name, version, schema_url, attributes)
         self._owner = owner
+        self._cached: tuple[LoggerProvider, ApiLogger] | None = None
+        self._noop = NoOpLoggerProvider().get_logger(name, version, schema_url, attributes)
 
     def _target(self) -> ApiLogger:
-        provider: ApiLoggerProvider = self._owner.current_provider or NoOpLoggerProvider()
-        return provider.get_logger(self._name, self._version, self._schema_url, self._attributes)
+        provider = self._owner.current_provider
+        if provider is None:
+            return self._noop
+        cached = self._cached
+        if cached is not None and cached[0] is provider:
+            return cached[1]
+        target = provider.get_logger(self._name, self._version, self._schema_url, self._attributes)
+        self._cached = (provider, target)
+        return target
 
     def enabled(
         self,
@@ -800,24 +929,33 @@ class LifespanServerTelemetry:
     """Create a fresh ``ServerTelemetry`` per ASGI lifespan for direct ``create_app`` calls."""
 
     def __init__(self) -> None:
+        self._lock = threading.Lock()
         self.current: ServerTelemetry | None = None
+        self._enable_tracing = server_instrumentation_is_enabled()
+        self._enable_logging = server_log_export_is_enabled()
         self.tracer_provider: TracerProvider | None = (
-            _LifespanTracerProvider(self) if server_instrumentation_is_enabled() else None
+            _LifespanTracerProvider(self) if self._enable_tracing else None
         )
         self.logger_provider: ApiLoggerProvider | None = (
-            _LifespanLoggerProvider(self) if server_log_export_is_enabled() else None
+            _LifespanLoggerProvider(self) if self._enable_logging else None
         )
 
     def enter(self) -> ServerTelemetry:
-        telemetry = ServerTelemetry.from_env()
-        self.current = telemetry
+        telemetry = ServerTelemetry.from_env(
+            enable_tracing=self._enable_tracing,
+            enable_logging=self._enable_logging,
+        )
+        with self._lock:
+            self.current = telemetry
         return telemetry
 
-    def close(self, *, flush: bool = True) -> None:
-        telemetry = self.current
-        self.current = None
-        if telemetry is not None:
-            telemetry.close(flush=flush)
+    def exit(self, telemetry: ServerTelemetry | None, *, flush: bool = True) -> None:
+        if telemetry is None:
+            return
+        with self._lock:
+            if self.current is telemetry:
+                self.current = None
+        telemetry.close(flush=flush)
 
 
 def _extract_sql_operation(statement: str) -> str | None:
@@ -832,15 +970,15 @@ def _extract_sql_operation(statement: str) -> str | None:
     return keyword
 
 
-def _sanitize_db_namespace(db_system_name: str, raw_database: str | None) -> str | None:
-    if not raw_database:
+def _sanitize_db_namespace(db_system_name: str, database: str | None) -> str | None:
+    if not database:
         return None
     if db_system_name != "sqlite":
-        return raw_database
-    target = raw_database.removeprefix("file:").split("?", 1)[0]
-    if target == ":memory:" or not target:
-        return ":memory:" if ":memory:" in raw_database else None
-    return Path(target).name or None
+        return database
+    if database == ":memory:" or database.startswith("file::memory:"):
+        return ":memory:"
+    name = Path(database).name
+    return name or None
 
 
 def _format_sql_target(
@@ -943,41 +1081,13 @@ class _SqlAlchemyEngineTracer:
         self._in_flight_spans: weakref.WeakKeyDictionary[
             SAConnection, list[tuple[object, Span]]
         ] = weakref.WeakKeyDictionary()
-        self._record_to_proxy: weakref.WeakKeyDictionary[Any, Any] = weakref.WeakKeyDictionary()
-        self._proxy_to_conn: weakref.WeakKeyDictionary[Any, SAConnection] = (
-            weakref.WeakKeyDictionary()
-        )
         self._listeners: list[tuple[str, Callable[..., Any]]] = [
-            ("checkout", self._on_checkout),
             ("before_cursor_execute", self._before_cursor_execute),
             ("after_cursor_execute", self._after_cursor_execute),
             ("handle_error", self._handle_error),
-            ("checkin", self._on_checkin),
         ]
         for identifier, fn in self._listeners:
             event.listen(self._sync_engine, identifier, fn)
-
-    def _on_checkout(
-        self, dbapi_connection: Any, connection_record: Any, connection_proxy: Any
-    ) -> None:
-        if connection_record is not None and connection_proxy is not None:
-            self._record_to_proxy[connection_record] = connection_proxy
-
-    def _on_checkin(self, dbapi_connection: Any, connection_record: Any) -> None:
-        if connection_record is None:
-            return
-        proxy = self._record_to_proxy.pop(connection_record, None)
-        if proxy is None:
-            return
-        connection = self._proxy_to_conn.get(proxy)
-        if connection is None or connection.in_transaction():
-            return
-        # ``BaseException`` (e.g. ``asyncio.CancelledError``) bypasses SQLAlchemy's
-        # ``after_cursor_execute`` and ``handle_error``; end any orphaned spans as ``UNSET``.
-        spans = self._in_flight_spans.pop(connection, None)
-        if spans:
-            for _, span in reversed(spans):
-                span.end()
 
     def _before_cursor_execute(
         self,
@@ -1012,10 +1122,7 @@ class _SqlAlchemyEngineTracer:
                 span.set_attribute(DB_OPERATION_NAME, operation_name)
             if batch_size is not None:
                 span.set_attribute(DB_OPERATION_BATCH_SIZE, batch_size)
-            span.set_attribute(DB_QUERY_TEXT, statement[:_MAX_SPAN_ATTRIBUTE_LENGTH])
-        if not connection.invalidated and not connection.closed:
-            with suppress(Exception):
-                self._proxy_to_conn[connection.connection] = connection
+            span.set_attribute(DB_QUERY_TEXT, statement[:_MAX_DB_QUERY_TEXT_LENGTH])
         self._in_flight_spans.setdefault(connection, []).append((tag, span))
 
     def _after_cursor_execute(
@@ -1056,13 +1163,13 @@ class _SqlAlchemyEngineTracer:
         if not spans:
             self._in_flight_spans.pop(connection, None)
         exception = exception_context.original_exception
+        # SQLAlchemy catches ``BaseException`` in ``_exec_single_context`` and dispatches
+        # ``handle_error`` for ``CancelledError`` too; leave cancelled spans ``UNSET``.
         if span.is_recording() and not isinstance(exception, asyncio.CancelledError):
             status_code = _extract_db_status_code(exception)
             if status_code is not None:
                 span.set_attribute(DB_RESPONSE_STATUS_CODE, status_code)
-            span.set_attribute(ERROR_TYPE, exception_type_name(exception))
-            span.record_exception(exception)
-            span.set_status(Status(StatusCode.ERROR, str(exception)))
+            record_span_exception(span, exception)
         span.end()
 
     def uninstrument(self) -> None:
@@ -1080,13 +1187,7 @@ def instrument_sqlalchemy_engine(
 
     Emits stabilized OpenTelemetry database semantic convention attributes
     (``Schemas.V1_44_0``) when an active parent span belonging to
-    ``tracer_provider`` is present and instrumentation is unsuppressed.
-
-    Args:
-        engine: The SQLAlchemy async engine whose cursor executions should be traced.
-        tracer_provider: The server's OpenTelemetry ``TracerProvider``.
-
-    Returns:
-        An idempotent cleanup callable that removes the listeners from ``engine``.
+    ``tracer_provider`` is bound or current, and returns an idempotent callback
+    that removes only this engine's listeners.
     """
     return _SqlAlchemyEngineTracer(engine, tracer_provider=tracer_provider).uninstrument

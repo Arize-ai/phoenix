@@ -396,6 +396,11 @@ services:
     volumes:
       - ./tempo.yml:/etc/tempo/tempo.yml:ro
       - dev_tempo_data:/var/tempo
+    healthcheck:
+      test: ["CMD", "/usr/bin/wget", "-q", "--spider", "http://127.0.0.1:3200/status/version"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     labels:
       - "traefik.enable=false"
       - "service.name=tempo"
@@ -417,6 +422,11 @@ services:
     volumes:
       - ./loki.yml:/etc/loki/loki.yml:ro
       - dev_loki_data:/loki
+    healthcheck:
+      test: ["CMD", "/busybox/wget", "-q", "--spider", "http://127.0.0.1:3100/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     labels:
       - "traefik.enable=false"
       - "service.name=loki"
@@ -430,8 +440,10 @@ services:
     restart: unless-stopped
     command: ["--config=/etc/otelcol/config.yml"]
     depends_on:
-      - tempo
-      - loki
+      tempo:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
     expose:
       - "4317"
       - "4318"

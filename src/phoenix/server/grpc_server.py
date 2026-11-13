@@ -5,6 +5,14 @@ Phoenix uses an instance-scoped ``TracingServerInterceptor`` rather than
 process-wide singleton that monkey-patches ``grpc.aio.server``, does not bind
 Phoenix's explicit server-span ``ContextVar`` across OpenInference context
 detachment, and is published only as a ``0.XXbN`` pre-release package.
+
+Design boundaries:
+- Inbound ``traceparent`` / ``tracestate`` metadata is extracted via W3C
+  ``TraceContextTextMapPropagator`` (ignoring ``OTEL_PROPAGATORS`` and ``baggage``)
+  before ``ApiKeyInterceptor`` runs, matching upstream ``GrpcAioInstrumentorServer``
+  so parent-based sampling and distributed traces cover authentication rejections.
+- Unhandled servicer exceptions record ``str(exception)`` and stack traces on the
+  server span per OpenTelemetry RPC semantic conventions.
 """
 
 from __future__ import annotations
@@ -57,8 +65,8 @@ from phoenix.server.bearer_auth import ApiKeyInterceptor
 from phoenix.server.telemetry import (
     SCHEMA_URL,
     bind_server_span,
-    exception_type_name,
     is_otel_instrumentation_suppressed,
+    record_span_exception,
 )
 from phoenix.trace.otel import decode_otlp_span
 from phoenix.trace.schemas import Span
@@ -71,6 +79,7 @@ if TYPE_CHECKING:
 ProjectName: TypeAlias = str
 
 _RPC_OTHER_METHOD: Final[str] = "_OTHER"
+_MAX_RPC_METHOD_ORIGINAL_LENGTH: Final[int] = 255
 _TRACE_CONTEXT_PROPAGATOR: Final[TraceContextTextMapPropagator] = TraceContextTextMapPropagator()
 
 _KNOWN_GRPC_METHODS: Final[frozenset[str]] = frozenset(
@@ -92,6 +101,15 @@ _GRPC_SERVER_ERROR_CODES: Final[frozenset[grpc.StatusCode]] = frozenset(
 )
 
 
+def _network_peer_dict(address: str, port_str: str) -> dict[str, str | int]:
+    if not address:
+        return {}
+    attrs: dict[str, str | int] = {NETWORK_PEER_ADDRESS: address}
+    if port_str:
+        attrs[NETWORK_PEER_PORT] = int(port_str)
+    return attrs
+
+
 def _peer_attributes(peer: str | None) -> dict[str, str | int]:
     if not peer:
         return {}
@@ -100,33 +118,28 @@ def _peer_attributes(peer: str | None) -> dict[str, str | int]:
         socket_path = unquote(first_peer.removeprefix("unix:"))
         return {NETWORK_PEER_ADDRESS: socket_path} if socket_path else {}
     if first_peer.startswith("ipv6:"):
-        endpoint = first_peer.removeprefix("ipv6:")
+        # gRPC C-core URI-encodes IPv6 brackets (e.g. ``ipv6:%5B::1%5D:49994``).
+        endpoint = unquote(first_peer.removeprefix("ipv6:"))
         if endpoint.startswith("["):
             bracket_end = endpoint.find("]")
             if bracket_end <= 1:
                 return {}
-            address = unquote(endpoint[1:bracket_end])
+            address = endpoint[1:bracket_end]
             remainder = endpoint[bracket_end + 1 :]
-            port_str = remainder.removeprefix(":") if remainder.startswith(":") else ""
-        else:
-            address = unquote(endpoint)
-            port_str = ""
-        if not address:
+            if not remainder:
+                return _network_peer_dict(address, "")
+            if remainder.startswith(":") and remainder[1:].isdigit():
+                return _network_peer_dict(address, remainder[1:])
             return {}
-        attrs: dict[str, str | int] = {NETWORK_PEER_ADDRESS: address}
-        if port_str.isdigit():
-            attrs[NETWORK_PEER_PORT] = int(port_str)
-        return attrs
+        return _network_peer_dict(endpoint, "")
     if first_peer.startswith("ipv4:"):
-        endpoint = first_peer.removeprefix("ipv4:")
+        endpoint = unquote(first_peer.removeprefix("ipv4:"))
         host, separator, port_str = endpoint.rpartition(":")
-        address = unquote(host if separator else endpoint)
-        if not address:
-            return {}
-        attrs = {NETWORK_PEER_ADDRESS: address}
-        if separator and port_str.isdigit():
-            attrs[NETWORK_PEER_PORT] = int(port_str)
-        return attrs
+        if separator:
+            if not port_str.isdigit():
+                return {}
+            return _network_peer_dict(host, port_str)
+        return _network_peer_dict(endpoint, "")
     return {}
 
 
@@ -192,7 +205,13 @@ class TracingServerInterceptor(AsyncServerInterceptor):
             schema_url=SCHEMA_URL,
         )
 
-    def _method_span_spec(self, method_name: str) -> tuple[str, dict[str, str | int]]:
+    def _prepare_rpc_span(
+        self,
+        method_name: str,
+        metadata: Iterable[tuple[str, str | bytes]] | None,
+        peer: str | None = None,
+    ) -> tuple[str, otel_context.Context, dict[str, str | int]]:
+        parent_context = _extract_parent_context(metadata)
         normalized_method = method_name.lstrip("/")
         if normalized_method in self._known_methods:
             rpc_method = normalized_method
@@ -205,8 +224,10 @@ class TracingServerInterceptor(AsyncServerInterceptor):
             RPC_METHOD: rpc_method,
         }
         if rpc_method == _RPC_OTHER_METHOD and normalized_method:
-            attributes[RPC_METHOD_ORIGINAL] = normalized_method
-        return span_name, attributes
+            attributes[RPC_METHOD_ORIGINAL] = normalized_method[:_MAX_RPC_METHOD_ORIGINAL_LENGTH]
+        if peer is not None:
+            attributes.update(_peer_attributes(peer))
+        return span_name, parent_context, attributes
 
     @override
     async def intercept_service(
@@ -217,8 +238,11 @@ class TracingServerInterceptor(AsyncServerInterceptor):
         next_handler = await continuation(handler_call_details)
         if next_handler is None:
             if not is_otel_instrumentation_suppressed():
-                parent_context = _extract_parent_context(handler_call_details.invocation_metadata)
-                span_name, attributes = self._method_span_spec(handler_call_details.method or "")
+                # ``grpc.HandlerCallDetails`` exposes only ``method`` and ``invocation_metadata``.
+                span_name, parent_context, attributes = self._prepare_rpc_span(
+                    handler_call_details.method or "",
+                    handler_call_details.invocation_metadata,
+                )
                 span = self._tracer.start_span(
                     span_name,
                     context=parent_context,
@@ -246,63 +270,58 @@ class TracingServerInterceptor(AsyncServerInterceptor):
     ) -> Any:
         if is_otel_instrumentation_suppressed():
             return await method(request_or_iterator, context)
-        parent_context = _extract_parent_context(context.invocation_metadata())
-        span_name, attributes = self._method_span_spec(method_name)
-        attributes.update(_peer_attributes(context.peer()))
-
-        token = otel_context.attach(parent_context)
-        try:
-            with self._tracer.start_as_current_span(
+        span_name, parent_context, attributes = self._prepare_rpc_span(
+            method_name,
+            context.invocation_metadata(),
+            peer=context.peer(),
+        )
+        with (
+            self._tracer.start_as_current_span(
                 span_name,
+                context=parent_context,
                 kind=SpanKind.SERVER,
                 attributes=attributes,
                 record_exception=False,
                 set_status_on_exception=False,
-            ) as span:
-                with bind_server_span(span, self._tracer_provider):
-                    try:
-                        call_result = method(request_or_iterator, context)
-                        if inspect.isasyncgen(call_result):
-                            raise TypeError(
-                                "TracingServerInterceptor only supports unary RPC responses"
-                            )
-                        response = await call_result
-                        if inspect.isasyncgen(response):
-                            raise TypeError(
-                                "TracingServerInterceptor only supports unary RPC responses"
-                            )
-                    except grpc.aio.AbortError:
-                        _record_grpc_status(
-                            span,
-                            context.code() or grpc.StatusCode.UNKNOWN,
-                            context.details(),
-                        )
-                        raise
-                    except asyncio.CancelledError:
-                        remaining = context.time_remaining()
-                        if isinstance(remaining, (int, float)) and remaining <= 0:
-                            _record_grpc_status(span, grpc.StatusCode.DEADLINE_EXCEEDED, None)
-                        elif span.is_recording():
-                            span.set_attribute(
-                                RPC_RESPONSE_STATUS_CODE, grpc.StatusCode.CANCELLED.name
-                            )
-                        raise
-                    except Exception as exception:
-                        status_code = context.code() or grpc.StatusCode.UNKNOWN
-                        if span.is_recording():
-                            span.record_exception(exception)
-                            span.set_attribute(RPC_RESPONSE_STATUS_CODE, status_code.name)
-                            span.set_attribute(ERROR_TYPE, exception_type_name(exception))
-                            span.set_status(Status(StatusCode.ERROR, str(exception)))
-                        raise
-                    _record_grpc_status(
-                        span,
-                        context.code() or grpc.StatusCode.OK,
-                        context.details(),
-                    )
-                    return response
-        finally:
-            otel_context.detach(token)
+            ) as span,
+            bind_server_span(span, self._tracer_provider),
+        ):
+            try:
+                call_result = method(request_or_iterator, context)
+                if inspect.isasyncgen(call_result):
+                    raise TypeError("TracingServerInterceptor only supports unary RPC responses")
+                response = await call_result
+            except grpc.aio.AbortError:
+                _record_grpc_status(
+                    span,
+                    context.code() or grpc.StatusCode.UNKNOWN,
+                    context.details(),
+                )
+                raise
+            except asyncio.CancelledError:
+                remaining = context.time_remaining()
+                cancel_status = (
+                    grpc.StatusCode.DEADLINE_EXCEEDED
+                    if isinstance(remaining, (int, float)) and remaining <= 0
+                    else grpc.StatusCode.CANCELLED
+                )
+                _record_grpc_status(span, cancel_status, None)
+                raise
+            except Exception as exception:
+                raw_code = context.code()
+                status_code = (
+                    grpc.StatusCode.UNKNOWN if raw_code in (None, grpc.StatusCode.OK) else raw_code
+                )
+                if span.is_recording():
+                    span.set_attribute(RPC_RESPONSE_STATUS_CODE, status_code.name)
+                    record_span_exception(span, exception)
+                raise
+            _record_grpc_status(
+                span,
+                context.code() or grpc.StatusCode.OK,
+                context.details(),
+            )
+            return response
 
 
 class Servicer(TraceServiceServicer):  # type: ignore[misc,unused-ignore]
