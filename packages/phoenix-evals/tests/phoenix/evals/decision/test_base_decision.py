@@ -31,6 +31,36 @@ def test_base_adapter_fans_out_to_single_calls_by_default():
     }
 
 
+def test_base_adapter_fanout_sums_usage_across_calls():
+    """The fan-out default sums each single call's token usage onto the aggregate result."""
+
+    class DummyAdapter(BaseDecisionAdapter):
+        @classmethod
+        def client_name(cls):
+            return "dummy"
+
+        def generate_classification(self, prompt, labels, **kwargs):
+            return {
+                "label": labels[0],
+                "metadata": {"model_id": "dummy"},
+                "usage": {"input_tokens": 10, "output_tokens": 2},
+            }
+
+        async def async_generate_classification(self, prompt, labels, **kwargs):
+            return self.generate_classification(prompt, labels, **kwargs)
+
+    adapter = DummyAdapter(client=object(), model="dummy")
+    raw = adapter.generate_classifications(
+        "p",
+        [{"name": "q1", "labels": ["a", "b"]}, {"name": "q2", "labels": ["c", "d"]}],
+    )
+
+    # Two calls at 10/2 tokens each -> summed.
+    assert raw["usage"] == {"input_tokens": 20, "output_tokens": 4}
+    # Per-call usage is not leaked into each result.
+    assert all("usage" not in r for r in raw["results"])
+
+
 def test_to_state_passes_a_string_prompt_through_unchanged():
     assert BaseDecisionAdapter._to_state("just some text") == "just some text"
 
