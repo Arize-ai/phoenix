@@ -44,6 +44,7 @@ px dataset-versions list <dataset-identifier>
 px dataset delete <dataset-identifier>
 px experiment list
 px experiment get <id>
+px experiment export <id> --format csv|json
 px experiment delete <experiment-id>
 px prompt list
 px prompt get <prompt-identifier>
