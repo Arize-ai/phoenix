@@ -124,6 +124,33 @@ class TestBindEvaluatorSignatureWithTraceId:
         assert bound.arguments["output"] == "test output"
 
 
+class TestBindEvaluatorSignatureKeywordOnly:
+    """Test that a single keyword-only parameter is bound by name."""
+
+    def test_keyword_only_output_bound(self) -> None:
+        def evaluator(*, output: Any) -> bool:
+            return True
+
+        sig = inspect.signature(evaluator)
+        bound = _bind_evaluator_signature(sig, output="test output", trace_id="abc123")
+        assert bound.kwargs == {"output": "test output"}
+
+    def test_keyword_only_trace_id_bound(self) -> None:
+        def evaluator(*, trace_id: Optional[str] = None) -> bool:
+            return True
+
+        sig = inspect.signature(evaluator)
+        bound = _bind_evaluator_signature(sig, output="test output", trace_id="abc123")
+        assert bound.kwargs == {"trace_id": "abc123"}
+
+    def test_create_evaluator_with_keyword_only_output(self) -> None:
+        @create_evaluator(kind="CODE", name="non-empty")
+        def evaluator(*, output: str) -> bool:
+            return bool(output)
+
+        assert evaluator.evaluate(output="test output") == {"score": 1.0, "label": "True"}
+
+
 class TestCreateEvaluatorWithTraceId:
     """Test that evaluators created with create_evaluator receive trace_id."""
 
