@@ -48,6 +48,8 @@ FINISHED_LABEL = "factory-finished"
 FINISHED_LABEL_COLOR = "5319E7"
 FINISHED_LABEL_DESCRIPTION = "The factory pushed commits to this pull request"
 FINISH_AGENT_LOCK_KEY = "./agents/pr-finisher.md"
+# Automation PRs the lane merges itself once a reviewer approves; a human merges the rest.
+AUTO_MERGE_BRANCHES = {"claude/daily-deps-upgrade"}
 FINISH_OUTCOME = (
     "Pull request #{pr_number} links an issue, has every review finding fixed, passes the "
     "checks for the areas it touches and carries one comment to its author describing what "
@@ -399,6 +401,7 @@ def run_watch(*, args: argparse.Namespace) -> None:
     try:
         app_token = create_app_token(client=client, repo=args.repo)
         app_token.follow_session(session_id=args.session_id)
+        head_branch: str = read_pr(pr_number=args.pr)["headRefName"]
         report = watch_session(
             client=client,
             session_id=args.session_id,
@@ -406,6 +409,7 @@ def run_watch(*, args: argparse.Namespace) -> None:
             find_pr=lambda: find_open_pr(pr_number=args.pr),
             app_token=app_token,
             watch_minutes=args.watch_minutes,
+            auto_merge=head_branch in AUTO_MERGE_BRANCHES,
         )
     finally:
         # The workflow's failure report skips a failed watch step, so when the app's
