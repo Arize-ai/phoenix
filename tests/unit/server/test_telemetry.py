@@ -121,6 +121,14 @@ class TestGraphQLTracingExtension:
         credentials: Optional[list["TestGraphQLTracingExtension.CredentialInput"]] = None
 
     @strawberry.type
+    class Item:
+        value: strawberry.Private[int]
+
+        @strawberry.field
+        async def label(self) -> str:
+            return f"item-{self.value}"
+
+    @strawberry.type
     class Query:
         @strawberry.field
         def spans(self, filter_condition: str) -> str:
@@ -129,6 +137,10 @@ class TestGraphQLTracingExtension:
         @strawberry.field
         def boom(self) -> str:
             raise RuntimeError("boom")
+
+        @strawberry.field
+        def items(self) -> list["TestGraphQLTracingExtension.Item"]:
+            return [TestGraphQLTracingExtension.Item(value=i) for i in range(3)]
 
     @strawberry.type
     class Mutation:
@@ -349,6 +361,17 @@ class TestGraphQLTracingExtension:
         spans = self._spans(exporter)
         assert "query" not in spans["GraphQL Query: CreateProject"]
         assert "graphql.param.name" not in spans["GraphQL Resolving: createProject"]
+
+    async def test_resolvers_inside_list_items_are_not_traced(
+        self, schema: strawberry.Schema, exporter: InMemorySpanExporter
+    ) -> None:
+        result = await schema.execute("query Items { items { label } }")
+
+        assert result.errors is None
+        assert result.data == {"items": [{"label": f"item-{i}"} for i in range(3)]}
+        names = [span.name for span in exporter.get_finished_spans()]
+        assert "GraphQL Resolving: items" in names
+        assert "GraphQL Resolving: label" not in names
 
     async def test_subscription_stream_work_is_parented_to_the_operation_span(
         self, schema: strawberry.Schema, exporter: InMemorySpanExporter

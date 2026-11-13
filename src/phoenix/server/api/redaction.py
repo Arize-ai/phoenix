@@ -595,7 +595,7 @@ class RedactingOpenTelemetryExtension(OpenTelemetryExtension):
         ``trace.get_current_span()`` rather than :func:`resolve_server_parent_context`
         therefore do not inherit the resolver span.
         """
-        if should_skip_tracing(_next, info):
+        if should_skip_tracing(_next, info) or _is_within_list_item(info):
             result = _next(root, info, *args, **kwargs)
             if isawaitable(result):
                 result = await result
@@ -626,6 +626,21 @@ class RedactingOpenTelemetryExtension(OpenTelemetryExtension):
             raise
         finally:
             span.end()
+
+
+def _is_within_list_item(info: GraphQLResolveInfo[Any]) -> bool:
+    """Whether the field resolves inside an element of a list.
+
+    Per-item resolver spans multiply with list length (one span per field per
+    row), which costs request-path CPU and can overflow the span export queue;
+    SQL issued by such resolvers still parents to the nearest traced ancestor.
+    """
+    path = info.path.prev
+    while path is not None:
+        if isinstance(path.key, int):
+            return True
+        path = path.prev
+    return False
 
 
 def _operation_span_name(operation_name: str | None) -> str:
