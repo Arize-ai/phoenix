@@ -105,15 +105,15 @@ jobs:
               - skills/phoenix-cli/
               - skills/phoenix-evals/
 
-            Follow the skill's guidance strictly — fetch origin/main first, breadth-first
-            triage, ground every edit in real code, and only patch files inside those three
-            skill directories.
+            Follow the skill's guidance strictly: fetch origin/main first, list every
+            candidate before going deep on any one, look for the five gaps the skill names,
+            and only patch files inside those three skill directories.
 
             Apply the patches directly to the working tree. Do not commit, do not push, do
             not open a PR — the workflow handles that.
 
             After all edits are applied, write the run summary (the markdown the skill's
-            "Phase 6" describes) to this exact path using the Write tool:
+            step 5, "Write the run summary", describes) to this exact path using the Write tool:
 
               ${{ steps.summary.outputs.path }}
 
