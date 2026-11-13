@@ -257,17 +257,43 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
         else:
             raise ValueError(f"Unsupported object generation method: {method}")
 
+    def _build_object_config(self, kwargs: Dict[str, Any], **required: Any) -> Any:
+        """Build the config for object generation, merging a caller-supplied ``config``.
+
+        ``config`` is taken out of ``kwargs`` so it is not passed to ``generate_content`` twice.
+        The values in ``required`` (schema, tools, ...) take precedence over the caller's;
+        those left as ``None`` fall back to the caller's value, if any.
+
+        Args:
+            kwargs: The keyword arguments of the call; a ``config`` entry is removed.
+            **required: Config fields the adapter needs for the chosen generation method.
+
+        Returns:
+            A ``GenerateContentConfig`` combining both.
+        """
+        from google import genai
+
+        caller_config = kwargs.pop("config", None)
+        if caller_config is None:
+            params: Dict[str, Any] = {}
+        elif isinstance(caller_config, dict):
+            params = dict(caller_config)
+        else:
+            params = self._safe_extract_config_params(caller_config)
+        params.update({key: value for key, value in required.items() if value is not None})
+        return genai.types.GenerateContentConfig(**params)
+
     def _generate_with_structured_output(
         self,
         prompt: PromptLike,
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        from google import genai
 
         content, system_instruction = self._build_content(prompt)
 
-        config = genai.types.GenerateContentConfig(
+        config = self._build_object_config(
+            kwargs,
             response_mime_type="application/json",
             response_schema=schema,
             system_instruction=system_instruction if system_instruction else None,
@@ -292,11 +318,11 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        from google import genai
 
         content, system_instruction = self._build_content(prompt)
 
-        config = genai.types.GenerateContentConfig(
+        config = self._build_object_config(
+            kwargs,
             response_mime_type="application/json",
             response_schema=schema,
             system_instruction=system_instruction if system_instruction else None,
@@ -327,7 +353,8 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
         tool = self._schema_to_tool(schema)
         any_config_mode = genai.types.FunctionCallingConfigMode("ANY")
 
-        config = genai.types.GenerateContentConfig(
+        config = self._build_object_config(
+            kwargs,
             tools=[tool],
             tool_config=genai.types.ToolConfig(
                 function_calling_config=genai.types.FunctionCallingConfig(mode=any_config_mode)
@@ -364,7 +391,8 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
         tool = self._schema_to_tool(schema)
         any_config_mode = genai.types.FunctionCallingConfigMode("ANY")
 
-        config = genai.types.GenerateContentConfig(
+        config = self._build_object_config(
+            kwargs,
             tools=[tool],
             tool_config=genai.types.ToolConfig(
                 function_calling_config=genai.types.FunctionCallingConfig(mode=any_config_mode)
