@@ -1890,3 +1890,33 @@ def test_record_span_exception_never_raises() -> None:
     span.end()
     provider.shutdown()
     assert len(exporter.get_finished_spans()) == 1
+
+
+@pytest.mark.parametrize("tracing_enabled", [False, True])
+async def test_server_span_middleware_is_installed_only_when_tracing_is_enabled(
+    tmp_path: Path, tracing_enabled: bool
+) -> None:
+    provider, _ = _new_tracer_provider()
+    telemetry = ServerTelemetry(tracer_provider=provider if tracing_enabled else None)
+    engine = aio_sqlite_engine(
+        url=make_url(f"sqlite+aiosqlite:///{tmp_path / 'phoenix.db'}"), migrate=False
+    )
+    try:
+        async with contextlib.AsyncExitStack() as stack:
+            await stack.enter_async_context(patch_dml_event_handler())
+            await stack.enter_async_context(patch_grpc_server())
+            app = create_app(
+                db=DbSessionFactory(db=app_module._db(engine), dialect="sqlite"),
+                authentication_enabled=False,
+                serve_ui=False,
+                bulk_inserter_factory=TestBulkInserter,
+                server_telemetry=telemetry,
+            )
+            installed = any(
+                getattr(m, "cls", None) is ServerSpanContextMiddleware for m in app.user_middleware
+            )
+            assert installed is tracing_enabled
+    finally:
+        telemetry.close()
+        provider.shutdown()
+        await engine.dispose()

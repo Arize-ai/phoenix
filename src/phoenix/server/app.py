@@ -1142,11 +1142,10 @@ def create_app(
     if get_env_enable_mcp_server():
         mcp_mount_path = MCP_MOUNT_PATH
     anonymous_surfaces = anonymous_paths(mcp_mount_path)
-    middlewares: list[Middleware] = [
-        Middleware(ServerSpanContextMiddleware, tracer_provider=tracer_provider),
-        Middleware(HeadersMiddleware),
-        Middleware(RedactorMiddleware),
-    ]
+    middlewares: list[Middleware] = []
+    if tracer_provider is not None:
+        middlewares.append(Middleware(ServerSpanContextMiddleware, tracer_provider=tracer_provider))
+    middlewares.extend([Middleware(HeadersMiddleware), Middleware(RedactorMiddleware)])
     middlewares.extend(user_fastapi_middlewares())
     if origins := get_env_csrf_trusted_origins():
         trusted_hostnames = [h for o in origins if o and (h := urlparse(o).hostname)]
