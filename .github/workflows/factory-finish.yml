@@ -45,15 +45,31 @@ jobs:
           git fetch --quiet --depth=1 origin factory-state
           git show FETCH_HEAD:claude-lock.json > factory/claude-lock.json
 
+      - name: Install admission scanner
+        env:
+          UV_TOOL_BIN_DIR: ${{ runner.temp }}/factory-scan-bin
+        run: uv tool install --python 3.12 --with pydantic==2.11.9 semgrep==1.144.0
+
+      - name: Cache admission decisions
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          path: ${{ runner.temp }}/factory-admission-cache
+          key: ${{ runner.os }}-factory-admission-v2-${{ hashFiles('factory/security*', 'factory/security_scan_prompt.md') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            ${{ runner.os }}-factory-admission-v2-${{ hashFiles('factory/security*', 'factory/security_scan_prompt.md') }}-
+
       - name: Start session
         id: start
         env:
+          FACTORY_SEMGREP: ${{ runner.temp }}/factory-scan-bin/semgrep
+          FACTORY_SCAN_CACHE_DIR: ${{ runner.temp }}/factory-admission-cache
           ANTHROPIC_API_KEY: ${{ secrets.FACTORY_ANTHROPIC_API_KEY }}
           FACTORY_APP_CLIENT_ID: ${{ vars.FACTORY_APP_CLIENT_ID }}
           FACTORY_APP_PRIVATE_KEY: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
           FACTORY_GITHUB_LOGIN: ${{ vars.FACTORY_GITHUB_LOGIN }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           REQUESTED_BY: ${{ github.event.sender.login }}
-        run: uv run --script factory/finish.py --repo "$GH_REPO" --pr "$PR_NUMBER" start --requested-by "$REQUESTED_BY"
+        run: uv run --script factory/run.py finish --repo "$GH_REPO" --pr "$PR_NUMBER" --head-sha "$PR_HEAD_SHA" start --requested-by "$REQUESTED_BY"
 
       - name: Watch session
         if: steps.start.outputs.started == 'true'
@@ -67,7 +83,7 @@ jobs:
           REQUESTED_BY: ${{ steps.start.outputs.requested_by }}
           SESSION_ID: ${{ steps.start.outputs.session_id }}
           STATUS_COMMENT_ID: ${{ steps.start.outputs.status_comment_id }}
-        run: uv run --script factory/finish.py --repo "$GH_REPO" --pr "$FINISHED_PR" watch --session-id "$SESSION_ID" --requested-by "$REQUESTED_BY" --status-comment-id "$STATUS_COMMENT_ID"
+        run: uv run --script factory/run.py finish --repo "$GH_REPO" --pr "$FINISHED_PR" watch --session-id "$SESSION_ID" --requested-by "$REQUESTED_BY" --status-comment-id "$STATUS_COMMENT_ID"
 
       - name: Report a failed start
         if: failure() && steps.start.outcome != 'success'

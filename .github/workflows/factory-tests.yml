@@ -1,0 +1,25 @@
+name: Factory Tests
+
+on:
+  pull_request:
+    paths: [factory/**, Makefile, .github/workflows/factory-tests.yml]
+  push:
+    branches: [main]
+    paths: [factory/**, Makefile, .github/workflows/factory-tests.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  admission:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: "3.12"
+      - run: make test-factory
