@@ -304,6 +304,7 @@ class AsyncExecutor(Executor):
             index, payload = item
 
             task_start_time = time.time()
+            generate_task: Optional["asyncio.Task[Any]"] = None
             try:
                 generate_task = asyncio.create_task(self.generate(payload))
                 termination_event_watcher = asyncio.create_task(termination_event.wait())
@@ -357,6 +358,13 @@ class AsyncExecutor(Executor):
                             termination_event.set()
                         else:
                             progress_bar.update()
+            except asyncio.CancelledError:
+                # asyncio.wait doesn't cancel the tasks it waits on, so cancel the generation
+                # here and let its cleanup finish before the worker exits.
+                if generate_task is not None and not generate_task.done():
+                    generate_task.cancel()
+                    await asyncio.gather(generate_task, return_exceptions=True)
+                raise
             except Exception as exc:
                 details = cast(ExecutionDetails, execution_details[index])
                 details.log_exception(exc)
@@ -443,33 +451,35 @@ class AsyncExecutor(Executor):
             )
             for i in range(self.concurrency)
         ]
-
-        await asyncio.gather(producer, *consumers)
-        join_task = asyncio.create_task(queue.join())
-        termination_event_watcher = asyncio.create_task(termination_event.wait())
-        done, _ = await asyncio.wait(
-            [join_task, termination_event_watcher], return_when=asyncio.FIRST_COMPLETED
-        )
-        if termination_event_watcher in done:
-            # Cancel all tasks
-            if not join_task.done():
-                join_task.cancel()
-            if not producer.done():
-                producer.cancel()
-            for task in consumers:
+        join_task: Optional["asyncio.Task[Any]"] = None
+        termination_event_watcher: Optional["asyncio.Task[Any]"] = None
+        try:
+            await asyncio.gather(producer, *consumers)
+            join_task = asyncio.create_task(queue.join())
+            termination_event_watcher = asyncio.create_task(termination_event.wait())
+            await asyncio.wait(
+                [join_task, termination_event_watcher], return_when=asyncio.FIRST_COMPLETED
+            )
+        finally:
+            # Runs on cancellation too, so no task started here outlives this call and the
+            # caller's signal handler always comes back.
+            owned = [
+                task
+                for task in (producer, *consumers, join_task, termination_event_watcher)
+                if task is not None
+            ]
+            for task in owned:
                 if not task.done():
                     task.cancel()
-
-        if not termination_event_watcher.done():
-            termination_event_watcher.cancel()
-
-        # reset the signal handler if we set one
-        if (
-            self.termination_signal is not None
-            and threading.current_thread() is threading.main_thread()
-            and original_handler is not None
-        ):
-            signal.signal(self.termination_signal, original_handler)
+            await asyncio.gather(*owned, return_exceptions=True)
+            # reset the signal handler if we set one
+            if (
+                self.termination_signal is not None
+                and threading.current_thread() is threading.main_thread()
+                and original_handler is not None
+            ):
+                signal.signal(self.termination_signal, original_handler)
+            progress_bar.close()
         return outputs, execution_details
 
     def run(self, inputs: Sequence[Any]) -> Tuple[List[Any], List[ExecutionDetails]]:
