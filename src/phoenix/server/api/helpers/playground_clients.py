@@ -1321,7 +1321,6 @@ class OllamaClient(OpenAICompatibleClient):
     model_names=[
         PROVIDER_DEFAULT,
         "qwen-3.8-27b",
-        "llama3.1-8b",
         "gpt-oss-120b",
     ],
 )
@@ -1356,17 +1355,14 @@ class GroqClient(OpenAICompatibleClient):
     provider_key=GenerativeProviderKey.MOONSHOT,
     model_names=[
         PROVIDER_DEFAULT,
+        "kimi-k3.1-pro",
+        "kimi-k3.1-pro-highspeed",
         "kimi-k3",
         "kimi-k2.7-code",
         "kimi-k2.6",
         "kimi-k2-turbo-preview",
         "kimi-k2-thinking-turbo",
         "kimi-k2-thinking",
-        "kimi-k2.5",
-        "moonshot-v1-128k",
-        "moonshot-v1-32k",
-        "moonshot-v1-8k",
-        "moonshot-v1-auto",
     ],
 )
 class MoonshotClient(OpenAICompatibleClient):
@@ -1438,6 +1434,7 @@ class ZAIClient(OpenAICompatibleClient):
     provider_key=GenerativeProviderKey.META,
     model_names=[
         PROVIDER_DEFAULT,
+        "muse-ember-1.0",
         "muse-wonder-1.0",
         "muse-spark-1.3",
         "muse-spark-1.3-contributor",
@@ -1469,7 +1466,6 @@ class MetaClient(OpenAICompatibleClient):
         "anthropic.claude-sonnet-4-5-20250929-v1:0",
         "anthropic.claude-haiku-4-5-20251001-v1:0",
         "anthropic.claude-opus-4-20250514-v1:0",
-        "anthropic.claude-sonnet-4-20250514-v1:0",
         "amazon.titan-embed-text-v2:0",
         "amazon.nova-pro-v1:0",
         "amazon.nova-premier-v1:0:8k",
@@ -1485,11 +1481,6 @@ class MetaClient(OpenAICompatibleClient):
         "meta.llama3-1-8b-instruct-v1:0",
         "meta.llama3-1-70b-instruct-v1:0:128k",
         "meta.llama3-1-70b-instruct-v1:0",
-        "meta.llama3-1-405b-instruct-v1:0",
-        "meta.llama3-2-11b-instruct-v1:0",
-        "meta.llama3-2-90b-instruct-v1:0",
-        "meta.llama3-2-1b-instruct-v1:0",
-        "meta.llama3-2-3b-instruct-v1:0",
         "meta.llama3-3-70b-instruct-v1:0",
         "meta.llama4-scout-17b-instruct-v1:0",
         "meta.llama4-maverick-17b-instruct-v1:0",
@@ -1965,12 +1956,8 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
 OPENAI_CHAT_COMPLETIONS_MODELS = [
     "gpt-4.1",
     "gpt-4.1-mini",
-    "gpt-4.1-nano",
     "gpt-4o",
     "gpt-4o-mini",
-    "gpt-4-turbo",
-    "gpt-4",
-    "gpt-3.5-turbo",
 ]
 """OpenAI models that default to /v1/chat/completions. Any other name, known or
 not, defaults to the Responses API. See ``get_openai_client_class``."""
@@ -2153,6 +2140,7 @@ _ANTHROPIC_SAMPLING_PARAM_KEYS = frozenset(("temperature", "top_p"))
 # (`thinking: {"type": "enabled", "budget_tokens": N}`) from their request
 # surface; sending any of them returns a 400.
 ANTHROPIC_ADAPTIVE_THINKING_MODELS = [
+    "claude-fable-5-2",
     "claude-fable-5-1",
     "claude-fable-5",
     "claude-opus-5-5",
@@ -2174,8 +2162,6 @@ ANTHROPIC_EXTENDED_THINKING_MODELS = [
     "claude-opus-4-5",
     "claude-sonnet-4-5",
     "claude-haiku-4-5",
-    "claude-sonnet-4-0",
-    "claude-opus-4-0",
 ]
 
 # Anthropic models that accept a `tool_choice` of type `any` or `tool`. Newer models
