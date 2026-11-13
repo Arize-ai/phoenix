@@ -49,6 +49,7 @@ export function SessionColumnSelector<TData extends RowData>({
           // The summary fragment behind the cells excludes "note" annotations,
           // so a note column would render permanently blank.
           names: getNonNoteAnnotationNames(data.sessionAnnotationNames),
+          namesError: null,
           visibility: annotationColumnVisibility,
           onVisibilityChange: setAnnotationColumnVisibility,
           targetType: "session",

@@ -508,6 +508,7 @@ function CompareSpanTargetsTable(
       emptyState={<CompareTargetsEmptyState target="SPAN" />}
       selectedRowId={targetId}
       onFilterConditionApplied={props.onFilterConditionApplied}
+      initialRequest={null}
     />
   );
 }
@@ -539,6 +540,7 @@ function CompareTraceTargetsTable(props: TargetsTableProps) {
       emptyState={<CompareTargetsEmptyState target="TRACE" />}
       selectedRowId={targetId}
       onFilterConditionApplied={props.onFilterConditionApplied}
+      initialRequest={null}
     />
   );
 }
