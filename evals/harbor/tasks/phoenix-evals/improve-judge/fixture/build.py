@@ -200,6 +200,12 @@ SENTENCES: dict[str, dict[str, list[str]]] = {
             "There's a 15% restocking charge (${fee}) on electronics, which I've taken off."
         ],
     },
+    "restocking_opened": {
+        "visible": ["Opened electronics returns carry a 15% restocking fee of ${fee}."],
+        "unseen": [
+            "There's a 15% restocking charge (${fee}) on opened electronics, which I've taken off."
+        ],
+    },
     "damaged_no_fee": {
         "visible": [
             "Since it arrived damaged, there's no restocking fee, and we're refunding your ${ship} shipping too."
@@ -216,7 +222,7 @@ SENTENCES: dict[str, dict[str, list[str]]] = {
             "Our records show delivery {days} days ago, and returns close 30 days after delivery."
         ],
     },
-    "false_window": {
+    "in_window": {
         "visible": ["You're still within our 30-day return window."],
         "unseen": ["You're inside the 30-day return period, so this qualifies."],
     },
@@ -232,9 +238,9 @@ SENTENCES: dict[str, dict[str, list[str]]] = {
         "visible": ["Gift cards aren't refundable."],
         "unseen": ["Gift card purchases are non-refundable."],
     },
-    "gift_refund": {
-        "visible": ["Since the gift card hasn't been used, we can refund it in full."],
-        "unseen": ["As the card balance is untouched, the full value can go back to you."],
+    "unused": {
+        "visible": ["Since you haven't used the {item}, we can refund the full item price."],
+        "unseen": ["As you haven't used the {item}, the full purchase price can go back to you."],
     },
     "damaged_late": {
         "visible": [
@@ -253,12 +259,6 @@ SENTENCES: dict[str, dict[str, list[str]]] = {
     "shipping_too": {
         "visible": ["We're also refunding your ${ship} shipping."],
         "unseen": ["I've included the ${ship} shipping charge in your refund as well."],
-    },
-    "restocking_total": {
-        "visible": ["Since you opened the {item}, a 15% restocking fee of ${fee} applies."],
-        "unseen": [
-            "After the restocking fee for opened electronics, this is the amount you'll get back."
-        ],
     },
     "reminder": {
         "visible": [
@@ -316,11 +316,14 @@ CUSTOMER_REASONS = {
         "visible": ["I bought it as a gift, but the recipient doesn't want it."],
         "unseen": ["I'd like to cash this gift card back out."],
     },
-    "misstated_date": {
+    "date_claim": {
         "visible": ["I received it about two weeks ago."],
         "unseen": ["It only arrived last week."],
     },
 }
+# Delivery ages that make each split's date claim true. Late customers make the same
+# claim falsely, so the order record, not the claim, gives the delivery age.
+TRUE_CLAIM_DAYS = {"visible": range(11, 18), "unseen": range(6, 13)}
 REVIEW_NOTES = {
     "full_refund": "Eligible return on day {days}. Item price only, ${correct}. Correct.",
     "damaged_refund": "Damage reported on day {days}, inside 14 days. Item plus shipping, ${correct}, is right.",
@@ -459,7 +462,11 @@ def scenario(kind: str, variant: int, rng: random.Random, split: str) -> dict[st
         facts = dict(item=item, final=False, days=rng.randint(2, 29), condition=good,
                      opened=False if electronics else rng.random() < 0.5)  # fmt: skip
         if kind == "full_refund":
-            return {**facts, "refund": item[2], "reasons": ["standard"]}
+            style = variant % 3
+            if style == 1:
+                facts["opened"] = False
+            reasons = [["in_window"], ["unused"], ["standard"]][style]
+            return {**facts, "refund": item[2], "reasons": reasons}
         return {
             **facts,
             "refund": money(item[2] + item[3]),
@@ -471,7 +478,8 @@ def scenario(kind: str, variant: int, rng: random.Random, split: str) -> dict[st
         facts = dict(item=item, final=False, days=rng.randint(1, 14), condition=damaged,
                      opened=False if electronics else rng.random() < 0.5)  # fmt: skip
         if kind == "damaged_refund":
-            return {**facts, "refund": money(item[2] + item[3]), "reasons": ["damaged"]}
+            reasons = ["damaged"] if variant % 2 == 0 else ["standard", "shipping_too"]
+            return {**facts, "refund": money(item[2] + item[3]), "reasons": reasons}
         # Same wordings as damaged_late_item_price, but the record shows a report within 14 days.
         reasons = ["damaged_late"] if variant % 2 == 0 else ["damaged_item_only"]
         return {**facts, "refund": item[2], "reasons": reasons}
@@ -480,21 +488,15 @@ def scenario(kind: str, variant: int, rng: random.Random, split: str) -> dict[st
         facts = dict(item=item, final=False, days=rng.randint(2, 29), condition=good, opened=True)
         price, ship = item[2], item[3]
         if kind == "restocking_fee":
-            return {**facts, "refund": restocked(price), "reasons": ["restocking"]}
+            reasons = ["restocking"] if variant % 2 == 0 else ["restocking_opened"]
+            return {**facts, "refund": restocked(price), "reasons": reasons}
         if kind == "restocking_fee_skipped":
-            return {**facts, "refund": price, "reasons": ["standard"]}
-        # A miscalculated fee: on the item price plus shipping, or at 25% of the price.
-        if variant % 2 == 0:
-            refund = restocked(money(price + ship))
-            return {**facts, "refund": refund, "fee": money(price + ship - refund),
-                    "reasons": ["restocking"]}  # fmt: skip
-        refund = money(price * 0.75)
-        return {
-            **facts,
-            "refund": refund,
-            "fee": money(price - refund),
-            "reasons": ["restocking_total"],
-        }
+            reasons = ["standard"] if variant % 2 == 0 else ["unused"]
+            return {**facts, "refund": price, "reasons": reasons}
+        # A miscalculated fee: 15% of the item price plus shipping.
+        refund = restocked(money(price + ship))
+        return {**facts, "refund": refund, "fee": money(price + ship - refund),
+                "reasons": ["restocking_opened"]}  # fmt: skip
     if kind in ("late_denied", "late_approved"):
         electronics = rng.random() < 0.3
         item = pick(rng, split, electronics=electronics)
@@ -504,7 +506,7 @@ def scenario(kind: str, variant: int, rng: random.Random, split: str) -> dict[st
         if kind == "late_denied":
             reasons = ["late"] if variant % 2 == 0 else ["late_plain"]
             return {**facts, "refund": 0.0, "reasons": reasons}
-        reasons = ["false_window"] if variant % 2 == 0 else ["standard"]
+        reasons = ["in_window"] if variant % 2 == 0 else ["standard"]
         return {**facts, "refund": item[2], "reasons": reasons}
     if kind in ("final_sale_denied", "final_sale_approved"):
         item = pick(rng, split)
@@ -523,7 +525,7 @@ def scenario(kind: str, variant: int, rng: random.Random, split: str) -> dict[st
         facts = dict(item=item, final=False, days=rng.randint(2, 29), condition=good, opened=False)
         if kind == "gift_card_denied":
             return {**facts, "refund": 0.0, "reasons": ["gift_card"]}
-        return {**facts, "refund": item[2], "reasons": ["gift_refund"]}
+        return {**facts, "refund": item[2], "reasons": ["unused"]}
     if kind in ("damaged_late_item_price", "damaged_late_full"):
         # One damaged_late_full variant uses damaged_electronics' wording on opened
         # electronics, which owe a restocking fee once the 14 days have passed.
@@ -550,7 +552,8 @@ def scenario(kind: str, variant: int, rng: random.Random, split: str) -> dict[st
             facts = dict(
                 item=item, final=False, days=rng.randint(2, 29), condition=good, opened=False
             )
-            return {**facts, "refund": restocked(item[2]), "reasons": ["restocking_any"]}
+            reasons = ["restocking_any"] if variant % 2 == 0 else ["restocking_opened"]
+            return {**facts, "refund": restocked(item[2]), "reasons": reasons}
         if style == 1:  # opened, but not electronics
             item = pick(rng, split, electronics=False)
             facts = dict(
@@ -637,8 +640,9 @@ def make_case(
     else:
         reason_key = "unopened"
     said = [rng.choice(CUSTOMER_REASONS[reason_key][split]).format(**values)]
-    if facts.get("misstated"):
-        said.append(rng.choice(CUSTOMER_REASONS["misstated_date"][split]))
+    true_claim = order.days_since_delivery in TRUE_CLAIM_DAYS[split] and rng.random() < 0.6
+    if facts.get("misstated") or true_claim:
+        said.append(rng.choice(CUSTOMER_REASONS["date_claim"][split]))
     request = rng.choice(REQUESTS[split]).format(reason=" ".join(said), **values)
 
     start = BASE + timedelta(hours=index * 2.3 + (24 * 9 if split == "unseen" else 0))

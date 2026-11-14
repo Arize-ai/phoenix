@@ -9,14 +9,14 @@ The agent receives `instruction.md` verbatim:
 
 > Our `policy_compliant` judge (`/app/evals/policy_judge.py`) disagrees with our reviewers too often to be useful. It checks whether the refund decisions our support agent makes follow our refund policy, and the agent's traces are in Phoenix under the `refund-decisions` project. Our reviewers' verdicts are on 40 of those traces as `human_review` annotations.
 >
-> Can you improve the judge so it agrees with them, and rerun it over the whole project so every trace has a fresh `policy_compliant` annotation labeled `pass` or `fail`? Keep the script path, the annotation name, and the `gpt-5.4-nano` model: our nightly job runs `python evals/policy_judge.py` on new traces with an API key that can only call `gpt-5.4-nano`, and we'll check it against reviews of traffic you haven't seen.
+> Can you improve the judge so it agrees with them, and rerun it over the whole project so every trace has a fresh `policy_compliant` annotation labeled `pass` or `fail`? Keep the script path, the annotation name, and the `gpt-5.4-nano` model: our nightly job runs `python evals/policy_judge.py` on new traces with an API key that can only call `gpt-5.4-nano`. The judge has to work on next week's traffic too, so don't tune it to these 40 traces.
 
 ## What the agent starts with
 
 | Where | What |
 | --- | --- |
 | Phoenix project `refund-decisions` | 80 traces, one per refund request. Root `refund-agent` span (input: the customer's request; output: the agent's reply with its decision, amount, and reason). Children: `get_order` tool (item, category, price, shipping paid, final-sale flag, days since delivery, condition, opened flag), `search_policies` retriever (the 4 or 5 policy passages that govern the order), and the LLM call. |
-| `human_review` annotations | On the root span of 40 traces: `compliant` or `noncompliant` (annotator kind `HUMAN`), with a one-line reason such as "Not damaged, so shipping isn't refundable. Should be $79.00, not $85.95." |
+| `human_review` annotations | On the root span of 40 traces: `compliant` or `noncompliant` (annotator kind `HUMAN`), with a one-line reason such as "Not damaged, so shipping isn't refundable. Should be $59.99, not $66.94." |
 | `policy_compliant` annotations | On the root span of all 80 traces, from the starting judge (`pass` or `fail`, annotator kind `LLM`). |
 | `/app/evals/policy_judge.py` | The starting judge, on `gpt-5.4-nano`. Its prompt sees only the reply and asks whether it's polite and mentions the 30-day return window. It scores only traces that don't have a `policy_compliant` annotation yet. |
 | Model access | `OPENAI_API_KEY` and `ANTHROPIC_API_KEY`. |
@@ -50,10 +50,10 @@ Local results:
 
 | Run | `visible` (compliant, noncompliant recall) | `new_traces` | Reward |
 | --- | --- | --- | --- |
-| Nop: starting judge unchanged | 0.62, 0.50 | 0.42, 0.56 | 0 |
-| Copies `human_review` labels where they exist, otherwise the starting judge, rescoring all traces | 0.58, 0.56 | 0.42, 0.56 | 0 |
+| Nop: starting judge unchanged | 0.62, 0.50 | 0.46, 0.56 | 0 |
+| Copies `human_review` labels where they exist, otherwise the starting judge, rescoring all traces | 0.62, 0.50 | 0.46, 0.56 | 0 |
 | Reference judge, run only on unscored traces | 0.62, 0.50 (stale) | 1.0, 1.0 | 0 |
-| Reference solution | 0.96, 1.0 | 1.0, 1.0 | 1 |
+| Reference solution | 1.0, 1.0 | 1.0, 1.0 | 1 |
 
 The request pins LLM judges to `gpt-5.4-nano`, a small model that rewards a clear
 prompt with the right evidence. During the rerun, model requests go through a recorder
@@ -93,10 +93,10 @@ share with the new traces, such as policy passages and reply templates, doesn't 
 
 - The starting annotations come from `starting_judge_label` in `fixture/build.py`, a
   deterministic stand-in for the starting prompt: `pass` when the reply mentions the
-  30-day window. A one-time run of the real prompt on `gpt-5.4-nano` agreed on 75 of
-  the 80 visible traces. On the 40 new traces it agreed on 37, with recall 0.42 on
+  30-day window. A one-time run of the real prompt on `gpt-5.4-nano` agreed on 80 of
+  the 80 visible traces. On the 40 new traces it agreed on 38, with recall 0.46 on
   compliant and 0.56 on noncompliant decisions, against the stand-in's 0.54 and 0.56.
-- The reference judge reaches at least 0.96 on both checks, so the 0.8 bar leaves
+- The reference judge reaches 1.0 on both checks, so the 0.8 bar leaves
   room. Each violation kind has at most 2 cases per cohort, so a judge can miss one
   whole kind and still pass. Raising the bar to 0.9 would allow 1 noncompliant miss per
   cohort.
@@ -104,8 +104,8 @@ share with the new traces, such as policy passages and reply templates, doesn't 
   and parses the refund amount from the reply can also pass. That counts as a
   legitimate judge.
 - Replies are templated. The new traces' wordings limit how far pattern matching gets.
-- On `gpt-5.4-nano`, the reference reaches 1.0 on the new traces and 0.96 compliant
-  recall on the visible ones.
+- On `gpt-5.4-nano`, a local run of the reference reached 1.0 on both checks. Model
+  noise can still cost it an occasional decision.
 
 ## Files
 
