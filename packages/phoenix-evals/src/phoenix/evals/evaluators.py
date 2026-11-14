@@ -1363,6 +1363,11 @@ def _prepare_dataframe_evaluation(
         evaluator_name = evaluator.name
         execution_details_col = f"{evaluator_name}_execution_details"
         result_df[execution_details_col] = [None] * len(dataframe)
+        # Re-running an evaluator replaces its previous scores; if every row fails, no new
+        # score is written, so an old column would otherwise survive next to FAILED details.
+        score_col = f"{evaluator_name}_score"
+        if score_col in result_df.columns:
+            result_df[score_col] = [None] * len(dataframe)
 
     return result_df, eval_inputs, task_inputs
 
