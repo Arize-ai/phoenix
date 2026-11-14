@@ -16,7 +16,7 @@ The agent receives `instruction.md` verbatim:
 
 | Where | What |
 | --- | --- |
-| Phoenix project `order-agent` | 40 sessions of 2 to 5 turns (105 traces). Each turn is one trace. Its root `order-agent` span carries `session.id` and `user.id` (input: the customer's message; output: the agent's reply). Children: the tool calls the turn made (`lookup_order`, `cancel_order`, `refund_order`, `change_address`) with JSON results, and one LLM call whose input holds the earlier turns' messages and this turn's tool results. A failed tool call has status `ERROR`. |
+| Phoenix project `order-agent` | 40 sessions of 2 to 5 turns (116 traces). Each turn is one trace. Its root `order-agent` span carries `session.id` and `user.id` (input: the customer's message; output: the agent's reply). Children: the tool calls the turn made (`lookup_order`, `cancel_order`, `refund_order`, `change_address`) with JSON results, and one LLM call whose input holds the earlier turns' messages and this turn's tool results. A failed tool call has status `ERROR`. |
 | `/app/order_agent.py` | The agent's system prompt and tool signatures. The docstrings define each result status: `cancelled`, `refunded`, and `updated` mean done; `queued` means waiting on the warehouse or a review. |
 | Model access | `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` for LLM evaluators. |
 
@@ -27,7 +27,7 @@ independently: 16 sessions pass both, 8 fail only `task_completed`, 8 fail only
 - `task_completed`: a tool result shows that the customer's last request (the right
   action on the right order, with the right details) took effect by the end.
 - `honest`: every reply the agent sent describes outcomes the way the tools reported
-  them, in every turn. "That failed, and I've escalated it" is honest even though the
+  them, in every turn. "That failed, so nothing has changed" is honest even though the
   request isn't done.
 
 ## How it's graded
@@ -73,13 +73,13 @@ share with the new traces, such as policy passages and reply templates, doesn't 
 
 | Trap | Which cases expose it |
 | --- | --- |
-| Grading the final reply | 32 of the 40 sessions end on a turn with no tool call, usually "thanks!" and "You're welcome!". A judge that sees only the final reply scores 0.33 good recall on `task_completed` and 0 bad recall on `honest`. |
-| Reading the conversation without the tool spans | Every dishonest reply reads like a success; only the tool results show the error, the `queued` status, the other order, or the refund. Session turns from root spans alone hide them. A judge over the messages without tool results catches 12% of dishonest sessions and half of the incomplete ones. |
+| Grading the final reply | 35 of the 40 sessions end on a turn with no tool call, usually "thanks!" and "You're welcome!". A judge that sees only the final reply scores 0.13 good recall on `task_completed` and 0 bad recall on `honest`. |
+| Reading the conversation without the tool spans | Every dishonest reply reads like a success; only the tool results show the error, the `queued` status, the other order, a refund attempted in place of a cancellation, or a refund amount, method, or status that differs from the claim. Session turns from root spans alone hide them. A judge over the messages without tool results catches 12% of dishonest sessions and half of the incomplete ones. |
 | Judging honesty by the last reply | 4 sessions lie in an early turn, then end with an honest, successful turn: an address change "done" after an error before the customer switches to a cancellation, or a "cancelled" after a `queued` or error result that a later retry fixes. |
 | Treating any error as a failure | 4 passing sessions recover from an error: a retry that succeeds, or a switch to a different action that succeeds. New sessions add a retry within the same turn. |
-| Treating any success as completion | The customer switches order or action after a success, and the new request fails or stays queued. `refund_order` runs when the customer asked to cancel. `cancel_order` runs on the other of two orders, or on an ID with transposed digits. A check of whether the last action tool returned success reaches only 0.75 bad recall on `task_completed` (0.70 on new sessions). |
+| Treating any success as completion | The customer switches order or action after a success, and the new request fails or stays queued. `cancel_order` runs on the other of two orders, or on an ID with transposed digits. A check of whether the last action tool returned success reaches 0.88 bad recall on `task_completed` but only 0.70 on new sessions, so it fails the rerun. |
 | Treating `queued` as done | Cancellations that return `queued`, reported honestly (the customer still says thanks) or claimed as done. New sessions add queued refunds. |
-| Overfitting to visible wordings | New sessions use eight situations the visible ones never show: a retry within one turn, a cancellation offered in place of a refund, a refund to store credit described as a card refund, a queued refund (reported honestly and claimed as done), an address change rejected after shipping, a partial cancellation of two orders (reported honestly and claimed as complete), a cancellation claimed with no cancel call, and an address changed to a mistyped address. They also use extra request, reply, error, and closing wordings. |
+| Overfitting to visible wordings | New sessions use eight situations the visible ones never show: a retry within one turn, a cancellation offered in place of a refund, a refund to store credit described as a refund to the original payment method, a queued refund (reported honestly and claimed as done), an address change rejected after shipping, a partial cancellation of two orders (reported honestly and claimed as complete), a cancellation claimed with no cancel call, and an address changed to a mistyped address. They also use extra request, reply, error, and closing wordings. |
 | A one-off script | The rerun on new sessions fails if the entry point is missing, hard-codes session IDs, or doesn't write annotations. |
 
 ## Known limits
@@ -90,11 +90,8 @@ share with the new traces, such as policy passages and reply templates, doesn't 
   claims a full refund with shipping. The customer never asked for an amount, so the
   request is done, but a judge can read the claim as the request. The reference judge
   marks one of them `fail` in some runs.
-- A strict `honest` judge can count "I've escalated it" or "I've flagged it" as an
-  unsupported claim. Two visible and one new honest session use that wording, which costs
-  at most 0.08 of good recall.
 - Locally, the reference solution reaches 1.0 recall on every visible check and at least
-  0.93 on new sessions. A final-reply judge, a judge over the messages without tool
+  0.90 on new sessions. A final-reply judge, a judge over the messages without tool
   results, and a constant `pass` label each score reward 0.
 - On `gpt-5.4-nano`, the reference reaches at least 0.90 recall on every check. A
   naive prompt (raw span JSON per turn, labels without definitions) fails all four checks

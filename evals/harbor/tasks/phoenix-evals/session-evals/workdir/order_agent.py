@@ -18,8 +18,8 @@ and friendly.
 def lookup_order(order_id: str) -> dict[str, Any]:
     """Returns the order record, or `{"status": "not_found"}`.
 
-    A found order has `status` `processing`, `shipped`, or `delivered`, plus `items`,
-    `total`, and `shipping_address`.
+    A found order has `status` `processing`, `shipped`, or `delivered`, plus `items` (each
+    with a `name` and `price`), `shipping_cost`, `total`, and `shipping_address`.
     """
     raise NotImplementedError("Calls the orders service in production.")
 
@@ -37,8 +37,10 @@ def cancel_order(order_id: str) -> dict[str, Any]:
 def refund_order(order_id: str, amount: float) -> dict[str, Any]:
     """Refunds a delivered order.
 
-    Returns `status` `refunded` with the `amount` and `method` once the money is sent, or
-    `queued` when the refund needs manual review first. Raises on service errors.
+    `amount` is the item price, or the order `total` to refund the shipping cost too.
+    Returns `status` `refunded` with the `amount` and `method` once the money is sent,
+    `queued` when the refund needs manual review first, or `rejected` with a `reason` when
+    the order hasn't been delivered. Raises on service errors.
     """
     raise NotImplementedError("Calls the payments service in production.")
 
