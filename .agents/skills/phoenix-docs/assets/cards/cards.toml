@@ -576,6 +576,9 @@ logo = "pandas"
 [integrations.pipecat]
 logo = "pipecat"
 
+[integrations.popnow]
+logo = "popnow"
+
 [integrations.portkey]
 logo = "portkey"
 replaces = [
@@ -866,6 +869,10 @@ logo = "orcarouter"
 replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/orcarouter-card.avif",
 ]
+
+[banners.integrations-llm-providers-popnow]
+title = "PopNow"
+logo = "popnow"
 
 [banners.integrations-llm-providers-together]
 title = "Together AI"

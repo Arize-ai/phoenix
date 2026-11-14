@@ -669,6 +669,13 @@
                 ]
               },
               {
+                "group": "PopNow",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/popnow",
+                  "docs/phoenix/integrations/llm-providers/popnow/openai-tracing"
+                ]
+              },
+              {
                 "group": "Cloudflare AI Gateway",
                 "pages": [
                   "docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway",
