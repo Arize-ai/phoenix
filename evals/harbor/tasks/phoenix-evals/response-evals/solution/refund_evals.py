@@ -52,7 +52,7 @@ information, or "ungrounded" if any claim doesn't."""
 
 judge = ClassificationEvaluator(
     name="grounded",
-    llm=LLM(provider="openai", model="gpt-5.4-nano"),
+    llm=LLM(provider="openai", model="gpt-5-nano"),
     prompt_template=GROUNDED_PROMPT,
     choices={"grounded": 1.0, "ungrounded": 0.0},
 )

@@ -1,11 +1,14 @@
 # repair-evals
 
-Find out why an existing eval reports misleadingly good numbers, fix it, and rerun it.
-Workflow: **fix a misleading eval**.
+The user's nightly grounding eval says 95% of their support bot's replies are grounded,
+but reviewers keep finding made-up claims. The shipped script has five bugs. The agent
+has to find them, fix the script in place, rerun it so every trace's `grounded`
+annotation is right, and report the real rate. The verifier checks the annotations, then
+runs the fixed script on new traces.
 
 ## The request
 
-The agent receives `instruction.md` verbatim:
+The agent gets `instruction.md` word for word:
 
 > Our nightly grounding eval (`/app/evals/nightly_grounding.py`) says about 95% of our support bot's replies are grounded, but our reviewers keep finding replies that make things up. The bot's traces are in Phoenix under the `support-bot` project.
 >
@@ -17,107 +20,101 @@ The agent receives `instruction.md` verbatim:
 
 | Where | What |
 | --- | --- |
-| Phoenix project `support-bot` | 60 traces, one per customer message about order status, tracking, delivery dates, or address changes. Root `handle_message` agent span (input: a chat payload with `message`, or an email payload with `subject` and `body`; output: the reply). Children: `lookup_order` tool (order record), `track_shipment` tool (carrier tracking) when the order has shipped, `search_help_center` retriever (3 help center articles), and the LLM call. No annotations. |
-| `/app/evals/nightly_grounding.py` | The team's nightly script. It runs as shipped and prints `Scored 21 replies: 20 grounded (95%).` |
-| `/app/support_bot.py` | The bot's prompt, tools, and payload handling, for context. |
-| Model access | `OPENAI_API_KEY` and `ANTHROPIC_API_KEY`. |
+| Project `support-bot` | 60 traces, one per customer message about order status, tracking, delivery dates, or address changes. The root `handle_message` span has the message and the reply. A message arrives either as chat, with a `message` field, or as email, with `subject` and `body`. The children are a `lookup_order` tool call (the order record), a `track_shipment` tool call (carrier tracking) when the order has shipped, a `search_help_center` retriever with 3 help articles, and the LLM call. No annotations. |
+| `/app/evals/nightly_grounding.py` | The team's nightly script. It runs without errors and prints `Scored 21 replies: 20 grounded (95%).` |
+| `/app/support_bot.py` | The bot's prompt, tools, and message handling, for context. |
+| Model access | Real `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` values, so the agent can run the judge. |
 
-No labels are visible. 21 of the 58 graded replies (36%) make exactly one claim that
-nothing the bot looked up supports: an action it never took, a policy no article
-states, or a date, scan, or order detail that contradicts the order record or tracking
-data. In 9 of them, one fact inside an otherwise normal reply is wrong, such as the
-delivery estimate or the order date; the other 12 add or replace a sentence. Grounded
-replies add sentences too, including "I've ..." statements about what the bot looked
-up, so a reply's wording and length don't give its label away. 19 of the 58 messages
-arrive by email. Email and defects are assigned independently. In two more
-traces, `track_shipment` times out and the bot sends a canned apology; those two aren't
-graded.
+No labels are visible. 21 of the 58 graded replies (36%) make one claim that nothing the
+bot looked up supports: an action it never took, a policy no article states, or a date,
+scan, or order detail that contradicts the order record or tracking data. In 9 of them,
+one fact inside an otherwise normal reply is wrong, such as the delivery estimate or the
+order date. The other 12 add or replace a sentence. Grounded replies add sentences too,
+including "I've ..." statements about what the bot looked up, so wording and length don't
+give the label away. 19 of the 58 messages are email.
+Email and made-up claims are assigned independently. In two more traces,
+`track_shipment` times out and the bot sends a canned apology. Those two aren't graded.
 
-The real grounded rate is 37 of 58 graded replies (64%), or 39 of 60 (65%) if you count
-the two apologies as grounded. The reply isn't graded.
+The real grounded rate is 37 of 58 graded replies (64%), or 39 of 60 (65%) counting the
+two apologies as grounded. The reply isn't graded.
 
 ## How it's graded
 
-`reward` is 1 only when both checks pass. A check passes when the latest `grounded`
-annotation covers at least 95% of the traces, and its labels catch at least 80% of
-grounded replies **and** of ungrounded replies. A constant label catches 0% of one
-class, so it fails.
+`reward` is 1 only if both checks pass. Each check reads the latest `grounded`
+annotation on each trace. It passes when those annotations cover at least 95% of the
+traces, and they catch at least 80% of grounded replies and at least 80% of ungrounded
+ones. Checking each class separately means a constant label fails. Labels count by
+meaning, so `grounded` works as well as `pass`.
 
-| Check | Traces | Bar |
+| Check | Which traces | What passes |
 | --- | --- | --- |
-| `production.grounded` | The 58 graded traces in the fixture | Coverage 0.95; recall 0.8 on each class |
-| `new_traces.grounded` | 28 new traces the verifier adds, then runs `python evals/nightly_grounding.py` as the agent user | Same |
+| `production_grounded` | The 58 graded traces in the project. | At least 80% recall on each class. |
+| `new_traces_grounded` | 28 new traces the verifier adds. It then runs `python evals/nightly_grounding.py` as the agent user. | At least 80% recall on each class. |
 
-The verifier reads annotations on any span of a trace, or on the trace itself, and uses
-the latest one, so a rerun overrides earlier verdicts. Labels map to pass or fail by
-meaning (`pass`, `grounded`, `1`, ... versus `fail`, `ungrounded`, `0`, ...), never by
-agreement with the hidden labels.
+On `gpt-5-nano`, the reference solution catches 84% of grounded production replies and
+all of the rest, so it passes with a thin margin. The best
+partial fix we measured, with every bug fixed except what the judge sees and asks,
+catches 43% to 48% of ungrounded replies.
 
-The 0.8 recall bar matches `grounded` in `response-evals`. The reference solution
-reaches 1.0 on both classes in local runs. The best partial fix measured, every bug
-fixed except the judge's inputs and question, reaches 0.43 to 0.48 on ungrounded
-replies.
+### Also reported
 
-## Practice measures
+These don't change `reward`. The [suite README](../README.md#what-a-run-reports)
+explains each one.
 
-The verifier records the requests the rerun sends to model providers and reports
-`practice_*` scores beside `reward`, without changing it (see the
-[suite README](../README.md#practice-measures)). The rubric grader reads this task's
-criteria with the evidence each one needs, and whether code can check it without a
-model:
+- `turns`, `tool_calls`, and a `loaded_<skill>` flag for each skill.
+- `uses_phoenix_evals`: the share of the rerun's judge requests that phoenix-evals sent.
+  The shipped script calls the OpenAI client directly, and fixing it in place is fine,
+  so this score is often 0 here.
+- `prompt_quality`: the share of judge requests whose prompt meets the rubric. For this
+  task, the rubric grader knows that a `grounded` judge needs the customer's message
+  (chat text, or email subject and body), the reply, the order record, the help
+  articles, and the tracking data when the order has shipped.
 
-| Criterion | Evidence a judge needs | Code can check it |
+## What the task tests
+
+Debugging an eval that runs without errors and reports a good number. Each of the five
+bugs alone fails a check. The last column shows the result when only that bug is left
+in an otherwise fixed script.
+
+| Bug | Why it matters | Result when it's the only bug left |
 | --- | --- | --- |
-| `grounded` | The customer's message (chat message or email subject and body), the reply, the order record, the help center articles, and the carrier tracking data when the order has shipped. | No |
+| `get_spans` has no `limit`, so it returns the client's default of 100 spans, newest first. | The 60 traces have 279 spans, so only the 21 newest traces get scored. The new traces push every older trace out of that window. | Covers 34% of production traces and 75% of new ones. |
+| The prompt asks for `PASS` or `FAIL`, but the code compares the verdict with `"fail"`. | Every reply is labeled `pass`. The stored explanations still start with `FAIL:`, which is the clue. | Catches no ungrounded replies. |
+| Any exception is recorded as `pass`. | Email messages have no `message` field, so each one raises `KeyError` before the judge runs. | Catches 67% of ungrounded production replies. |
+| The judge sees only the root span and is asked whether the reply "sounds reasonable and helpful". | Grounded replies cite dates, scans, and tracking numbers that only the child spans contain. Made-up claims sound plausible, and a wrong date reads exactly like a right one. | Catches 43% to 48% of ungrounded replies. With a grounding question but no tool results, it calls no grounded reply grounded. |
+| Verdicts are computed oldest first but matched to traces newest first. | Every trace gets the verdict of another trace. | 65% recall on grounded and 38% on ungrounded production replies. |
 
-`practice_no_copied_examples` compares requests with the visible traces: text they
-share with the new traces, such as policy passages and reply templates, doesn't count.
+It also tests these behaviors:
 
-## What the task targets
-
-The shipped script has five planted bugs. Each one alone fails a check: the last
-column shows the result when only that bug is left in an otherwise fixed script.
-
-| Bug | Which cases expose it | Result when it's the only bug left |
-| --- | --- | --- |
-| `get_spans` without `limit` returns the client's default of 100 spans, newest first | The 60 traces have 279 spans, so only the 21 newest traces get scored. The 28 new traces push every older trace out of that window. | Coverage 0.34 on production and 0.75 on new traces |
-| The prompt asks for `PASS` or `FAIL`, but the code compares the verdict with `"fail"` | Every verdict, so every reply is labeled `pass`. The stored explanations still start with `FAIL:`. | Ungrounded recall 0.00 |
-| Any exception is recorded as `pass` | Email payloads have no `message` key, so each email raises `KeyError` before the judge runs. | Ungrounded recall 0.67 on production and 0.64 on new traces |
-| The judge sees only the root span and is asked whether the reply "sounds reasonable and helpful" | Every grounded reply cites dates, scans, and tracking numbers that only child spans contain. Fabricated claims sound plausible, and a wrong date or detail reads exactly like a right one. | Ungrounded recall 0.43 to 0.48 with the shipped question. With a grounding question but no tool results, grounded recall is 0.00. |
-| Verdicts are computed oldest first but zipped onto roots in API order, newest first | Every trace gets the verdict of its mirror trace. | Grounded recall 0.65 and ungrounded recall 0.38 on production |
-
-Other traps:
-
-| Trap | Which cases expose it |
+| Behavior | How the task checks it |
 | --- | --- |
-| Rescoring only unannotated traces | If the agent runs the shipped script first, 21 traces carry misaligned verdicts. An incremental rerun leaves them wrong. |
-| Overfitting to visible claims | New traces use claim types the visible ones never show: a wrong scan location, item, tracking event, or delivery time inside a normal reply, and added claims such as text alerts, free reshipping, a pickup hold, and a discount code. Their grounded replies can add supported sentences that visible replies never use. |
-| Moving the entry point | The verifier runs `python evals/nightly_grounding.py` from `/app`. |
+| Rescoring every trace | If the agent runs the shipped script first, 21 traces get wrong verdicts. Rescoring only traces without an annotation leaves them wrong. |
+| Fixing the judge so it generalizes | New traces have mistakes the production traces never show: a wrong scan location, item, tracking event, or delivery time inside a normal reply, and added claims such as text alerts, free reshipping, a pickup hold, and a discount code. |
+| Keeping the nightly job working | The verifier runs `python evals/nightly_grounding.py` from `/app`. |
 
 ## Known limits
 
-- The judge-input numbers come from one judge model (`gpt-5.6-luna`). A stronger judge on
-  the shipped question might catch more fabricated claims, because some contradict the
-  same reply.
-- The shipped judge sometimes calls a delivery estimate "already passed", so the model
-  compares fixture dates with its own idea of today. The grounding judge wasn't
-  affected in local runs, but a judge prompt that invites date reasoning could flag
-  grounded replies.
-- Stalled-tracking replies need the judge to accept a business-day count from the
+- The results in the bug table were measured with `gpt-5.6-luna`, a stronger model than
+  the shipped script's `gpt-5-nano`. With the shipped question, a weaker judge catches
+  fewer made-up claims, so that row's numbers are a best case.
+- The shipped judge sometimes calls a delivery estimate "already passed", comparing the
+  fixture's dates with its own idea of today. The grounding judge didn't do this in local
+  runs, but a prompt that invites date reasoning could flag grounded replies.
+- Replies about stalled tracking need the judge to accept a business-day count from the
   tracking data. One local reference run missed one of these.
-- Replies are templated, but wording alone can't separate the labels: 13 of the 32
-  defects change a fact inside a normal reply, and half of grounded replies add a
-  supported sentence. Matching every sentence against the clean templates and
-  supported extras, with any names, dates, and tracking values, catches 0.57 of
-  ungrounded replies on production and 0.64 on new traces.
+- The replies come from templates, but wording alone can't separate the labels.
+  Matching every sentence against the clean templates catches 57% of ungrounded
+  production replies and 64% of new ones. Made-up actions such as "I've already sent a
+  replacement" still use verbs no grounded reply uses, because the bot has no action
+  tools, but flagging them catches under 25%.
 - The shipped script marks errored traces `fail`. Those traces aren't graded, so keeping
   or dropping that rule doesn't change the reward.
 
 ## Files
 
-| Path | Purpose |
+| Path | What it does |
 | --- | --- |
-| `fixture/build.py` | Generates `fixture/spec.json` (the 60 visible traces) and `tests/truth.json` (their labels, plus the 28 new traces and labels). Rerun it after editing; it's deterministic. It also prints how many replies the shipped script scores. |
+| `fixture/build.py` | Generates `fixture/spec.json` (the 60 production traces) and `tests/truth.json` (their labels, plus the 28 new traces and their labels). It's deterministic; rerun it after editing. It also prints how many replies the shipped script scores. |
 | `workdir/` | Copied to `/app`: the shipped `evals/nightly_grounding.py` and `support_bot.py`. |
 | `tests/test.py` | The verifier. |
-| `solution/nightly_grounding.py` | The corrected script: it reads every span, gives the judge the tool results and articles, parses the verdict in any casing, leaves unscored replies unannotated, and keys each verdict by its own root span. `solution/solve.sh` installs it over the shipped script and runs it. |
+| `solution/nightly_grounding.py` | The fixed script. It reads every span, gives the judge the tool results and articles, reads the verdict in any casing, leaves unscored replies without an annotation, and matches each verdict to its own trace. `solution/solve.sh` installs it over the shipped script and runs it. |

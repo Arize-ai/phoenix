@@ -66,7 +66,7 @@ Is the agent's decision compliant or noncompliant?"""
 
 judge = ClassificationEvaluator(
     name=ANNOTATION,
-    llm=LLM(provider="openai", model="gpt-5.4-nano"),
+    llm=LLM(provider="openai", model="gpt-5-nano"),
     prompt_template=PROMPT,
     choices={"compliant": 1.0, "noncompliant": 0.0},
 )

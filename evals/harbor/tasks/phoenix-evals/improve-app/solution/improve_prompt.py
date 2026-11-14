@@ -29,7 +29,7 @@ ORDERS = {o["order_id"]: o for o in support_app.DATA["orders"]}
 
 PROMISE_JUDGE = ClassificationEvaluator(
     name="no_false_promises",
-    llm=LLM(provider="openai", model=os.environ.get("EVAL_MODEL", "gpt-5.6-luna")),
+    llm=LLM(provider="openai", model=os.environ.get("EVAL_MODEL", "gpt-5-nano")),
     prompt_template="""A support assistant answered a customer using the handbook rules and order records below.
 
 {{context}}

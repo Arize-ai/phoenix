@@ -283,7 +283,7 @@ def seen_only_ids(seen: Iterable[Any], unseen: Iterable[Any]) -> set[str]:
 
 # Rubric
 
-PINNED_MODEL = os.environ.get("PHOENIX_EVALS_PINNED_MODEL", "gpt-5.4-nano")
+PINNED_MODEL = os.environ.get("PHOENIX_EVALS_PINNED_MODEL", "gpt-5-nano")
 """The only model a task's nightly API key can call, so the only one its judges may use."""
 
 RUBRIC = {
@@ -305,7 +305,8 @@ RUBRIC = {
         "The trace data reads like something a person could review quickly: labeled "
         "sections, conversation turns, documents as plain text. Not a raw dump of span JSON, "
         "OpenInference attribute keys such as `output.value`, escaped JSON strings, or IDs "
-        "and timestamps that don't help the judgment."
+        "and timestamps that don't help the judgment. A record shown as compact JSON with "
+        "plain field names, such as an order or a tool result, is readable."
     ),
     "has_evidence": (
         "It includes all of the evidence listed for the criterion it judges. Evidence that "
@@ -360,7 +361,7 @@ def _grade_request(
 ) -> dict[str, Any]:
     from phoenix.evals import LLM
 
-    from harbor_verifiers.llm_judge import JUDGE_MODEL, JUDGE_PROVIDER
+    from harbor_verifiers.grading import GRADER_MODEL, GRADER_PROVIDER
 
     schema = {
         "type": "object",
@@ -380,7 +381,7 @@ def _grade_request(
         rubric="\n".join(f"{name}: {text}" for name, text in RUBRIC.items()),
         request=render(call)[:_MAX_PROMPT_CHARS],
     )
-    llm = LLM(provider=JUDGE_PROVIDER, model=JUDGE_MODEL)
+    llm = LLM(provider=GRADER_PROVIDER, model=GRADER_MODEL)
     return dict(llm.generate_object(prompt, schema))
 
 

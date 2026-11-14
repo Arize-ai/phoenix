@@ -21,7 +21,7 @@ from typing import Any, Callable
 
 from phoenix.evals import LLM, ClassificationEvaluator
 
-from harbor_verifiers.llm_judge import JUDGE_MODEL, JUDGE_PROVIDER
+from harbor_verifiers.grading import GRADER_MODEL, GRADER_PROVIDER
 
 WORD_LIMIT = 80
 BEHAVIORS = ("cites_policy", "under_word_limit", "no_false_promises", "account_privacy")
@@ -102,7 +102,7 @@ def judge(template: str) -> ClassificationEvaluator:
     }[template]
     return ClassificationEvaluator(
         name="judge",
-        llm=LLM(provider=JUDGE_PROVIDER, model=JUDGE_MODEL),
+        llm=LLM(provider=GRADER_PROVIDER, model=GRADER_MODEL),
         prompt_template=template,
         choices=choices,
     )

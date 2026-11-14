@@ -25,6 +25,12 @@ from typing import Any, Hashable, TypeVar, cast
 from harbor_verifiers import evals_state
 from harbor_verifiers.phoenix_api import PHOENIX_URL
 
+GRADER_PROVIDER = os.environ.get("PHOENIX_EVAL_JUDGE_PROVIDER", "openai")
+GRADER_MODEL = os.environ.get("PHOENIX_EVAL_JUDGE_MODEL", "gpt-6-luna")
+"""The model the verifier itself calls: to pull claims out of replies, to grade judge
+prompts, and for task-specific judges. It's the cheapest model that matched
+`gpt-5.6-luna` on every saved reply; `gpt-5-nano` misread plain decisions."""
+
 Unit = TypeVar("Unit", bound=Hashable)
 
 # Overridable so `scripts/check_task_locally.py` can grade a task outside a container.
@@ -424,8 +430,6 @@ def extract_report_claims(reply: str, fields: Mapping[str, str]) -> dict[str, An
     """
     from phoenix.evals import LLM
 
-    from harbor_verifiers.llm_judge import JUDGE_MODEL, JUDGE_PROVIDER
-
     schema = {
         "type": "object",
         "additionalProperties": False,
@@ -466,7 +470,7 @@ def extract_report_claims(reply: str, fields: Mapping[str, str]) -> dict[str, An
         + "\nREPLY:\n"
         + reply
     )
-    llm = LLM(provider=JUDGE_PROVIDER, model=JUDGE_MODEL)
+    llm = LLM(provider=GRADER_PROVIDER, model=GRADER_MODEL)
     return dict(llm.generate_object(prompt, schema))
 
 

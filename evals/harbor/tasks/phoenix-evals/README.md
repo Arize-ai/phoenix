@@ -38,10 +38,14 @@ same request but opposite correct answers, so a fixed answer can't pass both.
   the verifier adds new traces the agent never saw, runs the script as the agent user,
   and grades the new annotations. For `improve-app`, it runs the app with the agent's
   final prompt on new questions. A one-off or overfit result fails.
+- **Judges run on the cheapest model.** Tasks that ask for an LLM judge say the nightly
+  job's key can only call `gpt-5-nano`, OpenAI's cheapest model, and the rerun refuses
+  any other model. On it, the reference prompts pass and naive prompts (raw span JSON,
+  labels without definitions) fail, so prompt quality shows up in `reward`.
 - **Recall is checked per class.** Annotation checks require a minimum recall on good
   and on bad cases separately, so a constant label fails.
 - **Replies are graded on extracted claims.** For analysis tasks, an LLM extracts the
-  stated decision and numbers with verbatim quotes, without seeing the answers. Code
+  stated decision and numbers, quoting the reply, without seeing the answers. Code
   compares them with the expected values.
 
 ## What a run reports
@@ -99,7 +103,7 @@ builders for fixtures are in
 
 | Path | Purpose |
 | --- | --- |
-| `Task.md` | The single page a reviewer reads. Quotes `instruction.md` verbatim. |
+| `Task.md` | The one page a reviewer reads. Quotes `instruction.md` word for word. |
 | `instruction.md` | The request the agent receives. |
 | `task.toml` | Harbor config. `fixture = "spec"` seeds Phoenix from `fixture/spec.json`. |
 | `fixture/build.py` | Deterministic generator for `fixture/spec.json` and `tests/truth.json`. |

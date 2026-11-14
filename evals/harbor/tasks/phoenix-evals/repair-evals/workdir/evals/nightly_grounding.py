@@ -21,7 +21,7 @@ from phoenix.client import Client
 
 PROJECT = "support-bot"
 ANNOTATION = "grounded"
-JUDGE_MODEL = os.environ.get("JUDGE_MODEL", "gpt-5.6-luna")
+JUDGE_MODEL = os.environ.get("JUDGE_MODEL", "gpt-5-nano")
 
 JUDGE_PROMPT = """You are reviewing a reply from Larkspur Home's customer support bot.
 
