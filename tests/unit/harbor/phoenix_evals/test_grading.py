@@ -185,7 +185,7 @@ def test_quote_scattered_across_the_reply_is_rejected() -> None:
 
 
 def test_good_share_counts_only_clear_predictions() -> None:
-    predictions = {
+    predictions: dict[str, grading.Prediction | bool | None] = {
         "a": _prediction(True),
         "b": _prediction(False),
         "c": _prediction(None),

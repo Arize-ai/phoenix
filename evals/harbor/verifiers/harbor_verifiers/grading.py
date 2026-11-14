@@ -337,7 +337,7 @@ def good_share(
     return sum(values) / len(values) if values else None
 
 
-def passing_share_range(truth: Mapping[Hashable, bool], min_recall: float) -> tuple[float, float]:
+def passing_share_range(truth: Mapping[Unit, bool], min_recall: float) -> tuple[float, float]:
     """Returns the lowest and highest good share that labels meeting `min_recall` can give.
 
     Labels that cover every unit and catch at least `min_recall` of the good units and
