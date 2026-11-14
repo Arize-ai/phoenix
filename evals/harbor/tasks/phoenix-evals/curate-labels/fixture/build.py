@@ -10,7 +10,8 @@ Each trace gets one review history, chosen by category. The seeder writes annota
 list order, so a review written in a later round is newer. Every eligible trace's latest
 human verdict matches its reply by construction: a `supported` reply restates only the
 help article and workspace record, and an `unsupported` reply adds or contradicts a fact.
-Earlier reviews and pre-labels that disagree are the wrong ones.
+Earlier reviews and pre-labels that disagree are the wrong ones. A human `unsupported`
+verdict on a bad reply carries a note that names that reply's own mistake.
 """
 
 from __future__ import annotations
@@ -42,7 +43,8 @@ SYSTEM_PROMPT = (
 
 # Each topic: the help article the reply should rest on, the workspace fields the reply
 # relies on, customer questions, replies that use only that context, and replies that
-# add or contradict a fact.
+# add or contradict a fact. Each bad reply carries two notes that name its own mistake,
+# which reviewers who mark it `unsupported` choose from.
 TOPICS: list[dict[str, Any]] = [
     {
         "key": "csv-export",
@@ -67,10 +69,23 @@ TOPICS: list[dict[str, Any]] = [
             "attachments or comments.",
         ],
         "bad": [
-            "Open the board menu and choose Export > CSV. The export bundles every "
-            "attachment into a ZIP file alongside the spreadsheet.",
-            "CSV export is a Pro feature, so you'll need to upgrade from Starter first. "
-            "After that, use the board menu and choose Export > CSV.",
+            {
+                "reply": "Open the board menu and choose Export > CSV. The export bundles "
+                "every attachment into a ZIP file alongside the spreadsheet.",
+                "notes": [
+                    "CSV exports leave attachments out, so there's no ZIP of them.",
+                    "Invents an attachments ZIP; the article says exports don't include "
+                    "attachments.",
+                ],
+            },
+            {
+                "reply": "CSV export is a Pro feature, so you'll need to upgrade from "
+                "Starter first. After that, use the board menu and choose Export > CSV.",
+                "notes": [
+                    "Exports are on every plan, Starter included.",
+                    "Wrong plan: the article says any plan can export.",
+                ],
+            },
         ],
     },
     {
@@ -96,10 +111,22 @@ TOPICS: list[dict[str, Any]] = [
             "like members.",
         ],
         "bad": [
-            "On Pro you get 10 free guest seats, and guests can also create and edit tasks "
-            "on any board in the workspace.",
-            "Pro workspaces get unlimited free guests, so you can invite as many clients "
-            "as you like.",
+            {
+                "reply": "On Pro you get 10 free guest seats, and guests can also create and "
+                "edit tasks on any board in the workspace.",
+                "notes": [
+                    "Guests can only view and comment, and only on boards they're invited to.",
+                    "Overstates what guests can do; they can't create or edit tasks.",
+                ],
+            },
+            {
+                "reply": "Pro workspaces get unlimited free guests, so you can invite as many "
+                "clients as you like.",
+                "notes": [
+                    "Pro includes 10 free guest seats, not unlimited.",
+                    "Wrong limit: guests past the first 10 are billed as members.",
+                ],
+            },
         ],
     },
     {
@@ -125,10 +152,23 @@ TOPICS: list[dict[str, Any]] = [
             "for all members.",
         ],
         "bad": [
-            "Go to Settings > Security to turn on two-factor authentication. Hardware "
-            "security keys like YubiKey also work there.",
-            "Two-factor authentication is under Settings > Security. Once an admin requires "
-            "it, members who don't enroll within 7 days are locked out automatically.",
+            {
+                "reply": "Go to Settings > Security to turn on two-factor authentication. "
+                "Hardware security keys like YubiKey also work there.",
+                "notes": [
+                    "The article lists authenticator apps and SMS only; no hardware keys.",
+                    "Invents YubiKey as a second factor.",
+                ],
+            },
+            {
+                "reply": "Two-factor authentication is under Settings > Security. Once an "
+                "admin requires it, members who don't enroll within 7 days are locked out "
+                "automatically.",
+                "notes": [
+                    "Nothing in the article about locking members out after 7 days.",
+                    "Invents a 7-day enrollment deadline.",
+                ],
+            },
         ],
     },
     {
@@ -153,10 +193,23 @@ TOPICS: list[dict[str, Any]] = [
             "deleted.",
         ],
         "bad": [
-            "A downgrade takes effect right away, and we refund the unused part of your "
-            "annual Pro plan.",
-            "The downgrade applies at the end of your billing period. Boards over the "
-            "Starter limit are archived and deleted after 90 days.",
+            {
+                "reply": "A downgrade takes effect right away, and we refund the unused part "
+                "of your annual Pro plan.",
+                "notes": [
+                    "Downgrades apply at the end of the billing period, not right away, and "
+                    "there's no refund.",
+                    "Wrong timing, and the refund isn't in the article.",
+                ],
+            },
+            {
+                "reply": "The downgrade applies at the end of your billing period. Boards "
+                "over the Starter limit are archived and deleted after 90 days.",
+                "notes": [
+                    "Boards over the limit become read-only; nothing is deleted.",
+                    "Invents a 90-day deletion when the article says nothing is deleted.",
+                ],
+            },
         ],
     },
     {
@@ -181,10 +234,22 @@ TOPICS: list[dict[str, Any]] = [
             "plans aren't refundable.",
         ],
         "bad": [
-            "Annual plans are fully refundable within 60 days, so you'll get the whole "
-            "amount back.",
-            "You're within the 30-day window, so you'll get a pro-rata refund. We'll also "
-            "add a month of credit for the trouble.",
+            {
+                "reply": "Annual plans are fully refundable within 60 days, so you'll get the "
+                "whole amount back.",
+                "notes": [
+                    "The refund window is 30 days and pro rata, not a full refund within 60.",
+                    "Wrong refund window and amount.",
+                ],
+            },
+            {
+                "reply": "You're within the 30-day window, so you'll get a pro-rata refund. "
+                "We'll also add a month of credit for the trouble.",
+                "notes": [
+                    "The month of credit isn't part of the refund policy.",
+                    "Promises credit we don't offer.",
+                ],
+            },
         ],
     },
     {
@@ -208,10 +273,22 @@ TOPICS: list[dict[str, Any]] = [
             "been less than 30 days. After that, the board can't be recovered.",
         ],
         "bad": [
-            "Deleted boards stay in Trash for 30 days, and any member can restore them "
-            "from the board list.",
-            "Deleted boards stay in Trash for 30 days. After that, our team can still "
-            "recover them from backups for up to a year.",
+            {
+                "reply": "Deleted boards stay in Trash for 30 days, and any member can "
+                "restore them from the board list.",
+                "notes": [
+                    "Only workspace admins can restore boards, from Settings > Trash.",
+                    "Wrong about who can restore and where.",
+                ],
+            },
+            {
+                "reply": "Deleted boards stay in Trash for 30 days. After that, our team can "
+                "still recover them from backups for up to a year.",
+                "notes": [
+                    "After 30 days a board can't be recovered; there's no backup restore.",
+                    "Made-up recovery from backups.",
+                ],
+            },
         ],
     },
     {
@@ -236,10 +313,22 @@ TOPICS: list[dict[str, Any]] = [
             "but it's a Pro and Business feature. Your Starter plan doesn't include it.",
         ],
         "bad": [
-            "Calendar sync works on every plan, including Starter. Turn it on in Settings > "
-            "Integrations and changes appear within 15 minutes.",
-            "Calendar sync is a Pro and Business feature. Apple Calendar is also available "
-            "on the same settings page.",
+            {
+                "reply": "Calendar sync works on every plan, including Starter. Turn it on in "
+                "Settings > Integrations and changes appear within 15 minutes.",
+                "notes": [
+                    "Calendar sync is Pro and Business only, and this workspace is on Starter.",
+                    "Wrong plan; Starter doesn't include calendar sync.",
+                ],
+            },
+            {
+                "reply": "Calendar sync is a Pro and Business feature. Apple Calendar is also "
+                "available on the same settings page.",
+                "notes": [
+                    "The article covers Google Calendar and Outlook only, not Apple Calendar.",
+                    "Adds Apple Calendar, which the article doesn't list.",
+                ],
+            },
         ],
     },
     {
@@ -262,9 +351,21 @@ TOPICS: list[dict[str, Any]] = [
             "upload. Business workspaces can attach files up to 1 GB.",
         ],
         "bad": [
-            "On your Pro plan, each attachment can be up to 2 GB.",
-            "Pro allows 250 MB per attachment, and you can raise it by linking a Google "
-            "Drive account in Settings.",
+            {
+                "reply": "On your Pro plan, each attachment can be up to 2 GB.",
+                "notes": [
+                    "Pro allows 250 MB per attachment, not 2 GB.",
+                    "Wrong limit compared with the article.",
+                ],
+            },
+            {
+                "reply": "Pro allows 250 MB per attachment, and you can raise it by linking a "
+                "Google Drive account in Settings.",
+                "notes": [
+                    "There's no way to raise the limit through Google Drive.",
+                    "Invents a Google Drive workaround for the size limit.",
+                ],
+            },
         ],
     },
     {
@@ -289,10 +390,22 @@ TOPICS: list[dict[str, Any]] = [
             "it's only on Business. Your workspace is on Pro right now.",
         ],
         "bad": [
-            "SAML single sign-on is included on Pro, so an admin can set up Okta under "
-            "Settings > Security > SSO today.",
-            "SSO is a Business feature and works with Okta, Microsoft Entra ID, Google "
-            "Workspace, and OneLogin.",
+            {
+                "reply": "SAML single sign-on is included on Pro, so an admin can set up Okta "
+                "under Settings > Security > SSO today.",
+                "notes": [
+                    "SSO is Business only, and this workspace is on Pro.",
+                    "Wrong plan: Pro doesn't include SAML SSO.",
+                ],
+            },
+            {
+                "reply": "SSO is a Business feature and works with Okta, Microsoft Entra ID, "
+                "Google Workspace, and OneLogin.",
+                "notes": [
+                    "OneLogin isn't one of the identity providers the article lists.",
+                    "Adds OneLogin to the list of identity providers.",
+                ],
+            },
         ],
     },
     {
@@ -316,9 +429,22 @@ TOPICS: list[dict[str, Any]] = [
             "it returns a 429 error.",
         ],
         "bad": [
-            "Your Business workspace has a limit of 5,000 API requests per minute per token.",
-            "Business allows 500 requests per minute per token, and the limit resets every "
-            "hour if you go over.",
+            {
+                "reply": "Your Business workspace has a limit of 5,000 API requests per minute "
+                "per token.",
+                "notes": [
+                    "Business gets 500 requests per minute per token, not 5,000.",
+                    "Wrong limit compared with the article.",
+                ],
+            },
+            {
+                "reply": "Business allows 500 requests per minute per token, and the limit "
+                "resets every hour if you go over.",
+                "notes": [
+                    "The article says nothing about an hourly reset.",
+                    "Made-up reset rule; requests over the limit just get a 429.",
+                ],
+            },
         ],
     },
     {
@@ -341,9 +467,21 @@ TOPICS: list[dict[str, Any]] = [
             "over needs to be a workspace admin first.",
         ],
         "bad": [
-            "Any admin can make themselves the owner from Settings > Members.",
-            "The current owner transfers ownership in Settings > Members. If the owner has "
-            "left, our team can reassign it within one business day.",
+            {
+                "reply": "Any admin can make themselves the owner from Settings > Members.",
+                "notes": [
+                    "Only the current owner can transfer ownership.",
+                    "Wrong permission: admins can't take ownership themselves.",
+                ],
+            },
+            {
+                "reply": "The current owner transfers ownership in Settings > Members. If the "
+                "owner has left, our team can reassign it within one business day.",
+                "notes": [
+                    "Promises a reassignment by our team that the article doesn't offer.",
+                    "Made-up policy, not in the docs.",
+                ],
+            },
         ],
     },
     {
@@ -368,9 +506,21 @@ TOPICS: list[dict[str, Any]] = [
             "schedule. A fresh copy is created each time the previous one is completed.",
         ],
         "bad": [
-            "Open the task menu and choose Repeat. You can also set custom schedules, like "
-            "every second Tuesday.",
-            "Recurring tasks are a Pro feature, so they aren't available on Starter.",
+            {
+                "reply": "Open the task menu and choose Repeat. You can also set custom "
+                "schedules, like every second Tuesday.",
+                "notes": [
+                    "Repeat only offers daily, weekly, or monthly schedules.",
+                    "Invents custom repeat schedules.",
+                ],
+            },
+            {
+                "reply": "Recurring tasks are a Pro feature, so they aren't available on Starter.",
+                "notes": [
+                    "Recurring tasks are on every plan, Starter included.",
+                    "Wrong plan; Starter has recurring tasks.",
+                ],
+            },
         ],
     },
     {
@@ -396,10 +546,22 @@ TOPICS: list[dict[str, Any]] = [
             "offline.",
         ],
         "bad": [
-            "The apps keep all of your boards available offline indefinitely, and edits "
-            "sync when you reconnect.",
-            "Edits you make offline sync when you reconnect. Attachments under 50 MB are "
-            "also cached for offline viewing.",
+            {
+                "reply": "The apps keep all of your boards available offline indefinitely, "
+                "and edits sync when you reconnect.",
+                "notes": [
+                    "The apps only keep boards opened in the last 7 days.",
+                    "Wrong limit: offline access covers the last 7 days, not every board.",
+                ],
+            },
+            {
+                "reply": "Edits you make offline sync when you reconnect. Attachments under "
+                "50 MB are also cached for offline viewing.",
+                "notes": [
+                    "Attachments can't be opened offline at all.",
+                    "Made-up 50 MB attachment cache.",
+                ],
+            },
         ],
     },
     {
@@ -424,9 +586,22 @@ TOPICS: list[dict[str, Any]] = [
             "show up on future invoices only, and earlier invoices can't be reissued.",
         ],
         "bad": [
-            "Update it under Billing > Invoice details, and we'll automatically reissue "
-            "your past invoices with the new details.",
-            "Any member can change the company name and address under Billing > Invoice details.",
+            {
+                "reply": "Update it under Billing > Invoice details, and we'll automatically "
+                "reissue your past invoices with the new details.",
+                "notes": [
+                    "Past invoices can't be reissued; changes only apply to future ones.",
+                    "Promises reissued invoices, which we don't do.",
+                ],
+            },
+            {
+                "reply": "Any member can change the company name and address under Billing > "
+                "Invoice details.",
+                "notes": [
+                    "Only billing admins can change invoice details.",
+                    "Wrong about who can edit invoice details.",
+                ],
+            },
         ],
     },
     {
@@ -452,9 +627,23 @@ TOPICS: list[dict[str, Any]] = [
             "credits aren't paid out.",
         ],
         "bad": [
-            "Members added mid-cycle are free until your next renewal, and you're only "
-            "charged from then on.",
-            "Removing a member refunds the unused days to your card within 5 business days.",
+            {
+                "reply": "Members added mid-cycle are free until your next renewal, and "
+                "you're only charged from then on.",
+                "notes": [
+                    "Mid-cycle members are charged pro rata on the next invoice, not free "
+                    "until renewal.",
+                    "Wrong billing rule for members added mid-cycle.",
+                ],
+            },
+            {
+                "reply": "Removing a member refunds the unused days to your card within 5 "
+                "business days.",
+                "notes": [
+                    "Removed members' unused days become account credit, not a card refund.",
+                    "Promises a refund we don't give.",
+                ],
+            },
         ],
     },
     {
@@ -478,9 +667,22 @@ TOPICS: list[dict[str, Any]] = [
             "workspace is created, and an existing workspace can't be moved to the EU.",
         ],
         "bad": [
-            "Your workspace is in the US region, but an admin can switch it to EU hosting "
-            "from Settings > Data at any time.",
-            "Your data is in the US region. We can migrate it to the EU for a one-time fee.",
+            {
+                "reply": "Your workspace is in the US region, but an admin can switch it to EU "
+                "hosting from Settings > Data at any time.",
+                "notes": [
+                    "Existing workspaces can't move to another region.",
+                    "Invents a region switch in Settings > Data.",
+                ],
+            },
+            {
+                "reply": "Your data is in the US region. We can migrate it to the EU for a "
+                "one-time fee.",
+                "notes": [
+                    "We don't move workspaces between regions, paid or not.",
+                    "Made-up paid migration to the EU.",
+                ],
+            },
         ],
     },
     {
@@ -503,8 +705,18 @@ TOPICS: list[dict[str, Any]] = [
             "your workspace switches to Starter unless someone upgrades.",
         ],
         "bad": [
-            "The Pro trial lasts 30 days, and you have 5 days left.",
-            "When the trial ends, we'll charge the card on file and move you to Pro automatically.",
+            {
+                "reply": "The Pro trial lasts 30 days, and you have 5 days left.",
+                "notes": ["The trial is 14 days, not 30.", "Wrong trial length."],
+            },
+            {
+                "reply": "When the trial ends, we'll charge the card on file and move you to "
+                "Pro automatically.",
+                "notes": [
+                    "The trial needs no card and drops to Starter when it ends.",
+                    "Invents an automatic charge and upgrade to Pro.",
+                ],
+            },
         ],
     },
     {
@@ -527,10 +739,22 @@ TOPICS: list[dict[str, Any]] = [
             "updates to a single Slack channel.",
         ],
         "bad": [
-            "Connect Slack under Settings > Integrations > Slack. Each board can post to "
-            "as many channels as you like.",
-            "Connect Slack under Settings > Integrations > Slack, and you can also create "
-            "tasks by reacting to messages with an emoji.",
+            {
+                "reply": "Connect Slack under Settings > Integrations > Slack. Each board can "
+                "post to as many channels as you like.",
+                "notes": [
+                    "Each board can post to one channel only.",
+                    "Wrong limit compared with the article.",
+                ],
+            },
+            {
+                "reply": "Connect Slack under Settings > Integrations > Slack, and you can "
+                "also create tasks by reacting to messages with an emoji.",
+                "notes": [
+                    "Creating tasks from emoji reactions isn't in the Slack article.",
+                    "Invents an emoji-to-task feature.",
+                ],
+            },
         ],
     },
 ]
@@ -549,28 +773,30 @@ COMPANIES = [
 OPENERS = ["Hi {first}! ", "Hi {first}, thanks for reaching out. ", "Thanks for asking, {first}. "]
 CLOSERS = ["", " Let me know if anything else comes up.", " Happy to help with anything else."]
 
+# Human review notes by label. The `supported` and `needs_review` notes fit any reply. An
+# `unsupported` verdict on a bad reply uses that reply's own notes instead (see
+# `review_note`), so the `unsupported` notes here only appear when a reviewer wrongly
+# flags a good reply.
 NOTES = {
     SUPPORTED: [
         "Matches the help article.",
         "Checked against the docs; all correct.",
-        "Everything here is in the retrieved article.",
-        "Plan details line up with the workspace record.",
+        "Everything here is in the article or the workspace record.",
+        "Nothing added beyond the retrieved context.",
         "Accurate per the KB.",
-        "Correct steps and limits.",
+        "Every claim checks out against the docs.",
     ],
     UNSUPPORTED: [
         "Adds a detail the help article doesn't mention.",
         "Contradicts the KB article.",
-        "Made-up policy, not in the docs.",
         "One claim isn't backed by anything retrieved.",
-        "Wrong limit compared with the article.",
-        "Promises something we don't offer.",
+        "Doesn't match the docs as far as I can tell.",
     ],
     NEEDS_REVIEW: [
         "Not sure about this one, flagging for a second look.",
-        "Need to check with billing before signing off.",
+        "Need to check with the product team before signing off.",
         "Docs are ambiguous here; second opinion please.",
-        "Couldn't verify the plan details, leaving open.",
+        "Couldn't verify every detail, leaving open.",
     ],
 }
 PRELABEL_NOTES = {
@@ -644,6 +870,16 @@ def review_history(category: str, truth: str, rng: random.Random) -> list[tuple[
         "unreviewed": [],
     }
     return histories[category]
+
+
+def review_note(label: str, defect_notes: list[str], written: list[str], rng: random.Random) -> str:
+    """Returns a human reviewer's note for one verdict on a reply.
+
+    An `unsupported` verdict on a bad reply names that reply's mistake. A second reviewer
+    on the same trace doesn't repeat the first reviewer's note.
+    """
+    pool = defect_notes if label == UNSUPPORTED and defect_notes else NOTES[label]
+    return rng.choice([note for note in pool if note not in written] or pool)
 
 
 def plan_cases(rng: random.Random) -> list[dict[str, Any]]:
@@ -745,7 +981,10 @@ def other_annotations(trace: Trace, rng: random.Random) -> list[dict[str, Any]]:
 
 
 def write_texts(cases: list[dict[str, Any]], rng: random.Random) -> list[dict[str, Any]]:
-    """Picks a topic, question, and reply per case. Only duplicate pairs share text."""
+    """Picks a topic, question, and reply per case. Only duplicate pairs share text.
+
+    A bad reply's text also carries the notes that name its mistake.
+    """
     seen: set[tuple[str, str]] = set()
     pair_texts: dict[int, dict[str, Any]] = {}
     texts = []
@@ -758,7 +997,11 @@ def write_texts(cases: list[dict[str, Any]], rng: random.Random) -> list[dict[st
         while True:
             topic = TOPICS[rng.randrange(len(TOPICS))]
             question = rng.choice(topic["questions"])
-            body = rng.choice(topic["good" if case["truth"] == SUPPORTED else "bad"])
+            if case["truth"] == SUPPORTED:
+                body, defect_notes = rng.choice(topic["good"]), []
+            else:
+                bad = rng.choice(topic["bad"])
+                body, defect_notes = bad["reply"], bad["notes"]
             if case["pair"] is not None:
                 reply = body  # A templated answer two customers can both receive.
             else:
@@ -767,7 +1010,7 @@ def write_texts(cases: list[dict[str, Any]], rng: random.Random) -> list[dict[st
             if (question, reply) not in seen:
                 break
         seen.add((question, reply))
-        text = {"topic": topic, "question": question, "reply": reply}
+        text = {"topic": topic, "question": question, "reply": reply, "defect_notes": defect_notes}
         if case["pair"] is not None:
             pair_texts[case["pair"]] = text
         texts.append({**text, "customer": customer, "company": company})
@@ -790,7 +1033,10 @@ def main() -> None:
         notes = []
         for round_, reviewer, label in review_history(case["category"], case["truth"], rng):
             human = reviewer != PRELABELER
-            note = rng.choice(NOTES[label]) if human else PRELABEL_NOTES[label]
+            if human:
+                note = review_note(label, text["defect_notes"], notes, rng)
+            else:
+                note = PRELABEL_NOTES[label]
             notes.append(note)
             result: dict[str, Any] = {"label": label, "explanation": note}
             annotation: dict[str, Any] = {
