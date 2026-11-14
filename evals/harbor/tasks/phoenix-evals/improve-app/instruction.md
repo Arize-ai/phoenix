@@ -2,4 +2,4 @@ Our support assistant (`/app/support_app.py`) has been making promises our polic
 
 Can you improve the prompt so the assistant follows the handbook in `/app/policies.md`? There's a `support-questions` dataset in Phoenix with a `baseline` experiment from the current prompt. Save your improved prompt as a new version of `support-system`, and run it as an experiment on `support-questions` so we can compare it with the baseline.
 
-We'll test the final prompt on new customer questions before rolling it out.
+The prompt has to work on new customer questions too, so don't tune it to the ones in the dataset.

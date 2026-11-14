@@ -44,34 +44,51 @@ same request but opposite correct answers, so a fixed answer can't pass both.
   stated decision and numbers with verbatim quotes, without seeing the answers. Code
   compares them with the expected values.
 
-## Practice measures
+## What a run reports
 
-`reward` grades only the deliverable. Tasks whose verifier reruns an eval script also
-report how the script's LLM judges were built, as 0-to-1 `practice_*` scores beside
-`reward`. They never change `reward`. Harbor averages each one across trials, so you
-can compare agents and skill versions on them.
+`reward` is 1 when every check passes and 0 otherwise. Each check is also reported on
+its own, as 1 or 0, under the name in the task's `Task.md`. Checks named `production_*`
+grade the data that was in Phoenix when the agent started. Checks named `new_traces_*`
+or `new_sessions_*` grade the agent's script after the verifier reruns it on data the
+agent never saw.
 
-During the rerun, the verifier points `OPENAI_BASE_URL` and `ANTHROPIC_BASE_URL` at a
-local recorder that forwards each request and keeps a copy
-([`judge_practice.py`](../../verifiers/harbor_verifiers/judge_practice.py)).
+Every task also reports how the agent worked. None of these change `reward`:
 
-| Score | What it measures | How |
-| --- | --- | --- |
-| `practice_phoenix_evals` | Share of judge requests sent by phoenix-evals | Its evaluators request a result named `extract_structured_data`. |
-| `practice_no_copied_examples` | Share of requests whose prompt template doesn't quote traces the agent saw | A 10-word run of text found in the visible traces but not the new ones, repeated across at least 20% of requests so it's template text rather than the trace being judged. `improve-app` checks its saved prompt against the development questions instead. |
-| `practice_one_criterion` | Share of requests that judge exactly one criterion | LLM rubric |
-| `practice_code_for_deterministic` | Share of requests that don't spend a model call on a criterion code can check, such as JSON format | LLM rubric |
-| `practice_discrete_labels` | Asks for a named label, not a score or Likert scale | LLM rubric |
-| `practice_system_context` | Says what the app is and what it should do | LLM rubric |
-| `practice_readable_data` | Presents trace data as readable text, not raw span JSON | LLM rubric |
-| `practice_relevant_fields` | Includes the evidence each criterion needs, such as documents or tool results | LLM rubric |
-| `practice_no_assumed_reference` | Doesn't refer to a reference answer that doesn't exist | LLM rubric |
-| `practice_clear_structure` | Separates instructions, data, and question, and defines each label | LLM rubric |
-| `practice` | The mean of the scores above | |
+| Key | What it is |
+| --- | --- |
+| `turns` | The number of agent steps in the trajectory. |
+| `tool_calls` | The number of tool calls the agent made. |
+| `loaded_<skill>` | 1 if the agent loaded that skill, such as `loaded_phoenix_evals`. Every task reports the Phoenix skills, even when the agent loaded none. `details.json` lists every skill loaded, in order, under `skills_loaded`. |
 
-The rubric grades one request from each of the four most-used prompt templates and
-weights each by how many requests used it. Details, including the grader's notes, are
-in `details.json` under `practice`.
+Tasks that rerun an agent's eval script also report how its LLM judges are built. While
+the script runs, `OPENAI_BASE_URL` and `ANTHROPIC_BASE_URL` point at a local recorder that
+forwards each request and keeps a copy
+([`judge_prompts.py`](../../verifiers/harbor_verifiers/judge_prompts.py)).
+
+| Key | What it is |
+| --- | --- |
+| `uses_phoenix_evals` | The share of the script's judge requests that phoenix-evals sent. It shows whether the script uses the library, which isn't the same as loading the skill. phoenix-evals requests ask for a result named `extract_structured_data`. |
+| `prompt_quality` | The share of judge requests whose prompt meets every rubric item below. |
+
+To score `prompt_quality`, an LLM reads one request from each of the four most-used
+prompt templates. It writes an explanation and lists the rubric items the prompt misses.
+`details.json` keeps each template's label (`good` or `needs_work`), the items it
+missed, and the explanation, under `judge_prompts`.
+
+| Rubric item | A good judge prompt |
+| --- | --- |
+| `one_criterion` | Judges exactly one of the task's criteria. |
+| `needs_a_model` | Doesn't spend a model call on something code can check, such as JSON format. |
+| `named_labels` | Asks for one label from a small named set, not a score or a Likert scale. |
+| `app_context` | Says what the app is and what it should do, outside the pasted trace data. |
+| `readable_data` | Shows trace data as readable text, not raw span JSON or attribute keys. |
+| `has_evidence` | Includes the evidence the criterion needs, such as retrieved documents or tool results. |
+| `no_missing_reference` | Doesn't refer to a reference answer that isn't there. |
+| `clear_structure` | Separates instructions, data, and question, and says what decides each label. |
+| `no_copied_traces` | Doesn't quote text that appears only in the traces the agent saw. Code checks this one: a 10-word run that's in the visible traces, not in the new ones, and repeated across at least 20% of requests, so it's template text. |
+
+`improve-app` has no judge script. It reports `copies_dev_examples` instead: 1 if the
+agent's saved prompt quotes a development question or names one of its orders.
 
 Shared grading code is in
 [`harbor_verifiers/grading.py`](../../verifiers/harbor_verifiers/grading.py). Span
