@@ -13,7 +13,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "Does the gift card my aunt gave me have an expiration date?",
-     "output.value": "Gift cards expire 2 years after purchase, and balances under $10 can be paid out in cash."
+     "output.value": "Gift cards expire after 2 years and can be exchanged for cash. A lost gift card can be replaced without the original receipt."
     }
    },
    {
@@ -59,15 +59,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.\\n[2] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\\n[3] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\\n[4] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\\n\\nCustomer question: Does the gift card my aunt gave me have an expiration date?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Gift cards expire 2 years after purchase, and balances under $10 can be paid out in cash.",
+     "output.value": "Gift cards expire after 2 years and can be exchanged for cash. A lost gift card can be replaced without the original receipt.",
      "llm.token_count.prompt": 190,
-     "llm.token_count.completion": 22,
+     "llm.token_count.completion": 31,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.\n[2] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\n[3] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\n[4] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\n\nCustomer question: Does the gift card my aunt gave me have an expiration date?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Gift cards expire 2 years after purchase, and balances under $10 can be paid out in cash."
+     "llm.output_messages.0.message.content": "Gift cards expire after 2 years and can be exchanged for cash. A lost gift card can be replaced without the original receipt."
     }
    },
    {
@@ -82,7 +82,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "Do you do anything if something I just bought drops in price?",
-     "output.value": "If an item goes on sale within 14 days of your purchase, contact us and we'll refund the difference. That's limited to one price adjustment per item."
+     "output.value": "When something you bought is marked down in the first 14 days after purchase, reach out to us and we'll refund the price difference. Each item can get only one adjustment."
     }
    },
    {
@@ -128,15 +128,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Seeing two charges for one order? The second is a temporary card authorization, and it disappears on its own within 3 business days.\\n[2] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\\n[3] After the warehouse receives a return, the refund reaches your original payment method within 5 to 7 business days.\\n[4] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\\n\\nCustomer question: Do you do anything if something I just bought drops in price?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "If an item goes on sale within 14 days of your purchase, contact us and we'll refund the difference. That's limited to one price adjustment per item.",
+     "output.value": "When something you bought is marked down in the first 14 days after purchase, reach out to us and we'll refund the price difference. Each item can get only one adjustment.",
      "llm.token_count.prompt": 208,
-     "llm.token_count.completion": 37,
+     "llm.token_count.completion": 42,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] Seeing two charges for one order? The second is a temporary card authorization, and it disappears on its own within 3 business days.\n[2] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\n[3] After the warehouse receives a return, the refund reaches your original payment method within 5 to 7 business days.\n[4] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\n\nCustomer question: Do you do anything if something I just bought drops in price?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "If an item goes on sale within 14 days of your purchase, contact us and we'll refund the difference. That's limited to one price adjustment per item."
+     "llm.output_messages.0.message.content": "When something you bought is marked down in the first 14 days after purchase, reach out to us and we'll refund the price difference. Each item can get only one adjustment."
     }
    },
    {
@@ -151,7 +151,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "Can I exchange a clearance item that said final sale when I ordered it?",
-     "output.value": "Items marked Final Sale can't be returned or exchanged for any reason."
+     "output.value": "No. Once an item is marked Final Sale on the product page, we can't take it back or swap it for another one, for any reason."
     }
    },
    {
@@ -197,15 +197,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\\n[2] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\\n[3] After the warehouse receives a return, the refund reaches your original payment method within 5 to 7 business days.\\n[4] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\\n\\nCustomer question: Can I exchange a clearance item that said final sale when I ordered it?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Items marked Final Sale can't be returned or exchanged for any reason.",
+     "output.value": "No. Once an item is marked Final Sale on the product page, we can't take it back or swap it for another one, for any reason.",
      "llm.token_count.prompt": 188,
-     "llm.token_count.completion": 17,
+     "llm.token_count.completion": 31,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\n[2] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\n[3] After the warehouse receives a return, the refund reaches your original payment method within 5 to 7 business days.\n[4] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\n\nCustomer question: Can I exchange a clearance item that said final sale when I ordered it?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Items marked Final Sale can't be returned or exchanged for any reason."
+     "llm.output_messages.0.message.content": "No. Once an item is marked Final Sale on the product page, we can't take it back or swap it for another one, for any reason."
     }
    },
    {
@@ -427,7 +427,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "What's the cutoff for returning something I ordered online?",
-     "output.value": "Unused items in their original packaging can be returned within 30 days of delivery. After day 30, we can't accept the return."
+     "output.value": "You have 30 days from delivery to send an item back, as long as it's unused and still in its original packaging. Once those 30 days are up, returns aren't accepted."
     }
    },
    {
@@ -449,8 +449,8 @@
      "retrieval.documents.1.document.id": "kb-4152",
      "retrieval.documents.1.document.content": "Online orders can be returned at any of our retail stores. Bring the packing slip or the order confirmation email.",
      "retrieval.documents.1.document.score": 0.802,
-     "retrieval.documents.2.document.id": "kb-4113",
-     "retrieval.documents.2.document.content": "Items marked Final Sale on the product page can't be returned or exchanged for any reason.",
+     "retrieval.documents.2.document.id": "kb-4204",
+     "retrieval.documents.2.document.content": "If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.",
      "retrieval.documents.2.document.score": 0.756,
      "retrieval.documents.3.document.id": "kb-4347",
      "retrieval.documents.3.document.content": "You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.",
@@ -471,17 +471,17 @@
     "attributes": {
      "llm.model_name": "gpt-5.6-mini",
      "llm.provider": "openai",
-     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\\n[2] Online orders can be returned at any of our retail stores. Bring the packing slip or the order confirmation email.\\n[3] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\\n[4] You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.\\n\\nCustomer question: What's the cutoff for returning something I ordered online?\"}]}",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\\n[2] Online orders can be returned at any of our retail stores. Bring the packing slip or the order confirmation email.\\n[3] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\\n[4] You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.\\n\\nCustomer question: What's the cutoff for returning something I ordered online?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Unused items in their original packaging can be returned within 30 days of delivery. After day 30, we can't accept the return.",
-     "llm.token_count.prompt": 189,
-     "llm.token_count.completion": 31,
+     "output.value": "You have 30 days from delivery to send an item back, as long as it's unused and still in its original packaging. Once those 30 days are up, returns aren't accepted.",
+     "llm.token_count.prompt": 205,
+     "llm.token_count.completion": 41,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
-     "llm.input_messages.1.message.content": "Policy passages:\n[1] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\n[2] Online orders can be returned at any of our retail stores. Bring the packing slip or the order confirmation email.\n[3] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\n[4] You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.\n\nCustomer question: What's the cutoff for returning something I ordered online?",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\n[2] Online orders can be returned at any of our retail stores. Bring the packing slip or the order confirmation email.\n[3] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\n[4] You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.\n\nCustomer question: What's the cutoff for returning something I ordered online?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Unused items in their original packaging can be returned within 30 days of delivery. After day 30, we can't accept the return."
+     "llm.output_messages.0.message.content": "You have 30 days from delivery to send an item back, as long as it's unused and still in its original packaging. Once those 30 days are up, returns aren't accepted."
     }
    },
    {
@@ -565,7 +565,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "Do I have to pay for the shipping label if I send something back for a refund?",
-     "output.value": "Return labels are free for exchanges. If you return an item for a refund, a $6.95 label fee is deducted from your refund."
+     "output.value": "It depends on whether you want an exchange or your money back. Exchanges get a free return label. For a refund, $6.95 comes off the refund to cover the label."
     }
    },
    {
@@ -584,8 +584,8 @@
      "retrieval.documents.0.document.id": "kb-4230",
      "retrieval.documents.0.document.content": "Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.",
      "retrieval.documents.0.document.score": 0.858,
-     "retrieval.documents.1.document.id": "kb-4113",
-     "retrieval.documents.1.document.content": "Items marked Final Sale on the product page can't be returned or exchanged for any reason.",
+     "retrieval.documents.1.document.id": "kb-4282",
+     "retrieval.documents.1.document.content": "You can cancel an order from your account until it ships. Most orders ship within 24 hours.",
      "retrieval.documents.1.document.score": 0.805,
      "retrieval.documents.2.document.id": "kb-4126",
      "retrieval.documents.2.document.content": "Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.",
@@ -609,17 +609,17 @@
     "attributes": {
      "llm.model_name": "gpt-5.6-mini",
      "llm.provider": "openai",
-     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\\n[2] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\\n[3] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\\n[4] After the warehouse receives a return, the refund reaches your original payment method within 5 to 7 business days.\\n\\nCustomer question: Do I have to pay for the shipping label if I send something back for a refund?\"}]}",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\\n[2] You can cancel an order from your account until it ships. Most orders ship within 24 hours.\\n[3] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\\n[4] After the warehouse receives a return, the refund reaches your original payment method within 5 to 7 business days.\\n\\nCustomer question: Do I have to pay for the shipping label if I send something back for a refund?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Return labels are free for exchanges. If you return an item for a refund, a $6.95 label fee is deducted from your refund.",
+     "output.value": "It depends on whether you want an exchange or your money back. Exchanges get a free return label. For a refund, $6.95 comes off the refund to cover the label.",
      "llm.token_count.prompt": 190,
-     "llm.token_count.completion": 30,
+     "llm.token_count.completion": 39,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
-     "llm.input_messages.1.message.content": "Policy passages:\n[1] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\n[2] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\n[3] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\n[4] After the warehouse receives a return, the refund reaches your original payment method within 5 to 7 business days.\n\nCustomer question: Do I have to pay for the shipping label if I send something back for a refund?",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\n[2] You can cancel an order from your account until it ships. Most orders ship within 24 hours.\n[3] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\n[4] After the warehouse receives a return, the refund reaches your original payment method within 5 to 7 business days.\n\nCustomer question: Do I have to pay for the shipping label if I send something back for a refund?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Return labels are free for exchanges. If you return an item for a refund, a $6.95 label fee is deducted from your refund."
+     "llm.output_messages.0.message.content": "It depends on whether you want an exchange or your money back. Exchanges get a free return label. For a refund, $6.95 comes off the refund to cover the label."
     }
    },
    {
@@ -634,7 +634,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "Do you deliver to Australia?",
-     "output.value": "We ship only within the US and to Canada. Canadian orders take 7 to 14 business days, and the recipient pays any customs duties."
+     "output.value": "Outside the US, Canada is the only country we deliver to. A Canadian order arrives in 7 to 14 business days, and any customs duties are paid by the person receiving it."
     }
    },
    {
@@ -680,15 +680,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] We ship only within the US and to Canada. Canadian orders take 7 to 14 business days, and the recipient pays any customs duties.\\n[2] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\\n[3] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\\n[4] You can edit the shipping address from the Orders page for 1 hour after checkout. After that, the order has gone to the warehouse and the address is locked.\\n\\nCustomer question: Do you deliver to Australia?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "We ship only within the US and to Canada. Canadian orders take 7 to 14 business days, and the recipient pays any customs duties.",
+     "output.value": "Outside the US, Canada is the only country we deliver to. A Canadian order arrives in 7 to 14 business days, and any customs duties are paid by the person receiving it.",
      "llm.token_count.prompt": 203,
-     "llm.token_count.completion": 32,
+     "llm.token_count.completion": 42,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] We ship only within the US and to Canada. Canadian orders take 7 to 14 business days, and the recipient pays any customs duties.\n[2] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\n[3] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\n[4] You can edit the shipping address from the Orders page for 1 hour after checkout. After that, the order has gone to the warehouse and the address is locked.\n\nCustomer question: Do you deliver to Australia?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "We ship only within the US and to Canada. Canadian orders take 7 to 14 business days, and the recipient pays any customs duties."
+     "llm.output_messages.0.message.content": "Outside the US, Canada is the only country we deliver to. A Canadian order arrives in 7 to 14 business days, and any customs duties are paid by the person receiving it."
     }
    },
    {
@@ -703,7 +703,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "I bought a rain jacket last week and now it's 20% off. Can I get the difference back?",
-     "output.value": "If an item goes on sale within 14 days of your purchase, contact us and we'll refund the difference. That's limited to one price adjustment per item."
+     "output.value": "When something you bought is marked down in the first 14 days after purchase, reach out to us and we'll refund the price difference. Each item can get only one adjustment."
     }
    },
    {
@@ -749,15 +749,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\\n[2] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\\n[3] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\\n[4] Seeing two charges for one order? The second is a temporary card authorization, and it disappears on its own within 3 business days.\\n\\nCustomer question: I bought a rain jacket last week and now it's 20% off. Can I get the difference back?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "If an item goes on sale within 14 days of your purchase, contact us and we'll refund the difference. That's limited to one price adjustment per item.",
+     "output.value": "When something you bought is marked down in the first 14 days after purchase, reach out to us and we'll refund the price difference. Each item can get only one adjustment.",
      "llm.token_count.prompt": 207,
-     "llm.token_count.completion": 37,
+     "llm.token_count.completion": 42,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\n[2] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\n[3] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\n[4] Seeing two charges for one order? The second is a temporary card authorization, and it disappears on its own within 3 business days.\n\nCustomer question: I bought a rain jacket last week and now it's 20% off. Can I get the difference back?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "If an item goes on sale within 14 days of your purchase, contact us and we'll refund the difference. That's limited to one price adjustment per item."
+     "llm.output_messages.0.message.content": "When something you bought is marked down in the first 14 days after purchase, reach out to us and we'll refund the price difference. Each item can get only one adjustment."
     }
    },
    {
@@ -841,7 +841,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "The carrier marked my order delivered but I never got it. Can you help?",
-     "output.value": "If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost."
+     "output.value": "Since the package shows as delivered but never reached you, tell us within 7 days. We'll then ship you a replacement free of charge."
     }
    },
    {
@@ -887,15 +887,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\\n[2] We ship only within the US and to Canada. Canadian orders take 7 to 14 business days, and the recipient pays any customs duties.\\n[3] You can edit the shipping address from the Orders page for 1 hour after checkout. After that, the order has gone to the warehouse and the address is locked.\\n[4] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\\n\\nCustomer question: The carrier marked my order delivered but I never got it. Can you help?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.",
+     "output.value": "Since the package shows as delivered but never reached you, tell us within 7 days. We'll then ship you a replacement free of charge.",
      "llm.token_count.prompt": 206,
-     "llm.token_count.completion": 30,
+     "llm.token_count.completion": 33,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\n[2] We ship only within the US and to Canada. Canadian orders take 7 to 14 business days, and the recipient pays any customs duties.\n[3] You can edit the shipping address from the Orders page for 1 hour after checkout. After that, the order has gone to the warehouse and the address is locked.\n[4] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\n\nCustomer question: The carrier marked my order delivered but I never got it. Can you help?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost."
+     "llm.output_messages.0.message.content": "Since the package shows as delivered but never reached you, tell us within 7 days. We'll then ship you a replacement free of charge."
     }
    },
    {
@@ -979,7 +979,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "What kinds of problems does your warranty cover?",
-     "output.value": "Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered."
+     "output.value": "Our gear is covered by a 1-year limited warranty for defects in materials and workmanship. Accidents, misuse, and everyday wear and tear fall outside it."
     }
    },
    {
@@ -998,8 +998,8 @@
      "retrieval.documents.0.document.id": "kb-4308",
      "retrieval.documents.0.document.content": "Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered.",
      "retrieval.documents.0.document.score": 0.743,
-     "retrieval.documents.1.document.id": "kb-4321",
-     "retrieval.documents.1.document.content": "To start a warranty claim, upload a photo of the defect with your order number on the Warranty page. Approved claims get a replacement within 10 business days.",
+     "retrieval.documents.1.document.id": "kb-4126",
+     "retrieval.documents.1.document.content": "Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.",
      "retrieval.documents.1.document.score": 0.688,
      "retrieval.documents.2.document.id": "kb-4386",
      "retrieval.documents.2.document.content": "Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.",
@@ -1023,17 +1023,17 @@
     "attributes": {
      "llm.model_name": "gpt-5.6-mini",
      "llm.provider": "openai",
-     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered.\\n[2] To start a warranty claim, upload a photo of the defect with your order number on the Warranty page. Approved claims get a replacement within 10 business days.\\n[3] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\\n[4] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\\n\\nCustomer question: What kinds of problems does your warranty cover?\"}]}",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered.\\n[2] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\\n[3] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\\n[4] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\\n\\nCustomer question: What kinds of problems does your warranty cover?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered.",
-     "llm.token_count.prompt": 210,
-     "llm.token_count.completion": 36,
+     "output.value": "Our gear is covered by a 1-year limited warranty for defects in materials and workmanship. Accidents, misuse, and everyday wear and tear fall outside it.",
+     "llm.token_count.prompt": 203,
+     "llm.token_count.completion": 38,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
-     "llm.input_messages.1.message.content": "Policy passages:\n[1] Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered.\n[2] To start a warranty claim, upload a photo of the defect with your order number on the Warranty page. Approved claims get a replacement within 10 business days.\n[3] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\n[4] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\n\nCustomer question: What kinds of problems does your warranty cover?",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered.\n[2] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\n[3] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\n[4] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\n\nCustomer question: What kinds of problems does your warranty cover?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered."
+     "llm.output_messages.0.message.content": "Our gear is covered by a 1-year limited warranty for defects in materials and workmanship. Accidents, misuse, and everyday wear and tear fall outside it."
     }
    },
    {
@@ -1048,7 +1048,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "If I order to Vancouver, who pays the import fees?",
-     "output.value": "We ship worldwide, and international orders arrive within 5 business days."
+     "output.value": "We ship within the US, to Canada, and to Australia. Canadian orders take 7 to 14 business days, and we pay any customs duties."
     }
    },
    {
@@ -1094,15 +1094,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\\n[2] You can cancel an order from your account until it ships. Most orders ship within 24 hours.\\n[3] We accept Visa, Mastercard, American Express, PayPal, and Apple Pay. We don't accept checks, money orders, or cryptocurrency.\\n[4] You can edit the shipping address from the Orders page for 1 hour after checkout. After that, the order has gone to the warehouse and the address is locked.\\n\\nCustomer question: If I order to Vancouver, who pays the import fees?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "We ship worldwide, and international orders arrive within 5 business days.",
+     "output.value": "We ship within the US, to Canada, and to Australia. Canadian orders take 7 to 14 business days, and we pay any customs duties.",
      "llm.token_count.prompt": 200,
-     "llm.token_count.completion": 18,
+     "llm.token_count.completion": 31,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\n[2] You can cancel an order from your account until it ships. Most orders ship within 24 hours.\n[3] We accept Visa, Mastercard, American Express, PayPal, and Apple Pay. We don't accept checks, money orders, or cryptocurrency.\n[4] You can edit the shipping address from the Orders page for 1 hour after checkout. After that, the order has gone to the warehouse and the address is locked.\n\nCustomer question: If I order to Vancouver, who pays the import fees?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "We ship worldwide, and international orders arrive within 5 business days."
+     "llm.output_messages.0.message.content": "We ship within the US, to Canada, and to Australia. Canadian orders take 7 to 14 business days, and we pay any customs duties."
     }
    },
    {
@@ -1117,7 +1117,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "Can I pay with PayPal?",
-     "output.value": "We accept Visa, Mastercard, American Express, PayPal, and Apple Pay. We don't accept checks, money orders, or cryptocurrency."
+     "output.value": "Our accepted payment options are Visa, Mastercard, American Express, PayPal, and Apple Pay. Cryptocurrency isn't one of them, and neither are checks or money orders."
     }
    },
    {
@@ -1163,15 +1163,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] We accept Visa, Mastercard, American Express, PayPal, and Apple Pay. We don't accept checks, money orders, or cryptocurrency.\\n[2] Seeing two charges for one order? The second is a temporary card authorization, and it disappears on its own within 3 business days.\\n[3] We ship only within the US and to Canada. Canadian orders take 7 to 14 business days, and the recipient pays any customs duties.\\n[4] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\\n\\nCustomer question: Can I pay with PayPal?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "We accept Visa, Mastercard, American Express, PayPal, and Apple Pay. We don't accept checks, money orders, or cryptocurrency.",
+     "output.value": "Our accepted payment options are Visa, Mastercard, American Express, PayPal, and Apple Pay. Cryptocurrency isn't one of them, and neither are checks or money orders.",
      "llm.token_count.prompt": 194,
-     "llm.token_count.completion": 31,
+     "llm.token_count.completion": 41,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] We accept Visa, Mastercard, American Express, PayPal, and Apple Pay. We don't accept checks, money orders, or cryptocurrency.\n[2] Seeing two charges for one order? The second is a temporary card authorization, and it disappears on its own within 3 business days.\n[3] We ship only within the US and to Canada. Canadian orders take 7 to 14 business days, and the recipient pays any customs duties.\n[4] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\n\nCustomer question: Can I pay with PayPal?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "We accept Visa, Mastercard, American Express, PayPal, and Apple Pay. We don't accept checks, money orders, or cryptocurrency."
+     "llm.output_messages.0.message.content": "Our accepted payment options are Visa, Mastercard, American Express, PayPal, and Apple Pay. Cryptocurrency isn't one of them, and neither are checks or money orders."
     }
    },
    {
@@ -1186,7 +1186,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "Can I spread the cost of a $300 tent over a few payments?",
-     "output.value": "Orders over $150 can be split into 4 interest-free payments every two weeks. Choose Pay in 4 at checkout."
+     "output.value": "Yes, with Pay in 4, which you can select at checkout on any order above $150. You pay it off in four interest-free payments, one every two weeks."
     }
    },
    {
@@ -1232,15 +1232,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Orders over $150 can be split into 4 interest-free payments made every two weeks. Choose Pay in 4 at checkout.\\n[2] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\\n[3] We accept Visa, Mastercard, American Express, PayPal, and Apple Pay. We don't accept checks, money orders, or cryptocurrency.\\n[4] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\\n\\nCustomer question: Can I spread the cost of a $300 tent over a few payments?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Orders over $150 can be split into 4 interest-free payments every two weeks. Choose Pay in 4 at checkout.",
+     "output.value": "Yes, with Pay in 4, which you can select at checkout on any order above $150. You pay it off in four interest-free payments, one every two weeks.",
      "llm.token_count.prompt": 190,
-     "llm.token_count.completion": 26,
+     "llm.token_count.completion": 36,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] Orders over $150 can be split into 4 interest-free payments made every two weeks. Choose Pay in 4 at checkout.\n[2] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\n[3] We accept Visa, Mastercard, American Express, PayPal, and Apple Pay. We don't accept checks, money orders, or cryptocurrency.\n[4] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\n\nCustomer question: Can I spread the cost of a $300 tent over a few payments?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Orders over $150 can be split into 4 interest-free payments every two weeks. Choose Pay in 4 at checkout."
+     "llm.output_messages.0.message.content": "Yes, with Pay in 4, which you can select at checkout on any order above $150. You pay it off in four interest-free payments, one every two weeks."
     }
    },
    {
@@ -1255,7 +1255,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "The reset link you sent me yesterday doesn't work anymore. Why?",
-     "output.value": "Choose Forgot password on the sign-in page and we'll email you a reset link. The link expires after 1 hour."
+     "output.value": "On the sign-in page, click Forgot password and we'll email you a reset link. Each link stops working 1 hour after it's sent."
     }
    },
    {
@@ -1301,15 +1301,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] To reset your password, choose Forgot password on the sign-in page. The reset link we email you expires after 1 hour.\\n[2] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\\n[3] You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.\\n[4] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\\n\\nCustomer question: The reset link you sent me yesterday doesn't work anymore. Why?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Choose Forgot password on the sign-in page and we'll email you a reset link. The link expires after 1 hour.",
+     "output.value": "On the sign-in page, click Forgot password and we'll email you a reset link. Each link stops working 1 hour after it's sent.",
      "llm.token_count.prompt": 201,
-     "llm.token_count.completion": 26,
+     "llm.token_count.completion": 31,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] To reset your password, choose Forgot password on the sign-in page. The reset link we email you expires after 1 hour.\n[2] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\n[3] You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.\n[4] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\n\nCustomer question: The reset link you sent me yesterday doesn't work anymore. Why?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Choose Forgot password on the sign-in page and we'll email you a reset link. The link expires after 1 hour."
+     "llm.output_messages.0.message.content": "On the sign-in page, click Forgot password and we'll email you a reset link. Each link stops working 1 hour after it's sent."
     }
    },
    {
@@ -1324,7 +1324,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "Is it possible to take a web order back to a physical store instead of mailing it?",
-     "output.value": "Online orders can be returned at any of our retail stores. Bring the packing slip or your order confirmation email. In-store returns are refunded on the spot."
+     "output.value": "Every one of our retail stores accepts returns of online orders. Just have your packing slip or the order confirmation email with you. In-store returns are refunded on the spot."
     }
    },
    {
@@ -1346,8 +1346,8 @@
      "retrieval.documents.1.document.id": "kb-4386",
      "retrieval.documents.1.document.content": "Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.",
      "retrieval.documents.1.document.score": 0.78,
-     "retrieval.documents.2.document.id": "kb-4113",
-     "retrieval.documents.2.document.content": "Items marked Final Sale on the product page can't be returned or exchanged for any reason.",
+     "retrieval.documents.2.document.id": "kb-4269",
+     "retrieval.documents.2.document.content": "You can edit the shipping address from the Orders page for 1 hour after checkout. After that, the order has gone to the warehouse and the address is locked.",
      "retrieval.documents.2.document.score": 0.734,
      "retrieval.documents.3.document.id": "kb-4152",
      "retrieval.documents.3.document.content": "Online orders can be returned at any of our retail stores. Bring the packing slip or the order confirmation email.",
@@ -1368,17 +1368,17 @@
     "attributes": {
      "llm.model_name": "gpt-5.6-mini",
      "llm.provider": "openai",
-     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] You can cancel an order from your account until it ships. Most orders ship within 24 hours.\\n[2] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\\n[3] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\\n[4] Online orders can be returned at any of our retail stores. Bring the packing slip or the order confirmation email.\\n\\nCustomer question: Is it possible to take a web order back to a physical store instead of mailing it?\"}]}",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] You can cancel an order from your account until it ships. Most orders ship within 24 hours.\\n[2] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\\n[3] You can edit the shipping address from the Orders page for 1 hour after checkout. After that, the order has gone to the warehouse and the address is locked.\\n[4] Online orders can be returned at any of our retail stores. Bring the packing slip or the order confirmation email.\\n\\nCustomer question: Is it possible to take a web order back to a physical store instead of mailing it?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Online orders can be returned at any of our retail stores. Bring the packing slip or your order confirmation email. In-store returns are refunded on the spot.",
-     "llm.token_count.prompt": 186,
-     "llm.token_count.completion": 39,
+     "output.value": "Every one of our retail stores accepts returns of online orders. Just have your packing slip or the order confirmation email with you. In-store returns are refunded on the spot.",
+     "llm.token_count.prompt": 203,
+     "llm.token_count.completion": 44,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
-     "llm.input_messages.1.message.content": "Policy passages:\n[1] You can cancel an order from your account until it ships. Most orders ship within 24 hours.\n[2] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\n[3] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\n[4] Online orders can be returned at any of our retail stores. Bring the packing slip or the order confirmation email.\n\nCustomer question: Is it possible to take a web order back to a physical store instead of mailing it?",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] You can cancel an order from your account until it ships. Most orders ship within 24 hours.\n[2] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\n[3] You can edit the shipping address from the Orders page for 1 hour after checkout. After that, the order has gone to the warehouse and the address is locked.\n[4] Online orders can be returned at any of our retail stores. Bring the packing slip or the order confirmation email.\n\nCustomer question: Is it possible to take a web order back to a physical store instead of mailing it?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Online orders can be returned at any of our retail stores. Bring the packing slip or your order confirmation email. In-store returns are refunded on the spot."
+     "llm.output_messages.0.message.content": "Every one of our retail stores accepts returns of online orders. Just have your packing slip or the order confirmation email with you. In-store returns are refunded on the spot."
     }
    },
    {
@@ -1393,7 +1393,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "Can I use two discount codes on one order?",
-     "output.value": "You can combine up to three promo codes on one order, including on sale items."
+     "output.value": "Up to two promo codes can be applied per order, and promo codes work on items that are already on sale."
     }
    },
    {
@@ -1439,15 +1439,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\\n[2] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\\n[3] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\\n[4] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\\n\\nCustomer question: Can I use two discount codes on one order?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "You can combine up to three promo codes on one order, including on sale items.",
+     "output.value": "Up to two promo codes can be applied per order, and promo codes work on items that are already on sale.",
      "llm.token_count.prompt": 199,
-     "llm.token_count.completion": 19,
+     "llm.token_count.completion": 25,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\n[2] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\n[3] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\n[4] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\n\nCustomer question: Can I use two discount codes on one order?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "You can combine up to three promo codes on one order, including on sale items."
+     "llm.output_messages.0.message.content": "Up to two promo codes can be applied per order, and promo codes work on items that are already on sale."
     }
    },
    {
@@ -1462,7 +1462,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "I typed the wrong street on my order 20 minutes ago. Can I fix it?",
-     "output.value": "You can change the address any time before the order is delivered by calling us."
+     "output.value": "You can edit the shipping address from the Orders page for 24 hours after checkout. After that, call us and we'll update the address at the warehouse."
     }
    },
    {
@@ -1482,7 +1482,7 @@
      "retrieval.documents.0.document.content": "We ship only within the US and to Canada. Canadian orders take 7 to 14 business days, and the recipient pays any customs duties.",
      "retrieval.documents.0.document.score": 0.807,
      "retrieval.documents.1.document.id": "kb-4243",
-     "retrieval.documents.1.document.content": "Express shipping costs $14.95 and delivers in 1 to 2 business days for orders placed before 1 p.m. Eastern.",
+     "retrieval.documents.1.document.content": "Express shipping is our fastest option. It costs $14.95 and delivers in 1 to 2 business days for orders placed before 1 p.m. Eastern.",
      "retrieval.documents.1.document.score": 0.749,
      "retrieval.documents.2.document.id": "kb-4334",
      "retrieval.documents.2.document.content": "To reset your password, choose Forgot password on the sign-in page. The reset link we email you expires after 1 hour.",
@@ -1506,17 +1506,17 @@
     "attributes": {
      "llm.model_name": "gpt-5.6-mini",
      "llm.provider": "openai",
-     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] We ship only within the US and to Canada. Canadian orders take 7 to 14 business days, and the recipient pays any customs duties.\\n[2] Express shipping costs $14.95 and delivers in 1 to 2 business days for orders placed before 1 p.m. Eastern.\\n[3] To reset your password, choose Forgot password on the sign-in page. The reset link we email you expires after 1 hour.\\n[4] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\\n\\nCustomer question: I typed the wrong street on my order 20 minutes ago. Can I fix it?\"}]}",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] We ship only within the US and to Canada. Canadian orders take 7 to 14 business days, and the recipient pays any customs duties.\\n[2] Express shipping is our fastest option. It costs $14.95 and delivers in 1 to 2 business days for orders placed before 1 p.m. Eastern.\\n[3] To reset your password, choose Forgot password on the sign-in page. The reset link we email you expires after 1 hour.\\n[4] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\\n\\nCustomer question: I typed the wrong street on my order 20 minutes ago. Can I fix it?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "You can change the address any time before the order is delivered by calling us.",
-     "llm.token_count.prompt": 197,
-     "llm.token_count.completion": 20,
+     "output.value": "You can edit the shipping address from the Orders page for 24 hours after checkout. After that, call us and we'll update the address at the warehouse.",
+     "llm.token_count.prompt": 203,
+     "llm.token_count.completion": 37,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
-     "llm.input_messages.1.message.content": "Policy passages:\n[1] We ship only within the US and to Canada. Canadian orders take 7 to 14 business days, and the recipient pays any customs duties.\n[2] Express shipping costs $14.95 and delivers in 1 to 2 business days for orders placed before 1 p.m. Eastern.\n[3] To reset your password, choose Forgot password on the sign-in page. The reset link we email you expires after 1 hour.\n[4] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\n\nCustomer question: I typed the wrong street on my order 20 minutes ago. Can I fix it?",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] We ship only within the US and to Canada. Canadian orders take 7 to 14 business days, and the recipient pays any customs duties.\n[2] Express shipping is our fastest option. It costs $14.95 and delivers in 1 to 2 business days for orders placed before 1 p.m. Eastern.\n[3] To reset your password, choose Forgot password on the sign-in page. The reset link we email you expires after 1 hour.\n[4] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\n\nCustomer question: I typed the wrong street on my order 20 minutes ago. Can I fix it?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "You can change the address any time before the order is delivered by calling us."
+     "llm.output_messages.0.message.content": "You can edit the shipping address from the Orders page for 24 hours after checkout. After that, call us and we'll update the address at the warehouse."
     }
    },
    {
@@ -1531,7 +1531,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "Do you have any kind of buy now, pay later option?",
-     "output.value": "Orders over $150 can be split into 4 interest-free payments every two weeks. Choose Pay in 4 at checkout."
+     "output.value": "Yes, with Pay in 4, which you can select at checkout on any order above $150. You pay it off in four interest-free payments, one every two weeks."
     }
    },
    {
@@ -1577,15 +1577,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\\n[2] Orders over $150 can be split into 4 interest-free payments made every two weeks. Choose Pay in 4 at checkout.\\n[3] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\\n[4] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\\n\\nCustomer question: Do you have any kind of buy now, pay later option?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Orders over $150 can be split into 4 interest-free payments every two weeks. Choose Pay in 4 at checkout.",
+     "output.value": "Yes, with Pay in 4, which you can select at checkout on any order above $150. You pay it off in four interest-free payments, one every two weeks.",
      "llm.token_count.prompt": 187,
-     "llm.token_count.completion": 26,
+     "llm.token_count.completion": 36,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\n[2] Orders over $150 can be split into 4 interest-free payments made every two weeks. Choose Pay in 4 at checkout.\n[3] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\n[4] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\n\nCustomer question: Do you have any kind of buy now, pay later option?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Orders over $150 can be split into 4 interest-free payments every two weeks. Choose Pay in 4 at checkout."
+     "llm.output_messages.0.message.content": "Yes, with Pay in 4, which you can select at checkout on any order above $150. You pay it off in four interest-free payments, one every two weeks."
     }
    },
    {
@@ -1623,10 +1623,10 @@
      "retrieval.documents.1.document.content": "After the warehouse receives a return, the refund reaches your original payment method within 5 to 7 business days.",
      "retrieval.documents.1.document.score": 0.779,
      "retrieval.documents.2.document.id": "kb-4243",
-     "retrieval.documents.2.document.content": "Express shipping costs $14.95 and delivers in 1 to 2 business days for orders placed before 1 p.m. Eastern.",
+     "retrieval.documents.2.document.content": "Express shipping is our fastest option. It costs $14.95 and delivers in 1 to 2 business days for orders placed before 1 p.m. Eastern.",
      "retrieval.documents.2.document.score": 0.743,
-     "retrieval.documents.3.document.id": "kb-4100",
-     "retrieval.documents.3.document.content": "Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.",
+     "retrieval.documents.3.document.id": "kb-4295",
+     "retrieval.documents.3.document.content": "If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.",
      "retrieval.documents.3.document.score": 0.722
     }
    },
@@ -1644,15 +1644,15 @@
     "attributes": {
      "llm.model_name": "gpt-5.6-mini",
      "llm.provider": "openai",
-     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\\n[2] After the warehouse receives a return, the refund reaches your original payment method within 5 to 7 business days.\\n[3] Express shipping costs $14.95 and delivers in 1 to 2 business days for orders placed before 1 p.m. Eastern.\\n[4] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\\n\\nCustomer question: Is there a charge for return shipping if I just want a different size?\"}]}",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\\n[2] After the warehouse receives a return, the refund reaches your original payment method within 5 to 7 business days.\\n[3] Express shipping is our fastest option. It costs $14.95 and delivers in 1 to 2 business days for orders placed before 1 p.m. Eastern.\\n[4] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\\n\\nCustomer question: Is there a charge for return shipping if I just want a different size?\"}]}",
      "input.mime_type": "application/json",
      "output.value": "I don't have policy information on that. Could you tell me a bit more about your order?",
-     "llm.token_count.prompt": 190,
+     "llm.token_count.prompt": 197,
      "llm.token_count.completion": 21,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
-     "llm.input_messages.1.message.content": "Policy passages:\n[1] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\n[2] After the warehouse receives a return, the refund reaches your original payment method within 5 to 7 business days.\n[3] Express shipping costs $14.95 and delivers in 1 to 2 business days for orders placed before 1 p.m. Eastern.\n[4] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\n\nCustomer question: Is there a charge for return shipping if I just want a different size?",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\n[2] After the warehouse receives a return, the refund reaches your original payment method within 5 to 7 business days.\n[3] Express shipping is our fastest option. It costs $14.95 and delivers in 1 to 2 business days for orders placed before 1 p.m. Eastern.\n[4] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\n\nCustomer question: Is there a charge for return shipping if I just want a different size?",
      "llm.output_messages.0.message.role": "assistant",
      "llm.output_messages.0.message.content": "I don't have policy information on that. Could you tell me a bit more about your order?"
     }
@@ -1669,7 +1669,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "What do I need to bring if I return my online order in person?",
-     "output.value": "Online orders can be returned at any of our retail stores. Bring the packing slip or your order confirmation email."
+     "output.value": "Every one of our retail stores accepts returns of online orders. Just have your packing slip or the order confirmation email with you."
     }
    },
    {
@@ -1715,15 +1715,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\\n[2] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\\n[3] Online orders can be returned at any of our retail stores. Bring the packing slip or the order confirmation email.\\n[4] You can cancel an order from your account until it ships. Most orders ship within 24 hours.\\n\\nCustomer question: What do I need to bring if I return my online order in person?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Online orders can be returned at any of our retail stores. Bring the packing slip or your order confirmation email.",
+     "output.value": "Every one of our retail stores accepts returns of online orders. Just have your packing slip or the order confirmation email with you.",
      "llm.token_count.prompt": 191,
-     "llm.token_count.completion": 28,
+     "llm.token_count.completion": 33,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\n[2] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\n[3] Online orders can be returned at any of our retail stores. Bring the packing slip or the order confirmation email.\n[4] You can cancel an order from your account until it ships. Most orders ship within 24 hours.\n\nCustomer question: What do I need to bring if I return my online order in person?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Online orders can be returned at any of our retail stores. Bring the packing slip or your order confirmation email."
+     "llm.output_messages.0.message.content": "Every one of our retail stores accepts returns of online orders. Just have your packing slip or the order confirmation email with you."
     }
    },
    {
@@ -1738,7 +1738,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "I mailed my return last week. When will the money be back on my card?",
-     "output.value": "Once the warehouse receives your return, the refund reaches your original payment method within 5 to 7 business days."
+     "output.value": "Expect it within 5 to 7 business days, counted from when the return arrives at our warehouse. The money goes back to the payment method you originally used."
     }
    },
    {
@@ -1784,15 +1784,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\\n[2] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\\n[3] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\\n[4] After the warehouse receives a return, the refund reaches your original payment method within 5 to 7 business days.\\n\\nCustomer question: I mailed my return last week. When will the money be back on my card?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Once the warehouse receives your return, the refund reaches your original payment method within 5 to 7 business days.",
+     "output.value": "Expect it within 5 to 7 business days, counted from when the return arrives at our warehouse. The money goes back to the payment method you originally used.",
      "llm.token_count.prompt": 202,
-     "llm.token_count.completion": 29,
+     "llm.token_count.completion": 39,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\n[2] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\n[3] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\n[4] After the warehouse receives a return, the refund reaches your original payment method within 5 to 7 business days.\n\nCustomer question: I mailed my return last week. When will the money be back on my card?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Once the warehouse receives your return, the refund reaches your original payment method within 5 to 7 business days."
+     "llm.output_messages.0.message.content": "Expect it within 5 to 7 business days, counted from when the return arrives at our warehouse. The money goes back to the payment method you originally used."
     }
    },
    {
@@ -1807,7 +1807,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "How much do I have to spend to get free shipping?",
-     "output.value": "Standard shipping is free on every order and arrives in 2 business days."
+     "output.value": "Standard shipping is free on orders over $35 and arrives 1 to 2 business days after the order ships."
     }
    },
    {
@@ -1853,15 +1853,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\\n[2] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\\n[3] We ship only within the US and to Canada. Canadian orders take 7 to 14 business days, and the recipient pays any customs duties.\\n[4] You can edit the shipping address from the Orders page for 1 hour after checkout. After that, the order has gone to the warehouse and the address is locked.\\n\\nCustomer question: How much do I have to spend to get free shipping?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Standard shipping is free on every order and arrives in 2 business days.",
+     "output.value": "Standard shipping is free on orders over $35 and arrives 1 to 2 business days after the order ships.",
      "llm.token_count.prompt": 201,
-     "llm.token_count.completion": 18,
+     "llm.token_count.completion": 25,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\n[2] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\n[3] We ship only within the US and to Canada. Canadian orders take 7 to 14 business days, and the recipient pays any customs duties.\n[4] You can edit the shipping address from the Orders page for 1 hour after checkout. After that, the order has gone to the warehouse and the address is locked.\n\nCustomer question: How much do I have to spend to get free shipping?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Standard shipping is free on every order and arrives in 2 business days."
+     "llm.output_messages.0.message.content": "Standard shipping is free on orders over $35 and arrives 1 to 2 business days after the order ships."
     }
    },
    {
@@ -1876,7 +1876,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "Can I cash out the balance on a gift card?",
-     "output.value": "Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt."
+     "output.value": "There's no expiration date on our gift cards, and the balance can't be cashed out. If one goes missing, we can replace it only if you have the original receipt."
     }
    },
    {
@@ -1922,15 +1922,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\\n[2] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\\n[3] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\\n[4] We accept Visa, Mastercard, American Express, PayPal, and Apple Pay. We don't accept checks, money orders, or cryptocurrency.\\n\\nCustomer question: Can I cash out the balance on a gift card?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.",
+     "output.value": "There's no expiration date on our gift cards, and the balance can't be cashed out. If one goes missing, we can replace it only if you have the original receipt.",
      "llm.token_count.prompt": 189,
-     "llm.token_count.completion": 30,
+     "llm.token_count.completion": 40,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\n[2] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\n[3] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\n[4] We accept Visa, Mastercard, American Express, PayPal, and Apple Pay. We don't accept checks, money orders, or cryptocurrency.\n\nCustomer question: Can I cash out the balance on a gift card?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt."
+     "llm.output_messages.0.message.content": "There's no expiration date on our gift cards, and the balance can't be cashed out. If one goes missing, we can replace it only if you have the original receipt."
     }
    },
    {
@@ -1945,7 +1945,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "How long is the warranty on your gear?",
-     "output.value": "Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered."
+     "output.value": "Our gear is covered by a 1-year limited warranty for defects in materials and workmanship. Accidents, misuse, and everyday wear and tear fall outside it."
     }
    },
    {
@@ -1970,8 +1970,8 @@
      "retrieval.documents.2.document.id": "kb-4100",
      "retrieval.documents.2.document.content": "Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.",
      "retrieval.documents.2.document.score": 0.698,
-     "retrieval.documents.3.document.id": "kb-4321",
-     "retrieval.documents.3.document.content": "To start a warranty claim, upload a photo of the defect with your order number on the Warranty page. Approved claims get a replacement within 10 business days.",
+     "retrieval.documents.3.document.id": "kb-4126",
+     "retrieval.documents.3.document.content": "Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.",
      "retrieval.documents.3.document.score": 0.669
     }
    },
@@ -1989,17 +1989,17 @@
     "attributes": {
      "llm.model_name": "gpt-5.6-mini",
      "llm.provider": "openai",
-     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered.\\n[2] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\\n[3] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\\n[4] To start a warranty claim, upload a photo of the defect with your order number on the Warranty page. Approved claims get a replacement within 10 business days.\\n\\nCustomer question: How long is the warranty on your gear?\"}]}",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered.\\n[2] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\\n[3] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\\n[4] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\\n\\nCustomer question: How long is the warranty on your gear?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered.",
-     "llm.token_count.prompt": 208,
-     "llm.token_count.completion": 36,
+     "output.value": "Our gear is covered by a 1-year limited warranty for defects in materials and workmanship. Accidents, misuse, and everyday wear and tear fall outside it.",
+     "llm.token_count.prompt": 201,
+     "llm.token_count.completion": 38,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
-     "llm.input_messages.1.message.content": "Policy passages:\n[1] Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered.\n[2] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\n[3] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\n[4] To start a warranty claim, upload a photo of the defect with your order number on the Warranty page. Approved claims get a replacement within 10 business days.\n\nCustomer question: How long is the warranty on your gear?",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered.\n[2] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\n[3] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\n[4] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\n\nCustomer question: How long is the warranty on your gear?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered."
+     "llm.output_messages.0.message.content": "Our gear is covered by a 1-year limited warranty for defects in materials and workmanship. Accidents, misuse, and everyday wear and tear fall outside it."
     }
    },
    {
@@ -2014,7 +2014,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "I dropped my headlamp off a cliff and it broke. Does the warranty cover that?",
-     "output.value": "Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered."
+     "output.value": "Our gear is covered by a 1-year limited warranty for defects in materials and workmanship. Accidents, misuse, and everyday wear and tear fall outside it."
     }
    },
    {
@@ -2036,8 +2036,8 @@
      "retrieval.documents.1.document.id": "kb-4308",
      "retrieval.documents.1.document.content": "Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered.",
      "retrieval.documents.1.document.score": 0.787,
-     "retrieval.documents.2.document.id": "kb-4321",
-     "retrieval.documents.2.document.content": "To start a warranty claim, upload a photo of the defect with your order number on the Warranty page. Approved claims get a replacement within 10 business days.",
+     "retrieval.documents.2.document.id": "kb-4126",
+     "retrieval.documents.2.document.content": "Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.",
      "retrieval.documents.2.document.score": 0.737,
      "retrieval.documents.3.document.id": "kb-4100",
      "retrieval.documents.3.document.content": "Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.",
@@ -2058,17 +2058,17 @@
     "attributes": {
      "llm.model_name": "gpt-5.6-mini",
      "llm.provider": "openai",
-     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Opened electronics, such as headphones, speakers, and smart watches, are refunded minus a 15% restocking fee.\\n[2] Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered.\\n[3] To start a warranty claim, upload a photo of the defect with your order number on the Warranty page. Approved claims get a replacement within 10 business days.\\n[4] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\\n\\nCustomer question: I dropped my headlamp off a cliff and it broke. Does the warranty cover that?\"}]}",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Opened electronics, such as headphones, speakers, and smart watches, are refunded minus a 15% restocking fee.\\n[2] Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered.\\n[3] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\\n[4] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\\n\\nCustomer question: I dropped my headlamp off a cliff and it broke. Does the warranty cover that?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered.",
-     "llm.token_count.prompt": 215,
-     "llm.token_count.completion": 36,
+     "output.value": "Our gear is covered by a 1-year limited warranty for defects in materials and workmanship. Accidents, misuse, and everyday wear and tear fall outside it.",
+     "llm.token_count.prompt": 207,
+     "llm.token_count.completion": 38,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
-     "llm.input_messages.1.message.content": "Policy passages:\n[1] Opened electronics, such as headphones, speakers, and smart watches, are refunded minus a 15% restocking fee.\n[2] Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered.\n[3] To start a warranty claim, upload a photo of the defect with your order number on the Warranty page. Approved claims get a replacement within 10 business days.\n[4] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\n\nCustomer question: I dropped my headlamp off a cliff and it broke. Does the warranty cover that?",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] Opened electronics, such as headphones, speakers, and smart watches, are refunded minus a 15% restocking fee.\n[2] Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered.\n[3] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\n[4] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\n\nCustomer question: I dropped my headlamp off a cliff and it broke. Does the warranty cover that?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered."
+     "llm.output_messages.0.message.content": "Our gear is covered by a 1-year limited warranty for defects in materials and workmanship. Accidents, misuse, and everyday wear and tear fall outside it."
     }
    },
    {
@@ -2152,7 +2152,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "How long do refunds take once you get the item back?",
-     "output.value": "Once the warehouse receives your return, the refund reaches your original payment method within 5 to 7 business days."
+     "output.value": "Expect it within 5 to 7 business days, counted from when the return arrives at our warehouse. The money goes back to the payment method you originally used."
     }
    },
    {
@@ -2198,15 +2198,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] After the warehouse receives a return, the refund reaches your original payment method within 5 to 7 business days.\\n[2] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\\n[3] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\\n[4] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\\n\\nCustomer question: How long do refunds take once you get the item back?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Once the warehouse receives your return, the refund reaches your original payment method within 5 to 7 business days.",
+     "output.value": "Expect it within 5 to 7 business days, counted from when the return arrives at our warehouse. The money goes back to the payment method you originally used.",
      "llm.token_count.prompt": 200,
-     "llm.token_count.completion": 29,
+     "llm.token_count.completion": 39,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] After the warehouse receives a return, the refund reaches your original payment method within 5 to 7 business days.\n[2] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\n[3] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\n[4] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\n\nCustomer question: How long do refunds take once you get the item back?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Once the warehouse receives your return, the refund reaches your original payment method within 5 to 7 business days."
+     "llm.output_messages.0.message.content": "Expect it within 5 to 7 business days, counted from when the return arrives at our warehouse. The money goes back to the payment method you originally used."
     }
    },
    {
@@ -2221,7 +2221,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "What's the delivery time for the normal, non-express option?",
-     "output.value": "Standard shipping is free on orders over $50 and arrives 3 to 5 business days after your order ships."
+     "output.value": "Spend more than $50 and standard shipping costs nothing. Once your order ships, standard delivery takes 3 to 5 business days."
     }
    },
    {
@@ -2267,15 +2267,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\\n[2] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\\n[3] Orders over $150 can be split into 4 interest-free payments made every two weeks. Choose Pay in 4 at checkout.\\n[4] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\\n\\nCustomer question: What's the delivery time for the normal, non-express option?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Standard shipping is free on orders over $50 and arrives 3 to 5 business days after your order ships.",
+     "output.value": "Spend more than $50 and standard shipping costs nothing. Once your order ships, standard delivery takes 3 to 5 business days.",
      "llm.token_count.prompt": 194,
-     "llm.token_count.completion": 25,
+     "llm.token_count.completion": 31,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\n[2] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\n[3] Orders over $150 can be split into 4 interest-free payments made every two weeks. Choose Pay in 4 at checkout.\n[4] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\n\nCustomer question: What's the delivery time for the normal, non-express option?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Standard shipping is free on orders over $50 and arrives 3 to 5 business days after your order ships."
+     "llm.output_messages.0.message.content": "Spend more than $50 and standard shipping costs nothing. Once your order ships, standard delivery takes 3 to 5 business days."
     }
    },
    {
@@ -2290,7 +2290,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "How do I change where my package is being shipped?",
-     "output.value": "You can edit the shipping address from the Orders page for 1 hour after checkout. After that, the order has gone to the warehouse and the address is locked."
+     "output.value": "Head to the Orders page, where the shipping address stays editable for the first hour after checkout. Past that hour, the order is with the warehouse and the address can no longer be edited."
     }
    },
    {
@@ -2336,15 +2336,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] To reset your password, choose Forgot password on the sign-in page. The reset link we email you expires after 1 hour.\\n[2] We ship only within the US and to Canada. Canadian orders take 7 to 14 business days, and the recipient pays any customs duties.\\n[3] You can edit the shipping address from the Orders page for 1 hour after checkout. After that, the order has gone to the warehouse and the address is locked.\\n[4] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\\n\\nCustomer question: How do I change where my package is being shipped?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "You can edit the shipping address from the Orders page for 1 hour after checkout. After that, the order has gone to the warehouse and the address is locked.",
+     "output.value": "Head to the Orders page, where the shipping address stays editable for the first hour after checkout. Past that hour, the order is with the warehouse and the address can no longer be edited.",
      "llm.token_count.prompt": 205,
-     "llm.token_count.completion": 39,
+     "llm.token_count.completion": 47,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] To reset your password, choose Forgot password on the sign-in page. The reset link we email you expires after 1 hour.\n[2] We ship only within the US and to Canada. Canadian orders take 7 to 14 business days, and the recipient pays any customs duties.\n[3] You can edit the shipping address from the Orders page for 1 hour after checkout. After that, the order has gone to the warehouse and the address is locked.\n[4] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\n\nCustomer question: How do I change where my package is being shipped?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "You can edit the shipping address from the Orders page for 1 hour after checkout. After that, the order has gone to the warehouse and the address is locked."
+     "llm.output_messages.0.message.content": "Head to the Orders page, where the shipping address stays editable for the first hour after checkout. Past that hour, the order is with the warehouse and the address can no longer be edited."
     }
    },
    {
@@ -2428,7 +2428,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "How many points do I need before I get a reward?",
-     "output.value": "Members earn 1 point per dollar, and every 100 points becomes a $5 reward. Points expire after 12 months without a purchase."
+     "output.value": "Each dollar you spend as a member earns a point, and 100 points gets you a $5 reward. Your points do expire, but only if 12 months go by with no purchase."
     }
    },
    {
@@ -2474,15 +2474,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Orders over $150 can be split into 4 interest-free payments made every two weeks. Choose Pay in 4 at checkout.\\n[2] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\\n[3] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\\n[4] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\\n\\nCustomer question: How many points do I need before I get a reward?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Members earn 1 point per dollar, and every 100 points becomes a $5 reward. Points expire after 12 months without a purchase.",
+     "output.value": "Each dollar you spend as a member earns a point, and 100 points gets you a $5 reward. Your points do expire, but only if 12 months go by with no purchase.",
      "llm.token_count.prompt": 199,
-     "llm.token_count.completion": 31,
+     "llm.token_count.completion": 38,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] Orders over $150 can be split into 4 interest-free payments made every two weeks. Choose Pay in 4 at checkout.\n[2] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\n[3] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\n[4] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\n\nCustomer question: How many points do I need before I get a reward?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Members earn 1 point per dollar, and every 100 points becomes a $5 reward. Points expire after 12 months without a purchase."
+     "llm.output_messages.0.message.content": "Each dollar you spend as a member earns a point, and 100 points gets you a $5 reward. Your points do expire, but only if 12 months go by with no purchase."
     }
    },
    {
@@ -2635,7 +2635,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "I bought a fleece that was marked Final Sale and it doesn't fit. Can I send it back?",
-     "output.value": "Items marked Final Sale can't be returned or exchanged for any reason. Final Sale items also don't qualify for price adjustments."
+     "output.value": "No. Once an item is marked Final Sale on the product page, we can't take it back or swap it for another one, for any reason. Final Sale items also don't qualify for price adjustments."
     }
    },
    {
@@ -2681,15 +2681,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\\n[2] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\\n[3] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\\n[4] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\\n\\nCustomer question: I bought a fleece that was marked Final Sale and it doesn't fit. Can I send it back?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Items marked Final Sale can't be returned or exchanged for any reason. Final Sale items also don't qualify for price adjustments.",
+     "output.value": "No. Once an item is marked Final Sale on the product page, we can't take it back or swap it for another one, for any reason. Final Sale items also don't qualify for price adjustments.",
      "llm.token_count.prompt": 206,
-     "llm.token_count.completion": 32,
+     "llm.token_count.completion": 45,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\n[2] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\n[3] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\n[4] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\n\nCustomer question: I bought a fleece that was marked Final Sale and it doesn't fit. Can I send it back?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Items marked Final Sale can't be returned or exchanged for any reason. Final Sale items also don't qualify for price adjustments."
+     "llm.output_messages.0.message.content": "No. Once an item is marked Final Sale on the product page, we can't take it back or swap it for another one, for any reason. Final Sale items also don't qualify for price adjustments."
     }
    },
    {
@@ -2704,7 +2704,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "If I delete my account, what happens to my past orders?",
-     "output.value": "Email us and we'll deactivate your account; you can reactivate it any time within a year."
+     "output.value": "You can delete your account under Settings > Privacy. Deletion can be undone within 30 days, and your order history is kept."
     }
    },
    {
@@ -2750,15 +2750,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] You can edit the shipping address from the Orders page for 1 hour after checkout. After that, the order has gone to the warehouse and the address is locked.\\n[2] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\\n[3] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\\n[4] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\\n\\nCustomer question: If I delete my account, what happens to my past orders?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Email us and we'll deactivate your account; you can reactivate it any time within a year.",
+     "output.value": "You can delete your account under Settings > Privacy. Deletion can be undone within 30 days, and your order history is kept.",
      "llm.token_count.prompt": 205,
-     "llm.token_count.completion": 22,
+     "llm.token_count.completion": 31,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] You can edit the shipping address from the Orders page for 1 hour after checkout. After that, the order has gone to the warehouse and the address is locked.\n[2] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\n[3] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\n[4] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\n\nCustomer question: If I delete my account, what happens to my past orders?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Email us and we'll deactivate your account; you can reactivate it any time within a year."
+     "llm.output_messages.0.message.content": "You can delete your account under Settings > Privacy. Deletion can be undone within 30 days, and your order history is kept."
     }
    },
    {
@@ -2773,7 +2773,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "My promo code got rejected on a sale item. Is that normal?",
-     "output.value": "You can combine up to three promo codes on one order, including on sale items."
+     "output.value": "Up to two promo codes can be applied per order, and promo codes work on items that are already on sale."
     }
    },
    {
@@ -2819,15 +2819,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\\n[2] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\\n[3] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\\n[4] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\\n\\nCustomer question: My promo code got rejected on a sale item. Is that normal?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "You can combine up to three promo codes on one order, including on sale items.",
+     "output.value": "Up to two promo codes can be applied per order, and promo codes work on items that are already on sale.",
      "llm.token_count.prompt": 199,
-     "llm.token_count.completion": 19,
+     "llm.token_count.completion": 25,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\n[2] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\n[3] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\n[4] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\n\nCustomer question: My promo code got rejected on a sale item. Is that normal?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "You can combine up to three promo codes on one order, including on sale items."
+     "llm.output_messages.0.message.content": "Up to two promo codes can be applied per order, and promo codes work on items that are already on sale."
     }
    },
    {
@@ -2842,7 +2842,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "How do I close my account for good?",
-     "output.value": "You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days."
+     "output.value": "Account deletion is in Settings > Privacy. There's no undo, and we erase your order history 30 days after you delete."
     }
    },
    {
@@ -2888,15 +2888,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.\\n[2] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\\n[3] You can cancel an order from your account until it ships. Most orders ship within 24 hours.\\n[4] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\\n\\nCustomer question: How do I close my account for good?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.",
+     "output.value": "Account deletion is in Settings > Privacy. There's no undo, and we erase your order history 30 days after you delete.",
      "llm.token_count.prompt": 181,
-     "llm.token_count.completion": 31,
+     "llm.token_count.completion": 29,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.\n[2] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\n[3] You can cancel an order from your account until it ships. Most orders ship within 24 hours.\n[4] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\n\nCustomer question: How do I close my account for good?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days."
+     "llm.output_messages.0.message.content": "Account deletion is in Settings > Privacy. There's no undo, and we erase your order history 30 days after you delete."
     }
    },
    {
@@ -2911,7 +2911,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "When should I expect to see my refund after you've received the return?",
-     "output.value": "Refunds are issued within 24 hours of receiving your return."
+     "output.value": "After the warehouse receives a return, the refund reaches your original payment method within 24 hours."
     }
    },
    {
@@ -2957,15 +2957,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\\n[2] After the warehouse receives a return, the refund reaches your original payment method within 5 to 7 business days.\\n[3] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\\n[4] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\\n\\nCustomer question: When should I expect to see my refund after you've received the return?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Refunds are issued within 24 hours of receiving your return.",
+     "output.value": "After the warehouse receives a return, the refund reaches your original payment method within 24 hours.",
      "llm.token_count.prompt": 205,
-     "llm.token_count.completion": 15,
+     "llm.token_count.completion": 25,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\n[2] After the warehouse receives a return, the refund reaches your original payment method within 5 to 7 business days.\n[3] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\n[4] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\n\nCustomer question: When should I expect to see my refund after you've received the return?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Refunds are issued within 24 hours of receiving your return."
+     "llm.output_messages.0.message.content": "After the warehouse receives a return, the refund reaches your original payment method within 24 hours."
     }
    },
    {
@@ -2980,7 +2980,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "I want to cancel the order I placed this morning. Is that possible?",
-     "output.value": "You can cancel an order from your account until it ships. Most orders ship within 24 hours."
+     "output.value": "As long as the order hasn't shipped yet, you can cancel it yourself in your account. Keep in mind that most orders go out within 24 hours."
     }
    },
    {
@@ -3026,15 +3026,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] You can cancel an order from your account until it ships. Most orders ship within 24 hours.\\n[2] Seeing two charges for one order? The second is a temporary card authorization, and it disappears on its own within 3 business days.\\n[3] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\\n[4] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\\n\\nCustomer question: I want to cancel the order I placed this morning. Is that possible?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "You can cancel an order from your account until it ships. Most orders ship within 24 hours.",
+     "output.value": "As long as the order hasn't shipped yet, you can cancel it yourself in your account. Keep in mind that most orders go out within 24 hours.",
      "llm.token_count.prompt": 192,
-     "llm.token_count.completion": 22,
+     "llm.token_count.completion": 34,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] You can cancel an order from your account until it ships. Most orders ship within 24 hours.\n[2] Seeing two charges for one order? The second is a temporary card authorization, and it disappears on its own within 3 business days.\n[3] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\n[4] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\n\nCustomer question: I want to cancel the order I placed this morning. Is that possible?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "You can cancel an order from your account until it ships. Most orders ship within 24 hours."
+     "llm.output_messages.0.message.content": "As long as the order hasn't shipped yet, you can cancel it yourself in your account. Keep in mind that most orders go out within 24 hours."
     }
    },
    {
@@ -3049,7 +3049,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "Is there a limit on how many coupon codes I can stack?",
-     "output.value": "Only one promo code can be applied per order, and promo codes don't work on items that are already on sale."
+     "output.value": "Each order takes a single promo code, so codes can't be combined. Sale items are excluded too: a promo code won't apply to anything already marked down."
     }
    },
    {
@@ -3095,15 +3095,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\\n[2] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\\n[3] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\\n[4] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\\n\\nCustomer question: Is there a limit on how many coupon codes I can stack?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.",
+     "output.value": "Each order takes a single promo code, so codes can't be combined. Sale items are excluded too: a promo code won't apply to anything already marked down.",
      "llm.token_count.prompt": 194,
-     "llm.token_count.completion": 26,
+     "llm.token_count.completion": 38,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\n[2] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\n[3] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\n[4] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\n\nCustomer question: Is there a limit on how many coupon codes I can stack?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Only one promo code can be applied per order, and promo codes don't work on items that are already on sale."
+     "llm.output_messages.0.message.content": "Each order takes a single promo code, so codes can't be combined. Sale items are excluded too: a promo code won't apply to anything already marked down."
     }
    },
    {
@@ -3118,7 +3118,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "What percentage do you keep when someone returns an opened smart watch?",
-     "output.value": "Opened electronics like headphones, speakers, and smart watches are refunded minus a 15% restocking fee."
+     "output.value": "Once electronics have been opened, a 15% restocking fee comes out of the refund. This applies to opened headphones, speakers, smart watches, and other electronics."
     }
    },
    {
@@ -3164,15 +3164,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered.\\n[2] Online orders can be returned at any of our retail stores. Bring the packing slip or the order confirmation email.\\n[3] Opened electronics, such as headphones, speakers, and smart watches, are refunded minus a 15% restocking fee.\\n[4] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\\n\\nCustomer question: What percentage do you keep when someone returns an opened smart watch?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Opened electronics like headphones, speakers, and smart watches are refunded minus a 15% restocking fee.",
+     "output.value": "Once electronics have been opened, a 15% restocking fee comes out of the refund. This applies to opened headphones, speakers, smart watches, and other electronics.",
      "llm.token_count.prompt": 210,
-     "llm.token_count.completion": 26,
+     "llm.token_count.completion": 40,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered.\n[2] Online orders can be returned at any of our retail stores. Bring the packing slip or the order confirmation email.\n[3] Opened electronics, such as headphones, speakers, and smart watches, are refunded minus a 15% restocking fee.\n[4] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\n\nCustomer question: What percentage do you keep when someone returns an opened smart watch?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Opened electronics like headphones, speakers, and smart watches are refunded minus a 15% restocking fee."
+     "llm.output_messages.0.message.content": "Once electronics have been opened, a 15% restocking fee comes out of the refund. This applies to opened headphones, speakers, smart watches, and other electronics."
     }
    },
    {
@@ -3187,7 +3187,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "How many days after delivery do I have to return an item?",
-     "output.value": "Unused items in their original packaging can be returned within 30 days of delivery. After day 30, we can't accept the return."
+     "output.value": "You have 30 days from delivery to send an item back, as long as it's unused and still in its original packaging. Once those 30 days are up, returns aren't accepted."
     }
    },
    {
@@ -3233,15 +3233,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\\n[2] You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.\\n[3] After the warehouse receives a return, the refund reaches your original payment method within 5 to 7 business days.\\n[4] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\\n\\nCustomer question: How many days after delivery do I have to return an item?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Unused items in their original packaging can be returned within 30 days of delivery. After day 30, we can't accept the return.",
+     "output.value": "You have 30 days from delivery to send an item back, as long as it's unused and still in its original packaging. Once those 30 days are up, returns aren't accepted.",
      "llm.token_count.prompt": 199,
-     "llm.token_count.completion": 31,
+     "llm.token_count.completion": 41,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\n[2] You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.\n[3] After the warehouse receives a return, the refund reaches your original payment method within 5 to 7 business days.\n[4] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\n\nCustomer question: How many days after delivery do I have to return an item?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Unused items in their original packaging can be returned within 30 days of delivery. After day 30, we can't accept the return."
+     "llm.output_messages.0.message.content": "You have 30 days from delivery to send an item back, as long as it's unused and still in its original packaging. Once those 30 days are up, returns aren't accepted."
     }
    },
    {
@@ -3256,7 +3256,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "I forgot my password. How do I get back into my account?",
-     "output.value": "Choose Forgot password on the sign-in page and we'll email you a reset link. The link expires after 1 hour."
+     "output.value": "On the sign-in page, click Forgot password and we'll email you a reset link. Each link stops working 1 hour after it's sent."
     }
    },
    {
@@ -3302,15 +3302,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\\n[2] You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.\\n[3] You can cancel an order from your account until it ships. Most orders ship within 24 hours.\\n[4] To reset your password, choose Forgot password on the sign-in page. The reset link we email you expires after 1 hour.\\n\\nCustomer question: I forgot my password. How do I get back into my account?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Choose Forgot password on the sign-in page and we'll email you a reset link. The link expires after 1 hour.",
+     "output.value": "On the sign-in page, click Forgot password and we'll email you a reset link. Each link stops working 1 hour after it's sent.",
      "llm.token_count.prompt": 192,
-     "llm.token_count.completion": 26,
+     "llm.token_count.completion": 31,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] Rewards members earn 1 point per dollar. Every 100 points becomes a $5 reward, and points expire after 12 months without a purchase.\n[2] You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.\n[3] You can cancel an order from your account until it ships. Most orders ship within 24 hours.\n[4] To reset your password, choose Forgot password on the sign-in page. The reset link we email you expires after 1 hour.\n\nCustomer question: I forgot my password. How do I get back into my account?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Choose Forgot password on the sign-in page and we'll email you a reset link. The link expires after 1 hour."
+     "llm.output_messages.0.message.content": "On the sign-in page, click Forgot password and we'll email you a reset link. Each link stops working 1 hour after it's sent."
     }
    },
    {
@@ -3325,7 +3325,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "Can I drop off something I bought on the website at one of your shops?",
-     "output.value": "Online orders can only be returned by mail; our stores can't process them."
+     "output.value": "Online orders can't be returned at our retail stores. Mail them back with the packing slip or the order confirmation email."
     }
    },
    {
@@ -3371,15 +3371,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\\n[2] You can cancel an order from your account until it ships. Most orders ship within 24 hours.\\n[3] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\\n[4] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\\n\\nCustomer question: Can I drop off something I bought on the website at one of your shops?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Online orders can only be returned by mail; our stores can't process them.",
+     "output.value": "Online orders can't be returned at our retail stores. Mail them back with the packing slip or the order confirmation email.",
      "llm.token_count.prompt": 195,
-     "llm.token_count.completion": 18,
+     "llm.token_count.completion": 30,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\n[2] You can cancel an order from your account until it ships. Most orders ship within 24 hours.\n[3] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\n[4] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\n\nCustomer question: Can I drop off something I bought on the website at one of your shops?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Online orders can only be returned by mail; our stores can't process them."
+     "llm.output_messages.0.message.content": "Online orders can't be returned at our retail stores. Mail them back with the packing slip or the order confirmation email."
     }
    },
    {
@@ -3394,7 +3394,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "If I go with regular shipping, how long until my order arrives?",
-     "output.value": "Standard shipping is free on orders over $50 and arrives 3 to 5 business days after your order ships."
+     "output.value": "Spend more than $50 and standard shipping costs nothing. Once your order ships, standard delivery takes 3 to 5 business days."
     }
    },
    {
@@ -3440,15 +3440,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\\n[2] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\\n[3] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\\n[4] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\\n\\nCustomer question: If I go with regular shipping, how long until my order arrives?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Standard shipping is free on orders over $50 and arrives 3 to 5 business days after your order ships.",
+     "output.value": "Spend more than $50 and standard shipping costs nothing. Once your order ships, standard delivery takes 3 to 5 business days.",
      "llm.token_count.prompt": 192,
-     "llm.token_count.completion": 25,
+     "llm.token_count.completion": 31,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\n[2] Standard shipping is free on orders over $50 and arrives 3 to 5 business days after the order ships.\n[3] Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.\n[4] If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.\n\nCustomer question: If I go with regular shipping, how long until my order arrives?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Standard shipping is free on orders over $50 and arrives 3 to 5 business days after your order ships."
+     "llm.output_messages.0.message.content": "Spend more than $50 and standard shipping costs nothing. Once your order ships, standard delivery takes 3 to 5 business days."
     }
    },
    {
@@ -3463,7 +3463,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "Do my rewards points ever expire?",
-     "output.value": "Members earn 1 point per dollar, and every 100 points becomes a $5 reward. Points expire after 12 months without a purchase."
+     "output.value": "Each dollar you spend as a member earns a point, and 100 points gets you a $5 reward. Your points do expire, but only if 12 months go by with no purchase."
     }
    },
    {
@@ -3509,15 +3509,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\\n[2] Orders over $150 can be split into 4 interest-free payments made every two weeks. Choose Pay in 4 at checkout.\\n[3] You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.\\n[4] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\\n\\nCustomer question: Do my rewards points ever expire?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Members earn 1 point per dollar, and every 100 points becomes a $5 reward. Points expire after 12 months without a purchase.",
+     "output.value": "Each dollar you spend as a member earns a point, and 100 points gets you a $5 reward. Your points do expire, but only if 12 months go by with no purchase.",
      "llm.token_count.prompt": 197,
-     "llm.token_count.completion": 31,
+     "llm.token_count.completion": 38,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\n[2] Orders over $150 can be split into 4 interest-free payments made every two weeks. Choose Pay in 4 at checkout.\n[3] You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.\n[4] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\n\nCustomer question: Do my rewards points ever expire?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Members earn 1 point per dollar, and every 100 points becomes a $5 reward. Points expire after 12 months without a purchase."
+     "llm.output_messages.0.message.content": "Each dollar you spend as a member earns a point, and 100 points gets you a $5 reward. Your points do expire, but only if 12 months go by with no purchase."
     }
    },
    {
@@ -3532,7 +3532,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "Is there a restocking fee if I return headphones I've already opened?",
-     "output.value": "Opened electronics like headphones, speakers, and smart watches are refunded minus a 15% restocking fee."
+     "output.value": "Once electronics have been opened, a 15% restocking fee comes out of the refund. This applies to opened headphones, speakers, smart watches, and other electronics."
     }
    },
    {
@@ -3551,14 +3551,14 @@
      "retrieval.documents.0.document.id": "kb-4139",
      "retrieval.documents.0.document.content": "Opened electronics, such as headphones, speakers, and smart watches, are refunded minus a 15% restocking fee.",
      "retrieval.documents.0.document.score": 0.765,
-     "retrieval.documents.1.document.id": "kb-4100",
-     "retrieval.documents.1.document.content": "Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.",
+     "retrieval.documents.1.document.id": "kb-4321",
+     "retrieval.documents.1.document.content": "To start a warranty claim, upload a photo of the defect with your order number on the Warranty page. Approved claims get a replacement within 10 business days.",
      "retrieval.documents.1.document.score": 0.744,
      "retrieval.documents.2.document.id": "kb-4204",
      "retrieval.documents.2.document.content": "If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.",
      "retrieval.documents.2.document.score": 0.704,
-     "retrieval.documents.3.document.id": "kb-4113",
-     "retrieval.documents.3.document.content": "Items marked Final Sale on the product page can't be returned or exchanged for any reason.",
+     "retrieval.documents.3.document.id": "kb-4178",
+     "retrieval.documents.3.document.content": "Seeing two charges for one order? The second is a temporary card authorization, and it disappears on its own within 3 business days.",
      "retrieval.documents.3.document.score": 0.685
     }
    },
@@ -3576,17 +3576,17 @@
     "attributes": {
      "llm.model_name": "gpt-5.6-mini",
      "llm.provider": "openai",
-     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Opened electronics, such as headphones, speakers, and smart watches, are refunded minus a 15% restocking fee.\\n[2] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\\n[3] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\\n[4] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\\n\\nCustomer question: Is there a restocking fee if I return headphones I've already opened?\"}]}",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Opened electronics, such as headphones, speakers, and smart watches, are refunded minus a 15% restocking fee.\\n[2] To start a warranty claim, upload a photo of the defect with your order number on the Warranty page. Approved claims get a replacement within 10 business days.\\n[3] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\\n[4] Seeing two charges for one order? The second is a temporary card authorization, and it disappears on its own within 3 business days.\\n\\nCustomer question: Is there a restocking fee if I return headphones I've already opened?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Opened electronics like headphones, speakers, and smart watches are refunded minus a 15% restocking fee.",
-     "llm.token_count.prompt": 198,
-     "llm.token_count.completion": 26,
+     "output.value": "Once electronics have been opened, a 15% restocking fee comes out of the refund. This applies to opened headphones, speakers, smart watches, and other electronics.",
+     "llm.token_count.prompt": 217,
+     "llm.token_count.completion": 40,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
-     "llm.input_messages.1.message.content": "Policy passages:\n[1] Opened electronics, such as headphones, speakers, and smart watches, are refunded minus a 15% restocking fee.\n[2] Unused items in their original packaging can be returned within 30 days of delivery. We can't accept returns after day 30.\n[3] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\n[4] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\n\nCustomer question: Is there a restocking fee if I return headphones I've already opened?",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] Opened electronics, such as headphones, speakers, and smart watches, are refunded minus a 15% restocking fee.\n[2] To start a warranty claim, upload a photo of the defect with your order number on the Warranty page. Approved claims get a replacement within 10 business days.\n[3] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\n[4] Seeing two charges for one order? The second is a temporary card authorization, and it disappears on its own within 3 business days.\n\nCustomer question: Is there a restocking fee if I return headphones I've already opened?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Opened electronics like headphones, speakers, and smart watches are refunded minus a 15% restocking fee."
+     "llm.output_messages.0.message.content": "Once electronics have been opened, a 15% restocking fee comes out of the refund. This applies to opened headphones, speakers, smart watches, and other electronics."
     }
    },
    {
@@ -3601,7 +3601,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "How long does an order take to get to Toronto?",
-     "output.value": "We ship only within the US and to Canada. Canadian orders take 7 to 14 business days, and the recipient pays any customs duties."
+     "output.value": "Outside the US, Canada is the only country we deliver to. A Canadian order arrives in 7 to 14 business days, and any customs duties are paid by the person receiving it."
     }
    },
    {
@@ -3647,15 +3647,15 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] You can edit the shipping address from the Orders page for 1 hour after checkout. After that, the order has gone to the warehouse and the address is locked.\\n[2] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\\n[3] We accept Visa, Mastercard, American Express, PayPal, and Apple Pay. We don't accept checks, money orders, or cryptocurrency.\\n[4] You can cancel an order from your account until it ships. Most orders ship within 24 hours.\\n\\nCustomer question: How long does an order take to get to Toronto?\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "We ship only within the US and to Canada. Canadian orders take 7 to 14 business days, and the recipient pays any customs duties.",
+     "output.value": "Outside the US, Canada is the only country we deliver to. A Canadian order arrives in 7 to 14 business days, and any customs duties are paid by the person receiving it.",
      "llm.token_count.prompt": 199,
-     "llm.token_count.completion": 32,
+     "llm.token_count.completion": 42,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
      "llm.input_messages.1.message.content": "Policy passages:\n[1] You can edit the shipping address from the Orders page for 1 hour after checkout. After that, the order has gone to the warehouse and the address is locked.\n[2] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\n[3] We accept Visa, Mastercard, American Express, PayPal, and Apple Pay. We don't accept checks, money orders, or cryptocurrency.\n[4] You can cancel an order from your account until it ships. Most orders ship within 24 hours.\n\nCustomer question: How long does an order take to get to Toronto?",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "We ship only within the US and to Canada. Canadian orders take 7 to 14 business days, and the recipient pays any customs duties."
+     "llm.output_messages.0.message.content": "Outside the US, Canada is the only country we deliver to. A Canadian order arrives in 7 to 14 business days, and any customs duties are paid by the person receiving it."
     }
    },
    {
@@ -3695,8 +3695,8 @@
      "retrieval.documents.2.document.id": "kb-4386",
      "retrieval.documents.2.document.content": "Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.",
      "retrieval.documents.2.document.score": 0.739,
-     "retrieval.documents.3.document.id": "kb-4113",
-     "retrieval.documents.3.document.content": "Items marked Final Sale on the product page can't be returned or exchanged for any reason.",
+     "retrieval.documents.3.document.id": "kb-4204",
+     "retrieval.documents.3.document.content": "If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.",
      "retrieval.documents.3.document.score": 0.699
     }
    },
@@ -3714,15 +3714,15 @@
     "attributes": {
      "llm.model_name": "gpt-5.6-mini",
      "llm.provider": "openai",
-     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\\n[2] After the warehouse receives a return, the refund reaches your original payment method within 5 to 7 business days.\\n[3] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\\n[4] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\\n\\nCustomer question: It's been three weeks since my boots were delivered and I never wore them. Is that too long to send them back?\"}]}",
+     "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.\"}, {\"role\": \"user\", \"content\": \"Policy passages:\\n[1] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\\n[2] After the warehouse receives a return, the refund reaches your original payment method within 5 to 7 business days.\\n[3] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\\n[4] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\\n\\nCustomer question: It's been three weeks since my boots were delivered and I never wore them. Is that too long to send them back?\"}]}",
      "input.mime_type": "application/json",
      "output.value": "I couldn't find anything in our policies about that, so I can't give you a reliable answer.",
-     "llm.token_count.prompt": 203,
+     "llm.token_count.prompt": 219,
      "llm.token_count.completion": 22,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are the policy assistant for an outdoor gear store. Answer the customer's question using only the policy passages provided. If the passages don't answer the question, say that you don't know.",
      "llm.input_messages.1.message.role": "user",
-     "llm.input_messages.1.message.content": "Policy passages:\n[1] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\n[2] After the warehouse receives a return, the refund reaches your original payment method within 5 to 7 business days.\n[3] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\n[4] Items marked Final Sale on the product page can't be returned or exchanged for any reason.\n\nCustomer question: It's been three weeks since my boots were delivered and I never wore them. Is that too long to send them back?",
+     "llm.input_messages.1.message.content": "Policy passages:\n[1] Return labels are free when you exchange an item. If you return an item for a refund, we deduct a $6.95 label fee from the refund.\n[2] After the warehouse receives a return, the refund reaches your original payment method within 5 to 7 business days.\n[3] Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.\n[4] If an item you bought goes on sale within 14 days of purchase, contact us and we'll refund the difference. Price adjustments are limited to one per item.\n\nCustomer question: It's been three weeks since my boots were delivered and I never wore them. Is that too long to send them back?",
      "llm.output_messages.0.message.role": "assistant",
      "llm.output_messages.0.message.content": "I couldn't find anything in our policies about that, so I can't give you a reliable answer."
     }

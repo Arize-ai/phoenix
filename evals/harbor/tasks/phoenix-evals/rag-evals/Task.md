@@ -86,7 +86,7 @@ share with the new traces, such as policy passages and reply templates, doesn't 
 | --- | --- |
 | Judging relevance by keyword overlap or topic | Wrong passages share topic and words with the question (a question about the return deadline retrieves in-store returns and label fees), and questions paraphrase the answering passage. No keyword-overlap threshold reaches 0.85 on both classes. The best one on visible data (2 shared words) catches 72% of relevant visible documents and 33% of new ones. |
 | Trusting retriever rank or score | The answering passage is at position 1 to 3 in 13 visible traces, and misses have top scores as high as hits. Marking only position 0 relevant catches 59% of relevant documents. |
-| Judging groundedness from the question and answer only | Contradictions and made-up policies read as plausible answers. A question-only judge caught 33% of ungrounded answers. |
+| Judging groundedness from the question and answer only | Contradictions and made-up policies read as plausible answers. A question-only judge caught 13% of ungrounded answers. |
 | Checking answers against the whole knowledge base | 4 visible answers state the true policy for a question whose passage wasn't retrieved. They're ungrounded. |
 | Treating "I don't know" as a failure | 12 visible answers decline because nothing relevant came back. They're grounded. |
 | Blaming generation for retrieval misses | 10 of the 15 ungrounded answers follow a retrieval miss. The reply must name retrieval. |
@@ -100,11 +100,11 @@ share with the new traces, such as policy passages and reply templates, doesn't 
   the new traces limit how far that gets.
 - Labels are correct by construction, but "answers the question" and "supported" are
   still judgments. Wrong passages are hand-picked to share a topic without stating the
-  answer. In the local reference run, the LLM judge marked 1 of 81 new irrelevant
-  documents relevant and matched every other label.
+  answer. In the local reference run, the LLM judge marked 1 of 32 visible relevant
+  documents irrelevant and matched every other label.
 - Retrieval is clearly the bigger problem, so the diagnosis check mainly catches replies
   that blame generation, hedge, or skip the question. It doesn't grade numbers.
-- On `gpt-5.4-nano`, the reference reaches at least 0.99 recall on every annotation
+- On `gpt-5.4-nano`, the reference reaches at least 0.96 recall on every annotation
   check.
 
 ## Files

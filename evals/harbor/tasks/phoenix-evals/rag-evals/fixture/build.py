@@ -12,11 +12,15 @@ gets a retrieval outcome and an answer type, assigned independently:
 
 - Retrieval: the answering passage comes back first (`top`), comes back at position 1
   to 3 (`lower`), or doesn't come back (`miss`). The other passages come from a
-  hand-picked list of near topics that share words with the question but don't answer it.
+  hand-picked list of near topics that share words with the question but don't answer
+  it. A passage that restricts the answer, such as Final Sale for a return question,
+  is never a distractor for it (`BEARS_ON`).
 - Answer: restates the answering passage (`faithful`), contradicts it (`contradicts`),
   adds a claim no passage states (`adds_claim`), states a made-up policy (`made_up`),
   states the true policy that wasn't retrieved (`unretrieved_truth`), or says it can't
-  find the answer (`declines`). Only `faithful` and `declines` are grounded.
+  find the answer (`declines`). Only `faithful` and `declines` are grounded. Faithful
+  answers paraphrase the passage, and visible wrong answers reuse its wording with one
+  fact changed, so word overlap with a passage doesn't decide the label.
 
 Retrieval misses outnumber ungrounded answers, so retrieval is the bigger problem.
 Unseen traces use questions, answer wordings, refusals, and unsupported claims that the
@@ -75,11 +79,11 @@ POLICIES = [
             "Quick question about returns: is there a time limit, and when does it start counting?",
         ),
         answer=(
-            "Unused items in their original packaging can be returned within 30 days of delivery. After day 30, we can't accept the return.",
+            "You have 30 days from delivery to send an item back, as long as it's unused and still in its original packaging. Once those 30 days are up, returns aren't accepted.",
             "You can return an unused item in its original packaging up to 30 days after it's delivered. After that, returns aren't accepted.",
         ),
         wrong=(
-            "You can return items for up to 60 days after delivery, even if you've used them.",
+            "Unused items in their original packaging can be returned within 60 days of delivery. We can't accept returns after day 60.",
             "Returns are accepted for 90 days from the purchase date as long as you have the receipt.",
         ),
         extra=(
@@ -99,11 +103,11 @@ POLICIES = [
             "The sleeping bag I got was one of those final sale deals. Am I stuck with it?",
         ),
         answer=(
-            "Items marked Final Sale can't be returned or exchanged for any reason.",
+            "No. Once an item is marked Final Sale on the product page, we can't take it back or swap it for another one, for any reason.",
             "Final Sale items aren't eligible for a return or an exchange, whatever the reason.",
         ),
         wrong=(
-            "Final Sale items can be exchanged for a different size within 14 days, but they can't be refunded.",
+            "Items marked Final Sale on the product page can't be returned for a refund, but they can be exchanged for any reason.",
             "Final Sale items can be returned for store credit within 30 days.",
         ),
         extra=(
@@ -124,11 +128,11 @@ POLICIES = [
         ),
         unseen_questions=("What does it cost me to mail back a jacket I don't want anymore?",),
         answer=(
-            "Return labels are free for exchanges. If you return an item for a refund, a $6.95 label fee is deducted from your refund.",
+            "It depends on whether you want an exchange or your money back. Exchanges get a free return label. For a refund, $6.95 comes off the refund to cover the label.",
             "Exchanges come with a free return label, while refunds have a $6.95 label fee taken out of the amount we send back.",
         ),
         wrong=(
-            "Return shipping is always free, whether you want a refund or an exchange.",
+            "Return labels are free when you return an item for a refund. If you exchange an item, we charge a $6.95 label fee.",
             "We charge a $12 return label fee, and it applies to exchanges too.",
         ),
         extra=(
@@ -151,11 +155,11 @@ POLICIES = [
             "I unboxed a bluetooth speaker and tried it once. If I send it back, is anything taken off my refund for that?",
         ),
         answer=(
-            "Opened electronics like headphones, speakers, and smart watches are refunded minus a 15% restocking fee.",
+            "Once electronics have been opened, a 15% restocking fee comes out of the refund. This applies to opened headphones, speakers, smart watches, and other electronics.",
             "Because it's opened electronics, the refund is the price minus a 15% restocking fee.",
         ),
         wrong=(
-            "There's no restocking fee on opened electronics as long as you return them within 30 days.",
+            "Opened electronics, such as headphones, speakers, and smart watches, are refunded minus a 5% restocking fee.",
             "Opened electronics have a 25% restocking fee.",
         ),
         extra=(
@@ -179,11 +183,11 @@ POLICIES = [
             "There's a branch of yours near my office. Will they take back an order I placed through the app?",
         ),
         answer=(
-            "Online orders can be returned at any of our retail stores. Bring the packing slip or your order confirmation email.",
+            "Every one of our retail stores accepts returns of online orders. Just have your packing slip or the order confirmation email with you.",
             "Any of our retail stores can take back an online order, as long as you bring the packing slip or the confirmation email.",
         ),
         wrong=(
-            "Online orders can only be returned by mail; our stores can't process them.",
+            "Online orders can't be returned at our retail stores. Mail them back with the packing slip or the order confirmation email.",
             "Stores accept online returns only with a printed receipt and a photo ID.",
         ),
         extra=(
@@ -207,11 +211,11 @@ POLICIES = [
             "Tracking says you got my returned boots on Monday. Roughly when does the credit hit my account?",
         ),
         answer=(
-            "Once the warehouse receives your return, the refund reaches your original payment method within 5 to 7 business days.",
+            "Expect it within 5 to 7 business days, counted from when the return arrives at our warehouse. The money goes back to the payment method you originally used.",
             "Refunds land on your original payment method 5 to 7 business days after the warehouse receives the return.",
         ),
         wrong=(
-            "Refunds are issued within 24 hours of receiving your return.",
+            "After the warehouse receives a return, the refund reaches your original payment method within 24 hours.",
             "Refunds take 2 to 3 weeks and are issued as store credit.",
         ),
         extra=(
@@ -234,11 +238,11 @@ POLICIES = [
             "I see the same amount from you two times on my card. Should I dispute one of them?",
         ),
         answer=(
-            "The second charge is a temporary card authorization. It disappears on its own within 3 business days.",
+            "The second charge you're seeing is just a temporary authorization on your card. It goes away by itself within 3 business days.",
             "The extra charge is a temporary authorization hold, and it drops off by itself within 3 business days.",
         ),
         wrong=(
-            "That's a billing error on our side. We'll refund the duplicate charge within 10 business days.",
+            "The second charge is a duplicate payment, not a temporary authorization. We refund it to your card within 3 business days.",
             "The second charge is a membership fee that's billed with your first order.",
         ),
         extra=(
@@ -256,11 +260,11 @@ POLICIES = [
         questions=("Can I pay with PayPal?", "Do you take Bitcoin or other crypto?"),
         unseen_questions=("Is Amex okay, or only Visa and Mastercard?",),
         answer=(
-            "We accept Visa, Mastercard, American Express, PayPal, and Apple Pay. We don't accept checks, money orders, or cryptocurrency.",
+            "Our accepted payment options are Visa, Mastercard, American Express, PayPal, and Apple Pay. Cryptocurrency isn't one of them, and neither are checks or money orders.",
             "You can pay with Visa, Mastercard, American Express, PayPal, or Apple Pay, but not with checks, money orders, or crypto.",
         ),
         wrong=(
-            "We accept all major cards and Bitcoin, but not PayPal.",
+            "We accept Visa, Mastercard, American Express, and cryptocurrency. We don't accept PayPal, Apple Pay, checks, or money orders.",
             "We accept Visa and Mastercard only.",
         ),
         extra=(
@@ -284,11 +288,11 @@ POLICIES = [
             "Ugh, the backpack I paid full price for 10 days ago is on sale now. Any chance of a partial refund?",
         ),
         answer=(
-            "If an item goes on sale within 14 days of your purchase, contact us and we'll refund the difference. That's limited to one price adjustment per item.",
+            "When something you bought is marked down in the first 14 days after purchase, reach out to us and we'll refund the price difference. Each item can get only one adjustment.",
             "If the price dropped within 14 days of your purchase, contact us and we'll refund the difference, once per item.",
         ),
         wrong=(
-            "We don't offer price adjustments once an order has been placed.",
+            "If an item you bought goes on sale within 30 days of purchase, contact us and we'll refund the difference, as many times as the price drops.",
             "We'll match any lower price within 60 days, including competitors' prices.",
         ),
         extra=(
@@ -309,11 +313,11 @@ POLICIES = [
         ),
         unseen_questions=("Is there a way to avoid paying for my whole order up front?",),
         answer=(
-            "Orders over $150 can be split into 4 interest-free payments every two weeks. Choose Pay in 4 at checkout.",
+            "Yes, with Pay in 4, which you can select at checkout on any order above $150. You pay it off in four interest-free payments, one every two weeks.",
             "If your order is over $150, you can pick Pay in 4 at checkout and pay in 4 interest-free installments, one every two weeks.",
         ),
         wrong=(
-            "You can split any order into 6 monthly payments with 5% interest.",
+            "Orders over $50 can be split into 4 interest-free payments made every month. Choose Pay in 4 at checkout.",
             "We don't offer installment plans; the full amount is charged at checkout.",
         ),
         extra=(
@@ -335,11 +339,11 @@ POLICIES = [
         ),
         unseen_questions=("My cart is at $42. Will I pay for standard delivery?",),
         answer=(
-            "Standard shipping is free on orders over $50 and arrives 3 to 5 business days after your order ships.",
+            "Spend more than $50 and standard shipping costs nothing. Once your order ships, standard delivery takes 3 to 5 business days.",
             "Orders over $50 ship free with standard shipping, which arrives 3 to 5 business days after the order ships.",
         ),
         wrong=(
-            "Standard shipping is free on every order and arrives in 2 business days.",
+            "Standard shipping is free on orders over $35 and arrives 1 to 2 business days after the order ships.",
             "You need to spend $100 for free shipping, and standard delivery takes about 10 business days.",
         ),
         extra=(
@@ -351,8 +355,8 @@ POLICIES = [
         key="shipping-express",
         topic="express shipping",
         text=(
-            "Express shipping costs $14.95 and delivers in 1 to 2 business days for orders "
-            "placed before 1 p.m. Eastern."
+            "Express shipping is our fastest option. It costs $14.95 and delivers in 1 to 2 "
+            "business days for orders placed before 1 p.m. Eastern."
         ),
         questions=(
             "How much does it cost to get my order faster?",
@@ -362,11 +366,11 @@ POLICIES = [
             "I need these boots by Friday. What's your fastest delivery and what does it cost?",
         ),
         answer=(
-            "Express shipping costs $14.95 and delivers in 1 to 2 business days for orders placed before 1 p.m. Eastern.",
+            "For $14.95, express gets your order to you in 1 to 2 business days, as long as you place it before 1 p.m. Eastern.",
             "Our fastest option is express shipping: $14.95, with delivery in 1 to 2 business days if you order before 1 p.m. Eastern.",
         ),
         wrong=(
-            "Express shipping is $9.99 and arrives the next day no matter when you order.",
+            "Express shipping is our fastest option. It costs $14.95 and delivers the next business day for orders placed before 5 p.m. Eastern.",
             "Overnight shipping costs $29 and is guaranteed by 10 a.m.",
         ),
         extra=(
@@ -388,11 +392,11 @@ POLICIES = [
         ),
         unseen_questions=("I'm in the UK. Can I order from you?",),
         answer=(
-            "We ship only within the US and to Canada. Canadian orders take 7 to 14 business days, and the recipient pays any customs duties.",
+            "Outside the US, Canada is the only country we deliver to. A Canadian order arrives in 7 to 14 business days, and any customs duties are paid by the person receiving it.",
             "We only ship within the US and to Canada. Orders to Canada arrive in 7 to 14 business days, and the recipient pays any customs duties.",
         ),
         wrong=(
-            "We ship worldwide, and international orders arrive within 5 business days.",
+            "We ship within the US, to Canada, and to Australia. Canadian orders take 7 to 14 business days, and we pay any customs duties.",
             "We ship to the US, Canada, and the UK, and we cover all customs duties.",
         ),
         extra=(
@@ -416,11 +420,11 @@ POLICIES = [
             "I just moved and the order I placed yesterday has my old address. Is it too late to update it?",
         ),
         answer=(
-            "You can edit the shipping address from the Orders page for 1 hour after checkout. After that, the order has gone to the warehouse and the address is locked.",
+            "Head to the Orders page, where the shipping address stays editable for the first hour after checkout. Past that hour, the order is with the warehouse and the address can no longer be edited.",
             "Addresses can be changed on the Orders page only within 1 hour of checkout. Once that hour passes, the order is at the warehouse and the address can't be changed.",
         ),
         wrong=(
-            "You can change the address any time before the order is delivered by calling us.",
+            "You can edit the shipping address from the Orders page for 24 hours after checkout. After that, call us and we'll update the address at the warehouse.",
             "Address changes are allowed for 24 hours after checkout.",
         ),
         extra=(
@@ -438,11 +442,11 @@ POLICIES = [
         ),
         unseen_questions=("Changed my mind about yesterday's purchase. Can I still call it off?",),
         answer=(
-            "You can cancel an order from your account until it ships. Most orders ship within 24 hours.",
+            "As long as the order hasn't shipped yet, you can cancel it yourself in your account. Keep in mind that most orders go out within 24 hours.",
             "Orders can be canceled from your account up until they ship, which usually happens within 24 hours.",
         ),
         wrong=(
-            "Orders can't be canceled once they're placed; you'll need to return the items instead.",
+            "You can cancel an order from your account within 7 days, even after it ships. Most orders ship within 24 hours.",
             "You can cancel within 7 days of placing an order, even if it has shipped.",
         ),
         extra=("Canceled orders are refunded instantly.", "There's a $5 fee to cancel an order."),
@@ -462,11 +466,11 @@ POLICIES = [
             "My order shows as delivered but it was never in my mailbox. How long do I have to let you know?",
         ),
         answer=(
-            "If tracking says delivered but you never got the package, report it within 7 days and we'll ship a replacement at no cost.",
+            "Since the package shows as delivered but never reached you, tell us within 7 days. We'll then ship you a replacement free of charge.",
             "Report it within 7 days and we'll send you a replacement at no cost.",
         ),
         wrong=(
-            "Once the carrier marks a package delivered, we can't replace it; you'll need to file a claim with the carrier.",
+            "If tracking says delivered but you never got the package, report it to the carrier within 7 days. We can't ship a replacement.",
             "You have 30 days to report a missing package, and we'll refund you once the carrier's investigation is done.",
         ),
         extra=(
@@ -490,11 +494,11 @@ POLICIES = [
             "The seam on my 10-month-old jacket split open on its own. Is that something the warranty handles?",
         ),
         answer=(
-            "Our gear has a 1-year limited warranty against defects in materials and workmanship. Normal wear and tear, accidents, and misuse aren't covered.",
+            "Our gear is covered by a 1-year limited warranty for defects in materials and workmanship. Accidents, misuse, and everyday wear and tear fall outside it.",
             "The warranty lasts 1 year and covers defects in materials or workmanship, but not normal wear, accidents, or misuse.",
         ),
         wrong=(
-            "Everything we sell has a lifetime warranty that covers any damage, including accidents.",
+            "Our gear has a 1-year limited warranty against defects in materials and workmanship, and it also covers accidents and normal wear and tear. Only misuse isn't covered.",
             "Our warranty lasts 3 years and covers accidental damage.",
         ),
         extra=(
@@ -517,11 +521,11 @@ POLICIES = [
             "I need to make a warranty claim on my stove. What do I have to send you, and where?",
         ),
         answer=(
-            "Upload a photo of the defect with your order number on the Warranty page. Approved claims get a replacement within 10 business days.",
+            "Claims are filed on the Warranty page: send us a picture of the defect along with your order number. If we approve it, a replacement reaches you within 10 business days.",
             "Go to the Warranty page and upload a photo of the defect with your order number. If the claim is approved, you'll get a replacement within 10 business days.",
         ),
         wrong=(
-            "Mail the item back to us with a note, and we'll refund you in full once we inspect it.",
+            "To start a warranty claim, mail the defective item with your order number to our warehouse. Approved claims get a full refund within 10 business days.",
             "Warranty claims have to be made in person at a retail store.",
         ),
         extra=(
@@ -544,11 +548,11 @@ POLICIES = [
             "I'm locked out of my account. What are the steps to set a new password?",
         ),
         answer=(
-            "Choose Forgot password on the sign-in page and we'll email you a reset link. The link expires after 1 hour.",
+            "On the sign-in page, click Forgot password and we'll email you a reset link. Each link stops working 1 hour after it's sent.",
             "Select Forgot password on the sign-in page. We'll email you a link to set a new password, and it's valid for 1 hour.",
         ),
         wrong=(
-            "Call customer support and we'll reset your password over the phone; reset links never expire.",
+            "To reset your password, choose Forgot password on the sign-in page. The reset link we email you expires after 24 hours.",
             "Reset links are valid for 7 days, so you can use the one we already sent.",
         ),
         extra=(
@@ -569,11 +573,11 @@ POLICIES = [
         ),
         unseen_questions=("I'd like to remove my profile and all my data. How do I do that?",),
         answer=(
-            "You can delete your account under Settings > Privacy. Deletion is permanent, and your order history is erased after 30 days.",
+            "Account deletion is in Settings > Privacy. There's no undo, and we erase your order history 30 days after you delete.",
             "Go to Settings > Privacy to delete your account. It can't be undone, and your order history is erased 30 days later.",
         ),
         wrong=(
-            "Email us and we'll deactivate your account; you can reactivate it any time within a year.",
+            "You can delete your account under Settings > Privacy. Deletion can be undone within 30 days, and your order history is kept.",
             "Deleted accounts keep their order history for 7 years.",
         ),
         extra=(
@@ -594,11 +598,11 @@ POLICIES = [
         ),
         unseen_questions=("I haven't shopped in a while. Will I lose the points I've built up?",),
         answer=(
-            "Members earn 1 point per dollar, and every 100 points becomes a $5 reward. Points expire after 12 months without a purchase.",
+            "Each dollar you spend as a member earns a point, and 100 points gets you a $5 reward. Your points do expire, but only if 12 months go by with no purchase.",
             "You earn 1 point per dollar, 100 points turn into a $5 reward, and your points expire if you go 12 months without a purchase.",
         ),
         wrong=(
-            "Points never expire, and every 50 points is worth $10.",
+            "Rewards members earn 1 point per dollar. Every 100 points becomes a $10 reward, and points never expire.",
             "Points expire 90 days after you earn them, whether or not you shop.",
         ),
         extra=(
@@ -622,11 +626,11 @@ POLICIES = [
             "I have a 10% off code and a free-gift code. Can I enter both at checkout?",
         ),
         answer=(
-            "Only one promo code can be applied per order, and promo codes don't work on items that are already on sale.",
+            "Each order takes a single promo code, so codes can't be combined. Sale items are excluded too: a promo code won't apply to anything already marked down.",
             "You can use one promo code per order, and it won't apply to items that are already on sale.",
         ),
         wrong=(
-            "You can combine up to three promo codes on one order, including on sale items.",
+            "Up to two promo codes can be applied per order, and promo codes work on items that are already on sale.",
             "Promo codes can be stacked as long as your order is over $100.",
         ),
         extra=(
@@ -647,11 +651,11 @@ POLICIES = [
         ),
         unseen_questions=("I lost a gift card I got for my birthday. Can you replace it?",),
         answer=(
-            "Gift cards never expire and can't be exchanged for cash. A lost gift card can be replaced only with the original receipt.",
+            "There's no expiration date on our gift cards, and the balance can't be cashed out. If one goes missing, we can replace it only if you have the original receipt.",
             "We can replace a lost gift card only if you have the original receipt. Gift cards don't expire, but they can't be turned into cash.",
         ),
         wrong=(
-            "Gift cards expire 2 years after purchase, and balances under $10 can be paid out in cash.",
+            "Gift cards expire after 2 years and can be exchanged for cash. A lost gift card can be replaced without the original receipt.",
             "We can replace a lost gift card if you know the card number, no receipt needed.",
         ),
         extra=(
@@ -663,11 +667,11 @@ POLICIES = [
 BY_KEY = {policy.key: policy for policy in POLICIES}
 # Passages that share a topic or wording with a policy's questions but don't answer them.
 NEAR = {
-    "returns-window": "returns-final-sale returns-label-fee returns-in-store refund-timing gift-cards account-delete",
+    "returns-window": "billing-price-adjustment returns-label-fee returns-in-store refund-timing gift-cards account-delete",
     "returns-final-sale": "returns-label-fee returns-in-store billing-price-adjustment promo-codes refund-timing gift-cards",
-    "returns-label-fee": "returns-window returns-final-sale refund-timing shipping-express shipping-standard warranty-claim",
-    "returns-restocking": "returns-window returns-final-sale returns-in-store warranty-coverage refund-timing billing-price-adjustment",
-    "returns-in-store": "returns-window returns-label-fee returns-final-sale orders-cancel shipping-lost-package gift-cards",
+    "returns-label-fee": "shipping-lost-package orders-cancel refund-timing shipping-express shipping-standard warranty-claim",
+    "returns-restocking": "warranty-claim billing-duplicate-charge returns-in-store warranty-coverage refund-timing billing-price-adjustment",
+    "returns-in-store": "refund-timing returns-label-fee orders-address-change orders-cancel shipping-lost-package gift-cards",
     "refund-timing": "billing-duplicate-charge returns-label-fee billing-price-adjustment returns-window shipping-standard loyalty-points",
     "billing-duplicate-charge": "refund-timing billing-payment-methods billing-price-adjustment orders-cancel promo-codes loyalty-points",
     "billing-payment-methods": "gift-cards billing-duplicate-charge promo-codes loyalty-points refund-timing shipping-international",
@@ -679,13 +683,20 @@ NEAR = {
     "orders-address-change": "shipping-lost-package account-delete shipping-international account-password shipping-express returns-in-store",
     "orders-cancel": "returns-window returns-final-sale account-delete shipping-lost-package billing-duplicate-charge promo-codes",
     "shipping-lost-package": "shipping-standard shipping-express shipping-international orders-address-change returns-in-store warranty-claim",
-    "warranty-coverage": "warranty-claim returns-window returns-restocking shipping-lost-package gift-cards account-delete",
+    "warranty-coverage": "returns-label-fee returns-window returns-restocking shipping-lost-package gift-cards account-delete",
     "warranty-claim": "warranty-coverage returns-in-store shipping-lost-package returns-label-fee account-password refund-timing",
     "account-password": "account-delete orders-address-change loyalty-points gift-cards orders-cancel billing-payment-methods",
     "account-delete": "account-password orders-cancel loyalty-points gift-cards orders-address-change promo-codes",
     "loyalty-points": "gift-cards promo-codes billing-price-adjustment account-delete billing-installments account-password",
     "promo-codes": "loyalty-points billing-price-adjustment gift-cards returns-final-sale billing-installments shipping-standard",
     "gift-cards": "loyalty-points promo-codes billing-payment-methods refund-timing returns-final-sale account-delete",
+}
+# Passages that limit or add evidence to another policy's answer, such as a return
+# restriction for a question about returning an item. They're never its distractors.
+BEARS_ON = {
+    "returns-window": "returns-in-store returns-label-fee returns-restocking",
+    "returns-final-sale": "returns-window returns-in-store returns-label-fee returns-restocking",
+    "warranty-claim": "warranty-coverage",
 }
 DOC_ID = {policy.key: f"kb-{4100 + 13 * index}" for index, policy in enumerate(POLICIES)}
 
@@ -736,6 +747,9 @@ def check_corpus() -> None:
         near = NEAR[policy.key].split()
         assert policy.key not in near and len(set(near)) == len(near) >= 4, policy.key
         assert set(near) <= set(BY_KEY), policy.key
+    for passage, policies in BEARS_ON.items():
+        for key in policies.split():
+            assert passage not in NEAR[key].split(), (passage, key)
 
 
 def answer_text(
