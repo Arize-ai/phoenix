@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-06T13:07:36Z",
-  "models_sha256": "a434f22dc2efa1dd612951d51f6ee7967eb2424cdef3102c6b5903c83d5032bd",
+  "generated_at": "2026-11-13T13:07:15Z",
+  "models_sha256": "64629c50e5fd4462fc58095a6e8d57af75623a5b4b887cd437c7868b0375f301",
   "models": [
     {
       "name": "chatgpt-image-latest",
@@ -84,6 +84,33 @@
         },
         {
           "base_rate": 0.0000125,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "claude-fable-5-2",
+      "name_pattern": "claude-fable-5-2",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00004,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001,
           "is_prompt": true,
           "token_type": "cache_write"
         }
@@ -243,6 +270,33 @@
         },
         {
           "base_rate": 0.0000125,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "claude-mythos-5-2",
+      "name_pattern": "claude-mythos-5-2",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00004,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001,
           "is_prompt": true,
           "token_type": "cache_write"
         }
@@ -4602,17 +4656,35 @@
         {
           "base_rate": 0.00002,
           "is_prompt": true,
-          "token_type": "input"
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00004
+          }
         },
         {
           "base_rate": 0.0001,
           "is_prompt": false,
-          "token_type": "output"
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00015
+          }
         },
         {
           "base_rate": 2e-6,
           "is_prompt": true,
-          "token_type": "cache_read"
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 4e-6
+          }
         },
         {
           "base_rate": 0.000025,
@@ -7156,6 +7228,47 @@
       ]
     },
     {
+      "name": "meta/muse-ember-1.0",
+      "name_pattern": "muse-ember-1\\.0",
+      "source": "litellm",
+      "provider": "meta",
+      "token_prices": [
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 3e-7
+          }
+        },
+        {
+          "base_rate": 5e-7,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 1.5e-6
+          }
+        },
+        {
+          "base_rate": 4e-9,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 1.2e-8
+          }
+        }
+      ]
+    },
+    {
       "name": "meta/muse-spark-1.1",
       "name_pattern": "muse-spark-1\\.1",
       "source": "litellm",
@@ -7471,6 +7584,29 @@
             "threshold": 512000.0,
             "new_rate": 1.2e-7
           }
+        }
+      ]
+    },
+    {
+      "name": "minimax/MiniMax-M3.1-Flash",
+      "name_pattern": "MiniMax-M3\\.1-Flash",
+      "source": "litellm",
+      "provider": "minimax",
+      "token_prices": [
+        {
+          "base_rate": 1.5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 6e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.5e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
         }
       ]
     },
@@ -8776,6 +8912,33 @@
       ]
     },
     {
+      "name": "moonshot/kimi-k3.1-pro-highspeed",
+      "name_pattern": "kimi-k3\\.1-pro-highspeed",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 4e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00002,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 4e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
       "name": "moonshot/moonshot-v1-128k",
       "name_pattern": "moonshot-v1-128k",
       "source": "litellm",
@@ -9421,17 +9584,17 @@
       "provider": "together",
       "token_prices": [
         {
-          "base_rate": 1.5e-6,
+          "base_rate": 2.5e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 4.5e-6,
+          "base_rate": 7.5e-6,
           "is_prompt": false,
           "token_type": "output"
         },
         {
-          "base_rate": 3e-7,
+          "base_rate": 5e-7,
           "is_prompt": true,
           "token_type": "cache_read"
         }
@@ -9693,6 +9856,47 @@
           "base_rate": 6e-9,
           "is_prompt": true,
           "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/elorian-labs/glimpse-1.0",
+      "name_pattern": "elorian-labs/glimpse-1\\.0",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 6e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 3e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 6e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/essentialai/rnj-1-instruct",
+      "name_pattern": "essentialai/rnj-1-instruct",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 1.5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1.5e-7,
+          "is_prompt": false,
+          "token_type": "output"
         }
       ]
     },
@@ -10268,6 +10472,29 @@
         },
         {
           "base_rate": 1.7e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/thinkingmachines/Inkling-2-Small",
+      "name_pattern": "thinkingmachines/Inkling-2-Small",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-8,
           "is_prompt": true,
           "token_type": "cache_read"
         }
