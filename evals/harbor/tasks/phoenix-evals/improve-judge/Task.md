@@ -50,10 +50,10 @@ Local results:
 
 | Run | `visible` (compliant, noncompliant recall) | `new_traces` | Reward |
 | --- | --- | --- | --- |
-| Nop: starting judge unchanged | 0.46, 0.62 | 0.50, 0.31 | 0 |
-| Copies `human_review` labels where they exist, otherwise the starting judge, rescoring all traces | 0.46, 0.69 | 0.50, 0.31 | 0 |
-| Reference judge, run only on unscored traces | 0.46, 0.62 (stale) | 1.0, 1.0 | 0 |
-| Reference solution | 1.0, 1.0 | 1.0, 1.0 | 1 |
+| Nop: starting judge unchanged | 0.62, 0.50 | 0.42, 0.56 | 0 |
+| Copies `human_review` labels where they exist, otherwise the starting judge, rescoring all traces | 0.58, 0.56 | 0.42, 0.56 | 0 |
+| Reference judge, run only on unscored traces | 0.62, 0.50 (stale) | 1.0, 1.0 | 0 |
+| Reference solution | 0.96, 1.0 | 1.0, 1.0 | 1 |
 
 The request pins LLM judges to `gpt-5.4-nano`, a small model that rewards a clear
 prompt with the right evidence. During the rerun, model requests go through a recorder
@@ -87,23 +87,24 @@ share with the new traces, such as policy passages and reply templates, doesn't 
 | Trusting the customer | Some customers say they received the item "about two weeks ago" when the order record shows more than 30 days. |
 | Rerunning only on unscored traces | Every trace starts with a stale annotation, and the starting script skips annotated traces, so the old verdicts stay unless the agent rescores the whole project. |
 | Copying the reviewers' labels | The graded traces have no human review. |
-| Overfitting to visible wording or products | New traces use other products, prices, categories, and reply wordings (for example "Refund decision: approved for $31.95."). |
+| Overfitting to visible wording or products | New traces use other products, prices, categories, and reply wordings (for example "Refund decision: approved for $89.95."). |
 
 ## Known limits
 
 - The starting annotations come from `starting_judge_label` in `fixture/build.py`, a
   deterministic stand-in for the starting prompt: `pass` when the reply mentions the
-  30-day window. A one-time run of the real prompt on `gpt-5.6-luna` agreed on 77 of
-  the 80 visible traces. That run came before fee sentences moved ahead of the
-  decision. On the 40 new traces, the real prompt's recall equals the stand-in's.
-- The reference judge reaches 1.0 on both checks, so the 0.8 bar leaves room. Each
-  violation kind has at most 2 cases per cohort, so a judge can miss one whole kind
-  and still pass. Raising the bar to 0.9 would allow 1 noncompliant miss per cohort.
+  30-day window. A one-time run of the real prompt on `gpt-5.4-nano` agreed on 75 of
+  the 80 visible traces. On the 40 new traces it agreed on 37, with recall 0.42 on
+  compliant and 0.56 on noncompliant decisions, against the stand-in's 0.54 and 0.56.
+- The reference judge reaches at least 0.96 on both checks, so the 0.8 bar leaves
+  room. Each violation kind has at most 2 cases per cohort, so a judge can miss one
+  whole kind and still pass. Raising the bar to 0.9 would allow 1 noncompliant miss per
+  cohort.
 - The rules are deterministic, so a code check that applies them to the order record
   and parses the refund amount from the reply can also pass. That counts as a
   legitimate judge.
 - Replies are templated. The new traces' wordings limit how far pattern matching gets.
-- On `gpt-5.4-nano`, the reference reaches 1.0 on the new traces and 0.94 noncompliant
+- On `gpt-5.4-nano`, the reference reaches 1.0 on the new traces and 0.96 compliant
   recall on the visible ones.
 
 ## Files
