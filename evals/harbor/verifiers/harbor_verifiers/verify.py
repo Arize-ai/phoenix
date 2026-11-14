@@ -32,7 +32,7 @@ from typing import Any, Literal
 
 from phoenix.evals.metrics import exact_match
 
-ANSWER_PATH = Path("/app/answer.txt")
+ANSWER_PATH = Path(os.environ.get("TASK_APP_DIR", "/app")) / "answer.txt"
 TRAJECTORY_PATH = Path(
     os.environ.get("PHOENIX_EVAL_TRAJECTORY_PATH", "/logs/agent/trajectory.json")
 )
@@ -84,19 +84,39 @@ def started_at(trajectory: dict[str, Any] | None) -> datetime | None:
     return min(timestamps) if timestamps else None
 
 
+def _message_text(message: Any) -> str:
+    if isinstance(message, str):
+        return message
+    if isinstance(message, list):
+        return "\n".join(
+            str(part.get("text", ""))
+            for part in message
+            if isinstance(part, dict) and part.get("type") == "text"
+        )
+    return ""
+
+
 def final_reply(trajectory: dict[str, Any] | None) -> str:
-    for step in reversed(agent_steps(trajectory)):
-        message = step.get("message")
-        if isinstance(message, str) and message.strip():
-            return message
-        if isinstance(message, list):
-            text = "\n".join(
-                str(part.get("text", ""))
-                for part in message
-                if isinstance(part, dict) and part.get("type") == "text"
-            )
-            if text.strip():
-                return text
+    """The agent's final answer: its text messages after its last tool call.
+
+    An agent sometimes adds a short follow-up after its answer, for example when a
+    background task finishes, so the answer is every message after the last tool call,
+    joined. Without such messages, it's the last agent message with text.
+    """
+    steps = agent_steps(trajectory)
+    trailing: list[str] = []
+    for step in reversed(steps):
+        if step.get("tool_calls"):
+            break
+        text = _message_text(step.get("message"))
+        if text.strip():
+            trailing.append(text)
+    if trailing:
+        return "\n\n".join(reversed(trailing))
+    for step in reversed(steps):
+        text = _message_text(step.get("message"))
+        if text.strip():
+            return text
     return ""
 
 
@@ -106,7 +126,7 @@ def measurements(trajectory: dict[str, Any] | None) -> dict[str, float]:
     if not steps:
         return {}
     tool_calls = sum(len(step.get("tool_calls") or []) for step in steps)
-    return {"tool_count": float(tool_calls), "turn_count": float(len(steps))}
+    return {"tool_calls": float(tool_calls), "turns": float(len(steps))}
 
 
 def read_reply(trajectory_path: Path, answer_path: Path) -> tuple[str, ReplySource]:

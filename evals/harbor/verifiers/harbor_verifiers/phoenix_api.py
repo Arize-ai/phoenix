@@ -28,7 +28,7 @@ from harbor_verifiers.graphql.__generated__ import (
 from phoenix.server.api.types.node import from_global_id
 
 PHOENIX_URL = os.environ.get("PHOENIX_EVAL_URL", "http://127.0.0.1:6006")
-ANSWER_PATH = "/app/answer.txt"
+ANSWER_PATH = os.path.join(os.environ.get("TASK_APP_DIR", "/app"), "answer.txt")
 SPAN_LIMIT = 1_000_000  # The client fetches 100 spans per page up to this limit.
 
 

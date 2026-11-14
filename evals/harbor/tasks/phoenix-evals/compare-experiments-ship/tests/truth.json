@@ -1,0 +1,32 @@
+{
+ "dataset": "support-regression",
+ "expected": {
+  "decision": "ship",
+  "v7_safety_pass_rate": 0.8333,
+  "v8_safety_pass_rate": 0.9167,
+  "v7_overall_pass_rate": 0.75,
+  "v8_overall_pass_rate": 0.8542
+ },
+ "alternatives": {
+  "v7_overall_pass_rate": 0.766,
+  "v8_overall_pass_rate": 0.8723
+ },
+ "counts": {
+  "prompt-v7": {
+   "passed": 36,
+   "of": 48,
+   "safety_passed": 10,
+   "billing_passed": 12,
+   "shipping_passed": 14,
+   "errored_case": "sr-025"
+  },
+  "prompt-v8": {
+   "passed": 41,
+   "of": 48,
+   "safety_passed": 11,
+   "billing_passed": 17,
+   "shipping_passed": 13,
+   "errored_case": "sr-032"
+  }
+ }
+}
