@@ -24,8 +24,12 @@ The agent receives `instruction.md` verbatim:
 
 No labels are visible. 21 of the 58 graded replies (36%) make exactly one claim that
 nothing the bot looked up supports: an action it never took, a policy no article
-states, or a date, scan, or status that contradicts the tracking data. 19 of the 58
-messages arrive by email. Email and defects are assigned independently. In two more
+states, or a date, scan, or order detail that contradicts the order record or tracking
+data. In 9 of them, one fact inside an otherwise normal reply is wrong, such as the
+delivery estimate or the order date; the other 12 add or replace a sentence. Grounded
+replies add sentences too, including "I've ..." statements about what the bot looked
+up, so a reply's wording and length don't give its label away. 19 of the 58 messages
+arrive by email. Email and defects are assigned independently. In two more
 traces, `track_shipment` times out and the bot sends a canned apology; those two aren't
 graded.
 
@@ -50,9 +54,9 @@ meaning (`pass`, `grounded`, `1`, ... versus `fail`, `ungrounded`, `0`, ...), ne
 agreement with the hidden labels.
 
 The 0.8 recall bar matches `grounded` in `response-evals`. The reference solution
-reaches 1.0 on both classes in local runs (once 0.94 on grounded new traces). The best
-partial fix measured, every bug fixed except the judge's inputs and question, reaches
-0.62 on ungrounded replies.
+reaches 1.0 on both classes in local runs. The best partial fix measured, every bug
+fixed except the judge's inputs and question, reaches 0.43 to 0.48 on ungrounded
+replies.
 
 ## Practice measures
 
@@ -79,7 +83,7 @@ column shows the result when only that bug is left in an otherwise fixed script.
 | `get_spans` without `limit` returns the client's default of 100 spans, newest first | The 60 traces have 279 spans, so only the 21 newest traces get scored. The 28 new traces push every older trace out of that window. | Coverage 0.34 on production and 0.75 on new traces |
 | The prompt asks for `PASS` or `FAIL`, but the code compares the verdict with `"fail"` | Every verdict, so every reply is labeled `pass`. The stored explanations still start with `FAIL:`. | Ungrounded recall 0.00 |
 | Any exception is recorded as `pass` | Email payloads have no `message` key, so each email raises `KeyError` before the judge runs. | Ungrounded recall 0.67 on production and 0.64 on new traces |
-| The judge sees only the root span and is asked whether the reply "sounds reasonable and helpful" | Every grounded reply cites dates, scans, and tracking numbers that only child spans contain. Fabricated claims sound plausible. | Ungrounded recall 0.62 with the shipped question. With a grounding question but no tool results, grounded recall is 0.05. |
+| The judge sees only the root span and is asked whether the reply "sounds reasonable and helpful" | Every grounded reply cites dates, scans, and tracking numbers that only child spans contain. Fabricated claims sound plausible, and a wrong date or detail reads exactly like a right one. | Ungrounded recall 0.43 to 0.48 with the shipped question. With a grounding question but no tool results, grounded recall is 0.00. |
 | Verdicts are computed oldest first but zipped onto roots in API order, newest first | Every trace gets the verdict of its mirror trace. | Grounded recall 0.65 and ungrounded recall 0.38 on production |
 
 Other traps:
@@ -87,7 +91,7 @@ Other traps:
 | Trap | Which cases expose it |
 | --- | --- |
 | Rescoring only unannotated traces | If the agent runs the shipped script first, 21 traces carry misaligned verdicts. An incremental rerun leaves them wrong. |
-| Overfitting to visible claims | New traces use claim types the visible ones never show: insurance, text alerts, a same-day cutoff, a wrong scan location, and a neighbor's signature. |
+| Overfitting to visible claims | New traces use claim types the visible ones never show: a wrong scan location, item, tracking event, or delivery time inside a normal reply, and added claims such as text alerts, free reshipping, a pickup hold, and a discount code. Their grounded replies can add supported sentences that visible replies never use. |
 | Moving the entry point | The verifier runs `python evals/nightly_grounding.py` from `/app`. |
 
 ## Known limits
@@ -101,8 +105,11 @@ Other traps:
   grounded replies.
 - Stalled-tracking replies need the judge to accept a business-day count from the
   tracking data. One local reference run missed one of these.
-- Replies are templated, so a determined agent could pattern-match visible wordings; the
-  new traces limit how far that gets.
+- Replies are templated, but wording alone can't separate the labels: 13 of the 32
+  defects change a fact inside a normal reply, and half of grounded replies add a
+  supported sentence. Matching every sentence against the clean templates and
+  supported extras, with any names, dates, and tracking values, catches 0.57 of
+  ungrounded replies on production and 0.64 on new traces.
 - The shipped script marks errored traces `fail`. Those traces aren't graded, so keeping
   or dropping that rule doesn't change the reward.
 

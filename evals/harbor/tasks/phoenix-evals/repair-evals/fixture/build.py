@@ -8,16 +8,21 @@ rerunning the nightly script). Run from the repository root:
 
 About a third of replies make exactly one claim that no tool result or help center
 article supports: an action the bot never took, a policy no article states, or a date,
-scan, or status that contradicts the tracking data. About a third of messages arrive by
-email, whose payload has `subject` and `body` instead of `message`; the shipped script
-crashes on those and records `pass`. Email and defects are assigned independently.
+scan, or order detail that contradicts the order record or tracking data. About 40% of
+those defects change one fact inside a normal reply, so the reply reads exactly like a
+grounded one; the rest add or replace a sentence. Grounded replies add sentences too,
+including "I've ..." statements about what the bot looked up, so neither an added
+sentence nor its wording predicts the label. About a third of messages arrive by email,
+whose payload has `subject` and `body` instead of `message`; the shipped script crashes
+on those and records `pass`. Email and defects are assigned independently.
 
 In two visible traces, `track_shipment` times out and the bot sends a canned apology
 with a root span status of `ERROR`. They aren't graded. One of them falls inside the 100
 newest spans, the only ones the shipped script scores, and that script marks errored
 traces `fail`, so it reports 20 of 21 replies grounded (95%).
 
-Unseen traces use claim wordings and claim types that the visible traces never show.
+Unseen traces use claim wordings and claim types that the visible traces never show, and
+their grounded replies can add supported sentences that visible replies never use.
 """
 
 from __future__ import annotations
@@ -69,6 +74,9 @@ DESTINATIONS = [
 STREETS = ["Alder St", "Birch Ave", "Cedar Ln", "Dogwood Dr", "Elm Ct", "Fir Way"]
 EVENTS = ["Departed facility", "Arrived at facility", "In transit", "Processed at hub"]
 NOTES = ["Left at front door", "Left in mailroom", "Left at side door", "Handed to resident"]
+# Transit times from the `delivery-estimates` article. Orders that haven't shipped use
+# either method; shipped orders are standard, which fits their tracking dates.
+WINDOWS = {"standard": "3 to 5 business days", "expedited": "1 to 2 business days"}
 
 ARTICLES = {
     "delivery-estimates": (
@@ -113,57 +121,65 @@ RELEVANT_ARTICLES = {
     "address_processing": ["change-address", "processing-time"],
     "address_shipped": ["change-address", "carrier-redirect"],
     "stalled": ["tracking-paused", "delivery-estimates"],
-    "not_shipped": ["processing-time", "cancel-order"],
+    "not_shipped": ["processing-time", "delivery-estimates"],
     "delivered_missing": ["delivered-not-found", "returns"],
 }
 DISTRACTORS = ["returns", "gift-wrap", "cancel-order"]
 
-# One unsupported claim per defective reply. ("insert", text) adds a sentence;
-# ("replace", slot, text) swaps the sentence in that slot for a contradicting one.
+# One unsupported claim per defective reply, cycled in order within each scenario:
+# - ("swap", fact) states a wrong value for one fact inside the normal reply, so the
+#   reply reads exactly like a grounded one.
+# - ("insert", text) adds a sentence where grounded replies may add one from EXTRAS.
+# - ("replace", slot, text) swaps the sentence in that slot for a contradicting one.
 CLAIMS: dict[str, dict[str, list[tuple[str, ...]]]] = {
     "visible": {
         "where": [
-            ("insert", "It's already out for delivery, so it should reach you this evening."),
+            ("swap", "eta"),
             ("insert", "I've asked {carrier} to give it priority handling so it arrives sooner."),
-            ("replace", "eta", "{carrier} expects to deliver it on {early_eta}."),
+            ("swap", "scan_date"),
         ],
         "eta": [
+            ("swap", "eta"),
             ("insert", "If it isn't there by {eta}, we'll refund your shipping automatically."),
-            ("insert", "We guarantee delivery within 3 business days of shipping."),
-            ("replace", "eta", "{carrier} currently estimates that order {oid} will arrive on {early_eta}."),
+            ("insert", "Standard shipping usually takes 1 to 2 business days after an order ships."),
         ],
         "address_processing": [
             ("insert", "I've gone ahead and updated the address to {new_street} for you."),
-            ("insert", "I've also upgraded the order to expedited shipping at no extra cost."),
+            ("swap", "placed"),
+            ("replace", "limit", "You can still change the address for up to 24 hours after the order ships."),
         ],
         "address_shipped": [
             ("replace", "fee", "Redirects are free within 24 hours of shipping, so there's no charge."),
+            ("swap", "shipped"),
             ("insert", "I've already sent the redirect request to {carrier} for you."),
         ],
         "stalled": [
+            ("swap", "stale_days"),
             ("replace", "next", "I've already opened a trace with {carrier}, and they'll email you within 24 hours."),
             ("insert", "Packages that stall like this almost always turn up within 2 days."),
         ],
         "not_shipped": [
+            ("swap", "method"),
             ("insert", "It's packed and the carrier will pick it up tonight."),
-            ("insert", "I've moved your order to the front of the packing queue."),
+            ("swap", "placed"),
         ],
         "delivered_missing": [
             ("insert", "I've already sent a replacement, and it ships tomorrow."),
+            ("swap", "note"),
             ("insert", "The driver's delivery photo shows it at your side door."),
         ],
     },
     "unseen": {
         "where": [
+            ("swap", "hub"),
             ("insert", "The package is insured for its full value, so you're covered if anything happens to it."),
-            ("replace", "scan", "It was last scanned in {wrong_hub} on {scan_date}."),
         ],
         "eta": [
             ("insert", "You'll get a text from {carrier} about 30 minutes before the driver arrives."),
             ("insert", "Orders placed before noon ship the same day, and yours made the cutoff."),
         ],
         "address_processing": [
-            ("insert", "Address changes can take up to 48 hours to show on your order."),
+            ("swap", "item"),
             ("insert", "I've emailed you a link to confirm the new address."),
         ],
         "address_shipped": [
@@ -171,19 +187,68 @@ CLAIMS: dict[str, dict[str, list[tuple[str, ...]]]] = {
             ("insert", "{carrier} will hold it at your nearest pickup point for 7 days in the meantime."),
         ],
         "stalled": [
+            ("swap", "event"),
             ("insert", "If it turns out to be lost, we'll send a replacement right away."),
-            ("replace", "scan", "It was scanned at your local delivery station this morning, so it's nearly there."),
         ],
         "not_shipped": [
             ("insert", "Processing is taking about a week right now because of high demand."),
             ("insert", "We'll send you a 10% discount code for the wait."),
         ],
         "delivered_missing": [
+            ("swap", "delivered_time"),
             ("insert", "{carrier} confirmed that a neighbor signed for it."),
-            ("insert", "We've filed a claim with {carrier}, so your refund will arrive within 3 days."),
         ],
     },
 }  # fmt: skip
+
+# Supported sentences that replies may add, in the same places defective replies add
+# claims. Each one restates a lookup the bot made, a fact from its tool results, or a
+# retrieved article, or makes no claim. Unseen replies can also use the "unseen" ones.
+EXTRAS: dict[str, dict[str, list[str]]] = {
+    "visible": {
+        "where": [
+            "I've checked the latest tracking from {carrier} for you.",
+            "Delivery estimates come from the carrier and can change while a package is in transit.",
+        ],
+        "eta": [
+            "I've checked the latest tracking from {carrier} for you.",
+            "Standard shipping usually takes 3 to 5 business days after an order ships.",
+        ],
+        "address_processing": [
+            "I've looked up order {oid} for you.",
+            "Orders usually ship within 2 business days of being placed, so it's best to make the change soon.",
+        ],
+        "address_shipped": [
+            "I've checked the tracking, and it's still in transit with {carrier}.",
+            "I'm sorry for the hassle.",
+        ],
+        "stalled": [
+            "I've checked the latest tracking from {carrier} for you.",
+            "Tracking can pause for a few days while a package moves between carrier facilities.",
+        ],
+        "not_shipped": [
+            "I've looked up order {oid} for you.",
+            "I know waiting is no fun.",
+        ],
+        "delivered_missing": [
+            "I've checked the tracking for order {oid}.",
+            "I know that's frustrating.",
+        ],
+    },
+    "unseen": {
+        "where": ["Tracking can pause for a few days while a package moves between carrier facilities."],
+        "eta": ["It went out by standard shipping on {shipped}."],
+        "address_processing": ["Once it ships, we'll email you its tracking number."],
+        "address_shipped": ["Its current delivery estimate is {eta}."],
+        "stalled": ["Your tracking number is {tn}."],
+        "not_shipped": ["Since it hasn't shipped, there's no tracking number yet."],
+        "delivered_missing": ["Your tracking number is {tn}."],
+    },
+}  # fmt: skip
+# Share of replies that add a sentence from EXTRAS. Defective replies that insert a
+# claim never add one, so grounded replies add one more often to keep the share of
+# longer replies about the same in both classes.
+EXTRA_RATE = {"grounded": 0.6, "defective": 0.4}
 
 QUESTIONS = {
     "where": [
@@ -271,7 +336,7 @@ def grounded_sentences(scenario: str, f: dict[str, Any], variant: int) -> list[t
     if scenario == "address_processing":
         return [
             ("greet", f"Hi {first}, happy to help with the address."),
-            ("status", f"Order {f['oid']} is still processing, so you can change the address yourself."),
+            ("status", f"Order {f['oid']} for your {f['item']} was placed on {f['placed']} and is still processing, so you can change the address yourself."),
             ("how", f"Go to Orders, select {f['oid']}, and choose Edit address."),
             ("limit", "Once the order ships, we won't be able to change its address."),
         ]  # fmt: skip
@@ -294,6 +359,7 @@ def grounded_sentences(scenario: str, f: dict[str, Any], variant: int) -> list[t
             ("greet", f"Hi {first}!"),
             ("status", f"Order {f['oid']} was placed on {f['placed']} and is still processing, so it hasn't shipped yet."),
             ("timing", "Orders usually ship within 2 business days of being placed."),
+            ("method", f"You chose {f['method']} shipping, which usually takes {f['window']} after the order ships."),
             ("email", "We'll email you the tracking number as soon as it ships."),
         ]  # fmt: skip
     return [
@@ -338,19 +404,18 @@ def make_case(
         hours=rng.randint(10, 18), minutes=rng.randint(0, 59)
     )
     new_address = f"{rng.randint(12, 980)} {rng.choice(STREETS)}, {city}, {state} {postal}"
+    method = "standard" if shipped else rng.choice(sorted(WINDOWS))
     facts = {
         "first": first,
         "oid": oid,
         "carrier": carrier,
         "tn": tn,
         "hub": hub,
-        "wrong_hub": rng.choice([h for h in HUBS if h != hub]),
         "event": rng.choice(EVENTS),
         "shipped": day(shipped_on),
         "placed": day(placed),
         "scan_date": day(scan_time.date()),
         "eta": day(eta),
-        "early_eta": day(eta - timedelta(days=2)),
         "stale_days": 0,
         "delivered_date": day(delivered_at.date()),
         "delivered_time": clock(delivered_at),
@@ -358,6 +423,8 @@ def make_case(
         "new_street": new_address.split(",")[0],
         "item": item,
         "new_address": new_address,
+        "method": method,
+        "window": WINDOWS[method],
     }
     if scenario == "stalled":
         stale = sum(
@@ -365,6 +432,41 @@ def make_case(
             for k in range(1, (today - scan_time.date()).days + 1)
         )
         facts["stale_days"] = stale
+    # What the reply says. A "swap" defect changes one fact here and nowhere else. A
+    # swapped date never matches another date in the order record or tracking data, so
+    # no other field seems to support it.
+    said = dict(facts)
+    if claim is not None and claim[0] == "swap":
+        fact = claim[1]
+        dates = {"eta": eta, "scan_date": scan_time.date(), "placed": placed, "shipped": shipped_on}
+        looked_up = {placed}
+        if shipped and scenario == "delivered_missing":
+            looked_up |= {shipped_on, delivered_at.date()}
+        elif shipped:
+            looked_up |= {shipped_on, scan_time.date()} | (
+                {eta} if scenario != "stalled" else set()
+            )
+        if fact in dates:
+            offsets = {"eta": [-1, 1, 2], "scan_date": [-1, -2, -3], "placed": [-1, 1]}
+            candidates = [
+                dates[fact] + timedelta(days=k)
+                for k in offsets.get(fact, [-1, 1, 2])
+                if dates[fact] + timedelta(days=k) not in looked_up
+            ]
+            said[fact] = day(rng.choice(candidates))
+        elif fact == "stale_days":
+            said["stale_days"] = facts["stale_days"] + rng.choice([-2, -1, 1, 2])
+        elif fact == "method":
+            said["method"] = next(m for m in WINDOWS if m != method)
+            said["window"] = WINDOWS[said["method"]]
+        elif fact == "delivered_time":
+            shift = timedelta(hours=rng.choice([-3, -2, 2, 3]), minutes=rng.choice([-25, 20, 35]))
+            said["delivered_time"] = clock(delivered_at + shift)
+        else:
+            pool = {"hub": HUBS, "event": EVENTS, "note": NOTES, "item": ITEMS}[fact]
+            said[fact] = rng.choice([value for value in pool if value != facts[fact]])
+        if said[fact] == facts[fact]:
+            raise ValueError(f"{split}:{index}: swapping {fact} kept its value")
 
     order = {
         "order_id": oid,
@@ -374,7 +476,7 @@ def make_case(
         else ("delivered" if scenario == "delivered_missing" else "shipped"),
         "placed_on": placed.isoformat(),
         "items": [{"name": item, "quantity": 1}],
-        "shipping_method": "standard",
+        "shipping_method": method,
         "ship_to": {"city": city, "state": state, "postal_code": postal},
         "carrier": carrier if shipped else None,
         "tracking_number": tn if shipped else None,
@@ -447,13 +549,22 @@ def make_case(
     ]
     trace.retrieve(question_text.splitlines()[0][:120], documents, name="search_help_center")
 
-    sentences = grounded_sentences(scenario, facts, rng.randrange(2))
-    if claim is not None:
-        text = claim[-1].format(**facts)
-        if claim[0] == "replace":
-            sentences = [(slot, text if slot == claim[1] else s) for slot, s in sentences]
-        else:
-            sentences.insert(rng.randint(2, len(sentences)), ("claim", text))
+    variant = rng.randrange(2)
+    sentences = grounded_sentences(scenario, said, variant)
+    kind, *spec = claim or ("clean",)
+    if kind == "swap" and sentences == grounded_sentences(scenario, facts, variant):
+        raise ValueError(f"{split}:{index}: the reply doesn't state the swapped {spec[0]}")
+    if kind == "replace":
+        text = spec[1].format(**facts)
+        sentences = [(slot, text if slot == spec[0] else s) for slot, s in sentences]
+    if kind == "insert":
+        sentences.insert(rng.randint(1, len(sentences)), ("claim", spec[0].format(**facts)))
+    elif rng.random() < EXTRA_RATE["grounded" if claim is None else "defective"]:
+        extras = EXTRAS["visible"][scenario] + (
+            EXTRAS["unseen"][scenario] if split == "unseen" else []
+        )
+        extra = rng.choice(extras).format(**facts)
+        sentences.insert(rng.randint(1, len(sentences)), ("extra", extra))
     greeting, rest = sentences[0][1], " ".join(s for _, s in sentences[1:])
     if channel == "email":
         opening = greeting if greeting.endswith((",", ".")) else greeting.rstrip("!") + ","
@@ -477,7 +588,7 @@ def make_case(
         "trace_id": trace.trace_id,
         "spans": trace.spans,
         "label": claim is None,
-        "kind": "claim" if claim else "clean",
+        "kind": kind,
     }
 
 
@@ -546,9 +657,14 @@ def main() -> None:
             json.loads(c["spans"][0]["attributes"]["input.value"])["channel"] == "email"
             for c in graded
         )
+        kinds = {
+            kind: sum(c["kind"] == kind for c in graded) for kind in ("swap", "insert", "replace")
+        }
         print(
             f"{split}: {len(cases)} traces, {len(graded)} graded, "
-            f"{sum(not c['label'] for c in graded)} ungrounded, {email} by email, "
+            f"{sum(not c['label'] for c in graded)} ungrounded "
+            f"({kinds['swap']} change a fact, {kinds['insert']} add a claim, "
+            f"{kinds['replace']} replace a sentence), {email} by email, "
             f"{sum(len(c['spans']) for c in cases)} spans"
         )
     window = shipped_script_window(visible)
