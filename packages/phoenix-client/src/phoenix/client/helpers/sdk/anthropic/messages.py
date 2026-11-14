@@ -303,7 +303,9 @@ class _InvocationParametersConversion:
         elif obj["type"] == "openai":
             openai_params: v1.PromptOpenAIInvocationParametersContent
             openai_params = obj["openai"]
-            if "max_tokens" in openai_params:
+            if "max_completion_tokens" in openai_params:
+                ans["max_tokens"] = openai_params["max_completion_tokens"]
+            elif "max_tokens" in openai_params:
                 ans["max_tokens"] = openai_params["max_tokens"]
             if "temperature" in openai_params:
                 sampling["temperature"] = openai_params["temperature"]
@@ -312,7 +314,9 @@ class _InvocationParametersConversion:
         elif obj["type"] == "azure_openai":
             azure_params: v1.PromptAzureOpenAIInvocationParametersContent
             azure_params = obj["azure_openai"]
-            if "max_tokens" in azure_params:
+            if "max_completion_tokens" in azure_params:
+                ans["max_tokens"] = azure_params["max_completion_tokens"]
+            elif "max_tokens" in azure_params:
                 ans["max_tokens"] = azure_params["max_tokens"]
             if "temperature" in azure_params:
                 sampling["temperature"] = azure_params["temperature"]
@@ -341,7 +345,9 @@ class _InvocationParametersConversion:
         elif obj["type"] == "deepseek":
             deepseek_params: v1.PromptDeepSeekInvocationParametersContent
             deepseek_params = obj["deepseek"]
-            if "max_tokens" in deepseek_params:
+            if "max_completion_tokens" in deepseek_params:
+                ans["max_tokens"] = deepseek_params["max_completion_tokens"]
+            elif "max_tokens" in deepseek_params:
                 ans["max_tokens"] = deepseek_params["max_tokens"]
             if "temperature" in deepseek_params:
                 sampling["temperature"] = deepseek_params["temperature"]
@@ -350,7 +356,9 @@ class _InvocationParametersConversion:
         elif obj["type"] == "xai":
             xai_params: v1.PromptXAIInvocationParametersContent
             xai_params = obj["xai"]
-            if "max_tokens" in xai_params:
+            if "max_completion_tokens" in xai_params:
+                ans["max_tokens"] = xai_params["max_completion_tokens"]
+            elif "max_tokens" in xai_params:
                 ans["max_tokens"] = xai_params["max_tokens"]
             if "temperature" in xai_params:
                 sampling["temperature"] = xai_params["temperature"]
@@ -359,7 +367,9 @@ class _InvocationParametersConversion:
         elif obj["type"] == "ollama":
             ollama_params: v1.PromptOllamaInvocationParametersContent
             ollama_params = obj["ollama"]
-            if "max_tokens" in ollama_params:
+            if "max_completion_tokens" in ollama_params:
+                ans["max_tokens"] = ollama_params["max_completion_tokens"]
+            elif "max_tokens" in ollama_params:
                 ans["max_tokens"] = ollama_params["max_tokens"]
             if "temperature" in ollama_params:
                 sampling["temperature"] = ollama_params["temperature"]
@@ -368,7 +378,9 @@ class _InvocationParametersConversion:
         elif obj["type"] == "cerebras":
             cerebras_params: v1.PromptCerebrasInvocationParametersContent
             cerebras_params = obj["cerebras"]
-            if "max_tokens" in cerebras_params:
+            if "max_completion_tokens" in cerebras_params:
+                ans["max_tokens"] = cerebras_params["max_completion_tokens"]
+            elif "max_tokens" in cerebras_params:
                 ans["max_tokens"] = cerebras_params["max_tokens"]
             if "temperature" in cerebras_params:
                 sampling["temperature"] = cerebras_params["temperature"]
@@ -377,7 +389,9 @@ class _InvocationParametersConversion:
         elif obj["type"] == "fireworks":
             fireworks_params: v1.PromptFireworksInvocationParametersContent
             fireworks_params = obj["fireworks"]
-            if "max_tokens" in fireworks_params:
+            if "max_completion_tokens" in fireworks_params:
+                ans["max_tokens"] = fireworks_params["max_completion_tokens"]
+            elif "max_tokens" in fireworks_params:
                 ans["max_tokens"] = fireworks_params["max_tokens"]
             if "temperature" in fireworks_params:
                 sampling["temperature"] = fireworks_params["temperature"]
@@ -386,7 +400,9 @@ class _InvocationParametersConversion:
         elif obj["type"] == "groq":
             groq_params: v1.PromptGroqInvocationParametersContent
             groq_params = obj["groq"]
-            if "max_tokens" in groq_params:
+            if "max_completion_tokens" in groq_params:
+                ans["max_tokens"] = groq_params["max_completion_tokens"]
+            elif "max_tokens" in groq_params:
                 ans["max_tokens"] = groq_params["max_tokens"]
             if "temperature" in groq_params:
                 sampling["temperature"] = groq_params["temperature"]
@@ -395,7 +411,9 @@ class _InvocationParametersConversion:
         elif obj["type"] == "moonshot":
             moonshot_params: v1.PromptMoonshotInvocationParametersContent
             moonshot_params = obj["moonshot"]
-            if "max_tokens" in moonshot_params:
+            if "max_completion_tokens" in moonshot_params:
+                ans["max_tokens"] = moonshot_params["max_completion_tokens"]
+            elif "max_tokens" in moonshot_params:
                 ans["max_tokens"] = moonshot_params["max_tokens"]
             if "temperature" in moonshot_params:
                 sampling["temperature"] = moonshot_params["temperature"]
@@ -404,7 +422,9 @@ class _InvocationParametersConversion:
         elif obj["type"] == "perplexity":
             perplexity_params: v1.PromptPerplexityInvocationParametersContent
             perplexity_params = obj["perplexity"]
-            if "max_tokens" in perplexity_params:
+            if "max_completion_tokens" in perplexity_params:
+                ans["max_tokens"] = perplexity_params["max_completion_tokens"]
+            elif "max_tokens" in perplexity_params:
                 ans["max_tokens"] = perplexity_params["max_tokens"]
             if "temperature" in perplexity_params:
                 sampling["temperature"] = perplexity_params["temperature"]
@@ -413,7 +433,9 @@ class _InvocationParametersConversion:
         elif obj["type"] == "together":
             together_params: v1.PromptTogetherInvocationParametersContent
             together_params = obj["together"]
-            if "max_tokens" in together_params:
+            if "max_completion_tokens" in together_params:
+                ans["max_tokens"] = together_params["max_completion_tokens"]
+            elif "max_tokens" in together_params:
                 ans["max_tokens"] = together_params["max_tokens"]
             if "temperature" in together_params:
                 sampling["temperature"] = together_params["temperature"]
@@ -422,7 +444,9 @@ class _InvocationParametersConversion:
         elif obj["type"] == "zai":
             zai_params: v1.PromptZAIInvocationParametersContent
             zai_params = obj["zai"]
-            if "max_tokens" in zai_params:
+            if "max_completion_tokens" in zai_params:
+                ans["max_tokens"] = zai_params["max_completion_tokens"]
+            elif "max_tokens" in zai_params:
                 ans["max_tokens"] = zai_params["max_tokens"]
             if "temperature" in zai_params:
                 sampling["temperature"] = zai_params["temperature"]
@@ -431,7 +455,9 @@ class _InvocationParametersConversion:
         elif obj["type"] == "meta":
             meta_params: v1.PromptMetaInvocationParametersContent
             meta_params = obj["meta"]
-            if "max_tokens" in meta_params:
+            if "max_completion_tokens" in meta_params:
+                ans["max_tokens"] = meta_params["max_completion_tokens"]
+            elif "max_tokens" in meta_params:
                 ans["max_tokens"] = meta_params["max_tokens"]
             if "temperature" in meta_params:
                 sampling["temperature"] = meta_params["temperature"]
