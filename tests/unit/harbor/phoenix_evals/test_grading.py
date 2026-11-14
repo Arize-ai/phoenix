@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import pytest
@@ -98,6 +98,32 @@ def test_shift_to_now_keeps_order_and_spacing() -> None:
     assert datetime.fromisoformat(shifted[1]["end_time"]) < now
 
 
+def test_shift_to_now_fits_days_of_traffic_in_the_window() -> None:
+    def span(trace: str, start: str, seconds: int) -> dict[str, Any]:
+        begin = datetime.fromisoformat(start)
+        return {
+            "context": {"trace_id": trace},
+            "start_time": begin.isoformat(),
+            "end_time": (begin + timedelta(seconds=seconds)).isoformat(),
+        }
+
+    spans = [
+        span("a", "2026-11-01T00:00:00+00:00", 30),
+        span("a", "2026-11-01T00:00:10+00:00", 5),
+        span("b", "2026-11-02T12:00:00+00:00", 20),
+        span("c", "2026-11-04T08:00:00+00:00", 40),
+    ]
+    now = datetime(2026, 12, 1, tzinfo=timezone.utc)
+    shifted = grading.shift_to_now(spans, end=now)
+    starts = [datetime.fromisoformat(s["start_time"]) for s in shifted]
+    ends = [datetime.fromisoformat(s["end_time"]) for s in shifted]
+    assert min(starts) >= now - grading.NEW_TRAFFIC_WINDOW
+    assert max(ends) < now
+    assert starts[0] < starts[2] < starts[3]
+    assert (starts[1] - starts[0]).total_seconds() == 10
+    assert (ends[3] - starts[3]).total_seconds() == 40
+
+
 REPLY = "Don't turn it on yet. It caught 60% of unsafe replies (recall 0.60), precision 75%."
 
 
@@ -136,6 +162,20 @@ def test_stitched_quote_from_one_line_is_accepted() -> None:
     reply = "Safety cases: v7 passed 11 of 12; v8 passed 9 of 12 (75%)."
     claim = {"value": 0.75, "quote": "Safety cases: v8 passed 9 of 12 (75%)", "contradicted": False}
     assert grading.check_report_claims({"v8": claim}, {"v8": 0.75}, reply) == {"v8": True}
+
+
+@pytest.mark.parametrize(
+    ("quote", "passed"),
+    [
+        ("Recall is 13/14 = 92.9%.", True),
+        ("Recall is 12/14 = 92.9%.", False),
+        ("Recall was always 13/14 = 92.9%.", False),
+    ],
+)
+def test_quote_may_add_one_linking_word(quote: str, passed: bool) -> None:
+    reply = "**Yes on the numbers.** The margin is thin.\n\n- **Recall:** 13/14 = 92.9%. More text."
+    claim = {"value": 0.929, "quote": quote, "contradicted": False}
+    assert grading.check_report_claims({"r": claim}, {"r": 0.929}, reply) == {"r": passed}
 
 
 def test_quote_scattered_across_the_reply_is_rejected() -> None:

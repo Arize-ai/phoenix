@@ -321,16 +321,47 @@ def agreement(
 # Unseen data and reruns
 
 
-def shift_to_now(spans: list[dict[str, Any]], end: datetime | None = None) -> list[dict[str, Any]]:
-    """Returns copies of the spans moved in time so the latest one ends now."""
-    times = [datetime.fromisoformat(s["end_time"]) for s in spans]
-    offset = (end or datetime.now(timezone.utc)) - max(times) - timedelta(seconds=1)
+NEW_TRAFFIC_WINDOW = timedelta(hours=6)
+"""How far back new traffic reaches, so a nightly script that scores the last day sees all of it."""
+
+
+def shift_to_now(
+    spans: list[dict[str, Any]],
+    end: datetime | None = None,
+    window: timedelta = NEW_TRAFFIC_WINDOW,
+) -> list[dict[str, Any]]:
+    """Returns copies of the spans moved so they arrive as one night's traffic.
+
+    The last trace ends just before `end` (default: now), and every trace starts within
+    `window` of it. Traces keep their order and their own internal timing, so a fixture
+    batch spread over several days still lands inside a "last 24 hours" query.
+    """
+    end = end or datetime.now(timezone.utc)
+    traces: dict[Any, list[dict[str, Any]]] = {}
+    for index, span in enumerate(spans):
+        traces.setdefault((span.get("context") or {}).get("trace_id", index), []).append(span)
+    bounds = [
+        (
+            min(datetime.fromisoformat(s["start_time"]) for s in members),
+            max(datetime.fromisoformat(s["end_time"]) for s in members),
+        )
+        for members in traces.values()
+    ]
+    first = min(start for start, _ in bounds)
+    spread = max(start for start, _ in bounds) - first
+    room = window - max(stop - start for start, stop in bounds) - timedelta(seconds=1)
+    scale = max(0.0, min(1.0, room / spread)) if spread else 1.0
+    offsets = [(start - first) * scale for start, _ in bounds]
+    latest = max(offset + (stop - start) for offset, (start, stop) in zip(offsets, bounds))
+    anchor = end - timedelta(seconds=1) - latest
     shifted = []
-    for span in spans:
-        copy = dict(span)
-        for key in ("start_time", "end_time"):
-            copy[key] = (datetime.fromisoformat(span[key]) + offset).isoformat()
-        shifted.append(copy)
+    for members, offset, (start, _) in zip(traces.values(), offsets, bounds):
+        delta = anchor + offset - start
+        for span in members:
+            copy = dict(span)
+            for key in ("start_time", "end_time"):
+                copy[key] = (datetime.fromisoformat(span[key]) + delta).isoformat()
+            shifted.append(copy)
     return shifted
 
 
@@ -391,10 +422,12 @@ def run_as_agent(
 
     The verifier runs as root so the agent can't read `/tests`; dropping to the agent
     user keeps the rerun from reading hidden labels too. Outside a container (local
-    tests), the command runs as the current user. `env` adds variables, such as the
-    ones that route model requests through `judge_practice.record_llm_calls`.
+    tests), the command runs as the current user. The rerun gets the `PHOENIX_ENDPOINT`
+    the agent's shell had. `env` adds variables, such as the ones that route model
+    requests through `judge_prompts.record_llm_calls`.
     """
     env = {
+        "PHOENIX_ENDPOINT": PHOENIX_URL,
         **{k: v for k, v in os.environ.items() if not k.startswith("PHOENIX_EVAL_")},
         **(env or {}),
     }
@@ -481,9 +514,11 @@ def _normalize_quote(text: str) -> str:
 def _quoted(quote: str, reply: str) -> bool:
     """Checks that the quote's words occur in the reply, in order and close together.
 
-    Extractors sometimes join a line's label to a later clause, so an exact substring
-    check would reject a faithful quote. The words must still appear in order within a
-    window of twice the quote's length.
+    Extractors sometimes join a line's label to a later clause or add a linking word
+    such as "is", so an exact substring check would reject a faithful quote. The words
+    must appear in order within a window of twice the quote's length, ignoring
+    punctuation at their edges. A quote of four or more words may miss one word in
+    four, but never a word with a digit in it.
     """
     words = _normalize_quote(quote).split()
     haystack = _normalize_quote(reply)
@@ -491,18 +526,43 @@ def _quoted(quote: str, reply: str) -> bool:
         return False
     if " ".join(words) in haystack:
         return True
-    tokens = haystack.split()
+    words = [_bare(word) for word in words]
+    tokens = [_bare(token) for token in haystack.split()]
+    allowed = len(words) // 4
     for start, token in enumerate(tokens):
         if token != words[0]:
             continue
-        position, matched = start, 0
-        while position < len(tokens) and position - start < 2 * len(words) + 4:
-            if tokens[position] == words[matched]:
-                matched += 1
-                if matched == len(words):
-                    return True
-            position += 1
+        matched = _matched_in_order(words, tokens[start : start + 2 * len(words) + 4])
+        missing = [word for index, word in enumerate(words) if index not in matched]
+        if len(missing) <= allowed and not any(re.search(r"\d", word) for word in missing):
+            return True
     return False
+
+
+def _bare(word: str) -> str:
+    return word.strip(".,;:!?()[]\"'")
+
+
+def _matched_in_order(words: list[str], window: list[str]) -> set[int]:
+    """Returns the indexes of the words in a longest in-order match against the window."""
+    longest = [[0] * (len(window) + 1) for _ in range(len(words) + 1)]
+    for i in reversed(range(len(words))):
+        for j in reversed(range(len(window))):
+            if words[i] == window[j]:
+                longest[i][j] = longest[i + 1][j + 1] + 1
+            else:
+                longest[i][j] = max(longest[i + 1][j], longest[i][j + 1])
+    matched: set[int] = set()
+    i = j = 0
+    while i < len(words) and j < len(window):
+        if words[i] == window[j]:
+            matched.add(i)
+            i, j = i + 1, j + 1
+        elif longest[i + 1][j] >= longest[i][j + 1]:
+            i += 1
+        else:
+            j += 1
+    return matched
 
 
 def _as_number(value: Any, want: float) -> float | None:

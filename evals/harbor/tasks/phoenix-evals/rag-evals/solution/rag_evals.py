@@ -35,7 +35,7 @@ Is the passage relevant or irrelevant to the question?"""
 
 GROUNDED_PROMPT = """You check whether a policy assistant's answer sticks to the policy passages it retrieved.
 
-The assistant must answer only from the passages below. Every factual claim in the answer, such as deadlines, fees, amounts, eligibility, steps, and what the store will do, must be stated in or directly implied by these passages. A claim that is true elsewhere or common knowledge but isn't in these passages is unsupported. An answer that says it can't find the information, or declines to answer, makes no unsupported claims. Accurate statements about what the passages do or don't cover are supported. Greetings and requests for more details aren't claims.
+The assistant answers customers' questions about an online store's policies. It must answer only from the passages below, and when they don't answer the question, it should say it can't find the information instead of guessing.
 
 [BEGIN PASSAGES]
 {passages}
@@ -49,7 +49,13 @@ The assistant must answer only from the passages below. Every factual claim in t
 {answer}
 [END ANSWER]
 
-Answer "grounded" if every claim in the answer is supported by the passages, or "ungrounded" if any claim is missing from or contradicts them."""
+Decide in two steps.
+
+1. If the answer states no policy facts, for example it only says the assistant can't find or doesn't have the information, doesn't want to guess, or asks for more details, it is "grounded". Don't check whether the passages cover the question: saying it can't find the information is never an unsupported claim.
+2. Otherwise, check every factual claim in the answer, such as deadlines, fees, amounts, eligibility, steps, and what the store will do. Each must be stated in or directly implied by the passages. A claim that is true elsewhere or common knowledge but isn't in these passages is unsupported. Greetings aren't claims.
+
+Answer "grounded" if step 1 applies or every claim is supported, or "ungrounded" if any claim is missing from or contradicts the passages."""
+
 
 llm = LLM(provider="openai", model="gpt-5-nano")
 relevance_judge = ClassificationEvaluator(

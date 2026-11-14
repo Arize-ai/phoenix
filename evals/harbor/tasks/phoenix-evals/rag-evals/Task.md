@@ -96,9 +96,11 @@ explains each one.
   still judgment calls. Wrong passages are picked to share a topic without stating the
   answer. In one local run, the reference judge marked 1 of 32 relevant production documents
   irrelevant and matched every other label.
-- On `gpt-5-nano`, the reference's `grounded` recall on grounded answers is 85% on
-  production and 92% on new traces, close to the 80% bar. A reference run can fail on
-  model noise.
+- `gpt-5-nano` tends to call "I can't find that in our policies" an unsupported claim.
+  The reference prompt handles that by making the abstention rule its first step. It
+  matched every production `grounded` label in 3 of 3 runs, and missed at most 1 of 13
+  grounded new answers. Before that step, it missed up to 9 of 39 grounded production
+  answers and could fail the 80% bar.
 - Retrieval is clearly the bigger problem, so `bigger_problem` mainly catches replies
   that blame generation, hedge, or skip the question. It doesn't grade numbers.
 

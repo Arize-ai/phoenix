@@ -36,7 +36,9 @@ same request but opposite correct answers, so a fixed answer can't pass both.
   deliverable and never searches for whatever agrees best with the answers.
 - **Reusable work is rerun on unseen data.** For tasks that ask for an eval script,
   the verifier adds new traces the agent never saw, runs the script as the agent user,
-  and grades the new annotations. For `improve-app`, it runs the app with the agent's
+  and grades the new annotations. The new traces all start in the last 6 hours, so a
+  script that scores only the last day of traffic sees every one, and the rerun gets
+  the same `PHOENIX_ENDPOINT` the agent had. For `improve-app`, it runs the app with the agent's
   final prompt on new questions. A one-off or overfit result fails.
 - **Judges run on the cheapest model.** Tasks that ask for an LLM judge say the nightly
   job's key can only call `gpt-5-nano`, OpenAI's cheapest model, and the rerun refuses
