@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.141",
-    "@arizeai/openinference-instrumentation-openai": "^4.4.6",
+    "@arizeai/openinference-instrumentation-openai": "^4.5.0",
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-evals": "workspace:*",
     "dotenv": "^17.4.2",
