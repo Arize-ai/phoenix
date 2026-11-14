@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-06T13:07:36Z",
-  "models_sha256": "a434f22dc2efa1dd612951d51f6ee7967eb2424cdef3102c6b5903c83d5032bd",
+  "generated_at": "2026-11-14T06:50:11Z",
+  "models_sha256": "7e479156a7877a2afe184a5c663d4f1b3b35e4dd3de1d6e7c8e104505ff7b65f",
   "models": [
     {
       "name": "chatgpt-image-latest",
@@ -1702,6 +1702,24 @@
           "base_rate": 0.00001,
           "is_prompt": false,
           "token_type": "reasoning"
+        }
+      ]
+    },
+    {
+      "name": "gemini-decision-1",
+      "name_pattern": "gemini-decision-1",
+      "source": "manual",
+      "provider": "google",
+      "token_prices": [
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0,
+          "is_prompt": false,
+          "token_type": "output"
         }
       ]
     },
