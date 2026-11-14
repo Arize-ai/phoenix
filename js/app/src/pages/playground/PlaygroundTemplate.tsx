@@ -60,8 +60,10 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
       promptTagName: string | null;
     }) => {
       if (!promptId && !promptVersionId && !promptTagName) {
+        // Detaching keeps the template, so unsaved edits stay unsaved and a
+        // clean template still matches a saved version
         const patch = { prompt: null };
-        updateInstance({ instanceId, patch, dirty: false });
+        updateInstance({ instanceId, patch, dirty: null });
         return;
       }
 

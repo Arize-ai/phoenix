@@ -24,6 +24,9 @@ import {
   Tabs,
   Text,
   Token,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
 } from "@phoenix/components";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
@@ -175,6 +178,14 @@ export const PromptMenu = ({ value, onChange }: PromptMenuProps) => {
     });
   };
 
+  const handleDetachPrompt = () => {
+    onChange({
+      promptId: null,
+      promptVersionId: null,
+      promptTagName: null,
+    });
+  };
+
   if (selectedPrompt) {
     return (
       <div css={promptMenuContainerCSS}>
@@ -191,6 +202,18 @@ export const PromptMenu = ({ value, onChange }: PromptMenuProps) => {
             onSelectVersion={handleSelectVersion}
             onSelectTag={handleSelectTag}
           />
+          <TooltipTrigger>
+            <Button
+              size="S"
+              aria-label="Detach prompt"
+              leadingVisual={<Icon svg={<Icons.Close />} />}
+              onPress={handleDetachPrompt}
+            />
+            <Tooltip>
+              <TooltipArrow />
+              Detach from the saved prompt and keep editing
+            </Tooltip>
+          </TooltipTrigger>
         </CompositeField>
       </div>
     );
