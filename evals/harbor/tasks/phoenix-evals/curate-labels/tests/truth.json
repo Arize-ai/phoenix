@@ -2,870 +2,1085 @@
  "project": "support-bot-reviews",
  "dataset": "grounding-golden",
  "eligible": {
-  "2de49a8030354359a04b058c057ee329": "unsupported",
   "3526d61f4c97c0da283e7e9d66e36343": "unsupported",
-  "690abe05c594ce3c1aa3957e72886525": "unsupported",
-  "6e079f75e49d27aad71a6cef6177ea63": "supported",
+  "6e079f75e49d27aad71a6cef6177ea63": "unsupported",
   "5a3f457e796576fa045f0996b43f0548": "supported",
-  "5164bb56d88a2ad6c003ee1198c6d057": "supported",
-  "f1d9ad25561e77b37af954a343f27713": "unsupported",
-  "b5eb3c0fc7e66819f64bb08af67340cb": "supported",
-  "cbdf03e65e250459a6157583b8b54251": "unsupported",
-  "cd74c0d1fcd8cef68da7a6f7fee3f6f0": "supported",
-  "177c0bffcd7b84b813decee2dadcccd0": "supported",
-  "fdfc517e659ba84cea1b36a7ab080cc1": "unsupported",
-  "c538daf6bab48068241b9b7d0c02c75e": "unsupported",
+  "9ae0c473281e285cae0b51fbd55d3f3b": "supported",
+  "5164bb56d88a2ad6c003ee1198c6d057": "unsupported",
+  "e8369c426863ff628f213a2bf58ba04d": "supported",
+  "94844b6de2889adcaa26f7c58f30530e": "supported",
+  "fdfc517e659ba84cea1b36a7ab080cc1": "supported",
+  "462811fae23c6aea35d4a062dbdbfbc1": "supported",
+  "c538daf6bab48068241b9b7d0c02c75e": "supported",
+  "d0fe28336d57e5508e47f4cfbffdf3a2": "supported",
   "98af31ed7fa95c7bd560544ff50043c9": "unsupported",
-  "6b3278778ad122fc5b8482c6352702d5": "supported",
-  "9968f6aaf6d661ffbbcf5ec1f5951723": "supported",
-  "a4d0e065e698d93a8a724082a42ce74e": "unsupported",
+  "de7c5f43dc256688c553783215f0a7ed": "unsupported",
+  "6b3278778ad122fc5b8482c6352702d5": "unsupported",
+  "9968f6aaf6d661ffbbcf5ec1f5951723": "unsupported",
+  "e9ca2f86e0adf273286e4b37a05e6a7d": "supported",
   "8e51c0a11c4bae6761362dff1f4367bd": "supported",
-  "28e257c9801bfbc82d11000910a55578": "unsupported",
-  "12bb37b2a76ab05662a780b0a74f5439": "supported",
+  "28e257c9801bfbc82d11000910a55578": "supported",
+  "136385110b11ef021f8c34e9cc60fd6f": "unsupported",
+  "a91ce50636f42ab8078e639719c8384a": "supported",
+  "12bb37b2a76ab05662a780b0a74f5439": "unsupported",
+  "c6bec4ad477e11428dfb782ad73dc8b9": "supported",
+  "a8662e5ea876a17cb9035c808e21c688": "supported",
   "e461b83a5298b0a9c132fc95f381a73c": "unsupported",
   "3648f07d963d0f9f1e45556c6530d7ea": "supported",
   "0c0a26bbb3a1e76537c6aceb5422dbf1": "unsupported",
-  "f83c8c5197eaa5b0e56ecde1ca890d82": "supported",
-  "b512f8ff59d94c56e4ab21488197c32b": "supported",
-  "cfaeafc348c01b27b105be531bfc3860": "unsupported",
-  "2757fe5223168971142d596a5135fbca": "unsupported",
-  "68eee445c4f956c2cebd98fc72d1c743": "unsupported",
+  "b512f8ff59d94c56e4ab21488197c32b": "unsupported",
   "a926a291e2b3f34d6b589e3d99de0c49": "supported",
-  "4bd903d54a8f272602a9a21b290958ea": "supported",
-  "bb6bf1a9a67896ce9d85cbcc553e12d0": "supported",
-  "49e1ba06fc4b7a304fb98925f167bf3b": "supported",
-  "066e092e8ba81de89990c281d923b633": "supported",
+  "4bd903d54a8f272602a9a21b290958ea": "unsupported",
+  "b473b194ca4e4ff98fe92241346a0885": "supported",
+  "e3eecc07fa4413a3a7b0e3eca4f661a5": "supported",
+  "b7bf9368855a0fb06940ebf5424e4bcd": "supported",
+  "6a97ff38882a4c9ad2d8d820ae54d702": "unsupported",
+  "bb6bf1a9a67896ce9d85cbcc553e12d0": "unsupported",
+  "49e1ba06fc4b7a304fb98925f167bf3b": "unsupported",
+  "e4c9e92e80a4737a3e52599fafd29e96": "supported",
   "d66b369b9c209c8738aceca3b18f5d16": "supported",
-  "64ce80be426c87079727c0ce4fd959cf": "unsupported",
-  "c9a9374f7cc584dbda6c427db6b9af03": "unsupported",
-  "621332a081ed70dcc158c60355477fe4": "supported",
-  "c57b01bd364769e0c8c6da75fb3193fa": "unsupported",
+  "64ce80be426c87079727c0ce4fd959cf": "supported",
+  "34dedec40fd11bc12e0a5fa42a248f5e": "unsupported",
+  "c57b01bd364769e0c8c6da75fb3193fa": "supported",
   "1f63dcdf60772fc656d162a80cc616fb": "unsupported",
-  "6443940955466a45a1d564d00da8a909": "supported",
-  "7968f0cebd68bda148037e677c671766": "supported",
-  "6b8ac02dd3514007280ead7262ed8184": "unsupported",
-  "d5a2e60ea83da47f943448b822a1ca5e": "supported",
-  "a3c1f8029fc5c4e9bd6286c4931d5f12": "unsupported",
-  "e7bd274cad35550e34aae627cbec2390": "unsupported",
+  "6443940955466a45a1d564d00da8a909": "unsupported",
+  "7968f0cebd68bda148037e677c671766": "unsupported",
+  "dfdb21ad11b5aeed620f4240eb9b59d5": "supported",
+  "6b8ac02dd3514007280ead7262ed8184": "supported",
+  "e8a30262dfbca9c345c91a890aa8f465": "unsupported",
+  "a3c1f8029fc5c4e9bd6286c4931d5f12": "supported",
+  "e2fcc37f594808a7c8bdf70b40a7a7c0": "supported",
   "ad4e956b6f51614be4f4b77f0ae30492": "unsupported",
+  "997162bdc63163fe0312090fa484b9c1": "supported",
   "a0d71b8f81398805aa10c6c564488c98": "supported",
-  "0dbc1f94e75bc5c4d44ebd8c74669f97": "supported",
-  "7b6535f92a34be68614227df2e84f7a2": "unsupported",
-  "f4b1ee051db0d552ddbc8d96d9d90362": "unsupported",
-  "6429b9c5aa297ab52c52c31834f6b113": "supported",
-  "2cc8be6a34840a13219ecad4d6980882": "supported"
+  "315f0dbb2ac52abb065910e2120fc607": "unsupported",
+  "0dbc1f94e75bc5c4d44ebd8c74669f97": "unsupported",
+  "6429b9c5aa297ab52c52c31834f6b113": "unsupported",
+  "f9eb48e2d24c1e3c78af92504d3fa7eb": "supported",
+  "1414a81595688aecad03661d020ca542": "unsupported",
+  "ccbd0900daf63f5b102be24f5d964a1d": "unsupported",
+  "4a595383fe97447a2e488c79b5434525": "unsupported",
+  "358b8921b2a59d132771811d384e49e2": "unsupported",
+  "1ba8e72863154979a72926f8c282a11d": "supported"
  },
  "traces": {
   "d5a5301bfaa40e4124a364dcbfc9b9bf": {
-   "category": "unreviewed",
+   "category": "prelabel_only",
    "root_span_id": "afbe4e080c2171bb",
-   "question": "What's the biggest file I can attach to a task?",
-   "reply": "Hi Maria, thanks for reaching out. The limit for a single attachment on Pro is 250 MB, so larger files won't upload. Business workspaces can attach files up to 1 GB. Happy to help with anything else.",
-   "notes": []
+   "llm_span_id": "b7ce551a2e76c1da",
+   "question": "Can you fix the company name on last month's invoice?",
+   "reply": "Thanks for asking, Maria. Head to Billing > Invoice details (you'll need to be a billing admin). Updates show up on future invoices only, and earlier invoices can't be reissued. Happy to help with anything else.",
+   "notes": [
+    "Auto-label: claims match the retrieved context."
+   ]
   },
   "2de49a8030354359a04b058c057ee329": {
-   "category": "prelabel_disagrees_before_review",
+   "category": "prelabel_only",
    "root_span_id": "1834fb90dc3710e1",
-   "question": "How does billing work when our team size changes?",
-   "reply": "Hi Dev, thanks for reaching out. Removing a member refunds the unused days to your card within 5 business days.",
+   "llm_span_id": "fbe1d0e204e42b6c",
+   "question": "Can you fix the company name on last month's invoice?",
+   "reply": "Thanks for asking, Dev. A billing admin can update the company name, address, and tax ID under Billing > Invoice details. The change applies to future invoices; past invoices can't be reissued. Let me know if anything else comes up.",
    "notes": [
-    "Auto-label: claims match the retrieved context.",
-    "Removed members' unused days become account credit, not a card refund."
+    "Auto-label: claims match the retrieved context."
    ]
   },
   "3526d61f4c97c0da283e7e9d66e36343": {
-   "category": "prelabel_disagrees_after_review",
+   "category": "prelabel_agrees",
    "root_span_id": "33a1aa5fb6a6f259",
-   "question": "How do we set up single sign-on for our company?",
-   "reply": "Thanks for asking, Sam. SAML single sign-on is included on Pro, so an admin can set up Okta under Settings > Security > SSO today.",
+   "llm_span_id": "b0d5a46cbce95579",
+   "question": "Can Tasklane post updates to Slack?",
+   "reply": "Hi Sam, thanks for reaching out. Connect Slack under Settings > Integrations > Slack. Each board can post to as many channels as you like. Let me know if anything else comes up.",
    "notes": [
-    "Wrong plan: Pro doesn't include SAML SSO.",
-    "Auto-label: claims match the retrieved context."
+    "Auto-label: reply makes claims not found in the context.",
+    "Wrong limit compared with the article."
    ]
   },
   "690abe05c594ce3c1aa3957e72886525": {
-   "category": "prelabel_agrees",
+   "category": "unreviewed",
    "root_span_id": "56d5dd15c798a220",
-   "question": "Do you offer SAML SSO on our current plan?",
-   "reply": "Thanks for asking, Lena. SSO is a Business feature and works with Okta, Microsoft Entra ID, Google Workspace, and OneLogin. Let me know if anything else comes up.",
-   "notes": [
-    "Auto-label: reply makes claims not found in the context.",
-    "OneLogin isn't one of the identity providers the article lists."
-   ]
+   "llm_span_id": "c7f78c13c662373f",
+   "question": "Can an admin take over ownership of the workspace?",
+   "reply": "Hi Lena, thanks for reaching out. The current owner transfers ownership in Settings > Members. Whoever takes over needs to be a workspace admin first. Let me know if anything else comes up.",
+   "notes": []
   },
   "6e079f75e49d27aad71a6cef6177ea63": {
-   "category": "single_review",
+   "category": "revised_verdict",
    "root_span_id": "43517b8c9606233f",
-   "question": "We keep getting 429 errors from the API. Why?",
-   "reply": "Hi Tom! Your Business workspace can make 500 API requests per minute per token. Requests above that return HTTP 429. Happy to help with anything else.",
+   "llm_span_id": "8bf457b81a5c3d08",
+   "question": "How do I turn on 2FA for my account?",
+   "reply": "Hi Tom! Go to Settings > Security to turn on two-factor authentication. Hardware security keys like YubiKey also work there.",
    "notes": [
-    "Checked against the docs; all correct."
+    "Nothing added beyond the retrieved context.",
+    "Need to check with the product team before signing off.",
+    "The article lists authenticator apps and SMS only; no hardware keys."
    ]
   },
   "5a3f457e796576fa045f0996b43f0548": {
-   "category": "reviewers_disagree",
+   "category": "needs_review_then_verdict",
    "root_span_id": "787b176f70d9ad0c",
-   "question": "I accidentally deleted a board yesterday. Can I get it back?",
-   "reply": "Hi Aisha! Deleted boards stay in Trash for 30 days. A workspace admin can restore one from Settings > Trash; after 30 days it's permanently deleted.",
+   "llm_span_id": "1632d840efc5058d",
+   "question": "What's the biggest file I can attach to a task?",
+   "reply": "Thanks for asking, Aisha. The limit for a single attachment on Pro is 250 MB, so larger files won't upload. Business workspaces can attach files up to 1 GB.",
    "notes": [
-    "One claim isn't backed by anything retrieved.",
-    "Checked against the docs; all correct."
+    "Docs are ambiguous here; second opinion please.",
+    "Accurate per the KB."
    ]
   },
   "35f181f32b5178889ebfc55699d36d95": {
-   "category": "prelabel_only",
+   "category": "needs_review_only",
    "root_span_id": "fc50dac857d9f34e",
-   "question": "Where is our workspace data hosted?",
-   "reply": "Hi Jonas! Your workspace is in the US region, but an admin can switch it to EU hosting from Settings > Data at any time.",
+   "llm_span_id": "f02f57427f1b7c18",
+   "question": "How do I turn on 2FA for my account?",
+   "reply": "Hi Jonas, thanks for reaching out. Go to Settings > Security to turn on two-factor authentication with an authenticator app or SMS codes. Since you're on Business, admins can also require it for every member. Let me know if anything else comes up.",
    "notes": [
-    "Auto-label: reply makes claims not found in the context."
+    "Not sure about this one, flagging for a second look."
    ]
   },
   "9ae0c473281e285cae0b51fbd55d3f3b": {
-   "category": "needs_review_only",
+   "category": "prelabel_disagrees_before_review",
    "root_span_id": "5000527034c30680",
-   "question": "Where do I set up the Slack integration?",
-   "reply": "Hi Chloe, thanks for reaching out. Connect Slack under Settings > Integrations > Slack. Each board can post to as many channels as you like. Let me know if anything else comes up.",
+   "llm_span_id": "3d71523112c3c628",
+   "question": "If I downgrade to Starter today, when does it kick in?",
+   "reply": "Thanks for asking, Chloe. You'll keep Pro until the current billing period ends, then the downgrade applies. Boards over the Starter limits turn read-only rather than being deleted. Happy to help with anything else.",
    "notes": [
-    "Docs are ambiguous here; second opinion please."
+    "Auto-label: reply makes claims not found in the context.",
+    "Every claim checks out against the docs."
    ]
   },
   "5164bb56d88a2ad6c003ee1198c6d057": {
-   "category": "single_review",
+   "category": "duplicate_text",
    "root_span_id": "98637dd83a3982b5",
-   "question": "If I downgrade to Starter today, when does it kick in?",
-   "reply": "Thanks for asking, Ravi. You'll keep Pro until the current billing period ends, then the downgrade applies. Boards over the Starter limits turn read-only rather than being deleted. Happy to help with anything else.",
+   "llm_span_id": "3f24c4f6c78cb57a",
+   "question": "What happens to my boards if we drop from Pro to Starter?",
+   "reply": "A downgrade takes effect right away, and we refund the unused part of your annual Pro plan.",
    "notes": [
-    "Nothing added beyond the retrieved context."
+    "Wrong timing, and the refund isn't in the article."
    ]
   },
   "f1d9ad25561e77b37af954a343f27713": {
-   "category": "prelabel_disagrees_after_review",
+   "category": "needs_review_only",
    "root_span_id": "502787d7c177780f",
-   "question": "What happens to my boards if we drop from Pro to Starter?",
-   "reply": "Thanks for asking, Grace. A downgrade takes effect right away, and we refund the unused part of your annual Pro plan. Let me know if anything else comes up.",
+   "llm_span_id": "2428370d05799c5a",
+   "question": "How do I send board notifications to two Slack channels?",
+   "reply": "Hi Grace, thanks for reaching out. Set it up in Settings > Integrations > Slack; each board posts its task updates to a single Slack channel. Let me know if anything else comes up.",
    "notes": [
-    "Wrong timing, and the refund isn't in the article.",
-    "Auto-label: claims match the retrieved context."
+    "Not sure about this one, flagging for a second look."
    ]
   },
   "b5eb3c0fc7e66819f64bb08af67340cb": {
-   "category": "single_review",
+   "category": "unreviewed",
    "root_span_id": "17522e5f8df01a36",
-   "question": "Can I edit tasks on a plane and have them sync later?",
-   "reply": "Hi Omar, thanks for reaching out. You can edit offline, and changes sync when you reconnect. The apps keep the boards you've opened in the past 7 days; attachments aren't available offline.",
-   "notes": [
-    "Checked against the docs; all correct."
-   ]
+   "llm_span_id": "3c2b3167d8e0a406",
+   "question": "Can I make a task repeat every week?",
+   "reply": "Thanks for asking, Omar. Recurring tasks work on every plan, including Starter. Open the task menu, choose Repeat, and pick daily, weekly, or monthly; the next copy appears when you complete the current one. Happy to help with anything else.",
+   "notes": []
   },
   "e8369c426863ff628f213a2bf58ba04d": {
-   "category": "unreviewed",
+   "category": "reviewers_disagree",
    "root_span_id": "ec2ef598bf362fe6",
-   "question": "Someone on my team removed our roadmap board. Is it gone for good?",
-   "reply": "Thanks for asking, Nina. Deleted boards stay in Trash for 30 days, and any member can restore them from the board list.",
-   "notes": []
+   "llm_span_id": "b81a4ceae8310e9d",
+   "question": "How do refunds work if we cancel our yearly plan?",
+   "reply": "Thanks for asking, Nina. Annual plans get a pro-rata refund if you cancel within 30 days of purchase. Your subscription started 12 days ago, so you're still inside that window. Happy to help with anything else.",
+   "notes": [
+    "Adds a detail the help article doesn't mention.",
+    "Everything here is in the article or the workspace record."
+   ]
   },
   "43bf54efcc761c852ac8fd7bc85e8de8": {
    "category": "prelabel_only",
    "root_span_id": "2a5f353ae4a9737d",
-   "question": "How long is the free trial?",
-   "reply": "Hi Pablo, thanks for reaching out. The Pro trial lasts 14 days and doesn't need a credit card. You have 5 days left; after that the workspace moves to Starter unless you upgrade. Happy to help with anything else.",
-   "notes": [
-    "Auto-label: claims match the retrieved context."
-   ]
-  },
-  "cbdf03e65e250459a6157583b8b54251": {
-   "category": "reviewers_agree",
-   "root_span_id": "1e0142ca2ea6deb2",
-   "question": "How do I turn on 2FA for my account?",
-   "reply": "Hi Hana! Two-factor authentication is under Settings > Security. Once an admin requires it, members who don't enroll within 7 days are locked out automatically. Happy to help with anything else.",
-   "notes": [
-    "Nothing in the article about locking members out after 7 days.",
-    "Invents a 7-day enrollment deadline."
-   ]
-  },
-  "cd74c0d1fcd8cef68da7a6f7fee3f6f0": {
-   "category": "needs_review_then_verdict",
-   "root_span_id": "f7f68c43163bb8cc",
-   "question": "Can I edit tasks on a plane and have them sync later?",
-   "reply": "Hi Felix! You can edit offline, and changes sync when you reconnect. The apps keep the boards you've opened in the past 7 days; attachments aren't available offline. Let me know if anything else comes up.",
-   "notes": [
-    "Couldn't verify every detail, leaving open.",
-    "Checked against the docs; all correct."
-   ]
-  },
-  "c5cc6069fecde610b416ca3c8a575e4e": {
-   "category": "prelabel_only",
-   "root_span_id": "56121a789a85b64b",
-   "question": "What can I do in the app when I'm offline?",
-   "reply": "Hi Zoe! The iOS and Android apps keep boards you've opened in the last 7 days available offline. Edits you make offline sync when you reconnect, but attachments won't open until you're back online. Happy to help with anything else.",
-   "notes": [
-    "Auto-label: claims match the retrieved context."
-   ]
-  },
-  "177c0bffcd7b84b813decee2dadcccd0": {
-   "category": "single_review",
-   "root_span_id": "5a7a39917ab7698b",
-   "question": "How do we set up single sign-on for our company?",
-   "reply": "Hi Maria, thanks for reaching out. Single sign-on works with Okta, Microsoft Entra ID, and Google Workspace, but it's only on Business. Your workspace is on Pro right now. Let me know if anything else comes up.",
-   "notes": [
-    "Accurate per the KB."
-   ]
-  },
-  "94844b6de2889adcaa26f7c58f30530e": {
-   "category": "prelabel_only",
-   "root_span_id": "4dc91593b429191e",
-   "question": "Where is our workspace data hosted?",
-   "reply": "Hi Dev! Business workspaces pick EU or US data residency when they're created. Your workspace is in the US region, and existing workspaces can't be moved to another region. Happy to help with anything else.",
-   "notes": [
-    "Auto-label: claims match the retrieved context."
-   ]
-  },
-  "fdfc517e659ba84cea1b36a7ab080cc1": {
-   "category": "prelabel_agrees",
-   "root_span_id": "caf39ccf815468fc",
-   "question": "Where is our workspace data hosted?",
-   "reply": "Hi Sam! Your data is in the US region. We can migrate it to the EU for a one-time fee. Let me know if anything else comes up.",
-   "notes": [
-    "Auto-label: reply makes claims not found in the context.",
-    "Made-up paid migration to the EU."
-   ]
-  },
-  "462811fae23c6aea35d4a062dbdbfbc1": {
-   "category": "needs_review_only",
-   "root_span_id": "018021584861c0ab",
+   "llm_span_id": "d9c09227779aeaf8",
    "question": "How long do deleted boards stick around?",
-   "reply": "Hi Lena! A workspace admin can bring it back from Settings > Trash, as long as it's been less than 30 days. After that, the board can't be recovered.",
-   "notes": [
-    "Need to check with the product team before signing off."
-   ]
-  },
-  "7ae5f1ce94fede91895b69ac754ab05e": {
-   "category": "unreviewed",
-   "root_span_id": "7e696c88eadfedc4",
-   "question": "Is it possible to move our workspace to European servers?",
-   "reply": "Hi Tom! Your workspace data is hosted in the US. Data residency is chosen when a workspace is created, and an existing workspace can't be moved to the EU. Happy to help with anything else.",
-   "notes": []
-  },
-  "c538daf6bab48068241b9b7d0c02c75e": {
-   "category": "single_review",
-   "root_span_id": "ee666ce3584e5e85",
-   "question": "Can Tasklane post updates to Slack?",
-   "reply": "Hi Aisha, thanks for reaching out. Connect Slack under Settings > Integrations > Slack. Each board can post to as many channels as you like. Let me know if anything else comes up.",
-   "notes": [
-    "Wrong limit compared with the article."
-   ]
-  },
-  "d0fe28336d57e5508e47f4cfbffdf3a2": {
-   "category": "unreviewed",
-   "root_span_id": "596b5e0fbd625895",
-   "question": "How do I make someone else the owner of our workspace?",
-   "reply": "Hi Jonas, thanks for reaching out. Ownership can only be transferred by the current owner, from Settings > Members, and the new owner has to be an admin already.",
-   "notes": []
-  },
-  "d711a3dc0404d5f8b734fb2cd4f32f9e": {
-   "category": "prelabel_only",
-   "root_span_id": "afa52c582fbc0b1e",
-   "question": "What's the biggest file I can attach to a task?",
-   "reply": "Hi Chloe! Pro allows 250 MB per attachment, and you can raise it by linking a Google Drive account in Settings.",
+   "reply": "Hi Pablo! Deleted boards stay in Trash for 30 days, and any member can restore them from the board list. Happy to help with anything else.",
    "notes": [
     "Auto-label: reply makes claims not found in the context."
    ]
   },
+  "cbdf03e65e250459a6157583b8b54251": {
+   "category": "prelabel_then_needs_review",
+   "root_span_id": "1e0142ca2ea6deb2",
+   "llm_span_id": "e5e7a132a7fca43a",
+   "question": "Can I make a task repeat every week?",
+   "reply": "Hi Hana, thanks for reaching out. Recurring tasks are a Pro feature, so they aren't available on Starter. Let me know if anything else comes up.",
+   "notes": [
+    "Auto-label: reply makes claims not found in the context.",
+    "Need to check with the product team before signing off."
+   ]
+  },
+  "cd74c0d1fcd8cef68da7a6f7fee3f6f0": {
+   "category": "unreviewed",
+   "root_span_id": "f7f68c43163bb8cc",
+   "llm_span_id": "8d26f189863ad888",
+   "question": "Is the annual subscription refundable?",
+   "reply": "Thanks for asking, Felix. You can cancel for a pro-rata refund because you're within 30 days of buying the annual plan; your subscription began 12 days ago. After day 30, annual plans aren't refundable.",
+   "notes": []
+  },
+  "c5cc6069fecde610b416ca3c8a575e4e": {
+   "category": "needs_review_only",
+   "root_span_id": "56121a789a85b64b",
+   "llm_span_id": "e4f50e86fc09d932",
+   "question": "Will downgrading delete any of our data?",
+   "reply": "Thanks for asking, Zoe. The downgrade applies at the end of your billing period. Boards over the Starter limit are archived and deleted after 90 days. Happy to help with anything else.",
+   "notes": [
+    "Need to check with the product team before signing off."
+   ]
+  },
+  "177c0bffcd7b84b813decee2dadcccd0": {
+   "category": "prelabel_then_needs_review",
+   "root_span_id": "5a7a39917ab7698b",
+   "llm_span_id": "27b6addd2c084377",
+   "question": "Can you fix the company name on last month's invoice?",
+   "reply": "Hi Maria, thanks for reaching out. Head to Billing > Invoice details (you'll need to be a billing admin). Updates show up on future invoices only, and earlier invoices can't be reissued. Happy to help with anything else.",
+   "notes": [
+    "Auto-label: claims match the retrieved context.",
+    "Not sure about this one, flagging for a second look."
+   ]
+  },
+  "94844b6de2889adcaa26f7c58f30530e": {
+   "category": "prelabel_disagrees_after_review",
+   "root_span_id": "4dc91593b429191e",
+   "llm_span_id": "bd6fa22c60371cfa",
+   "question": "What's the biggest file I can attach to a task?",
+   "reply": "Thanks for asking, Dev. The limit for a single attachment on Pro is 250 MB, so larger files won't upload. Business workspaces can attach files up to 1 GB. Let me know if anything else comes up.",
+   "notes": [
+    "Nothing added beyond the retrieved context.",
+    "Auto-label: reply makes claims not found in the context."
+   ]
+  },
+  "fdfc517e659ba84cea1b36a7ab080cc1": {
+   "category": "single_review",
+   "root_span_id": "caf39ccf815468fc",
+   "llm_span_id": "b7b929ab0d29201f",
+   "question": "I'm getting an error uploading a 300 MB video. What's the limit?",
+   "reply": "Hi Sam, thanks for reaching out. On your Pro plan, each attachment can be up to 250 MB. Business raises that to 1 GB per file. Let me know if anything else comes up.",
+   "notes": [
+    "Every claim checks out against the docs."
+   ]
+  },
+  "462811fae23c6aea35d4a062dbdbfbc1": {
+   "category": "llm_span_only",
+   "root_span_id": "018021584861c0ab",
+   "llm_span_id": "1af41fdcad246e07",
+   "question": "How do I turn on 2FA for my account?",
+   "reply": "Hi Lena, thanks for reaching out. Two-factor authentication is under Settings > Security, with an authenticator app or SMS. Your Business plan also lets workspace admins make it mandatory for all members. Happy to help with anything else.",
+   "notes": [
+    "Matches the help article.",
+    "Auto-label: reply makes claims not found in the context."
+   ]
+  },
+  "7ae5f1ce94fede91895b69ac754ab05e": {
+   "category": "prelabel_only",
+   "root_span_id": "7e696c88eadfedc4",
+   "llm_span_id": "897b3bcfdfe623af",
+   "question": "Does the mobile app work without internet?",
+   "reply": "Thanks for asking, Tom. The apps keep all of your boards available offline indefinitely, and edits sync when you reconnect.",
+   "notes": [
+    "Auto-label: reply makes claims not found in the context."
+   ]
+  },
+  "c538daf6bab48068241b9b7d0c02c75e": {
+   "category": "reviewers_disagree",
+   "root_span_id": "ee666ce3584e5e85",
+   "llm_span_id": "b51b0f399d9eaf4d",
+   "question": "Can you fix the company name on last month's invoice?",
+   "reply": "Hi Aisha, thanks for reaching out. Head to Billing > Invoice details (you'll need to be a billing admin). Updates show up on future invoices only, and earlier invoices can't be reissued. Happy to help with anything else.",
+   "notes": [
+    "One claim isn't backed by anything retrieved.",
+    "Accurate per the KB."
+   ]
+  },
+  "d0fe28336d57e5508e47f4cfbffdf3a2": {
+   "category": "single_review",
+   "root_span_id": "596b5e0fbd625895",
+   "llm_span_id": "e04a080b0923a9b8",
+   "question": "How long do deleted boards stick around?",
+   "reply": "Hi Jonas! Deleted boards stay in Trash for 30 days. A workspace admin can restore one from Settings > Trash; after 30 days it's permanently deleted.",
+   "notes": [
+    "Matches the help article."
+   ]
+  },
+  "d711a3dc0404d5f8b734fb2cd4f32f9e": {
+   "category": "prelabel_then_needs_review",
+   "root_span_id": "afa52c582fbc0b1e",
+   "llm_span_id": "d79085d9d33b3e90",
+   "question": "Do I need to enter a card for the Pro trial?",
+   "reply": "Hi Chloe! The Pro trial lasts 14 days and doesn't need a credit card. You have 5 days left; after that the workspace moves to Starter unless you upgrade. Happy to help with anything else.",
+   "notes": [
+    "Auto-label: claims match the retrieved context.",
+    "Docs are ambiguous here; second opinion please."
+   ]
+  },
   "98af31ed7fa95c7bd560544ff50043c9": {
-   "category": "needs_review_then_verdict",
+   "category": "prelabel_disagrees_after_review",
    "root_span_id": "50bcd9bc23499651",
+   "llm_span_id": "dd55947924c3f32b",
    "question": "Do I need to enter a card for the Pro trial?",
    "reply": "Hi Ravi! The Pro trial lasts 30 days, and you have 5 days left. Let me know if anything else comes up.",
    "notes": [
-    "Couldn't verify every detail, leaving open.",
-    "The trial is 14 days, not 30."
+    "Wrong trial length.",
+    "Auto-label: claims match the retrieved context."
    ]
   },
   "de7c5f43dc256688c553783215f0a7ed": {
-   "category": "prelabel_only",
+   "category": "llm_span_only",
    "root_span_id": "07294e9b9038e163",
+   "llm_span_id": "8edc622345699b8a",
    "question": "Is there a way to download everything on a board, attachments included?",
-   "reply": "Hi Grace, thanks for reaching out. Open the board menu and choose Export > CSV. It's available on your Starter plan. The file includes titles, assignees, due dates, and custom fields; attachments and comments aren't included. Happy to help with anything else.",
+   "reply": "Hi Grace, thanks for reaching out. Open the board menu and choose Export > CSV. The export bundles every attachment into a ZIP file alongside the spreadsheet. Happy to help with anything else.",
    "notes": [
+    "CSV exports leave attachments out, so there's no ZIP of them.",
     "Auto-label: claims match the retrieved context."
    ]
   },
   "a858dd630aa6e1f370b72c15da388423": {
-   "category": "unreviewed",
+   "category": "revised_to_needs_review",
    "root_span_id": "ca0e257a23b5e9c0",
+   "llm_span_id": "cf11d3a48639c928",
    "question": "I accidentally deleted a board yesterday. Can I get it back?",
-   "reply": "Thanks for asking, Omar. Deleted boards stay in Trash for 30 days. After that, our team can still recover them from backups for up to a year. Happy to help with anything else.",
-   "notes": []
+   "reply": "Thanks for asking, Omar. A workspace admin can bring it back from Settings > Trash, as long as it's been less than 30 days. After that, the board can't be recovered. Happy to help with anything else.",
+   "notes": [
+    "Accurate per the KB.",
+    "One claim isn't backed by anything retrieved.",
+    "Couldn't verify every detail, leaving open."
+   ]
   },
   "6b3278778ad122fc5b8482c6352702d5": {
    "category": "single_review",
    "root_span_id": "26eefce445d33ae6",
+   "llm_span_id": "9e0332cc9fd74d80",
    "question": "How long do deleted boards stick around?",
-   "reply": "Thanks for asking, Nina. Deleted boards stay in Trash for 30 days. A workspace admin can restore one from Settings > Trash; after 30 days it's permanently deleted. Happy to help with anything else.",
+   "reply": "Thanks for asking, Nina. Deleted boards stay in Trash for 30 days, and any member can restore them from the board list. Happy to help with anything else.",
    "notes": [
-    "Every claim checks out against the docs."
+    "Wrong about who can restore and where."
    ]
   },
   "c9cc206638acb6a351cb0a2c6dc8e550": {
    "category": "verdict_then_needs_review",
    "root_span_id": "63cb6781085facdb",
+   "llm_span_id": "8d4b220f649affaa",
    "question": "How many outside collaborators can we invite without paying?",
-   "reply": "Hi Pablo! Your Pro workspace includes 10 guest seats at no cost. Guests can view and comment on boards they're invited to; beyond 10, extra guests are billed like members. Let me know if anything else comes up.",
+   "reply": "Hi Pablo! Pro workspaces get unlimited free guests, so you can invite as many clients as you like. Let me know if anything else comes up.",
    "notes": [
-    "Matches the help article.",
+    "Pro includes 10 free guest seats, not unlimited.",
     "Not sure about this one, flagging for a second look."
    ]
   },
   "9968f6aaf6d661ffbbcf5ec1f5951723": {
-   "category": "single_review",
+   "category": "reviewers_disagree",
    "root_span_id": "c0e30400f8121e45",
+   "llm_span_id": "95b30e8957f25249",
    "question": "Can we store our data in the EU?",
-   "reply": "Hi Hana! Your workspace data is hosted in the US. Data residency is chosen when a workspace is created, and an existing workspace can't be moved to the EU. Happy to help with anything else.",
+   "reply": "Hi Hana! Your data is in the US region. We can migrate it to the EU for a one-time fee. Happy to help with anything else.",
    "notes": [
-    "Checked against the docs; all correct."
+    "Nothing added beyond the retrieved context.",
+    "We don't move workspaces between regions, paid or not."
    ]
   },
   "e9ca2f86e0adf273286e4b37a05e6a7d": {
-   "category": "prelabel_then_needs_review",
+   "category": "prelabel_disagrees_before_review",
    "root_span_id": "109a22cfd94b7bd5",
+   "llm_span_id": "f1b77dc32f4a90b4",
    "question": "What's the API rate limit for our workspace?",
    "reply": "Hi Felix, thanks for reaching out. On Business the limit is 500 requests per minute for each token; going over it returns a 429 error.",
    "notes": [
-    "Auto-label: claims match the retrieved context.",
-    "Couldn't verify every detail, leaving open."
+    "Auto-label: reply makes claims not found in the context.",
+    "Accurate per the KB."
    ]
   },
   "86f1cf2303db17209a6f8d3133d07fa3": {
    "category": "unreviewed",
    "root_span_id": "9efb134266b8309e",
+   "llm_span_id": "5e5a24e16cca50f3",
    "question": "How do I send board notifications to two Slack channels?",
    "reply": "Thanks for asking, Zoe. Set it up in Settings > Integrations > Slack; each board posts its task updates to a single Slack channel. Let me know if anything else comes up.",
    "notes": []
   },
   "a4d0e065e698d93a8a724082a42ce74e": {
-   "category": "duplicate_text",
+   "category": "llm_span_later_needs_review",
    "root_span_id": "4ab2bb4197e14772",
+   "llm_span_id": "4f74274f53ee3447",
    "question": "What happens when my trial ends?",
-   "reply": "The Pro trial lasts 30 days, and you have 5 days left.",
+   "reply": "Hi Maria! The Pro trial lasts 14 days and doesn't need a credit card. You have 5 days left; after that the workspace moves to Starter unless you upgrade. Let me know if anything else comes up.",
    "notes": [
-    "The trial is 14 days, not 30."
-   ]
-  },
-  "8e51c0a11c4bae6761362dff1f4367bd": {
-   "category": "reviewers_disagree",
-   "root_span_id": "3a6474886e8a4186",
-   "question": "Can I make two-factor mandatory for my whole team?",
-   "reply": "Hi Dev, thanks for reaching out. Two-factor authentication is under Settings > Security, with an authenticator app or SMS. Your Business plan also lets workspace admins make it mandatory for all members.",
-   "notes": [
-    "One claim isn't backed by anything retrieved.",
-    "Matches the help article."
-   ]
-  },
-  "28e257c9801bfbc82d11000910a55578": {
-   "category": "single_review",
-   "root_span_id": "d618ac60158e59c4",
-   "question": "If I add three people mid-month, how are we billed?",
-   "reply": "Hi Sam! Removing a member refunds the unused days to your card within 5 business days.",
-   "notes": [
-    "Removed members' unused days become account credit, not a card refund."
-   ]
-  },
-  "136385110b11ef021f8c34e9cc60fd6f": {
-   "category": "verdict_then_needs_review",
-   "root_span_id": "354eb7c4795f6591",
-   "question": "How do I turn on 2FA for my account?",
-   "reply": "Hi Lena, thanks for reaching out. Two-factor authentication is under Settings > Security. Once an admin requires it, members who don't enroll within 7 days are locked out automatically. Let me know if anything else comes up.",
-   "notes": [
-    "Nothing in the article about locking members out after 7 days.",
-    "Need to check with the product team before signing off."
-   ]
-  },
-  "a91ce50636f42ab8078e639719c8384a": {
-   "category": "verdict_then_needs_review",
-   "root_span_id": "c6cb3f48ea9f1e7d",
-   "question": "Our workspace owner left the company. How do we change the owner?",
-   "reply": "Hi Tom! Ownership can only be transferred by the current owner, from Settings > Members, and the new owner has to be an admin already. Let me know if anything else comes up.",
-   "notes": [
-    "Everything here is in the article or the workspace record.",
+    "Accurate per the KB.",
     "Couldn't verify every detail, leaving open."
    ]
   },
-  "12bb37b2a76ab05662a780b0a74f5439": {
-   "category": "reviewers_agree",
-   "root_span_id": "a8e606ccad966516",
-   "question": "If I downgrade to Starter today, when does it kick in?",
-   "reply": "Thanks for asking, Aisha. A downgrade takes effect at the end of your current billing period. Anything over the Starter limits becomes read-only, and nothing gets deleted. Let me know if anything else comes up.",
+  "8e51c0a11c4bae6761362dff1f4367bd": {
+   "category": "single_review",
+   "root_span_id": "3a6474886e8a4186",
+   "llm_span_id": "92d3d95b15197288",
+   "question": "Can I edit tasks on a plane and have them sync later?",
+   "reply": "Hi Dev, thanks for reaching out. The iOS and Android apps keep boards you've opened in the last 7 days available offline. Edits you make offline sync when you reconnect, but attachments won't open until you're back online.",
    "notes": [
-    "Everything here is in the article or the workspace record.",
-    "Nothing added beyond the retrieved context."
-   ]
-  },
-  "dbfec4e0877b0a6c65e1a08ae30f902b": {
-   "category": "unreviewed",
-   "root_span_id": "2f996bf750721c80",
-   "question": "Do I need to enter a card for the Pro trial?",
-   "reply": "Hi Jonas! No card is needed for the 14-day Pro trial. When it ends, in 5 days for you, your workspace switches to Starter unless someone upgrades. Let me know if anything else comes up.",
-   "notes": []
-  },
-  "c6bec4ad477e11428dfb782ad73dc8b9": {
-   "category": "unreviewed",
-   "root_span_id": "832c6b21e06a91d2",
-   "question": "Do I need to enter a card for the Pro trial?",
-   "reply": "Thanks for asking, Chloe. When the trial ends, we'll charge the card on file and move you to Pro automatically. Let me know if anything else comes up.",
-   "notes": []
-  },
-  "a8662e5ea876a17cb9035c808e21c688": {
-   "category": "prelabel_only",
-   "root_span_id": "f2b6f1ba193f77b4",
-   "question": "Where do I set up the Slack integration?",
-   "reply": "Thanks for asking, Ravi. Connect Slack under Settings > Integrations > Slack, and you can also create tasks by reacting to messages with an emoji. Happy to help with anything else.",
-   "notes": [
-    "Auto-label: reply makes claims not found in the context."
-   ]
-  },
-  "e461b83a5298b0a9c132fc95f381a73c": {
-   "category": "duplicate_text",
-   "root_span_id": "b08066a6ef302887",
-   "question": "What happens when my trial ends?",
-   "reply": "The Pro trial lasts 30 days, and you have 5 days left.",
-   "notes": [
-    "The trial is 14 days, not 30."
-   ]
-  },
-  "7b8dc0cecf94654fee67321540d33e6d": {
-   "category": "prelabel_only",
-   "root_span_id": "c675630956320db5",
-   "question": "I accidentally deleted a board yesterday. Can I get it back?",
-   "reply": "Hi Omar, thanks for reaching out. Deleted boards stay in Trash for 30 days. A workspace admin can restore one from Settings > Trash; after 30 days it's permanently deleted. Happy to help with anything else.",
-   "notes": [
-    "Auto-label: claims match the retrieved context."
-   ]
-  },
-  "3648f07d963d0f9f1e45556c6530d7ea": {
-   "category": "prelabel_disagrees_before_review",
-   "root_span_id": "6ca5c85cb8aa5b39",
-   "question": "How many outside collaborators can we invite without paying?",
-   "reply": "Hi Nina, thanks for reaching out. Your Pro workspace includes 10 guest seats at no cost. Guests can view and comment on boards they're invited to; beyond 10, extra guests are billed like members. Let me know if anything else comes up.",
-   "notes": [
-    "Auto-label: reply makes claims not found in the context.",
     "Checked against the docs; all correct."
    ]
   },
-  "4869ab3ece577617160e47e67b4a6954": {
-   "category": "prelabel_only",
-   "root_span_id": "6bd53d8ae3a3cbc4",
-   "question": "Do you offer SAML SSO on our current plan?",
-   "reply": "Hi Pablo, thanks for reaching out. SSO is a Business feature and works with Okta, Microsoft Entra ID, Google Workspace, and OneLogin.",
+  "28e257c9801bfbc82d11000910a55578": {
+   "category": "duplicate_text",
+   "root_span_id": "d618ac60158e59c4",
+   "llm_span_id": "349bd1000a6dbfa4",
+   "question": "Can we log in with Okta?",
+   "reply": "SAML single sign-on, including Okta, is part of the Business plan. You're on Pro, so you'd need to upgrade before an admin can set it up under Settings > Security > SSO.",
    "notes": [
-    "Auto-label: reply makes claims not found in the context."
+    "Nothing added beyond the retrieved context."
+   ]
+  },
+  "136385110b11ef021f8c34e9cc60fd6f": {
+   "category": "llm_span_later",
+   "root_span_id": "354eb7c4795f6591",
+   "llm_span_id": "d275c4422da082b9",
+   "question": "How do I turn on 2FA for my account?",
+   "reply": "Hi Lena, thanks for reaching out. Two-factor authentication is under Settings > Security. Once an admin requires it, members who don't enroll within 7 days are locked out automatically. Let me know if anything else comes up.",
+   "notes": [
+    "Accurate per the KB.",
+    "Nothing in the article about locking members out after 7 days."
+   ]
+  },
+  "a91ce50636f42ab8078e639719c8384a": {
+   "category": "llm_span_later",
+   "root_span_id": "c6cb3f48ea9f1e7d",
+   "llm_span_id": "6fd0336c624aba06",
+   "question": "Our workspace owner left the company. How do we change the owner?",
+   "reply": "Hi Tom! Ownership can only be transferred by the current owner, from Settings > Members, and the new owner has to be an admin already. Let me know if anything else comes up.",
+   "notes": [
+    "Docs are ambiguous here; second opinion please.",
+    "Everything here is in the article or the workspace record."
+   ]
+  },
+  "12bb37b2a76ab05662a780b0a74f5439": {
+   "category": "revised_verdict",
+   "root_span_id": "a8e606ccad966516",
+   "llm_span_id": "1e0a4e8f3ecbfba2",
+   "question": "If I downgrade to Starter today, when does it kick in?",
+   "reply": "Thanks for asking, Aisha. A downgrade takes effect right away, and we refund the unused part of your annual Pro plan. Let me know if anything else comes up.",
+   "notes": [
+    "Checked against the docs; all correct.",
+    "Nothing added beyond the retrieved context.",
+    "Wrong timing, and the refund isn't in the article."
+   ]
+  },
+  "dbfec4e0877b0a6c65e1a08ae30f902b": {
+   "category": "llm_span_later_needs_review",
+   "root_span_id": "2f996bf750721c80",
+   "llm_span_id": "b7b9dc8dffb913fc",
+   "question": "Do I need to enter a card for the Pro trial?",
+   "reply": "Hi Jonas! No card is needed for the 14-day Pro trial. When it ends, in 5 days for you, your workspace switches to Starter unless someone upgrades. Let me know if anything else comes up.",
+   "notes": [
+    "Nothing added beyond the retrieved context.",
+    "Need to check with the product team before signing off."
+   ]
+  },
+  "c6bec4ad477e11428dfb782ad73dc8b9": {
+   "category": "llm_span_later",
+   "root_span_id": "832c6b21e06a91d2",
+   "llm_span_id": "9e536dc53076b92f",
+   "question": "Do I need to enter a card for the Pro trial?",
+   "reply": "Thanks for asking, Chloe. No card is needed for the 14-day Pro trial. When it ends, in 5 days for you, your workspace switches to Starter unless someone upgrades. Let me know if anything else comes up.",
+   "notes": [
+    "Doesn't match the docs as far as I can tell.",
+    "Checked against the docs; all correct."
+   ]
+  },
+  "a8662e5ea876a17cb9035c808e21c688": {
+   "category": "needs_review_then_verdict",
+   "root_span_id": "f2b6f1ba193f77b4",
+   "llm_span_id": "7861a912a2dcd4d3",
+   "question": "Where do I set up the Slack integration?",
+   "reply": "Thanks for asking, Ravi. Set it up in Settings > Integrations > Slack; each board posts its task updates to a single Slack channel. Happy to help with anything else.",
+   "notes": [
+    "Not sure about this one, flagging for a second look.",
+    "Nothing added beyond the retrieved context."
+   ]
+  },
+  "e461b83a5298b0a9c132fc95f381a73c": {
+   "category": "single_review",
+   "root_span_id": "b08066a6ef302887",
+   "llm_span_id": "2298060f86e16e76",
+   "question": "I accidentally deleted a board yesterday. Can I get it back?",
+   "reply": "Hi Grace, thanks for reaching out. Deleted boards stay in Trash for 30 days, and any member can restore them from the board list. Happy to help with anything else.",
+   "notes": [
+    "Wrong about who can restore and where."
+   ]
+  },
+  "7b8dc0cecf94654fee67321540d33e6d": {
+   "category": "unreviewed",
+   "root_span_id": "c675630956320db5",
+   "llm_span_id": "29fa478915fec42b",
+   "question": "How many outside collaborators can we invite without paying?",
+   "reply": "Hi Omar, thanks for reaching out. Pro workspaces get unlimited free guests, so you can invite as many clients as you like. Let me know if anything else comes up.",
+   "notes": []
+  },
+  "3648f07d963d0f9f1e45556c6530d7ea": {
+   "category": "single_review",
+   "root_span_id": "6ca5c85cb8aa5b39",
+   "llm_span_id": "c12697f8bcbbfd1c",
+   "question": "Do you offer SAML SSO on our current plan?",
+   "reply": "Hi Nina, thanks for reaching out. Single sign-on works with Okta, Microsoft Entra ID, and Google Workspace, but it's only on Business. Your workspace is on Pro right now.",
+   "notes": [
+    "Nothing added beyond the retrieved context."
+   ]
+  },
+  "4869ab3ece577617160e47e67b4a6954": {
+   "category": "verdict_then_needs_review",
+   "root_span_id": "6bd53d8ae3a3cbc4",
+   "llm_span_id": "b3f5aff80e8f1ccc",
+   "question": "Can I make two-factor mandatory for my whole team?",
+   "reply": "Hi Pablo! Two-factor authentication is under Settings > Security. Once an admin requires it, members who don't enroll within 7 days are locked out automatically. Let me know if anything else comes up.",
+   "notes": [
+    "Invents a 7-day enrollment deadline.",
+    "Not sure about this one, flagging for a second look."
    ]
   },
   "0c0a26bbb3a1e76537c6aceb5422dbf1": {
-   "category": "prelabel_disagrees_before_review",
+   "category": "needs_review_then_verdict",
    "root_span_id": "cbd49ed658d171ef",
-   "question": "Can I make two-factor mandatory for my whole team?",
-   "reply": "Hi Hana! Two-factor authentication is under Settings > Security. Once an admin requires it, members who don't enroll within 7 days are locked out automatically. Let me know if anything else comes up.",
+   "llm_span_id": "faa3a171f6b14f7e",
+   "question": "Where do I set up the Slack integration?",
+   "reply": "Hi Hana, thanks for reaching out. Connect Slack under Settings > Integrations > Slack. Each board can post to as many channels as you like. Happy to help with anything else.",
    "notes": [
-    "Auto-label: claims match the retrieved context.",
-    "Invents a 7-day enrollment deadline."
+    "Docs are ambiguous here; second opinion please.",
+    "Wrong limit compared with the article."
    ]
   },
   "f83c8c5197eaa5b0e56ecde1ca890d82": {
-   "category": "single_review",
+   "category": "revised_to_needs_review",
    "root_span_id": "d28db2f14ee289c1",
-   "question": "Where do I set up the Slack integration?",
-   "reply": "Hi Felix, thanks for reaching out. Connect Slack under Settings > Integrations > Slack, and task updates will post to a channel. Each board can post to one channel. Happy to help with anything else.",
+   "llm_span_id": "cc2e667e9a07dd98",
+   "question": "I'm getting an error uploading a 300 MB video. What's the limit?",
+   "reply": "Thanks for asking, Felix. The limit for a single attachment on Pro is 250 MB, so larger files won't upload. Business workspaces can attach files up to 1 GB. Happy to help with anything else.",
    "notes": [
-    "Everything here is in the article or the workspace record."
+    "Checked against the docs; all correct.",
+    "Nothing added beyond the retrieved context.",
+    "Docs are ambiguous here; second opinion please."
    ]
   },
   "b512f8ff59d94c56e4ab21488197c32b": {
-   "category": "single_review",
+   "category": "root_later_than_llm_span",
    "root_span_id": "69e03788ebaaa7f2",
-   "question": "I'm getting an error uploading a 300 MB video. What's the limit?",
-   "reply": "Thanks for asking, Zoe. The limit for a single attachment on Pro is 250 MB, so larger files won't upload. Business workspaces can attach files up to 1 GB. Happy to help with anything else.",
+   "llm_span_id": "79907d63abf34ee1",
+   "question": "Do we get money back when we remove a member?",
+   "reply": "Hi Zoe! Members added mid-cycle are free until your next renewal, and you're only charged from then on.",
    "notes": [
-    "Everything here is in the article or the workspace record."
+    "Docs are ambiguous here; second opinion please.",
+    "Mid-cycle members are charged pro rata on the next invoice, not free until renewal."
    ]
   },
   "cfaeafc348c01b27b105be531bfc3860": {
-   "category": "single_review",
+   "category": "unreviewed",
    "root_span_id": "ed12d1efebe3a729",
-   "question": "Do we get money back when we remove a member?",
-   "reply": "Hi Maria! Members added mid-cycle are free until your next renewal, and you're only charged from then on.",
-   "notes": [
-    "Wrong billing rule for members added mid-cycle."
-   ]
+   "llm_span_id": "088f7f3c1d8429b3",
+   "question": "Do guests count against our seats on Pro?",
+   "reply": "Hi Maria! Your Pro workspace includes 10 guest seats at no cost. Guests can view and comment on boards they're invited to; beyond 10, extra guests are billed like members.",
+   "notes": []
   },
   "2757fe5223168971142d596a5135fbca": {
-   "category": "single_review",
+   "category": "verdict_then_needs_review",
    "root_span_id": "fdcedcb92fa51c04",
-   "question": "Do guests count against our seats on Pro?",
-   "reply": "Hi Dev! Pro workspaces get unlimited free guests, so you can invite as many clients as you like.",
+   "llm_span_id": "f4bd07c8d9b0f9ed",
+   "question": "Is it possible to move our workspace to European servers?",
+   "reply": "Thanks for asking, Dev. Business workspaces pick EU or US data residency when they're created. Your workspace is in the US region, and existing workspaces can't be moved to another region. Happy to help with anything else.",
    "notes": [
-    "Wrong limit: guests past the first 10 are billed as members."
+    "Matches the help article.",
+    "Docs are ambiguous here; second opinion please."
    ]
   },
   "68eee445c4f956c2cebd98fc72d1c743": {
-   "category": "single_review",
+   "category": "prelabel_only",
    "root_span_id": "f769e1ce63eaaae0",
-   "question": "Is it possible to move our workspace to European servers?",
-   "reply": "Thanks for asking, Sam. Your workspace is in the US region, but an admin can switch it to EU hosting from Settings > Data at any time. Happy to help with anything else.",
+   "llm_span_id": "657e856db8c26826",
+   "question": "How do I send board notifications to two Slack channels?",
+   "reply": "Thanks for asking, Sam. Connect Slack under Settings > Integrations > Slack, and task updates will post to a channel. Each board can post to one channel.",
    "notes": [
-    "Existing workspaces can't move to another region."
+    "Auto-label: claims match the retrieved context."
    ]
   },
   "a926a291e2b3f34d6b589e3d99de0c49": {
    "category": "prelabel_agrees",
    "root_span_id": "de9c8ddba2cacce2",
-   "question": "How do I send board notifications to two Slack channels?",
-   "reply": "Thanks for asking, Lena. Connect Slack under Settings > Integrations > Slack, and task updates will post to a channel. Each board can post to one channel.",
+   "llm_span_id": "9d16801748ec86b8",
+   "question": "Can I edit tasks on a plane and have them sync later?",
+   "reply": "Thanks for asking, Lena. The iOS and Android apps keep boards you've opened in the last 7 days available offline. Edits you make offline sync when you reconnect, but attachments won't open until you're back online. Happy to help with anything else.",
    "notes": [
     "Auto-label: claims match the retrieved context.",
-    "Every claim checks out against the docs."
+    "Accurate per the KB."
    ]
   },
   "a18ce374b0850d3a3c572e6fa1911f28": {
-   "category": "prelabel_only",
+   "category": "llm_span_later_needs_review",
    "root_span_id": "eb9768d371e486dd",
-   "question": "Can I edit tasks on a plane and have them sync later?",
-   "reply": "Thanks for asking, Tom. The iOS and Android apps keep boards you've opened in the last 7 days available offline. Edits you make offline sync when you reconnect, but attachments won't open until you're back online. Happy to help with anything else.",
+   "llm_span_id": "9ceba47ffceb9f26",
+   "question": "Does Tasklane have two-step login?",
+   "reply": "Hi Tom! Go to Settings > Security to turn on two-factor authentication. Hardware security keys like YubiKey also work there. Happy to help with anything else.",
    "notes": [
-    "Auto-label: claims match the retrieved context."
+    "Invents YubiKey as a second factor.",
+    "Docs are ambiguous here; second opinion please."
    ]
   },
   "4bd903d54a8f272602a9a21b290958ea": {
-   "category": "single_review",
+   "category": "prelabel_agrees",
    "root_span_id": "d95731e9b6ac7b72",
-   "question": "Does Tasklane have two-step login?",
-   "reply": "Hi Aisha! Go to Settings > Security to turn on two-factor authentication with an authenticator app or SMS codes. Since you're on Business, admins can also require it for every member. Happy to help with anything else.",
+   "llm_span_id": "06ea76f2722a4695",
+   "question": "Do you offer SAML SSO on our current plan?",
+   "reply": "Hi Aisha, thanks for reaching out. SSO is a Business feature and works with Okta, Microsoft Entra ID, Google Workspace, and OneLogin. Let me know if anything else comes up.",
    "notes": [
-    "Everything here is in the article or the workspace record."
+    "Auto-label: reply makes claims not found in the context.",
+    "OneLogin isn't one of the identity providers the article lists."
    ]
   },
   "b473b194ca4e4ff98fe92241346a0885": {
-   "category": "prelabel_only",
+   "category": "single_review",
    "root_span_id": "9d5fc734468129f6",
-   "question": "Do you offer SAML SSO on our current plan?",
-   "reply": "Hi Jonas, thanks for reaching out. Single sign-on works with Okta, Microsoft Entra ID, and Google Workspace, but it's only on Business. Your workspace is on Pro right now. Let me know if anything else comes up.",
+   "llm_span_id": "de6c23670e354e78",
+   "question": "How many outside collaborators can we invite without paying?",
+   "reply": "Thanks for asking, Jonas. On Pro you get 10 free guest seats. Guests can view and comment on the boards you invite them to, and any guests past those 10 are billed as members. Let me know if anything else comes up.",
    "notes": [
-    "Auto-label: claims match the retrieved context."
+    "Matches the help article."
    ]
   },
   "e3eecc07fa4413a3a7b0e3eca4f661a5": {
-   "category": "unreviewed",
+   "category": "reviewers_disagree",
    "root_span_id": "d25e16887ffe9b39",
-   "question": "How many outside collaborators can we invite without paying?",
-   "reply": "Thanks for asking, Chloe. On Pro you get 10 free guest seats, and guests can also create and edit tasks on any board in the workspace. Let me know if anything else comes up.",
-   "notes": []
+   "llm_span_id": "2edea9d06b4d1dd6",
+   "question": "Can I edit tasks on a plane and have them sync later?",
+   "reply": "Hi Chloe! You can edit offline, and changes sync when you reconnect. The apps keep the boards you've opened in the past 7 days; attachments aren't available offline. Let me know if anything else comes up.",
+   "notes": [
+    "Adds a detail the help article doesn't mention.",
+    "Matches the help article."
+   ]
   },
   "b7bf9368855a0fb06940ebf5424e4bcd": {
-   "category": "unreviewed",
+   "category": "reviewers_agree",
    "root_span_id": "90219ce5a802a5ff",
-   "question": "Can I edit tasks on a plane and have them sync later?",
-   "reply": "Hi Ravi! Edits you make offline sync when you reconnect. Attachments under 50 MB are also cached for offline viewing. Let me know if anything else comes up.",
-   "notes": []
+   "llm_span_id": "efed95d76f41f85e",
+   "question": "Does Tasklane have two-step login?",
+   "reply": "Thanks for asking, Ravi. Go to Settings > Security to turn on two-factor authentication with an authenticator app or SMS codes. Since you're on Business, admins can also require it for every member. Happy to help with anything else.",
+   "notes": [
+    "Checked against the docs; all correct.",
+    "Accurate per the KB."
+   ]
   },
   "6a97ff38882a4c9ad2d8d820ae54d702": {
-   "category": "unreviewed",
+   "category": "single_review",
    "root_span_id": "2726b6d26ef7131a",
-   "question": "Does Tasklane have two-step login?",
-   "reply": "Thanks for asking, Grace. Go to Settings > Security to turn on two-factor authentication with an authenticator app or SMS codes. Since you're on Business, admins can also require it for every member. Happy to help with anything else.",
-   "notes": []
+   "llm_span_id": "ef4bf11adf0ab413",
+   "question": "What's the API rate limit for our workspace?",
+   "reply": "Thanks for asking, Grace. Your Business workspace has a limit of 5,000 API requests per minute per token. Let me know if anything else comes up.",
+   "notes": [
+    "Wrong limit compared with the article."
+   ]
   },
   "bb6bf1a9a67896ce9d85cbcc553e12d0": {
    "category": "single_review",
    "root_span_id": "bc7eab16a7441868",
-   "question": "What's the API rate limit for our workspace?",
-   "reply": "Thanks for asking, Omar. Your Business workspace can make 500 API requests per minute per token. Requests above that return HTTP 429. Let me know if anything else comes up.",
+   "llm_span_id": "fb75faa422572713",
+   "question": "Do you offer SAML SSO on our current plan?",
+   "reply": "Thanks for asking, Omar. SSO is a Business feature and works with Okta, Microsoft Entra ID, Google Workspace, and OneLogin.",
    "notes": [
-    "Everything here is in the article or the workspace record."
+    "OneLogin isn't one of the identity providers the article lists."
    ]
   },
   "49e1ba06fc4b7a304fb98925f167bf3b": {
-   "category": "reviewers_disagree",
+   "category": "root_later_than_llm_span",
    "root_span_id": "82924769ba2e16de",
-   "question": "Do you offer SAML SSO on our current plan?",
-   "reply": "Thanks for asking, Nina. Single sign-on works with Okta, Microsoft Entra ID, and Google Workspace, but it's only on Business. Your workspace is on Pro right now.",
+   "llm_span_id": "fdc3e351c26902a6",
+   "question": "Is there a file size cap on attachments?",
+   "reply": "Hi Nina! On your Pro plan, each attachment can be up to 2 GB.",
    "notes": [
-    "One claim isn't backed by anything retrieved.",
-    "Accurate per the KB."
+    "Nothing added beyond the retrieved context.",
+    "Wrong limit compared with the article."
    ]
   },
   "e4c9e92e80a4737a3e52599fafd29e96": {
-   "category": "prelabel_only",
+   "category": "revised_verdict",
    "root_span_id": "479a02cdc68b3ccf",
-   "question": "Is there a file size cap on attachments?",
-   "reply": "Hi Pablo! On your Pro plan, each attachment can be up to 2 GB.",
+   "llm_span_id": "71322eee926ec403",
+   "question": "How do I turn on 2FA for my account?",
+   "reply": "Hi Pablo, thanks for reaching out. Two-factor authentication is under Settings > Security, with an authenticator app or SMS. Your Business plan also lets workspace admins make it mandatory for all members.",
    "notes": [
-    "Auto-label: reply makes claims not found in the context."
+    "Contradicts the KB article.",
+    "One claim isn't backed by anything retrieved.",
+    "Every claim checks out against the docs."
    ]
   },
   "066e092e8ba81de89990c281d923b633": {
-   "category": "reviewers_agree",
+   "category": "prelabel_only",
    "root_span_id": "4d1a870e9c540326",
-   "question": "How do I turn on 2FA for my account?",
-   "reply": "Hi Hana, thanks for reaching out. Two-factor authentication is under Settings > Security, with an authenticator app or SMS. Your Business plan also lets workspace admins make it mandatory for all members.",
+   "llm_span_id": "9ea0477e08cee7d4",
+   "question": "I accidentally deleted a board yesterday. Can I get it back?",
+   "reply": "Hi Hana! A workspace admin can bring it back from Settings > Trash, as long as it's been less than 30 days. After that, the board can't be recovered.",
    "notes": [
-    "Checked against the docs; all correct.",
-    "Everything here is in the article or the workspace record."
+    "Auto-label: claims match the retrieved context."
    ]
   },
   "d66b369b9c209c8738aceca3b18f5d16": {
-   "category": "prelabel_agrees",
+   "category": "root_later_than_llm_span",
    "root_span_id": "1e423a27e49a001a",
-   "question": "I accidentally deleted a board yesterday. Can I get it back?",
-   "reply": "Hi Felix! A workspace admin can bring it back from Settings > Trash, as long as it's been less than 30 days. After that, the board can't be recovered.",
+   "llm_span_id": "247a4eb5933c610c",
+   "question": "How do repeating tasks work?",
+   "reply": "Hi Felix, thanks for reaching out. Recurring tasks work on every plan, including Starter. Open the task menu, choose Repeat, and pick daily, weekly, or monthly; the next copy appears when you complete the current one.",
    "notes": [
-    "Auto-label: claims match the retrieved context.",
-    "Everything here is in the article or the workspace record."
+    "Need to check with the product team before signing off.",
+    "Accurate per the KB."
    ]
   },
   "64ce80be426c87079727c0ce4fd959cf": {
    "category": "single_review",
    "root_span_id": "014f914ab7eb5281",
-   "question": "How do repeating tasks work?",
-   "reply": "Hi Zoe, thanks for reaching out. Open the task menu and choose Repeat. You can also set custom schedules, like every second Tuesday.",
+   "llm_span_id": "5ce28c1f540e1eed",
+   "question": "How do I turn on 2FA for my account?",
+   "reply": "Hi Zoe, thanks for reaching out. Go to Settings > Security to turn on two-factor authentication with an authenticator app or SMS codes. Since you're on Business, admins can also require it for every member. Happy to help with anything else.",
    "notes": [
-    "Invents custom repeat schedules."
+    "Nothing added beyond the retrieved context."
    ]
   },
   "c9a9374f7cc584dbda6c427db6b9af03": {
-   "category": "reviewers_disagree",
+   "category": "prelabel_only",
    "root_span_id": "47da86430bafea5a",
-   "question": "How do I turn on 2FA for my account?",
-   "reply": "Hi Maria, thanks for reaching out. Go to Settings > Security to turn on two-factor authentication. Hardware security keys like YubiKey also work there. Happy to help with anything else.",
+   "llm_span_id": "fe02fd2f1eff54d2",
+   "question": "We bought the annual plan by mistake. Can we get our money back?",
+   "reply": "Hi Maria, thanks for reaching out. Annual plans are fully refundable within 60 days, so you'll get the whole amount back. Let me know if anything else comes up.",
    "notes": [
-    "Matches the help article.",
-    "The article lists authenticator apps and SMS only; no hardware keys."
+    "Auto-label: reply makes claims not found in the context."
    ]
   },
   "3faafffdbfc73ec4610196ca55ab383a": {
-   "category": "unreviewed",
+   "category": "revised_to_needs_review",
    "root_span_id": "95698f3099b223fa",
-   "question": "We bought the annual plan by mistake. Can we get our money back?",
-   "reply": "Hi Dev, thanks for reaching out. Annual plans get a pro-rata refund if you cancel within 30 days of purchase. Your subscription started 12 days ago, so you're still inside that window. Let me know if anything else comes up.",
-   "notes": []
-  },
-  "34dedec40fd11bc12e0a5fa42a248f5e": {
-   "category": "verdict_then_needs_review",
-   "root_span_id": "9257c68744ce22af",
+   "llm_span_id": "9de7969dbbe0cc90",
    "question": "What's the biggest file I can attach to a task?",
-   "reply": "Hi Sam, thanks for reaching out. On your Pro plan, each attachment can be up to 2 GB.",
+   "reply": "Hi Dev, thanks for reaching out. On your Pro plan, each attachment can be up to 2 GB.",
    "notes": [
     "Pro allows 250 MB per attachment, not 2 GB.",
+    "Everything here is in the article or the workspace record.",
     "Need to check with the product team before signing off."
    ]
   },
-  "621332a081ed70dcc158c60355477fe4": {
-   "category": "single_review",
-   "root_span_id": "3e90e3ebbc0ac75b",
+  "34dedec40fd11bc12e0a5fa42a248f5e": {
+   "category": "reviewers_agree",
+   "root_span_id": "9257c68744ce22af",
+   "llm_span_id": "4d5b9bb06a0f1e6c",
    "question": "Someone on my team removed our roadmap board. Is it gone for good?",
-   "reply": "Hi Lena! Deleted boards stay in Trash for 30 days. A workspace admin can restore one from Settings > Trash; after 30 days it's permanently deleted. Happy to help with anything else.",
+   "reply": "Hi Sam! Deleted boards stay in Trash for 30 days, and any member can restore them from the board list. Happy to help with anything else.",
    "notes": [
-    "Matches the help article."
+    "Only workspace admins can restore boards, from Settings > Trash.",
+    "Wrong about who can restore and where."
+   ]
+  },
+  "621332a081ed70dcc158c60355477fe4": {
+   "category": "verdict_then_needs_review",
+   "root_span_id": "3e90e3ebbc0ac75b",
+   "llm_span_id": "735f95777d7cd2f0",
+   "question": "If I add three people mid-month, how are we billed?",
+   "reply": "Hi Lena, thanks for reaching out. New members added mid-cycle are charged pro rata on your next invoice. When you remove someone, the unused days go to your account balance as credit rather than a refund. Let me know if anything else comes up.",
+   "notes": [
+    "Accurate per the KB.",
+    "Need to check with the product team before signing off."
    ]
   },
   "c57b01bd364769e0c8c6da75fb3193fa": {
-   "category": "single_review",
+   "category": "revised_verdict",
    "root_span_id": "08338e1d3a9343a4",
-   "question": "If I add three people mid-month, how are we billed?",
-   "reply": "Hi Tom, thanks for reaching out. Members added mid-cycle are free until your next renewal, and you're only charged from then on. Let me know if anything else comes up.",
+   "llm_span_id": "466938bbb2328a78",
+   "question": "Does Tasklane sync with Outlook?",
+   "reply": "Hi Tom, thanks for reaching out. Calendar sync with Google Calendar and Outlook is available on Pro and Business. Your workspace is on Starter, so you'd need to upgrade to turn it on in Settings > Integrations. Happy to help with anything else.",
    "notes": [
-    "Wrong billing rule for members added mid-cycle."
+    "Doesn't match the docs as far as I can tell.",
+    "Couldn't verify every detail, leaving open.",
+    "Nothing added beyond the retrieved context."
    ]
   },
   "1f63dcdf60772fc656d162a80cc616fb": {
    "category": "single_review",
    "root_span_id": "b63e648dd6f14adb",
-   "question": "Does Tasklane sync with Outlook?",
-   "reply": "Hi Aisha, thanks for reaching out. Calendar sync works on every plan, including Starter. Turn it on in Settings > Integrations and changes appear within 15 minutes. Happy to help with anything else.",
+   "llm_span_id": "d37a3e95b341e0aa",
+   "question": "Can you fix the company name on last month's invoice?",
+   "reply": "Hi Aisha, thanks for reaching out. Any member can change the company name and address under Billing > Invoice details. Let me know if anything else comes up.",
    "notes": [
-    "Calendar sync is Pro and Business only, and this workspace is on Starter."
+    "Wrong about who can edit invoice details."
    ]
   },
   "6443940955466a45a1d564d00da8a909": {
    "category": "needs_review_then_verdict",
    "root_span_id": "b870a9e3fb44d516",
-   "question": "Can you fix the company name on last month's invoice?",
-   "reply": "Hi Jonas, thanks for reaching out. Head to Billing > Invoice details (you'll need to be a billing admin). Updates show up on future invoices only, and earlier invoices can't be reissued. Let me know if anything else comes up.",
+   "llm_span_id": "2fcf9b4b9579a6af",
+   "question": "Is there a way to set up recurring tasks on Starter?",
+   "reply": "Hi Jonas! Recurring tasks are a Pro feature, so they aren't available on Starter.",
    "notes": [
     "Not sure about this one, flagging for a second look.",
-    "Checked against the docs; all correct."
+    "Wrong plan; Starter has recurring tasks."
    ]
   },
   "a7ceb9ac191cc27e4f356c84fdd73bf1": {
    "category": "unreviewed",
    "root_span_id": "9f64b14be9180140",
-   "question": "Is there a way to set up recurring tasks on Starter?",
-   "reply": "Hi Chloe! Recurring tasks are a Pro feature, so they aren't available on Starter.",
+   "llm_span_id": "4323c79ac4297e3e",
+   "question": "Can I get my tasks out as a CSV on the Starter plan?",
+   "reply": "Hi Chloe, thanks for reaching out. Open the board menu and choose Export > CSV. The export bundles every attachment into a ZIP file alongside the spreadsheet. Let me know if anything else comes up.",
    "notes": []
   },
   "7968f0cebd68bda148037e677c671766": {
-   "category": "prelabel_disagrees_after_review",
+   "category": "llm_span_later",
    "root_span_id": "3a2a04a6b36430aa",
-   "question": "Can I get my tasks out as a CSV on the Starter plan?",
-   "reply": "Hi Ravi, thanks for reaching out. Open the board menu and choose Export > CSV. It's available on your Starter plan. The file includes titles, assignees, due dates, and custom fields; attachments and comments aren't included. Let me know if anything else comes up.",
+   "llm_span_id": "f7a39826a31a9ce3",
+   "question": "Is it possible to move our workspace to European servers?",
+   "reply": "Hi Ravi, thanks for reaching out. Your workspace is in the US region, but an admin can switch it to EU hosting from Settings > Data at any time. Let me know if anything else comes up.",
    "notes": [
-    "Nothing added beyond the retrieved context.",
-    "Auto-label: reply makes claims not found in the context."
+    "Couldn't verify every detail, leaving open.",
+    "Existing workspaces can't move to another region."
    ]
   },
   "dfdb21ad11b5aeed620f4240eb9b59d5": {
-   "category": "prelabel_then_needs_review",
+   "category": "single_review",
    "root_span_id": "ec7b77296c75b76a",
-   "question": "Is it possible to move our workspace to European servers?",
-   "reply": "Hi Grace, thanks for reaching out. Business workspaces pick EU or US data residency when they're created. Your workspace is in the US region, and existing workspaces can't be moved to another region. Let me know if anything else comes up.",
-   "notes": [
-    "Auto-label: claims match the retrieved context.",
-    "Couldn't verify every detail, leaving open."
-   ]
-  },
-  "6b8ac02dd3514007280ead7262ed8184": {
-   "category": "single_review",
-   "root_span_id": "8f517c69ae3dffad",
+   "llm_span_id": "a76b98949737651a",
    "question": "What's the biggest file I can attach to a task?",
-   "reply": "Hi Omar! Pro allows 250 MB per attachment, and you can raise it by linking a Google Drive account in Settings.",
-   "notes": [
-    "There's no way to raise the limit through Google Drive."
-   ]
-  },
-  "e8a30262dfbca9c345c91a890aa8f465": {
-   "category": "needs_review_only",
-   "root_span_id": "ca4d7405bc3f6489",
-   "question": "How do I send board notifications to two Slack channels?",
-   "reply": "Hi Nina, thanks for reaching out. Set it up in Settings > Integrations > Slack; each board posts its task updates to a single Slack channel.",
-   "notes": [
-    "Docs are ambiguous here; second opinion please."
-   ]
-  },
-  "d5a2e60ea83da47f943448b822a1ca5e": {
-   "category": "single_review",
-   "root_span_id": "daca7e8f57c4e1b2",
-   "question": "Our workspace owner left the company. How do we change the owner?",
-   "reply": "Thanks for asking, Pablo. Ownership can only be transferred by the current owner, from Settings > Members, and the new owner has to be an admin already. Happy to help with anything else.",
+   "reply": "Hi Grace! The limit for a single attachment on Pro is 250 MB, so larger files won't upload. Business workspaces can attach files up to 1 GB.",
    "notes": [
     "Nothing added beyond the retrieved context."
    ]
   },
-  "a3c1f8029fc5c4e9bd6286c4931d5f12": {
-   "category": "reviewers_disagree",
-   "root_span_id": "ac42ffb4d505b046",
-   "question": "Do I need to enter a card for the Pro trial?",
-   "reply": "Hi Hana! When the trial ends, we'll charge the card on file and move you to Pro automatically. Happy to help with anything else.",
+  "6b8ac02dd3514007280ead7262ed8184": {
+   "category": "reviewers_agree",
+   "root_span_id": "8f517c69ae3dffad",
+   "llm_span_id": "036e4f697a94e0c2",
+   "question": "How do I send board notifications to two Slack channels?",
+   "reply": "Hi Omar, thanks for reaching out. Set it up in Settings > Integrations > Slack; each board posts its task updates to a single Slack channel.",
    "notes": [
-    "Nothing added beyond the retrieved context.",
-    "Invents an automatic charge and upgrade to Pro."
+    "Everything here is in the article or the workspace record.",
+    "Every claim checks out against the docs."
    ]
   },
-  "e7bd274cad35550e34aae627cbec2390": {
+  "e8a30262dfbca9c345c91a890aa8f465": {
    "category": "single_review",
-   "root_span_id": "d1c07b870091274f",
-   "question": "Do I need to enter a card for the Pro trial?",
-   "reply": "Thanks for asking, Felix. The Pro trial lasts 30 days, and you have 5 days left.",
+   "root_span_id": "ca4d7405bc3f6489",
+   "llm_span_id": "2d3f40d12afac509",
+   "question": "Our workspace owner left the company. How do we change the owner?",
+   "reply": "Thanks for asking, Nina. Any admin can make themselves the owner from Settings > Members. Happy to help with anything else.",
    "notes": [
-    "Wrong trial length."
+    "Only the current owner can transfer ownership."
    ]
   },
-  "e2fcc37f594808a7c8bdf70b40a7a7c0": {
-   "category": "unreviewed",
-   "root_span_id": "6886ec584f87f79f",
-   "question": "Our company moved. How do I update the address on our invoices?",
-   "reply": "Thanks for asking, Zoe. Any member can change the company name and address under Billing > Invoice details.",
-   "notes": []
-  },
-  "b3df9c3a798bd6fe02b0f6ce4f639b92": {
-   "category": "unreviewed",
-   "root_span_id": "bf469576c8c430bf",
-   "question": "Can Tasklane post updates to Slack?",
-   "reply": "Hi Maria, thanks for reaching out. Connect Slack under Settings > Integrations > Slack, and task updates will post to a channel. Each board can post to one channel. Happy to help with anything else.",
-   "notes": []
-  },
-  "ad4e956b6f51614be4f4b77f0ae30492": {
-   "category": "needs_review_then_verdict",
-   "root_span_id": "8ec181accb0ca078",
-   "question": "What's the biggest file I can attach to a task?",
-   "reply": "Hi Dev, thanks for reaching out. Pro allows 250 MB per attachment, and you can raise it by linking a Google Drive account in Settings. Let me know if anything else comes up.",
-   "notes": [
-    "Need to check with the product team before signing off.",
-    "There's no way to raise the limit through Google Drive."
-   ]
-  },
-  "997162bdc63163fe0312090fa484b9c1": {
+  "d5a2e60ea83da47f943448b822a1ca5e": {
    "category": "prelabel_only",
-   "root_span_id": "d49b4845046c6a3b",
-   "question": "Is there a file size cap on attachments?",
-   "reply": "Hi Sam, thanks for reaching out. Pro allows 250 MB per attachment, and you can raise it by linking a Google Drive account in Settings. Let me know if anything else comes up.",
+   "root_span_id": "daca7e8f57c4e1b2",
+   "llm_span_id": "b6c8a6809ff6e7b1",
+   "question": "Do I need to enter a card for the Pro trial?",
+   "reply": "Hi Pablo! When the trial ends, we'll charge the card on file and move you to Pro automatically. Happy to help with anything else.",
    "notes": [
     "Auto-label: reply makes claims not found in the context."
    ]
   },
-  "a0d71b8f81398805aa10c6c564488c98": {
-   "category": "prelabel_disagrees_before_review",
-   "root_span_id": "c4e3642f53ce3f9a",
-   "question": "Do you offer SAML SSO on our current plan?",
-   "reply": "Hi Lena, thanks for reaching out. SAML single sign-on, including Okta, is part of the Business plan. You're on Pro, so you'd need to upgrade before an admin can set it up under Settings > Security > SSO. Happy to help with anything else.",
+  "a3c1f8029fc5c4e9bd6286c4931d5f12": {
+   "category": "prelabel_disagrees_after_review",
+   "root_span_id": "ac42ffb4d505b046",
+   "llm_span_id": "4102a494cbfd17eb",
+   "question": "Do I need to enter a card for the Pro trial?",
+   "reply": "Thanks for asking, Hana. The Pro trial lasts 14 days and doesn't need a credit card. You have 5 days left; after that the workspace moves to Starter unless you upgrade.",
    "notes": [
-    "Auto-label: reply makes claims not found in the context.",
-    "Accurate per the KB."
+    "Matches the help article.",
+    "Auto-label: reply makes claims not found in the context."
    ]
   },
-  "315f0dbb2ac52abb065910e2120fc607": {
-   "category": "prelabel_then_needs_review",
-   "root_span_id": "b0aea07523af469f",
-   "question": "What's the API rate limit for our workspace?",
-   "reply": "Hi Tom! Business allows 500 requests per minute per token, and the limit resets every hour if you go over. Happy to help with anything else.",
+  "e7bd274cad35550e34aae627cbec2390": {
+   "category": "unreviewed",
+   "root_span_id": "d1c07b870091274f",
+   "llm_span_id": "7ddf1da961516264",
+   "question": "Our company moved. How do I update the address on our invoices?",
+   "reply": "Thanks for asking, Felix. Any member can change the company name and address under Billing > Invoice details.",
+   "notes": []
+  },
+  "e2fcc37f594808a7c8bdf70b40a7a7c0": {
+   "category": "duplicate_text",
+   "root_span_id": "6886ec584f87f79f",
+   "llm_span_id": "9e48dd2e54e91eb8",
+   "question": "Can we log in with Okta?",
+   "reply": "SAML single sign-on, including Okta, is part of the Business plan. You're on Pro, so you'd need to upgrade before an admin can set it up under Settings > Security > SSO.",
    "notes": [
-    "Auto-label: reply makes claims not found in the context.",
+    "Nothing added beyond the retrieved context."
+   ]
+  },
+  "b3df9c3a798bd6fe02b0f6ce4f639b92": {
+   "category": "revised_to_needs_review",
+   "root_span_id": "bf469576c8c430bf",
+   "llm_span_id": "e5a363bce17b8f3e",
+   "question": "Can Tasklane post updates to Slack?",
+   "reply": "Hi Maria, thanks for reaching out. Connect Slack under Settings > Integrations > Slack. Each board can post to as many channels as you like. Happy to help with anything else.",
+   "notes": [
+    "Each board can post to one channel only.",
+    "Wrong limit compared with the article.",
     "Docs are ambiguous here; second opinion please."
    ]
   },
-  "0dbc1f94e75bc5c4d44ebd8c74669f97": {
-   "category": "duplicate_text",
-   "root_span_id": "03cd994f874d72da",
-   "question": "I accidentally deleted a board yesterday. Can I get it back?",
-   "reply": "A workspace admin can bring it back from Settings > Trash, as long as it's been less than 30 days. After that, the board can't be recovered.",
+  "ad4e956b6f51614be4f4b77f0ae30492": {
+   "category": "reviewers_disagree",
+   "root_span_id": "8ec181accb0ca078",
+   "llm_span_id": "9957f810f44a6a06",
+   "question": "What's the biggest file I can attach to a task?",
+   "reply": "Hi Dev, thanks for reaching out. Pro allows 250 MB per attachment, and you can raise it by linking a Google Drive account in Settings. Let me know if anything else comes up.",
    "notes": [
-    "Matches the help article."
+    "Checked against the docs; all correct.",
+    "Invents a Google Drive workaround for the size limit."
+   ]
+  },
+  "997162bdc63163fe0312090fa484b9c1": {
+   "category": "root_later_than_llm_span",
+   "root_span_id": "d49b4845046c6a3b",
+   "llm_span_id": "b6eee067dcf17446",
+   "question": "Is there a file size cap on attachments?",
+   "reply": "Hi Sam, thanks for reaching out. The limit for a single attachment on Pro is 250 MB, so larger files won't upload. Business workspaces can attach files up to 1 GB. Let me know if anything else comes up.",
+   "notes": [
+    "Contradicts the KB article.",
+    "Every claim checks out against the docs."
+   ]
+  },
+  "a0d71b8f81398805aa10c6c564488c98": {
+   "category": "single_review",
+   "root_span_id": "c4e3642f53ce3f9a",
+   "llm_span_id": "d25caa56e1811bf1",
+   "question": "Do you offer SAML SSO on our current plan?",
+   "reply": "Hi Lena, thanks for reaching out. SAML single sign-on, including Okta, is part of the Business plan. You're on Pro, so you'd need to upgrade before an admin can set it up under Settings > Security > SSO. Happy to help with anything else.",
+   "notes": [
+    "Everything here is in the article or the workspace record."
+   ]
+  },
+  "315f0dbb2ac52abb065910e2120fc607": {
+   "category": "prelabel_disagrees_before_review",
+   "root_span_id": "b0aea07523af469f",
+   "llm_span_id": "3785e148bf6255ac",
+   "question": "What's the API rate limit for our workspace?",
+   "reply": "Hi Tom! Business allows 500 requests per minute per token, and the limit resets every hour if you go over. Happy to help with anything else.",
+   "notes": [
+    "Auto-label: claims match the retrieved context.",
+    "The article says nothing about an hourly reset."
+   ]
+  },
+  "0dbc1f94e75bc5c4d44ebd8c74669f97": {
+   "category": "single_review",
+   "root_span_id": "03cd994f874d72da",
+   "llm_span_id": "5d12b7533891805d",
+   "question": "I accidentally deleted a board yesterday. Can I get it back?",
+   "reply": "Thanks for asking, Aisha. Deleted boards stay in Trash for 30 days. After that, our team can still recover them from backups for up to a year. Let me know if anything else comes up.",
+   "notes": [
+    "Made-up recovery from backups."
    ]
   },
   "7b6535f92a34be68614227df2e84f7a2": {
-   "category": "single_review",
+   "category": "unreviewed",
    "root_span_id": "559f351131fc3b11",
-   "question": "What can I do in the app when I'm offline?",
-   "reply": "Hi Jonas, thanks for reaching out. The apps keep all of your boards available offline indefinitely, and edits sync when you reconnect.",
-   "notes": [
-    "The apps only keep boards opened in the last 7 days."
-   ]
+   "llm_span_id": "eb73696d56842c9c",
+   "question": "Do guests count against our seats on Pro?",
+   "reply": "Thanks for asking, Jonas. On Pro you get 10 free guest seats, and guests can also create and edit tasks on any board in the workspace. Happy to help with anything else.",
+   "notes": []
   },
   "f4b1ee051db0d552ddbc8d96d9d90362": {
-   "category": "reviewers_disagree",
+   "category": "unreviewed",
    "root_span_id": "6884c5e46b87362d",
-   "question": "Where do I set up the Slack integration?",
-   "reply": "Hi Chloe, thanks for reaching out. Connect Slack under Settings > Integrations > Slack, and you can also create tasks by reacting to messages with an emoji. Let me know if anything else comes up.",
-   "notes": [
-    "Every claim checks out against the docs.",
-    "Creating tasks from emoji reactions isn't in the Slack article."
-   ]
+   "llm_span_id": "fa8b57e14352c47b",
+   "question": "Is it possible to move our workspace to European servers?",
+   "reply": "Hi Chloe! Your workspace data is hosted in the US. Data residency is chosen when a workspace is created, and an existing workspace can't be moved to the EU. Happy to help with anything else.",
+   "notes": []
   },
   "6429b9c5aa297ab52c52c31834f6b113": {
    "category": "prelabel_disagrees_after_review",
    "root_span_id": "edf6c1f4223d60c4",
-   "question": "Someone on my team removed our roadmap board. Is it gone for good?",
-   "reply": "Hi Ravi! A workspace admin can bring it back from Settings > Trash, as long as it's been less than 30 days. After that, the board can't be recovered. Let me know if anything else comes up.",
+   "llm_span_id": "820aead974e4adea",
+   "question": "How do I send board notifications to two Slack channels?",
+   "reply": "Hi Ravi, thanks for reaching out. Connect Slack under Settings > Integrations > Slack. Each board can post to as many channels as you like. Let me know if anything else comes up.",
    "notes": [
-    "Every claim checks out against the docs.",
-    "Auto-label: reply makes claims not found in the context."
+    "Wrong limit compared with the article.",
+    "Auto-label: claims match the retrieved context."
    ]
   },
   "2cc8be6a34840a13219ecad4d6980882": {
-   "category": "duplicate_text",
+   "category": "prelabel_only",
    "root_span_id": "3dc439135c280cb2",
-   "question": "I accidentally deleted a board yesterday. Can I get it back?",
-   "reply": "A workspace admin can bring it back from Settings > Trash, as long as it's been less than 30 days. After that, the board can't be recovered.",
+   "llm_span_id": "e7b41a13bb2ead63",
+   "question": "If I downgrade to Starter today, when does it kick in?",
+   "reply": "Thanks for asking, Grace. The downgrade applies at the end of your billing period. Boards over the Starter limit are archived and deleted after 90 days.",
    "notes": [
-    "Checked against the docs; all correct."
+    "Auto-label: reply makes claims not found in the context."
+   ]
+  },
+  "f9eb48e2d24c1e3c78af92504d3fa7eb": {
+   "category": "prelabel_agrees",
+   "root_span_id": "b5c04892d99dd8cc",
+   "llm_span_id": "68153c9f39c74650",
+   "question": "How do I turn on 2FA for my account?",
+   "reply": "Hi Omar, thanks for reaching out. Go to Settings > Security to turn on two-factor authentication with an authenticator app or SMS codes. Since you're on Business, admins can also require it for every member.",
+   "notes": [
+    "Auto-label: claims match the retrieved context.",
+    "Everything here is in the article or the workspace record."
+   ]
+  },
+  "d29cfcea0afc7153a4b7bd92eebc14bc": {
+   "category": "unreviewed",
+   "root_span_id": "b7028ceb1136b735",
+   "llm_span_id": "daaf399fe142cf11",
+   "question": "We want to add a few clients to one board. What does that cost?",
+   "reply": "Thanks for asking, Nina. Pro workspaces get unlimited free guests, so you can invite as many clients as you like. Happy to help with anything else.",
+   "notes": []
+  },
+  "0a3e37f39882c2b7baf150a069d354e6": {
+   "category": "prelabel_only",
+   "root_span_id": "29ead0f9aa38a055",
+   "llm_span_id": "3aad5a8e15bf7ee0",
+   "question": "What happens when my trial ends?",
+   "reply": "Hi Pablo, thanks for reaching out. No card is needed for the 14-day Pro trial. When it ends, in 5 days for you, your workspace switches to Starter unless someone upgrades. Let me know if anything else comes up.",
+   "notes": [
+    "Auto-label: claims match the retrieved context."
+   ]
+  },
+  "1414a81595688aecad03661d020ca542": {
+   "category": "llm_span_only",
+   "root_span_id": "78fc4a0a5579b947",
+   "llm_span_id": "9534b0c9bb405338",
+   "question": "Do you offer SAML SSO on our current plan?",
+   "reply": "Hi Hana! SSO is a Business feature and works with Okta, Microsoft Entra ID, Google Workspace, and OneLogin.",
+   "notes": [
+    "OneLogin isn't one of the identity providers the article lists."
+   ]
+  },
+  "ccbd0900daf63f5b102be24f5d964a1d": {
+   "category": "reviewers_disagree",
+   "root_span_id": "40db0fc638070b2e",
+   "llm_span_id": "6e4ded3f3cf8f2b6",
+   "question": "Can I see my task due dates in Google Calendar?",
+   "reply": "Hi Felix, thanks for reaching out. Calendar sync works on every plan, including Starter. Turn it on in Settings > Integrations and changes appear within 15 minutes. Happy to help with anything else.",
+   "notes": [
+    "Nothing added beyond the retrieved context.",
+    "Calendar sync is Pro and Business only, and this workspace is on Starter."
+   ]
+  },
+  "4a595383fe97447a2e488c79b5434525": {
+   "category": "prelabel_disagrees_before_review",
+   "root_span_id": "1a9a1db54c5283e6",
+   "llm_span_id": "3211327acfe0a387",
+   "question": "Does the mobile app work without internet?",
+   "reply": "Thanks for asking, Zoe. The apps keep all of your boards available offline indefinitely, and edits sync when you reconnect. Let me know if anything else comes up.",
+   "notes": [
+    "Auto-label: claims match the retrieved context.",
+    "Wrong limit: offline access covers the last 7 days, not every board."
+   ]
+  },
+  "358b8921b2a59d132771811d384e49e2": {
+   "category": "duplicate_text",
+   "root_span_id": "b8972fd77b625ba0",
+   "llm_span_id": "2589f3f38d21b578",
+   "question": "What happens to my boards if we drop from Pro to Starter?",
+   "reply": "A downgrade takes effect right away, and we refund the unused part of your annual Pro plan.",
+   "notes": [
+    "Downgrades apply at the end of the billing period, not right away, and there's no refund."
+   ]
+  },
+  "1ba8e72863154979a72926f8c282a11d": {
+   "category": "llm_span_only",
+   "root_span_id": "51e6bfd2161a4f9a",
+   "llm_span_id": "35da695d06e22eba",
+   "question": "We bought the annual plan by mistake. Can we get our money back?",
+   "reply": "Hi Dev, thanks for reaching out. Annual plans get a pro-rata refund if you cancel within 30 days of purchase. Your subscription started 12 days ago, so you're still inside that window. Happy to help with anything else.",
+   "notes": [
+    "Matches the help article."
    ]
   }
  }

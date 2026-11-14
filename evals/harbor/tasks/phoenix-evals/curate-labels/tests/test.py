@@ -1,7 +1,7 @@
 """Grades `curate-labels`: `grounding-golden` holds exactly the eligible reviewed traces.
 
-A trace is eligible when its latest human `review` is `supported` or `unsupported`.
-Every check must pass:
+A trace is eligible when its latest human `review`, on any of its spans, is `supported`
+or `unsupported`. Every check must pass:
 
 1. `linked`: every example links to one trace in `support-bot-reviews`, through
    Phoenix's span link or a `span_id` or `trace_id` in its metadata.

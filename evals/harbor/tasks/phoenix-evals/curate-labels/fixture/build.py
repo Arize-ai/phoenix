@@ -1,6 +1,6 @@
 """Build the reviewed support-bot traces for `curate-labels`.
 
-Writes `fixture/spec.json` (90 support-bot traces and their `review` annotations, which
+Writes `fixture/spec.json` (98 support-bot traces and their `review` annotations, which
 the agent sees in Phoenix) and `tests/truth.json` (which traces belong in the dataset,
 their verdicts, and the text the verifier looks for). Run from the repository root:
 
@@ -12,6 +12,11 @@ human verdict matches its reply by construction: a `supported` reply restates on
 help article and workspace record, and an `unsupported` reply adds or contradicts a fact.
 Earlier reviews and pre-labels that disagree are the wrong ones. A human `unsupported`
 verdict on a bad reply carries a note that names that reply's own mistake.
+
+Most reviews sit on the root span, but some sit on the trace's LLM span. A revision is a
+second write by the same reviewer to the same span. Phoenix keeps one annotation per
+name, span, and identifier, so a revision updates the first review in place: its
+`created_at` stays and its `updated_at` moves to the revision time.
 """
 
 from __future__ import annotations
@@ -806,12 +811,16 @@ PRELABEL_NOTES = {
 
 # Review rounds, written in this order. Human reviews in round 1 come before those in
 # round 2, with other annotations written between them (see `other_annotations`).
-EARLY_PRELABEL, FIRST_REVIEW, SECOND_REVIEW, LATE_PRELABEL = 0, 1, 2, 3
+# Revisions come after every second review. `bridge` makes each round boundary a
+# boundary in time too.
+EARLY_PRELABEL, FIRST_REVIEW, SECOND_REVIEW, REVISION, LATE_PRELABEL = range(5)
+# The span a review sits on. Pre-labels always sit on the root span.
+ROOT, LLM_SPAN = "root", "llm"
 
 # Category: (count, included in the dataset). Each category's review history is built
 # in `review_history`.
 CATEGORIES: dict[str, tuple[int, bool]] = {
-    "single_review": (23, True),
+    "single_review": (15, True),
     "reviewers_agree": (3, True),
     "reviewers_disagree": (6, True),
     "needs_review_then_verdict": (4, True),
@@ -819,11 +828,17 @@ CATEGORIES: dict[str, tuple[int, bool]] = {
     "prelabel_disagrees_after_review": (4, True),
     "prelabel_agrees": (4, True),
     "duplicate_text": (4, True),
+    "revised_verdict": (4, True),
+    "llm_span_only": (4, True),
+    "llm_span_later": (4, True),
+    "root_later_than_llm_span": (4, True),
     "verdict_then_needs_review": (4, False),
     "needs_review_only": (3, False),
-    "prelabel_only": (13, False),
+    "prelabel_only": (10, False),
     "prelabel_then_needs_review": (3, False),
-    "unreviewed": (15, False),
+    "revised_to_needs_review": (4, False),
+    "llm_span_later_needs_review": (3, False),
+    "unreviewed": (11, False),
 }
 FORBIDDEN_IN_TEXT = re.compile(r"supported|needs.?review|grounded", re.IGNORECASE)
 
@@ -832,44 +847,102 @@ def flip(label: str) -> str:
     return UNSUPPORTED if label == SUPPORTED else SUPPORTED
 
 
-def review_history(category: str, truth: str, rng: random.Random) -> list[tuple[int, str, str]]:
-    """Returns (round, reviewer, label) for each `review` annotation on one trace."""
+def review_history(
+    category: str, truth: str, variant: int, rng: random.Random
+) -> list[tuple[int, str, str, str]]:
+    """Returns (round, reviewer, label, span) for each `review` annotation on one trace.
+
+    `variant` (0 or 1) picks between two versions of some categories, such as whether
+    the second reviewer gives the wrong verdict or `needs_review`.
+    """
     first, second = rng.sample(HUMANS, 2)
     early_or_late = rng.choice([EARLY_PRELABEL, LATE_PRELABEL])
+    wrong_or_open = NEEDS_REVIEW if variant else flip(truth)
     histories = {
-        "single_review": [(FIRST_REVIEW, first, truth)],
-        "duplicate_text": [(FIRST_REVIEW, first, truth)],
-        "reviewers_agree": [(FIRST_REVIEW, first, truth), (SECOND_REVIEW, second, truth)],
+        "single_review": [(FIRST_REVIEW, first, truth, ROOT)],
+        "duplicate_text": [(FIRST_REVIEW, first, truth, ROOT)],
+        "reviewers_agree": [
+            (FIRST_REVIEW, first, truth, ROOT),
+            (SECOND_REVIEW, second, truth, ROOT),
+        ],
         "reviewers_disagree": [
-            (FIRST_REVIEW, first, flip(truth)),
-            (SECOND_REVIEW, second, truth),
+            (FIRST_REVIEW, first, flip(truth), ROOT),
+            (SECOND_REVIEW, second, truth, ROOT),
         ],
         "needs_review_then_verdict": [
-            (FIRST_REVIEW, first, NEEDS_REVIEW),
-            (SECOND_REVIEW, second, truth),
+            (FIRST_REVIEW, first, NEEDS_REVIEW, ROOT),
+            (SECOND_REVIEW, second, truth, ROOT),
         ],
         "prelabel_disagrees_before_review": [
-            (EARLY_PRELABEL, PRELABELER, flip(truth)),
-            (FIRST_REVIEW, first, truth),
+            (EARLY_PRELABEL, PRELABELER, flip(truth), ROOT),
+            (FIRST_REVIEW, first, truth, ROOT),
         ],
         "prelabel_disagrees_after_review": [
-            (FIRST_REVIEW, first, truth),
-            (LATE_PRELABEL, PRELABELER, flip(truth)),
+            (FIRST_REVIEW, first, truth, ROOT),
+            (LATE_PRELABEL, PRELABELER, flip(truth), ROOT),
         ],
-        "prelabel_agrees": [(early_or_late, PRELABELER, truth), (FIRST_REVIEW, first, truth)],
+        "prelabel_agrees": [
+            (early_or_late, PRELABELER, truth, ROOT),
+            (FIRST_REVIEW, first, truth, ROOT),
+        ],
+        # The first reviewer changes their verdict after the second reviewer has weighed
+        # in, so the latest review by creation time is the second reviewer's.
+        "revised_verdict": [
+            (FIRST_REVIEW, first, flip(truth), ROOT),
+            (SECOND_REVIEW, second, wrong_or_open, ROOT),
+            (REVISION, first, truth, ROOT),
+        ],
+        "llm_span_only": [(FIRST_REVIEW, first, truth, LLM_SPAN)]
+        + ([(early_or_late, PRELABELER, flip(truth), ROOT)] if variant else []),
+        "llm_span_later": [
+            (FIRST_REVIEW, first, wrong_or_open, ROOT),
+            (SECOND_REVIEW, second, truth, LLM_SPAN),
+        ],
+        "root_later_than_llm_span": [
+            (FIRST_REVIEW, first, wrong_or_open, LLM_SPAN),
+            (SECOND_REVIEW, second, truth, ROOT),
+        ],
         "verdict_then_needs_review": [
-            (FIRST_REVIEW, first, truth),
-            (SECOND_REVIEW, second, NEEDS_REVIEW),
+            (FIRST_REVIEW, first, truth, ROOT),
+            (SECOND_REVIEW, second, NEEDS_REVIEW, ROOT),
         ],
-        "needs_review_only": [(FIRST_REVIEW, first, NEEDS_REVIEW)],
-        "prelabel_only": [(early_or_late, PRELABELER, truth)],
+        "needs_review_only": [(FIRST_REVIEW, first, NEEDS_REVIEW, ROOT)],
+        "prelabel_only": [(early_or_late, PRELABELER, truth, ROOT)],
         "prelabel_then_needs_review": [
-            (early_or_late, PRELABELER, truth),
-            (FIRST_REVIEW, first, NEEDS_REVIEW),
+            (early_or_late, PRELABELER, truth, ROOT),
+            (FIRST_REVIEW, first, NEEDS_REVIEW, ROOT),
+        ],
+        # The first reviewer reopens a trace that both reviewers had given a verdict.
+        "revised_to_needs_review": [
+            (FIRST_REVIEW, first, truth, ROOT),
+            (SECOND_REVIEW, second, flip(truth) if variant else truth, ROOT),
+            (REVISION, first, NEEDS_REVIEW, ROOT),
+        ],
+        "llm_span_later_needs_review": [
+            (FIRST_REVIEW, first, truth, ROOT),
+            (SECOND_REVIEW, second, NEEDS_REVIEW, LLM_SPAN),
         ],
         "unreviewed": [],
     }
     return histories[category]
+
+
+def bridge(earlier: list[dict[str, Any]], later: list[dict[str, Any]]) -> None:
+    """Moves a pair of writes to the same span to the end of `earlier` and start of `later`.
+
+    The seeder waits for the next second before it writes an annotation name to a span a
+    second time. With that pair at the boundary, every write in `later` gets a later
+    second than every write in `earlier`, even writes to different spans of one trace.
+    `earlier[0]` is never moved, because it may anchor the previous boundary.
+    """
+    keys = [(a["name"], a["span_id"]) for a in later]
+    for index in range(len(earlier) - 1, 0, -1):
+        key = (earlier[index]["name"], earlier[index]["span_id"])
+        if key in keys:
+            earlier.append(earlier.pop(index))
+            later.insert(0, later.pop(keys.index(key)))
+            return
+    raise ValueError("no span has a review in both rounds")
 
 
 def review_note(label: str, defect_notes: list[str], written: list[str], rng: random.Random) -> str:
@@ -891,7 +964,17 @@ def plan_cases(rng: random.Random) -> list[dict[str, Any]]:
             pair = index // 2 if category == "duplicate_text" else None
             position = pair if pair is not None else index
             truth = SUPPORTED if position % 2 == 0 else UNSUPPORTED
-            cases.append({"category": category, "included": included, "truth": truth, "pair": pair})
+            # Variants alternate in pairs, so each variant gets both verdicts.
+            variant = (index // 2) % 2
+            cases.append(
+                {
+                    "category": category,
+                    "included": included,
+                    "truth": truth,
+                    "pair": pair,
+                    "variant": variant,
+                }
+            )
     rng.shuffle(cases)
     return cases
 
@@ -945,9 +1028,8 @@ def build_trace(
 def other_annotations(trace: Trace, rng: random.Random) -> list[dict[str, Any]]:
     """Returns end-user feedback and nightly evals on a trace, none of which are reviews.
 
-    They also put about 430 writes between the two human review rounds. Phoenix stores
-    annotation timestamps to the second, so the gap keeps a second review from sharing a
-    timestamp with the first.
+    They're written between the two human review rounds, the way nightly jobs and user
+    feedback arrive while reviewers work.
     """
     tool, retriever, llm = (span["context"]["span_id"] for span in trace.children)
     found: list[dict[str, Any]] = []
@@ -1022,7 +1104,7 @@ def main() -> None:
     cases = plan_cases(rng)
     texts = write_texts(cases, rng)
     spans: list[dict[str, Any]] = []
-    rounds: dict[int, list[dict[str, Any]]] = {r: [] for r in range(4)}
+    rounds: dict[int, list[dict[str, Any]]] = {r: [] for r in range(5)}
     between_rounds: list[dict[str, Any]] = []
     truth_traces: dict[str, dict[str, Any]] = {}
     eligible: dict[str, str] = {}
@@ -1030,8 +1112,10 @@ def main() -> None:
         built = build_trace(index, case, text, rng)
         trace = built["trace"]
         spans.extend(trace.spans)
+        span_ids = {ROOT: trace.root_id, LLM_SPAN: trace.children[2]["context"]["span_id"]}
         notes = []
-        for round_, reviewer, label in review_history(case["category"], case["truth"], rng):
+        history = review_history(case["category"], case["truth"], case["variant"], rng)
+        for round_, reviewer, label, on in history:
             human = reviewer != PRELABELER
             if human:
                 note = review_note(label, text["defect_notes"], notes, rng)
@@ -1041,7 +1125,7 @@ def main() -> None:
             result: dict[str, Any] = {"label": label, "explanation": note}
             annotation: dict[str, Any] = {
                 "name": REVIEW,
-                "span_id": trace.root_id,
+                "span_id": span_ids[on],
                 "annotator_kind": "HUMAN" if human else "LLM",
                 "identifier": reviewer,
                 "result": result,
@@ -1056,6 +1140,7 @@ def main() -> None:
         truth_traces[trace.trace_id] = {
             "category": case["category"],
             "root_span_id": trace.root_id,
+            "llm_span_id": span_ids[LLM_SPAN],
             "question": text["question"],
             "reply": text["reply"],
             "notes": notes,
@@ -1066,9 +1151,11 @@ def main() -> None:
 
     for written_together in rounds.values():
         rng.shuffle(written_together)
+    bridge(rounds[FIRST_REVIEW], rounds[SECOND_REVIEW])
+    bridge(rounds[SECOND_REVIEW], rounds[REVISION])
     ordered = (
         rounds[EARLY_PRELABEL] + rounds[FIRST_REVIEW] + between_rounds
-        + rounds[SECOND_REVIEW] + rounds[LATE_PRELABEL]
+        + rounds[SECOND_REVIEW] + rounds[REVISION] + rounds[LATE_PRELABEL]
     )  # fmt: skip
     write_json(HERE / "spec.json", {"projects": {PROJECT: spans}, "span_annotations": ordered})
     write_json(

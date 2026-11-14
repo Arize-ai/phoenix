@@ -10,10 +10,14 @@ Both tasks get the same request. In `judge-trust`, the judge agrees with reviewe
 most traces but misses many unsafe replies, so it shouldn't block traffic yet. In
 `judge-trust-ready`, a better judge catches nearly all of them with few false alarms.
 
-The judge annotates the LLM span and reviewers annotate the root span, so the two line
-up only by trace. Failed judge runs have no label and sit only on traces reviewers
-labeled safe (or didn't review), so they change neither recall nor precision however
-they're counted.
+The judge annotates the LLM span, so it lines up with reviewers' labels only by trace.
+Reviewers switched tools partway through: the first 50 reviews are on the root span,
+and the last 30 are trace annotations. The request says 80 traces were reviewed, so an
+agent that reads only span annotations can tell it's missing some. Its numbers differ
+from the full sample's by more than the verifier's tolerance in both tasks, and in
+`judge-trust-ready` they miss the recall bar. Failed judge runs have no label and sit
+only on traces reviewers labeled safe (or didn't review), so counting them as `safe`
+verdicts gives the same numbers.
 """
 
 from __future__ import annotations
@@ -24,7 +28,7 @@ import sys
 from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 HERE = Path(__file__).resolve().parent
 TASKS = HERE.parents[1]
@@ -34,10 +38,15 @@ from support_traces import BASE, Trace, write_json  # noqa: E402
 PROJECT = "support-chat"
 TRACES = 120
 REVIEWED = 80
+REVIEWED_IN_NEW_TOOL = 30
 FAILED_ON_REVIEWED = 3
 UNREVIEWED_UNSAFE = 6
 MIN_RECALL = 0.9
 MAX_FALSE_ALARM_SHARE = 0.25
+TOLERANCE = 0.011  # How far a stated number can be from the expected one and still pass.
+INSTRUCTION_COUNT = f"our reviewers have labeled {REVIEWED} of the same traces"
+COUNT_KEYS = ("scored", "true_positive", "false_negative", "false_positive", "true_negative",
+              "accuracy")  # fmt: skip
 SYSTEM_PROMPT = (
     "You are the customer support assistant for an online store that sells smart-home "
     "devices, e-bikes, and small appliances. Answer questions about orders, billing, "
@@ -49,6 +58,15 @@ SYSTEM_PROMPT = (
 )
 
 
+class Cells(NamedTuple):
+    """Reviewed traces by outcome; true negatives make up the rest."""
+
+    caught: int
+    missed: int
+    false_alarms: int
+    failed: int
+
+
 @dataclass(frozen=True)
 class Variant:
     task: str
@@ -58,13 +76,16 @@ class Variant:
     false_alarms: int
     judge_version: str
     catches_subtle: bool
+    new_tool: Cells  # The reviews logged as trace annotations.
 
 
 VARIANTS = (
     Variant("judge-trust", 7, reviewed_unsafe=12, caught=7, false_alarms=2,
-            judge_version="safety-judge-v2", catches_subtle=False),
+            judge_version="safety-judge-v2", catches_subtle=False,
+            new_tool=Cells(caught=2, missed=3, false_alarms=0, failed=1)),
     Variant("judge-trust-ready", 19, reviewed_unsafe=14, caught=13, false_alarms=3,
-            judge_version="safety-judge-v3", catches_subtle=True),
+            judge_version="safety-judge-v3", catches_subtle=True,
+            new_tool=Cells(caught=5, missed=0, false_alarms=1, failed=1)),
 )  # fmt: skip
 
 # Each template is one kind of chat. `clear` is the judge's explanation when it labels
@@ -650,7 +671,7 @@ def build_variant(variant: Variant) -> tuple[dict[str, Any], dict[str, Any]]:
 
     spans: list[dict[str, Any]] = []
     judge_rows: list[dict[str, Any]] = []
-    human_rows: list[dict[str, Any]] = []
+    human_rows: list[tuple[Trace, dict[str, Any]]] = []
     cases: dict[str, dict[str, Any]] = {}
     for index in range(TRACES):
         slots = fill(rng, index)
@@ -707,13 +728,15 @@ def build_variant(variant: Variant) -> tuple[dict[str, Any], dict[str, Any]]:
             if human_label == "unsafe":
                 human["explanation"] = template["note"]
             human_rows.append(
-                {
-                    "span_id": trace.root_id,
-                    "name": "human_safety",
-                    "annotator_kind": "HUMAN",
-                    "result": human,
-                    "metadata": {"reviewer": rng.choice(REVIEWERS)},
-                }
+                (
+                    trace,
+                    {
+                        "name": "human_safety",
+                        "annotator_kind": "HUMAN",
+                        "result": human,
+                        "metadata": {"reviewer": rng.choice(REVIEWERS)},
+                    },
+                )
             )
         cases[trace.trace_id] = {
             "reviewed": index in reviewed,
@@ -721,60 +744,124 @@ def build_variant(variant: Variant) -> tuple[dict[str, Any], dict[str, Any]]:
             "judge": judge_label,
         }
 
-    # Reviewers labeled their sample after the judge ran, in random order.
+    # Reviewers labeled their sample after the judge ran, in random order. Partway
+    # through they moved to a review tool that logs trace annotations; the seeder writes
+    # trace annotations after span annotations, so those reviews are the newest.
     rng.shuffle(human_rows)
+    new_tool = new_tool_reviews(variant, cases)
+    for trace_id, case in cases.items():
+        case["review_logged_on"] = (
+            ("trace" if trace_id in new_tool else "root_span") if case["reviewed"] else None
+        )
     spec = {
         "projects": {PROJECT: spans},
-        "span_annotations": judge_rows + human_rows,
+        "span_annotations": judge_rows
+        + [{"span_id": t.root_id, **row} for t, row in human_rows if t.trace_id not in new_tool],
+        "trace_annotations": [
+            {"trace_id": t.trace_id, **row} for t, row in human_rows if t.trace_id in new_tool
+        ],
     }
     return spec, truth_for(variant, cases)
 
 
-def truth_for(variant: Variant, cases: dict[str, dict[str, Any]]) -> dict[str, Any]:
-    scored = [c for c in cases.values() if c["human"] and c["judge"]]
+def outcome(case: dict[str, Any]) -> str:
+    """Names the confusion cell of a reviewed trace, matching the fields of `Cells`."""
+    if case["judge"] is None:
+        return "failed"
+    if case["human"] == "unsafe":
+        return "caught" if case["judge"] == "unsafe" else "missed"
+    return "false_alarms" if case["judge"] == "unsafe" else "agreed_safe"
+
+
+def new_tool_reviews(variant: Variant, cases: dict[str, dict[str, Any]]) -> set[str]:
+    """Picks the reviewed traces whose labels are logged as trace annotations."""
+    rng = random.Random(f"{variant.seed}:new-tool")
+    by_outcome: dict[str, list[str]] = {}
+    for trace_id, case in sorted(cases.items()):
+        if case["reviewed"]:
+            by_outcome.setdefault(outcome(case), []).append(trace_id)
+    wanted = variant.new_tool._asdict()
+    wanted["agreed_safe"] = REVIEWED_IN_NEW_TOOL - sum(variant.new_tool)
+    return {t for name, n in wanted.items() for t in rng.sample(by_outcome.get(name, []), n)}
+
+
+def score(cases: list[dict[str, Any]]) -> dict[str, Any]:
+    """Confusion counts and the user's two metrics over traces with both labels."""
+    scored = [c for c in cases if c["human"] and c["judge"]]
     tp = sum(c["human"] == "unsafe" and c["judge"] == "unsafe" for c in scored)
     fn = sum(c["human"] == "unsafe" and c["judge"] == "safe" for c in scored)
     fp = sum(c["human"] == "safe" and c["judge"] == "unsafe" for c in scored)
     tn = sum(c["human"] == "safe" and c["judge"] == "safe" for c in scored)
     recall, precision = tp / (tp + fn), tp / (tp + fp)
     turn_on = recall >= MIN_RECALL and 1 - precision <= MAX_FALSE_ALARM_SHARE
+    return {
+        "decision": "turn_on" if turn_on else "dont_turn_on",
+        "unsafe_recall": round(recall, 4),
+        "unsafe_precision": round(precision, 4),
+        "reviewed": sum(bool(c["human"]) for c in cases),
+        "scored": len(scored),
+        "true_positive": tp,
+        "false_negative": fn,
+        "false_positive": fp,
+        "true_negative": tn,
+        "accuracy": round((tp + tn) / len(scored), 4),
+    }
+
+
+def truth_for(variant: Variant, cases: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    full = score(list(cases.values()))
+    span_only = score([c for c in cases.values() if c["review_logged_on"] != "trace"])
     failed_on_reviewed = [c for c in cases.values() if c["human"] and not c["judge"]]
     assert all(c["human"] == "safe" for c in failed_on_reviewed)
-    assert (tp, fn, fp) == (
+    assert (full["true_positive"], full["false_negative"], full["false_positive"]) == (
         variant.caught,
         variant.reviewed_unsafe - variant.caught,
         variant.false_alarms,
     )
-    assert turn_on == (variant.task == "judge-trust-ready")
+    assert full["decision"] == (
+        "turn_on" if variant.task == "judge-trust-ready" else "dont_turn_on"
+    )
+    # Reading only span annotations has to give numbers the verifier rejects.
+    assert span_only["reviewed"] == REVIEWED - REVIEWED_IN_NEW_TOOL
+    assert any(
+        abs(span_only[metric] - full[metric]) > TOLERANCE
+        for metric in ("unsafe_recall", "unsafe_precision")
+    )
+    instruction = (TASKS / variant.task / "instruction.md").read_text()
+    assert INSTRUCTION_COUNT in instruction, f"{variant.task}: say how many were reviewed"
     return {
         "project": PROJECT,
         "expected": {
-            "decision": "turn_on" if turn_on else "dont_turn_on",
-            "unsafe_recall": round(recall, 4),
-            "unsafe_precision": round(precision, 4),
+            metric: full[metric] for metric in ("decision", "unsafe_recall", "unsafe_precision")
         },
         "counts": {
             "traces": len(cases),
-            "reviewed": sum(c["reviewed"] for c in cases.values()),
+            "reviewed": full["reviewed"],
+            "reviewed_on_root_span": span_only["reviewed"],
+            "reviewed_on_trace": full["reviewed"] - span_only["reviewed"],
             "judge_failed_on_reviewed": len(failed_on_reviewed),
-            "scored": len(scored),
-            "true_positive": tp,
-            "false_negative": fn,
-            "false_positive": fp,
-            "true_negative": tn,
-            "accuracy": round((tp + tn) / len(scored), 4),
+            **{k: v for k, v in full.items() if k in COUNT_KEYS},
         },
+        # What an agent that reads only span annotations would find; it must not pass.
+        "span_annotations_only": span_only,
         "traces": cases,
     }
 
 
 def main() -> None:
+    truths = {}
     for variant in VARIANTS:
         spec, truth = build_variant(variant)
         task = TASKS / variant.task
         write_json(task / "fixture" / "spec.json", spec)
         write_json(task / "tests" / "truth.json", truth)
+        truths[variant.task] = truth
         print(variant.task, json.dumps(truth["expected"]), json.dumps(truth["counts"]))
+        print("  span annotations only:", json.dumps(truth["span_annotations_only"]))
+    # In at least one twin, the span-only numbers also lead to the wrong decision.
+    assert any(
+        t["span_annotations_only"]["decision"] != t["expected"]["decision"] for t in truths.values()
+    )
 
 
 if __name__ == "__main__":

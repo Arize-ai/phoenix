@@ -2,31 +2,221 @@
  "dataset": "support-regression",
  "expected": {
   "decision": "ship",
-  "v7_safety_pass_rate": 0.8333,
-  "v8_safety_pass_rate": 0.9167,
-  "v7_overall_pass_rate": 0.75,
-  "v8_overall_pass_rate": 0.8542
+  "v7_safety_pass_rate": 0.8611,
+  "v8_safety_pass_rate": 0.9444,
+  "v7_overall_pass_rate": 0.8333,
+  "v8_overall_pass_rate": 0.9375
  },
- "alternatives": {
-  "v7_overall_pass_rate": 0.766,
-  "v8_overall_pass_rate": 0.8723
+ "alternatives": [
+  {
+   "v7_safety_pass_rate": 0.8611,
+   "v8_safety_pass_rate": 0.9444,
+   "v7_overall_pass_rate": 0.8392,
+   "v8_overall_pass_rate": 0.9441
+  },
+  {
+   "v7_safety_pass_rate": 0.75,
+   "v8_safety_pass_rate": 0.8333,
+   "v7_overall_pass_rate": 0.7083,
+   "v8_overall_pass_rate": 0.8542
+  },
+  {
+   "v7_safety_pass_rate": 0.75,
+   "v8_safety_pass_rate": 0.8333,
+   "v7_overall_pass_rate": 0.7234,
+   "v8_overall_pass_rate": 0.8723
+  }
+ ],
+ "readings": {
+  "per_run": {
+   "accepted": true,
+   "decision": "ship",
+   "v7_safety_pass_rate": 0.8611,
+   "v8_safety_pass_rate": 0.9444,
+   "v7_overall_pass_rate": 0.8333,
+   "v8_overall_pass_rate": 0.9375
+  },
+  "per_run_without_errors": {
+   "accepted": true,
+   "decision": "ship",
+   "v7_safety_pass_rate": 0.8611,
+   "v8_safety_pass_rate": 0.9444,
+   "v7_overall_pass_rate": 0.8392,
+   "v8_overall_pass_rate": 0.9441
+  },
+  "mean_of_case_rates_without_errors": {
+   "accepted": true,
+   "decision": "ship",
+   "v7_safety_pass_rate": 0.8611,
+   "v8_safety_pass_rate": 0.9444,
+   "v7_overall_pass_rate": 0.8333,
+   "v8_overall_pass_rate": 0.9375
+  },
+  "all_pass": {
+   "accepted": true,
+   "decision": "ship",
+   "v7_safety_pass_rate": 0.75,
+   "v8_safety_pass_rate": 0.8333,
+   "v7_overall_pass_rate": 0.7083,
+   "v8_overall_pass_rate": 0.8542
+  },
+  "all_pass_without_errored_cases": {
+   "accepted": true,
+   "decision": "ship",
+   "v7_safety_pass_rate": 0.75,
+   "v8_safety_pass_rate": 0.8333,
+   "v7_overall_pass_rate": 0.7234,
+   "v8_overall_pass_rate": 0.8723
+  },
+  "all_pass_ignoring_errors": {
+   "accepted": true,
+   "decision": "ship",
+   "v7_safety_pass_rate": 0.75,
+   "v8_safety_pass_rate": 0.8333,
+   "v7_overall_pass_rate": 0.7083,
+   "v8_overall_pass_rate": 0.8542
+  },
+  "repetition_1": {
+   "accepted": false,
+   "decision": "ship",
+   "v7_safety_pass_rate": 0.8333,
+   "v8_safety_pass_rate": 1.0,
+   "v7_overall_pass_rate": 0.8125,
+   "v8_overall_pass_rate": 0.9792
+  },
+  "repetition_2": {
+   "accepted": false,
+   "decision": "ship",
+   "v7_safety_pass_rate": 0.9167,
+   "v8_safety_pass_rate": 0.9167,
+   "v7_overall_pass_rate": 0.875,
+   "v8_overall_pass_rate": 0.9167
+  },
+  "repetition_3": {
+   "accepted": false,
+   "decision": "ship",
+   "v7_safety_pass_rate": 0.8333,
+   "v8_safety_pass_rate": 0.9167,
+   "v7_overall_pass_rate": 0.8125,
+   "v8_overall_pass_rate": 0.9167
+  },
+  "repetition_1_without_errors": {
+   "accepted": false,
+   "decision": "ship",
+   "v7_safety_pass_rate": 0.8333,
+   "v8_safety_pass_rate": 1.0,
+   "v7_overall_pass_rate": 0.8125,
+   "v8_overall_pass_rate": 1.0
+  },
+  "repetition_2_without_errors": {
+   "accepted": false,
+   "decision": "ship",
+   "v7_safety_pass_rate": 0.9167,
+   "v8_safety_pass_rate": 0.9167,
+   "v7_overall_pass_rate": 0.8936,
+   "v8_overall_pass_rate": 0.9167
+  },
+  "repetition_3_without_errors": {
+   "accepted": false,
+   "decision": "ship",
+   "v7_safety_pass_rate": 0.8333,
+   "v8_safety_pass_rate": 0.9167,
+   "v7_overall_pass_rate": 0.8125,
+   "v8_overall_pass_rate": 0.9167
+  },
+  "majority": {
+   "accepted": false,
+   "decision": "ship",
+   "v7_safety_pass_rate": 0.9167,
+   "v8_safety_pass_rate": 1.0,
+   "v7_overall_pass_rate": 0.8958,
+   "v8_overall_pass_rate": 0.9792
+  },
+  "majority_without_errors": {
+   "accepted": false,
+   "decision": "ship",
+   "v7_safety_pass_rate": 0.9167,
+   "v8_safety_pass_rate": 1.0,
+   "v7_overall_pass_rate": 0.8958,
+   "v8_overall_pass_rate": 0.9792
+  },
+  "majority_without_errors_ties_pass": {
+   "accepted": false,
+   "decision": "ship",
+   "v7_safety_pass_rate": 0.9167,
+   "v8_safety_pass_rate": 1.0,
+   "v7_overall_pass_rate": 0.8958,
+   "v8_overall_pass_rate": 0.9792
+  },
+  "any_pass": {
+   "accepted": false,
+   "decision": "ship",
+   "v7_safety_pass_rate": 0.9167,
+   "v8_safety_pass_rate": 1.0,
+   "v7_overall_pass_rate": 0.8958,
+   "v8_overall_pass_rate": 0.9792
+  }
  },
  "counts": {
   "prompt-v7": {
-   "passed": 36,
-   "of": 48,
-   "safety_passed": 10,
-   "billing_passed": 12,
-   "shipping_passed": 14,
-   "errored_case": "sr-025"
+   "overall": {
+    "runs_passed": 120,
+    "runs": 144,
+    "cases_passing_every_repetition": 34,
+    "cases": 48
+   },
+   "safety": {
+    "runs_passed": 31,
+    "runs": 36,
+    "cases_passing_every_repetition": 9,
+    "cases": 12
+   },
+   "billing": {
+    "runs_passed": 40,
+    "runs": 54,
+    "cases_passing_every_repetition": 10,
+    "cases": 18
+   },
+   "shipping": {
+    "runs_passed": 49,
+    "runs": 54,
+    "cases_passing_every_repetition": 15,
+    "cases": 18
+   },
+   "errored_run": {
+    "case_id": "sr-016",
+    "repetition": 2
+   }
   },
   "prompt-v8": {
-   "passed": 41,
-   "of": 48,
-   "safety_passed": 11,
-   "billing_passed": 17,
-   "shipping_passed": 13,
-   "errored_case": "sr-032"
+   "overall": {
+    "runs_passed": 135,
+    "runs": 144,
+    "cases_passing_every_repetition": 41,
+    "cases": 48
+   },
+   "safety": {
+    "runs_passed": 34,
+    "runs": 36,
+    "cases_passing_every_repetition": 10,
+    "cases": 12
+   },
+   "billing": {
+    "runs_passed": 53,
+    "runs": 54,
+    "cases_passing_every_repetition": 17,
+    "cases": 18
+   },
+   "shipping": {
+    "runs_passed": 48,
+    "runs": 54,
+    "cases_passing_every_repetition": 14,
+    "cases": 18
+   },
+   "errored_run": {
+    "case_id": "sr-041",
+    "repetition": 1
+   }
   }
  }
 }

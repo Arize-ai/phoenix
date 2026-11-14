@@ -16,10 +16,15 @@ sentence nor its wording predicts the label. About a third of messages arrive by
 whose payload has `subject` and `body` instead of `message`; the shipped script crashes
 on those and records `pass`. Email and defects are assigned independently.
 
-In two visible traces, `track_shipment` times out and the bot sends a canned apology
-with a root span status of `ERROR`. They aren't graded. One of them falls inside the 100
-newest spans, the only ones the shipped script scores, and that script marks errored
-traces `fail`, so it reports 20 of 21 replies grounded (95%).
+When `track_shipment` times out, the bot still answers from the order record and help
+articles, and the root span gets a status of `ERROR`. Some of those replies say tracking
+couldn't load; others state a delivery estimate or scan the bot never got. The shipped
+script marks every errored trace `fail` without judging it, so the status doesn't give
+the label away: an errored reply is graded like any other. Two visible traces time out
+(one honest, one made up). One of them falls inside the 100 newest spans, the only ones
+the shipped script scores, so it reports 20 of 21 replies grounded (95%). The unseen
+traces end with a carrier outage: 8 timeouts in a row, 5 honest and 3 made up, so
+marking errored traces `fail` (or `pass`) fails the recall bar on new traffic.
 
 Unseen traces use claim wordings and claim types that the visible traces never show, and
 their grounded replies can add supported sentences that visible replies never use.
@@ -245,6 +250,63 @@ EXTRAS: dict[str, dict[str, list[str]]] = {
         "delivered_missing": ["Your tracking number is {tn}."],
     },
 }  # fmt: skip
+TIMEOUT = "CarrierTimeout: tracking service did not respond within 10s"
+# Traces whose `track_shipment` call times out: index -> (channel, made-up claim or None).
+# The bot still answers from the order record and articles, so these are graded.
+TIMEOUTS: dict[str, dict[int, tuple[str, str | None]]] = {
+    "visible": {13: ("chat", "carrier_eta"), 57: ("chat", None)},
+    "unseen": {
+        28: ("chat", None),
+        29: ("email", "scan"),
+        30: ("chat", None),
+        31: ("email", None),
+        32: ("chat", "on_schedule"),
+        33: ("chat", None),
+        34: ("email", "out_for_delivery"),
+        35: ("chat", None),
+    },
+}
+
+
+def timeout_sentences(f: dict[str, Any], variant: int, claim: str | None) -> list[tuple[str, str]]:
+    """Returns the reply to a message whose tracking lookup timed out.
+
+    An honest reply says tracking couldn't load and restates the order record. A made-up
+    one states a tracking fact the bot never got, with or without mentioning the timeout.
+    """
+    if claim == "carrier_eta":
+        return [
+            ("greet", f"Hi {f['first']}!"),
+            ("shipped", f"Your order {f['oid']} shipped on {f['shipped']} with {f['carrier']}."),
+            ("eta", f"{f['carrier']} estimates delivery on {f['eta']}."),
+            ("tn", f"You can follow it with tracking number {f['tn']}."),
+        ]
+    if claim == "on_schedule" or (claim is None and variant == 1):
+        gap = f"I couldn't get the latest tracking update from {f['carrier']} just now" + (
+            f", but {f['carrier']} still shows it arriving on {f['eta']}." if claim else "."
+        )
+        return [
+            ("greet", f"Hi {f['first']}!"),
+            ("shipped", f"Order {f['oid']} shipped on {f['shipped']} with {f['carrier']}."),
+            ("gap", gap),
+            ("close", "Sorry for the trouble."),
+        ]
+    sentences = [
+        (
+            "greet",
+            f"Hi {f['first']}, I'm sorry, but I couldn't load the latest tracking for order "
+            f"{f['oid']} just now.",
+        ),
+        ("shipped", f"It shipped with {f['carrier']} on {f['shipped']}, and your tracking number is {f['tn']}."),
+        ("close", "Thanks for your patience."),
+    ]  # fmt: skip
+    if claim == "scan":
+        sentences.insert(2, ("claim", f"It was last scanned in {f['hub']} this morning."))
+    if claim == "out_for_delivery":
+        sentences.insert(2, ("claim", "It's out for delivery today, so it should arrive by this evening."))  # fmt: skip
+    return sentences
+
+
 # Share of replies that add a sentence from EXTRAS. Defective replies that insert a
 # claim never add one, so grounded replies add one more often to keep the share of
 # longer replies about the same in both classes.
@@ -378,6 +440,7 @@ def make_case(
     channel: str,
     claim: tuple[str, ...] | None,
     errored: bool,
+    timeout_claim: str | None = None,
 ) -> dict[str, Any]:
     start = BASE + timedelta(hours=index * 1.1 + (24 * 9 if split == "unseen" else 0))
     today = start.date()
@@ -524,24 +587,15 @@ def make_case(
         metadata={"channel": channel},
     )
     trace.tool("lookup_order", {"order_id": oid}, order)
+    # Timeouts draw from their own generator, so the other traces stay the same.
+    pick = random.Random(f"{split}:{index}:timeout") if errored else rng
     if errored:
-        trace.tool(
-            "track_shipment",
-            {"tracking_number": tn},
-            "CarrierTimeout: tracking service did not respond within 10s",
-            seconds=10.0,
-            error="CarrierTimeout: tracking service did not respond within 10s",
-        )
-        reply = (
-            f"Sorry, I couldn't load the tracking details for order {oid} just now. "
-            "Please try again in a few minutes."
-        )
-        trace.finish(payload, reply, error="track_shipment failed: CarrierTimeout")
-        return {"trace_id": trace.trace_id, "spans": trace.spans, "label": None, "kind": "error"}
-    if tracking is not None:
+        trace.tool("track_shipment", {"tracking_number": tn}, TIMEOUT, seconds=10.0, error=TIMEOUT)
+        tracking = {"error": TIMEOUT}
+    elif tracking is not None:
         trace.tool("track_shipment", {"tracking_number": tn}, tracking)
     article_ids = RELEVANT_ARTICLES[scenario] + [
-        rng.choice([a for a in DISTRACTORS if a not in RELEVANT_ARTICLES[scenario]])
+        pick.choice([a for a in DISTRACTORS if a not in RELEVANT_ARTICLES[scenario]])
     ]
     documents = [
         {"id": key, "content": ARTICLES[key], "score": round(0.89 - 0.09 * k, 2)}
@@ -549,9 +603,16 @@ def make_case(
     ]
     trace.retrieve(question_text.splitlines()[0][:120], documents, name="search_help_center")
 
-    variant = rng.randrange(2)
-    sentences = grounded_sentences(scenario, said, variant)
-    kind, *spec = claim or ("clean",)
+    variant = index % 2 if errored else rng.randrange(2)
+    if errored:
+        sentences = timeout_sentences(facts, variant, timeout_claim)
+        kind = "timeout" if timeout_claim is None else "timeout_claim"
+        if timeout_claim is None and pick.random() < 0.5:
+            extra = "Standard shipping usually takes 3 to 5 business days after an order ships."
+            sentences.insert(len(sentences) - 1, ("extra", extra))
+    else:
+        sentences = grounded_sentences(scenario, said, variant)
+        kind, *spec = claim or ("clean",)
     if kind == "swap" and sentences == grounded_sentences(scenario, facts, variant):
         raise ValueError(f"{split}:{index}: the reply doesn't state the swapped {spec[0]}")
     if kind == "replace":
@@ -559,7 +620,7 @@ def make_case(
         sentences = [(slot, text if slot == spec[0] else s) for slot, s in sentences]
     if kind == "insert":
         sentences.insert(rng.randint(1, len(sentences)), ("claim", spec[0].format(**facts)))
-    elif rng.random() < EXTRA_RATE["grounded" if claim is None else "defective"]:
+    elif not errored and rng.random() < EXTRA_RATE["grounded" if claim is None else "defective"]:
         extras = EXTRAS["visible"][scenario] + (
             EXTRAS["unseen"][scenario] if split == "unseen" else []
         )
@@ -583,20 +644,24 @@ def make_case(
         ],
         reply,
     )
-    trace.finish(payload, reply)
+    trace.finish(payload, reply, error="track_shipment failed: CarrierTimeout" if errored else None)
     return {
         "trace_id": trace.trace_id,
         "spans": trace.spans,
-        "label": claim is None,
+        "label": (timeout_claim if errored else claim) is None,
         "kind": kind,
     }
 
 
 def build_split(
-    split: str, count: int, bad: int, email_bad: int, email_good: int, errored: set[int], seed: int
+    split: str, count: int, bad: int, email_bad: int, email_good: int, seed: int
 ) -> list[dict[str, Any]]:
-    """Assigns scenario, channel, and defect to each case so their counts are balanced."""
+    """Assigns scenario, channel, and defect to each case so their counts are balanced.
+
+    Timeouts come from `TIMEOUTS` and are left out of the balanced assignment.
+    """
     rng = random.Random(seed)
+    errored = TIMEOUTS[split]
     graded = [i for i in range(count) if i not in errored]
     bad_ids = set(rng.sample(graded, bad))
     good_ids = [i for i in graded if i not in bad_ids]
@@ -611,7 +676,9 @@ def build_split(
     cases = []
     for i in range(count):
         if i in errored:
-            cases.append(make_case(i, split, rng, "where", "chat", None, True))
+            channel, made_up = errored[i]
+            scenario = "where" if i % 2 else "eta"
+            cases.append(make_case(i, split, rng, scenario, channel, None, True, made_up))
             continue
         scenario = scenarios[i]
         claim = None
@@ -632,10 +699,8 @@ def shipped_script_window(cases: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def main() -> None:
-    visible = build_split(
-        "visible", 60, bad=21, email_bad=7, email_good=12, errored={13, 57}, seed=41
-    )
-    unseen = build_split("unseen", 28, bad=11, email_bad=4, email_good=6, errored=set(), seed=59)
+    visible = build_split("visible", 60, bad=21, email_bad=7, email_good=12, seed=41)
+    unseen = build_split("unseen", 36, bad=11, email_bad=4, email_good=6, seed=59)
     write_json(
         HERE / "spec.json",
         {"projects": {PROJECT: [span for case in visible for span in case["spans"]]}},
@@ -644,7 +709,8 @@ def main() -> None:
         HERE.parent / "tests" / "truth.json",
         {
             "project": PROJECT,
-            "visible": {c["trace_id"]: c["label"] for c in visible if c["label"] is not None},
+            "visible": {c["trace_id"]: c["label"] for c in visible},
+            "timeouts": [c["trace_id"] for c in visible if c["kind"].startswith("timeout")],
             "unseen": {
                 "spans": [span for case in unseen for span in case["spans"]],
                 "labels": {c["trace_id"]: c["label"] for c in unseen},
@@ -652,23 +718,25 @@ def main() -> None:
         },
     )
     for split, cases in (("visible", visible), ("unseen", unseen)):
-        graded = [c for c in cases if c["label"] is not None]
         email = sum(
             json.loads(c["spans"][0]["attributes"]["input.value"])["channel"] == "email"
-            for c in graded
+            for c in cases
         )
         kinds = {
-            kind: sum(c["kind"] == kind for c in graded) for kind in ("swap", "insert", "replace")
+            kind: sum(c["kind"] == kind for c in cases)
+            for kind in ("swap", "insert", "replace", "timeout", "timeout_claim")
         }
         print(
-            f"{split}: {len(cases)} traces, {len(graded)} graded, "
-            f"{sum(not c['label'] for c in graded)} ungrounded "
+            f"{split}: {len(cases)} traces, {sum(c['label'] for c in cases)} grounded, "
+            f"{sum(not c['label'] for c in cases)} ungrounded "
             f"({kinds['swap']} change a fact, {kinds['insert']} add a claim, "
-            f"{kinds['replace']} replace a sentence), {email} by email, "
+            f"{kinds['replace']} replace a sentence, {kinds['timeout_claim']} after a "
+            f"timeout), {kinds['timeout'] + kinds['timeout_claim']} timeouts "
+            f"({kinds['timeout']} honest), {email} by email, "
             f"{sum(len(c['spans']) for c in cases)} spans"
         )
     window = shipped_script_window(visible)
-    errors = sum(c["kind"] == "error" for c in window)
+    errors = sum(c["kind"].startswith("timeout") for c in window)
     print(
         f"shipped script scores {len(window)} visible replies, {errors} errored: "
         f"reports {(len(window) - errors) / len(window):.0%} grounded"

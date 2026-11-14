@@ -13,11 +13,11 @@ the deliverable is graded, and which mistakes the task is built to catch.
 | [response-evals](response-evals/Task.md) | Build evals for an app spec | One annotation per requirement on every trace, and a rerunnable script |
 | [session-evals](session-evals/Task.md) | Evaluate multi-turn conversations | Two annotations per session, and a rerunnable script |
 | [rag-evals](rag-evals/Task.md) | Separate retrieval and generation failures | Relevance on each retrieved document, groundedness on each answer, and a rerunnable script |
-| [repair-evals](repair-evals/Task.md) | Fix a misleading eval | A corrected nightly script and its rerun |
+| [repair-evals](repair-evals/Task.md) | Fix a misleading eval | A corrected nightly script, its rerun, and a reply that names the bugs and the real rate |
 | [improve-judge](improve-judge/Task.md) | Improve an LLM judge | A judge that agrees with reviewers on traces it never saw |
-| [improve-app](improve-app/Task.md) | Improve an app's prompt with experiments | A new prompt version that follows the handbook on questions it never saw |
+| [improve-app](improve-app/Task.md) | Improve an app's prompt with experiments | A new prompt version that follows the handbook on questions it never saw, and an experiment scored with the baseline's evaluations |
 | [judge-trust](judge-trust/Task.md), [judge-trust-ready](judge-trust-ready/Task.md) | Decide whether to trust a judge | A recommendation backed by the right metrics |
-| [compare-experiments](compare-experiments/Task.md), [compare-experiments-ship](compare-experiments-ship/Task.md) | Compare two experiments | A ship decision backed by the right numbers |
+| [compare-experiments](compare-experiments/Task.md), [compare-experiments-ship](compare-experiments-ship/Task.md) | Compare two experiments | A ship decision backed by the right numbers across repeated runs |
 | [curate-labels](curate-labels/Task.md) | Build a labeled dataset from reviews | A Phoenix dataset with exactly the eligible traces and their labels |
 
 Paired tasks (`judge-trust` and `judge-trust-ready`, and the two comparisons) have the
@@ -28,7 +28,13 @@ same request but opposite correct answers, so a fixed answer can't pass both.
 - **Data lives in Phoenix.** `fixture/build.py` generates `fixture/spec.json`, which
   [`seed_spec.py`](../../environments/fixtures/seed_spec.py) loads into the task's
   Phoenix database during staging. Fixtures are synthetic and built so every label is
-  correct by construction.
+  correct by construction. Experiments can record several repetitions per example, and
+  the seeder checks that each run and evaluation lands on its repetition.
+- **Data looks the way a team's data does.** Human labels can sit on any span of a
+  trace, or on the trace itself: in `judge-trust`, newer reviews are trace annotations,
+  which the Python client can't read, so the reference solution uses the REST route. In
+  `curate-labels`, reviewers revise their own reviews, so the latest review goes by
+  `updated_at`.
 - **Hidden truth lives in `tests/`.** Harbor copies `tests/` into the container only
   for the verifier, as root. The agent never sees labels for graded cases.
 - **The request names the deliverable.** The instruction names the annotation,
@@ -38,8 +44,12 @@ same request but opposite correct answers, so a fixed answer can't pass both.
   the verifier adds new traces the agent never saw, runs the script as the agent user,
   and grades the new annotations. The new traces all start in the last 6 hours, so a
   script that scores only the last day of traffic sees every one, and the rerun gets
-  the same `PHOENIX_ENDPOINT` the agent had. For `improve-app`, it runs the app with the agent's
-  final prompt on new questions. A one-off or overfit result fails.
+  the same `PHOENIX_ENDPOINT` the agent had. In `session-evals`, some new traces
+  continue sessions the agent already scored. They arrive after the agent's last
+  annotation, so the script has to rescore those sessions and judge each one as a whole.
+  For `improve-app`, it runs the app with the agent's final prompt on new questions, and
+  checks that the agent's experiment carries the baseline's four evaluations under the
+  same names. A one-off or overfit result fails.
 - **Judges run on the cheapest model.** Tasks that ask for an LLM judge say the nightly
   job's key can only call `gpt-5-nano`, OpenAI's cheapest model, and the rerun refuses
   any other model. On it, the reference prompts pass and naive prompts (raw span JSON,
@@ -54,9 +64,10 @@ same request but opposite correct answers, so a fixed answer can't pass both.
 
 `reward` is 1 when every check passes and 0 otherwise. Each check is also reported on
 its own, as 1 or 0, under the name in the task's `Task.md`. Checks named `production_*`
-grade the data that was in Phoenix when the agent started. Checks named `new_traces_*`
-or `new_sessions_*` grade the agent's script after the verifier reruns it on data the
-agent never saw.
+grade the data that was in Phoenix when the agent started. Checks named `new_traces_*`,
+`new_sessions_*`, or `continued_sessions_*` grade the agent's script after the verifier
+reruns it on data the agent never saw. Checks named `reply_*` grade the agent's final
+reply.
 
 Every task also reports how the agent worked. None of these change `reward`:
 

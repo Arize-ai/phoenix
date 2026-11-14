@@ -47,16 +47,19 @@ decision and refund amount follow the refund policy for this order.
 [END AGENT REPLY]
 
 First work out what the policy allows for this order. Take facts such as the category,
-final-sale flag, days since delivery, condition, opened flag, price, and shipping from
-the order record, never from the customer's or the agent's account. Apply the rules in
-this order:
+membership, final-sale flag, days since delivery, condition, opened flag, price, and
+shipping from the order record, never from the customer's or the agent's account. The
+policy passages are the rules. A passage for a group of customers, such as members,
+overrides the general rule for the customers it covers. Apply the rules in this order:
 
 1. Gift cards and final-sale items get no refund, even if they arrived damaged.
 2. An item that arrived damaged and was reported within 14 days of delivery gets the
    item price plus the original shipping, with no restocking fee.
-3. Otherwise, a request more than 30 days after delivery gets no refund.
+3. Otherwise, a request after the return window gets no refund. The window is 30 days
+   after delivery, unless a passage gives this customer a longer one.
 4. Otherwise, the refund is the item price only, minus a 15% restocking fee on the item
-   price when the item is opened electronics. Shipping isn't refunded.
+   price when the item is opened electronics, unless a passage waives the fee for this
+   customer. Shipping isn't refunded.
 
 Then find the agent's decision and the refund amount it granted. The decision is
 compliant only if the agent refunds when the policy allows a refund, declines when it

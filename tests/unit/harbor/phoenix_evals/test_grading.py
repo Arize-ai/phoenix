@@ -182,3 +182,51 @@ def test_quote_scattered_across_the_reply_is_rejected() -> None:
     reply = "Recall " + "filler words here " * 20 + "was 0.6 overall."
     claim = {"value": 0.6, "quote": "Recall was 0.6", "contradicted": False}
     assert grading.check_report_claims({"r": claim}, {"r": 0.6}, reply) == {"r": False}
+
+
+def test_good_share_counts_only_clear_predictions() -> None:
+    predictions = {
+        "a": _prediction(True),
+        "b": _prediction(False),
+        "c": _prediction(None),
+        "d": True,
+        "x": _prediction(False),
+    }
+    assert grading.good_share(predictions, ["a", "b", "c", "d", "e"]) == pytest.approx(2 / 3)
+    assert grading.good_share(predictions, ["c", "e"]) is None
+
+
+def test_passing_share_range_matches_the_recall_bar() -> None:
+    truth = {f"g{i}": True for i in range(38)} | {f"b{i}": False for i in range(22)}
+    low, high = grading.passing_share_range(truth, 0.8)
+    assert (low, high) == (31 / 60, 42 / 60)
+    least = {u: u.startswith("b") is False and int(u[1:]) < 31 for u in truth}
+    most = {u: u.startswith("g") or int(u[1:]) < 4 for u in truth}
+    for labels, share in ((least, low), (most, high)):
+        assert grading.agreement(labels, truth).passes(0.8)
+        assert grading.good_share(labels, truth) == share
+
+
+def test_passing_share_range_handles_exact_products() -> None:
+    truth = {f"g{i}": True for i in range(35)} | {f"b{i}": False for i in range(5)}
+    assert grading.passing_share_range(truth, 0.8) == (28 / 40, 36 / 40)
+
+
+@pytest.mark.parametrize(
+    ("claim", "number"),
+    [
+        ({"value": 0.62, "quote": "the rate is 62%", "contradicted": False}, 0.62),
+        ({"value": "62%", "quote": "the rate is 62%", "contradicted": False}, 0.62),
+        ({"value": 62, "quote": "the rate is 62%", "contradicted": False}, 0.62),
+        ({"value": 0.62, "quote": "the rate was 62%", "contradicted": False}, 0.62),
+        ({"value": 0.62, "quote": "the rate is 64%", "contradicted": False}, None),
+        ({"value": 0.62, "quote": "the rate is 62%", "contradicted": True}, None),
+        ({"value": None, "quote": "", "contradicted": False}, None),
+        (None, None),
+    ],
+)
+def test_stated_number_needs_a_quote(claim: dict[str, Any] | None, number: float | None) -> None:
+    reply = "After the fix, the rate is 62% (37 of 60)."
+    assert grading.stated_number(claim, reply, 0.5) == (
+        pytest.approx(number) if number is not None else None
+    )

@@ -4,11 +4,17 @@ An LLM extracts five claims from the final reply, each with a verbatim quote, wi
 seeing the expected values. All five must match `truth.json`:
 
 1. `decision`: ship v8, or don't.
-2. `v7_safety_pass_rate` and `v8_safety_pass_rate`: the share of the safety slice each
-   experiment's `correct` evaluator passed.
-3. `v7_overall_pass_rate` and `v8_overall_pass_rate`: the share of all examples each
-   experiment passed. Each experiment has one errored run outside the safety slice, so
-   either reading passes: counted as a failure, or left out of the denominator.
+2. `v7_safety_pass_rate` and `v8_safety_pass_rate`: each experiment's pass rate on the
+   safety slice.
+3. `v7_overall_pass_rate` and `v8_overall_pass_rate`: each experiment's pass rate on all
+   examples.
+
+Each experiment ran every example three times, and every run has its own `correct`
+evaluation. Two readings of a pass rate pass: the share of runs that passed, and the
+share of examples that passed every repetition. Each experiment has one errored run
+outside the safety slice, so the overall rates also pass with that run left out.
+`truth.json` lists these values under `expected` and `alternatives`. A rate from one
+repetition per example, or a majority vote per example, matches none of them.
 
 Numbers pass within 0.011, so rounding to a whole percent is fine. An empty reply fails
 without a model call.
@@ -49,8 +55,8 @@ details = {"reply_source": source, "reply": reply[-4000:], "expected": EXPECTED}
 checks = dict.fromkeys(EXPECTED, False)
 if reply.strip():
     claims = grading.extract_report_claims(reply, FIELDS)
-    found = grading.check_report_claims(claims, EXPECTED, reply)
-    alternative = grading.check_report_claims(claims, TRUTH["alternatives"], reply)
-    checks = {name: found[name] or alternative.get(name, False) for name in EXPECTED}
+    readings = [EXPECTED, *TRUTH["alternatives"]]
+    found = [grading.check_report_claims(claims, reading, reply) for reading in readings]
+    checks = {name: any(match.get(name, False) for match in found) for name in EXPECTED}
     details["claims"] = claims
 grading.finish(checks, details)

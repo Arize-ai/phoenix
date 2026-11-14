@@ -1,15 +1,19 @@
 """Reference solution: check `safety_judge` against reviewers' `human_safety` labels.
 
-The judge annotates each trace's LLM span and reviewers annotate the root span, so the
+The judge annotates each trace's LLM span. Reviewers' labels are on the root span for
+older reviews and on the trace itself for newer ones, so both kinds are read and the
 labels are matched by trace. Only traces with a reviewer label and a judge label count.
 Failed judge runs have no label; the reply reports them and leaves them out.
 """
 
 from __future__ import annotations
 
+import json
+import urllib.parse
+import urllib.request
 from typing import Any
 
-from harbor_verifiers.phoenix_api import client, project_spans, write_answer
+from harbor_verifiers.phoenix_api import PHOENIX_URL, client, project_spans, write_answer
 
 PROJECT = "support-chat"
 MIN_RECALL = 0.9
@@ -17,23 +21,49 @@ MAX_FALSE_ALARM_SHARE = 0.25
 LABELS = ("safe", "unsafe")
 
 
+def trace_annotations(trace_ids: list[str], name: str) -> list[dict[str, Any]]:
+    """Reads trace annotations `name` from the REST API; the client has no reader for them."""
+    rows: list[dict[str, Any]] = []
+    for start in range(0, len(trace_ids), 100):
+        cursor: str | None = None
+        while True:
+            params: dict[str, Any] = {
+                "trace_ids": trace_ids[start : start + 100],
+                "include_annotation_names": [name],
+                "limit": 1000,
+            }
+            if cursor:
+                params["cursor"] = cursor
+            url = (
+                f"{PHOENIX_URL}/v1/projects/{urllib.parse.quote(PROJECT)}/trace_annotations?"
+                + urllib.parse.urlencode(params, doseq=True)
+            )
+            with urllib.request.urlopen(url, timeout=60) as response:
+                page = json.load(response)
+            rows.extend(page["data"])
+            cursor = page.get("next_cursor")
+            if not cursor:
+                break
+    return rows
+
+
 def latest_by_trace(spans: list[Any], name: str) -> dict[str, dict[str, Any]]:
-    """Maps trace ID to the latest annotation `name` on any span of the trace."""
+    """Maps trace ID to the latest annotation `name` on the trace or any of its spans."""
     trace_of = {s["context"]["span_id"]: s["context"]["trace_id"] for s in spans}
     span_ids = sorted(trace_of)
     rows: list[dict[str, Any]] = []
     for start in range(0, len(span_ids), 100):
-        rows.extend(
-            client().spans.get_span_annotations(
-                span_ids=span_ids[start : start + 100],
-                project_identifier=PROJECT,
-                include_annotation_names=[name],
-                limit=1000,
-            )
-        )
+        for row in client().spans.get_span_annotations(
+            span_ids=span_ids[start : start + 100],
+            project_identifier=PROJECT,
+            include_annotation_names=[name],
+            limit=1000,
+        ):
+            rows.append({**row, "trace_id": trace_of[row["span_id"]]})
+    rows.extend(trace_annotations(sorted(set(trace_of.values())), name))
     latest: dict[str, dict[str, Any]] = {}
     for row in sorted(rows, key=lambda r: str(r.get("updated_at") or "")):
-        latest[trace_of[row["span_id"]]] = dict(row)
+        latest[row["trace_id"]] = dict(row)
     return latest
 
 
@@ -56,6 +86,8 @@ def main() -> None:
     judge = latest_by_trace(spans, "safety_judge")
     human = latest_by_trace(spans, "human_safety")
     reviewed = {t: label(row) for t, row in human.items() if label(row) in LABELS}
+    on_span = sum("span_id" in human[t] for t in reviewed)
+    on_trace = len(reviewed) - on_span
     failed = sorted(t for t in reviewed if label(judge.get(t)) not in LABELS)
     scored = sorted(t for t in reviewed if t not in failed)
 
@@ -114,8 +146,9 @@ def main() -> None:
         "safe, so this stays high even for a judge that misses unsafe replies; the two "
         "numbers above are the ones that matter.",
         "",
-        f"How I counted: the judge annotates each trace's LLM span and reviewers annotate the "
-        f"root span, so I matched them by trace. {len(reviewed)} traces have a `human_safety` "
+        f"How I counted: the judge annotates each trace's LLM span. Reviewers' labels are on "
+        f"the root span for {on_span} traces and on the trace itself for {on_trace}, so I read "
+        f"both and matched everything by trace. {len(reviewed)} traces have a `human_safety` "
         f"label; {failed_note}. That leaves {len(scored)} traces: {tp + fn} unsafe and "
         f"{fp + tn} safe per reviewers.",
     ]

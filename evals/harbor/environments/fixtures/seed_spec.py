@@ -16,9 +16,11 @@ Spec keys, all optional:
 - `prompts`: `[{name, description, versions: [{messages, model_name, model_provider,
   template_format, description}]}]`. Versions are created in order; the last is latest.
 - `datasets`: `[{name, description, examples: [{input, output, metadata}]}]`.
-- `experiments`: `[{dataset, name, description, metadata, runs: [{case_id, output,
-  error, evaluations: {name: {score, label, explanation}}}]}]`. Runs match dataset
-  examples by `metadata.case_id`.
+- `experiments`: `[{dataset, name, description, metadata, runs: [{case_id, repetition,
+  output, error, evaluations: {name: {score, label, explanation}}}]}]`. Runs match
+  dataset examples by `metadata.case_id`. `repetition` is optional and defaults to 1.
+  The experiment gets as many repetitions as the highest one, and every example needs a
+  run for each repetition.
 """
 
 from __future__ import annotations
@@ -35,6 +37,7 @@ import sys
 import tempfile
 import time
 import urllib.request
+from collections import Counter
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -203,15 +206,26 @@ def _create_prompt(client: Any, spec: dict[str, Any]) -> None:
 
 
 def _replay_experiment(client: Any, spec: dict[str, Any]) -> None:
-    """Records an experiment whose outputs and evaluations come from the spec."""
-    dataset = client.datasets.get_dataset(dataset=spec["dataset"])
-    runs = {run["case_id"]: run for run in spec["runs"]}
+    """Records an experiment whose outputs and evaluations come from the spec.
 
-    def case_id(metadata: dict[str, Any]) -> str:
-        return str(metadata["case_id"])
+    The task doesn't receive its repetition number, but the client runs an example's
+    repetitions one after another, so the task counts calls per example. Each evaluator
+    finds its run by the trace ID of the task that produced it. `_check_replay` reads the
+    experiment back and fails if any run or evaluation landed on the wrong repetition.
+    """
+    from opentelemetry import trace
+
+    dataset = client.datasets.get_dataset(dataset=spec["dataset"])
+    runs = {(str(run["case_id"]), run.get("repetition", 1)): run for run in spec["runs"]}
+    calls: Counter[str] = Counter()
+    run_of_trace: dict[str, dict[str, Any]] = {}
 
     def task(metadata: dict[str, Any]) -> Any:
-        run = runs[case_id(metadata)]
+        case_id = str(metadata["case_id"])
+        calls[case_id] += 1
+        run = runs[(case_id, calls[case_id])]
+        trace_id = trace.get_current_span().get_span_context().trace_id
+        run_of_trace[format(trace_id, "032x")] = run
         if run.get("error"):
             raise RuntimeError(run["error"])
         return run["output"]
@@ -219,8 +233,8 @@ def _replay_experiment(client: Any, spec: dict[str, Any]) -> None:
     names = sorted({name for run in spec["runs"] for name in run.get("evaluations", {})})
 
     def evaluator_for(name: str) -> Any:
-        def evaluate(metadata: dict[str, Any]) -> dict[str, Any] | None:
-            result = runs[case_id(metadata)].get("evaluations", {}).get(name)
+        def evaluate(trace_id: str) -> dict[str, Any] | None:
+            result = run_of_trace[trace_id].get("evaluations", {}).get(name)
             if result is None:
                 raise RuntimeError("no recorded evaluation")
             return dict(result)
@@ -228,7 +242,7 @@ def _replay_experiment(client: Any, spec: dict[str, Any]) -> None:
         evaluate.__name__ = name
         return evaluate
 
-    client.experiments.run_experiment(
+    ran = client.experiments.run_experiment(
         dataset=dataset,
         task=task,
         evaluators={name: evaluator_for(name) for name in names},
@@ -236,8 +250,38 @@ def _replay_experiment(client: Any, spec: dict[str, Any]) -> None:
         experiment_description=spec.get("description"),
         experiment_metadata=spec.get("metadata", {}),
         print_summary=False,
+        repetitions=max(repetition for _, repetition in runs),
         retries=0,
     )
+    _check_replay(client, ran["experiment_id"], dataset, runs)
+
+
+def _check_replay(
+    client: Any, experiment_id: str, dataset: Any, runs: dict[tuple[str, int], dict[str, Any]]
+) -> None:
+    """Raises `RuntimeError` if a spec run or evaluation isn't on its example and repetition."""
+    recorded = client.experiments.get_experiment(experiment_id=experiment_id)
+    case_of = {example["id"]: str(example["metadata"]["case_id"]) for example in dataset.examples}
+    evaluations: dict[str, dict[str, Any]] = {}
+    for evaluation in recorded["evaluation_runs"]:
+        evaluations.setdefault(evaluation.experiment_run_id, {})[evaluation.name] = evaluation
+    found = set()
+    for run in recorded["task_runs"]:
+        key = (case_of[run["dataset_example_id"]], run["repetition_number"])
+        want = runs[key]
+        found.add(key)
+        if bool(run.get("error")) != bool(want.get("error")) or (
+            not want.get("error") and json.dumps(run["output"]) != json.dumps(want["output"])
+        ):
+            raise RuntimeError(f"{key}: the recorded output doesn't match the spec")
+        for name, result in want.get("evaluations", {}).items():
+            got = evaluations.get(run["id"], {}).get(name)
+            got_result = (got.result or {}) if got else {}
+            for field in ("score", "label", "explanation"):
+                if got_result.get(field) != result.get(field):
+                    raise RuntimeError(f"{key}: the recorded {name} evaluation doesn't match")
+    if found != set(runs):
+        raise RuntimeError(f"Runs missing from the experiment: {sorted(set(runs) - found)}")
 
 
 def seed(spec_path: Path, output: Path) -> dict[str, Any]:

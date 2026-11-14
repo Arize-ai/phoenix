@@ -1,13 +1,16 @@
 """Reference solution: compare `prompt-v7` and `prompt-v8` overall and on each slice.
 
 Reads both experiments' runs and `correct` evaluations from Phoenix and joins them to
-the dataset examples' `slice` metadata. A run passes when `correct` scored it 1; a run
-that errored or has no evaluation counts as a failure. v8 ships only if it's no worse
-than v7 on the safety slice and better overall.
+the dataset examples' `slice` metadata. Each experiment ran every example several
+times, so every run counts: a pass rate is the share of runs whose `correct`
+evaluation scored 1, and a run that errored or has no evaluation counts as a failure.
+The reply also gives the share of cases that passed every repetition. v8 ships only if
+it's no worse than v7 on the safety slice and better overall.
 """
 
 from __future__ import annotations
 
+from collections import defaultdict
 from typing import Any
 
 from harbor_verifiers.phoenix_api import client, write_answer
@@ -17,23 +20,31 @@ CURRENT, CANDIDATE = "prompt-v7", "prompt-v8"
 SLICES = ("safety", "billing", "shipping")
 
 
-def results(name: str, experiments: dict[str, Any]) -> tuple[dict[str, bool], list[str]]:
-    """Maps example ID to whether the run passed, and lists the example IDs that errored."""
-    ran = client().experiments.get_experiment(experiment_id=experiments[name]["id"])
+def results(experiment_id: str) -> tuple[dict[str, list[bool]], list[tuple[str, int]]]:
+    """Maps example ID to the pass or fail of each of its runs, and lists errored runs."""
+    ran = client().experiments.get_experiment(experiment_id=experiment_id)
     score: dict[str, float] = {}
     for evaluation in ran["evaluation_runs"]:
         if evaluation.name == "correct" and evaluation.result:
             score[evaluation.experiment_run_id] = float(evaluation.result.get("score") or 0)
-    passed = {
-        run["dataset_example_id"]: score.get(run["id"], 0.0) >= 1.0 for run in ran["task_runs"]
-    }
-    errored = [run["dataset_example_id"] for run in ran["task_runs"] if run.get("error")]
+    passed: dict[str, list[bool]] = defaultdict(list)
+    errored = []
+    for run in sorted(ran["task_runs"], key=lambda run: run["repetition_number"]):
+        passed[run["dataset_example_id"]].append(score.get(run["id"], 0.0) >= 1.0)
+        if run.get("error"):
+            errored.append((run["dataset_example_id"], run["repetition_number"]))
     return passed, errored
 
 
-def rate(passed: dict[str, bool], ids: list[str]) -> tuple[int, int, float]:
-    hits = sum(passed.get(i, False) for i in ids)
-    return hits, len(ids), hits / len(ids)
+class Rates:
+    """Pass rates for one experiment on a group of examples."""
+
+    def __init__(self, passed: dict[str, list[bool]], ids: list[str]) -> None:
+        runs = [ok for i in ids for ok in passed.get(i, [])]
+        self.runs_passed, self.runs = sum(runs), len(runs)
+        self.per_run = self.runs_passed / self.runs
+        self.cases_reliable = sum(bool(passed.get(i)) and all(passed[i]) for i in ids)
+        self.cases = len(ids)
 
 
 def main() -> None:
@@ -47,15 +58,16 @@ def main() -> None:
     ids = sorted({example["id"] for example in dataset.examples})
     by_slice = {s: [i for i in ids if meta[i]["slice"] == s] for s in SLICES}
     experiments = {e["name"]: e for e in phoenix.experiments.list(dataset_id=dataset.id)}
+    repetitions = {name: experiments[name]["repetitions"] for name in (CURRENT, CANDIDATE)}
 
-    runs = {name: results(name, experiments) for name in (CURRENT, CANDIDATE)}
-    overall = {name: rate(runs[name][0], ids) for name in runs}
-    slices = {name: {s: rate(runs[name][0], by_slice[s]) for s in SLICES} for name in runs}
-    v7_safety, v8_safety = slices[CURRENT]["safety"][2], slices[CANDIDATE]["safety"][2]
-    ship = v8_safety >= v7_safety and overall[CANDIDATE][2] > overall[CURRENT][2]
-
-    def summary(name: str, counts: tuple[int, int, float], what: str) -> str:
-        return f"- {name} passed {counts[0]} of {counts[1]} {what} ({counts[2]:.1%})."
+    runs = {name: results(experiments[name]["id"]) for name in (CURRENT, CANDIDATE)}
+    overall = {name: Rates(runs[name][0], ids) for name in runs}
+    slices = {name: {s: Rates(runs[name][0], by_slice[s]) for s in SLICES} for name in runs}
+    v7_safety, v8_safety = slices[CURRENT]["safety"], slices[CANDIDATE]["safety"]
+    ship = (
+        v8_safety.per_run >= v7_safety.per_run
+        and overall[CANDIDATE].per_run > overall[CURRENT].per_run
+    )
 
     if ship:
         verdict = (
@@ -64,57 +76,90 @@ def main() -> None:
         )
     else:
         verdict = (
-            "No, don't ship v8 yet. It passes more cases overall, but it does worse than v7 "
+            "No, don't ship v8 yet. It passes more runs overall, but it does worse than v7 "
             "on the safety cases, which your rule doesn't allow."
         )
-    # One rate per line, so each number has a short quote of its own.
+    reps = " and ".join(sorted({str(n) for n in repetitions.values()}))
     lines = [
         verdict,
         "",
-        summary("v7", slices[CURRENT]["safety"], "safety cases"),
-        summary("v8", slices[CANDIDATE]["safety"], "safety cases"),
-        summary("v7", overall[CURRENT], "cases overall"),
-        summary("v8", overall[CANDIDATE], "cases overall"),
+        f"Each experiment ran every example {reps} times, and every run has its own "
+        "`correct` evaluation, so these pass rates count every run:",
+        "",
+    ]
+
+    # One rate per line, so each number has a short quote of its own.
+    def summary(name: str, rates: Rates, what: str) -> str:
+        return f"- {name} passed {rates.runs_passed} of {rates.runs} {what} ({rates.per_run:.1%})."
+
+    lines += [
+        summary("v7", v7_safety, "safety runs"),
+        summary("v8", v8_safety, "safety runs"),
+        summary("v7", overall[CURRENT], "runs overall"),
+        summary("v8", overall[CANDIDATE], "runs overall"),
     ]
     for s in ("billing", "shipping"):
         lines.append(
-            f"- On {s} cases, v7 passed {slices[CURRENT][s][0]} and v8 passed "
-            f"{slices[CANDIDATE][s][0]} of {slices[CURRENT][s][1]}."
+            f"- On {s} runs, v7 passed {slices[CURRENT][s].runs_passed} and v8 passed "
+            f"{slices[CANDIDATE][s].runs_passed} of {slices[CURRENT][s].runs}."
         )
-    regressions = [
+    lines += [
+        "",
+        "Counting a case only when it passed every repetition gives the same call: "
+        f"v7 passed {v7_safety.cases_reliable} of {v7_safety.cases} safety cases every time "
+        f"and v8 {v8_safety.cases_reliable}, and overall v7 passed "
+        f"{overall[CURRENT].cases_reliable} of {overall[CURRENT].cases} cases every time and "
+        f"v8 {overall[CANDIDATE].cases_reliable}.",
+    ]
+
+    def failures(name: str, i: str) -> int:
+        return sum(not ok for ok in runs[name][0].get(i, []))
+
+    worse = sorted(
         meta[i]["case_id"]
         for i in by_slice["safety"]
-        if runs[CURRENT][0].get(i) and not runs[CANDIDATE][0].get(i)
-    ]
-    fixes = [
+        if failures(CANDIDATE, i) > failures(CURRENT, i)
+    )
+    better = sorted(
         meta[i]["case_id"]
         for i in by_slice["safety"]
-        if runs[CANDIDATE][0].get(i) and not runs[CURRENT][0].get(i)
-    ]
+        if failures(CANDIDATE, i) < failures(CURRENT, i)
+    )
     lines.append("")
-    if regressions:
+    if worse:
+        case_ids = {meta[i]["case_id"]: i for i in by_slice["safety"]}
+        once = sum(failures(CANDIDATE, case_ids[c]) == 1 for c in worse)
         lines.append(
-            f"v8 fails {len(regressions)} safety case(s) that v7 passes: "
-            f"{', '.join(sorted(regressions))}."
+            f"v8 fails {len(worse)} safety case(s) more often than v7: {', '.join(worse)}. "
+            f"In {once} of them it fails only once in {reps} repetitions, so a majority vote "
+            "per case or a single repetition would hide those failures. That's why the "
+            "rates above count every run."
         )
     else:
-        lines.append("v8 doesn't fail any safety case that v7 passes.")
-    if fixes:
-        lines.append(f"It fixes {len(fixes)} that v7 fails: {', '.join(sorted(fixes))}.")
-    worse = [s for s in ("billing", "shipping") if slices[CANDIDATE][s][2] < slices[CURRENT][s][2]]
-    if ship and worse:
-        lines.append(
-            f"v8 is a little worse on {' and '.join(worse)} questions. Your rule covers only "
-            "the safety cases, so that's worth a look after launch but doesn't block it."
-        )
+        lines.append("v8 doesn't fail any safety case more often than v7.")
+    if better:
+        lines.append(f"It fails {len(better)} less often than v7: {', '.join(better)}.")
+    if ship:
+        worse_slices = [
+            s
+            for s in ("billing", "shipping")
+            if slices[CANDIDATE][s].per_run < slices[CURRENT][s].per_run
+        ]
+        if worse_slices:
+            lines.append(
+                f"v8 is a little worse on {' and '.join(worse_slices)} questions. Your rule "
+                "covers only the safety cases, so that's worth a look after launch but "
+                "doesn't block it."
+            )
     errors = [
-        f"{name} errored on {', '.join(sorted(meta[i]['case_id'] for i in runs[name][1]))}"
+        f"{name} errored on "
+        + ", ".join(f"{meta[i]['case_id']} (repetition {rep})" for i, rep in sorted(runs[name][1]))
         for name in runs
         if runs[name][1]
     ]
-    safety_errors = any(meta[i]["slice"] == "safety" for name in runs for i in runs[name][1])
+    safety_errors = any(meta[i]["slice"] == "safety" for name in runs for i, _ in runs[name][1])
     lines.append(
-        "Pass rates use the `correct` evaluator on every example, joined to each example's "
+        "Pass rates use the `correct` evaluator on every run, joined to each example's "
         "`slice` metadata. Runs that errored count as failures"
         + (f" ({'; '.join(errors)})" if errors else "")
         + (", and none of them are safety cases." if errors and not safety_errors else ".")

@@ -340,6 +340,7 @@ def write_app_files() -> None:
             "dataset": DATASET,
             "starting_messages": STARTING_MESSAGES,
             "policy_ids": list(POLICY_IDS),
+            "account_questions": [item["question"] for item in DEV if item["privacy"]],
             "hidden": HIDDEN,
         },
     )

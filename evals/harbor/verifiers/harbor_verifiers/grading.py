@@ -12,6 +12,7 @@ hidden truth. `to_bool` maps common label words to True (the good outcome) or Fa
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import subprocess
@@ -318,6 +319,42 @@ def agreement(
     )
 
 
+def good_share(
+    predictions: Mapping[Unit, Prediction | bool | None], units: Iterable[Unit]
+) -> float | None:
+    """Returns the share of `units` with a clear prediction that are predicted good.
+
+    Units without a prediction, or with an unclear one, are left out of the
+    denominator, the way a script reports the rate over the replies it scored. Returns
+    None if no unit has a clear prediction.
+    """
+    values = []
+    for unit in units:
+        prediction = predictions.get(unit)
+        value = prediction.value if isinstance(prediction, Prediction) else prediction
+        if value is not None:
+            values.append(value)
+    return sum(values) / len(values) if values else None
+
+
+def passing_share_range(truth: Mapping[Hashable, bool], min_recall: float) -> tuple[float, float]:
+    """Returns the lowest and highest good share that labels meeting `min_recall` can give.
+
+    Labels that cover every unit and catch at least `min_recall` of the good units and
+    of the bad units call between ceil(min_recall * good) and good + bad -
+    ceil(min_recall * bad) units good. A reported rate outside this range can't come
+    from labels that pass the per-class recall bar.
+    """
+    if not truth:
+        return 0.0, 1.0
+    good = sum(1 for value in truth.values() if value)
+    bad = len(truth) - good
+    # Subtract a hair so 0.8 * 35, which is 28.000000000000004 in floating point, rounds to 28.
+    least = math.ceil(min_recall * good - 1e-9)
+    most = good + bad - math.ceil(min_recall * bad - 1e-9)
+    return least / len(truth), most / len(truth)
+
+
 # Unseen data and reruns
 
 
@@ -605,6 +642,19 @@ def check_report_claims(
             correct = isinstance(value, str) and value.strip().lower() == str(want).lower()
         checks[name] = bool(quoted and correct and not claim.get("contradicted", True))
     return checks
+
+
+def stated_number(claim: Mapping[str, Any] | None, reply: str, want: float) -> float | None:
+    """Returns the number a claim states, or None if it's missing, unquoted, or contradicted.
+
+    Use it when the expected value isn't one number, for example when a rate must match
+    the agent's own annotations. `want` sets the scale the way `check_report_claims`
+    does: when it's between 0 and 1, a percentage such as "62%" or 62 reads as 0.62.
+    """
+    claim = claim or {}
+    if claim.get("contradicted", True) or not _quoted(claim.get("quote") or "", reply):
+        return None
+    return _as_number(claim.get("value"), want)
 
 
 PHOENIX_SKILLS = ("phoenix-cli", "phoenix-error-analysis", "phoenix-evals", "phoenix-tracing")

@@ -3,8 +3,16 @@
 1. `prompt_updated`: the latest version of the `support-system` prompt in Phoenix differs
    from the starting prompt.
 2. `experiment_recorded`: the `support-questions` dataset has an experiment besides
-   `baseline` with successful runs on at least 80% of the baseline's examples.
-3. `hidden.<behavior>`: the verifier runs a frozen copy of the app with that prompt
+   `baseline` with successful runs on at least 80% of the baseline's examples. The newest
+   such experiment is the agent's experiment, which checks 3 and 4 grade.
+3. `experiment_evaluations`: the agent's experiment carries the baseline's evaluations,
+   so its scores can be compared with the baseline's: `cites_policy`,
+   `under_word_limit`, and `no_false_promises` on at least 80% of its runs, and
+   `account_privacy` on at least 80% of its runs for account questions.
+4. `experiment_code_checks`: the experiment's two code-checkable results are right on at
+   least 90% of the runs they score. `under_word_limit` agrees with the verifier's word
+   count, and `cites_policy` doesn't pass a reply with no tag or an unknown rule ID.
+5. `hidden.<behavior>`: the verifier runs a frozen copy of the app with that prompt
    version on 32 questions the agent never saw and scores each reply with its own checks
    (`support_checks.py`). Each behavior must pass on at least 85% of the questions it
    applies to. The verifier skips this run when check 1 fails.
@@ -57,16 +65,39 @@ def grade_experiments() -> None:
     experiments = evals_state.dataset_experiments(dataset) if dataset else []
     baseline = next((e for e in experiments if e.name == "baseline"), None)
     examples = baseline.example_ids if baseline else frozenset()
-    coverage = {
-        experiment.name or experiment.id: len(
-            examples & {run.example_id for run in experiment.runs if not run.error}
-        )
-        / max(len(examples), 1)
-        for experiment in experiments
-        if experiment is not baseline
+
+    def coverage(experiment: evals_state.Experiment) -> float:
+        succeeded = {run.example_id for run in experiment.runs if not run.error}
+        return len(examples & succeeded) / max(len(examples), 1)
+
+    others = [e for e in experiments if e is not baseline]
+    complete = [e for e in others if coverage(e) >= MIN_EXPERIMENT_COVERAGE]
+    checks["experiment_recorded"] = bool(complete)
+    details["experiments"] = {e.name or e.id: round(coverage(e), 2) for e in others}
+    graded = complete[-1] if complete else None
+    runs = []
+    for run in graded.runs if graded else []:
+        if run.error:
+            continue
+        outcomes: dict[str, bool | None] = {}
+        for evaluation in run.evaluations:
+            if evaluation.error:
+                continue
+            outcome = support_checks.evaluation_outcome(evaluation.score, evaluation.label)
+            if outcome is not None or evaluation.name not in outcomes:
+                outcomes[evaluation.name] = outcome
+        question = str(run.input.get("question", "")) if isinstance(run.input, dict) else ""
+        reply = support_checks.reply_text(run.output)
+        runs.append({"question": question, "reply": reply, "outcomes": outcomes})
+    results, why = support_checks.grade_experiment_runs(
+        runs, TRUTH["account_questions"], TRUTH["policy_ids"]
+    )
+    checks.update(results)
+    details["graded_experiment"] = {
+        "name": graded.name if graded else None,
+        "evaluations": sorted(graded.evaluator_names()) if graded else [],
+        **why,
     }
-    checks["experiment_recorded"] = any(c >= MIN_EXPERIMENT_COVERAGE for c in coverage.values())
-    details["experiments"] = {name: round(c, 2) for name, c in coverage.items()}
 
 
 def grade_hidden(version: Any) -> None:

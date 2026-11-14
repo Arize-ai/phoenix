@@ -11,6 +11,7 @@ import json
 from typing import Any
 
 from openai import OpenAI
+from opentelemetry import trace
 
 SYSTEM_PROMPT = """You are Larkspur Home's support assistant. Answer the customer's question
 about their order, shipping, or delivery. Use only the order record, tracking data, and
@@ -24,8 +25,15 @@ def lookup_order(order_id: str) -> dict[str, Any]:
     raise NotImplementedError("Calls the orders API in production.")
 
 
+class CarrierTimeout(Exception):
+    """The carrier tracking API didn't respond in time."""
+
+
 def track_shipment(tracking_number: str) -> dict[str, Any]:
-    """Returns the carrier's latest tracking event and delivery estimate."""
+    """Returns the carrier's latest tracking event and delivery estimate.
+
+    Raises `CarrierTimeout` if the carrier doesn't respond within 10 seconds.
+    """
     raise NotImplementedError("Calls the carrier tracking API in production.")
 
 
@@ -43,7 +51,17 @@ def question_text(payload: dict[str, Any]) -> str:
 
 def handle_message(payload: dict[str, Any], order_id: str) -> str:
     order = lookup_order(order_id)
-    tracking = track_shipment(order["tracking_number"]) if order.get("tracking_number") else None
+    tracking = None
+    if order.get("tracking_number"):
+        try:
+            tracking = track_shipment(order["tracking_number"])
+        except CarrierTimeout as error:
+            # Still answer from the order record and articles, and mark the trace as an
+            # error so carrier timeouts show up on the on-call dashboard.
+            tracking = {"error": f"CarrierTimeout: {error}"}
+            trace.get_current_span().set_status(
+                trace.Status(trace.StatusCode.ERROR, "track_shipment failed: CarrierTimeout")
+            )
     articles = search_help_center(question_text(payload))
     context = json.dumps(
         {"order": order, "tracking": tracking, "articles": [a["content"] for a in articles]}

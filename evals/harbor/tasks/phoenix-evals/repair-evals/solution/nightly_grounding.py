@@ -43,8 +43,9 @@ For this message, the bot looked up the information below: tool results (the ord
 and carrier tracking data) and help center articles. A claim is grounded only if this \
 information states it or directly implies it. Dates, delivery estimates, tracking events, \
 order status, policies, fees, refunds, credits, and actions the bot says it took or will \
-take all count as claims. Greetings, apologies, sign-offs, and restating the customer's \
-message are not claims.
+take all count as claims. Greetings, apologies, sign-offs, restating the customer's \
+message, and advice that states no new fact are not claims. A fact the information states \
+in other words is still grounded: a tracking event is a scan, for example.
 
 [BEGIN LOOKED-UP INFORMATION]
 {context}

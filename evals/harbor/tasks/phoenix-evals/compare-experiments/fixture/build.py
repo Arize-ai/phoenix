@@ -6,21 +6,35 @@ Writes `fixture/spec.json` (the dataset and two recorded experiments, `prompt-v7
 
     uv run python evals/harbor/tasks/phoenix-evals/compare-experiments/fixture/build.py
 
-Both tasks share the dataset and the request. In `compare-experiments`, v8 passes more
-cases overall but fewer safety cases than v7, so it shouldn't ship. In
-`compare-experiments-ship`, v8 is better overall and on safety, so it should, even
-though it's slightly worse on shipping questions, which the ship rule doesn't cover.
+Both tasks share the dataset and the request. Each experiment ran every example three
+times, the way a team measures a nondeterministic prompt, so each has 144 runs, and
+every run has its own output and its own `correct` evaluation.
 
-Every run has a `correct` evaluation. One billing or shipping run per experiment
-failed with a task error and is graded incorrect; no safety run errors, so the safety
-pass rates have one reading.
+In `compare-experiments`, v8 passes more runs overall but fewer safety runs than v7, so
+it shouldn't ship. Its safety failures are intermittent: no safety case fails in two of
+its three repetitions. A majority vote per example, or any single repetition, makes v8
+look at least as good as v7 on safety, so those readings reach the wrong decision. In
+`compare-experiments-ship`, v8 is at least as good as v7 on safety by every reading and
+better overall, so it should ship, even though it's worse on shipping questions, which
+the ship rule doesn't cover.
+
+Two readings are accepted: the share of runs that passed, and the share of examples
+that passed every repetition. `check()` asserts that both reach the right decision and
+that every other reading, such as one repetition per example or a majority vote, is
+more than the grading tolerance away from every accepted value.
+
+One billing or shipping run per experiment failed with a task error and is graded
+incorrect. It belongs to a case that fails its other repetitions too, so leaving it out
+changes only the denominators. No safety run errors.
 """
 
 from __future__ import annotations
 
 import json
+import math
 import random
 import sys
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -32,38 +46,96 @@ from support_traces import write_json  # noqa: E402
 
 DATASET = "support-regression"
 SLICES = ("safety", "billing", "shipping")
+PROMPTS = ("prompt-v7", "prompt-v8")
+REPETITIONS = 3
+# The verifier's tolerance for a stated rate (`grading.check_report_claims`).
+TOLERANCE = 0.011
+
+Pattern = str
+"""One character per repetition: P if that repetition passed, F if it failed."""
 
 
 @dataclass(frozen=True)
 class Variant:
     task: str
     seed: int
-    # Failing cases per prompt and slice. Each experiment has one errored run, which
-    # counts among its billing or shipping failures.
-    failures: dict[str, dict[str, int]]
-    errored_slice: dict[str, str]
+    # Per slice, how many cases have each pair of (v7, v8) patterns.
+    patterns: dict[str, dict[tuple[Pattern, Pattern], int]]
+    # Per prompt, the errored run: its slice, its case's pattern, and its repetition.
+    errored: dict[str, tuple[str, Pattern, int]]
 
 
 VARIANTS = (
     Variant(
         "compare-experiments",
         seed=5,
-        failures={
-            "prompt-v7": {"safety": 1, "billing": 5, "shipping": 5},
-            "prompt-v8": {"safety": 3, "billing": 1, "shipping": 2},
+        patterns={
+            # v8 fixes the case v7 always fails, but fails 7 cases that v7 always passes,
+            # each in one repetition of three.
+            "safety": {
+                ("FFF", "PPP"): 1,
+                ("FPP", "PPP"): 1,
+                ("PPF", "PPP"): 1,
+                ("PPP", "FPP"): 2,
+                ("PPP", "PFP"): 3,
+                ("PPP", "PPF"): 2,
+                ("PPP", "PPP"): 2,
+            },
+            "billing": {
+                ("FFF", "PPP"): 3,
+                ("FPP", "PPP"): 2,
+                ("PFP", "PPP"): 1,
+                ("PPF", "PPP"): 2,
+                ("PPP", "FPP"): 1,
+                ("PPP", "PPF"): 1,
+                ("PPP", "FPF"): 1,
+                ("PPP", "PPP"): 7,
+            },
+            "shipping": {
+                ("FFF", "PPP"): 1,
+                ("FFF", "FFF"): 1,
+                ("FPP", "PPP"): 1,
+                ("PPF", "PPP"): 1,
+                ("PPP", "FPF"): 2,
+                ("PPP", "PPP"): 12,
+            },
         },
-        errored_slice={"prompt-v7": "shipping", "prompt-v8": "billing"},
+        errored={"prompt-v7": ("billing", "FFF", 2), "prompt-v8": ("shipping", "FFF", 2)},
     ),
     Variant(
         "compare-experiments-ship",
         seed=29,
-        failures={
-            "prompt-v7": {"safety": 2, "billing": 6, "shipping": 4},
-            "prompt-v8": {"safety": 1, "billing": 1, "shipping": 5},
+        patterns={
+            # v8 fails only cases v7 also fails, and never more often.
+            "safety": {
+                ("FFF", "PFP"): 1,
+                ("FPP", "PPF"): 1,
+                ("PPF", "PPP"): 1,
+                ("PPP", "PPP"): 9,
+            },
+            "billing": {
+                ("FFF", "PPP"): 3,
+                ("FPP", "PPP"): 2,
+                ("PFP", "PPP"): 1,
+                ("PPF", "PPP"): 2,
+                ("PPP", "PFP"): 1,
+                ("PPP", "PPP"): 9,
+            },
+            # v8 is worse on shipping, which the ship rule doesn't cover.
+            "shipping": {
+                ("FFF", "PPP"): 1,
+                ("FPP", "PPP"): 1,
+                ("PPF", "PPP"): 1,
+                ("PPP", "FFF"): 1,
+                ("PPP", "PFP"): 1,
+                ("PPP", "PPF"): 2,
+                ("PPP", "PPP"): 11,
+            },
         },
-        errored_slice={"prompt-v7": "billing", "prompt-v8": "shipping"},
+        errored={"prompt-v7": ("billing", "FFF", 2), "prompt-v8": ("shipping", "FFF", 1)},
     ),
 )
+
 
 # (slice, question, reference answer, what a correct answer must say, wrong answer,
 # why the wrong answer fails)
@@ -435,92 +507,228 @@ def examples() -> list[dict[str, Any]]:
     return rows
 
 
-def failing_cases(variant: Variant, rows: list[dict[str, Any]]) -> dict[str, set[str]]:
-    """Picks failing case IDs per prompt. In the no-ship variant, v8's safety failures are
-    all cases v7 passed; in the ship variant, they're a subset of v7's."""
+@dataclass(frozen=True)
+class Run:
+    case_id: str
+    slice: str
+    repetition: int
+    passed: bool
+    errored: bool
+
+
+def assign(variant: Variant, rows: list[dict[str, Any]]) -> dict[str, list[Run]]:
+    """Gives each case its (v7, v8) pattern at random and expands the patterns into runs."""
     rng = random.Random(variant.seed)
-    by_slice = {s: [r["metadata"]["case_id"] for r in rows if r["metadata"]["slice"] == s]
-                for s in SLICES}  # fmt: skip
-    failing: dict[str, set[str]] = {}
-    v7 = variant.failures["prompt-v7"]
-    v8 = variant.failures["prompt-v8"]
-    failing["prompt-v7"] = {c for s in SLICES for c in rng.sample(by_slice[s], v7[s])}
-    v7_safety = sorted(failing["prompt-v7"] & set(by_slice["safety"]))
-    if v8["safety"] <= len(v7_safety):
-        v8_safety = set(rng.sample(v7_safety, v8["safety"]))
-    else:
-        others = sorted(set(by_slice["safety"]) - set(v7_safety))
-        v8_safety = set(rng.sample(others, v8["safety"]))
-    failing["prompt-v8"] = v8_safety | {
-        c for s in ("billing", "shipping") for c in rng.sample(by_slice[s], v8[s])
-    }
-    return failing
+    pattern: dict[str, dict[str, Pattern]] = {prompt: {} for prompt in PROMPTS}
+    for slice_ in SLICES:
+        cases = [r["metadata"]["case_id"] for r in rows if r["metadata"]["slice"] == slice_]
+        joint = [pair for pair, count in variant.patterns[slice_].items() for _ in range(count)]
+        assert len(joint) == len(cases), slice_
+        for case_id, pair in zip(rng.sample(cases, len(cases)), joint):
+            for prompt, case_pattern in zip(PROMPTS, pair):
+                pattern[prompt][case_id] = case_pattern
+    slice_of = {r["metadata"]["case_id"]: r["metadata"]["slice"] for r in rows}
+    runs: dict[str, list[Run]] = {}
+    for prompt in PROMPTS:
+        errored_slice, errored_pattern, errored_repetition = variant.errored[prompt]
+        candidates = sorted(
+            case_id
+            for case_id, case_pattern in pattern[prompt].items()
+            if slice_of[case_id] == errored_slice and case_pattern == errored_pattern
+        )
+        errored = (rng.choice(candidates), errored_repetition)
+        runs[prompt] = [
+            Run(
+                case_id,
+                slice_of[case_id],
+                repetition,
+                pattern[prompt][case_id][repetition - 1] == "P",
+                (case_id, repetition) == errored,
+            )
+            for case_id in sorted(pattern[prompt])
+            for repetition in range(1, REPETITIONS + 1)
+        ]
+    return runs
+
+
+# Readings: ways to turn a prompt's runs on a group of cases into one pass rate.
+
+
+def _by_case(runs: list[Run]) -> dict[str, list[Run]]:
+    cases: dict[str, list[Run]] = {}
+    for run in runs:
+        cases.setdefault(run.case_id, []).append(run)
+    return cases
+
+
+def _share(values: Iterable[float]) -> float:
+    """The mean: the share of True values, or the mean of rates."""
+    items = list(values)
+    return sum(items) / len(items)
+
+
+def _without_errors(runs: list[Run]) -> list[Run]:
+    return [run for run in runs if not run.errored]
+
+
+def _majority(runs: list[Run], ties_pass: bool = False) -> bool:
+    passed = sum(run.passed for run in runs)
+    return passed * 2 > len(runs) or (ties_pass and passed * 2 == len(runs))
+
+
+Reading = Callable[[list[Run]], float]
+ACCEPTED: dict[str, Reading] = {
+    "per_run": lambda runs: _share(run.passed for run in runs),
+    "per_run_without_errors": lambda runs: _share(run.passed for run in _without_errors(runs)),
+    "mean_of_case_rates_without_errors": lambda runs: _share(
+        _share(run.passed for run in _without_errors(case)) for case in _by_case(runs).values()
+    ),
+    "all_pass": lambda runs: _share(
+        all(run.passed for run in case) for case in _by_case(runs).values()
+    ),
+    "all_pass_without_errored_cases": lambda runs: _share(
+        all(run.passed for run in case)
+        for case in _by_case(runs).values()
+        if not any(run.errored for run in case)
+    ),
+    "all_pass_ignoring_errors": lambda runs: _share(
+        all(run.passed for run in _without_errors(case)) for case in _by_case(runs).values()
+    ),
+}
+WRONG: dict[str, Reading] = {
+    **{
+        f"repetition_{n}": lambda runs, n=n: _share(
+            run.passed for run in runs if run.repetition == n
+        )
+        for n in range(1, REPETITIONS + 1)
+    },
+    **{
+        f"repetition_{n}_without_errors": lambda runs, n=n: _share(
+            run.passed for run in _without_errors(runs) if run.repetition == n
+        )
+        for n in range(1, REPETITIONS + 1)
+    },
+    "majority": lambda runs: _share(_majority(case) for case in _by_case(runs).values()),
+    "majority_without_errors": lambda runs: _share(
+        _majority(_without_errors(case)) for case in _by_case(runs).values()
+    ),
+    "majority_without_errors_ties_pass": lambda runs: _share(
+        _majority(_without_errors(case), ties_pass=True) for case in _by_case(runs).values()
+    ),
+    "any_pass": lambda runs: _share(
+        any(run.passed for run in case) for case in _by_case(runs).values()
+    ),
+}
+# The readings `main()` prints: the accepted ones, the ones an agent gets from keying runs
+# by example ID (the first or last repetition), a majority vote, and any-pass.
+HEADLINE = ("per_run", "all_pass", "repetition_1", "repetition_3", "majority", "any_pass")
+FIELDS = {
+    "v7_safety_pass_rate": ("prompt-v7", "safety"),
+    "v8_safety_pass_rate": ("prompt-v8", "safety"),
+    "v7_overall_pass_rate": ("prompt-v7", "overall"),
+    "v8_overall_pass_rate": ("prompt-v8", "overall"),
+}
+
+
+def readings(runs: dict[str, list[Run]]) -> dict[str, dict[str, float]]:
+    """Every reading of every graded field: {reading: {field: value}}."""
+    out: dict[str, dict[str, float]] = {}
+    for name, reading in {**ACCEPTED, **WRONG}.items():
+        out[name] = {}
+        for field, (prompt, group) in FIELDS.items():
+            group_runs = [r for r in runs[prompt] if group == "overall" or r.slice == group]
+            out[name][field] = reading(group_runs)
+    return out
+
+
+def decision(values: dict[str, float]) -> str:
+    """v8 ships if it's no worse than v7 on safety and better overall."""
+    ship = (
+        values["v8_safety_pass_rate"] >= values["v7_safety_pass_rate"]
+        and values["v8_overall_pass_rate"] > values["v7_overall_pass_rate"]
+    )
+    return "ship" if ship else "dont_ship"
+
+
+def _stated(value: float) -> set[float]:
+    """The ways a reply might state a rate: exact, to a tenth of a percent, or to a whole
+    percent rounded either way."""
+    return {value, round(value, 3), math.floor(value * 100) / 100, math.ceil(value * 100) / 100}
+
+
+def check(
+    variant: Variant, runs: dict[str, list[Run]], values: dict[str, dict[str, float]]
+) -> None:
+    """Asserts the design: the accepted readings agree, and no wrong reading passes."""
+    want = "ship" if variant.task == "compare-experiments-ship" else "dont_ship"
+    for name in ACCEPTED:
+        assert decision(values[name]) == want, (variant.task, name)
+    for name in WRONG:
+        assert values[name]["v8_overall_pass_rate"] > values[name]["v7_overall_pass_rate"]
+        for field in FIELDS:
+            for stated in _stated(values[name][field]):
+                for accepted in ACCEPTED:
+                    gap = abs(stated - values[accepted][field])
+                    assert gap > TOLERANCE, (variant.task, field, name, stated, accepted, gap)
+    # Keying runs by example ID keeps the first or last repetition. Those readings, a
+    # majority vote, and any-pass all say ship: wrong in the don't-ship twin, right (with
+    # wrong numbers) in the ship twin.
+    for name in ("repetition_1", "repetition_3", "majority", "any_pass"):
+        assert decision(values[name]) == "ship", (variant.task, name)
+    for prompt in PROMPTS:
+        errored = [r for r in runs[prompt] if r.errored]
+        assert len(errored) == 1 and errored[0].slice != "safety" and not errored[0].passed
+        siblings = [r for r in runs[prompt] if r.case_id == errored[0].case_id]
+        assert not any(r.passed for r in siblings), "the errored case fails every repetition"
+    if want == "ship":
+        shipping = {
+            prompt: _share(r.passed for r in runs[prompt] if r.slice == "shipping")
+            for prompt in PROMPTS
+        }
+        assert shipping["prompt-v8"] < shipping["prompt-v7"]
 
 
 def build_variant(variant: Variant) -> tuple[dict[str, Any], dict[str, Any]]:
     rows = examples()
-    failing = failing_cases(variant, rows)
+    runs = assign(variant, rows)
+    row_of = {r["metadata"]["case_id"]: r for r in rows}
     rng = random.Random(variant.seed + 1)
     experiments = []
-    results: dict[str, dict[str, Any]] = {}
     for name, (description, metadata) in EXPERIMENTS.items():
-        errored_slice = variant.errored_slice[name]
-        errored = rng.choice(
-            sorted(
-                r["metadata"]["case_id"]
-                for r in rows
-                if r["metadata"]["case_id"] in failing[name]
-                and r["metadata"]["slice"] == errored_slice
-            )
-        )
-        runs = []
-        passed: dict[str, bool] = {}
-        for row in rows:
-            case_id = row["metadata"]["case_id"]
-            _, _, reference, fact, wrong, why = CASES[row["metadata"]["index"]]
-            ok = case_id not in failing[name]
-            passed[case_id] = ok
-            if case_id == errored:
-                runs.append(
-                    {
-                        "case_id": case_id,
-                        "error": ERRORS[name],
-                        "evaluations": {
-                            "correct": {
-                                "score": 0.0,
-                                "label": "incorrect",
-                                "explanation": "No answer to grade: the task failed with an "
-                                "error before producing output.",
-                            }
-                        },
-                    }
+        styles: dict[str, list[str]] = {}
+        spec_runs = []
+        for run in runs[name]:
+            _, _, reference, fact, wrong, why = CASES[row_of[run.case_id]["metadata"]["index"]]
+            if run.case_id not in styles:
+                # Each repetition words its answer differently, as a sampled model would.
+                styles[run.case_id] = rng.sample(STYLE[name], REPETITIONS)
+            record: dict[str, Any] = {"case_id": run.case_id, "repetition": run.repetition}
+            if run.errored:
+                record["error"] = ERRORS[name]
+                explanation = (
+                    "No answer to grade: the task failed with an error before producing output."
                 )
-                continue
-            text = reference if ok else wrong
-            runs.append(
-                {
-                    "case_id": case_id,
-                    "output": rng.choice(STYLE[name]).format(text=text),
-                    "evaluations": {
-                        "correct": {
-                            "score": float(ok),
-                            "label": "correct" if ok else "incorrect",
-                            "explanation": f"Matches the reference: {fact}." if ok else why,
-                        }
-                    },
+            else:
+                text = reference if run.passed else wrong
+                record["output"] = styles[run.case_id][run.repetition - 1].format(text=text)
+                explanation = f"Matches the reference: {fact}." if run.passed else why
+            record["evaluations"] = {
+                "correct": {
+                    "score": float(run.passed),
+                    "label": "correct" if run.passed else "incorrect",
+                    "explanation": explanation,
                 }
-            )
+            }
+            spec_runs.append(record)
         experiments.append(
             {
                 "dataset": DATASET,
                 "name": name,
                 "description": description,
                 "metadata": {**metadata, "model": "gpt-5.6-mini"},
-                "runs": runs,
+                "runs": spec_runs,
             }
         )
-        results[name] = {"passed": passed, "errored": errored}
-
     spec = {
         "datasets": [
             {
@@ -535,44 +743,49 @@ def build_variant(variant: Variant) -> tuple[dict[str, Any], dict[str, Any]]:
         ],
         "experiments": experiments,
     }
-    return spec, truth_for(variant, rows, results)
+    values = readings(runs)
+    check(variant, runs, values)
+    return spec, truth_for(runs, values)
 
 
-def truth_for(
-    variant: Variant, rows: list[dict[str, Any]], results: dict[str, dict[str, Any]]
-) -> dict[str, Any]:
-    slice_of = {r["metadata"]["case_id"]: r["metadata"]["slice"] for r in rows}
-    rates: dict[str, dict[str, float]] = {}
-    counts: dict[str, dict[str, Any]] = {}
-    for name, result in results.items():
-        passed = result["passed"]
-        per_slice = {s: sum(ok for c, ok in passed.items() if slice_of[c] == s) for s in SLICES}
-        total = sum(passed.values())
-        rates[name] = {
-            "safety": per_slice["safety"] / sum(v == "safety" for v in slice_of.values()),
-            "overall": total / len(passed),
-            # A reader who drops the errored run from the denominator.
-            "overall_without_errors": total / (len(passed) - 1),
+def truth_for(runs: dict[str, list[Run]], values: dict[str, dict[str, float]]) -> dict[str, Any]:
+    rounded = {name: {f: round(v, 4) for f, v in fields.items()} for name, fields in values.items()}
+    alternatives = [rounded[name] for name in ACCEPTED]
+    counts: dict[str, Any] = {}
+    for prompt in PROMPTS:
+        counts[prompt] = {}
+        for group in ("overall", *SLICES):
+            group_runs = [r for r in runs[prompt] if group == "overall" or r.slice == group]
+            cases = _by_case(group_runs).values()
+            counts[prompt][group] = {
+                "runs_passed": sum(r.passed for r in group_runs),
+                "runs": len(group_runs),
+                "cases_passing_every_repetition": sum(all(r.passed for r in c) for c in cases),
+                "cases": len(cases),
+            }
+        errored = next(r for r in runs[prompt] if r.errored)
+        counts[prompt]["errored_run"] = {
+            "case_id": errored.case_id,
+            "repetition": errored.repetition,
         }
-        counts[name] = {"passed": total, "of": len(passed), **{
-            f"{s}_passed": per_slice[s] for s in SLICES}, "errored_case": result["errored"]}  # fmt: skip
-    v7, v8 = rates["prompt-v7"], rates["prompt-v8"]
-    ship = v8["safety"] >= v7["safety"] and v8["overall"] > v7["overall"]
-    assert v8["overall"] > v7["overall"]
-    assert ship == (variant.task == "compare-experiments-ship")
-    expected = {
-        "decision": "ship" if ship else "dont_ship",
-        "v7_safety_pass_rate": round(v7["safety"], 4),
-        "v8_safety_pass_rate": round(v8["safety"], 4),
-        "v7_overall_pass_rate": round(v7["overall"], 4),
-        "v8_overall_pass_rate": round(v8["overall"], 4),
-    }
     return {
         "dataset": DATASET,
-        "expected": expected,
-        "alternatives": {
-            "v7_overall_pass_rate": round(v7["overall_without_errors"], 4),
-            "v8_overall_pass_rate": round(v8["overall_without_errors"], 4),
+        "expected": {"decision": decision(values["per_run"]), **rounded["per_run"]},
+        # Other accepted readings of the same rates; the verifier passes a rate that matches
+        # any of them.
+        "alternatives": [
+            alternative
+            for index, alternative in enumerate(alternatives)
+            if alternative not in alternatives[:index] and alternative != rounded["per_run"]
+        ],
+        # For reviewers and controls: every reading, and the decision it leads to.
+        "readings": {
+            name: {
+                "accepted": name in ACCEPTED,
+                "decision": decision(values[name]),
+                **rounded[name],
+            }
+            for name in values
         },
         "counts": counts,
     }
@@ -584,7 +797,9 @@ def main() -> None:
         task = TASKS / variant.task
         write_json(task / "fixture" / "spec.json", spec)
         write_json(task / "tests" / "truth.json", truth)
-        print(variant.task, json.dumps(truth["expected"]), json.dumps(truth["counts"]))
+        print(variant.task, json.dumps(truth["expected"]))
+        for name in HEADLINE:
+            print(f"  {name}: {json.dumps(truth['readings'][name])}")
 
 
 if __name__ == "__main__":

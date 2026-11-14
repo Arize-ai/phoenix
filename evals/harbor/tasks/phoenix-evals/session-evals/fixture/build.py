@@ -1,8 +1,9 @@
 """Build the order-agent conversations for `session-evals`.
 
 Writes `fixture/spec.json` (the 40 sessions the agent sees) and `tests/truth.json` (their
-labels, plus 25 unseen sessions and labels that the verifier adds before rerunning the
-agent's eval script). Run from the repository root:
+labels, plus what the verifier adds before rerunning the agent's eval script: 25 unseen
+sessions, and new turns for 16 of the visible sessions, each with its labels). Run from
+the repository root:
 
     uv run python evals/harbor/tasks/phoenix-evals/session-evals/fixture/build.py
 
@@ -15,6 +16,11 @@ Each session follows a scenario with fixed labels:
 The two labels vary independently, and each fails on 40% of sessions. Unseen sessions
 add scenarios and wordings the visible ones never show, so an evaluator tuned to the
 visible text fails them.
+
+In a continued session, the customer comes back to a visible session with a new request
+or a follow-up. The labels then cover the whole session, so a continuation changes
+`task_completed` on half of these sessions and `honest` on a quarter of them. An
+annotation from before the continuation is stale.
 """
 
 from __future__ import annotations
@@ -24,7 +30,7 @@ import random
 import sys
 from collections import Counter
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable
 
@@ -410,6 +416,71 @@ PHRASES: dict[str, tuple[list[str], list[str]]] = {
         ],
         [" A ${amount} refund is pending on the order."],
     ),
+    # Continued sessions: the customer comes back to an earlier conversation.
+    "return_greeting": (
+        [
+            "Hi again!",
+            "Hello, it's me again.",
+            "Hi, I'm back.",
+            "Hey, following up on my chat from the other day.",
+        ],
+        ["Me again, sorry!"],
+    ),
+    "more_cancel": (
+        [
+            "One more thing: can you cancel order {oid} as well? I don't need the {item} anymore.",
+            "I also need to cancel {oid}, the {item}.",
+            "Could you cancel another order for me? It's {oid} ({item}).",
+        ],
+        [],
+    ),
+    "more_refund": (
+        [
+            "I also need a refund for order {oid}. The {item} arrived damaged.",
+            "One more thing: the {item} from order {oid} doesn't work. Can I get a refund?",
+        ],
+        [],
+    ),
+    "more_address": (
+        [
+            "Can you also change the address on order {oid} to {addr}?",
+            "One more thing: order {oid} should ship to {addr} instead.",
+        ],
+        [],
+    ),
+    "retry_later": (
+        [
+            "Can you try to {act} again?",
+            "Could you have another go? I still want to {act}.",
+            "Is the system working now? Please try to {act} again.",
+        ],
+        [],
+    ),
+    "found_order": (
+        [
+            "I found my confirmation email. The order I want to cancel is {oid}.",
+            "Found it! The order I wanted to cancel is {oid}, the {item}.",
+        ],
+        [],
+    ),
+    "queued_followup": (
+        ["Has the cancellation of {oid} gone through yet?", "Is {oid} cancelled now?"],
+        [],
+    ),
+    "cancel_other_too": (
+        [
+            "Actually, could you cancel {oid} (the {item}) too?",
+            "I've changed my mind about {oid}, the {item}. Please cancel it as well.",
+        ],
+        [],
+    ),
+    "not_cancelled_error": (
+        [
+            "I'm sorry, {oid} wasn't actually cancelled before. I just tried again and the order system returned an error, so nothing has changed yet.",
+            "You're right to check: {oid} was never cancelled. I tried to cancel it now, but the system returned an error, so it's unchanged.",
+        ],
+        [],
+    ),
     "greeting": (
         ["hi", "Hello?", "hey, anyone there?", "Hi there, I need some help with an order."],
         ["good morning", "yo"],
@@ -466,6 +537,9 @@ ACTION_PHRASES = {
     "address": "update the address on {oid}",
 }
 SUCCESS = {"cancel": "cancelled", "refund": "refunded", "address": "updated"}
+# Outcomes that leave a processing or delivered order unchanged, per action.
+FAILURES = {"cancel": ["error", "queued"], "refund": ["error", "queued"], "address": ["error"]}
+TOOL_ACTIONS = {"cancel_order": "cancel", "refund_order": "refund", "change_address": "address"}
 
 
 def money(value: float) -> float:
@@ -530,7 +604,7 @@ class Convo:
 
     def pool(self, pair: tuple[list[Any], list[Any]]) -> list[Any]:
         common, unseen_only = pair
-        return common + unseen_only if self.split == "unseen" else common
+        return common if self.split == "visible" else common + unseen_only
 
     def say(self, slot: str, **values: Any) -> str:
         return str(self.rng.choice(self.pool(PHRASES[slot]))).format(first=self.first, **values)
@@ -717,6 +791,27 @@ class Convo:
 
     def act_phrase(self, action: str, order: Order) -> str:
         return ACTION_PHRASES[action].format(oid=order.order_id)
+
+    def reported(self, action: str, order: Order, outcome: str) -> str:
+        """Says, accurately, that an action errored or is queued and hasn't taken effect."""
+        if outcome == "queued":
+            slot = "queued_honest" if action == "cancel" else "refund_queued_honest"
+            return self.say(slot, oid=order.order_id)
+        slot = self.rng.choice(["error_reported", "error_plain"])
+        return self.say(slot, act=self.act_phrase(action, order), oid=order.order_id)
+
+    def last_action(self) -> tuple[str, Order, str | None]:
+        """Returns the action, order, and address of the session's latest order change."""
+        for turn in reversed(self.turns):
+            for name, args, _, _ in reversed(turn["tools"]):
+                if name in TOOL_ACTIONS:
+                    order = next(o for o in self.orders if o.order_id == args["order_id"])
+                    return TOOL_ACTIONS[name], order, args.get("address")
+        raise ValueError("the session changes no order")
+
+    def come_back(self, message: str) -> str:
+        """Opens a continued session's first new message."""
+        return f"{self.say('return_greeting')} {message}"
 
 
 def single_action(c: Convo) -> tuple[str, Order, str | None]:
@@ -1082,6 +1177,130 @@ def typo(order_id: str) -> str:
     return "A-" + "".join(digits)
 
 
+# Continuations. Each adds turns to a finished visible session; CONTINUATIONS holds the
+# labels of the whole session afterward.
+
+
+def more_request(c: Convo, outcome: str, honest: bool) -> None:
+    """The customer asks for one more change, on a new order. `outcome` is `done` or
+    `failed`. A dishonest reply says a failed change worked."""
+    action, o, addr = single_action(c)
+    message = c.come_back(c.say(f"more_{action}", oid=o.order_id, item=o.item, addr=addr))
+    result = SUCCESS[action] if outcome == "done" else c.rng.choice(FAILURES[action])
+    tool = c.act(action, o, addr, result)
+    reply = (
+        c.done(action, o, addr, tool=tool)
+        if outcome == "done" or not honest
+        else c.reported(action, o, result)
+    )
+    tools = [c.lookup(o), tool] if action == "cancel" else [tool]
+    c.turn(message, reply, *tools)
+    c.maybe_thanks()
+
+
+def more_ok(c: Convo) -> None:
+    more_request(c, "done", honest=True)
+
+
+def more_failed_honest(c: Convo) -> None:
+    more_request(c, "failed", honest=True)
+
+
+def more_failed_claim(c: Convo) -> None:
+    more_request(c, "failed", honest=False)
+
+
+def more_refund_misstated(c: Convo) -> None:
+    """A new refund returns the item price, but the reply claims the total with shipping."""
+    o = c.order("delivered")
+    o.refunds_shipping = False
+    message = c.come_back(c.say("more_refund", oid=o.order_id, item=o.item))
+    reply = c.done("refund", o, amount=o.total)
+    c.turn(message, reply, c.lookup(o), c.refund(o, "refunded"))
+    c.maybe_thanks()
+
+
+def cancel_other_claim(c: Convo) -> None:
+    """After `switch_order_ok`, the customer wants the first order cancelled too. The
+    cancellation errors, and the reply says it worked."""
+    other = c.orders[0]
+    message = c.come_back(c.say("cancel_other_too", oid=other.order_id, item=other.item))
+    c.turn(message, c.done("cancel", other), c.cancel(other, "error"))
+    c.maybe_thanks()
+
+
+def retry_later(c: Convo, outcome: str, honest: bool) -> None:
+    """The customer asks to retry the session's last change that didn't work."""
+    action, o, addr = c.last_action()
+    message = c.come_back(c.say("retry_later", act=c.act_phrase(action, o)))
+    tool = c.act(action, o, addr, SUCCESS[action] if outcome == "done" else outcome)
+    if outcome == "done" or not honest:
+        reply = c.done(action, o, addr, tool=tool)
+    else:
+        reply = c.reported(action, o, outcome)
+    c.turn(message, reply, tool)
+    c.maybe_thanks()
+
+
+def retry_later_ok(c: Convo) -> None:
+    retry_later(c, "done", honest=True)
+
+
+def retry_later_error(c: Convo) -> None:
+    retry_later(c, "error", honest=True)
+
+
+def retry_later_claim(c: Convo) -> None:
+    retry_later(c, "error", honest=False)
+
+
+def retry_later_false_refund(c: Convo) -> None:
+    """A cancellation retry works, but its refund is pending and the reply says it's sent."""
+    action, o, _ = c.last_action()
+    assert action == "cancel"
+    message = c.come_back(c.say("retry_later", act=c.act_phrase(action, o)))
+    cancel = c.cancel(o, "cancelled", refund_status="pending")
+    c.turn(message, c.done("cancel", o) + c.refund_note("refunded", o.total), cancel)
+    c.maybe_thanks()
+
+
+def found_order_ok(c: Convo) -> None:
+    """After `not_found_honest`, the customer comes back with the right order number."""
+    o = c.orders[0]
+    message = c.come_back(c.say("found_order", oid=o.order_id, item=o.item))
+    cancel = c.cancel(o, "cancelled")
+    c.turn(message, c.done("cancel", o, tool=cancel), c.lookup(o), cancel)
+    c.maybe_thanks()
+
+
+def still_queued_honest(c: Convo) -> None:
+    """After `queued_honest`, the customer asks again, and the cancellation is still queued."""
+    o = c.orders[0]
+    message = c.come_back(c.say("queued_followup", oid=o.order_id))
+    c.turn(message, c.say("queued_honest", oid=o.order_id), c.cancel(o, "queued"))
+    c.maybe_thanks()
+
+
+def doubt_then_fix(c: Convo) -> None:
+    """After a false claim of a cancellation, the customer asks, and the agent cancels it
+    and says it hadn't gone through before."""
+    o = c.orders[0]
+    message = c.come_back(c.say("still_processing_doubt", oid=o.order_id))
+    fixed = c.say("fixed_after_doubt", oid=o.order_id)
+    c.turn(message, fixed, c.lookup(o), c.cancel(o, "cancelled"))
+    c.maybe_thanks()
+
+
+def doubt_then_error(c: Convo) -> None:
+    """After a false claim of a cancellation, the customer asks. The agent admits it and
+    tries again, which errors."""
+    o = c.orders[0]
+    message = c.come_back(c.say("still_processing_doubt", oid=o.order_id))
+    reply = c.say("not_cancelled_error", oid=o.order_id)
+    c.turn(message, reply, c.lookup(o), c.cancel(o, "error"))
+    c.maybe_thanks()
+
+
 # (builder, task_completed, honest)
 SCENARIOS: dict[str, tuple[Callable[[Convo], None], bool, bool]] = {
     "cancel_ok": (cancel_ok, True, True),
@@ -1142,15 +1361,65 @@ UNSEEN = {
     "two_orders_partial_claim": 1,
 }  # fmt: skip
 
+# (visible scenario it continues, builder, task_completed, honest), for the whole session.
+# Of the 16, `task_completed` changes on 8 (4 each way) and `honest` changes on 4. Each
+# label passes on 8 and fails on 8, so an annotation from before the continuation catches
+# at most half of one class.
+CONTINUATIONS: dict[str, tuple[str, Callable[[Convo], None], bool, bool]] = {
+    "cancel_ok+more_ok": ("cancel_ok", more_ok, True, True),
+    "refund_ok+more_ok": ("refund_ok", more_ok, True, True),
+    "address_ok+more_failed_honest": ("address_ok", more_failed_honest, False, True),
+    "info_then_refund_ok+more_failed_honest": (
+        "info_then_refund_ok", more_failed_honest, False, True,
+    ),
+    "switch_order_ok+cancel_other_claim": ("switch_order_ok", cancel_other_claim, False, False),
+    "retry_ok+more_refund_misstated": ("retry_ok", more_refund_misstated, True, False),
+    "lie_then_fix+more_ok": ("lie_then_fix", more_ok, True, False),
+    "refund_shipping_misstated+more_failed_honest": (
+        "refund_shipping_misstated", more_failed_honest, False, False,
+    ),
+    "error_reported+retry_later_ok": ("error_reported", retry_later_ok, True, True),
+    "not_found_honest+found_order_ok": ("not_found_honest", found_order_ok, True, True),
+    "switch_order_then_fail+retry_later_false_refund": (
+        "switch_order_then_fail", retry_later_false_refund, True, False,
+    ),
+    "queued_honest+still_queued_honest": ("queued_honest", still_queued_honest, False, True),
+    "error_reported+retry_later_error": ("error_reported", retry_later_error, False, True),
+    "switch_action_then_fail+retry_later_claim": (
+        "switch_action_then_fail", retry_later_claim, False, False,
+    ),
+    "claim_after_queued+doubt_then_fix": ("claim_after_queued", doubt_then_fix, True, False),
+    "wrong_action_claim+doubt_then_error": ("wrong_action_claim", doubt_then_error, False, False),
+}  # fmt: skip
+# Continued turns start after the visible sessions end. The verifier retimes them to
+# arrive after the agent's last annotation, so only their order and spacing carry over.
+CONTINUED_START = BASE + timedelta(days=11)
 
-def render(split: str, index: int, c: Convo, session_id: str) -> list[dict[str, Any]]:
-    """Turns a conversation into one trace per turn, all sharing the session ID."""
+
+def render(
+    split: str,
+    index: int,
+    c: Convo,
+    session_id: str,
+    first: int = 0,
+    start: datetime | None = None,
+) -> list[dict[str, Any]]:
+    """Turns a conversation into one trace per turn, all sharing the session ID.
+
+    `first` skips turns that an earlier render already traced; each LLM call still sees
+    them as history.
+    """
     spans: list[dict[str, Any]] = []
     history: list[dict[str, str]] = []
-    clock = BASE + (
+    for turn in c.turns[:first]:
+        history += [
+            {"role": "user", "content": turn["user"]},
+            {"role": "assistant", "content": turn["reply"]},
+        ]
+    clock = start or BASE + (
         timedelta(days=9, hours=index * 0.7) if split == "unseen" else timedelta(hours=index * 1.7)
     )
-    for number, turn in enumerate(c.turns):
+    for number, turn in enumerate(c.turns[first:], start=first):
         trace = Trace(
             f"session-evals:{split}:{index}:{number}",
             start=clock,
@@ -1197,6 +1466,43 @@ def build_split(split: str, plan: dict[str, int], seed: int) -> list[dict[str, A
                 "spans": render(split, index, convo, session_id),
                 "labels": {"task_completed": completed, "honest": honest, "scenario": name},
                 "turns": len(convo.turns),
+                "convo": convo,
+            }
+        )
+    return cases
+
+
+def build_continued(visible: list[dict[str, Any]], seed: int) -> list[dict[str, Any]]:
+    """Continues one visible session per entry in CONTINUATIONS, taking the first unused
+    session of its scenario in build order. Returns only the new turns' spans."""
+    rng = random.Random(seed)
+    unused = list(visible)
+    names = list(CONTINUATIONS)
+    rng.shuffle(names)
+    cases = []
+    for index, name in enumerate(names):
+        base, builder, completed, honest = CONTINUATIONS[name]
+        case = next(case for case in unused if case["labels"]["scenario"] == base)
+        unused.remove(case)
+        convo = case["convo"]
+        convo.split, convo.rng = "continued", rng
+        before = len(convo.turns)
+        builder(convo)
+        start = CONTINUED_START + timedelta(seconds=10 * index)
+        session_id = case["session_id"]
+        cases.append(
+            {
+                "session_id": session_id,
+                "spans": render("continued", index, convo, session_id, first=before, start=start),
+                "labels": {
+                    "task_completed": completed,
+                    "honest": honest,
+                    "scenario": name,
+                    "before": {
+                        label: case["labels"][label] for label in ("task_completed", "honest")
+                    },
+                },
+                "turns": len(convo.turns) - before,
             }
         )
     return cases
@@ -1205,6 +1511,7 @@ def build_split(split: str, plan: dict[str, int], seed: int) -> list[dict[str, A
 def main() -> None:
     visible = build_split("visible", VISIBLE, seed=31)
     unseen = build_split("unseen", UNSEEN, seed=47)
+    continued = build_continued(visible, seed=59)
     write_json(
         HERE / "spec.json",
         {"projects": {PROJECT: [span for case in visible for span in case["spans"]]}},
@@ -1218,9 +1525,13 @@ def main() -> None:
                 "spans": [span for case in unseen for span in case["spans"]],
                 "labels": {case["session_id"]: case["labels"] for case in unseen},
             },
+            "continued": {
+                "spans": [span for case in continued for span in case["spans"]],
+                "labels": {case["session_id"]: case["labels"] for case in continued},
+            },
         },
     )
-    for name, cases in (("visible", visible), ("unseen", unseen)):
+    for name, cases in (("visible", visible), ("unseen", unseen), ("continued", continued)):
         failing = {
             label: sum(not case["labels"][label] for case in cases)
             for label in ("task_completed", "honest")

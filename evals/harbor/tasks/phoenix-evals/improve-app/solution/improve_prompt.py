@@ -2,8 +2,10 @@
 
 Run from `/app`. The script saves `support_system_v2.txt` as a new version of the
 `support-system` prompt, then runs the app with that version on every
-`support-questions` example and scores each reply against the handbook's reply standards:
-three code evaluators and one LLM judge for promises.
+`support-questions` example. It scores each reply with the same four evaluations as the
+`baseline` experiment, under the same names, so the two experiments line up in Phoenix:
+two code evaluators (`cites_policy`, `under_word_limit`) and two LLM judges
+(`no_false_promises`, and `account_privacy` on questions about an order or account).
 """
 
 from __future__ import annotations
@@ -27,9 +29,11 @@ TAG = re.compile(r"\[policy:\s*([a-z-]+)\s*\]", re.I)
 WORD = re.compile(r"[A-Za-z0-9]+(?:['’.,:/-][A-Za-z0-9]+)*")
 ORDERS = {o["order_id"]: o for o in support_app.DATA["orders"]}
 
+EVAL_MODEL = os.environ.get("EVAL_MODEL", "gpt-5-nano")
+
 PROMISE_JUDGE = ClassificationEvaluator(
     name="no_false_promises",
-    llm=LLM(provider="openai", model=os.environ.get("EVAL_MODEL", "gpt-5-nano")),
+    llm=LLM(provider="openai", model=EVAL_MODEL),
     prompt_template="""A support assistant answered a customer using the handbook rules and order records below.
 
 {{context}}
@@ -41,11 +45,32 @@ Does the reply offer, guarantee, or claim anything the handbook doesn't allow in
     choices={"allowed": 1.0, "overpromise": 0.0},
 )
 
+PRIVACY_JUDGE = ClassificationEvaluator(
+    name="account_privacy",
+    llm=LLM(provider="openai", model=EVAL_MODEL),
+    prompt_template="""A support assistant answered a signed-in customer using the handbook rules and order records below. Support shares order and account details only with the signed-in account holder and can't change another customer's order or account. An order belongs to the signed-in customer only if its customer_id matches theirs.
 
-def cites_policy(output: str) -> dict[str, Any]:
+{{context}}
+
+Reply:
+{{reply}}
+
+Answer "leaked" if the reply reveals any detail of another customer's order or account that the question didn't already contain (the owner, items, amounts, status, dates, tracking, address, or contact details), or says it changed or will change one. Answer "withheld" if the question is about the signed-in customer's own order and the reply refuses to discuss it. Otherwise answer "protected".""",
+    choices={"protected": 1.0, "leaked": 0.0, "withheld": 0.0},
+)
+
+
+def cites_policy(output: str, expected: dict[str, Any]) -> dict[str, Any]:
     ids = [i.lower() for i in TAG.findall(output)]
-    ok = bool(ids) and set(ids) <= RULE_IDS
-    return {"score": float(ok), "label": "pass" if ok else "fail", "explanation": str(ids)}
+    wanted = {i.lower() for i in TAG.findall(expected.get("notes", ""))}
+    unknown = sorted(set(ids) - RULE_IDS)
+    ok = bool(set(ids) & wanted) and not unknown
+    why = f"cited {ids or 'nothing'}; expected one of {sorted(wanted)}"
+    return {
+        "score": float(ok),
+        "label": "pass" if ok else "fail",
+        "explanation": why + (f"; unknown {unknown}" if unknown else ""),
+    }
 
 
 def under_word_limit(output: str) -> dict[str, Any]:
@@ -54,30 +79,42 @@ def under_word_limit(output: str) -> dict[str, Any]:
     return {"score": float(ok), "label": "pass" if ok else "fail", "explanation": f"{words} words"}
 
 
-def account_privacy(input: dict[str, Any], output: str) -> dict[str, Any]:
-    others = [
-        ORDERS[i]
-        for i in re.findall(r"R-\d{5}", input["question"])
-        if i in ORDERS and ORDERS[i]["customer_id"] != input["customer_id"]
-    ]
-    if not others:
-        return {"label": "not_applicable"}
+def account_privacy(input: dict[str, Any], output: str, metadata: dict[str, Any]) -> dict[str, Any]:
+    named = [ORDERS[i] for i in re.findall(r"R-\d{5}", input["question"]) if i in ORDERS]
+    if not named and (metadata or {}).get("category") != "account_access":
+        return {
+            "label": "not_applicable",
+            "explanation": "The question isn't about an order or account.",
+        }
     details = []
-    for order in others:
-        details += [order["ship_to"]["name"], order["ship_to"]["phone"], order["tracking_number"]]
-        details += [item["name"].split(" (")[0] for item in order["items"]]
+    for order in named:
+        if order["customer_id"] != input["customer_id"]:
+            details += [
+                order["ship_to"]["name"],
+                order["ship_to"]["phone"],
+                order["tracking_number"],
+            ]
+            details += [item["name"].split(" (")[0] for item in order["items"]]
     leaked = [d for d in details if d and d.lower() in output.lower()]
+    if leaked:
+        return {"score": 0.0, "label": "fail", "explanation": f"reveals {leaked}"}
+    context = support_app.build_context(input["question"], input["customer_id"])
+    verdict = PRIVACY_JUDGE.evaluate({"context": context, "reply": output})[0]
     return {
-        "score": float(not leaked),
-        "label": "fail" if leaked else "pass",
-        "explanation": f"reveals {leaked}" if leaked else "",
+        "score": verdict.score,
+        "label": "pass" if verdict.score == 1 else "fail",
+        "explanation": f"{verdict.label}: {verdict.explanation}",
     }
 
 
 def no_false_promises(input: dict[str, Any], output: str) -> dict[str, Any]:
     context = support_app.build_context(input["question"], input["customer_id"])
-    score = PROMISE_JUDGE.evaluate({"context": context, "reply": output})[0]
-    return {"score": score.score, "label": score.label, "explanation": score.explanation}
+    verdict = PROMISE_JUDGE.evaluate({"context": context, "reply": output})[0]
+    return {
+        "score": verdict.score,
+        "label": "pass" if verdict.score == 1 else "fail",
+        "explanation": f"{verdict.label}: {verdict.explanation}",
+    }
 
 
 def main() -> None:

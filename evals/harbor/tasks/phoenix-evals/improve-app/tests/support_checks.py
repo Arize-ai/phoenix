@@ -10,6 +10,10 @@
 - `account_privacy` (code and LLM judge), only for cases about an order or account: a
   reply about someone else's account reveals and changes nothing, and a reply about the
   customer's own order doesn't withhold it.
+
+`grade_experiment_runs` grades the evaluations on the agent's experiment: whether it
+carries the baseline's four evaluations, and whether its two code-checkable results agree
+with these checks.
 """
 
 from __future__ import annotations
@@ -182,3 +186,95 @@ def score(
         )
         verdicts["account_privacy"] = (verdict.label == "helped", verdict.explanation or "")
     return verdicts
+
+
+# The agent's experiment
+
+MIN_EVALUATION_COVERAGE = 0.8
+MIN_CODE_AGREEMENT = 0.9
+PASS_LABELS = {
+    "pass": True,
+    "passed": True,
+    "true": True,
+    "fail": False,
+    "failed": False,
+    "false": False,
+}
+
+
+def evaluation_outcome(score: float | None, label: str | None) -> bool | None:
+    """Returns whether one of the agent's evaluations passed, or None if it has no result.
+
+    The score decides when there is one, as on the baseline (1 passes, 0 fails). Without
+    a score, a pass or fail label decides. Anything else, such as `not_applicable`, is no
+    result.
+    """
+    if score is not None:
+        return score >= 0.5
+    return PASS_LABELS.get((label or "").strip().lower())
+
+
+def reply_text(output: Any) -> str:
+    """Returns the reply in a run's output: the string, or a dict's longest string value."""
+    if isinstance(output, str):
+        return output
+    if isinstance(output, dict):
+        return max(
+            (value for value in output.values() if isinstance(value, str)), key=len, default=""
+        )
+    return ""
+
+
+def share(values: list[bool]) -> float:
+    return sum(values) / len(values) if values else 0.0
+
+
+def grade_experiment_runs(
+    runs: list[dict[str, Any]], account_questions: list[str], policy_ids: list[str]
+) -> tuple[dict[str, bool], dict[str, Any]]:
+    """Grades the evaluations on the agent's experiment. Returns its checks and details.
+
+    Each run is a dict with the `question`, the `reply`, and `outcomes`, which maps each
+    evaluation name to `evaluation_outcome`.
+
+    - `experiment_evaluations`: `cites_policy`, `under_word_limit`, and
+      `no_false_promises` each have a result on at least 80% of the runs, and
+      `account_privacy` on at least 80% of the runs for account questions.
+    - `experiment_code_checks`: on at least 90% of the runs it scores,
+      `under_word_limit` agrees with `word_count`, and `cites_policy` doesn't pass a reply
+      that has no tag or tags a rule the handbook doesn't have.
+    """
+    account = [run for run in runs if run["question"] in account_questions]
+    coverage = {}
+    for name in BEHAVIORS:
+        scored = account if name == "account_privacy" else runs
+        coverage[name] = share([run["outcomes"].get(name) is not None for run in scored])
+    words = [
+        (run["outcomes"]["under_word_limit"], word_count(run["reply"]))
+        for run in runs
+        if run["outcomes"].get("under_word_limit") is not None
+    ]
+    citations = []
+    for run in runs:
+        if run["outcomes"].get("cites_policy") is not None:
+            ids = cited(run["reply"])
+            valid = bool(ids) and set(ids) <= set(policy_ids)
+            citations.append(valid or not run["outcomes"]["cites_policy"])
+    agreement = {
+        "under_word_limit": share([passed == (n <= WORD_LIMIT) for passed, n in words]),
+        "cites_policy": share(citations),
+    }
+    checks = {
+        "experiment_evaluations": all(c >= MIN_EVALUATION_COVERAGE for c in coverage.values()),
+        "experiment_code_checks": all(a >= MIN_CODE_AGREEMENT for a in agreement.values()),
+    }
+    details = {
+        "evaluation_coverage": {name: round(c, 3) for name, c in coverage.items()},
+        "code_check_agreement": {name: round(a, 3) for name, a in agreement.items()},
+        "word_limit_disagreements": [
+            f"{n} words, scored {'pass' if passed else 'fail'}"
+            for passed, n in words
+            if passed != (n <= WORD_LIMIT)
+        ][:10],
+    }
+    return checks, details

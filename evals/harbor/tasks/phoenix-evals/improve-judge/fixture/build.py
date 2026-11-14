@@ -67,6 +67,11 @@ POLICIES = {
     ),
     "processing": "Approved refunds go back to the original payment method within 5 to 7 business days.",
     "exchanges": "Customers can exchange an item for a different size or color instead of a refund. Exchanges ship free.",
+    "plus-members": (
+        "Acme Plus members can return items within 60 days of delivery instead of 30. Opened "
+        "electronics returned by Plus members don't carry the restocking fee. Final-sale, "
+        "gift-card, damage, and shipping rules are the same for members."
+    ),
 }  # fmt: skip
 
 # (item, category, price, shipping paid). Prices avoid half-cent ties at 15%.
@@ -114,28 +119,38 @@ NAMES = [
     "Priya Shah", "Ben Carter", "Yuki Tanaka", "Lucas Silva",
 ]  # fmt: skip
 
-# Case kinds and how many of each per split. The first eight follow the policy.
+# Case kinds and how many of each go to the reviewed traces, the unreviewed production
+# traces, and the new traces. Kinds that start with `plus_` involve an Acme Plus member,
+# whose rules appear only in the `plus-members` passage. No reviewed trace has one, a
+# few unreviewed production traces do, and they're common in the new traces.
 COMPLIANT = {
-    "full_refund": (12, 6),
-    "damaged_refund": (6, 3),
-    "restocking_fee": (7, 4),
-    "late_denied": (7, 3),
-    "final_sale_denied": (5, 3),
-    "gift_card_denied": (4, 2),
-    "damaged_late_item_price": (4, 2),
-    "damaged_electronics": (3, 1),
+    "full_refund": (6, 5, 2),
+    "damaged_refund": (3, 3, 2),
+    "restocking_fee": (3, 3, 2),
+    "late_denied": (3, 3, 2),
+    "final_sale_denied": (3, 2, 2),
+    "gift_card_denied": (2, 2, 2),
+    "damaged_late_item_price": (2, 1, 2),
+    "damaged_electronics": (2, 1, 1),
+    "plus_late_refund": (0, 2, 3),
+    "plus_no_fee": (0, 1, 4),
+    "plus_late_denied": (0, 1, 2),
 }
 NONCOMPLIANT = {
-    "late_approved": (5, 2),
-    "final_sale_approved": (4, 2),
-    "gift_card_refunded": (2, 1),
-    "restocking_fee_skipped": (4, 2),
-    "restocking_fee_misapplied": (4, 2),
-    "shipping_not_refunded": (3, 2),
-    "shipping_refunded": (3, 1),
-    "wrongly_denied": (4, 2),
-    "damaged_late_full": (2, 1),
-    "restocking_math": (1, 1),
+    "late_approved": (2, 2, 1),
+    "final_sale_approved": (2, 2, 1),
+    "gift_card_refunded": (1, 1, 0),
+    "restocking_fee_skipped": (2, 2, 1),
+    "restocking_fee_misapplied": (2, 2, 1),
+    "shipping_not_refunded": (2, 1, 1),
+    "shipping_refunded": (1, 1, 0),
+    "wrongly_denied": (2, 1, 1),
+    "damaged_late_full": (1, 1, 1),
+    "restocking_math": (1, 0, 0),
+    "plus_wrongly_denied": (0, 1, 3),
+    "plus_fee_charged": (0, 1, 3),
+    "plus_claim_false": (0, 1, 2),
+    "plus_fee_claim_false": (0, 0, 1),
 }
 KINDS = {**COMPLIANT, **NONCOMPLIANT}
 
@@ -260,6 +275,25 @@ SENTENCES: dict[str, dict[str, list[str]]] = {
         "visible": ["We're also refunding your ${ship} shipping."],
         "unseen": ["I've included the ${ship} shipping charge in your refund as well."],
     },
+    "plus_window": {
+        "visible": ["As an Acme Plus member, you have 60 days from delivery to return items."],
+        "unseen": [
+            "Your Acme Plus membership extends the return window to 60 days after delivery."
+        ],
+    },
+    "plus_no_fee": {
+        "visible": ["Plus members aren't charged the restocking fee on opened electronics."],
+        "unseen": ["With Acme Plus, there's no restocking fee on opened electronics."],
+    },
+    "plus_late": {
+        "visible": [
+            "The order was delivered {days} days ago, which is past the 60-day return window "
+            "for Acme Plus members."
+        ],
+        "unseen": [
+            "Delivery was {days} days ago, so even the 60-day Plus return window has closed."
+        ],
+    },
     "reminder": {
         "visible": [
             "As a reminder, most items can be returned within 30 days of delivery.",
@@ -320,6 +354,10 @@ CUSTOMER_REASONS = {
         "visible": ["I received it about two weeks ago."],
         "unseen": ["It only arrived last week."],
     },
+    "member_claim": {
+        "visible": ["I'm an Acme Plus member."],
+        "unseen": ["I have an Acme Plus membership."],
+    },
 }
 # Delivery ages that make each split's date claim true. Late customers make the same
 # claim falsely, so the order record, not the claim, gives the delivery age.
@@ -358,6 +396,13 @@ REVIEW_NOTES = {
         "rules apply: ${correct}, not ${stated}."
     ),
     "restocking_math": "The restocking fee is 15% of the item price only. Should be ${correct}, not ${stated}.",
+    "plus_late_refund": "Plus member on day {days}, inside the 60-day member window. ${correct} is right.",
+    "plus_no_fee": "Plus member, so no restocking fee on opened electronics. ${correct} is right.",
+    "plus_late_denied": "Plus member, but delivered {days} days ago, past the 60-day window. Declining is correct.",
+    "plus_wrongly_denied": "Plus member on day {days}, inside the 60-day member window. Should have refunded ${correct}.",
+    "plus_fee_charged": "Plus members don't pay the restocking fee. Should be ${correct}, not ${stated}.",
+    "plus_claim_false": "Not a Plus member, and delivered {days} days ago, past the 30-day window. Should have been declined.",
+    "plus_fee_claim_false": "Not a Plus member, so the 15% restocking fee applies. Should be ${correct}, not ${stated}.",
 }  # fmt: skip
 WINDOW = re.compile(r"\b30[- ]day|\b30 days", re.IGNORECASE)
 
@@ -382,6 +427,7 @@ class Order:
     days_since_delivery: int
     condition: str
     opened: bool
+    membership: str
 
     def record(self) -> dict[str, Any]:
         return {
@@ -395,6 +441,7 @@ class Order:
             "days_since_delivery": self.days_since_delivery,
             "condition": self.condition,
             "opened": self.opened,
+            "membership": self.membership,
             "status": "delivered",
         }
 
@@ -405,9 +452,10 @@ def policy_outcome(order: Order) -> float:
         return 0.0
     if order.condition == "damaged" and order.days_since_delivery <= 14:
         return money(order.price + order.shipping_paid)
-    if order.days_since_delivery > 30:
+    plus = order.membership == "plus"
+    if order.days_since_delivery > (60 if plus else 30):
         return 0.0
-    if order.category == "electronics" and order.opened:
+    if order.category == "electronics" and order.opened and not plus:
         return restocked(order.price)
     return order.price
 
@@ -427,6 +475,8 @@ def passages(order: Order) -> list[dict[str, Any]]:
         keys += ["damaged", "shipping"]
     if order.category == "electronics":
         keys.append("restocking")
+    if order.membership == "plus":
+        keys.append("plus-members")
     keys.append("return-window")
     if "shipping" not in keys:
         keys.append("shipping")
@@ -488,7 +538,7 @@ def scenario(kind: str, variant: int, rng: random.Random, split: str) -> dict[st
         facts = dict(item=item, final=False, days=rng.randint(2, 29), condition=good, opened=True)
         price, ship = item[2], item[3]
         if kind == "restocking_fee":
-            reasons = ["restocking"] if variant % 2 == 0 else ["restocking_opened"]
+            reasons = [["restocking_any"], ["restocking"], ["restocking_opened"]][variant % 3]
             return {**facts, "refund": restocked(price), "reasons": reasons}
         if kind == "restocking_fee_skipped":
             reasons = ["standard"] if variant % 2 == 0 else ["unused"]
@@ -578,6 +628,57 @@ def scenario(kind: str, variant: int, rng: random.Random, split: str) -> dict[st
             return {**facts, "refund": 0.0, "reasons": ["late"], "claimed_days": late_days(rng)}
         reason = "final_sale" if style == 1 else "late_plain"
         return {**facts, "refund": 0.0, "reasons": [reason]}
+    return plus_scenario(kind, variant, rng, split)
+
+
+def plus_scenario(kind: str, variant: int, rng: random.Random, split: str) -> dict[str, Any]:
+    """Returns the facts for a kind that involves the Acme Plus rules.
+
+    `plus` says whether the order record shows a Plus member. `claims_plus` says the
+    customer told the agent they're a member, which is false on the `_claim_false` kinds.
+    """
+    if kind in ("plus_late_refund", "plus_claim_false"):
+        # Refunds the item price on day 31 to 58, citing the 60-day member window.
+        electronics = rng.random() < 0.3
+        item = pick(rng, split, electronics=electronics)
+        facts = dict(item=item, final=False, days=rng.randint(31, 58), condition="good",
+                     opened=False if electronics else rng.random() < 0.5,
+                     plus=kind == "plus_late_refund", claims_plus=True)  # fmt: skip
+        return {**facts, "refund": item[2], "reasons": ["plus_window"]}
+    if kind in ("plus_no_fee", "plus_fee_claim_false"):
+        # Refunds opened electronics in full, citing the member fee waiver. One
+        # `plus_no_fee` variant also needs the member window.
+        item = pick(rng, split, electronics=True)
+        late = kind == "plus_no_fee" and variant % 2 == 1
+        facts = dict(item=item, final=False, days=rng.randint(31, 58) if late else rng.randint(2, 29),
+                     condition="good", opened=True, plus=kind == "plus_no_fee",
+                     claims_plus=True)  # fmt: skip
+        reasons = ["plus_window", "plus_no_fee"] if late else ["plus_no_fee"]
+        return {**facts, "refund": item[2], "reasons": reasons}
+    if kind == "plus_fee_charged":
+        item = pick(rng, split, electronics=True)
+        facts = dict(item=item, final=False, days=rng.randint(2, 29), condition="good",
+                     opened=True, plus=True)  # fmt: skip
+        reasons = ["restocking"] if variant % 2 == 0 else ["restocking_opened"]
+        return {**facts, "refund": restocked(item[2]), "reasons": reasons}
+    if kind in ("plus_late_denied", "plus_wrongly_denied"):
+        electronics = rng.random() < 0.3
+        item = pick(rng, split, electronics=electronics)
+        facts = dict(item=item, final=False, condition="good",
+                     opened=False if electronics else rng.random() < 0.5, plus=True)  # fmt: skip
+        if kind == "plus_late_denied":
+            return {**facts, "days": rng.randint(61, 90), "refund": 0.0, "reasons": ["plus_late"]}
+        # Declines a member inside the 60-day window: either by the 30-day rule, or
+        # by the member window with a misread delivery date.
+        facts["days"] = rng.randint(31, 58)
+        if variant % 2 == 0:
+            return {**facts, "refund": 0.0, "reasons": ["late"]}
+        return {
+            **facts,
+            "refund": 0.0,
+            "reasons": ["plus_late"],
+            "claimed_days": rng.randint(61, 90),
+        }
     raise ValueError(kind)
 
 
@@ -599,6 +700,7 @@ def make_case(
         days_since_delivery=facts["days"],
         condition=facts["condition"],
         opened=facts["opened"],
+        membership="plus" if facts.get("plus") else "standard",
     )
     allowed = policy_outcome(order)
     refund = facts["refund"]
@@ -626,7 +728,9 @@ def make_case(
         decision_first = False
     body = [decision, *reasons] if decision_first else [*reasons, decision]
     sentences = [say("greeting"), *body]
-    if not WINDOW.search(" ".join(sentences)) and rng.random() < 0.45:
+    # The 30-day reminder would contradict a reply about the member window.
+    member_reply = facts.get("plus") or facts.get("claims_plus")
+    if not member_reply and not WINDOW.search(" ".join(sentences)) and rng.random() < 0.45:
         sentences.append(say("reminder"))
     sentences.append(say("closing_approve") if refund > 0 else say("closing_deny"))
     reply = " ".join(sentences) + say("signoff")
@@ -643,6 +747,9 @@ def make_case(
     true_claim = order.days_since_delivery in TRUE_CLAIM_DAYS[split] and rng.random() < 0.6
     if facts.get("misstated") or true_claim:
         said.append(rng.choice(CUSTOMER_REASONS["date_claim"][split]))
+    # Customers on the `_claim_false` kinds say they're members, and the agent believes it.
+    if facts.get("claims_plus") or (facts.get("plus") and rng.random() < 0.5):
+        said.append(rng.choice(CUSTOMER_REASONS["member_claim"][split]))
     request = rng.choice(REQUESTS[split]).format(reason=" ".join(said), **values)
 
     start = BASE + timedelta(hours=index * 2.3 + (24 * 9 if split == "unseen" else 0))
@@ -675,21 +782,23 @@ def make_case(
 
 
 def build_split(split: str, seed: int) -> list[dict[str, Any]]:
+    """Builds the production traces (`visible`) or the new traces (`unseen`), shuffled."""
     rng = random.Random(seed)
-    column = 0 if split == "visible" else 1
-    kinds = [(kind, n) for kind, counts in KINDS.items() for n in range(counts[column])]
+
+    def count(counts: tuple[int, int, int]) -> int:
+        return counts[0] + counts[1] if split == "visible" else counts[2]
+
+    kinds = [(kind, n) for kind, counts in KINDS.items() for n in range(count(counts))]
     rng.shuffle(kinds)
     return [make_case(kind, n, i, split, rng) for i, (kind, n) in enumerate(kinds)]
 
 
 def choose_reviewed(cases: list[dict[str, Any]]) -> set[str]:
-    """Picks half of each kind for human review, alternating which side gets an odd one."""
+    """Picks each kind's reviewed count of production traces, in trace order."""
     reviewed: set[str] = set()
-    offset = 0
-    for kind in KINDS:
+    for kind, counts in KINDS.items():
         members = [case["trace_id"] for case in cases if case["kind"] == kind]
-        reviewed.update(t for j, t in enumerate(members) if (j + offset) % 2 == 0)
-        offset ^= len(members) % 2
+        reviewed.update(members[: counts[0]])
     return reviewed
 
 
@@ -764,7 +873,13 @@ def main() -> None:
     for name, cases in (("reviewed", reviewed_cases), ("hidden", hidden), ("unseen", unseen)):
         counts = Counter("compliant" if c["compliant"] else "noncompliant" for c in cases)
         denials = sum(c["compliant"] and "denied" in c["kind"] for c in cases)
+        plus = Counter(
+            "compliant" if c["compliant"] else "noncompliant"
+            for c in cases
+            if c["kind"].startswith("plus_")
+        )
         print(f"{name}: {len(cases)} traces, {dict(counts)}, {denials} compliant denials")
+        print(f"  Plus kinds: {dict(plus)}")
         print(f"  starting judge: {recall(cases, lambda c: starting_judge_label(c['reply']))}")
 
 

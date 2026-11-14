@@ -2,8 +2,10 @@
 
 Each session is one conversation, and each trace in it is one turn. The judges read the
 whole conversation in order, including every tool call and its result, because a final
-"thanks!" says nothing about whether the cancellation went through. Scores only sessions
-that don't have both annotations yet, so the nightly job pays only for new conversations.
+"thanks!" says nothing about whether the cancellation went through. Scores sessions that
+don't have both annotations yet, and rescores sessions with a turn newer than their
+annotations, because a customer who comes back can change either label. Other sessions
+keep their annotations, so the nightly job pays only for conversations that changed.
 """
 
 from __future__ import annotations
@@ -11,6 +13,7 @@ from __future__ import annotations
 import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 from typing import Any
 
 from phoenix.client import Client
@@ -104,7 +107,7 @@ def root_of(trace: Trace) -> dict[str, Any]:
     return next(span for span in trace if not span.get("parent_id"))
 
 
-def load_sessions(client: Client) -> dict[str, list[Trace]]:
+def load_turns(client: Client) -> dict[str, list[Trace]]:
     """Maps each session ID to its traces, oldest turn first."""
     traces: dict[str, Trace] = {}
     for span in client.spans.get_spans(project_identifier=PROJECT, limit=1_000_000):
@@ -119,13 +122,45 @@ def load_sessions(client: Client) -> dict[str, list[Trace]]:
     return sessions
 
 
-def unscored_sessions(client: Client) -> set[str]:
-    """Returns the sessions that are missing any annotation this script writes."""
-    missing = " or ".join(f"session_annotations['{name}'].label is None" for name in NAMES)
-    return {
-        str(session["session_id"])
-        for session in client.sessions.list(project_name=PROJECT, filter=missing, timeout=60)
-    }
+def scored_at(client: Client, session_ids: list[str]) -> dict[str, dict[str, datetime]]:
+    """Maps each session to when each annotation this script writes was last updated."""
+    scored: dict[str, dict[str, datetime]] = {}
+    for start in range(0, len(session_ids), 100):
+        params: dict[str, Any] = {
+            "session_ids": session_ids[start : start + 100],
+            "include_annotation_names": list(NAMES),
+            "limit": 1000,
+        }
+        while True:
+            # The client has no method that reads session annotations, so use its HTTP session.
+            response = client._client.get(
+                f"v1/projects/{PROJECT}/session_annotations", params=params, timeout=60
+            )
+            response.raise_for_status()
+            body = response.json()
+            for row in body["data"]:
+                updated = datetime.fromisoformat(row["updated_at"])
+                names = scored.setdefault(row["session_id"], {})
+                names[row["name"]] = max(updated, names.get(row["name"], updated))
+            if not body.get("next_cursor"):
+                break
+            params["cursor"] = body["next_cursor"]
+    return scored
+
+
+def sessions_to_score(client: Client) -> set[str]:
+    """Returns the sessions missing an annotation this script writes, and the sessions
+    whose latest turn ended after their oldest annotation was written."""
+    sessions = client.sessions.list(project_name=PROJECT, timeout=60)
+    scored = scored_at(client, [str(session["session_id"]) for session in sessions])
+    todo = set()
+    for session in sessions:
+        session_id = str(session["session_id"])
+        annotated = scored.get(session_id, {})
+        ended = datetime.fromisoformat(session["end_time"])
+        if set(NAMES) - set(annotated) or ended > min(annotated.values()):
+            todo.add(session_id)
+    return todo
 
 
 def transcript(turns: list[Trace]) -> str:
@@ -176,9 +211,9 @@ def retrying(function: Callable[[Any], Any]) -> Callable[[Any], Any]:
 
 def main() -> None:
     client = Client()
-    sessions = load_sessions(client)
-    unscored = unscored_sessions(client)
-    todo = {session: turns for session, turns in sessions.items() if session in unscored}
+    turns_of = load_turns(client)
+    stale = sessions_to_score(client)
+    todo = {session: turns for session, turns in turns_of.items() if session in stale}
     with ThreadPoolExecutor(8) as pool:
         scored = zip(todo, pool.map(retrying(score), todo.values()))
         results = {session: verdicts for session, verdicts in scored if verdicts is not None}
@@ -201,7 +236,7 @@ def main() -> None:
             session_annotations=annotations[start : start + 100], sync=True
         )
     failing = {name: sum(not v[name][0] for v in results.values()) for name in NAMES}
-    print(f"Scored {len(results)} new sessions. Failing sessions per annotation: {failing}")
+    print(f"Scored {len(results)} new or continued sessions. Failing per annotation: {failing}")
 
 
 if __name__ == "__main__":

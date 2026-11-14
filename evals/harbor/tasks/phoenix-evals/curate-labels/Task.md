@@ -19,17 +19,19 @@ The agent gets `instruction.md` word for word:
 
 | Where | What |
 | --- | --- |
-| Project `support-bot-reviews` | 90 traces from a SaaS support bot. The root `support-bot` span has the customer's question and the bot's reply. Its children are a `get_workspace` tool call (the plan and workspace record), a `search_help_center` retriever (the right help article and 2 others), and the LLM call. |
-| `review` annotations | On root spans. Human reviews come from `alice`, `bob`, `carmen`, or `dmitri`, labeled `supported`, `unsupported`, or `needs_review`, each with a short note. Pre-labels come from the auto-labeler, `prelabel-bot`, labeled `supported` or `unsupported`. |
+| Project `support-bot-reviews` | 98 traces from a SaaS support bot. The root `support-bot` span has the customer's question and the bot's reply. Its children are a `get_workspace` tool call (the plan and workspace record), a `search_help_center` retriever (the right help article and 2 others), and the LLM call (`ChatCompletion`), whose output is the same reply. |
+| `review` annotations | Mostly on root spans. Reviewers annotate whichever span they have open, so 15 human reviews sit on the LLM span instead. Human reviews come from `alice`, `bob`, `carmen`, or `dmitri`, labeled `supported`, `unsupported`, or `needs_review`, each with a short note. Pre-labels come from the auto-labeler, `prelabel-bot`, on root spans, labeled `supported` or `unsupported`. |
 | Other annotations | `user_feedback` (a human thumbs up or down) on most root spans, and nightly `helpfulness`, `tone`, `tool_ok`, and `retrieval_hit` evals on child spans. None of them are reviews. |
 
-Phoenix keeps one annotation per name, span, and identifier, so a trace with two human
-reviews has them from two different reviewers. Each trace's review history is built on
-purpose:
+Phoenix keeps one annotation per name, span, and identifier. When a reviewer revises a
+review, Phoenix updates it in place: `created_at` keeps the first review's time, and
+`updated_at` moves to the revision's time. So two human reviews on one span come from
+two different reviewers, and 8 reviews show a later `updated_at` than `created_at`.
+Each trace's review history is built on purpose:
 
 | Review history | Traces | In the dataset? |
 | --- | --- | --- |
-| One human verdict | 23 | Yes |
+| One human verdict | 15 | Yes |
 | Two humans agree | 3 | Yes |
 | Two humans disagree, and the later one is right | 6 | Yes, with the later verdict |
 | `needs_review`, then a later human verdict | 4 | Yes |
@@ -37,13 +39,19 @@ purpose:
 | Pre-label disagrees, written after the human verdict | 4 | Yes, with the human verdict |
 | Pre-label agrees with the human verdict | 4 | Yes |
 | Two pairs of traces with the same question and reply | 4 | Yes, all four |
+| A wrong verdict, then a second reviewer's wrong verdict (2) or `needs_review` (2), then the first reviewer revises theirs to the right verdict | 4 | Yes, with the revised verdict |
+| Only human review is on the LLM span; 2 of these also have a disagreeing pre-label on the root | 4 | Yes |
+| A wrong verdict (2) or `needs_review` (2) on the root, then a later verdict on the LLM span | 4 | Yes, with the LLM-span verdict |
+| A wrong verdict (2) or `needs_review` (2) on the LLM span, then a later verdict on the root | 4 | Yes, with the root verdict |
 | Human verdict, then a later `needs_review` | 4 | No |
 | Only `needs_review` | 3 | No |
-| Only a pre-label | 13 | No |
+| Only a pre-label | 10 | No |
 | A pre-label and a human `needs_review` | 3 | No |
-| No review | 15 | No |
+| Two human verdicts, then the first reviewer revises theirs to `needs_review` | 4 | No |
+| A verdict on the root, then a later `needs_review` on the LLM span | 3 | No |
+| No review | 11 | No |
 
-That leaves 52 eligible traces: 27 `supported` and 25 `unsupported`. Each eligible
+That leaves 60 eligible traces: 31 `supported` and 29 `unsupported`. Each eligible
 trace's latest human verdict is correct by construction. A `supported` reply restates
 only the help article and the workspace record. An `unsupported` reply adds or
 contradicts a fact, and its reviewer's note names that mistake.
@@ -58,7 +66,7 @@ in `span_id` or `trace_id`. A link to any span in the trace counts.
 | Check | Passes when |
 | --- | --- |
 | `linked_to_traces` | Every example links to exactly one trace in the project. |
-| `correct_traces` | The linked traces are exactly the 52 eligible traces, each once. |
+| `correct_traces` | The linked traces are exactly the 60 eligible traces, each once. |
 | `correct_labels` | Every example's output gives its trace's latest human verdict: the word `supported` or `unsupported`, or a true or false value under a key containing `support` or `ground`, such as `{"supported": true}`. An output that gives both fails. |
 | `correct_inputs` | Every example's input contains the question and the reply, ignoring case and spacing. |
 | `no_label_in_input` | No input contains a verdict word, a key such as `label`, `verdict`, or `review`, or the reviewer's note for that trace. |
@@ -71,7 +79,9 @@ The reply isn't graded; the dataset is the deliverable. The run also reports `tu
 
 | Behavior | How the task checks it |
 | --- | --- |
-| Taking the latest human review | Two humans disagree on some traces, and `needs_review` comes before or after a verdict on others. The Phoenix API lists annotations newest first, so an agent that lets the last one in the list win takes the oldest. |
+| Taking the latest human review | Two humans disagree on some traces, and `needs_review` comes before or after a verdict on others. The Phoenix API lists annotations newest first by when they were first written, so an agent that lets the last one in the list win takes the oldest. |
+| Reading revised reviews | A revised review keeps its `created_at` and its place in the API's list, but its `updated_at` is later than the other reviewer's review. An agent that orders reviews by `created_at` takes the other reviewer's wrong verdict or `needs_review` on 4 traces, and includes 4 traces that the first reviewer reopened. |
+| Reading reviews on every span | An agent that reads only root-span annotations leaves out the 4 traces whose only human review is on the LLM span, goes by the older root review on 4 traces with a later LLM-span verdict, and includes the 3 traces with a later `needs_review` on the LLM span. |
 | Ignoring the auto-labeler | Pre-labels written after the human verdict disagree with it, and pre-label-only traces aren't eligible. |
 | Not falling back to the pre-label | Traces with only a pre-label, or a pre-label and a `needs_review`, must be left out. |
 | Respecting a later `needs_review` | A human verdict followed by `needs_review` means the trace is back in review, so it's left out. |
@@ -86,6 +96,8 @@ Controls we ran locally against the seeded data:
 | No dataset (nop) | 0 | All |
 | Reference solution | 1 | None |
 | Span link only, metadata `trace_id` only, a DataFrame with `span_id_key`, or `{"supported": true}` as output | 1 | None |
+| Latest human review by `created_at` | 0 | `correct_traces`, `correct_labels` |
+| Root-span reviews only | 0 | `correct_traces`, `correct_labels` |
 | First human review | 0 | `correct_traces`, `correct_labels` |
 | Annotations in API order, last one wins | 0 | `correct_traces`, `correct_labels` |
 | Latest review of any kind | 0 | `correct_traces`, `correct_labels` |
@@ -95,13 +107,22 @@ Controls we ran locally against the seeded data:
 | Latest human annotation of any name | 0 | `correct_traces` |
 | Verdict copied into the input | 0 | `no_label_in_input` |
 | No link | 0 | All |
+| The 4 pilot agents' pipelines, replayed from their trajectories (root-span reviews only, latest by `created_at`) | 0 | `correct_traces`, `correct_labels` |
 
 ## Known limits
 
-- Phoenix stores annotation times to the second. The seeder writes about 430 other
-  annotations between the first and second rounds of human reviews, which keeps a
-  trace's two reviews in different seconds at normal seeding speed. A much faster seed
-  could give two reviews the same time. Their row IDs still order them.
+- Phoenix stores annotation times to the second. Before the seeder writes an annotation
+  name to a span a second time, it waits for the next second, so a span's reviews and
+  revisions never share a time. Reviews on two spans of one trace don't get that wait.
+  To order them, the fixture puts two writes to the same span at each boundary between
+  review rounds, which puts every review in a later round at a later second. The whole
+  review history seeds in a few seconds, so a trace's reviews are often one second
+  apart.
+- Phoenix doesn't keep a revised review's earlier verdict. The agent sees only the
+  revision and its two timestamps.
+- Reviews off the root span sit only on the LLM span, and revisions sit only on root
+  spans. An agent that reads the root and LLM spans but skips the tool and retriever
+  spans still passes.
 - The task needs no judgment calls, so the reference solution makes no model calls. It
   tests careful data handling, not grading skill.
 
@@ -111,4 +132,4 @@ Controls we ran locally against the seeded data:
 | --- | --- |
 | `fixture/build.py` | Generates `fixture/spec.json` (the traces and annotations, in the order they're written) and `tests/truth.json` (the eligible traces, verdicts, texts, and notes). It's deterministic; rerun it after editing. |
 | `tests/test.py` | The verifier. |
-| `solution/curate_labels.py` | The reference solution. It reads root spans and `review` annotations with the Phoenix client, takes each trace's latest human review, and creates the dataset with span links. `solution/solve.sh` runs it. |
+| `solution/curate_labels.py` | The reference solution. It reads every span and its `review` annotations with the Phoenix client, takes each trace's latest human review by `updated_at`, and creates the dataset with links to the root spans. `solution/solve.sh` runs it. |
