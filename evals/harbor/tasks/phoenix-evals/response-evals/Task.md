@@ -17,7 +17,7 @@ The agent receives `instruction.md` verbatim:
 
 | Where | What |
 | --- | --- |
-| Phoenix project `refund-bot` | 60 traces, one per refund request. Root `support-agent` span (input: customer message; output: the bot's JSON reply). Children: `get_order` tool (order record with the approved `refundable_amount` and the customer's email), `search_policies` retriever (3 policy passages), `find_similar_tickets` tool (2 other customers' tickets with their email and phone), and the LLM call. |
+| Phoenix project `refund-bot` | 60 traces, one per refund request. Root `support-agent` span (input: customer message; output: the bot's JSON reply). Children: `get_order` tool (order record with the approved `refundable_amount` and the customer's email), `search_policies` retriever (3 policy passages), `find_similar_tickets` tool (2 tickets about the same item, each with the reporting customer's email and phone; in 24 traces one is the customer's own earlier ticket), and the LLM call. |
 | `/app/SPEC.md` | Four requirements: `valid_format`, `correct_amount`, `no_pii_leak`, `grounded`. |
 | `/app/refund_bot.py`, `/app/tools.py` | The app's prompt, model call, and tool signatures, for context. |
 | Model access | `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` for LLM evaluators. |
@@ -70,9 +70,9 @@ share with the new traces, such as policy passages and reply templates, doesn't 
 
 | Trap | Which cases expose it |
 | --- | --- |
-| Checking the amount against what the customer asked for | The customer always asks for item price plus shipping; that's right only for damaged items. |
+| Checking the amount against what the customer asked for | The customer asks for the item price or the price plus shipping, regardless of what they're owed. The request matches `refundable_amount` on 24 of 60 traces, and 5 of 18 wrong amounts match the request. |
 | Strict JSON parsing for every requirement | Fenced or prefixed JSON must fail `valid_format` but can still pass `correct_amount`. |
-| Flagging any email as a leak | 40% of replies repeat the customer's own email, which is allowed. |
+| Flagging any email as a leak | 48% of replies repeat the customer's own email, which is allowed. 14 of 45 passing replies quote it from the customer's own earlier ticket, in the same words leaking replies use for another customer's contact. |
 | Judging grounding without the tool results | Every reply cites order facts and policy passages that only the child spans contain. |
 | Letting one requirement leak into another | A reply that shares another customer's contact, taken from the similar-ticket results, is grounded but fails `no_pii_leak`. LLM judges tend to call the disclosure unsupported; the reference judge drops sentences with contact details before judging support. |
 | Overfitting to visible wordings | New traces use unsupported claims, leak formats (phone numbers), and broken formats the 60 visible traces never show. |
@@ -86,10 +86,10 @@ share with the new traces, such as policy passages and reply templates, doesn't 
   `grounded` boundary depends on the judge's reading of "backed by". The reference
   solution's LLM judge sets the practical bar; see the local and oracle results.
 - On `gpt-5.4-nano`, the reference reaches 1.0 recall on every check. A naive
-  `grounded` prompt (raw span JSON, no app context, no definition of a claim) catches 0
-  of 21 visible ungrounded replies on `gpt-5.4-nano` and 1 of 21 on `gpt-4.1-mini`. The
-  reference prompt on `gpt-4.1-mini` catches 12 of 14 new ungrounded replies, so
-  `gpt-4.1-mini` would leave too little margin.
+  `grounded` prompt (raw span JSON, no app context, no definition of a claim) catches 1
+  of 21 visible ungrounded replies on `gpt-5.4-nano` and 3 of 21 on `gpt-4.1-mini`. The
+  reference prompt on `gpt-4.1-mini` catches all 14 new ungrounded replies, with no false
+  alarms on the 26 grounded ones.
 
 ## Files
 

@@ -64,33 +64,43 @@ NAMES = [
 ]  # fmt: skip
 DOMAINS = ["example.com", "example.org", "example.net", "mail.example.com"]
 
-# Claims a reply can make that no policy, order record, or tool result supports.
+# Claims a reply can make that no policy, order record, or tool result supports, keyed by
+# topic. Supported claims on the same topics come from `supported_claims`, and from the
+# opened-item explanation for the restocking fee.
 UNSUPPORTED = {
     "visible": [
-        "You'll see the money back within 2 business days.",
-        "We've also emailed you a prepaid return label.",
-        "As a loyalty member, you can return items for up to 90 days.",
-        "We've waived the restocking fee as a courtesy.",
-        "Your replacement has already shipped.",
+        ("timeline", "You'll see the money back within 2 business days."),
+        ("approval", "We've also emailed you a prepaid return label."),
+        ("delivery", "As a loyalty member, you can return items for up to 90 days."),
+        ("fee", "We've waived the restocking fee as a courtesy."),
+        ("delivery", "Your replacement has already shipped."),
     ],
     "unseen": [
-        "Our policy gives you 60 days to send items back.",
-        "We've added a $10 store credit to your account for the trouble.",
-        "You don't need to send the item back.",
-        "Refunds for this item are instant once approved.",
-        "We've upgraded your next order to free express shipping.",
+        ("delivery", "Our policy gives you 60 days to send items back."),
+        ("approval", "We've added a $10 store credit to your account for the trouble."),
+        ("approval", "You don't need to send the item back."),
+        ("timeline", "Refunds for this item are instant once approved."),
+        ("shipping", "We've upgraded your next order to free express shipping."),
     ],
 }
-LEAKS = {
+# Sentences that quote a contact from the similar-ticket results. Passing and leaking
+# replies share them: a reply passes when the contact is the customer's own earlier
+# ticket and leaks when it's another customer's.
+TICKET_CONTACTS = {
     "visible": [
-        "For reference, a similar ticket came from {email}.",
-        "Our records show a similar ticket from {email}.",
+        "For reference, a similar ticket came from {contact}.",
+        "Our records show a similar ticket from {contact}.",
     ],
     "unseen": [
-        "One of the similar tickets lists the contact number {phone}.",
-        "Similar tickets on file: {email}.",
+        "One of the similar tickets lists {contact} as the contact.",
+        "Similar tickets on file: {contact}.",
     ],
 }
+# Unseen leaks sometimes quote a phone number, a format the visible traces never show.
+UNSEEN_PHONE_LEAK_RATE = 0.5
+OWN_TICKET_RATE = 0.5
+QUOTE_OWN_TICKET_RATE = 0.8
+ORDER_EMAIL_RATE = 0.4
 BROKEN_FORMATS = {
     "visible": ["fence", "trailing_text", "string_amount"],
     "unseen": ["preamble", "plain_fence", "string_amount"],
@@ -99,6 +109,72 @@ BROKEN_FORMATS = {
 
 def money(value: float) -> float:
     return round(value + 1e-9, 2)
+
+
+def supported_claims(
+    scenario: str, item: str, order_id: str, days: int, documents: list[dict[str, Any]]
+) -> dict[str, str]:
+    """Returns claims the order record and retrieved policies back, keyed by topic."""
+    if scenario == "damaged":
+        delivery = (
+            "Damaged items are covered if reported within 14 days of delivery, and yours was "
+            f"delivered {days} days ago."
+        )
+    else:
+        delivery = f"Our records show your {item} was delivered {days} days ago."
+    claims = {
+        "timeline": (
+            "You'll see the refund on your original payment method within 5 to 7 business days."
+        ),
+        "approval": f"We've approved the refund for order {order_id}.",
+        "delivery": delivery,
+    }
+    if any(document["id"] == "shipping" for document in documents):
+        claims["shipping"] = (
+            "Original shipping is refunded only when an item arrives damaged or is the wrong item."
+        )
+    return claims
+
+
+def write_message(
+    *,
+    split: str,
+    rng: random.Random,
+    defects: set[str],
+    greeting: str,
+    core: str,
+    claims: dict[str, str],
+    own_email: str,
+    own_ticket: dict[str, Any] | None,
+    other_ticket: dict[str, Any],
+) -> str:
+    """Writes the reply message from the case facts and inserts the case's defects.
+
+    Grounded and ungrounded messages draw the same number of claims in random order; an
+    ungrounded one swaps one claim for an unsupported one, so neither sentence count nor
+    position reveals the label. Contact sentences use the same wording in both classes.
+    """
+    topics = rng.sample(sorted(claims), rng.choice((1, 2, 3)))
+    body = [claims[topic] for topic in topics]
+    if "grounded" in defects:
+        slot = rng.randrange(len(topics))
+        kept = set(topics) - {topics[slot]}
+        body[slot] = rng.choice([c for t, c in UNSUPPORTED[split] if t not in kept])
+    body.append(core)
+    rng.shuffle(body)
+
+    contacts = []
+    if rng.random() < ORDER_EMAIL_RATE:
+        contacts.append(f"We have {own_email} as the email on this order.")
+    template = rng.choice(TICKET_CONTACTS[split])
+    if "no_pii_leak" in defects:
+        phone = split == "unseen" and rng.random() < UNSEEN_PHONE_LEAK_RATE
+        field = "customer_phone" if phone else "customer_email"
+        contacts.append(template.format(contact=other_ticket[field]))
+    elif own_ticket is not None and rng.random() < QUOTE_OWN_TICKET_RATE:
+        contacts.append(template.format(contact=own_ticket["customer_email"]))
+    rng.shuffle(contacts)
+    return " ".join([greeting, *body, *contacts])
 
 
 def make_case(index: int, split: str, rng: random.Random, defects: set[str]) -> dict[str, Any]:
@@ -123,7 +199,8 @@ def make_case(index: int, split: str, rng: random.Random, defects: set[str]) -> 
         reason = "I never used it and changed my mind"
         policy_keys = ["window", "processing"]
         support = "Unused items can be returned within 30 days of delivery, so you're covered."
-    requested = money(price + shipping)
+    # What the customer asks for doesn't depend on what they're owed.
+    requested = rng.choice([money(price), money(price + shipping)])
     order_id = f"A-{4100 + index * 13 + (500 if split == 'unseen' else 0)}"
     order = {
         "order_id": order_id,
@@ -151,33 +228,38 @@ def make_case(index: int, split: str, rng: random.Random, defects: set[str]) -> 
         }
         for k, (other, domain, phone) in enumerate(others)
     ]
+    # Some customers have an earlier ticket about the same item, so the similar-ticket
+    # results can hold their own contact as well as other customers'.
+    own_ticket = None
+    if rng.random() < OWN_TICKET_RATE:
+        slot = rng.randrange(2)
+        own_ticket = {
+            **similar[slot],
+            "customer_email": email,
+            "customer_phone": f"555-630-{1000 + index * 37 % 9000:04d}",
+        }
+        similar[slot] = own_ticket
+    others_tickets = [ticket for ticket in similar if ticket is not own_ticket]
     documents = [
         {"id": key, "content": POLICIES[key], "score": round(0.92 - 0.11 * k, 2)}
         for k, key in enumerate(policy_keys + [rng.choice(["final_sale", "shipping"])])
     ]
 
-    sentences = [
-        f"Hi {name.split()[0]}, thanks for reaching out about your {item}.",
-        support,
-        "You'll see the refund on your original payment method within 5 to 7 business days.",
-    ]
-    if rng.random() < 0.4:
-        sentences.append(f"We have {email} as the email on this order.")
-    if "grounded" in defects:
-        sentences.insert(2, rng.choice(UNSUPPORTED[split]))
-    if "no_pii_leak" in defects:
-        leak = rng.choice(LEAKS[split])
-        target = similar[rng.randrange(2)]
-        sentences.append(
-            leak.format(
-                email=target["customer_email"],
-                phone=target["customer_phone"],
-                name=target["customer_email"].split("@")[0],
-            )
-        )
-    message = " ".join(sentences)
+    message = write_message(
+        split=split,
+        rng=rng,
+        defects=defects,
+        greeting=f"Hi {name.split()[0]}, thanks for reaching out about your {item}.",
+        core=support,
+        claims=supported_claims(scenario, item, order_id, delivered_days_ago, documents),
+        own_email=email,
+        own_ticket=own_ticket,
+        other_ticket=rng.choice(others_tickets),
+    )
     if "correct_amount" in defects:
-        amount = requested if requested != refundable else money(price)
+        # Plausible miscalculations, chosen without looking at what the customer asked for.
+        candidates = [money(price), money(price + shipping), money(price * 0.85)]
+        amount = rng.choice([value for value in candidates if value != refundable])
     else:
         amount = refundable
     reply_object: dict[str, Any] = {"refund_amount": amount, "message": message}
