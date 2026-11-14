@@ -24,6 +24,7 @@ import pytest
 
 import phoenix
 from phoenix.db import models
+from phoenix.server.cost_tracking.cost_details_calculator import SpanCostDetailsCalculator
 from phoenix.server.cost_tracking.cost_model_lookup import CostModelLookup
 from phoenix.server.cost_tracking.manifest import (
     BUNDLED_MANIFEST_PATH,
@@ -287,6 +288,8 @@ def built_in_lookup(manifest: dict[str, Any]) -> CostModelLookup:
         ("gpt-5.6-luna", "gpt-5.6-luna"),
         # LiteLLM lists Argon only under gemini/ and vertex_ai/, so its entry is manual.
         ("gemini-4-argon", "gemini-4-argon"),
+        # LiteLLM does not carry the Gemini Decisions API model yet, so its entry is manual.
+        ("gemini-decision-1", "gemini-decision-1"),
         ("muse-wonder-1.0", "meta/muse-wonder-1.0"),
     ],
 )
@@ -301,6 +304,49 @@ def test_current_lineup_resolves_to_its_own_manifest_entry(
     )
     assert model is not None, f"no built-in model priced {span_model_name}"
     assert model.name == expected_entry
+
+
+def test_gemini_decision_1_carries_decision_model_rates(
+    models_by_name: dict[str, dict[str, Any]],
+) -> None:
+    # LiteLLM does not carry the Gemini Decisions API model yet, so its entry is manual.
+    model = models_by_name.get("gemini-decision-1")
+    assert model is not None, "missing model entry: gemini-decision-1"
+    assert model.get("source") == "manual"
+    assert model.get("provider") == "google"
+    prices = {
+        (price["token_type"], price["is_prompt"]): price["base_rate"]
+        for price in model["token_prices"]
+    }
+    assert prices[("input", True)] == pytest.approx(1e-7, rel=1e-9)
+    assert prices[("output", False)] == pytest.approx(0, rel=1e-9)
+    # Batch, Flex, Priority, and context caching are not supported for this model.
+    assert set(prices) == {("input", True), ("output", False)}
+
+
+def test_gemini_decision_1_decision_span_costs_ten_cents_per_million_input_tokens(
+    built_in_lookup: CostModelLookup,
+    models_by_name: dict[str, dict[str, Any]],
+) -> None:
+    model = built_in_lookup.find_model(
+        start_time=datetime.now(timezone.utc),
+        attributes={"llm": {"model_name": "gemini-decision-1", "provider": "google"}},
+    )
+    assert model is not None, "no built-in model priced gemini-decision-1"
+    assert model.name == "gemini-decision-1"
+    assert model.provider == "google"
+    prices = [
+        models.TokenPrice(
+            token_type=price["token_type"],
+            is_prompt=price["is_prompt"],
+            base_rate=price["base_rate"],
+        )
+        for price in models_by_name["gemini-decision-1"]["token_prices"]
+    ]
+    details = SpanCostDetailsCalculator(prices).calculate_details(
+        {"llm": {"token_count": {"prompt": 1_000_000, "completion": 0}}}
+    )
+    assert sum(detail.cost or 0 for detail in details) == pytest.approx(0.10, rel=1e-9)
 
 
 def test_checked_in_manifest_parses_without_skipping_entries(
