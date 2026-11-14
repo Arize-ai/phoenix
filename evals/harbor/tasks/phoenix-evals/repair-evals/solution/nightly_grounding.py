@@ -34,6 +34,11 @@ ATTEMPTS = 3
 JUDGE_PROMPT = """You check a reply from Larkspur Home's customer support bot for claims \
 that aren't backed by what the bot looked up.
 
+Larkspur Home is an online home-goods store. Its support bot answers customers' chat \
+messages and emails about order status, tracking, delivery dates, and address changes. \
+Before replying, it looks up the order, the carrier's tracking data once the order has \
+shipped, and help center articles. It should state only what those lookups say.
+
 For this message, the bot looked up the information below: tool results (the order record \
 and carrier tracking data) and help center articles. A claim is grounded only if this \
 information states it or directly implies it. Dates, delivery estimates, tracking events, \
@@ -78,27 +83,34 @@ def question_of(root: dict[str, Any]) -> str:
     return raw
 
 
+def readable(value: Any) -> str:
+    """Returns a span attribute as compact JSON when it holds JSON, else as plain text."""
+    try:
+        return json.dumps(json.loads(str(value)))
+    except ValueError:
+        return str(value)
+
+
 def lookups_of(spans: list[dict[str, Any]]) -> str:
     """Returns the tool results and retrieved articles in a trace, in call order."""
-    found: list[dict[str, Any]] = []
+    sections: list[str] = []
     for span in sorted(spans, key=lambda s: s["start_time"]):
         attributes = span.get("attributes") or {}
         if span.get("span_kind") == "TOOL":
-            found.append(
-                {
-                    "tool": attributes.get("tool.name") or span["name"],
-                    "arguments": attributes.get("input.value"),
-                    "result": attributes.get("output.value") or span.get("status_message"),
-                }
+            name = attributes.get("tool.name") or span["name"]
+            result = attributes.get("output.value") or span.get("status_message") or ""
+            sections.append(
+                f"Tool call: {name}\n"
+                f"Arguments: {readable(attributes.get('input.value') or '')}\n"
+                f"Result: {readable(result)}"
             )
         elif span.get("span_kind") == "RETRIEVER":
-            articles = []
             index = 0
             while f"retrieval.documents.{index}.document.content" in attributes:
-                articles.append(attributes[f"retrieval.documents.{index}.document.content"])
+                content = attributes[f"retrieval.documents.{index}.document.content"]
+                sections.append(f"Help center article {index + 1}:\n{content}")
                 index += 1
-            found.append({"help_center_articles": articles})
-    return json.dumps(found, indent=1)
+    return "\n\n".join(sections)
 
 
 def ask_judge(context: str, question: str, reply: str) -> str:

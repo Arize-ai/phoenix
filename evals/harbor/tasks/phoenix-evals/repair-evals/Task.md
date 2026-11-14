@@ -51,8 +51,8 @@ meaning, so `grounded` works as well as `pass`.
 | `production_grounded` | The 58 graded traces in the project. | At least 80% recall on each class. |
 | `new_traces_grounded` | 28 new traces the verifier adds. It then runs `python evals/nightly_grounding.py` as the agent user. | At least 80% recall on each class. |
 
-On `gpt-5-nano`, the reference solution catches 84% of grounded production replies and
-all of the rest, so it passes with a thin margin. The best
+On `gpt-5-nano`, the reference solution calls 88% to 89% of grounded replies grounded
+and catches every ungrounded one. The best
 partial fix we measured, with every bug fixed except what the judge sees and asks,
 catches 43% to 48% of ungrounded replies.
 
