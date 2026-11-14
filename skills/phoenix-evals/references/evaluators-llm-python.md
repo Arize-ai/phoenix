@@ -29,24 +29,30 @@ helpfulness = ClassificationEvaluator(
 
 ## Decision Models
 
-Any `ClassificationEvaluator`, including every built-in classification evaluator, also accepts a `DecisionModel` in place of `LLM`. A decision model such as TypeSafe's Jev picks one of the labels directly instead of generating text, so it is a cheaper, faster judge for high-volume labeling. Install `typesafe-sdk` (`pip install typesafe-sdk`); extra keyword arguments such as `api_key` are forwarded to the TypeSafe client.
+Any `ClassificationEvaluator`, including every built-in classification evaluator, also accepts a `DecisionModel` in place of `LLM`. A decision model such as OpenAI's `gpt-6-luna` or TypeSafe's Jev picks one of the labels directly instead of generating text, so it is a cheaper, faster judge for high-volume labeling. Extra keyword arguments such as `api_key` or `base_url` are forwarded to the provider's SDK client.
+
+| Provider | Example | Install |
+| -------- | ------- | ------- |
+| `openai` (Decisions API) | `DecisionModel(provider="openai", model="gpt-6-luna")` | `pip install 'openai>=3.26.0'` |
+| `typesafe` | `DecisionModel(provider="typesafe", model="jev-latest")` | `pip install typesafe-sdk` |
 
 ```python
 from phoenix.evals import ClassificationEvaluator, DecisionModel
 
 sentiment = ClassificationEvaluator(
     name="sentiment",
-    llm=DecisionModel(provider="typesafe", model="jev-latest"),
+    llm=DecisionModel(provider="openai", model="gpt-6-luna"),
     prompt_template="Classify the sentiment: {{text}}",
     choices={"positive": 1, "neutral": 0.5, "negative": 0},
 )
 # Score(label="positive", score=1, explanation=None,
-#       metadata={"model": "jev-latest", "probabilities": {...}, "model_id": "...", "confidence": ...})
+#       metadata={"model": "gpt-6-luna", "probabilities": {...}, "model_id": "...", "confidence": ...})
 ```
 
 - **No explanation.** `explanation` is always `None`; `metadata["probabilities"]` maps each label to its probability, and `metadata["confidence"]` is set when the provider reports one.
-- **Plain-text prompt.** The rendered template is sent as one plain-text state; message roles are dropped and only text parts are kept.
-- **Providers.** `typesafe` is the only registered provider; `from phoenix.evals.decision import show_decision_provider_availability` prints which providers are usable in the current environment.
+- **Prompt shape.** Only text parts of the rendered template are sent. `openai` keeps message roles; `typesafe` flattens the messages into one plain-text state and drops roles.
+- **Refusals raise.** When the OpenAI Decisions API refuses to answer, the call raises `PhoenixDecisionRefusal` (`from phoenix.evals.exceptions import PhoenixDecisionRefusal`).
+- **Provider availability.** `from phoenix.evals.decision import show_decision_provider_availability` prints which providers are usable in the current environment.
 - **Traced as DECISION spans.** Each call emits a DECISION span with `decision.*` attributes instead of an LLM span.
 - **Not for calculations.** Decision models can't reason step by step; use an `LLM` for judgments that need arithmetic or unit conversion.
 

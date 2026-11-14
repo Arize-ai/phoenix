@@ -17,7 +17,11 @@ pnpm add @arizeai/phoenix-client @arizeai/phoenix-evals @arizeai/phoenix-otel
 `@arizeai/phoenix-evals` 2.x requires **Node.js >= 22.12** and AI SDK **v7**. It
 depends on `ai@^7` and `@ai-sdk/otel@^1` directly, so you only need to install a
 provider — but that provider must be AI SDK v7-compatible (e.g. `@ai-sdk/openai`
-v4). `@arizeai/phoenix-client` 7.x also requires the `ai` peer at `^7.0.0`.
+v4). `@arizeai/phoenix-client` 8.x and `@arizeai/phoenix-otel` 3.x require
+**Node.js >= 22.15**; `@arizeai/phoenix-client` also requires the `ai` peer at
+`^7.0.0`. A `tracerProvider` passed to `evaluateExperiment()` must be a
+`TracerProvider` from `@opentelemetry/sdk-trace` 3.x (what `register()` from
+`@arizeai/phoenix-otel` returns).
 
 Type-checking the published `@arizeai/phoenix-client` declarations requires
 **TypeScript >= 5.3** (the prompts entry uses `with { "resolution-mode": "import" }`

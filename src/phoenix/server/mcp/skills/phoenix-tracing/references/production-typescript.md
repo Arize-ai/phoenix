@@ -113,12 +113,14 @@ await context.with(suppressTracing(context.active()), async () => {
 });
 ```
 
-**Sampling:**
+**Sampling, span limits, and batch tuning:**
 
-```bash
-export OTEL_TRACES_SAMPLER="parentbased_traceidratio"
-export OTEL_TRACES_SAMPLER_ARG="0.1"  # Sample 10%
-```
+`register()` does not read `OTEL_TRACES_SAMPLER`, `OTEL_TRACES_SAMPLER_ARG`,
+`OTEL_SPAN_*`, `OTEL_ATTRIBUTE_*`, or `OTEL_BSP_*`. To tune batching, pass a
+`BatchSpanProcessor` (re-exported from `@arizeai/phoenix-otel`) with options in
+`spanProcessors`. To set a sampler or span limits, create a `TracerProvider`
+from `@opentelemetry/sdk-trace` yourself and make it global with
+`attachGlobalTracerProvider(provider)` from `@arizeai/phoenix-otel`.
 
 ---
 
