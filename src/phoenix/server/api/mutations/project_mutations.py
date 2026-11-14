@@ -77,12 +77,11 @@ class ProjectMutationMixin:
         project_id = from_global_id_with_expected_type(
             global_id=input.id, expected_type_name="Project"
         )
-        async with info.context.db() as session:
-            await delete_traces_and_orphan_sessions(
-                session,
-                project_id,
-                end_time=input.end_time or None,
-            )
+        await delete_traces_and_orphan_sessions(
+            info.context.db,
+            project_id,
+            end_time=input.end_time or None,
+        )
         info.context.event_queue.put(SpanDeleteEvent((project_id,)))
         return Query()
 

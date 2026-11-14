@@ -1,9 +1,14 @@
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
+from typing import Any
 
+import pytest
+from sqlalchemy import event, select
+from sqlalchemy.engine import Engine
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.server.api import utils as api_utils
 from phoenix.server.types import DbSessionFactory
 
 from ....graphql import AsyncGraphQLClient
@@ -203,6 +208,111 @@ class TestProjectMutations:
             assert await session.get(models.ProjectSession, project_session.id) is not None, (
                 "Session with a surviving trace must not be deleted"
             )
+
+    async def test_clear_project_deletes_traces_in_multiple_batches(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A clear must issue several bounded trace deletes, not one unbounded one.
+
+        One unbounded ``DELETE FROM traces`` holds all of its WAL in the
+        caller's transaction until it commits, which is what fills a
+        nearly-full PostgreSQL volume and takes the database down (#17561).
+        The batch size is monkeypatched here so the repeated statements are
+        observable on SQLite, which has no disk-full behavior to reproduce.
+        The test harness runs every test inside one outer transaction, so the
+        per-batch commits appear as savepoint releases rather than commits; the
+        statement count is what this test can pin.
+        """
+        batch_size = 2
+        monkeypatch.setattr(api_utils, "_TRACE_DELETE_BATCH_SIZE", batch_size)
+        base_start_time = datetime.now(timezone.utc)
+        num_traces = 5
+        num_batches = (num_traces + batch_size - 1) // batch_size
+        async with db() as session:
+            project = models.Project(name=token_hex(8))
+            session.add(project)
+            await session.flush()
+            project_rowid = project.id
+            for trace_index in range(num_traces):
+                start_time = base_start_time - timedelta(hours=trace_index)
+                project_session = models.ProjectSession(
+                    project_id=project_rowid,
+                    session_id=token_hex(8),
+                    start_time=start_time,
+                    end_time=start_time + timedelta(hours=1),
+                )
+                session.add(project_session)
+                await session.flush()
+                session.add(
+                    models.Trace(
+                        project_rowid=project_rowid,
+                        trace_id=token_hex(16),
+                        project_session_rowid=project_session.id,
+                        start_time=start_time,
+                        end_time=start_time + timedelta(hours=1),
+                    )
+                )
+                await session.flush()
+
+        delete_statements: list[str] = []
+
+        def record_delete_statement(
+            conn: Any,
+            cursor: Any,
+            statement: str,
+            parameters: Any,
+            context: Any,
+            executemany: bool,
+        ) -> None:
+            normalized = " ".join(statement.upper().split())
+            if normalized.startswith(("DELETE FROM TRACES", "DELETE FROM PROJECT_SESSIONS")):
+                delete_statements.append(normalized)
+
+        event.listen(Engine, "before_cursor_execute", record_delete_statement)
+        try:
+            result = await gql_client.execute(
+                query="""
+                mutation($input: ClearProjectInput!) {
+                    clearProject(input: $input) {
+                        __typename
+                    }
+                }
+                """,
+                variables={
+                    "input": {
+                        "id": str(GlobalID("Project", str(project_rowid))),
+                    }
+                },
+            )
+        finally:
+            event.remove(Engine, "before_cursor_execute", record_delete_statement)
+        assert not result.errors
+
+        trace_deletes = [s for s in delete_statements if s.startswith("DELETE FROM TRACES")]
+        session_deletes = [
+            s for s in delete_statements if s.startswith("DELETE FROM PROJECT_SESSIONS")
+        ]
+        assert len(trace_deletes) == num_batches, f"traces are deleted {batch_size} at a time"
+        assert len(session_deletes) == 1, "the orphan sweep runs once, after the last batch"
+
+        async with db() as session:
+            remaining_trace_ids = (
+                await session.scalars(
+                    select(models.Trace.id).where(models.Trace.project_rowid == project_rowid)
+                )
+            ).all()
+            remaining_session_ids = (
+                await session.scalars(
+                    select(models.ProjectSession.id).where(
+                        models.ProjectSession.project_id == project_rowid
+                    )
+                )
+            ).all()
+        assert not remaining_trace_ids, "every trace in the project is deleted"
+        assert not remaining_session_ids, "the sessions emptied by the deletes are deleted"
 
     async def test_create_project(
         self,
