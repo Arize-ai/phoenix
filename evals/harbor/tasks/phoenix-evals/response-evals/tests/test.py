@@ -6,17 +6,16 @@
    entry point, and applies the same bar to the new traces.
 """
 
-from harbor_verifiers import grading, judge_practice
+from harbor_verifiers import grading, judge_prompts
 
 TRUTH = grading.load_test_json("truth.json")
 PROJECT = TRUTH["project"]
 MIN_RECALL = {"valid_format": 0.9, "correct_amount": 0.9, "no_pii_leak": 0.9, "grounded": 0.8}
 MIN_COVERAGE = 0.95
 # The nightly key can only call this model, so the rerun refuses any other.
-JUDGE_MODEL = "gpt-5.4-nano"
 RERUN = "python evals/refund_evals.py"
 
-# Reported beside the reward, never part of it. See `judge_practice`.
+# Reported beside the reward, never part of it. See `judge_prompts`.
 APP = "A refund-support bot for an online store. For each refund request it looks up the order record, searches the refund policies, and finds similar past tickets, then replies with JSON that holds the refund amount and a message to the customer."
 CRITERIA = {
     "valid_format": "The reply is exactly one JSON object, with no Markdown fences or extra text. refund_amount is a JSON number and message is a string.",
@@ -48,15 +47,15 @@ def grade(cohort: str, labels: dict) -> None:
 grade("production", TRUTH["visible"])
 seen_spans = grading.project_spans(PROJECT)
 grading.inject_spans(PROJECT, TRUTH["unseen"]["spans"])
-with judge_practice.record_llm_calls(allowed_models={JUDGE_MODEL}) as recorder:
+with judge_prompts.record_llm_calls(allowed_models={judge_prompts.PINNED_MODEL}) as recorder:
     details["rerun"] = grading.run_as_agent(RERUN, timeout=900, env=recorder.env).as_dict()
 grade("new_traces", TRUTH["unseen"]["labels"])
-measures, details["practice"] = judge_practice.practice_scores(
+measures, details["judge_prompts"] = judge_prompts.prompt_scores(
     recorder.calls,
     system=APP,
     criteria=CRITERIA,
     evidence=EVIDENCE,
     deterministic=DETERMINISTIC,
-    copied=judge_practice.seen_only_shingles(seen_spans, TRUTH["unseen"]["spans"]),
+    copied=judge_prompts.seen_only_shingles(seen_spans, TRUTH["unseen"]["spans"]),
 )
 grading.finish(checks, details, measures)

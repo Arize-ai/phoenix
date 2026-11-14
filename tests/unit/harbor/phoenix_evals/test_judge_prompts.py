@@ -1,4 +1,4 @@
-"""Offline tests for recording judge requests and scoring eval practice."""
+"""Offline tests for recording judge requests and scoring their prompts."""
 
 from __future__ import annotations
 
@@ -11,8 +11,8 @@ from typing import Any
 import httpx
 import pytest
 
-from harbor_verifiers import judge_practice
-from harbor_verifiers.judge_practice import LLMCall
+from harbor_verifiers import judge_prompts
+from harbor_verifiers.judge_prompts import LLMCall
 
 
 @pytest.fixture
@@ -37,7 +37,7 @@ def fake_openai(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[dict[str, Any]
     server = ThreadingHTTPServer(("127.0.0.1", 0), Echo)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     monkeypatch.setitem(
-        judge_practice.UPSTREAMS, "openai", f"http://127.0.0.1:{server.server_address[1]}"
+        judge_prompts.UPSTREAMS, "openai", f"http://127.0.0.1:{server.server_address[1]}"
     )
     yield received
     server.shutdown()
@@ -46,7 +46,7 @@ def fake_openai(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[dict[str, Any]
 
 def test_recorder_forwards_and_records(fake_openai: list[dict[str, Any]]) -> None:
     body = {"model": "gpt-4.1-mini", "messages": [{"role": "user", "content": "hi"}]}
-    with judge_practice.record_llm_calls() as recorder:
+    with judge_prompts.record_llm_calls() as recorder:
         response = httpx.post(
             recorder.env["OPENAI_BASE_URL"] + "/chat/completions",
             json=body,
@@ -61,7 +61,7 @@ def test_recorder_forwards_and_records(fake_openai: list[dict[str, Any]]) -> Non
 
 def test_recorder_refuses_other_models(fake_openai: list[dict[str, Any]]) -> None:
     body = {"model": "gpt-5.6-luna", "messages": []}
-    with judge_practice.record_llm_calls(allowed_models={"gpt-4.1-mini"}) as recorder:
+    with judge_prompts.record_llm_calls(allowed_models={"gpt-4.1-mini"}) as recorder:
         response = httpx.post(recorder.env["OPENAI_BASE_URL"] + "/chat/completions", json=body)
     assert response.status_code == 403
     assert "gpt-4.1-mini" in response.json()["error"]["message"]
@@ -97,12 +97,12 @@ def test_render_reads_openai_and_anthropic_requests() -> None:
         {"model": "m", "system": "Judge.", "messages": [{"role": "user", "content": "x"}]},
         200,
     )
-    text = judge_practice.render(openai)
+    text = judge_prompts.render(openai)
     assert "[system]\nJudge grounding." in text
     assert "[user]\nReply: hello" in text
     assert '"enum": ["pass", "fail"]' in text
     assert openai.uses_phoenix_evals
-    assert judge_practice.render(anthropic).startswith("[system]\nJudge.")
+    assert judge_prompts.render(anthropic).startswith("[system]\nJudge.")
     assert not anthropic.uses_phoenix_evals
 
 
@@ -122,9 +122,9 @@ def test_seen_only_shingles_ignore_text_the_new_data_shares() -> None:
             }
         }
     ]
-    runs = judge_practice.seen_only_shingles(seen, unseen)
-    assert judge_practice.copied_runs("Judge this. " + template, runs) == []
-    assert judge_practice.copied_runs(
+    runs = judge_prompts.seen_only_shingles(seen, unseen)
+    assert judge_prompts.copied_runs("Judge this. " + template, runs) == []
+    assert judge_prompts.copied_runs(
         "Example: the Summit boots were too narrow for my wide feet", runs
     )
 
@@ -132,37 +132,36 @@ def test_seen_only_shingles_ignore_text_the_new_data_shares() -> None:
 def test_seen_only_ids() -> None:
     seen = [{"question": "Where is R-50112 for C-1001?"}]
     unseen = [{"question": "Where is R-50311 for C-1001?"}]
-    assert judge_practice.seen_only_ids(seen, unseen) == {"R-50112"}
+    assert judge_prompts.seen_only_ids(seen, unseen) == {"R-50112"}
 
 
-def test_practice_scores_without_requests() -> None:
-    scores, details = judge_practice.practice_scores(
+def test_prompt_scores_without_requests() -> None:
+    scores, details = judge_prompts.prompt_scores(
         [], system="s", criteria={"grounded": "g"}, evidence={"grounded": "e"}
     )
-    assert scores == {"practice_phoenix_evals": 0.0, "practice": 0.0}
-    assert details["llm_requests"] == 0
+    assert scores == {"uses_phoenix_evals": 0.0, "prompt_quality": 0.0}
+    assert details["judge_requests"] == 0
 
 
-def test_practice_scores_weight_templates(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_prompt_scores_weight_templates(monkeypatch: pytest.MonkeyPatch) -> None:
     def call(prompt: str) -> LLMCall:
         body = {"model": "m", "messages": [{"role": "user", "content": prompt}]}
         return LLMCall("openai", "v1/chat/completions", body, 200)
 
-    good = {
-        "criteria_judged": ["grounded"],
-        "notes": "",
-        **dict.fromkeys(judge_practice.RUBRIC, True),
+    good = {"criteria_judged": ["grounded"], "explanation": "Fine.", "missed": []}
+    combined = {
+        "criteria_judged": ["grounded", "valid_format"],
+        "explanation": "Asks for a 1-to-5 score.",
+        "missed": ["named_labels"],
     }
-    good["assumes_missing_reference"] = False
-    combined = {**good, "criteria_judged": ["grounded", "valid_format"], "discrete_labels": False}
     verdicts = {"Judge grounding": good, "Judge everything": combined}
     monkeypatch.setattr(
-        judge_practice,
+        judge_prompts,
         "_grade_request",
-        lambda c, *_: verdicts[judge_practice.render(c).split("\n")[1].split(":")[0]],
+        lambda c, *_: verdicts[judge_prompts.render(c).split("\n")[1].split(":")[0]],
     )
     calls = [call("Judge grounding: a")] * 3 + [call("Judge everything: b")]
-    scores, _ = judge_practice.practice_scores(
+    scores, details = judge_prompts.prompt_scores(
         calls,
         system="s",
         criteria={"grounded": "g", "valid_format": "f"},
@@ -170,9 +169,27 @@ def test_practice_scores_weight_templates(monkeypatch: pytest.MonkeyPatch) -> No
         deterministic=["valid_format"],
         copied=set(),
     )
-    assert scores["practice_phoenix_evals"] == 0.0
-    assert scores["practice_one_criterion"] == 0.75
-    assert scores["practice_code_for_deterministic"] == 0.75
-    assert scores["practice_discrete_labels"] == 0.75
-    assert scores["practice_no_assumed_reference"] == 1.0
-    assert scores["practice_no_copied_examples"] == 1.0
+    assert scores == {"uses_phoenix_evals": 0.0, "prompt_quality": 0.75}
+    worst = details["templates"][1]
+    assert worst["label"] == "needs_work"
+    assert worst["missed"] == ["one_criterion", "needs_a_model", "named_labels"]
+
+
+def test_prompt_scores_flag_copied_traces(monkeypatch: pytest.MonkeyPatch) -> None:
+    example = "the summit boots were too narrow for my wide feet and rubbed"
+    body = {
+        "model": "m",
+        "messages": [{"role": "user", "content": f"Example: {example}. Judge: x"}],
+    }
+    verdict = {"criteria_judged": ["grounded"], "explanation": "Fine.", "missed": []}
+    monkeypatch.setattr(judge_prompts, "_grade_request", lambda *_: verdict)
+    scores, details = judge_prompts.prompt_scores(
+        [LLMCall("openai", "v1/chat/completions", body, 200)] * 3,
+        system="s",
+        criteria={"grounded": "g"},
+        evidence={"grounded": "e"},
+        copied=judge_prompts._shingles(example),
+    )
+    assert scores["prompt_quality"] == 0.0
+    assert details["templates"][0]["missed"] == [judge_prompts.COPIED]
+    assert "too narrow" in details["templates"][0]["explanation"]

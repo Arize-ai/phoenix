@@ -543,6 +543,15 @@ def check_report_claims(
     return checks
 
 
+PHOENIX_SKILLS = ("phoenix-cli", "phoenix-error-analysis", "phoenix-evals", "phoenix-tracing")
+"""Skills reported as `loaded_<skill>` even when the agent didn't load them, so every
+trial has the same keys. Any other skill the agent loads gets a key too."""
+
+
+def _key(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
+
+
 def finish(
     checks: Mapping[str, bool],
     details: Mapping[str, Any],
@@ -550,15 +559,18 @@ def finish(
 ) -> None:
     """Writes reward 1 if every check passed, plus each check as a 0/1 component.
 
-    `measures` are extra 0-to-1 scores, such as `judge_practice.practice_scores`, that
-    Harbor reports beside the reward without changing it.
+    `measures` are extra scores, such as `judge_prompts.prompt_scores`, that Harbor
+    reports beside the reward without changing it. The agent's turns, tool calls, and
+    loaded skills come from its trajectory.
     """
-    from harbor_verifiers.verify import write_reward
+    from harbor_verifiers import skills
+    from harbor_verifiers.verify import TRAJECTORY_PATH, read_trajectory, write_reward
 
     reward = float(bool(checks) and all(checks.values()))
-    components: dict[str, Any] = {
-        f"check_{re.sub(r'[^a-z0-9]+', '_', k.lower())}": v for k, v in checks.items()
-    }
+    components: dict[str, Any] = {_key(k): v for k, v in checks.items()}
     components.update(measures or {})
-    write_reward(reward, {**details, "checks": dict(checks)}, **components)
+    loaded = skills.loaded_skills(read_trajectory(TRAJECTORY_PATH))
+    for skill in sorted(set(PHOENIX_SKILLS) | set(loaded)):
+        components[f"loaded_{_key(skill)}"] = float(skill in loaded)
+    write_reward(reward, {**details, "checks": dict(checks), "skills_loaded": loaded}, **components)
     print(json.dumps({"reward": reward, "checks": dict(checks), **(measures or {})}, indent=1))

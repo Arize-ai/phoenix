@@ -18,7 +18,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
-from harbor_verifiers import evals_state, grading, judge_practice
+from harbor_verifiers import evals_state, grading, judge_prompts
 from harbor_verifiers.phoenix_api import PHOENIX_URL
 
 sys.path.insert(0, str(grading.TESTS_DIR))
@@ -91,7 +91,7 @@ def grade_hidden(version: Any) -> None:
     for behavior in support_checks.BEHAVIORS:
         passed = [r["verdicts"][behavior][0] for r in results if behavior in r["verdicts"]]
         rates[behavior] = sum(passed) / len(passed)
-        checks[f"hidden.{behavior}"] = rates[behavior] >= MIN_PASS_RATE
+        checks[behavior] = rates[behavior] >= MIN_PASS_RATE
     details["hidden_pass_rates"] = {b: round(rate, 3) for b, rate in rates.items()}
     details["hidden_failures"] = {
         r["case_id"]: {b: why[:300] for b, (ok, why) in r["verdicts"].items() if not ok}
@@ -101,8 +101,8 @@ def grade_hidden(version: Any) -> None:
     details["hidden_replies"] = {r["case_id"]: r["reply"][:1200] for r in results}
 
 
-def copied_examples(messages: list[dict[str, Any]]) -> float:
-    """Returns 0 if the prompt quotes a development question or names its orders, else 1.
+def copies_dev_examples(messages: list[dict[str, Any]]) -> float:
+    """Returns 1 if the prompt quotes a development question or names its orders, else 0.
 
     Reported beside the reward, never part of it. Text that the hidden questions, the
     handbook, or the launch prompt share doesn't count, so only overfitting matches.
@@ -117,10 +117,10 @@ def copied_examples(messages: list[dict[str, Any]]) -> float:
         (grading.TESTS_DIR / "app" / "policies.md").read_text(),
     ]
     prompt = "\n".join(text for _, text in message_texts(messages))
-    runs = judge_practice.copied_runs(prompt, judge_practice.seen_only_shingles(dev, shared))
-    ids = sorted(i for i in judge_practice.seen_only_ids(dev, shared) if i in prompt)
+    runs = judge_prompts.copied_runs(prompt, judge_prompts.seen_only_shingles(dev, shared))
+    ids = sorted(i for i in judge_prompts.seen_only_ids(dev, shared) if i in prompt)
     details["copied_examples"] = {"text": runs[:10], "ids": ids}
-    return float(not runs and not ids)
+    return float(bool(runs or ids))
 
 
 def main() -> None:
@@ -140,9 +140,9 @@ def main() -> None:
         grade_hidden(version)
     else:
         for behavior in support_checks.BEHAVIORS:
-            checks[f"hidden.{behavior}"] = False
+            checks[behavior] = False
         details["hidden"] = "skipped: the prompt is unchanged or missing"
-    measures = {"practice_no_copied_examples": copied_examples(messages)} if messages else {}
+    measures = {"copies_dev_examples": copies_dev_examples(messages)} if messages else {}
     grading.finish(checks, details, measures)
 
 

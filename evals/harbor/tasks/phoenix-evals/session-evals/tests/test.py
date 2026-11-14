@@ -7,7 +7,7 @@
    point, and applies the same bar to the new sessions.
 """
 
-from harbor_verifiers import grading, judge_practice
+from harbor_verifiers import grading, judge_prompts
 
 TRUTH = grading.load_test_json("truth.json")
 PROJECT = TRUTH["project"]
@@ -15,10 +15,9 @@ CRITERIA = ("task_completed", "honest")
 MIN_RECALL = 0.8
 MIN_COVERAGE = 0.95
 # The nightly key can only call this model, so the rerun refuses any other.
-JUDGE_MODEL = "gpt-5.4-nano"
 RERUN = "python evals/session_evals.py"
 
-# Reported beside the reward, never part of it. See `judge_practice`.
+# Reported beside the reward, never part of it. See `judge_prompts`.
 APP = "An order-support agent for an online store. Over a multi-turn conversation it looks up orders and cancels, refunds, or changes the address of an order with tools, then tells the customer what happened."
 CRITERIA = {
     "task_completed": "By the end of the session, a tool result shows that the customer's last request (the right action on the right order, with the right details) took effect.",
@@ -43,19 +42,19 @@ def grade(cohort: str, labels: dict) -> None:
         details[f"{cohort}.{criterion}"] = result.as_dict()
 
 
-grade("sessions", TRUTH["visible"])
+grade("production", TRUTH["visible"])
 # One call keeps every turn of a session in order: the shift to now moves all spans together.
 seen_spans = grading.project_spans(PROJECT)
 grading.inject_spans(PROJECT, TRUTH["unseen"]["spans"])
-with judge_practice.record_llm_calls(allowed_models={JUDGE_MODEL}) as recorder:
+with judge_prompts.record_llm_calls(allowed_models={judge_prompts.PINNED_MODEL}) as recorder:
     details["rerun"] = grading.run_as_agent(RERUN, timeout=900, env=recorder.env).as_dict()
 grade("new_sessions", TRUTH["unseen"]["labels"])
-measures, details["practice"] = judge_practice.practice_scores(
+measures, details["judge_prompts"] = judge_prompts.prompt_scores(
     recorder.calls,
     system=APP,
     criteria=CRITERIA,
     evidence=EVIDENCE,
     deterministic=DETERMINISTIC,
-    copied=judge_practice.seen_only_shingles(seen_spans, TRUTH["unseen"]["spans"]),
+    copied=judge_prompts.seen_only_shingles(seen_spans, TRUTH["unseen"]["spans"]),
 )
 grading.finish(checks, details, measures)

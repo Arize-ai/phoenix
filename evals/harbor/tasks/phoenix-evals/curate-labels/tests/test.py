@@ -132,10 +132,10 @@ leaked = {
     if trace in TRACES and (found := leaks(example.get("input"), TRACES[trace]))
 }
 
-checks["linked"] = bool(rows) and unlinked == 0
-checks["traces"] = bool(rows) and not (missing or extra or repeated)
-checks["labels"] = bool(counts) and not wrong_labels
-checks["inputs"] = bool(counts) and not bad_inputs
+checks["linked_to_traces"] = bool(rows) and unlinked == 0
+checks["correct_traces"] = bool(rows) and not (missing or extra or repeated)
+checks["correct_labels"] = bool(counts) and not wrong_labels
+checks["correct_inputs"] = bool(counts) and not bad_inputs
 checks["no_label_in_input"] = bool(counts) and not leaked
 
 
