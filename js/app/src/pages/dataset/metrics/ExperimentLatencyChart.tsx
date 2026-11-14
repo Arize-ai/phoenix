@@ -52,7 +52,7 @@ export function ExperimentLatencyChart({
   const hasData = chartData.some((datum) => typeof datum.latency === "number");
 
   const { gray300 } = useSequentialChartColors();
-  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey, showAll } =
     useInteractiveLegend();
   const baselineLatency = isDataKeyHidden(LATENCY_DATA_KEY)
     ? null
@@ -96,6 +96,7 @@ export function ExperimentLatencyChart({
             hiddenDataKeys={hiddenDataKeys}
             iconSize={8}
             onToggleDataKey={toggleDataKey}
+            onShowAll={showAll}
             additionalLegendItems={getExperimentBaselineLegendItems({
               value: baselineLatency,
               label: referenceLabel,
