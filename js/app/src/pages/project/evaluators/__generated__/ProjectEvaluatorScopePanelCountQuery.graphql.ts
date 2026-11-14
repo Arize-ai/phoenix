@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dbad92e0e2d860e8d726d62c4b78d608>>
+ * @generated SignedSource<<99097f3395b41418e2746cc97ad8756c>>
  * @lightSyntaxTransform
  */
 
@@ -14,15 +14,21 @@ export type TimeRange = {
 };
 export type ProjectEvaluatorScopePanelCountQuery$variables = {
   filterCondition?: string | null;
+  first: number;
   projectId: string;
-  timeRange: TimeRange;
+  timeRange?: TimeRange | null;
 };
 export type ProjectEvaluatorScopePanelCountQuery$data = {
   readonly project: {
-    readonly spanCountTimeSeries?: {
-      readonly data: ReadonlyArray<{
-        readonly totalCount: number | null;
+    readonly spans?: {
+      readonly edges: ReadonlyArray<{
+        readonly span: {
+          readonly id: string;
+        };
       }>;
+      readonly pageInfo: {
+        readonly hasNextPage: boolean;
+      };
     };
   };
 };
@@ -40,21 +46,33 @@ var v0 = {
 v1 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "projectId"
+  "name": "first"
 },
 v2 = {
   "defaultValue": null,
   "kind": "LocalArgument",
+  "name": "projectId"
+},
+v3 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
   "name": "timeRange"
 },
-v3 = [
+v4 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "projectId"
   }
 ],
-v4 = {
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v6 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -67,28 +85,64 @@ v4 = {
         },
         {
           "kind": "Variable",
+          "name": "first",
+          "variableName": "first"
+        },
+        {
+          "kind": "Literal",
+          "name": "sort",
+          "value": {
+            "col": "startTime",
+            "dir": "desc"
+          }
+        },
+        {
+          "kind": "Variable",
           "name": "timeRange",
           "variableName": "timeRange"
         }
       ],
-      "concreteType": "SpanCountTimeSeries",
+      "concreteType": "SpanConnection",
       "kind": "LinkedField",
-      "name": "spanCountTimeSeries",
+      "name": "spans",
       "plural": false,
       "selections": [
         {
           "alias": null,
           "args": null,
-          "concreteType": "SpanCountTimeSeriesDataPoint",
+          "concreteType": "SpanEdge",
           "kind": "LinkedField",
-          "name": "data",
+          "name": "edges",
           "plural": true,
+          "selections": [
+            {
+              "alias": "span",
+              "args": null,
+              "concreteType": "Span",
+              "kind": "LinkedField",
+              "name": "node",
+              "plural": false,
+              "selections": [
+                (v5/*:: as any*/)
+              ],
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "PageInfo",
+          "kind": "LinkedField",
+          "name": "pageInfo",
+          "plural": false,
           "selections": [
             {
               "alias": null,
               "args": null,
               "kind": "ScalarField",
-              "name": "totalCount",
+              "name": "hasNextPage",
               "storageKey": null
             }
           ],
@@ -106,7 +160,8 @@ return {
     "argumentDefinitions": [
       (v0/*:: as any*/),
       (v1/*:: as any*/),
-      (v2/*:: as any*/)
+      (v2/*:: as any*/),
+      (v3/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -114,13 +169,13 @@ return {
     "selections": [
       {
         "alias": "project",
-        "args": (v3/*:: as any*/),
+        "args": (v4/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v4/*:: as any*/)
+          (v6/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -131,16 +186,17 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v1/*:: as any*/),
       (v2/*:: as any*/),
-      (v0/*:: as any*/)
+      (v3/*:: as any*/),
+      (v0/*:: as any*/),
+      (v1/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "ProjectEvaluatorScopePanelCountQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v3/*:: as any*/),
+        "args": (v4/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -153,30 +209,24 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v4/*:: as any*/),
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "id",
-            "storageKey": null
-          }
+          (v6/*:: as any*/),
+          (v5/*:: as any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "f384a134a9622c9f0d1da1e2cf66128e",
+    "cacheID": "551dc5688b0021cf1c410ac4f7f3a663",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorScopePanelCountQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorScopePanelCountQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $filterCondition: String\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spanCountTimeSeries(timeRange: $timeRange, filterCondition: $filterCondition) {\n        data {\n          totalCount\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectEvaluatorScopePanelCountQuery(\n  $projectId: ID!\n  $timeRange: TimeRange\n  $filterCondition: String\n  $first: Int!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spans(first: $first, sort: {col: startTime, dir: desc}, filterCondition: $filterCondition, timeRange: $timeRange) {\n        edges {\n          span: node {\n            id\n          }\n        }\n        pageInfo {\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "8636a52a3723e2fd21df251f3d1fd592";
+(node as any).hash = "09988aebbe77ec07c8152992821fd99a";
 
 export default node;

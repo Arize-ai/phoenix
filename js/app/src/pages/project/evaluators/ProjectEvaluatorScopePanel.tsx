@@ -157,30 +157,36 @@ const panelCSS = css`
   min-height: 0;
 `;
 
-function useMatchedSpanCount({
+const SPAN_COUNT_PROBE_LIMIT = 100;
+
+function MatchedSpanCountLine({
   projectId,
   filterCondition,
-  startIso,
-}: {
-  projectId: string;
-  filterCondition: string;
-  startIso: string;
-}) {
+  timeWindow,
+}: MatchedCountLineProps) {
   const data = useLazyLoadQuery<ProjectEvaluatorScopePanelCountQuery>(
     graphql`
       query ProjectEvaluatorScopePanelCountQuery(
         $projectId: ID!
-        $timeRange: TimeRange!
+        $timeRange: TimeRange
         $filterCondition: String
+        $first: Int!
       ) {
         project: node(id: $projectId) {
           ... on Project {
-            spanCountTimeSeries(
-              timeRange: $timeRange
+            spans(
+              first: $first
+              sort: { col: startTime, dir: desc }
               filterCondition: $filterCondition
+              timeRange: $timeRange
             ) {
-              data {
-                totalCount
+              edges {
+                span: node {
+                  id
+                }
+              }
+              pageInfo {
+                hasNextPage
               }
             }
           }
@@ -189,30 +195,21 @@ function useMatchedSpanCount({
     `,
     {
       projectId,
-      timeRange: { start: startIso },
+      timeRange: { start: timeWindow.startIso },
       filterCondition: filterCondition.trim() || null,
+      first: SPAN_COUNT_PROBE_LIMIT,
     },
     { fetchPolicy: "store-and-network" }
   );
+  const matchedCount = data.project?.spans?.edges.length ?? 0;
+  const hasMore = data.project?.spans?.pageInfo.hasNextPage ?? false;
   return (
-    data.project?.spanCountTimeSeries?.data.reduce(
-      (total, point) => total + (point.totalCount ?? 0),
-      0
-    ) ?? 0
+    <>
+      {hasMore
+        ? `Over ${SPAN_COUNT_PROBE_LIMIT.toLocaleString()} spans matched in the`
+        : formatMatchedCount(matchedCount, "span")}
+    </>
   );
-}
-
-function MatchedSpanCountLine({
-  projectId,
-  filterCondition,
-  timeWindow,
-}: MatchedCountLineProps) {
-  const matchedCount = useMatchedSpanCount({
-    projectId,
-    filterCondition,
-    startIso: timeWindow.startIso,
-  });
-  return <>{formatMatchedCount(matchedCount, "span")}</>;
 }
 
 function MatchedSessionCountLine({

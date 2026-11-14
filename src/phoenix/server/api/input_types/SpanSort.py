@@ -66,6 +66,10 @@ class SpanColumn(Enum):
         return expr.label(self.column_name)
 
     @property
+    def is_nullable(self) -> bool:
+        return self is not SpanColumn.startTime and self is not SpanColumn.endTime
+
+    @property
     def data_type(self) -> CursorSortColumnDataType:
         if (
             self is SpanColumn.cumulativeTokenCountTotal
@@ -175,7 +179,7 @@ class SpanSort:
             if self.dir == SortDir.desc:
                 expr = desc(expr)
             return SpanSortConfig(
-                stmt=stmt.order_by(nulls_last(expr)),
+                stmt=stmt.order_by(nulls_last(expr) if col.is_nullable else expr),
                 orm_expression=col.as_orm_expression(joined_table),
                 dir=self.dir,
                 column_name=col.column_name,
