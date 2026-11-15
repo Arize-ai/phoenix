@@ -381,6 +381,11 @@ type ProjectEvaluatorFilterField = {
   /** The filter language the field parses, which also picks its editor. */
   language: ProjectEvaluatorRecordKind;
   label: string;
+  /**
+   * Must read as "nothing applied" at a glance: a bare expression here is
+   * indistinguishable from a real filter, so the example sits behind a
+   * "No filter" lead-in.
+   */
   placeholder: string;
   /** What an empty condition evaluates, said in the records' own noun. */
   emptyHint: string;
@@ -393,19 +398,19 @@ const FILTER_FIELDS_BY_TARGET: Record<
   SPAN: {
     language: "span",
     label: "Span filter",
-    placeholder: "span_kind == 'LLM'",
+    placeholder: "No filter (e.g. span_kind == 'LLM')",
     emptyHint: "Leave empty to evaluate every span.",
   },
   TRACE: {
     language: "trace",
     label: "Trace filter",
-    placeholder: "num_spans >= 5",
+    placeholder: "No filter (e.g. num_spans >= 5)",
     emptyHint: "Leave empty to evaluate every trace.",
   },
   SESSION: {
     language: "session",
     label: "Session filter",
-    placeholder: "num_traces >= 5",
+    placeholder: "No filter (e.g. num_traces >= 5)",
     emptyHint: "Leave empty to evaluate every session.",
   },
 };
