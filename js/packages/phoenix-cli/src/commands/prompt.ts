@@ -1,4 +1,5 @@
 import type { componentsV1, PhoenixClient } from "@arizeai/phoenix-client";
+import { deletePromptVersionTag } from "@arizeai/phoenix-client/prompts";
 import { Command } from "commander";
 
 import { createPhoenixClient } from "../client";
@@ -8,10 +9,19 @@ import {
   validateConfig,
 } from "../config";
 import { assertDeletesEnabled, confirmOrExit } from "../confirm";
-import { ExitCode, getExitCodeForError } from "../exitCodes";
+import {
+  ExitCode,
+  getExitCodeForError,
+  InvalidArgumentError,
+} from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
+import { getResponseErrorMessage } from "./annotationMutations";
 import { formatPromptOutput, type OutputFormat } from "./formatPrompt";
 import { formatPromptsOutput } from "./formatPrompts";
+import {
+  formatPromptVersionTagDeleteOutput,
+  type OutputFormat as PromptVersionTagDeleteOutputFormat,
+} from "./formatPromptVersionTagDelete";
 import type { CommonOptions, DeleteOptions } from "./options";
 
 type Prompt = componentsV1["schemas"]["Prompt"];
@@ -47,6 +57,20 @@ interface PromptListOptions extends CommonOptions {
    * @example 50
    */
   limit?: number;
+}
+
+/**
+ * Options for `px prompt untag <prompt-version-id> --tag <tag-name>`.
+ */
+interface PromptUntagOptions
+  extends DeleteOptions, CommonOptions<PromptVersionTagDeleteOutputFormat> {
+  /**
+   * `--tag <tag-name>`: Name of the tag to remove from the prompt version.
+   * Required.
+   *
+   * @example "production"
+   */
+  tag: string;
 }
 
 /**
@@ -310,6 +334,120 @@ async function promptDeleteHandler(
   }
 }
 
+/**
+ * Fetch the names of all tags attached to a prompt version, following
+ * pagination.
+ */
+async function fetchPromptVersionTagNames({
+  client,
+  promptVersionId,
+}: {
+  client: PhoenixClient;
+  promptVersionId: string;
+}): Promise<string[]> {
+  const names: string[] = [];
+  let cursor: string | null = null;
+  do {
+    const query: { cursor?: string } = cursor ? { cursor } : {};
+    const response = await client.GET(
+      "/v1/prompt_versions/{prompt_version_id}/tags",
+      {
+        params: {
+          path: { prompt_version_id: promptVersionId },
+          query,
+        },
+      }
+    );
+    if (response.error || !response.data) {
+      throw new Error(
+        `Failed to list tags for prompt version ${promptVersionId}: ${getResponseErrorMessage(response.error)}`
+      );
+    }
+    names.push(...response.data.data.map((tag) => tag.name));
+    cursor = response.data.next_cursor;
+  } while (cursor);
+  return names;
+}
+
+/**
+ * Handler for `prompt untag`
+ *
+ * Tag names are unique per prompt and the server deletes the prompt-scoped
+ * tag wherever it points, using the version only to find the prompt. To keep
+ * "remove this tag from this version" true, the handler first checks that the
+ * tag is attached to the given version and refuses otherwise.
+ */
+async function promptUntagHandler(
+  promptVersionId: string,
+  options: PromptUntagOptions
+): Promise<void> {
+  try {
+    assertDeletesEnabled();
+
+    const config = resolveConfig({
+      cliOptions: {
+        endpoint: options.endpoint,
+        apiKey: options.apiKey,
+      },
+    });
+
+    const validation = validateConfig({ config, projectRequired: false });
+    if (!validation.valid) {
+      writeError({
+        message: getConfigErrorMessage({ errors: validation.errors }),
+      });
+      process.exit(ExitCode.INVALID_ARGUMENT);
+    }
+
+    const client = createPhoenixClient({ config });
+    const tagName = options.tag;
+
+    const versionTagNames = await fetchPromptVersionTagNames({
+      client,
+      promptVersionId,
+    });
+    if (!versionTagNames.includes(tagName)) {
+      throw new InvalidArgumentError(
+        `Tag "${tagName}" is not on prompt version ${promptVersionId}. Nothing was removed. ` +
+          `Tag names are unique per prompt, so it may point at another version of this prompt; ` +
+          `run px prompt untag with that version's ID to remove it.`
+      );
+    }
+
+    await confirmOrExit({
+      message: `Delete tag "${tagName}" from prompt version ${promptVersionId}? This cannot be undone.`,
+      yes: options.yes,
+    });
+
+    writeProgress({
+      message: `Deleting tag "${tagName}" from prompt version ${promptVersionId}...`,
+      noProgress: !options.progress,
+    });
+
+    await deletePromptVersionTag({
+      client,
+      prompt: { versionId: promptVersionId },
+      name: tagName,
+    });
+
+    writeOutput({
+      message: formatPromptVersionTagDeleteOutput({
+        result: {
+          deleted: true,
+          prompt_version_id: promptVersionId,
+          tag_name: tagName,
+        },
+        format: options.format,
+      }),
+    });
+  } catch (error) {
+    writeError({
+      message: `Error deleting prompt version tag: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    process.exit(getExitCodeForError(error));
+  }
+}
+
 export function createPromptGetCommand(): Command {
   return new Command("get")
     .description("Show a Phoenix prompt")
@@ -356,6 +494,31 @@ export function createPromptDeleteCommand(): Command {
     .action(promptDeleteHandler);
 }
 
+export function createPromptUntagCommand(): Command {
+  return new Command("untag")
+    .description("Delete a tag from a prompt version")
+    .argument("<prompt-version-id>", "Prompt version ID (GlobalID)")
+    .requiredOption("--tag <tag-name>", "Name of the tag to delete (required)")
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option("-y, --yes", "Skip confirmation prompt")
+    .option(
+      "--format <format>",
+      "Output format: pretty, json, or raw",
+      "pretty"
+    )
+    .option("--no-progress", "Disable progress indicators")
+    .addHelpText(
+      "after",
+      "\nExamples:\n" +
+        "  px prompt untag UHJvbXB0VmVyc2lvbjox --tag production\n" +
+        "  px prompt untag UHJvbXB0VmVyc2lvbjox --tag staging --yes --format raw --no-progress\n" +
+        "\nTag names are unique per prompt. If the tag is not attached to the given\n" +
+        "version, the command exits 3 (INVALID_ARGUMENT) and removes nothing.\n"
+    )
+    .action(promptUntagHandler);
+}
+
 /**
  * Create the `prompt` command with subcommands
  */
@@ -365,5 +528,6 @@ export function createPromptCommand(): Command {
   command.addCommand(createPromptListCommand());
   command.addCommand(createPromptGetCommand());
   command.addCommand(createPromptDeleteCommand());
+  command.addCommand(createPromptUntagCommand());
   return command;
 }

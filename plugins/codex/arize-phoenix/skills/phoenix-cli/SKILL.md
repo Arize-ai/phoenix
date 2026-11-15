@@ -49,6 +49,7 @@ px prompt list
 px prompt get <prompt-identifier>
 px prompt-versions list <prompt-identifier>
 px prompt delete <prompt-identifier>
+px prompt untag <prompt-version-id> --tag <tag-name>
 px project list
 px project get <name>
 px project delete <project-identifier>
@@ -72,7 +73,7 @@ px setup
 px self update
 ```
 
-Every `delete` above is gated: it requires
+Every `delete` above (and `px prompt untag`) is gated: it requires
 `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true` in the environment and prompts for
 confirmation unless `-y`/`--yes` is passed (`px profile delete` is local-only and
 takes `--yes` without the env gate). Without the env var the command exits
@@ -392,8 +393,11 @@ px experiment list --dataset <name> --format raw --no-progress | jq '.[] | {id, 
 px experiment get <id> --format raw --no-progress | jq '.[] | select(.error != null) | {input, error}'
 px prompt list --format raw --no-progress | jq '.[].name'
 px prompt get <name> --format text --no-progress   # plain text, ideal for piping to AI
+px prompt untag <version-id> --tag staging --yes --format raw   # emits {deleted, prompt_version_id, tag_name}
 px prompt-versions list <name-or-id> --limit 10 --format raw --no-progress | jq '.[].id'
 ```
+
+`px prompt untag` only removes a tag that is attached to the given version; if the tag points at another version of the prompt it exits `3` (`INVALID_ARGUMENT`) and removes nothing.
 
 `dataset-versions list` fetches all pages unless `--limit` is set. JSON/raw output
 is an array of full version objects (`version_id`, `description`, `metadata`,
