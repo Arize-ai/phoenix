@@ -1321,6 +1321,7 @@
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/list-dataset-versions",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/upload-dataset-from-json-csv-or-pyarrow",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/get-examples-from-a-dataset",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/permanently-delete-dataset-examples",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-csv-file",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-jsonl-file",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-openai-fine-tuning-jsonl-file",

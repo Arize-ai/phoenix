@@ -2927,6 +2927,76 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Permanently delete examples from a dataset",
+        "description": "Permanently delete examples and all of their revisions from every version of the dataset. The experiment runs on these examples, their evaluations, their task and evaluator traces, and their experiment logs are deleted too. The dataset, its versions, its experiments, and its other examples are kept. This cannot be undone. Either every example is deleted or, if any example is not found in the dataset, none is.",
+        "operationId": "deleteDatasetExamples",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the dataset",
+              "title": "Id"
+            },
+            "description": "The ID of the dataset"
+          },
+          {
+            "name": "example_ids",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Identifiers of the examples to delete: dataset example IDs (GlobalIDs) or user-provided IDs. Each example must belong to this dataset.",
+              "title": "Example Ids"
+            },
+            "description": "Identifiers of the examples to delete: dataset example IDs (GlobalIDs) or user-provided IDs. Each example must belong to this dataset."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset or example not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid dataset ID or no example IDs"
+          }
+        }
       }
     },
     "/v1/datasets/{dataset_identifier}/splits": {

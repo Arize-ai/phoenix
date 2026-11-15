@@ -417,7 +417,11 @@ export interface paths {
         get: operations["getDatasetExamples"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Permanently delete examples from a dataset
+         * @description Permanently delete examples and all of their revisions from every version of the dataset. The experiment runs on these examples, their evaluations, their task and evaluator traces, and their experiment logs are deleted too. The dataset, its versions, its experiments, and its other examples are kept. This cannot be undone. Either every example is deleted or, if any example is not found in the dataset, none is.
+         */
+        delete: operations["deleteDatasetExamples"];
         options?: never;
         head?: never;
         patch?: never;
@@ -9039,6 +9043,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deleteDatasetExamples: {
+        parameters: {
+            query: {
+                /** @description Identifiers of the examples to delete: dataset example IDs (GlobalIDs) or user-provided IDs. Each example must belong to this dataset. */
+                example_ids: string[];
+            };
+            header?: never;
+            path: {
+                /** @description The ID of the dataset */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset or example not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid dataset ID or no example IDs */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
         };
