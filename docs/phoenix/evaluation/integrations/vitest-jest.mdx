@@ -496,7 +496,7 @@ px.describe("text-to-sql scorecard", () => {
 | `passFn` | **`passRate` only.** `(annotation) => boolean` predicate deciding whether a single run passes. |
 | `minPassRate` | **`passRate` only.** Minimum fraction of annotated runs (`0`–`1`) that must pass (`1` = all). |
 
-A criterion only covers the runs that logged its annotation, so tests in a suite can log different annotations. A test that throws already fails in Vitest / Jest and isn't counted again. The reporter shows each criterion's coverage, e.g. `70 of 100 runs`.
+A criterion only covers the runs that logged its annotation, so tests in a suite can log different annotations. A test that throws before it logs the annotation isn't in that criterion's value, since Vitest / Jest already reports it as failed. It still counts toward the run total. The reporter shows each criterion's coverage, e.g. `70 of 100 runs`.
 
 <Tip>
 `passFn` receives the full annotation object — `score`, `label`, `explanation`, `metadata` — so you can gate on any combination. For example, `a.label === "correct" && a.score >= 0.8` or `a.score >= 0.5 && a.score <= 0.9`.
