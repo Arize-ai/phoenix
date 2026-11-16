@@ -1209,8 +1209,10 @@ class Query:
                     return Project(id=node_id, db_record=project_record)
                 raise NotFound(f"Unknown project: {id}")
         elif type_name == Trace.__name__:
+            await _raise_if_in_deleted_project(info, type_name, node_id)
             return Trace(id=node_id)
         elif type_name == Span.__name__:
+            await _raise_if_in_deleted_project(info, type_name, node_id)
             return Span(id=node_id)
         elif type_name == Dataset.__name__:
             return Dataset(id=node_id)
@@ -1231,6 +1233,7 @@ class Query:
                 raise Unauthorized(MSG_ADMIN_ONLY)
             return User(id=node_id)
         elif type_name == ProjectSession.__name__:
+            await _raise_if_in_deleted_project(info, type_name, node_id)
             return ProjectSession(id=node_id)
         elif type_name == OAuth2Grant.__name__:
             return OAuth2Grant(id=node_id)
@@ -2401,6 +2404,34 @@ def _comparison_count_expression(
         ),
         0,
     )
+
+
+async def _raise_if_in_deleted_project(
+    info: Info[Context, None], type_name: str, node_id: int
+) -> None:
+    """Treat a trace, span, or session owned by a tombstoned project as not found."""
+    if type_name == Trace.__name__:
+        project_rowid = select(models.Trace.project_rowid).where(models.Trace.id == node_id)
+    elif type_name == Span.__name__:
+        project_rowid = (
+            select(models.Trace.project_rowid)
+            .join(models.Span, models.Span.trace_rowid == models.Trace.id)
+            .where(models.Span.id == node_id)
+        )
+    else:
+        project_rowid = select(models.ProjectSession.project_id).where(
+            models.ProjectSession.id == node_id
+        )
+    async with info.context.db.read() as session:
+        if await session.scalar(
+            select(
+                exists().where(
+                    models.Project.id == project_rowid.scalar_subquery(),
+                    models.Project.deleted_at.is_not(None),
+                )
+            )
+        ):
+            raise NotFound(f"Unknown {type_name}: {node_id}")
 
 
 async def _decision_node(
