@@ -1500,7 +1500,7 @@ async def create_spans(
     except Exception:
         project_name = project_identifier
     else:
-        stmt = select(models.Project).filter_by(id=id_)
+        stmt = select(models.Project).filter_by(id=id_).where(models.Project.deleted_at.is_(None))
         async with request.app.state.db() as session:
             project = await session.scalar(stmt)
         if project is None:

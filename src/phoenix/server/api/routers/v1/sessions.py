@@ -165,6 +165,13 @@ async def _get_session_by_identifier(
                 status_code=404,
                 detail=f"Session with session_id {session_identifier} not found",
             )
+    if await session.scalar(
+        select(models.Project.deleted_at).where(models.Project.id == project_session.project_id)
+    ):
+        raise HTTPException(
+            status_code=404,
+            detail=f"Session {session_identifier} not found",
+        )
     return project_session
 
 
