@@ -204,7 +204,7 @@ export const ProjectEvaluatorInputMappingDock = ({
             <Flex direction="row" alignItems="center" gap="size-100">
               {title}
               {unboundVariables.length > 0 ? (
-                <Counter variant="danger">{unboundVariables.length}</Counter>
+                <Counter variant="danger" count={unboundVariables.length} />
               ) : null}
             </Flex>
           </DisclosureTrigger>

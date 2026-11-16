@@ -133,7 +133,7 @@ export function PlaygroundEvaluatorColumnHeader({
               <AlphabeticIndexIcon index={index} size="XS" />
               <Truncate maxWidth="100%">{name}</Truncate>
               {errorCount > 0 ? (
-                <Counter variant="danger">{errorCount}</Counter>
+                <Counter variant="danger" count={errorCount} />
               ) : null}
             </Flex>
             {/* One line, always: the counts change with every annotation, and a

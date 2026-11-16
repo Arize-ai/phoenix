@@ -506,7 +506,7 @@ function EvaluatorGallery({
         <EvaluatorCategoryIcon section={id} />
         <Text size="S">{name}</Text>
       </Flex>
-      <Counter variant="quiet">{count}</Counter>
+      <Counter variant="quiet" count={count} />
     </ListBoxItem>
   );
 
