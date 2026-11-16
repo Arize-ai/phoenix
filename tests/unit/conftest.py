@@ -138,6 +138,10 @@ def pytest_configure(config: Config) -> None:
     )
     config.addinivalue_line(
         "markers",
+        "real_cleanup_worker: run the app's background cleanup worker loop",
+    )
+    config.addinivalue_line(
+        "markers",
         "seeded_model_costs: sync the model cost manifest into the database during app startup",
     )
     config.addinivalue_line(
@@ -290,6 +294,24 @@ def _agent_session_sweeper_off(request: FixtureRequest, monkeypatch: pytest.Monk
 
     monkeypatch.setattr(
         "phoenix.server.daemons.agent_session_sweeper.AgentSessionSweeper._run", _idle
+    )
+
+
+@pytest.fixture(autouse=True)
+def _cleanup_worker_off(request: FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The app's cleanup worker drains tombstoned bindings and projects in the
+    background, racing tests that inspect tombstones or share SQLite's single
+    savepoint connection. Off suite-wide; tests that exercise the live daemon
+    loop opt in with ``@pytest.mark.real_cleanup_worker``."""
+    if request.node.get_closest_marker("real_cleanup_worker"):
+        return
+
+    async def _idle(self: Any) -> None:
+        return None
+
+    monkeypatch.setattr(
+        "phoenix.server.daemons.cleanup_worker.CleanupWorker._run",
+        _idle,
     )
 
 
@@ -1500,6 +1522,7 @@ async def assign_exact_match_builtin_evaluator_to_dataset(
                 output_configs=resolved_output_configs,
                 project=models.Project(
                     name="exact-match-evaluator-project",
+                    kind="EVALUATOR",
                     description="Project for builtin evaluator",
                 ),
             )

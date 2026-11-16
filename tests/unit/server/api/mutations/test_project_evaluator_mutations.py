@@ -11,6 +11,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
+from phoenix.server.cleanup.coordinator import CleanupCoordinator
 from phoenix.server.evaluators.services import project_bindings
 from phoenix.server.online_eval.coordinator import EvalWorkCoordinator
 from phoenix.server.online_eval.span_producer import SpanEvaluationProducer
@@ -706,10 +707,20 @@ async def test_delete_project_binding_preserves_core_attached_to_another_project
         core_rowid = int(GlobalID.from_id(core_id).node_id)
         created_criteria_id = int(GlobalID.from_id(created["id"]).node_id)
         attached_criteria_id = int(GlobalID.from_id(attached["id"]).node_id)
-        assert await session.get(models.ProjectEvaluator, created_criteria_id) is None
+        tombstoned = await session.get(models.ProjectEvaluator, created_criteria_id)
+        assert tombstoned is not None and tombstoned.deleted_at is not None
+        assert tombstoned.evaluator_id is None
         attached_criteria = await session.get(models.ProjectEvaluator, attached_criteria_id)
         assert attached_criteria is not None
         assert attached_criteria.evaluator_id == core_rowid
+        assert await session.get(models.CodeEvaluator, core_rowid) is not None
+
+    coordinator = CleanupCoordinator(db)
+    while await coordinator.run_one_step():
+        pass
+
+    async with db() as session:
+        assert await session.get(models.ProjectEvaluator, created_criteria_id) is None
         assert await session.get(models.CodeEvaluator, core_rowid) is not None
 
 
@@ -2274,6 +2285,14 @@ async def test_create_mints_a_dedicated_trace_project_and_delete_removes_it(
         {"input": {"projectEvaluatorIds": [created["id"]], "deleteAssociatedPrompt": True}},
     )
     assert delete_result.data and not delete_result.errors
+
+    async with db() as session:
+        tombstoned_project = await session.get(models.Project, trace_project_id)
+        assert tombstoned_project is not None and tombstoned_project.deleted_at is not None
+
+    coordinator = CleanupCoordinator(db)
+    while await coordinator.run_one_step():
+        pass
 
     async with db() as session:
         assert (

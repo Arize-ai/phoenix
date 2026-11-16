@@ -6737,6 +6737,16 @@
             },
             "description": "Not Found"
           },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
           "422": {
             "content": {
               "text/plain": {
@@ -6746,6 +6756,16 @@
               }
             },
             "description": "Unprocessable Entity"
+          },
+          "504": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Gateway Timeout"
           }
         }
       }
@@ -10918,6 +10938,16 @@
               }
             },
             "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Conflict"
           },
           "422": {
             "content": {

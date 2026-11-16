@@ -8,7 +8,7 @@ from phoenix.db import models
 from phoenix.db.helpers import delete_traces
 from phoenix.server.api.auth import IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.exceptions import BadRequest, Conflict
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.dml_event import SpanDeleteEvent
@@ -88,8 +88,12 @@ class TraceMutationMixin:
 
         async with info.context.db() as session:
             dest_project = await session.get(models.Project, dest_project_rowid)
-            if dest_project is None:
+            if dest_project is None or dest_project.deleted_at is not None:
                 raise BadRequest("Destination project does not exist")
+            if dest_project.kind in ("EVALUATOR", "EXPERIMENT"):
+                raise BadRequest(
+                    "Cannot transfer traces into an evaluator or experiment trace project"
+                )
 
             traces = (
                 await session.scalars(select(models.Trace).where(models.Trace.id.in_(trace_rowids)))
@@ -105,6 +109,17 @@ class TraceMutationMixin:
                     "Cannot transfer traces attached to a session; remove the session "
                     "association before transferring them"
                 )
+            active_clear_project_id = await session.scalar(
+                select(models.ProjectClearCleanupTask.project_id)
+                .where(
+                    models.ProjectClearCleanupTask.project_id.in_(
+                        {*source_project_ids, dest_project_rowid}
+                    )
+                )
+                .limit(1)
+            )
+            if active_clear_project_id is not None:
+                raise Conflict("Cannot transfer traces while a project clear is in progress")
 
             await session.execute(
                 update(models.Trace)

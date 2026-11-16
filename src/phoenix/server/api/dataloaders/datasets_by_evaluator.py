@@ -29,12 +29,16 @@ class DatasetsByEvaluatorDataLoader(DataLoader[Key, Result]):
                     models.Dataset,
                     models.DatasetEvaluators.dataset_id == models.Dataset.id,
                 )
-                .where(models.DatasetEvaluators.evaluator_id.in_(keys))
+                .where(
+                    models.DatasetEvaluators.evaluator_id.in_(keys),
+                    models.DatasetEvaluators.deleted_at.is_(None),
+                )
                 .distinct()
                 .order_by(models.Dataset.name.asc())
             )
             for row in await session.execute(stmt):
                 evaluator_id, dataset = row
-                datasets_by_evaluator[evaluator_id].append(dataset)
+                if evaluator_id is not None:
+                    datasets_by_evaluator[evaluator_id].append(dataset)
 
         return [datasets_by_evaluator.get(key, []) for key in keys]

@@ -6,6 +6,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
+from phoenix.server.cleanup.coordinator import CleanupCoordinator
 from phoenix.server.types import DbSessionFactory
 
 from ...._helpers import _add_live_session_work_unit
@@ -550,6 +551,20 @@ async def test_delete_project_also_deletes_its_evaluators_trace_projects(
         variables={"id": str(GlobalID("Project", str(evaluated_project_id)))},
     )
     assert not response.errors
+
+    async with db() as session:
+        tombstoned = (
+            await session.scalars(
+                select(models.Project.deleted_at).where(
+                    models.Project.id.in_([evaluated_project_id, trace_project_id])
+                )
+            )
+        ).all()
+        assert len(tombstoned) == 2 and all(ts is not None for ts in tombstoned)
+
+    coordinator = CleanupCoordinator(db)
+    while await coordinator.run_one_step():
+        pass
 
     async with db() as session:
         remaining = (

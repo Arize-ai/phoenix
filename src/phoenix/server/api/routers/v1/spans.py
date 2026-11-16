@@ -1574,7 +1574,6 @@ async def create_spans(
 
 @router.delete(
     "/spans/{span_identifier}",
-    dependencies=[Depends(is_not_locked)],
     operation_id="deleteSpan",
     summary="Delete a span by span_identifier",
     description=(

@@ -23,7 +23,10 @@ class ProjectByNameDataLoader(DataLoader[Key, Result]):
         projects_by_name: defaultdict[Key, Result] = defaultdict(None)
         async with self._db.read() as session:
             data = await session.stream_scalars(
-                select(models.Project).where(models.Project.name.in_(project_names))
+                select(models.Project).where(
+                    models.Project.name.in_(project_names),
+                    models.Project.deleted_at.is_(None),
+                )
             )
             async for project in data:
                 projects_by_name[project.name] = project

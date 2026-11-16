@@ -23,6 +23,7 @@ from phoenix.db.types.trace_retention import (
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project
+from phoenix.server.cleanup.coordinator import CleanupCoordinator
 from phoenix.server.types import DbSessionFactory
 
 
@@ -273,8 +274,19 @@ class TestProjects:
             f"DELETE /projects/{project_identifier} should return 204 status code, got {response.status_code}"
         )
 
+        # Immediately hidden from GET and tombstoned in DB before worker runs
+        get_response = await httpx_client.get(url)
+        assert get_response.status_code == 404
         async with db() as session:
-            # Verify project is deleted
+            tombstoned = await session.get(models.Project, project.id)
+            assert tombstoned is not None and tombstoned.deleted_at is not None
+
+        coordinator = CleanupCoordinator(db)
+        while await coordinator.run_one_step():
+            pass
+
+        async with db() as session:
+            # Verify project is physically purged after cleanup runs
             deleted_project = await session.get(models.Project, project.id)
             assert deleted_project is None, f"Project {project.id} should be deleted from database"
 
@@ -761,6 +773,7 @@ class TestProjects:
             # Create a regular experiment project - this should be filtered by default
             experiment_project = models.Project(
                 name="experiment-project",
+                kind="EXPERIMENT",
                 description="A project created from an experiment - should be filtered by default",
             )
             session.add(experiment_project)
@@ -786,6 +799,7 @@ class TestProjects:
                 repetitions=1,
                 metadata_={},
                 project_name="experiment-project",
+                project_id=experiment_project.id,
             )
             session.add(experiment)
             await session.flush()
@@ -793,6 +807,7 @@ class TestProjects:
             # Create the playground project - this should always be visible
             playground_project = models.Project(
                 name=PLAYGROUND_PROJECT_NAME,
+                kind="PLAYGROUND",
                 description="Playground project - should always be visible",
             )
             session.add(playground_project)
@@ -806,6 +821,7 @@ class TestProjects:
                 repetitions=1,
                 metadata_={},
                 project_name=PLAYGROUND_PROJECT_NAME,
+                project_id=playground_project.id,
             )
             session.add(playground_experiment)
             await session.flush()
@@ -886,6 +902,7 @@ class TestProjects:
         async with db() as session:
             dataset_evaluator_project = models.Project(
                 name="dataset-evaluator-project",
+                kind="EVALUATOR",
                 description="A project created from a dataset evaluator - should be filtered by default",
             )
             session.add(dataset_evaluator_project)

@@ -18,7 +18,7 @@ from strawberry.relay.types import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
-from phoenix.db.helpers import get_eval_trace_ids_for_datasets, get_project_names_for_datasets
+from phoenix.db.helpers import SupportedSQLDialect, get_eval_trace_ids_for_datasets
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
@@ -49,7 +49,11 @@ from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevisi
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
-from phoenix.server.api.utils import delete_projects, delete_traces
+from phoenix.server.api.utils import delete_traces
+from phoenix.server.cleanup.lifecycle import (
+    admit_exclusive_experiment_projects_delete,
+    logical_delete_dataset_evaluators,
+)
 from phoenix.server.dml_event import DatasetDeleteEvent, DatasetInsertEvent
 
 _MAX_REPORTED_EXTERNAL_ID_CONFLICTS = 10
@@ -482,21 +486,65 @@ class DatasetMutationMixin:
             )
         except ValueError:
             raise NotFound(f"Unknown dataset: {input.dataset_id}")
-        project_names_stmt = get_project_names_for_datasets(dataset_id)
+        dialect = SupportedSQLDialect(info.context.db.dialect.value)
         eval_trace_ids_stmt = get_eval_trace_ids_for_datasets(dataset_id)
         stmt = (
             delete(models.Dataset).where(models.Dataset.id == dataset_id).returning(models.Dataset)
         )
+        enqueued_cleanup = False
         async with info.context.db() as session:
-            project_names = await session.scalars(project_names_stmt)
-            eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
-            if not (dataset := await session.scalar(stmt)):
+            locked_dataset = await session.get(models.Dataset, dataset_id, with_for_update=True)
+            if locked_dataset is None:
                 raise NotFound(f"Unknown dataset: {input.dataset_id}")
-        await asyncio.gather(
-            delete_projects(info.context.db, *project_names),
-            delete_traces(info.context.db, *eval_trace_ids),
-            return_exceptions=True,
-        )
+            eval_trace_ids = [
+                tid for tid in (await session.scalars(eval_trace_ids_stmt)).all() if tid
+            ]
+            candidate_project_ids = {
+                pid
+                for pid in (
+                    await session.scalars(
+                        select(models.Experiment.project_id).where(
+                            models.Experiment.dataset_id == dataset_id,
+                            models.Experiment.project_id.is_not(None),
+                        )
+                    )
+                ).all()
+                if pid is not None
+            }
+            live_binding_ids = list(
+                await session.scalars(
+                    select(models.DatasetEvaluators.id).where(
+                        models.DatasetEvaluators.dataset_id == dataset_id,
+                        models.DatasetEvaluators.deleted_at.is_(None),
+                    )
+                )
+            )
+            if live_binding_ids:
+                deleted_bindings = await logical_delete_dataset_evaluators(
+                    session,
+                    dialect=dialect,
+                    binding_ids=live_binding_ids,
+                    collect_unused_evaluator=False,
+                    collect_associated_resource=False,
+                )
+                enqueued_cleanup = enqueued_cleanup or bool(deleted_bindings)
+            dataset = await session.scalar(stmt)
+            if dataset is None:
+                raise NotFound(f"Unknown dataset: {input.dataset_id}")
+            if candidate_project_ids:
+                deleted_projects = await admit_exclusive_experiment_projects_delete(
+                    session,
+                    dialect=dialect,
+                    candidate_project_ids=candidate_project_ids,
+                )
+                enqueued_cleanup = enqueued_cleanup or bool(deleted_projects)
+        if enqueued_cleanup:
+            info.context.wake_cleanup_worker()
+        if eval_trace_ids:
+            await asyncio.gather(
+                delete_traces(info.context.db, *eval_trace_ids),
+                return_exceptions=True,
+            )
         info.context.event_queue.put(DatasetDeleteEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=Dataset(id=dataset.id, db_record=dataset))
 

@@ -1,10 +1,11 @@
 """The project that collects playground traces, shared by chat and decision runs."""
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
+from phoenix.db.cleanup_tasks import live_row_predicate
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 
@@ -26,15 +27,23 @@ async def get_or_create_playground_project_id(session: AsyncSession) -> int:
     dialect = SupportedSQLDialect(session.get_bind().dialect.name)
     await session.execute(
         insert_on_conflict(
-            {"name": PLAYGROUND_PROJECT_NAME, "description": PLAYGROUND_PROJECT_DESCRIPTION},
+            {
+                "name": PLAYGROUND_PROJECT_NAME,
+                "description": PLAYGROUND_PROJECT_DESCRIPTION,
+                "kind": "PLAYGROUND",
+            },
             table=models.Project,
             dialect=dialect,
             unique_by=("name",),
             on_conflict=OnConflict.DO_NOTHING,
+            index_where=text(live_row_predicate()),
         )
     )
     project_id = await session.scalar(
-        select(models.Project.id).where(models.Project.name == PLAYGROUND_PROJECT_NAME)
+        select(models.Project.id).where(
+            models.Project.name == PLAYGROUND_PROJECT_NAME,
+            models.Project.deleted_at.is_(None),
+        )
     )
     assert project_id is not None
     return project_id

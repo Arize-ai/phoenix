@@ -129,6 +129,7 @@ router = APIRouter(tags=["evaluators"], route_class=ProblemDetailsRoute)
 def _binding_response(
     row: models.DatasetEvaluators, kind: models.EvaluatorKind
 ) -> DatasetEvaluator:
+    assert row.dataset_id is not None and row.evaluator_id is not None
     return DatasetEvaluator(
         id=encode_global_id("DatasetEvaluator", row.id),
         dataset_id=encode_global_id("Dataset", row.dataset_id),
@@ -151,7 +152,11 @@ async def _dataset_evaluator(session: AsyncSession, dataset_evaluator_id: str) -
         await session.execute(
             select(models.DatasetEvaluators, models.Evaluator.kind)
             .join(models.Evaluator, models.Evaluator.id == models.DatasetEvaluators.evaluator_id)
-            .where(models.DatasetEvaluators.id == row_id)
+            .where(
+                models.DatasetEvaluators.id == row_id,
+                models.DatasetEvaluators.deleted_at.is_(None),
+                models.DatasetEvaluators.dataset_id.is_not(None),
+            )
         )
     ).one_or_none()
     if pair is None:
@@ -279,7 +284,10 @@ async def get_dataset_evaluators(
                 .join(
                     models.Evaluator, models.Evaluator.id == models.DatasetEvaluators.evaluator_id
                 )
-                .where(models.DatasetEvaluators.dataset_id == dataset.id)
+                .where(
+                    models.DatasetEvaluators.dataset_id == dataset.id,
+                    models.DatasetEvaluators.deleted_at.is_(None),
+                )
                 .order_by(models.DatasetEvaluators.id.desc())
             )
             if cursor is not None:

@@ -208,7 +208,7 @@ class DecisionEvaluatorMutationMixin:
             evaluator=DecisionEvaluator(id=evaluator.id, db_record=evaluator), query=Query()
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
     async def delete_decision_evaluator(
         self, info: Info[Context, None], input: DeleteDecisionEvaluatorInput
     ) -> DeleteDecisionEvaluatorPayload:

@@ -58,6 +58,7 @@ def _evaluator_service_context(context: Context) -> definitions.EvaluatorService
         db=context.db,
         sandbox_runtime=context.sandbox_runtime,
         user_id=int(request.user.identity) if "user" in request.scope else None,
+        wake_cleanup_worker=context.wake_cleanup_worker,
     )
 
 
@@ -177,11 +178,26 @@ class DeleteEvaluatorsPayload:
 @strawberry.input
 class DeleteDatasetEvaluatorsInput:
     dataset_evaluator_ids: list[GlobalID]
+    delete_unused_evaluator: bool = strawberry.field(
+        default=True,
+        description=(
+            "Delete each binding's underlying evaluator definition when no live binding still "
+            "references it. Set to false to detach the bindings while keeping shared definitions."
+        ),
+    )
     delete_associated_prompt: bool = strawberry.field(
         default=False,
+        deprecation_reason="Use deleteAssociatedPromptOrDecision instead.",
         description=(
             "Also delete each LLM evaluator's prompt when no other evaluator references it. "
             "Off by default so that a prompt adopted from the prompt hub survives the binding."
+        ),
+    )
+    delete_associated_prompt_or_decision: Optional[bool] = strawberry.field(
+        default=UNSET,
+        description=(
+            "Also delete each LLM evaluator's prompt or decision evaluator's decision when no "
+            "other evaluator references it. Off by default so shared prompts and decisions survive."
         ),
     )
 
@@ -421,11 +437,26 @@ class ClearAllQueuedEvaluationsPayload:
 @strawberry.input
 class DeleteProjectEvaluatorsInput:
     project_evaluator_ids: list[GlobalID]
+    delete_unused_evaluator: bool = strawberry.field(
+        default=True,
+        description=(
+            "Delete each binding's underlying evaluator definition when no live binding still "
+            "references it. Set to false to detach the bindings while keeping shared definitions."
+        ),
+    )
     delete_associated_prompt: bool = strawberry.field(
         default=False,
+        deprecation_reason="Use deleteAssociatedPromptOrDecision instead.",
         description=(
             "Also delete each LLM evaluator's prompt when no other evaluator references it. "
             "Off by default so that a prompt adopted from the prompt hub survives the binding."
+        ),
+    )
+    delete_associated_prompt_or_decision: Optional[bool] = strawberry.field(
+        default=UNSET,
+        description=(
+            "Also delete each LLM evaluator's prompt or decision evaluator's decision when no "
+            "other evaluator references it. Off by default so shared prompts and decisions survive."
         ),
     )
 
@@ -750,13 +781,20 @@ class EvaluatorMutationMixin:
         )
         return ClearAllQueuedEvaluationsPayload(cleared_count=cleared_count)
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
     async def delete_project_evaluators(
         self, info: Info[Context, None], input: DeleteProjectEvaluatorsInput
     ) -> DeleteProjectEvaluatorsPayload:
+        delete_associated_resource = (
+            bool(input.delete_associated_prompt_or_decision)
+            if input.delete_associated_prompt_or_decision is not UNSET
+            and input.delete_associated_prompt_or_decision is not None
+            else bool(input.delete_associated_prompt)
+        )
         command = project_bindings.DeleteProjectEvaluatorsInput(
             project_evaluator_ids=input.project_evaluator_ids,
-            delete_associated_prompt=input.delete_associated_prompt,
+            delete_unused_evaluator=input.delete_unused_evaluator,
+            delete_associated_prompt_or_decision=delete_associated_resource,
         )
         context = _evaluator_service_context(info.context)
         result = await project_bindings.delete_project_evaluators(context, command)
@@ -821,13 +859,20 @@ class EvaluatorMutationMixin:
             evaluator=DatasetEvaluator(id=result.id, db_record=result), query=Query()
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
     async def delete_dataset_evaluators(
         self, info: Info[Context, None], input: DeleteDatasetEvaluatorsInput
     ) -> DeleteDatasetEvaluatorsPayload:
+        delete_associated_resource = (
+            bool(input.delete_associated_prompt_or_decision)
+            if input.delete_associated_prompt_or_decision is not UNSET
+            and input.delete_associated_prompt_or_decision is not None
+            else bool(input.delete_associated_prompt)
+        )
         command = dataset_bindings.DeleteDatasetEvaluatorsInput(
             dataset_evaluator_ids=input.dataset_evaluator_ids,
-            delete_associated_prompt=input.delete_associated_prompt,
+            delete_unused_evaluator=input.delete_unused_evaluator,
+            delete_associated_prompt_or_decision=delete_associated_resource,
         )
         result = await dataset_bindings.delete_dataset_evaluators(
             _evaluator_service_context(info.context), command
