@@ -177,6 +177,66 @@ async def test_f125a3233286_backfills_kinds_and_historical_references_and_guards
             tid=token_hex(16),
             t=t0,
         )
+        # Name-only matches stay STANDARD: only run-linked traces prove an experiment project.
+        user_proj = _insert(
+            conn,
+            "INSERT INTO projects (name, created_at, updated_at) VALUES ('user-app', :t, :t)",
+            t=t0,
+        )
+        mixed_proj = _insert(
+            conn,
+            "INSERT INTO projects (name, created_at, updated_at) VALUES ('mixed-app', :t, :t)",
+            t=t0,
+        )
+        example = _insert(
+            conn,
+            "INSERT INTO dataset_examples (dataset_id, created_at) VALUES (:d, :t)",
+            d=dataset,
+            t=t0,
+        )
+        for exp_name, proj_name, proj_id, with_run in (
+            ("exp-user", "user-app", user_proj, False),
+            ("exp-mixed", "mixed-app", mixed_proj, True),
+            ("exp-owned-run", "Experiment-abc", exp_proj, True),
+        ):
+            exp_id = _insert(
+                conn,
+                "INSERT INTO experiments "
+                "(dataset_id, dataset_version_id, name, repetitions, metadata, project_name, "
+                "created_at, updated_at) "
+                "VALUES (:d, :dv, :n, 1, :m, :pn, :t, :t)",
+                d=dataset,
+                dv=dataset_version,
+                n=exp_name,
+                m=json.dumps({}),
+                pn=proj_name,
+                t=t0 + timedelta(minutes=1),
+            )
+            if not with_run:
+                continue
+            run_trace = token_hex(16)
+            conn.execute(
+                text(
+                    "INSERT INTO traces (project_rowid, trace_id, start_time, end_time) "
+                    "VALUES (:p, :tid, :t, :t)"
+                ),
+                {"p": proj_id, "tid": run_trace, "t": t0},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO experiment_runs (experiment_id, dataset_example_id, "
+                    "repetition_number, trace_id, output, start_time, end_time) "
+                    "VALUES (:e, :x, 1, :tid, :o, :t, :t)"
+                ),
+                {"e": exp_id, "x": example, "tid": run_trace, "o": json.dumps({}), "t": t0},
+            )
+        conn.execute(
+            text(
+                "INSERT INTO traces (project_rowid, trace_id, start_time, end_time) "
+                "VALUES (:p, :tid, :t, :t)"
+            ),
+            {"p": mixed_proj, "tid": token_hex(16), "t": t0},
+        )
         conn.commit()
         return {
             "default_proj": default_proj,
@@ -196,6 +256,8 @@ async def test_f125a3233286_backfills_kinds_and_historical_references_and_guards
             "agent_resolved": agent_resolved,
             "agent_unresolved": agent_unresolved,
             "trace_id": trace_id,
+            "user_proj": user_proj,
+            "mixed_proj": mixed_proj,
         }
 
     ids = await _run_async(_engine, _seed)
@@ -214,6 +276,8 @@ async def test_f125a3233286_backfills_kinds_and_historical_references_and_guards
         assert kinds[ids["pe_eval_proj"]] == "EVALUATOR"
         assert kinds[ids["recreated_proj"]] == "STANDARD"
         assert kinds[ids["shared_proj"]] == "STANDARD"
+        assert kinds[ids["user_proj"]] == "STANDARD"
+        assert kinds[ids["mixed_proj"]] == "STANDARD"
 
         exp_refs: dict[int, int | None] = {
             int(row[0]): (int(row[1]) if row[1] is not None else None)
