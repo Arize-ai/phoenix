@@ -20,6 +20,34 @@ CREATE TABLE public.annotation_configs (
 );
 
 
+-- Table: cleanup_tasks
+-- --------------------
+CREATE TABLE public.cleanup_tasks (
+    id bigserial NOT NULL,
+    kind VARCHAR NOT NULL,
+    claimed_at TIMESTAMP WITH TIME ZONE,
+    claimed_by VARCHAR,
+    available_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    CONSTRAINT pk_cleanup_tasks PRIMARY KEY (id),
+    CONSTRAINT uq_cleanup_tasks_kind_id
+        UNIQUE (kind, id),
+    CONSTRAINT "ck_cleanup_tasks_`valid_claim`" CHECK ((((claimed_at IS NULL) AND (claimed_by IS NULL)) OR ((claimed_at IS NOT NULL) AND (claimed_by IS NOT NULL)))),
+    CONSTRAINT "ck_cleanup_tasks_`valid_cleanup_task_kind`"
+        CHECK (((kind)::text = ANY ((ARRAY[
+            'DELETE_PROJECT'::character varying,
+            'CLEAR_PROJECT_TRACES'::character varying,
+            'DELETE_PROJECT_EVALUATOR'::character varying,
+            'DELETE_DATASET_EVALUATOR'::character varying
+        ])::text[])))
+);
+
+CREATE INDEX ix_cleanup_tasks_claimed ON public.cleanup_tasks
+    USING btree (claimed_at, id) WHERE (claimed_at IS NOT NULL);
+CREATE INDEX ix_cleanup_tasks_eligible ON public.cleanup_tasks
+    USING btree (available_at, id) WHERE (claimed_at IS NULL);
+
+
 -- Table: decision_labels
 -- ----------------------
 CREATE TABLE public.decision_labels (
@@ -173,15 +201,26 @@ CREATE TABLE public.projects (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     trace_retention_policy_id INTEGER,
+    kind VARCHAR NOT NULL DEFAULT 'STANDARD'::character varying,
+    deleted_at TIMESTAMP WITH TIME ZONE,
     CONSTRAINT pk_projects PRIMARY KEY (id),
-    CONSTRAINT uq_projects_name
-        UNIQUE (name),
+    CONSTRAINT "ck_projects_`valid_project_kind`"
+        CHECK (((kind)::text = ANY ((ARRAY[
+            'STANDARD'::character varying,
+            'PLAYGROUND'::character varying,
+            'EXPERIMENT'::character varying,
+            'EVALUATOR'::character varying
+        ])::text[]))),
     CONSTRAINT fk_projects_trace_retention_policy_id_project_trace_ret_aa47
         FOREIGN KEY (trace_retention_policy_id)
         REFERENCES public.project_trace_retention_policies (id)
         ON DELETE SET NULL
 );
 
+CREATE INDEX ix_projects_active_kind_id ON public.projects
+    USING btree (kind, id) WHERE (deleted_at IS NULL);
+CREATE UNIQUE INDEX ix_projects_live_name ON public.projects
+    USING btree (name) WHERE (deleted_at IS NULL);
 CREATE INDEX ix_projects_trace_retention_policy_id ON public.projects
     USING btree (trace_retention_policy_id);
 
@@ -207,6 +246,53 @@ CREATE TABLE public.project_annotation_configs (
 
 CREATE INDEX ix_project_annotation_configs_annotation_config_id ON public.project_annotation_configs
     USING btree (annotation_config_id);
+
+
+-- Table: project_clear_cleanup_tasks
+-- ----------------------------------
+CREATE TABLE public.project_clear_cleanup_tasks (
+    id BIGINT NOT NULL,
+    kind VARCHAR NOT NULL DEFAULT 'CLEAR_PROJECT_TRACES'::character varying,
+    project_id BIGINT NOT NULL,
+    max_trace_rowid BIGINT NOT NULL,
+    start_time TIMESTAMP WITH TIME ZONE,
+    end_time TIMESTAMP WITH TIME ZONE,
+    CONSTRAINT pk_project_clear_cleanup_tasks PRIMARY KEY (id),
+    CONSTRAINT uq_project_clear_cleanup_tasks_project_id
+        UNIQUE (project_id),
+    CONSTRAINT "ck_project_clear_cleanup_tasks_`nonnegative_max_trace_rowid`" CHECK ((max_trace_rowid >= 0)),
+    CONSTRAINT "ck_project_clear_cleanup_tasks_`valid_cleanup_task_kind`" CHECK (((kind)::text = 'CLEAR_PROJECT_TRACES'::text)),
+    CONSTRAINT "ck_project_clear_cleanup_tasks_`valid_range`" CHECK (((start_time IS NULL) OR (end_time IS NULL) OR (start_time < end_time))),
+    CONSTRAINT fk_project_clear_cleanup_tasks_kind_cleanup_tasks
+        FOREIGN KEY (kind, id)
+        REFERENCES public.cleanup_tasks (kind, id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_project_clear_cleanup_tasks_project_id_projects
+        FOREIGN KEY (project_id)
+        REFERENCES public.projects (id)
+        ON DELETE RESTRICT
+);
+
+
+-- Table: project_delete_cleanup_tasks
+-- -----------------------------------
+CREATE TABLE public.project_delete_cleanup_tasks (
+    id BIGINT NOT NULL,
+    kind VARCHAR NOT NULL DEFAULT 'DELETE_PROJECT'::character varying,
+    project_id BIGINT NOT NULL,
+    CONSTRAINT pk_project_delete_cleanup_tasks PRIMARY KEY (id),
+    CONSTRAINT uq_project_delete_cleanup_tasks_project_id
+        UNIQUE (project_id),
+    CONSTRAINT "ck_project_delete_cleanup_tasks_`valid_cleanup_task_kind`" CHECK (((kind)::text = 'DELETE_PROJECT'::text)),
+    CONSTRAINT fk_project_delete_cleanup_tasks_kind_cleanup_tasks
+        FOREIGN KEY (kind, id)
+        REFERENCES public.cleanup_tasks (kind, id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_project_delete_cleanup_tasks_project_id_projects
+        FOREIGN KEY (project_id)
+        REFERENCES public.projects (id)
+        ON DELETE RESTRICT
+);
 
 
 -- Table: project_sessions
@@ -898,8 +984,8 @@ CREATE TABLE public.builtin_evaluators (
 -- -------------------------
 CREATE TABLE public.dataset_evaluators (
     id bigserial NOT NULL,
-    dataset_id BIGINT NOT NULL,
-    evaluator_id BIGINT NOT NULL,
+    dataset_id BIGINT,
+    evaluator_id BIGINT,
     name VARCHAR NOT NULL,
     description VARCHAR,
     output_configs JSONB,
@@ -908,17 +994,17 @@ CREATE TABLE public.dataset_evaluators (
     project_id BIGINT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMP WITH TIME ZONE,
     CONSTRAINT pk_dataset_evaluators PRIMARY KEY (id),
-    CONSTRAINT uq_dataset_evaluators_dataset_id_name
-        UNIQUE (dataset_id, name),
+    CONSTRAINT "ck_dataset_evaluators_`valid_lifecycle`" CHECK ((((deleted_at IS NULL) AND (dataset_id IS NOT NULL) AND (evaluator_id IS NOT NULL)) OR ((deleted_at IS NOT NULL) AND (evaluator_id IS NULL)))),
     CONSTRAINT fk_dataset_evaluators_dataset_id_datasets
         FOREIGN KEY (dataset_id)
         REFERENCES public.datasets (id)
-        ON DELETE CASCADE,
+        ON DELETE SET NULL,
     CONSTRAINT fk_dataset_evaluators_evaluator_id_evaluators
         FOREIGN KEY (evaluator_id)
         REFERENCES public.evaluators (id)
-        ON DELETE CASCADE,
+        ON DELETE SET NULL,
     CONSTRAINT fk_dataset_evaluators_project_id_projects
         FOREIGN KEY (project_id)
         REFERENCES public.projects (id)
@@ -929,12 +1015,37 @@ CREATE TABLE public.dataset_evaluators (
         ON DELETE SET NULL
 );
 
+CREATE INDEX ix_dataset_evaluators_dataset_id ON public.dataset_evaluators
+    USING btree (dataset_id);
 CREATE INDEX ix_dataset_evaluators_evaluator_id ON public.dataset_evaluators
     USING btree (evaluator_id);
+CREATE UNIQUE INDEX ix_dataset_evaluators_live_name ON public.dataset_evaluators
+    USING btree (dataset_id, name) WHERE (deleted_at IS NULL);
 CREATE INDEX ix_dataset_evaluators_project_id ON public.dataset_evaluators
     USING btree (project_id);
 CREATE INDEX ix_dataset_evaluators_user_id ON public.dataset_evaluators
     USING btree (user_id);
+
+
+-- Table: dataset_evaluator_cleanup_tasks
+-- --------------------------------------
+CREATE TABLE public.dataset_evaluator_cleanup_tasks (
+    id BIGINT NOT NULL,
+    kind VARCHAR NOT NULL DEFAULT 'DELETE_DATASET_EVALUATOR'::character varying,
+    dataset_evaluator_id BIGINT NOT NULL,
+    CONSTRAINT pk_dataset_evaluator_cleanup_tasks PRIMARY KEY (id),
+    CONSTRAINT uq_dataset_evaluator_cleanup_tasks_dataset_evaluator_id
+        UNIQUE (dataset_evaluator_id),
+    CONSTRAINT "ck_dataset_evaluator_cleanup_tasks_`valid_cleanup_task_kind`" CHECK (((kind)::text = 'DELETE_DATASET_EVALUATOR'::text)),
+    CONSTRAINT fk_dataset_evaluator_cleanup_tasks_dataset_evaluator_id_3767
+        FOREIGN KEY (dataset_evaluator_id)
+        REFERENCES public.dataset_evaluators (id)
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_dataset_evaluator_cleanup_tasks_kind_cleanup_tasks
+        FOREIGN KEY (kind, id)
+        REFERENCES public.cleanup_tasks (kind, id)
+        ON DELETE CASCADE
+);
 
 
 -- Table: experiments
@@ -952,6 +1063,7 @@ CREATE TABLE public.experiments (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     user_id BIGINT,
     is_ephemeral BOOLEAN NOT NULL DEFAULT false,
+    project_id BIGINT,
     CONSTRAINT pk_experiments PRIMARY KEY (id),
     CONSTRAINT fk_experiments_dataset_id_datasets
         FOREIGN KEY (dataset_id)
@@ -961,6 +1073,10 @@ CREATE TABLE public.experiments (
         FOREIGN KEY (dataset_version_id)
         REFERENCES public.dataset_versions (id)
         ON DELETE CASCADE,
+    CONSTRAINT fk_experiments_project_id_projects
+        FOREIGN KEY (project_id)
+        REFERENCES public.projects (id)
+        ON DELETE SET NULL,
     CONSTRAINT fk_experiments_user_id_users
         FOREIGN KEY (user_id)
         REFERENCES public.users (id)
@@ -973,6 +1089,8 @@ CREATE INDEX ix_experiments_dataset_version_id ON public.experiments
     USING btree (dataset_version_id);
 CREATE INDEX ix_experiments_ephemeral_updated_at ON public.experiments
     USING btree (updated_at) WHERE (is_ephemeral IS TRUE);
+CREATE INDEX ix_experiments_project_id ON public.experiments
+    USING btree (project_id);
 CREATE INDEX ix_experiments_project_name ON public.experiments
     USING btree (project_name);
 CREATE INDEX ix_experiments_user_id ON public.experiments
@@ -1331,10 +1449,15 @@ CREATE TABLE public.agent_sessions (
     heartbeat_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    project_id BIGINT,
     CONSTRAINT pk_agent_sessions PRIMARY KEY (id),
     CONSTRAINT fk_agent_sessions_custom_provider_id_generative_model_c_af13
         FOREIGN KEY (custom_provider_id)
         REFERENCES public.generative_model_custom_providers (id)
+        ON DELETE SET NULL,
+    CONSTRAINT fk_agent_sessions_project_id_projects
+        FOREIGN KEY (project_id)
+        REFERENCES public.projects (id)
         ON DELETE SET NULL,
     CONSTRAINT fk_agent_sessions_user_id_users
         FOREIGN KEY (user_id)
@@ -1346,6 +1469,8 @@ CREATE INDEX ix_agent_sessions_custom_provider_id ON public.agent_sessions
     USING btree (custom_provider_id);
 CREATE INDEX ix_agent_sessions_ephemeral_updated_at ON public.agent_sessions
     USING btree (updated_at) WHERE (is_ephemeral IS TRUE);
+CREATE INDEX ix_agent_sessions_project_id ON public.agent_sessions
+    USING btree (project_id);
 CREATE INDEX ix_agent_sessions_updated_at_id ON public.agent_sessions
     USING btree (updated_at, id);
 CREATE INDEX ix_agent_sessions_user_id_updated_at ON public.agent_sessions
@@ -1667,7 +1792,7 @@ CREATE UNIQUE INDEX ix_password_reset_tokens_user_id ON public.password_reset_to
 CREATE TABLE public.project_evaluators (
     id bigserial NOT NULL,
     project_id BIGINT NOT NULL,
-    evaluator_id BIGINT NOT NULL,
+    evaluator_id BIGINT,
     trace_project_id BIGINT NOT NULL,
     name VARCHAR NOT NULL,
     filter_condition VARCHAR NOT NULL DEFAULT ''::character varying,
@@ -1679,9 +1804,8 @@ CREATE TABLE public.project_evaluators (
     tracing_enabled BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMP WITH TIME ZONE,
     CONSTRAINT pk_project_evaluators PRIMARY KEY (id),
-    CONSTRAINT uq_project_evaluators_project_id_name
-        UNIQUE (project_id, name),
     CONSTRAINT "ck_project_evaluators_`valid_evaluation_delay_seconds`" CHECK (((((evaluation_target)::text = 'SPAN'::text) AND (evaluation_delay_seconds = 0)) OR (((evaluation_target)::text <> 'SPAN'::text) AND (evaluation_delay_seconds >= 10)))),
     CONSTRAINT "ck_project_evaluators_`valid_evaluation_target`"
         CHECK (((evaluation_target)::text = ANY ((ARRAY[
@@ -1689,11 +1813,12 @@ CREATE TABLE public.project_evaluators (
             'TRACE'::character varying,
             'SESSION'::character varying
         ])::text[]))),
+    CONSTRAINT "ck_project_evaluators_`valid_lifecycle`" CHECK ((((deleted_at IS NULL) AND (evaluator_id IS NOT NULL)) OR ((deleted_at IS NOT NULL) AND (evaluator_id IS NULL)))),
     CONSTRAINT "ck_project_evaluators_`valid_sampling_rate`" CHECK ((((0.0)::double precision <= sampling_rate) AND (sampling_rate <= (1.0)::double precision))),
     CONSTRAINT fk_project_evaluators_evaluator_id_evaluators
         FOREIGN KEY (evaluator_id)
         REFERENCES public.evaluators (id)
-        ON DELETE CASCADE,
+        ON DELETE SET NULL,
     CONSTRAINT fk_project_evaluators_project_id_projects
         FOREIGN KEY (project_id)
         REFERENCES public.projects (id)
@@ -1706,6 +1831,8 @@ CREATE TABLE public.project_evaluators (
 
 CREATE INDEX ix_project_evaluators_evaluator_id ON public.project_evaluators
     USING btree (evaluator_id);
+CREATE UNIQUE INDEX ix_project_evaluators_live_name ON public.project_evaluators
+    USING btree (project_id, name) WHERE (deleted_at IS NULL);
 CREATE INDEX ix_project_evaluators_project_id ON public.project_evaluators
     USING btree (project_id);
 CREATE INDEX ix_project_evaluators_trace_project_id ON public.project_evaluators
@@ -1874,6 +2001,27 @@ CREATE INDEX ix_eval_work_units_project_evaluator_live ON public.eval_work_units
     USING btree (project_evaluator_id, status, created_at) WHERE ((status)::text = ANY ((ARRAY['PENDING'::character varying, 'RUNNING'::character varying, 'ERROR'::character varying])::text[]));
 CREATE INDEX ix_eval_work_units_terminal ON public.eval_work_units
     USING btree (updated_at) WHERE ((status)::text = ANY ((ARRAY['DONE'::character varying, 'FAILED'::character varying, 'EXPIRED'::character varying, 'DROPPED'::character varying, 'CONTENT_LOST'::character varying])::text[]));
+
+
+-- Table: project_evaluator_cleanup_tasks
+-- --------------------------------------
+CREATE TABLE public.project_evaluator_cleanup_tasks (
+    id BIGINT NOT NULL,
+    kind VARCHAR NOT NULL DEFAULT 'DELETE_PROJECT_EVALUATOR'::character varying,
+    project_evaluator_id BIGINT NOT NULL,
+    CONSTRAINT pk_project_evaluator_cleanup_tasks PRIMARY KEY (id),
+    CONSTRAINT uq_project_evaluator_cleanup_tasks_project_evaluator_id
+        UNIQUE (project_evaluator_id),
+    CONSTRAINT "ck_project_evaluator_cleanup_tasks_`valid_cleanup_task_kind`" CHECK (((kind)::text = 'DELETE_PROJECT_EVALUATOR'::text)),
+    CONSTRAINT fk_project_evaluator_cleanup_tasks_kind_cleanup_tasks
+        FOREIGN KEY (kind, id)
+        REFERENCES public.cleanup_tasks (kind, id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_project_evaluator_cleanup_tasks_project_evaluator_id_4d8f
+        FOREIGN KEY (project_evaluator_id)
+        REFERENCES public.project_evaluators (id)
+        ON DELETE RESTRICT
+);
 
 
 -- Table: project_evaluator_state

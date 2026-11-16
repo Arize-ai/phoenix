@@ -34,6 +34,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.dialects.sqlite.base import SQLiteCompiler, SQLiteDialect
 from sqlalchemy.engine.default import DefaultExecutionContext
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
@@ -42,6 +43,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
+    Session,
     WriteOnlyMapped,
     foreign,
     mapped_column,
@@ -55,6 +57,14 @@ from typing_extensions import Self, TypeAlias, TypeAliasType
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
+from phoenix.db.cleanup_tasks import (
+    SQLITE_TRACE_ROWID_STATE_KEY,
+    claimed_cleanup_tasks_predicate,
+    cleanup_task_kind_check,
+    live_row_predicate,
+    project_kind_check,
+    unclaimed_cleanup_tasks_predicate,
+)
 from phoenix.db.eval_work import (
     done_index_predicate,
     eval_work_status_check,
@@ -232,6 +242,13 @@ EvalWorkStatus: TypeAlias = Literal[
     "SAMPLED_OUT",
 ]
 EvaluationTarget = TypeAliasType("EvaluationTarget", Literal["SPAN", "TRACE", "SESSION"])
+ProjectKindName: TypeAlias = Literal["STANDARD", "PLAYGROUND", "EXPERIMENT", "EVALUATOR"]
+CleanupTaskKind: TypeAlias = Literal[
+    "DELETE_PROJECT",
+    "CLEAR_PROJECT_TRACES",
+    "DELETE_PROJECT_EVALUATOR",
+    "DELETE_DATASET_EVALUATOR",
+]
 
 # Quiet period before a trace or session is evaluated. Spans are evaluated as they arrive
 # and store 0; the check constraint on project_evaluators enforces both rules.
@@ -917,6 +934,14 @@ class Project(HasId):
         nullable=True,
         index=True,
     )
+    kind: Mapped[ProjectKindName] = mapped_column(
+        String,
+        CheckConstraint(project_kind_check(), name="valid_project_kind"),
+        default="STANDARD",
+        server_default="STANDARD",
+        nullable=False,
+    )
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
     trace_retention_policy: Mapped[Optional[ProjectTraceRetentionPolicy]] = relationship(
         "ProjectTraceRetentionPolicy",
         back_populates="projects",
@@ -929,8 +954,19 @@ class Project(HasId):
         uselist=True,
     )
     __table_args__ = (
-        UniqueConstraint(
+        Index(
+            "ix_projects_live_name",
             "name",
+            unique=True,
+            postgresql_where=text(live_row_predicate()),
+            sqlite_where=text(live_row_predicate()),
+        ),
+        Index(
+            "ix_projects_active_kind_id",
+            "kind",
+            "id",
+            postgresql_where=text(live_row_predicate()),
+            sqlite_where=text(live_row_predicate()),
         ),
     )
 
@@ -1660,7 +1696,7 @@ class Dataset(HasId):
         "DatasetsDatasetLabel", back_populates="dataset", passive_deletes="all"
     )
     dataset_evaluators: Mapped[list["DatasetEvaluators"]] = relationship(
-        "DatasetEvaluators", back_populates="dataset", cascade="all, delete-orphan", uselist=True
+        "DatasetEvaluators", back_populates="dataset", passive_deletes="all", uselist=True
     )
 
     @hybrid_property
@@ -1913,7 +1949,14 @@ class Experiment(HasId):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
+    project_id: Mapped[Optional[int]] = mapped_column(
+        _Integer,
+        ForeignKey("projects.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     user: Mapped[Optional["User"]] = relationship("User")
+    project: Mapped[Optional["Project"]] = relationship("Project")
     experiment_dataset_splits: Mapped[list["ExperimentDatasetSplit"]] = relationship(
         "ExperimentDatasetSplit",
         back_populates="experiment",
@@ -3519,7 +3562,7 @@ class Evaluator(HasId):
     dataset_evaluators: Mapped[list["DatasetEvaluators"]] = relationship(
         "DatasetEvaluators",
         back_populates="evaluator",
-        cascade="all, delete-orphan",
+        passive_deletes="all",
         uselist=True,
     )
 
@@ -3890,12 +3933,15 @@ class BuiltinEvaluator(Evaluator):
 
 class DatasetEvaluators(HasId):
     __tablename__ = "dataset_evaluators"
-    dataset_id: Mapped[int] = mapped_column(
-        ForeignKey("datasets.id", ondelete="CASCADE"),
+    dataset_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("datasets.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
-    # Unified evaluator_id FK - works for all evaluator types (LLM, CODE, BUILTIN)
-    evaluator_id: Mapped[int] = mapped_column(
-        ForeignKey("evaluators.id", ondelete="CASCADE"),
+    # Unified evaluator_id FK - works for all evaluator types (LLM, CODE, BUILTIN, DECISION)
+    evaluator_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("evaluators.id", ondelete="SET NULL"),
+        nullable=True,
         index=True,
     )
     name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
@@ -3918,15 +3964,29 @@ class DatasetEvaluators(HasId):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
-    dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="dataset_evaluators")
-    evaluator: Mapped["Evaluator"] = relationship("Evaluator", back_populates="dataset_evaluators")
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
+    dataset: Mapped[Optional["Dataset"]] = relationship(
+        "Dataset", back_populates="dataset_evaluators"
+    )
+    evaluator: Mapped[Optional["Evaluator"]] = relationship(
+        "Evaluator", back_populates="dataset_evaluators"
+    )
     user: Mapped[Optional["User"]] = relationship("User")
     project: Mapped["Project"] = relationship("Project")
 
     __table_args__ = (
-        UniqueConstraint(
+        CheckConstraint(
+            "(deleted_at IS NULL AND dataset_id IS NOT NULL AND evaluator_id IS NOT NULL) "
+            "OR (deleted_at IS NOT NULL AND evaluator_id IS NULL)",
+            name="valid_lifecycle",
+        ),
+        Index(
+            "ix_dataset_evaluators_live_name",
             "dataset_id",
             "name",
+            unique=True,
+            postgresql_where=text(live_row_predicate()),
+            sqlite_where=text(live_row_predicate()),
         ),
     )
 
@@ -4188,7 +4248,14 @@ class AgentSession(HasId):
     )
     is_ephemeral: Mapped[bool] = mapped_column(default=False)
     heartbeat_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
+    project_id: Mapped[Optional[int]] = mapped_column(
+        _Integer,
+        ForeignKey("projects.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     user: Mapped[Optional["User"]] = relationship("User")
+    project: Mapped[Optional["Project"]] = relationship("Project")
     custom_provider: Mapped[Optional["GenerativeModelCustomProvider"]] = relationship(
         "GenerativeModelCustomProvider"
     )
@@ -4313,9 +4380,9 @@ class ProjectEvaluator(HasId):
         nullable=False,
         index=True,
     )
-    evaluator_id: Mapped[int] = mapped_column(
-        ForeignKey("evaluators.id", ondelete="CASCADE"),
-        nullable=False,
+    evaluator_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("evaluators.id", ondelete="SET NULL"),
+        nullable=True,
         index=True,
     )
     trace_project_id: Mapped[int] = mapped_column(
@@ -4362,12 +4429,27 @@ class ProjectEvaluator(HasId):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
 
     project: Mapped["Project"] = relationship("Project", foreign_keys=[project_id])
     trace_project: Mapped["Project"] = relationship("Project", foreign_keys=[trace_project_id])
-    evaluator: Mapped["Evaluator"] = relationship("Evaluator")
+    evaluator: Mapped[Optional["Evaluator"]] = relationship("Evaluator")
 
-    __table_args__ = (UniqueConstraint("project_id", "name"),)
+    __table_args__ = (
+        CheckConstraint(
+            "(deleted_at IS NULL AND evaluator_id IS NOT NULL) "
+            "OR (deleted_at IS NOT NULL AND evaluator_id IS NULL)",
+            name="valid_lifecycle",
+        ),
+        Index(
+            "ix_project_evaluators_live_name",
+            "project_id",
+            "name",
+            unique=True,
+            postgresql_where=text(live_row_predicate()),
+            sqlite_where=text(live_row_predicate()),
+        ),
+    )
 
 
 class ProjectEvaluatorState(Base):
@@ -4659,3 +4741,254 @@ class EvalTraceWorkUnit(HasId):
             sqlite_where=text(failed_index_predicate()),
         ),
     )
+
+
+class CleanupTask(Base):
+    """Active background data-reclamation obligation; deleted when its target scope is drained."""
+
+    __tablename__ = "cleanup_tasks"
+    id: Mapped[int] = mapped_column(_Integer, primary_key=True)
+    kind: Mapped[CleanupTaskKind] = mapped_column(
+        String,
+        CheckConstraint(cleanup_task_kind_check(), name="valid_cleanup_task_kind"),
+        nullable=False,
+    )
+    claimed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
+    claimed_by: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    available_at: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
+
+    __mapper_args__ = {
+        "polymorphic_on": "kind",
+        "polymorphic_identity": None,
+    }
+    __table_args__ = (
+        UniqueConstraint("kind", "id"),
+        CheckConstraint(
+            "(claimed_at IS NULL AND claimed_by IS NULL) "
+            "OR (claimed_at IS NOT NULL AND claimed_by IS NOT NULL)",
+            name="valid_claim",
+        ),
+        Index(
+            "ix_cleanup_tasks_eligible",
+            "available_at",
+            "id",
+            postgresql_where=text(unclaimed_cleanup_tasks_predicate()),
+            sqlite_where=text(unclaimed_cleanup_tasks_predicate()),
+        ),
+        Index(
+            "ix_cleanup_tasks_claimed",
+            "claimed_at",
+            "id",
+            postgresql_where=text(claimed_cleanup_tasks_predicate()),
+            sqlite_where=text(claimed_cleanup_tasks_predicate()),
+        ),
+        dict(sqlite_autoincrement=True),
+    )
+
+
+class ProjectDeleteCleanupTask(CleanupTask):
+    """Obligation to drain and physically remove a logically deleted project."""
+
+    __tablename__ = "project_delete_cleanup_tasks"
+    id: Mapped[int] = mapped_column(_Integer, primary_key=True)
+    kind: Mapped[Literal["DELETE_PROJECT"]] = mapped_column(
+        String,
+        CheckConstraint("kind = 'DELETE_PROJECT'", name="valid_cleanup_task_kind"),
+        server_default="DELETE_PROJECT",
+        nullable=False,
+    )
+    project_id: Mapped[int] = mapped_column(
+        _Integer,
+        ForeignKey("projects.id", ondelete="RESTRICT"),
+        nullable=False,
+        unique=True,
+    )
+
+    __mapper_args__ = {
+        "polymorphic_identity": "DELETE_PROJECT",
+    }
+    __table_args__ = (  # type: ignore[assignment]
+        ForeignKeyConstraint(
+            ["kind", "id"],
+            ["cleanup_tasks.kind", "cleanup_tasks.id"],
+            ondelete="CASCADE",
+        ),
+    )
+
+
+class ProjectClearCleanupTask(CleanupTask):
+    """Obligation to drain a project's traces at or below a watermark and optional time range."""
+
+    __tablename__ = "project_clear_cleanup_tasks"
+    id: Mapped[int] = mapped_column(_Integer, primary_key=True)
+    kind: Mapped[Literal["CLEAR_PROJECT_TRACES"]] = mapped_column(
+        String,
+        CheckConstraint("kind = 'CLEAR_PROJECT_TRACES'", name="valid_cleanup_task_kind"),
+        server_default="CLEAR_PROJECT_TRACES",
+        nullable=False,
+    )
+    project_id: Mapped[int] = mapped_column(
+        _Integer,
+        ForeignKey("projects.id", ondelete="RESTRICT"),
+        nullable=False,
+        unique=True,
+    )
+    max_trace_rowid: Mapped[int] = mapped_column(
+        _Integer,
+        CheckConstraint("max_trace_rowid >= 0", name="nonnegative_max_trace_rowid"),
+        nullable=False,
+    )
+    start_time: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
+    end_time: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
+
+    __mapper_args__ = {
+        "polymorphic_identity": "CLEAR_PROJECT_TRACES",
+    }
+    __table_args__ = (  # type: ignore[assignment]
+        CheckConstraint(
+            "start_time IS NULL OR end_time IS NULL OR start_time < end_time",
+            name="valid_range",
+        ),
+        ForeignKeyConstraint(
+            ["kind", "id"],
+            ["cleanup_tasks.kind", "cleanup_tasks.id"],
+            ondelete="CASCADE",
+        ),
+    )
+
+
+class ProjectEvaluatorCleanupTask(CleanupTask):
+    """Obligation to drain a deleted project evaluator's work units and trace project."""
+
+    __tablename__ = "project_evaluator_cleanup_tasks"
+    id: Mapped[int] = mapped_column(_Integer, primary_key=True)
+    kind: Mapped[Literal["DELETE_PROJECT_EVALUATOR"]] = mapped_column(
+        String,
+        CheckConstraint("kind = 'DELETE_PROJECT_EVALUATOR'", name="valid_cleanup_task_kind"),
+        server_default="DELETE_PROJECT_EVALUATOR",
+        nullable=False,
+    )
+    project_evaluator_id: Mapped[int] = mapped_column(
+        _Integer,
+        ForeignKey("project_evaluators.id", ondelete="RESTRICT"),
+        nullable=False,
+        unique=True,
+    )
+
+    __mapper_args__ = {
+        "polymorphic_identity": "DELETE_PROJECT_EVALUATOR",
+    }
+    __table_args__ = (  # type: ignore[assignment]
+        ForeignKeyConstraint(
+            ["kind", "id"],
+            ["cleanup_tasks.kind", "cleanup_tasks.id"],
+            ondelete="CASCADE",
+        ),
+    )
+
+
+class DatasetEvaluatorCleanupTask(CleanupTask):
+    """Obligation to drain a deleted dataset evaluator's experiment logs and trace project."""
+
+    __tablename__ = "dataset_evaluator_cleanup_tasks"
+    id: Mapped[int] = mapped_column(_Integer, primary_key=True)
+    kind: Mapped[Literal["DELETE_DATASET_EVALUATOR"]] = mapped_column(
+        String,
+        CheckConstraint("kind = 'DELETE_DATASET_EVALUATOR'", name="valid_cleanup_task_kind"),
+        server_default="DELETE_DATASET_EVALUATOR",
+        nullable=False,
+    )
+    dataset_evaluator_id: Mapped[int] = mapped_column(
+        _Integer,
+        ForeignKey("dataset_evaluators.id", ondelete="RESTRICT"),
+        nullable=False,
+        unique=True,
+    )
+
+    __mapper_args__ = {
+        "polymorphic_identity": "DELETE_DATASET_EVALUATOR",
+    }
+    __table_args__ = (  # type: ignore[assignment]
+        ForeignKeyConstraint(
+            ["kind", "id"],
+            ["cleanup_tasks.kind", "cleanup_tasks.id"],
+            ondelete="CASCADE",
+        ),
+    )
+
+
+def _read_sqlite_trace_max_rowid(conn: sa.Connection) -> int:
+    table_max = int(conn.scalar(select(func.coalesce(func.max(Trace.id), 0))) or 0)
+    stored = conn.scalar(
+        select(SystemState.value).where(SystemState.key == SQLITE_TRACE_ROWID_STATE_KEY)
+    )
+    stored_max = int(stored["max_id"]) if isinstance(stored, dict) and "max_id" in stored else 0
+    return max(table_max, stored_max)
+
+
+def _write_sqlite_trace_max_rowid(conn: sa.Connection, max_rowid: int) -> None:
+    stmt = sqlite_insert(SystemState).values(
+        key=SQLITE_TRACE_ROWID_STATE_KEY,
+        value={"max_id": max_rowid},
+    )
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["key"],
+        set_={"value": {"max_id": max_rowid}},
+    )
+    conn.execute(stmt)
+
+
+def allocate_sqlite_trace_rowids_sync(conn: sa.Connection, count: int) -> list[int]:
+    """Allocate ``count`` monotonic SQLite ``traces.id`` values inside ``conn``'s transaction."""
+    if count <= 0:
+        return []
+    base = _read_sqlite_trace_max_rowid(conn)
+    new_max = base + count
+    _write_sqlite_trace_max_rowid(conn, new_max)
+    return list(range(base + 1, new_max + 1))
+
+
+async def allocate_sqlite_trace_rowid(session: AsyncSession) -> int:
+    """Allocate one monotonic SQLite ``traces.id`` inside ``session``'s active transaction."""
+    conn = await session.connection()
+    (allocated,) = await conn.run_sync(allocate_sqlite_trace_rowids_sync, 1)
+    return allocated
+
+
+async def capture_trace_max_rowid(session: AsyncSession) -> int:
+    """Capture the current global ``traces.id`` watermark, pinning SQLite's monotonic floor."""
+    conn = await session.connection()
+    if conn.dialect.name == "sqlite":
+
+        def _pin(sync_conn: sa.Connection) -> int:
+            watermark = _read_sqlite_trace_max_rowid(sync_conn)
+            _write_sqlite_trace_max_rowid(sync_conn, watermark)
+            return watermark
+
+        return await conn.run_sync(_pin)
+    return int((await session.scalar(select(func.coalesce(func.max(Trace.id), 0)))) or 0)
+
+
+@event.listens_for(Session, "before_flush")
+def _assign_sqlite_trace_rowids_on_flush(
+    session: Session,
+    _flush_context: Any,
+    _instances: Any,
+) -> None:
+    new_traces = [obj for obj in session.new if isinstance(obj, Trace)]
+    if not new_traces:
+        return
+    conn = session.connection()
+    if conn.dialect.name != "sqlite":
+        return
+    unassigned = [trace for trace in new_traces if trace.id is None]
+    explicit_max = max((trace.id for trace in new_traces if trace.id is not None), default=0)
+    current_floor = max(_read_sqlite_trace_max_rowid(conn), explicit_max)
+    if unassigned:
+        new_max = current_floor + len(unassigned)
+        for offset, trace in enumerate(unassigned, start=1):
+            trace.id = current_floor + offset
+        _write_sqlite_trace_max_rowid(conn, new_max)
+    elif explicit_max > 0:
+        _write_sqlite_trace_max_rowid(conn, current_floor)

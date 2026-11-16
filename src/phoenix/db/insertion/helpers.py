@@ -2,10 +2,10 @@ from abc import ABC
 from collections.abc import Awaitable, Callable, Iterable, Iterator, Mapping, Sequence
 from datetime import datetime, timezone
 from enum import Enum, auto
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
-from sqlalchemy import Insert, func, update
+from sqlalchemy import ColumnElement, Insert, TextClause, func, update
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.exc import DBAPIError
@@ -55,6 +55,7 @@ def insert_on_conflict(
     on_conflict: OnConflict = OnConflict.DO_UPDATE,
     set_: Optional[Mapping[str, Any]] = None,
     constraint_name: Optional[str] = None,
+    index_where: Optional[Union[ColumnElement[bool], TextClause]] = None,
 ) -> Insert:
     """
     Dialect specific insertion statement using ON CONFLICT DO syntax.
@@ -72,6 +73,19 @@ def insert_on_conflict(
     constraint = constraint_name or truncate_name("_".join(("uq", table.__tablename__, *unique_by)))
     if dialect is SupportedSQLDialect.POSTGRESQL:
         stmt_postgresql = insert_postgresql(table).values(records)
+        if index_where is not None:
+            if on_conflict is OnConflict.DO_NOTHING:
+                return stmt_postgresql.on_conflict_do_nothing(
+                    index_elements=unique_by,
+                    index_where=index_where,
+                )
+            if on_conflict is OnConflict.DO_UPDATE:
+                return stmt_postgresql.on_conflict_do_update(
+                    index_elements=unique_by,
+                    index_where=index_where,
+                    set_=set_ if set_ else dict(_clean(stmt_postgresql.excluded.items())),
+                )
+            assert_never(on_conflict)
         if on_conflict is OnConflict.DO_NOTHING:
             return stmt_postgresql.on_conflict_do_nothing(constraint=constraint)
         if on_conflict is OnConflict.DO_UPDATE:
@@ -83,10 +97,11 @@ def insert_on_conflict(
     if dialect is SupportedSQLDialect.SQLITE:
         stmt_sqlite = insert_sqlite(table).values(records)
         if on_conflict is OnConflict.DO_NOTHING:
-            return stmt_sqlite.on_conflict_do_nothing(unique_by)
+            return stmt_sqlite.on_conflict_do_nothing(unique_by, index_where=index_where)
         if on_conflict is OnConflict.DO_UPDATE:
             return stmt_sqlite.on_conflict_do_update(
                 unique_by,
+                index_where=index_where,
                 set_=set_ if set_ else dict(_clean(stmt_sqlite.excluded.items())),
             )
         assert_never(on_conflict)

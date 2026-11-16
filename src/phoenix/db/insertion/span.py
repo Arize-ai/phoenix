@@ -1,17 +1,33 @@
-from collections.abc import Mapping
+import logging
+from collections.abc import Mapping, Sequence
 from dataclasses import asdict, replace
 from datetime import datetime
 from typing import Any, NamedTuple, Optional, TypeVar, Union
 
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import Executable, and_, case, func, literal, select, update
+from sqlalchemy import (
+    ColumnElement,
+    Executable,
+    TextClause,
+    and_,
+    case,
+    func,
+    literal,
+    select,
+    text,
+    update,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
+from phoenix.db.cleanup_tasks import live_row_predicate
 from phoenix.db.helpers import SupportedSQLDialect, random_project_gradient
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.trace.attributes import get_attribute_value
 from phoenix.trace.schemas import Span, SpanEvent, SpanKind, SpanStatusCode
+
+logger = logging.getLogger(__name__)
 
 
 class SpanInsertionEvent(NamedTuple):
@@ -42,6 +58,7 @@ class _TraceRow(NamedTuple):
 
 class _ProjectSessionRow(NamedTuple):
     id: int
+    project_id: int
     start_time: datetime
     end_time: datetime
 
@@ -67,10 +84,10 @@ async def _extend_time_range(
     record: _TimedRowT,
     start_time: datetime,
     end_time: datetime,
-) -> _TimedRowT:
+) -> Optional[_TimedRowT]:
     if record.start_time <= start_time and end_time <= record.end_time:
         return record
-    result = await _fetch_row(
+    return await _fetch_row(
         session,
         update(table)
         .where(table.id == record.id)
@@ -88,9 +105,6 @@ async def _extend_time_range(
         .execution_options(synchronize_session=False),
         type(record),
     )
-    if result is None:
-        raise RuntimeError(f"{table.__tablename__} record disappeared during range update")
-    return result
 
 
 async def _get_or_create(
@@ -101,8 +115,10 @@ async def _get_or_create(
     values: dict[str, Any],
     *,
     skip_initial_lookup: bool = False,
+    where: Sequence[ColumnElement[bool]] = (),
+    index_where: Optional[Union[ColumnElement[bool], TextClause]] = None,
 ) -> _RowT:
-    query = select(*_columns(table, row_type)).filter_by(**key)
+    query = select(*_columns(table, row_type)).filter_by(**key).where(*where)
     dialect = SupportedSQLDialect(session.get_bind().dialect.name)
     for attempt in range(2):
         if (not skip_initial_lookup or attempt > 0) and (
@@ -116,6 +132,7 @@ async def _get_or_create(
                 dialect=dialect,
                 unique_by=tuple(key),
                 on_conflict=OnConflict.DO_NOTHING,
+                index_where=index_where,
             )
         )
         # A separate statement can see a competing insert's committed row on PostgreSQL.
@@ -191,30 +208,90 @@ async def insert_span(
         span = _replace_descriptive_nul(span)
 
     trace_id = span.context.trace_id
-    trace = await _fetch_row(
-        session,
-        select(*_columns(models.Trace, _TraceRow)).filter_by(trace_id=trace_id),
-        _TraceRow,
-    )
-    if trace is None:
-        project = await _get_or_create(
-            session, models.Project, _ProjectRow, {"name": project_name}, random_project_gradient()
+    existing_trace = (
+        await session.execute(
+            select(
+                models.Trace.id,
+                models.Trace.project_rowid,
+                models.Trace.project_session_rowid,
+                models.Trace.start_time,
+                models.Trace.end_time,
+                models.Project.deleted_at,
+            )
+            .join(models.Project, models.Project.id == models.Trace.project_rowid)
+            .where(models.Trace.trace_id == trace_id)
         )
+    ).first()
+    trace: _TraceRow
+    if existing_trace is not None:
+        if existing_trace.deleted_at is not None:
+            return None
+        trace = _TraceRow(
+            existing_trace.id,
+            existing_trace.project_rowid,
+            existing_trace.project_session_rowid,
+            existing_trace.start_time,
+            existing_trace.end_time,
+        )
+    else:
+        live_project_exists = await session.scalar(
+            select(models.Project.id)
+            .where(models.Project.name == project_name, models.Project.deleted_at.is_(None))
+            .limit(1)
+        )
+        if live_project_exists is None:
+            tombstoned_internal = await session.scalar(
+                select(models.Project.id)
+                .where(
+                    models.Project.name == project_name,
+                    models.Project.deleted_at.is_not(None),
+                    models.Project.kind.in_(("EXPERIMENT", "EVALUATOR")),
+                )
+                .limit(1)
+            )
+            if tombstoned_internal is not None:
+                return None
+        project_kind: models.ProjectKindName = (
+            "PLAYGROUND" if project_name == PLAYGROUND_PROJECT_NAME else "STANDARD"
+        )
+        project = await _get_or_create(
+            session,
+            models.Project,
+            _ProjectRow,
+            {"name": project_name},
+            {**random_project_gradient(), "kind": project_kind},
+            where=(models.Project.deleted_at.is_(None),),
+            index_where=text(live_row_predicate()),
+        )
+        trace_values: dict[str, Any] = dict(
+            project_rowid=project.id,
+            start_time=span.start_time,
+            end_time=span.end_time,
+        )
+        if dialect is SupportedSQLDialect.SQLITE:
+            trace_values["id"] = await models.allocate_sqlite_trace_rowid(session)
         trace = await _get_or_create(
             session,
             models.Trace,
             _TraceRow,
             {"trace_id": trace_id},
-            dict(
-                project_rowid=project.id,
-                start_time=span.start_time,
-                end_time=span.end_time,
-            ),
+            trace_values,
             skip_initial_lookup=True,
         )
+        if trace.project_rowid != project.id:
+            owner_deleted_at = await session.scalar(
+                select(models.Project.deleted_at).where(models.Project.id == trace.project_rowid)
+            )
+            if owner_deleted_at is not None:
+                return None
 
     # The existing trace's memberships win, including after a project transfer.
-    trace = await _extend_time_range(session, models.Trace, trace, span.start_time, span.end_time)
+    extended_trace = await _extend_time_range(
+        session, models.Trace, trace, span.start_time, span.end_time
+    )
+    if extended_trace is None:
+        return None
+    trace = extended_trace
 
     session_id = str(session_id).strip() if session_id is not None else ""
     assert isinstance(session_id, str)
@@ -234,7 +311,7 @@ async def insert_span(
             _ProjectSessionRow,
         )
     elif session_id:
-        project_session = await _get_or_create(
+        candidate_session = await _get_or_create(
             session,
             models.ProjectSession,
             _ProjectSessionRow,
@@ -245,32 +322,42 @@ async def insert_span(
                 end_time=trace.end_time,
             ),
         )
-        # Coalesce is evaluated against the locked row, so a concurrent attachment
-        # wins over our earlier read of a sessionless trace.
-        attached_trace = await _fetch_row(
-            session,
-            update(models.Trace)
-            .where(models.Trace.id == trace.id)
-            .values(
-                project_session_rowid=func.coalesce(
-                    models.Trace.project_session_rowid, project_session.id
-                )
+        if candidate_session.project_id != trace.project_rowid:
+            logger.warning(
+                "Skipping cross-project session attachment for session_id=%r "
+                "(owned by project %s, trace in project %s)",
+                session_id,
+                candidate_session.project_id,
+                trace.project_rowid,
             )
-            .returning(*_columns(models.Trace, _TraceRow))
-            .execution_options(synchronize_session=False),
-            _TraceRow,
-        )
-        if attached_trace is None:
-            raise RuntimeError("Trace record disappeared during session attachment")
-        trace = attached_trace
-        if trace.project_session_rowid != project_session.id:
-            project_session = await _fetch_row(
+        else:
+            project_session = candidate_session
+            # Coalesce is evaluated against the locked row, so a concurrent attachment
+            # wins over our earlier read of a sessionless trace.
+            attached_trace = await _fetch_row(
                 session,
-                select(*_columns(models.ProjectSession, _ProjectSessionRow)).filter_by(
-                    id=trace.project_session_rowid
-                ),
-                _ProjectSessionRow,
+                update(models.Trace)
+                .where(models.Trace.id == trace.id)
+                .values(
+                    project_session_rowid=func.coalesce(
+                        models.Trace.project_session_rowid, project_session.id
+                    )
+                )
+                .returning(*_columns(models.Trace, _TraceRow))
+                .execution_options(synchronize_session=False),
+                _TraceRow,
             )
+            if attached_trace is None:
+                return None
+            trace = attached_trace
+            if trace.project_session_rowid != project_session.id:
+                project_session = await _fetch_row(
+                    session,
+                    select(*_columns(models.ProjectSession, _ProjectSessionRow)).filter_by(
+                        id=trace.project_session_rowid
+                    ),
+                    _ProjectSessionRow,
+                )
 
     if project_session is not None:
         await _extend_time_range(

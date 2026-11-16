@@ -161,6 +161,31 @@ async def test_prompt_versions_autoincrement_at_head(
     await _run_async(_engine, verify)
 
 
+async def test_cleanup_tasks_autoincrement_at_head(
+    _engine: AsyncEngine,
+    _alembic_config: Config,
+    _schema: str,
+) -> None:
+    await _up(_engine, _alembic_config, "head", _schema)
+
+    def verify(connection: sa.Connection) -> None:
+        now = datetime.now(timezone.utc)
+
+        def insert() -> int:
+            task_id = connection.execute(
+                sa.insert(models.CleanupTask)
+                .values(kind="DELETE_PROJECT", available_at=now, created_at=now)
+                .returning(models.CleanupTask.id)
+            ).scalar_one()
+            assert isinstance(task_id, int)
+            return task_id
+
+        _assert_autoincrement_preserved(connection, "cleanup_tasks", insert)
+        connection.commit()
+
+    await _run_async(_engine, verify)
+
+
 @pytest.mark.parametrize(
     "revision,down_revision,table_name",
     [
