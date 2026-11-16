@@ -87,7 +87,7 @@ function TabCount({ tab }: { tab: TabName }) {
       : tab === "dataset-evaluators"
         ? datasetEvaluatorCount
         : projectEvaluatorCount + datasetEvaluatorCount;
-  return <Counter variant="quiet">{count}</Counter>;
+  return <Counter variant="quiet" count={count} />;
 }
 
 /**

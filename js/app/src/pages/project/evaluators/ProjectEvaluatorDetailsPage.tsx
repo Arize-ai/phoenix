@@ -288,7 +288,7 @@ function ProjectEvaluatorDetailsPageContent({
             <Tab id="overview">Overview</Tab>
             {isCodeEvaluator && (
               <Tab id="versions">
-                Versions <Counter variant="quiet">{versionCount}</Counter>
+                Versions <Counter variant="quiet" count={versionCount} />
               </Tab>
             )}
             <Tab id="traces">Traces</Tab>
