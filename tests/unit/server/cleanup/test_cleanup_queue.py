@@ -972,3 +972,49 @@ class TestTraceScopeDrain:
             assert steps < 20
         assert trace_deleted_while_spans_remain
         assert steps == 6
+
+
+class TestBuiltinSyncStaleBindings:
+    async def test_stale_builtin_with_live_binding_is_removed_and_binding_tombstoned(
+        self, db: DbSessionFactory
+    ) -> None:
+        from phoenix.server.evaluators.services.builtin_sync import sync_builtin_evaluators
+
+        async with db() as session:
+            dataset = models.Dataset(name=f"stale-ds-{token_hex(4)}", metadata_={})
+            trace_proj = models.Project(name=f"stale-proj-{token_hex(4)}", kind="EVALUATOR")
+            stale = models.BuiltinEvaluator(
+                name=Identifier(root=f"stale-{token_hex(4)}"),
+                description=None,
+                metadata_={},
+                user_id=None,
+                key=f"stale_{token_hex(4)}",
+                input_schema={},
+                output_configs=[],
+            )
+            session.add_all([dataset, trace_proj, stale])
+            await session.flush()
+            binding = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                evaluator_id=stale.id,
+                project_id=trace_proj.id,
+                name=Identifier(root="stale-binding"),
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+            )
+            session.add(binding)
+            await session.flush()
+            stale_id, binding_id = stale.id, binding.id
+
+        await sync_builtin_evaluators(db)
+
+        async with db() as session:
+            assert await session.get(models.Evaluator, stale_id) is None
+            tombstoned = await session.get(models.DatasetEvaluators, binding_id)
+            assert tombstoned is not None
+            assert tombstoned.deleted_at is not None and tombstoned.evaluator_id is None
+            task_ids = await session.scalars(
+                select(models.DatasetEvaluatorCleanupTask.id).where(
+                    models.DatasetEvaluatorCleanupTask.dataset_evaluator_id == binding_id
+                )
+            )
+            assert len(list(task_ids)) == 1

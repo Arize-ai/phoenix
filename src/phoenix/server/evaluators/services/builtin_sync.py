@@ -7,6 +7,11 @@ from sqlalchemy import delete, select
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import OutputConfigType
 from phoenix.db.types.identifier import Identifier
+from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.server.cleanup.lifecycle import (
+    logical_delete_dataset_evaluators,
+    logical_delete_project_evaluators,
+)
 from phoenix.server.evaluators.runtime.builtin import get_builtin_evaluators
 from phoenix.server.types import DbSessionFactory
 
@@ -63,6 +68,35 @@ async def sync_builtin_evaluators(db: DbSessionFactory) -> None:
             stale_ids = [row[0] for row in stale_ids_result.fetchall()]
 
             if stale_ids:
+                # Live bindings must be tombstoned (and their cleanup enqueued) before the
+                # evaluator row goes, since a live binding cannot have a NULL evaluator_id.
+                dialect = SupportedSQLDialect(db.dialect.value)
+                dataset_binding_ids = await session.scalars(
+                    select(models.DatasetEvaluators.id).where(
+                        models.DatasetEvaluators.evaluator_id.in_(stale_ids),
+                        models.DatasetEvaluators.deleted_at.is_(None),
+                    )
+                )
+                await logical_delete_dataset_evaluators(
+                    session,
+                    dialect=dialect,
+                    binding_ids=list(dataset_binding_ids),
+                    collect_unused_evaluator=False,
+                    collect_unused_source=False,
+                )
+                project_binding_ids = await session.scalars(
+                    select(models.ProjectEvaluator.id).where(
+                        models.ProjectEvaluator.evaluator_id.in_(stale_ids),
+                        models.ProjectEvaluator.deleted_at.is_(None),
+                    )
+                )
+                await logical_delete_project_evaluators(
+                    session,
+                    dialect=dialect,
+                    binding_ids=list(project_binding_ids),
+                    collect_unused_evaluator=False,
+                    collect_unused_source=False,
+                )
                 delete_stmt = delete(models.Evaluator).where(
                     models.Evaluator.kind == "BUILTIN",
                     models.Evaluator.id.in_(stale_ids),
