@@ -265,16 +265,24 @@ async function saveCode(
 
 async function attachCode(
   environment: Environment,
-  input: useEvaluatorTaskSaveAttachCodeMutation["variables"]["input"]
+  {
+    evaluatorId,
+    ...binding
+  }: Omit<
+    useEvaluatorTaskSaveAttachCodeMutation["variables"]["input"],
+    "source"
+  > & {
+    evaluatorId: string;
+  }
 ): Promise<SavedEvaluatorTask> {
   const response = await commit<useEvaluatorTaskSaveAttachCodeMutation>(
     environment,
     attachCodeMutation,
-    { input }
+    { input: { ...binding, source: { evaluatorId } } }
   );
 
   return {
-    evaluatorId: input.evaluatorId,
+    evaluatorId,
     datasetEvaluatorId: response.createDatasetCodeEvaluator.evaluator.id,
     action: "created",
     prompt: null,
