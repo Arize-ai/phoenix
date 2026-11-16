@@ -34,6 +34,7 @@ CHECK (kind IN (
     claimed_at TIMESTAMP,
     claimed_by VARCHAR,
     available_at TIMESTAMP NOT NULL,
+    failure_count INTEGER DEFAULT '0' NOT NULL,
     created_at TIMESTAMP NOT NULL,
     CONSTRAINT uq_cleanup_tasks_kind_id UNIQUE (kind, id),
     CONSTRAINT "ck_cleanup_tasks_`valid_claim`"

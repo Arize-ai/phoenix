@@ -28,6 +28,7 @@ CREATE TABLE public.cleanup_tasks (
     claimed_at TIMESTAMP WITH TIME ZONE,
     claimed_by VARCHAR,
     available_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    failure_count BIGINT NOT NULL DEFAULT '0'::bigint,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
     CONSTRAINT pk_cleanup_tasks PRIMARY KEY (id),
     CONSTRAINT uq_cleanup_tasks_kind_id
