@@ -32,7 +32,12 @@ from phoenix.db.types.prompts import (
     PromptTemplateType,
 )
 from phoenix.server import app as server_app
-from phoenix.server.api.dataloaders import CacheForDataLoaders, project_evaluator_run_counts
+from phoenix.server.api.dataloaders import (
+    CacheForDataLoaders,
+    RecordCountDataLoader,
+    SpanCostSummaryByProjectDataLoader,
+    project_evaluator_run_counts,
+)
 from phoenix.server.api.types.Evaluator import (
     BuiltInEvaluator,
     DatasetEvaluator,
@@ -2838,6 +2843,130 @@ async def test_project_evaluator_trace_project_spans_are_scoped_to_the_evaluator
     assert [edge["node"]["name"] for edge in trace_project["spans"]["edges"]] == [
         f"Evaluator: {project_evaluator_ids[0]}"
     ]
+
+
+async def test_project_evaluator_cost_is_measured_only_for_traced_model_evaluators(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Code and built-in evaluators make no model calls, and a tracing-off evaluator's
+    traces cover only part of the range, so their cost is null and the trace and span
+    cost scans are never queued for their trace projects."""
+    now = datetime.now(timezone.utc)
+    async with db() as session:
+        project = await _add_project(session)
+        prompt = models.Prompt(name=Identifier(token_hex(4)))
+        session.add(prompt)
+        await session.flush()
+        session.add(_create_prompt_version(prompt.id, "{input}", "gpt-4"))
+        llm = models.LLMEvaluator(name=Identifier(token_hex(4)), prompt_id=prompt.id)
+        code = models.CodeEvaluator(name=Identifier(token_hex(4)), language="PYTHON")
+        builtin = models.BuiltinEvaluator(
+            name=Identifier(token_hex(4)),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        session.add_all([llm, code, builtin])
+        await session.flush()
+        trace_project_ids: dict[str, int] = {}
+        for name, evaluator_id, tracing_enabled in (
+            ("llm", llm.id, True),
+            ("llm-tracing-off", llm.id, False),
+            ("code", code.id, True),
+            ("builtin", builtin.id, True),
+        ):
+            project_evaluator = models.ProjectEvaluator(
+                trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
+                project_id=project.id,
+                evaluator_id=evaluator_id,
+                name=Identifier(name),
+                evaluation_target="SPAN",
+                filter_condition="",
+                sampling_rate=1.0,
+                tracing_enabled=tracing_enabled,
+            )
+            session.add(project_evaluator)
+            await session.flush()
+            trace_project_ids[name] = project_evaluator.trace_project_id
+            # Every trace project holds a costed trace, so a null is the short circuit.
+            trace = await _add_trace(session, project_evaluator.trace_project, start_time=now)
+            span = await _add_span(session, trace, start_time=now, end_time=now)
+            session.add(
+                models.SpanCost(
+                    span_rowid=span.id,
+                    trace_rowid=trace.id,
+                    span_start_time=now,
+                    total_cost=0.5,
+                    prompt_cost=0.2,
+                    completion_cost=0.3,
+                )
+            )
+        await session.flush()
+
+    loaded_project_ids: dict[str, list[int]] = {"counts": [], "costs": []}
+    record_count_load = RecordCountDataLoader.load
+    cost_summary_load = SpanCostSummaryByProjectDataLoader.load
+
+    def _record_count_load(self: RecordCountDataLoader, key: Any) -> Any:
+        loaded_project_ids["counts"].append(key[1])
+        return record_count_load(self, key)
+
+    def _cost_summary_load(self: SpanCostSummaryByProjectDataLoader, key: Any) -> Any:
+        loaded_project_ids["costs"].append(key[0])
+        return cost_summary_load(self, key)
+
+    monkeypatch.setattr(RecordCountDataLoader, "load", _record_count_load)
+    monkeypatch.setattr(SpanCostSummaryByProjectDataLoader, "load", _cost_summary_load)
+
+    response = await gql_client.execute(
+        """query ($id: ID!, $timeRange: TimeRange!) {
+            node(id: $id) {
+                ... on Project {
+                    evaluators(first: 10) {
+                        edges {
+                            node {
+                                name
+                                tracedEvaluationCount(timeRange: $timeRange)
+                                costSummary(timeRange: $timeRange) {
+                                    total { cost }
+                                    prompt { cost }
+                                    completion { cost }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }""",
+        variables={
+            "id": str(GlobalID("Project", str(project.id))),
+            "timeRange": {
+                "start": (now - timedelta(days=1)).isoformat(),
+                "end": (now + timedelta(days=1)).isoformat(),
+            },
+        },
+    )
+
+    assert not response.errors and response.data
+    by_name = {
+        edge["node"]["name"]: edge["node"] for edge in response.data["node"]["evaluators"]["edges"]
+    }
+    assert by_name["llm"]["tracedEvaluationCount"] == 1
+    assert by_name["llm"]["costSummary"] == {
+        "total": {"cost": pytest.approx(0.5)},
+        "prompt": {"cost": pytest.approx(0.2)},
+        "completion": {"cost": pytest.approx(0.3)},
+    }
+    for name in ("llm-tracing-off", "code", "builtin"):
+        assert by_name[name]["tracedEvaluationCount"] is None, name
+        assert by_name[name]["costSummary"] is None, name
+    assert loaded_project_ids == {
+        "counts": [trace_project_ids["llm"]],
+        "costs": [trace_project_ids["llm"]],
+    }
 
 
 class TestProjectEvaluatorAnnotationScoreMetrics:

@@ -39,6 +39,7 @@ from phoenix.server.api.types.AnnotationConfig import (
     FreeformAnnotationConfig,
 )
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
+from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.DecisionScoringPolicy import DecisionScoringPolicy
 from phoenix.server.api.types.EvaluationActivity import (
     EVALUATION_ACTIVITY_RETENTION_NOTE,
@@ -57,6 +58,7 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.SandboxConfig import Language
+from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.evaluators.input_descriptions import (
     described_code_input_schema,
     described_llm_input_schema,
@@ -1500,6 +1502,10 @@ class EvaluatorAnnotationScoreMetrics:
     )
 
 
+# Kinds whose evaluations call a model, so their traces carry model cost. Code and
+# built-in evaluators write traces too, but with no model spans.
+_COSTED_EVALUATOR_KINDS: frozenset[models.EvaluatorKind] = frozenset({"LLM", "DECISION"})
+
 _ANNOTATION_KIND_BY_TARGET: dict[str, Literal["span", "trace", "session"]] = {
     "SPAN": "span",
     "TRACE": "trace",
@@ -1539,6 +1545,61 @@ class ProjectEvaluator(Node):
         from .Project import Project
 
         return Project(id=record.trace_project_id)
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Model cost of this evaluator's traced evaluations in the time range, read from "
+            "its trace project. Null when the cost is not measured: the evaluator makes no "
+            "model calls (code and built-in evaluators), or tracing is off."
+        )
+    )
+    async def cost_summary(
+        self, info: Info[Context, None], time_range: Optional[TimeRange] = UNSET
+    ) -> Optional[SpanCostSummary]:
+        trace_project_id = await self._cost_trace_project_id(info)
+        if trace_project_id is None:
+            return None
+        summary = await info.context.data_loaders.span_cost_summary_by_project.load(
+            (trace_project_id, time_range or None, None, None)
+        )
+        return SpanCostSummary(
+            prompt=CostBreakdown(tokens=summary.prompt.tokens, cost=summary.prompt.cost),
+            completion=CostBreakdown(
+                tokens=summary.completion.tokens, cost=summary.completion.cost
+            ),
+            total=CostBreakdown(tokens=summary.total.tokens, cost=summary.total.cost),
+        )
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Number of this evaluator's evaluations in the time range that wrote a trace, the "
+            "denominator of its average cost. Null whenever costSummary is null."
+        )
+    )
+    async def traced_evaluation_count(
+        self, info: Info[Context, None], time_range: Optional[TimeRange] = UNSET
+    ) -> Optional[int]:
+        trace_project_id = await self._cost_trace_project_id(info)
+        if trace_project_id is None:
+            return None
+        return await info.context.data_loaders.record_counts.load(
+            ("trace", trace_project_id, time_range or None, None, None)
+        )
+
+    async def _cost_trace_project_id(self, info: Info[Context, None]) -> Optional[int]:
+        """
+        The trace project to measure cost from, or None when the cost is not measured,
+        so callers skip the trace and span cost scans. A tracing-off evaluator may still
+        have traces from before tracing was turned off; they cover only part of the
+        range, so they are not reported as its cost.
+        """
+        record = await self._get_record(info)
+        if not record.tracing_enabled:
+            return None
+        evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
+        if evaluator is None or evaluator.kind not in _COSTED_EVALUATOR_KINDS:
+            return None
+        return record.trace_project_id
 
     @strawberry.field
     async def evaluator(self, info: Info[Context, None]) -> Evaluator:
