@@ -39,7 +39,6 @@ from phoenix.db.types.prompts import (
     PromptToolRaw,
     PromptTools,
 )
-from phoenix.server.api.evaluators import _request_tool_call_in_prompt
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
 from phoenix.server.api.helpers.playground_clients import (
@@ -69,6 +68,7 @@ from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import TextChunk
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
+from phoenix.server.evaluators.runtime.llm import _request_tool_call_in_prompt
 from phoenix.server.types import DbSessionFactory
 from tests.unit.vcr import CustomVCR
 
