@@ -463,11 +463,20 @@ async def admit_or_reuse_project_clear(
                 models.ProjectClearCleanupTask.id,
                 models.ProjectClearCleanupTask.start_time,
                 models.ProjectClearCleanupTask.end_time,
+                models.ProjectClearCleanupTask.max_trace_rowid,
             ).where(models.ProjectClearCleanupTask.project_id == project_id)
         )
     ).one_or_none()
     if existing is not None:
         if existing.start_time == start_time and existing.end_time == end_time:
+            # A repeated clear covers traces ingested since the active task's watermark.
+            watermark = await models.capture_trace_max_rowid(session)
+            if watermark > existing.max_trace_rowid:
+                await session.execute(
+                    update(models.ProjectClearCleanupTask)
+                    .where(models.ProjectClearCleanupTask.id == existing.id)
+                    .values(max_trace_rowid=watermark)
+                )
             return int(existing.id)
         raise Conflict(
             f"Another clear is in progress for project {project_id} (operation {existing.id})",

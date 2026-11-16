@@ -1094,3 +1094,38 @@ class TestBuiltinSyncStaleBindings:
                 )
             )
             assert len(list(task_ids)) == 1
+
+
+class TestClearWatermarkReuse:
+    async def test_repeated_clear_raises_the_active_task_watermark(
+        self, db: DbSessionFactory
+    ) -> None:
+        dialect = SupportedSQLDialect(db.dialect.value)
+        async with db() as session:
+            project = await _add_project(session, name=f"rewatermark-{token_hex(4)}")
+            await _add_trace(session, project)
+            project_id = project.id
+            first_task = await admit_or_reuse_project_clear(
+                session, dialect=dialect, project_id=project_id
+            )
+        async with db() as session:
+            project = await session.get(models.Project, project_id)
+            assert project is not None
+            late_trace = await _add_trace(session, project)
+            late_trace_id = late_trace.id
+        async with db() as session:
+            second_task = await admit_or_reuse_project_clear(
+                session, dialect=dialect, project_id=project_id
+            )
+        assert second_task == first_task
+        async with db() as session:
+            watermark = await session.scalar(
+                select(models.ProjectClearCleanupTask.max_trace_rowid).where(
+                    models.ProjectClearCleanupTask.id == first_task
+                )
+            )
+            assert watermark is not None and watermark >= late_trace_id
+
+        await _drain_all(CleanupCoordinator(db, batch_limit=2))
+        async with db() as session:
+            assert await session.get(models.Trace, late_trace_id) is None
