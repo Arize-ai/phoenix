@@ -37,7 +37,6 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.online_eval.work_tables import WORK_TABLES, WorkUnitModel
 
 CLEANUP_BATCH_ROWS = 1_000
-TRACE_CANDIDATE_WINDOW = 128
 
 _WORK_UNIT_MODELS: tuple[WorkUnitModel, ...] = tuple(
     table.work_unit_model for table in WORK_TABLES.values()
@@ -264,9 +263,10 @@ async def drain_trace_scope_step(
     """Drain one bounded step of spans, traces, and eligible orphan sessions for a project scope.
 
     Traces are scanned in ascending ``start_time`` order so ``ix_traces_project_rowid_start_time``
-    reads oldest in-scope rows first rather than scanning past newly ingested traces above the
-    watermark. A ``Trace`` row is deleted only after locking it ``FOR UPDATE`` and verifying under
-    that lock that zero ``Span`` rows remain attached to it, bounding any residual cascade.
+    reads oldest in-scope rows first. Each step drains the spans of the oldest window of traces and
+    deletes the window's span-less traces, so the window advances as rows are removed. A ``Trace``
+    row is deleted only when zero ``Span`` rows remain attached to it, bounding any residual
+    cascade.
     """
     trace_cond = trace_scope_condition(
         project_id,
@@ -275,90 +275,43 @@ async def drain_trace_scope_step(
         end_time=end_time,
     )
 
-    # Phase 1: Drain spans belonging to candidate in-scope traces.
-    trace_window_subq = (
+    # Phases 1-2 work on a window of the oldest in-scope traces. Spans in the window are drained
+    # first; once the window's traces are span-less they are deleted, so the next window starts at
+    # the next-oldest traces and every step touches rows proportional to its own batch.
+    window_stmt = (
         select(models.Trace.id)
         .where(trace_cond)
         .order_by(models.Trace.start_time.asc(), models.Trace.id.asc())
-        .limit(max(TRACE_CANDIDATE_WINDOW, batch_limit))
-        .scalar_subquery()
-    )
-    span_candidates_stmt = (
-        select(models.Span.id)
-        .where(models.Span.trace_rowid.in_(trace_window_subq))
-        .order_by(models.Span.id.asc())
         .limit(batch_limit)
     )
     if dialect is SupportedSQLDialect.POSTGRESQL:
-        span_candidates_stmt = span_candidates_stmt.with_for_update(skip_locked=True)
-    span_ids = list(await session.scalars(span_candidates_stmt))
-    if span_ids:
-        child_step = await _drain_span_children_batch(
-            session,
-            dialect=dialect,
-            span_ids=span_ids,
-            batch_limit=batch_limit,
-        )
-        if child_step is not None:
-            return child_step
-        deleted_spans = _rowcount(
-            await session.execute(delete(models.Span).where(models.Span.id.in_(span_ids)))
-        )
-        if deleted_spans > 0:
-            return PrimitiveResult(PrimitiveStatus.PROGRESS, deleted_spans)
-
-    spans_still_exist = bool(
-        await session.scalar(
-            select(
-                exists().where(
-                    models.Span.trace_rowid == models.Trace.id,
-                    trace_cond,
-                )
-            )
-        )
-    )
-    if spans_still_exist:
-        # Either the first window of traces had 0 spans while a later window has spans, or spans
-        # were locked by another writer. Check specifically for spans on a span-bearing trace.
-        direct_span_stmt = (
+        window_stmt = window_stmt.with_for_update(skip_locked=True)
+    trace_ids = list(await session.scalars(window_stmt))
+    if trace_ids:
+        span_candidates_stmt = (
             select(models.Span.id)
-            .join(models.Trace, models.Trace.id == models.Span.trace_rowid)
-            .where(trace_cond)
-            .order_by(models.Trace.start_time.asc(), models.Span.id.asc())
+            .where(models.Span.trace_rowid.in_(trace_ids))
+            .order_by(models.Span.id.asc())
             .limit(batch_limit)
         )
         if dialect is SupportedSQLDialect.POSTGRESQL:
-            direct_span_stmt = direct_span_stmt.with_for_update(of=models.Span, skip_locked=True)
-        direct_span_ids = list(await session.scalars(direct_span_stmt))
-        if direct_span_ids:
+            span_candidates_stmt = span_candidates_stmt.with_for_update(skip_locked=True)
+        span_ids = list(await session.scalars(span_candidates_stmt))
+        if span_ids:
             child_step = await _drain_span_children_batch(
                 session,
                 dialect=dialect,
-                span_ids=direct_span_ids,
+                span_ids=span_ids,
                 batch_limit=batch_limit,
             )
             if child_step is not None:
                 return child_step
-            deleted_direct = _rowcount(
-                await session.execute(
-                    delete(models.Span).where(models.Span.id.in_(direct_span_ids))
-                )
+            deleted_spans = _rowcount(
+                await session.execute(delete(models.Span).where(models.Span.id.in_(span_ids)))
             )
-            if deleted_direct > 0:
-                return PrimitiveResult(PrimitiveStatus.PROGRESS, deleted_direct)
-        return PrimitiveResult(PrimitiveStatus.YIELD, 0)
+            if deleted_spans > 0:
+                return PrimitiveResult(PrimitiveStatus.PROGRESS, deleted_spans)
 
-    # Phase 2: Drain span-less traces in scope (with bounded trace-level annotations).
-    trace_candidates_stmt = (
-        select(models.Trace.id)
-        .where(trace_cond)
-        .order_by(models.Trace.start_time.asc(), models.Trace.id.asc())
-        .limit(batch_limit)
-    )
-    if dialect is SupportedSQLDialect.POSTGRESQL:
-        trace_candidates_stmt = trace_candidates_stmt.with_for_update(skip_locked=True)
-    trace_ids = list(await session.scalars(trace_candidates_stmt))
-    if trace_ids:
         trace_ann_cond = models.TraceAnnotation.trace_rowid.in_(trace_ids)
         probe_anns = list(
             await session.scalars(
@@ -375,8 +328,8 @@ async def drain_trace_scope_step(
             )
             if ann_res.status is not PrimitiveStatus.EMPTY:
                 return ann_res
-        # Delete only locked traces that still have zero spans attached (protects against a
-        # concurrent insert_span attaching a late span right before we acquired FOR UPDATE).
+        # Delete only traces that still have zero spans attached; a span locked by another
+        # writer or attached by a concurrent insert keeps its trace.
         no_spans_attached = (
             ~select(literal(1)).where(models.Span.trace_rowid == models.Trace.id).exists()
         )
