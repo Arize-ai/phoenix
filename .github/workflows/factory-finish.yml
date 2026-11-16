@@ -69,7 +69,7 @@ jobs:
           FACTORY_GITHUB_LOGIN: ${{ vars.FACTORY_GITHUB_LOGIN }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           REQUESTED_BY: ${{ github.event.sender.login }}
-        run: uv run --script factory/run.py finish --repo "$GH_REPO" --pr "$PR_NUMBER" --head-sha "$PR_HEAD_SHA" start --requested-by "$REQUESTED_BY"
+        run: uv run --script factory/finish.py --repo "$GH_REPO" --pr "$PR_NUMBER" --head-sha "$PR_HEAD_SHA" start --requested-by "$REQUESTED_BY"
 
       - name: Watch session
         if: steps.start.outputs.started == 'true'
@@ -83,7 +83,7 @@ jobs:
           REQUESTED_BY: ${{ steps.start.outputs.requested_by }}
           SESSION_ID: ${{ steps.start.outputs.session_id }}
           STATUS_COMMENT_ID: ${{ steps.start.outputs.status_comment_id }}
-        run: uv run --script factory/run.py finish --repo "$GH_REPO" --pr "$FINISHED_PR" watch --session-id "$SESSION_ID" --requested-by "$REQUESTED_BY" --status-comment-id "$STATUS_COMMENT_ID"
+        run: uv run --script factory/finish.py --repo "$GH_REPO" --pr "$FINISHED_PR" watch --session-id "$SESSION_ID" --requested-by "$REQUESTED_BY" --status-comment-id "$STATUS_COMMENT_ID"
 
       - name: Report a failed start
         if: failure() && steps.start.outcome != 'success'

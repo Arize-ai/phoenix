@@ -80,7 +80,7 @@ jobs:
           FACTORY_GITHUB_LOGIN: ${{ vars.FACTORY_GITHUB_LOGIN }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           REQUESTED_BY: ${{ github.event.sender.login }}
-        run: uv run --script factory/run.py review --repo "$GH_REPO" --pr "$PR_NUMBER" --head-sha "$PR_HEAD_SHA" start --requested-by "$REQUESTED_BY"
+        run: uv run --script factory/review.py --repo "$GH_REPO" --pr "$PR_NUMBER" --head-sha "$PR_HEAD_SHA" start --requested-by "$REQUESTED_BY"
 
       - name: Watch session
         if: steps.start.outputs.started == 'true'
@@ -95,7 +95,7 @@ jobs:
           SESSION_ID: ${{ steps.start.outputs.session_id }}
           STARTED_AT: ${{ steps.start.outputs.started_at }}
           STATUS_COMMENT_ID: ${{ steps.start.outputs.status_comment_id }}
-        run: uv run --script factory/run.py review --repo "$GH_REPO" --pr "$PR_NUMBER" watch --session-id "$SESSION_ID" --started-at "$STARTED_AT" --requested-by "$REQUESTED_BY" --status-comment-id "$STATUS_COMMENT_ID"
+        run: uv run --script factory/review.py --repo "$GH_REPO" --pr "$PR_NUMBER" watch --session-id "$SESSION_ID" --started-at "$STARTED_AT" --requested-by "$REQUESTED_BY" --status-comment-id "$STATUS_COMMENT_ID"
 
       # The watch step reports its own failures. This uses GITHUB_TOKEN, so it lands even when
       # the app's credentials are what failed.

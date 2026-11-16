@@ -1,3 +1,4 @@
+import base64
 import hashlib
 import html
 import json
@@ -5,15 +6,32 @@ import os
 import re
 import subprocess
 import tempfile
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from difflib import unified_diff
 from html.parser import HTMLParser
 from pathlib import Path, PurePosixPath
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, Sequence, TypedDict, cast
 
-from security_scan_llm import ScanImage, validate_images
+import anthropic
 
 FACTORY_DIR = Path(__file__).resolve().parent
+POLICY_FILES = ("security_scan.py", "security_rules.yml", "security_scan_prompt.md")
+MODEL = "claude-opus-5-5"
+EFFORT = "medium"
+MAX_TOKENS = 8192
+TIMEOUT_SECONDS = 300
+MAX_IMAGES = 20
+MAX_IMAGE_BYTES = 7 * 1024 * 1024
+MAX_TOTAL_IMAGE_BYTES = 16 * 1024 * 1024
+VERDICT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "verdict": {"type": "string", "enum": ["pass", "fail"]},
+        "reason": {"type": "string"},
+    },
+    "required": ["verdict", "reason"],
+    "additionalProperties": False,
+}
 MAX_INPUT_BYTES = 512 * 1024
 MAX_DIFF_BYTES = 256 * 1024
 MAX_FILE_BYTES = 8 * 1024 * 1024
@@ -91,6 +109,145 @@ class GitBlob:
     data: bytes
 
 
+ImageMediaType = Literal["image/jpeg", "image/png", "image/gif", "image/webp"]
+Revision = Literal["before", "after"]
+
+
+@dataclass(frozen=True)
+class ScanImage:
+    path: str
+    revision: Revision
+    media_type: ImageMediaType
+    blob_oid: str
+    data: bytes
+
+    def metadata(self) -> dict[str, Any]:
+        return {
+            "path": self.path,
+            "revision": self.revision,
+            "media_type": self.media_type,
+            "blob_oid": self.blob_oid,
+            "size_bytes": len(self.data),
+        }
+
+
+@dataclass(frozen=True)
+class ImageText:
+    path: str
+    revision: Revision
+    readable_text: str
+
+
+@dataclass(frozen=True)
+class FileContext:
+    path: str
+    first_line: int
+    context: str
+    context_truncated: bool
+
+
+@dataclass(frozen=True)
+class CodeBundle:
+    sha: str
+    base_sha: str
+    merge_base: str
+    diff: str
+    files: list[FileContext]
+    images: list[ScanImage]
+    image_text: list[ImageText]
+    commit_messages: str
+
+    def serialize(self) -> dict[str, Any]:
+        return {
+            "sha": self.sha,
+            "base_sha": self.base_sha,
+            "merge_base": self.merge_base,
+            "diff": self.diff,
+            "files": [asdict(f) for f in self.files],
+            "images": [image.metadata() for image in self.images],
+            "image_text": [asdict(t) for t in self.image_text],
+            "commit_messages": self.commit_messages,
+        }
+
+
+class SnapshotUser(TypedDict):
+    login: Optional[str]
+    id: Optional[int]
+    type: Optional[str]
+
+
+class SnapshotComment(TypedDict, total=False):
+    id: int
+    body: str
+    user: SnapshotUser
+    author_association: str
+    created_at: str
+    updated_at: str
+    state: str
+    node_id: str
+    path: str
+    line: Optional[int]
+    original_line: Optional[int]
+    in_reply_to_id: int
+    commit_id: str
+    original_commit_id: str
+
+
+class ThreadSnapshot(TypedDict, total=False):
+    kind: str
+    number: int
+    title: str
+    body: str
+    user: SnapshotUser
+    author_association: str
+    comments: list[SnapshotComment]
+    reviews: list[SnapshotComment]
+    review_comments: list[SnapshotComment]
+    head_ref: str
+    base_ref: str
+
+
+CommentKey = Literal["comments", "reviews", "review_comments"]
+
+
+@dataclass(frozen=True)
+class ScanInput:
+    """What the admission model judges: the frozen thread, the admitted code and the static
+    evidence found in both. Serialized only for the cache fingerprint and the API request."""
+
+    thread: ThreadSnapshot
+    code: Optional[CodeBundle]
+    static_findings: list[Finding] = field(default_factory=list)
+
+    @property
+    def images(self) -> list[ScanImage]:
+        return self.code.images if self.code is not None else []
+
+    def serialize(self) -> bytes:
+        return canonical_json(
+            {
+                "thread": self.thread,
+                "code": self.code.serialize() if self.code is not None else {},
+                "static_findings": [asdict(f) for f in self.static_findings],
+            }
+        )
+
+
+@dataclass(frozen=True)
+class Verdict:
+    verdict: Literal["pass", "fail"]
+    reason: str
+
+
+def validate_images(images: Sequence[ScanImage]) -> None:
+    if len(images) > MAX_IMAGES:
+        raise ValueError("too-large-to-scan: more than 20 image versions")
+    if any(len(image.data) > MAX_IMAGE_BYTES for image in images):
+        raise ValueError("too-large-to-scan: image exceeds 7 MiB")
+    if sum(len(image.data) for image in images) > MAX_TOTAL_IMAGE_BYTES:
+        raise ValueError("too-large-to-scan: image content exceeds 16 MiB")
+
+
 def read_blob(*, revision: str, path: str) -> Optional[GitBlob]:
     entry = git("ls-tree", "-l", "-z", revision, "--", path, binary=True)
     if not entry:
@@ -108,11 +265,7 @@ def read_blob(*, revision: str, path: str) -> Optional[GitBlob]:
     )
 
 
-def image_type(
-    data: bytes,
-    *,
-    path: str,
-) -> Optional[Literal["image/png", "image/jpeg", "image/gif", "image/webp"]]:
+def image_type(data: bytes, *, path: str) -> Optional[ImageMediaType]:
     suffix = PurePosixPath(path).suffix.lower()
     if suffix == ".png" and data.startswith(b"\x89PNG\r\n\x1a\n"):
         return "image/png"
@@ -192,7 +345,7 @@ def write_summary(text: str) -> None:
         print(json.dumps({"factory_scan": text}, ensure_ascii=True))
 
 
-def read_thread(*, number: int, kind: str) -> dict[str, Any]:
+def read_thread(*, number: int, kind: str) -> ThreadSnapshot:
     from dispatch import run_gh
 
     root = "repos/{owner}/{repo}"
@@ -200,20 +353,21 @@ def read_thread(*, number: int, kind: str) -> dict[str, Any]:
     comments = json.loads(
         run_gh("api", "--paginate", "--slurp", f"{root}/issues/{number}/comments?per_page=100")
     )
-    snapshot: dict[str, Any] = {
+    snapshot: ThreadSnapshot = {
         "kind": kind,
         "number": number,
         "title": issue["title"],
         "body": issue["body"] or "",
-        "user": {key: issue["user"][key] for key in ("login", "id", "type")},
+        "user": snapshot_user(issue["user"]),
         "author_association": issue["author_association"],
-        "comments": sorted(
-            [snapshot_comment(c) for page in comments for c in page],
-            key=lambda c: c["id"],
-        ),
+        "comments": sorted_comments(comments),
     }
     if kind == "pr":
-        for key, suffix in (("reviews", "reviews"), ("review_comments", "comments")):
+        pr_comment_sources: tuple[tuple[CommentKey, str], ...] = (
+            ("reviews", "reviews"),
+            ("review_comments", "comments"),
+        )
+        for key, suffix in pr_comment_sources:
             pages = json.loads(
                 run_gh(
                     "api",
@@ -222,20 +376,29 @@ def read_thread(*, number: int, kind: str) -> dict[str, Any]:
                     f"{root}/pulls/{number}/{suffix}?per_page=100",
                 )
             )
-            snapshot[key] = sorted(
-                [snapshot_comment(c) for page in pages for c in page],
-                key=lambda c: c["id"],
-            )
+            snapshot[key] = sorted_comments(pages)
     if len(canonical_json(snapshot)) > MAX_INPUT_BYTES:
         raise ValueError("too-large-to-scan: thread exceeds 512 KiB")
     return snapshot
 
 
-def snapshot_comment(comment: dict[str, Any]) -> dict[str, Any]:
-    return {
+def sorted_comments(pages: list[list[dict[str, Any]]]) -> list[SnapshotComment]:
+    return sorted(
+        [snapshot_comment(comment) for page in pages for comment in page],
+        key=lambda comment: comment["id"],
+    )
+
+
+def snapshot_user(user: Optional[dict[str, Any]]) -> SnapshotUser:
+    fields = user or {}
+    return {"login": fields.get("login"), "id": fields.get("id"), "type": fields.get("type")}
+
+
+def snapshot_comment(comment: dict[str, Any]) -> SnapshotComment:
+    snapshot: dict[str, Any] = {
         "id": comment["id"],
         "body": comment["body"] or "",
-        "user": {key: (comment.get("user") or {}).get(key) for key in ("login", "id", "type")},
+        "user": snapshot_user(comment.get("user")),
         **{
             key: comment[key]
             for key in (
@@ -254,6 +417,7 @@ def snapshot_comment(comment: dict[str, Any]) -> dict[str, Any]:
             if key in comment
         },
     }
+    return cast(SnapshotComment, snapshot)
 
 
 def text_findings(*, path: str, text: str) -> list[Finding]:
@@ -305,9 +469,7 @@ def changed_line(line: int, end: int, ranges: list[tuple[int, int]]) -> bool:
     return any(line < stop and end >= start for start, stop in ranges)
 
 
-def code_bundle(
-    *, pr: dict[str, Any], destination: Path
-) -> tuple[dict[str, Any], list[Finding], list[ScanImage]]:
+def code_bundle(*, pr: dict[str, Any], destination: Path) -> tuple[CodeBundle, list[Finding]]:
     sha, base_sha = pr["headRefOid"], pr["baseRefOid"]
     if not all(re.fullmatch(r"[0-9a-f]{40}", s) for s in (sha, base_sha)):
         raise ValueError("Invalid commit identity")
@@ -328,7 +490,7 @@ def code_bundle(
     findings: list[Finding] = []
     ranges: dict[str, list[tuple[int, int]]] = {}
     images: list[ScanImage] = []
-    image_context = []
+    image_context: list[ImageText] = []
     text_paths = []
     image_patches = {}
     diff_parts = []
@@ -341,7 +503,11 @@ def code_bundle(
         if status != "D" and after is None:
             raise ValueError("Missing changed file")
         has_image = False
-        for revision, blob in (("before", before), ("after", after)):
+        revisions: tuple[tuple[Revision, Optional[GitBlob]], ...] = (
+            ("before", before),
+            ("after", after),
+        )
+        for revision, blob in revisions:
             if blob is None:
                 continue
             total_bytes += len(blob.data)
@@ -351,9 +517,7 @@ def code_bundle(
                 has_image = True
                 images.append(ScanImage(path, revision, media_type, blob.oid, blob.data))
                 embedded_text = image_text(blob.data)
-                image_context.append(
-                    {"path": path, "revision": revision, "readable_text": embedded_text}
-                )
+                image_context.append(ImageText(path, revision, embedded_text))
                 findings.extend(
                     text_findings(path=f"{path} ({revision} image text)", text=embedded_text)
                 )
@@ -382,7 +546,7 @@ def code_bundle(
             target.write_bytes(after.data)
             text_paths.append(path)
     diff = "".join(diff_parts)
-    context = []
+    context: list[FileContext] = []
     names = {PurePosixPath(p).name for p in changes}
     for path in text_paths:
         target = destination / path
@@ -450,29 +614,21 @@ def code_bundle(
         snippet = (
             "\n".join(text.splitlines()[start:]).encode()[:CONTEXT_BYTES].decode(errors="replace")
         )
-        context.append(
-            {
-                "path": path,
-                "first_line": start + 1,
-                "context": snippet,
-                "context_truncated": len(snippet.encode()) < len(raw),
-            }
-        )
+        context.append(FileContext(path, start + 1, snippet, len(snippet.encode()) < len(raw)))
     if text_paths:
         findings.extend(semgrep_findings(destination=destination, paths=text_paths, ranges=ranges))
     return (
-        {
-            "sha": sha,
-            "base_sha": base_sha,
-            "merge_base": base,
-            "diff": diff,
-            "files": context,
-            "images": [image.metadata() for image in images],
-            "image_text": image_context,
-            "commit_messages": git("log", "--format=%B", f"{base}..{sha}"),
-        },
+        CodeBundle(
+            sha=sha,
+            base_sha=base_sha,
+            merge_base=base,
+            diff=diff,
+            files=context,
+            images=images,
+            image_text=image_context,
+            commit_messages=git("log", "--format=%B", f"{base}..{sha}"),
+        ),
         findings,
-        images,
     )
 
 
@@ -534,16 +690,107 @@ def semgrep_findings(
     return findings
 
 
+def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result = dict(pairs)
+    if len(result) != len(pairs):
+        raise ValueError("Duplicate fields in the security verdict")
+    return result
+
+
+def parse_verdict(text: str) -> Verdict:
+    result = json.loads(text, object_pairs_hook=unique_object)
+    if (
+        not isinstance(result, dict)
+        or set(result) != {"verdict", "reason"}
+        or result["verdict"] not in ("pass", "fail")
+        or not isinstance(result["reason"], str)
+        or not result["reason"].strip()
+        or len(result["reason"]) > 4000
+    ):
+        raise ValueError("The security model returned an invalid verdict")
+    return Verdict(result["verdict"], result["reason"])
+
+
+def request_content(scan_input: ScanInput) -> Any:
+    text = scan_input.serialize().decode("utf-8")
+    if not scan_input.images:
+        return text
+    content: list[dict[str, Any]] = []
+    for image in scan_input.images:
+        content.extend(
+            [
+                {"type": "text", "text": "Untrusted image: " + json.dumps(image.metadata())},
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": image.media_type,
+                        "data": base64.b64encode(image.data).decode("ascii"),
+                    },
+                },
+            ]
+        )
+    content.append({"type": "text", "text": text})
+    return content
+
+
+def scan(scan_input: ScanInput) -> Verdict:
+    """One tool-free Messages API request that returns a pass/fail verdict on the input."""
+    validate_images(scan_input.images)
+    with anthropic.Anthropic(timeout=TIMEOUT_SECONDS, max_retries=0) as client:
+        response = client.messages.create(
+            model=MODEL,
+            max_tokens=MAX_TOKENS,
+            thinking={"type": "adaptive"},
+            output_config={
+                "effort": EFFORT,
+                "format": {"type": "json_schema", "schema": VERDICT_SCHEMA},
+            },
+            system=(FACTORY_DIR / "security_scan_prompt.md").read_text(),
+            messages=[{"role": "user", "content": request_content(scan_input)}],
+        )
+    write_summary(
+        f"Security scan {response.id}: model={MODEL}, effort={EFFORT}, "
+        f"input_tokens={response.usage.input_tokens}, "
+        f"output_tokens={response.usage.output_tokens}, stop_reason={response.stop_reason}"
+    )
+    if response.stop_reason != "end_turn":
+        raise ValueError(
+            f"The security model stopped before completing its scan ({response.stop_reason})"
+        )
+    if any(
+        block.type not in ("text", "thinking", "redacted_thinking") for block in response.content
+    ):
+        raise ValueError("The security model returned unexpected content")
+    texts = [block.text for block in response.content if block.type == "text"]
+    if len(texts) != 1:
+        raise ValueError("The security model did not return one verdict")
+    return parse_verdict(texts[0])
+
+
+def fingerprint(scan_input: ScanInput) -> str:
+    """Hash of the serialized input plus the scanner policy: this module (so the model and
+    request settings too), the Semgrep rules and the system prompt. Any change misses the cache."""
+    policy = b"".join((FACTORY_DIR / name).read_bytes() for name in POLICY_FILES)
+    return hashlib.sha256(scan_input.serialize() + policy).hexdigest()
+
+
+def cached_verdict(*, key: str) -> tuple[Optional[Path], Optional[Verdict]]:
+    cache_dir = os.environ.get("FACTORY_SCAN_CACHE_DIR")
+    if not cache_dir:
+        return None, None
+    cache = Path(cache_dir) / f"{key}.json"
+    return cache, parse_verdict(cache.read_text()) if cache.is_file() else None
+
+
 def find_admission_problem(
     *,
     number: int,
     kind: str,
     pr: Optional[dict[str, Any]] = None,
-    snapshot: Optional[dict[str, Any]] = None,
+    snapshot: Optional[ThreadSnapshot] = None,
     subject: Optional[dict[str, Any]] = None,
 ) -> Optional[str]:
-    from security_scan_llm import scan
-
     try:
         snapshot = snapshot if snapshot is not None else read_thread(number=number, kind=kind)
         if pr is not None:
@@ -554,10 +801,12 @@ def find_admission_problem(
         elif pr is not None:
             pr["_factory_snapshot"] = snapshot
             pr["title"], pr["body"] = snapshot["title"], snapshot["body"]
-        findings = []
-        for key in ("title", "body"):
-            findings.extend(text_findings(path=f"{kind}#{number}/{key}", text=snapshot[key]))
-        for key in ("comments", "reviews", "review_comments"):
+        findings = [
+            *text_findings(path=f"{kind}#{number}/title", text=snapshot["title"]),
+            *text_findings(path=f"{kind}#{number}/body", text=snapshot["body"]),
+        ]
+        comment_keys: tuple[CommentKey, ...] = ("comments", "reviews", "review_comments")
+        for key in comment_keys:
             for comment in snapshot.get(key, []):
                 findings.extend(
                     text_findings(
@@ -567,44 +816,29 @@ def find_admission_problem(
         with tempfile.TemporaryDirectory(prefix="factory-scan-") as directory:
             destination = Path(directory) / "files"
             destination.mkdir()
-            code, code_findings, images = (
-                code_bundle(pr=pr, destination=destination) if pr else ({}, [], [])
-            )
-            findings.extend(code_findings)
-            bundle = canonical_json(
-                {"thread": snapshot, "code": code, "static_findings": [asdict(f) for f in findings]}
-            )
-            if len(bundle) > MAX_INPUT_BYTES:
+            code: Optional[CodeBundle] = None
+            if pr is not None:
+                code, code_findings = code_bundle(pr=pr, destination=destination)
+                findings.extend(code_findings)
+            scan_input = ScanInput(thread=snapshot, code=code, static_findings=findings)
+            if len(scan_input.serialize()) > MAX_INPUT_BYTES:
                 raise ValueError("too-large-to-scan: combined input exceeds 512 KiB")
-            policy = b"".join(
-                (FACTORY_DIR / p).read_bytes()
-                for p in (
-                    "security_scan.py",
-                    "security_scan_llm.py",
-                    "security_rules.yml",
-                    "security_scan_prompt.md",
-                )
-            )
-            fingerprint = hashlib.sha256(bundle + policy).hexdigest()
-            cache_dir = os.environ.get("FACTORY_SCAN_CACHE_DIR")
-            cache = Path(cache_dir) / f"{fingerprint}.json" if cache_dir else None
-            if cache is not None and cache.is_file():
-                from security_scan_llm import parse_verdict
-
-                verdict = parse_verdict(cache.read_text())
-                write_summary(f"Admission scan cache hit: {fingerprint}")
+            input_hash = fingerprint(scan_input)
+            cache, verdict = cached_verdict(key=input_hash)
+            if verdict is not None:
+                write_summary(f"Admission scan cache hit: {input_hash}")
             else:
-                verdict = scan(bundle=bundle, images=images)
+                verdict = scan(scan_input)
                 if cache is not None:
                     cache.parent.mkdir(parents=True, exist_ok=True)
-                    cache.write_bytes(canonical_json(verdict))
+                    cache.write_bytes(canonical_json(asdict(verdict)))
             write_summary(
-                f"Admission scan {kind}#{number}, SHA {code.get('sha', 'n/a')}, "
-                f"input {fingerprint}: {verdict['verdict']}\n{verdict['reason']}"
+                f"Admission scan {kind}#{number}, SHA {code.sha if code else 'n/a'}, "
+                f"input {input_hash}: {verdict.verdict}\n{verdict.reason}"
             )
             for finding in findings:
                 write_summary(json.dumps(asdict(finding), ensure_ascii=True))
-            if verdict["verdict"] == "fail":
+            if verdict.verdict == "fail":
                 write_summary(
                     json.dumps(
                         asdict(
@@ -612,7 +846,7 @@ def find_admission_problem(
                                 f"{kind}#{number}",
                                 1,
                                 "hostile-toward-factory",
-                                verdict["reason"],
+                                verdict.reason,
                                 "agent",
                             )
                         )
