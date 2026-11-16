@@ -1,5 +1,5 @@
 import strawberry
-from sqlalchemy import and_, delete, not_, select, update
+from sqlalchemy import and_, delete, exists, not_, select, update
 from sqlalchemy.sql import literal
 from strawberry.relay import GlobalID
 from strawberry.types import Info
@@ -102,6 +102,15 @@ class TraceMutationMixin:
                 raise BadRequest("Invalid trace IDs provided")
 
             source_project_ids = set(trace.project_rowid for trace in traces)
+            if await session.scalar(
+                select(
+                    exists().where(
+                        models.Project.id.in_(source_project_ids),
+                        models.Project.deleted_at.is_not(None),
+                    )
+                )
+            ):
+                raise BadRequest("Invalid trace IDs provided")
             if len(source_project_ids) > 1:
                 raise BadRequest("Cannot transfer traces from multiple projects")
             if any(trace.project_session_rowid is not None for trace in traces):

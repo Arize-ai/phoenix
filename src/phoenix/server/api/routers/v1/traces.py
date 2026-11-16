@@ -12,7 +12,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceResponse,
 )
 from pydantic import BeforeValidator, Field
-from sqlalchemy import Select, insert, or_, select, tuple_, update
+from sqlalchemy import Select, exists, insert, or_, select, tuple_, update
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import State
 from starlette.requests import Request
@@ -838,6 +838,15 @@ async def transfer_traces(
         if not (trace_rowids <= found_rowids and otel_trace_ids <= found_otel_trace_ids):
             raise HTTPException(detail="One or more traces not found", status_code=404)
         source_project_rowids = {trace.project_rowid for trace in traces}
+        if await session.scalar(
+            select(
+                exists().where(
+                    models.Project.id.in_(source_project_rowids),
+                    models.Project.deleted_at.is_not(None),
+                )
+            )
+        ):
+            raise HTTPException(detail="One or more traces not found", status_code=404)
         # Mirrors the transferTracesToProject mutation: a transfer moves traces out of exactly
         # one source project, so a mixed-source request is ambiguous and is rejected.
         if len(source_project_rowids) > 1:
