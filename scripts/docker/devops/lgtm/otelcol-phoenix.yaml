@@ -1,0 +1,21 @@
+# Extra OpenTelemetry Collector config for the grafana/otel-lgtm image, passed
+# with OTELCOL_EXTRA_ARGS. It adds a pull of Phoenix's Prometheus endpoint to the
+# image's own config.
+#
+# Phoenix serves metrics for pull only (port 9090); it sends traces and logs to
+# the collector over OTLP by itself. The collector merges config files map by
+# map but replaces lists, so the metrics pipeline names the image's two
+# receivers (otlp, prometheus/collector) again beside the new one.
+receivers:
+  prometheus/phoenix:
+    config:
+      scrape_configs:
+        - job_name: phoenix
+          scrape_interval: 15s
+          static_configs:
+            - targets: ["${env:PHOENIX_METRICS_TARGET:-phoenix:9090}"]
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp, prometheus/collector, prometheus/phoenix]
