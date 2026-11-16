@@ -73,10 +73,17 @@ const STALE_SCORE_WINDOW: EvaluatorScoreWindow = {
   ...SCORE_WINDOW,
   timeBinConfig: { ...SCORE_WINDOW.timeBinConfig, scale: "HOUR" },
 };
-/** The label the route query gives the deferred scores fragment. */
-const DEFER_LABEL = /@defer\(label: "([^"]+)"\)/.exec(
-  getRequest(projectEvaluatorsLoaderGQL).params.text ?? ""
-)?.[1];
+/** The label the route query gives the deferred fragment named `fragmentName`. */
+function getDeferLabel(fragmentName: string) {
+  const text = getRequest(projectEvaluatorsLoaderGQL).params.text ?? "";
+  return [...text.matchAll(/@defer\(label: "([^"]+)"\)/g)]
+    .map((match) => match[1])
+    .find((label) => label.includes(fragmentName));
+}
+const SCORES_DEFER_LABEL = getDeferLabel(
+  "ProjectEvaluatorMeanScoreCell_scores"
+);
+const COST_DEFER_LABEL = getDeferLabel("ProjectEvaluatorCost_cost");
 
 /** Every column but the name and the results stays hidden. */
 const HIDDEN_COLUMN_IDS = [
@@ -101,7 +108,64 @@ const HIDDEN_COLUMN_IDS = [
   "actions",
 ];
 
-function makeEvaluatorNode(index: number) {
+type EvaluatorFixtureKind = "CODE" | "BUILTIN" | "LLM";
+
+/** Each kind's evaluator selections, as the row fragment reads them. */
+function makeEvaluator(index: number, kind: EvaluatorFixtureKind) {
+  const outputConfigs = [
+    {
+      __typename: "ContinuousAnnotationConfig",
+      __isAnnotationConfigBase: "ContinuousAnnotationConfig",
+      name: `evaluator-${index}`,
+      annotationType: "CONTINUOUS",
+      optimizationDirection: "MAXIMIZE",
+      lowerBound: 0,
+      upperBound: 1,
+      __isNode: "ContinuousAnnotationConfig",
+      id: `ContinuousAnnotationConfig:${index}`,
+    },
+  ];
+  switch (kind) {
+    case "CODE":
+      return {
+        __typename: "CodeEvaluator",
+        id: `CodeEvaluator:${index}`,
+        kind,
+        outputConfigs,
+        language: "PYTHON",
+        sandboxConfig: null,
+      };
+    case "BUILTIN":
+      return {
+        __typename: "BuiltInEvaluator",
+        id: `BuiltInEvaluator:${index}`,
+        kind,
+        outputConfigs,
+      };
+    default:
+      return {
+        __typename: "LLMEvaluator",
+        id: `LLMEvaluator:${index}`,
+        kind,
+        outputConfigs,
+        prompt: { id: `Prompt:${index}`, name: `prompt-${index}` },
+        promptVersionTag: null,
+        promptVersion: {
+          modelName: "gpt-4o",
+          modelProvider: "OPENAI",
+          id: `PromptVersion:${index}`,
+        },
+      };
+  }
+}
+
+function makeEvaluatorNode(
+  index: number,
+  {
+    kind = "CODE",
+    tracingEnabled = true,
+  }: { kind?: EvaluatorFixtureKind; tracingEnabled?: boolean } = {}
+) {
   return {
     __typename: "ProjectEvaluator",
     id: `ProjectEvaluator:${index}`,
@@ -121,42 +185,14 @@ function makeEvaluatorNode(index: number) {
       clearedCount: 0,
       oldestWaitingOrRetryingAt: null,
     },
-    tracingEnabled: true,
+    tracingEnabled,
     evaluationLoad: {
       evaluationCount: 0,
       meanEvaluationSeconds: null,
       shareOfEvaluationTime: null,
       excludesUntracedEvaluators: false,
     },
-    evaluator: {
-      __typename: "CodeEvaluator",
-      id: `CodeEvaluator:${index}`,
-      kind: "CODE",
-      outputConfigs: [
-        {
-          __typename: "ContinuousAnnotationConfig",
-          __isAnnotationConfigBase: "ContinuousAnnotationConfig",
-          name: `evaluator-${index}`,
-          annotationType: "CONTINUOUS",
-          optimizationDirection: "MAXIMIZE",
-          lowerBound: 0,
-          upperBound: 1,
-          __isNode: "ContinuousAnnotationConfig",
-          id: `ContinuousAnnotationConfig:${index}`,
-        },
-      ],
-      language: "PYTHON",
-      sandboxConfig: null,
-    },
-    traceProject: {
-      id: `Project:${index + 100}`,
-      traceCount: 0,
-      costSummary: {
-        total: { cost: null },
-        prompt: { cost: null },
-        completion: { cost: null },
-      },
-    },
+    evaluator: makeEvaluator(index, kind),
     failureSummary: {
       failedCount: 0,
       evaluatedCount: 0,
@@ -177,10 +213,13 @@ function makeInitialPart({
   root,
   indexes,
   hasNextPage = false,
+  nodes = {},
 }: {
   root: "project" | "node";
   indexes: number[];
   hasNextPage?: boolean;
+  /** Per-row fixture options, by index; rows default to traced code evaluators. */
+  nodes?: Record<number, Parameters<typeof makeEvaluatorNode>[1]>;
 }) {
   return {
     data: {
@@ -189,7 +228,7 @@ function makeInitialPart({
         ...(root === "project" ? { evaluatorCount: indexes.length } : {}),
         evaluators: {
           edges: indexes.map((index) => ({
-            node: makeEvaluatorNode(index),
+            node: makeEvaluatorNode(index, nodes[index]),
             cursor: `cursor-${index}`,
           })),
           pageInfo: {
@@ -201,11 +240,18 @@ function makeInitialPart({
       },
     },
     hasNext: true,
-    pending: indexes.map((index, position) => ({
-      id: String(index),
-      path: [root, "evaluators", "edges", position, "node"],
-      label: DEFER_LABEL,
-    })),
+    pending: indexes.flatMap((index, position) => [
+      {
+        id: String(index),
+        path: [root, "evaluators", "edges", position, "node"],
+        label: SCORES_DEFER_LABEL,
+      },
+      {
+        id: `cost-${index}`,
+        path: [root, "evaluators", "edges", position, "node"],
+        label: COST_DEFER_LABEL,
+      },
+    ]),
   };
 }
 
@@ -246,6 +292,47 @@ function makeFailedScoresPart({ indexes }: { indexes: number[] }) {
     hasNext: false,
     completed: indexes.map((index) => ({
       id: String(index),
+      errors: [{ message: "an unexpected error occurred" }],
+    })),
+  };
+}
+
+/** The cost part for the given rows, with each row's cost or null where unmeasured. */
+function makeCostPart({
+  costs,
+  hasNext = false,
+}: {
+  costs: Record<
+    number,
+    { totalCost: number; tracedEvaluationCount: number } | null
+  >;
+  hasNext?: boolean;
+}) {
+  return {
+    hasNext,
+    incremental: Object.entries(costs).map(([index, cost]) => ({
+      id: `cost-${index}`,
+      data: {
+        tracedEvaluationCount: cost?.tracedEvaluationCount ?? null,
+        costSummary:
+          cost == null
+            ? null
+            : {
+                total: { cost: cost.totalCost },
+                prompt: { cost: cost.totalCost / 2 },
+                completion: { cost: cost.totalCost / 2 },
+              },
+      },
+    })),
+    completed: Object.keys(costs).map((index) => ({ id: `cost-${index}` })),
+  };
+}
+
+function makeFailedCostPart({ indexes }: { indexes: number[] }) {
+  return {
+    hasNext: false,
+    completed: indexes.map((index) => ({
+      id: `cost-${index}`,
       errors: [{ message: "an unexpected error occurred" }],
     })),
   };
@@ -562,5 +649,117 @@ describe("ProjectEvaluatorsTable results column", () => {
     expect(numTableCommits).toBeLessThan(10);
     secondRefetch.end();
     await settle();
+  });
+});
+
+/** What each row's total and average cost cells show, by evaluator name. */
+function readCostCells() {
+  const read = (cell: Element | undefined) =>
+    cell?.querySelector('[aria-label="Loading cost"]')
+      ? "loading"
+      : (cell?.textContent ?? "");
+  return Object.fromEntries(
+    [...container.querySelectorAll("tbody tr")].map((row) => {
+      // The name, results, total cost and average cost columns are visible.
+      const [nameCell, , costCell, averageCostCell] =
+        row.querySelectorAll("td");
+      return [
+        nameCell?.textContent ?? "",
+        [read(costCell), read(averageCostCell)],
+      ];
+    })
+  );
+}
+
+describe("ProjectEvaluatorsTable cost columns", () => {
+  /** Rows of each kind; only the traced LLM evaluator's cost is measured. */
+  const COST_ROWS = {
+    1: { kind: "CODE" },
+    2: { kind: "BUILTIN" },
+    3: { kind: "LLM", tracingEnabled: false },
+    4: { kind: "LLM" },
+  } as const;
+
+  beforeEach(() => {
+    localStorage.setItem(
+      PROJECT_EVALUATORS_TABLE_STORAGE_KEY,
+      JSON.stringify({
+        state: {
+          columnVisibility: Object.fromEntries(
+            HIDDEN_COLUMN_IDS.filter(
+              (columnId) => columnId !== "cost" && columnId !== "averageCost"
+            ).map((columnId) => [columnId, false])
+          ),
+        },
+        version: 1,
+      })
+    );
+  });
+
+  it("shows unmeasured costs at once and fills in the rest when their part arrives", async () => {
+    const stream = createStreamingMultipartResponse();
+    authFetchMock.mockResolvedValueOnce(stream.response);
+    await renderTable();
+    stream.sendPart(
+      makeInitialPart({
+        root: "project",
+        indexes: [1, 2, 3, 4],
+        nodes: COST_ROWS,
+      })
+    );
+    await settle();
+
+    expect(readCostCells()).toEqual({
+      "evaluator-1": ["--", "--"],
+      "evaluator-2": ["--", "--"],
+      "evaluator-3": ["tracing off", "tracing off"],
+      "evaluator-4": ["loading", "loading"],
+    });
+
+    stream.sendPart(makeScoresPart({ indexes: [1, 2, 3, 4], meanScore: 0.75 }));
+    stream.sendPart(
+      makeCostPart({
+        costs: {
+          1: null,
+          2: null,
+          3: null,
+          4: { totalCost: 0.5, tracedEvaluationCount: 2 },
+        },
+      })
+    );
+    stream.end();
+    await settle();
+
+    const costs = readCostCells();
+    expect(costs["evaluator-3"]).toEqual(["tracing off", "tracing off"]);
+    expect(costs["evaluator-4"]).toEqual([
+      expect.stringContaining("0.5"),
+      expect.stringContaining("0.25"),
+    ]);
+  });
+
+  it("shows the failed state on measured costs whose part failed", async () => {
+    const stream = createStreamingMultipartResponse();
+    authFetchMock.mockResolvedValueOnce(stream.response);
+    await renderTable();
+    stream.sendPart(
+      makeInitialPart({
+        root: "project",
+        indexes: [1, 2, 3, 4],
+        nodes: COST_ROWS,
+      })
+    );
+    await settle();
+
+    stream.sendPart(makeFailedCostPart({ indexes: [1, 2, 3, 4] }));
+    stream.end();
+    await settle();
+
+    expect(readCostCells()).toEqual({
+      "evaluator-1": ["--", "--"],
+      "evaluator-2": ["--", "--"],
+      "evaluator-3": ["tracing off", "tracing off"],
+      "evaluator-4": ["error", "error"],
+    });
   });
 });

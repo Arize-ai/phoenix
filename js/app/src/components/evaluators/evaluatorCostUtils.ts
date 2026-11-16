@@ -1,3 +1,5 @@
+import type { EvaluatorKind } from "@phoenix/types";
+
 export type EvaluatorCostSummary = {
   readonly total: { readonly cost: number | null };
   readonly prompt: { readonly cost: number | null };
@@ -15,9 +17,9 @@ export function getAverageEvaluatorCostSummary({
   runCount,
 }: {
   costSummary: EvaluatorCostSummary | null | undefined;
-  runCount: number;
+  runCount: number | null | undefined;
 }): EvaluatorCostSummary | null {
-  if (costSummary == null || runCount <= 0) {
+  if (costSummary == null || runCount == null || runCount <= 0) {
     return null;
   }
 
@@ -29,4 +31,12 @@ export function getAverageEvaluatorCostSummary({
     prompt: { cost: getAverageCost(costSummary.prompt.cost) },
     completion: { cost: getAverageCost(costSummary.completion.cost) },
   };
+}
+
+/**
+ * Whether an evaluator of this kind calls a model, and so has a cost. Code
+ * and built-in evaluators run without one, so their cost is never measured.
+ */
+export function evaluatorKindHasCost(kind: EvaluatorKind): boolean {
+  return kind === "LLM" || kind === "DECISION";
 }

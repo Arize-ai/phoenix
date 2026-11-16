@@ -98,7 +98,7 @@ function renderCell(
         <PreferencesProvider>
           <EvaluatorResultsProvider
             scoreWindow={SCORE_WINDOW}
-            scoresError={null}
+            deferredError={null}
           >
             <ProjectEvaluatorMeanScoreCell
               annotations={[annotation]}

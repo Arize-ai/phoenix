@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<438b8a819541c2a23df54df3fee1e853>>
+ * @generated SignedSource<<92c643f683577bb4d526e76b719472f3>>
  * @lightSyntaxTransform
  */
 
@@ -13,7 +13,7 @@ export type ProjectEvaluatorsTable_project$data = {
   readonly evaluators: {
     readonly edges: ReadonlyArray<{
       readonly node: {
-        readonly " $fragmentSpreads": FragmentRefs<"ProjectEvaluatorMeanScoreCell_scores" | "ProjectEvaluatorsTable_costs" | "ProjectEvaluatorsTable_failures" | "ProjectEvaluatorsTable_lag" | "ProjectEvaluatorsTable_row">;
+        readonly " $fragmentSpreads": FragmentRefs<"ProjectEvaluatorCost_cost" | "ProjectEvaluatorMeanScoreCell_scores" | "ProjectEvaluatorsTable_failures" | "ProjectEvaluatorsTable_lag" | "ProjectEvaluatorsTable_row">;
       };
     }>;
   };
@@ -110,15 +110,6 @@ v12 = [
   }
 ],
 v13 = [
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "cost",
-    "storageKey": null
-  }
-],
-v14 = [
   (v0/*:: as any*/)
 ];
 return {
@@ -610,74 +601,6 @@ return {
                 },
                 {
                   "kind": "InlineDataFragmentSpread",
-                  "name": "ProjectEvaluatorsTable_costs",
-                  "selections": [
-                    {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": "Project",
-                      "kind": "LinkedField",
-                      "name": "traceProject",
-                      "plural": false,
-                      "selections": [
-                        (v2/*:: as any*/),
-                        {
-                          "alias": null,
-                          "args": (v12/*:: as any*/),
-                          "kind": "ScalarField",
-                          "name": "traceCount",
-                          "storageKey": null
-                        },
-                        {
-                          "alias": null,
-                          "args": (v12/*:: as any*/),
-                          "concreteType": "SpanCostSummary",
-                          "kind": "LinkedField",
-                          "name": "costSummary",
-                          "plural": false,
-                          "selections": [
-                            {
-                              "alias": null,
-                              "args": null,
-                              "concreteType": "CostBreakdown",
-                              "kind": "LinkedField",
-                              "name": "total",
-                              "plural": false,
-                              "selections": (v13/*:: as any*/),
-                              "storageKey": null
-                            },
-                            {
-                              "alias": null,
-                              "args": null,
-                              "concreteType": "CostBreakdown",
-                              "kind": "LinkedField",
-                              "name": "prompt",
-                              "plural": false,
-                              "selections": (v13/*:: as any*/),
-                              "storageKey": null
-                            },
-                            {
-                              "alias": null,
-                              "args": null,
-                              "concreteType": "CostBreakdown",
-                              "kind": "LinkedField",
-                              "name": "completion",
-                              "plural": false,
-                              "selections": (v13/*:: as any*/),
-                              "storageKey": null
-                            }
-                          ],
-                          "storageKey": null
-                        }
-                      ],
-                      "storageKey": null
-                    }
-                  ],
-                  "args": (v12/*:: as any*/),
-                  "argumentDefinitions": (v14/*:: as any*/)
-                },
-                {
-                  "kind": "InlineDataFragmentSpread",
                   "name": "ProjectEvaluatorsTable_failures",
                   "selections": [
                     {
@@ -716,7 +639,7 @@ return {
                     }
                   ],
                   "args": (v12/*:: as any*/),
-                  "argumentDefinitions": (v14/*:: as any*/)
+                  "argumentDefinitions": (v13/*:: as any*/)
                 },
                 {
                   "kind": "InlineDataFragmentSpread",
@@ -756,7 +679,7 @@ return {
                     }
                   ],
                   "args": (v12/*:: as any*/),
-                  "argumentDefinitions": (v14/*:: as any*/)
+                  "argumentDefinitions": (v13/*:: as any*/)
                 },
                 {
                   "kind": "Defer",
@@ -786,6 +709,16 @@ return {
                       ],
                       "kind": "FragmentSpread",
                       "name": "ProjectEvaluatorMeanScoreCell_scores"
+                    }
+                  ]
+                },
+                {
+                  "kind": "Defer",
+                  "selections": [
+                    {
+                      "args": (v12/*:: as any*/),
+                      "kind": "FragmentSpread",
+                      "name": "ProjectEvaluatorCost_cost"
                     }
                   ]
                 },
@@ -844,6 +777,6 @@ return {
 };
 })();
 
-(node as any).hash = "43527f8116f1c0150a7c7b20a2813a7f";
+(node as any).hash = "f5cd52af4f06382a6cadd9b7f55835c0";
 
 export default node;

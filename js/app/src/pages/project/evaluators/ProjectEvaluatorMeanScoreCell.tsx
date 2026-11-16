@@ -151,13 +151,14 @@ const EvaluatorScoreWindowContext = createContext<EvaluatorScoreWindow | null>(
   null
 );
 
-const EvaluatorScoresErrorContext = createContext<string | null>(null);
+const EvaluatorDeferredErrorContext = createContext<string | null>(null);
 
 /**
  * Provides the score window to the results column's header and cells, and
- * the message of the request that last fetched their data if it failed.
- * Relay does not report a failure that arrives after a response's first
- * part, so a cell whose deferred scores never arrived reads it here.
+ * the message of the request that last fetched the table's rows if it
+ * failed. Relay does not report a failure that arrives after a response's
+ * first part, so a cell whose deferred data (scores or cost) never arrived
+ * reads it here.
  *
  * Context rather than a prop threaded through the column defs: a column def
  * closing over the window would rebuild — and, because tanstack renders the
@@ -167,20 +168,28 @@ const EvaluatorScoresErrorContext = createContext<string | null>(null);
  */
 export function EvaluatorResultsProvider({
   scoreWindow,
-  scoresError,
+  deferredError,
   children,
 }: {
   scoreWindow: EvaluatorScoreWindow;
-  scoresError: string | null;
+  deferredError: string | null;
   children: ReactNode;
 }) {
   return (
     <EvaluatorScoreWindowContext.Provider value={scoreWindow}>
-      <EvaluatorScoresErrorContext.Provider value={scoresError}>
+      <EvaluatorDeferredErrorContext.Provider value={deferredError}>
         {children}
-      </EvaluatorScoresErrorContext.Provider>
+      </EvaluatorDeferredErrorContext.Provider>
     </EvaluatorScoreWindowContext.Provider>
   );
+}
+
+/**
+ * The failure of the request that last fetched the table's rows, for a cell
+ * whose deferred data never arrived; null while none failed.
+ */
+export function useEvaluatorDeferredError(): string | null {
+  return useContext(EvaluatorDeferredErrorContext);
 }
 
 function useEvaluatorScoreWindow(): EvaluatorScoreWindow {
@@ -261,8 +270,8 @@ export function ProjectEvaluatorResultsCell({
     `,
     projectEvaluator
   );
-  const scoresError = useContext(EvaluatorScoresErrorContext);
-  if (annotationScoreMetrics === undefined && scoresError != null) {
+  const deferredError = useEvaluatorDeferredError();
+  if (annotationScoreMetrics === undefined && deferredError != null) {
     return <TextErrorBoundaryFallback error="Scores failed to load." />;
   }
   return (
