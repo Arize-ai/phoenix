@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<21ad45ae750c27b8088bcb91d486c724>>
+ * @generated SignedSource<<05fbea3f1a16126b46e597de5f58e717>>
  * @lightSyntaxTransform
  */
 
@@ -8,14 +8,27 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type Language = "PYTHON" | "TYPESCRIPT";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type CreateDatasetCodeEvaluatorInput = {
   datasetId: string;
   description?: string | null;
-  evaluatorId: string;
   inputMapping?: EvaluatorInputMappingInput | null;
   name: string;
   outputConfigs?: ReadonlyArray<AnnotationConfigInput> | null;
+  source: CodeEvaluatorSourceInput;
+};
+export type CodeEvaluatorSourceInput = {
+  definition?: never;
+  evaluatorId: string;
+} | {
+  definition: CodeEvaluatorDefinitionInput;
+  evaluatorId?: never;
+};
+export type CodeEvaluatorDefinitionInput = {
+  language: Language;
+  sandboxConfigId: string;
+  sourceCode: string;
 };
 export type EvaluatorInputMappingInput = {
   literalMapping: any;
