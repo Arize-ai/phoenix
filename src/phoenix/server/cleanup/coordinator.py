@@ -16,7 +16,7 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 from secrets import token_hex
 from typing import Optional
 
@@ -334,26 +334,13 @@ class CleanupCoordinator:
                 )
                 step_done_now = await current_database_time(session, dialect)
                 if step_result.status is PrimitiveStatus.PROGRESS:
-                    await session.execute(
-                        update(models.CleanupTask)
-                        .where(models.CleanupTask.id == claimed.task_id)
-                        .values(
-                            claimed_at=None,
-                            claimed_by=None,
-                            available_at=step_done_now,
-                        )
-                    )
+                    await self._release_claim(session, claimed, available_at=step_done_now)
                     outcome = StepExecutionResult("progress", step_result.affected_rows)
                 elif step_result.status is PrimitiveStatus.YIELD:
-                    await session.execute(
-                        update(models.CleanupTask)
-                        .where(models.CleanupTask.id == claimed.task_id)
-                        .values(
-                            claimed_at=None,
-                            claimed_by=None,
-                            available_at=step_done_now
-                            + timedelta(seconds=self._yield_delay_seconds),
-                        )
+                    await self._release_claim(
+                        session,
+                        claimed,
+                        available_at=step_done_now + timedelta(seconds=self._yield_delay_seconds),
                     )
                     outcome = StepExecutionResult("yield", 0)
                 elif step_result.status is PrimitiveStatus.EMPTY:
@@ -374,6 +361,25 @@ class CleanupCoordinator:
             for ev in events_after_commit:
                 self._event_queue.put(ev)
         return outcome
+
+    async def _release_claim(
+        self,
+        session: AsyncSession,
+        claimed: ClaimedCleanupTask,
+        *,
+        available_at: datetime,
+    ) -> None:
+        """Release ``claimed`` only if it is still held by this claim token."""
+        released = await session.execute(
+            update(models.CleanupTask)
+            .where(
+                models.CleanupTask.id == claimed.task_id,
+                models.CleanupTask.claimed_by == claimed.claimed_by,
+            )
+            .values(claimed_at=None, claimed_by=None, available_at=available_at)
+        )
+        if getattr(released, "rowcount", 0) != 1:
+            raise RuntimeError(f"cleanup task {claimed.task_id} claim was lost mid-step")
 
     async def _record_step_failure(self, claimed: ClaimedCleanupTask) -> None:
         dialect = self._db.dialect

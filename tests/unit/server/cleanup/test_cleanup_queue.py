@@ -127,6 +127,51 @@ class TestCleanupQueueSchedulingAndFencing:
             assert await session.get(models.Project, p1.id) is None
             assert await session.get(models.Project, p2.id) is None
 
+    async def test_stale_claim_cannot_release_or_modify_reclaimed_task(
+        self, db: DbSessionFactory
+    ) -> None:
+        dialect = SupportedSQLDialect(db.dialect.value)
+        async with db() as session:
+            project = await _add_project(session, name=f"stale-{token_hex(4)}")
+            await admit_project_delete(session, dialect=dialect, project_id=project.id)
+        coord_a = CleanupCoordinator(db, batch_limit=1, lease_ttl_seconds=30.0)
+        coord_b = CleanupCoordinator(db, batch_limit=1, lease_ttl_seconds=30.0)
+        stale = await coord_a.claim_next()
+        assert stale is not None
+        async with db() as session:
+            now = await current_database_time(session, dialect)
+            await session.execute(
+                update(models.CleanupTask).values(
+                    claimed_at=now - timedelta(seconds=31.0), available_at=now
+                )
+            )
+        assert await coord_b.claim_next() is None  # recovery reschedules onto the retry delay
+        async with db() as session:
+            now = await current_database_time(session, dialect)
+            await session.execute(update(models.CleanupTask).values(available_at=now))
+        fresh = await coord_b.claim_next()
+        assert fresh is not None and fresh.task_id == stale.task_id
+        assert fresh.claimed_by != stale.claimed_by
+
+        assert (await coord_a.execute_claimed_step(stale)).outcome == "claim_lost"
+        async with db() as session:
+            claimed_by = await session.scalar(
+                select(models.CleanupTask.claimed_by).where(
+                    models.CleanupTask.id == stale.task_id
+                )
+            )
+        assert claimed_by == fresh.claimed_by
+
+    def test_postgres_claim_locks_use_for_no_key_update(self) -> None:
+        from sqlalchemy.dialects import postgresql
+
+        stmt = (
+            select(models.CleanupTask.id)
+            .with_for_update(key_share=True, nowait=True)
+            .compile(dialect=postgresql.dialect())
+        )
+        assert "FOR NO KEY UPDATE" in str(stmt)
+
     async def test_failed_step_schedules_durable_error_backoff_without_dropping_task(
         self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
     ) -> None:
