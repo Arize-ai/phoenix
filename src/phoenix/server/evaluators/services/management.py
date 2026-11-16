@@ -458,13 +458,13 @@ async def garbage_collect_evaluators(
     evaluator_ids: set[int],
     prompt_ids: set[int],
     decision_ids: set[int] = set(),
-    delete_associated_prompt_or_decision: bool,
+    delete_unused_source: bool,
 ) -> None:
     """Delete the evaluators nothing live binds, with the version tags they run through.
 
-    With ``delete_associated_prompt_or_decision``, also lock candidate prompts and decisions in
-    ascending ID order and, in a subsequent statement, delete each one that no remaining
-    evaluator uses. Built-in evaluators are never deleted.
+    With ``delete_unused_source``, also lock candidate prompts and decisions in ascending ID
+    order and, in a subsequent statement, delete each one that no remaining evaluator uses.
+    Built-in evaluators are never deleted.
     """
     deleted_ids: set[int] = set()
     llm_evaluator_prompts: dict[int, tuple[Optional[int], int]] = {}
@@ -494,7 +494,7 @@ async def garbage_collect_evaluators(
                 delete(models.Evaluator)
                 .where(
                     models.Evaluator.id.in_(evaluator_ids),
-                    models.Evaluator.kind.not_in(("BUILTIN", "DECISION")),
+                    models.Evaluator.kind != "BUILTIN",
                     ~select(models.DatasetEvaluators.id)
                     .where(
                         models.DatasetEvaluators.evaluator_id == models.Evaluator.id,
@@ -513,7 +513,7 @@ async def garbage_collect_evaluators(
         )
         await session.flush()
 
-    if delete_associated_prompt_or_decision and prompt_ids and deleted_ids:
+    if delete_unused_source and prompt_ids and deleted_ids:
         sorted_prompts = sorted(prompt_ids)
         if dialect is SupportedSQLDialect.POSTGRESQL:
             await session.execute(
@@ -531,7 +531,7 @@ async def garbage_collect_evaluators(
             )
         )
 
-    if delete_associated_prompt_or_decision and decision_ids and deleted_ids:
+    if delete_unused_source and decision_ids and deleted_ids:
         sorted_decisions = sorted(decision_ids)
         if dialect is SupportedSQLDialect.POSTGRESQL:
             await session.execute(

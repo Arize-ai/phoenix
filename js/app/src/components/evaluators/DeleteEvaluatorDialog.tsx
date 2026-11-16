@@ -31,7 +31,7 @@ export type DeleteEvaluatorDialogProps = {
   onOpenChange?: (isOpen: boolean) => void;
   onDeleted?: () => void;
   isDeleting: boolean;
-  onDelete: (options: { deleteAssociatedPrompt: boolean }) => Promise<void>;
+  onDelete: (options: { deleteUnusedSource: boolean }) => Promise<void>;
 };
 
 export function DeleteEvaluatorDialog({
@@ -45,7 +45,7 @@ export function DeleteEvaluatorDialog({
   onDelete,
 }: DeleteEvaluatorDialogProps) {
   const notifySuccess = useNotifySuccess();
-  const [deleteAssociatedPrompt, setDeleteAssociatedPrompt] = useState(true);
+  const [deleteUnusedSource, setDeleteUnusedSource] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const handleOpenChange = (nextIsOpen: boolean) => {
     if (nextIsOpen) {
@@ -57,8 +57,7 @@ export function DeleteEvaluatorDialog({
     setError(null);
     startTransition(() => {
       void onDelete({
-        deleteAssociatedPrompt:
-          evaluatorKind === "LLM" && deleteAssociatedPrompt,
+        deleteUnusedSource: evaluatorKind === "LLM" && deleteUnusedSource,
       })
         .then(() => {
           notifySuccess({
@@ -102,14 +101,12 @@ export function DeleteEvaluatorDialog({
                   traces are deleted with it.
                   {evaluatorKind === "BUILTIN"
                     ? " The built-in evaluator remains available elsewhere."
-                    : evaluatorKind === "DECISION"
-                      ? " The decision evaluator remains available elsewhere."
-                      : " The evaluator is deleted only if it isn't used anywhere else."}
+                    : " The evaluator is deleted only if it isn't used anywhere else."}
                 </Text>
                 {evaluatorKind === "LLM" ? (
                   <Checkbox
-                    isSelected={deleteAssociatedPrompt}
-                    onChange={setDeleteAssociatedPrompt}
+                    isSelected={deleteUnusedSource}
+                    onChange={setDeleteUnusedSource}
                   >
                     Delete associated prompt
                   </Checkbox>

@@ -127,10 +127,11 @@ async def drain_dataset_evaluator_dependents_step(
 ) -> PrimitiveResult:
     """Drain root ``experiment_logs`` (cascading downward to ``experiment_eval_logs``) and
     ``experiment_dataset_evaluators`` links before removing a dataset-evaluator tombstone."""
-    eval_log_condition = models.ExperimentEvalLog.dataset_evaluator_id == dataset_evaluator_id
+    eval_log_table = models.ExperimentEvalLog.__table__
+    eval_log_condition = eval_log_table.c.dataset_evaluator_id == dataset_evaluator_id
     log_ids_stmt = (
         select(models.ExperimentLog.id)
-        .join(models.ExperimentEvalLog, models.ExperimentEvalLog.id == models.ExperimentLog.id)
+        .join(eval_log_table, eval_log_table.c.id == models.ExperimentLog.id)
         .where(models.ExperimentLog.category == "EVAL", eval_log_condition)
         .order_by(models.ExperimentLog.id.asc())
         .limit(batch_limit)
