@@ -1,9 +1,11 @@
 """Adapters for different decision-model SDKs and providers."""
 
+from .google import GoogleDecisionAdapter
 from .openai import OpenAIDecisionAdapter
 from .typesafe import TypeSafeDecisionAdapter
 
 __all__ = [
+    "GoogleDecisionAdapter",
     "OpenAIDecisionAdapter",
     "TypeSafeDecisionAdapter",
 ]
