@@ -192,7 +192,7 @@ class TestCleanupQueueSchedulingAndFencing:
         stmt = (
             select(models.CleanupTask.id)
             .with_for_update(key_share=True, nowait=True)
-            .compile(dialect=postgresql.dialect())
+            .compile(dialect=postgresql.dialect())  # type: ignore[no-untyped-call]
         )
         assert "FOR NO KEY UPDATE" in str(stmt)
 
@@ -1109,9 +1109,9 @@ class TestClearWatermarkReuse:
                 session, dialect=dialect, project_id=project_id
             )
         async with db() as session:
-            project = await session.get(models.Project, project_id)
-            assert project is not None
-            late_trace = await _add_trace(session, project)
+            live_project = await session.get(models.Project, project_id)
+            assert live_project is not None
+            late_trace = await _add_trace(session, live_project)
             late_trace_id = late_trace.id
         async with db() as session:
             second_task = await admit_or_reuse_project_clear(
