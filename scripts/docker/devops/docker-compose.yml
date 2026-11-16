@@ -20,7 +20,12 @@ services:
     ports:
       - "18273:80"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # The engine's API socket (Docker's, or Podman's Docker-compatible one).
+      # dev.sh sets CONTAINER_SOCKET.
+      - ${CONTAINER_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock:ro
+    # Podman's machine enforces SELinux, which otherwise denies the socket.
+    security_opt:
+      - label=disable
     labels:
       - "service.name=traefik"
       - "service.type=reverse-proxy"
@@ -470,6 +475,78 @@ services:
       - "network.simulation=false"
 
   # ==========================================================================
+  # LGTM PROFILE (Metrics, Logs, Traces, Dashboards, Grafana MCP)
+  # ==========================================================================
+
+  # The same two services as the hosted online-evals test environment: the
+  # all-in-one Grafana image (Grafana, Prometheus, Loki, Tempo, and an
+  # OpenTelemetry Collector) and the Grafana MCP server. Grafana allows
+  # anonymous admin access, which is the image's default, so nothing here
+  # needs a key. Grafana is at http://localhost:18273/lgtm/.
+  lgtm:
+    image: grafana/otel-lgtm:0.40.0
+    profiles: ["lgtm"]
+    restart: unless-stopped
+    expose:
+      - "3000"
+      - "4317"
+      - "4318"
+    environment:
+      - GF_SERVER_ROOT_URL=http://localhost:18273/lgtm
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+      - OTELCOL_EXTRA_ARGS=--config=file:/otel-lgtm/phoenix/otelcol-phoenix.yaml
+      - PHOENIX_METRICS_TARGET=phoenix:9090
+    volumes:
+      - dev_lgtm_data:/data
+      - ./lgtm/otelcol-phoenix.yaml:/otel-lgtm/phoenix/otelcol-phoenix.yaml:ro
+      - ./lgtm/dashboards:/otel-lgtm/phoenix/dashboards:ro
+      - ./lgtm/provisioning/dashboards/phoenix.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/phoenix.yaml:ro
+      - ./lgtm/provisioning/alerting:/otel-lgtm/grafana/conf/provisioning/alerting:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.lgtm.rule=Host(`localhost`) && PathPrefix(`/lgtm`)"
+      - "traefik.http.services.lgtm.loadbalancer.server.port=3000"
+      - "service.name=lgtm"
+      - "service.type=monitoring"
+      - "monitoring.priority=low"
+      - "network.simulation=false"
+
+  # Read-only MCP access to Grafana's datasources, for agents. The endpoint is
+  # http://localhost:18273/grafana-mcp/mcp. The image's entrypoint fixes the
+  # SSE transport, so it is replaced here.
+  grafana-mcp:
+    image: grafana/mcp-grafana:2.3.0
+    profiles: ["lgtm"]
+    restart: unless-stopped
+    depends_on:
+      - lgtm
+    expose:
+      - "8000"
+    entrypoint: ["/app/mcp-grafana"]
+    command:
+      - --transport
+      - streamable-http
+      - --address
+      - 0.0.0.0:8000
+      - --allowed-hosts=*
+      - --disable-write
+      - --enabled-tools
+      - datasource,loki,tempo,prometheus
+    environment:
+      - GRAFANA_URL=http://lgtm:3000/lgtm
+      - GRAFANA_USAGE_STATS=disabled
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana-mcp.rule=Host(`localhost`) && PathPrefix(`/grafana-mcp`)"
+      - "traefik.http.routers.grafana-mcp.middlewares=grafana-mcp-stripprefix"
+      - "traefik.http.middlewares.grafana-mcp-stripprefix.stripprefix.prefixes=/grafana-mcp"
+      - "traefik.http.services.grafana-mcp.loadbalancer.server.port=8000"
+      - "service.name=grafana-mcp"
+      - "service.type=monitoring"
+      - "monitoring.priority=low"
+      - "network.simulation=false"
+
+  # ==========================================================================
   # MOCK-LLM PROFILE (Mock OpenAI / Anthropic / Gemini / TypeSafe APIs)
   # ==========================================================================
 
@@ -628,6 +705,8 @@ volumes:
   dev_tempo_data:
     driver: local
   dev_loki_data:
+    driver: local
+  dev_lgtm_data:
     driver: local
   dev_cursor_server_data:
     driver: local

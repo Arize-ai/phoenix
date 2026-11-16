@@ -1,6 +1,6 @@
 # Phoenix Development Environment
 
-Complete Docker Compose development environment with Phoenix, PostgreSQL, Grafana, Prometheus, Tempo, Loki, OpenTelemetry Collector, and OIDC authentication using Traefik reverse proxy.
+Complete Compose development environment with Phoenix, PostgreSQL, Grafana, Prometheus, Tempo, Loki, OpenTelemetry Collector, and OIDC authentication using Traefik reverse proxy. It runs on Podman or Docker.
 
 ## Quick Start
 
@@ -14,6 +14,20 @@ Complete Docker Compose development environment with Phoenix, PostgreSQL, Grafan
 # Stop all services
 ./dev.sh down
 ```
+
+## Container Engine
+
+The stack needs a container engine and a Compose tool. Either of these works:
+
+- **Podman**: `brew install podman docker-compose`, then `podman machine init`
+  and `podman machine start`. Give the machine room if you will seed
+  performance data, for example
+  `podman machine init --cpus 8 --memory 12288 --disk-size 80`.
+- **Docker**: any Docker engine with the Compose plugin.
+
+`./dev.sh` uses whichever engine is running. If both are, it uses Docker; set
+`PHOENIX_DEV_ENGINE=podman` (or `docker`) to choose. `./dev.sh doctor` says
+what is missing and how to start it.
 
 ## Access
 
@@ -46,6 +60,7 @@ check and report the services of those profiles.
 | *(none)* | Phoenix with PostgreSQL, OIDC, SMTP, and Traefik. The frontend is a production build. |
 | `vite` | Serves the frontend from the Vite dev server, with hot reload. |
 | `grafana` | Adds Grafana, Prometheus, cAdvisor, and the Postgres exporter. |
+| `lgtm` | Adds the all-in-one Grafana stack and the Grafana MCP server. See [Metrics, Logs, and Traces](#metrics-logs-and-traces-lgtm). |
 | `mock-llm` | Adds the mock LLM server. See [Mock LLM Server](#mock-llm-server). |
 | `datagen` | Replays synthetic traces. See [Synthetic Trace Traffic](#synthetic-trace-traffic). |
 | `toxiproxy` | Adds network latency between Phoenix and PostgreSQL. See [Database Latency](#database-latency-toxiproxy). |
@@ -58,6 +73,40 @@ check and report the services of those profiles.
 | `ldap-posix` | LDAP with POSIX groups (`memberUid`) instead of `memberOf`. |
 | `ldap-test` | Runs the adversarial LDAP TLS tests. See [LDAP-TLS-TESTING.md](LDAP-TLS-TESTING.md). |
 | `schema=NAME` | Stores Phoenix tables in the PostgreSQL schema `NAME`. |
+
+## Metrics, Logs, and Traces (LGTM)
+
+The `lgtm` profile runs the same telemetry services as the hosted online-evals
+test environment, so that a problem seen there can be reproduced and measured
+locally:
+
+```bash
+./dev.sh up --profiles lgtm,datagen
+```
+
+- **Grafana**: http://localhost:18273/lgtm/. It is the `grafana/otel-lgtm`
+  image: Grafana, Prometheus, Loki, Tempo, and an OpenTelemetry Collector in
+  one container. Anonymous users are admins, so there is no login.
+- **Grafana MCP**: http://localhost:18273/grafana-mcp/mcp. A read-only MCP
+  server (`grafana/mcp-grafana`) with the datasource, Loki, Tempo, and
+  Prometheus tools, for agents. It needs no token.
+
+Use `lgtm` or `grafana`, not both: each profile points Phoenix's traces and
+logs at its own collector. `grafana` runs Grafana, Prometheus, Tempo, and Loki
+as separate services behind the OIDC login, with container and PostgreSQL
+metrics. `lgtm` is one container with no login, the same image as the hosted
+environment, and the MCP server.
+
+Phoenix sends its traces and logs to the collector over OTLP. The collector
+pulls Phoenix's metrics from port 9090 as the job `phoenix`
+([lgtm/otelcol-phoenix.yaml](lgtm/otelcol-phoenix.yaml)). The datasource UIDs
+are `prometheus`, `loki`, and `tempo`, the same as in the hosted environment,
+so a query written against one works against the other.
+
+The dashboards in [lgtm/dashboards](lgtm/dashboards) and the alert rules in
+[lgtm/provisioning/alerting](lgtm/provisioning/alerting) are loaded when
+Grafana starts. These files are the source of truth. To change a dashboard,
+edit it in Grafana, export its JSON, and replace the file.
 
 ## Mock LLM Server
 
@@ -181,16 +230,20 @@ container restarts, they are lost and Phoenix cannot reach the database. Run
 ./dev.sh down      # Stop all services
 ./dev.sh reset     # Remove the stack's images, so the next 'up' rebuilds them
 ./dev.sh destroy   # Wipe data volumes (database, Grafana, Prometheus); keeps images
-./dev.sh doctor    # Check Docker, ports, compose config, and image freshness
+./dev.sh doctor    # Check the container engine, ports, compose config, and image freshness
 ./dev.sh status    # Show running services and the URLs of the active profiles
 ./dev.sh profiles  # List the available profiles
 ./dev.sh env       # Print the environment variables of the Phoenix container
-./dev.sh prune     # Remove the Docker build cache to free disk space
+./dev.sh prune     # Remove the build cache to free disk space
+./dev.sh seed      # Fill the database with performance test data (--scale N; PostgreSQL only)
+./dev.sh seed-tail # Add fresh traffic to the seeded busy projects
+./dev.sh psql      # Open psql in the database container, or pipe SQL to it
 ./dev.sh help      # Show every command and profile
 ```
 
-The script uses `docker compose` when the Compose plugin is installed, and
-falls back to the standalone `docker-compose` binary.
+With Docker, the script uses `docker compose` when the Compose plugin is
+installed, and falls back to the standalone `docker-compose` binary. With
+Podman, it uses `podman compose`, which runs `docker-compose` against Podman.
 
 ## Which Command to Use?
 
@@ -205,8 +258,9 @@ falls back to the standalone `docker-compose` binary.
 | --- | --- | --- |
 | A UI is blank and its assets return 404 | The container runs an image built from older source | `./dev.sh up` |
 | `port is already allocated` | Another process holds 18273 or 5433 | `./dev.sh doctor` names the port |
-| `Cannot connect to the Docker daemon` | Docker Desktop is not running | Start Docker Desktop |
-| Phoenix never becomes healthy | Phoenix crashed during startup | `docker compose logs phoenix` |
+| `Cannot connect to the Docker daemon` or `Cannot connect to Podman` | The engine is not running | `podman machine start`, or start Docker |
+| Phoenix never becomes healthy | Phoenix crashed during startup | `podman logs devops-phoenix-1` (or `docker logs`) |
+| Every URL returns 404 under Podman | Traefik cannot read the engine socket | Check `podman logs devops-traefik-1` for `permission denied` |
 | Phoenix exits with code 137 | The container used more memory than its limit (`docker inspect` shows `OOMKilled`) | Lower the datagen rate, then `./dev.sh up` |
 | Phoenix loses the database with the `toxiproxy` profile | The `toxiproxy` container restarted and lost its proxy | `./dev.sh up --profile toxiproxy` |
 | The Toxiproxy page or `toxiproxy-scenario.sh` cannot connect | The `toxiproxy` profile is not running | `./dev.sh up --profile toxiproxy` |
