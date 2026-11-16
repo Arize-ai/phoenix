@@ -43,6 +43,7 @@ import {
   StreamStateProvider,
   useStreamState,
 } from "@phoenix/contexts/StreamStateContext";
+import { useInterval } from "@phoenix/hooks";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
@@ -56,6 +57,7 @@ import {
   readFilterConditionParam,
   withFilterConditionParam,
 } from "./filterConditionParam";
+import { ClearingTracesIndicator } from "../projects/ClearingTracesIndicator";
 import { ProjectOnboardingOverlay } from "./ProjectOnboardingOverlay";
 import {
   ProjectPageQueriesProjectConfigQuery,
@@ -67,6 +69,8 @@ import {
 import { ProjectTimeRangeControls } from "./ProjectTimeRangeControls";
 import { DEFAULT_SPAN_FILTER_CONDITION } from "./spanFilterRootScopeConstants";
 import { type SettledSpanFilterSeed, spanFilterSeed } from "./spanFilterSeed";
+
+const CLEARING_POLL_INTERVAL_MS = 3_000;
 
 const mainCSS = css`
   flex: 1 1 auto;
@@ -162,11 +166,11 @@ const TABS = [
 /**
  * Type guard for the tab path in the URL
  */
-const isTab = (tab: string): tab is (typeof TABS)[number] => {
-  return TABS.includes(tab as (typeof TABS)[number]);
+const isTab = (tab: string): tab is typeof TABS[number] => {
+  return TABS.includes(tab as typeof TABS[number]);
 };
 
-const TAB_INDEX_MAP: Record<(typeof TABS)[number], number> = {
+const TAB_INDEX_MAP: Record<typeof TABS[number], number> = {
   spans: 0,
   traces: 1,
   sessions: 2,
@@ -177,7 +181,7 @@ const TAB_INDEX_MAP: Record<(typeof TABS)[number], number> = {
 
 const TAB_PATH_BY_INDEX = Object.fromEntries(
   Object.entries(TAB_INDEX_MAP).map(([tab, index]) => [index, tab])
-) as Record<number, (typeof TABS)[number]>;
+) as Record<number, typeof TABS[number]>;
 
 export function ProjectPageContent({
   projectId,
@@ -609,12 +613,14 @@ function ProjectPageTabs({ projectId }: { projectId: string }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { rootPath, tab } = useProjectRootPath();
+  const [fetchKey, setFetchKey] = useState(0);
   const data = useLazyLoadQuery<ProjectPageQueryType>(
     graphql`
       query ProjectPageQuery($id: ID!) {
         project: node(id: $id) {
           ... on Project {
             evaluatorCount
+            isClearingTraces
             ...ProjectTimeRangeControls_data
             ...ProjectOnboardingOverlay_project
           }
@@ -622,7 +628,12 @@ function ProjectPageTabs({ projectId }: { projectId: string }) {
       }
     `,
     { id: projectId },
-    { fetchPolicy: "store-and-network" }
+    { fetchPolicy: "store-and-network", fetchKey }
+  );
+  const isClearingTraces = data.project.isClearingTraces ?? false;
+  useInterval(
+    () => setFetchKey((key) => key + 1),
+    isClearingTraces ? CLEARING_POLL_INTERVAL_MS : null
   );
 
   const onTabChange = (index: number) => {
@@ -641,6 +652,7 @@ function ProjectPageTabs({ projectId }: { projectId: string }) {
     <main css={mainCSS}>
       <LegacyTraceFilterParamNotice isActive={tab === "traces"} />
       <TopNavActions order={1}>
+        {isClearingTraces ? <ClearingTracesIndicator /> : null}
         <ProjectTimeRangeControls project={data.project} />
       </TopNavActions>
       <Tabs

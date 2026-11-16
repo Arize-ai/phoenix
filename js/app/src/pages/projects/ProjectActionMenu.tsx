@@ -24,7 +24,7 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
-import { useNotifySuccess } from "@phoenix/contexts";
+import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 import type { ProjectActionMenuClearMutation } from "./__generated__/ProjectActionMenuClearMutation.graphql";
 import type { ProjectActionMenuDeleteMutation } from "./__generated__/ProjectActionMenuDeleteMutation.graphql";
@@ -51,6 +51,7 @@ export function ProjectActionMenu({
   onProjectDelete: () => void;
 }) {
   const notifySuccess = useNotifySuccess();
+  const notifyError = useNotifyError();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [showRemoveDataDialog, setShowRemoveDataDialog] = useState(false);
@@ -94,11 +95,14 @@ export function ProjectActionMenu({
           onProjectClear();
         },
         onError: (error) => {
-          alert("Failed to clear project: " + error);
+          notifyError({
+            title: "Failed to clear project",
+            message: error.message,
+          });
         },
       });
     });
-  }, [commitClear, projectId, onProjectClear]);
+  }, [commitClear, projectId, onProjectClear, notifyError]);
 
   const onDelete = useCallback(() => {
     setShowDeleteDialog(true);
