@@ -182,7 +182,7 @@ CREATE TABLE project_trace_retention_policies (
 -- Table: projects
 -- ---------------
 CREATE TABLE projects (
-    id INTEGER NOT NULL,
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     name VARCHAR NOT NULL,
     description VARCHAR,
     gradient_start_color VARCHAR DEFAULT '#5bdbff' NOT NULL,
@@ -192,7 +192,6 @@ CREATE TABLE projects (
     trace_retention_policy_id INTEGER,
     kind VARCHAR DEFAULT 'STANDARD' NOT NULL,
     deleted_at TIMESTAMP,
-    CONSTRAINT pk_projects PRIMARY KEY (id),
     CONSTRAINT "ck_projects_`valid_project_kind`"
         CHECK (kind IN ('STANDARD', 'PLAYGROUND', 'EXPERIMENT', 'EVALUATOR')),
     CONSTRAINT fk_projects_trace_retention_policy_id_project_trace_retention_policies

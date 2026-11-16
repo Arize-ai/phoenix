@@ -186,6 +186,28 @@ async def test_cleanup_tasks_autoincrement_at_head(
     await _run_async(_engine, verify)
 
 
+async def test_projects_autoincrement_at_head(
+    _engine: AsyncEngine,
+    _alembic_config: Config,
+    _schema: str,
+) -> None:
+    await _up(_engine, _alembic_config, "head", _schema)
+
+    def verify(connection: sa.Connection) -> None:
+        def insert() -> int:
+            project_id = connection.execute(
+                sa.text("INSERT INTO projects (name) VALUES (:name) RETURNING id"),
+                {"name": token_hex(8)},
+            ).scalar_one()
+            assert isinstance(project_id, int)
+            return project_id
+
+        _assert_autoincrement_preserved(connection, "projects", insert)
+        connection.commit()
+
+    await _run_async(_engine, verify)
+
+
 @pytest.mark.parametrize(
     "revision,down_revision,table_name",
     [

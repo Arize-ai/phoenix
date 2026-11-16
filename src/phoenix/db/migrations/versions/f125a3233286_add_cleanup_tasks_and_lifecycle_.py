@@ -78,7 +78,9 @@ def _preserve_sqlite_sequence(table_name: str) -> Iterator[None]:
 
 
 def _upgrade_projects() -> None:
-    with op.batch_alter_table("projects") as batch_op:
+    # A tombstoned project's id stays referenced by its cleanup task, so SQLite
+    # must never hand that id to a new project.
+    with op.batch_alter_table("projects", table_kwargs={"sqlite_autoincrement": True}) as batch_op:
         batch_op.add_column(
             sa.Column(
                 "kind",

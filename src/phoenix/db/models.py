@@ -968,6 +968,7 @@ class Project(HasId):
             postgresql_where=text(live_row_predicate()),
             sqlite_where=text(live_row_predicate()),
         ),
+        dict(sqlite_autoincrement=True),
     )
 
 
