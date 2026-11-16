@@ -91,7 +91,6 @@ class TraceDataSweeper(DaemonTask):
                     sa.select(Project.id).where(
                         Project.trace_retention_policy_id.is_(None),
                         Project.deleted_at.is_(None),
-                        Project.kind.in_(("STANDARD", "PLAYGROUND")),
                     )
                 )
                 if policy.id == DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID

@@ -225,7 +225,7 @@ class TestTraceDataSweeper:
         5. Verifies that only recent traces remain in each project
         """
         # Test configuration
-        num_projects = 3  # Test with multiple projects
+        project_kinds = ("STANDARD", "PLAYGROUND", "EXPERIMENT", "EVALUATOR")
         max_days = 7  # Keep traces from last 7 days
         old_traces_count = 5  # Number of old traces (> max_days) per project
         recent_traces_count = 5  # Number of recent traces (< max_days) per project
@@ -238,7 +238,7 @@ class TestTraceDataSweeper:
 
         # Setup: Create projects and policy
         async with db() as session:
-            projects = [models.Project(name=token_hex(8)) for _ in range(num_projects)]
+            projects = [models.Project(name=token_hex(8), kind=kind) for kind in project_kinds]
             session.add_all(projects)
             await session.flush()
             project_ids = [p.id for p in projects]
