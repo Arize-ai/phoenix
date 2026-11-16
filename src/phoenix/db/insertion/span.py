@@ -311,24 +311,6 @@ async def insert_span(
             _ProjectSessionRow,
         )
     elif session_id:
-        # session_id is globally unique, so a session left behind by a tombstoned project is
-        # re-homed to the live project; otherwise the delete would never see it orphaned.
-        await session.execute(
-            update(models.ProjectSession)
-            .where(
-                models.ProjectSession.session_id == session_id,
-                models.ProjectSession.project_id != trace.project_rowid,
-                models.ProjectSession.project_id.in_(
-                    select(models.Project.id).where(models.Project.deleted_at.is_not(None))
-                ),
-            )
-            .values(
-                project_id=trace.project_rowid,
-                start_time=trace.start_time,
-                end_time=trace.end_time,
-            )
-            .execution_options(synchronize_session=False)
-        )
         project_session = await _get_or_create(
             session,
             models.ProjectSession,
