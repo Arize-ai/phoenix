@@ -177,7 +177,9 @@ def _rejects_model(decision_sdk: DecisionSDK, body: Any, model: str) -> bool:
 
     - OpenAI Decisions: ``{"error": {"code": "model_not_found"}}``, or an
       ``error.message`` that names the model.
-    - Gemini Decisions: an ``error.message`` that names the model.
+    - Gemini Decisions: ``{"error": {"code": "not_found", "message": "Requested model
+      not found. ..."}}``; the message doesn't name the model. Google's generic 404
+      for an unknown path has a numeric ``code``, so it doesn't pass.
     - System One: a ``detail`` string, or ``detail.message``, that names the model.
     """
     if not isinstance(body, Mapping):
@@ -186,10 +188,14 @@ def _rejects_model(decision_sdk: DecisionSDK, body: Any, model: str) -> bool:
         error = body.get("error")
         if not isinstance(error, Mapping):
             return False
-        message = error.get("message")
-        return (decision_sdk == "openai" and error.get("code") == "model_not_found") or (
-            isinstance(message, str) and model in message
-        )
+        code, message = error.get("code"), error.get("message")
+        if decision_sdk == "google_genai":
+            return (
+                code == "not_found"
+                and isinstance(message, str)
+                and "model not found" in message.lower()
+            )
+        return code == "model_not_found" or (isinstance(message, str) and model in message)
     detail = body.get("detail")
     if isinstance(detail, Mapping):
         detail = detail.get("message")

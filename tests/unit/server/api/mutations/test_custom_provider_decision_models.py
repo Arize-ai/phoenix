@@ -980,10 +980,10 @@ def google_config(base_url: str = "https://gemini-proxy.example") -> dict[str, A
                 "status_code": 404,
                 "json": {
                     "error": {
-                        "code": 404,
-                        "message": "models/test-credential-check is not found for API version "
-                        "v1beta.",
-                        "status": "NOT_FOUND",
+                        "message": "Requested model not found. See "
+                        "https://ai.google.dev/gemini-api/docs/models for a list of available "
+                        "models.",
+                        "code": "not_found",
                     }
                 },
             },
@@ -1004,10 +1004,16 @@ def google_config(base_url: str = "https://gemini-proxy.example") -> dict[str, A
         pytest.param(
             {
                 "status_code": 404,
-                "json": {"error": {"code": 404, "message": "Not found", "status": "NOT_FOUND"}},
+                "json": {
+                    "error": {
+                        "code": 404,
+                        "message": "Requested model not found.",
+                        "status": "NOT_FOUND",
+                    }
+                },
             },
             "HTTP 404 with a response that is not a decision API's",
-            id="generic-404",
+            id="googles-generic-404",
         ),
         pytest.param(
             {

@@ -78,7 +78,7 @@ To turn on decision models for an OpenAI or Google GenAI provider:
 
 1.  In the **Decision models** section, turn on the switch.
 2.  Optional: enter **Suggested model names** for decision models, separated by commas. If you leave the field empty, the model menu shows the built-in decision models.
-3.  Click **Test connection** in the **Connection** section. For decision models, the test sends a request for a model that does not exist to the URL that a run uses. If the test fails, the error shows that URL. The test passes when the endpoint rejects that model by name, which shows that the URL and the API key are correct. No model runs. Some servers, such as a server that runs one model, ignore the model name and send an answer. The test also passes when that answer is a valid decision response.
+3.  Click **Test connection** in the **Connection** section. For decision models, the test sends a request for a model that does not exist to the URL that a run uses. If the test fails, the error shows that URL. The test passes when the endpoint rejects that model by name, which shows that the URL and the API key are correct. No model runs. Some servers, such as a server that runs one model, ignore the model name and send an answer. The test also passes when that answer is a valid decision response. For a Google GenAI provider, the test passes when Gemini answers that the requested model is not found.
 
 <Note>
 If the endpoint serves decisions at a different base URL than chat, add a second provider with that base URL and turn on its decision models.

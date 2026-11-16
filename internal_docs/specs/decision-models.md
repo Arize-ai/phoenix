@@ -1049,8 +1049,10 @@ serve it too (section 10.5).
   (always 0). `decision.system` and `decision.provider` are `google`, plain
   strings until OpenInference has a value.
 - **Endpoint check.** A Google custom provider's check posts the sentinel
-  model and passes on an error whose `error.message` names it, or on a decision
-  response.
+  model and passes on Gemini's own rejection, a 404 with
+  `{"error": {"code": "not_found", "message": "Requested model not found. ..."}}`
+  (the message doesn't name the model), or on a decision response. Google's
+  generic 404 has a numeric `code` and fails.
 
 ## 11. App Access
 
