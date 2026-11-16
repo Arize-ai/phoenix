@@ -4756,6 +4756,7 @@ class CleanupTask(Base):
     claimed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
     claimed_by: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     available_at: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
+    failure_count: Mapped[int] = mapped_column(_Integer, nullable=False, server_default="0")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
 
     __mapper_args__ = {

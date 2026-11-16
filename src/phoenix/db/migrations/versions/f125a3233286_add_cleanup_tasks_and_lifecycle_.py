@@ -293,6 +293,7 @@ def _create_cleanup_task_tables() -> None:
         sa.Column("claimed_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column("claimed_by", sa.String(), nullable=True),
         sa.Column("available_at", sa.TIMESTAMP(timezone=True), nullable=False),
+        sa.Column("failure_count", _Integer, nullable=False, server_default="0"),
         sa.Column("created_at", sa.TIMESTAMP(timezone=True), nullable=False),
         sa.UniqueConstraint("kind", "id"),
         sa.CheckConstraint(_CLAIM_CHECK, name="valid_claim"),

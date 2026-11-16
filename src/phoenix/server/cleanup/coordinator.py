@@ -67,6 +67,7 @@ _CLEANUP_ADMISSION_LOCK_ID = 0x636C6E705F717565  # "clnp_que"
 CLAIM_LEASE_TTL_SECONDS = 90.0
 YIELD_DELAY_SECONDS = 0.25
 ERROR_RETRY_DELAY_SECONDS = 15.0
+MAX_ERROR_RETRY_DELAY_SECONDS = 3600.0
 STATEMENT_TIMEOUT_MS = 60_000
 LOCK_TIMEOUT_MS = 5_000
 
@@ -339,7 +340,9 @@ class CleanupCoordinator:
                 )
                 step_done_now = await current_database_time(session, dialect)
                 if step_result.status is PrimitiveStatus.PROGRESS:
-                    await self._release_claim(session, claimed, available_at=step_done_now)
+                    await self._release_claim(
+                        session, claimed, available_at=step_done_now, reset_failures=True
+                    )
                     outcome = StepExecutionResult("progress", step_result.affected_rows)
                 elif step_result.status is PrimitiveStatus.YIELD:
                     await self._release_claim(
@@ -352,7 +355,11 @@ class CleanupCoordinator:
                     outcome = StepExecutionResult("completed", step_result.affected_rows)
                 else:
                     assert_never(step_result.status)
-        except Exception:
+        except Exception as exc:
+            if isinstance(exc, DBAPIError) and get_sqlstate(exc) == "55P03":
+                # A writer holds the rows this step needs; retry shortly without counting a failure.
+                await self._record_step_yield(claimed)
+                return StepExecutionResult("yield", 0)
             logger.exception(
                 "Cleanup task %s (kind=%s, claim=%s) batch failed; scheduling retry",
                 claimed.task_id,
@@ -373,6 +380,7 @@ class CleanupCoordinator:
         claimed: ClaimedCleanupTask,
         *,
         available_at: datetime,
+        reset_failures: bool = False,
     ) -> None:
         """Release ``claimed`` only if it is still held by this claim token."""
         released = await session.execute(
@@ -381,16 +389,51 @@ class CleanupCoordinator:
                 models.CleanupTask.id == claimed.task_id,
                 models.CleanupTask.claimed_by == claimed.claimed_by,
             )
-            .values(claimed_at=None, claimed_by=None, available_at=available_at)
+            .values(
+                claimed_at=None,
+                claimed_by=None,
+                available_at=available_at,
+                **({"failure_count": 0} if reset_failures else {}),
+            )
         )
         if getattr(released, "rowcount", 0) != 1:
             raise RuntimeError(f"cleanup task {claimed.task_id} claim was lost mid-step")
 
+    async def _record_step_yield(self, claimed: ClaimedCleanupTask) -> None:
+        try:
+            async with self._db() as session:
+                now = await current_database_time(session, self._db.dialect)
+                await self._release_claim(
+                    session,
+                    claimed,
+                    available_at=now + timedelta(seconds=self._yield_delay_seconds),
+                )
+        except Exception:
+            logger.exception(
+                "Failed to record yield for cleanup task %s (claim=%s); "
+                "lease recovery will reschedule it",
+                claimed.task_id,
+                claimed.claimed_by,
+            )
+
     async def _record_step_failure(self, claimed: ClaimedCleanupTask) -> None:
+        """Reschedule a failed step with a delay that doubles per consecutive failure."""
         dialect = self._db.dialect
         try:
             async with self._db() as session:
                 now = await current_database_time(session, dialect)
+                failures = await session.scalar(
+                    select(models.CleanupTask.failure_count).where(
+                        models.CleanupTask.id == claimed.task_id,
+                        models.CleanupTask.claimed_by == claimed.claimed_by,
+                    )
+                )
+                if failures is None:
+                    return
+                delay = min(
+                    self._error_retry_delay_seconds * 2 ** min(failures, 20),
+                    max(self._error_retry_delay_seconds, MAX_ERROR_RETRY_DELAY_SECONDS),
+                )
                 await session.execute(
                     update(models.CleanupTask)
                     .where(
@@ -400,7 +443,8 @@ class CleanupCoordinator:
                     .values(
                         claimed_at=None,
                         claimed_by=None,
-                        available_at=now + timedelta(seconds=self._error_retry_delay_seconds),
+                        available_at=now + timedelta(seconds=delay),
+                        failure_count=failures + 1,
                     )
                 )
         except Exception:
