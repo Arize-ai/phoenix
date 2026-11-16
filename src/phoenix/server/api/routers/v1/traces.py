@@ -825,7 +825,6 @@ async def transfer_traces(
                     models.Trace.id,
                     models.Trace.trace_id,
                     models.Trace.project_rowid,
-                    models.Trace.project_session_rowid,
                 ).where(
                     or_(
                         models.Trace.id.in_(trace_rowids),
@@ -844,14 +843,6 @@ async def transfer_traces(
         if len(source_project_rowids) > 1:
             raise HTTPException(
                 detail="Cannot transfer traces from multiple projects",
-                status_code=422,
-            )
-        if any(trace.project_session_rowid is not None for trace in traces):
-            raise HTTPException(
-                detail=(
-                    "Cannot transfer traces attached to a session; remove the session "
-                    "association before transferring them"
-                ),
                 status_code=422,
             )
         active_clear_project_id = await session.scalar(

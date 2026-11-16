@@ -311,7 +311,7 @@ async def insert_span(
             _ProjectSessionRow,
         )
     elif session_id:
-        candidate_session = await _get_or_create(
+        project_session = await _get_or_create(
             session,
             models.ProjectSession,
             _ProjectSessionRow,
@@ -322,42 +322,32 @@ async def insert_span(
                 end_time=trace.end_time,
             ),
         )
-        if candidate_session.project_id != trace.project_rowid:
-            logger.warning(
-                "Skipping cross-project session attachment for session_id=%r "
-                "(owned by project %s, trace in project %s)",
-                session_id,
-                candidate_session.project_id,
-                trace.project_rowid,
+        # Coalesce is evaluated against the locked row, so a concurrent attachment
+        # wins over our earlier read of a sessionless trace.
+        attached_trace = await _fetch_row(
+            session,
+            update(models.Trace)
+            .where(models.Trace.id == trace.id)
+            .values(
+                project_session_rowid=func.coalesce(
+                    models.Trace.project_session_rowid, project_session.id
+                )
             )
-        else:
-            project_session = candidate_session
-            # Coalesce is evaluated against the locked row, so a concurrent attachment
-            # wins over our earlier read of a sessionless trace.
-            attached_trace = await _fetch_row(
+            .returning(*_columns(models.Trace, _TraceRow))
+            .execution_options(synchronize_session=False),
+            _TraceRow,
+        )
+        if attached_trace is None:
+            return None
+        trace = attached_trace
+        if trace.project_session_rowid != project_session.id:
+            project_session = await _fetch_row(
                 session,
-                update(models.Trace)
-                .where(models.Trace.id == trace.id)
-                .values(
-                    project_session_rowid=func.coalesce(
-                        models.Trace.project_session_rowid, project_session.id
-                    )
-                )
-                .returning(*_columns(models.Trace, _TraceRow))
-                .execution_options(synchronize_session=False),
-                _TraceRow,
+                select(*_columns(models.ProjectSession, _ProjectSessionRow)).filter_by(
+                    id=trace.project_session_rowid
+                ),
+                _ProjectSessionRow,
             )
-            if attached_trace is None:
-                return None
-            trace = attached_trace
-            if trace.project_session_rowid != project_session.id:
-                project_session = await _fetch_row(
-                    session,
-                    select(*_columns(models.ProjectSession, _ProjectSessionRow)).filter_by(
-                        id=trace.project_session_rowid
-                    ),
-                    _ProjectSessionRow,
-                )
 
     if project_session is not None:
         await _extend_time_range(

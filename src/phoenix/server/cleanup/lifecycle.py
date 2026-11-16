@@ -528,3 +528,38 @@ async def admit_exclusive_experiment_projects_delete(
         await admit_project_delete(session, dialect=dialect, project_id=project_id)
         deleted_ids.append(project_id)
     return deleted_ids
+
+
+async def promote_retained_experiment_projects_to_standard(
+    session: AsyncSession,
+    *,
+    dialect: SupportedSQLDialect,
+    candidate_project_ids: Iterable[int],
+) -> None:
+    """When an experiment is deleted without deleting its project, promote any unreferenced
+    ``EXPERIMENT`` project in ``candidate_project_ids`` to ``STANDARD`` so it remains visible
+    in standard project listings."""
+    ids = sorted({pid for pid in candidate_project_ids if pid is not None})
+    if not ids:
+        return
+
+    await _lock_projects(session, dialect, ids)
+    now = await current_database_time(session, dialect)
+    await session.execute(
+        update(models.Project)
+        .where(
+            models.Project.id.in_(ids),
+            models.Project.deleted_at.is_(None),
+            models.Project.kind == "EXPERIMENT",
+            models.Project.name != PLAYGROUND_PROJECT_NAME,
+            models.Project.name != DEFAULT_PROJECT_NAME,
+            ~exists().where(models.Experiment.project_id == models.Project.id),
+            ~exists().where(
+                and_(
+                    models.Experiment.project_id.is_(None),
+                    models.Experiment.project_name == models.Project.name,
+                )
+            ),
+        )
+        .values(kind="STANDARD", updated_at=now)
+    )

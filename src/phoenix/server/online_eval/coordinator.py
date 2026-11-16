@@ -296,49 +296,16 @@ class EvalWorkCoordinator:
         """Fence a claimed unit, run ``write``, and mark the unit DONE, all in one
         transaction, so a unit is never left RUNNING with its results published.
 
-        The fence locks the project evaluator ``FOR SHARE``, then the target row
-        ``FOR KEY SHARE``, then the work unit ``FOR UPDATE``, matching the canonical
-        order used by binding logical deletion and target deletion. The unit must still
-        be owned and RUNNING, and its project evaluator live and enabled.
+        The fence locks the target row ``FOR KEY SHARE``, then the work unit
+        ``FOR UPDATE``, matching the order target deletion takes as it cascades to the
+        work unit. The unit must still be owned and RUNNING, and its project evaluator
+        live and enabled.
 
         Raises ``PublicationClaimLostError`` when the fence fails."""
         work_unit_model = self._work_unit_model
         target_model = self._target_model
         async with self._db() as session:
-            candidate_evaluator_id = project_evaluator_id
-            if candidate_evaluator_id is None:
-                candidate_evaluator_id = await session.scalar(
-                    select(work_unit_model.project_evaluator_id).where(
-                        work_unit_model.id == work_unit_id,
-                        work_unit_model.claimed_by == claimed_by,
-                        work_unit_model.status == "RUNNING",
-                    )
-                )
-            if candidate_evaluator_id is None:
-                raise PublicationClaimLostError(
-                    f"work unit {work_unit_id} is no longer owned and running"
-                )
-
-            binding_state = (
-                await session.execute(
-                    select(
-                        models.ProjectEvaluator.enabled,
-                        models.ProjectEvaluator.deleted_at,
-                    )
-                    .where(models.ProjectEvaluator.id == candidate_evaluator_id)
-                    .with_for_update(read=True)
-                )
-            ).one_or_none()
-            if (
-                binding_state is None
-                or binding_state.deleted_at is not None
-                or binding_state.enabled is not True
-            ):
-                raise PublicationEvaluatorDisabledError(
-                    f"work unit {work_unit_id} project evaluator is disabled or missing"
-                )
-
-            target_id = await session.scalar(
+            await session.execute(
                 select(target_model.id)
                 .where(
                     target_model.id
@@ -357,13 +324,21 @@ class EvalWorkCoordinator:
                 )
                 .with_for_update()
             )
-            if (
-                target_id is None
-                or locked_evaluator_id is None
-                or locked_evaluator_id != candidate_evaluator_id
+            if locked_evaluator_id is None or (
+                project_evaluator_id is not None and locked_evaluator_id != project_evaluator_id
             ):
                 raise PublicationClaimLostError(
                     f"work unit {work_unit_id} is no longer owned and running"
+                )
+            project_evaluator_enabled = await session.scalar(
+                select(models.ProjectEvaluator.enabled).where(
+                    models.ProjectEvaluator.id == locked_evaluator_id,
+                    models.ProjectEvaluator.deleted_at.is_(None),
+                )
+            )
+            if project_evaluator_enabled is not True:
+                raise PublicationEvaluatorDisabledError(
+                    f"work unit {work_unit_id} project evaluator is disabled, deleted or missing"
                 )
             await write(session)
             ended = await session.execute(
