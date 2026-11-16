@@ -19,7 +19,7 @@ Utility, testing, data-generation, and CI scripts that support Phoenix developme
 GitHub + PyPI usage analytics. See `analytics/README.md`. Requires `GITHUB_TOKEN`.
 
 ### `benchmarks/`
-- `evals-benchmarks/` — TypeScript harness benchmarking the built-in evaluators against labeled cases.
+- `js/benchmarks/evals-benchmarks/` — TypeScript harness benchmarking the built-in evaluators against labeled cases.
 
 ### `ci/`
 Scripts run from CI workflows.
