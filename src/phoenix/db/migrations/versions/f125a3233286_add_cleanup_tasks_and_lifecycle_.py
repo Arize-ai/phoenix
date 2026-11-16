@@ -448,6 +448,11 @@ def downgrade() -> None:
                 f"Cannot downgrade while {table} has deleted rows awaiting background cleanup; "
                 "run the server until cleanup tasks drain first."
             )
+    if connection.scalar(sa.text("SELECT COUNT(*) FROM cleanup_tasks")):
+        raise ValueError(
+            "Cannot downgrade while cleanup_tasks has pending rows; "
+            "run the server until cleanup tasks drain first."
+        )
     if connection.dialect.name == "sqlite":
         connection.execute(
             sa.text("DELETE FROM system_state WHERE key = :key"),

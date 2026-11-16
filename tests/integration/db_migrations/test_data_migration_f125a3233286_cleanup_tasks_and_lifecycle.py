@@ -317,7 +317,24 @@ async def test_f125a3233286_backfills_kinds_and_historical_references_and_guards
 
     def _finish_purge(conn: Connection) -> None:
         conn.execute(text("DELETE FROM projects WHERE id = :id"), {"id": ids["standard_proj"]})
+        conn.execute(
+            text(
+                "INSERT INTO cleanup_tasks (kind, available_at, created_at) "
+                "VALUES ('CLEAR_PROJECT_TRACES', :t, :t)"
+            ),
+            {"t": t0},
+        )
         conn.commit()
 
     await _run_async(_engine, _finish_purge)
+
+    # Downgrade also refuses while any cleanup task is still queued.
+    with pytest.raises(ValueError, match="Cannot downgrade while cleanup_tasks has pending rows"):
+        await _down(_engine, _alembic_config, _DOWN, _schema)
+
+    def _drain_tasks(conn: Connection) -> None:
+        conn.execute(text("DELETE FROM cleanup_tasks"))
+        conn.commit()
+
+    await _run_async(_engine, _drain_tasks)
     await _down(_engine, _alembic_config, _DOWN, _schema)
