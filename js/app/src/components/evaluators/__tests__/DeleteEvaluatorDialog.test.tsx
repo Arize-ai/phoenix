@@ -50,7 +50,9 @@ describe("DeleteEvaluatorDialog", () => {
       );
     });
     if (uncheck) {
-      await userEvent.click(findByText({ text: uncheck }) as HTMLElement);
+      const checkbox = findByText({ text: uncheck });
+      expect(checkbox).toBeDefined();
+      await userEvent.click(checkbox as HTMLElement);
     }
     await userEvent.click(
       findByText({ text: "Delete evaluator" }) as HTMLElement
@@ -62,7 +64,7 @@ describe("DeleteEvaluatorDialog", () => {
     ["LLM", "Delete associated prompt"],
     ["DECISION", "Delete associated decision"],
   ] as const)(
-    "defaults the %s checkbox on and lets the user turn it off",
+    "defaults the %s checkbox on",
     async (evaluatorKind, label) => {
       expect(
         await renderAndDelete({ evaluatorKind }).then(
