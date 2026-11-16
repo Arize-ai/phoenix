@@ -86,6 +86,60 @@ def test_get_base_url_prefers_api_access_variables(env: dict[str, str], expected
 
 
 @pytest.mark.parametrize(
+    "env,expected",
+    [
+        ({"PHOENIX_HOST_ROOT_PATH": "/phoenix"}, "http://127.0.0.1:6006/phoenix"),
+        (
+            {
+                "PHOENIX_HOST": "example.com",
+                "PHOENIX_PORT": "6006",
+                "PHOENIX_HOST_ROOT_PATH": "/phoenix",
+            },
+            "http://example.com:6006/phoenix",
+        ),
+        (
+            {"PHOENIX_HOST": "example.com:1234", "PHOENIX_HOST_ROOT_PATH": "/a/b"},
+            "http://example.com:1234/a/b",
+        ),
+        (
+            {"PHOENIX_HOST": "[::1]", "PHOENIX_HOST_ROOT_PATH": "/phoenix"},
+            "http://[::1]:6006/phoenix",
+        ),
+        # Variables that already hold a full URL carry their own path, so the
+        # root path is not appended to them.
+        (
+            {"PHOENIX_HOST": "https://example.com", "PHOENIX_HOST_ROOT_PATH": "/phoenix"},
+            "https://example.com",
+        ),
+        (
+            {"PHOENIX_ENDPOINT": "http://api:6006", "PHOENIX_HOST_ROOT_PATH": "/phoenix"},
+            "http://api:6006",
+        ),
+        (
+            {
+                "PHOENIX_COLLECTOR_ENDPOINT": "http://collector:6006/v1/traces",
+                "PHOENIX_HOST_ROOT_PATH": "/phoenix",
+            },
+            "http://collector:6006",
+        ),
+    ],
+)
+def test_get_base_url_applies_host_root_path_to_host_derived_urls(
+    env: dict[str, str], expected: str
+) -> None:
+    with patch.dict(os.environ, env, clear=True):
+        assert get_base_url() == expected
+
+
+@pytest.mark.parametrize("root_path", ["phoenix", "/phoenix/"])
+def test_get_base_url_rejects_invalid_host_root_path(root_path: str) -> None:
+    env = {"PHOENIX_HOST": "example.com", "PHOENIX_HOST_ROOT_PATH": root_path}
+    with patch.dict(os.environ, env, clear=True):
+        with pytest.raises(ValueError, match="PHOENIX_HOST_ROOT_PATH"):
+            get_base_url()
+
+
+@pytest.mark.parametrize(
     "env, expected",
     [
         ({}, "default"),

@@ -467,16 +467,21 @@ def _normalize_base_url_candidate(env_key: str, value: str, port: Optional[str])
     if env_key == ENV_PHOENIX_HOST and not _URL_SCHEME_PATTERN.match(value):
         # PHOENIX_HOST is the server's bind host, so a bare host becomes a URL
         # on PHOENIX_PORT; a value that already carries a port is taken as-is.
+        # Behind a sub-path proxy the server is only reachable under
+        # PHOENIX_HOST_ROOT_PATH; served directly it accepts that prefix too.
+        root_path = get_env_host_root_path()
         host = "127.0.0.1" if value in ("0.0.0.0", "::", "[::]") else value
         if host.startswith("["):
-            return f"http://{host}:{_coerce_port(port)}" if host.endswith("]") else f"http://{host}"
+            if host.endswith("]"):
+                return f"http://{host}:{_coerce_port(port)}{root_path}"
+            return f"http://{host}{root_path}"
         colon_count = host.count(":")
         if colon_count == 0:
-            return f"http://{host}:{_coerce_port(port)}"
+            return f"http://{host}:{_coerce_port(port)}{root_path}"
         # One colon is host:port; two or more is an unbracketed IPv6 literal.
         if colon_count == 1:
-            return f"http://{host}"
-        return f"http://[{host}]:{_coerce_port(port)}"
+            return f"http://{host}{root_path}"
+        return f"http://[{host}]:{_coerce_port(port)}{root_path}"
     return value
 
 
