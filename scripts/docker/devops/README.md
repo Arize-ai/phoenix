@@ -76,9 +76,9 @@ check and report the services of those profiles.
 
 ## Metrics, Logs, and Traces (LGTM)
 
-The `lgtm` profile runs the same telemetry services as the hosted online-evals
-test environment, so that a problem seen there can be reproduced and measured
-locally:
+The `lgtm` profile collects Phoenix's metrics, logs, and traces in one
+container and adds an MCP server for agents, so that a performance problem can
+be reproduced and measured locally:
 
 ```bash
 ./dev.sh up --profiles lgtm,datagen
@@ -86,7 +86,7 @@ locally:
 
 - **Grafana**: http://localhost:18273/lgtm/. It is the `grafana/otel-lgtm`
   image: Grafana, Prometheus, Loki, Tempo, and an OpenTelemetry Collector in
-  one container. Anonymous users are admins, so there is no login.
+  one container. This local profile needs no login.
 - **Grafana MCP**: http://localhost:18273/grafana-mcp/mcp. A read-only MCP
   server (`grafana/mcp-grafana`) with the datasource, Loki, Tempo, and
   Prometheus tools, for agents. It needs no token.
@@ -94,8 +94,7 @@ locally:
 Use `lgtm` or `grafana`, not both: each profile points Phoenix's traces and
 logs at its own collector. `grafana` runs Grafana, Prometheus, Tempo, and Loki
 as separate services behind the OIDC login, with container and PostgreSQL
-metrics. `lgtm` is one container with no login, the same image as the hosted
-environment, and the MCP server.
+metrics. `lgtm` is one container with no login, and it includes the MCP server.
 
 Phoenix sends its traces and logs to the collector over OTLP. The collector
 pulls Phoenix's metrics from port 9090 as the job `phoenix`

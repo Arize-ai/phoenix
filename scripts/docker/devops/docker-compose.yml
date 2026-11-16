@@ -478,11 +478,10 @@ services:
   # LGTM PROFILE (Metrics, Logs, Traces, Dashboards, Grafana MCP)
   # ==========================================================================
 
-  # The same two services as the hosted online-evals test environment: the
-  # all-in-one Grafana image (Grafana, Prometheus, Loki, Tempo, and an
-  # OpenTelemetry Collector) and the Grafana MCP server. Grafana allows
-  # anonymous admin access, which is the image's default, so nothing here
-  # needs a key. Grafana is at http://localhost:18273/lgtm/.
+  # The all-in-one Grafana image (Grafana, Prometheus, Loki, Tempo, and an
+  # OpenTelemetry Collector) and the Grafana MCP server. In this local profile
+  # Grafana needs no login and the MCP server needs no token. Grafana is at
+  # http://localhost:18273/lgtm/.
   lgtm:
     image: grafana/otel-lgtm:0.40.0
     profiles: ["lgtm"]
