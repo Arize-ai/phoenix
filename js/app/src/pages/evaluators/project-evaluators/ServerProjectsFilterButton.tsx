@@ -49,9 +49,7 @@ export function ServerProjectsFilterButton({
         size="M"
         leadingVisual={<Icon svg={<Icons.Grid />} />}
         trailingVisual={
-          pickedProjectIds.length > 0 ? (
-            <Counter>{pickedProjectIds.length}</Counter>
-          ) : undefined
+          <Counter count={pickedProjectIds.length} showZero={false} />
         }
       >
         Projects

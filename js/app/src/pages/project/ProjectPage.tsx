@@ -658,9 +658,7 @@ function ProjectPageTabs({ projectId }: { projectId: string }) {
           <Tab id="metrics">Metrics</Tab>
           <Tab id="evaluators">
             Evaluators{" "}
-            <Counter variant="quiet">
-              {data.project.evaluatorCount ?? 0}
-            </Counter>
+            <Counter variant="quiet" count={data.project.evaluatorCount ?? 0} />
           </Tab>
           <Tab id="config">Config</Tab>
         </TabList>
