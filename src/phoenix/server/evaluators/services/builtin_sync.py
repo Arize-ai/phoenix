@@ -5,9 +5,9 @@ import logging
 from sqlalchemy import delete, select
 
 from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.types.annotation_configs import OutputConfigType
 from phoenix.db.types.identifier import Identifier
-from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.cleanup.lifecycle import (
     logical_delete_dataset_evaluators,
     logical_delete_project_evaluators,

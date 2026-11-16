@@ -15,7 +15,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
 from opentelemetry.proto.resource.v1.resource_pb2 import Resource
 from opentelemetry.proto.trace.v1.trace_pb2 import ResourceSpans, ScopeSpans
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, update
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -707,6 +707,29 @@ async def test_transfer_traces_moves_traces_to_destination(
         ).all()
     assert set(moved) == {dest_rowid}, "traces should be re-parented to the destination"
     assert source_rowid not in set(moved)
+
+
+async def test_transfer_traces_rejects_deleted_source_project(
+    db: DbSessionFactory,
+    httpx_client: httpx2.AsyncClient,
+) -> None:
+    source_rowid, trace_rowids = await _project_with_traces(db, "dead-src-proj", 1, "cccc")
+    await _project_with_traces(db, "live-dst-proj", 1, "dddd")
+    async with db() as session:
+        await session.execute(
+            update(models.Project)
+            .where(models.Project.id == source_rowid)
+            .values(deleted_at=datetime.fromisoformat("2021-01-02T00:00:00.000+00:00"))
+        )
+
+    response = await httpx_client.post(
+        "v1/traces/transfer",
+        json={
+            "trace_identifiers": [str(GlobalID("Trace", str(rowid))) for rowid in trace_rowids],
+            "destination_project_identifier": "live-dst-proj",
+        },
+    )
+    assert response.status_code == 404
 
 
 async def test_transfer_traces_accepts_project_global_id(

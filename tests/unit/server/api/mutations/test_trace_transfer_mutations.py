@@ -1,7 +1,7 @@
 from datetime import datetime
 
 import pytest
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, update
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -17,6 +17,29 @@ class TestTraceTransferMutationMixin:
         }
       }
     """
+
+    async def test_transfer_from_deleted_source_project_is_rejected(
+        self,
+        gql_client: AsyncGraphQLClient,
+        trace_transfer_fixture: dict[str, int],
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            await session.execute(
+                update(models.Project)
+                .where(models.Project.id == trace_transfer_fixture["source_project_id"])
+                .values(deleted_at=datetime.fromisoformat("2021-01-02T00:00:00.000+00:00"))
+            )
+        result = await gql_client.execute(
+            self.TRANSFER_TRACES_MUTATION,
+            variables={
+                "traceIds": [str(GlobalID("Trace", str(trace_transfer_fixture["trace1_id"])))],
+                "projectId": str(
+                    GlobalID("Project", str(trace_transfer_fixture["dest_project_id"]))
+                ),
+            },
+        )
+        assert result.errors
 
     async def test_transfer_traces_to_project_success(
         self,
