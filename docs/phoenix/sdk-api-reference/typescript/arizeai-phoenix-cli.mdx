@@ -678,6 +678,28 @@ px dataset get query_response --format raw | jq '.examples[].input'
 | `--api-key <key>` | Phoenix API key | From env |
 | `--no-progress` | Disable progress indicators | — |
 
+### `px dataset-labels list|add|remove|replace --dataset <name-or-id>`
+
+Manage assignments of existing labels to datasets. These commands require Phoenix server 17.16.0 or later.
+Dataset identifiers can be names or GlobalIDs. Label identifiers must be GlobalIDs.
+
+```bash
+px dataset-labels list --dataset my-dataset
+px dataset-labels add --dataset my-dataset --label RGF0YXNldExhYmVsOjE=
+px dataset-labels remove --dataset my-dataset --label RGF0YXNldExhYmVsOjE=
+px dataset-labels replace --dataset my-dataset --label RGF0YXNldExhYmVsOjE= --label RGF0YXNldExhYmVsOjI=
+px dataset-labels replace --dataset my-dataset --clear
+px dataset-labels list --dataset my-dataset --format raw --no-progress | jq '.[].name'
+```
+
+Add and remove are idempotent. Removing an assignment preserves the global label and the dataset.
+Replace sets the complete assignment set. Use repeated `--label` flags or `--clear`; combining them is invalid.
+
+All commands accept `--format pretty|json|raw`, `--endpoint`, `--api-key`, and `--no-progress`.
+JSON/raw output returns a label array for list/replace and one label object for add.
+Remove returns an acknowledgment with `dataset_identifier` and `label_id` because its API response has no body.
+In pretty mode, list/add/replace display a label table, and remove displays a confirmation message.
+
 ### `px experiment list --dataset <name-or-id>`
 
 List experiments for a dataset, optionally exporting full data to files.
