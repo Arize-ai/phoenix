@@ -632,13 +632,13 @@ PHOENIX_LDAP_GROUP_ROLE_MAPPINGS='{
   - [x] Maintains operational troubleshooting capability without exposing identities
 
 **Milestone 2.4: Docker Development & Testing Environment** ✅
-- [x] Create Docker Compose LDAP profile (`scripts/docker/devops/overrides/ldap.yml`)
+- [x] Create Docker Compose LDAP profile (`scripts/devops/compose/overrides/ldap.yml`)
   - [x] Real OpenLDAP server (osixia/openldap:1.5.0)
   - [x] phpLDAPadmin web interface for LDAP management
   - [x] Automated seed data loading via ldap-seed container
   - [x] Phoenix integration with LDAP environment variables
   - [x] Automated test runner container with Python test suite
-- [x] Create enhanced LDAP seed data (`scripts/docker/devops/ldap-seed.ldif`)
+- [x] Create enhanced LDAP seed data (`scripts/devops/ldap-seed.ldif`)
   - [x] **11 test users** covering all edge cases (was 4 basic users)
   - [x] **Organizational structure**: ou=users, ou=IT, ou=HR, ou=groups
   - [x] **Edge case users**:
@@ -649,7 +649,7 @@ PHOENIX_LDAP_GROUP_ROLE_MAPPINGS='{
     - [x] `josé` - UNICODE username (UTF-8 support)
     - [x] `duplicate` (IT & HR) - DUPLICATE usernames in different OUs (ambiguous rejection)
   - [x] **3 groups**: admins, members, viewers with proper memberOf attributes
-- [x] Create rigorous test script (`scripts/docker/devops/scripts/test_ldap_integration.py`)
+- [x] Create rigorous test script (`scripts/devops/scripts/test_ldap_integration.py`)
   - [x] **14 comprehensive test cases** covering all success criteria
   - [x] Tests all security controls (injection, anonymous bind, ambiguous results)
   - [x] Tests all edge cases (no groups, multi-groups, special chars, unicode)
@@ -662,21 +662,21 @@ PHOENIX_LDAP_GROUP_ROLE_MAPPINGS='{
   - [x] LDAP Admin accessible at http://localhost:6443
 
 **Milestone 2.5: TLS Security Testing & Adversarial Validation** ✅
-- [x] Create Docker Compose TLS profile (`scripts/docker/devops/overrides/ldap-test.yml`)
+- [x] Create Docker Compose TLS profile (`scripts/devops/compose/overrides/ldap-test.yml`)
   - [x] OpenLDAP with TLS enabled (auto-generated self-signed certificates)
   - [x] Phoenix STARTTLS instance (port 6007, STARTTLS mode)
   - [x] Phoenix LDAPS instance (port 6008, LDAPS mode)
   - [x] Grafana LDAP instance (port 3000, comparison baseline)
   - [x] Adversarial MITM proxy (port 3389, credential extraction)
   - [x] Automated test runner executing comprehensive security validation
-- [x] Implement adversarial MITM proxy (`scripts/docker/devops/scripts/ldap_mitm_proxy.py`)
+- [x] Implement adversarial MITM proxy (`scripts/devops/scripts/ldap_mitm_proxy.py`)
   - [x] LDAP ASN.1/BER protocol parsing for bind request analysis
   - [x] Credential extraction from Simple Authentication (RFC 4513 §5.1.1)
   - [x] StartTLS and TLS handshake detection
   - [x] Credential verification against real LDAP server
   - [x] Structured JSON logging for automated analysis
   - [x] Application identification via reverse DNS
-- [x] Implement comprehensive test suite (`scripts/docker/devops/scripts/test_ldap_tls.py`)
+- [x] Implement comprehensive test suite (`scripts/devops/scripts/test_ldap_tls.py`)
   - [x] **Phase 1: Baseline** - Direct LDAP connectivity tests (plaintext, STARTTLS, LDAPS)
   - [x] **Phase 2: Applications** - Phoenix STARTTLS/LDAPS + Grafana STARTTLS via MITM proxy
   - [x] **Phase 3: Adversarial** - MITM proxy log analysis + credential verification
@@ -686,7 +686,7 @@ PHOENIX_LDAP_GROUP_ROLE_MAPPINGS='{
   - [x] Service account binds use `AUTO_BIND_TLS_BEFORE_BIND` for STARTTLS mode
   - [x] User password verification calls `start_tls()` before `bind()` for STARTTLS
   - [x] LDAPS mode unaffected (TLS from start)
-- [x] Validation results documented (`scripts/docker/devops/LDAP-TLS-TESTING.md`)
+- [x] Validation results documented (`scripts/devops/LDAP-TLS-TESTING.md`)
   - [x] **Phoenix**: ✅ SECURE - MITM proxy extracted 0 credentials
   - [x] **Grafana v11.4**: 🚨 VULNERABLE - MITM proxy extracted 2 credentials
   - [x] Comprehensive architecture diagrams and test flow documentation

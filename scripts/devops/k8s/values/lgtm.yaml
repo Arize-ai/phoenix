@@ -1,0 +1,14 @@
+# Self-instrumentation for the lgtm profile (otel-lgtm traces + structured logs)
+logging:
+  mode: "structured"
+
+instrumentation:
+  otlpTraceCollectorHttpEndpoint: "http://lgtm:4318"
+
+additionalEnv:
+  - name: PYTHONDONTWRITEBYTECODE
+    value: "1"
+  - name: PYTHONUNBUFFERED
+    value: "1"
+  - name: PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_HTTP_ENDPOINT
+    value: "http://lgtm:4318"

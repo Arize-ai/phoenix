@@ -45,7 +45,7 @@ cd tests/integration && uv run pytest . -k TestLDAPAuthentication
 ### Docker Tests
 
 ```bash
-cd scripts/docker/devops
+cd scripts/devops
 
 # Start environment
 docker compose -f compose.yml -f overrides/ldap-test.yml up -d
@@ -64,7 +64,7 @@ docker logs -f devops-ldap-test
 | `tests/integration/auth/test_ldap.py` | Integration tests |
 | `tests/integration/auth/conftest.py` | Test fixtures |
 | `tests/integration/_mock_ldap_server.py` | Mock LDAP protocol |
-| `scripts/docker/devops/scripts/test_ldap_integration.py` | Docker tests |
-| `scripts/docker/devops/scripts/test_ldap_tls.py` | TLS/STARTTLS tests |
-| `scripts/docker/devops/overrides/ldap-test.yml` | Docker environment |
-| `scripts/docker/devops/LDAP-TLS-TESTING.md` | TLS testing guide |
+| `scripts/devops/scripts/test_ldap_integration.py` | Docker tests |
+| `scripts/devops/scripts/test_ldap_tls.py` | TLS/STARTTLS tests |
+| `scripts/devops/compose/overrides/ldap-test.yml` | Docker environment |
+| `scripts/devops/LDAP-TLS-TESTING.md` | TLS testing guide |

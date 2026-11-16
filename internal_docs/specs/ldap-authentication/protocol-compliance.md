@@ -259,7 +259,7 @@ docker logs devops-ldap-test  # View test results (14/14 PASSED ✅)
 
 #### Components
 
-**Docker Services** (`scripts/docker/devops/overrides/ldap.yml`):
+**Docker Services** (`scripts/devops/compose/overrides/ldap.yml`):
 
 | Service | Image | Purpose | Access |
 |---------|-------|---------|--------|
@@ -270,7 +270,7 @@ docker logs devops-ldap-test  # View test results (14/14 PASSED ✅)
 
 #### Enhanced Seed Data
 
-**File**: `scripts/docker/devops/ldap-seed.ldif` (245 lines, 11 users)
+**File**: `scripts/devops/ldap-seed.ldif` (245 lines, 11 users)
 
 **Specification**: 4 basic users → **Implementation**: 11 comprehensive users (+175%)
 
@@ -286,7 +286,7 @@ docker logs devops-ldap-test  # View test results (14/14 PASSED ✅)
 
 #### Automated Test Suite
 
-**File**: `scripts/docker/devops/scripts/test_ldap_integration.py` (438 lines)
+**File**: `scripts/devops/scripts/test_ldap_integration.py` (438 lines)
 
 **14 Test Cases** covering all success criteria:
 
@@ -418,7 +418,7 @@ def _verify_user_password(self, server: Server, user_dn: str, password: str) -> 
 
 #### Validation Strategy
 
-**Docker Test Environment**: `scripts/docker/devops/overrides/ldap-test.yml`
+**Docker Test Environment**: `scripts/devops/compose/overrides/ldap-test.yml`
 
 Automated security testing infrastructure with adversarial validation:
 - **OpenLDAP Server**: Port 389 (STARTTLS) and 636 (LDAPS) with self-signed certificates
@@ -428,7 +428,7 @@ Automated security testing infrastructure with adversarial validation:
 - **Grafana**: Port 3000 - Comparison baseline (routes through MITM proxy)
 - **Test Runner**: Executes comprehensive test suite on startup
 
-**Test Script**: `scripts/docker/devops/scripts/test_ldap_tls.py`
+**Test Script**: `scripts/devops/scripts/test_ldap_tls.py`
 
 Three-phase automated security validation:
 
@@ -447,7 +447,7 @@ Three-phase automated security validation:
 8. Verify extracted credentials against LDAP server
 9. Generate security verdict
 
-**MITM Proxy**: `scripts/docker/devops/scripts/ldap_mitm_proxy.py`
+**MITM Proxy**: `scripts/devops/scripts/ldap_mitm_proxy.py`
 
 Acts as network adversary to validate TLS security:
 - Intercepts LDAP traffic between applications and server
@@ -599,7 +599,7 @@ For production deployment validation:
 **Automated Testing**:
 ```bash
 # Start test environment (includes MITM proxy)
-cd scripts/docker/devops
+cd scripts/devops
 COMPOSE_PROFILES=ldap-test docker compose \
     -f docker-compose.yml \
     -f overrides/ldap-test.yml \
@@ -625,7 +625,7 @@ docker logs devops-ldap-mitm-proxy 2>&1 | grep "CREDENTIALS STOLEN"
 # Expected: No output (Phoenix is secure)
 ```
 
-For comprehensive documentation of the testing infrastructure, see: `scripts/docker/devops/LDAP-TLS-TESTING.md`
+For comprehensive documentation of the testing infrastructure, see: `scripts/devops/LDAP-TLS-TESTING.md`
 
 Expected: HTTP 204 with `set-cookie` headers containing access/refresh tokens.
 
@@ -879,8 +879,8 @@ return cls(
 #### Docker Validation
 
 **Files**: 
-- `scripts/docker/devops/overrides/ldap.yml`
-- `scripts/docker/devops/overrides/ldap-test.yml`
+- `scripts/devops/compose/overrides/ldap.yml`
+- `scripts/devops/compose/overrides/ldap-test.yml`
 
 All Docker LDAP configurations **omit** `PHOENIX_LDAP_PORT` to validate port defaulting in real-world scenarios:
 
