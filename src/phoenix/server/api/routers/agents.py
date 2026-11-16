@@ -1699,7 +1699,7 @@ async def _resolve_agent_session_trace_project_id(
             .where(
                 models.Project.name == project_name,
                 models.Project.deleted_at.is_not(None),
-                models.Project.created_at <= session_created_at,
+                models.Project.deleted_at >= session_created_at,
             )
             .limit(1)
         )
