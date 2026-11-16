@@ -280,7 +280,7 @@ def image_type(data: bytes, *, path: str) -> Optional[ImageMediaType]:
 
 def image_text(data: bytes) -> str:
     text = "\n".join(
-        re.findall(r"[^\x00-\x1f\x7f-\x9f\ufffd]{4,}", data.decode("utf-8", errors="replace"))
+        re.findall(r"[^\x00-\x1f\x7f-\x9f\ufffd]+", data.decode("utf-8", errors="replace"))
     )
     if len(text.encode()) > MAX_IMAGE_TEXT_BYTES:
         raise ValueError("too-large-to-scan: readable image text exceeds 128 KiB")
