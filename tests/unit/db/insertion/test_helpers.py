@@ -2,10 +2,12 @@ from asyncio import sleep
 from typing import Any, Mapping, Optional
 
 import pytest
+import sqlalchemy as sa
 from sqlalchemy import insert, select
 from sqlalchemy.exc import DBAPIError, EmulatedDBAPIException
 
 from phoenix.db import models
+from phoenix.db.cleanup_tasks import live_row_predicate
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import (
     OnConflict,
@@ -71,6 +73,7 @@ class Test_insert_on_conflict:
                     table=models.Project,
                     unique_by=("name",),
                     on_conflict=on_conflict,
+                    index_where=sa.text(live_row_predicate()),
                 )
             )
         projects = (await session.scalars(select(models.Project))).all()
@@ -118,6 +121,7 @@ class Test_insert_on_conflict:
                     table=models.Project,
                     unique_by=("name",),
                     on_conflict=on_conflict,
+                    index_where=sa.text(live_row_predicate()),
                 )
             )
             updated_project = await session.scalar(

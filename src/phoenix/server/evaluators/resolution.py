@@ -124,7 +124,10 @@ async def get_evaluators(
                 PolymorphicEvaluator,
                 models.DatasetEvaluators.evaluator_id == PolymorphicEvaluator.id,
             )
-            .where(models.DatasetEvaluators.id.in_(dataset_evaluator_ids))
+            .where(
+                models.DatasetEvaluators.id.in_(dataset_evaluator_ids),
+                models.DatasetEvaluators.deleted_at.is_(None),
+            )
         )
     ).all()
     bindings_by_id: dict[int, tuple[models.DatasetEvaluators, models.Evaluator]] = {
@@ -318,14 +321,31 @@ async def _build_code_evaluator(
 ) -> CodeEvaluatorRunner:
     evaluator_version_id: Optional[str] = None
     if isinstance(definition, StoredCodeEvaluatorDefinition):
-        record, version = await _stored_code_evaluator_version(definition, session=session)
-        name = record.name.root
-        description = record.description
-        source_code = version.source_code
-        output_configs: Sequence[OutputConfigType] = as_output_configs(record.output_configs)
-        language = definition.language or record.language
-        sandbox_config_id = definition.sandbox_config_id or record.sandbox_config_id
-        evaluator_version_id = str(GlobalID("CodeEvaluatorVersion", str(version.id)))
+        if (
+            definition.source_code is not None
+            and definition.output_configs is not None
+            and definition.name is not None
+            and definition.language is not None
+            and definition.code_evaluator_version_id is not None
+        ):
+            name = definition.name
+            description = definition.description
+            source_code = definition.source_code
+            output_configs: Sequence[OutputConfigType] = definition.output_configs
+            language = definition.language
+            sandbox_config_id = definition.sandbox_config_id
+            evaluator_version_id = str(
+                GlobalID("CodeEvaluatorVersion", str(definition.code_evaluator_version_id))
+            )
+        else:
+            record, version = await _stored_code_evaluator_version(definition, session=session)
+            name = record.name.root
+            description = record.description
+            source_code = version.source_code
+            output_configs = as_output_configs(record.output_configs)
+            language = definition.language or record.language
+            sandbox_config_id = definition.sandbox_config_id or record.sandbox_config_id
+            evaluator_version_id = str(GlobalID("CodeEvaluatorVersion", str(version.id)))
         if sandbox_config_id is None:
             raise BadRequest(
                 f"Code evaluator '{name}' has no sandbox backend configured"

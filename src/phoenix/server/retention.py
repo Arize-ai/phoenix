@@ -56,7 +56,9 @@ class TraceDataSweeper(DaemonTask):
 
     async def _get_policies(self) -> list[ProjectTraceRetentionPolicy]:
         stmt = sa.select(ProjectTraceRetentionPolicy).options(
-            selectinload(ProjectTraceRetentionPolicy.projects).load_only(Project.id)
+            selectinload(ProjectTraceRetentionPolicy.projects).load_only(
+                Project.id, Project.deleted_at
+            )
         )
         async with self._db() as session:
             result = await session.scalars(stmt)
@@ -85,36 +87,19 @@ class TraceDataSweeper(DaemonTask):
         """
         try:
             project_rowids = (
-                (sa.select(Project.id).where(Project.trace_retention_policy_id.is_(None)))
-                if policy.id == DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
-                else [p.id for p in policy.projects]
-            )
-            # For max_count rules the filter's row_number() window is re-evaluated per batch
-            # over all of the policy's traces. The batch limit bounds deletions, not the
-            # ranking work, which can still exceed the statement timeout.
-            deletion_filter = policy.rule.deletion_filter(project_rowids)
-            while self._running:
-                candidate_ids = (
-                    sa.select(Trace.id).where(deletion_filter).limit(_TRACE_DELETE_BATCH_SIZE)
-                )
-                if self._db.dialect is SupportedSQLDialect.POSTGRESQL:
-                    candidate_ids = candidate_ids.with_for_update(skip_locked=True)
-                stmt = (
-                    sa.delete(Trace)
-                    .where(Trace.id.in_(candidate_ids))
-                    .returning(Trace.project_rowid)
-                )
-                async with self._db() as session:
-                    deleted_project_rowids = (await session.scalars(stmt)).all()
-                # Publish only committed changes, including batches before a later failure.
-                # RETURNING is bounded by the batch size even for a large backlog.
-                if deleted_project_rowids:
-                    self._dml_event_handler.put(
-                        SpanDeleteEvent(tuple(sorted(set(deleted_project_rowids))))
+                (
+                    sa.select(Project.id).where(
+                        Project.trace_retention_policy_id.is_(None),
+                        Project.deleted_at.is_(None),
+                        Project.kind.in_(("STANDARD", "PLAYGROUND")),
                     )
-                if len(deleted_project_rowids) < _TRACE_DELETE_BATCH_SIZE:
-                    RETENTION_POLICY_EXECUTIONS.labels(status="success").inc()
-                    break
+                )
+                if policy.id == DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
+                else [p.id for p in policy.projects if p.deleted_at is None]
+            )
+            result = await policy.rule.delete_traces_in_batches(self._db, project_rowids)
+            self._dml_event_handler.put(SpanDeleteEvent(tuple(result)))
+            RETENTION_POLICY_EXECUTIONS.labels(status="success").inc()
         except Exception:
             logger.exception(f"Failed to apply retention policy '{policy.name}' (id={policy.id})")
             RETENTION_POLICY_EXECUTIONS.labels(status="error").inc()
