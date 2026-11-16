@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5ca48c09b42e39a9be31d7b612d1f773>>
+ * @generated SignedSource<<aedcfbf1cdfef1aacda42a5720e966ec>>
  * @lightSyntaxTransform
  */
 
@@ -25,6 +25,10 @@ export type SessionDetailsTraceList_traces$data = {
           readonly attributes: string;
           readonly cumulativeTokenCountTotal: number | null;
           readonly endTime: string | null;
+          readonly events: ReadonlyArray<{
+            readonly message: string;
+            readonly name: string;
+          }>;
           readonly id: string;
           readonly input: {
             readonly mimeType: MimeType;
@@ -44,6 +48,7 @@ export type SessionDetailsTraceList_traces$data = {
           readonly spanId: string;
           readonly startTime: string;
           readonly statusCode: SpanStatusCode;
+          readonly statusMessage: string;
           readonly summarySpanAnnotationSummaries: ReadonlyArray<{
             readonly count: number;
             readonly labelFractions: ReadonlyArray<{
@@ -430,6 +435,32 @@ return {
                       "alias": null,
                       "args": null,
                       "kind": "ScalarField",
+                      "name": "statusMessage",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "SpanEvent",
+                      "kind": "LinkedField",
+                      "name": "events",
+                      "plural": true,
+                      "selections": [
+                        (v3/*:: as any*/),
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "message",
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
                       "name": "spanId",
                       "storageKey": null
                     },
@@ -517,6 +548,6 @@ return {
 };
 })();
 
-(node as any).hash = "1f111ea1e2186d1062bc2322d38a9796";
+(node as any).hash = "4c8d71ec43cc80298725fe86a55e6e46";
 
 export default node;

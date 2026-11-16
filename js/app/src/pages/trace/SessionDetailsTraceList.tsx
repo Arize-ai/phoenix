@@ -18,6 +18,7 @@ import type { To } from "react-router";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 
 import {
+  Alert,
   EdgeFade,
   Flex,
   ExpandableContent,
@@ -47,9 +48,11 @@ import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
+import { SpanStatusIndicator } from "@phoenix/components/trace/SpanStatusIndicator";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { TraceTokenCosts } from "@phoenix/components/trace/TraceTokenCosts";
+import type { SpanStatusCodeType } from "@phoenix/components/trace/types";
 import {
   SELECTED_SPAN_NODE_ID_PARAM,
   SELECTED_TRACE_ID_PARAM,
@@ -146,19 +149,71 @@ const SESSION_TURN_MAX_WIDTH = "1000px";
 
 type RootSpanMessageRole = "INPUT" | "OUTPUT";
 
+type TurnError = {
+  /** Null when the root span recorded no message for its error. */
+  message: string | null;
+};
+
+/**
+ * The error of a turn whose root span ended in error, or null when it did not.
+ * Its message is the root span's status message or, when the instrumentation
+ * recorded the exception without setting one, the message of the span's first
+ * exception event that has one.
+ */
+export function getTurnError({
+  statusCode,
+  statusMessage,
+  events,
+}: {
+  statusCode: SpanStatusCodeType;
+  statusMessage: string;
+  events: ReadonlyArray<{ name: string; message: string }>;
+}): TurnError | null {
+  if (statusCode !== "ERROR") {
+    return null;
+  }
+  if (statusMessage) {
+    return { message: statusMessage };
+  }
+  const exceptionEvent = events.find(
+    (event) => event.name === "exception" && event.message
+  );
+  return { message: exceptionEvent?.message ?? null };
+}
+
+const errorAlertWrapCSS = css`
+  width: 100%;
+  overflow-wrap: anywhere;
+`;
+
 type RootSpanMessageProps = {
   label?: string;
   role: RootSpanMessageRole;
-  value: unknown;
+  value: string | null | undefined;
+  /**
+   * Set when the turn's root span ended in error. The message then shows in
+   * place of an empty output, or below the output the span did record.
+   */
+  error?: TurnError | null;
 };
 
-function RootSpanMessage({ label, role, value }: RootSpanMessageProps) {
+export function RootSpanMessage({
+  label,
+  role,
+  value,
+  error,
+}: RootSpanMessageProps) {
   const isInput = role === "INPUT";
   const styles = useChatMessageStyles(isInput ? "user" : "assistant");
   const defaultLabel = isInput ? "INPUT" : "OUTPUT";
   const overlayBackgroundColor = isInput
     ? "var(--global-color-gray-100)"
     : "var(--global-color-blue-100)";
+  const hasValue = Boolean(value);
+  // An errored turn with no output shows its error instead of "--"
+  const isValueShown = hasValue || error == null;
+  const isErrorAlertShown =
+    error != null && (error.message != null || !hasValue);
   return (
     <Flex
       direction="column"
@@ -170,26 +225,37 @@ function RootSpanMessage({ label, role, value }: RootSpanMessageProps) {
         direction="row"
         justifyContent="space-between"
         alignItems="center"
+        gap="size-100"
         width="100%"
       >
         <Text color="text-700">{label ?? defaultLabel}</Text>
+        {error != null ? <SpanStatusIndicator statusCode="ERROR" /> : null}
       </Flex>
-      <View
-        borderRadius={"medium"}
-        borderColor="default"
-        borderWidth={"thin"}
-        padding="size-200"
-        width="100%"
-        {...styles}
-      >
-        <ExpandableContent
-          height={SESSION_TURN_MESSAGE_MAX_HEIGHT}
-          expandedBehavior="grow"
-          overlayBackgroundColor={overlayBackgroundColor}
+      {isValueShown ? (
+        <View
+          borderRadius={"medium"}
+          borderColor="default"
+          borderWidth={"thin"}
+          padding="size-200"
+          width="100%"
+          {...styles}
         >
-          <DynamicContent value={value} />
-        </ExpandableContent>
-      </View>
+          <ExpandableContent
+            height={SESSION_TURN_MESSAGE_MAX_HEIGHT}
+            expandedBehavior="grow"
+            overlayBackgroundColor={overlayBackgroundColor}
+          >
+            <DynamicContent value={value} />
+          </ExpandableContent>
+        </View>
+      ) : null}
+      {isErrorAlertShown ? (
+        <div css={errorAlertWrapCSS}>
+          <Alert variant="danger">
+            {error.message ?? "The turn failed without an error message."}
+          </Alert>
+        </div>
+      ) : null}
     </Flex>
   );
 }
@@ -413,7 +479,11 @@ function SessionTurnDetail({
         alignItems="end"
         css={messageWrapCSS}
       >
-        <RootSpanMessage role="OUTPUT" value={rootSpan.output?.value} />
+        <RootSpanMessage
+          role="OUTPUT"
+          value={rootSpan.output?.value}
+          error={getTurnError(rootSpan)}
+        />
         <RootSpanOutputMetadata
           rootSpan={rootSpan}
           annotationConfigsByName={annotationConfigsByName}
@@ -642,6 +712,11 @@ export function SessionTurnList({
                         {row.rootSpan.name}
                       </Text>
                     </Truncate>
+                    {row.rootSpan.statusCode === "ERROR" ? (
+                      <Flex flexShrink={0}>
+                        <SpanStatusIndicator statusCode="ERROR" isLabelHidden />
+                      </Flex>
+                    ) : null}
                   </Flex>
                   <Flex flexShrink={0}>
                     <Text color="text-700" size="XS">
@@ -792,6 +867,11 @@ export function SessionDetailsTraceList({
                 startTime
                 endTime
                 statusCode
+                statusMessage
+                events {
+                  name
+                  message
+                }
                 spanId
                 summarySpanAnnotationSummaries: spanAnnotationSummaries(
                   filter: { exclude: { names: ["note"] } }
