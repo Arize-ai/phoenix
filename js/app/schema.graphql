@@ -2439,9 +2439,9 @@ input DeleteDatasetEvaluatorsInput {
   deleteUnusedEvaluator: Boolean! = true
 
   """
-  Also delete each LLM evaluator's prompt or decision evaluator's decision when no other evaluator references it. Off by default so shared prompts and decisions survive.
+  Also delete each LLM evaluator's prompt or decision evaluator's decision when no other evaluator references it. A prompt or decision still used by another evaluator is always kept. Set to false to keep unused ones too.
   """
-  deleteUnusedPromptOrDecision: Boolean! = false
+  deleteUnusedPromptOrDecision: Boolean! = true
 }
 
 type DeleteDatasetEvaluatorsPayload {
@@ -2556,9 +2556,9 @@ input DeleteProjectEvaluatorsInput {
   deleteUnusedEvaluator: Boolean! = true
 
   """
-  Also delete each LLM evaluator's prompt or decision evaluator's decision when no other evaluator references it. Off by default so shared prompts and decisions survive.
+  Also delete each LLM evaluator's prompt or decision evaluator's decision when no other evaluator references it. A prompt or decision still used by another evaluator is always kept. Set to false to keep unused ones too.
   """
-  deleteUnusedPromptOrDecision: Boolean! = false
+  deleteUnusedPromptOrDecision: Boolean! = true
 }
 
 type DeleteProjectEvaluatorsPayload {

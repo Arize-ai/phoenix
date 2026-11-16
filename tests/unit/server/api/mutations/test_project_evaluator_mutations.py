@@ -854,6 +854,43 @@ async def test_delete_last_binding_with_associated_prompt_deletes_it_without_err
         assert await session.get(models.Prompt, prompt_id) is None
 
 
+async def test_delete_binding_deletes_an_unused_prompt_by_default_but_keeps_a_shared_one(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    project = await _add_project(db)
+    first_result = await gql_client.execute(
+        _CREATE_LLM, {"input": _llm_input(project, name="first-llm", text="Evaluate {{input}}")}
+    )
+    assert first_result.data and not first_result.errors
+    first = first_result.data["createProjectLlmEvaluator"]["evaluator"]
+    second_input = _llm_input(project, name="second-llm", text="Evaluate {{input}}")
+    second_input["promptVersionId"] = first["evaluator"]["promptVersion"]["id"]
+    second_result = await gql_client.execute(_CREATE_LLM, {"input": second_input})
+    assert second_result.data and not second_result.errors
+    second = second_result.data["createProjectLlmEvaluator"]["evaluator"]
+    async with db() as session:
+        first_evaluator = await session.get(
+            models.LLMEvaluator, int(GlobalID.from_id(first["evaluator"]["id"]).node_id)
+        )
+        assert first_evaluator is not None
+        prompt_id = first_evaluator.prompt_id
+
+    shared_result = await gql_client.execute(
+        _DELETE, {"input": {"projectEvaluatorIds": [first["id"]]}}
+    )
+    assert shared_result.data and not shared_result.errors
+    async with db() as session:
+        assert await session.get(models.Prompt, prompt_id) is not None
+
+    unused_result = await gql_client.execute(
+        _DELETE, {"input": {"projectEvaluatorIds": [second["id"]]}}
+    )
+    assert unused_result.data and not unused_result.errors
+    async with db() as session:
+        assert await session.get(models.Prompt, prompt_id) is None
+
+
 async def test_project_evaluator_tracing_defaults_on_and_is_preserved_unless_set(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
