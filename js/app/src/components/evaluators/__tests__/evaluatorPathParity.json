@@ -470,48 +470,7 @@
     {
       "context": "edges",
       "path": "metadata['*']",
-      "outcome": "value",
-      "value": [
-        [
-          {
-            "role": "user"
-          },
-          {
-            "role": "assistant"
-          }
-        ],
-        {
-          "k": 1,
-          "j": 2
-        },
-        1,
-        2,
-        null,
-        5,
-        true,
-        false,
-        0,
-        [],
-        {},
-        "",
-        [[1, 2], [3]],
-        [
-          {
-            "b": 1
-          },
-          {
-            "c": 2
-          }
-        ],
-        "a😀b",
-        "str",
-        {
-          "*": 9
-        },
-        {
-          "label": "ok"
-        }
-      ]
+      "outcome": "unresolved"
     },
     {
       "context": "edges",
@@ -623,47 +582,7 @@
       "context": "edges",
       "path": "metadata['*','s']",
       "outcome": "value",
-      "value": [
-        [
-          {
-            "role": "user"
-          },
-          {
-            "role": "assistant"
-          }
-        ],
-        {
-          "k": 1,
-          "j": 2
-        },
-        1,
-        2,
-        null,
-        5,
-        true,
-        false,
-        0,
-        [],
-        {},
-        "",
-        [[1, 2], [3]],
-        [
-          {
-            "b": 1
-          },
-          {
-            "c": 2
-          }
-        ],
-        "a😀b",
-        "str",
-        {
-          "*": 9
-        },
-        {
-          "label": "ok"
-        }
-      ]
+      "value": "str"
     },
     {
       "context": "edges",
