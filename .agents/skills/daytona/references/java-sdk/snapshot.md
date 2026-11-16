@@ -50,6 +50,28 @@ Creates a snapshot from an existing image reference with a target sandbox class.
 
 #### create()
 ```java
+public Snapshot create(String name, String imageName, SandboxClass sandboxClass, String regionId)
+```
+
+Creates a snapshot from an existing image reference with a target sandbox class and region.
+
+**Parameters**:
+
+- `name` _String_ - snapshot name
+- `imageName` _String_ - source image name or tag
+- `sandboxClass` _SandboxClass_ - target sandbox class; `null` for default
+- `regionId` _String_ - region where the snapshot is created; `null` to use the client-level target if configured, otherwise the organization's default region
+
+**Returns**:
+
+- `Snapshot` - created `Snapshot`
+
+**Throws**:
+
+- `io.daytona.sdk.exception.DaytonaException` - if the API request fails
+
+#### create()
+```java
 public Snapshot create(String name, Image image, Consumer<String> onLogs)
 ```
 

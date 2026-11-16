@@ -3,7 +3,6 @@
 - Access from Dashboard
 - Real-time updates
 - Log structure
-- Get all audit logs
 - Get audit logs for organization
 - Get audit scenarios
 - Outcomes
@@ -59,17 +58,6 @@ Each audit log entry contains the following fields:
 | **`source`**         | string | Source of the action                                 |
 | **`metadata`**       | object | Additional context about the action                  |
 | **`createdAt`**      | string | ISO 8601 timestamp of when the action occurred       |
-
-## Get all audit logs
-
-Get all audit logs.
-
-**API:**
-
-```bash
-curl 'https://app.daytona.io/api/audit' \
-  --header 'Authorization: Bearer YOUR_API_KEY'
-```
 
 ## Get audit logs for organization
 

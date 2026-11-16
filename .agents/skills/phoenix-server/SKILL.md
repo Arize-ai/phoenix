@@ -107,8 +107,10 @@ tests/unit/server/api/
 
 ## Docstrings
 
-The project rule of "default to no comments" is about **inline comments**, not
-docstrings. Public APIs should be documented.
+Default to no inline comments: keep one only where a competent reader of the final
+code, without it, would likely change the code wrongly, and never to explain the change
+itself (that belongs in the commit message or PR description). Docstrings are not inline
+comments. Public APIs should be documented.
 
 - **Document parameters and return values on public methods of reusable classes**
   (clients, services, factories, builders). Use Google-style `Args:` / `Returns:`

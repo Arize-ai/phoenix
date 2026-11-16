@@ -22,9 +22,9 @@ Computer Use enables programmatic control of desktop environments within sandbox
 
 Computer Use and [VNC](./vnc-access.md) work together to enable both manual and automated desktop interactions. VNC provides the visual interface for users to manually interact with the desktop, while Computer Use provides the programmatic API for AI agents to automate operations.
 
-Computer Use is available for **Linux** and **Windows** through Daytona. For **macOS** sandboxes and Computer Use, use [use.computer ↗](https://use.computer).
-> **Note: macOS sandboxes**
-> macOS sandboxes are available at [use.computer ↗](https://use.computer). See the [use.computer API documentation ↗](https://use.computer/docs) to create and control a macOS sandbox.
+Computer Use is available for **Linux** and **Windows** through Daytona. For **macOS** sandboxes and Computer Use, see [macOS sandboxes](./sandboxes.md#macos-sandboxes).
+> **Note: Custom snapshots**
+> Default snapshots include the packages required for Computer Use. Sandboxes created from custom images or custom snapshots, including custom [Linux VM snapshots](./snapshots.md#vm-snapshots), need the [VNC and desktop packages](./vnc-access.md#required-packages) installed in the image.
 
 ## Start Computer Use
 
@@ -124,6 +124,23 @@ const result = await sandbox.computerUse.mouse.drag(50, 50, 150, 150);
 console.log(`Drag ended at ${result.x}, ${result.y}`);
 ```
 
+### Hold and release button
+
+Press and hold a mouse button, then release it. The button stays held until a matching release call, which lets you compose press-move-release gestures such as marquee selection or drawing strokes. When X and Y coordinates are provided, the cursor moves to that position before the button is pressed or released; when omitted, the action happens at the current cursor position. Button is one of left (default), right, or middle.
+
+To hold a modifier key during the gesture, wrap it with the keyboard [hold and release](#hold-and-release-key) calls.
+
+```typescript
+// Press the left button at (100, 200) and release it at (300, 400)
+await sandbox.computerUse.mouse.down(100, 200);
+const result = await sandbox.computerUse.mouse.up(300, 400);
+console.log(`Released at ${result.x}, ${result.y}`);
+
+// Press and release the right button at the current cursor position
+await sandbox.computerUse.mouse.down(undefined, undefined, 'right');
+await sandbox.computerUse.mouse.up(undefined, undefined, 'right');
+```
+
 ### Scroll
 
 Scroll the mouse wheel at the specified coordinates. `direction` is `up` or `down` (other values return an error). `amount` is the number of scroll wheel ticks to send — one tick is roughly one notch of a physical mouse wheel, which moves a few lines in most apps. Defaults to 1 if omitted.
@@ -188,9 +205,24 @@ await sandbox.computerUse.keyboard.hotkey('ctrl+v');
 await sandbox.computerUse.keyboard.hotkey('alt+tab');
 ```
 
+### Hold and release key
+
+Press and hold a key, then release it. The key stays held until a matching release call, which lets you hold a modifier such as shift across several mouse or keyboard actions. Keys use the same names as [press](#press), listed in [supported keys](#supported-keys). Release the key in a finally block (or the language equivalent) so a failed action does not leave the key held.
+
+```typescript
+// Hold Shift while clicking two points, then release it
+await sandbox.computerUse.keyboard.down('shift');
+try {
+  await sandbox.computerUse.mouse.click(100, 200);
+  await sandbox.computerUse.mouse.click(100, 300);
+} finally {
+  await sandbox.computerUse.keyboard.up('shift');
+}
+```
+
 ### Supported keys
 
-`keyboard.press()` and `keyboard.hotkey()` are case-insensitive for named keys. The following are supported:
+`keyboard.press()`, `keyboard.hotkey()`, `keyboard.down()`, and `keyboard.up()` are case-insensitive for named keys. The following are supported:
 
 | Category           | Keys                                                                                                                            |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
@@ -303,7 +335,7 @@ Take a screenshot of the entire screen.
 
 ```typescript
 const screenshot = await sandbox.computerUse.screenshot.takeFullScreen();
-console.log(`Screenshot size: ${screenshot.width}x${screenshot.height}`);
+console.log(`Screenshot captured, base64 length: ${screenshot.screenshot?.length}`);
 
 // With cursor visible
 const withCursor = await sandbox.computerUse.screenshot.takeFullScreen(true);
@@ -316,7 +348,7 @@ Take a screenshot of a specific region.
 ```typescript
 const region = { x: 100, y: 100, width: 300, height: 200 };
 const screenshot = await sandbox.computerUse.screenshot.takeRegion(region);
-console.log(`Captured region: ${screenshot.region.width}x${screenshot.region.height}`);
+console.log(`Captured ${region.width}x${region.height} region, base64 length: ${screenshot.screenshot?.length}`);
 ```
 
 ### Take compressed
@@ -352,7 +384,7 @@ const screenshot = await sandbox.computerUse.screenshot.takeCompressedRegion(reg
   quality: 80,
   showCursor: true
 });
-console.log(`Compressed size: ${screenshot.size_bytes} bytes`);
+console.log(`Compressed size: ${screenshot.sizeBytes} bytes`);
 ```
 
 ## Screen Recording
@@ -376,13 +408,13 @@ const sandbox = await daytona.create({
 
 ### Start Recording
 
-Start a new screen recording session with an optional name identifier:
+Start a new screen recording session with an optional label:
 
 ```typescript
-// Start recording with a custom name
+// Start recording with a custom label
 const recording = await sandbox.computerUse.recording.start('test-1');
 console.log(`Recording started: ${recording.id}`);
-console.log(`File path: ${recording.file_path}`);
+console.log(`File path: ${recording.filePath}`);
 ```
 
 ### Stop Recording
@@ -392,8 +424,8 @@ Stop an active recording session by providing the recording ID:
 ```typescript
 // Stop the recording
 const stoppedRecording = await sandbox.computerUse.recording.stop(recording.id);
-console.log(`Recording stopped: ${stoppedRecording.duration_seconds} seconds`);
-console.log(`Saved to: ${stoppedRecording.file_path}`);
+console.log(`Recording stopped: ${stoppedRecording.durationSeconds} seconds`);
+console.log(`Saved to: ${stoppedRecording.filePath}`);
 ```
 
 ### List Recordings
@@ -404,7 +436,7 @@ Get a list of all recordings in the sandbox:
 const recordingsList = await sandbox.computerUse.recording.list();
 console.log(`Total recordings: ${recordingsList.recordings.length}`);
 recordingsList.recordings.forEach(rec => {
-  console.log(`- ${rec.name}: ${rec.duration_seconds}s (${rec.file_size_bytes} bytes)`);
+  console.log(`- ${rec.fileName}: ${rec.durationSeconds}s (${rec.sizeBytes} bytes)`);
 });
 ```
 
@@ -414,9 +446,9 @@ Get details about a specific recording:
 
 ```typescript
 const recordingDetail = await sandbox.computerUse.recording.get('recording-id');
-console.log(`Recording: ${recordingDetail.name}`);
+console.log(`Recording: ${recordingDetail.fileName}`);
 console.log(`Status: ${recordingDetail.status}`);
-console.log(`Duration: ${recordingDetail.duration_seconds}s`);
+console.log(`Duration: ${recordingDetail.durationSeconds}s`);
 ```
 
 ### Delete Recording
@@ -497,9 +529,9 @@ Get information about the displays.
 
 ```typescript
 const info = await sandbox.computerUse.display.getInfo();
-console.log(`Primary display: ${info.primary_display.width}x${info.primary_display.height}`);
-console.log(`Total displays: ${info.total_displays}`);
-info.displays.forEach((display, index) => {
+const displays = info.displays ?? [];
+console.log(`Total displays: ${displays.length}`);
+displays.forEach((display, index) => {
   console.log(`Display ${index}: ${display.width}x${display.height} at ${display.x},${display.y}`);
 });
 ```
@@ -510,8 +542,9 @@ Get the list of open windows.
 
 ```typescript
 const windows = await sandbox.computerUse.display.getWindows();
-console.log(`Found ${windows.count} open windows:`);
-windows.windows.forEach(window => {
+const windowList = windows.windows ?? [];
+console.log(`Found ${windowList.length} open windows:`);
+windowList.forEach(window => {
   console.log(`- ${window.title} (ID: ${window.id})`);
 });
 ```

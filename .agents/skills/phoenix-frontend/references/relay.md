@@ -42,3 +42,7 @@ When a PXI `ui.*` write changes which records a mounted list contains or how it 
 When you need a single object by id (e.g. a lazy tooltip, a detail popover), fetch it directly via the `node(id: $id)` root field with an inline fragment on the concrete type — do **not** fetch a whole collection and `.find()` the one you want on the client. Over-fetching a list to grab one row wastes a round trip and scales badly.
 
 If the type isn't yet exposed through the `node` interface, make it a `Node` on the backend (have its GQL type declare `id: NodeID[int]` / implement `Node`, resolve fields lazily from the id, and add an `elif type_name == X.__name__: return X(id=node_id)` branch to `Query.node` in `src/phoenix/server/api/queries.py`) rather than working around it with a collection query.
+
+## Testing
+
+Test Relay components with `relay-test-utils` (`createMockEnvironment`, `MockPayloadGenerator`, `@relay_test_operation`). See `references/testing.md`.

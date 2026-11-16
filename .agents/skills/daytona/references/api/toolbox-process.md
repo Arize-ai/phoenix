@@ -471,6 +471,7 @@ Schema: **SessionExecuteRequest**
 | 400 | Bad Request | ErrorResponse |
 | 404 | Not Found | ErrorResponse |
 | 409 | Conflict | ErrorResponse |
+| 410 | Gone | ErrorResponse |
 | 500 | Internal Server Error | ErrorResponse |
 
 ---

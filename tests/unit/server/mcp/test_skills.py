@@ -1,7 +1,8 @@
 """Tests for the skills the MCP server serves.
 
 Which skills a consumer sees is decided by the roots its server is built with:
-the mount receives the shared root alone; the in-process agent adds its own.
+the mount receives the MCP root alone; the in-process agent receives the public
+skills that target PXI, then its own.
 """
 
 from __future__ import annotations
@@ -16,9 +17,10 @@ from fastmcp import Client, FastMCP
 from fastmcp.exceptions import ToolError
 
 from phoenix.server.mcp.skills import (
+    MCP_SKILLS_ROOT,
+    PXI_PUBLIC_SKILLS_ROOT,
     PXI_SKILLS_ROOT,
     PXI_SKILLS_ROOTS,
-    SHARED_SKILLS_ROOT,
     Skill,
     load_external_skills,
     load_skills,
@@ -181,16 +183,16 @@ class TestTools:
 
 
 class TestLoadSkills:
-    def test_pxi_skills_are_the_shared_root_then_its_own(self) -> None:
+    def test_pxi_skills_are_the_public_ones_then_its_own(self) -> None:
         names = [skill.name for skill in load_skills(PXI_SKILLS_ROOTS)]
-        shared = [skill.name for skill in load_skills((SHARED_SKILLS_ROOT,))]
+        public = [skill.name for skill in load_skills((PXI_PUBLIC_SKILLS_ROOT,))]
         pxi = [skill.name for skill in load_skills((PXI_SKILLS_ROOT,))]
 
-        assert names == shared + pxi
-        assert shared == sorted(shared)
+        assert names == public + pxi
+        assert public == sorted(public)
         assert pxi == sorted(pxi)
         assert {"phoenix-graphql", "datasets"} <= set(pxi)
-        assert not set(shared) & set(pxi)
+        assert not set(public) & set(pxi)
 
     def test_references_are_named_by_their_path_from_the_skill_root(self, tmp_path: Path) -> None:
         _write_skill(tmp_path / "a-skill")
@@ -323,11 +325,11 @@ async def test_external_skills_reach_instructions_and_tools(
     monkeypatch.setenv("PHOENIX_SKILLS_PATHS", str(tmp_path))
     skills = load_external_skills()
     assert {skill.name for skill in skills} == {"first-skill", "second-skill"}
-    async with Client(_server(SHARED_SKILLS_ROOT, external_skills=skills)) as client:
+    async with Client(_server(MCP_SKILLS_ROOT, external_skills=skills)) as client:
         for skill in skills:
             assert f"<name>{skill.name}</name>" in (client.instructions or "")
             assert f"name: {skill.name}" in await _text(client, "load_skill", skill_name=skill.name)
-        for skill in load_skills((SHARED_SKILLS_ROOT,)):
+        for skill in load_skills((MCP_SKILLS_ROOT,)):
             assert f"<name>{skill.name}</name>" in (client.instructions or "")
 
 
@@ -403,3 +405,17 @@ def test_missing_external_root_still_fails(tmp_path: Path, monkeypatch: pytest.M
     monkeypatch.setenv("PHOENIX_SKILLS_PATHS", str(tmp_path / "nowhere"))
     with pytest.raises(ValueError, match="not a directory"):
         load_external_skills()
+
+
+def test_external_skill_cannot_override_a_skill_only_the_mount_serves(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pxi = {skill.name for skill in load_skills(PXI_SKILLS_ROOTS)}
+    mount_only = next(s.name for s in load_skills((MCP_SKILLS_ROOT,)) if s.name not in pxi)
+    _write_skill(tmp_path / mount_only)
+    monkeypatch.setenv("PHOENIX_SKILLS_PATHS", str(tmp_path))
+
+    skills = load_external_skills()
+
+    assert skills == ()
+    merge_skills(load_skills((MCP_SKILLS_ROOT,)), skills)

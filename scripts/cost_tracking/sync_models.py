@@ -1,12 +1,20 @@
+import argparse
 import json
+import math
 import re
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from enum import Enum
-from pathlib import Path
 from typing import Annotated, Any, Literal, Optional
 from urllib.request import urlopen
 
 from pydantic import AfterValidator, BaseModel
+
+from phoenix.server.cost_tracking.manifest import (
+    BUNDLED_MANIFEST_PATH,
+    SUPPORTED_SCHEMA_VERSION,
+    compute_models_sha256,
+)
 
 PROMPT_TOKEN_ATTRIBUTE = "llm.token_count.prompt"
 
@@ -52,6 +60,10 @@ class ModelConfig(BaseModel):
 
 
 class ModelCostManifest(BaseModel):
+    schema_version: int = SUPPORTED_SCHEMA_VERSION
+    generated_at: Optional[datetime] = None
+    # Digest of the models as of generated_at; see compute_models_sha256().
+    models_sha256: Optional[str] = None
     models: list[ModelConfig]
 
 
@@ -166,7 +178,7 @@ def _tier_customization(
     rates_by_threshold: dict[float, float] = {}
     for field, rate in model_info.items():
         match = tier_field.fullmatch(field)
-        if match is None or not _is_positive_number(rate):
+        if match is None or not _is_non_negative_number(rate):
             continue
         threshold = float(match["thousands"]) * 1000
         rates_by_threshold[threshold] = float(rate)
@@ -199,25 +211,122 @@ def _output_rate_field(model_info: dict[str, Any]) -> Optional[str]:
     the image-token rate otherwise. The image-token rate is always emitted as an explicit
     ``image`` price as well, so instrumentation that reports image tokens separately bills
     them exactly regardless of which field backs ``output``.
+
+    A positive rate is preferred so that a published 0 text rate never shadows a real
+    image-token rate. A published 0 is used otherwise, so free models are priced at $0
+    rather than dropped, unless the model publishes a positive non-token price: then the 0
+    only means it isn't billed per token, not that it's free.
     """
     for field in OUTPUT_RATE_FIELDS:
         if _is_positive_number(model_info.get(field)):
             return field
+    if _has_positive_non_token_price(model_info):
+        return None
+    for field in OUTPUT_RATE_FIELDS:
+        if _is_non_negative_number(model_info.get(field)):
+            return field
     return None
 
 
-def _is_positive_number(value: Any) -> bool:
+# LiteLLM fields that price a model by something other than tokens. A model that publishes a
+# positive rate in any of these is billed that way, so a 0 per-token rate next to it doesn't
+# mean the model is free (e.g. gemini-2.0-flash-exp-image-generation publishes 0 per token
+# and 0.039 per image). Size- and resolution-specific variants such as
+# ``output_cost_per_image_1K`` or ``output_cost_per_second_720p`` are only published alongside
+# the base field, so the base field is enough.
+NON_TOKEN_PRICE_FIELDS: tuple[str, ...] = (
+    # per image
+    "input_cost_per_image",
+    "output_cost_per_image",
+    # per pixel
+    "input_cost_per_pixel",
+    "output_cost_per_pixel",
+    # per second of audio or video
+    "cost_per_second",
+    "input_cost_per_second",
+    "output_cost_per_second",
+    "input_cost_per_audio_per_second",
+    "input_cost_per_video_per_second",
+    "output_cost_per_video_per_second",
+    # per character
+    "input_cost_per_character",
+    "output_cost_per_character",
+    # per query (rerankers) or per request
+    "input_cost_per_query",
+    "input_cost_per_request",
+)
+
+
+def _has_positive_non_token_price(model_info: dict[str, Any]) -> bool:
+    return any(_is_positive_number(model_info.get(field)) for field in NON_TOKEN_PRICE_FIELDS)
+
+
+def _to_finite_float(value: Any) -> Optional[float]:
+    """Returns the value as a finite float, or None for bools, non-numbers, NaN and infinity."""
+    if isinstance(value, bool):
+        return None
     try:
-        return float(value) > 0
+        number = float(value)
     except (TypeError, ValueError):
-        return False
+        return None
+    return number if math.isfinite(number) else None
+
+
+def _is_positive_number(value: Any) -> bool:
+    return (number := _to_finite_float(value)) is not None and number > 0
+
+
+def _is_non_negative_number(value: Any) -> bool:
+    return (number := _to_finite_float(value)) is not None and number >= 0
+
+
+def next_generated_at(
+    previous: ModelCostManifest,
+    updated: ModelCostManifest,
+    now: Optional[datetime] = None,
+) -> datetime:
+    """
+    Keeps the previous ``generated_at`` unless the models changed, so that a sync with no price
+    changes leaves the manifest untouched. Models edited by hand since ``generated_at`` was set
+    count as changed: their digest no longer matches ``models_sha256``.
+    """
+    if (
+        previous.generated_at is not None
+        and previous.models_sha256 == compute_models_sha256(_dump_models(previous))
+        and _dump_models(previous) == _dump_models(updated)
+    ):
+        return previous.generated_at
+    candidate = (now or datetime.now(timezone.utc)).replace(microsecond=0)
+    # Applied only when generated_at is strictly later than the previous stamp.
+    if previous.generated_at is not None and candidate <= previous.generated_at:
+        candidate = previous.generated_at + timedelta(seconds=1)
+    return candidate
+
+
+def stamp(manifest: ModelCostManifest, previous: ModelCostManifest) -> None:
+    """Sets the schema version, ``generated_at`` and ``models_sha256`` for the models."""
+    manifest.schema_version = SUPPORTED_SCHEMA_VERSION
+    manifest.generated_at = next_generated_at(previous, manifest)
+    manifest.models_sha256 = compute_models_sha256(_dump_models(manifest))
+
+
+def _dump_models(manifest: ModelCostManifest) -> list[dict[str, Any]]:
+    models: list[dict[str, Any]] = manifest.model_dump(mode="json", exclude_none=True)["models"]
+    return models
+
+
+def serialize_manifest(manifest: ModelCostManifest) -> str:
+    return manifest.model_dump_json(indent=2, exclude_none=True)
 
 
 def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
     models_with_pricing = []
     for model_id, model_info in data.items():
         # Both an input and an output rate are required for pricing.
-        if "input_cost_per_token" in model_info and _output_rate_field(model_info) is not None:
+        if (
+            _is_non_negative_number(model_info.get("input_cost_per_token"))
+            and _output_rate_field(model_info) is not None
+        ):
             models_with_pricing.append(model_id)
 
     filtered_model_ids = filter_models(models_with_pricing)
@@ -234,11 +343,11 @@ def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
 
         token_prices: list[TokenPrice] = []
 
-        if input_cost := float(model_info.get("input_cost_per_token", 0)):
+        if _is_non_negative_number(raw_input_cost := model_info.get("input_cost_per_token")):
             token_prices.append(
                 TokenPrice(
                     token_type="input",
-                    base_rate=input_cost,
+                    base_rate=float(raw_input_cost),
                     is_prompt=True,
                     customization=_tier_customization(model_info, "input_cost_per_token"),
                 )
@@ -254,21 +363,25 @@ def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
                 )
             )
 
-        if cache_read_cost := float(model_info.get("cache_read_input_token_cost", 0)):
+        if _is_non_negative_number(
+            raw_cache_read_cost := model_info.get("cache_read_input_token_cost")
+        ):
             token_prices.append(
                 TokenPrice(
                     token_type="cache_read",
-                    base_rate=cache_read_cost,
+                    base_rate=float(raw_cache_read_cost),
                     is_prompt=True,
                     customization=_tier_customization(model_info, "cache_read_input_token_cost"),
                 )
             )
 
-        if cache_creation_cost := float(model_info.get("cache_creation_input_token_cost", 0)):
+        if _is_non_negative_number(
+            raw_cache_creation_cost := model_info.get("cache_creation_input_token_cost")
+        ):
             token_prices.append(
                 TokenPrice(
                     token_type="cache_write",
-                    base_rate=cache_creation_cost,
+                    base_rate=float(raw_cache_creation_cost),
                     is_prompt=True,
                     customization=_tier_customization(
                         model_info, "cache_creation_input_token_cost"
@@ -276,47 +389,57 @@ def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
                 )
             )
 
-        if input_audio_cost := float(model_info.get("input_cost_per_audio_token", 0)):
+        if _is_non_negative_number(
+            raw_input_audio_cost := model_info.get("input_cost_per_audio_token")
+        ):
             token_prices.append(
                 TokenPrice(
                     token_type="audio",
-                    base_rate=input_audio_cost,
+                    base_rate=float(raw_input_audio_cost),
                     is_prompt=True,
                 )
             )
 
-        if output_audio_cost := float(model_info.get("output_cost_per_audio_token", 0)):
+        if _is_non_negative_number(
+            raw_output_audio_cost := model_info.get("output_cost_per_audio_token")
+        ):
             token_prices.append(
                 TokenPrice(
                     token_type="audio",
-                    base_rate=output_audio_cost,
+                    base_rate=float(raw_output_audio_cost),
                     is_prompt=False,
                 )
             )
 
-        if input_image_cost := float(model_info.get("input_cost_per_image_token", 0)):
+        if _is_non_negative_number(
+            raw_input_image_cost := model_info.get("input_cost_per_image_token")
+        ):
             token_prices.append(
                 TokenPrice(
                     token_type="image",
-                    base_rate=input_image_cost,
+                    base_rate=float(raw_input_image_cost),
                     is_prompt=True,
                 )
             )
 
-        if output_image_cost := float(model_info.get("output_cost_per_image_token", 0)):
+        if _is_non_negative_number(
+            raw_output_image_cost := model_info.get("output_cost_per_image_token")
+        ):
             token_prices.append(
                 TokenPrice(
                     token_type="image",
-                    base_rate=output_image_cost,
+                    base_rate=float(raw_output_image_cost),
                     is_prompt=False,
                 )
             )
 
-        if reasoning_cost := float(model_info.get("output_cost_per_reasoning_token", 0)):
+        if _is_non_negative_number(
+            raw_reasoning_cost := model_info.get("output_cost_per_reasoning_token")
+        ):
             token_prices.append(
                 TokenPrice(
                     token_type="reasoning",
-                    base_rate=reasoning_cost,
+                    base_rate=float(raw_reasoning_cost),
                     is_prompt=False,
                 )
             )
@@ -378,35 +501,48 @@ def update_manifest(
 
 
 def main() -> int:
-    local_file_path = (
-        Path(__file__).parent / "../../src/phoenix/server/cost_tracking/model_cost_manifest.json"
+    parser = argparse.ArgumentParser(description="Sync the model cost manifest with LiteLLM.")
+    parser.add_argument(
+        "--bump-generated-at",
+        action="store_true",
+        help=(
+            "Don't fetch from LiteLLM; only update generated_at and models_sha256 if the models "
+            "were edited by hand. Run this after editing the manifest's models."
+        ),
     )
-    url = "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+    args = parser.parse_args()
 
-    try:
-        remote_data = fetch_data(url)
-    except Exception as error:
-        print(f"Error fetching model data from LiteLLM: {error}")
-        return 1
+    with open(BUNDLED_MANIFEST_PATH, "r") as file:
+        manifest_text = file.read()
+    manifest = ModelCostManifest.model_validate_json(manifest_text)
+    previous_manifest = manifest.model_copy(deep=True)
 
-    with open(local_file_path, "r") as file:
-        manifest_json = json.load(file)
-    manifest = ModelCostManifest.model_validate(manifest_json)
+    if args.bump_generated_at:
+        updated_manifest = manifest
+        litellm_entries = None
+    else:
+        url = "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+        try:
+            remote_data = fetch_data(url)
+        except Exception as error:
+            print(f"Error fetching model data from LiteLLM: {error}")
+            return 1
+        litellm_entries = extract_litellm_entries(remote_data)
+        print(f"Found {len(litellm_entries)} models with pricing from LiteLLM")
+        updated_manifest = update_manifest(manifest, litellm_entries)
+    stamp(updated_manifest, previous_manifest)
 
-    litellm_entries = extract_litellm_entries(remote_data)
-    print(f"Found {len(litellm_entries)} models with pricing from LiteLLM")
-
-    updated_manifest = update_manifest(manifest, litellm_entries)
-
-    if manifest_json != updated_manifest:
-        with open(local_file_path, "w") as file:
-            file.write(updated_manifest.model_dump_json(indent=2, exclude_none=True))
+    updated_text = serialize_manifest(updated_manifest)
+    if updated_text != manifest_text:
+        with open(BUNDLED_MANIFEST_PATH, "w") as file:
+            file.write(updated_text)
         print("Model data updated successfully")
     else:
         print("No changes detected")
 
     print(f"Total models in file: {len(updated_manifest.models)}")
-    print(f"Models from this sync: {len(litellm_entries)}")
+    if litellm_entries is not None:
+        print(f"Models from this sync: {len(litellm_entries)}")
 
     return 0
 

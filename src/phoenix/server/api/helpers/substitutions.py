@@ -5,7 +5,7 @@ This module provides functions to load substitution definitions and expand
 simple template placeholders into full Mustache blocks.
 
 Substitutions are loaded from substitutions/server.yaml which is copied from
-prompts/formatters/server.yaml by the compile_prompts tox command.
+prompts/formatters/server.yaml by `make codegen-prompts`.
 """
 
 import logging

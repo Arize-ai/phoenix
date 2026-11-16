@@ -460,6 +460,44 @@ new Keyboard(apiClient: ComputerUseApi): Keyboard;
 
 ### Methods
 
+#### down()
+
+```ts
+down(key: string): Promise<void>;
+```
+
+Presses and holds a key
+
+The key stays held until a matching `up()` call is made, which enables
+press-and-hold interactions such as holding a modifier across several actions.
+
+**Parameters**:
+
+- `key` _string_ - The key to hold. Uses the same normalized key contract as `press()`, including modifier names such as 'ctrl' and 'shift'.
+
+
+**Returns**:
+
+- `Promise<void>`
+
+**Throws**:
+
+If the key down operation fails
+
+**Example:**
+
+```typescript
+// Hold Shift while clicking twice, then release.
+// Release in `finally` so a failed click cannot leave Shift stuck down.
+await sandbox.computerUse.keyboard.down('shift');
+try {
+  await sandbox.computerUse.mouse.click(100, 200);
+  await sandbox.computerUse.mouse.click(300, 400);
+} finally {
+  await sandbox.computerUse.keyboard.up('shift');
+}
+```
+
 #### hotkey()
 
 ```ts
@@ -600,6 +638,38 @@ try {
 }
 ```
 
+#### up()
+
+```ts
+up(key: string): Promise<void>;
+```
+
+Releases a held key
+
+**Parameters**:
+
+- `key` _string_ - The key to release. Uses the same normalized key contract as `press()`, including modifier names such as 'ctrl' and 'shift'.
+
+
+**Returns**:
+
+- `Promise<void>`
+
+**Throws**:
+
+If the key up operation fails
+
+**Example:**
+
+```typescript
+try {
+  await sandbox.computerUse.keyboard.up('shift');
+  console.log('Operation success');
+} catch (e) {
+  console.log('Operation failed:', e);
+}
+```
+
 ***
 
 
@@ -633,7 +703,9 @@ click(
    x: number,
    y: number,
    button?: string,
-   double?: boolean
+   double?: boolean,
+   clicks?: number,
+   modifiers?: string[]
 ): Promise<MouseClickResponse>;
 ```
 
@@ -645,6 +717,8 @@ Clicks the mouse at the specified coordinates
 - `y` _number_ - The y coordinate to click at
 - `button?` _string = 'left'_ - The mouse button to click ('left', 'right', 'middle')
 - `double?` _boolean = false_ - Whether to perform a double-click
+- `clicks?` _number_ - Number of clicks to perform (1-10). Omit to let the server apply its default; `clicks` takes precedence when both it and `double` are supplied
+- `modifiers?` _string\[\]_ - Canonical modifier names are 'ctrl', 'alt', 'shift', and 'cmd'. Held for the duration of the click
 
 
 **Returns**:
@@ -662,6 +736,50 @@ const doubleClick = await sandbox.computerUse.mouse.click(100, 200, 'left', true
 
 // Right click
 const rightClick = await sandbox.computerUse.mouse.click(100, 200, 'right');
+
+// Triple click to select a line
+const tripleClick = await sandbox.computerUse.mouse.click(100, 200, 'left', false, 3);
+
+// Ctrl+click to extend a selection
+const ctrlClick = await sandbox.computerUse.mouse.click(100, 200, 'left', false, undefined, ['ctrl']);
+```
+
+#### down()
+
+```ts
+down(
+   x?: number,
+   y?: number,
+   button?: string
+): Promise<MousePositionResponse>;
+```
+
+Presses and holds a mouse button at the specified coordinates
+
+The button stays held until a matching `up()` call is made, which enables
+press-and-hold interactions such as manual drags and marquee selections.
+
+**Parameters**:
+
+- `x?` _number_ - The x coordinate to press at. Omit to press at the current cursor position
+- `y?` _number_ - The y coordinate to press at. Omit to press at the current cursor position
+- `button?` _string = 'left'_ - The mouse button to press ('left', 'right', 'middle')
+
+
+**Returns**:
+
+- `Promise<MousePositionResponse>` - Position after the button press
+
+**Example:**
+
+```typescript
+// Press and hold the left button, move, then release
+await sandbox.computerUse.mouse.down(100, 200);
+await sandbox.computerUse.mouse.move(300, 400);
+await sandbox.computerUse.mouse.up(300, 400);
+
+// Press at the current cursor position
+await sandbox.computerUse.mouse.down();
 ```
 
 #### drag()
@@ -672,7 +790,8 @@ drag(
    startY: number,
    endX: number,
    endY: number,
-   button?: string
+   button?: string,
+   modifiers?: string[]
 ): Promise<MouseDragResponse>;
 ```
 
@@ -685,6 +804,7 @@ Drags the mouse from start coordinates to end coordinates
 - `endX` _number_ - The ending x coordinate
 - `endY` _number_ - The ending y coordinate
 - `button?` _string = 'left'_ - The mouse button to use for dragging
+- `modifiers?` _string\[\]_ - Canonical modifier names are 'ctrl', 'alt', 'shift', and 'cmd'. Held for the duration of the drag
 
 
 **Returns**:
@@ -696,6 +816,9 @@ Drags the mouse from start coordinates to end coordinates
 ```typescript
 const result = await sandbox.computerUse.mouse.drag(50, 50, 150, 150);
 console.log(`Drag ended at: ${result.x}, ${result.y}`);
+
+// Shift-constrained drag
+const constrained = await sandbox.computerUse.mouse.drag(50, 50, 150, 150, 'left', ['shift']);
 ```
 
 #### getPosition()
@@ -748,8 +871,9 @@ console.log(`Mouse moved to: ${result.x}, ${result.y}`);
 scroll(
    x: number,
    y: number,
-   direction: "up" | "down",
-   amount?: number
+   direction: "down" | "left" | "up" | "right",
+   amount?: number,
+   modifiers?: string[]
 ): Promise<boolean>;
 ```
 
@@ -759,8 +883,9 @@ Scrolls the mouse wheel at the specified coordinates
 
 - `x` _number_ - The x coordinate to scroll at
 - `y` _number_ - The y coordinate to scroll at
-- `direction` _"up" \| "down"_ - The direction to scroll
+- `direction` _"down" \| "left" \| "up" \| "right"_ - The direction to scroll
 - `amount?` _number = 1_ - The amount to scroll
+- `modifiers?` _string\[\]_ - Canonical modifier names are 'ctrl', 'alt', 'shift', and 'cmd'. Held for the duration of the scroll
 
 
 **Returns**:
@@ -775,6 +900,45 @@ const scrollUp = await sandbox.computerUse.mouse.scroll(100, 200, 'up', 3);
 
 // Scroll down
 const scrollDown = await sandbox.computerUse.mouse.scroll(100, 200, 'down', 5);
+
+// Horizontal scroll
+const scrollRight = await sandbox.computerUse.mouse.scroll(100, 200, 'right', 2);
+
+// Ctrl+scroll to zoom
+const zoomIn = await sandbox.computerUse.mouse.scroll(100, 200, 'up', 1, ['ctrl']);
+```
+
+#### up()
+
+```ts
+up(
+   x?: number,
+   y?: number,
+   button?: string
+): Promise<MousePositionResponse>;
+```
+
+Releases a held mouse button at the specified coordinates
+
+**Parameters**:
+
+- `x?` _number_ - The x coordinate to release at. Omit to release at the current cursor position
+- `y?` _number_ - The y coordinate to release at. Omit to release at the current cursor position
+- `button?` _string = 'left'_ - The mouse button to release ('left', 'right', 'middle')
+
+
+**Returns**:
+
+- `Promise<MousePositionResponse>` - Position after the button release
+
+**Example:**
+
+```typescript
+const result = await sandbox.computerUse.mouse.up(300, 400);
+console.log(`Button released at: ${result.x}, ${result.y}`);
+
+// Release at the current cursor position
+await sandbox.computerUse.mouse.up();
 ```
 
 ***

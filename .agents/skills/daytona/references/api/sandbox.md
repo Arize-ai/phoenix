@@ -122,6 +122,7 @@ Schema: **CreateSandbox**
 | `labels` | object | No | Labels for the sandbox |
 | `public` | boolean | No | Whether the sandbox http preview is publicly accessible |
 | `networkBlockAll` | boolean | No | Whether to block all network access for the sandbox |
+| `kvm` | boolean | No | Expose KVM (/dev/kvm) inside the sandbox via nested virtualization. linux-vm snapshots only. Requires the sandbox_kvm feature for the organization. |
 | `networkAllowList` | string | No | Comma-separated list of allowed CIDR network addresses for the sandbox |
 | `domainAllowList` | string | No | Comma-separated list of allowed domains for the sandbox |
 | `outboundProxyUrl` | string | No | Outbound proxy URL to route the sandbox HTTP(S) traffic through (http or https; credentials may be included in the URL). On its own this is convenience routing, not a security boundary: it is applied by injecting the standard HTTP(S)_PROXY environment variables at creation, so a process that clears those variables egresses directly. Combine with domainAllowList to have web-port (80/443) egress transparently redirected through the proxy chain at the network layer, which cannot be bypassed from inside the sandbox. |
@@ -138,11 +139,11 @@ Schema: **CreateSandbox**
 | `autoArchiveInterval` | integer | No | Auto-archive interval in minutes (0 means the maximum interval will be used) |
 | `autoDeleteInterval` | integer | No | Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping) |
 | `ttlMinutes` | integer | No | Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived. Subject to the maximum sandbox lifespan configured for the organization region and sandbox class, in which case it also defaults to that maximum and cannot be disabled. |
+| `queueTimeout` | integer | No | Minutes to wait for runner assignment before cancelling sandbox creation. Applies only while the sandbox is unassigned in pending_build or pulling_snapshot. Only honored when default queue timeout is enabled for the organization. Omit to use the organization default; null/omit with no organization default leaves the wait unlimited. Must be a positive integer. |
 | `volumes` | array of [SandboxVolume](#schema-sandboxvolume) | No | Array of volumes to attach to the sandbox |
 | `buildInfo` | object | No | Build information for the sandbox |
 | `linkedSandbox` | string | No | ID or name of an existing sandbox to link the new sandbox to. The new sandbox will be scheduled on the same runner as the linked sandbox so a local network can be established between them. Linked sandboxes must be ephemeral (autoDeleteInterval=0) and cannot themselves be linked to another sandbox. GPU sandboxes cannot participate in links in either direction: a GPU sandbox cannot specify linkedSandbox, and cannot be the link target of another sandbox. |
 | `secrets` | array of object | No | Secrets to mount in this sandbox. Each entry maps an env var name to a vault secret name. |
-| `kvm` | boolean | No | Expose KVM (/dev/kvm) inside the sandbox via nested virtualization. linux-vm snapshots only. Requires the sandbox_kvm feature for the organization. |
 
 ### Responses
 
@@ -176,7 +177,7 @@ Schema: **CreateSandbox**
 
 **Get sandbox details**
 
-Sandboxes destroyed by spot preemption remain retrievable for 24 hours so `spotEvictedAt` can be read.
+Sandboxes destroyed by spot preemption remain retrievable for 24 hours so `spotEvictedAt` can be read. Sandboxes destroyed by queue timeout remain retrievable for 24 hours so `queueTimedOutAt` can be read.
 
 ### Parameters
 

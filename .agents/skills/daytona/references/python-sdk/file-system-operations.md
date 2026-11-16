@@ -73,6 +73,8 @@ sandbox.fs.upload_file("local_file.txt", "remote_file.txt")
 Upload multiple files by providing the content to upload and their destination paths.
 
 ```python
+from daytona import FileUpload
+
 # Upload multiple files at once
 files_to_upload = []
 
@@ -136,6 +138,8 @@ sandbox.fs.download_file("workspace/large-file.bin", "local_copy.bin")
 Download multiple files by providing the paths to the files to download.
 
 ```python
+from daytona import FileDownloadRequest
+
 # Download multiple files at once
 files_to_download = [
     FileDownloadRequest(source="data/file1.txt"), # No destination - download to memory
@@ -152,6 +156,8 @@ for result in results:
                 f"  status={result.error_details.status_code} "
                 f"code={result.error_details.error_code}"
             )
+    elif isinstance(result.result, bytes):
+        print(f"Downloaded {result.source} to memory ({len(result.result)} bytes)")
     elif result.result:
         print(f"Downloaded {result.source} to {result.result}")
 ```

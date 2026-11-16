@@ -20,7 +20,8 @@ Initializes a new Daytona::Config object.
 - `jwt_token` _String, nil_ - Daytona JWT token. Defaults to ENV['DAYTONA_JWT_TOKEN'].
 - `api_url` _String, nil_ - Daytona API URL. Defaults to ENV['DAYTONA_API_URL'] or Daytona::Config::API_URL.
 - `organization_id` _String, nil_ - Daytona organization ID. Defaults to ENV['DAYTONA_ORGANIZATION_ID'].
-- `target` _String, nil_ - Daytona target. Defaults to ENV['DAYTONA_TARGET'].
+- `target` _String, nil_ - Default region for Sandboxes and Snapshots; a per-call `target:` / `region_id:`
+overrides it. Defaults to ENV['DAYTONA_TARGET'].
 - `otel_enabled` _Boolean, nil_ - Enable OpenTelemetry tracing for SDK operations.
 - `use_deprecated_polling` _Boolean, nil_ - Observe sandbox state by legacy polling instead of
 WebSocket event streaming. Defaults to false (event streaming). Can also be enabled via the
@@ -144,7 +145,8 @@ def target()
 
 ```
 
-Target environment for sandboxes
+Default region for Sandboxes and Snapshots. A per-call `target:` (Sandbox create params) or
+`region_id:` (Snapshot create params) overrides it.
 
 **Returns**:
 
@@ -157,7 +159,8 @@ def target=(value)
 
 ```
 
-Target environment for sandboxes
+Default region for Sandboxes and Snapshots. A per-call `target:` (Sandbox create params) or
+`region_id:` (Snapshot create params) overrides it.
 
 **Returns**:
 

@@ -183,6 +183,8 @@ print(f"Command: {command.command}, Exit Code: {command.exit_code}")
 Retrieve information about the internal entrypoint session in sandboxes. In each sandbox, the configured entrypoint command is executed inside a dedicated internal session, and you can fetch the session details (including the commands) and read its logs.
 
 ```python
+import asyncio
+
 # Entrypoint session details
 session = sandbox.process.get_entrypoint_session()
 print(f"Entrypoint session: {session.session_id}")
@@ -196,14 +198,13 @@ print(f"[STDOUT]: {logs.stdout}")
 print(f"[STDERR]: {logs.stderr}")
 
 # Stream entrypoint logs (WebSocket)
-async def stream_entrypoint_logs():
-    await sandbox.process.get_entrypoint_logs_async(
+# In notebooks or async apps, run the coroutine on the existing event loop instead of asyncio.run.
+asyncio.run(
+    sandbox.process.get_entrypoint_logs_async(
         lambda log: print(f"[STDOUT]: {log}"),
         lambda log: print(f"[STDERR]: {log}"),
     )
-
-# Use asyncio.run in scripts; in notebooks or async apps, await stream_entrypoint_logs() instead.
-asyncio.run(stream_entrypoint_logs())
+)
 ```
 
 ### Execute interactive commands
@@ -212,36 +213,42 @@ Execute interactive commands in sessions. You can send input to running commands
 
 ```python
 import asyncio
-from daytona import SessionExecuteRequest
+from daytona import AsyncDaytona, SessionExecuteRequest
 
-session_id = "interactive-session"
-sandbox.process.create_session(session_id)
+async def main():
+    async with AsyncDaytona() as daytona:
+        sandbox = await daytona.create()
 
-# Execute command that requires confirmation
-command = sandbox.process.execute_session_command(
-    session_id,
-    SessionExecuteRequest(
-        command='pip uninstall requests',
-        run_async=True,
-    ),
-)
+        session_id = "interactive-session"
+        await sandbox.process.create_session(session_id)
 
-# Stream logs asynchronously
-logs_task = asyncio.create_task(
-    sandbox.process.get_session_command_logs_async(
-        session_id,
-        command.cmd_id,
-        lambda log: print(f"[STDOUT]: {log}"),
-        lambda log: print(f"[STDERR]: {log}"),
-    )
-)
+        # Execute command that requires confirmation
+        command = await sandbox.process.execute_session_command(
+            session_id,
+            SessionExecuteRequest(
+                command='pip uninstall requests',
+                run_async=True,
+            ),
+        )
 
-await asyncio.sleep(1)
-# Send input to the command
-sandbox.process.send_session_command_input(session_id, command.cmd_id, "y")
+        # Stream logs asynchronously
+        logs_task = asyncio.create_task(
+            sandbox.process.get_session_command_logs_async(
+                session_id,
+                command.cmd_id,
+                lambda log: print(f"[STDOUT]: {log}"),
+                lambda log: print(f"[STDERR]: {log}"),
+            )
+        )
 
-# Wait for logs to complete
-await logs_task
+        await asyncio.sleep(1)
+        # Send input to the command
+        await sandbox.process.send_session_command_input(session_id, command.cmd_id, "y")
+
+        # Wait for logs to complete
+        await logs_task
+
+asyncio.run(main())
 ```
 
 ## Resource management
@@ -256,7 +263,7 @@ try:
     session = sandbox.process.get_session(session_id)
     # Do work...
 finally:
-    sandbox.process.delete_session(session.session_id)
+    sandbox.process.delete_session(session_id)
 ```
 
 ## Error handling

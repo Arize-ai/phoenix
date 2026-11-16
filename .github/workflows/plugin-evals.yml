@@ -18,10 +18,8 @@ name: Plugin Evals
 on:
   pull_request:
     paths:
-      # The plugin ships these three skills as symlinks into .agents/skills/.
-      - ".agents/skills/phoenix-cli/**"
-      - ".agents/skills/phoenix-evals/**"
-      - ".agents/skills/phoenix-tracing/**"
+      # The plugin ships the public skills as symlinks into skills/.
+      - "skills/**"
       - "plugins/claude/arize-phoenix/**"
       - ".github/workflows/plugin-evals.yml"
   workflow_dispatch:
@@ -121,7 +119,7 @@ jobs:
         if: steps.detect.outputs.has_cases == 'true'
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          node-version: 24
+          node-version-file: .nvmrc
 
       - name: Install subprocess isolation deps
         if: steps.detect.outputs.has_cases == 'true'
@@ -163,7 +161,7 @@ jobs:
             --judge-model claude-sonnet-5 \
             --allow-tools Write \
               "Read(//${WORKSPACE}/plugins/claude/arize-phoenix/**)" \
-              "Read(//${WORKSPACE}/.agents/skills/**)" \
+              "Read(//${WORKSPACE}/skills/**)" \
             --no-publish \
             --max-cost-usd "${MAX_COST_USD}" \
             -j 3

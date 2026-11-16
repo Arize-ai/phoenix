@@ -11,4 +11,5 @@ export * from "./NumberField";
 export * from "./DebouncedSearch";
 export * from "./FieldDangerIcon";
 export * from "./FieldSuccessIcon";
+export * from "./transformInputValue";
 export { TextArea } from "react-aria-components";

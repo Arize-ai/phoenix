@@ -32,7 +32,7 @@ class EvaluationSummary:
         return [
             LabelFraction(
                 label=cast(str, row.label),
-                fraction=row.label_count / n,
+                fraction=cast(float, row.label_count) / n,
             )
             for row in self.df.loc[
                 self.df.label.notna(),
@@ -44,7 +44,7 @@ class EvaluationSummary:
     def mean_score(self) -> Optional[float]:
         if not (n := self.df.score_count.sum()):
             return None
-        return cast(float, self.df.score_sum.sum() / n)
+        return float(self.df.score_sum.sum() / n)
 
     @strawberry.field
     def score_count(self) -> int:

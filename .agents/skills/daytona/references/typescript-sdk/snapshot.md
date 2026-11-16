@@ -242,7 +242,7 @@ type CreateSnapshotParams = {
 - `image` _string \| Image_ - Image of the snapshot. If a string is provided, it should be available on some registry.
     If an Image instance is provided, it will be used to create a new image in Daytona.
 - `name` _string_ - Name of the snapshot.
-- `regionId?` _string_ - ID of the region where the snapshot will be available. Defaults to organization default region if not specified.
+- `regionId?` _string_ - ID of the region where the snapshot will be available. When omitted, the client-level `target` is used if configured; otherwise the organization's default region.
 - `resources?` _Resources_ - Resources of the snapshot.
 - `sandboxClass?` _SandboxClass_ - Target sandbox class. Determines which runners can host sandboxes created from this snapshot.
 

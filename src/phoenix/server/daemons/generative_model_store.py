@@ -14,7 +14,7 @@ from phoenix.server.types import DaemonTask, DbSessionFactory
 
 logger = logging.getLogger(__name__)
 
-_FETCH_CLOCK_SKEW_BUFFER = timedelta(seconds=10)
+_FETCH_OVERLAP_WINDOW = timedelta(seconds=60)
 
 
 class GenerativeModelStore(DaemonTask):
@@ -60,8 +60,8 @@ class GenerativeModelStore(DaemonTask):
 
     async def _run(self) -> None:
         while self._running:
-            # Capture time before query with a 10-second buffer for clock skew tolerance
-            fetch_start_time = datetime.now(timezone.utc) - _FETCH_CLOCK_SKEW_BUFFER
+            # Overlap window absorbs clock skew and transactions stamped before commit
+            fetch_start_time = datetime.now(timezone.utc) - _FETCH_OVERLAP_WINDOW
             try:
                 await self._fetch_models()
             except Exception:
@@ -75,7 +75,7 @@ class GenerativeModelStore(DaemonTask):
         Fetch generative models from the database using an incremental strategy.
 
         On the first run, fetches all models. On subsequent runs, only fetches models
-        where updated_at or deleted_at is at or after the last fetch time (with a 10-second
+        where updated_at or deleted_at is at or after the last fetch time (with a 60-second
         buffer). Some models may be refetched, but .merge() handles duplicates idempotently.
         """
         stmt = sa.select(models.GenerativeModel).options(

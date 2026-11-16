@@ -7,13 +7,13 @@ import RegisterTracerPython from "../../../../snippets/register-tracer-python.md
 
 <Note>Looking for TypeScript? See the [TypeScript guide](/docs/phoenix/integrations/typescript/openai-agents).</Note>
 
-## 1. Install
+## Install
 
 ```bash
 pip install openinference-instrumentation-openai-agents openai-agents
 ```
 
-## 2. Set up Tracing
+## Setup
 
 Add your OpenAI API key as an environment variable:
 
@@ -23,7 +23,9 @@ export OPENAI_API_KEY=[your_key_here]
 
 <RegisterTracerPython projectName="agents" />
 
-Run your `agents`code.
+## Run OpenAI Agents
+
+Run your `agents` code.
 
 ```python
 from agents import Agent, Runner
@@ -31,6 +33,7 @@ from agents import Agent, Runner
 agent = Agent(name="Assistant", instructions="You are a helpful assistant")
 result = Runner.run_sync(agent, "Write a haiku about recursion in programming.")
 print(result.final_output)
+tracer_provider.force_flush(timeout_millis=10000)
 ```
 
 View your traces in Phoenix.

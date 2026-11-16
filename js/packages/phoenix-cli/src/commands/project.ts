@@ -1,4 +1,4 @@
-import type { PhoenixClient } from "@arizeai/phoenix-client";
+import { HttpError, type PhoenixClient } from "@arizeai/phoenix-client";
 import { Command } from "commander";
 
 import { createPhoenixClient } from "../client";
@@ -11,6 +11,7 @@ import { assertDeletesEnabled, confirmOrExit } from "../confirm";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import { writeStructuredError } from "../structuredError";
+import { getResponseErrorMessage } from "./annotationMutations";
 import { formatProjectsOutput, type OutputFormat } from "./formatProjects";
 import type {
   CommonOptions,
@@ -403,27 +404,36 @@ async function projectCreateHandler(
       noProgress: !options.progress,
     });
 
-    const response = await client.POST("/v1/projects", {
+    const { data: payload } = await client.POST("/v1/projects", {
       body: { name },
     });
 
-    if (response.error || !response.data) {
-      const detail =
-        typeof response.error === "string" && response.error
-          ? `: ${response.error}`
-          : "";
-      throw new Error(
-        `Failed to create project (HTTP ${response.response.status})${detail}`
-      );
+    if (!payload) {
+      throw new Error("Phoenix returned no project data");
     }
 
-    const project = response.data.data;
+    const project = payload.data;
     writeOutput({
       message: `Created project '${project.name}' (id: ${project.id})`,
     });
   } catch (error) {
+    let message = error instanceof Error ? error.message : String(error);
+    if (error instanceof HttpError) {
+      const responseBody = (
+        await error.response.text().catch((): string => "")
+      ).trim();
+      let detail = responseBody;
+      try {
+        detail = getResponseErrorMessage(JSON.parse(responseBody));
+      } catch (parseError) {
+        if (!(parseError instanceof SyntaxError)) {
+          throw parseError;
+        }
+      }
+      message = `Failed to create project (HTTP ${error.status})${detail ? `: ${detail}` : ""}`;
+    }
     writeError({
-      message: `Error creating project: ${error instanceof Error ? error.message : String(error)}`,
+      message: `Error creating project: ${message}`,
     });
     process.exit(getExitCodeForError(error));
   }

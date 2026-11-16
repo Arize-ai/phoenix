@@ -110,7 +110,7 @@ if err != nil {
 }
 
 for _, session := range sessions {
-	fmt.Printf("Session ID: %s\n", session.Id)
+	fmt.Printf("Session ID: %s\n", session.ID)
 	fmt.Printf("Active: %t\n", session.Active)
 	fmt.Printf("Terminal Size: %dx%d\n", session.Cols, session.Rows)
 	fmt.Println("---")
@@ -128,9 +128,9 @@ if err != nil {
 	log.Fatal(err)
 }
 
-fmt.Printf("Session ID: %s\n", session.Id)
+fmt.Printf("Session ID: %s\n", session.ID)
 fmt.Printf("Active: %t\n", session.Active)
-fmt.Printf("Working Directory: %s\n", session.Cwd)
+fmt.Printf("Working Directory: %s\n", session.CWD)
 fmt.Printf("Terminal Size: %dx%d\n", session.Cols, session.Rows)
 ```
 
@@ -152,7 +152,7 @@ if err != nil {
 }
 
 for _, session := range sessions {
-	fmt.Printf("PTY session: %s\n", session.Id)
+	fmt.Printf("PTY session: %s\n", session.ID)
 }
 ```
 

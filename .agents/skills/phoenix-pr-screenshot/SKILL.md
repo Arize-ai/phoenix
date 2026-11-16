@@ -70,7 +70,7 @@ gh pr edit <PR_NUMBER> --body-file body.md --attach './<PR_NUMBER>-<name>.png#<a
 ```
 
 Run it from the directory holding the files, and pass `-R Arize-ai/phoenix` when that directory is
-not a git checkout. `phoenix-pr-description` allows one media item, so for several states prefer a
+not a git checkout. The PR template allows one media item, so for several states prefer a
 single GIF or video over a series of stills.
 
 ### Step 5: Cleanup

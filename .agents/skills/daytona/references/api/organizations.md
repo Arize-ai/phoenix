@@ -10,6 +10,7 @@
 - GET `/organizations`
 - POST `/organizations`
 - PATCH `/organizations/{organizationId}/default-region`/default-region}
+- PATCH `/organizations/{organizationId}/default-queue-timeout`/default-queue-timeout}
 - GET `/organizations/{organizationId}`}
 - DELETE `/organizations/{organizationId}`}
 - GET `/organizations/{organizationId}/usage`/usage}
@@ -166,6 +167,32 @@ Schema: **UpdateOrganizationDefaultRegion**
 | Status | Description | Schema |
 |--------|-------------|--------|
 | 204 | Default region set successfully |  |
+
+---
+
+## PATCH `/organizations/{organizationId}/default-queue-timeout` {#daytona/tag/organizations/PATCH/organizations/{organizationId}/default-queue-timeout}
+
+**Set organization default queue timeout**
+
+### Parameters
+
+| Name | In | Type | Required | Description |
+|------|-----|------|----------|-------------|
+| `organizationId` | path | string | Yes | Organization ID |
+
+### Request Body
+
+Schema: **UpdateOrganizationDefaultQueueTimeout**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `defaultQueueTimeout` | integer | Yes | Default minutes to wait for runner assignment before cancelling sandbox creation. Null disables the default. A number must be a positive integer. |
+
+### Responses
+
+| Status | Description | Schema |
+|--------|-------------|--------|
+| 204 | Default queue timeout updated successfully |  |
 
 ---
 

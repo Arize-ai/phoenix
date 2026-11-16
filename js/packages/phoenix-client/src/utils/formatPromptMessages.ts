@@ -71,7 +71,7 @@ function applyReplacements(
 ): string {
   let newText = text;
   for (const [key, value] of replacements) {
-    newText = newText.replaceAll(key, value);
+    newText = newText.replaceAll(key, () => value);
   }
   return newText;
 }

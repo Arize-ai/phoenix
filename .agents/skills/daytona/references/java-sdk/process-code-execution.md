@@ -133,7 +133,7 @@ Daytona provides methods to manage background process sessions in sandboxes. You
 Get session status and list all sessions in a sandbox by providing the session ID.
 
 ```java
-import io.daytona.sdk.model.Command;
+import io.daytona.toolbox.client.model.Command;
 import io.daytona.sdk.model.Session;
 
 // Check session's executed commands
@@ -165,7 +165,7 @@ System.out.println("Command: " + command.getCommand() + ", Exit Code: " + comman
 Retrieve information about the internal entrypoint session in sandboxes. In each sandbox, the configured entrypoint command is executed inside a dedicated internal session, and you can fetch the session details (including the commands) and read its logs.
 
 ```java
-import io.daytona.sdk.model.Command;
+import io.daytona.toolbox.client.model.Command;
 import io.daytona.sdk.model.Session;
 import io.daytona.sdk.model.SessionCommandLogsResponse;
 

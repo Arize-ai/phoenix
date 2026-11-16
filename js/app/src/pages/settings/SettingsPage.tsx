@@ -5,23 +5,17 @@ import type { Key } from "react-aria-components";
 import { Collection } from "react-aria-components";
 import { Navigate, Outlet, useMatch, useNavigate } from "react-router";
 
-import {
-  Icon,
-  Icons,
-  Loading,
-  Tab,
-  TabList,
-  TabPanel,
-  Tabs,
-} from "@phoenix/components";
+import { Icon, Icons, Tab, TabList, TabPanel, Tabs } from "@phoenix/components";
 import { PxiGlyphOutline } from "@phoenix/components/agent";
 import { McpSVG } from "@phoenix/components/project/IntegrationIcons";
 import {
   useIsAuthenticatedAdmin,
-  useViewerCanManageSandboxes,
+  useViewerCanViewSandboxes,
   useViewerCanManageSecrets,
 } from "@phoenix/contexts";
 import { useMediaQuery } from "@phoenix/hooks";
+
+import { SettingsCardSkeleton } from "./SettingsCardSkeleton";
 
 /**
  * Below this width the vertical tab rail would squeeze the settings content
@@ -110,14 +104,14 @@ export function SettingsPage() {
   };
   const isAuthenticatedAdmin = useIsAuthenticatedAdmin();
   const canManageSecrets = useViewerCanManageSecrets();
-  const canManageSandboxes = useViewerCanManageSandboxes();
+  const canViewSandboxes = useViewerCanViewSandboxes();
   // Tabs absent from this map are visible to everyone.
   const tabVisibility: Partial<Record<SettingsTabId, boolean>> = {
     agents: !window.Config.agentAssistantDisabled,
     users: isAuthenticatedAdmin,
     "api-keys": isAuthenticatedAdmin,
     secrets: canManageSecrets,
-    sandboxes: canManageSandboxes,
+    sandboxes: canViewSandboxes,
   };
   const tabs = TABS.filter((tab) => tabVisibility[tab.id] ?? true);
   if (!isSettingsTabId(tab) || !tabs.some((item) => item.id === tab)) {
@@ -143,7 +137,7 @@ export function SettingsPage() {
         <Collection items={tabs}>
           {(item) => (
             <TabPanel id={item.id} css={settingsTabPanelCSS}>
-              <Suspense fallback={<Loading />}>
+              <Suspense fallback={<SettingsCardSkeleton />}>
                 <Outlet />
               </Suspense>
             </TabPanel>

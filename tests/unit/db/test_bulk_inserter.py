@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
 from dataclasses import replace
@@ -397,6 +398,11 @@ async def test_connection_acquisition_failure_holds_batch_past_retry_limit(
             assert inserter.is_full and inserter._span_retry_attempts == attempt
             assert inserter._span_limited_retries == 0
         assert len(set(map(id, sessions))) == outage_attempts
+        connect_records = [
+            record for record in caplog.records if record.name == bulk_inserter.__name__
+        ]
+        assert len(connect_records) == outage_attempts
+        assert all(record.levelno == logging.WARNING for record in connect_records)
         assert "phase=connect" in caplog.text
         assert "Span insertion failed after savepoint rollback" not in caplog.text
         await inserter._insert_spans(2)
@@ -511,13 +517,14 @@ async def test_retry_whole_transaction_after_rollback(
         _span("child-2", parent_id="root"),
         max_spans_queue_size=2,
     )
-    await inserter._insert_spans(2)
+    with caplog.at_level(logging.DEBUG, logger=bulk_inserter.__name__):
+        await inserter._insert_spans(2)
+    retry_records = [record for record in caplog.records if record.name == bulk_inserter.__name__]
+    assert [record.levelno for record in retry_records] == [logging.DEBUG]
+    assert "retry 1/5" in retry_records[0].getMessage()
+    assert f"sqlstate={sqlstate}" in retry_records[0].getMessage()
     assert secret not in caplog.text
-    assert all(
-        record.exc_info is None
-        for record in caplog.records
-        if record.name == bulk_inserter.__name__
-    )
+    assert all(record.exc_info is None for record in retry_records)
     assert len(inserter._span_batch) == 2
     assert inserter.is_full
     assert cast(SimpleQueue[DmlEvent], inserter._event_queue).empty()
@@ -1151,8 +1158,8 @@ async def test_invalid_span_does_not_block_valid_neighbors(
 
 
 @pytest.mark.parametrize("existing_trace", [False, True], ids=["new-trace", "existing-trace"])
-@pytest.mark.parametrize("field", ["name", "json_value", "project_name"])
-async def test_nul_span_is_isolated_without_changing_sqlite_behavior(
+@pytest.mark.parametrize("field", ["name", "json_value", "json_key", "project_name", "session_id"])
+async def test_nul_span_is_repaired_or_isolated_without_changing_sqlite_behavior(
     db: DbSessionFactory,
     caplog: pytest.LogCaptureFixture,
     existing_trace: bool,
@@ -1180,6 +1187,10 @@ async def test_nul_span_is_isolated_without_changing_sqlite_behavior(
         invalid = replace(invalid, name=value)
     elif field == "json_value":
         attributes["input"] = value
+    elif field == "json_key":
+        attributes[value] = "value"
+    elif field == "session_id":
+        attributes["session"] = {"id": value}
     else:
         project_name = value
     invalid = replace(invalid, attributes=attributes)
@@ -1187,11 +1198,14 @@ async def test_nul_span_is_isolated_without_changing_sqlite_behavior(
     inserter._spans[1] = (invalid, project_name)
     await inserter._insert_spans(3)
 
-    rejected = db.dialect.name_literal == "postgresql" and not (
-        field == "project_name" and existing_trace
+    # On PostgreSQL, NUL in descriptive values is replaced, while a JSON key or an
+    # identifier that would be stored rejects the span. SQLite stores NUL as is.
+    postgresql = db.dialect.name_literal == "postgresql"
+    rejected = postgresql and (
+        field == "json_key" or (field in ("project_name", "session_id") and not existing_trace)
     )
     if rejected:
-        assert f"sqlstate={'22P05' if field == 'json_value' else '22021'}" in caplog.text
+        assert f"sqlstate={'22P05' if field == 'json_key' else '22021'}" in caplog.text
     assert not inserter._span_batch and not inserter._spans and not inserter.is_full
     assert inserter._span_retry_attempts == 0
     async with db() as session:
@@ -1227,7 +1241,13 @@ async def test_nul_span_is_isolated_without_changing_sqlite_behavior(
                 assert saved["root"].cumulative_llm_token_count_prompt == 0
         else:
             stored = saved["invalid"]
-            assert stored.name == invalid.name and stored.attributes == invalid.attributes
+            repaired = "contains\ufffdnul" if postgresql else value
+            assert stored.name == (repaired if field == "name" else invalid.name)
+            assert stored.attributes == {
+                **invalid.attributes,
+                **({"input": repaired} if field == "json_value" else {}),
+                **({"session": {"id": repaired}} if field == "session_id" else {}),
+            }
             trace = await session.get(models.Trace, stored.trace_rowid)
             assert trace is not None
             project = await session.get(models.Project, trace.project_rowid)
@@ -1529,6 +1549,7 @@ async def test_connection_lost_mid_batch_is_limited_and_replay_delay_is_capped(
 async def test_retry_exhaustion_releases_batch_and_capacity_and_later_work_proceeds(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
     metrics: _Metrics,
 ) -> None:
     calls = 0
@@ -1544,9 +1565,14 @@ async def test_retry_exhaustion_releases_batch_and_capacity_and_later_work_proce
 
     monkeypatch.setattr(bulk_inserter, "insert_span", fail)
     inserter = _inserter(db, _span("span"), span_retry_allowance=1, max_spans_queue_size=1)
-    for _ in range(3):
-        await inserter._insert_spans(1)
+    with caplog.at_level(logging.DEBUG, logger=bulk_inserter.__name__):
+        for _ in range(3):
+            await inserter._insert_spans(1)
     assert calls == 2
+    records = [record for record in caplog.records if record.name == bulk_inserter.__name__]
+    assert [record.levelno for record in records] == [logging.DEBUG, logging.ERROR]
+    assert "retry 1/1" in records[0].getMessage()
+    assert "outcome=retry_exhausted" in records[1].getMessage()
     assert not inserter._span_batch and not inserter.is_full
     assert inserter._span_retry_attempts == 0 and inserter._span_retry_at == 0
     metrics.failed.labels.assert_called_once_with(reason="retry_exhausted")

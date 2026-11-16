@@ -31,11 +31,13 @@
 - DaytonaNotFoundError
 - DaytonaProcessExecutionTimeoutError
 - DaytonaProcessNotFoundError
+- DaytonaQueueTimeoutError
 - DaytonaRateLimitError
 - DaytonaRecordingFfmpegNotFoundError
 - DaytonaRecordingStillActiveError
 - DaytonaServiceUnavailableError
 - DaytonaSessionEndedError
+- DaytonaSpotEvictedError
 - DaytonaTimeoutError
 - DaytonaUnprocessableEntityError
 - ~~DaytonaValidationError~~
@@ -759,6 +761,7 @@ unless the caller (or the translation layer) sets it.
 - `DaytonaBadGatewayError`
 - `DaytonaServiceUnavailableError`
 - `DaytonaConnectionError`
+- `DaytonaSpotEvictedError`
 
 ### Accessors
 
@@ -2229,6 +2232,14 @@ Command execution exceeded its timeout (code `PROCESS_EXECUTION_TIMEOUT`).
     - _Inherited from_: `DaytonaTimeoutError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaTimeoutError.headers`
+- `sandboxId?` _string_ - Set only on the `DaytonaTimeoutError` from `Daytona.create()` after the
+    sandbox already exists. Undefined on every other timeout, including
+    process-execution timeouts and queue timeouts.
+
+    When it is set, pass it to `get()` and pass the returned Sandbox to
+    `delete()`. The sandbox may still be starting. `create()` does not
+    delete it.
+    - _Inherited from_: `DaytonaTimeoutError.sandboxId`
 - `source?` _string_
     - _Inherited from_: `DaytonaTimeoutError.source`
 - `statusCode?` _number_
@@ -2311,7 +2322,7 @@ static hasInstance: boolean;
 
 ##### Inherited from
 
-`DaytonaTimeoutError`.[`[hasInstance]`](#hasinstance-1)
+`DaytonaTimeoutError`.[`[hasInstance]`](#hasinstance-2)
 ## DaytonaProcessNotFoundError
 
 The sandbox process does not exist (code `PROCESS_NOT_FOUND`).
@@ -2384,6 +2395,107 @@ new DaytonaProcessNotFoundError(
 ##### Inherited from
 
 `DaytonaNotFoundError`.`constructor`
+## DaytonaQueueTimeoutError
+
+Raised when a sandbox was destroyed by the API because it waited longer than its queue timeout for a runner.
+
+**Properties**:
+
+- `code?` _string_
+    - _Inherited from_: `DaytonaTimeoutError.code`
+- `headers?` _AxiosHeaders_
+    - _Inherited from_: `DaytonaTimeoutError.headers`
+- `sandboxId?` _string_ - Set only on the `DaytonaTimeoutError` from `Daytona.create()` after the
+    sandbox already exists. Undefined on every other timeout, including
+    process-execution timeouts and queue timeouts.
+
+    When it is set, pass it to `get()` and pass the returned Sandbox to
+    `delete()`. The sandbox may still be starting. `create()` does not
+    delete it.
+    - _Inherited from_: `DaytonaTimeoutError.sandboxId`
+- `source?` _string_
+    - _Inherited from_: `DaytonaTimeoutError.source`
+- `statusCode?` _number_
+    - _Inherited from_: `DaytonaTimeoutError.statusCode`
+
+
+**Extends:**
+
+- `DaytonaTimeoutError`
+
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaTimeoutError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string;
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string` - the machine-readable error code, or `undefined` when the
+    response did not carry one (same as DaytonaError.code)
+
+### Constructors
+
+#### Constructor
+
+```ts
+new DaytonaQueueTimeoutError(
+   message: string,
+   statusCode?: number,
+   headers?: AxiosHeaders,
+   code?: string,
+   source?: string
+): DaytonaQueueTimeoutError;
+```
+
+**Parameters**:
+
+- `message` _string_
+- `statusCode?` _number_
+- `headers?` _AxiosHeaders_
+- `code?` _string_
+- `source?` _string_
+
+
+**Returns**:
+
+- `DaytonaQueueTimeoutError`
+
+##### Inherited from
+
+`DaytonaTimeoutError`.`constructor`
+
+### Methods
+
+#### \[hasInstance\]()
+
+```ts
+static hasInstance: boolean;
+```
+
+**Parameters**:
+
+- `value` _unknown_
+
+
+**Returns**:
+
+- `boolean`
+
+##### Inherited from
+
+`DaytonaTimeoutError`.[`[hasInstance]`](#hasinstance-2)
 ## DaytonaRateLimitError
 
 The caller exceeded a rate limit (HTTP 429).
@@ -2749,6 +2861,78 @@ new DaytonaSessionEndedError(
 ##### Inherited from
 
 `DaytonaGoneError`.`constructor`
+## DaytonaSpotEvictedError
+
+Raised when a sandbox was destroyed by spot preemption.
+
+**Properties**:
+
+- `code?` _string_
+    - _Inherited from_: `DaytonaError.code`
+- `headers?` _AxiosHeaders_
+    - _Inherited from_: `DaytonaError.headers`
+- `source?` _string_
+    - _Inherited from_: `DaytonaError.source`
+- `statusCode?` _number_
+    - _Inherited from_: `DaytonaError.statusCode`
+
+
+**Extends:**
+
+- `DaytonaError`
+
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string;
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string` - the machine-readable error code, or `undefined` when the
+    response did not carry one (same as DaytonaError.code)
+
+### Constructors
+
+#### Constructor
+
+```ts
+new DaytonaSpotEvictedError(
+   message: string,
+   statusCode?: number,
+   headers?: AxiosHeaders,
+   code?: string,
+   source?: string
+): DaytonaSpotEvictedError;
+```
+
+**Parameters**:
+
+- `message` _string_
+- `statusCode?` _number_
+- `headers?` _AxiosHeaders_
+- `code?` _string_
+- `source?` _string_
+
+
+**Returns**:
+
+- `DaytonaSpotEvictedError`
+
+##### Inherited from
+
+`DaytonaError`.`constructor`
 ## DaytonaTimeoutError
 
 The operation timed out (HTTP 408, or 504 when a gateway timed out).
@@ -2759,6 +2943,13 @@ The operation timed out (HTTP 408, or 504 when a gateway timed out).
     - _Inherited from_: `DaytonaError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaError.headers`
+- `sandboxId?` _string_ - Set only on the `DaytonaTimeoutError` from `Daytona.create()` after the
+    sandbox already exists. Undefined on every other timeout, including
+    process-execution timeouts and queue timeouts.
+
+    When it is set, pass it to `get()` and pass the returned Sandbox to
+    `delete()`. The sandbox may still be starting. `create()` does not
+    delete it.
 - `source?` _string_
     - _Inherited from_: `DaytonaError.source`
 - `statusCode?` _number_
@@ -2778,6 +2969,7 @@ chain. Transport timeouts were raised as `DaytonaTimeoutError` before
 
 ### Extended by
 
+- `DaytonaQueueTimeoutError`
 - `DaytonaProcessExecutionTimeoutError`
 
 ### Accessors

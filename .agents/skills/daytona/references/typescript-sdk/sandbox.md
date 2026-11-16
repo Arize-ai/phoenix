@@ -61,6 +61,8 @@ Represents a Daytona Sandbox.
     (not returned by list results; call `refreshData()` on each item to populate)
 - `process` _Process_ - Process execution interface
 - `public` _boolean_ - Whether the Sandbox is publicly accessible
+- `queueTimedOutAt?` _string_ - When the Sandbox was destroyed by the API after exceeding its queue timeout
+- `queueTimeout?` _number_ - Minutes the sandbox was allowed to wait for runner assignment before the API destroyed it. Null when no per-sandbox queue timeout was recorded.
 - `recoverable?` _boolean_ - Whether the Sandbox error is recoverable.
 - `sandboxClass?` _SandboxClass_ - The class of the Sandbox (e.g., "linux-vm", "container")
 - `snapshot?` _string_ - Daytona snapshot used to create the Sandbox
@@ -428,6 +430,12 @@ Retrieves the preview link for the sandbox at the specified port. If the port is
 it will be opened automatically. For private sandboxes, a token is included to grant access
 to the URL.
 
+For a private sandbox, requests to `url` must authenticate, otherwise they are answered with
+`401 Unauthorized`. Send the returned `token` in the `X-Daytona-Preview-Token` header, or send
+your Daytona API key as `Authorization: Bearer <api key>`. To get a URL that works without extra
+headers (for example to open it in a browser or share it), use `getSignedPreviewUrl` instead.
+Public sandboxes need no credentials.
+
 **Parameters**:
 
 - `port` _number_ - The port to open the preview link on.
@@ -444,6 +452,11 @@ to the URL.
 const previewLink = await sandbox.getPreviewLink(3000);
 console.log(`Preview URL: ${previewLink.url}`);
 console.log(`Token: ${previewLink.token}`);
+
+// Fetch the private preview from outside the sandbox
+const response = await fetch(previewLink.url, {
+  headers: { 'X-Daytona-Preview-Token': previewLink.token },
+});
 ```
 
 #### getSignedPreviewUrl()
@@ -454,15 +467,27 @@ getSignedPreviewUrl(port: number, expiresInSeconds?: number): Promise<SignedPort
 
 Retrieves a signed preview url for the sandbox at the specified port.
 
+The access token is embedded in the returned URL, so it can be used without any headers, for
+example in a browser or by another service. The URL stops working when it expires (after 60
+seconds unless `expiresInSeconds` is set) or when it is expired with `expireSignedPreviewUrl`.
+
 **Parameters**:
 
 - `port` _number_ - The port to open the preview link on.
-- `expiresInSeconds?` _number_ - The number of seconds the signed preview url will be valid for. Defaults to 60 seconds.
+- `expiresInSeconds?` _number_ - The number of seconds the signed preview url will be valid for. Defaults to 60 seconds;
+    set a longer value for links that need to stay usable, e.g. `3600` for one hour.
 
 
 **Returns**:
 
 - `Promise<SignedPortPreviewUrl>` - The response object for the signed preview url.
+
+**Example:**
+
+```ts
+const signed = await sandbox.getSignedPreviewUrl(3000, 3600);
+console.log(`Preview URL (valid for one hour): ${signed.url}`);
+```
 
 #### getUserHomeDir()
 
@@ -861,6 +886,34 @@ await sandbox.setLabels({
   environment: 'development',
   team: 'backend'
 });
+```
+
+#### setPublic()
+
+```ts
+setPublic(isPublic: boolean): Promise<void>;
+```
+
+Sets whether the Sandbox's preview URLs are publicly accessible.
+
+When public, preview URLs (see `getPreviewLink`) can be opened without a preview token or API key.
+When private, every preview request must authenticate.
+
+**Parameters**:
+
+- `isPublic` _boolean_ - `true` to make preview URLs public, `false` to make them private.
+
+
+**Returns**:
+
+- `Promise<void>`
+
+**Example:**
+
+```ts
+await sandbox.setPublic(true);
+const preview = await sandbox.getPreviewLink(3000);
+// preview.url can now be opened without credentials
 ```
 
 #### setTtl()

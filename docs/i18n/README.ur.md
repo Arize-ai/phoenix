@@ -44,7 +44,19 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.ur.md" />
 </p>
 
-Arize Phoenix، Arize کا اوپن سورس AI observability پلیٹ فارم ہے جو تجربات، جانچ (evaluation) اور مسائل کے حل کے لیے بنایا گیا ہے۔ پروڈکشن کے منظم (managed) ورک فلوز کے لیے Arize [Arize AX](https://arize.com/products/ax/) بھی پیش کرتا ہے۔ Phoenix درج ذیل سہولیات فراہم کرتا ہے:
+<p align="center">
+    <a target="_blank" href="https://github.com/Arize-ai/phoenix/stargazers">
+        <img alt="Star Arize Phoenix on GitHub" src="https://img.shields.io/github/stars/Arize-ai/phoenix?style=social&label=Star%20on%20GitHub" />
+    </a>
+</p>
+
+<p align="center">
+ <a href="https://www.star-history.com/arize-ai/phoenix">
+  <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /><img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /></picture> <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /><img alt="GitHub Trending Repository of the Day" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /></picture>
+ </a>
+</p>
+
+Arize Phoenix، Arize کا اوپن سورس AI observability پلیٹ فارم ہے جو تجربات، جانچ (evaluation) اور مسائل کے حل کے لیے بنایا گیا ہے۔ پروڈکشن کے منظم (managed) ورک فلوز کے لیے Arize [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-ur) بھی پیش کرتا ہے۔ Phoenix درج ذیل سہولیات فراہم کرتا ہے:
 
 - [**_ٹریسنگ (Tracing)_**](https://arize.com/docs/phoenix/tracing/llm-traces) - OpenTelemetry پر مبنی instrumentation کے ذریعے اپنی LLM ایپلیکیشن کے رن ٹائم کو ٹریس کریں۔
 - [**_جانچ (Evaluation)_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - جوابات اور retrieval کے evals استعمال کرتے ہوئے LLMs کی مدد سے اپنی ایپلیکیشن کی کارکردگی کا معیار جانچیں۔
@@ -61,10 +73,10 @@ Arize Phoenix، Arize کا اوپن سورس AI observability پلیٹ فارم 
 
 Phoenix کسی مخصوص وینڈر یا زبان کا پابند نہیں ہے اور مقبول فریم ورکس ([OpenAI Agents SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk)، [Claude Agent SDK](https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk)، [LangGraph](https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain)، [Vercel AI SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk)، [Mastra](https://arize.com/docs/phoenix/integrations/typescript/mastra)، [CrewAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/crewai)، [LlamaIndex](https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex)، [DSPy](https://arize.com/docs/phoenix/tracing/integrations-tracing/dspy)) اور LLM فراہم کنندگان ([OpenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai)، [Anthropic](https://arize.com/docs/phoenix/tracing/integrations-tracing/anthropic)، [Google GenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai)، [Google ADK](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing)، [AWS Bedrock](https://arize.com/docs/phoenix/tracing/integrations-tracing/bedrock)، [OpenRouter](https://arize.com/docs/phoenix/integrations/python/openrouter)، [LiteLLM](https://arize.com/docs/phoenix/tracing/integrations-tracing/litellm)، اور مزید) کے لیے فوری سپورٹ فراہم کرتا ہے۔ خودکار instrumentation کی تفصیلات کے لیے [OpenInference](https://github.com/Arize-ai/openinference) پروجیکٹ دیکھیں۔
 
-Phoenix تقریباً ہر جگہ چلتا ہے، بشمول آپ کی مقامی مشین، کنٹینر پر مبنی ڈیپلائمنٹ، یا کلاؤڈ۔ ہر آپشن کی تفصیلی وضاحت کے لیے [ماحول (Environments)](https://arize.com/docs/phoenix/environments) دیکھیں، یا براہ راست [ٹریسنگ کوئیک اسٹارٹ](https://arize.com/docs/phoenix/get-started/get-started-tracing) پر جائیں۔
+Phoenix تقریباً ہر جگہ چلتا ہے، بشمول آپ کی مقامی مشین، کنٹینر پر مبنی ڈیپلائمنٹ، یا کلاؤڈ۔ ہر آپشن کی تفصیلی وضاحت کے لیے [ماحول (Environments)](https://arize.com/docs/phoenix/self-hosting) دیکھیں، یا براہ راست [ٹریسنگ کوئیک اسٹارٹ](https://arize.com/docs/phoenix/get-started/get-started-tracing) پر جائیں۔
 
 > [!NOTE]
-> Phoenix اوپن سورس اور سیلف ہوسٹڈ ہے۔ منظم پلیٹ فارم کے لیے Arize [Arize AX](https://arize.com/products/ax/) پیش کرتا ہے — ایک ہی OpenTelemetry/OpenInference instrumentation دونوں کے ساتھ کام کرتی ہے۔ [مکمل موازنہ](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize) دیکھیں۔
+> Phoenix اوپن سورس اور سیلف ہوسٹڈ ہے۔ منظم پلیٹ فارم کے لیے Arize [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-ur) پیش کرتا ہے — ایک ہی OpenTelemetry/OpenInference instrumentation دونوں کے ساتھ کام کرتی ہے۔ [مکمل موازنہ](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize) دیکھیں۔
 
 ## فہرست مضامین
 
@@ -144,7 +156,6 @@ Docker Compose، Kubernetes/Helm اور ڈیپلائمنٹ کے دیگر آپش�
 | [@arizeai/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/) | OpenTelemetry primitives کے گرد ایک ہلکا پھلکا wrapper فراہم کرتا ہے جس کے ڈیفالٹس Phoenix کے مطابق ہیں |
 | [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/) | Arize Phoenix API کے لیے کلائنٹ |
 | [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/) | LLM ایپلیکیشنز کے لیے TypeScript جانچ لائبریری (الفا ریلیز) |
-| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md) | Phoenix کے پرانے ورژنز کے لیے خود مختار stdio MCP سرور (مینٹیننس موڈ — اس کی جگہ Phoenix میں شامل [ریموٹ MCP سرور](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) نے لے لی ہے) |
 | [@arizeai/phoenix-cli](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) | Claude Code، Cursor اور دیگر کوڈنگ ایجنٹس کے ساتھ استعمال کے لیے traces، ڈیٹا سیٹس اور تجربات حاصل کرنے کا CLI |
 
 ## ٹریسنگ انٹیگریشنز
@@ -268,16 +279,16 @@ kernel سطح کی علیحدگی اور رن ٹائم پر dependencies کی ا
 Phoenix کو اس طرح بنایا گیا ہے کہ اسے انسان اور AI کوڈنگ ایجنٹس دونوں یکساں طور پر چلا سکیں۔ تین انٹرفیسز ایجنٹس (Claude Code، Codex، Cursor اور دیگر) کو آپ کے traces، ڈیٹا سیٹس اور تجربات کے ساتھ کام کرنے دیتے ہیں:
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` traces، ڈیٹا سیٹس اور تجربات حاصل کرتا ہے اور آپ کی ایپ میں instrumentation شامل کرتا ہے (`setup`)، تاکہ ایجنٹ ٹرمینل سے سیاق و سباق حاصل کر کے اس پر عمل کر سکے۔
-- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) ایسے ورک فلوز پیک کرتا ہے جو ایجنٹس کو سکھاتے ہیں کہ Phoenix کے ساتھ ڈیبگ، جانچ اور ٹریس کیسے کریں۔
+- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`skills/`](../../skills/) ایسے ورک فلوز پیک کرتا ہے جو ایجنٹس کو سکھاتے ہیں کہ Phoenix کے ساتھ ڈیبگ، جانچ اور ٹریس کیسے کریں۔
 - **[ریموٹ MCP سرور](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — کسی بھی MCP کلائنٹ کو اپنے انسٹینس کے `/mcp` اینڈ پوائنٹ سے جوڑیں تاکہ براہ راست Phoenix سے کوئری کر سکیں۔
 
 سیٹ اپ اور استعمال کے لیے [کوڈنگ ایجنٹس کی دستاویزات](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) دیکھیں۔
 
 | Skill | تفصیل |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/) | Phoenix CLI کے ذریعے LLM ایپلیکیشنز کو ڈیبگ کریں — traces حاصل کریں، خرابیوں کا تجزیہ کریں، تجربات کا جائزہ لیں، اور GraphQL API پر کوئری کریں |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/) | Phoenix کے ذریعے AI/LLM ایپلیکیشنز کے لیے evaluators بنائیں اور چلائیں |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | LLM ایپلیکیشنز کی ٹریسنگ کے لیے OpenInference کی semantic conventions اور instrumentation |
+| [phoenix-cli](../../skills/phoenix-cli/) | Phoenix CLI کے ذریعے LLM ایپلیکیشنز کو ڈیبگ کریں — traces حاصل کریں، خرابیوں کا تجزیہ کریں، تجربات کا جائزہ لیں، اور GraphQL API پر کوئری کریں |
+| [phoenix-evals](../../skills/phoenix-evals/) | Phoenix کے ذریعے AI/LLM ایپلیکیشنز کے لیے evaluators بنائیں اور چلائیں |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | LLM ایپلیکیشنز کی ٹریسنگ کے لیے OpenInference کی semantic conventions اور instrumentation |
 
 ## سیکیورٹی اور پرائیویسی
 
@@ -314,3 +325,15 @@ Copyright 2025 Arize AI, Inc. جملہ حقوق محفوظ ہیں۔
 اس کوڈ کے کچھ حصے ایک یا زیادہ امریکی پیٹنٹس کے ذریعے محفوظ ہیں۔ [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE) دیکھیں۔
 
 یہ سافٹ ویئر Elastic License 2.0 (ELv2) کی شرائط کے تحت لائسنس یافتہ ہے۔ [LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE) دیکھیں۔
+
+## Star History
+
+Phoenix is fully open source and built in the open. If it helps you, please [⭐ star the repo](https://github.com/Arize-ai/phoenix) to support the project.
+
+<a href="https://www.star-history.com/?repos=arize-ai%2Fphoenix&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+ </picture>
+</a>

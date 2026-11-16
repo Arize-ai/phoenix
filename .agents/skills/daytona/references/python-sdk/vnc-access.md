@@ -12,7 +12,7 @@ VNC (Virtual Network Computing) access provides a graphical desktop environment 
 
 VNC and [Computer Use](./computer-use-guide.md) work together to enable both manual and automated desktop interactions. VNC provides the visual interface for users to manually interact with the desktop, while Computer Use provides the programmatic API for AI agents to automate mouse, keyboard, and screenshot operations. Through VNC, you can observe AI agents performing automated tasks via Computer Use in real-time.
 > **Note: Sandbox image requirement**
-> VNC and Computer Use require a sandbox with the default image. Sandboxes created with custom images do not include VNC support unless you install the [required packages](#required-packages).
+> VNC and Computer Use require a sandbox created from a default snapshot. Sandboxes created from custom images or custom snapshots, including custom [Linux VM snapshots](./snapshots.md#vm-snapshots), do not include VNC support unless you install the [required packages](#required-packages).
 
 ## Access VNC from Dashboard
 
@@ -98,7 +98,9 @@ screenshot = sandbox.computer_use.screenshot.take_full_screen()
 
 ## Required packages
 
-The default sandbox image includes all packages required for VNC and Computer Use. If you are using a custom image, you need to install the following packages.
+The default snapshots, including the default Linux VM snapshots, include all packages required for VNC and Computer Use. If you are using a custom image or a custom snapshot, install the following packages in the image. If the packages are missing, starting VNC returns an error that lists the processes that failed to start.
+
+Linux VM snapshots do not support Dockerfile builds. Install the packages in an image that you push to a registry, or install them in a running Linux VM sandbox and [create a snapshot](./snapshots.md#create-snapshot-from-sandbox).
 
 ### VNC and desktop environment
 

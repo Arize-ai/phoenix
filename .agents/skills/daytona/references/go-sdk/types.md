@@ -189,6 +189,9 @@ type CreateSnapshotParams struct {
     Entrypoint     []string
     SkipValidation *bool
     SandboxClass   *SandboxClass
+    // RegionID is the region where the snapshot is created. When nil or empty, the
+    // client-level target is used if set; otherwise the organization's default region.
+    RegionID *string
 }
 ```
 
@@ -220,8 +223,12 @@ type DaytonaConfig struct {
     JWTToken       string
     OrganizationID string
     APIUrl         string
-    Target         string
-    OtelEnabled    bool // Enable OpenTelemetry tracing for SDK operations.
+    // Target is the default region for sandboxes and snapshots. When empty, the DAYTONA_TARGET
+    // environment variable is used. A per-call [SandboxBaseParams.Target] or
+    // [CreateSnapshotParams.RegionID] overrides it; when neither is set, the organization's
+    // default region is used.
+    Target      string
+    OtelEnabled bool // Enable OpenTelemetry tracing for SDK operations.
     // UseDeprecatedPolling observes sandbox state by legacy polling instead of
     // WebSocket event streaming. Defaults to false (event streaming). Can also be
     // enabled via the DAYTONA_USE_DEPRECATED_POLLING environment variable.
@@ -415,7 +422,7 @@ type GitStatus struct {
 <a name="GpuType"></a>
 ## type GpuType
 
-GpuType identifies a specific GPU model. Used in \[Resources.GpuType\] as an ordered preference list — the scheduler tries each in order and pins the sandbox/snapshot to the first that has capacity. It is an alias for the API client's GpuType type.
+GpuType identifies a specific GPU model. Used in [Resources.GpuType](https://www.daytona.io/docs/en<#Resources>) as an ordered preference list — the scheduler tries each in order and pins the sandbox/snapshot to the first that has capacity. It is an alias for the API client's GpuType type.
 
 ```go
 type GpuType = apiclient.GpuType
@@ -426,6 +433,7 @@ type GpuType = apiclient.GpuType
 ```go
 const (
     GpuTypeH100       GpuType = apiclient.GPUTYPE_H100
+    GpuTypeB200       GpuType = apiclient.GPUTYPE_B200
     GpuTypeB300       GpuType = apiclient.GPUTYPE_B300
     GpuTypeRtxPro6000 GpuType = apiclient.GPUTYPE_RTX_PRO_6000
     GpuTypeMI355X     GpuType = apiclient.GPUTYPE_MI355X
@@ -625,7 +633,10 @@ type SandboxBaseParams struct {
     AutoArchiveInterval *int // nil = no auto-archive, 0 = immediate archive
     AutoDeleteInterval  *int // nil = no auto-delete, 0 = immediate delete
     TtlMinutes          *int // Wall-clock max lifetime in minutes; 0 disables TTL
-    Volumes             []VolumeMount
+    // QueueTimeout is the minutes to wait for runner assignment before sandbox creation is cancelled.
+    // Nil uses the organization default. Must be >= 1.
+    QueueTimeout *int
+    Volumes      []VolumeMount
     // Secrets maps an environment variable name to the name of an existing
     // organization secret. For each entry, the env var is injected into the
     // sandbox holding the secret's opaque placeholder, which is resolved to the
@@ -657,6 +668,10 @@ type SandboxBaseParams struct {
     // Linked sandboxes must be ephemeral (AutoDeleteInterval=0) and cannot themselves be
     // linked to another sandbox.
     LinkedSandbox string
+    // Target is the target (region) where the sandbox is created. It overrides the
+    // client-level target for this call. When empty, the client-level target is used if
+    // set; otherwise the organization's default region.
+    Target string
 }
 ```
 
@@ -723,7 +738,7 @@ type ScreenshotResponse struct {
 
 Secret represents an organization\-scoped secret.
 
-A Secret stores a write\-only plaintext value that is never returned by the API. When referenced from a sandbox, the env var holds the opaque \[Secret.Placeholder\] token, which is resolved to the real value only for the secret's allowed \[Secret.Hosts\].
+A Secret stores a write\-only plaintext value that is never returned by the API. When referenced from a sandbox, the env var holds the opaque [Secret.Placeholder](https://www.daytona.io/docs/en<#Secret>) token, which is resolved to the real value only for the secret's allowed [Secret.Hosts](https://www.daytona.io/docs/en<#Secret>).
 
 ```go
 type Secret struct {

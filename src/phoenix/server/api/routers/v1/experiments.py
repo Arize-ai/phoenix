@@ -137,7 +137,7 @@ async def create_experiment(
         dataset_rowid = from_global_id_with_expected_type(dataset_globalid, "Dataset")
     except ValueError:
         raise HTTPException(
-            detail="Dataset with ID {dataset_globalid} does not exist",
+            detail=f"Dataset with ID {dataset_globalid} does not exist",
             status_code=404,
         )
 
@@ -310,7 +310,7 @@ async def get_experiment(request: Request, experiment_id: str) -> GetExperimentR
         experiment_rowid = from_global_id_with_expected_type(experiment_globalid, "Experiment")
     except ValueError:
         raise HTTPException(
-            detail="Experiment with ID {experiment_globalid} does not exist",
+            detail=f"Experiment with ID {experiment_globalid} does not exist",
             status_code=404,
         )
 

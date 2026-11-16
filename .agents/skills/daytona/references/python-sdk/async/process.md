@@ -45,6 +45,21 @@ async def exec(command: str,
 
 Execute a shell command in the Sandbox.
 
+The command is run by the first available of zsh, bash or sh in the sandbox, which is
+zsh in the default snapshots. Quote arguments that contain glob characters, for example
+`pip install -e '.[test]'`, or wrap bash-specific scripts in `bash -c '...'`.
+
+The call returns when the command finishes. To start a long-running process such as a
+server, run it in the background with its output redirected, e.g.
+`python3 -m http.server 8000 > server.log 2>&1 &`, or use a session with
+`run_async=True` (see `execute_session_command`). A background process that keeps the
+command's output open (`cmd &` without a redirect) can block the call until that process
+exits.
+
+Tools in the sandbox may report the host's CPU count and memory (for example `nproc`
+or `os.cpu_count()`) rather than the sandbox's own limits. Size worker pools from the
+sandbox's `cpu` and `memory` instead, e.g. `pytest -n 2` rather than `pytest -n auto`.
+
 **Arguments**:
 
 - `command` _str_ - Shell command to execute.
@@ -76,6 +91,9 @@ result = await sandbox.process.exec("ls", cwd="workspace/src")
 
 # Command with timeout
 result = await sandbox.process.exec("sleep 10", timeout=5)
+
+# Start a server in the background
+await sandbox.process.exec("python3 -m http.server 8000 > server.log 2>&1 &")
 ```
 
 #### AsyncProcess.code\_run

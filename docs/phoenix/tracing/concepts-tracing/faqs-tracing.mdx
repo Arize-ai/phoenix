@@ -41,7 +41,7 @@ LangChainInstrumentor().instrument(tracer_provider=tracer_provider)
 # run your LangChain application
 ```
 
-See [Environments](/docs/phoenix/environments) for the rest of the connection settings.
+See [Environment Variables](/docs/phoenix/sdk-api-reference#environment-variables) for the rest of the connection settings.
 </Tab>
 </Tabs>
 
@@ -81,7 +81,7 @@ To get token counts when streaming, install `openai>=1.26` and set `stream_optio
 
 ```python
 response = openai.OpenAI().chat.completions.create(
-    model="gpt-3.5-turbo",
+    model="gpt-5.6-terra",
     messages=[{"role": "user", "content": "Write a haiku."}],
     max_tokens=20,
     stream=True,

@@ -11,7 +11,13 @@
 
 Daytona provides **full composable computers** — **sandboxes** — for AI agents. Sandboxes are isolated runtime environments you can manage programmatically to run code. Each sandbox runs in isolation, giving it a dedicated kernel, filesystem, network stack, and allocated vCPU, RAM, and disk. Agents and developers get access to a full composable computer where they can install packages, run servers, compile code, and manage processes.
 
-Sandboxes run as **Linux containers** by default. Daytona also provides [VM sandboxes](#vm-sandboxes) with a dedicated **Linux VM** or **Windows** operating system, [GPU sandboxes](#gpu-sandboxes) with **NVIDIA** and **AMD GPU** acceleration for model inference, fine-tuning, and GPU-accelerated compute, and [macOS sandboxes](#macos-sandboxes) running on dedicated Apple silicon hardware.
+Sandboxes run as **Linux containers** by default. Daytona also provides [VM sandboxes](#vm-sandboxes) with a dedicated [Linux VM](./linux-sandboxes.md) or [Windows](./windows-sandboxes.md) operating system, [GPU sandboxes](#gpu-sandboxes) with **NVIDIA** and **AMD GPU** acceleration for CUDA development, 3D and graphics workloads, and other GPU-accelerated compute, and [macOS sandboxes](https://www.daytona.com/docs/macos-sandboxes) running on dedicated Apple silicon hardware.
+
+- [Container](#create-sandboxes): Default Linux container runtime for running processes and executing code.
+- [Linux VM](#vm-sandboxes): Linux OS runtime in a virtual machine for running Linux-specific tools and workflows.
+- [Windows](#vm-sandboxes): Windows OS runtime in a virtual machine for running Windows applications and tooling.
+- [macOS](#macos-sandboxes): macOS runtime for automating applications and desktop interactions.
+- [GPU](#gpu-sandboxes): NVIDIA and AMD GPU runtime for CUDA development, 3D and graphics workloads, and other GPU-accelerated compute.
 
 ## Create sandboxes
 
@@ -176,7 +182,7 @@ System.out.println(response.getResult());
 
 ### Environment variables
 
-Create a sandbox with environment variables. Use [secrets](https://www.daytona.io/docs/en/secrets) for API keys, tokens, and passwords.
+Create a sandbox with environment variables. Use [secrets](./secrets.md) for API keys, tokens, and passwords.
 
 1. Go to [Daytona Sandboxes ↗](https://app.daytona.io/dashboard/sandboxes)
 2. Click <Button>Create Sandbox</Button>
@@ -236,7 +242,7 @@ public class App {
 
 ### VM sandboxes
 
-Daytona provides **VM sandboxes** for workloads that require a full virtual machine with a dedicated **Linux VM** or **Windows** operating system. VM sandboxes are distinct from container sandboxes and support VM-only capabilities:
+Daytona provides **VM sandboxes** for workloads that require a full virtual machine with a dedicated [Linux VM](./linux-sandboxes.md) or [Windows](./windows-sandboxes.md) operating system. VM sandboxes are distinct from container sandboxes and support VM-only capabilities:
 
 - [Fork sandboxes](#fork-sandboxes)
 - [Pause and resume sandboxes](#pause--resume-sandboxes)
@@ -255,7 +261,7 @@ Create a Linux VM sandbox.
 2. Click <Button>Create Snapshot</Button>
 3. Enter <Button>Snapshot Name</Button> (e.g. **`my-vm-snapshot`**)
 4. Enter an <Button>Image</Button> (e.g. **`ubuntu:22.04`**)
-5. Select <Button>Sandbox Class</Button>: **`LINUX VM`**
+5. Select <Button>Sandbox Class</Button>: **`LINUX_VM`**
 6. Click <Button>Create</Button>
 7. Go to [Daytona Sandboxes ↗](https://app.daytona.io/dashboard/sandboxes)
 8. Click <Button>Create Sandbox</Button>
@@ -336,6 +342,8 @@ public class App {
 #### Nested virtualization
 
 Daytona provides nested virtualization for Linux VM sandboxes. Nested virtualization exposes KVM (`/dev/kvm`) inside the guest, so the sandbox can run its own virtual machines with hardware acceleration.
+> **Note:**
+> KVM sandboxes must be enabled for your organization. Contact [support@daytona.io](mailto:support@daytona.io).
 
 ```java
 import io.daytona.sdk.Daytona;
@@ -356,29 +364,15 @@ public class App {
 
 ### macOS sandboxes
 
-Daytona provides macOS sandboxes through the [use.computer](https://use.computer) platform.
-
-1. Go to [use.computer ↗](https://use.computer/)
-2. Obtain an API key
-3. Reserve a Mac
-4. Use the API key to create a macOS sandbox
-
-```bash
-curl 'https://api.use.computer/v1/sandboxes' \
-  --request POST \
-  --header 'Authorization: Bearer YOUR_USE_COMPUTER_API_KEY' \
-  --header 'Content-Type: application/json' \
-  --data '{"type":"macos"}'
-```
-
-See the [use.computer API documentation ↗](https://use.computer/docs) for Computer Use, VNC, SSH, screenshots, and other macOS sandbox operations.
+Daytona provides [macOS sandboxes](https://www.daytona.com/docs/macos-sandboxes) for agents that need a macOS operating system.
 
 ### GPU sandboxes
 
-Daytona provides **GPU sandboxes** for workloads that require GPU acceleration, such as model inference, fine-tuning, and GPU-accelerated compute. GPU sandboxes are ephemeral and support up to **8 GPUs**. Resource limits scale with the number of GPU units: each GPU adds up to **16 vCPUs**, **192GB RAM**, and **512GB disk**. Supported **NVIDIA** and **AMD** GPU types:
+Daytona provides [GPU sandboxes](./gpu-sandboxes.md) for agents doing GPU-accelerated work, such as writing and profiling CUDA kernels, 3D and graphics workloads, and other GPU-accelerated compute. GPU sandboxes are ephemeral and support up to **8 GPUs**. Resource limits scale with the number of GPU units: each GPU adds up to **16 vCPUs**, **192GB RAM**, and **512GB disk**. Supported **NVIDIA** and **AMD** GPU types:
 
 - **NVIDIA H100**
 - **NVIDIA H200**
+- **NVIDIA B200**
 - **NVIDIA B300**
 - **NVIDIA RTX Pro 6000**
 - **NVIDIA RTX 4090**
@@ -387,7 +381,7 @@ Daytona provides **GPU sandboxes** for workloads that require GPU acceleration, 
 
 GPU sandboxes are on-demand. See [spot GPU sandboxes](#spot-gpu-sandboxes) for preemptible GPU capacity. Use the [GPU capacity](#gpu-capacity) endpoint to check available GPU units before creating a sandbox. When no GPU capacity is available, a GPU sandbox waits until capacity frees up.
 
-GPU sandboxes on shared regions run in the [Earth region](./regions.md#earth-region). Daytona selects the shared region, ignores the requested target, and reports `earth` as the sandbox `target`. GPU sandboxes on [dedicated](./regions.md#dedicated-regions) and [custom](./regions.md#custom-regions) regions keep their real region ID. To run GPU sandboxes in a specific geographic location, contact [support@daytona.io](mailto:support@daytona.io).
+GPU sandboxes on shared regions run in the [earth region](./regions.md#earth-region). Daytona selects the shared region, ignores the requested target, and reports `earth` as the sandbox `target`. GPU sandboxes on [dedicated](./regions.md#dedicated-regions) and [custom](./regions.md#custom-regions) regions keep their real region ID. To run GPU sandboxes in a specific geographic location, contact [support@daytona.io](mailto:support@daytona.io).
 
 **Custom:**
 
@@ -397,7 +391,7 @@ Create a GPU sandbox with custom GPU resources: units and types.
 2. Click <Button>Create Sandbox</Button>
 3. Enter an <Button>Image</Button> (e.g. **`pytorch/pytorch:2.11.0-cuda12.8-cudnn9-runtime`**)
 4. Set <Button>GPU</Button> to the number of GPU units (e.g. **`1`**)
-5. Select <Button>GPU Type</Button>: **`H100`**, **`H200`**, **`B300`**, **`RTX-PRO-6000`**, **`RTX-4090`**, **`RTX-5090`**, **`MI355X`**
+5. Select <Button>GPU Type</Button>: **`H100`**, **`H200`**, **`B200`**, **`B300`**, **`RTX-PRO-6000`**, **`RTX-4090`**, **`RTX-5090`**, **`MI355X`**
 
     The GPU type field accepts a single value or an ordered list of preferred types.
 
@@ -461,7 +455,7 @@ A spot GPU sandbox can be terminated at any time without notice when an on-deman
 
 When a spot GPU sandbox is destroyed, normal [sandbox lifecycle state](#sandbox-lifecycle) updates still apply. Daytona records when the preemption occurred with a `spotEvictedAt` timestamp. Sandboxes destroyed by spot GPU preemption remain retrievable for 24 hours.
 
-Spot GPU sandboxes do not count against the organization's GPU quota. Available GPU capacity is the only limit. If no spot GPU is available, create fails immediately.
+Spot GPU sandboxes require Tier 2 or higher. Spot GPU sandboxes do not count against the organization's GPU quota. Available GPU capacity is the only limit. If no spot GPU is available, create fails immediately.
 
 **Custom:**
 
@@ -516,7 +510,7 @@ public class App {
 
 ### GPU capacity
 
-Get the available GPU capacity. The response lists available GPU units by GPU type, split into on-demand and spot. Capacity is aggregated across all shared regions in the [Earth region](./regions.md#earth-region) and changes as sandboxes are created and deleted. The response does not reserve capacity and does not apply the organization's GPU quota. On-demand GPU sandboxes remain subject to the quota. Spot GPU sandboxes are limited only by available capacity.
+Get the available GPU capacity. The response lists available GPU units by GPU type, split into on-demand and spot. Capacity is aggregated across all shared regions in the [earth region](./regions.md#earth-region) and changes as sandboxes are created and deleted. The response does not reserve capacity and does not apply the organization's GPU quota. On-demand GPU sandboxes remain subject to the quota. Spot GPU sandboxes are limited only by available capacity.
 
 **API:**
 
@@ -538,13 +532,13 @@ Response example:
 }
 ```
 
-| **Field**               | **Description**                                                                                                     |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| **`observedAt`**        | Time the capacity was calculated. Responses are cached for up to five seconds.                                      |
-| **`capacity`**          | One entry per GPU type.                                                                                             |
-| **`gpuType`**           | **`H100`**, **`H200`**, **`B300`**, **`RTX-PRO-6000`**, **`RTX-4090`**, **`RTX-5090`**, or **`MI355X`**.            |
-| **`availableOnDemand`** | GPU units available to on-demand GPU sandboxes. Includes units held by spot GPU sandboxes that Daytona can reclaim. |
-| **`availableSpot`**     | GPU units currently free for spot GPU sandboxes.                                                                    |
+| **Field**               | **Description**                                                                                                      |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| **`observedAt`**        | Time the capacity was calculated. Responses are cached for up to five seconds.                                       |
+| **`capacity`**          | One entry per GPU type.                                                                                              |
+| **`gpuType`**           | **`H100`**, **`H200`**, **`B200`**, **`B300`**, **`RTX-PRO-6000`**, **`RTX-4090`**, **`RTX-5090`**, or **`MI355X`**. |
+| **`availableOnDemand`** | GPU units available to on-demand GPU sandboxes. Includes units held by spot GPU sandboxes that Daytona can reclaim.  |
+| **`availableSpot`**     | GPU units currently free for spot GPU sandboxes.                                                                     |
 
 ### Ephemeral sandboxes
 
@@ -622,10 +616,8 @@ Sandbox operations manage sandboxes after creation. They cover discovery, inspec
 List sandboxes.
 
 ```java
-Iterator<Map<String, Object>> iter = daytona.list();
-while (iter.hasNext()) {
-    Map<String, Object> sandbox = iter.next();
-    System.out.println(sandbox.get("id"));
+for (Sandbox sandbox : daytona.list()) {
+    System.out.println(sandbox.getId());
 }
 ```
 
@@ -658,6 +650,8 @@ sandbox.setLabels(labels);
 Resizing updates the sandbox resource allocation (CPU, memory, and disk) for that sandbox. CPU and memory control compute capacity for running workloads, while disk controls the persistent filesystem capacity.
 
 On a running sandbox, you can increase CPU and memory without interruption. To decrease CPU or memory, or to increase disk capacity, stop the sandbox first. Disk size can only be increased and cannot be decreased.
+> **Note:**
+> Sandbox resizing must be enabled for your organization. Contact [support@daytona.io](mailto:support@daytona.io).
 
 1. Choose the new **CPU**, **memory**, and **disk** values within your organization's limits
 2. Ensure the sandbox is **stopped** if you need to decrease CPU or memory, or increase disk
@@ -677,7 +671,6 @@ df -h /                         # disk
 
 Every sandbox moves through a lifecycle. A sandbox can have several different states. Each state reflects the status of your sandbox. A sandbox transitions between states in response to user actions, or through [automated lifecycle management](#automated-lifecycle-management) based on inactivity intervals. Available lifecycle features depend on the sandbox class.
 
-
 | **Lifecycle feature**                             | **Container** | **Linux VM** | **Windows** | **GPU** |
 | ------------------------------------------------- | ------------- | ------------ | ----------- | ------- |
 | Start sandboxes                                   | ✓             | ✓            | ✓           | ✓       |
@@ -688,8 +681,7 @@ Every sandbox moves through a lifecycle. A sandbox can have several different st
 | Snapshot from sandbox <br />(filesystem only)     | ✓             | ✓            | ✓           | ✓       |
 | Snapshot from sandbox <br />(filesystem + memory) | ✗             | ✓            | ✓           | ✗       |
 
-**Sandbox states**
-
+**Sandbox states:**
 
 | **State**         | **Description**                                                                             |
 | ----------------- | ------------------------------------------------------------------------------------------- |
@@ -716,11 +708,9 @@ Every sandbox moves through a lifecycle. A sandbox can have several different st
 | Error             | The sandbox is in an error state and needs to be recovered.                                 |
 | Unknown           | The default sandbox state before it is created.                                             |
 
-
 A sandbox can transition between states in response to various actions. The following table lists the initial state, target state, and trigger for the transition.
 
-**State transitions**
-
+**State transitions:**
 
 | **Initial state** | **Target state**  | **Trigger**                                                                       |
 | ----------------- | ----------------- | --------------------------------------------------------------------------------- |
@@ -762,7 +752,6 @@ A sandbox can transition between states in response to various actions. The foll
 | Started           | Error             | An operation fails or times out.                                                  |
 | Error             | Restoring         | A recover is requested for a recoverable error and the sandbox is restored.       |
 | Error             | Archiving         | An errored sandbox with a completed backup is archived to preserve its state.     |
-
 
 ### Start sandboxes
 

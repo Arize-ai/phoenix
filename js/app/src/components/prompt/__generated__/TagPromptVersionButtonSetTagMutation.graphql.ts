@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b3fa0ad79902b6037342a6dd66bfbf41>>
+ * @generated SignedSource<<3c2b0602a136cb7b27b0179ad1e170e4>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,6 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-import { FragmentRefs } from "relay-runtime";
 export type SetPromptVersionTagInput = {
   description?: string | null;
   name: string;
@@ -16,15 +15,14 @@ export type SetPromptVersionTagInput = {
 };
 export type TagPromptVersionButtonSetTagMutation$variables = {
   input: SetPromptVersionTagInput;
-  promptId: string;
 };
 export type TagPromptVersionButtonSetTagMutation$data = {
   readonly setPromptVersionTag: {
-    readonly query: {
-      readonly prompt: {
-        readonly " $fragmentSpreads": FragmentRefs<"PromptVersionsList__main">;
-      };
-    };
+    readonly promptVersionTag: {
+      readonly id: string;
+      readonly name: string;
+      readonly promptVersionId: string;
+    } | null;
   };
 };
 export type TagPromptVersionButtonSetTagMutation = {
@@ -38,87 +36,66 @@ var v0 = [
     "defaultValue": null,
     "kind": "LocalArgument",
     "name": "input"
-  },
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "promptId"
   }
 ],
 v1 = [
   {
-    "kind": "Variable",
-    "name": "input",
-    "variableName": "input"
-  }
-],
-v2 = [
-  {
-    "kind": "Variable",
-    "name": "id",
-    "variableName": "promptId"
-  }
-],
-v3 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "id",
-  "storageKey": null
-};
-return {
-  "fragment": {
-    "argumentDefinitions": (v0/*:: as any*/),
-    "kind": "Fragment",
-    "metadata": null,
-    "name": "TagPromptVersionButtonSetTagMutation",
+    "alias": null,
+    "args": [
+      {
+        "kind": "Variable",
+        "name": "input",
+        "variableName": "input"
+      }
+    ],
+    "concreteType": "PromptVersionTagMutationPayload",
+    "kind": "LinkedField",
+    "name": "setPromptVersionTag",
+    "plural": false,
     "selections": [
       {
         "alias": null,
-        "args": (v1/*:: as any*/),
-        "concreteType": "PromptVersionTagMutationPayload",
+        "args": null,
+        "concreteType": "PromptVersionTag",
         "kind": "LinkedField",
-        "name": "setPromptVersionTag",
+        "name": "promptVersionTag",
         "plural": false,
         "selections": [
           {
             "alias": null,
             "args": null,
-            "concreteType": "Query",
-            "kind": "LinkedField",
-            "name": "query",
-            "plural": false,
-            "selections": [
-              {
-                "alias": "prompt",
-                "args": (v2/*:: as any*/),
-                "concreteType": null,
-                "kind": "LinkedField",
-                "name": "node",
-                "plural": false,
-                "selections": [
-                  {
-                    "kind": "InlineFragment",
-                    "selections": [
-                      {
-                        "args": null,
-                        "kind": "FragmentSpread",
-                        "name": "PromptVersionsList__main"
-                      }
-                    ],
-                    "type": "Prompt",
-                    "abstractKey": null
-                  }
-                ],
-                "storageKey": null
-              }
-            ],
+            "kind": "ScalarField",
+            "name": "id",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "name",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "promptVersionId",
             "storageKey": null
           }
         ],
         "storageKey": null
       }
     ],
+    "storageKey": null
+  }
+];
+return {
+  "fragment": {
+    "argumentDefinitions": (v0/*:: as any*/),
+    "kind": "Fragment",
+    "metadata": null,
+    "name": "TagPromptVersionButtonSetTagMutation",
+    "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
@@ -127,168 +104,19 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "TagPromptVersionButtonSetTagMutation",
-    "selections": [
-      {
-        "alias": null,
-        "args": (v1/*:: as any*/),
-        "concreteType": "PromptVersionTagMutationPayload",
-        "kind": "LinkedField",
-        "name": "setPromptVersionTag",
-        "plural": false,
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "concreteType": "Query",
-            "kind": "LinkedField",
-            "name": "query",
-            "plural": false,
-            "selections": [
-              {
-                "alias": "prompt",
-                "args": (v2/*:: as any*/),
-                "concreteType": null,
-                "kind": "LinkedField",
-                "name": "node",
-                "plural": false,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "__typename",
-                    "storageKey": null
-                  },
-                  {
-                    "kind": "InlineFragment",
-                    "selections": [
-                      {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "PromptVersionConnection",
-                        "kind": "LinkedField",
-                        "name": "promptVersions",
-                        "plural": false,
-                        "selections": [
-                          {
-                            "alias": null,
-                            "args": null,
-                            "concreteType": "PromptVersionEdge",
-                            "kind": "LinkedField",
-                            "name": "edges",
-                            "plural": true,
-                            "selections": [
-                              {
-                                "alias": "version",
-                                "args": null,
-                                "concreteType": "PromptVersion",
-                                "kind": "LinkedField",
-                                "name": "node",
-                                "plural": false,
-                                "selections": [
-                                  (v3/*:: as any*/),
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "kind": "ScalarField",
-                                    "name": "description",
-                                    "storageKey": null
-                                  },
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "kind": "ScalarField",
-                                    "name": "sequenceNumber",
-                                    "storageKey": null
-                                  },
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "kind": "ScalarField",
-                                    "name": "createdAt",
-                                    "storageKey": null
-                                  },
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "concreteType": "User",
-                                    "kind": "LinkedField",
-                                    "name": "user",
-                                    "plural": false,
-                                    "selections": [
-                                      (v3/*:: as any*/),
-                                      {
-                                        "alias": null,
-                                        "args": null,
-                                        "kind": "ScalarField",
-                                        "name": "username",
-                                        "storageKey": null
-                                      },
-                                      {
-                                        "alias": null,
-                                        "args": null,
-                                        "kind": "ScalarField",
-                                        "name": "profilePictureUrl",
-                                        "storageKey": null
-                                      }
-                                    ],
-                                    "storageKey": null
-                                  },
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "concreteType": "PromptVersionTag",
-                                    "kind": "LinkedField",
-                                    "name": "tags",
-                                    "plural": true,
-                                    "selections": [
-                                      (v3/*:: as any*/),
-                                      {
-                                        "alias": null,
-                                        "args": null,
-                                        "kind": "ScalarField",
-                                        "name": "name",
-                                        "storageKey": null
-                                      }
-                                    ],
-                                    "storageKey": null
-                                  }
-                                ],
-                                "storageKey": null
-                              }
-                            ],
-                            "storageKey": null
-                          }
-                        ],
-                        "storageKey": null
-                      }
-                    ],
-                    "type": "Prompt",
-                    "abstractKey": null
-                  },
-                  (v3/*:: as any*/)
-                ],
-                "storageKey": null
-              }
-            ],
-            "storageKey": null
-          }
-        ],
-        "storageKey": null
-      }
-    ]
+    "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "991a6a38de992c1261cceafe9b2c6850",
+    "cacheID": "5c5d28c661d4d918f165516095b7a487",
     "id": null,
     "metadata": {},
     "name": "TagPromptVersionButtonSetTagMutation",
     "operationKind": "mutation",
-    "text": "mutation TagPromptVersionButtonSetTagMutation(\n  $input: SetPromptVersionTagInput!\n  $promptId: ID!\n) {\n  setPromptVersionTag(input: $input) {\n    query {\n      prompt: node(id: $promptId) {\n        __typename\n        ... on Prompt {\n          ...PromptVersionsList__main\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment PromptVersionSummaryFragment on PromptVersion {\n  id\n  description\n  sequenceNumber\n  createdAt\n  user {\n    id\n    username\n    profilePictureUrl\n  }\n  ...PromptVersionTagsList_data\n}\n\nfragment PromptVersionTagsList_data on PromptVersion {\n  tags {\n    id\n    name\n  }\n}\n\nfragment PromptVersionsList__main on Prompt {\n  promptVersions {\n    edges {\n      version: node {\n        id\n        ...PromptVersionSummaryFragment\n      }\n    }\n  }\n}\n"
+    "text": "mutation TagPromptVersionButtonSetTagMutation(\n  $input: SetPromptVersionTagInput!\n) {\n  setPromptVersionTag(input: $input) {\n    promptVersionTag {\n      id\n      name\n      promptVersionId\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e6cca3095cc459928e5d7ff1e7137a43";
+(node as any).hash = "fac68f8d5a8c9cd286ee972ac9543d39";
 
 export default node;

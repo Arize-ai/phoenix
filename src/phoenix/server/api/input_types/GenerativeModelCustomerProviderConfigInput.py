@@ -25,12 +25,13 @@ from phoenix.db.types.model_provider import (
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.headers import clean_headers
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
+from phoenix.server.api.redaction import Redacted
 from phoenix.server.api.types.RedactedString import RedactedString
 
 
 @strawberry.input
 class OpenAIAuthenticationMethodInput:
-    api_key: RedactedString
+    api_key: Redacted[RedactedString]
 
     def to_orm(self) -> AuthenticationMethodApiKey:
         return AuthenticationMethodApiKey(api_key=self.api_key)
@@ -76,7 +77,7 @@ class OpenAICustomProviderConfigInput:
 class AzureOpenAIADTokenProviderInput:
     azure_tenant_id: str
     azure_client_id: str
-    azure_client_secret: RedactedString
+    azure_client_secret: Redacted[RedactedString]
     scope: str | None = UNSET
 
     def to_orm(self) -> AuthenticationMethodAzureADTokenProvider:
@@ -90,7 +91,7 @@ class AzureOpenAIADTokenProviderInput:
 
 @strawberry.input(one_of=True)
 class AzureOpenAIAuthenticationMethodInput:
-    api_key: RedactedString | None = UNSET
+    api_key: Redacted[RedactedString | None] = UNSET
     azure_ad_token_provider: AzureOpenAIADTokenProviderInput | None = UNSET
     default_credentials: bool | None = strawberry.field(
         default=UNSET,
@@ -147,7 +148,7 @@ class AzureOpenAICustomProviderConfigInput:
 
 @strawberry.input
 class AnthropicAuthenticationMethodInput:
-    api_key: RedactedString
+    api_key: Redacted[RedactedString]
 
     def to_orm(self) -> AuthenticationMethodApiKey:
         return AuthenticationMethodApiKey(api_key=self.api_key)
@@ -188,7 +189,7 @@ class GoogleGenAIHttpOptionsInput:
     base_url: str | None = UNSET
     """The base URL for the AI platform service endpoint."""
 
-    headers: JSON | None = UNSET
+    headers: Redacted[JSON | None] = UNSET
     """Additional HTTP headers to be sent with the request."""
 
     def to_orm(self) -> GoogleGenAIHttpOptions:
@@ -200,7 +201,7 @@ class GoogleGenAIHttpOptionsInput:
 
 @strawberry.input
 class GoogleGenAIAuthenticationMethodInput:
-    api_key: RedactedString
+    api_key: Redacted[RedactedString]
 
     def to_orm(self) -> AuthenticationMethodApiKey:
         return AuthenticationMethodApiKey(api_key=self.api_key)
@@ -236,8 +237,8 @@ class AWSBedrockAccessKeysInput:
     """AWS access key credentials."""
 
     aws_access_key_id: str
-    aws_secret_access_key: RedactedString
-    aws_session_token: RedactedString | None = UNSET
+    aws_secret_access_key: Redacted[RedactedString]
+    aws_session_token: Redacted[RedactedString | None] = UNSET
 
     def to_orm(self) -> AWSBedrockAuthenticationMethodAccessKeys:
         return AWSBedrockAuthenticationMethodAccessKeys(

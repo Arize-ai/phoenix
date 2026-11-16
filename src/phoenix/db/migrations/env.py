@@ -1,11 +1,12 @@
 import asyncio
 
 from alembic import context
-from sqlalchemy import Connection, engine_from_config, pool, text
+from sqlalchemy import Connection, engine_from_config, make_url, pool, text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from phoenix.config import get_env_database_connection_str, get_env_database_schema
-from phoenix.db.engines import get_async_db_url
+from phoenix.db.engines import get_async_db_url, sqlite_migration_engine
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.models import Base
 from phoenix.settings import Settings
 
@@ -71,15 +72,19 @@ def run_migrations_online() -> None:
             config["sqlalchemy.url"] = get_async_db_url(connection_str).render_as_string(
                 hide_password=False
             )
-        connectable = AsyncEngine(
-            engine_from_config(
-                config,
-                prefix="sqlalchemy.",
-                poolclass=pool.NullPool,
-                future=True,
-                echo=Settings.log_migrations,
+        url = make_url(config["sqlalchemy.url"])
+        if url.get_backend_name() == SupportedSQLDialect.SQLITE.value:
+            connectable = sqlite_migration_engine(url, echo=Settings.log_migrations)
+        else:
+            connectable = AsyncEngine(
+                engine_from_config(
+                    config,
+                    prefix="sqlalchemy.",
+                    poolclass=pool.NullPool,
+                    future=True,
+                    echo=Settings.log_migrations,
+                )
             )
-        )
 
     if isinstance(connectable, AsyncEngine):
         try:

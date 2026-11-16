@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 from urllib.parse import urljoin
 
-import httpx
+import httpx2
 
 
 class GraphQLError(Exception):
@@ -30,7 +30,7 @@ class AsyncGraphQLClient:
     """
 
     def __init__(
-        self, httpx_client: httpx.AsyncClient, timeout_seconds: Optional[float] = 10
+        self, httpx_client: httpx2.AsyncClient, timeout_seconds: Optional[float] = 10
     ) -> None:
         self._httpx_client = httpx_client
         self._timeout_seconds = timeout_seconds
@@ -96,7 +96,7 @@ class AsyncGraphQLClient:
 
 
 async def _parse_multipart_response(
-    response: httpx.Response,
+    response: httpx2.Response,
 ) -> AsyncIterator[dict[str, Any]]:
     """
     Parse an Apollo multipart subscription response

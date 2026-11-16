@@ -44,7 +44,19 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.de.md" />
 </p>
 
-Arize Phoenix ist die Open-Source-Plattform von Arize für KI-Observability, entwickelt für Experimente, Evaluierung und Fehleranalyse. Für verwaltete Produktions-Workflows bietet Arize zusätzlich [Arize AX](https://arize.com/products/ax/) an. Phoenix bietet:
+<p align="center">
+    <a target="_blank" href="https://github.com/Arize-ai/phoenix/stargazers">
+        <img alt="Star Arize Phoenix on GitHub" src="https://img.shields.io/github/stars/Arize-ai/phoenix?style=social&label=Star%20on%20GitHub" />
+    </a>
+</p>
+
+<p align="center">
+ <a href="https://www.star-history.com/arize-ai/phoenix">
+  <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /><img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /></picture> <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /><img alt="GitHub Trending Repository of the Day" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /></picture>
+ </a>
+</p>
+
+Arize Phoenix ist die Open-Source-Plattform von Arize für KI-Observability, entwickelt für Experimente, Evaluierung und Fehleranalyse. Für verwaltete Produktions-Workflows bietet Arize zusätzlich [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-de) an. Phoenix bietet:
 
 - [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Verfolgen Sie das Laufzeitverhalten Ihrer LLM-Anwendung mit OpenTelemetry-basierter Instrumentierung.
 - [**_Evaluierung_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - Nutzen Sie LLMs, um die Leistung Ihrer Anwendung mit Evals für Antworten und Retrieval zu bewerten.
@@ -61,10 +73,10 @@ Arize Phoenix ist die Open-Source-Plattform von Arize für KI-Observability, ent
 
 Phoenix ist anbieter- und sprachunabhängig und unterstützt gängige Frameworks ([OpenAI Agents SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk), [Claude Agent SDK](https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk), [LangGraph](https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain), [Vercel AI SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk), [Mastra](https://arize.com/docs/phoenix/integrations/typescript/mastra), [CrewAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/crewai), [LlamaIndex](https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex), [DSPy](https://arize.com/docs/phoenix/tracing/integrations-tracing/dspy)) sowie LLM-Anbieter ([OpenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai), [Anthropic](https://arize.com/docs/phoenix/tracing/integrations-tracing/anthropic), [Google GenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai), [Google ADK](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing), [AWS Bedrock](https://arize.com/docs/phoenix/tracing/integrations-tracing/bedrock), [OpenRouter](https://arize.com/docs/phoenix/integrations/python/openrouter), [LiteLLM](https://arize.com/docs/phoenix/tracing/integrations-tracing/litellm) und weitere) direkt ab Werk. Details zur automatischen Instrumentierung finden Sie im Projekt [OpenInference](https://github.com/Arize-ai/openinference).
 
-Phoenix läuft praktisch überall – auf Ihrem lokalen Rechner, in einem containerisierten Deployment oder in der Cloud. Unter [Umgebungen](https://arize.com/docs/phoenix/environments) finden Sie eine Anleitung zu jeder Option, oder Sie springen direkt zum [Tracing-Schnellstart](https://arize.com/docs/phoenix/get-started/get-started-tracing).
+Phoenix läuft praktisch überall – auf Ihrem lokalen Rechner, in einem containerisierten Deployment oder in der Cloud. Unter [Umgebungen](https://arize.com/docs/phoenix/self-hosting) finden Sie eine Anleitung zu jeder Option, oder Sie springen direkt zum [Tracing-Schnellstart](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
-> Phoenix ist Open Source und selbst gehostet. Als verwaltete Plattform bietet Arize [Arize AX](https://arize.com/products/ax/) an – dieselbe OpenTelemetry-/OpenInference-Instrumentierung funktioniert mit beiden. Siehe den [vollständigen Vergleich](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
+> Phoenix ist Open Source und selbst gehostet. Als verwaltete Plattform bietet Arize [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-de) an – dieselbe OpenTelemetry-/OpenInference-Instrumentierung funktioniert mit beiden. Siehe den [vollständigen Vergleich](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
 
 ## Inhaltsverzeichnis
 
@@ -144,7 +156,6 @@ Das Paket `arize-phoenix` enthält die gesamte Phoenix-Plattform. Wenn Sie die P
 | [@arizeai/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel)     | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                           | Stellt einen schlanken Wrapper um OpenTelemetry-Primitive mit auf Phoenix abgestimmten Standardwerten bereit |
 | [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                       | Client für die Arize-Phoenix-API |
 | [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals)   | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                         | TypeScript-Evaluierungsbibliothek für LLM-Anwendungen (Alpha-Version) |
-| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | Eigenständiger stdio-MCP-Server für ältere Phoenix-Versionen (Wartungsmodus – abgelöst durch den in Phoenix integrierten [Remote-MCP-Server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)) |
 | [@arizeai/phoenix-cli](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) | CLI zum Abrufen von Traces, Datasets und Experimenten zur Verwendung mit Claude Code, Cursor und anderen Coding-Agenten |
 
 ## Tracing-Integrationen
@@ -268,16 +279,16 @@ Führen Sie Phoenix-[Code-Evaluatoren](https://arize.com/docs/phoenix/evaluation
 Phoenix ist so gebaut, dass es von Menschen und KI-Coding-Agenten gleichermaßen gesteuert werden kann. Über drei Schnittstellen können Agenten (Claude Code, Codex, Cursor und andere) mit Ihren Traces, Datasets und Experimenten arbeiten:
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` ruft Traces, Datasets und Experimente ab und instrumentiert Ihre App (`setup`), sodass ein Agent Kontext abrufen und direkt im Terminal darauf reagieren kann.
-- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) bündelt Workflows, die Agenten beibringen, wie sie mit Phoenix debuggen, evaluieren und tracen.
+- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`skills/`](../../skills/) bündelt Workflows, die Agenten beibringen, wie sie mit Phoenix debuggen, evaluieren und tracen.
 - **[Remote-MCP-Server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — verbinden Sie einen beliebigen MCP-Client mit dem `/mcp`-Endpunkt Ihrer Instanz, um Phoenix direkt abzufragen.
 
 Einrichtung und Verwendung sind in der [Dokumentation zu Coding-Agenten](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) beschrieben.
 
 | Skill | Beschreibung |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/)         | LLM-Anwendungen mit der Phoenix-CLI debuggen – Traces abrufen, Fehler analysieren, Experimente prüfen und die GraphQL-API abfragen |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/)     | Evaluatoren für KI-/LLM-Anwendungen mit Phoenix erstellen und ausführen |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | Semantische Konventionen und Instrumentierung von OpenInference für das Tracing von LLM-Anwendungen |
+| [phoenix-cli](../../skills/phoenix-cli/)         | LLM-Anwendungen mit der Phoenix-CLI debuggen – Traces abrufen, Fehler analysieren, Experimente prüfen und die GraphQL-API abfragen |
+| [phoenix-evals](../../skills/phoenix-evals/)     | Evaluatoren für KI-/LLM-Anwendungen mit Phoenix erstellen und ausführen |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | Semantische Konventionen und Instrumentierung von OpenInference für das Tracing von LLM-Anwendungen |
 
 ## Sicherheit & Datenschutz
 
@@ -314,3 +325,15 @@ Copyright 2025 Arize AI, Inc. Alle Rechte vorbehalten.
 Teile dieses Codes sind durch ein oder mehrere US-Patente geschützt. Siehe [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE).
 
 Diese Software ist unter den Bedingungen der Elastic License 2.0 (ELv2) lizenziert. Siehe [LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE).
+
+## Star History
+
+Phoenix is fully open source and built in the open. If it helps you, please [⭐ star the repo](https://github.com/Arize-ai/phoenix) to support the project.
+
+<a href="https://www.star-history.com/?repos=arize-ai%2Fphoenix&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+ </picture>
+</a>

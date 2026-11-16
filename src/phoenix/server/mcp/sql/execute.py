@@ -962,7 +962,7 @@ async def _execute_postgres(
             if (attributed := _rewrite_attribution(exc, ctx)) is not None:
                 logger.error("analytics sql: rewrite produced an unresolvable column - %s", exc)
                 raise attributed from exc
-            logger.error("analytics sql: postgres execution failed - %s", exc)
+            logger.error("analytics sql: postgres execution failed (%s)", type(exc).__name__)
             raise AnalyticsSqlError(
                 code=ErrorCode.EXECUTION_ERROR,
                 message=_postgres_execution_error_message(exc),
@@ -1284,7 +1284,7 @@ async def _execute_sqlite_file(
         # corruption errors, and those must not be reported as though the caller
         # mistyped a column. Logged at error so a malformed database or a bug of
         # ours leaves a trace rather than being answered as bad SQL.
-        logger.error("analytics sql: unclassified database error - %s", exc)
+        logger.error("analytics sql: unclassified database error (%s)", type(exc).__name__)
         # SQLite's own words, as PostgreSQL's are already passed through. The
         # commonest arrival here is an unqualified column two joined tables both
         # offer, which admission cannot refuse and whose message names only the

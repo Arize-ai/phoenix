@@ -24,7 +24,7 @@ export function parseEnvFile(
   contents: string
 ): Partial<Record<string, string>> {
   const values: Partial<Record<string, string>> = {};
-  for (const rawLine of contents.split(/\r?\n/)) {
+  for (const rawLine of contents.split(/\r\n|\r|\n/)) {
     let line = rawLine.trim();
     if (!line || line.startsWith("#")) {
       continue;

@@ -8,6 +8,8 @@
 - DaytonaConflictError
 - DaytonaBadRequestError
 - DaytonaTimeoutError
+- DaytonaQueueTimeoutError
+- DaytonaSpotEvictedError
 - DaytonaConnectionError
 - DaytonaConnectionTimeoutError
 - DaytonaGoneError
@@ -249,6 +251,13 @@ class DaytonaTimeoutError(DaytonaError)
 
 Error for when a timeout occurs.
 
+**Attributes**:
+
+- `sandbox_id` _str | None_ - Set when `Daytona.create()` timed out after the Sandbox was
+  created. That Sandbox may still be starting: pass this id to `get()`, and the
+  returned Sandbox to `delete()` to remove it.
+
+
 **Example**:
 
 ```python
@@ -257,6 +266,22 @@ try:
 except DaytonaTimeoutError as exc:
     print(exc.message)
 ```
+
+## DaytonaQueueTimeoutError
+
+```python
+class DaytonaQueueTimeoutError(DaytonaTimeoutError)
+```
+
+Raised when a Sandbox was destroyed by the API because it waited longer than its queue timeout for a runner.
+
+## DaytonaSpotEvictedError
+
+```python
+class DaytonaSpotEvictedError(DaytonaError)
+```
+
+Raised when a Sandbox was destroyed by spot preemption.
 
 ## DaytonaConnectionError
 

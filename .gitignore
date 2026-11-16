@@ -37,7 +37,6 @@ phoenix.db*
 
 # Testing
 coverage.xml
-.tox
 
 # devtools
 pyrightconfig.json

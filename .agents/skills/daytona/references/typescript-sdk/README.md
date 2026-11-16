@@ -70,7 +70,7 @@ const daytona = new Daytona({
 });
 ```
 
-For more information on configuring the Daytona SDK, see [API keys](../../SKILL.md#authentication#authentication).
+For more information on configuring the Daytona SDK, see [API keys](../platform/api-keys.md#authentication).
 
 ## Real-time state updates
 
@@ -143,7 +143,7 @@ Some runtimes don't expose the full set of Node.js APIs (browsers and edge runti
 
 The TypeScript SDK reference documents the following modules:
 
-- [Charts](./charts.md)
+- [Charts](https://www.daytona.io/docs/en/typescript-sdk/charts)
 - [CodeInterpreter](./code-interpreter.md)
 - [ComputerUse](./computer-use.md)
 - [Daytona](./daytona.md)

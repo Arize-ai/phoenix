@@ -20,7 +20,7 @@ import {
 } from "@phoenix/components";
 import { CodeEvaluatorSourceCodeBlock } from "@phoenix/components/evaluators/CodeEvaluatorSourceCodeBlock";
 import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
-import { useViewerCanManageSandboxes } from "@phoenix/contexts";
+import { useViewerCanViewSandboxes } from "@phoenix/contexts";
 import type { CodeDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/CodeDatasetEvaluatorDetails_datasetEvaluator.graphql";
 import type { datasetEvaluatorDetailsLoaderQuery } from "@phoenix/pages/dataset/evaluators/__generated__/datasetEvaluatorDetailsLoaderQuery.graphql";
 import {
@@ -499,7 +499,7 @@ export function CodeDatasetEvaluatorDetails({
     [datasetEvaluator.inputMapping.literalMapping]
   );
 
-  const canManageSandboxes = useViewerCanManageSandboxes();
+  const canViewSandboxes = useViewerCanViewSandboxes();
 
   const customSettings = useMemo(
     () =>
@@ -542,7 +542,7 @@ export function CodeDatasetEvaluatorDetails({
             </Flex>
           }
           extra={
-            canManageSandboxes ? (
+            canViewSandboxes ? (
               <LinkButton
                 size="S"
                 to="/settings/sandboxes"

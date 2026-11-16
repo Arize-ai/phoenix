@@ -3,9 +3,10 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
-from typing import Any, Callable, Union
+from typing import Any, Callable, Union, cast
 
 from openinference.instrumentation import (
+    OITracer,
     PromptDetails,
     TokenCount,
     get_input_attributes,
@@ -20,7 +21,7 @@ from openinference.semconv.trace import (
     OpenInferenceLLMSystemValues,
     OpenInferenceMimeTypeValues,
 )
-from opentelemetry.trace import Status, StatusCode, Tracer
+from opentelemetry.trace import Status, StatusCode
 from pydantic_ai import RunContext
 from pydantic_ai._instrumentation import get_instructions
 from pydantic_ai.messages import (
@@ -28,6 +29,7 @@ from pydantic_ai.messages import (
     ModelRequest,
     ModelResponse,
     NativeToolCallPart,
+    RetryFeedbackPart,
     RetryPromptPart,
     SystemPromptPart,
     TextPart,
@@ -57,9 +59,9 @@ class OpenInferenceModelWrapper(WrapperModel):
     using the ``openinference.instrumentation.get_llm_attributes`` helper.
     """
 
-    tracer: Tracer
+    tracer: OITracer
 
-    def __init__(self, wrapped: Model, *, tracer: Tracer) -> None:
+    def __init__(self, wrapped: Model, *, tracer: OITracer) -> None:
         super().__init__(wrapped)
         self.tracer = tracer
 
@@ -207,7 +209,7 @@ def _request_to_oi_messages(msg: ModelRequest) -> list[Message]:
                     "content": content,
                 }
             )
-        elif isinstance(part, RetryPromptPart):
+        elif isinstance(part, (RetryPromptPart, RetryFeedbackPart)):
             content = (
                 part.content if isinstance(part.content, str) else safe_json_dumps(part.content)
             )
@@ -236,7 +238,7 @@ def _response_to_oi_message(msg: ModelResponse) -> Message:
         elif isinstance(part, (ToolCallPart, NativeToolCallPart)):
             arguments: Union[str, dict[str, Any]]
             if isinstance(part.args, dict):
-                arguments = part.args
+                arguments = cast(dict[str, Any], part.args)
             elif isinstance(part.args, str):
                 arguments = part.args
             else:

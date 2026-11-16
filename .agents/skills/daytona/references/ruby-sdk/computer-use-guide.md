@@ -22,9 +22,9 @@ Computer Use enables programmatic control of desktop environments within sandbox
 
 Computer Use and [VNC](./vnc-access.md) work together to enable both manual and automated desktop interactions. VNC provides the visual interface for users to manually interact with the desktop, while Computer Use provides the programmatic API for AI agents to automate operations.
 
-Computer Use is available for **Linux** and **Windows** through Daytona. For **macOS** sandboxes and Computer Use, use [use.computer ↗](https://use.computer).
-> **Note: macOS sandboxes**
-> macOS sandboxes are available at [use.computer ↗](https://use.computer). See the [use.computer API documentation ↗](https://use.computer/docs) to create and control a macOS sandbox.
+Computer Use is available for **Linux** and **Windows** through Daytona. For **macOS** sandboxes and Computer Use, see [macOS sandboxes](./sandboxes.md#macos-sandboxes).
+> **Note: Custom snapshots**
+> Default snapshots include the packages required for Computer Use. Sandboxes created from custom images or custom snapshots, including custom [Linux VM snapshots](./snapshots.md#vm-snapshots), need the [VNC and desktop packages](./vnc-access.md#required-packages) installed in the image.
 
 ## Start Computer Use
 
@@ -58,8 +58,8 @@ puts "Computer use status: #{response.status}"
 Get the status of a specific VNC process.
 
 ```ruby
-xvfb_status = sandbox.computer_use.get_process_status("xvfb")
-no_vnc_status = sandbox.computer_use.get_process_status("novnc")
+xvfb_status = sandbox.computer_use.get_process_status(process_name: "xvfb")
+no_vnc_status = sandbox.computer_use.get_process_status(process_name: "novnc")
 ```
 
 ## Restart process
@@ -67,7 +67,7 @@ no_vnc_status = sandbox.computer_use.get_process_status("novnc")
 Restart a specific VNC process.
 
 ```ruby
-result = sandbox.computer_use.restart_process("xfce4")
+result = sandbox.computer_use.restart_process(process_name: "xfce4")
 puts "XFCE4 process restarted: #{result.message}"
 ```
 
@@ -76,7 +76,7 @@ puts "XFCE4 process restarted: #{result.message}"
 Get logs for a specific VNC process.
 
 ```ruby
-logs = sandbox.computer_use.get_process_logs("novnc")
+logs = sandbox.computer_use.get_process_logs(process_name: "novnc")
 puts "NoVNC logs: #{logs}"
 ```
 
@@ -85,7 +85,7 @@ puts "NoVNC logs: #{logs}"
 Get error logs for a specific VNC process.
 
 ```ruby
-errors = sandbox.computer_use.get_process_errors("x11vnc")
+errors = sandbox.computer_use.get_process_errors(process_name: "x11vnc")
 puts "X11VNC errors: #{errors}"
 ```
 
@@ -122,6 +122,23 @@ Drag the mouse from start coordinates to end coordinates.
 ```ruby
 result = sandbox.computer_use.mouse.drag(start_x: 50, start_y: 50, end_x: 150, end_y: 150)
 puts "Drag ended at #{result.x}, #{result.y}"
+```
+
+### Hold and release button
+
+Press and hold a mouse button, then release it. The button stays held until a matching release call, which lets you compose press-move-release gestures such as marquee selection or drawing strokes. When X and Y coordinates are provided, the cursor moves to that position before the button is pressed or released; when omitted, the action happens at the current cursor position. Button is one of left (default), right, or middle.
+
+To hold a modifier key during the gesture, wrap it with the keyboard [hold and release](#hold-and-release-key) calls.
+
+```ruby
+# Press the left button at (100, 200) and release it at (300, 400)
+sandbox.computer_use.mouse.down(x: 100, y: 200)
+result = sandbox.computer_use.mouse.up(x: 300, y: 400)
+puts "Released at #{result.x}, #{result.y}"
+
+# Press and release the right button at the current cursor position
+sandbox.computer_use.mouse.down(button: 'right')
+sandbox.computer_use.mouse.up(button: 'right')
 ```
 
 ### Scroll
@@ -188,9 +205,24 @@ sandbox.computer_use.keyboard.hotkey(keys: "ctrl+v")
 sandbox.computer_use.keyboard.hotkey(keys: "alt+tab")
 ```
 
+### Hold and release key
+
+Press and hold a key, then release it. The key stays held until a matching release call, which lets you hold a modifier such as shift across several mouse or keyboard actions. Keys use the same names as [press](#press), listed in [supported keys](#supported-keys). Release the key in a finally block (or the language equivalent) so a failed action does not leave the key held.
+
+```ruby
+# Hold Shift while clicking two points, then release it
+sandbox.computer_use.keyboard.down(key: 'shift')
+begin
+  sandbox.computer_use.mouse.click(x: 100, y: 200)
+  sandbox.computer_use.mouse.click(x: 100, y: 300)
+ensure
+  sandbox.computer_use.keyboard.up(key: 'shift')
+end
+```
+
 ### Supported keys
 
-`keyboard.press()` and `keyboard.hotkey()` are case-insensitive for named keys. The following are supported:
+`keyboard.press()`, `keyboard.hotkey()`, `keyboard.down()`, and `keyboard.up()` are case-insensitive for named keys. The following are supported:
 
 | Category           | Keys                                                                                                                            |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
@@ -297,7 +329,7 @@ Take a screenshot of the entire screen.
 
 ```ruby
 screenshot = sandbox.computer_use.screenshot.take_full_screen
-puts "Screenshot size: #{screenshot.width}x#{screenshot.height}"
+puts "Screenshot captured, base64 length: #{screenshot.screenshot.length}"
 
 # With cursor visible
 with_cursor = sandbox.computer_use.screenshot.take_full_screen(show_cursor: true)
@@ -310,7 +342,7 @@ Take a screenshot of a specific region.
 ```ruby
 region = Daytona::ComputerUse::ScreenshotRegion.new(x: 100, y: 100, width: 300, height: 200)
 screenshot = sandbox.computer_use.screenshot.take_region(region: region)
-puts "Captured region: #{screenshot.region.width}x#{screenshot.region.height}"
+puts "Captured #{region.width}x#{region.height} region, base64 length: #{screenshot.screenshot.length}"
 ```
 
 ### Take compressed
@@ -365,7 +397,7 @@ sandbox = daytona.create(Daytona::CreateSandboxFromSnapshotParams.new(
 
 ### Start Recording
 
-Start a new screen recording session with an optional name identifier:
+Start a new screen recording session with an optional label:
 
 ```ruby
 # Start recording with a custom label
@@ -393,7 +425,7 @@ Get a list of all recordings in the sandbox:
 recordings_list = sandbox.computer_use.recording.list
 puts "Total recordings: #{recordings_list.recordings.length}"
 recordings_list.recordings.each do |rec|
-  puts "- #{rec.name}: #{rec.duration_seconds}s (#{rec.file_size_bytes} bytes)"
+  puts "- #{rec.file_name}: #{rec.duration_seconds}s (#{rec.size_bytes} bytes)"
 end
 ```
 
@@ -403,7 +435,7 @@ Get details about a specific recording:
 
 ```ruby
 recording_detail = sandbox.computer_use.recording.get(id: 'recording-id')
-puts "Recording: #{recording_detail.name}"
+puts "Recording: #{recording_detail.file_name}"
 puts "Status: #{recording_detail.status}"
 puts "Duration: #{recording_detail.duration_seconds}s"
 ```
@@ -486,9 +518,9 @@ Get information about the displays.
 
 ```ruby
 info = sandbox.computer_use.display.info
-puts "Primary display: #{info.primary_display.width}x#{info.primary_display.height}"
-puts "Total displays: #{info.total_displays}"
-info.displays.each_with_index do |display, i|
+displays = info.displays || []
+puts "Total displays: #{displays.length}"
+displays.each_with_index do |display, i|
   puts "Display #{i}: #{display.width}x#{display.height} at #{display.x},#{display.y}"
 end
 ```
@@ -499,8 +531,9 @@ Get the list of open windows.
 
 ```ruby
 windows = sandbox.computer_use.display.windows
-puts "Found #{windows.count} open windows:"
-windows.windows.each do |window|
+window_list = windows.windows || []
+puts "Found #{window_list.length} open windows:"
+window_list.each do |window|
   puts "- #{window.title} (ID: #{window.id})"
 end
 ```

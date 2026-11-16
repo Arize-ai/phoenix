@@ -169,12 +169,11 @@ Image image = Image.debianSlim("3.12")
             + "&& apt-get install -y nodejs "
             + "&& rm -rf /var/lib/apt/lists/*"
     )
-    // 7. Non-root user
+    // 7. Non-root user (the Java SDK has no method for a USER instruction)
     .runCommands(
         "groupadd -r daytona && useradd -r -g daytona -m -d /home/daytona daytona",
         "chown -R daytona:daytona /home/daytona"
     )
-    .dockerfileCommands("USER daytona")
     // 8. Startup
     .entrypoint("/bin/bash")
     .cmd("/bin/bash");

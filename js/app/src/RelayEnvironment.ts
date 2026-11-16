@@ -10,6 +10,7 @@ import {
 import invariant from "tiny-invariant";
 
 import { authFetch } from "@phoenix/authFetch";
+import { ServerResponseError } from "@phoenix/components/exception/serverConnectionError";
 import { BASE_URL } from "@phoenix/config";
 
 import {
@@ -33,7 +34,7 @@ const ERROR_BODY_SNIPPET_LENGTH = 1000;
  * the data has errors.
  *
  * The observable aborts in-flight network requests when the unsubscribe function is
- * called.
+ * called. A request that has already finished is not aborted.
  *
  * @param input - The input to fetch from.
  * @param init - The request init options.
@@ -47,6 +48,7 @@ function fetchJsonObservable<T>(
 ): Observable<T> {
   return Observable.create((sink) => {
     const controller = new AbortController();
+    let isFinished = false;
 
     graphQLFetch(input, { ...init, signal: controller.signal })
       .then(async (response) => {
@@ -63,15 +65,17 @@ function fetchJsonObservable<T>(
         } catch {
           const text = (await responseClone.text()).trim();
           if (text === "") {
-            throw new Error(
-              `GraphQL request failed: the server returned an empty response (status ${response.status} ${response.statusText}).`
+            throw new ServerResponseError(
+              `GraphQL request failed: the server returned an empty response (status ${response.status} ${response.statusText}).`,
+              response.status
             );
           }
           // The body is likely an HTML error page from a gateway or proxy.
           // Include a snippet to make the failure easier to diagnose.
           const snippet = text.slice(0, ERROR_BODY_SNIPPET_LENGTH);
-          throw new Error(
-            `GraphQL request failed: the server returned a non-JSON response (status ${response.status} ${response.statusText}): ${snippet}`
+          throw new ServerResponseError(
+            `GraphQL request failed: the server returned a non-JSON response (status ${response.status} ${response.statusText}): ${snippet}`,
+            response.status
           );
         }
         // A non-OK status with a parseable body still indicates a failure.
@@ -86,8 +90,9 @@ function fetchJsonObservable<T>(
             0,
             ERROR_BODY_SNIPPET_LENGTH
           );
-          throw new Error(
-            `GraphQL request failed with status ${response.status} ${response.statusText}: ${snippet}`
+          throw new ServerResponseError(
+            `GraphQL request failed with status ${response.status} ${response.statusText}: ${snippet}`,
+            response.status
           );
         }
         return data;
@@ -97,10 +102,12 @@ function fetchJsonObservable<T>(
         if (error) {
           throw error;
         }
+        isFinished = true;
         sink.next(data as T);
         sink.complete();
       })
       .catch((error) => {
+        isFinished = true;
         if (error.name === "AbortError") {
           // this is triggered when the controller is aborted
           sink.complete();
@@ -112,8 +119,14 @@ function fetchJsonObservable<T>(
       });
 
     return () => {
-      // abort the fetch request when the observable is unsubscribed
-      controller.abort();
+      // Abort the fetch request when the observable is unsubscribed while it
+      // is still in flight. Relay also runs this cleanup right after
+      // sink.complete(), and aborting a finished request would reject any
+      // promise still tied to the signal with an AbortError that nothing
+      // handles.
+      if (!isFinished) {
+        controller.abort();
+      }
     };
   });
 }
@@ -123,7 +136,7 @@ function fetchJsonObservable<T>(
  * the results of GraphQL queries from your server (or other data source). See more at
  * https://relay.dev/docs/en/quick-start-guide#relay-environment.
  */
-const fetchRelay: FetchFunction = (params, variables, _cacheConfig) =>
+export const fetchRelay: FetchFunction = (params, variables, _cacheConfig) =>
   fetchJsonObservable(
     graphQLPath,
     {
@@ -144,10 +157,10 @@ const fetchRelay: FetchFunction = (params, variables, _cacheConfig) =>
         return undefined;
       }
       if (Array.isArray(data.errors)) {
+        // The variables stay out of the message: it is reported to the server
+        // log, and they carry whatever the user typed.
         return new Error(
-          `Error fetching GraphQL query '${params.name}' with variables '${JSON.stringify(
-            variables
-          )}': ${JSON.stringify(data.errors)}`
+          `Error fetching GraphQL query '${params.name}': ${JSON.stringify(data.errors)}`
         );
       }
       return undefined;

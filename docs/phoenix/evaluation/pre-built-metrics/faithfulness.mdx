@@ -67,7 +67,7 @@ The evaluator returns a `Score` object with the following properties:
 |----------|-------|-------------|
 | `label` | `"faithful"` or `"unfaithful"` | Classification result |
 | `score` | `1.0` or `0.0` | Numeric score (1.0 = faithful, 0.0 = unfaithful) |
-| `explanation` | `string` | LLM-generated reasoning for the classification |
+| `explanation` | `string` | Reasoning for the classification. Present only when the evaluator is backed by a language model (`LLM`); decision models return a label with probabilities and no explanation. |
 | `direction` | `"maximize"` | Higher scores are better |
 | `metadata` | `object` | Additional information such as the model name. When tracing is enabled, includes the `trace_id` for the evaluation. |
 
@@ -84,7 +84,7 @@ The evaluator returns a `Score` object with the following properties:
     from phoenix.evals.metrics import FaithfulnessEvaluator
 
     # Initialize the LLM client
-    llm = LLM(provider="openai", model="gpt-4o")
+    llm = LLM(provider="openai", model="gpt-6-luna")
 
     # Create the evaluator
     faithfulness_eval = FaithfulnessEvaluator(llm=llm)
@@ -112,7 +112,7 @@ The evaluator returns a `Score` object with the following properties:
 
     // Create the evaluator
     const faithfulnessEvaluator = createFaithfulnessEvaluator({
-      model: openai("gpt-4o"),
+      model: openai("gpt-6-luna"),
     });
 
     // Evaluate an example
@@ -128,6 +128,37 @@ The evaluator returns a `Score` object with the following properties:
   </Tab>
 </Tabs>
 
+### Using a Decision Model
+
+The same evaluator can be backed by a **decision model** instead of a language model. A decision model picks a label directly and returns per-label probabilities (and a confidence when the provider reports one) but no explanation.
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import DecisionModel
+    from phoenix.evals.metrics import FaithfulnessEvaluator
+
+    # Back the evaluator with a decision model instead of an LLM
+    evaluator = FaithfulnessEvaluator(llm=DecisionModel(provider="openai", model="gpt-6-luna"))
+
+    # Evaluate the same input shown above
+    scores = evaluator.evaluate(eval_input)
+    print(scores[0])
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { createFaithfulnessEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    const evaluator = createFaithfulnessEvaluator({
+      model: openai.decisionModel("gpt-6-luna"),
+    });
+    ```
+  </Tab>
+</Tabs>
+
 ### Using Input Mapping
 
 When your data has different field names or requires transformation, use input mapping. This is especially useful when you need to combine multiple documents into a single context string.
@@ -138,7 +169,7 @@ When your data has different field names or requires transformation, use input m
     from phoenix.evals import LLM
     from phoenix.evals.metrics import FaithfulnessEvaluator
 
-    llm = LLM(provider="openai", model="gpt-4o")
+    llm = LLM(provider="openai", model="gpt-6-luna")
     faithfulness_eval = FaithfulnessEvaluator(llm=llm)
 
     # Example with nested data and multiple documents
@@ -172,7 +203,7 @@ When your data has different field names or requires transformation, use input m
     import { openai } from "@ai-sdk/openai";
 
     const faithfulnessEvaluator = createFaithfulnessEvaluator({
-      model: openai("gpt-4o"),
+      model: openai("gpt-6-luna"),
     });
 
     // Bind with input mapping for different field names
@@ -212,7 +243,7 @@ You can view the latest versions of our prompt templates [on GitHub](https://git
     from phoenix.evals.metrics import FaithfulnessEvaluator
     from phoenix.evals import LLM, ClassificationEvaluator
 
-    llm = LLM(provider="openai", model="gpt-4o")
+    llm = LLM(provider="openai", model="gpt-6-luna")
     evaluator = FaithfulnessEvaluator(llm=llm)
 
     # View the prompt template
@@ -239,7 +270,7 @@ You can view the latest versions of our prompt templates [on GitHub](https://git
 
     // Create a custom evaluator with a modified template
     const customEvaluator = createFaithfulnessEvaluator({
-      model: openai("gpt-4o"),
+      model: openai("gpt-6-luna"),
       promptTemplate: FAITHFULNESS_CLASSIFICATION_EVALUATOR_CONFIG.template, // Modify as needed
     });
     ```

@@ -26,7 +26,7 @@ Daytona provides default snapshots for creating sandboxes. You can also create s
 
 - [**Create snapshots from an image**](#create-snapshots): define the base operating system, language runtimes, packages, and project-level setup in an image or Dockerfile, and Daytona builds it into a snapshot you can use to create sandboxes
 - [**Create snapshots from a sandbox**](#create-snapshot-from-sandbox): captures and persists a sandbox's current state; container sandboxes capture filesystem state only (**cold snapshots**), VM sandboxes capture filesystem and memory state (**hot snapshots**)
-- [**Warm pools**](https://www.daytona.io/docs/en/warm-pools): keep a configured number of pre-created, running sandboxes built from a snapshot; matching sandbox create requests claim one warm sandbox from the pool instantly instead of provisioning a new sandbox
+- [**Warm pools**](./warm-pools.md): keep a configured number of pre-created, running sandboxes built from a snapshot; matching sandbox create requests claim one warm sandbox from the pool instantly instead of provisioning a new sandbox
 
 ## Default snapshots
 
@@ -69,8 +69,7 @@ func main() {
 
 Default snapshots include pre-installed Python and Node.js packages.
 
-**Python (pip)**
-
+**Python (pip):**
 
 | **Package**            | **Version** |
 | ---------------------- | ----------- |
@@ -105,9 +104,7 @@ Default snapshots include pre-installed Python and Node.js packages.
 | **`transformers`**     | v4.57.6     |
 | **`uv`**               | v0.9.26     |
 
-
-**Node.js (npm)**
-
+**Node.js (npm):**
 
 | **Package**                      | **Version** |
 | -------------------------------- | ----------- |
@@ -120,7 +117,6 @@ Default snapshots include pre-installed Python and Node.js packages.
 | **`typescript`**                 | v5.9.3      |
 | **`typescript-language-server`** | v5.1.3      |
 
-
 ## Create snapshots
 
 Create a snapshot.
@@ -131,6 +127,42 @@ Create a snapshot.
     - **Snapshot name**: identifier used to reference the snapshot
     - **Snapshot image**: base image for the snapshot, must include either a tag or a digest (e.g., **`ubuntu:22.04`**); the **`latest`**/**`lts`**/**`stable`** tags are not supported
 4. Click <Button>Create</Button>
+
+**Python:**
+
+```python
+from daytona import Daytona, CreateSnapshotParams
+
+daytona = Daytona()
+snapshot = daytona.snapshot.create(
+    CreateSnapshotParams(name="my-awesome-snapshot", image="ubuntu:22.04"),
+)
+```
+
+**TypeScript:**
+
+```typescript
+import { Daytona } from "@daytona/sdk";
+
+const daytona = new Daytona();
+const snapshot = await daytona.snapshot.create({
+  name: "my-awesome-snapshot",
+  image: "python:3.12",
+});
+```
+
+**Ruby:**
+
+```ruby
+require 'daytona'
+
+daytona = Daytona::Daytona.new
+snapshot = daytona.snapshot.create(
+  Daytona::CreateSnapshotParams.new(name: 'my-awesome-snapshot', image: 'python:3.12')
+)
+```
+
+**Go:**
 
 ```go
 package main
@@ -153,6 +185,42 @@ func main() {
 	}
 	_ = snapshot
 }
+```
+
+**Java:**
+
+```java
+import io.daytona.sdk.Daytona;
+import io.daytona.sdk.model.Snapshot;
+
+final class CreateSnapshot {
+    public static void main(String[] args) {
+        try (Daytona daytona = new Daytona()) {
+            Snapshot snapshot = daytona.snapshot().create("my-awesome-snapshot", "python:3.12");
+        }
+    }
+}
+```
+
+**CLI:**
+
+```bash
+daytona snapshot create my-awesome-snapshot --image python:3.11-slim --cpu 2 --memory 4
+```
+
+**API:**
+
+```bash
+curl https://app.daytona.io/api/snapshots \
+  --request POST \
+  --header 'Content-Type: application/json' \
+  --header 'Authorization: Bearer YOUR_SECRET_TOKEN' \
+  --data '{
+    "name": "my-awesome-snapshot",
+    "imageName": "python:3.11-slim",
+    "cpu": 2,
+    "memory": 4
+  }'
 ```
 
 ## VM snapshots
@@ -204,7 +272,7 @@ Windows snapshots are used to create [Windows sandboxes](./sandboxes.md#vm-sandb
 
 Create a GPU snapshot. GPU snapshots are used to create [GPU sandboxes](./sandboxes.md#gpu-sandboxes).
 
-GPU snapshots on shared regions belong to the [Earth region](./regions.md#earth-region). Daytona selects the shared region, ignores the requested `regionId`, and reports `earth` in the snapshot `regionIds`. GPU snapshots on dedicated and custom regions keep their real region ID.
+GPU snapshots on shared regions belong to the [earth region](./regions.md#earth-region). Daytona selects the shared region, ignores the requested `regionId`, and reports `earth` in the snapshot `regionIds`. GPU snapshots on dedicated and custom regions keep their real region ID.
 
 1. Go to [Daytona Snapshots ↗](https://app.daytona.io/dashboard/snapshots)
 2. Click <Button>Create Snapshot</Button>
@@ -214,9 +282,12 @@ GPU snapshots on shared regions belong to the [Earth region](./regions.md#earth-
 
     - **`NVIDIA H100`**
     - **`NVIDIA H200`**
+    - **`NVIDIA B200`**
+    - **`NVIDIA B300`**
     - **`NVIDIA RTX PRO 6000`**
     - **`NVIDIA RTX 4090`**
     - **`NVIDIA RTX 5090`**
+    - **`AMD Instinct MI355X`**
 
 6. Click <Button>Create</Button>
 
@@ -261,7 +332,7 @@ Container sandboxes capture filesystem state only (**cold snapshot**):
 | Cold              | **`false`** (default) | Filesystem only       | Stopped                    |
 
 ```go
-err := sandbox.ExperimentalCreateSnapshot(ctx, "my-snapshot")
+err := sandbox.CreateSnapshot(ctx, "my-snapshot")
 if err != nil {
     return err
 }
@@ -278,13 +349,7 @@ Linux VM sandboxes capture filesystem state only (**cold snapshot**) or filesyst
 
 ```go
 // Cold snapshot (filesystem only, sandbox stopped)
-err := sandbox.ExperimentalCreateSnapshot(ctx, "my-snapshot")
-if err != nil {
-    return err
-}
-
-// Hot snapshot (filesystem and memory, sandbox running)
-err = sandbox.ExperimentalCreateSnapshotWithMemory(ctx, "my-vm-snapshot", 60*time.Second)
+err := sandbox.CreateSnapshot(ctx, "my-snapshot")
 if err != nil {
     return err
 }
@@ -301,13 +366,7 @@ Windows sandboxes capture filesystem state only (**cold snapshot**) or filesyste
 
 ```go
 // Cold snapshot (filesystem only, sandbox stopped)
-err := sandbox.ExperimentalCreateSnapshot(ctx, "my-snapshot")
-if err != nil {
-    return err
-}
-
-// Hot snapshot (filesystem and memory, sandbox running)
-err = sandbox.ExperimentalCreateSnapshotWithMemory(ctx, "my-vm-snapshot", 60*time.Second)
+err := sandbox.CreateSnapshot(ctx, "my-snapshot")
 if err != nil {
     return err
 }
@@ -490,7 +549,7 @@ daytona snapshot create my-awesome-snapshot --dockerfile ./Dockerfile
 Get a snapshot by name.
 
 ```go
-_, err := client.Snapshots.Get(ctx, "my-awesome-snapshot")
+_, err := client.Snapshot.Get(ctx, "my-awesome-snapshot")
 ```
 
 ## List snapshots
@@ -499,7 +558,7 @@ List snapshots and view their details.
 
 ```go
 page, limit := 2, 10
-_, err := client.Snapshots.List(ctx, &page, &limit)
+_, err := client.Snapshot.List(ctx, &page, &limit)
 ```
 
 ## Activate snapshots
@@ -517,7 +576,7 @@ Snapshots automatically become inactive after 2 weeks of not being used.
 
 Deactivate a snapshot.
 
-Deactivated snapshots are not available for new sandboxes. Deactivating a snapshot also pauses top-ups of its [warm pools](https://www.daytona.io/docs/en/warm-pools); the pool reports the reason in its `errorReason` field.
+Deactivated snapshots are not available for new sandboxes. Deactivating a snapshot also pauses top-ups of its [warm pools](./warm-pools.md); the pool reports the reason in its `errorReason` field.
 
 1. Go to [Daytona Snapshots ↗](https://app.daytona.io/dashboard/snapshots)
 2. Click the three dots at the end of the row for the snapshot you want to deactivate
@@ -527,23 +586,22 @@ Deactivated snapshots are not available for new sandboxes. Deactivating a snapsh
 
 Delete a snapshot.
 
-Deleted snapshots cannot be recovered. Deleting a snapshot also deletes its [warm pools](https://www.daytona.io/docs/en/warm-pools) and destroys their unclaimed warm sandboxes.
+Deleted snapshots cannot be recovered. Deleting a snapshot also deletes its [warm pools](./warm-pools.md) and destroys their unclaimed warm sandboxes.
 
 1. Go to [Daytona Snapshots ↗](https://app.daytona.io/dashboard/snapshots)
 2. Click the three dots at the end of the row for the snapshot you want to delete
 3. Click <Button>Delete</Button>
 
 ```go
-snapshot, err := client.Snapshots.Get(ctx, "my-awesome-snapshot")
-err = client.Snapshots.Delete(ctx, snapshot)
+snapshot, err := client.Snapshot.Get(ctx, "my-awesome-snapshot")
+err = client.Snapshot.Delete(ctx, snapshot)
 ```
 
 ## Snapshot lifecycle
 
 A snapshot can have several different states. Each state reflects the snapshot's current status.
 
-**Snapshot states**
-
+**Snapshot states:**
 
 | **State**    | **Description**                                                                                         |
 | ------------ | ------------------------------------------------------------------------------------------------------- |
@@ -557,13 +615,11 @@ A snapshot can have several different states. Each state reflects the snapshot's
 | Build Failed | The snapshot build process failed.                                                                      |
 | Removing     | The snapshot is being deleted.                                                                          |
 
-
 ##### State transitions
 
 A snapshot can transition between states in response to various actions. The following table lists the initial state, target state, and trigger for the transition.
 
-**State transitions**
-
+**State transitions:**
 
 | **Initial state** | **Target state** | **Trigger**                                                                                        |
 | ----------------- | ---------------- | -------------------------------------------------------------------------------------------------- |
@@ -587,7 +643,6 @@ A snapshot can transition between states in response to various actions. The fol
 | Inactive          | Removing         | A delete is requested.                                                                             |
 | Error             | Removing         | A delete is requested.                                                                             |
 | Build Failed      | Removing         | A delete is requested.                                                                             |
-
 
 ## Run Docker in a sandbox
 
@@ -646,12 +701,12 @@ func main() {
 	ctx := context.Background()
 
 	// Initialize the Daytona client
-	client, _ := daytona.NewDaytona(nil)
+	client, _ := daytona.NewClient()
 
 	// Create a sandbox from a Docker-in-Docker snapshot
-	sandbox, _ := client.Create(ctx, &types.CreateSandboxFromSnapshotParams{
-		Snapshot: daytona.Ptr("docker-dind"),
-	}, nil)
+	sandbox, _ := client.Create(ctx, types.SnapshotParams{
+		Snapshot: "docker-dind",
+	})
 
 	// Create a docker-compose.yml file
 	composeContent := `
@@ -661,18 +716,18 @@ services:
     ports:
       - "8080:80"
 `
-	sandbox.Fs.UploadFile(ctx, []byte(composeContent), "docker-compose.yml")
+	sandbox.FileSystem.UploadFile(ctx, []byte(composeContent), "docker-compose.yml")
 
 	// Start Docker Compose services
-	result, _ := sandbox.Process.ExecuteCommand(ctx, "docker compose -p demo up -d", nil)
+	result, _ := sandbox.Process.ExecuteCommand(ctx, "docker compose -p demo up -d")
 	fmt.Println(result.Result)
 
 	// Check running services
-	result, _ = sandbox.Process.ExecuteCommand(ctx, "docker compose -p demo ps", nil)
+	result, _ = sandbox.Process.ExecuteCommand(ctx, "docker compose -p demo ps")
 	fmt.Println(result.Result)
 
 	// Clean up
-	sandbox.Process.ExecuteCommand(ctx, "docker compose -p demo down", nil)
+	sandbox.Process.ExecuteCommand(ctx, "docker compose -p demo down")
 }
 ```
 

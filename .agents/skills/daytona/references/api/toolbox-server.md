@@ -23,6 +23,8 @@ Schema: **UpdateEnvRequest**
 | Status | Description | Schema |
 |--------|-------------|--------|
 | 200 | OK | object |
+| 400 | Bad Request | ErrorResponse |
+| 500 | Internal Server Error | ErrorResponse |
 
 ---
 
@@ -40,7 +42,7 @@ Schema: **InitializeRequest**
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `token` | string | Yes |  |
+| `token` | string | No |  |
 
 ### Responses
 

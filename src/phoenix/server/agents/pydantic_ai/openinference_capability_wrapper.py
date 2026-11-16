@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Any, Callable
 
 from openinference.instrumentation import (
+    OITracer,
     get_input_attributes,
     get_output_attributes,
     get_span_kind_attributes,
@@ -15,7 +16,7 @@ from openinference.semconv.trace import (
     SpanAttributes,
     ToolCallAttributes,
 )
-from opentelemetry.trace import Status, StatusCode, Tracer
+from opentelemetry.trace import Status, StatusCode
 from pydantic_ai import RunContext
 from pydantic_ai.capabilities import (
     ValidatedToolArgs,
@@ -39,7 +40,7 @@ class OpenInferenceCapabilityWrapper(WrapperCapability[AgentDepsT], ToolSpanMixi
     """Pydantic-ai ``Capability`` wrapper that emits OpenInference ``TOOL`` spans."""
 
     _: KW_ONLY
-    tracer: Tracer
+    tracer: OITracer
     get_error_by_tool_name: Mapping[str, Callable[[Any], str | None]] = field(default_factory=dict)
 
     async def wrap_tool_execute(

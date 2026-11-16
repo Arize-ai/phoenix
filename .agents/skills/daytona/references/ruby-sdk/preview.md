@@ -23,6 +23,8 @@ Use standard preview URLs for programmatic access and API integrations where you
 > **Caution: The standard preview token is a sandbox-wide credential**
 > The token returned by `get_preview_link()` is not restricted to the port you requested it for. It authenticates any port of that sandbox, including the ports that control the sandbox itself: the web terminal on `22222`, the toolbox API on `2280`, and the screen recordings dashboard on `33333`. Anyone holding it can run commands in the sandbox and read or write its filesystem.
 >
+> The same token is also the credential the sandbox uses to send its logs, traces and metrics to Daytona's managed telemetry collector. Anyone holding it can submit telemetry for that sandbox. Daytona attributes every record to the sandbox the token belongs to, so the token cannot write telemetry for any other sandbox or organization.
+>
 > Treat it like the sandbox's own credential rather than a per-port viewing token, and do not share it. To give someone access to a single port, use a [signed preview URL](#signed-preview-url), which is bound to one port, expires, and can be revoked.
 
 A sandbox that is **stopped and started again** gets a new token, and tokens issued before that stop no longer work — call `get_preview_link()` again to obtain a fresh one. A sandbox **resumed from a paused state keeps its existing token**, and there is no way to revoke a standard preview token. Once issued, assume it stays valid for as long as the sandbox runs.
@@ -84,7 +86,7 @@ To skip the warning page:
 
 - Send the `X-Daytona-Skip-Preview-Warning: true` header
 - Upgrade to [Tier 3](../platform/limits.md)
-- Deploy a [custom preview proxy](https://www.daytona.io/docs/en/custom-preview-proxy)
+- Deploy a [custom preview proxy](../platform/custom-preview-proxy.md)
 
 ## See Also
 - [Python SDK - preview](../python-sdk/preview.md)

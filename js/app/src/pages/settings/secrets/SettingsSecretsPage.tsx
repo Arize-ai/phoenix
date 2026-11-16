@@ -25,6 +25,7 @@ import {
   SelectItem,
   SelectValue,
 } from "@phoenix/components";
+import { PublicEncryptionKeyWarning } from "@phoenix/components/settings/PublicEncryptionKeyWarning";
 import { SecretOwnerFilterOptions } from "@phoenix/constants";
 import { useViewer } from "@phoenix/contexts";
 import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
@@ -136,6 +137,7 @@ function SettingsSecretsPageContent({
 
   return (
     <Flex direction="column" gap="size-200">
+      <PublicEncryptionKeyWarning />
       <Flex gap="size-200" alignItems="center" justifyContent="space-between">
         <DebouncedSearch
           aria-label="Search secrets"

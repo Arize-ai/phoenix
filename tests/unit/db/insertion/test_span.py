@@ -13,7 +13,7 @@ from phoenix.db import models
 from phoenix.db.helpers import PROJECT_GRADIENTS
 from phoenix.db.insertion.span import insert_span
 from phoenix.server.types import DbSessionFactory
-from phoenix.trace.schemas import Span, SpanContext, SpanKind, SpanStatusCode
+from phoenix.trace.schemas import Span, SpanContext, SpanEvent, SpanKind, SpanStatusCode
 from tests.unit._helpers import _peek_first_row, _selects_from
 
 _START_TIME = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -483,6 +483,39 @@ async def test_rolled_back_span_does_not_leave_stale_trace_or_session_for_siblin
             sibling.end_time,
         )
         assert set(await session.scalars(select(models.Span.span_id))) == {"root", "sibling"}
+
+
+async def test_nul_in_descriptive_values_is_replaced_instead_of_dropping_the_span(
+    db: DbSessionFactory,
+) -> None:
+    # PostgreSQL rejects NUL in jsonb (sqlstate 22P05) and text (22021); SQLite stores it.
+    span = replace(
+        _span("span\x00name", "trace", "span"),
+        status_message="status\x00message",
+        attributes={"metadata": {"note": "a\x00b"}, "tags": ["x\x00y"]},
+        events=[
+            SpanEvent(
+                name="event\x00name",
+                timestamp=_START_TIME,
+                attributes={"detail": "c\x00d"},
+            )
+        ],
+    )
+    async with db() as session:
+        async with session.begin_nested():
+            assert await insert_span(session, span, "project") is not None
+    nul = "\ufffd" if db.dialect.name_literal == "postgresql" else "\x00"
+    async with db() as session:
+        stored = (await session.scalars(select(models.Span))).one()
+        assert stored.name == f"span{nul}name"
+        assert stored.status_message == f"status{nul}message"
+        assert stored.attributes == {"metadata": {"note": f"a{nul}b"}, "tags": [f"x{nul}y"]}
+        assert stored.events[0]["name"] == f"event{nul}name"
+        assert stored.events[0]["attributes"] == {"detail": f"c{nul}d"}
+    # The caller's span is not mutated by the repair.
+    assert span.name == "span\x00name"
+    assert span.attributes == {"metadata": {"note": "a\x00b"}, "tags": ["x\x00y"]}
+    assert span.events[0].attributes == {"detail": "c\x00d"}
 
 
 @pytest.mark.postgres_only

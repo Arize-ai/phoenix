@@ -72,7 +72,8 @@ Initializes Daytona instance with optional configuration.
 If no config is provided, reads from environment variables:
 - `DAYTONA_API_KEY`: Required API key for authentication
 - `DAYTONA_API_URL`: Required api URL
-- `DAYTONA_TARGET`: Optional target environment (if not provided, default region for the organization is used)
+- `DAYTONA_TARGET`: Optional default region for Sandboxes and Snapshots (if not provided, default region
+for the organization is used). A per-call `target` / `region_id` overrides it
 
 **Arguments**:
 
@@ -395,8 +396,10 @@ Configuration options for initializing the Daytona client.
   here or in the environment variable `DAYTONA_API_URL`.
 - `server_url` _str | None_ - Deprecated. Use `api_url` instead. This property will be removed
   in a future version.
-- `target` _str | None_ - Target runner location for the Sandbox. Default region for the organization is used
-  if not set here or in the environment variable `DAYTONA_TARGET`.
+- `target` _str | None_ - Default region for Sandboxes and Snapshots. Can also be set via the
+  environment variable `DAYTONA_TARGET`. A per-call `target` (Sandbox create params) or
+  `region_id` (`CreateSnapshotParams`) overrides it; when neither is set, the
+  organization's default region is used.
 - `connection_pool_maxsize` _int | None_ - Maximum number of simultaneous HTTP connections
   the SDK will open. Defaults to 250. Set to `None` to remove the limit, which is
   recommended when running many concurrent long-lived operations like `process.exec`.
@@ -458,6 +461,8 @@ Base parameters for creating a new Sandbox.
 - `ttl_minutes` _int | None_ - Maximum time to live in minutes, counted as wall-clock time since
   creation regardless of sandbox state. When it elapses the sandbox is destroyed, even if
   it is stopped, paused, or archived. 0 means disabled.
+- `queue_timeout` _int | None_ - Minutes to wait for runner assignment before Sandbox creation is
+  cancelled. Omit to use the organization default. Must be a positive integer.
 - `volumes` _list[VolumeMount] | None_ - List of volumes mounts to attach to the Sandbox.
 - `secrets` _dict[str, str] | None_ - Map of environment variable name to the name of an existing
   organization Secret to mount into the Sandbox. The env var is set to the Secret's opaque
@@ -484,6 +489,9 @@ Base parameters for creating a new Sandbox.
   Sandbox will be scheduled on the same runner as the linked Sandbox so a local network can be
   established between them. Linked Sandboxes must be
   ephemeral (auto_delete_interval=0) and cannot themselves be linked to another Sandbox.
+- `target` _str | None_ - Target (region) where the Sandbox is created. Overrides the client-level
+  `target` for this call. If omitted, the client-level target is used when configured;
+  otherwise the organization's default region is used.
 
 ## CreateSandboxFromImageParams
 

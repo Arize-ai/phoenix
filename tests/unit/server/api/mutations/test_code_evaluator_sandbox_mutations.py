@@ -1548,3 +1548,157 @@ class TestCreateCodeEvaluatorSandboxStrictness:
         assert result.errors, "Expected BadRequest when sandbox config row is missing"
         joined = "\n".join(err.message for err in result.errors)
         assert "Sandbox config not found" in joined
+
+
+_CREATE_DATASET_CODE_EVALUATOR = """
+mutation CreateDatasetCodeEvaluator($input: CreateDatasetCodeEvaluatorInput!) {
+    createDatasetCodeEvaluator(input: $input) {
+        evaluator {
+            id
+            name
+            evaluator {
+                id
+                name
+            }
+        }
+    }
+}
+"""
+
+
+def _dataset_code_evaluator_input(
+    *, dataset_id: str, name: str, code_input: dict[str, object]
+) -> dict[str, object]:
+    return {
+        "datasetId": dataset_id,
+        "name": name,
+        "source": {
+            "definition": {
+                "sourceCode": code_input["sourceCode"],
+                "language": code_input["language"],
+                "sandboxConfigId": code_input["sandboxConfigId"],
+            }
+        },
+        "inputMapping": code_input["inputMapping"],
+        "outputConfigs": code_input["outputConfigs"],
+    }
+
+
+async def _add_dataset(db: DbSessionFactory) -> str:
+    async with db() as session:
+        dataset = models.Dataset(name=f"dataset-{token_hex(4)}", metadata_={})
+        session.add(dataset)
+        await session.flush()
+        return str(GlobalID("Dataset", str(dataset.id)))
+
+
+async def _code_evaluator_row_counts(db: DbSessionFactory) -> tuple[int, int, int]:
+    async with db() as session:
+        return (
+            await session.scalar(select(sa.func.count()).select_from(models.CodeEvaluator)) or 0,
+            await session.scalar(select(sa.func.count()).select_from(models.CodeEvaluatorVersion))
+            or 0,
+            await session.scalar(select(sa.func.count()).select_from(models.DatasetEvaluators))
+            or 0,
+        )
+
+
+class TestDatasetCodeEvaluatorNames:
+    async def test_datasets_reuse_a_name_held_by_another_evaluator(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        name = f"hello-{token_hex(2)}"
+        code_input = _create_code_evaluator_input(sandbox_config_id=sandbox_config.id, name=name)
+        standalone = await gql_client.execute(
+            _CREATE_CODE_EVALUATOR, variables={"input": code_input}
+        )
+        assert standalone.data and not standalone.errors
+
+        bindings = []
+        for _ in range(2):
+            result = await gql_client.execute(
+                _CREATE_DATASET_CODE_EVALUATOR,
+                variables={
+                    "input": _dataset_code_evaluator_input(
+                        dataset_id=await _add_dataset(db), name=name, code_input=code_input
+                    )
+                },
+            )
+            assert result.data and not result.errors, result.errors
+            bindings.append(result.data["createDatasetCodeEvaluator"]["evaluator"])
+
+        assert [binding["name"] for binding in bindings] == [name, name]
+        evaluator_ids = {standalone.data["createCodeEvaluator"]["evaluator"]["id"]}
+        evaluator_ids.update(binding["evaluator"]["id"] for binding in bindings)
+        assert len(evaluator_ids) == 3
+
+    async def test_a_name_the_dataset_already_uses_creates_nothing(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        name = f"hello-{token_hex(2)}"
+        variables = {
+            "input": _dataset_code_evaluator_input(
+                dataset_id=await _add_dataset(db),
+                name=name,
+                code_input=_create_code_evaluator_input(sandbox_config_id=sandbox_config.id),
+            )
+        }
+        first = await gql_client.execute(_CREATE_DATASET_CODE_EVALUATOR, variables=variables)
+        assert first.data and not first.errors, first.errors
+        counts_after_first = await _code_evaluator_row_counts(db)
+
+        second = await gql_client.execute(_CREATE_DATASET_CODE_EVALUATOR, variables=variables)
+
+        assert second.errors
+        assert "already exists for dataset" in second.errors[0].message
+        assert await _code_evaluator_row_counts(db) == counts_after_first
+
+    async def test_create_code_evaluator_reports_a_taken_name_plainly(
+        self,
+        gql_client: AsyncGraphQLClient,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        name = f"taken-{token_hex(4)}"
+        variables = {
+            "input": _create_code_evaluator_input(sandbox_config_id=sandbox_config.id, name=name)
+        }
+        first = await gql_client.execute(_CREATE_CODE_EVALUATOR, variables=variables)
+        assert first.data and not first.errors
+
+        second = await gql_client.execute(_CREATE_CODE_EVALUATOR, variables=variables)
+
+        assert second.errors
+        assert second.errors[0].message == f"An evaluator named '{name}' already exists"
+
+    async def test_patch_code_evaluator_reports_a_taken_name_plainly(
+        self,
+        gql_client: AsyncGraphQLClient,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        evaluator_ids = []
+        names = [f"taken-{token_hex(4)}", f"other-{token_hex(4)}"]
+        for name in names:
+            created = await gql_client.execute(
+                _CREATE_CODE_EVALUATOR,
+                variables={
+                    "input": _create_code_evaluator_input(
+                        sandbox_config_id=sandbox_config.id, name=name
+                    )
+                },
+            )
+            assert created.data and not created.errors, created.errors
+            evaluator_ids.append(created.data["createCodeEvaluator"]["evaluator"]["id"])
+
+        result = await gql_client.execute(
+            _PATCH_CODE_EVALUATOR,
+            variables={"input": {"id": evaluator_ids[1], "name": names[0]}},
+        )
+
+        assert result.errors
+        assert result.errors[0].message == f"An evaluator named '{names[0]}' already exists"

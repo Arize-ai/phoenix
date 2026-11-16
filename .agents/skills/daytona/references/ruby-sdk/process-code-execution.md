@@ -208,7 +208,7 @@ begin
   session = sandbox.process.get_session(session_id)
   # Do work...
 ensure
-  sandbox.process.delete_session(session.session_id)
+  sandbox.process.delete_session(session_id)
 end
 ```
 

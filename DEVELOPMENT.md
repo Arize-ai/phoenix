@@ -55,7 +55,7 @@ cd app
 pnpm dev
 ```
 
-`pnpm dev` starts the API, the Vite dev server, and a trace generator as dekit tasks and attaches a console to them. The tasks run in a detached runner, so they survive closing the terminal: press `q` to detach and leave them running, `Q` to stop everything, or run `dekit down` from a shell. `dekit help` documents the rest of the CLI.
+`pnpm dev` starts the API, the Vite dev server, and a trace generator as dekit tasks and attaches a console to them. The tasks run in a detached runner, so they survive closing the terminal: press `q` to detach and leave them running, `Q` to stop everything, or run `dekit down` from a shell. `pnpm dev:down` stops the dekit stack and any other dev servers (Vite, Storybook, `phoenix serve`) started from this checkout; add `--dry-run` to only list them. `dekit help` documents the rest of the CLI.
 
 Open [http://localhost:6006](http://localhost:6006). If authentication is enabled, log in with **`admin@localhost`** / **`admin`**, or set `PHOENIX_ENABLE_AUTH=False` in `js/app/.env` to bypass it.
 
@@ -68,6 +68,21 @@ Open [http://localhost:6006](http://localhost:6006). If authentication is enable
 To send traces to your dev server, point any OpenInference/OpenTelemetry instrumented app at `http://localhost:6006` (for example, `PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006`). See the [Vercel AI SDK tracing guide](https://arize.com/docs/phoenix/integrations/typescript/vercel/vercel-ai-sdk-tracing-js) or the runnable [AI SDK agent example](./js/examples/apps/ai-sdk-agent) for a minimal traced agent.
 
 If a step fails, consult the detailed setup instructions below.
+
+### Running only the UI against an existing Phoenix server
+
+To work on the frontend without running the Python server, point the Vite dev server at an existing Phoenix server. `js/app/.env.example` sets `PHOENIX_BACKEND_URL` to the team's shared dev server, so after you copy it to `js/app/.env` this runs as is:
+
+```bash
+cd js/app
+pnpm dev:ui-only
+```
+
+To use a different server, set the variable inline, for example `PHOENIX_BACKEND_URL=http://localhost:6006 pnpm dev:ui-only`.
+
+Open the `UI` URL it prints ([http://localhost:5173](http://localhost:5173), or the next free port if 5173 is taken). Vite serves the UI with hot reload and proxies every other request (GraphQL, REST, auth) to the backend set in `PHOENIX_BACKEND_URL`. The page config (`window.Config`) comes from the backend. If the backend runs under a path prefix (for example `https://phoenix.example.com/phoenix`), open the UI under the same prefix (`http://localhost:5173/phoenix`).
+
+The local UI must be compatible with the backend's GraphQL schema, so use a backend that runs a version close to your branch. Log in with email and password. OAuth2 redirects go to the backend's domain, so OAuth2 login does not work locally. Browsers share `localhost` cookies across ports, so logging in here logs you out of a local Phoenix on another port, and the other way around.
 
 ## Setting Up Your macOS Development Environment
 
@@ -135,18 +150,16 @@ pg_config --bindir
 This command should point to the `homebrew` install of `postgresql`, if it doesn't, try creating
 a fresh Python environment or modifying your `PATH`.
 
-Phoenix uses `tox` to run linters, formatters, type-checks, tests, and more.
-
-`tox` manages isolated virtual environments, each with a corresponding set of commands. These environments are defined inside of `tox.ini` and can be enumerated by running
+Phoenix uses `uv` to manage the development environment and run linters, formatters, type-checks, and tests. `uv.lock` pins every dependency, so a fresh `uv sync` reproduces the environment CI tests against.
 
 ```bash
-tox list
+uv sync --all-packages
 ```
 
-Commands corresponding to an environment can be executed by running `tox run -e <env-name>`. For example, you can execute unit tests by running
+Unit tests run with `pytest` from the `tests` directory:
 
 ```bash
-tox run -e unit_tests
+cd tests && uv run pytest unit/
 ```
 
 By default, database tests run against `sqlite`. To run them against `postgresql` instead,
@@ -154,13 +167,13 @@ pass `--db postgresql`; pytest-postgresql finds `pg_ctl` through `pg_config`, or
 `--postgresql-exec /path/to/pg_ctl`.
 
 ```bash
-tox run -e unit_tests -- --db postgresql
+cd tests && uv run pytest unit/ --db postgresql
 ```
 
 To run unit tests faster using parallel execution:
 
 ```bash
-tox r -e unit_tests -- -n auto
+cd tests && uv run pytest unit/ -n auto
 ```
 
 To run type checking:
@@ -169,7 +182,7 @@ To run type checking:
 make typecheck-python
 ```
 
-Check the output of `tox list` to find commands for linters, formatters, and other tools.
+Run `make help` to find commands for linters, formatters, and other tools.
 
 ## Installing Pre-Commit Hooks
 
@@ -191,8 +204,8 @@ Once installed, the pre-commit hooks configured in `.pre-commit-config.yaml` wil
 
 To add or modify a Jupyter notebook, the following commands are needed to pass CI.
 
-- `tox run -e ruff`: Runs formatters
-- `tox run -e clean_jupyter_notebooks`: Removes cell output and notebook metadata to keep the diff as small as possible
+- `make format-python`: Runs formatters
+- `make clean-notebooks`: Removes cell output and notebook metadata to keep the diff as small as possible
 
 ## Contributing Documentation
 
@@ -344,7 +357,7 @@ After doing so, consider pasting the following settings into your workspace sett
       "source.fixAll.oxlint": "always"
     }
   },
-  "mypy-type-checker.ignorePatterns": [".tox,.venv,js/app"],
+  "mypy-type-checker.ignorePatterns": [".venv,js/app"],
   "javascript.preferences.importModuleSpecifier": "shortest",
   "typescript.preferences.importModuleSpecifier": "non-relative",
   "oxc.fmt.configPath": ".oxfmtrc.jsonc",

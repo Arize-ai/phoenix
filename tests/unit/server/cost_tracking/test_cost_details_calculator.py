@@ -849,3 +849,28 @@ class TestSpanCostDetailsCalculator:
                     assert detail.cost_per_token == 0.0
             else:
                 assert detail.cost_per_token is None
+
+    def test_span_cost_append_detail_preserves_zero_cost(self) -> None:
+        span_cost = models.SpanCost()
+        span_cost.append_detail(
+            models.SpanCostDetail(
+                token_type="input", is_prompt=True, tokens=100, cost=0.0, cost_per_token=0.0
+            )
+        )
+        span_cost.append_detail(
+            models.SpanCostDetail(
+                token_type="output", is_prompt=False, tokens=50, cost=0.0, cost_per_token=0.0
+            )
+        )
+        assert span_cost.prompt_cost == 0.0
+        assert span_cost.completion_cost == 0.0
+        assert span_cost.total_cost == 0.0
+
+        unpriced = models.SpanCost()
+        unpriced.append_detail(
+            models.SpanCostDetail(
+                token_type="input", is_prompt=True, tokens=100, cost=None, cost_per_token=None
+            )
+        )
+        assert unpriced.prompt_cost is None
+        assert unpriced.total_cost is None

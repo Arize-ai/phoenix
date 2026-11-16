@@ -21,13 +21,15 @@ pip install openinference-instrumentation-typesafe typesafe-sdk arize-phoenix-ot
 
 ## Setup
 
-Use the `register` function to connect your application to Phoenix:
+Set `TYPESAFE_API_KEY` in your environment using a key from the TypeSafe console. The SDK reads this variable automatically. Use the `register` function to connect your application to Phoenix:
 
 ```python
+import os
+
 from phoenix.otel import register
 
 tracer_provider = register(
-  project_name="typesafe-app",
+  project_name=os.environ.get("PHOENIX_PROJECT_NAME", "typesafe-app"),
   auto_instrument=True,
 )
 ```
@@ -73,10 +75,6 @@ With instrumentation enabled, each `system_one` call shows up in Phoenix as a **
 - `decision.token_count.input` and `decision.token_count.output`, from the response's `usage`
 
 Phoenix names the decision model in the span's input card. The model and its usage follow the OpenInference [decision span conventions](https://github.com/Arize-ai/openinference/blob/main/spec/decision_spans.md) and live under `decision.*` rather than `llm.*`, so decision-model calls stay out of Phoenix's LLM token and cost reporting. Earlier releases recorded them under `llm.*`, and releases before 0.1.3 recorded them as LLM spans.
-
-<Frame>
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/typesafe.png" alt="TypeSafe AI traces in Phoenix" />
-</Frame>
 
 A System One call is not a chat exchange, so the `state` and the `answers` are recorded only as `input.value` and `output.value`, not as `llm.input_messages` / `llm.output_messages`.
 

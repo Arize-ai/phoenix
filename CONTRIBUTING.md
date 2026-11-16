@@ -69,25 +69,10 @@ Before submitting a pull request, please make sure the following is done:
 - Fork the repository and create your branch from `main`.
 - Follow the [development guide](./DEVELOPMENT.md) to setup your local environment.
 - If you've fixed a bug or added code that should be tested, add tests!
-- Ensure test suite passes (`tox run -e unit_tests` and `npm run test` for app changes)
-- Make sure your code is formatted with `tox run -e ruff` and `pnpm --dir js/app run fmt` for app changes.
+- Ensure test suite passes (`make test-python` and `npm run test` for app changes)
+- Make sure your code is formatted with `make format-python` and `pnpm --dir js/app run fmt` for app changes.
 - Make sure your code lints with `pnpm lint` for app changes.
 - Run type checking with `make typecheck-python` and `npm run typecheck` for app changes.
-
-### Claude Code Review On Forks
-
-The Claude Code Review workflow runs on pull requests and uses `ANTHROPIC_API_KEY`.
-For repository-owned branches, this is an upstream repository secret configured by
-maintainers.
-
-If you want to run the same workflow in your own fork before opening or updating a
-pull request, add `ANTHROPIC_API_KEY` as a repository secret in your fork at
-`https://github.com/{username}/phoenix/settings/secrets/actions`. Use a repository
-secret, not an environment secret.
-
-GitHub does not pass fork repository secrets to pull request workflows running in
-the upstream repository. Maintainers may need to rerun or review Claude results
-from a trusted repository context for external fork pull requests.
 
 ### Pull Request (PR) Descriptions
 

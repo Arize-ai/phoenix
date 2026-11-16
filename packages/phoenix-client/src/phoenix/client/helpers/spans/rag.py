@@ -206,10 +206,10 @@ def get_input_output_context(
         timeout=timeout,
     )
 
-    if df_qa is None or df_qa.empty:
+    if df_qa.empty:
         print("No spans found.")
         return None
-    if df_docs is None or df_docs.empty:
+    if df_docs.empty:
         print("No retrieval documents found.")
         return None
 
@@ -414,10 +414,10 @@ async def async_get_input_output_context(
         timeout=timeout,
     )
 
-    if df_qa is None or df_qa.empty:
+    if df_qa.empty:
         print("No spans found.")
         return None
-    if df_docs is None or df_docs.empty:
+    if df_docs.empty:
         print("No retrieval documents found.")
         return None
 

@@ -55,6 +55,8 @@ const lspServer = await sandbox.createLspServer(
 Start an LSP server by calling **`start()`** before any other LSP operation.
 
 ```typescript
+import { LspLanguageId } from '@daytona/sdk'
+
 const lsp = await sandbox.createLspServer(
   LspLanguageId.TYPESCRIPT,
   'workspace/project'

@@ -1,4 +1,4 @@
-import { HttpResponse } from "@arizeai/phoenix-testing";
+import { DEFAULT_MOCK_BASE_URL, HttpResponse } from "@arizeai/phoenix-testing";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createProjectCommand } from "../src/commands/project";
@@ -13,7 +13,7 @@ const mock = setupMockPhoenixServer();
  * the number of calls. Tests that must never reach the network assert
  * `count === 0`.
  */
-function captureCreateProjectRequest() {
+function captureCreateProjectRequest(): { body?: unknown; count: number } {
   const captured: { body?: unknown; count: number } = { count: 0 };
   mock.server.use(
     http.post("/v1/projects", async ({ request, response }) => {
@@ -64,16 +64,31 @@ describe("project create", () => {
     );
   });
 
-  it("writes progress to stderr unless --no-progress is passed", async () => {
+  it("writes progress to stderr by default", async () => {
     captureCreateProjectRequest();
     const io = captureCliOutput();
 
     await createProjectCommand().parseAsync(
-      ["create", "--name", "my-project", "--endpoint", "http://localhost:6006"],
+      ["create", "--name", "my-project", "--endpoint", DEFAULT_MOCK_BASE_URL],
       { from: "user" }
     );
 
     expect(io.stderr).toHaveBeenCalledWith("Creating project 'my-project'...");
+  });
+
+  it("suppresses progress output with --no-progress", async () => {
+    captureCreateProjectRequest();
+    const io = captureCliOutput();
+
+    await createProjectCommand().parseAsync(
+      ["create", "--name", "my-project", ...BASE_ARGS],
+      { from: "user" }
+    );
+
+    expect(io.stdout).toHaveBeenCalledWith(
+      "Created project 'my-project' (id: proj-new)"
+    );
+    expect(io.stderr).not.toHaveBeenCalled();
   });
 
   it("prints the ID from a schema-generated response", async () => {
@@ -86,6 +101,29 @@ describe("project create", () => {
 
     expect(io.stdout).toHaveBeenCalledWith(
       expect.stringMatching(/^Created project '.*' \(id: .+\)$/)
+    );
+  });
+
+  it("exits FAILURE when a successful response has no project data", async () => {
+    mock.server.use(
+      http.post("/v1/projects", ({ response }) =>
+        response.untyped(new HttpResponse(null, { status: 200 }))
+      )
+    );
+    const io = captureCliOutput();
+    const exitSpy = mockProcessExit();
+
+    await expect(
+      createProjectCommand().parseAsync(
+        ["create", "--name", "my-project", ...BASE_ARGS],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
+    expect(io.stdout).not.toHaveBeenCalled();
+    expect(io.stderr).toHaveBeenCalledWith(
+      "Error creating project: Phoenix returned no project data"
     );
   });
 
@@ -129,7 +167,7 @@ describe("project create", () => {
     );
   });
 
-  it("exits FAILURE with the server message on a server error", async () => {
+  it("exits FAILURE with the server message on a text/plain error", async () => {
     mock.server.use(
       http.post("/v1/projects", ({ response }) =>
         response.untyped(
@@ -154,6 +192,116 @@ describe("project create", () => {
     expect(io.stdout).not.toHaveBeenCalled();
     expect(io.stderr).toHaveBeenCalledWith(
       "Error creating project: Failed to create project (HTTP 422): Invalid project name"
+    );
+  });
+
+  it("exits FAILURE with the detail of a JSON error", async () => {
+    mock.server.use(
+      http.post("/v1/projects", ({ response }) =>
+        response.untyped(
+          HttpResponse.json(
+            { detail: "Project with name 'my-project' already exists" },
+            { status: 409 }
+          )
+        )
+      )
+    );
+    const io = captureCliOutput();
+    const exitSpy = mockProcessExit();
+
+    await expect(
+      createProjectCommand().parseAsync(
+        ["create", "--name", "my-project", ...BASE_ARGS],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
+    expect(io.stdout).not.toHaveBeenCalled();
+    expect(io.stderr).toHaveBeenCalledWith(
+      "Error creating project: Failed to create project (HTTP 409): Project with name 'my-project' already exists"
+    );
+  });
+
+  it("exits FAILURE with the body of a FastAPI validation error", async () => {
+    mock.server.use(
+      http.post("/v1/projects", ({ response }) =>
+        response(422).json({
+          detail: [
+            {
+              loc: ["body", "name"],
+              msg: "String should have at least 1 character",
+              type: "string_too_short",
+            },
+          ],
+        })
+      )
+    );
+    const io = captureCliOutput();
+    const exitSpy = mockProcessExit();
+
+    await expect(
+      createProjectCommand().parseAsync(
+        ["create", "--name", "my-project", ...BASE_ARGS],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
+    expect(io.stdout).not.toHaveBeenCalled();
+    expect(io.stderr).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /^Error creating project: Failed to create project \(HTTP 422\): .*String should have at least 1 character/
+      )
+    );
+  });
+
+  it("exits FAILURE with the HTTP status when the error body is empty", async () => {
+    mock.server.use(
+      http.post("/v1/projects", ({ response }) =>
+        response.untyped(new HttpResponse(null, { status: 500 }))
+      )
+    );
+    const io = captureCliOutput();
+    const exitSpy = mockProcessExit();
+
+    await expect(
+      createProjectCommand().parseAsync(
+        ["create", "--name", "my-project", ...BASE_ARGS],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
+    expect(io.stderr).toHaveBeenCalledWith(
+      "Error creating project: Failed to create project (HTTP 500)"
+    );
+  });
+
+  it("exits FAILURE with the HTTP status on an unauthorized response", async () => {
+    mock.server.use(
+      http.post("/v1/projects", ({ response }) =>
+        response.untyped(
+          new HttpResponse("Invalid token", {
+            status: 401,
+            headers: { "Content-Type": "text/plain" },
+          })
+        )
+      )
+    );
+    const io = captureCliOutput();
+    const exitSpy = mockProcessExit();
+
+    await expect(
+      createProjectCommand().parseAsync(
+        ["create", "--name", "my-project", ...BASE_ARGS],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
+    expect(io.stderr).toHaveBeenCalledWith(
+      "Error creating project: Failed to create project (HTTP 401): Invalid token"
     );
   });
 

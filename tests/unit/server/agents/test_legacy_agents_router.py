@@ -10,7 +10,7 @@ closes.
 import json
 from typing import Any
 
-import httpx
+import httpx2
 import pytest
 from fastapi import FastAPI
 from pydantic_ai.models.test import TestModel
@@ -73,7 +73,7 @@ def _mock_legacy_model(monkeypatch: pytest.MonkeyPatch) -> None:
 
 async def test_legacy_chat_route_streams_a_turn_for_a_client_owned_transcript(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """An old-shape request (full ``messages`` array, client-minted UUID
@@ -105,7 +105,7 @@ async def test_legacy_chat_route_streams_a_turn_for_a_client_owned_transcript(
 
 async def test_legacy_chat_route_is_stateless(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Old clients own their transcripts: a legacy turn persists no session
@@ -126,7 +126,7 @@ async def test_legacy_chat_route_is_stateless(
 
 
 async def test_legacy_chat_route_accepts_a_multi_turn_transcript(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Later turns resend the whole conversation, including assistant
@@ -157,7 +157,7 @@ async def test_legacy_chat_route_accepts_a_multi_turn_transcript(
 
 async def test_force_tracing_overrides_legacy_request_flags(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The compatibility route retains main's forced-tracing behavior even
@@ -198,7 +198,7 @@ async def test_force_tracing_overrides_legacy_request_flags(
 
 async def test_new_chat_route_is_unaffected_by_the_legacy_registration(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The session routes live under /v1 while the legacy route keeps its
@@ -241,7 +241,7 @@ async def test_new_chat_route_is_unaffected_by_the_legacy_registration(
 
 
 async def test_new_contract_body_on_the_legacy_url_is_rejected(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     """The legacy route only speaks the full-transcript shape; the session
     routes' single-``message`` body belongs to /v1/agent_sessions/... instead."""
@@ -262,7 +262,7 @@ async def test_new_contract_body_on_the_legacy_url_is_rejected(
 
 
 async def test_unknown_agent_id_still_returns_not_found(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     """Only the literal ``server`` segment maps to the legacy route; other
     agent ids under the unversioned path match no route at all."""
@@ -284,7 +284,7 @@ async def test_unknown_agent_id_still_returns_not_found(
 
 async def test_legacy_chat_route_is_forbidden_in_read_only_mode(
     app: FastAPI,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     """Read-only mode turns off the legacy route at the router level."""
     app.state.read_only = True

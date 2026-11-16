@@ -33,7 +33,7 @@ class AnnotationSummary:
             return [
                 LabelFraction(
                     label=cast(str, row.label),
-                    fraction=row.label_count / n,
+                    fraction=cast(float, row.label_count) / n,
                 )
                 for row in self.df.loc[
                     self.df.label.notna(),
@@ -42,12 +42,12 @@ class AnnotationSummary:
             ]
         return [
             LabelFraction(
-                label=row.label,
-                fraction=float(row.avg_label_fraction),
+                label=cast(str, row.label),
+                fraction=float(cast(float, row.avg_label_fraction)),
             )
             for row in self.df.itertuples()
             # Pandas can represent the synthetic coverage row's SQL NULL as NaN.
-            if pd.notna(row.label)
+            if pd.notna(cast(Optional[str], row.label))
         ]
 
     @strawberry.field
@@ -55,7 +55,7 @@ class AnnotationSummary:
         if self.simple_avg:
             if not (n := self.df.score_count.sum()):
                 return None
-            return cast(float, self.df.score_sum.sum() / n)
+            return float(self.df.score_sum.sum() / n)
         avg_scores = self.df["avg_score"].dropna()
         if avg_scores.empty:
             return None

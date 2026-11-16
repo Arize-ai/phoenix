@@ -243,7 +243,7 @@ content, err = os.ReadFile("app/Dockerfile")
 if err != nil {
   // handle error
 }
-image := daytona.FromDockerfile(string(content)).
+image = daytona.FromDockerfile(string(content)).
   PipInstall([]string{"numpy"})
 ```
 

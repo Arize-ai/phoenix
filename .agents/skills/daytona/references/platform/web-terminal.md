@@ -81,9 +81,14 @@ curl 'https://app.daytona.io/api/sandbox/{sandboxId}/ports/22222/preview-url' \
 
 ## Security
 
-Terminal access is restricted to authenticated members of your [Organization](./organizations.md). Even when a sandbox has its `public` parameter set to `true`, the web terminal remains accessible only to organization members.
+Only authenticated members of your [Organization](./organizations.md) with access to the sandbox can obtain a web terminal credential. The sandbox's `public` setting does not apply to the web terminal: a valid credential is required even when `public` is `true`.
+
+What that credential is depends on the URL type:
+
+- A [signed preview URL](../python-sdk/preview.md#signed-preview-url) carries its token in the URL. Anyone holding the URL can use the terminal without signing in to Daytona until it expires or is revoked. Terminal URLs opened from the Dashboard are signed preview URLs.
+- A [standard preview URL](../python-sdk/preview.md#standard-preview-url) requires its preview token, sent in the `x-daytona-preview-token` header. Anyone holding that token can use the terminal, and the token cannot be revoked.
 > **Warning:**
-> The web terminal provides full shell access to your sandbox. Treat terminal URLs with the same care as SSH credentials. Do not share terminal URLs with untrusted parties.
+> The web terminal provides full shell access to your sandbox. Treat terminal URLs and preview tokens with the same care as SSH credentials, and do not share them with untrusted parties.
 
 ## See Also
 

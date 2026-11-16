@@ -3,6 +3,7 @@ from importlib.metadata import version
 from typing import Any
 
 from . import llm, metrics, tracing, utils
+from .decision import DecisionModel
 from .evaluators import (
     ClassificationEvaluator,
     EvalInput,
@@ -48,6 +49,7 @@ __all__ = [
     "templating",
     "llm",
     "LLM",
+    "DecisionModel",
     "phoenix_prompt_to_prompt_template",
     "bind_evaluator",
     "tracing",

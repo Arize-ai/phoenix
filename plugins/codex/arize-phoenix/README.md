@@ -1,6 +1,6 @@
 # Arize Phoenix plugin
 
-A [Codex plugin](https://developers.openai.com/codex/plugins) in the portable [Agent Plugins](https://agent-plugins.org) format. It registers the Phoenix [remote MCP server](https://arize.com/docs/phoenix/integrations/remote-mcp) so Codex can explore traces, sessions, datasets, experiments, and evaluations in your Phoenix instance.
+A [Codex plugin](https://developers.openai.com/codex/plugins) in the portable [Agent Plugins](https://agent-plugins.org) format. It registers the Phoenix [remote MCP server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) and installs all five public Phoenix skills: `phoenix-cli`, `phoenix-error-analysis`, `phoenix-evals`, `phoenix-harbor`, and `phoenix-tracing`. Codex can then explore traces, sessions, datasets, experiments, and evaluations in your Phoenix instance. This is the recommended way to connect Codex to Phoenix. See [Connect Your Coding Agent](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents). The `phoenix-cli` skill also needs the optional `px` CLI.
 
 ## How it connects
 
@@ -20,7 +20,8 @@ Requires Node.js, and Phoenix 19.0.0 or later, which serves `/mcp`.
 | File | Purpose |
 | ---- | ------- |
 | `plugin.json`, `mcp.json` | Portable manifest and MCP server declaration. |
-| `.codex-plugin/plugin.json`, `.mcp.json` | Codex overlay that turns the `${VAR}` entries in `mcp.json` into forwarded environment variables. Codex reads the portable files first; the overlay only adds `env_vars`. |
+| `.codex-plugin/plugin.json`, `.mcp.json` | Codex overlay that turns the `${VAR}` entries in `mcp.json` into forwarded environment variables. Codex reads the portable files first; the overlay adds `env_vars` and points Codex at `skills/`. |
+| `skills/` | Copies of the public Phoenix skills in the repository's `skills/` folder, written by `make skills`. Edit the skills there, not here. They're copies, not symlinks, because Codex drops symlinks that point outside the plugin when it installs it. |
 | `scripts/phoenix-mcp` | The stdio launcher. |
 
 ## Install locally

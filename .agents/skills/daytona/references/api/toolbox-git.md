@@ -437,6 +437,11 @@ Schema: **GitPushRequest**
 | Status | Description | Schema |
 |--------|-------------|--------|
 | 200 | OK |  |
+| 400 | Bad Request | ErrorResponse |
+| 401 | Unauthorized | ErrorResponse |
+| 403 | Forbidden | ErrorResponse |
+| 409 | Conflict | ErrorResponse |
+| 500 | Internal Server Error | ErrorResponse |
 
 ---
 
@@ -540,11 +545,6 @@ Schema: **GitRestoreRequest**
 | Status | Description | Schema |
 |--------|-------------|--------|
 | 200 | OK |  |
-| 400 | Bad Request | ErrorResponse |
-| 401 | Unauthorized | ErrorResponse |
-| 403 | Forbidden | ErrorResponse |
-| 409 | Conflict | ErrorResponse |
-| 500 | Internal Server Error | ErrorResponse |
 
 ---
 

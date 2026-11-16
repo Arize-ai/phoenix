@@ -26,8 +26,9 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 
 prompt = ChatPromptTemplate.from_template("{x} {y} {z}?").partial(x="why is", z="blue")
-chain = prompt | ChatOpenAI(model_name="gpt-3.5-turbo")
-chain.invoke(dict(y="sky"))
+chain = prompt | ChatOpenAI(model_name="gpt-5.6-terra")
+response = chain.invoke(dict(y="sky"))
+print(response.content)
 ```
 
 ## Observe

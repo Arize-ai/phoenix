@@ -891,7 +891,12 @@ def _outer_join(left: pd.DataFrame, right: pd.DataFrame) -> pd.DataFrame:
     else:
         df = left.join(right, how="outer", lsuffix="_L", rsuffix="_R")
         for col in columns_intersection:
-            df.loc[:, col] = df.loc[:, f"{col}_L"].fillna(df.loc[:, f"{col}_R"])
+            if left.empty:
+                df.loc[:, col] = df.loc[:, f"{col}_R"]
+            elif right.empty:
+                df.loc[:, col] = df.loc[:, f"{col}_L"]
+            else:
+                df.loc[:, col] = df.loc[:, f"{col}_L"].fillna(df.loc[:, f"{col}_R"])
             df = df.drop([f"{col}_L", f"{col}_R"], axis=1)
     return df
 

@@ -286,6 +286,11 @@ View your usage at [Daytona Dashboard > Limits](https://app.daytona.io/dashboard
 | Run a stateful Python interpreter (persistent variables between calls) | `./references/python-sdk/sync/code-interpreter.md` or `./references/typescript-sdk/code-interpreter.md` |
 | Store and retrieve objects (S3-compatible) | `./references/<lang>-sdk/object-storage.md` (Python sync/async, TypeScript, Ruby) |
 | SSH into a running sandbox | `./references/<lang>-sdk/ssh-access.md` |
+| Run a Windows, Linux VM, or GPU sandbox | `./references/<lang>-sdk/windows-sandboxes.md`, `linux-sandboxes.md`, or `gpu-sandboxes.md` |
+| Give sandbox code access to credentials without exposing them | `./references/<lang>-sdk/secrets.md` |
+| Mount an S3 bucket or other external storage | `./references/<lang>-sdk/mount-external-storage.md` |
+| Reduce sandbox startup latency with pre-created sandboxes | `./references/<lang>-sdk/warm-pools.md` |
+| Debug a failing sandbox or API call | `./references/<lang>-sdk/troubleshooting.md` |
 
 Replace `<lang>-sdk` with: `python-sdk`, `typescript-sdk`, `java-sdk`, `go-sdk`, or `ruby-sdk`.
 
@@ -343,6 +348,18 @@ Each SDK folder contains the same set of feature guides with language-specific e
 | `pty.md` | PTY/terminal support |
 | `regions.md` | Available regions |
 | `vpn-connections.md` | VPN connections |
+| `getting-started.md` | Install the SDK, create a first sandbox |
+| `authentication.md` | Authenticate the SDKs, CLI, and API with an API key or JWT |
+| `linux-sandboxes.md` | Linux container and Linux VM sandboxes |
+| `windows-sandboxes.md` | Windows VM sandboxes |
+| `gpu-sandboxes.md` | GPU sandboxes, available GPUs, spot capacity |
+| `isolation.md` | Runtime, network, and organization isolation |
+| `mount-external-storage.md` | Mount S3, R2, GCS, Azure Blob, and other storage via FUSE |
+| `scale.md` | Sandbox scalability and concurrency |
+| `secrets.md` | Inject organization secrets into sandbox network traffic |
+| `warm-pools.md` | Pre-created, running sandboxes built from a snapshot |
+| `troubleshooting.md` | Sandbox lifecycle, account, runtime, and API failure modes |
+| `upgrade-to-v2.md` | Upgrade from Daytona v0 to v2 |
 
 ## Platform Reference
 
@@ -356,6 +373,16 @@ Each SDK folder contains the same set of feature guides with language-specific e
 | [web-terminal.md](./references/platform/web-terminal.md) | Browser-based terminal access |
 | [webhooks.md](./references/platform/webhooks.md) | Webhook events |
 | [mcp.md](./references/platform/mcp.md) | MCP integration |
+| [api-keys.md](./references/platform/api-keys.md) | Create and manage organization API keys |
+| [sso.md](./references/platform/sso.md) | SSO and SCIM directory sync |
+| [architecture.md](./references/platform/architecture.md) | Platform architecture overview |
+| [persistence.md](./references/platform/persistence.md) | Sandbox filesystem and memory persistence |
+| [bring-your-own-compute.md](./references/platform/bring-your-own-compute.md) | Run your own runner machines (BYOC) |
+| [custom-preview-proxy.md](./references/platform/custom-preview-proxy.md) | Self-hosted preview proxy with custom domains |
+| [otel-collection.md](./references/platform/otel-collection.md) | Export traces, logs, and metrics to an OTLP backend |
+| [agent-skills.md](./references/platform/agent-skills.md) | Installing this agent skill |
+| [playground.md](./references/platform/playground.md) | Browser-based playground |
+| [acceptable-use.md](./references/platform/acceptable-use.md) | Acceptable use guidelines |
 | [cli.md](./references/cli.md) | CLI command reference |
 
 ## API Reference

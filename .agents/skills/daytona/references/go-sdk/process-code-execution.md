@@ -297,6 +297,7 @@ session, err := sandbox.Process.GetSession(ctx, sessionID)
 if err != nil {
 	log.Fatal(err)
 }
+fmt.Printf("Session: %v\n", session["sessionId"])
 // Do work...
 ```
 

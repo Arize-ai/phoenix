@@ -17,7 +17,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
-import { Alert, Flex, Loading, OverflowRow, View } from "@phoenix/components";
+import { Alert, Flex, OverflowRow, View } from "@phoenix/components";
 import {
   ExperimentNameWithColorSwatch,
   useExperimentColors,
@@ -27,6 +27,7 @@ import {
   ExperimentCompareViewModeToggle,
   isExperimentCompareViewMode,
 } from "@phoenix/components/experiment/ExperimentCompareViewModeToggle";
+import { TableSkeleton } from "@phoenix/components/table";
 import type { ExperimentComparePageQueriesCompareGridQuery as ExperimentComparePageQueriesCompareGridQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareGridQuery.graphql";
 import type { ExperimentComparePageQueriesCompareListQuery as ExperimentComparePageQueriesCompareListQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareListQuery.graphql";
 import type { ExperimentComparePageQueriesCompareMetricsQuery as ExperimentComparePageQueriesCompareMetricsQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareMetricsQuery.graphql";
@@ -45,9 +46,15 @@ import type {
   ExperimentComparePage_selectedCompareExperiments$data,
   ExperimentComparePage_selectedCompareExperiments$key,
 } from "./__generated__/ExperimentComparePage_selectedCompareExperiments.graphql";
-import { ExperimentCompareGridPage } from "./ExperimentCompareGridPage";
+import {
+  ExperimentCompareGridPage,
+  ExperimentCompareGridPageSkeleton,
+} from "./ExperimentCompareGridPage";
 import { ExperimentCompareListPage } from "./ExperimentCompareListPage";
-import { ExperimentCompareMetricsPage } from "./ExperimentCompareMetricsPage";
+import {
+  ExperimentCompareMetricsPage,
+  ExperimentCompareMetricsPageSkeleton,
+} from "./ExperimentCompareMetricsPage";
 import { ExperimentMultiSelector } from "./ExperimentMultiSelector";
 
 type Experiment = NonNullable<
@@ -175,7 +182,7 @@ export function ExperimentComparePage() {
   ]);
 
   if (multiSelectorQueryReference == null) {
-    return <Loading />;
+    return null;
   }
 
   return (
@@ -268,27 +275,27 @@ function ExperimentComparePageContent({
   const viewMode = searchParams.get("view") ?? "grid";
   if (viewMode === "grid") {
     return compareGridQueryReference ? (
-      <Suspense fallback={<Loading />}>
+      <Suspense fallback={<ExperimentCompareGridPageSkeleton />}>
         <ExperimentCompareGridPage queryRef={compareGridQueryReference} />
       </Suspense>
     ) : (
-      <Loading />
+      <ExperimentCompareGridPageSkeleton />
     );
   } else if (viewMode === "metrics") {
     return compareMetricsQueryReference ? (
-      <Suspense fallback={<Loading />}>
+      <Suspense fallback={<ExperimentCompareMetricsPageSkeleton />}>
         <ExperimentCompareMetricsPage queryRef={compareMetricsQueryReference} />
       </Suspense>
     ) : (
-      <Loading />
+      <ExperimentCompareMetricsPageSkeleton />
     );
   } else if (viewMode === "list") {
     return compareListQueryReference ? (
-      <Suspense fallback={<Loading />}>
+      <Suspense fallback={<TableSkeleton rowCount="fill" />}>
         <ExperimentCompareListPage queryRef={compareListQueryReference} />
       </Suspense>
     ) : (
-      <Loading />
+      <TableSkeleton rowCount="fill" />
     );
   }
   return (
