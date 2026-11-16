@@ -233,7 +233,7 @@ async def test_last_binding_gc_preserves_a_tag_used_by_another_evaluator(
         _evaluator_service_context(db),
         DeleteDatasetEvaluatorsInput(
             dataset_evaluator_ids=[GlobalID("DatasetEvaluator", str(binding_id))],
-            delete_associated_prompt=False,
+            delete_unused_source=False,
         ),
     )
 

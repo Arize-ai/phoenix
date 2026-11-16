@@ -525,7 +525,7 @@ class DatasetMutationMixin:
                     dialect=dialect,
                     binding_ids=live_binding_ids,
                     collect_unused_evaluator=False,
-                    collect_associated_resource=False,
+                    collect_unused_source=False,
                 )
                 enqueued_cleanup = enqueued_cleanup or bool(deleted_bindings)
             dataset = await session.scalar(stmt)

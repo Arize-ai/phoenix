@@ -157,14 +157,7 @@ class SetProjectEvaluatorEnabledInput:
 class DeleteProjectEvaluatorsInput:
     project_evaluator_ids: list[GlobalID]
     delete_unused_evaluator: bool = True
-    delete_associated_prompt: bool = False
-    delete_associated_prompt_or_decision: Optional[bool] = None
-
-    @property
-    def collect_associated_resource(self) -> bool:
-        if self.delete_associated_prompt_or_decision is not None:
-            return self.delete_associated_prompt_or_decision
-        return self.delete_associated_prompt
+    delete_unused_source: bool = False
 
 
 async def create_project_llm_evaluator(
@@ -490,7 +483,7 @@ async def detach_project_evaluators(
             dialect=dialect,
             binding_ids=rowids,
             collect_unused_evaluator=False,
-            collect_associated_resource=False,
+            collect_unused_source=False,
         )
     if deleted_rowids:
         context.wake_cleanup_worker()
@@ -958,9 +951,7 @@ async def delete_project_evaluators(
             dialect=dialect,
             binding_ids=project_evaluator_ids,
             collect_unused_evaluator=input.delete_unused_evaluator,
-            collect_associated_resource=(
-                input.delete_unused_evaluator and input.collect_associated_resource
-            ),
+            collect_unused_source=(input.delete_unused_evaluator and input.delete_unused_source),
         )
     if deleted_rowids:
         context.wake_cleanup_worker()

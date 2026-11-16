@@ -63,7 +63,7 @@ async def logical_delete_project_evaluators(
     dialect: SupportedSQLDialect,
     binding_ids: Iterable[int],
     collect_unused_evaluator: bool,
-    collect_associated_resource: bool,
+    collect_unused_source: bool,
 ) -> list[int]:
     """Tombstone live project evaluator bindings under canonical lock order, optionally run
     synchronous shared-definition GC, and enqueue one ``ProjectEvaluatorCleanupTask`` per
@@ -198,7 +198,7 @@ async def logical_delete_project_evaluators(
             evaluator_ids=candidate_evaluator_ids,
             prompt_ids=prompt_ids,
             decision_ids=decision_ids,
-            delete_associated_prompt_or_decision=collect_associated_resource,
+            delete_unused_source=collect_unused_source,
         )
 
     return marked_ids
@@ -210,7 +210,7 @@ async def logical_delete_dataset_evaluators(
     dialect: SupportedSQLDialect,
     binding_ids: Iterable[int],
     collect_unused_evaluator: bool,
-    collect_associated_resource: bool,
+    collect_unused_source: bool,
 ) -> list[int]:
     """Tombstone live dataset evaluator bindings under canonical lock order, optionally run
     synchronous shared-definition GC, and enqueue one ``DatasetEvaluatorCleanupTask`` per
@@ -348,7 +348,7 @@ async def logical_delete_dataset_evaluators(
             evaluator_ids=candidate_evaluator_ids,
             prompt_ids=prompt_ids,
             decision_ids=decision_ids,
-            delete_associated_prompt_or_decision=collect_associated_resource,
+            delete_unused_source=collect_unused_source,
         )
 
     return marked_ids
@@ -405,7 +405,7 @@ async def admit_project_delete(
             dialect=dialect,
             binding_ids=current_live_bindings,
             collect_unused_evaluator=False,
-            collect_associated_resource=False,
+            collect_unused_source=False,
         )
 
     now = await current_database_time(session, dialect)
