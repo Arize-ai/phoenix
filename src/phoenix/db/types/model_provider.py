@@ -35,7 +35,11 @@ if TYPE_CHECKING:
 
     from phoenix.db.models import GenerativeModelSDK
 
-DecisionSDK: TypeAlias = Literal["openai", "typesafe"]
+DecisionSDK: TypeAlias = Literal[
+    "openai",
+    "typesafe",
+    "google_genai",
+]
 
 # Covariant type for Protocol (output position only)
 ClientT_co = TypeVar("ClientT_co", covariant=True)
@@ -261,6 +265,7 @@ _DECISION_SDKS: frozenset["GenerativeModelSDK"] = frozenset(
     {
         "openai",
         "typesafe",
+        "google_genai",
     }
 )
 

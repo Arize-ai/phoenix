@@ -24,6 +24,7 @@ from phoenix.server.api.helpers.decision_clients import (
     DecisionRequest,
     DecisionTransientError,
     FireworksDecisionClient,
+    GoogleDecisionClient,
     OllamaDecisionClient,
     OpenAIDecisionClient,
     TypeSafeDecisionClient,
@@ -517,6 +518,7 @@ async def test_catalog_keeps_same_name_types_distinct(gql_client: AsyncGraphQLCl
         "TYPESAFE",
         "FIREWORKS",
         "OLLAMA",
+        "GOOGLE",
     }
     # ``providerKey`` is optional, so omitting it and passing null both work.
     omitted = await gql_client.execute(
@@ -724,6 +726,7 @@ def test_decision_clients_declare_capability_credentials_and_endpoints() -> None
         GenerativeProviderKey.OPENAI: OpenAIDecisionClient,
         GenerativeProviderKey.FIREWORKS: FireworksDecisionClient,
         GenerativeProviderKey.OLLAMA: OllamaDecisionClient,
+        GenerativeProviderKey.GOOGLE: GoogleDecisionClient,
     }
     assert CLIENT_REGISTRY.list_models(GenerativeProviderKey.TYPESAFE, model_type="decision") == [
         "jev-latest",
@@ -1255,8 +1258,11 @@ async def test_typesafe_credentials_without_a_base_url_go_to_typesafe(
 
 def test_custom_provider_capabilities_come_from_the_sdk() -> None:
     assert not mp.sdk_offers_chat("typesafe") and mp.sdk_offers_decisions("typesafe")
-    assert mp.sdk_offers_chat("openai") and mp.sdk_offers_decisions("openai")
-    for sdk in ("azure_openai", "anthropic", "google_genai", "aws_bedrock"):
+    both: tuple[models.GenerativeModelSDK, ...] = ("openai", "google_genai")
+    chat_only: tuple[models.GenerativeModelSDK, ...] = ("azure_openai", "anthropic", "aws_bedrock")
+    for sdk in both:
+        assert mp.sdk_offers_chat(sdk) and mp.sdk_offers_decisions(sdk)
+    for sdk in chat_only:
         assert mp.sdk_offers_chat(sdk) and not mp.sdk_offers_decisions(sdk)
     assert not any(
         mp.is_sdk_compatible_with_model_provider("typesafe", provider)

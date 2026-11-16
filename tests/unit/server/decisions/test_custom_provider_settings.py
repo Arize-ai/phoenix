@@ -47,7 +47,7 @@ def test_a_config_stored_with_model_settings_still_parses() -> None:
         ("azure_openai", {"chat"}, {"chat"}),
         ("anthropic", {"chat"}, {"chat"}),
         ("aws_bedrock", {"chat"}, {"chat"}),
-        ("google_genai", {"chat"}, {"chat"}),
+        ("google_genai", {"chat", "decision"}, {"chat"}),
         ("typesafe", {"decision"}, {"decision"}),
     ],
 )

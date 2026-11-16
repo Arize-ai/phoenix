@@ -943,6 +943,12 @@ and `SystemOneResponse`). These are what the shared translation fixtures in the
 | Usage: input and output tokens | Also cached, cache-write, and reasoning tokens | Input and output tokens | OpenAI's extra token counts, which are kept only on the span |
 | Resolved model | `model` | `model` | Nothing |
 
+Gemini Decisions ([Google](#108-google)) has System One's shapes, with these
+differences: the state is `input` text, as for OpenAI; predicate criteria are
+`true_description` and `false_description`; a choice without a description
+sends `""`, not null; a whole-input safety block is a refusal of every
+question; and the response names no model.
+
 ### 10.4 Models and Preview Flags
 
 `model_name` is free text, and a version pins it. The catalog only suggests
@@ -968,12 +974,15 @@ suggested model names as ordered `model_profiles` rows linked through
   URL, headers). It serves decision models only, so every chat path refuses it:
   prompts (no prompt provider is compatible with it), the playground, agents,
   and online evals through their prompts.
+- A `google_genai` provider always serves chat and can also serve the Gemini
+  Decisions API when it has a `decision` type row, with the provider's API key,
+  base URL, and headers.
 - Other SDKs serve chat only, and `runDecision` refuses them.
 
 A custom provider brings its own connection. Neither the server's environment
 nor its stored secrets are consulted, and the OpenAI SDK is kept from reading
 `OPENAI_*` variables, so the server's organization never reaches another host.
-The span's `decision.system` is the API family (`openai`, `typesafe`) and
+The span's `decision.system` is the API family (`openai`, `typesafe`, `google`) and
 `decision.provider` is the custom provider's own `provider` name, the host.
 
 The catalog suggests model names per model type (`modelNames(modelType:)`); any
@@ -1009,6 +1018,39 @@ trailing `/v1` is dropped, as for Ollama. The catalog suggests
 `accounts/fireworks/models/rune`. The span's `decision.system` is `typesafe`
 and `decision.provider` is `fireworks`, a plain string until OpenInference has
 a value.
+
+### 10.8 Google
+
+The built-in `GOOGLE` provider runs the Gemini Decisions API
+(`POST /v1beta/decisions`) through `google-genai` >= 3.2
+(`client.aio.decisions.create`), so the package floor is 3.2. It is configured
+the way Gemini chat is: `GEMINI_API_KEY`, then `GOOGLE_API_KEY`. The catalog
+suggests `gemini-decision-1`. The SDK's default API version is `v1`, which has
+no decisions route, so every call passes `api_version="v1beta"`; a base URL is
+the bare host, since the SDK appends the version. Google GenAI custom providers
+serve it too (section 10.5).
+
+- **Questions.** The question name is the map key, so it must match
+  `[A-Za-z0-9_-]{1,64}`, checked before sending; at most 1,000 questions. A
+  predicate is a `noul` with `criteria.true_description` /
+  `false_description`; a choice's criteria map each value to its description
+  (`""` when it has none); a scale's criteria are the level descriptions, or
+  labels. The state is sent as `input` text, JSON serialized.
+- **Answers.** `noul` is the predicate probability; a `score` is the
+  probability-weighted average of level indices, Phoenix's `expected_level`,
+  and its string level keys become integers. `confidence` passes through.
+- **Blocks.** Gemini blocks the whole input, never one question, so a block is
+  a `RefusalAnswer` for every question: an HTTP 400 whose `error.code` is
+  `safety`, `prohibited_content`, `blocklist`, `image_safety`, or
+  `content_blocked`, or a `prompt_feedback.block_reason`. Other 400s fail the
+  run.
+- **Span.** The response doesn't echo the model, so the requested one is
+  recorded. Tokens are `usage.total_input_tokens` and `total_output_tokens`
+  (always 0). `decision.system` and `decision.provider` are `google`, plain
+  strings until OpenInference has a value.
+- **Endpoint check.** A Google custom provider's check posts the sentinel
+  model and passes on an error whose `error.message` names it, or on a decision
+  response.
 
 ## 11. App Access
 

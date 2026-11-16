@@ -177,16 +177,17 @@ def _rejects_model(decision_sdk: DecisionSDK, body: Any, model: str) -> bool:
 
     - OpenAI Decisions: ``{"error": {"code": "model_not_found"}}``, or an
       ``error.message`` that names the model.
+    - Gemini Decisions: an ``error.message`` that names the model.
     - System One: a ``detail`` string, or ``detail.message``, that names the model.
     """
     if not isinstance(body, Mapping):
         return False
-    if decision_sdk == "openai":
+    if decision_sdk in ("openai", "google_genai"):
         error = body.get("error")
         if not isinstance(error, Mapping):
             return False
         message = error.get("message")
-        return error.get("code") == "model_not_found" or (
+        return (decision_sdk == "openai" and error.get("code") == "model_not_found") or (
             isinstance(message, str) and model in message
         )
     detail = body.get("detail")
@@ -327,7 +328,10 @@ async def _test_decision_endpoint(config: GenerativeModelCustomerProviderConfig)
         Unredacted failure reason, or ``None`` if the check passed.
     """
     root = config.root
-    assert isinstance(root, (OpenAICustomProviderConfig, TypeSafeCustomProviderConfig))
+    assert isinstance(
+        root,
+        (OpenAICustomProviderConfig, TypeSafeCustomProviderConfig, GoogleGenAICustomProviderConfig),
+    )
     client_class = custom_provider_decision_client_class(root, provider_name="This provider")
     if not client_class.dependencies_are_installed():
         names = ", ".join(dependency.name for dependency in client_class.dependencies())
@@ -340,6 +344,8 @@ async def _test_decision_endpoint(config: GenerativeModelCustomerProviderConfig)
         try:
             if isinstance(root, TypeSafeCustomProviderConfig):
                 return await _post_system_one_check(client_factory)
+            if isinstance(root, GoogleGenAICustomProviderConfig):
+                return await _post_google_decisions_check(client_factory)
             return await _post_openai_decisions_check(client_factory)
         except Exception as error:
             return f"The decision request failed: {error}"
@@ -423,6 +429,37 @@ async def _post_openai_decisions_check(client_factory: ClientFactory[Any]) -> st
         )
     except APIConnectionError as error:
         return f"Could not connect to {error.request.url}: {error}"
+    return None
+
+
+async def _post_google_decisions_check(client_factory: ClientFactory[Any]) -> str | None:
+    from google.genai._interactions import APIConnectionError, APIStatusError
+
+    try:
+        async with client_factory() as client:
+            response = await client.decisions.create(
+                model=_CREDENTIAL_CHECK_MODEL,
+                input="Credential check",
+                questions={
+                    "check": {"type": "noul", "instructions": "Is this a credential check?"}
+                },
+                api_version="v1beta",
+                timeout=10,
+            )
+    except APIStatusError as error:
+        return _describe_endpoint_rejection(
+            decision_sdk="google_genai",
+            url=str(error.response.request.url),
+            status=error.response.status_code,
+            body=error.body,
+        )
+    except APIConnectionError as error:
+        return f"Could not connect to the decision endpoint: {error}"
+    if response.answers is None and response.prompt_feedback is None:
+        return (
+            "The decision endpoint answered with a body that is not a Gemini decisions "
+            "response. Check the base URL."
+        )
     return None
 
 

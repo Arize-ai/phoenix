@@ -7,6 +7,12 @@ import type { ProviderFormData } from "./CustomProviderForm";
 import { DECISION_SDK_LABELS, type DecisionSDK } from "./decisionSdks";
 import { ProviderFormSection } from "./ProviderFormSection";
 
+const DECISION_MODEL_PLACEHOLDERS: Record<DecisionSDK, string> = {
+  OPENAI: "gpt-6-luna",
+  TYPESAFE: "jev-latest, jev-1.14.0",
+  GOOGLE_GENAI: "gemini-decision-1",
+};
+
 export function DecisionModelsSection({
   sdk,
   control,
@@ -67,11 +73,7 @@ export function DecisionModelsSection({
               isDisabled={isSubmitting}
             >
               <Label>Suggested model names</Label>
-              <Input
-                placeholder={
-                  sdk === "TYPESAFE" ? "jev-latest, jev-1.14.0" : "gpt-6-luna"
-                }
-              />
+              <Input placeholder={DECISION_MODEL_PLACEHOLDERS[sdk]} />
               <Text slot="description">
                 Optional, comma separated. Listed in the model menu; any model
                 the endpoint accepts can be used.

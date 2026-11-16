@@ -167,7 +167,7 @@ export interface AWSBedrockFormData
  * Google GenAI SDK configuration.
  */
 export interface GoogleGenAIFormData
-  extends BaseProviderFormData, ChatModelsFormData {
+  extends BaseProviderFormData, ChatModelsFormData, DecisionModelsFormData {
   sdk: "GOOGLE_GENAI";
   google_api_key: string;
   google_base_url?: string;

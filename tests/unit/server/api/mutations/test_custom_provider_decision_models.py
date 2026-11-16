@@ -956,3 +956,119 @@ async def test_db_rejects_invalid_custom_provider_model_type(db: DbSessionFactor
                     model_type="embedding",
                 )
             )
+
+
+GEMINI_PROXY_URL = "https://gemini-proxy.example/v1beta/decisions"
+
+
+def google_config(base_url: str = "https://gemini-proxy.example") -> dict[str, Any]:
+    return {
+        "googleGenai": {
+            "googleGenaiAuthenticationMethod": {"apiKey": API_KEY},
+            "googleGenaiClientKwargs": {
+                "httpOptions": {"baseUrl": base_url, "headers": {"X-Team": "decisions"}}
+            },
+        }
+    }
+
+
+@pytest.mark.parametrize(
+    ("response", "reason"),
+    [
+        pytest.param(
+            {
+                "status_code": 404,
+                "json": {
+                    "error": {
+                        "code": 404,
+                        "message": "models/test-credential-check is not found for API version "
+                        "v1beta.",
+                        "status": "NOT_FOUND",
+                    }
+                },
+            },
+            None,
+            id="rejects-the-model",
+        ),
+        pytest.param(
+            {
+                "status_code": 200,
+                "json": {
+                    "answers": {"check": {"type": "noul", "noul": 0.5}},
+                    "usage": {"total_input_tokens": 3},
+                },
+            },
+            None,
+            id="single-model-server-answers",
+        ),
+        pytest.param(
+            {
+                "status_code": 404,
+                "json": {"error": {"code": 404, "message": "Not found", "status": "NOT_FOUND"}},
+            },
+            "HTTP 404 with a response that is not a decision API's",
+            id="generic-404",
+        ),
+        pytest.param(
+            {
+                "status_code": 403,
+                "json": {"error": {"code": 403, "message": "API key not valid."}},
+            },
+            "rejected the API key (HTTP 403)",
+            id="bad-key",
+        ),
+    ],
+)
+async def test_the_google_check_posts_to_gemini_decisions(
+    gql_client: AsyncGraphQLClient, response: dict[str, Any], reason: str | None
+) -> None:
+    with respx.mock:
+        route = respx.post(GEMINI_PROXY_URL).respond(**response)
+        payload = await check(gql_client, google_config())
+    assert route.call_count == 1
+    sent = route.calls[0].request
+    assert sent.headers["x-goog-api-key"] == API_KEY
+    assert sent.headers["x-team"] == "decisions"
+    assert json.loads(sent.content)["model"] == "test-credential-check"
+    if reason is None:
+        assert payload["error"] is None
+    else:
+        assert payload["error"] and reason in payload["error"], payload["error"]
+        assert GEMINI_PROXY_URL in payload["error"]
+        assert API_KEY not in payload["error"]
+
+
+async def test_a_google_provider_serves_decisions_with_its_own_connection(
+    gql_client: AsyncGraphQLClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("GEMINI_API_KEY", "server-key")
+    provider_id = await create(gql_client, "Gemini proxy", google_config(), LLM_AND_DECISIONS)
+    result = await gql_client.execute(PROVIDER, variables={"id": provider_id})
+    assert result.data and not result.errors, result.errors
+    assert result.data["node"]["modelTypes"] == ["CHAT", "DECISION"]
+    with respx.mock:
+        route = respx.post(GEMINI_PROXY_URL).respond(
+            200,
+            json={
+                "answers": {"urgent": {"type": "noul", "noul": 0.25}},
+                "usage": {"total_input_tokens": 3, "total_output_tokens": 0},
+            },
+        )
+        result = await gql_client.execute(
+            RUN,
+            variables={
+                "input": {
+                    "connection": {"customProvider": {"id": provider_id}},
+                    "modelName": "gemini-decision-1",
+                    **text_state("hello"),
+                    "questions": [URGENT],
+                }
+            },
+        )
+    assert result.data and not result.errors, result.errors
+    assert result.data["runDecision"]["error"] is None
+    assert result.data["runDecision"]["result"] == {
+        "model": "gemini-decision-1",
+        "answers": [{"name": "urgent", "probability": 0.25}],
+    }
+    assert route.calls[0].request.headers["x-goog-api-key"] == API_KEY

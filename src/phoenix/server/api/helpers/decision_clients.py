@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from abc import abstractmethod
 from dataclasses import dataclass
 from typing import (
@@ -31,7 +32,7 @@ from opentelemetry.trace import Span as OtelSpan
 from opentelemetry.trace import Status, StatusCode, Tracer
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing_extensions import override
+from typing_extensions import assert_never, override
 
 from phoenix.db import models
 from phoenix.db.types.decisions import (
@@ -44,6 +45,7 @@ from phoenix.db.types.model_provider import (
     ClientFactory,
     GenerativeModelCustomerProviderConfig,
     GenerativeModelCustomerProviderConfigType,
+    GoogleGenAICustomProviderConfig,
     ModelProvider,
     OpenAICustomProviderConfig,
     TypeSafeCustomProviderConfig,
@@ -263,12 +265,13 @@ class DecisionClient(ModelClient[Any]):
     without chat/tool emulation."""
 
     provider_key: ClassVar[GenerativeProviderKey]
-    system: ClassVar[OpenInferenceDecisionSystemValues]
+    system: ClassVar[str]
+    """The ``decision.system`` value: the decision API the client calls."""
     built_in_endpoint: ClassVar[BuiltInEndpoint]
 
     @override
     def get_rate_limit_key(self) -> Hashable:
-        return ("decision", self.system.value, self._client_factory.rate_limit_key)
+        return ("decision", self.system, self._client_factory.rate_limit_key)
 
     @override
     def is_rate_limit_error(self, e: Exception) -> bool:
@@ -317,7 +320,7 @@ class DecisionClient(ModelClient[Any]):
             context=otel_context,
             attributes={
                 SpanAttributes.OPENINFERENCE_SPAN_KIND: OpenInferenceSpanKindValues.DECISION.value,
-                SpanAttributes.DECISION_SYSTEM: self.system.value,
+                SpanAttributes.DECISION_SYSTEM: self.system,
                 SpanAttributes.DECISION_PROVIDER: self.provider,
                 SpanAttributes.DECISION_MODEL_NAME: self.model_name,
                 SpanAttributes.DECISION_REQUEST_MODEL_NAME: self.model_name,
@@ -377,7 +380,7 @@ class TypeSafeDecisionClient(DecisionClient):
     proxy, self-hosted vLLM Decision models) works through ``TYPESAFE_BASE_URL``."""
 
     provider_key = GenerativeProviderKey.TYPESAFE
-    system = OpenInferenceDecisionSystemValues.TYPESAFE
+    system = OpenInferenceDecisionSystemValues.TYPESAFE.value
     provider = OpenInferenceDecisionProviderValues.TYPESAFE.value
     built_in_endpoint = BuiltInEndpoint(
         label=GenerativeProviderKey.TYPESAFE.value,
@@ -414,7 +417,7 @@ class TypeSafeDecisionClient(DecisionClient):
                     "instructions": question.instructions,
                     "criteria": {option.value: option.description for option in question.choices},
                 }
-            else:
+            elif isinstance(question, ScaleQuestion):
                 questions[name] = {
                     "type": "score",
                     "instructions": question.instructions,
@@ -423,6 +426,8 @@ class TypeSafeDecisionClient(DecisionClient):
                         for level in question.levels
                     ],
                 }
+            elif TYPE_CHECKING:
+                assert_never(question)
         return {"model": self.model_name, "state": request.state, "questions": questions}
 
     @override
@@ -500,7 +505,7 @@ class OpenAIDecisionClient(DecisionClient):
     """OpenAI Decisions API client."""
 
     provider_key = GenerativeProviderKey.OPENAI
-    system = OpenInferenceDecisionSystemValues.OPENAI
+    system = OpenInferenceDecisionSystemValues.OPENAI.value
     provider = OpenInferenceDecisionProviderValues.OPENAI.value
     built_in_endpoint = CHAT_ENDPOINTS[GenerativeProviderKey.OPENAI]
 
@@ -551,7 +556,7 @@ class OpenAIDecisionClient(DecisionClient):
                         ],
                     }
                 )
-            else:
+            elif isinstance(question, PredicateQuestion):
                 if question.criteria is not None:
                     for outcome, description in (
                         ("True", question.criteria.true),
@@ -560,6 +565,8 @@ class OpenAIDecisionClient(DecisionClient):
                         if description is not None:
                             instructions += f"\n{outcome} if: {description}"
                 questions.append({"name": name, "type": "predicate", "instructions": instructions})
+            elif TYPE_CHECKING:
+                assert_never(question)
         return {"model": self.model_name, "input": _as_text(request.state), "questions": questions}
 
     @override
@@ -633,6 +640,180 @@ class OpenAIDecisionClient(DecisionClient):
         )
 
 
+GOOGLE_DECISION_MODELS: tuple[str, ...] = ("gemini-decision-1",)
+
+_GOOGLE_QUESTION_KEY = re.compile(r"[A-Za-z0-9_-]{1,64}")
+_GOOGLE_MAX_QUESTIONS = 1000
+_GOOGLE_BLOCK_CODES = frozenset(
+    {"safety", "prohibited_content", "blocklist", "image_safety", "content_blocked"}
+)
+"""The ``error.code`` values of the HTTP 400 Gemini returns when safety filters block the
+input."""
+
+
+@register_client(
+    GenerativeProviderKey.GOOGLE,
+    (PROVIDER_DEFAULT, *GOOGLE_DECISION_MODELS),
+    model_type="decision",
+)
+class GoogleDecisionClient(DecisionClient):
+    """Gemini Decisions API client (``/v1beta/decisions``)."""
+
+    provider_key = GenerativeProviderKey.GOOGLE
+    system = "google"  # OpenInference has no Google decision system value yet.
+    provider = "google"  # OpenInference has no Google decision provider value yet.
+    built_in_endpoint = CHAT_ENDPOINTS[GenerativeProviderKey.GOOGLE]
+
+    @classmethod
+    @override
+    def dependencies(cls) -> list[Dependency]:
+        return [Dependency(name="google-genai", module_name="google.genai")]
+
+    def _build_request(self, request: DecisionRequest) -> dict[str, Any]:
+        """Translate Phoenix questions into Gemini's: a predicate is a ``noul``, a scale
+        is a ``score`` whose criteria are the level descriptions. The question name is
+        the key, so it must fit Gemini's key rule."""
+        if len(request.questions) > _GOOGLE_MAX_QUESTIONS:
+            raise BadRequest(
+                f"{self.provider_key.value} decision models accept at most "
+                f"{_GOOGLE_MAX_QUESTIONS} questions."
+            )
+        questions: dict[str, dict[str, Any]] = {}
+        for question in request.questions:
+            name = question.name
+            if not _GOOGLE_QUESTION_KEY.fullmatch(name):
+                raise BadRequest(
+                    f"Question name {name!r} can't be sent to {self.provider_key.value}: "
+                    "use 1 to 64 letters, digits, underscores, or hyphens."
+                )
+            if isinstance(question, PredicateQuestion):
+                noul: dict[str, Any] = {"type": "noul", "instructions": question.instructions}
+                if question.criteria is not None:
+                    criteria = {
+                        key: description
+                        for key, description in (
+                            ("true_description", question.criteria.true),
+                            ("false_description", question.criteria.false),
+                        )
+                        if description is not None
+                    }
+                    if criteria:
+                        noul["criteria"] = criteria
+                questions[name] = noul
+            elif isinstance(question, ChoiceQuestion):
+                questions[name] = {
+                    "type": "choice",
+                    "instructions": question.instructions,
+                    "criteria": {
+                        option.value: option.description or "" for option in question.choices
+                    },
+                }
+            elif isinstance(question, ScaleQuestion):
+                questions[name] = {
+                    "type": "score",
+                    "instructions": question.instructions,
+                    "criteria": [
+                        level.label if level.description is None else level.description
+                        for level in question.levels
+                    ],
+                }
+            elif TYPE_CHECKING:
+                assert_never(question)
+        return {"model": self.model_name, "input": _as_text(request.state), "questions": questions}
+
+    @override
+    async def invoke(self, request: DecisionRequest, span: OtelSpan) -> DecisionResponse:
+        from google.genai._interactions import (
+            APIConnectionError,
+            APIStatusError,
+            APITimeoutError,
+            BadRequestError,
+        )
+
+        parameters = self._build_request(request)
+        _record_input(span, parameters)
+        try:
+            async with self._client_factory() as client:
+                response = await client.decisions.create(
+                    **parameters, api_version="v1beta", timeout=60
+                )
+        except APITimeoutError as error:
+            raise _fail(
+                span,
+                "Decision request timed out. Retry or reduce the input.",
+                DecisionTransientError,
+            ) from error
+        except APIConnectionError as error:
+            raise _fail(
+                span, f"Could not connect to {self.provider_key.value}.", DecisionTransientError
+            ) from error
+        except BadRequestError as error:
+            if not _is_google_safety_block(error.body):
+                raise _fail(
+                    span, describe_http_failure(self.provider_key.value, error.response.status_code)
+                ) from error
+            _record_output(span, error.body)
+            return self._refusals(request)
+        except APIStatusError as error:
+            raise _fail(
+                span,
+                describe_http_failure(self.provider_key.value, error.response.status_code),
+                _status_error_class(error.response.status_code),
+            ) from error
+        _record_output(span, response.model_dump(mode="json", exclude_none=True))
+        usage = response.usage
+        input_tokens = usage.total_input_tokens if usage else None
+        output_tokens = usage.total_output_tokens if usage else None
+        if response.prompt_feedback is not None and response.prompt_feedback.block_reason:
+            return self._refusals(request, input_tokens=input_tokens)
+        if response.answers is None:
+            raise ValueError("Gemini returned no answers")
+        return DecisionResponse(
+            model="",
+            answers={name: self._normalize(answer) for name, answer in response.answers.items()},
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+        )
+
+    @staticmethod
+    def _refusals(request: DecisionRequest, *, input_tokens: int | None = None) -> DecisionResponse:
+        """Gemini blocks the whole input, not one question, so every question is refused."""
+        return DecisionResponse(
+            model="",
+            answers={question.name: RefusalAnswer() for question in request.questions},
+            input_tokens=input_tokens,
+            output_tokens=None,
+        )
+
+    @staticmethod
+    def _normalize(answer: Any) -> DecisionAnswer:
+        if answer.type == "noul":
+            return PredicateAnswer(probability=answer.noul)
+        if answer.type == "choice":
+            return ChoiceAnswer(
+                choice=answer.choice,
+                confidence=answer.confidence,
+                probabilities=dict(answer.probabilities),
+            )
+        if answer.type == "score":
+            levels = {
+                int(index): probability for index, probability in answer.probabilities.items()
+            }
+            if len(levels) != len(answer.probabilities):
+                raise ValueError("Duplicate level probability")
+            return ScaleAnswer(
+                expected_level=answer.score, confidence=answer.confidence, probabilities=levels
+            )
+        raise ValueError(f"Unsupported Gemini answer type {answer.type!r}")
+
+
+def _is_google_safety_block(body: object) -> bool:
+    """Whether a Gemini HTTP 400 body says safety filters blocked the input."""
+    error = body.get("error") if isinstance(body, dict) else None
+    code = error.get("code") if isinstance(error, dict) else None
+    return isinstance(code, str) and code.lower() in _GOOGLE_BLOCK_CODES
+
+
 FIREWORKS_DECISION_MODELS: tuple[str, ...] = ("accounts/fireworks/models/rune",)
 
 
@@ -645,7 +826,7 @@ class FireworksDecisionClient(TypeSafeDecisionClient):
     """Fireworks System One decision client (``/inference/v1/systemone``)."""
 
     provider_key = GenerativeProviderKey.FIREWORKS
-    system = OpenInferenceDecisionSystemValues.TYPESAFE
+    system = OpenInferenceDecisionSystemValues.TYPESAFE.value
     provider = "fireworks"  # OpenInference has no Fireworks decision provider value yet.
     built_in_endpoint = BuiltInEndpoint(
         label=GenerativeProviderKey.FIREWORKS.value,
@@ -686,7 +867,7 @@ class OllamaDecisionClient(TypeSafeDecisionClient):
     """Ollama System One decision client (``/v1/systemone``)."""
 
     provider_key = GenerativeProviderKey.OLLAMA
-    system = OpenInferenceDecisionSystemValues.TYPESAFE
+    system = OpenInferenceDecisionSystemValues.TYPESAFE.value
     provider = "ollama"  # OpenInference has no Ollama decision provider value yet.
     built_in_endpoint = BuiltInEndpoint(
         label=GenerativeProviderKey.OLLAMA.value,
@@ -752,11 +933,15 @@ def custom_provider_decision_client_class(
         return OpenAIDecisionClient
     if isinstance(config, TypeSafeCustomProviderConfig):
         return TypeSafeDecisionClient
+    if isinstance(config, GoogleGenAICustomProviderConfig):
+        return GoogleDecisionClient
     raise custom_provider_without_decisions_error(provider_name)
 
 
 def custom_provider_decision_client_factory(
-    config: OpenAICustomProviderConfig | TypeSafeCustomProviderConfig,
+    config: OpenAICustomProviderConfig
+    | TypeSafeCustomProviderConfig
+    | GoogleGenAICustomProviderConfig,
 ) -> ClientFactory[Any]:
     check_provider_base_urls(config)
     return config.get_client_factory()
@@ -805,7 +990,10 @@ async def get_custom_provider_decision_client(
         ) from error
     client_class = custom_provider_decision_client_class(config, provider_name=record.name)
     _require_dependencies(client_class)
-    assert isinstance(config, (OpenAICustomProviderConfig, TypeSafeCustomProviderConfig))
+    assert isinstance(
+        config,
+        (OpenAICustomProviderConfig, TypeSafeCustomProviderConfig, GoogleGenAICustomProviderConfig),
+    )
     return client_class(
         model_name=model_name,
         client_factory=custom_provider_decision_client_factory(config),

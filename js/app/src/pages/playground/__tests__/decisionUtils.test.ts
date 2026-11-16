@@ -869,6 +869,61 @@ describe("request import", () => {
     ).toBe(TemplateFormats.Mustache);
   });
 
+  it("opens a Gemini Decisions request, its input as Text", () => {
+    const { draft, model } = parseDecisionImport(
+      JSON.stringify({
+        model: "gemini-decision-1",
+        input: "I was charged twice.",
+        questions: {
+          refund: {
+            type: "noul",
+            instructions: "Refund requested?",
+            criteria: { true_description: "Asks for money back" },
+          },
+          team: {
+            type: "choice",
+            instructions: "Which team?",
+            criteria: { billing: "Payments", technical: "" },
+          },
+          severity: {
+            type: "score",
+            instructions: "How severe?",
+            criteria: ["Minor", "Major"],
+          },
+        },
+      })
+    );
+    expect(model).toBe("gemini-decision-1");
+    expect(draft.state).toMatchObject({
+      mode: "text",
+      text: "I was charged twice.",
+    });
+    expect(draft.questions).toMatchObject([
+      {
+        type: "predicate",
+        name: "refund",
+        instructions: "Refund requested?",
+        predicate: {
+          trueDescription: "Asks for money back",
+          falseDescription: "",
+        },
+      },
+      {
+        type: "choice",
+        name: "team",
+        choices: [
+          { value: "billing", description: "Payments" },
+          { value: "technical", description: "" },
+        ],
+      },
+      {
+        type: "scale",
+        name: "severity",
+        levels: [{ label: "Minor" }, { label: "Major" }],
+      },
+    ]);
+  });
+
   it("keeps an own __proto__ key of the state", () => {
     const { draft, templateFormat } = parseDecisionImport(
       systemOne('{"__proto__": {"admin": true}, "ticket": "x"}')

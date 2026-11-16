@@ -1,4 +1,4 @@
-"""Tests for built-in Fireworks and Ollama decision clients."""
+"""Tests for built-in Fireworks, Ollama, and Google decision clients."""
 
 import json
 from typing import Any, cast
@@ -23,8 +23,11 @@ from phoenix.server.api.helpers.decision_clients import (
     ChoiceAnswer,
     DecisionRateLimitError,
     DecisionRequest,
+    DecisionTransientError,
     FireworksDecisionClient,
+    GoogleDecisionClient,
     PredicateAnswer,
+    RefusalAnswer,
     ScaleAnswer,
     TypeSafeDecisionClient,
     get_decision_client,
@@ -62,6 +65,8 @@ def _clear_provider_env(monkeypatch: pytest.MonkeyPatch) -> None:
     for name in (
         "FIREWORKS_API_KEY",
         "FIREWORKS_BASE_URL",
+        "GEMINI_API_KEY",
+        "GOOGLE_API_KEY",
         "OPENAI_ORG_ID",
         "OPENAI_PROJECT_ID",
     ):
@@ -370,3 +375,254 @@ class TestFireworksDecisions:
             "The provider rate-limited the request. Wait and retry."
         )
         assert client.is_rate_limit_error(raised.value)
+
+
+GEMINI_DECISIONS_URL = "https://generativelanguage.googleapis.com/v1beta/decisions"
+
+GEMINI_DECISION_RESPONSE = {
+    "answers": {
+        "refund": {"type": "noul", "noul": 0.97, "confidence": 0.9},
+        "team": {
+            "type": "choice",
+            "choice": "billing",
+            "confidence": 0.8,
+            "probabilities": {"billing": 0.9, "technical": 0.1},
+        },
+        "severity": {
+            "type": "score",
+            "score": 0.7,
+            "confidence": 0.6,
+            "legend": {"0": "Minor", "1": "high"},
+            "probabilities": {"0": 0.3, "1": 0.7},
+        },
+    },
+    "usage": {"total_input_tokens": 52, "total_output_tokens": 0, "total_tokens": 52},
+}
+
+ALL_REFUSED = {name: RefusalAnswer() for name in ("refund", "team", "severity")}
+
+
+class TestGoogleDecisions:
+    async def _client(self, db: DbSessionFactory, env_var_name: str = "GEMINI_API_KEY") -> Any:
+        async with db() as session:
+            return await get_decision_client(
+                provider=GenerativeProviderKey.GOOGLE,
+                model_name="gemini-decision-1",
+                base_url=None,
+                credentials=_key(env_var_name),
+                session=session,
+                decrypt=lambda value: value,
+            )
+
+    def test_registry_includes_google(self) -> None:
+        google = GenerativeProviderKey.GOOGLE
+        assert CLIENT_REGISTRY.get_client(google, model_type="decision") is GoogleDecisionClient
+        assert CLIENT_REGISTRY.list_models(google, model_type="decision") == ["gemini-decision-1"]
+        assert GoogleDecisionClient.built_in_endpoint.api_key_env_vars == (
+            "GEMINI_API_KEY",
+            "GOOGLE_API_KEY",
+        )
+        assert GoogleDecisionClient.dependencies_are_installed()
+
+    @pytest.mark.parametrize("env_var_name", ["GEMINI_API_KEY", "GOOGLE_API_KEY"])
+    async def test_posts_questions_to_the_v1beta_decisions_endpoint(
+        self, db: DbSessionFactory, env_var_name: str
+    ) -> None:
+        client = await self._client(db, env_var_name)
+        tracer = _tracer()
+        with respx.mock(assert_all_called=True) as router:
+            route = router.post(GEMINI_DECISIONS_URL).respond(200, json=GEMINI_DECISION_RESPONSE)
+            response = await client.create(request=REQUEST, tracer=tracer)
+        request = route.calls[0].request
+        assert request.headers["x-goog-api-key"] == "test-key"
+        assert json.loads(request.content) == {
+            "model": "gemini-decision-1",
+            "input": '{"complaint": "I was charged twice."}',
+            "questions": {
+                "refund": {"type": "noul", "instructions": "Refund requested?"},
+                "team": {
+                    "type": "choice",
+                    "instructions": "Which team?",
+                    "criteria": {"billing": "Payments", "technical": ""},
+                },
+                "severity": {
+                    "type": "score",
+                    "instructions": "How severe?",
+                    "criteria": ["Minor", "high"],
+                },
+            },
+        }
+        assert response.answers == EXPECTED_ANSWERS
+        # Gemini doesn't echo the model, so the requested one is recorded.
+        assert (response.model, response.input_tokens, response.output_tokens) == (
+            "gemini-decision-1",
+            52,
+            0,
+        )
+        attributes = _decision_span(tracer).attributes
+        assert attributes["decision.system"] == "google"
+        assert attributes["decision.provider"] == "google"
+
+    async def test_predicate_criteria_are_sent_as_descriptions(self, db: DbSessionFactory) -> None:
+        client = await self._client(db)
+        request = DecisionRequest(
+            state="Where is my refund?",
+            questions=[
+                PredicateQuestion.model_validate(
+                    {
+                        "type": "predicate",
+                        "name": "refund",
+                        "instructions": "Refund requested?",
+                        "criteria": {"true": "Asks for money back"},
+                    }
+                )
+            ],
+        )
+        with respx.mock(assert_all_called=True) as router:
+            route = router.post(GEMINI_DECISIONS_URL).respond(
+                200, json={"answers": {"refund": {"type": "noul", "noul": 0.9}}}
+            )
+            await client.create(request=request, tracer=_tracer())
+        body = json.loads(route.calls[0].request.content)
+        assert body["input"] == "Where is my refund?"
+        assert body["questions"]["refund"]["criteria"] == {
+            "true_description": "Asks for money back"
+        }
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            pytest.param("needs refund", id="space"),
+            pytest.param("x" * 65, id="too-long"),
+            pytest.param("réfund", id="non-ascii"),
+        ],
+    )
+    async def test_a_name_gemini_cannot_key_fails_before_sending(
+        self, db: DbSessionFactory, name: str
+    ) -> None:
+        client = await self._client(db)
+        request = DecisionRequest(
+            state="x",
+            questions=[PredicateQuestion(type="predicate", name=name, instructions="Ok?")],
+        )
+        with respx.mock(assert_all_called=False) as router:
+            route = router.post(GEMINI_DECISIONS_URL)
+            with pytest.raises(BadRequest, match="letters, digits, underscores, or hyphens"):
+                await client.create(request=request, tracer=_tracer())
+        assert not route.called
+
+    @pytest.mark.parametrize(
+        "code", ["safety", "prohibited_content", "blocklist", "image_safety", "content_blocked"]
+    )
+    async def test_a_safety_block_refuses_every_question(
+        self, db: DbSessionFactory, code: str
+    ) -> None:
+        client = await self._client(db)
+        tracer = _tracer()
+        with respx.mock(assert_all_called=True) as router:
+            router.post(GEMINI_DECISIONS_URL).respond(
+                400, json={"error": {"code": code, "message": "Request blocked."}}
+            )
+            response = await client.create(request=REQUEST, tracer=tracer)
+        assert response.answers == ALL_REFUSED
+        assert response.model == "gemini-decision-1"
+        span = _decision_span(tracer)
+        assert span.status.is_ok
+        assert json.loads(span.attributes["output.value"])["error"]["code"] == code
+
+    async def test_blocked_prompt_feedback_refuses_every_question(
+        self, db: DbSessionFactory
+    ) -> None:
+        client = await self._client(db)
+        with respx.mock(assert_all_called=True) as router:
+            router.post(GEMINI_DECISIONS_URL).respond(
+                200,
+                json={
+                    "prompt_feedback": {"block_reason": "SAFETY"},
+                    "usage": {"total_input_tokens": 12},
+                },
+            )
+            response = await client.create(request=REQUEST, tracer=_tracer())
+        assert response.answers == ALL_REFUSED
+        assert response.input_tokens == 12
+
+    async def test_another_400_is_an_error(self, db: DbSessionFactory) -> None:
+        client = await self._client(db)
+        with respx.mock(assert_all_called=True) as router:
+            router.post(GEMINI_DECISIONS_URL).respond(
+                400,
+                json={
+                    "error": {
+                        "code": 400,
+                        "message": "Too many levels",
+                        "status": "INVALID_ARGUMENT",
+                    }
+                },
+            )
+            with pytest.raises(BadRequest) as raised:
+                await client.create(request=REQUEST, tracer=_tracer())
+        assert str(raised.value) == (
+            "Google Gemini decision request failed (HTTP 400). Check the state and question configuration."
+        )
+        assert not isinstance(raised.value, (DecisionRateLimitError, DecisionTransientError))
+
+    @pytest.mark.parametrize(
+        ("status", "error_class"),
+        [
+            pytest.param(429, DecisionRateLimitError, id="rate-limit"),
+            pytest.param(503, DecisionTransientError, id="unavailable"),
+        ],
+    )
+    async def test_retryable_statuses_are_classified(
+        self, db: DbSessionFactory, status: int, error_class: type[BadRequest]
+    ) -> None:
+        client = await self._client(db)
+        with respx.mock(assert_all_called=True) as router:
+            route = router.post(GEMINI_DECISIONS_URL).respond(
+                status, json={"error": {"code": status, "message": "busy"}}
+            )
+            with pytest.raises(error_class, match=f"HTTP {status}"):
+                await client.create(request=REQUEST, tracer=_tracer())
+        # The SDK's own retries are off; the caller decides whether to retry.
+        assert route.call_count == 1
+
+    async def test_an_unknown_answer_type_is_an_invalid_response(
+        self, db: DbSessionFactory
+    ) -> None:
+        client = await self._client(db)
+        body = {
+            "answers": {
+                **GEMINI_DECISION_RESPONSE["answers"],  # type: ignore[dict-item]
+                "refund": {"type": "someday"},
+            }
+        }
+        with respx.mock(assert_all_called=True) as router:
+            router.post(GEMINI_DECISIONS_URL).respond(200, json=body)
+            with pytest.raises(
+                BadRequest, match="Google Gemini returned an invalid decision response"
+            ):
+                await client.create(request=REQUEST, tracer=_tracer())
+
+    async def test_a_custom_base_url_keeps_the_api_version_path(self) -> None:
+        from phoenix.db.types import model_provider as mp
+
+        config = mp.GoogleGenAICustomProviderConfig(
+            google_genai_authentication_method=mp.AuthenticationMethodApiKey(api_key="k"),
+            google_genai_client_kwargs=mp.GoogleGenAIClientKwargs(
+                http_options=mp.GoogleGenAIHttpOptions(base_url="https://gemini-proxy.example")
+            ),
+        )
+        client = GoogleDecisionClient(
+            model_name="gemini-decision-1",
+            client_factory=config.get_client_factory(),
+            provider="my-gemini",
+        )
+        tracer = _tracer()
+        with respx.mock(assert_all_called=True) as router:
+            router.post("https://gemini-proxy.example/v1beta/decisions").respond(
+                200, json=GEMINI_DECISION_RESPONSE
+            )
+            await client.create(request=REQUEST, tracer=tracer)
+        attributes = _decision_span(tracer).attributes
+        assert attributes["decision.system"] == "google"
+        assert attributes["decision.provider"] == "my-gemini"

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type {
   AWSBedrockFormData,
   AzureOpenAIFormData,
+  GoogleGenAIFormData,
   OpenAIFormData,
   TypeSafeFormData,
 } from "../CustomProviderForm";
@@ -59,6 +60,29 @@ describe("provider models", () => {
     });
   });
 
+  it("serves Gemini decision models alongside chat on Google GenAI when on", () => {
+    const google = (
+      overrides: Partial<GoogleGenAIFormData> = {}
+    ): GoogleGenAIFormData => ({
+      ...(createDefaultFormData("GOOGLE_GENAI") as GoogleGenAIFormData),
+      name: "gemini",
+      google_api_key: "g-key",
+      ...overrides,
+    });
+    expect(buildProviderModels(google())).toEqual({ chat: { names: [] } });
+    expect(
+      buildProviderModels(
+        google({
+          decision_enabled: true,
+          decision_model_names: "gemini-decision-1",
+        })
+      )
+    ).toEqual({
+      chat: { names: [] },
+      decision: { names: ["gemini-decision-1"] },
+    });
+  });
+
   it("serves chat models only on Azure OpenAI", () => {
     const azure: AzureOpenAIFormData = {
       ...(createDefaultFormData("AZURE_OPENAI") as AzureOpenAIFormData),
@@ -104,9 +128,11 @@ describe("provider models", () => {
   });
 
   it("defaults decision models off, except for TypeSafe", () => {
-    expect(createDefaultFormData("OPENAI")).toMatchObject({
-      decision_enabled: false,
-    });
+    for (const sdk of ["OPENAI", "GOOGLE_GENAI"] as const) {
+      expect(createDefaultFormData(sdk)).toMatchObject({
+        decision_enabled: false,
+      });
+    }
     expect(createDefaultFormData("TYPESAFE")).toMatchObject({
       decision_enabled: true,
     });

@@ -145,6 +145,7 @@ export function createDefaultFormData(
         google_base_url: undefined,
         google_headers: undefined,
         model_names: undefined,
+        ...noDecisionModels,
       } satisfies GoogleGenAIFormData;
 
     case "TYPESAFE":
@@ -366,6 +367,7 @@ function transformGoogleGenAIConfig(
     google_base_url: httpOptions?.baseUrl ?? undefined,
     google_headers: safelyJSONStringify(httpOptions?.headers),
     ...getChatModelsFormValues(provider.models),
+    ...getDecisionModelsFormValues(provider.models),
   };
 }
 
@@ -399,6 +401,7 @@ export function buildProviderModels(
 ): ProviderModelsInput {
   switch (formData.sdk) {
     case "OPENAI":
+    case "GOOGLE_GENAI":
       return {
         chat: buildModelsOfType(formData.model_names),
         ...(formData.decision_enabled && {
@@ -408,7 +411,6 @@ export function buildProviderModels(
     case "AZURE_OPENAI":
     case "ANTHROPIC":
     case "AWS_BEDROCK":
-    case "GOOGLE_GENAI":
       return { chat: buildModelsOfType(formData.model_names) };
     case "TYPESAFE":
       return {

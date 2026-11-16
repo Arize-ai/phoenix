@@ -140,6 +140,7 @@ const googleGenAISchema = baseProviderSchema.extend({
   google_base_url: urlFieldSchema,
   google_headers: httpHeadersFieldSchema,
   ...chatModelsSchema,
+  ...decisionModelsSchema,
 });
 
 // TypeSafe schema
