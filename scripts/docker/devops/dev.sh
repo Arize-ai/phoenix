@@ -25,6 +25,8 @@ COMMAND=""
 ASSUME_YES=false
 BUILD_ON_UP=false
 COMPOSE_BIN=()
+ENGINE=""
+SEED_SCALE="${SEED_SCALE:-1}"
 
 # Logging helpers
 log_info() { echo "🔵 $1"; }
@@ -32,23 +34,61 @@ log_success() { echo "✅ $1"; }
 log_warning() { echo "⚠️  $1"; }
 log_error() { echo "❌ $1"; }
 
-# Prefer the Compose plugin (`docker compose`); fall back to the standalone binary
-detect_compose() {
-    if docker compose version >/dev/null 2>&1; then
-        COMPOSE_BIN=(docker compose)
-    elif command -v docker-compose >/dev/null 2>&1; then
-        COMPOSE_BIN=(docker-compose)
-    else
-        COMPOSE_BIN=()
+# The container engine is Docker or Podman. PHOENIX_DEV_ENGINE chooses one;
+# otherwise the first whose daemon answers is used, and failing that the first
+# that is installed (so that the error can say how to start it).
+detect_engine() {
+    local candidate
+    if [[ -n "${PHOENIX_DEV_ENGINE:-}" ]]; then
+        ENGINE="$PHOENIX_DEV_ENGINE"
+        return
     fi
+    for candidate in docker podman; do
+        if command -v "$candidate" >/dev/null 2>&1 && "$candidate" info >/dev/null 2>&1; then
+            ENGINE="$candidate"
+            return
+        fi
+    done
+    for candidate in docker podman; do
+        if command -v "$candidate" >/dev/null 2>&1; then
+            ENGINE="$candidate"
+            return
+        fi
+    done
+    ENGINE=""
+}
+
+# Docker: prefer the Compose plugin (`docker compose`), then the standalone
+# binary. Podman: `podman compose`, which runs docker-compose or podman-compose
+# against Podman's own socket.
+detect_compose() {
+    detect_engine
+    COMPOSE_BIN=()
+    if [[ "$ENGINE" == "podman" ]]; then
+        # Without this, every call prints a notice about the external provider
+        export PODMAN_COMPOSE_WARNING_LOGS=false
+        if command -v docker-compose >/dev/null 2>&1 || command -v podman-compose >/dev/null 2>&1; then
+            COMPOSE_BIN=(podman compose)
+        fi
+    elif [[ "$ENGINE" == "docker" ]]; then
+        if docker compose version >/dev/null 2>&1; then
+            COMPOSE_BIN=(docker compose)
+        elif command -v docker-compose >/dev/null 2>&1; then
+            COMPOSE_BIN=(docker-compose)
+        fi
+    fi
+    # Traefik finds the services through the engine's API socket. The path is
+    # read inside the engine's host, which for Podman on macOS is its machine.
+    export CONTAINER_SOCKET="${CONTAINER_SOCKET:-/var/run/docker.sock}"
+    export DEVOPS_ENGINE="$ENGINE"
 }
 
 # Check dependencies
 check_dependencies() {
     local missing=()
-    command -v docker >/dev/null 2>&1 || missing+=("docker")
     detect_compose
-    [[ ${#COMPOSE_BIN[@]} -gt 0 ]] || missing+=("docker compose")
+    [[ -n "$ENGINE" ]] || missing+=("podman or docker")
+    [[ ${#COMPOSE_BIN[@]} -gt 0 ]] || missing+=("a compose tool (docker-compose)")
     
     if [[ ${#missing[@]} -gt 0 ]]; then
         log_error "Missing required dependencies: ${missing[*]}"
@@ -58,14 +98,14 @@ check_dependencies() {
     fi
 }
 
-# Remove each named Docker object, showing failures. Returns 1 if any failed.
+# Remove each named image or volume, showing failures. Returns 1 if any failed.
 remove_each() {
     local kind="$1"
     shift
     local failed=0
     local name
     for name in "$@"; do
-        if docker "$kind" rm "$name" >/dev/null; then
+        if "$ENGINE" "$kind" rm "$name" >/dev/null; then
             echo "   removed $name"
         else
             failed=1
@@ -77,17 +117,17 @@ remove_each() {
 # Stop all containers for this project
 stop_all_containers() {
     local containers
-    containers=$(docker ps -aq --filter "label=com.docker.compose.project=${PROJECT_NAME}" 2>/dev/null || true)
+    containers=$("$ENGINE" ps -aq --filter "label=com.docker.compose.project=${PROJECT_NAME}" 2>/dev/null || true)
     
     if [[ -n "$containers" ]]; then
-        echo "$containers" | xargs docker stop >/dev/null 2>&1 || true
-        echo "$containers" | xargs docker rm >/dev/null 2>&1 || true
+        echo "$containers" | xargs "$ENGINE" stop >/dev/null 2>&1 || true
+        echo "$containers" | xargs "$ENGINE" rm >/dev/null 2>&1 || true
     fi
 }
 
 # Get volume names for this project
 get_volumes() {
-    docker volume ls --format "{{.Name}}" | grep "^${PROJECT_NAME}_" || true
+    "$ENGINE" volume ls --format "{{.Name}}" | grep "^${PROJECT_NAME}_" || true
 }
 
 # Add a profile to CURRENT_PROFILES
@@ -131,6 +171,9 @@ get_profile_config() {
             ;;
         "grafana")
             echo "override:overrides/grafana.yml"
+            ;;
+        "lgtm")
+            echo "override:overrides/lgtm.yml"
             ;;
         "mock-llm")
             # Mock LLM profile doesn't need override - pure profile in main file
@@ -262,6 +305,14 @@ parse_args() {
             -b|--build)
                 BUILD_ON_UP=true
                 shift
+                ;;
+            --scale)
+                if [[ -z "$2" ]] || ! [[ "$2" =~ ^[0-9]+$ ]]; then
+                    log_error "A whole number is required after --scale"
+                    exit 1
+                fi
+                SEED_SCALE="$2"
+                shift 2
                 ;;
             *)
                 # Store the command for later processing
@@ -435,6 +486,11 @@ show_services() {
                     echo "  OTel Collector: localhost:14317 (gRPC), http://localhost:14318 (HTTP)"
                     echo "  Prometheus:     http://localhost:18273/prometheus/"
                     ;;
+                "lgtm")
+                    echo "  Telemetry:   Phoenix metrics, logs and traces in Grafana (otel-lgtm)"
+                    echo "  Grafana:     http://localhost:18273/lgtm/"
+                    echo "  Grafana MCP: http://localhost:18273/grafana-mcp/mcp (read-only)"
+                    ;;
                 "mock-llm")
                     echo "  Mock LLM:   http://mock-llm:57593/v1 (from the Phoenix container)"
                     echo "  Dashboard:  http://localhost:18273/mock-llm/dashboard/"
@@ -447,7 +503,7 @@ show_services() {
                 "ldap")
                     echo "  Authentication: LDAP server enabled"
                     echo "  LDAP Admin:     http://localhost:6443 (admin@example.com / admin_password)"
-                    echo "  LDAP Tests:     docker logs ${PROJECT_NAME:-devops}-ldap-test"
+                    echo "  LDAP Tests:     $ENGINE logs ${PROJECT_NAME:-devops}-ldap-test"
                     ;;
                 "ldap-no-email")
                     echo "  Authentication: LDAP server enabled (no-email mode)"
@@ -502,6 +558,7 @@ list_profiles() {
     echo "  in-memory          In-memory SQLite database"
     echo "  toxiproxy          Enable network simulation with Toxiproxy"
   echo "  grafana            Enable Grafana, Prometheus, Tempo, Loki, and OTel Collector"
+  echo "  lgtm               Enable metrics, logs and traces in Grafana, with the Grafana MCP server"
   echo "  mock-llm           Enable the mock LLM server (OpenAI, Anthropic, Gemini, TypeSafe)"
   echo "  datagen            Replay synthetic traces (one project per application)"
   echo "  ldap               Enable LDAP authentication (mock LDAP server)"
@@ -543,7 +600,7 @@ check_port() {
 
     if [[ -z "$listening" ]]; then
         log_success "Port $port ($purpose) is free"
-    elif docker ps --filter "label=com.docker.compose.project=${PROJECT_NAME}" --format '{{.Ports}}' 2>/dev/null | grep -q ":${port}->"; then
+    elif "$ENGINE" ps --filter "label=com.docker.compose.project=${PROJECT_NAME}" --format '{{.Ports}}' 2>/dev/null | grep -q ":${port}->"; then
         log_success "Port $port ($purpose) is in use by this stack"
     else
         log_error "Port $port ($purpose) is in use by another process"
@@ -575,10 +632,11 @@ def run(*args):
     return result.stdout.strip() if result.returncode == 0 else None
 
 def parse_time(value):
-    # Docker reports nanoseconds; datetime accepts at most microseconds
+    # The engine reports nanoseconds; datetime accepts at most microseconds
     head, _, frac = value.rstrip("Z").partition(".")
     return datetime.fromisoformat(f"{head}.{(frac or '0')[:6]}+00:00").timestamp()
 
+ENGINE = os.environ["DEVOPS_ENGINE"]
 config = json.loads(os.environ["COMPOSE_JSON"])
 project = config.get("name") or os.environ["DEVOPS_PROJECT"]
 stale = False
@@ -587,7 +645,7 @@ for name, service in sorted(config.get("services", {}).items()):
     if not build:
         continue
     image = service.get("image") or f"{project}-{name}"
-    created = run("docker", "image", "inspect", "-f", "{{.Created}}", image)
+    created = run(ENGINE, "image", "inspect", "-f", "{{.Created}}", image)
     if created is None:
         print(f"🔵 {name}: no image yet; 'up' will build it")
         continue
@@ -610,14 +668,14 @@ for name, service in sorted(config.get("services", {}).items()):
     else:
         print(f"✅ {name}: image is up to date with its source")
 
-    image_id = run("docker", "image", "inspect", "-f", "{{.Id}}", image)
+    image_id = run(ENGINE, "image", "inspect", "-f", "{{.Id}}", image)
     containers = run(
-        "docker", "ps", "-q",
+        ENGINE, "ps", "-q",
         "--filter", f"label=com.docker.compose.project={project}",
         "--filter", f"label=com.docker.compose.service={name}",
     )
     for container in (containers or "").split():
-        if run("docker", "inspect", "-f", "{{.Image}}", container) != image_id:
+        if run(ENGINE, "inspect", "-f", "{{.Image}}", container) != image_id:
             stale = True
             print(f"⚠️  {name}: running container uses an older image than {image}")
             print("   Fix: ./dev.sh up (recreates it)")
@@ -632,20 +690,28 @@ run_doctor() {
     echo "🩺 Checking the development environment..."
     echo ""
 
-    if ! command -v docker >/dev/null 2>&1; then
-        log_error "Docker CLI not found. Install Docker Desktop: https://docs.docker.com/get-docker/"
+    if [[ -z "$ENGINE" ]]; then
+        log_error "No container engine found. Install Podman (https://podman.io/docs/installation) or Docker."
         exit 1
     fi
-    log_success "Docker CLI found"
+    log_success "Container engine: $ENGINE"
 
-    if ! docker info >/dev/null 2>&1; then
-        log_error "Docker daemon is not reachable. Start Docker Desktop and retry."
+    if ! "$ENGINE" info >/dev/null 2>&1; then
+        if [[ "$ENGINE" == "podman" ]]; then
+            log_error "Podman is not reachable. Start its machine: podman machine start (first time: podman machine init)"
+        else
+            log_error "The Docker daemon is not reachable. Start Docker and retry."
+        fi
         exit 1
     fi
-    log_success "Docker daemon is running"
+    log_success "$ENGINE is running"
 
     if [[ ${#COMPOSE_BIN[@]} -eq 0 ]]; then
-        log_error "Docker Compose not found. Install the Compose plugin: https://docs.docker.com/compose/install/"
+        if [[ "$ENGINE" == "podman" ]]; then
+            log_error "No compose tool found. 'podman compose' needs docker-compose (brew install docker-compose) or podman-compose."
+        else
+            log_error "Docker Compose not found. Install the Compose plugin: https://docs.docker.com/compose/install/"
+        fi
         exit 1
     fi
     log_success "Compose found: ${COMPOSE_BIN[*]}"
@@ -772,7 +838,7 @@ case "${COMMAND:-help}" in
         
         log_info "Removing all images..."
         # Get images for this project
-        IMAGES=$(docker images --format "{{.Repository}}" | grep "^${PROJECT_NAME}-" || true)
+        IMAGES=$("$ENGINE" images --format "{{.Repository}}" | grep "^${PROJECT_NAME}-" || true)
         if [[ -z "$IMAGES" ]]; then
             log_warning "No project images found to remove"
         elif remove_each image $IMAGES; then
@@ -784,13 +850,13 @@ case "${COMMAND:-help}" in
         ;;
 
     "prune")
-        log_info "Cleaning up Docker build cache..."
-        CACHE_SIZE=$(docker system df -v 2>/dev/null | grep "Build cache usage" | awk '{print $4}' || echo "unknown")
+        log_info "Cleaning up the build cache..."
+        CACHE_SIZE=$("$ENGINE" system df -v 2>/dev/null | grep "Build cache usage" | awk '{print $4}' || echo "unknown")
         echo "   Current build cache size: $CACHE_SIZE"
         
-        if docker builder prune -a -f >/dev/null 2>&1; then
+        if "$ENGINE" builder prune -a -f >/dev/null 2>&1; then
             log_success "Build cache cleaned!"
-            CACHE_SIZE=$(docker system df -v 2>/dev/null | grep "Build cache usage" | awk '{print $4}' || echo "0B")
+            CACHE_SIZE=$("$ENGINE" system df -v 2>/dev/null | grep "Build cache usage" | awk '{print $4}' || echo "0B")
             echo "   New build cache size: $CACHE_SIZE"
         else
             log_error "Failed to clean build cache"
@@ -798,16 +864,16 @@ case "${COMMAND:-help}" in
         ;;
 
     "clean")
-        log_warning "Full Docker cleanup: images, containers, volumes, build cache, and networks"
-        log_warning "This will remove EVERYTHING Docker-related (not just this project)!"
+        log_warning "Full cleanup: images, containers, volumes, build cache, and networks"
+        log_warning "This will remove EVERYTHING in $ENGINE (not just this project)!"
         read -p "Are you sure? (y/N): " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             log_info "Stopping project services..."
             stop_all_containers
             
-            log_info "Running full Docker system cleanup..."
-            docker system prune -a --volumes -f
+            log_info "Running full system cleanup..."
+            "$ENGINE" system prune -a --volumes -f
             
             log_success "Full cleanup complete! Disk space recovered."
             echo "   Run './dev.sh up' to start fresh."
@@ -844,13 +910,39 @@ case "${COMMAND:-help}" in
         fi
         
         # Extract environment variables with PHOENIX_ prefix
-        env_vars=$(docker exec "$container_name" env | grep '^PHOENIX_' | sort)
+        env_vars=$("$ENGINE" exec "$container_name" env | grep '^PHOENIX_' | sort)
         
         if [[ -n "$env_vars" ]]; then
             echo "$env_vars"
         else
             log_warning "No environment variables found in Phoenix container" >&2
         fi
+        ;;
+
+    "seed"|"seed-tail"|"psql")
+        db_container=$(compose_cmd ps -q db)
+        if [[ -z "$db_container" ]]; then
+            log_error "The database is not running. Start the stack first: ./dev.sh up"
+            exit 1
+        fi
+        run_psql() { "$ENGINE" exec -i "$db_container" psql -U postgres -p 5433 -d postgres -X "$@"; }
+        case "$COMMAND" in
+            "seed")
+                log_info "Seeding performance data at scale $SEED_SCALE (scale 1 is 1.94 million spans, about a minute)..."
+                run_psql -q -v scale="$SEED_SCALE" < scripts/seed-perf-data.sql
+                ;;
+            "seed-tail")
+                log_info "Adding fresh traffic to the seeded busy projects..."
+                run_psql -q < scripts/seed-perf-tail.sql
+                ;;
+            "psql")
+                if [[ -t 0 ]]; then
+                    "$ENGINE" exec -it "$db_container" psql -U postgres -p 5433 -d postgres
+                else
+                    run_psql
+                fi
+                ;;
+        esac
         ;;
 
     "help"|""|*)
@@ -862,10 +954,13 @@ Phoenix Development Environment
   rebuild [--profile NAME]          Full no-cache rebuild (slowest)
   down                              Stop all services
   reset                             Remove all images (rebuild on next 'up')
-  destroy [-y|--yes]                Wipe data volumes (database, grafana, prometheus, tempo, loki); keeps images
-  doctor [--profile NAME]           Check Docker, ports, compose config, and image freshness
-  prune                    Clean Docker build cache (frees disk space)
-  clean                    Full Docker cleanup (WARNING: removes everything)
+  destroy [-y|--yes]                Wipe data volumes (database, grafana, prometheus, tempo, loki, lgtm); keeps images
+  doctor [--profile NAME]           Check the container engine, ports, compose config, and image freshness
+  prune                    Clean the build cache (frees disk space)
+  clean                    Full engine cleanup (WARNING: removes everything)
+  seed [--scale N]         Fill the database with performance test data (PostgreSQL only)
+  seed-tail                Add fresh traffic to the seeded busy projects
+  psql                     Open psql in the database container (or pipe SQL to it)
   status                   Show running services and current profile
   profiles                 List available profiles
   env                      Extract environment variables from Phoenix container
@@ -882,6 +977,7 @@ Phoenix Development Environment
   in-memory                    In-memory SQLite database
   toxiproxy                    Enable network simulation with Toxiproxy
   grafana                      Enable Grafana, Prometheus, Tempo, Loki, and OTel Collector
+  lgtm                         Enable metrics, logs and traces in Grafana, with the Grafana MCP server
   mock-llm                     Enable the mock LLM server (dashboard via Traefik)
   datagen                      Replay synthetic traces (one project per application)
   ldap                         Enable LDAP authentication (mock LDAP server)
