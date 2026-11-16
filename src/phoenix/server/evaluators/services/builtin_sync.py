@@ -82,7 +82,7 @@ async def sync_builtin_evaluators(db: DbSessionFactory) -> None:
                     dialect=dialect,
                     binding_ids=list(dataset_binding_ids),
                     collect_unused_evaluator=False,
-                    collect_unused_source=False,
+                    collect_unused_prompt_or_decision=False,
                 )
                 project_binding_ids = await session.scalars(
                     select(models.ProjectEvaluator.id).where(
@@ -95,7 +95,7 @@ async def sync_builtin_evaluators(db: DbSessionFactory) -> None:
                     dialect=dialect,
                     binding_ids=list(project_binding_ids),
                     collect_unused_evaluator=False,
-                    collect_unused_source=False,
+                    collect_unused_prompt_or_decision=False,
                 )
                 delete_stmt = delete(models.Evaluator).where(
                     models.Evaluator.kind == "BUILTIN",

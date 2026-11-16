@@ -240,7 +240,7 @@ async def delete_dataset(
                 dialect=dialect,
                 binding_ids=live_binding_ids,
                 collect_unused_evaluator=False,
-                collect_unused_source=False,
+                collect_unused_prompt_or_decision=False,
             )
             enqueued_cleanup = enqueued_cleanup or bool(deleted_bindings)
         if (await session.scalar(stmt)) is None:

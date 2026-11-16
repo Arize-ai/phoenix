@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<881bc7a70314f23535f79d813c1db98f>>
+ * @generated SignedSource<<37b6d38b56475f5f7b8418538eed755b>>
  * @lightSyntaxTransform
  */
 
@@ -11,7 +11,7 @@ import { ConcreteRequest } from 'relay-runtime';
 export type DeleteDatasetEvaluatorsInput = {
   datasetEvaluatorIds: ReadonlyArray<string>;
   deleteUnusedEvaluator?: boolean;
-  deleteUnusedSource?: boolean;
+  deleteUnusedPromptOrDecision?: boolean;
 };
 export type DeleteDatasetEvaluatorDialogMutation$variables = {
   connectionIds: ReadonlyArray<string>;

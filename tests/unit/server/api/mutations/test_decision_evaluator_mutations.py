@@ -246,7 +246,7 @@ async def delete_bindings_and_purge(
     binding_ids: list[str],
     *,
     delete_unused_evaluator: bool = True,
-    delete_unused_source: bool = False,
+    delete_unused_prompt_or_decision: bool = False,
 ) -> None:
     result = await gql_client.execute(
         DELETE_BINDINGS,
@@ -254,7 +254,7 @@ async def delete_bindings_and_purge(
             "input": {
                 "datasetEvaluatorIds": binding_ids,
                 "deleteUnusedEvaluator": delete_unused_evaluator,
-                "deleteUnusedSource": delete_unused_source,
+                "deleteUnusedPromptOrDecision": delete_unused_prompt_or_decision,
             }
         },
     )
@@ -321,7 +321,7 @@ async def test_deleting_the_last_binding_collects_the_judge_and_its_tag(
         assert await session.get(models.Decision, row_id(decision["id"])) is not None
 
 
-async def test_delete_unused_source_deletes_the_decision_once_no_judge_uses_it(
+async def test_delete_unused_prompt_or_decision_deletes_the_decision_once_no_judge_uses_it(
     gql_client: AsyncGraphQLClient,
     empty_dataset: None,
     db: DbSessionFactory,
@@ -342,12 +342,16 @@ async def test_delete_unused_source_deletes_the_decision_once_no_judge_uses_it(
     binding = await bind(gql_client, evaluator, name="judge")
     other_binding = await bind(gql_client, other_evaluator, name="other_judge")
 
-    await delete_bindings_and_purge(gql_client, db, [binding], delete_unused_source=True)
+    await delete_bindings_and_purge(
+        gql_client, db, [binding], delete_unused_prompt_or_decision=True
+    )
     async with db() as session:
         assert await session.get(models.DecisionEvaluator, row_id(evaluator["id"])) is None
         assert await session.get(models.Decision, row_id(decision["id"])) is not None
 
-    await delete_bindings_and_purge(gql_client, db, [other_binding], delete_unused_source=True)
+    await delete_bindings_and_purge(
+        gql_client, db, [other_binding], delete_unused_prompt_or_decision=True
+    )
     async with db() as session:
         assert await session.get(models.DecisionEvaluator, row_id(other_evaluator["id"])) is None
         assert await session.get(models.Decision, row_id(decision["id"])) is None
