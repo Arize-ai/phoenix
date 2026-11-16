@@ -31,7 +31,9 @@ export type DeleteEvaluatorDialogProps = {
   onOpenChange?: (isOpen: boolean) => void;
   onDeleted?: () => void;
   isDeleting: boolean;
-  onDelete: (options: { deleteUnusedPromptOrDecision: boolean }) => Promise<void>;
+  onDelete: (options: {
+    deleteUnusedPromptOrDecision: boolean;
+  }) => Promise<void>;
 };
 
 export function DeleteEvaluatorDialog({
@@ -45,7 +47,14 @@ export function DeleteEvaluatorDialog({
   onDelete,
 }: DeleteEvaluatorDialogProps) {
   const notifySuccess = useNotifySuccess();
-  const [deleteUnusedPromptOrDecision, setDeleteUnusedPromptOrDecision] = useState(true);
+  const associatedLabel =
+    evaluatorKind === "LLM"
+      ? "prompt"
+      : evaluatorKind === "DECISION"
+        ? "decision"
+        : null;
+  const [deleteUnusedPromptOrDecision, setDeleteUnusedPromptOrDecision] =
+    useState(true);
   const [error, setError] = useState<string | null>(null);
   const handleOpenChange = (nextIsOpen: boolean) => {
     if (nextIsOpen) {
@@ -57,7 +66,8 @@ export function DeleteEvaluatorDialog({
     setError(null);
     startTransition(() => {
       void onDelete({
-        deleteUnusedPromptOrDecision: evaluatorKind === "LLM" && deleteUnusedPromptOrDecision,
+        deleteUnusedPromptOrDecision:
+          associatedLabel !== null && deleteUnusedPromptOrDecision,
       })
         .then(() => {
           notifySuccess({
@@ -103,12 +113,12 @@ export function DeleteEvaluatorDialog({
                     ? " The built-in evaluator remains available elsewhere."
                     : " The evaluator is deleted only if it isn't used anywhere else."}
                 </Text>
-                {evaluatorKind === "LLM" ? (
+                {associatedLabel !== null ? (
                   <Checkbox
                     isSelected={deleteUnusedPromptOrDecision}
                     onChange={setDeleteUnusedPromptOrDecision}
                   >
-                    Delete associated prompt
+                    Delete associated {associatedLabel}
                   </Checkbox>
                 ) : null}
               </Flex>

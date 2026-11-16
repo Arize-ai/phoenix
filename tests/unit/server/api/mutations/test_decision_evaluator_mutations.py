@@ -246,18 +246,16 @@ async def delete_bindings_and_purge(
     binding_ids: list[str],
     *,
     delete_unused_evaluator: bool = True,
-    delete_unused_prompt_or_decision: bool = False,
+    delete_unused_prompt_or_decision: bool | None = False,
 ) -> None:
-    result = await gql_client.execute(
-        DELETE_BINDINGS,
-        variables={
-            "input": {
-                "datasetEvaluatorIds": binding_ids,
-                "deleteUnusedEvaluator": delete_unused_evaluator,
-                "deleteUnusedPromptOrDecision": delete_unused_prompt_or_decision,
-            }
-        },
-    )
+    """Passing None omits ``deleteUnusedPromptOrDecision`` so the schema default applies."""
+    delete_input: dict[str, Any] = {
+        "datasetEvaluatorIds": binding_ids,
+        "deleteUnusedEvaluator": delete_unused_evaluator,
+    }
+    if delete_unused_prompt_or_decision is not None:
+        delete_input["deleteUnusedPromptOrDecision"] = delete_unused_prompt_or_decision
+    result = await gql_client.execute(DELETE_BINDINGS, variables={"input": delete_input})
     assert result.data and not result.errors, result.errors
     coordinator = CleanupCoordinator(db)
     while await coordinator.run_one_step():
@@ -343,17 +341,33 @@ async def test_delete_unused_prompt_or_decision_deletes_the_decision_once_no_jud
     other_binding = await bind(gql_client, other_evaluator, name="other_judge")
 
     await delete_bindings_and_purge(
-        gql_client, db, [binding], delete_unused_prompt_or_decision=True
+        gql_client, db, [binding], delete_unused_prompt_or_decision=None
     )
     async with db() as session:
         assert await session.get(models.DecisionEvaluator, row_id(evaluator["id"])) is None
         assert await session.get(models.Decision, row_id(decision["id"])) is not None
 
     await delete_bindings_and_purge(
-        gql_client, db, [other_binding], delete_unused_prompt_or_decision=True
+        gql_client, db, [other_binding], delete_unused_prompt_or_decision=None
     )
     async with db() as session:
         assert await session.get(models.DecisionEvaluator, row_id(other_evaluator["id"])) is None
+        assert await session.get(models.Decision, row_id(decision["id"])) is None
+
+
+async def test_deleting_bindings_deletes_an_unused_decision_by_default(
+    gql_client: AsyncGraphQLClient,
+    empty_dataset: None,
+    db: DbSessionFactory,
+) -> None:
+    decision, evaluator = await saved_evaluator(gql_client)
+    binding = await bind(gql_client, evaluator, name="judge")
+
+    await delete_bindings_and_purge(
+        gql_client, db, [binding], delete_unused_prompt_or_decision=None
+    )
+    async with db() as session:
+        assert await session.get(models.DecisionEvaluator, row_id(evaluator["id"])) is None
         assert await session.get(models.Decision, row_id(decision["id"])) is None
 
 

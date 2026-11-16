@@ -186,10 +186,11 @@ class DeleteDatasetEvaluatorsInput:
         ),
     )
     delete_unused_prompt_or_decision: bool = strawberry.field(
-        default=False,
+        default=True,
         description=(
             "Also delete each LLM evaluator's prompt or decision evaluator's decision when no "
-            "other evaluator references it. Off by default so shared prompts and decisions survive."
+            "other evaluator references it. A prompt or decision still used by another evaluator "
+            "is always kept. Set to false to keep unused ones too."
         ),
     )
 
@@ -437,10 +438,11 @@ class DeleteProjectEvaluatorsInput:
         ),
     )
     delete_unused_prompt_or_decision: bool = strawberry.field(
-        default=False,
+        default=True,
         description=(
             "Also delete each LLM evaluator's prompt or decision evaluator's decision when no "
-            "other evaluator references it. Off by default so shared prompts and decisions survive."
+            "other evaluator references it. A prompt or decision still used by another evaluator "
+            "is always kept. Set to false to keep unused ones too."
         ),
     )
 
