@@ -23,6 +23,7 @@ import {
   View,
 } from "@phoenix/components";
 import { ONE_MONTH_MS } from "@phoenix/constants/timeConstants";
+import { useNotifyError } from "@phoenix/contexts";
 import { useCurrentTime, useLocalTimeFormatPattern } from "@phoenix/hooks";
 
 import type { RemoveProjectDataFormMutation } from "./__generated__/RemoveProjectDataFormMutation.graphql";
@@ -40,6 +41,7 @@ export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
   const { nowEpochMs } = useCurrentTime();
   const { projectId } = props;
   const dateFormatPattern = useLocalTimeFormatPattern();
+  const notifyError = useNotifyError();
   const formRef = useRef<HTMLFormElement>(null);
   const [commit, isCommitting] = useMutation<RemoveProjectDataFormMutation>(
     graphql`
@@ -86,11 +88,14 @@ export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
           props.onComplete();
         },
         onError: (error) => {
-          alert("Failed to clear project traces: " + error);
+          notifyError({
+            title: "Failed to remove project data",
+            message: error.message,
+          });
         },
       });
     },
-    [commit, projectId, props, setError]
+    [commit, projectId, props, setError, notifyError]
   );
   return (
     <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>

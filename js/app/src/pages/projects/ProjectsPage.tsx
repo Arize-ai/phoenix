@@ -81,10 +81,12 @@ import type {
   ProjectsPageQuery,
 } from "./__generated__/ProjectsPageQuery.graphql";
 import { NewProjectButton } from "./NewProjectButton";
+import { ClearingTracesIndicator } from "./ClearingTracesIndicator";
 import { ProjectActionMenu } from "./ProjectActionMenu";
 
 const PAGE_SIZE = 10;
 const PROJECTS_POLL_INTERVAL_MS = 60_000;
+const CLEARING_POLL_INTERVAL_MS = 3_000;
 
 const PROJECT_KIND_LABELS = {
   STANDARD: "Projects",
@@ -258,6 +260,7 @@ export function ProjectsPageContent({
               id
               name
               gradientStartColor
+              isClearingTraces
               gradientEndColor
               endTime
               startTime
@@ -307,9 +310,13 @@ export function ProjectsPageContent({
     [_refetch, queryArgs]
   );
 
-  useInterval(() => refetch({}), PROJECTS_POLL_INTERVAL_MS);
-
   const projects = projectsData?.projects?.edges?.map((p) => p.project);
+  const isAnyClearing = projects?.some((p) => p.isClearingTraces) ?? false;
+
+  useInterval(
+    () => refetch({}),
+    isAnyClearing ? CLEARING_POLL_INTERVAL_MS : PROJECTS_POLL_INTERVAL_MS
+  );
 
   const projectsContainerRef = useRef<HTMLDivElement>(null);
   const fetchMoreOnBottomReached = useCallback(
@@ -362,8 +369,8 @@ export function ProjectsPageContent({
         refetch({
           onComplete: () => {
             notifySuccess({
-              title: "Project Cleared",
-              message: `Project ${projectName} has been cleared of traces.`,
+              title: "Clearing Traces",
+              message: `Traces in project ${projectName} will disappear as the cleanup runs.`,
             });
           },
         });
@@ -378,8 +385,8 @@ export function ProjectsPageContent({
         refetch({
           onComplete: () => {
             notifySuccess({
-              title: "Project Data Removed",
-              message: `Old data from project ${projectName} have been removed.`,
+              title: "Removing Project Data",
+              message: `Old data in project ${projectName} will disappear as the cleanup runs.`,
             });
           },
         });
@@ -669,9 +676,13 @@ function ProjectItem({
             >
               {project.name}
             </Heading>
-            <Text color="text-700" size="XS" fontStyle="italic">
-              {lastUpdatedText}
-            </Text>
+            {project.isClearingTraces ? (
+              <ClearingTracesIndicator />
+            ) : (
+              <Text color="text-700" size="XS" fontStyle="italic">
+                {lastUpdatedText}
+              </Text>
+            )}
           </Flex>
         </Flex>
         <CanModify>

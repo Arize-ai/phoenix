@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7f6b11d548f75d9e6b5e5263694c7da1>>
+ * @generated SignedSource<<dd4456f7619d5a19ab22d58adeed0aa4>>
  * @lightSyntaxTransform
  */
 
@@ -15,6 +15,7 @@ export type ProjectPageQuery$variables = {
 export type ProjectPageQuery$data = {
   readonly project: {
     readonly evaluatorCount?: number;
+    readonly isClearingTraces?: boolean;
     readonly name?: string;
     readonly " $fragmentSpreads": FragmentRefs<"ProjectTimeRangeControls_data">;
   };
@@ -52,6 +53,13 @@ v3 = {
   "kind": "ScalarField",
   "name": "evaluatorCount",
   "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "isClearingTraces",
+  "storageKey": null
 };
 return {
   "fragment": {
@@ -73,6 +81,7 @@ return {
             "selections": [
               (v2/*:: as any*/),
               (v3/*:: as any*/),
+              (v4/*:: as any*/),
               {
                 "args": null,
                 "kind": "FragmentSpread",
@@ -122,6 +131,7 @@ return {
             "selections": [
               (v2/*:: as any*/),
               (v3/*:: as any*/),
+              (v4/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -139,16 +149,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "3713de301f1ca7016f37f625c4a86b82",
+    "cacheID": "a3ef6ab7f47eb716e88411426806661a",
     "id": null,
     "metadata": {},
     "name": "ProjectPageQuery",
     "operationKind": "query",
-    "text": "query ProjectPageQuery(\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      name\n      evaluatorCount\n      ...ProjectTimeRangeControls_data\n    }\n    id\n  }\n}\n\nfragment ProjectTimeRangeControls_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n"
+    "text": "query ProjectPageQuery(\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      name\n      evaluatorCount\n      isClearingTraces\n      ...ProjectTimeRangeControls_data\n    }\n    id\n  }\n}\n\nfragment ProjectTimeRangeControls_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "17b0430cbb7a0b6ad24363e0985e35ee";
+(node as any).hash = "f5c768a8bdd0bccc77ca226eef758a4a";
 
 export default node;

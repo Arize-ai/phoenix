@@ -49,6 +49,7 @@ import {
   StreamStateProvider,
   useStreamState,
 } from "@phoenix/contexts/StreamStateContext";
+import { useInterval } from "@phoenix/hooks";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
@@ -62,6 +63,7 @@ import {
   readFilterConditionParam,
   withFilterConditionParam,
 } from "./filterConditionParam";
+import { ClearingTracesIndicator } from "../projects/ClearingTracesIndicator";
 import { ProjectOnboardingOverlay } from "./ProjectOnboardingOverlay";
 import {
   ProjectPageQueriesOnboardingQuery,
@@ -76,6 +78,8 @@ import { ProjectTimeRangeControls } from "./ProjectTimeRangeControls";
 import { DEFAULT_SPAN_FILTER_CONDITION } from "./spanFilterRootScopeConstants";
 import { type SettledSpanFilterSeed, spanFilterSeed } from "./spanFilterSeed";
 import { TableMetricsChartsPanelGroup } from "./TableMetricsCharts";
+
+const CLEARING_POLL_INTERVAL_MS = 3_000;
 
 const mainCSS = css`
   flex: 1 1 auto;
@@ -631,7 +635,7 @@ function ProjectPageContentBody({
   );
 }
 
-function useProjectPageQuery(projectId: string) {
+function useProjectPageQuery(projectId: string, fetchKey = 0) {
   return useLazyLoadQuery<ProjectPageQueryType>(
     graphql`
       query ProjectPageQuery($id: ID!) {
@@ -641,19 +645,31 @@ function useProjectPageQuery(projectId: string) {
             # to the error page now that the route loader does not wait.
             name
             evaluatorCount
+            isClearingTraces
             ...ProjectTimeRangeControls_data
           }
         }
       }
     `,
     { id: projectId },
-    { fetchPolicy: "store-and-network" }
+    { fetchPolicy: "store-and-network", fetchKey }
   );
 }
 
 function ProjectPageTimeRangeControls({ projectId }: { projectId: string }) {
-  const data = useProjectPageQuery(projectId);
-  return <ProjectTimeRangeControls project={data.project} />;
+  const [fetchKey, setFetchKey] = useState(0);
+  const data = useProjectPageQuery(projectId, fetchKey);
+  const isClearingTraces = data.project.isClearingTraces ?? false;
+  useInterval(
+    () => setFetchKey((key) => key + 1),
+    isClearingTraces ? CLEARING_POLL_INTERVAL_MS : null
+  );
+  return (
+    <>
+      {isClearingTraces ? <ClearingTracesIndicator /> : null}
+      <ProjectTimeRangeControls project={data.project} />
+    </>
+  );
 }
 
 function ProjectEvaluatorCount({ projectId }: { projectId: string }) {
