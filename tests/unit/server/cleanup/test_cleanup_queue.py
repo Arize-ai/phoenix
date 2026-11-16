@@ -233,6 +233,58 @@ class TestCleanupQueueSchedulingAndFencing:
         async with db() as session:
             assert await session.get(models.Project, project.id) is None
 
+    async def test_repeated_failures_double_the_retry_delay_and_lock_timeouts_yield(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from sqlalchemy.exc import DBAPIError
+
+        dialect = SupportedSQLDialect(db.dialect.value)
+        async with db() as session:
+            project = await _add_project(session, name=f"poison-{token_hex(4)}")
+            await admit_project_delete(session, dialect=dialect, project_id=project.id)
+
+        coordinator = CleanupCoordinator(
+            db, error_retry_delay_seconds=10.0, yield_delay_seconds=1.0
+        )
+
+        class _LockNotAvailable(Exception):
+            sqlstate = "55P03"
+
+        failure: Exception = RuntimeError("injected step failure")
+
+        async def _boom(*args: object, **kwargs: object) -> object:
+            raise failure
+
+        monkeypatch.setattr(coordinator, "_run_domain_step", _boom)
+
+        async def _fail_once() -> tuple[str, int, float]:
+            claimed = await coordinator.claim_next()
+            assert claimed is not None
+            result = await coordinator.execute_claimed_step(claimed)
+            async with db() as session:
+                now = await current_database_time(session, dialect)
+                task = await session.get(models.CleanupTask, claimed.task_id)
+                assert task is not None
+                delay = (task.available_at - now).total_seconds()
+                failures = task.failure_count
+                await session.execute(
+                    update(models.CleanupTask)
+                    .where(models.CleanupTask.id == claimed.task_id)
+                    .values(available_at=now)
+                )
+            return result.outcome, failures, delay
+
+        outcomes = [await _fail_once() for _ in range(3)]
+        assert [(o, f) for o, f, _ in outcomes] == [("error", 1), ("error", 2), ("error", 3)]
+        assert 5.0 < outcomes[0][2] <= 10.0
+        assert 15.0 < outcomes[1][2] <= 20.0
+        assert 30.0 < outcomes[2][2] <= 40.0
+
+        failure = DBAPIError("stmt", {}, _LockNotAvailable())
+        outcome, failures, delay = await _fail_once()
+        assert (outcome, failures) == ("yield", 3)
+        assert delay <= 1.0
+
     async def test_task_ids_are_monotonic_across_completions(self, db: DbSessionFactory) -> None:
         dialect = SupportedSQLDialect(db.dialect.value)
         coordinator = CleanupCoordinator(db)
