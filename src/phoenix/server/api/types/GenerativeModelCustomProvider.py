@@ -586,12 +586,7 @@ class GenerativeModelCustomProvider(Node):
     async def _provider_models(self, info: Info[Context, None]) -> mp.ProviderModels:
         if self.db_record:
             return self.db_record.models
-        served: mp.ProviderModels = (
-            await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.models),
-            )
-        )
-        return served
+        return await info.context.data_loaders.custom_provider_models.load(self.id)
 
     @strawberry.field(
         description=(

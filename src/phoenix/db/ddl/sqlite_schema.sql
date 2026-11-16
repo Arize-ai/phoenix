@@ -99,6 +99,19 @@ CREATE TABLE languages (
 );
 
 
+-- Table: model_profiles
+-- ---------------------
+CREATE TABLE model_profiles (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    model_type VARCHAR NOT NULL,
+    name VARCHAR NOT NULL,
+    CONSTRAINT uq_model_profiles_id_model_type UNIQUE (id, model_type),
+    CONSTRAINT "ck_model_profiles_`valid_model_type`"
+        CHECK (model_type IN ('chat', 'decision')),
+    CONSTRAINT "ck_model_profiles_`valid_name`" CHECK (name <> '' AND name = trim(name))
+);
+
+
 -- Table: oauth2_clients
 -- ---------------------
 CREATE TABLE oauth2_clients (
@@ -1198,7 +1211,6 @@ CREATE TABLE generative_model_custom_providers (
     user_id INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    models JSONB DEFAULT '{"chat": {}}' NOT NULL,
     CONSTRAINT pk_generative_model_custom_providers PRIMARY KEY (id),
     CONSTRAINT uq_generative_model_custom_providers_name UNIQUE (name),
     CONSTRAINT fk_generative_model_custom_providers_user_id_users
@@ -1284,6 +1296,44 @@ CREATE TABLE agent_session_snapshots (
         REFERENCES agent_sessions (id)
         ON DELETE CASCADE
 );
+
+
+-- Table: custom_provider_model_types
+-- ----------------------------------
+CREATE TABLE custom_provider_model_types (
+    provider_id INTEGER NOT NULL,
+    model_type VARCHAR NOT NULL,
+    CONSTRAINT pk_custom_provider_model_types PRIMARY KEY (provider_id, model_type),
+    CONSTRAINT "ck_custom_provider_model_types_`valid_model_type`"
+        CHECK (model_type IN ('chat', 'decision')),
+    CONSTRAINT fk_custom_provider_model_types_provider_id_generative_model_custom_providers
+        FOREIGN KEY (provider_id)
+        REFERENCES generative_model_custom_providers (id)
+        ON DELETE CASCADE
+);
+
+
+-- Table: custom_provider_model_profiles
+-- -------------------------------------
+CREATE TABLE custom_provider_model_profiles (
+    provider_id INTEGER NOT NULL,
+    model_type VARCHAR NOT NULL,
+    model_profile_id INTEGER NOT NULL,
+    position INTEGER NOT NULL,
+    CONSTRAINT pk_custom_provider_model_profiles
+        PRIMARY KEY (provider_id, model_type, position),
+    CONSTRAINT fk_custom_provider_model_profiles_model_profile_id_model_profiles
+        FOREIGN KEY (model_profile_id, model_type)
+        REFERENCES model_profiles (id, model_type)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_custom_provider_model_profiles_provider_id_custom_provider_model_types
+        FOREIGN KEY (provider_id, model_type)
+        REFERENCES custom_provider_model_types (provider_id, model_type)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_custom_provider_model_profiles_model_profile_id ON custom_provider_model_profiles
+    (model_profile_id);
 
 
 -- Table: decision_versions

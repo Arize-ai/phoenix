@@ -955,11 +955,13 @@ model the provider no longer lists.
 
 A run reaches either a built-in provider or a custom provider, and a version's
 `custom_provider_id` names the second. Which model types a custom provider
-serves is stored in its `models` column (bounded by `sdk_offers_chat` and
+serves is stored as one `custom_provider_model_types` row per type, and its
+suggested model names as ordered `model_profiles` rows linked through
+`custom_provider_model_profiles` (bounded by `sdk_offers_chat` and
 `sdk_offers_decisions`):
 
 - An `openai` provider always serves chat and can also serve OpenAI's Decisions
-  API when `models.decision` is set. Both use the provider's base URL, API key,
+  API when it has a `decision` type row. Both use the provider's base URL, API key,
   organization, project, and headers. `openai_api_type` stays a choice between
   chat surfaces.
 - A `typesafe` provider is any System One-compatible endpoint (API key, base

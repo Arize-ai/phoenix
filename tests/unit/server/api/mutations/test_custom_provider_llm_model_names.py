@@ -135,3 +135,29 @@ async def test_clearing_the_names_restores_the_built_in_list(
     assert (await model_names(gql_client, provider_id))["llm"] == (
         CLIENT_REGISTRY.list_models(GenerativeProviderKey.OPENAI, model_type="chat")
     )
+
+
+async def test_patching_reordered_names_persists_new_order(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    _, config = CONFIGS["openai"]
+    provider_id = await create(
+        gql_client,
+        "reordered-gateway",
+        {"openai": config},
+        llm("alpha", "beta", "gamma"),
+    )
+    assert await model_names(gql_client, provider_id) == {
+        "llm": ["alpha", "beta", "gamma"],
+        "configured": ["alpha", "beta", "gamma"],
+    }
+
+    result = await gql_client.execute(
+        PATCH,
+        variables={"input": {"id": provider_id, "models": llm("gamma", "alpha", "beta")}},
+    )
+    assert result.data and not result.errors, result.errors
+    assert await model_names(gql_client, provider_id) == {
+        "llm": ["gamma", "alpha", "beta"],
+        "configured": ["gamma", "alpha", "beta"],
+    }

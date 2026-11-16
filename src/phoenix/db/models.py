@@ -93,6 +93,8 @@ from phoenix.db.types.experiment_log import ExperimentLogDetail
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import (
     ModelProvider,
+    ModelsOfType,
+    ModelTypeKey,
     ProviderModels,
     default_provider_models,
 )
@@ -533,23 +535,6 @@ class _TraceRetentionRule(TypeDecorator[TraceRetentionRule]):
     ) -> Optional[TraceRetentionRule]:
         assert value and isinstance(value, dict)
         return TraceRetentionRule.model_validate(value)
-
-
-class _ProviderModels(TypeDecorator[ProviderModels]):
-    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
-    cache_ok = True
-    impl = JSON_
-
-    def process_bind_param(
-        self, value: Optional[ProviderModels], _: Dialect
-    ) -> Optional[dict[str, Any]]:
-        assert isinstance(value, ProviderModels)
-        return value.model_dump(mode="json", exclude_none=True)
-
-    def process_result_value(
-        self, value: Optional[dict[str, Any]], _: Dialect
-    ) -> Optional[ProviderModels]:
-        return ProviderModels.model_validate(value or {})
 
 
 class _AnnotationConfig(TypeDecorator[AnnotationConfigType]):
@@ -3962,10 +3947,6 @@ def validate_secret_config(_: Any, __: Any, target: "Secret") -> None:
         raise ValueError("Value is not encrypted")
 
 
-def _default_provider_models(context: Any) -> ProviderModels:
-    return default_provider_models(context.get_current_parameters()["sdk"])
-
-
 class GenerativeModelCustomProvider(HasId):
     __tablename__ = "generative_model_custom_providers"
     name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
@@ -3973,12 +3954,6 @@ class GenerativeModelCustomProvider(HasId):
     provider: Mapped[str] = mapped_column(String, nullable=False)
     sdk: Mapped[GenerativeModelSDK] = mapped_column(String, nullable=False)
     config: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
-    models: Mapped[ProviderModels] = mapped_column(
-        _ProviderModels,
-        nullable=False,
-        default=_default_provider_models,
-        server_default='{"chat": {}}',
-    )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -3988,6 +3963,136 @@ class GenerativeModelCustomProvider(HasId):
         nullable=True,
         index=True,
     )
+    model_types: Mapped[list["CustomProviderModelType"]] = relationship(
+        "CustomProviderModelType",
+        back_populates="provider",
+        lazy="selectin",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+    @property
+    def models(self) -> ProviderModels:
+        return provider_models_from_rows(self.model_types)
+
+
+class CustomProviderModelType(Base):
+    __tablename__ = "custom_provider_model_types"
+    provider_id: Mapped[int] = mapped_column(
+        ForeignKey("generative_model_custom_providers.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    model_type: Mapped[ModelTypeKey] = mapped_column(String, nullable=False)
+
+    provider: Mapped["GenerativeModelCustomProvider"] = relationship(
+        "GenerativeModelCustomProvider",
+        back_populates="model_types",
+    )
+    profile_links: Mapped[list["CustomProviderModelProfile"]] = relationship(
+        "CustomProviderModelProfile",
+        back_populates="provider_model_type",
+        order_by="CustomProviderModelProfile.position",
+        lazy="selectin",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+    __table_args__ = (
+        PrimaryKeyConstraint("provider_id", "model_type"),
+        CheckConstraint("model_type IN ('chat', 'decision')", name="valid_model_type"),
+    )
+
+
+class ModelProfile(HasId):
+    __tablename__ = "model_profiles"
+    model_type: Mapped[ModelTypeKey] = mapped_column(String, nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("id", "model_type"),
+        CheckConstraint("model_type IN ('chat', 'decision')", name="valid_model_type"),
+        CheckConstraint("name <> '' AND name = trim(name)", name="valid_name"),
+        dict(sqlite_autoincrement=True),
+    )
+
+
+class CustomProviderModelProfile(Base):
+    __tablename__ = "custom_provider_model_profiles"
+    provider_id: Mapped[int] = mapped_column(nullable=False)
+    model_type: Mapped[ModelTypeKey] = mapped_column(String, nullable=False)
+    model_profile_id: Mapped[int] = mapped_column(nullable=False, index=True)
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    provider_model_type: Mapped["CustomProviderModelType"] = relationship(
+        "CustomProviderModelType",
+        back_populates="profile_links",
+        overlaps="profile",
+    )
+    profile: Mapped["ModelProfile"] = relationship(
+        "ModelProfile",
+        lazy="selectin",
+        overlaps="profile_links,provider_model_type",
+    )
+
+    __table_args__ = (
+        PrimaryKeyConstraint("provider_id", "model_type", "position"),
+        ForeignKeyConstraint(
+            ["provider_id", "model_type"],
+            [
+                "custom_provider_model_types.provider_id",
+                "custom_provider_model_types.model_type",
+            ],
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["model_profile_id", "model_type"],
+            ["model_profiles.id", "model_profiles.model_type"],
+            ondelete="CASCADE",
+        ),
+    )
+
+
+def provider_models_from_rows(
+    rows: Sequence[CustomProviderModelType],
+) -> ProviderModels:
+    by_type: dict[ModelTypeKey, ModelsOfType] = {}
+    for row in rows:
+        links = sorted(row.profile_links, key=lambda link: link.position)
+        by_type[row.model_type] = ModelsOfType(names=tuple(link.profile.name for link in links))
+    return ProviderModels(
+        chat=by_type.get("chat"),
+        decision=by_type.get("decision"),
+    )
+
+
+def provider_models_to_rows(served: ProviderModels) -> list[CustomProviderModelType]:
+    rows: list[CustomProviderModelType] = []
+    keys: tuple[ModelTypeKey, ...] = ("chat", "decision")
+    for key in keys:
+        models_of_type: Optional[ModelsOfType] = getattr(served, key)
+        if models_of_type is None:
+            continue
+        rows.append(
+            CustomProviderModelType(
+                model_type=key,
+                profile_links=[
+                    CustomProviderModelProfile(
+                        position=position,
+                        profile=ModelProfile(model_type=key, name=name),
+                    )
+                    for position, name in enumerate(models_of_type.names)
+                ],
+            )
+        )
+    return rows
+
+
+@event.listens_for(GenerativeModelCustomProvider, "init")
+def _init_provider_model_types(
+    _: GenerativeModelCustomProvider, __: Any, kwargs: dict[str, Any]
+) -> None:
+    if "model_types" not in kwargs and "sdk" in kwargs:
+        kwargs["model_types"] = provider_models_to_rows(default_provider_models(kwargs["sdk"]))
 
 
 @event.listens_for(GenerativeModelCustomProvider, "before_insert")

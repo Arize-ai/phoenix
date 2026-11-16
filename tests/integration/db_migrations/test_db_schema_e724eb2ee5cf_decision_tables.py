@@ -333,14 +333,20 @@ def _insert_custom_provider(conn: Connection) -> int:
     provider_id = conn.execute(
         text(
             "INSERT INTO generative_model_custom_providers "
-            "(name, provider, sdk, config, models, created_at, updated_at) "
-            "VALUES ('proxy', 'typesafe', 'typesafe', :config, '{\"decision\": {}}', "
-            ":now, :now) RETURNING id"
+            "(name, provider, sdk, config, created_at, updated_at) "
+            "VALUES ('proxy', 'typesafe', 'typesafe', :config, :now, :now) RETURNING id"
         ),
         {"config": b"encrypted", "now": datetime.now(timezone.utc)},
     ).scalar()
-    conn.commit()
     assert isinstance(provider_id, int)
+    conn.execute(
+        text(
+            "INSERT INTO custom_provider_model_types (provider_id, model_type) "
+            "VALUES (:provider_id, 'decision')"
+        ),
+        {"provider_id": provider_id},
+    )
+    conn.commit()
     return provider_id
 
 

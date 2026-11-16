@@ -27,6 +27,8 @@ from phoenix.db.types.model_provider import (
     DecisionSDK,
     GenerativeModelCustomerProviderConfig,
     GoogleGenAICustomProviderConfig,
+    ModelsOfType,
+    ModelTypeKey,
     OpenAICustomProviderConfig,
     ProviderModels,
     TypeSafeCustomProviderConfig,
@@ -456,6 +458,106 @@ async def _check_decision_references(
         )
 
 
+async def replace_provider_models(
+    session: AsyncSession,
+    provider: models.GenerativeModelCustomProvider,
+    served: ProviderModels,
+) -> None:
+    """Replace the model types and ordered profile names a custom provider serves."""
+    await session.execute(
+        sa.select(models.GenerativeModelCustomProvider.id)
+        .where(models.GenerativeModelCustomProvider.id == provider.id)
+        .with_for_update()
+    )
+    await session.refresh(provider, ["model_types"])
+    for type_row in provider.model_types:
+        await session.refresh(type_row, ["profile_links"])
+
+    current = provider.models
+    if served == current:
+        return
+
+    keys: tuple[ModelTypeKey, ...] = ("chat", "decision")
+    changed_types: list[tuple[ModelTypeKey, ModelsOfType]] = []
+    added_types: list[tuple[ModelTypeKey, ModelsOfType]] = []
+    removed_types: list[ModelTypeKey] = []
+
+    for key in keys:
+        old_of_type: ModelsOfType | None = getattr(current, key)
+        new_of_type: ModelsOfType | None = getattr(served, key)
+        if old_of_type == new_of_type:
+            continue
+        if old_of_type is not None and new_of_type is None:
+            removed_types.append(key)
+        elif old_of_type is None and new_of_type is not None:
+            added_types.append((key, new_of_type))
+        elif old_of_type is not None and new_of_type is not None:
+            changed_types.append((key, new_of_type))
+
+    types_to_clear = [key for key, _ in changed_types] + removed_types
+    if types_to_clear:
+        profile_ids = (
+            await session.scalars(
+                sa.select(models.CustomProviderModelProfile.model_profile_id).where(
+                    models.CustomProviderModelProfile.provider_id == provider.id,
+                    models.CustomProviderModelProfile.model_type.in_(types_to_clear),
+                )
+            )
+        ).all()
+        await session.execute(
+            sa.delete(models.CustomProviderModelProfile).where(
+                models.CustomProviderModelProfile.provider_id == provider.id,
+                models.CustomProviderModelProfile.model_type.in_(types_to_clear),
+            )
+        )
+        if profile_ids:
+            await session.execute(
+                sa.delete(models.ModelProfile).where(models.ModelProfile.id.in_(profile_ids))
+            )
+        if removed_types:
+            await session.execute(
+                sa.delete(models.CustomProviderModelType).where(
+                    models.CustomProviderModelType.provider_id == provider.id,
+                    models.CustomProviderModelType.model_type.in_(removed_types),
+                )
+            )
+        # Flush deletions before inserting positions 0..n so the unique
+        # (provider_id, model_type, position) constraint never sees a transient duplicate.
+        await session.flush()
+
+    for key, models_of_type in changed_types:
+        for position, name in enumerate(models_of_type.names):
+            session.add(
+                models.CustomProviderModelProfile(
+                    provider_id=provider.id,
+                    model_type=key,
+                    position=position,
+                    profile=models.ModelProfile(model_type=key, name=name),
+                )
+            )
+
+    for key, models_of_type in added_types:
+        session.add(
+            models.CustomProviderModelType(
+                provider_id=provider.id,
+                model_type=key,
+                profile_links=[
+                    models.CustomProviderModelProfile(
+                        position=position,
+                        profile=models.ModelProfile(model_type=key, name=name),
+                    )
+                    for position, name in enumerate(models_of_type.names)
+                ],
+            )
+        )
+
+    provider.updated_at = datetime.now(timezone.utc)
+    await session.flush()
+    await session.refresh(provider, ["model_types"])
+    for type_row in provider.model_types:
+        await session.refresh(type_row, ["profile_links"])
+
+
 @strawberry.input
 class CreateGenerativeModelCustomProviderMutationInput:
     name: str
@@ -564,7 +666,7 @@ class GenerativeModelCustomProviderMutationMixin:
             provider=input.provider,
             sdk=config_obj.root.type,
             config=encrypted_config,
-            models=provider_models,
+            model_types=models.provider_models_to_rows(provider_models),
             user_id=user_id,
         )
 
@@ -595,8 +697,12 @@ class GenerativeModelCustomProviderMutationMixin:
             raise BadRequest(f'Invalid provider id: "{input.id}"')
 
         async with info.context.db() as session:
-            # Fetch the existing provider
-            provider = await session.get(models.GenerativeModelCustomProvider, provider_id)
+            # Lock the provider row before reading current models so concurrent patches serialize.
+            provider = await session.get(
+                models.GenerativeModelCustomProvider,
+                provider_id,
+                with_for_update=True,
+            )
             if not provider:
                 raise NotFound(f"Provider with ID '{input.id}' not found")
 
@@ -632,18 +738,23 @@ class GenerativeModelCustomProviderMutationMixin:
                     )
 
             new_served: ProviderModels | None = input.models.to_orm() if input.models else None
+            target_served: ProviderModels | None = None
             if new_config is not None or new_served is not None:
                 sdk = new_config.root.type if new_config is not None else provider.sdk
                 served = new_served or provider.models
                 check_provider_models(sdk, served)
 
                 if provider.models.decision is not None and served.decision is None:
-                    await _check_decision_references(
-                        session, provider.id, action="stop it serving decision models"
-                    )
+                    # Without no_autoflush, the check's queries would first write a pending
+                    # rename, so a duplicate name would fail here, outside the handler below
+                    # that reports it as a Conflict.
+                    with session.no_autoflush:
+                        await _check_decision_references(
+                            session, provider.id, action="stop it serving decision models"
+                        )
 
                 if served != provider.models:
-                    provider.models = served
+                    target_served = served
                 if new_config is not None:
                     if new_config.root.type != provider.sdk:
                         provider.sdk = new_config.root.type
@@ -657,6 +768,9 @@ class GenerativeModelCustomProviderMutationMixin:
                     await session.flush()
                 except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                     raise Conflict(f"Provider with name '{input.name}' already exists")
+
+            if target_served is not None:
+                await replace_provider_models(session, provider, target_served)
 
         return PatchGenerativeModelCustomProviderMutationPayload(
             provider=GenerativeModelCustomProvider(id=provider.id, db_record=provider),
@@ -728,6 +842,13 @@ class GenerativeModelCustomProviderMutationMixin:
         except ValueError:
             raise BadRequest(f'Invalid provider id: "{input.id}"')
 
+        delete_profiles_stmt = sa.delete(models.ModelProfile).where(
+            models.ModelProfile.id.in_(
+                sa.select(models.CustomProviderModelProfile.model_profile_id).where(
+                    models.CustomProviderModelProfile.provider_id == provider_id
+                )
+            )
+        )
         stmt = sa.delete(models.GenerativeModelCustomProvider).where(
             models.GenerativeModelCustomProvider.id == provider_id
         )
@@ -736,6 +857,7 @@ class GenerativeModelCustomProviderMutationMixin:
             # custom_provider_id is cleared (ON DELETE SET NULL) when the provider is
             # deleted, and a resumed task then silently runs on the built-in provider.
             await _check_decision_references(session, provider_id)
+            await session.execute(delete_profiles_stmt)
             await session.execute(stmt)
 
         return DeleteGenerativeModelCustomProviderMutationPayload(

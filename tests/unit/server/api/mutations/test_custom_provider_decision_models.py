@@ -6,14 +6,20 @@ page.
 """
 
 import json
+from datetime import datetime, timezone
 from typing import Any
 
 import pytest
 import respx
 import sqlalchemy as sa
 from cryptography.fernet import Fernet
+from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
+from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
+from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.types import model_provider as mp
+from phoenix.server.encryption import EncryptionService
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 from tests.unit.server.api.mutations.test_decision_mutations import (
@@ -696,3 +702,257 @@ async def test_a_provider_whose_base_url_is_not_a_plain_http_url_is_not_saved(
     input = {"name": "bad-url", "provider": "proxy", "clientConfig": config}
     result = await gql_client.execute(CREATE, variables={"input": input})
     assert result.errors and "Base URL must be" in result.errors[0].message
+
+
+async def test_removing_a_served_type_deletes_its_links_and_profiles(
+    gql_client: AsyncGraphQLClient, db: DbSessionFactory
+) -> None:
+    provider_id = await create(
+        gql_client,
+        "OpenAI removable decisions",
+        openai_config(),
+        {
+            "chat": {"names": ["gpt-4o"]},
+            "decision": {"names": ["gpt-6-luna", "gpt-6-luna-mini"]},
+        },
+    )
+    provider_rowid = int(GlobalID.from_id(provider_id).node_id)
+
+    async with db() as session:
+        decision_profile_ids = (
+            await session.scalars(
+                sa.select(models.CustomProviderModelProfile.model_profile_id).where(
+                    models.CustomProviderModelProfile.provider_id == provider_rowid,
+                    models.CustomProviderModelProfile.model_type == "decision",
+                )
+            )
+        ).all()
+        assert len(decision_profile_ids) == 2
+
+    result = await gql_client.execute(
+        """mutation ($input: PatchGenerativeModelCustomProviderMutationInput!) {
+          patchGenerativeModelCustomProvider(input: $input) { provider { modelTypes } }
+        }""",
+        variables={"input": {"id": provider_id, "models": {"chat": {"names": ["gpt-4o"]}}}},
+    )
+    assert result.data and not result.errors, result.errors
+    assert result.data["patchGenerativeModelCustomProvider"]["provider"]["modelTypes"] == ["CHAT"]
+
+    async with db() as session:
+        type_rows = (
+            await session.scalars(
+                sa.select(models.CustomProviderModelType.model_type).where(
+                    models.CustomProviderModelType.provider_id == provider_rowid
+                )
+            )
+        ).all()
+        assert list(type_rows) == ["chat"]
+        decision_links = (
+            await session.scalars(
+                sa.select(models.CustomProviderModelProfile).where(
+                    models.CustomProviderModelProfile.provider_id == provider_rowid,
+                    models.CustomProviderModelProfile.model_type == "decision",
+                )
+            )
+        ).all()
+        assert decision_links == []
+        remaining_decision_profiles = (
+            await session.scalars(
+                sa.select(models.ModelProfile).where(
+                    models.ModelProfile.id.in_(decision_profile_ids)
+                )
+            )
+        ).all()
+        assert remaining_decision_profiles == []
+        provider = await session.get(models.GenerativeModelCustomProvider, provider_rowid)
+        assert provider is not None
+        assert provider.models == mp.ProviderModels(
+            chat=mp.ModelsOfType(names=("gpt-4o",)),
+            decision=None,
+        )
+
+
+async def test_renaming_to_a_taken_name_while_dropping_decisions_is_a_conflict(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    await create(gql_client, "taken name", openai_config(), {"chat": {}})
+    provider_id = await create(
+        gql_client, "rename me", openai_config(), {"chat": {}, "decision": {}}
+    )
+
+    result = await gql_client.execute(
+        """mutation ($input: PatchGenerativeModelCustomProviderMutationInput!) {
+          patchGenerativeModelCustomProvider(input: $input) { provider { id } }
+        }""",
+        variables={"input": {"id": provider_id, "name": "taken name", "models": {"chat": {}}}},
+    )
+    assert result.errors
+    assert "already exists" in result.errors[0].message
+
+
+@pytest.mark.parametrize(
+    ("sdk", "expected"),
+    [
+        ("openai", mp.ProviderModels(chat=mp.ModelsOfType())),
+        ("azure_openai", mp.ProviderModels(chat=mp.ModelsOfType())),
+        ("anthropic", mp.ProviderModels(chat=mp.ModelsOfType())),
+        ("google_genai", mp.ProviderModels(chat=mp.ModelsOfType())),
+        ("aws_bedrock", mp.ProviderModels(chat=mp.ModelsOfType())),
+        ("typesafe", mp.ProviderModels(decision=mp.ModelsOfType())),
+    ],
+)
+async def test_orm_provider_without_model_types_serves_sdk_default(
+    db: DbSessionFactory,
+    sdk: models.GenerativeModelSDK,
+    expected: mp.ProviderModels,
+) -> None:
+    encrypted_config = EncryptionService().encrypt(b"{}")
+    async with db() as session:
+        provider = models.GenerativeModelCustomProvider(
+            name=f"orm-default-{sdk}",
+            provider=sdk,
+            sdk=sdk,
+            config=encrypted_config,
+        )
+        session.add(provider)
+        await session.flush()
+        provider_rowid = provider.id
+
+    async with db() as session:
+        reloaded = await session.get(models.GenerativeModelCustomProvider, provider_rowid)
+        assert reloaded is not None
+        assert reloaded.models == expected
+
+
+async def test_models_only_patch_bumps_updated_at(
+    gql_client: AsyncGraphQLClient, db: DbSessionFactory
+) -> None:
+    provider_id = await create(gql_client, "Models timestamp check", openai_config())
+    provider_rowid = int(GlobalID.from_id(provider_id).node_id)
+    initial_updated_at = datetime(2025, 1, 1, tzinfo=timezone.utc)
+
+    async with db() as session:
+        record = await session.get(models.GenerativeModelCustomProvider, provider_rowid)
+        assert record is not None
+        record.updated_at = initial_updated_at
+
+    result = await gql_client.execute(
+        """mutation ($input: PatchGenerativeModelCustomProviderMutationInput!) {
+          patchGenerativeModelCustomProvider(input: $input) {
+            provider { updatedAt models { chat { names } decision { names } } }
+          }
+        }""",
+        variables={
+            "input": {
+                "id": provider_id,
+                "models": {"chat": {"names": ["gpt-4o"]}, "decision": {"names": ["gpt-6-luna"]}},
+            }
+        },
+    )
+    assert result.data and not result.errors, result.errors
+    async with db() as session:
+        record = await session.get(models.GenerativeModelCustomProvider, provider_rowid)
+        assert record is not None
+        assert record.updated_at > initial_updated_at
+
+
+async def test_db_rejects_crosswalk_without_served_type_row(db: DbSessionFactory) -> None:
+    encrypted_config = EncryptionService().encrypt(b"{}")
+    async with db() as session:
+        provider = models.GenerativeModelCustomProvider(
+            name="chat-only-fk-check",
+            provider="openai",
+            sdk="openai",
+            config=encrypted_config,
+        )
+        profile = models.ModelProfile(model_type="decision", name="gpt-6-luna")
+        session.add_all([provider, profile])
+        await session.flush()
+        provider_rowid = provider.id
+        profile_id = profile.id
+
+    with pytest.raises((PostgreSQLIntegrityError, SQLiteIntegrityError)):
+        async with db() as session:
+            await session.execute(
+                sa.insert(models.CustomProviderModelProfile).values(
+                    provider_id=provider_rowid,
+                    model_type="decision",
+                    model_profile_id=profile_id,
+                    position=0,
+                )
+            )
+
+
+async def test_db_rejects_crosswalk_whose_model_type_differs_from_profile(
+    db: DbSessionFactory,
+) -> None:
+    encrypted_config = EncryptionService().encrypt(b"{}")
+    async with db() as session:
+        provider = models.GenerativeModelCustomProvider(
+            name="mismatched-profile-fk-check",
+            provider="openai",
+            sdk="openai",
+            config=encrypted_config,
+        )
+        profile = models.ModelProfile(model_type="decision", name="gpt-6-luna")
+        session.add_all([provider, profile])
+        await session.flush()
+        provider_rowid = provider.id
+        profile_id = profile.id
+
+    with pytest.raises((PostgreSQLIntegrityError, SQLiteIntegrityError)):
+        async with db() as session:
+            await session.execute(
+                sa.insert(models.CustomProviderModelProfile).values(
+                    provider_id=provider_rowid,
+                    model_type="chat",
+                    model_profile_id=profile_id,
+                    position=0,
+                )
+            )
+
+
+@pytest.mark.parametrize(
+    ("model_type", "name"),
+    [
+        pytest.param("embedding", "text-embedding-3-small", id="invalid-model-type"),
+        pytest.param("chat", "", id="empty-name"),
+        pytest.param("chat", "   ", id="blank-name"),
+        pytest.param("chat", " gpt-4o", id="leading-space"),
+        pytest.param("chat", "gpt-4o ", id="trailing-space"),
+    ],
+)
+async def test_db_rejects_invalid_model_profile_type_or_name(
+    db: DbSessionFactory, model_type: str, name: str
+) -> None:
+    with pytest.raises((PostgreSQLIntegrityError, SQLiteIntegrityError)):
+        async with db() as session:
+            await session.execute(
+                sa.insert(models.ModelProfile).values(
+                    model_type=model_type,
+                    name=name,
+                )
+            )
+
+
+async def test_db_rejects_invalid_custom_provider_model_type(db: DbSessionFactory) -> None:
+    encrypted_config = EncryptionService().encrypt(b"{}")
+    async with db() as session:
+        provider = models.GenerativeModelCustomProvider(
+            name="invalid-type-check",
+            provider="openai",
+            sdk="openai",
+            config=encrypted_config,
+        )
+        session.add(provider)
+        await session.flush()
+        provider_rowid = provider.id
+
+    with pytest.raises((PostgreSQLIntegrityError, SQLiteIntegrityError)):
+        async with db() as session:
+            await session.execute(
+                sa.insert(models.CustomProviderModelType).values(
+                    provider_id=provider_rowid,
+                    model_type="embedding",
+                )
+            )
