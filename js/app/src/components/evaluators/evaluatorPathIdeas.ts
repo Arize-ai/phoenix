@@ -403,7 +403,7 @@ function toStepSyntax(step: EvaluatorPathStep): EvaluatorPathSyntax[] {
         ? ["wildcard"]
         : ["slice"];
     case "fields":
-      return step.keys.includes("*") ? ["wildcard"] : [];
+      return step.isWildcard ? ["wildcard"] : [];
     case "root":
       return [];
     default:
