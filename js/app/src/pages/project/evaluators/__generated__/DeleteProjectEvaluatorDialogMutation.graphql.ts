@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8123957bae615e7dd9275ecd1d38655a>>
+ * @generated SignedSource<<48cbd1e21458af675dc8d81a200f6161>>
  * @lightSyntaxTransform
  */
 
@@ -10,6 +10,8 @@
 import { ConcreteRequest } from 'relay-runtime';
 export type DeleteProjectEvaluatorsInput = {
   deleteAssociatedPrompt?: boolean;
+  deleteAssociatedPromptOrDecision?: boolean | null;
+  deleteUnusedEvaluator?: boolean;
   projectEvaluatorIds: ReadonlyArray<string>;
 };
 export type DeleteProjectEvaluatorDialogMutation$variables = {

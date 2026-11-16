@@ -307,7 +307,10 @@ class AnnotationConfigMutationMixin:
 
         async with info.context.db() as session:
             result = await session.scalars(
-                select(models.Project.id).where(models.Project.id.in_(project_ids))
+                select(models.Project.id).where(
+                    models.Project.id.in_(project_ids),
+                    models.Project.deleted_at.is_(None),
+                )
             )
             resolved_project_ids = result.all()
             if set(project_ids) - set(resolved_project_ids):

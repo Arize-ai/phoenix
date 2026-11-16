@@ -26,6 +26,7 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 from typing_extensions import TypeAlias
 
+from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.helpers import (
     get_dataset_example_revisions,
@@ -503,7 +504,7 @@ async def _stream_experiments_over_dataset(
             input.tasks, resolved_evaluator_tasks, resolved_decision_tasks
         ):
             project_name = generate_experiment_project_name()
-            await _ensure_project(session, project_name)
+            project_rowid = await _ensure_project(session, project_name)
             experiment = models.Experiment(
                 dataset_id=target.dataset_id,
                 dataset_version_id=target.dataset_version_id,
@@ -514,6 +515,7 @@ async def _stream_experiments_over_dataset(
                 metadata_=input.experiment_metadata or dict(),
                 is_ephemeral=bool(input.create_ephemeral_experiment),
                 project_name=project_name,
+                project_id=project_rowid,
                 user_id=info.context.user_id,
             )
             if target.split_ids:
@@ -528,7 +530,7 @@ async def _stream_experiments_over_dataset(
             # inheritance), so adding one inserts into both tables. claimed_at=NULL means
             # not running; start_experiment(experiment.id) claims it.
             if task.prompt:
-                _add_prompt_task(
+                await _add_prompt_task(
                     session, experiment, task.prompt, max_concurrency=input.max_concurrency
                 )
             elif task.decision:
@@ -540,7 +542,7 @@ async def _stream_experiments_over_dataset(
                         **resolved_decision_task.columns(),
                     )
                 )
-                _attach_dataset_evaluators(session, experiment, task.decision.evaluators)
+                await _attach_dataset_evaluators(session, experiment, task.decision.evaluators)
             else:
                 assert task.evaluator and resolved_evaluator_task is not None
                 session.add(
@@ -813,21 +815,31 @@ async def _with_task_source(
     return definition.model_copy(update={"source": source})
 
 
-async def _ensure_project(session: AsyncSession, project_name: str) -> None:
-    if (
-        await session.scalar(select(models.Project.id).where(models.Project.name == project_name))
-    ) is None:
-        await session.scalar(
+async def _ensure_project(session: AsyncSession, project_name: str) -> int:
+    project_id = await session.scalar(
+        select(models.Project.id).where(
+            models.Project.name == project_name,
+            models.Project.deleted_at.is_(None),
+        )
+    )
+    if project_id is None:
+        kind: models.ProjectKindName = (
+            "PLAYGROUND" if project_name == PLAYGROUND_PROJECT_NAME else "EXPERIMENT"
+        )
+        project_id = await session.scalar(
             insert(models.Project)
             .returning(models.Project.id)
             .values(
                 name=project_name,
-                description="Traces from prompt playground",
+                kind=kind,
+                description="Traces from experiment runs",
             )
         )
+    assert project_id is not None
+    return project_id
 
 
-def _add_prompt_task(
+async def _add_prompt_task(
     session: AsyncSession,
     experiment: models.Experiment,
     task: PromptTaskInput,
@@ -873,22 +885,40 @@ def _add_prompt_task(
             stream_model_output=task.stream_model_output,
         )
     )
-    _attach_dataset_evaluators(session, experiment, task.evaluators)
+    await _attach_dataset_evaluators(session, experiment, task.evaluators)
 
 
-def _attach_dataset_evaluators(
+async def _attach_dataset_evaluators(
     session: AsyncSession,
     experiment: models.Experiment,
     evaluators: Sequence[PlaygroundEvaluatorInput],
 ) -> None:
     """Attach the dataset evaluators that judge a prompt or decision task's runs."""
-    for evaluator_input in evaluators:
+    if not evaluators:
+        return
+    requested_ids = [
+        (
+            evaluator_input.id,
+            from_global_id_with_expected_type(evaluator_input.id, "DatasetEvaluator"),
+        )
+        for evaluator_input in evaluators
+    ]
+    live_ids = set(
+        await session.scalars(
+            select(models.DatasetEvaluators.id).where(
+                models.DatasetEvaluators.id.in_([row_id for _, row_id in requested_ids]),
+                models.DatasetEvaluators.dataset_id == experiment.dataset_id,
+                models.DatasetEvaluators.deleted_at.is_(None),
+            )
+        )
+    )
+    for global_id, row_id in requested_ids:
+        if row_id not in live_ids:
+            raise NotFound(f"DatasetEvaluator with ID '{global_id}' not found")
         session.add(
             models.ExperimentDatasetEvaluator(
                 experiment_id=experiment.id,
-                dataset_evaluator_id=from_global_id_with_expected_type(
-                    evaluator_input.id, "DatasetEvaluator"
-                ),
+                dataset_evaluator_id=row_id,
             )
         )
 

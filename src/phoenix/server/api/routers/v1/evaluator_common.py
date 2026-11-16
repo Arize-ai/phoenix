@@ -202,10 +202,13 @@ def evaluator_api_errors() -> Iterator[None]:
 
 def evaluator_service_context(request: Request) -> definitions.EvaluatorServiceContext:
     """Build evaluator service dependencies from the current request."""
+    app_state = getattr(request.app, "state", None)
+    cleanup_worker = getattr(app_state, "cleanup_worker", None)
     return definitions.EvaluatorServiceContext(
         db=request.app.state.db,
         sandbox_runtime=request.app.state.sandbox_runtime,
         user_id=int(request.user.identity) if "user" in request.scope else None,
+        wake_cleanup_worker=(cleanup_worker.wake if cleanup_worker is not None else (lambda: None)),
     )
 
 

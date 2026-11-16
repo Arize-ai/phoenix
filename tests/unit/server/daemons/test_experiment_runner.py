@@ -1667,7 +1667,7 @@ class _EvaluatorExperiment:
 @pytest.fixture
 async def evaluator_experiment(db: DbSessionFactory) -> _EvaluatorExperiment:
     async with db() as session:
-        project = models.Project(name=f"Experiment-{token_hex(4)}")
+        project = models.Project(name=f"Experiment-{token_hex(4)}", kind="EXPERIMENT")
         dataset = models.Dataset(name=f"dataset-{token_hex(4)}", metadata_={})
         session.add_all([project, dataset])
         await session.flush()
@@ -1703,6 +1703,7 @@ async def evaluator_experiment(db: DbSessionFactory) -> _EvaluatorExperiment:
             repetitions=1,
             metadata_={},
             project_name=project.name,
+            project_id=project.id,
         )
         session.add(experiment)
         await session.flush()

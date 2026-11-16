@@ -84,16 +84,32 @@ async def persist_evaluator_traces(
     if db.should_not_insert_or_update:
         return
     async with db() as session:
-        project_id = await session.scalar(
-            select(models.ProjectEvaluator.trace_project_id).where(
-                models.ProjectEvaluator.id == project_evaluator_id
+        binding_row = (
+            await session.execute(
+                select(
+                    models.ProjectEvaluator.trace_project_id,
+                    models.ProjectEvaluator.deleted_at,
+                    models.ProjectEvaluator.tracing_enabled,
+                )
+                .where(models.ProjectEvaluator.id == project_evaluator_id)
+                .with_for_update(read=True)
             )
-        )
-        if project_id is None:
+        ).one_or_none()
+        if (
+            binding_row is None
+            or binding_row.deleted_at is not None
+            or not binding_row.tracing_enabled
+        ):
             logger.info(
-                "Dropping evaluator trace: project evaluator %s no longer exists",
+                "Dropping evaluator trace: project evaluator %s is deleted, missing, or untraced",
                 project_evaluator_id,
             )
+            return
+        project_id = int(binding_row.trace_project_id)
+        trace_project_deleted_at = await session.scalar(
+            select(models.Project.deleted_at).where(models.Project.id == project_id)
+        )
+        if trace_project_deleted_at is not None:
             return
         db_traces = tracer.get_db_traces(project_id=project_id)
         if not db_traces:

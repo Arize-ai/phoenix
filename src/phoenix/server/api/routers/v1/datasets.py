@@ -35,7 +35,7 @@ from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
-from phoenix.db.helpers import get_eval_trace_ids_for_datasets, get_project_names_for_datasets
+from phoenix.db.helpers import SupportedSQLDialect, get_eval_trace_ids_for_datasets
 from phoenix.db.insertion.dataset import (
     DatasetAction,
     DatasetExampleAdditionEvent,
@@ -52,10 +52,14 @@ from phoenix.server.api.types.DatasetExample import DatasetExample as DatasetExa
 from phoenix.server.api.types.DatasetSplit import DatasetSplit as DatasetSplitNodeType
 from phoenix.server.api.types.DatasetVersion import DatasetVersion as DatasetVersionNodeType
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.utils import delete_projects, delete_traces
+from phoenix.server.api.utils import delete_traces
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
-from phoenix.server.dml_event import DatasetInsertEvent
+from phoenix.server.cleanup.lifecycle import (
+    admit_exclusive_experiment_projects_delete,
+    logical_delete_dataset_evaluators,
+)
+from phoenix.server.dml_event import DatasetDeleteEvent, DatasetInsertEvent
 from phoenix.utilities.content_hashing import compute_example_content_hash
 
 from .models import V1RoutesBaseModel
@@ -181,7 +185,9 @@ async def list_datasets(
     ),
 )
 async def delete_dataset(
-    request: Request, id: str = Path(description="The ID of the dataset to delete.")
+    request: Request,
+    background_tasks: BackgroundTasks,
+    id: str = Path(description="The ID of the dataset to delete."),
 ) -> None:
     if id:
         try:
@@ -193,19 +199,63 @@ async def delete_dataset(
             raise HTTPException(detail=f"Invalid Dataset ID: {id}", status_code=422)
     else:
         raise HTTPException(detail="Missing Dataset ID", status_code=422)
-    project_names_stmt = get_project_names_for_datasets(dataset_id)
+    db = request.app.state.db
+    dialect = SupportedSQLDialect(db.dialect.value)
     eval_trace_ids_stmt = get_eval_trace_ids_for_datasets(dataset_id)
     stmt = (
         delete(models.Dataset).where(models.Dataset.id == dataset_id).returning(models.Dataset.id)
     )
-    async with request.app.state.db() as session:
-        project_names = await session.scalars(project_names_stmt)
-        eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
+    enqueued_cleanup = False
+    async with db() as session:
+        locked_dataset = await session.get(models.Dataset, dataset_id, with_for_update=True)
+        if locked_dataset is None:
+            raise HTTPException(detail="Dataset does not exist", status_code=404)
+        eval_trace_ids = [tid for tid in (await session.scalars(eval_trace_ids_stmt)).all() if tid]
+        candidate_project_ids = {
+            pid
+            for pid in (
+                await session.scalars(
+                    select(models.Experiment.project_id).where(
+                        models.Experiment.dataset_id == dataset_id,
+                        models.Experiment.project_id.is_not(None),
+                    )
+                )
+            ).all()
+            if pid is not None
+        }
+        live_binding_ids = list(
+            await session.scalars(
+                select(models.DatasetEvaluators.id).where(
+                    models.DatasetEvaluators.dataset_id == dataset_id,
+                    models.DatasetEvaluators.deleted_at.is_(None),
+                )
+            )
+        )
+        if live_binding_ids:
+            deleted_bindings = await logical_delete_dataset_evaluators(
+                session,
+                dialect=dialect,
+                binding_ids=live_binding_ids,
+                collect_unused_evaluator=False,
+                collect_associated_resource=False,
+            )
+            enqueued_cleanup = enqueued_cleanup or bool(deleted_bindings)
         if (await session.scalar(stmt)) is None:
             raise HTTPException(detail="Dataset does not exist", status_code=404)
-    tasks = BackgroundTasks()
-    tasks.add_task(delete_projects, request.app.state.db, *project_names)
-    tasks.add_task(delete_traces, request.app.state.db, *eval_trace_ids)
+        if candidate_project_ids:
+            deleted_projects = await admit_exclusive_experiment_projects_delete(
+                session,
+                dialect=dialect,
+                candidate_project_ids=candidate_project_ids,
+            )
+            enqueued_cleanup = enqueued_cleanup or bool(deleted_projects)
+    if enqueued_cleanup:
+        cleanup_worker = getattr(request.app.state, "cleanup_worker", None)
+        if cleanup_worker is not None:
+            cleanup_worker.wake()
+    if eval_trace_ids:
+        background_tasks.add_task(delete_traces, db, *eval_trace_ids)
+    request.state.event_queue.put(DatasetDeleteEvent((dataset_id,)))
 
 
 class DatasetWithExampleCount(Dataset):

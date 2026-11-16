@@ -158,10 +158,18 @@ class AgentSessionMutationMixin:
                 raise NotFound(str(exc)) from exc
             except ProviderUnsupportedError as exc:
                 raise BadRequest(str(exc)) from exc
+            assistant_project_name = get_env_phoenix_agents_assistant_project_name()
+            existing_project_id = await session.scalar(
+                select(models.Project.id).where(
+                    models.Project.name == assistant_project_name,
+                    models.Project.deleted_at.is_(None),
+                )
+            )
             agent_session = models.AgentSession(
                 user_id=info.context.user_id,
                 title=title,
-                project_name=get_env_phoenix_agents_assistant_project_name(),
+                project_name=assistant_project_name,
+                project_id=existing_project_id,
                 is_ephemeral=input.is_ephemeral,
                 model_provider=routing.model_provider,
                 model_name=routing.model_name,
@@ -263,10 +271,18 @@ class AgentSessionMutationMixin:
             regenerated_messages = [
                 message.model_copy(update={"id": str(uuid4())}) for message in message_prefix
             ]
+            assistant_project_name = get_env_phoenix_agents_assistant_project_name()
+            existing_project_id = await session.scalar(
+                select(models.Project.id).where(
+                    models.Project.name == assistant_project_name,
+                    models.Project.deleted_at.is_(None),
+                )
+            )
             branch_session = models.AgentSession(
                 user_id=info.context.user_id,
                 title=truncate_agent_session_title(source_session.title),
-                project_name=get_env_phoenix_agents_assistant_project_name(),
+                project_name=assistant_project_name,
+                project_id=existing_project_id,
                 is_ephemeral=source_session.is_ephemeral,
                 model_provider=source_session.model_provider,
                 model_name=source_session.model_name,

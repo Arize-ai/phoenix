@@ -151,7 +151,10 @@ async def _project_evaluator(session: AsyncSession, project_evaluator_id: str) -
         await session.execute(
             select(models.ProjectEvaluator, models.Evaluator.kind)
             .join(models.Evaluator, models.ProjectEvaluator.evaluator_id == models.Evaluator.id)
-            .where(models.ProjectEvaluator.id == row_id)
+            .where(
+                models.ProjectEvaluator.id == row_id,
+                models.ProjectEvaluator.deleted_at.is_(None),
+            )
         )
     ).one_or_none()
     if pair is None:
@@ -168,6 +171,7 @@ async def _written_project_evaluator(
 
 
 def _binding_response(row: models.ProjectEvaluator, kind: models.EvaluatorKind) -> ProjectEvaluator:
+    assert row.evaluator_id is not None
     return ProjectEvaluator(
         id=encode_global_id("ProjectEvaluator", row.id),
         project_id=encode_global_id("Project", row.project_id),
@@ -255,7 +259,10 @@ async def get_project_evaluators(
             stmt = (
                 select(models.ProjectEvaluator, models.Evaluator.kind)
                 .join(models.Evaluator, models.ProjectEvaluator.evaluator_id == models.Evaluator.id)
-                .where(models.ProjectEvaluator.project_id == project.id)
+                .where(
+                    models.ProjectEvaluator.project_id == project.id,
+                    models.ProjectEvaluator.deleted_at.is_(None),
+                )
                 .order_by(models.ProjectEvaluator.id.desc())
             )
             if cursor is not None:

@@ -26,7 +26,8 @@ from phoenix.server.api.routers.v1.models import IsoDatetime
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
-from phoenix.server.dml_event import ExperimentInsertEvent
+from phoenix.server.cleanup.lifecycle import admit_exclusive_experiment_projects_delete
+from phoenix.server.dml_event import ExperimentDeleteEvent, ExperimentInsertEvent
 from phoenix.server.experiments.utils import generate_experiment_project_name
 
 from .datasets import _resolve_split_identifiers
@@ -204,6 +205,21 @@ async def create_experiment(
         project_description = (
             f"dataset_id: {dataset_globalid}\ndataset_version_id: {dataset_version_globalid}"
         )
+        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
+        project_rowid = await session.scalar(
+            insert_on_conflict(
+                dict(
+                    name=project_name,
+                    kind="EXPERIMENT",
+                    description=project_description,
+                ),
+                dialect=dialect,
+                table=models.Project,
+                unique_by=("name",),
+                index_where=sa.text("deleted_at IS NULL"),
+            ).returning(models.Project.id)
+        )
+        assert project_rowid is not None
         experiment = models.Experiment(
             dataset_id=int(dataset_rowid),
             dataset_version_id=int(dataset_version_id),
@@ -212,6 +228,7 @@ async def create_experiment(
             repetitions=request_body.repetitions,
             metadata_=request_body.metadata or {},
             project_name=project_name,
+            project_id=project_rowid,
             user_id=user_id,
         )
 
@@ -229,22 +246,6 @@ async def create_experiment(
 
         # crosswalk table assumes the relation is already present
         await insert_experiment_with_examples_snapshot(session, experiment)
-
-        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
-        project_rowid = await session.scalar(
-            insert_on_conflict(
-                dict(
-                    name=project_name,
-                    description=project_description,
-                    created_at=experiment.created_at,
-                    updated_at=experiment.updated_at,
-                ),
-                dialect=dialect,
-                table=models.Project,
-                unique_by=("name",),
-            ).returning(models.Project.id)
-        )
-        assert project_rowid is not None
 
         experiment_globalid = GlobalID("Experiment", str(experiment.id))
         if dataset_version_globalid_str is None:
@@ -592,18 +593,27 @@ async def delete_experiment(
     stmt = (
         sa.delete(models.Experiment)
         .where(models.Experiment.id == experiment_rowid)
-        .returning(models.Experiment.project_name)
+        .returning(models.Experiment.project_id)
     )
-    async with request.app.state.db() as session:
+    db = request.app.state.db
+    dialect = SupportedSQLDialect(db.dialect.value)
+    enqueued_projects: list[int] = []
+    async with db() as session:
         result = (await session.execute(stmt)).first()
         if result is None:
             raise HTTPException(detail="Experiment does not exist", status_code=404)
-        project_name = result.project_name
-        if delete_project and project_name:
-            delete_project_stmt = sa.delete(models.Project).where(
-                models.Project.name == project_name
+        project_id = result.project_id
+        if delete_project and project_id is not None:
+            enqueued_projects = await admit_exclusive_experiment_projects_delete(
+                session,
+                dialect=dialect,
+                candidate_project_ids=[project_id],
             )
-            await session.execute(delete_project_stmt)
+    request.state.event_queue.put(ExperimentDeleteEvent((experiment_rowid,)))
+    if enqueued_projects:
+        cleanup_worker = getattr(request.app.state, "cleanup_worker", None)
+        if cleanup_worker is not None:
+            cleanup_worker.wake()
 
 
 class ListExperimentsResponseBody(PaginatedResponseBody[Experiment]):

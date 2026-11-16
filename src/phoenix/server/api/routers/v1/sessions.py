@@ -237,7 +237,6 @@ async def get_session(
         "This will permanently remove the session and all associated traces, spans, "
         "and annotations via cascade delete."
     ),
-    dependencies=[Depends(is_not_locked)],
     responses=add_errors_to_responses([404]),
     status_code=204,
 )
@@ -283,7 +282,6 @@ async def delete_session(
         "Non-existent IDs are silently skipped. "
         "All associated traces, spans, and annotations are cascade deleted."
     ),
-    dependencies=[Depends(is_not_locked)],
     responses=add_errors_to_responses([422]),
     status_code=204,
 )

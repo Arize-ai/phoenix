@@ -1668,7 +1668,9 @@ async def test_hydration_savepoint_isolates_a_unit_database_error(
         *,
         project_id: int,
         target_vocabularies: Mapping[int, Mapping[str, Any]],
-    ) -> tuple[dict[str, Any], dict[str, Any] | None] | HydrationFailure:
+    ) -> (
+        tuple[dict[str, Any], dict[str, Any] | None] | HydrationFailure | PublicationClaimLostError
+    ):
         if unit.target_rowid == bad_span.id:
             await session.execute(text("SELECT 1 / 0"))
         return await original(

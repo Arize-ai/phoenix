@@ -10,6 +10,7 @@ from strawberry.relay import GlobalID
 from typing_extensions import assert_never
 
 from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.models import (
     DEFAULT_EVALUATION_DELAY_SECONDS,
     MINIMUM_EVALUATION_DELAY_SECONDS,
@@ -46,6 +47,22 @@ EVALUATOR_MODEL_BY_KIND: dict[EvaluatorKind, type[models.Evaluator]] = {
 }
 
 
+async def get_live_dataset_evaluator(
+    session: AsyncSession, dataset_evaluator_id: int
+) -> Optional[models.DatasetEvaluators]:
+    """The binding, or None when it is missing or deleted."""
+    binding = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
+    return binding if binding is not None and binding.deleted_at is None else None
+
+
+async def get_live_project_evaluator(
+    session: AsyncSession, project_evaluator_id: int
+) -> Optional[models.ProjectEvaluator]:
+    """The binding, or None when it is missing or deleted."""
+    binding = await session.get(models.ProjectEvaluator, project_evaluator_id)
+    return binding if binding is not None and binding.deleted_at is None else None
+
+
 async def is_sole_evaluator_binding(
     session: AsyncSession,
     evaluator_id: int,
@@ -57,13 +74,19 @@ async def is_sole_evaluator_binding(
     dataset_binding_count = (
         select(func.count())
         .select_from(models.DatasetEvaluators)
-        .where(models.DatasetEvaluators.evaluator_id == evaluator_id)
+        .where(
+            models.DatasetEvaluators.evaluator_id == evaluator_id,
+            models.DatasetEvaluators.deleted_at.is_(None),
+        )
         .scalar_subquery()
     )
     project_binding_count = (
         select(func.count())
         .select_from(models.ProjectEvaluator)
-        .where(models.ProjectEvaluator.evaluator_id == evaluator_id)
+        .where(
+            models.ProjectEvaluator.evaluator_id == evaluator_id,
+            models.ProjectEvaluator.deleted_at.is_(None),
+        )
         .scalar_subquery()
     )
     binding_count = await session.scalar(select(dataset_binding_count + project_binding_count))
@@ -219,6 +242,7 @@ def get_project_for_dataset_evaluator(
     name = Identifier.model_validate(f"dataset-evaluator-{token_hex(12)}")
     return models.Project(
         name=name.root,
+        kind="EVALUATOR",
         description=(
             f"Traces for dataset evaluator: {dataset_evaluator_name} on dataset: {dataset_name}"
         ),
@@ -233,6 +257,7 @@ def get_trace_project_for_project_evaluator(
     name = Identifier.model_validate(f"project-evaluator-{token_hex(12)}")
     return models.Project(
         name=name.root,
+        kind="EVALUATOR",
         description=(
             f"Traces for project evaluator: {project_evaluator_name} on project: {project_name}"
         ),
@@ -326,14 +351,37 @@ async def release_llm_evaluator_prompt(
         await release_evaluator_prompt_label(session, prompt_id)
 
 
+async def release_decision_evaluator_tag(
+    session: AsyncSession, decision_version_tag_id: int
+) -> None:
+    """Delete the tag a removed decision evaluator ran through, unless another evaluator still
+    runs through it. Call this once the evaluator row itself is gone."""
+    await session.execute(
+        delete(models.DecisionVersionTag).where(
+            models.DecisionVersionTag.id == decision_version_tag_id,
+            ~select(models.DecisionEvaluator.id)
+            .where(models.DecisionEvaluator.decision_version_tag_id == models.DecisionVersionTag.id)
+            .exists(),
+        )
+    )
+
+
 async def validate_project_evaluator_project(
     session: AsyncSession,
     project_id: int,
     project_global_id: GlobalID,
+    *,
+    lock: bool = False,
 ) -> models.Project:
-    project = await session.get(models.Project, project_id)
-    if project is None:
+    project = await session.get(
+        models.Project,
+        project_id,
+        with_for_update={"key_share": True} if lock else False,
+    )
+    if project is None or project.deleted_at is not None:
         raise NotFound(f"Project not found: {project_global_id}")
+    if project.kind == "EVALUATOR":
+        raise BadRequest("This project holds evaluator traces and cannot be evaluated")
     holds_evaluator_traces = await session.scalar(
         select(models.ProjectEvaluator.id)
         .where(models.ProjectEvaluator.trace_project_id == project_id)
@@ -406,17 +454,31 @@ def validate_project_evaluator_target_update(
 async def garbage_collect_evaluators(
     session: AsyncSession,
     *,
+    dialect: SupportedSQLDialect,
     evaluator_ids: set[int],
     prompt_ids: set[int],
-    delete_associated_prompt: bool,
+    decision_ids: set[int] = set(),
+    delete_associated_prompt_or_decision: bool,
 ) -> None:
+    """Delete the evaluators nothing live binds, with the version tags they run through.
+
+    With ``delete_associated_prompt_or_decision``, also lock candidate prompts and decisions in
+    ascending ID order and, in a subsequent statement, delete each one that no remaining
+    evaluator uses. Built-in evaluators are never deleted.
+    """
     deleted_ids: set[int] = set()
     llm_evaluator_prompts: dict[int, tuple[Optional[int], int]] = {}
+    decision_evaluator_tags: dict[int, Optional[int]] = {}
     if evaluator_ids:
-        # Read the LLM evaluators' tag and prompt before deleting: once a row is gone there is
-        # nothing left to join it against. RETURNING then reports only the evaluators this
-        # delete actually removed, so a binding added between this read and that delete (which
-        # keeps the row) can't be cleaned up as if it were unbound.
+        decision_evaluator_tags = {
+            row.id: row.decision_version_tag_id
+            for row in await session.execute(
+                select(
+                    models.DecisionEvaluator.id,
+                    models.DecisionEvaluator.decision_version_tag_id,
+                ).where(models.DecisionEvaluator.id.in_(evaluator_ids))
+            )
+        }
         llm_evaluator_prompts = {
             row.id: (row.prompt_version_tag_id, row.prompt_id)
             for row in await session.execute(
@@ -432,34 +494,69 @@ async def garbage_collect_evaluators(
                 delete(models.Evaluator)
                 .where(
                     models.Evaluator.id.in_(evaluator_ids),
-                    # Decision judges are standalone and may serve several datasets or
-                    # projects; they are deleted explicitly, never garbage-collected.
-                    models.Evaluator.kind != "DECISION",
+                    models.Evaluator.kind.not_in(("BUILTIN", "DECISION")),
                     ~select(models.DatasetEvaluators.id)
-                    .where(models.DatasetEvaluators.evaluator_id == models.Evaluator.id)
+                    .where(
+                        models.DatasetEvaluators.evaluator_id == models.Evaluator.id,
+                        models.DatasetEvaluators.deleted_at.is_(None),
+                    )
                     .exists(),
                     ~select(models.ProjectEvaluator.id)
-                    .where(models.ProjectEvaluator.evaluator_id == models.Evaluator.id)
+                    .where(
+                        models.ProjectEvaluator.evaluator_id == models.Evaluator.id,
+                        models.ProjectEvaluator.deleted_at.is_(None),
+                    )
                     .exists(),
                 )
                 .returning(models.Evaluator.id)
             )
         )
-    if delete_associated_prompt and prompt_ids:
+        await session.flush()
+
+    if delete_associated_prompt_or_decision and prompt_ids and deleted_ids:
+        sorted_prompts = sorted(prompt_ids)
+        if dialect is SupportedSQLDialect.POSTGRESQL:
+            await session.execute(
+                select(models.Prompt.id)
+                .where(models.Prompt.id.in_(sorted_prompts))
+                .order_by(models.Prompt.id.asc())
+                .with_for_update()
+            )
         await session.execute(
             delete(models.Prompt).where(
-                models.Prompt.id.in_(prompt_ids),
+                models.Prompt.id.in_(sorted_prompts),
                 ~select(models.LLMEvaluator.id)
                 .where(models.LLMEvaluator.prompt_id == models.Prompt.id)
                 .exists(),
             )
         )
+
+    if delete_associated_prompt_or_decision and decision_ids and deleted_ids:
+        sorted_decisions = sorted(decision_ids)
+        if dialect is SupportedSQLDialect.POSTGRESQL:
+            await session.execute(
+                select(models.Decision.id)
+                .where(models.Decision.id.in_(sorted_decisions))
+                .order_by(models.Decision.id.asc())
+                .with_for_update()
+            )
+        await session.execute(
+            delete(models.Decision).where(
+                models.Decision.id.in_(sorted_decisions),
+                ~select(models.DecisionEvaluator.id)
+                .where(models.DecisionEvaluator.decision_id == models.Decision.id)
+                .exists(),
+            )
+        )
+
     for evaluator_id in deleted_ids:
         if (prompt_info := llm_evaluator_prompts.get(evaluator_id)) is not None:
             tag_id, prompt_id = prompt_info
             await release_llm_evaluator_prompt(
                 session, prompt_version_tag_id=tag_id, prompt_id=prompt_id
             )
+        if (decision_tag_id := decision_evaluator_tags.get(evaluator_id)) is not None:
+            await release_decision_evaluator_tag(session, decision_tag_id)
 
 
 def parse_evaluator_id(global_id: GlobalID) -> tuple[int, EvaluatorKind]:

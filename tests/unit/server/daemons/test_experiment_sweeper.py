@@ -8,6 +8,7 @@ import sqlalchemy as sa
 
 from phoenix.config import EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS
 from phoenix.db import models
+from phoenix.server.cleanup.coordinator import CleanupCoordinator
 from phoenix.server.daemons.experiment_sweeper import ExperimentSweeper
 from phoenix.server.types import DbSessionFactory
 
@@ -64,6 +65,15 @@ class TestExperimentSweeper:
             session.add(version)
             await session.flush()
 
+            project_id: Optional[int] = None
+            if project_name is not None:
+                project_id = await session.scalar(
+                    sa.select(models.Project.id).where(
+                        models.Project.name == project_name,
+                        models.Project.deleted_at.is_(None),
+                    )
+                )
+
             experiment_kwargs: dict[str, Any] = dict(
                 dataset_id=dataset.id,
                 dataset_version_id=version.id,
@@ -72,6 +82,7 @@ class TestExperimentSweeper:
                 repetitions=1,
                 metadata_={},
                 project_name=project_name,
+                project_id=project_id,
                 created_at=created_at,
             )
             if updated_at is not None:
@@ -126,7 +137,7 @@ class TestExperimentSweeper:
         # Case 1: expired ephemeral experiment with its own project → experiment and project deleted
         expired_project_name = "expired_ephemeral_project"
         async with db() as session:
-            session.add(models.Project(name=expired_project_name))
+            session.add(models.Project(name=expired_project_name, kind="EXPERIMENT"))
         expired_temp_id = await self._insert_experiment(
             db,
             name="eval run",
@@ -154,7 +165,7 @@ class TestExperimentSweeper:
         # Case 4: expired ephemeral + non-ephemeral share a project → ephemeral deleted, project kept
         shared_project_name = "shared_project"
         async with db() as session:
-            session.add(models.Project(name=shared_project_name))
+            session.add(models.Project(name=shared_project_name, kind="EXPERIMENT"))
         await self._insert_experiment(
             db,
             name="expired ephemeral",
@@ -179,6 +190,10 @@ class TestExperimentSweeper:
         # from `done.wait()` the sweeper is parked and holds no open DB sessions.
         await rendezvous.done.wait()
         rendezvous.done.clear()
+
+        coordinator = CleanupCoordinator(db)
+        while await coordinator.run_one_step():
+            pass
 
         assert not await self._experiment_exists(db, expired_temp_id), (
             "Expired ephemeral experiment should have been deleted"

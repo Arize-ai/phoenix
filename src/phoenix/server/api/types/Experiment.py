@@ -341,22 +341,23 @@ class Experiment(Node):
         self, info: Info[Context, None]
     ) -> Optional[Annotated["Project", strawberry.lazy(".Project")]]:
         if self.db_record:
-            project_name = self.db_record.project_name
+            project_id = self.db_record.project_id
         else:
-            project_name = await info.context.data_loaders.experiment_fields.load(
-                (self.id, models.Experiment.project_name),
+            project_id = await info.context.data_loaders.experiment_fields.load(
+                (self.id, models.Experiment.project_id),
             )
 
-        if project_name is None:
+        if project_id is None:
             return None
 
-        db_project = await info.context.data_loaders.project_by_name.load(project_name)
-
-        if db_project is None:
+        project_name = await info.context.data_loaders.project_fields.load(
+            (project_id, models.Project.name),
+        )
+        if project_name is None:
             return None
         from .Project import Project
 
-        return Project(id=db_project.id, db_record=db_project)
+        return Project(id=project_id)
 
     @strawberry.field
     def last_updated_at(self, info: Info[Context, None]) -> Optional[datetime]:

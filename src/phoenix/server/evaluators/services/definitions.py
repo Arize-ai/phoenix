@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from secrets import token_hex
-from typing import Any, Literal, Optional, Sequence, Union, cast, overload
+from typing import Any, Callable, Literal, Optional, Sequence, Union, cast, overload
 
 from pydantic import ValidationError
 from sqlalchemy import func, select
@@ -14,7 +14,7 @@ from strawberry import UNSET
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.helpers import code_evaluator_with_latest_version
+from phoenix.db.helpers import code_evaluator_with_latest_version, is_foreign_key_violation
 from phoenix.db.types.annotation_configs import (
     AnnotationConfigType,
     CategoricalOutputConfig,
@@ -56,6 +56,7 @@ class EvaluatorServiceContext:
     db: DbSessionFactory
     sandbox_runtime: SandboxRuntimeContext
     user_id: int | None = None
+    wake_cleanup_worker: Callable[[], None] = lambda: None
 
 
 def require_output_configs(configs: list[OutputConfigType]) -> None:
@@ -329,6 +330,8 @@ async def patch_code_evaluator(
 
     try:
         async with context.db() as session:
+            # Lock the evaluator row first to serialize with concurrent deletes or deploys.
+            await session.get(models.CodeEvaluator, evaluator_id, with_for_update=True)
             code_evaluator_with_version = await code_evaluator_with_latest_version(
                 session, evaluator_id
             )
@@ -539,6 +542,8 @@ async def create_llm_evaluator(
                 input_schema=input.input_schema,
             )
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+        if is_foreign_key_violation(error):
+            raise NotFound(f"Prompt version not found: {input.prompt_version_id}") from error
         raise await evaluator_name_taken(context, input.name) from error
     return evaluator
 
@@ -568,12 +573,14 @@ async def refuse_bound_evaluator(
 ) -> None:
     project_bindings = await session.scalar(
         select(func.count(models.ProjectEvaluator.id)).where(
-            models.ProjectEvaluator.evaluator_id == row_id
+            models.ProjectEvaluator.evaluator_id == row_id,
+            models.ProjectEvaluator.deleted_at.is_(None),
         )
     )
     dataset_bindings = await session.scalar(
         select(func.count(models.DatasetEvaluators.id)).where(
-            models.DatasetEvaluators.evaluator_id == row_id
+            models.DatasetEvaluators.evaluator_id == row_id,
+            models.DatasetEvaluators.deleted_at.is_(None),
         )
     )
     if project_bindings or dataset_bindings:
@@ -877,6 +884,8 @@ async def patch_llm_evaluator(
             )
             await session.flush()
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+        if is_foreign_key_violation(error):
+            raise NotFound("Prompt version not found") from error
         if patch.name is not UNSET and patch.name is not None:
             raise await evaluator_name_taken(context, patch.name) from error
         raise Conflict(

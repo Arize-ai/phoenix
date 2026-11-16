@@ -17,7 +17,9 @@ from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.types import UserId
 
 if TYPE_CHECKING:
+    from phoenix.server.cleanup.coordinator import CleanupCoordinator
     from phoenix.server.cost_tracking.span_cost_calculator import SpanCostCalculator
+    from phoenix.server.daemons.cleanup_worker import CleanupWorker
     from phoenix.server.daemons.experiment_runner import ExperimentRunner
     from phoenix.server.daemons.system_settings import SystemSettings
     from phoenix.server.dml_event import DmlEvent
@@ -58,6 +60,19 @@ class Context(BaseContext):
     secret: Optional[SecretStr] = None
     token_store: Optional[TokenStore] = None
     email_sender: Optional[EmailSender] = None
+    cleanup_worker: Optional[CleanupWorker] = None
+    cleanup_coordinator: Optional[CleanupCoordinator] = None
+
+    def wake_cleanup_worker(self) -> None:
+        if self.cleanup_worker is not None:
+            self.cleanup_worker.wake()
+
+    def get_cleanup_coordinator(self) -> CleanupCoordinator:
+        if self.cleanup_coordinator is not None:
+            return self.cleanup_coordinator
+        from phoenix.server.cleanup.coordinator import CleanupCoordinator
+
+        return CleanupCoordinator(self.db, event_queue=self.event_queue)
 
     def get_secret(self) -> SecretStr:
         """A type-safe way to get the application secret. Throws an error if the secret is not set.
@@ -135,6 +150,8 @@ def build_context(
     secret: Optional[SecretStr] = None,
     token_store: Optional[TokenStore] = None,
     email_sender: Optional[EmailSender] = None,
+    cleanup_worker: Optional[CleanupWorker] = None,
+    cleanup_coordinator: Optional[CleanupCoordinator] = None,
     request: Optional[StarletteRequest] = None,
 ) -> Context:
     """Build a GraphQL Context object."""
@@ -158,6 +175,8 @@ def build_context(
         secret=secret,
         token_store=token_store,
         email_sender=email_sender,
+        cleanup_worker=cleanup_worker,
+        cleanup_coordinator=cleanup_coordinator,
     )
     if request is not None:
         context.request = request

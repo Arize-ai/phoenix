@@ -221,9 +221,15 @@ class SavedDecisionMutationMixin:
                 raise Conflict(
                     f"This decision is referenced by {noun} ({names}); delete {pronoun} first"
                 )
-            result = await session.execute(
-                delete(models.Decision).where(models.Decision.id == row_id)
-            )
+            try:
+                async with session.begin_nested():
+                    result = await session.execute(
+                        delete(models.Decision).where(models.Decision.id == row_id)
+                    )
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+                raise Conflict(
+                    "This decision is referenced by an evaluator; delete it first"
+                ) from error
             if result.rowcount == 0:  # type: ignore[attr-defined]
                 raise NotFound(f"Decision not found: {input.decision_id}")
         return DeleteDecisionMutationPayload(query=Query())

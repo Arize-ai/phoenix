@@ -34,6 +34,7 @@ from phoenix.db.types.prompts import (
     PromptTools,
     TextContentPart,
 )
+from phoenix.server.cleanup.coordinator import CleanupCoordinator
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -3277,6 +3278,20 @@ async def empty_dataset(db: DbSessionFactory) -> AsyncIterator[models.Dataset]:
         await session.flush()
     yield dataset
     async with db() as session:
+        await session.execute(
+            sa.delete(models.DatasetEvaluatorCleanupTask).where(
+                models.DatasetEvaluatorCleanupTask.dataset_evaluator_id.in_(
+                    select(models.DatasetEvaluators.id).where(
+                        models.DatasetEvaluators.dataset_id == dataset.id
+                    )
+                )
+            )
+        )
+        await session.execute(
+            sa.delete(models.DatasetEvaluators).where(
+                models.DatasetEvaluators.dataset_id == dataset.id
+            )
+        )
         await session.execute(sa.delete(models.Dataset).where(models.Dataset.id == dataset.id))
 
 
@@ -3389,6 +3404,20 @@ async def llm_evaluator(
     yield evaluator
     async with db() as session:
         await session.execute(
+            sa.delete(models.DatasetEvaluatorCleanupTask).where(
+                models.DatasetEvaluatorCleanupTask.dataset_evaluator_id.in_(
+                    select(models.DatasetEvaluators.id).where(
+                        models.DatasetEvaluators.evaluator_id == evaluator.id
+                    )
+                )
+            )
+        )
+        await session.execute(
+            sa.delete(models.DatasetEvaluators).where(
+                models.DatasetEvaluators.evaluator_id == evaluator.id
+            )
+        )
+        await session.execute(
             sa.delete(models.LLMEvaluator).where(models.LLMEvaluator.id == evaluator.id)
         )
         await session.execute(
@@ -3411,6 +3440,12 @@ class TestDeleteDatasetEvaluators:
         }
       }
     """
+
+    @staticmethod
+    async def _drain_cleanup(db: DbSessionFactory) -> None:
+        coordinator = CleanupCoordinator(db)
+        while await coordinator.run_one_step():
+            pass
 
     async def test_delete_builtin_evaluator(
         self,
@@ -3456,8 +3491,12 @@ class TestDeleteDatasetEvaluators:
             dataset_evaluator_gid in result.data["deleteDatasetEvaluators"]["datasetEvaluatorIds"]
         )
 
-        # Verify the DatasetEvaluators row and associated project are deleted
-        # but the shared built-in evaluator definition is preserved.
+        # Verify the DatasetEvaluators row and associated project are tombstoned immediately
+        # and physically deleted after cleanup runs, while the built-in definition is preserved.
+        async with db() as session:
+            tombstoned = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
+            assert tombstoned is not None and tombstoned.deleted_at is not None
+        await self._drain_cleanup(db)
         async with db() as session:
             deleted_evaluator = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
             assert deleted_evaluator is None
@@ -3531,6 +3570,7 @@ class TestDeleteDatasetEvaluators:
         assert result.data is not None
         assert result.data["deleteDatasetEvaluators"]["datasetEvaluatorIds"] == [link_a_gid]
 
+        await self._drain_cleanup(db)
         async with db() as session:
             assert await session.get(models.DatasetEvaluators, link_a_id) is None
 
@@ -3637,7 +3677,10 @@ class TestDeleteDatasetEvaluators:
             dataset_evaluator_gid in result.data["deleteDatasetEvaluators"]["datasetEvaluatorIds"]
         )
 
-        # Verify the DatasetEvaluators, Evaluator, and Project rows are deleted
+        # Verify Evaluator is collected synchronously and DatasetEvaluators/Project are purged by cleanup
+        async with db() as session:
+            assert await session.get(models.Evaluator, evaluator_id) is None
+        await self._drain_cleanup(db)
         async with db() as session:
             deleted_dataset_evaluator = await session.get(
                 models.DatasetEvaluators, dataset_evaluator_id
@@ -3763,7 +3806,10 @@ class TestDeleteDatasetEvaluators:
         assert builtin_de_gid in deleted_ids
         assert llm_de_gid in deleted_ids
 
-        # Verify all rows including projects are deleted
+        # Verify all rows including projects are deleted after background cleanup drains
+        async with db() as session:
+            assert await session.get(models.Evaluator, llm_evaluator_id) is None
+        await self._drain_cleanup(db)
         async with db() as session:
             # Builtin dataset evaluator should be deleted
             deleted_builtin_de = await session.get(models.DatasetEvaluators, builtin_de_id)
@@ -3930,7 +3976,11 @@ class TestDeleteDatasetEvaluators:
             dataset_evaluator_gid in result.data["deleteDatasetEvaluators"]["datasetEvaluatorIds"]
         )
 
-        # Verify the evaluator, prompt, and project are all deleted
+        # Verify the evaluator and prompt are collected synchronously and project/binding purged by cleanup
+        async with db() as session:
+            assert await session.get(models.Evaluator, evaluator_id) is None
+            assert await session.get(models.Prompt, prompt_id) is None
+        await self._drain_cleanup(db)
         async with db() as session:
             deleted_dataset_evaluator = await session.get(
                 models.DatasetEvaluators, dataset_evaluator_id
@@ -4042,7 +4092,11 @@ class TestDeleteDatasetEvaluators:
             dataset_evaluator_gid in result.data["deleteDatasetEvaluators"]["datasetEvaluatorIds"]
         )
 
-        # Verify the evaluator and project are deleted but prompt is preserved
+        # Verify the evaluator is collected synchronously, prompt is preserved, and project/binding purged
+        async with db() as session:
+            assert await session.get(models.Evaluator, evaluator_id) is None
+            assert await session.get(models.Prompt, prompt_id) is not None
+        await self._drain_cleanup(db)
         async with db() as session:
             deleted_dataset_evaluator = await session.get(
                 models.DatasetEvaluators, dataset_evaluator_id

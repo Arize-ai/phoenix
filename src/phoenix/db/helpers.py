@@ -33,7 +33,6 @@ from sqlalchemy.sql.selectable import CTE, Subquery
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.config import (
-    PLAYGROUND_PROJECT_NAME,
     get_env_database_schema,
 )
 from phoenix.datetime_utils import TimeBinUnit, multi_unit_time_bin_params
@@ -426,63 +425,41 @@ _Ts = TypeVarTuple("_Ts")
 def exclude_experiment_projects(
     stmt: Select[*_Ts],
 ) -> Select[*_Ts]:
-    return stmt.outerjoin(
-        models.Experiment,
-        and_(
-            models.Project.name == models.Experiment.project_name,
-            models.Experiment.project_name != PLAYGROUND_PROJECT_NAME,
-        ),
-    ).where(models.Experiment.project_name.is_(None))
+    return stmt.where(models.Project.kind != "EXPERIMENT")
 
 
 def exclude_dataset_evaluator_projects(
     stmt: Select[*_Ts],
 ) -> Select[*_Ts]:
-    return stmt.outerjoin(
-        models.DatasetEvaluators,
-        models.Project.id == models.DatasetEvaluators.project_id,
-    ).where(models.DatasetEvaluators.project_id.is_(None))
+    return stmt.where(
+        or_(
+            models.Project.kind != "EVALUATOR",
+            select(models.ProjectEvaluator.id)
+            .where(models.ProjectEvaluator.trace_project_id == models.Project.id)
+            .exists(),
+        )
+    )
 
 
 def exclude_project_evaluator_trace_projects(
     stmt: Select[*_Ts],
 ) -> Select[*_Ts]:
-    return stmt.outerjoin(
-        models.ProjectEvaluator,
-        models.Project.id == models.ProjectEvaluator.trace_project_id,
-    ).where(models.ProjectEvaluator.trace_project_id.is_(None))
+    return stmt.where(
+        or_(
+            models.Project.kind != "EVALUATOR",
+            select(models.DatasetEvaluators.id)
+            .where(models.DatasetEvaluators.project_id == models.Project.id)
+            .exists(),
+        )
+    )
 
 
 ProjectKind: TypeAlias = Literal["STANDARD", "PLAYGROUND", "EXPERIMENT", "EVALUATOR"]
 
 
 def project_kind_expression() -> ColumnElement[ProjectKind]:
-    """
-    A correlated expression that classifies each project by what writes its traces.
-
-    A project is PLAYGROUND when it is the prompt playground project, EVALUATOR when it holds
-    the traces of a dataset evaluator or a project evaluator, EXPERIMENT when an experiment
-    records its runs in it, and STANDARD otherwise. The first matching kind wins.
-    """
-    is_evaluator_project = or_(
-        select(models.DatasetEvaluators.id)
-        .where(models.DatasetEvaluators.project_id == models.Project.id)
-        .exists(),
-        select(models.ProjectEvaluator.id)
-        .where(models.ProjectEvaluator.trace_project_id == models.Project.id)
-        .exists(),
-    )
-    is_experiment_project = (
-        select(models.Experiment.id)
-        .where(models.Experiment.project_name == models.Project.name)
-        .exists()
-    )
-    return case(
-        (models.Project.name == PLAYGROUND_PROJECT_NAME, literal("PLAYGROUND")),
-        (is_evaluator_project, literal("EVALUATOR")),
-        (is_experiment_project, literal("EXPERIMENT")),
-        else_=literal("STANDARD"),
-    )
+    """The stored classification of what writes a project's traces."""
+    return models.Project.kind.expression.expression
 
 
 async def delete_projects_and_evaluator_trace_projects(

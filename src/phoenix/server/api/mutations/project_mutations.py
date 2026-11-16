@@ -1,25 +1,30 @@
+from datetime import datetime, timezone
+from typing import cast
+
 import strawberry
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
-from sqlalchemy.orm import load_only
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
-from phoenix.config import DEFAULT_PROJECT_NAME
+from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
-from phoenix.db.helpers import delete_projects_and_evaluator_trace_projects
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.api.auth import IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest, Conflict
+from phoenix.server.api.exceptions import BadRequest, Conflict, CustomGraphQLError, NotFound
 from phoenix.server.api.input_types.ClearProjectInput import ClearProjectInput
 from phoenix.server.api.input_types.CreateProjectInput import CreateProjectInput
 from phoenix.server.api.input_types.PatchProjectInput import PatchProjectInput
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project, to_gql_project
-from phoenix.server.api.utils import delete_traces_and_orphan_sessions
+from phoenix.server.cleanup.lifecycle import (
+    admit_or_reuse_project_clear,
+    admit_project_delete,
+)
 from phoenix.server.dml_event import ProjectDeleteEvent, ProjectInsertEvent, SpanDeleteEvent
 
 
@@ -59,27 +64,17 @@ class ProjectMutationMixin:
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
     async def delete_project(self, info: Info[Context, None], id: GlobalID) -> Query:
         project_id = from_global_id_with_expected_type(global_id=id, expected_type_name="Project")
-        async with info.context.db() as session:
-            project = await session.scalar(
-                select(models.Project)
-                .where(models.Project.id == project_id)
-                .options(load_only(models.Project.name))
-            )
-            if project is None:
-                raise ValueError(f"Unknown project: {id}")
-            if project.name == DEFAULT_PROJECT_NAME:
-                raise ValueError(f"Cannot delete the {DEFAULT_PROJECT_NAME} project")
-            holds_evaluator_traces = await session.scalar(
-                select(models.ProjectEvaluator.id)
-                .where(models.ProjectEvaluator.trace_project_id == project_id)
-                .limit(1)
-            )
-            if holds_evaluator_traces is not None:
-                raise Conflict(
-                    "This project holds an evaluator's traces; delete the evaluator instead"
-                )
-            await delete_projects_and_evaluator_trace_projects(session, [project_id])
+        dialect = SupportedSQLDialect(info.context.db.dialect.value)
+        try:
+            async with info.context.db() as session:
+                await admit_project_delete(session, dialect=dialect, project_id=project_id)
+        except NotFound as error:
+            raise ValueError(f"Unknown project: {id}") from error
+        except BadRequest as error:
+            raise ValueError(str(error)) from error
+        info.context.event_queue.put(SpanDeleteEvent((project_id,)))
         info.context.event_queue.put(ProjectDeleteEvent((project_id,)))
+        info.context.wake_cleanup_worker()
         return Query()
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
@@ -87,11 +82,28 @@ class ProjectMutationMixin:
         project_id = from_global_id_with_expected_type(
             global_id=input.id, expected_type_name="Project"
         )
-        async with info.context.db() as session:
-            await delete_traces_and_orphan_sessions(
-                session,
-                project_id,
-                end_time=input.end_time or None,
+        end_time = (
+            cast(datetime, normalize_datetime(input.end_time, timezone.utc))
+            if input.end_time is not None and input.end_time is not UNSET
+            else None
+        )
+        dialect = SupportedSQLDialect(info.context.db.dialect.value)
+        try:
+            async with info.context.db() as session:
+                task_id = await admit_or_reuse_project_clear(
+                    session,
+                    dialect=dialect,
+                    project_id=project_id,
+                    start_time=None,
+                    end_time=end_time,
+                )
+        except NotFound as error:
+            raise ValueError(f"Unknown project: {input.id}") from error
+        info.context.wake_cleanup_worker()
+        finished = await info.context.get_cleanup_coordinator().wait_for_completion(task_id)
+        if not finished:
+            raise CustomGraphQLError(
+                "Project clear is still running in the background; retry to wait for completion."
             )
         info.context.event_queue.put(SpanDeleteEvent((project_id,)))
         return Query()
@@ -107,7 +119,10 @@ class ProjectMutationMixin:
         )
         async with info.context.db() as session:
             project = await session.scalar(
-                select(models.Project).where(models.Project.id == project_id)
+                select(models.Project).where(
+                    models.Project.id == project_id,
+                    models.Project.deleted_at.is_(None),
+                )
             )
             if project is None:
                 raise ValueError(f"Unknown project: {input.id}")

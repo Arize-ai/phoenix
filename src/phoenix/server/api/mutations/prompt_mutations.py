@@ -146,13 +146,31 @@ class PromptMutationMixin:
             global_id=input.prompt_id, expected_type_name=Prompt.__name__
         )
         async with info.context.db() as session:
-            stmt = delete(models.Prompt).where(models.Prompt.id == prompt_id)
-            result = await session.execute(stmt)
-
-            if result.rowcount == 0:  # type: ignore[attr-defined]
-                raise NotFound(f"Prompt with ID '{input.prompt_id}' not found")
-
-            await session.commit()
+            evaluator_names = (
+                await session.scalars(
+                    select(models.LLMEvaluator.name)
+                    .where(models.LLMEvaluator.prompt_id == prompt_id)
+                    .order_by(models.LLMEvaluator.name)
+                )
+            ).all()
+            if evaluator_names:
+                names = ", ".join(name.root for name in evaluator_names)
+                noun, pronoun = (
+                    ("an evaluator", "it") if len(evaluator_names) == 1 else ("evaluators", "them")
+                )
+                raise Conflict(
+                    f"This prompt is referenced by {noun} ({names}); delete {pronoun} first"
+                )
+            try:
+                stmt = delete(models.Prompt).where(models.Prompt.id == prompt_id)
+                result = await session.execute(stmt)
+                if result.rowcount == 0:  # type: ignore[attr-defined]
+                    raise NotFound(f"Prompt with ID '{input.prompt_id}' not found")
+                await session.commit()
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+                raise Conflict(
+                    "This prompt is referenced by an evaluator; delete it first"
+                ) from error
         return DeletePromptMutationPayload(query=Query())
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
