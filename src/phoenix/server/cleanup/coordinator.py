@@ -168,8 +168,11 @@ class CleanupCoordinator:
     def _new_claim_token(self) -> str:
         return f"{self._worker_prefix}-{token_hex(8)}"
 
-    async def claim_next(self) -> Optional[ClaimedCleanupTask]:
-        """Recover unlocked lapsed claims and claim at most one eligible task deployment-wide."""
+    async def claim_next(
+        self, *, only_task_id: Optional[int] = None
+    ) -> Optional[ClaimedCleanupTask]:
+        """Recover unlocked lapsed claims and claim at most one eligible task deployment-wide,
+        restricted to ``only_task_id`` when given."""
         dialect = self._db.dialect
         token = self._new_claim_token()
 
@@ -243,6 +246,8 @@ class CleanupCoordinator:
                 .order_by(models.CleanupTask.available_at.asc(), models.CleanupTask.id.asc())
                 .limit(1)
             )
+            if only_task_id is not None:
+                candidate_stmt = candidate_stmt.where(models.CleanupTask.id == only_task_id)
             if dialect is SupportedSQLDialect.POSTGRESQL:
                 candidate_stmt = candidate_stmt.with_for_update(key_share=True, skip_locked=True)
                 row = (await session.execute(candidate_stmt)).first()
@@ -733,9 +738,9 @@ class CleanupCoordinator:
         events_after_commit.append(ProjectDeleteEvent((trace_project_id,)))
         return PrimitiveResult(PrimitiveStatus.EMPTY, 1)
 
-    async def run_one_step(self) -> bool:
+    async def run_one_step(self, *, only_task_id: Optional[int] = None) -> bool:
         """Claim and execute one step if an eligible task exists, returning whether work ran."""
-        claimed = await self.claim_next()
+        claimed = await self.claim_next(only_task_id=only_task_id)
         if claimed is None:
             return False
         await self.execute_claimed_step(claimed)
@@ -753,11 +758,11 @@ class CleanupCoordinator:
         task_id: int,
         *,
         timeout_seconds: float = 55.0,
-        poll_interval_seconds: float = 0.05,
+        poll_interval_seconds: float = 0.25,
         drive: bool = True,
     ) -> bool:
-        """Wait until ``task_id`` finishes and is removed, participating through the exact
-        same claim-and-step protocol when ``drive=True``."""
+        """Wait until ``task_id`` finishes and is removed, driving only that task through the
+        exact same claim-and-step protocol when ``drive=True``."""
         deadline = time.monotonic() + timeout_seconds
         while True:
             if not await self.task_exists(task_id):
@@ -765,6 +770,6 @@ class CleanupCoordinator:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 return False
-            ran = await self.run_one_step() if drive else False
+            ran = await self.run_one_step(only_task_id=task_id) if drive else False
             if not ran:
                 await asyncio.sleep(min(poll_interval_seconds, max(0.005, remaining)))

@@ -156,11 +156,35 @@ class TestCleanupQueueSchedulingAndFencing:
         assert (await coord_a.execute_claimed_step(stale)).outcome == "claim_lost"
         async with db() as session:
             claimed_by = await session.scalar(
-                select(models.CleanupTask.claimed_by).where(
-                    models.CleanupTask.id == stale.task_id
-                )
+                select(models.CleanupTask.claimed_by).where(models.CleanupTask.id == stale.task_id)
             )
         assert claimed_by == fresh.claimed_by
+
+    async def test_wait_for_completion_drives_only_its_own_task(self, db: DbSessionFactory) -> None:
+        dialect = SupportedSQLDialect(db.dialect.value)
+        async with db() as session:
+            first = await _add_project(session, name=f"first-{token_hex(4)}")
+            second = await _add_project(session, name=f"second-{token_hex(4)}")
+            await admit_project_delete(session, dialect=dialect, project_id=first.id)
+            await admit_project_delete(session, dialect=dialect, project_id=second.id)
+            task_ids = {
+                row.project_id: row.id
+                for row in (
+                    await session.execute(
+                        select(
+                            models.ProjectDeleteCleanupTask.id,
+                            models.ProjectDeleteCleanupTask.project_id,
+                        )
+                    )
+                ).all()
+            }
+            first_id, second_id = first.id, second.id
+        coordinator = CleanupCoordinator(db, batch_limit=10)
+        assert await coordinator.wait_for_completion(task_ids[second_id], timeout_seconds=10.0)
+        assert await coordinator.task_exists(task_ids[first_id])
+        async with db() as session:
+            assert await session.get(models.Project, second_id) is None
+            assert await session.get(models.Project, first_id) is not None
 
     def test_postgres_claim_locks_use_for_no_key_update(self) -> None:
         from sqlalchemy.dialects import postgresql
