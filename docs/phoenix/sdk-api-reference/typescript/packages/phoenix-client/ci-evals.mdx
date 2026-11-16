@@ -225,7 +225,9 @@ comparison inside `passFn`:
 - **Which runs count** — a criterion is computed over the runs that logged its
   annotation. Tests don't all have to log the same annotations, so a run
   without it is outside that criterion rather than a failure. A test that
-  throws is already a failed test in Vitest / Jest and isn't counted again.
+  throws before it logs the annotation isn't in that criterion's value, since
+  it's already a failed test in Vitest / Jest. It still counts toward the run
+  total.
 - **Missing annotations** — an `average` criterion with no numeric/boolean
   scores, or a `passRate` criterion whose annotation was never logged, fails
   with a "no … found" reason rather than passing vacuously.
