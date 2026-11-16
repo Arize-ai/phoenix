@@ -14,7 +14,7 @@ from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.api.auth import IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest, Conflict, CustomGraphQLError, NotFound
+from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.input_types.ClearProjectInput import ClearProjectInput
 from phoenix.server.api.input_types.CreateProjectInput import CreateProjectInput
 from phoenix.server.api.input_types.PatchProjectInput import PatchProjectInput
@@ -90,7 +90,7 @@ class ProjectMutationMixin:
         dialect = SupportedSQLDialect(info.context.db.dialect.value)
         try:
             async with info.context.db() as session:
-                task_id = await admit_or_reuse_project_clear(
+                await admit_or_reuse_project_clear(
                     session,
                     dialect=dialect,
                     project_id=project_id,
@@ -100,12 +100,6 @@ class ProjectMutationMixin:
         except NotFound as error:
             raise ValueError(f"Unknown project: {input.id}") from error
         info.context.wake_cleanup_worker()
-        finished = await info.context.get_cleanup_coordinator().wait_for_completion(task_id)
-        if not finished:
-            raise CustomGraphQLError(
-                "Project clear is still running in the background; retry to wait for completion."
-            )
-        info.context.event_queue.put(SpanDeleteEvent((project_id,)))
         return Query()
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore

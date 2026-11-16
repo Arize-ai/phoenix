@@ -781,6 +781,15 @@ class Project(Node):
     ) -> bool:
         return await info.context.data_loaders.project_has_traces.load(self.id)
 
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description="Whether a background clear of the project's traces is in progress.",
+    )
+    async def is_clearing_traces(
+        self,
+        info: Info[Context, None],
+    ) -> bool:
+        return await info.context.data_loaders.project_is_clearing_traces.load(self.id)
+
     @strawberry.field(
         description=f"Number of spans in the project. {_SESSION_FILTER_CONDITION_NOTE}"
     )  # type: ignore

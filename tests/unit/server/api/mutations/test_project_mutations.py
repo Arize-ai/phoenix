@@ -12,6 +12,13 @@ from phoenix.server.types import DbSessionFactory
 from ...._helpers import _add_live_session_work_unit
 from ....graphql import AsyncGraphQLClient
 
+
+async def _drain_cleanup(db: DbSessionFactory) -> None:
+    coordinator = CleanupCoordinator(db)
+    while await coordinator.run_one_step():
+        pass
+
+
 PATCH_PROJECT_MUTATION = """
     mutation($input: PatchProjectInput!) {
         patchProject(input: $input) {
@@ -115,6 +122,7 @@ class TestProjectMutations:
             },
         )
         assert not result.errors
+        await _drain_cleanup(db)
 
         # Verify the results
         async with db() as session:
@@ -135,6 +143,65 @@ class TestProjectMutations:
                 if i < n - 1:
                     session_obj = await session.get(models.ProjectSession, project_sessions[i].id)
                     assert session_obj is None, f"Session {i} should be deleted"
+
+    async def test_clear_project_returns_while_clear_is_pending(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        async with db() as session:
+            project = models.Project(name=token_hex(8))
+            session.add(project)
+            await session.flush()
+            trace = models.Trace(
+                project_rowid=project.id,
+                trace_id=token_hex(16),
+                start_time=datetime.now(timezone.utc),
+                end_time=datetime.now(timezone.utc),
+            )
+            session.add(trace)
+            await session.flush()
+            project_id, trace_id = project.id, trace.id
+        project_gid = str(GlobalID("Project", str(project_id)))
+        status_query = """
+            query($id: ID!) {
+                node(id: $id) { ... on Project { isClearingTraces } }
+            }
+        """
+
+        before = await gql_client.execute(status_query, variables={"id": project_gid})
+        assert not before.errors and before.data
+        assert before.data["node"]["isClearingTraces"] is False
+
+        result = await gql_client.execute(
+            query="""
+            mutation($input: ClearProjectInput!) {
+                clearProject(input: $input) { __typename }
+            }
+            """,
+            variables={"input": {"id": project_gid}},
+        )
+        assert not result.errors
+
+        async with db() as session:
+            assert await session.get(models.Trace, trace_id) is not None
+            pending = await session.scalar(
+                select(models.ProjectClearCleanupTask.id).where(
+                    models.ProjectClearCleanupTask.project_id == project_id
+                )
+            )
+        assert pending is not None
+        during = await gql_client.execute(status_query, variables={"id": project_gid})
+        assert not during.errors and during.data
+        assert during.data["node"]["isClearingTraces"] is True
+
+        await _drain_cleanup(db)
+
+        async with db() as session:
+            assert await session.get(models.Trace, trace_id) is None
+        after = await gql_client.execute(status_query, variables={"id": project_gid})
+        assert not after.errors and after.data
+        assert after.data["node"]["isClearingTraces"] is False
 
     async def test_clear_project_preserves_straddling_session_and_its_newer_trace(
         self,
@@ -196,6 +263,7 @@ class TestProjectMutations:
             },
         )
         assert not result.errors
+        await _drain_cleanup(db)
 
         async with db() as session:
             assert await session.get(models.Trace, old_trace.id) is None, (
@@ -255,6 +323,7 @@ class TestProjectMutations:
             },
         )
         assert not result.errors
+        await _drain_cleanup(db)
 
         async with db() as session:
             statuses = list(
