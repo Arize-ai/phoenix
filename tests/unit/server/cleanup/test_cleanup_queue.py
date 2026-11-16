@@ -27,6 +27,7 @@ from phoenix.server.cleanup.lifecycle import (
     logical_delete_dataset_evaluators,
     logical_delete_project_evaluators,
 )
+from phoenix.server.cleanup.primitives import PrimitiveStatus, drain_trace_scope_step
 from phoenix.server.daemons.cleanup_worker import CleanupWorker
 from phoenix.server.evaluators.resolution import build_evaluator_from_definition
 from phoenix.server.evaluators.snapshots import (
@@ -888,3 +889,41 @@ class TestStorageLockoutExemptionsAndCleanupWorker:
             assert surviving_session is not None
             assert surviving_session.project_id == p2_id
             assert await session.get(models.Trace, p2_trace_id) is not None
+
+
+class TestTraceScopeDrain:
+    async def test_traces_are_deleted_window_by_window_before_all_spans_are_gone(
+        self, db: DbSessionFactory
+    ) -> None:
+        dialect = SupportedSQLDialect(db.dialect.value)
+        base = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        async with db() as session:
+            proj = await _add_project(session, name=f"window-{token_hex(4)}")
+            for i in range(6):
+                tr = await _add_trace(session, proj, start_time=base + timedelta(minutes=i))
+                await _add_span(session, trace=tr)
+            project_id = proj.id
+
+        steps = 0
+        trace_deleted_while_spans_remain = False
+        while True:
+            async with db() as session:
+                res = await drain_trace_scope_step(
+                    session, dialect=dialect, project_id=project_id, batch_limit=2
+                )
+            if res.status is PrimitiveStatus.EMPTY:
+                break
+            assert res.status is PrimitiveStatus.PROGRESS
+            steps += 1
+            async with db() as session:
+                traces = await session.scalar(
+                    select(func.count())
+                    .select_from(models.Trace)
+                    .where(models.Trace.project_rowid == project_id)
+                )
+                spans = await session.scalar(select(func.count()).select_from(models.Span))
+            if traces is not None and spans and traces < 6:
+                trace_deleted_while_spans_remain = True
+            assert steps < 20
+        assert trace_deleted_while_spans_remain
+        assert steps == 6
