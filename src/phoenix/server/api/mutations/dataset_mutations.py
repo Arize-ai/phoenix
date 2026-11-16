@@ -1,7 +1,6 @@
 import asyncio
 from collections.abc import Sequence
 from dataclasses import dataclass
-
 from typing import Any, Optional, cast
 
 import strawberry
