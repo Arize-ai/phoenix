@@ -2,12 +2,12 @@ import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
 
 /**
  * What one step of a path selects. `$` is the whole source wherever it sits,
- * a `*` among `keys` is every field of an object, and `[*]` is a slice with no
- * bounds.
+ * a bare `*` is every field of an object (`isWildcard`), a quoted `'*'` is the
+ * key `*`, and `[*]` is a slice with no bounds.
  */
 type EvaluatorPathSelector =
   | { kind: "root" }
-  | { kind: "fields"; keys: string[] }
+  | { kind: "fields"; keys: string[]; isWildcard: boolean }
   | { kind: "index"; indices: number[] }
   | {
       kind: "slice";
@@ -187,7 +187,7 @@ function parseTokens(tokens: Token[], end: number): EvaluatorPathStep[] {
       take();
       selector = { kind: "slice", start: null, end: null, step: null };
     } else if (next?.type === "name") {
-      selector = { kind: "fields", keys: takeNames() };
+      selector = { kind: "fields", keys: takeNames(), isWildcard: false };
     } else if (
       next?.type === "number" &&
       (isPunctuation(",", position + 1) || isPunctuation("]", position + 1))
@@ -217,7 +217,13 @@ function parseTokens(tokens: Token[], end: number): EvaluatorPathStep[] {
     if (token.type === "name") {
       const keys = takeNames();
       return [
-        { kind: "fields", keys, from: token.from, to: tokens[position - 1].to },
+        {
+          kind: "fields",
+          keys,
+          isWildcard: false,
+          from: token.from,
+          to: tokens[position - 1].to,
+        },
       ];
     }
     if (token.type === "number") {
@@ -226,6 +232,7 @@ function parseTokens(tokens: Token[], end: number): EvaluatorPathStep[] {
         {
           kind: "fields",
           keys: [BigInt(token.value).toString()],
+          isWildcard: false,
           from: token.from,
           to: token.to,
         },
@@ -238,7 +245,13 @@ function parseTokens(tokens: Token[], end: number): EvaluatorPathStep[] {
       case "*":
         take();
         return [
-          { kind: "fields", keys: ["*"], from: token.from, to: token.to },
+          {
+            kind: "fields",
+            keys: ["*"],
+            isWildcard: true,
+            from: token.from,
+            to: token.to,
+          },
         ];
       case "[":
         return [parseBracket()];
@@ -279,7 +292,7 @@ export type EvaluatorPathMatches =
   | { status: "unmatched"; step: EvaluatorPathStep };
 
 /**
- * Walks `steps` over `source` the way jsonpath_ng 1.13 does for the server's
+ * Walks `steps` over `source` the way jsonpath_ng 1.16 does for the server's
  * `apply_input_mapping`: each step maps over every match so far, and a step
  * that matches nothing fails the whole path.
  */
@@ -318,7 +331,11 @@ function applyStep({
     case "root":
       return [root];
     case "fields":
-      return applyFields({ keys: step.keys, value });
+      return applyFields({
+        keys: step.keys,
+        isWildcard: step.isWildcard,
+        value,
+      });
     case "index":
       return applyIndices({ indices: step.indices, value });
     case "slice":
@@ -330,19 +347,21 @@ function applyStep({
 
 function applyFields({
   keys,
+  isWildcard,
   value,
 }: {
   keys: readonly string[];
+  isWildcard: boolean;
   value: unknown;
 }): unknown[] {
   if (Array.isArray(value)) {
-    return keys.includes("*") ? value : [];
+    return isWildcard ? value : [];
   }
   if (!isStringKeyedObject(value)) {
     return [];
   }
   // Own keys only: JSONPath never reaches `toString` and the like.
-  return (keys.includes("*") ? Object.keys(value) : keys)
+  return (isWildcard ? Object.keys(value) : keys)
     .filter((key) => Object.hasOwn(value, key))
     .map((key) => value[key]);
 }

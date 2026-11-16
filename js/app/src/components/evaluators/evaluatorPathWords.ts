@@ -97,7 +97,7 @@ function describeKeptItems({
   noun: string;
 }): string | null {
   if (step.kind === "fields") {
-    return step.keys.includes("*") ? `every ${noun}` : null;
+    return step.isWildcard ? `every ${noun}` : null;
   }
   if (step.kind !== "slice" || step.step !== null) {
     return null;
@@ -143,7 +143,7 @@ function isFanOutStep(step: EvaluatorPathStep): boolean {
     case "index":
       return step.indices.length > 1;
     case "fields":
-      return step.keys.length > 1 || step.keys.includes("*");
+      return step.keys.length > 1 || step.isWildcard;
     case "root":
       return false;
     default:
@@ -157,6 +157,6 @@ function isWildcardStep(step: EvaluatorPathStep): boolean {
       step.start === null &&
       step.end === null &&
       step.step === null) ||
-    (step.kind === "fields" && step.keys.includes("*"))
+    (step.kind === "fields" && step.isWildcard)
   );
 }
