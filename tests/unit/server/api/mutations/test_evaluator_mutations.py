@@ -3886,7 +3886,7 @@ class TestDeleteDatasetEvaluators:
         gql_client: AsyncGraphQLClient,
         empty_dataset: models.Dataset,
     ) -> None:
-        """Test deleting an LLM evaluator with deleteUnusedSource=True also deletes the prompt."""
+        """Test deleting an LLM evaluator with deleteUnusedPromptOrDecision=True also deletes the prompt."""
         evaluator_name = IdentifierModel.model_validate(f"test-llm-with-prompt-del-{token_hex(4)}")
 
         # Create an LLM evaluator with prompt
@@ -3958,13 +3958,13 @@ class TestDeleteDatasetEvaluators:
             project_id = llm_evaluator.dataset_evaluators[0].project_id
             dataset_evaluator_gid = str(GlobalID("DatasetEvaluator", str(dataset_evaluator_id)))
 
-        # Delete with deleteUnusedSource=True (default)
+        # Delete with deleteUnusedPromptOrDecision=True (default)
         result = await gql_client.execute(
             self._DELETE_MUTATION,
             {
                 "input": {
                     "datasetEvaluatorIds": [dataset_evaluator_gid],
-                    "deleteUnusedSource": True,
+                    "deleteUnusedPromptOrDecision": True,
                 }
             },
         )
@@ -4002,7 +4002,7 @@ class TestDeleteDatasetEvaluators:
         gql_client: AsyncGraphQLClient,
         empty_dataset: models.Dataset,
     ) -> None:
-        """Test deleting an LLM evaluator with deleteUnusedSource=False preserves the prompt."""
+        """Test deleting an LLM evaluator with deleteUnusedPromptOrDecision=False preserves the prompt."""
         evaluator_name = IdentifierModel.model_validate(f"test-llm-keep-prompt-{token_hex(4)}")
 
         # Create an LLM evaluator with prompt
@@ -4074,13 +4074,13 @@ class TestDeleteDatasetEvaluators:
             project_id = llm_evaluator.dataset_evaluators[0].project_id
             dataset_evaluator_gid = str(GlobalID("DatasetEvaluator", str(dataset_evaluator_id)))
 
-        # Delete with deleteUnusedSource=False
+        # Delete with deleteUnusedPromptOrDecision=False
         result = await gql_client.execute(
             self._DELETE_MUTATION,
             {
                 "input": {
                     "datasetEvaluatorIds": [dataset_evaluator_gid],
-                    "deleteUnusedSource": False,
+                    "deleteUnusedPromptOrDecision": False,
                 }
             },
         )
@@ -4220,7 +4220,7 @@ class TestDeleteDatasetEvaluators:
             {
                 "input": {
                     "datasetEvaluatorIds": [dataset_evaluator_gid],
-                    "deleteUnusedSource": False,
+                    "deleteUnusedPromptOrDecision": False,
                 }
             },
         )

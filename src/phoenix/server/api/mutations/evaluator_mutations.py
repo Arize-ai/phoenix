@@ -185,7 +185,7 @@ class DeleteDatasetEvaluatorsInput:
             "references it. Set to false to detach the bindings while keeping shared definitions."
         ),
     )
-    delete_unused_source: bool = strawberry.field(
+    delete_unused_prompt_or_decision: bool = strawberry.field(
         default=False,
         description=(
             "Also delete each LLM evaluator's prompt or decision evaluator's decision when no "
@@ -436,7 +436,7 @@ class DeleteProjectEvaluatorsInput:
             "references it. Set to false to detach the bindings while keeping shared definitions."
         ),
     )
-    delete_unused_source: bool = strawberry.field(
+    delete_unused_prompt_or_decision: bool = strawberry.field(
         default=False,
         description=(
             "Also delete each LLM evaluator's prompt or decision evaluator's decision when no "
@@ -772,7 +772,7 @@ class EvaluatorMutationMixin:
         command = project_bindings.DeleteProjectEvaluatorsInput(
             project_evaluator_ids=input.project_evaluator_ids,
             delete_unused_evaluator=input.delete_unused_evaluator,
-            delete_unused_source=input.delete_unused_source,
+            delete_unused_prompt_or_decision=input.delete_unused_prompt_or_decision,
         )
         context = _evaluator_service_context(info.context)
         result = await project_bindings.delete_project_evaluators(context, command)
@@ -844,7 +844,7 @@ class EvaluatorMutationMixin:
         command = dataset_bindings.DeleteDatasetEvaluatorsInput(
             dataset_evaluator_ids=input.dataset_evaluator_ids,
             delete_unused_evaluator=input.delete_unused_evaluator,
-            delete_unused_source=input.delete_unused_source,
+            delete_unused_prompt_or_decision=input.delete_unused_prompt_or_decision,
         )
         result = await dataset_bindings.delete_dataset_evaluators(
             _evaluator_service_context(info.context), command

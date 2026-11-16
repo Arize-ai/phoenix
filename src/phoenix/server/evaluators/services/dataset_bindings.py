@@ -121,7 +121,7 @@ class UpdateDatasetCodeEvaluatorInput:
 class DeleteDatasetEvaluatorsInput:
     dataset_evaluator_ids: list[GlobalID]
     delete_unused_evaluator: bool = True
-    delete_unused_source: bool = False
+    delete_unused_prompt_or_decision: bool = False
 
 
 async def create_dataset_llm_evaluator(
@@ -301,7 +301,9 @@ async def delete_dataset_evaluators(
             dialect=dialect,
             binding_ids=dataset_evaluator_rowids,
             collect_unused_evaluator=input.delete_unused_evaluator,
-            collect_unused_source=(input.delete_unused_evaluator and input.delete_unused_source),
+            collect_unused_prompt_or_decision=(
+                input.delete_unused_evaluator and input.delete_unused_prompt_or_decision
+            ),
         )
     if deleted_rowids:
         context.wake_cleanup_worker()
@@ -830,7 +832,7 @@ async def detach_dataset_evaluators(
             dialect=dialect,
             binding_ids=rowids,
             collect_unused_evaluator=False,
-            collect_unused_source=False,
+            collect_unused_prompt_or_decision=False,
         )
     if deleted_rowids:
         context.wake_cleanup_worker()

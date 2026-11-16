@@ -31,7 +31,7 @@ export type DeleteEvaluatorDialogProps = {
   onOpenChange?: (isOpen: boolean) => void;
   onDeleted?: () => void;
   isDeleting: boolean;
-  onDelete: (options: { deleteUnusedSource: boolean }) => Promise<void>;
+  onDelete: (options: { deleteUnusedPromptOrDecision: boolean }) => Promise<void>;
 };
 
 export function DeleteEvaluatorDialog({
@@ -45,7 +45,7 @@ export function DeleteEvaluatorDialog({
   onDelete,
 }: DeleteEvaluatorDialogProps) {
   const notifySuccess = useNotifySuccess();
-  const [deleteUnusedSource, setDeleteUnusedSource] = useState(true);
+  const [deleteUnusedPromptOrDecision, setDeleteUnusedPromptOrDecision] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const handleOpenChange = (nextIsOpen: boolean) => {
     if (nextIsOpen) {
@@ -57,7 +57,7 @@ export function DeleteEvaluatorDialog({
     setError(null);
     startTransition(() => {
       void onDelete({
-        deleteUnusedSource: evaluatorKind === "LLM" && deleteUnusedSource,
+        deleteUnusedPromptOrDecision: evaluatorKind === "LLM" && deleteUnusedPromptOrDecision,
       })
         .then(() => {
           notifySuccess({
@@ -105,8 +105,8 @@ export function DeleteEvaluatorDialog({
                 </Text>
                 {evaluatorKind === "LLM" ? (
                   <Checkbox
-                    isSelected={deleteUnusedSource}
-                    onChange={setDeleteUnusedSource}
+                    isSelected={deleteUnusedPromptOrDecision}
+                    onChange={setDeleteUnusedPromptOrDecision}
                   >
                     Delete associated prompt
                   </Checkbox>

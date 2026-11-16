@@ -687,7 +687,7 @@ class TestEvaluatorSnapshotsAndOnlineEvalFences:
                 dialect=dialect,
                 binding_ids=[binding.id],
                 collect_unused_evaluator=True,
-                collect_unused_source=False,
+                collect_unused_prompt_or_decision=False,
             )
 
         async with db() as session:
@@ -758,7 +758,7 @@ class TestEvaluatorSnapshotsAndOnlineEvalFences:
                 dialect=dialect,
                 binding_ids=[pe.id],
                 collect_unused_evaluator=False,
-                collect_unused_source=False,
+                collect_unused_prompt_or_decision=False,
             )
 
         # 1. Hydration returns HydrationFailure(terminal_status='DROPPED') so consumer clears it.
