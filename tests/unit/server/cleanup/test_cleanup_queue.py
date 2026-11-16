@@ -972,3 +972,48 @@ class TestTraceScopeDrain:
             assert steps < 20
         assert trace_deleted_while_spans_remain
         assert steps == 6
+
+
+class TestSessionReuseAfterProjectDelete:
+    async def test_reused_session_id_moves_to_live_project_and_delete_terminates(
+        self, db: DbSessionFactory
+    ) -> None:
+        dialect = SupportedSQLDialect(db.dialect.value)
+        t0 = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        name = f"reuse-{token_hex(4)}"
+        sid = f"sess-{token_hex(4)}"
+
+        def _span(offset: int) -> Span:
+            return Span(
+                name="s",
+                context=SpanContext(trace_id=token_hex(16), span_id=token_hex(8)),
+                span_kind=SpanKind.LLM,
+                parent_id=None,
+                start_time=t0 + timedelta(minutes=offset),
+                end_time=t0 + timedelta(minutes=offset, seconds=1),
+                status_code=SpanStatusCode.OK,
+                status_message="",
+                attributes={"session": {"id": sid}},
+                events=[],
+                conversation=None,
+            )
+
+        async with db() as session:
+            first = await insert_span(session, _span(0), name)
+            assert first is not None
+            old_project_id = first.project_rowid
+            await admit_project_delete(session, dialect=dialect, project_id=old_project_id)
+        async with db() as session:
+            second = await insert_span(session, _span(1), name)
+        assert second is not None and second.project_rowid != old_project_id
+
+        steps = await _drain_all(CleanupCoordinator(db, batch_limit=2))
+        assert steps < 50
+        async with db() as session:
+            assert await session.get(models.Project, old_project_id) is None
+            project_session = await session.scalar(
+                select(models.ProjectSession).where(models.ProjectSession.session_id == sid)
+            )
+            assert project_session is not None
+            assert project_session.project_id == second.project_rowid
+            assert project_session.id == second.project_session_rowid
