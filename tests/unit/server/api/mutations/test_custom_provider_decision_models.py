@@ -19,11 +19,16 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types import model_provider as mp
+from phoenix.server.api.mutations.generative_model_custom_provider_mutations import (
+    _credential_check_model,
+)
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 from tests.unit.server.api.mutations.test_decision_mutations import (
+    CHECK_MODEL,
     URGENT,
+    _pin_credential_check_model,  # noqa: F401  (autouse: canned rejections name the model)
     _route_sdk_http_through_respx,  # noqa: F401  (autouse: respx sees the SDKs' requests)
     text_state,
 )
@@ -72,11 +77,14 @@ mutation ($input: RunDecisionInput!) {
 """
 
 SYSTEM_ONE_UNKNOWN_MODEL = {
-    "detail": {"error_type": "api_usage_error", "message": "Unknown model: test-credential-check"}
+    "detail": {
+        "error_type": "api_usage_error",
+        "message": "Unknown model: test-credential-check-0badc0de",
+    }
 }
 OPENAI_UNKNOWN_MODEL = {
     "error": {
-        "message": "The model `test-credential-check` does not exist or you do not have access.",
+        "message": "The model `test-credential-check-0badc0de` does not exist or you do not have access.",
         "type": "invalid_request_error",
         "code": "model_not_found",
     }
@@ -240,7 +248,7 @@ DECISIONS_URL = "https://proxy.example/v1/decisions"
             SYSTEM_ONE_URL,
             {
                 "status_code": 404,
-                "text": "<!doctype html><html>test-credential-check not found</html>",
+                "text": "<!doctype html><html>test-credential-check-0badc0de not found</html>",
                 "headers": {"content-type": "text/html"},
             },
             False,
@@ -312,7 +320,7 @@ DECISIONS_URL = "https://proxy.example/v1/decisions"
             DECISIONS_URL,
             {
                 "status_code": 422,
-                "json": {"detail": [{"input": {"model": "test-credential-check"}}]},
+                "json": {"detail": [{"input": {"model": "test-credential-check-0badc0de"}}]},
             },
             False,
             "HTTP 422",
@@ -323,7 +331,7 @@ DECISIONS_URL = "https://proxy.example/v1/decisions"
             SYSTEM_ONE_URL,
             {
                 "status_code": 422,
-                "json": {"detail": "test-credential-check failed validation"},
+                "json": {"detail": "test-credential-check-0badc0de failed validation"},
             },
             False,
             "HTTP 422",
@@ -332,7 +340,10 @@ DECISIONS_URL = "https://proxy.example/v1/decisions"
         pytest.param(
             "OPENAI",
             DECISIONS_URL,
-            {"status_code": 404, "json": {"message": "no route for model test-credential-check"}},
+            {
+                "status_code": 404,
+                "json": {"message": "no route for model test-credential-check-0badc0de"},
+            },
             False,
             "HTTP 404 with a response that is not a decision API's",
             id="openai-router-echo-404",
@@ -340,7 +351,10 @@ DECISIONS_URL = "https://proxy.example/v1/decisions"
         pytest.param(
             "TYPESAFE",
             SYSTEM_ONE_URL,
-            {"status_code": 404, "json": {"message": "no route for model test-credential-check"}},
+            {
+                "status_code": 404,
+                "json": {"message": "no route for model test-credential-check-0badc0de"},
+            },
             False,
             "HTTP 404 with a response that is not a decision API's",
             id="system-one-router-echo-404",
@@ -348,7 +362,7 @@ DECISIONS_URL = "https://proxy.example/v1/decisions"
         pytest.param(
             "OPENAI",
             DECISIONS_URL,
-            {"status_code": 503, "json": {"error": "test-credential-check is warming up"}},
+            {"status_code": 503, "json": {"error": "test-credential-check-0badc0de is warming up"}},
             False,
             "HTTP 503",
             id="openai-unavailable",
@@ -371,7 +385,7 @@ async def test_the_endpoint_check_accepts_a_rejection_of_its_model_or_a_decision
     sent = route.calls[0].request
     assert sent.headers["authorization"] == f"Bearer {API_KEY}"
     assert sent.headers["x-team"] == "decisions"
-    assert json.loads(sent.content)["model"] == "test-credential-check"
+    assert json.loads(sent.content)["model"] == CHECK_MODEL
     if passes:
         assert payload["error"] is None
     else:
@@ -1035,7 +1049,7 @@ async def test_the_google_check_posts_to_gemini_decisions(
     sent = route.calls[0].request
     assert sent.headers["x-goog-api-key"] == API_KEY
     assert sent.headers["x-team"] == "decisions"
-    assert json.loads(sent.content)["model"] == "test-credential-check"
+    assert json.loads(sent.content)["model"] == CHECK_MODEL
     if reason is None:
         assert payload["error"] is None
     else:
@@ -1078,3 +1092,9 @@ async def test_a_google_provider_serves_decisions_with_its_own_connection(
         "answers": [{"name": "urgent", "probability": 0.25}],
     }
     assert route.calls[0].request.headers["x-goog-api-key"] == API_KEY
+
+
+def test_each_check_names_a_different_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.undo()
+    first, second = _credential_check_model(), _credential_check_model()
+    assert first.startswith("test-credential-check-") and second != first

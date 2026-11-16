@@ -166,7 +166,9 @@ def _are_sdks_compatible(
     return new_sdk in _COMPATIBLE_SDKS.get(old_sdk, ())
 
 
-_CREDENTIAL_CHECK_MODEL = "test-credential-check"
+def _credential_check_model() -> str:
+    """A model name no endpoint serves, different on every check."""
+    return f"test-credential-check-{token_hex(4)}"
 
 
 def _rejects_model(decision_sdk: DecisionSDK, body: Any, model: str) -> bool:
@@ -207,7 +209,7 @@ def _post_to(url: str | None) -> str:
 
 
 def _describe_endpoint_rejection(
-    *, decision_sdk: DecisionSDK, url: str | None, status: int, body: Any
+    *, decision_sdk: DecisionSDK, model: str, url: str | None, status: int, body: Any
 ) -> str | None:
     """Return an error message for a decision endpoint check response, or ``None`` if it passes.
 
@@ -223,7 +225,7 @@ def _describe_endpoint_rejection(
     if status in (408, 429) or status >= 500:
         return f"{at} failed with HTTP {status}, which says nothing about the setup. Retry."
     if 400 <= status < 500 and status != 422:
-        if _rejects_model(decision_sdk, body, _CREDENTIAL_CHECK_MODEL):
+        if _rejects_model(decision_sdk, body, model):
             return None
     if isinstance(body, str) and body.lstrip().startswith("<"):
         what = "an HTML page"
@@ -269,7 +271,7 @@ async def _test_chat_credentials(config: GenerativeModelCustomerProviderConfig) 
             with anyio.move_on_after(10) as scope:
                 async with config.root.get_client_factory()() as anthropic_client:
                     await anthropic_client.messages.create(
-                        model="test-credential-check",
+                        model=_credential_check_model(),
                         messages=[{"role": "user", "content": "Hi"}],
                         max_tokens=10,
                         timeout=10,
@@ -289,7 +291,7 @@ async def _test_chat_credentials(config: GenerativeModelCustomerProviderConfig) 
             with anyio.move_on_after(10) as scope:
                 async with config.root.get_client_factory()() as client:
                     await client.converse(
-                        modelId=f"test-credential-check-{token_hex(4)}",
+                        modelId=_credential_check_model(),
                         messages=[{"role": "user", "content": [{"text": "Hi"}]}],
                         inferenceConfig={"maxTokens": 10},
                     )
@@ -366,12 +368,13 @@ async def _post_system_one_check(client_factory: ClientFactory[Any]) -> str | No
         TypeSafeAPIResponseValidationError,
     )
 
+    model = _credential_check_model()
     try:
         async with client_factory() as client:
             await client.system_one(
                 "Credential check",
                 {"check": {"type": "noul", "instructions": "Is this a credential check?"}},
-                model=_CREDENTIAL_CHECK_MODEL,
+                model=model,
                 timeout=10,
             )
     except TypeSafeAPIResponseValidationError as error:
@@ -382,6 +385,7 @@ async def _post_system_one_check(client_factory: ClientFactory[Any]) -> str | No
     except TypeSafeAPIError as error:
         return _describe_endpoint_rejection(
             decision_sdk="typesafe",
+            model=model,
             url=_endpoint_url(error.endpoint),
             status=error.status,
             body=error.body,
@@ -400,10 +404,11 @@ async def _post_openai_decisions_check(client_factory: ClientFactory[Any]) -> st
     from openai import APIConnectionError, APIStatusError
     from openai.types import Decision
 
+    model = _credential_check_model()
     try:
         async with client_factory() as client:
             response = await client.decisions.with_raw_response.create(
-                model=_CREDENTIAL_CHECK_MODEL,
+                model=model,
                 input="Credential check",
                 questions=[
                     {
@@ -431,7 +436,11 @@ async def _post_openai_decisions_check(client_factory: ClientFactory[Any]) -> st
         except ValueError:
             body = error.response.text
         return _describe_endpoint_rejection(
-            decision_sdk="openai", url=str(error.request.url), status=error.status_code, body=body
+            decision_sdk="openai",
+            model=model,
+            url=str(error.request.url),
+            status=error.status_code,
+            body=body,
         )
     except APIConnectionError as error:
         return f"Could not connect to {error.request.url}: {error}"
@@ -441,10 +450,11 @@ async def _post_openai_decisions_check(client_factory: ClientFactory[Any]) -> st
 async def _post_google_decisions_check(client_factory: ClientFactory[Any]) -> str | None:
     from google.genai._interactions import APIConnectionError, APIStatusError
 
+    model = _credential_check_model()
     try:
         async with client_factory() as client:
             response = await client.decisions.create(
-                model=_CREDENTIAL_CHECK_MODEL,
+                model=model,
                 input="Credential check",
                 questions={
                     "check": {"type": "noul", "instructions": "Is this a credential check?"}
@@ -455,6 +465,7 @@ async def _post_google_decisions_check(client_factory: ClientFactory[Any]) -> st
     except APIStatusError as error:
         return _describe_endpoint_rejection(
             decision_sdk="google_genai",
+            model=model,
             url=str(error.response.request.url),
             status=error.response.status_code,
             body=error.body,

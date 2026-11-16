@@ -35,6 +35,17 @@ from phoenix.tracers import Tracer
 from tests.unit.graphql import AsyncGraphQLClient
 from tests.unit.server.decision_client_factories import built_in_factory
 
+CHECK_MODEL = "test-credential-check-0badc0de"
+
+
+@pytest.fixture(autouse=True)
+def _pin_credential_check_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin the endpoint check's random model name so canned rejections can name it."""
+    monkeypatch.setattr(
+        "phoenix.server.api.mutations.generative_model_custom_provider_mutations.token_hex",
+        lambda nbytes=None: "0badc0de",
+    )
+
 
 @pytest.fixture(autouse=True)
 def _route_sdk_http_through_respx(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1201,7 +1212,12 @@ async def test_custom_providers_declare_the_model_types_they_serve(
     [
         pytest.param(
             400,
-            {"detail": {"message": "Unknown model: test-credential-check", "key": "ts-custom-key"}},
+            {
+                "detail": {
+                    "message": "Unknown model: test-credential-check-0badc0de",
+                    "key": "ts-custom-key",
+                }
+            },
             True,
             id="unknown-model",
         ),
@@ -1226,7 +1242,7 @@ async def test_typesafe_credentials_are_checked_without_running_a_model(
     assert route.call_count == 1
     sent = route.calls[0].request
     assert sent.headers["x-team"] == "decisions"
-    assert json.loads(sent.content)["model"] == "test-credential-check"
+    assert json.loads(sent.content)["model"] == CHECK_MODEL
     error = result.data["testGenerativeModelCustomProviderCredentials"]["error"]
     if accepted:
         assert error is None
@@ -1243,7 +1259,7 @@ async def test_typesafe_credentials_without_a_base_url_go_to_typesafe(
     config = {"typesafe": {"typesafeAuthenticationMethod": {"apiKey": "ts-custom-key"}}}
     with respx.mock:
         route = respx.post("https://api.typesafe.ai/v1/systemone").respond(
-            400, json={"detail": {"message": "Unknown model: test-credential-check"}}
+            400, json={"detail": {"message": "Unknown model: test-credential-check-0badc0de"}}
         )
         result = await gql_client.execute(
             """mutation ($input: GenerativeModelCustomerProviderConfigInput!) {
