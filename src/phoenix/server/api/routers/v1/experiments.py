@@ -26,7 +26,10 @@ from phoenix.server.api.routers.v1.models import IsoDatetime
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
-from phoenix.server.cleanup.lifecycle import admit_exclusive_experiment_projects_delete
+from phoenix.server.cleanup.lifecycle import (
+    admit_exclusive_experiment_projects_delete,
+    promote_retained_experiment_projects_to_standard,
+)
 from phoenix.server.dml_event import ExperimentDeleteEvent, ExperimentInsertEvent
 from phoenix.server.experiments.utils import generate_experiment_project_name
 
@@ -603,12 +606,19 @@ async def delete_experiment(
         if result is None:
             raise HTTPException(detail="Experiment does not exist", status_code=404)
         project_id = result.project_id
-        if delete_project and project_id is not None:
-            enqueued_projects = await admit_exclusive_experiment_projects_delete(
-                session,
-                dialect=dialect,
-                candidate_project_ids=[project_id],
-            )
+        if project_id is not None:
+            if delete_project:
+                enqueued_projects = await admit_exclusive_experiment_projects_delete(
+                    session,
+                    dialect=dialect,
+                    candidate_project_ids=[project_id],
+                )
+            else:
+                await promote_retained_experiment_projects_to_standard(
+                    session,
+                    dialect=dialect,
+                    candidate_project_ids=[project_id],
+                )
     request.state.event_queue.put(ExperimentDeleteEvent((experiment_rowid,)))
     if enqueued_projects:
         cleanup_worker = getattr(request.app.state, "cleanup_worker", None)

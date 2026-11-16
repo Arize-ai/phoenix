@@ -17,7 +17,18 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-from sqlalchemy import ColumnElement, and_, delete, exists, literal, or_, select, text, update
+from sqlalchemy import (
+    ColumnElement,
+    and_,
+    delete,
+    exists,
+    func,
+    literal,
+    or_,
+    select,
+    text,
+    update,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
@@ -442,6 +453,76 @@ async def drain_trace_scope_step(
         if deleted_sessions > 0:
             return PrimitiveResult(PrimitiveStatus.PROGRESS, deleted_sessions)
     if await _has_any(session, orphan_session_cond):
+        return PrimitiveResult(PrimitiveStatus.YIELD, 0)
+
+    # If a ProjectSession owned by `project_id` still has surviving traces in another
+    # project (because `project_sessions.session_id` is globally unique across projects),
+    # reassign its `project_id` to one of those surviving projects before deleting `project_id`
+    # so the project FK CASCADE never deletes traces belonging to another project.
+    surviving_other_project_subq = (
+        select(models.Trace.project_rowid)
+        .join(models.Project, models.Project.id == models.Trace.project_rowid)
+        .where(
+            models.Trace.project_session_rowid == models.ProjectSession.id,
+            models.Trace.project_rowid != project_id,
+            models.Project.deleted_at.is_(None),
+        )
+        .order_by(models.Trace.id.asc())
+        .limit(1)
+        .scalar_subquery()
+    )
+    fallback_other_project_subq = (
+        select(models.Trace.project_rowid)
+        .where(
+            models.Trace.project_session_rowid == models.ProjectSession.id,
+            models.Trace.project_rowid != project_id,
+        )
+        .order_by(models.Trace.id.asc())
+        .limit(1)
+        .scalar_subquery()
+    )
+    target_other_project = func.coalesce(
+        surviving_other_project_subq,
+        fallback_other_project_subq,
+    )
+    shared_session_cond = and_(
+        models.ProjectSession.project_id == project_id,
+        ~select(literal(1))
+        .where(
+            models.Trace.project_session_rowid == models.ProjectSession.id,
+            models.Trace.project_rowid == project_id,
+        )
+        .exists(),
+        select(literal(1))
+        .where(
+            models.Trace.project_session_rowid == models.ProjectSession.id,
+            models.Trace.project_rowid != project_id,
+        )
+        .exists(),
+    )
+    shared_session_ids_stmt = (
+        select(models.ProjectSession.id)
+        .where(shared_session_cond)
+        .order_by(models.ProjectSession.id.asc())
+        .limit(batch_limit)
+    )
+    if dialect is SupportedSQLDialect.POSTGRESQL:
+        shared_session_ids_stmt = shared_session_ids_stmt.with_for_update(skip_locked=True)
+    shared_session_ids = list(await session.scalars(shared_session_ids_stmt))
+    if shared_session_ids:
+        reassigned = _rowcount(
+            await session.execute(
+                update(models.ProjectSession)
+                .where(
+                    models.ProjectSession.id.in_(shared_session_ids),
+                    target_other_project.is_not(None),
+                )
+                .values(project_id=target_other_project)
+            )
+        )
+        if reassigned > 0:
+            return PrimitiveResult(PrimitiveStatus.PROGRESS, reassigned)
+    if await _has_any(session, shared_session_cond):
         return PrimitiveResult(PrimitiveStatus.YIELD, 0)
 
     return PrimitiveResult(PrimitiveStatus.EMPTY, 0)

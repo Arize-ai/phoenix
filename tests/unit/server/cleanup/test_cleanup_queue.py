@@ -831,3 +831,60 @@ class TestStorageLockoutExemptionsAndCleanupWorker:
             ).all()
             assert len(loaded_examples) == 5
             assert all(ex.span_rowid is None for ex in loaded_examples)
+
+    async def test_delete_project_reassigns_shared_cross_project_session_without_deleting_survivor(
+        self, db: DbSessionFactory
+    ) -> None:
+        dialect = SupportedSQLDialect(db.dialect.value)
+        shared_sid = f"shared-session-{token_hex(4)}"
+        t0 = datetime(2026, 7, 2, 0, 0, 0, tzinfo=timezone.utc)
+
+        p1_span = Span(
+            name="p1-span",
+            context=SpanContext(trace_id=token_hex(16), span_id=token_hex(8)),
+            span_kind=SpanKind.LLM,
+            parent_id=None,
+            start_time=t0,
+            end_time=t0 + timedelta(seconds=1),
+            status_code=SpanStatusCode.OK,
+            status_message="",
+            attributes={"session": {"id": shared_sid}},
+            events=[],
+            conversation=None,
+        )
+        p2_span = Span(
+            name="p2-span",
+            context=SpanContext(trace_id=token_hex(16), span_id=token_hex(8)),
+            span_kind=SpanKind.LLM,
+            parent_id=None,
+            start_time=t0 + timedelta(seconds=2),
+            end_time=t0 + timedelta(seconds=3),
+            status_code=SpanStatusCode.OK,
+            status_message="",
+            attributes={"session": {"id": shared_sid}},
+            events=[],
+            conversation=None,
+        )
+        p1_name = f"cross-p1-{token_hex(4)}"
+        p2_name = f"cross-p2-{token_hex(4)}"
+        async with db() as session:
+            ins1 = await insert_span(session, p1_span, p1_name)
+            ins2 = await insert_span(session, p2_span, p2_name)
+            assert ins1 is not None and ins2 is not None
+            assert ins1.project_session_rowid == ins2.project_session_rowid
+            assert ins1.project_session_rowid is not None
+            shared_session_rowid = ins1.project_session_rowid
+            p1_id = ins1.project_rowid
+            p2_id = ins2.project_rowid
+            p2_trace_id = ins2.trace_rowid
+            await admit_project_delete(session, dialect=dialect, project_id=p1_id)
+
+        coordinator = CleanupCoordinator(db, batch_limit=1)
+        await _drain_all(coordinator)
+
+        async with db() as session:
+            assert await session.get(models.Project, p1_id) is None
+            surviving_session = await session.get(models.ProjectSession, shared_session_rowid)
+            assert surviving_session is not None
+            assert surviving_session.project_id == p2_id
+            assert await session.get(models.Trace, p2_trace_id) is not None

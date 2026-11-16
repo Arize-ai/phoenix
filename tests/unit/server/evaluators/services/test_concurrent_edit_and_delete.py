@@ -28,6 +28,7 @@ from phoenix.db.types.prompts import (
 )
 from phoenix.server.api.exceptions import NotFound
 from phoenix.server.app import _db
+from phoenix.server.cleanup.coordinator import CleanupCoordinator
 from phoenix.server.evaluators.services import dataset_bindings, project_bindings
 from phoenix.server.evaluators.services.definitions import EvaluatorServiceContext
 from phoenix.server.evaluators.services.prompt_source import FromPromptVersion, NewPrompt
@@ -173,5 +174,14 @@ async def test_concurrent_edit_and_delete_of_one_binding_both_return(
     # The edit may lose the race and find nothing to edit; neither call fails the server.
     assert not isinstance(edited, BaseException) or isinstance(edited, NotFound), edited
     assert deleted == [binding_gid]
+    async with db() as session:
+        tombstoned = await session.get(binding_model, binding.id)
+        assert tombstoned is not None and tombstoned.deleted_at is not None
+        assert tombstoned.evaluator_id is None
+
+    coordinator = CleanupCoordinator(db)
+    while await coordinator.run_one_step():
+        pass
+
     async with db() as session:
         assert await session.get(binding_model, binding.id) is None
