@@ -84,7 +84,8 @@ a slower statement when the project has none there.
   runs. `--url` points it at a hosted Grafana with the same datasource UIDs.
 - **One request in detail.** `./scripts/perf_trace_breakdown.py <Operation>`
   adds up one server trace by span name. The resolver that holds the request is
-  the one with the largest `max ms`.
+  the one with the largest `max ms`. It then lists the trace's SQL statements,
+  slowest first, with the resolver that ran each one.
 - **The database.** `./dev.sh psql` opens `psql`. `pg_stat_statements` is
   preloaded: `create extension if not exists pg_stat_statements`, then read
   `calls` and `mean_exec_time`. Use `explain (analyze, buffers)` and compare

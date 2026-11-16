@@ -4,7 +4,8 @@
 The script finds the traces of an operation in Tempo, through Grafana's
 datasource proxy, picks one, and adds up its spans by name. Each resolver is a
 span named "GraphQL Resolving: <field>", so the table shows which fields hold
-the request.
+the request. Below it, the SQL statements of the trace are listed with the
+resolver that ran each one.
 
     # the median trace of the operation in the last 15 minutes
     ./scripts/perf_trace_breakdown.py ProjectPageQueriesTracesQuery
@@ -57,6 +58,7 @@ def main() -> int:
     parser.add_argument("--end", help="window end: epoch seconds or ISO 8601 (default: now)")
     parser.add_argument("--pick", choices=["median", "slowest"], default="median")
     parser.add_argument("--top", type=int, default=15, help="rows to print")
+    parser.add_argument("--sql-width", type=int, default=150, help="characters of each statement")
     args = parser.parse_args()
 
     now = time.time()
@@ -108,6 +110,37 @@ def main() -> int:
     rows = sorted(by_name.items(), key=lambda item: -item[1][2])
     for name, (count, total, longest) in rows[: args.top]:
         print(f"{name[:57]:<58}{int(count):>7}{total:>10.0f}{longest:>9.0f}")
+
+    # SQL statements are client spans that carry their text in db.query.text.
+    # Group them by statement, under the resolver that ran them.
+    by_id = {span["spanId"]: span for span in spans}
+
+    def resolver_of(span: dict[str, Any]) -> str:
+        parent = by_id.get(span.get("parentSpanId", ""))
+        while parent is not None:
+            if parent["name"].startswith("GraphQL Resolving: "):
+                return str(parent["name"]).removeprefix("GraphQL Resolving: ")
+            parent = by_id.get(parent.get("parentSpanId", ""))
+        return "-"
+
+    statements: dict[tuple[str, str], list[float]] = defaultdict(lambda: [0, 0.0, 0.0])
+    for span in spans:
+        for attribute in span.get("attributes", []):
+            if attribute["key"] == "db.query.text":
+                text = " ".join(str(next(iter(attribute["value"].values()))).split())
+                row = statements[(resolver_of(span), text)]
+                row[0] += 1
+                row[1] += duration_ms(span)
+                row[2] = max(row[2], duration_ms(span))
+    if statements:
+        print(f"\n{len(statements)} distinct SQL statements. The slowest:")
+        print(f"{'count':>5}{'sum ms':>9}{'max ms':>9}  resolver: statement")
+        ranked = sorted(statements.items(), key=lambda item: -item[1][1])
+        for (resolver, text), (count, total, longest) in ranked[: args.top]:
+            shown = text if len(text) <= args.sql_width else text[: args.sql_width - 1] + "…"
+            print(f"{int(count):>5}{total:>9.0f}{longest:>9.0f}  {resolver}: {shown}")
+    else:
+        print("\nNo SQL spans in this trace (the server needs SQL tracing, added in 21.1.0).")
     return 0
 
 
