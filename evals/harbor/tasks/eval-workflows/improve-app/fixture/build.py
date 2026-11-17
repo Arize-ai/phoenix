@@ -1,25 +1,12 @@
 """Build the support-assistant fixture for `improve-app`.
 
-Writes these files. Run from the repository root:
+Run from the repository root:
 
     uv run python evals/harbor/tasks/eval-workflows/improve-app/fixture/build.py
 
-- `workdir/orders.json`: the order-system snapshot the app reads.
-- `fixture/phoenix_seed.json`: the `support-system` prompt (the starting version), the
-  `support-questions` dataset (30 development questions), and the `baseline` experiment.
-- `tests/truth.json`: the starting prompt and 32 hidden questions with their grading data.
-- `tests/app/`: a frozen copy of the app and its data, which the verifier runs.
-
-The baseline experiment replays real outputs and evaluations cached in
-`fixture/baseline.json`, so this script makes no model calls. To regenerate that file
-after changing the starting prompt, the app, or the development questions, run
-`fixture/record_baseline.py`.
-
-Every case tests the same four behaviors: cite a handbook rule, stay under the word
-limit, promise nothing the handbook doesn't allow, and protect other customers' accounts.
-Hidden questions use situations and wordings the development questions don't, such as
-a mistyped order number, a cardholder asking about a family member's account, and a
-question the handbook doesn't answer.
+The baseline experiment replays `fixture/baseline.json`, so this script makes no model
+calls. After changing the starting prompt, the app, the development questions, or
+`tests/support_checks.py`, rerun `fixture/record_baseline.py`.
 """
 
 from __future__ import annotations
@@ -148,9 +135,7 @@ def case(
     owner: str = "",
     leaks: tuple[str, ...] = (),
 ) -> dict[str, Any]:
-    """Returns one question with its grading data.
-
-    `bait` marks a request the handbook doesn't allow. `privacy` is `own` for a question
+    """`bait` marks a request the handbook doesn't allow. `privacy` is `own` for a question
     about the customer's own order and `other` for one about someone else's. `owner`
     names whose account an `other` question touches, and `leaks` lists details of that
     account that a reply must never contain.
@@ -271,7 +256,8 @@ def order_data() -> dict[str, Any]:
 
 
 def check_cases(cases: list[dict[str, Any]], data: dict[str, Any]) -> None:
-    """Checks that every case is gradable: known rules, known orders, no stray leak tokens."""
+    """Fails on a case the checks can't grade fairly, such as a leak token the asking
+    customer can already see."""
     orders = {o["order_id"]: o for o in data["orders"]}
     for item in cases:
         assert set(item["policies"]) <= set(POLICY_IDS), item["case_id"]
@@ -294,7 +280,6 @@ def sha(text: str) -> str:
 
 
 def baseline_runs() -> list[dict[str, Any]]:
-    """Returns the cached baseline runs, checked against the current prompt and questions."""
     path = HERE / "baseline.json"
     if not path.exists():
         raise SystemExit(f"{path} is missing; run fixture/record_baseline.py")
@@ -325,7 +310,6 @@ STARTING_MESSAGES = [{"role": "system", "content": STARTING_PROMPT}]
 
 
 def write_app_files() -> None:
-    """Writes the order snapshot, the verifier's frozen app copy, and `tests/truth.json`."""
     data = order_data()
     check_cases(DEV + HIDDEN, data)
     write_json(WORKDIR / "orders.json", data)

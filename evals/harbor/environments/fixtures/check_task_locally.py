@@ -1,10 +1,7 @@
-"""Run an `eval-workflows` task's verifier against a local Phoenix, without Docker.
+"""Runs an `eval-workflows` task's verifier against a local Phoenix, without Docker.
 
-Seeds the task's `fixture/phoenix_seed.json` into a scratch database, serves it on a free port,
-optionally runs the reference solution (`--solution`), then runs `tests/test.py` and
-prints the reward. Without `--solution` this is a nop control: the verifier should
-return reward 0. Paths that the task files hard-code (`/app`, `/solution`, `/tests`)
-are mapped to scratch copies. The real check is still a Harbor oracle run in Docker.
+Without `--solution`, it's a nop control that should score 0. A Harbor oracle run in
+Docker is still the real check.
 
     uv run python evals/harbor/environments/fixtures/check_task_locally.py response-evals --solution
 """

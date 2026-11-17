@@ -1,9 +1,4 @@
-"""Read the end state of eval-building tasks from the task's Phoenix server.
-
-The `eval-workflows` tasks grade what an agent left in Phoenix, whatever interface it used.
-These helpers read datasets, their examples, and experiments with their runs and
-evaluations over REST.
-"""
+"""Reads the datasets and experiments an agent left in Phoenix, whatever interface it used."""
 
 from __future__ import annotations
 
@@ -21,7 +16,7 @@ from harbor_verifiers.phoenix_api import PHOENIX_URL
 
 
 def get_json(path: str, params: Mapping[str, Any] | None = None) -> Any:
-    """Returns the decoded JSON body of a GET request, or None for a 404."""
+    """Returns the JSON body of a GET request, or None for a 404."""
     query = "?" + urllib.parse.urlencode(params, doseq=True) if params else ""
     try:
         with urllib.request.urlopen(f"{PHOENIX_URL}{path}{query}", timeout=120) as response:
@@ -49,11 +44,7 @@ def _quote(identifier: str) -> str:
     return urllib.parse.quote(identifier, safe="")
 
 
-# Datasets
-
-
 def dataset_id(name: str) -> str | None:
-    """Returns the ID of the dataset with this name, or None if none exists."""
     for dataset in _paginate("/v1/datasets", {"name": name}):
         if dataset.get("name") == name:
             return str(dataset["id"])
@@ -61,7 +52,7 @@ def dataset_id(name: str) -> str | None:
 
 
 def dataset_examples(dataset: str, split: str | None = None) -> list[dict[str, Any]]:
-    """Returns the current examples of a dataset, by ID, optionally filtered to one split."""
+    """Returns the current examples of the dataset with this ID."""
     params = {"split": split} if split else None
     body = get_json(f"/v1/datasets/{_quote(dataset)}/examples", params)
     return list(body["data"]["examples"]) if body else []
@@ -69,8 +60,6 @@ def dataset_examples(dataset: str, split: str | None = None) -> list[dict[str, A
 
 @dataclass
 class Evaluation:
-    """One evaluation of one experiment run."""
-
     name: str
     annotator_kind: str
     label: str | None
@@ -81,8 +70,6 @@ class Evaluation:
 
 @dataclass
 class Run:
-    """One task run of an experiment, with its evaluations."""
-
     example_id: str
     repetition: int
     input: dict[str, Any]
@@ -94,8 +81,6 @@ class Run:
 
 @dataclass
 class Experiment:
-    """An experiment and its runs, oldest first in the lists that helpers return."""
-
     id: str
     name: str | None
     created_at: datetime
@@ -104,7 +89,7 @@ class Experiment:
 
     @property
     def rowid(self) -> int:
-        """The database row ID, which orders experiments by creation even within a second."""
+        """The database row ID, which orders experiments created in the same second."""
         try:
             decoded = base64.b64decode(self.id + "=" * (-len(self.id) % 4)).decode()
             return int(decoded.rsplit(":", 1)[-1])
@@ -113,7 +98,6 @@ class Experiment:
 
     @property
     def example_ids(self) -> frozenset[str]:
-        """The IDs of the dataset examples this experiment ran on."""
         return frozenset(run.example_id for run in self.runs)
 
     def evaluator_names(self) -> set[str]:
@@ -133,7 +117,6 @@ def _evaluation(raw: Mapping[str, Any]) -> Evaluation:
 
 
 def experiment(experiment_id: str, meta: Mapping[str, Any]) -> Experiment:
-    """Returns an experiment with its runs and evaluations."""
     rows = get_json(f"/v1/experiments/{_quote(experiment_id)}/json") or []
     runs = [
         Run(
@@ -157,7 +140,7 @@ def experiment(experiment_id: str, meta: Mapping[str, Any]) -> Experiment:
 
 
 def dataset_experiments(dataset: str) -> list[Experiment]:
-    """Returns every experiment on a dataset, by ID, oldest first."""
+    """Returns every experiment on the dataset with this ID, oldest first."""
     metas = _paginate(f"/v1/datasets/{_quote(dataset)}/experiments")
     experiments = [experiment(str(meta["id"]), meta) for meta in metas]
     return sorted(experiments, key=lambda e: (e.created_at, e.rowid))

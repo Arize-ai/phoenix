@@ -1,16 +1,6 @@
-"""Build OpenInference spans for synthetic support-agent traces.
+"""Builds OpenInference spans for synthetic support-agent traces.
 
-Task fixture builders (`tasks/eval-workflows/<task>/fixture/build.py`) use this module to
-write `fixture/phoenix_seed.json` for the seeder and the hidden traces in `tests/`. IDs derive
-from a case key, so rebuilding a fixture gives the same IDs.
-
-Example:
-
-    trace = Trace("refund-17", start=BASE + timedelta(hours=3), session_id="sess-17")
-    trace.tool("get_order", {"order_id": "A-1001"}, {"status": "delivered"})
-    trace.llm(messages, reply)
-    trace.finish(user_message, reply)
-    spans = trace.spans
+IDs derive from a case key, so rebuilding a fixture gives the same IDs.
 """
 
 from __future__ import annotations
@@ -33,8 +23,6 @@ def _json(value: Any) -> str:
 
 
 class Trace:
-    """One agent request: a root span with LLM, tool, and retriever children."""
-
     def __init__(
         self,
         key: str,
@@ -91,7 +79,7 @@ class Trace:
         seconds: float = 1.6,
         error: str | None = None,
     ) -> dict[str, Any]:
-        """Adds an LLM call. `messages` are `{"role", "content"}` dicts."""
+        """`messages` are `{"role", "content"}` dicts."""
         attributes: dict[str, Any] = {
             "llm.model_name": model,
             "llm.provider": "openai",
@@ -117,7 +105,6 @@ class Trace:
         seconds: float = 0.3,
         error: str | None = None,
     ) -> dict[str, Any]:
-        """Adds a tool call with JSON arguments and result."""
         attributes = {
             "tool.name": name,
             "tool.parameters": json.dumps(arguments),
@@ -131,7 +118,7 @@ class Trace:
     def retrieve(
         self, query: str, documents: list[dict[str, Any]], *, name: str = "search_policies"
     ) -> dict[str, Any]:
-        """Adds a retriever call. Documents are `{"id", "content", "score"}` dicts."""
+        """`documents` are `{"id", "content", "score"}` dicts; `score` is optional."""
         attributes: dict[str, Any] = {"input.value": query}
         for index, document in enumerate(documents):
             prefix = f"retrieval.documents.{index}.document"
@@ -142,7 +129,7 @@ class Trace:
         return self._span(name, "RETRIEVER", attributes, 0.4, None)
 
     def finish(self, user_input: Any, output: Any, *, error: str | None = None) -> None:
-        """Adds the root span, which covers every child span."""
+        """Adds the root span. Call it after adding every child span."""
         attributes: dict[str, Any] = {
             "input.value": _json(user_input),
             "output.value": _json(output),
@@ -174,7 +161,7 @@ class Trace:
 
 
 def write_json(path: Any, value: Any) -> None:
-    """Writes stable, readable JSON so fixture diffs stay reviewable."""
+    """Writes readable JSON so fixture diffs stay reviewable."""
     from pathlib import Path
 
     Path(path).parent.mkdir(parents=True, exist_ok=True)

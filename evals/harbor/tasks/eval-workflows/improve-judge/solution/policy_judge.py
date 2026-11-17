@@ -1,14 +1,7 @@
 """Nightly LLM judge for refund-policy compliance.
 
-Checks each refund decision in the `refund-decisions` project against the order record
-and the policy passages the agent retrieved, and logs `policy_compliant` (`pass` or
-`fail`) on the trace's root span. By default it scores only traces without a
-`policy_compliant` annotation, so the nightly job pays only for new traffic. Pass
-`--rescore` to score every trace again after the judge changes.
-
-    python evals/policy_judge.py [--rescore]
-
-After scoring, it prints how often the judge agrees with `human_review` annotations.
+Scores only traces without a `policy_compliant` annotation, so the nightly job pays only
+for new traffic. After changing the judge, pass `--rescore`.
 """
 
 from __future__ import annotations
@@ -76,7 +69,6 @@ judge = ClassificationEvaluator(
 
 
 def judge_inputs(trace: list[dict[str, Any]]) -> dict[str, str]:
-    """Collects the request, reply, order record, and policy passages for one trace."""
     root = next(span for span in trace if not span.get("parent_id"))
     order: Any = {}
     policies: list[str] = []
@@ -115,8 +107,7 @@ def score(trace: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def retrying(function: Callable[[Any], Any]) -> Callable[[Any], Any]:
-    """Retries a scoring call twice, then skips the item, so one stuck API call doesn't
-    lose the whole nightly run."""
+    """Skips an item after three failed attempts, so one stuck call doesn't lose the run."""
 
     def call(item: Any) -> Any:
         for attempt in range(3):

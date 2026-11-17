@@ -1,18 +1,4 @@
-"""Grades `repair-evals`: the repaired script's `grounded` annotations, and the reply.
-
-1. On the 60 production traces, the latest `grounded` annotation must cover at least 95%
-   of traces and catch at least 80% of grounded and of ungrounded replies.
-2. An LLM reads the final reply without seeing the expected values and extracts, each
-   with a verbatim quote, the grounded rate it reports and whether it gives each of the
-   five shipped bugs with its mechanism. The reply must name all five. Its rate must
-   match the agent's own production annotations (the share labeled grounded, over all
-   60 traces or over the 58 without a tracking timeout) within 1.1 points, and fall in
-   the range that annotations passing check 1 can give. An empty reply fails every
-   reply check without a model call.
-3. The verifier adds 36 new traces the agent never saw, runs
-   `python evals/nightly_grounding.py` as the agent user with a key that can only call
-   `gpt-5-nano`, and applies the bar from check 1 to the new traces.
-"""
+"""Grades `repair-evals`: the `grounded` annotations, the rerun on new traces, and the reply."""
 
 from harbor_verifiers import grading, judge_prompts
 from harbor_verifiers.verify import ANSWER_PATH, TRAJECTORY_PATH, read_reply
@@ -74,7 +60,7 @@ FIELDS = {
 }
 BUGS = ("span_limit", "verdict_case", "errors_pass", "judge_evidence", "wrong_traces")
 
-# Reported beside the reward, never part of it. See `judge_prompts`.
+# Reported beside the reward, never part of it.
 APP = "An order-support bot for an online store. It answers customer chat messages and emails about order status, tracking, delivery dates, and address changes, using an order lookup, carrier tracking, and help center articles."
 CRITERIA = {
     "grounded": "Every factual claim in the reply is supported by what the bot looked up: the order record, the tracking data, and the help center articles."
@@ -97,7 +83,6 @@ def grade(cohort: str, labels: dict[str, bool]) -> dict:
 
 
 def grade_reply(predictions: dict) -> None:
-    """Checks that the reply names each bug and reports the rate its annotations give."""
     reply, source = read_reply(TRAJECTORY_PATH, ANSWER_PATH)
     details.update(reply_source=source, reply=reply[-4000:])
     named = dict.fromkeys(BUGS, False)

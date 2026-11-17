@@ -51,10 +51,38 @@ Each trace's review history is built on purpose:
 | A verdict on the root, then a later `needs_review` on the LLM span | 3 | No |
 | No review | 11 | No |
 
-That leaves 60 eligible traces: 31 `supported` and 29 `unsupported`. Each eligible
-trace's latest human verdict is correct by construction. A `supported` reply restates
-only the help article and the workspace record. An `unsupported` reply adds or
-contradicts a fact, and its reviewer's note names that mistake.
+That leaves 60 eligible traces: 31 `supported` and 29 `unsupported`.
+
+## How the data was made
+
+`fixture/build.py` generates the data from hand-written templates and the fixed random
+seed 41. The templates cover 18 help-center topics for an invented app, Tasklane. Each
+topic has an article, the workspace fields it relies on, 3 questions, 2 grounded
+replies, and 2 replies with a mistake, each with 2 reviewer notes that name it. The seed
+gives each trace a category and a true verdict, then picks its text, its reviewers, and
+the order the annotations are written in. No model wrote anything; the generator writes
+the replies, reviews, and pre-labels. No public datasets or user data are used, and all
+names and companies are invented.
+
+Each eligible trace's latest human verdict is correct by construction. A `supported`
+reply restates only the help article and the workspace record. An `unsupported` reply
+adds or contradicts a fact, and its reviewer's note names that mistake.
+
+These checks cover the data:
+
+- The generator raises an error if a trace's question, reply, retrieved documents,
+  workspace record, or system prompt contains a verdict word or one of its review notes.
+  It also raises an error if it can't put two writes to one span at a boundary between
+  review rounds, which keeps every later round at a later second.
+- The seeder waits until every span is in Phoenix, then writes the annotations one at a
+  time in file order.
+- On November 13, 2026, GPT-6 Astra reviewed the data and labels read-only through
+  Codex. It found that review notes were sampled by label alone, so an `unsupported`
+  note could name a mistake the reply doesn't make. Commit `5932c12ed5` gave each bad
+  reply its own notes and limited the generic notes to wording that fits any reply. No
+  verdict or eligible trace changed.
+- In Docker, the reference solution scores 1 and a do-nothing agent scores 0. The
+  controls in "What the task tests" show what naive approaches score.
 
 ## How it's graded
 
@@ -125,6 +153,10 @@ Controls we ran locally against the seeded data:
   spans still passes.
 - The task needs no judgment calls, so the reference solution makes no model calls. It
   tests careful data handling, not grading skill.
+- `unsupported` replies are shorter than `supported` ones: across the 60 eligible traces
+  they average 144 characters against 196. The second-model review flagged this cue,
+  and it isn't fixed. It can't earn reward here, but a grounding judge that favors long
+  replies would look better on `grounding-golden` than it should.
 
 ## Files
 

@@ -1,20 +1,4 @@
-"""Verifier-owned checks for the four reply standards in the support handbook.
-
-`score` grades one reply on each behavior that applies to its case:
-
-- `cites_policy` (code): the reply tags at least one rule the case relies on, like
-  `[policy:returns]`, and every tag names a handbook rule.
-- `under_word_limit` (code): the reply has 80 words or fewer, not counting tags.
-- `no_false_promises` (LLM judge): the reply offers, guarantees, or claims nothing the
-  handbook doesn't allow.
-- `account_privacy` (code and LLM judge), only for cases about an order or account: a
-  reply about someone else's account reveals and changes nothing, and a reply about the
-  customer's own order doesn't withhold it.
-
-`grade_experiment_runs` grades the evaluations on the agent's experiment: whether it
-carries the baseline's four evaluations, and whether its two code-checkable results agree
-with these checks.
-"""
+"""The verifier's reply checks. `fixture/record_baseline.py` scores the baseline with them too."""
 
 from __future__ import annotations
 
@@ -98,7 +82,6 @@ Did the reply help the customer with their own order?"""
 
 @functools.cache
 def judge(template: str) -> ClassificationEvaluator:
-    """Returns the LLM judge for one of the templates above, created on first use."""
     choices = {
         PROMISE_TEMPLATE: {"allowed": 1.0, "overpromise": 0.0},
         OTHER_ACCOUNT_TEMPLATE: {"protected": 1.0, "leaked": 0.0},
@@ -113,7 +96,6 @@ def judge(template: str) -> ClassificationEvaluator:
 
 
 def retry(call: Callable[[], Any], attempts: int = 3) -> Any:
-    """Returns `call()`, retrying transient failures such as rate limits."""
     for attempt in range(attempts):
         try:
             return call()
@@ -124,7 +106,6 @@ def retry(call: Callable[[], Any], attempts: int = 3) -> Any:
 
 
 def cited(reply: str) -> list[str]:
-    """Returns the rule IDs a reply tags, normalized, such as `refund-timing`."""
     ids: list[str] = []
     for group in TAG.findall(reply):
         for part in re.split(r"[,;]", group):
@@ -134,12 +115,10 @@ def cited(reply: str) -> list[str]:
 
 
 def word_count(reply: str) -> int:
-    """Returns the number of words in a reply, not counting policy tags."""
     return len(WORD.findall(TAG.sub(" ", reply)))
 
 
 def leaked_tokens(reply: str, tokens: list[str]) -> list[str]:
-    """Returns the other customer's details that appear in the reply."""
     return [
         token
         for token in tokens
@@ -150,7 +129,7 @@ def leaked_tokens(reply: str, tokens: list[str]) -> list[str]:
 def score(
     case: dict[str, Any], reply: str, context: str, policy_ids: list[str]
 ) -> dict[str, tuple[bool, str]]:
-    """Grades one reply. Returns each applicable behavior's pass value and explanation."""
+    """Returns (passed, explanation) for each behavior that applies to the case."""
     ids = cited(reply)
     unknown = sorted(set(ids) - set(policy_ids))
     relevant = sorted(set(ids) & set(case["policies"]))
@@ -188,8 +167,6 @@ def score(
     return verdicts
 
 
-# The agent's experiment
-
 MIN_EVALUATION_COVERAGE = 0.8
 MIN_CODE_AGREEMENT = 0.9
 PASS_LABELS = {
@@ -203,19 +180,13 @@ PASS_LABELS = {
 
 
 def evaluation_outcome(score: float | None, label: str | None) -> bool | None:
-    """Returns whether one of the agent's evaluations passed, or None if it has no result.
-
-    The score decides when there is one, as on the baseline (1 passes, 0 fails). Without
-    a score, a pass or fail label decides. Anything else, such as `not_applicable`, is no
-    result.
-    """
+    """Returns None for an evaluation with no result, such as `not_applicable`."""
     if score is not None:
         return score >= 0.5
     return PASS_LABELS.get((label or "").strip().lower())
 
 
 def reply_text(output: Any) -> str:
-    """Returns the reply in a run's output: the string, or a dict's longest string value."""
     if isinstance(output, str):
         return output
     if isinstance(output, dict):
@@ -232,18 +203,8 @@ def share(values: list[bool]) -> float:
 def grade_experiment_runs(
     runs: list[dict[str, Any]], account_questions: list[str], policy_ids: list[str]
 ) -> tuple[dict[str, bool], dict[str, Any]]:
-    """Grades the evaluations on the agent's experiment. Returns its checks and details.
-
-    Each run is a dict with the `question`, the `reply`, and `outcomes`, which maps each
-    evaluation name to `evaluation_outcome`.
-
-    - `experiment_evaluations`: `cites_policy`, `under_word_limit`, and
-      `no_false_promises` each have a result on at least 80% of the runs, and
-      `account_privacy` on at least 80% of the runs for account questions.
-    - `experiment_code_checks`: on at least 90% of the runs it scores,
-      `under_word_limit` agrees with `word_count`, and `cites_policy` doesn't pass a reply
-      that has no tag or tags a rule the handbook doesn't have.
-    """
+    """Each run has the `question`, the `reply`, and `outcomes`, which maps each evaluation
+    name to its `evaluation_outcome`."""
     account = [run for run in runs if run["question"] in account_questions]
     coverage = {}
     for name in BEHAVIORS:

@@ -28,6 +28,30 @@ The agent gets `instruction.md` word for word:
 No labels are visible. Each requirement fails on 25% to 35% of traces, chosen
 independently, so one failing requirement doesn't predict another.
 
+## How the data was made
+
+`fixture/build.py` generates the data from hand-written templates with fixed random
+seeds: 11 for the production traces and 23 for the new ones. The policies, items, reply
+sentences, contact wordings, and broken formats are hand-written. The generator picks
+which cases fail each requirement, each case's scenario and requested amount, and the
+IDs and timestamps. No reply comes from a model, and no public or user data is used. The
+store and customers are invented.
+
+The generator inserts a requirement's defect only into the cases chosen to fail it: a
+broken format, a wrong amount, another customer's contact, or an unsupported claim.
+
+The data is checked in these ways:
+
+- The generator has no assertions. It prints how many cases fail each requirement.
+- The seeder, `environments/fixtures/seed_phoenix.py`, waits until every span is in
+  Phoenix and fails if any are missing.
+- On November 13, 2026, GPT-6 Astra reviewed the data and labels read-only through
+  Codex. It found three cues that predicted labels: the unsupported claim's position,
+  the phrase "similar ticket" in every leak, and wrong amounts that always matched the
+  customer's request. Commit `c0e12b3407` removed all three.
+- In Docker, the reference solution scores 1 and an agent that does nothing scores 0.
+  The controls in "What the task tests" show what naive approaches score.
+
 ## How it's graded
 
 `reward` is 1 only if every check passes. Each check reads the latest annotation named

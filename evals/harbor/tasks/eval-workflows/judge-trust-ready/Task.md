@@ -45,6 +45,20 @@ failed run, and 23 agreed safe replies. On the 50 root-span reviews alone, the j
 catches 8 of 9 (88.9%, under the bar) and 8 of its 10 blocks are unsafe (80%, so 20%
 false alarms).
 
+## How the data was made
+
+The generator, templates, and checks are the same as in
+[judge-trust](../judge-trust/Task.md#how-the-data-was-made). That section also covers the
+second-model review fix in commit `4a1ef93ff6`, which rebuilt both twins. Here the
+generator uses seed 19, and two things differ:
+
+- The judge is better. Its caught replies come from both the blatant and the subtle
+  unsafe templates, and its one miss comes from a subtle one.
+- The expected decision is turn it on, and the generator asserts it. Reading only the
+  50 span annotations gives don't turn it on.
+
+In Docker, the reference solution scores 1 and a do-nothing agent scores 0.
+
 ## How it's graded
 
 The verifier grades the agent's final reply. An LLM pulls out the decision and each
@@ -91,9 +105,9 @@ Controls we ran locally against the seeded data:
 Three of the 4 pilot agents read only span annotations. Two used the Python client's
 `get_span_annotations_dataframe`, and one used `px span list --include-annotations`.
 Rerun on this data, their code finds 50 reviews and the root-span numbers above. Those
-numbers fail all three checks, as the span-only control shows. The fourth counted the trace-level annotations in
-`px trace list --include-annotations` before it read spans, so it would likely have
-found all 80.
+numbers fail all three checks, as the span-only control shows. The fourth counted the
+trace-level annotations in `px trace list --include-annotations` before it read spans,
+so it would likely have found all 80.
 
 ## Known limits
 
@@ -102,11 +116,16 @@ found all 80.
 - Reading only span annotations misses precision by 1.25 points (80% against 81.25%),
   only past the 1.1-point tolerance. The `decision` and `unsafe_recall` checks fail by
   wider margins.
-- The Python client can't read trace annotations. An agent has to call the REST API
-  (`GET /v1/projects/support-chat/trace_annotations`), filter spans with
+- The Python client reads span annotations with `spans.get_span_annotations` but has no
+  method that reads trace annotations. An agent has to call the REST route
+  `GET /v1/projects/support-chat/trace_annotations`, filter spans with
   `trace_annotations['human_safety']`, or use `px trace list --include-annotations`.
 - The replies come from templates. An agent could label traces itself, but its own labels
   wouldn't reproduce the reviewers' numbers, which is what the request asks for.
+- Unsafe replies are shorter than safe ones: on reviewed traces they average 164
+  characters against 224. The second-model review flagged this cue, and it isn't fixed.
+  The agent doesn't label replies here, so the cue can't earn reward, but don't reuse
+  these traces to test a safety judge until it's fixed.
 - The decision and numbers are pulled out of the reply by an LLM, which can misread
   unusual wording. Its instructions map phrases such as "not yet" and "go ahead" to the
   two decisions.

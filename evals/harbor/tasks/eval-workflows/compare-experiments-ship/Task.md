@@ -57,6 +57,26 @@ Python client lists runs newest first, so a dict keyed by example keeps repetiti
 The REST JSON export and `px experiment get` list runs by example and then repetition,
 so the dict keeps repetition 3.
 
+## How the data was made
+
+The data comes from the generator described in
+[compare-experiments](../compare-experiments/Task.md#how-the-data-was-made), with the
+same questions, answers, phrasings, seeder checks, and review history. In Docker, the
+reference solution scores 1 here too, and an agent that does nothing scores 0. What
+differs:
+
+- Seed 29 assigns the pass patterns and errored runs, and seed 30 picks the phrasings.
+- The hand-written pass patterns give the results under "What the agent starts with".
+  v8's errored run is in repetition 1 instead of 2.
+- The generator also asserts that v8 passes fewer shipping runs than v7, so this twin
+  keeps a regression the user's rule doesn't cover.
+
+The pilot found one unfair case. The shipping question v8 always failed asked about
+sending a spare e-bike battery by express air, where a wrong answer is a safety problem,
+so an agent that held v8 back over it made a fair call. On November 14, 2026, commit
+`c45b5dcd63` replaced it with the delivery date question, without changing any pass
+pattern.
+
 ## How it's graded
 
 The verifier grades the agent's final reply. An LLM pulls out the decision and each

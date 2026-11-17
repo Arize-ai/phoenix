@@ -1,13 +1,4 @@
-"""Grades `session-evals`: `task_completed` and `honest` on every session, old and new.
-
-1. Each annotation must cover at least 95% of the 40 sessions in the fixture and catch
-   at least 80% of passing and of failing sessions. Annotations count on the session or
-   on any trace or span in it; the latest one wins.
-2. The verifier adds 25 new sessions the agent never saw, and new turns to 16 sessions
-   the agent already scored, then runs the agent's nightly entry point. It applies the
-   same bar to the new sessions and to the continued ones, whose labels now cover the
-   new turns as well.
-"""
+"""Grades `session-evals`: `task_completed` and `honest` on every session, old and new."""
 
 import time
 from datetime import datetime, timedelta, timezone
@@ -18,15 +9,12 @@ from harbor_verifiers.phoenix_api import PHOENIX_URL
 
 TRUTH = grading.load_test_json("truth.json")
 PROJECT = TRUTH["project"]
-CRITERIA = ("task_completed", "honest")
 MIN_RECALL = 0.8
 MIN_COVERAGE = 0.95
-# The nightly key can only call this model, so the rerun refuses any other.
 RERUN = "python evals/session_evals.py"
-# How long the continued turns spread over. They all arrive after the verifier starts.
 CONTINUATION_WINDOW = timedelta(seconds=90)
 
-# Reported beside the reward, never part of it. See `judge_prompts`.
+# Inputs to the reported prompt_quality measure, which never changes the reward.
 APP = "An order-support agent for an online store. Over a multi-turn conversation it looks up orders and cancels, refunds, or changes the address of an order with tools, then tells the customer what happened."
 CRITERIA = {
     "task_completed": "By the end of the session, a tool result shows that the customer's last request (the right action on the right order, with the right details) took effect.",
@@ -52,13 +40,8 @@ def grade(cohort: str, labels: dict) -> None:
 
 
 def continue_sessions(spans: list[dict[str, Any]], after: datetime) -> None:
-    """Logs new turns of existing sessions, timed between `after` and now.
-
-    Every annotation the agent wrote is older than `after`, so a script that rescores
-    sessions whose latest turn is newer than their annotations sees these turns as new.
-    The turns keep their session IDs and their order, and start in the last 6 hours like
-    the rest of the new traffic.
-    """
+    """Logs new turns of existing sessions between `after` and now, so they're newer than
+    every annotation the agent wrote before `after`."""
     from phoenix.client import Client
 
     time.sleep(max(0.0, (after + CONTINUATION_WINDOW - datetime.now(timezone.utc)).total_seconds()))
@@ -76,9 +59,10 @@ def continue_sessions(spans: list[dict[str, Any]], after: datetime) -> None:
 started = datetime.now(timezone.utc)
 grade("production", TRUTH["visible"])
 seen_spans = grading.project_spans(PROJECT)
-# One call keeps every turn of a session in order: the shift to now moves all spans together.
+# One call keeps turns in order, because the shift to now moves all its spans together.
 grading.inject_spans(PROJECT, TRUTH["unseen"]["spans"])
 continue_sessions(TRUTH["continued"]["spans"], after=started)
+# The nightly job's key can only call the pinned model, so the rerun refuses any other.
 with judge_prompts.record_llm_calls(allowed_models={judge_prompts.PINNED_MODEL}) as recorder:
     details["rerun"] = grading.run_as_agent(RERUN, timeout=900, env=recorder.env).as_dict()
 grade("new_sessions", TRUTH["unseen"]["labels"])

@@ -1,20 +1,4 @@
-"""Records the judge requests an eval script sends, and scores them without affecting reward.
-
-The verifier reruns the agent's script with `OPENAI_BASE_URL` and `ANTHROPIC_BASE_URL`
-pointing at a local recorder, which forwards each request to the real provider and keeps
-a copy. `prompt_scores` then reports two 0-to-1 scores next to `reward`:
-
-- `uses_phoenix_evals`: the share of judge requests that phoenix-evals sent. Its
-  evaluators request a structured result through a schema or tool named
-  `extract_structured_data`, so the request body identifies them.
-- `prompt_quality`: the share of judge requests whose prompt passes every item in
-  `RUBRIC`. An LLM reads one request from each of the most used prompt templates and
-  explains what each one gets wrong. Code adds one more item: the template mustn't quote
-  text that only the traces the agent saw contain, because that's overfitting.
-
-A script that sends no recorded requests gets 0 on both, because there's no judge
-prompt to read.
-"""
+"""Records the judge requests an eval script sends, and scores them without affecting reward."""
 
 from __future__ import annotations
 
@@ -33,6 +17,7 @@ from typing import Any
 import httpx
 
 PHOENIX_EVALS_MARKER = "extract_structured_data"
+"""The schema or tool name phoenix-evals evaluators request a structured result through."""
 UPSTREAMS = {"openai": "https://api.openai.com", "anthropic": "https://api.anthropic.com"}
 _HOP_HEADERS = {"host", "content-length", "connection", "accept-encoding", "transfer-encoding"}
 _MAX_PROMPT_CHARS = 12_000
@@ -42,8 +27,6 @@ _UPSTREAM_TIMEOUT = httpx.Timeout(120, connect=20)
 
 @dataclass
 class LLMCall:
-    """One request the rerun sent to a model provider."""
-
     provider: str
     path: str
     body: dict[str, Any]
@@ -64,15 +47,13 @@ class LLMCall:
 
 @dataclass
 class Recorder:
-    """The calls recorded so far, and the environment that routes a process through it."""
-
     env: dict[str, str] = field(default_factory=dict)
     calls: list[LLMCall] = field(default_factory=list)
     allowed_models: Collection[str] | None = None
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
     def allows(self, model: str) -> bool:
-        """Checks whether `model` is allowed, counting dated snapshots of allowed models."""
+        """Also allows dated snapshots of allowed models."""
         if self.allowed_models is None:
             return True
         return any(model == m or model.startswith(f"{m}-") for m in self.allowed_models)
@@ -144,10 +125,9 @@ def _handler(recorder: Recorder) -> type[BaseHTTPRequestHandler]:
 
 @contextmanager
 def record_llm_calls(allowed_models: Collection[str] | None = None) -> Iterator[Recorder]:
-    """Runs a local recorder for OpenAI and Anthropic requests while the block runs.
+    """Records the OpenAI and Anthropic requests of any process run with `recorder.env`.
 
-    Pass `recorder.env` to the process you want to record. If `allowed_models` is set,
-    the recorder refuses other models with a 403, like a key scoped to those models.
+    With `allowed_models`, other models get a 403, as with a key scoped to those models.
     """
     recorder = Recorder(allowed_models=allowed_models)
     server = ThreadingHTTPServer(("127.0.0.1", 0), _handler(recorder))
@@ -167,9 +147,6 @@ def record_llm_calls(allowed_models: Collection[str] | None = None) -> Iterator[
     finally:
         server.shutdown()
         server.server_close()
-
-
-# Reading requests
 
 
 def _text(content: Any) -> str:
@@ -204,7 +181,6 @@ def _output_format(body: Mapping[str, Any]) -> Any:
 
 
 def render(call: LLMCall) -> str:
-    """Returns a request's prompt as text: system text, each message, then the output format."""
     body = call.body
     sections = []
     system = body.get("system") or body.get("instructions")
@@ -226,9 +202,6 @@ def _template_key(call: LLMCall) -> str:
     """Groups requests that share a prompt template, ignoring the trace data inside it."""
     text = render(call)
     return json.dumps(_output_format(call.body), sort_keys=True)[:300] + text[:120]
-
-
-# Copied examples
 
 
 def _words(text: str) -> list[str]:
@@ -257,18 +230,13 @@ def _strings(value: Any) -> Iterator[str]:
 
 
 def seen_only_shingles(seen: Iterable[Any], unseen: Iterable[Any]) -> set[tuple[str, ...]]:
-    """Returns 10-word runs that appear in the data the agent saw but nowhere in the new data.
-
-    Shared text, such as policy passages and reply templates, appears in both and drops
-    out, so a match means a judge prompt quotes a specific example the agent saw.
-    """
+    """Shared text, such as policy passages, drops out, so a match is an example the agent saw."""
     seen_runs = {run for text in _strings(list(seen)) for run in _shingles(text)}
     unseen_runs = {run for text in _strings(list(unseen)) for run in _shingles(text)}
     return seen_runs - unseen_runs
 
 
 def copied_runs(text: str, runs: set[tuple[str, ...]]) -> list[str]:
-    """Returns the runs from `seen_only_shingles` that `text` contains, as strings."""
     return sorted(" ".join(run) for run in _shingles(text) & runs)
 
 
@@ -276,12 +244,9 @@ _ID = re.compile(r"\b[A-Z]{1,4}-\d{3,}\b")
 
 
 def seen_only_ids(seen: Iterable[Any], unseen: Iterable[Any]) -> set[str]:
-    """Returns IDs such as `R-50112` that appear in the seen data but not the new data."""
     seen_ids = {i for text in _strings(list(seen)) for i in _ID.findall(text)}
     return seen_ids - {i for text in _strings(list(unseen)) for i in _ID.findall(text)}
 
-
-# Rubric
 
 PINNED_MODEL = os.environ.get("PHOENIX_EVALS_PINNED_MODEL", "gpt-5-nano")
 """The only model a task's nightly API key can call, so the only one its judges may use."""
@@ -324,7 +289,7 @@ RUBRIC = {
     ),
 }
 COPIED = "no_copied_traces"
-"""The code-checked rubric item: the template doesn't quote traces the agent saw."""
+"""Checked by code: a template that quotes traces only the agent saw is overfit."""
 
 _GRADER_PROMPT = """You review one request that an evaluation script sent to an LLM judge. The script scores traces from the application described below against the listed criteria. Don't judge whether the request will get the answers right. Judge how the request is written, against each rubric item.
 
@@ -398,17 +363,12 @@ def prompt_scores(
     """Scores the recorded judge requests. None of it is reward.
 
     Args:
-        calls: The requests recorded during the rerun.
         system: A description of the application the traces come from.
-        criteria: Each criterion the task asks for, by annotation name.
+        criteria: Each criterion's definition, by annotation name.
         evidence: For each criterion, the trace data a judge needs to decide it.
-        deterministic: Criteria that code can check without a model, such as a format.
-        copied: Text runs that only the traces the agent saw contain. See
-            `seen_only_shingles`.
+        deterministic: Criteria that code can check without a model.
+        copied: Text runs from `seen_only_shingles`.
         max_templates: The number of prompt templates to grade, most used first.
-
-    Returns:
-        `uses_phoenix_evals` and `prompt_quality`, and details for `details.json`.
     """
     generations = [call for call in calls if call.is_generation and call.status < 400]
     details: dict[str, Any] = {
@@ -436,8 +396,8 @@ def prompt_scores(
 
     hits: set[tuple[str, ...]] = set()
     if copied is not None:
-        # Only text that many requests repeat is prompt template. The trace data inside
-        # a request varies, and a rerun may score visible traces, so it doesn't count.
+        # Only text that many requests repeat is template. Trace data varies, and a rerun
+        # may score traces the agent saw, so quoting them there isn't copying.
         runs = [_shingles(render(call)) for call in generations]
         counts = Counter(run for request in runs for run in request)
         hits = {run for run, n in counts.items() if n >= max(3, 0.2 * len(runs))} & copied
@@ -446,7 +406,7 @@ def prompt_scores(
     for group, verdict in zip(graded, verdicts):
         judged = set(verdict.get("criteria_judged") or [])
         missed_by_llm = set(verdict.get("missed") or [])
-        # Code decides the two items that follow from which criteria the request judges.
+        # These two items follow from `criteria_judged`, so code decides them.
         missed_by_llm.discard("one_criterion")
         missed_by_llm.discard("needs_a_model")
         if len(judged) != 1:

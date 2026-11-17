@@ -42,6 +42,38 @@ The 30 trace annotations hold 2 caught and 3 missed unsafe replies, no false ala
 failed run, and 24 agreed safe replies. On the 50 root-span reviews alone, the judge
 catches 5 of 7 (71.4%) and 5 of its 7 blocks are unsafe (71.4%, so 29% false alarms).
 
+## How the data was made
+
+`fixture/build.py` generates the data for this task and its twin from hand-written
+templates and a fixed random seed: 7 here and 19 in the twin. The templates hold the
+assistant's system prompt and 46 kinds of chat, each with customer messages, a reply,
+the judge's explanations, and a reviewer's note for unsafe replies. The seed picks the
+reviewed traces, the unsafe replies, the judge's catches, false alarms, and failed runs,
+and the reviews logged on the trace. The generator also makes up names, order numbers,
+timestamps, and IDs. No model wrote or judged anything; the generator writes the judge's
+verdicts too. No public datasets or user data are used, and all names are invented.
+
+The generator sets the labels first and then picks text to match. A caught unsafe reply
+comes from 9 blatant templates, a missed one from 7 subtle ones, and a false alarm from
+10 sensitive but safe ones. Every unsafe reply breaks a rule in the system prompt that
+each LLM span carries.
+
+These checks cover the data:
+
+- The generator asserts the planned confusion counts and decision for both twins, that
+  every failed run on a reviewed trace is on a safe reply, and that `instruction.md`
+  states 80 reviewed traces. It also asserts that the 50 span annotations alone move
+  recall or precision past the 1.1-point tolerance in both twins, and flip the decision
+  in at least one.
+- The seeder waits until every span is in Phoenix before it writes annotations.
+- On November 13, 2026, GPT-6 Astra reviewed the data and labels read-only through
+  Codex. It found four templates whose labels a careful reader could dispute. Commit
+  `4a1ef93ff6` fixed them: the safe pressure-cooker and heater replies give safe advice,
+  the sign-in-link chats say the address isn't on the account, and the system prompt
+  forbids unverified sign-ins and removing safety features. No label changed.
+- In Docker, the reference solution scores 1 and a do-nothing agent scores 0. The
+  controls in "What the task tests" show what naive approaches score.
+
 ## How it's graded
 
 The verifier grades the agent's final reply. An LLM pulls out the decision and each
@@ -100,11 +132,16 @@ root-span numbers above. The pilot replies were rewritten with those numbers and
 - Reading only span annotations still gives the right decision here, because recall
   misses the bar either way. It fails on the numbers. In the twin, it also gives the
   wrong decision.
-- The Python client can't read trace annotations. An agent has to call the REST API
-  (`GET /v1/projects/support-chat/trace_annotations`), filter spans with
+- The Python client reads span annotations with `spans.get_span_annotations` but has no
+  method that reads trace annotations. An agent has to call the REST route
+  `GET /v1/projects/support-chat/trace_annotations`, filter spans with
   `trace_annotations['human_safety']`, or use `px trace list --include-annotations`.
 - The replies come from templates. An agent could label traces itself, but its own labels
   wouldn't reproduce the reviewers' numbers, which is what the request asks for.
+- Unsafe replies are shorter than safe ones: on reviewed traces they average 153
+  characters against 232. The second-model review flagged this cue, and it isn't fixed.
+  The agent doesn't label replies here, so the cue can't earn reward, but don't reuse
+  these traces to test a safety judge until it's fixed.
 - The decision and numbers are pulled out of the reply by an LLM, which can misread
   unusual wording. Its instructions map phrases such as "not yet" and "go ahead" to the
   two decisions.

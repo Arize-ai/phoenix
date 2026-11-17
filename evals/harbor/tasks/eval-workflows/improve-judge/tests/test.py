@@ -1,16 +1,3 @@
-"""Grades `improve-judge`: the `policy_compliant` judge agrees with reviewers on unseen traces.
-
-The agent sees `human_review` annotations on 40 of the 80 traces. The other 40 have
-hidden labels, and every trace starts with a stale annotation from the old judge.
-
-1. `visible`: the latest `policy_compliant` annotation must cover at least 95% of the
-   40 unreviewed traces and catch at least 80% of compliant and of noncompliant
-   decisions.
-2. `new_traces`: the verifier adds 40 new traces with other products, prices, and
-   wordings, runs `python evals/policy_judge.py` as the agent user, and applies the
-   same bar to the new traces.
-"""
-
 from collections import Counter
 
 from harbor_verifiers import grading, judge_prompts
@@ -20,10 +7,9 @@ PROJECT = TRUTH["project"]
 ANNOTATION = "policy_compliant"
 MIN_RECALL = 0.8
 MIN_COVERAGE = 0.95
-# The nightly key can only call this model, so the rerun refuses any other.
 RERUN = "python evals/policy_judge.py"
 
-# Reported beside the reward, never part of it. See `judge_prompts`.
+# Reported beside the reward, never part of it.
 APP = "A refund-decision agent for an online store. For each refund request it looks up the order record and the refund policies, then approves or denies the refund and states the amount."
 CRITERIA = {
     "policy_compliant": "The agent's decision and refund amount follow the refund policy for this order."
@@ -53,6 +39,7 @@ def grade(cohort: str, truth: dict) -> None:
 grade("production", TRUTH["hidden"])
 seen_spans = grading.project_spans(PROJECT)
 grading.inject_spans(PROJECT, TRUTH["unseen"]["spans"])
+# The nightly key can only call this model, so the rerun refuses any other.
 with judge_prompts.record_llm_calls(allowed_models={judge_prompts.PINNED_MODEL}) as recorder:
     details["rerun"] = grading.run_as_agent(RERUN, timeout=900, env=recorder.env).as_dict()
 grade("new_traces", TRUTH["unseen"])

@@ -1,14 +1,8 @@
 """Build the refund-bot traces for `response-evals`.
 
-Writes `fixture/phoenix_seed.json` (the 60 production traces the agent sees) and
-`tests/truth.json` (their labels, plus 40 unseen traces and labels that the verifier
-adds before rerunning the agent's eval script). Run from the repository root:
+Run from the repository root:
 
     uv run python evals/harbor/tasks/eval-workflows/response-evals/fixture/build.py
-
-Each requirement fails independently on a fixed share of cases, so no requirement can
-stand in for another. Unseen traces use some failure wordings the visible ones never
-show, so an evaluator tuned to the visible text fails them.
 """
 
 from __future__ import annotations
@@ -64,10 +58,7 @@ NAMES = [
 ]  # fmt: skip
 DOMAINS = ["example.com", "example.org", "example.net", "mail.example.com"]
 
-# Claims a reply can make that no policy, order record, or tool result supports, keyed by
-# topic. Supported claims on the same topics come from `supported_claims`, and from the
-# opened-item explanation for the restocking fee.
-UNSUPPORTED = {
+UNSUPPORTED_CLAIMS = {
     "visible": [
         ("timeline", "You'll see the money back within 2 business days."),
         ("approval", "We've also emailed you a prepaid return label."),
@@ -83,9 +74,8 @@ UNSUPPORTED = {
         ("shipping", "We've upgraded your next order to free express shipping."),
     ],
 }
-# Sentences that quote a contact from the similar-ticket results. Passing and leaking
-# replies share them: a reply passes when the contact is the customer's own earlier
-# ticket and leaks when it's another customer's.
+# Passing and leaking replies share these wordings, so only whose contact it is decides
+# the label.
 TICKET_CONTACTS = {
     "visible": [
         "For reference, a similar ticket came from {contact}.",
@@ -96,7 +86,6 @@ TICKET_CONTACTS = {
         "Similar tickets on file: {contact}.",
     ],
 }
-# Unseen leaks sometimes quote a phone number, a format the visible traces never show.
 UNSEEN_PHONE_LEAK_RATE = 0.5
 OWN_TICKET_RATE = 0.5
 QUOTE_OWN_TICKET_RATE = 0.8
@@ -148,18 +137,14 @@ def write_message(
     own_ticket: dict[str, Any] | None,
     other_ticket: dict[str, Any],
 ) -> str:
-    """Writes the reply message from the case facts and inserts the case's defects.
-
-    Grounded and ungrounded messages draw the same number of claims in random order; an
-    ungrounded one swaps one claim for an unsupported one, so neither sentence count nor
-    position reveals the label. Contact sentences use the same wording in both classes.
-    """
+    """Swaps one supported claim for an unsupported one in an ungrounded message, so
+    sentence count and position don't reveal the label."""
     topics = rng.sample(sorted(claims), rng.choice((1, 2, 3)))
     body = [claims[topic] for topic in topics]
     if "grounded" in defects:
         slot = rng.randrange(len(topics))
         kept = set(topics) - {topics[slot]}
-        body[slot] = rng.choice([c for t, c in UNSUPPORTED[split] if t not in kept])
+        body[slot] = rng.choice([c for t, c in UNSUPPORTED_CLAIMS[split] if t not in kept])
     body.append(core)
     rng.shuffle(body)
 
@@ -228,8 +213,6 @@ def make_case(index: int, split: str, rng: random.Random, defects: set[str]) -> 
         }
         for k, (other, domain, phone) in enumerate(others)
     ]
-    # Some customers have an earlier ticket about the same item, so the similar-ticket
-    # results can hold their own contact as well as other customers'.
     own_ticket = None
     if rng.random() < OWN_TICKET_RATE:
         slot = rng.randrange(2)
@@ -257,9 +240,9 @@ def make_case(index: int, split: str, rng: random.Random, defects: set[str]) -> 
         other_ticket=rng.choice(others_tickets),
     )
     if "correct_amount" in defects:
-        # Plausible miscalculations, chosen without looking at what the customer asked for.
-        candidates = [money(price), money(price + shipping), money(price * 0.85)]
-        amount = rng.choice([value for value in candidates if value != refundable])
+        # Chosen without looking at what the customer asked for.
+        miscalculations = [money(price), money(price + shipping), money(price * 0.85)]
+        amount = rng.choice([value for value in miscalculations if value != refundable])
     else:
         amount = refundable
     reply_object: dict[str, Any] = {"refund_amount": amount, "message": message}

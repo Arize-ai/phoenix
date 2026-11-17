@@ -48,6 +48,33 @@ charged the restocking fee, and a refund past 30 days to a customer who says the
 member but isn't one. The new traces add a fourth: the restocking fee waived for a
 customer who isn't a member.
 
+## How the data was made
+
+`fixture/build.py` generates every trace from hand-written templates: the policy
+passages, products, prices, customer names, request and reply sentences, review notes,
+and the number of traces of each kind. A fixed random seed, 31 for the production
+traces and 47 for the new traces, shuffles the kinds and picks each order's facts and
+sentence variants within the kind's ranges. No real model output is included. The store
+and customers are invented, and no public dataset or user data is used.
+
+Each kind either follows the refund policy or breaks one rule on purpose. A trace is
+compliant when the agent's refund matches, to the cent, what `policy_outcome` computes
+from the order record. The review notes quote the same amounts.
+
+Four checks cover the data:
+
+- `build.py` asserts that every trace's label matches `policy_outcome`, so a compliant
+  kind never grants a wrong amount and a noncompliant kind never grants the right one.
+- The seeder, `environments/fixtures/seed_phoenix.py`, waits until every span is in
+  Phoenix before it logs the annotations.
+- On November 13, 2026, GPT-6 Astra reviewed the data and labels read-only through
+  Codex. It found that wrong denials gave reasons no correct denial used, such as
+  opened items not being returnable. Commit 5cec5f25bd makes wrong denials cite the
+  same reasons as correct ones, and bdefa98ab3 does the same for approval and
+  date-claim wording.
+- In Docker, the reference solution scores 1 and a do-nothing agent scores 0. The
+  tables in the next section show what other approaches score.
+
 ## How it's graded
 
 `reward` is 1 only if both checks pass. Each check reads the latest `policy_compliant`

@@ -1,8 +1,6 @@
-"""Build `compare-experiments-ship` with the generator it shares with `compare-experiments`.
+"""Run the generator shared with `compare-experiments`, which builds both tasks.
 
-The generator in `compare-experiments/fixture/build.py` writes both tasks'
-`fixture/phoenix_seed.json` and `tests/truth.json`, so the pair stays in step. Run from the
-repository root:
+Run from the repository root:
 
     uv run python evals/harbor/tasks/eval-workflows/compare-experiments-ship/fixture/build.py
 """

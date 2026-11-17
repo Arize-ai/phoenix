@@ -1,15 +1,10 @@
 """Nightly grounding check for the support bot.
 
-Runs from /app every night:
+Run from /app:
 
     python evals/nightly_grounding.py
 
-For every trace in the `support-bot` project, an LLM judge checks each claim in the
-bot's reply against what the bot looked up for that message: the order record, the
-tracking data, and the help center articles. The verdict is logged as a `grounded` span
-annotation (`pass` or `fail`) on the trace's root span, and the script prints the
-grounded rate. Replies the judge can't score are left unannotated and reported, and
-the script exits with status 1.
+Exits with status 1 if the judge couldn't score a reply. That reply gets no annotation.
 """
 
 from __future__ import annotations
@@ -85,7 +80,6 @@ def question_of(root: dict[str, Any]) -> str:
 
 
 def readable(value: Any) -> str:
-    """Returns a span attribute as compact JSON when it holds JSON, else as plain text."""
     try:
         return json.dumps(json.loads(str(value)))
     except ValueError:
@@ -150,8 +144,8 @@ def score(trace: list[dict[str, Any]]) -> tuple[str, dict[str, Any] | None, str]
 
 
 def retrying(function: Callable[[Any], Any]) -> Callable[[Any], Any]:
-    """Retries a scoring call twice, then skips the item, so one stuck API call doesn't
-    lose the whole nightly run."""
+    """Skips an item after 3 failed attempts, so one stuck API call doesn't lose the
+    whole nightly run."""
 
     def call(item: Any) -> Any:
         for attempt in range(3):

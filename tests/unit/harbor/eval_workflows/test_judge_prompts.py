@@ -1,5 +1,3 @@
-"""Offline tests for recording judge requests and scoring their prompts."""
-
 from __future__ import annotations
 
 import json
@@ -17,7 +15,6 @@ from harbor_verifiers.judge_prompts import LLMCall
 
 @pytest.fixture
 def fake_openai(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[dict[str, Any]]]:
-    """Serves a fake provider that echoes the request and records what it received."""
     received: list[dict[str, Any]] = []
 
     class Echo(BaseHTTPRequestHandler):

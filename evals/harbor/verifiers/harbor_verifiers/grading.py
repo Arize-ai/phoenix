@@ -1,12 +1,6 @@
-"""Shared grading for the `eval-workflows` Harbor tasks.
+"""Grading for the `eval-workflows` Harbor tasks.
 
-Each task grades one deliverable the instruction names: annotations with a given name,
-a dataset, or a reply. The helpers here read those deliverables from Phoenix, compare
-them with labels kept in the task's `tests/` directory, and test reusability by adding
-unseen traces to Phoenix and rerunning the agent's script.
-
-Label meaning comes from the label text or the score, never from agreement with the
-hidden truth. `to_bool` maps common label words to True (the good outcome) or False.
+A label's meaning comes from its text or score, never from agreement with the hidden labels.
 """
 
 from __future__ import annotations
@@ -28,19 +22,16 @@ from harbor_verifiers.phoenix_api import PHOENIX_URL
 
 GRADER_PROVIDER = os.environ.get("PHOENIX_EVAL_JUDGE_PROVIDER", "openai")
 GRADER_MODEL = os.environ.get("PHOENIX_EVAL_JUDGE_MODEL", "gpt-6-luna")
-"""The model the verifier itself calls: to pull claims out of replies, to grade judge
-prompts, and for task-specific judges. It's the cheapest model that matched
-`gpt-5.6-luna` on every saved reply; `gpt-5-nano` misread plain decisions."""
+"""The cheapest model that matched `gpt-5.6-luna` on every saved reply; `gpt-5-nano`
+misread plain decisions."""
 
 Unit = TypeVar("Unit", bound=Hashable)
 
-# Overridable so `environments/fixtures/check_task_locally.py` can grade a task outside a container.
 APP_DIR = os.environ.get("TASK_APP_DIR", "/app")
 TESTS_DIR = Path(os.environ.get("TASK_TESTS_DIR", "/tests"))
 
 
 def load_test_json(name: str) -> Any:
-    """Reads a JSON file from the task's hidden `tests/` directory."""
     return json.loads((TESTS_DIR / name).read_text())
 
 
@@ -63,11 +54,7 @@ NEGATIVE = {
 
 
 def to_bool(label: Any, score: Any) -> bool | None:
-    """Returns True for a good outcome, False for a bad one, or None if unclear.
-
-    The label wins when it is a known word. Otherwise a score of 1 or more is True
-    and a score of 0 or less is False. Scores strictly between 0 and 1 use 0.5.
-    """
+    """Returns True for a good outcome, False for a bad one, or None if unclear."""
     if isinstance(label, str) and label.strip():
         word = re.sub(r"[\s\-]+", "_", label.strip().lower()).strip("._")
         if word in POSITIVE:
@@ -79,9 +66,6 @@ def to_bool(label: Any, score: Any) -> bool | None:
     if isinstance(score, (int, float)) and score == score:
         return float(score) >= 0.5
     return None
-
-
-# Phoenix reads
 
 
 def _project(project: str) -> str:
@@ -150,7 +134,6 @@ def trace_predictions(
 
 
 def session_of_traces(spans: list[dict[str, Any]]) -> dict[str, str]:
-    """Maps trace ID to the `session.id` attribute of any span in it."""
     sessions: dict[str, str] = {}
     for span in spans:
         session = (span.get("attributes") or {}).get("session.id")
@@ -259,13 +242,8 @@ def document_predictions(project: str, name: str) -> dict[Hashable, Prediction]:
         after = spans["pageInfo"]["endCursor"]
 
 
-# Agreement with hidden labels
-
-
 @dataclass
 class Agreement:
-    """How a set of predictions compares with hidden labels, by class."""
-
     n: int
     covered: int
     good_recall: float
@@ -295,10 +273,9 @@ class Agreement:
 def agreement(
     predictions: Mapping[Unit, Prediction | bool | None], truth: Mapping[Unit, bool]
 ) -> Agreement:
-    """Scores predictions against truth. Missing or unclear predictions count as wrong.
+    """Scores recall per class, so a constant prediction scores 0 on one class.
 
-    Recall is computed separately for good (True) and bad (False) units, so a constant
-    prediction scores 0 on one class.
+    Missing or unclear predictions count as wrong.
     """
     good = bad = good_hit = bad_hit = covered = 0
     for unit, actual in truth.items():
@@ -322,11 +299,10 @@ def agreement(
 def good_share(
     predictions: Mapping[Unit, Prediction | bool | None], units: Iterable[Unit]
 ) -> float | None:
-    """Returns the share of `units` with a clear prediction that are predicted good.
+    """Returns the good share among `units` with a clear prediction, or None if none has one.
 
-    Units without a prediction, or with an unclear one, are left out of the
-    denominator, the way a script reports the rate over the replies it scored. Returns
-    None if no unit has a clear prediction.
+    Leaving unclear units out of the denominator matches how a script reports a rate over
+    the replies it scored.
     """
     values = []
     for unit in units:
@@ -338,13 +314,7 @@ def good_share(
 
 
 def passing_share_range(truth: Mapping[Unit, bool], min_recall: float) -> tuple[float, float]:
-    """Returns the lowest and highest good share that labels meeting `min_recall` can give.
-
-    Labels that cover every unit and catch at least `min_recall` of the good units and
-    of the bad units call between ceil(min_recall * good) and good + bad -
-    ceil(min_recall * bad) units good. A reported rate outside this range can't come
-    from labels that pass the per-class recall bar.
-    """
+    """Returns the lowest and highest good share that labels meeting `min_recall` can give."""
     if not truth:
         return 0.0, 1.0
     good = sum(1 for value in truth.values() if value)
@@ -355,11 +325,8 @@ def passing_share_range(truth: Mapping[Unit, bool], min_recall: float) -> tuple[
     return least / len(truth), most / len(truth)
 
 
-# Unseen data and reruns
-
-
 NEW_TRAFFIC_WINDOW = timedelta(hours=6)
-"""How far back new traffic reaches, so a nightly script that scores the last day sees all of it."""
+"""Short enough that a nightly script that scores the last day sees all new traffic."""
 
 
 def shift_to_now(
@@ -367,11 +334,10 @@ def shift_to_now(
     end: datetime | None = None,
     window: timedelta = NEW_TRAFFIC_WINDOW,
 ) -> list[dict[str, Any]]:
-    """Returns copies of the spans moved so they arrive as one night's traffic.
+    """Returns copies of the spans retimed to end just before `end` and start within `window`.
 
-    The last trace ends just before `end` (default: now), and every trace starts within
-    `window` of it. Traces keep their order and their own internal timing, so a fixture
-    batch spread over several days still lands inside a "last 24 hours" query.
+    Traces keep their order and internal timing, and the gaps between them shrink, so a
+    fixture spread over several days lands inside a "last 24 hours" query.
     """
     end = end or datetime.now(timezone.utc)
     traces: dict[Any, list[dict[str, Any]]] = {}
@@ -424,7 +390,6 @@ def inject_spans(project: str, spans: list[dict[str, Any]], timeout: float = 120
 
 
 def add_dataset_examples(dataset: str, examples: list[dict[str, Any]]) -> None:
-    """Appends examples to an existing dataset as a new version."""
     from phoenix.client import Client
 
     Client(base_url=PHOENIX_URL).datasets.add_examples_to_dataset(
@@ -455,14 +420,7 @@ def run_as_agent(
     cwd: str | None = None,
     env: Mapping[str, str] | None = None,
 ) -> RunResult:
-    """Runs a shell command as the agent user, as the agent's own nightly job would.
-
-    The verifier runs as root so the agent can't read `/tests`; dropping to the agent
-    user keeps the rerun from reading hidden labels too. Outside a container (local
-    tests), the command runs as the current user. The rerun gets the `PHOENIX_ENDPOINT`
-    the agent's shell had. `env` adds variables, such as the ones that route model
-    requests through `judge_prompts.record_llm_calls`.
-    """
+    """Runs a shell command as the agent user, so the rerun can't read the hidden labels."""
     env = {
         "PHOENIX_ENDPOINT": PHOENIX_URL,
         **{k: v for k, v in os.environ.items() if not k.startswith("PHOENIX_EVAL_")},
@@ -489,15 +447,8 @@ def run_as_agent(
         return RunResult(None, output, time.monotonic() - started)
 
 
-# Replies
-
-
 def extract_report_claims(reply: str, fields: Mapping[str, str]) -> dict[str, Any]:
-    """Extracts the values a reply states for each field, with a verbatim quote.
-
-    The extractor sees field definitions but never the expected values. It returns null
-    for a claim the reply doesn't make, and marks claims the reply contradicts.
-    """
+    """Extracts each field's stated value and a verbatim quote, without seeing expected values."""
     from phoenix.evals import LLM
 
     schema = {
@@ -549,14 +500,7 @@ def _normalize_quote(text: str) -> str:
 
 
 def _quoted(quote: str, reply: str) -> bool:
-    """Checks that the quote's words occur in the reply, in order and close together.
-
-    Extractors sometimes join a line's label to a later clause or add a linking word
-    such as "is", so an exact substring check would reject a faithful quote. The words
-    must appear in order within a window of twice the quote's length, ignoring
-    punctuation at their edges. A quote of four or more words may miss one word in
-    four, but never a word with a digit in it.
-    """
+    """Matches loosely: extractors sometimes join a label to a later clause or add "is"."""
     words = _normalize_quote(quote).split()
     haystack = _normalize_quote(reply)
     if not words:
@@ -581,7 +525,7 @@ def _bare(word: str) -> str:
 
 
 def _matched_in_order(words: list[str], window: list[str]) -> set[int]:
-    """Returns the indexes of the words in a longest in-order match against the window."""
+    """Returns the indexes of `words` in a longest common subsequence with `window`."""
     longest = [[0] * (len(window) + 1) for _ in range(len(words) + 1)]
     for i in reversed(range(len(words))):
         for j in reversed(range(len(window))):
@@ -603,7 +547,7 @@ def _matched_in_order(words: list[str], window: list[str]) -> set[int]:
 
 
 def _as_number(value: Any, want: float) -> float | None:
-    """Reads a claimed number, converting percentages when the expected value is a rate."""
+    """Reads a claimed number as a rate when `want` is one, so 85 or "85%" becomes 0.85."""
     if isinstance(value, str):
         text = value.strip()
         try:
@@ -626,9 +570,7 @@ def check_report_claims(
 ) -> dict[str, bool]:
     """Checks each expected claim: stated, quoted from the reply, uncontradicted, correct.
 
-    Numbers match within `tolerance`, which allows rounding to two decimals or to a
-    whole percent. A percentage such as "85%" or 85 matches an expected rate of 0.85.
-    Strings match case-insensitively.
+    The default `tolerance` allows rounding to two decimals or to a whole percent.
     """
     checks: dict[str, bool] = {}
     for name, want in expected.items():
@@ -645,12 +587,7 @@ def check_report_claims(
 
 
 def stated_number(claim: Mapping[str, Any] | None, reply: str, want: float) -> float | None:
-    """Returns the number a claim states, or None if it's missing, unquoted, or contradicted.
-
-    Use it when the expected value isn't one number, for example when a rate must match
-    the agent's own annotations. `want` sets the scale the way `check_report_claims`
-    does: when it's between 0 and 1, a percentage such as "62%" or 62 reads as 0.62.
-    """
+    """Returns the number a claim states, or None if it's missing, unquoted, or contradicted."""
     claim = claim or {}
     if claim.get("contradicted", True) or not _quoted(claim.get("quote") or "", reply):
         return None
@@ -658,8 +595,7 @@ def stated_number(claim: Mapping[str, Any] | None, reply: str, want: float) -> f
 
 
 PHOENIX_SKILLS = ("phoenix-cli", "phoenix-error-analysis", "phoenix-evals", "phoenix-tracing")
-"""Skills reported as `loaded_<skill>` even when the agent didn't load them, so every
-trial has the same keys. Any other skill the agent loads gets a key too."""
+"""Always reported as `loaded_<skill>`, so every trial has the same keys."""
 
 
 def _key(name: str) -> str:
@@ -671,11 +607,9 @@ def finish(
     details: Mapping[str, Any],
     measures: Mapping[str, float] | None = None,
 ) -> None:
-    """Writes reward 1 if every check passed, plus each check as a 0/1 component.
+    """Writes reward 1 if every check passed, with checks and `measures` as components.
 
-    `measures` are extra scores, such as `judge_prompts.prompt_scores`, that Harbor
-    reports beside the reward without changing it. The agent's turns, tool calls, and
-    loaded skills come from its trajectory.
+    `measures` don't change the reward.
     """
     from harbor_verifiers import skills
     from harbor_verifiers.verify import TRAJECTORY_PATH, read_trajectory, write_reward

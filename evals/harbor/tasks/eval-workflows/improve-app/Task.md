@@ -29,6 +29,40 @@ The agent gets `instruction.md` word for word:
 | `/app/orders.json` | 25 customers and 45 orders. |
 | Model access | Real `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` values, so the agent can run the app and its own evaluators. |
 
+## How the data was made
+
+Except for the baseline replies, everything is hand-written, with no random seed.
+`fixture/build.py` holds the customers, orders, launch prompt, and both sets of
+questions with their notes, and `workdir/policies.md` is the handbook. The store,
+customers, and orders are invented. No public dataset or user data is used.
+
+The `baseline` experiment replays real `gpt-5.4-mini` replies that
+`fixture/record_baseline.py` recorded once and scored with the checks in
+`tests/support_checks.py`. Their LLM-judged results came from the verifier's judge at
+the time, `gpt-5.6-luna`. `build.py` reads both from `fixture/baseline.json`.
+
+The new questions have hand-written expectations, not class labels: the rules a reply
+should cite, whether the question baits a promise the handbook doesn't allow, and for
+account questions, whose order it is and which details a reply must not reveal. Each
+applies the handbook to the question and to the order records as of 2026-11-10 15:00.
+The verifier runs the app with the agent's saved prompt on these questions and grades
+the replies with code checks and LLM judges.
+
+Four checks cover the data:
+
+- `build.py` fails on a question it can't grade fairly: a rule the handbook doesn't
+  have, a forbidden detail the asking customer can already see, or an order whose owner
+  doesn't match the question's privacy type. It also refuses a stale `baseline.json`,
+  one recorded with another launch prompt or other development questions.
+- The seeder, `environments/fixtures/seed_phoenix.py`, reads each baseline run back and
+  fails if an output or evaluation doesn't match the seed file.
+- On November 13, 2026, GPT-6 Astra reviewed the questions and expectations read-only
+  through Codex. It found that hid-21 expected a refusal without saying when the price
+  dropped, and that hid-14 and hid-01 relied on facts their questions didn't state.
+  Commit da4416b90c adds those facts to all three questions.
+- In Docker, the reference solution scores 1 and a do-nothing agent scores 0. The
+  controls under "What the task tests" show what naive approaches score.
+
 ## How it's graded
 
 The verifier takes the latest `support-system` version from Phoenix and runs it through
@@ -149,7 +183,7 @@ calls. The prompt is unchanged, so `reward` is 0; the table shows the experiment
 | Path | What it does |
 | --- | --- |
 | `fixture/build.py` | Generates `fixture/phoenix_seed.json` (the prompt, dataset, and baseline experiment), `workdir/orders.json`, `tests/truth.json` (the launch prompt, the 10 development questions about an order or account, and the 32 new questions with grading notes), and `tests/app/`. It's deterministic and makes no model calls. |
-| `fixture/record_baseline.py` | Regenerates `fixture/baseline.json`, the saved baseline replies and evaluations, with real model calls. Run it after changing the launch prompt, the app, or the development questions. |
+| `fixture/record_baseline.py` | Regenerates `fixture/baseline.json`, the saved baseline replies and evaluations, with real model calls. Run it after changing the launch prompt, the app, the development questions, or `tests/support_checks.py`. |
 | `workdir/` | Copied to `/app`. |
 | `tests/test.py` | The verifier. |
 | `tests/support_checks.py` | The verifier's checks and judge prompts, and the checks on the agent's experiment. |

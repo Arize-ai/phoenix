@@ -97,11 +97,10 @@ def _message_text(message: Any) -> str:
 
 
 def final_reply(trajectory: dict[str, Any] | None) -> str:
-    """The agent's final answer: its text messages after its last tool call.
+    """The agent's text messages after its last tool call, or else its last text message.
 
-    An agent sometimes adds a short follow-up after its answer, for example when a
-    background task finishes, so the answer is every message after the last tool call,
-    joined. Without such messages, it's the last agent message with text.
+    Joining them keeps the answer when the agent adds a follow-up, such as when a
+    background task finishes.
     """
     steps = agent_steps(trajectory)
     trailing: list[str] = []

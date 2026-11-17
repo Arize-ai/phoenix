@@ -1,5 +1,3 @@
-"""Layout rules for the `eval-workflows` Harbor tasks."""
-
 from __future__ import annotations
 
 import json

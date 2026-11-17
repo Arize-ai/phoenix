@@ -30,8 +30,7 @@ user = "agent"
 timeout_sec = 1800.0
 
 [verifier]
-# The verifier only reads Phoenix and makes no model calls. The allowlist matches the
-# other tasks.
+# The verifier makes no model calls. The allowlist matches the other tasks.
 network_mode = "allowlist"
 allowed_hosts = ["api.openai.com", "api.anthropic.com"]
 timeout_sec = 300.0

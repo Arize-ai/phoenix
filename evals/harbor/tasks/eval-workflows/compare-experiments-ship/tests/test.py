@@ -1,24 +1,4 @@
-"""Grades `compare-experiments` and `compare-experiments-ship`: the ship call and its numbers.
-
-An LLM extracts five claims from the final reply, each with a verbatim quote, without
-seeing the expected values. All five must match `truth.json`:
-
-1. `decision`: ship v8, or don't.
-2. `v7_safety_pass_rate` and `v8_safety_pass_rate`: each experiment's pass rate on the
-   safety slice.
-3. `v7_overall_pass_rate` and `v8_overall_pass_rate`: each experiment's pass rate on all
-   examples.
-
-Each experiment ran every example three times, and every run has its own `correct`
-evaluation. Two readings of a pass rate pass: the share of runs that passed, and the
-share of examples that passed every repetition. Each experiment has one errored run
-outside the safety slice, so the overall rates also pass with that run left out.
-`truth.json` lists these values under `expected` and `alternatives`. A rate from one
-repetition per example, or a majority vote per example, matches none of them.
-
-Numbers pass within 0.011, so rounding to a whole percent is fine. An empty reply fails
-without a model call.
-"""
+"""Grades `compare-experiments` and `compare-experiments-ship`: the ship call and its numbers."""
 
 from harbor_verifiers import grading
 from harbor_verifiers.verify import ANSWER_PATH, TRAJECTORY_PATH, read_reply

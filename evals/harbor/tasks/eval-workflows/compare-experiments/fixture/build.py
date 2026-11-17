@@ -1,31 +1,8 @@
-"""Build the `support-regression` dataset and experiments for the comparison tasks.
+"""Build the dataset and experiments for `compare-experiments` and `compare-experiments-ship`.
 
-Writes `fixture/phoenix_seed.json` (the dataset and two recorded experiments, `prompt-v7` and
-`prompt-v8`) and `tests/truth.json` (the expected decision and pass rates) for both
-`compare-experiments` and `compare-experiments-ship`. Run from the repository root:
+Run from the repository root:
 
     uv run python evals/harbor/tasks/eval-workflows/compare-experiments/fixture/build.py
-
-Both tasks share the dataset and the request. Each experiment ran every example three
-times, the way a team measures a nondeterministic prompt, so each has 144 runs, and
-every run has its own output and its own `correct` evaluation.
-
-In `compare-experiments`, v8 passes more runs overall but fewer safety runs than v7, so
-it shouldn't ship. Its safety failures are intermittent: no safety case fails in two of
-its three repetitions. A majority vote per example, or any single repetition, makes v8
-look at least as good as v7 on safety, so those readings reach the wrong decision. In
-`compare-experiments-ship`, v8 is at least as good as v7 on safety by every reading and
-better overall, so it should ship, even though it's worse on shipping questions, which
-the ship rule doesn't cover.
-
-Two readings are accepted: the share of runs that passed, and the share of examples
-that passed every repetition. `check()` asserts that both reach the right decision and
-that every other reading, such as one repetition per example or a majority vote, is
-more than the grading tolerance away from every accepted value.
-
-One billing or shipping run per experiment failed with a task error and is graded
-incorrect. It belongs to a case that fails its other repetitions too, so leaving it out
-changes only the denominators. No safety run errors.
 """
 
 from __future__ import annotations
@@ -48,7 +25,7 @@ DATASET = "support-regression"
 SLICES = ("safety", "billing", "shipping")
 PROMPTS = ("prompt-v7", "prompt-v8")
 REPETITIONS = 3
-# The verifier's tolerance for a stated rate (`grading.check_report_claims`).
+# Matches the verifier's tolerance in `grading.check_report_claims`.
 TOLERANCE = 0.011
 
 Pattern = str
@@ -70,8 +47,6 @@ VARIANTS = (
         "compare-experiments",
         seed=5,
         patterns={
-            # v8 fixes the case v7 always fails, but fails 7 cases that v7 always passes,
-            # each in one repetition of three.
             "safety": {
                 ("FFF", "PPP"): 1,
                 ("FPP", "PPP"): 1,
@@ -106,7 +81,6 @@ VARIANTS = (
         "compare-experiments-ship",
         seed=29,
         patterns={
-            # v8 fails only cases v7 also fails, and never more often.
             "safety": {
                 ("FFF", "PFP"): 1,
                 ("FPP", "PPF"): 1,
@@ -562,7 +536,6 @@ def _by_case(runs: list[Run]) -> dict[str, list[Run]]:
 
 
 def _share(values: Iterable[float]) -> float:
-    """The mean: the share of True values, or the mean of rates."""
     items = list(values)
     return sum(items) / len(items)
 
@@ -619,8 +592,6 @@ WRONG: dict[str, Reading] = {
         any(run.passed for run in case) for case in _by_case(runs).values()
     ),
 }
-# The readings `main()` prints: the accepted ones, the ones an agent gets from keying runs
-# by example ID (the first or last repetition), a majority vote, and any-pass.
 HEADLINE = ("per_run", "all_pass", "repetition_1", "repetition_3", "majority", "any_pass")
 FIELDS = {
     "v7_safety_pass_rate": ("prompt-v7", "safety"),
@@ -631,7 +602,6 @@ FIELDS = {
 
 
 def readings(runs: dict[str, list[Run]]) -> dict[str, dict[str, float]]:
-    """Every reading of every graded field: {reading: {field: value}}."""
     out: dict[str, dict[str, float]] = {}
     for name, reading in {**ACCEPTED, **WRONG}.items():
         out[name] = {}
@@ -642,7 +612,6 @@ def readings(runs: dict[str, list[Run]]) -> dict[str, dict[str, float]]:
 
 
 def decision(values: dict[str, float]) -> str:
-    """v8 ships if it's no worse than v7 on safety and better overall."""
     ship = (
         values["v8_safety_pass_rate"] >= values["v7_safety_pass_rate"]
         and values["v8_overall_pass_rate"] > values["v7_overall_pass_rate"]
@@ -651,15 +620,13 @@ def decision(values: dict[str, float]) -> str:
 
 
 def _stated(value: float) -> set[float]:
-    """The ways a reply might state a rate: exact, to a tenth of a percent, or to a whole
-    percent rounded either way."""
+    """Returns the values a reply might state: exact, to 0.1%, or rounded either way to 1%."""
     return {value, round(value, 3), math.floor(value * 100) / 100, math.ceil(value * 100) / 100}
 
 
-def check(
+def assert_design(
     variant: Variant, runs: dict[str, list[Run]], values: dict[str, dict[str, float]]
 ) -> None:
-    """Asserts the design: the accepted readings agree, and no wrong reading passes."""
     want = "ship" if variant.task == "compare-experiments-ship" else "dont_ship"
     for name in ACCEPTED:
         assert decision(values[name]) == want, (variant.task, name)
@@ -670,9 +637,8 @@ def check(
                 for accepted in ACCEPTED:
                     gap = abs(stated - values[accepted][field])
                     assert gap > TOLERANCE, (variant.task, field, name, stated, accepted, gap)
-    # Keying runs by example ID keeps the first or last repetition. Those readings, a
-    # majority vote, and any-pass all say ship: wrong in the don't-ship twin, right (with
-    # wrong numbers) in the ship twin.
+    # Keying runs by example ID keeps repetition 1 or 3. Those readings, a majority vote,
+    # and any-pass must all say ship, so they get the don't-ship twin's call wrong.
     for name in ("repetition_1", "repetition_3", "majority", "any_pass"):
         assert decision(values[name]) == "ship", (variant.task, name)
     for prompt in PROMPTS:
@@ -744,7 +710,7 @@ def build_variant(variant: Variant) -> tuple[dict[str, Any], dict[str, Any]]:
         "experiments": experiments,
     }
     values = readings(runs)
-    check(variant, runs, values)
+    assert_design(variant, runs, values)
     return spec, truth_for(runs, values)
 
 
@@ -771,14 +737,12 @@ def truth_for(runs: dict[str, list[Run]], values: dict[str, dict[str, float]]) -
     return {
         "dataset": DATASET,
         "expected": {"decision": decision(values["per_run"]), **rounded["per_run"]},
-        # Other accepted readings of the same rates; the verifier passes a rate that matches
-        # any of them.
         "alternatives": [
             alternative
             for index, alternative in enumerate(alternatives)
             if alternative not in alternatives[:index] and alternative != rounded["per_run"]
         ],
-        # For reviewers and controls: every reading, and the decision it leads to.
+        # Not graded. For reviewers and controls.
         "readings": {
             name: {
                 "accepted": name in ACCEPTED,

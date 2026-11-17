@@ -1,26 +1,22 @@
-"""Create a Phoenix SQLite fixture from a task's `fixture/phoenix_seed.json`.
+"""Creates a Phoenix SQLite fixture from a task's `fixture/phoenix_seed.json`.
 
-The seed file describes the Phoenix state an agent finds when a task starts: projects with
-spans, span, trace, session, and document annotations, datasets, and experiments with
-recorded results. Staging runs this script once per distinct seed file and caches the
-database. Run it with `uv run` from the repository root so it uses this checkout.
+Run it with `uv run` from the repository root so it uses this checkout's Phoenix.
 
 Seed file keys, all optional:
 
-- `projects`: `{name: [span, ...]}`. Spans use the Phoenix REST shape
-  (`name`, `context`, `span_kind`, `parent_id`, `start_time`, `end_time`,
-  `status_code`, `attributes`).
+- `projects`: `{name: [span, ...]}`, with spans in the Phoenix REST shape (`name`,
+  `context`, `span_kind`, `parent_id`, `start_time`, `end_time`, `status_code`,
+  `attributes`).
 - `span_annotations`, `trace_annotations`, `session_annotations`,
-  `document_annotations`: lists in the REST shape. They're written in list order, so
-  later entries get later timestamps.
+  `document_annotations`: lists in the REST shape, written in order, so later entries
+  get later timestamps.
 - `prompts`: `[{name, description, versions: [{messages, model_name, model_provider,
-  template_format, description}]}]`. Versions are created in order; the last is latest.
+  template_format, description}]}]`. The last version is the latest.
 - `datasets`: `[{name, description, examples: [{input, output, metadata}]}]`.
 - `experiments`: `[{dataset, name, description, metadata, runs: [{case_id, repetition,
   output, error, evaluations: {name: {score, label, explanation}}}]}]`. Runs match
-  dataset examples by `metadata.case_id`. `repetition` is optional and defaults to 1.
-  The experiment gets as many repetitions as the highest one, and every example needs a
-  run for each repetition.
+  dataset examples by `metadata.case_id`. `repetition` defaults to 1, and every example
+  needs a run for each repetition up to the highest.
 """
 
 from __future__ import annotations
@@ -59,7 +55,7 @@ def _healthy(base: str) -> bool:
 
 @contextlib.contextmanager
 def temporary_phoenix(database: Path) -> Iterator[str]:
-    """Serves Phoenix on free ports against `database` and yields its base URL."""
+    """Serves Phoenix on `database` and yields its base URL."""
     port, grpc_port = _free_port(), _free_port()
     base = f"http://127.0.0.1:{port}"
     env = {
@@ -114,7 +110,7 @@ def _chunks(items: list[Any], size: int = 200) -> Iterator[list[Any]]:
 
 
 def apply_spec(base: str, spec: dict[str, Any]) -> dict[str, Any]:
-    """Writes the spec's state to the Phoenix server at `base` and returns counts."""
+    """Writes the seed's state to Phoenix at `base` and returns counts."""
     from phoenix.client import Client
 
     client = Client(base_url=base)
@@ -124,9 +120,9 @@ def apply_spec(base: str, spec: dict[str, Any]) -> dict[str, Any]:
             client.spans.log_spans(project_identifier=project, spans=chunk)
         _wait_for_spans(client, project, len(spans))
         summary[f"project:{project}"] = len(spans)
-    # One call per annotation keeps insertion order, which tasks use as review order.
-    # Phoenix stores annotation timestamps to the second, so a second annotation with the
-    # same name on the same target waits for the next second; otherwise the two would tie.
+    # One call per annotation keeps list order, which tasks use as review order. Phoenix
+    # stores annotation timestamps to the second, so a repeat annotation on the same
+    # target waits for the next second; otherwise the two would tie.
     written: dict[tuple[str, ...], int] = {}
 
     def log(kind: str, target: str, annotation: dict[str, Any], write: Any) -> None:
@@ -188,7 +184,6 @@ def apply_spec(base: str, spec: dict[str, Any]) -> dict[str, Any]:
 
 
 def _create_prompt(client: Any, spec: dict[str, Any]) -> None:
-    """Creates the prompt's versions in order, so the last one is the latest."""
     from phoenix.client.types.prompts import PromptVersion
 
     for version in spec["versions"]:
@@ -206,12 +201,11 @@ def _create_prompt(client: Any, spec: dict[str, Any]) -> None:
 
 
 def _replay_experiment(client: Any, spec: dict[str, Any]) -> None:
-    """Records an experiment whose outputs and evaluations come from the spec.
+    """Replays the seed's recorded outputs and evaluations as an experiment.
 
-    The task doesn't receive its repetition number, but the client runs an example's
-    repetitions one after another, so the task counts calls per example. Each evaluator
-    finds its run by the trace ID of the task that produced it. `_check_replay` reads the
-    experiment back and fails if any run or evaluation landed on the wrong repetition.
+    The task doesn't receive its repetition number, so it counts calls per example. That
+    relies on the client running an example's repetitions in order, which `_check_replay`
+    verifies.
     """
     from opentelemetry import trace
 
@@ -259,7 +253,6 @@ def _replay_experiment(client: Any, spec: dict[str, Any]) -> None:
 def _check_replay(
     client: Any, experiment_id: str, dataset: Any, runs: dict[tuple[str, int], dict[str, Any]]
 ) -> None:
-    """Raises `RuntimeError` if a spec run or evaluation isn't on its example and repetition."""
     recorded = client.experiments.get_experiment(experiment_id=experiment_id)
     case_of = {example["id"]: str(example["metadata"]["case_id"]) for example in dataset.examples}
     evaluations: dict[str, dict[str, Any]] = {}

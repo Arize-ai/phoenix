@@ -1,8 +1,4 @@
-"""Write the reference reply for `rag-evals` from the eval script's summary.
-
-Reads the output of `python evals/rag_evals.py` on stdin, echoes it, and turns the JSON
-summary on its last line into the reply.
-"""
+"""Write the reference reply for `rag-evals` from the summary `rag_evals.py` prints."""
 
 from __future__ import annotations
 

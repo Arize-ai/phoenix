@@ -1,13 +1,4 @@
-"""Grades `rag-evals`: document relevance, answer groundedness, and the diagnosis.
-
-1. The `relevant` annotation must cover at least 95% of the retrieved documents in the
-   54 production traces and catch at least 85% of relevant and of irrelevant documents.
-   The `grounded` annotation must cover at least 95% of the traces and catch at least
-   80% of grounded and of ungrounded answers.
-2. The reply must name retrieval as the bigger problem.
-3. The verifier adds 24 new traces the agent never saw, runs the agent's nightly entry
-   point, and applies the bars in step 1 to the new traces.
-"""
+"""Grades `rag-evals`: document relevance, answer groundedness, and the diagnosis."""
 
 from harbor_verifiers import grading, judge_prompts
 from harbor_verifiers.verify import ANSWER_PATH, TRAJECTORY_PATH, read_reply
@@ -16,7 +7,6 @@ TRUTH = grading.load_test_json("truth.json")
 PROJECT = TRUTH["project"]
 MIN_RECALL = {"relevant": 0.85, "grounded": 0.8}
 MIN_COVERAGE = 0.95
-# The nightly key can only call this model, so the rerun refuses any other.
 RERUN = "python evals/rag_evals.py"
 DIAGNOSIS = {
     "bigger_problem": (
@@ -27,7 +17,7 @@ DIAGNOSIS = {
     )
 }
 
-# Reported beside the reward, never part of it. See `judge_prompts`.
+# Inputs to the reported prompt_quality measure, which never changes the reward.
 APP = "A policy assistant for an online store. It retrieves 4 policy passages for a customer's question and answers from them, saying it doesn't know when they don't cover the question."
 CRITERIA = {
     "relevant": "The retrieved document contains the policy that answers the customer's question.",
@@ -44,7 +34,7 @@ details: dict = {}
 
 
 def documents(labels: dict[str, bool]) -> dict[tuple[str, int], bool]:
-    """Maps `span_id:position` keys to the (span ID, position) keys the reader returns."""
+    """Splits truth's `span_id:position` keys into (span ID, position) tuples."""
     return {(key.split(":")[0], int(key.split(":")[1])): value for key, value in labels.items()}
 
 
@@ -70,6 +60,7 @@ checks["bigger_problem"] = grading.check_report_claims(claims, expected, reply)[
 details["reply"] = {"source": source, "claims": claims}
 seen_spans = grading.project_spans(PROJECT)
 grading.inject_spans(PROJECT, TRUTH["unseen"]["spans"])
+# The nightly job's key can only call the pinned model, so the rerun refuses any other.
 with judge_prompts.record_llm_calls(allowed_models={judge_prompts.PINNED_MODEL}) as recorder:
     details["rerun"] = grading.run_as_agent(RERUN, timeout=900, env=recorder.env).as_dict()
 grade("new_traces", TRUTH["unseen"])

@@ -43,6 +43,34 @@ answers. Retrieval misses (22 of 54) outnumber all ungrounded answers (15), and 
 answers are ungrounded when the right passage was retrieved. Retrieval is the bigger
 problem by any count.
 
+## How the data was made
+
+`fixture/build.py` generates the data from hand-written templates with fixed random
+seeds: 31 for the production traces and 47 for the new ones. The 23 policy passages are
+hand-written, and so are each policy's questions, answers, and distractor list, with
+separate wordings for the new traces. The generator pairs questions with retrieval
+outcomes and answer types, picks the distractors, and sets scores, IDs, and timestamps.
+No answer comes from a model, and no public or user data is used. The store is invented.
+
+A document is relevant only if it's the passage that answers the question. An answer is
+grounded only if it restates that passage after it was retrieved, or says it can't find
+the answer.
+
+The data is checked in these ways:
+
+- The generator asserts that each policy has at least 4 distractors, that no distractor
+  restricts or qualifies the policy's answer, that each question gets one case, and that
+  the production traces have more retrieval misses than ungrounded answers.
+- The seeder, `environments/fixtures/seed_phoenix.py`, waits until every span is in
+  Phoenix and fails if any are missing.
+- On November 13, 2026, GPT-6 Astra reviewed the data and labels read-only through
+  Codex. It found label shortcuts: Final Sale and other passages that restrict the
+  answer were labeled irrelevant, and word overlap with the passage predicted
+  groundedness. Commit `8940e2f233` added the distractor check and rewrote the answers
+  so that overlap doesn't decide the label.
+- In Docker, the reference solution scores 1 and an agent that does nothing scores 0.
+  The controls in "What the task tests" show what naive approaches score.
+
 ## How it's graded
 
 `reward` is 1 only if every check passes. Each annotation check reads the latest

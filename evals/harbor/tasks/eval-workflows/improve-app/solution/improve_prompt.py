@@ -1,11 +1,7 @@
 """Save a better `support-system` prompt and compare it with the baseline in an experiment.
 
-Run from `/app`. The script saves `support_system_v2.txt` as a new version of the
-`support-system` prompt, then runs the app with that version on every
-`support-questions` example. It scores each reply with the same four evaluations as the
-`baseline` experiment, under the same names, so the two experiments line up in Phoenix:
-two code evaluators (`cites_policy`, `under_word_limit`) and two LLM judges
-(`no_false_promises`, and `account_privacy` on questions about an order or account).
+Run from `/app`. The evaluators reuse the baseline's four names so the two experiments
+line up in Phoenix.
 """
 
 from __future__ import annotations

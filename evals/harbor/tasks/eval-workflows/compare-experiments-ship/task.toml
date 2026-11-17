@@ -30,7 +30,7 @@ user = "agent"
 timeout_sec = 1500.0
 
 [verifier]
-# The reply's claims are extracted with an OpenAI model.
+# The verifier extracts the reply's claims with an OpenAI model.
 network_mode = "allowlist"
 allowed_hosts = ["api.openai.com"]
 timeout_sec = 300.0

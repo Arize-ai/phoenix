@@ -57,6 +57,38 @@ The REST JSON export and `px experiment get` list runs by example and then repet
 so the dict keeps repetition 3. Either way, v8 ties v7 on safety and looks better
 overall.
 
+## How the data was made
+
+`fixture/build.py` generates the data for both twins from hand-written cases and fixed
+random seeds. The 48 questions, their reference answers, one wrong answer per question,
+the grader's explanations, and each prompt's phrasings are hand-written. So is how many
+cases in each slice get each pair of pass patterns, such as `PPP` for v7 and `PFP` for
+v8, where `F` marks a failed repetition. Seed 3 shuffles the questions into case IDs,
+seed 5 assigns the patterns to cases and picks the errored runs, and seed 6 picks each
+run's phrasing. No model wrote any output or evaluation, and the generator writes the
+errored runs' timeout and `429` errors. No public or user data is used. The store is
+invented, even though the dataset's description calls the questions real.
+
+Each run's label comes from its letter in the pass pattern: a `P` run outputs the
+reference answer and is graded `correct`, and an `F` run outputs the wrong answer and is
+graded `incorrect`.
+
+The data is checked in these ways:
+
+- The generator asserts that both accepted readings reach this twin's call and that no
+  rejected reading lands within 1.1 points of an accepted value. The repetition 1,
+  repetition 3, majority vote, and any-pass readings must all say ship. Each experiment
+  must have one errored run, outside the safety slice, in a case that fails every
+  repetition.
+- The seeder, `environments/fixtures/seed_phoenix.py`, replays both experiments and
+  reads every run back. It fails if a run is missing or doesn't match the seed file's
+  output, error, or evaluation.
+- On November 13, 2026, GPT-6 Astra reviewed the suite's data and labels read-only
+  through Codex. No commit changed this task's data in response, and the review ran
+  before `b2c66714d2` added the three repetitions on November 14.
+- In Docker, the reference solution scores 1 and an agent that does nothing scores 0.
+  The controls in "What the task tests" show what naive approaches score.
+
 ## How it's graded
 
 The verifier grades the agent's final reply. An LLM pulls out the decision and each

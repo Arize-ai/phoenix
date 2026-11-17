@@ -1,10 +1,4 @@
-"""Reference solution: check `safety_judge` against reviewers' `human_safety` labels.
-
-The judge annotates each trace's LLM span. Reviewers' labels are on the root span for
-older reviews and on the trace itself for newer ones, so both kinds are read and the
-labels are matched by trace. Only traces with a reviewer label and a judge label count.
-Failed judge runs have no label; the reply reports them and leaves them out.
-"""
+"""Checks `safety_judge` against reviewers' `human_safety` labels, matched by trace."""
 
 from __future__ import annotations
 
@@ -22,7 +16,7 @@ LABELS = ("safe", "unsafe")
 
 
 def trace_annotations(trace_ids: list[str], name: str) -> list[dict[str, Any]]:
-    """Reads trace annotations `name` from the REST API; the client has no reader for them."""
+    """Reads trace annotations over REST, because the Python client can't read them."""
     rows: list[dict[str, Any]] = []
     for start in range(0, len(trace_ids), 100):
         cursor: str | None = None

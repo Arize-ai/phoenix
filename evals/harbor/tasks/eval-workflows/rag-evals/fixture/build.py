@@ -1,30 +1,11 @@
 """Build the policy-assistant traces for `rag-evals`.
 
-Writes `fixture/phoenix_seed.json` (the 54 production traces the agent sees) and
-`tests/truth.json` (their document and answer labels, plus 24 unseen traces and labels
-that the verifier adds before rerunning the agent's eval script). Run from the
-repository root:
+Run from the repository root:
 
     uv run python evals/harbor/tasks/eval-workflows/rag-evals/fixture/build.py
 
-Each question has exactly one passage in the knowledge base that answers it. Each case
-gets a retrieval outcome and an answer type, assigned independently:
-
-- Retrieval: the answering passage comes back first (`top`), comes back at position 1
-  to 3 (`lower`), or doesn't come back (`miss`). The other passages come from a
-  hand-picked list of near topics that share words with the question but don't answer
-  it. A passage that restricts the answer, such as Final Sale for a return question,
-  is never a distractor for it (`BEARS_ON`).
-- Answer: restates the answering passage (`faithful`), contradicts it (`contradicts`),
-  adds a claim no passage states (`adds_claim`), states a made-up policy (`made_up`),
-  states the true policy that wasn't retrieved (`unretrieved_truth`), or says it can't
-  find the answer (`declines`). Only `faithful` and `declines` are grounded. Faithful
-  answers paraphrase the passage, and visible wrong answers reuse its wording with one
-  fact changed, so word overlap with a passage doesn't decide the label.
-
-Retrieval misses outnumber ungrounded answers, so retrieval is the bigger problem.
-Unseen traces use questions, answer wordings, refusals, and unsupported claims that the
-visible traces never show.
+Faithful answers paraphrase their passage, and visible wrong answers reuse its wording
+with one fact changed, so word overlap with a passage doesn't decide the label.
 """
 
 from __future__ import annotations
@@ -46,10 +27,7 @@ SYSTEM_PROMPT = (HERE.parent / "workdir" / "policy_assistant.py").read_text().sp
 
 @dataclass(frozen=True)
 class Policy:
-    """One knowledge-base passage and the questions and answers built around it.
-
-    `answer`, `wrong`, and `extra` hold a visible wording and an unseen wording.
-    """
+    """`answer`, `wrong`, and `extra` each hold a visible wording, then an unseen one."""
 
     key: str
     topic: str
@@ -665,8 +643,8 @@ POLICIES = [
     ),
 ]
 BY_KEY = {policy.key: policy for policy in POLICIES}
-# Passages that share a topic or wording with a policy's questions but don't answer them.
-NEAR = {
+# Hand-picked to share a topic or words with the policy's questions without answering them.
+DISTRACTORS = {
     "returns-window": "billing-price-adjustment returns-label-fee returns-in-store refund-timing gift-cards account-delete",
     "returns-final-sale": "returns-label-fee returns-in-store billing-price-adjustment promo-codes refund-timing gift-cards",
     "returns-label-fee": "shipping-lost-package orders-cancel refund-timing shipping-express shipping-standard warranty-claim",
@@ -691,8 +669,8 @@ NEAR = {
     "promo-codes": "loyalty-points billing-price-adjustment gift-cards returns-final-sale billing-installments shipping-standard",
     "gift-cards": "loyalty-points promo-codes billing-payment-methods refund-timing returns-final-sale account-delete",
 }
-# Passages that limit or add evidence to another policy's answer, such as a return
-# restriction for a question about returning an item. They're never its distractors.
+# Passages that restrict or qualify another policy's answer, so they must never be its
+# distractors.
 BEARS_ON = {
     "returns-window": "returns-in-store returns-label-fee returns-restocking",
     "returns-final-sale": "returns-window returns-in-store returns-label-fee returns-restocking",
@@ -713,8 +691,7 @@ DECLINES = {
     ],
 }
 
-# (retrieval, answer type): number of cases.
-MIX = {
+CASE_COUNTS = {
     "visible": {
         ("top", "faithful"): 16,
         ("top", "contradicts"): 2,
@@ -744,12 +721,13 @@ GROUNDED = {"faithful", "declines"}
 def check_corpus() -> None:
     assert len(POLICIES) == len(BY_KEY)
     for policy in POLICIES:
-        near = NEAR[policy.key].split()
-        assert policy.key not in near and len(set(near)) == len(near) >= 4, policy.key
-        assert set(near) <= set(BY_KEY), policy.key
+        distractors = DISTRACTORS[policy.key].split()
+        assert policy.key not in distractors, policy.key
+        assert len(set(distractors)) == len(distractors) >= 4, policy.key
+        assert set(distractors) <= set(BY_KEY), policy.key
     for passage, policies in BEARS_ON.items():
         for key in policies.split():
-            assert passage not in NEAR[key].split(), (passage, key)
+            assert passage not in DISTRACTORS[key].split(), (passage, key)
 
 
 def answer_text(
@@ -782,7 +760,8 @@ def make_case(
     position: int,
 ) -> dict[str, Any]:
     passages = [
-        BY_KEY[key] for key in rng.sample(NEAR[policy.key].split(), 4 if retrieval == "miss" else 3)
+        BY_KEY[key]
+        for key in rng.sample(DISTRACTORS[policy.key].split(), 4 if retrieval == "miss" else 3)
     ]
     if retrieval != "miss":
         passages.insert(position, policy)
@@ -826,7 +805,7 @@ def build_split(split: str, seed: int) -> list[dict[str, Any]]:
     rng = random.Random(seed)
     attribute = "questions" if split == "visible" else "unseen_questions"
     questions = [(p, q) for p in POLICIES for q in getattr(p, attribute)]
-    plan = [case for case, count in MIX[split].items() for _ in range(count)]
+    plan = [case for case, count in CASE_COUNTS[split].items() for _ in range(count)]
     assert len(plan) == len(questions), (split, len(plan), len(questions))
     rng.shuffle(questions)
     rng.shuffle(plan)

@@ -34,6 +34,34 @@ independently: 16 sessions pass both, 8 fail only `task_completed`, 8 fail only
   way the tools reported them. "That failed, so nothing has changed" is honest even though
   the request isn't done.
 
+## How the data was made
+
+`fixture/build.py` generates the data from hand-written templates with fixed random
+seeds: 31 for the production sessions, 47 for the new ones, and 59 for the continued
+turns. The 33 scenarios, the 16 continuations, and every message wording are
+hand-written. The generator assigns scenarios to sessions in fixed counts and picks the
+customers, orders, wordings, tool outcomes, IDs, and timestamps. No reply comes from a
+model, and no public or user data is used. The store and customers are invented.
+
+Each scenario fixes both labels and builds the tool results that make them true. Each
+continuation fixes both labels for the whole session after its new turns.
+
+The data is checked in these ways:
+
+- Before each turn, the generator adds an order lookup wherever the reply states an
+  item or refund amount that the session doesn't show yet. It fails if a retry
+  continuation finds no earlier change to retry, or no cancellation when it expects
+  one. It prints how many sessions fail each label.
+- The seeder, `environments/fixtures/seed_phoenix.py`, waits until every span is in
+  Phoenix and fails if any are missing.
+- On November 13, 2026, GPT-6 Astra reviewed the data and labels read-only through
+  Codex. It found wrong labels: a store-credit refund counted as complete for a customer
+  who asked for their "money back", and error replies that claimed an escalation no tool
+  made counted as honest. Commit `bae0608747` removed both wordings and gave honest and
+  dishonest replies the same refund wording.
+- In Docker, the reference solution scores 1 and an agent that does nothing scores 0.
+  The controls in "What the task tests" show what naive approaches score.
+
 ## How it's graded
 
 `reward` is 1 only if every check passes. Each check reads the latest annotation with

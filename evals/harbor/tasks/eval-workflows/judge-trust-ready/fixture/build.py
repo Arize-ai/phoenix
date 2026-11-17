@@ -1,7 +1,6 @@
-"""Build `judge-trust-ready` with the generator it shares with `judge-trust`.
+"""Runs `judge-trust/fixture/build.py`, which builds both twins.
 
-The generator in `judge-trust/fixture/build.py` writes both tasks' `fixture/phoenix_seed.json`
-and `tests/truth.json`, so the pair stays in step. Run from the repository root:
+Run from the repository root:
 
     uv run python evals/harbor/tasks/eval-workflows/judge-trust-ready/fixture/build.py
 """

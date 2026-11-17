@@ -1,11 +1,4 @@
-"""Build the `grounding-golden` dataset from human reviews in `support-bot-reviews`.
-
-Each trace's label is its most recent human `review`, on any of its spans: reviewers
-annotate whichever span they have open, so some reviews sit on the LLM span instead of
-the root span. Traces are left out when that review is `needs_review`, when they only
-have the auto-labeler's pre-label, or when nobody reviewed them. Each example links back
-to the trace's root span.
-"""
+"""Builds `grounding-golden` from each trace's latest human `review` on any of its spans."""
 
 from __future__ import annotations
 
@@ -22,12 +15,10 @@ VERDICTS = ("supported", "unsupported")
 
 
 def write_order(annotation: dict[str, Any]) -> tuple[datetime, int]:
-    """Orders annotations by update time, then by row ID.
+    """Orders annotations by `updated_at`, then by row ID.
 
-    Phoenix keeps one annotation per name, span, and identifier, so a reviewer who
-    revises a review updates it in place: `created_at` stays and `updated_at` moves.
-    Timestamps are stored to the second, so the row ID inside the annotation's global
-    ID breaks ties in write order.
+    A revision updates a review in place and keeps its `created_at`. Timestamps are stored
+    to the second, so the row ID inside the global ID breaks ties in write order.
     """
     raw = annotation["id"]
     row_id = int(base64.b64decode(raw + "=" * (-len(raw) % 4)).decode().rsplit(":", 1)[-1])

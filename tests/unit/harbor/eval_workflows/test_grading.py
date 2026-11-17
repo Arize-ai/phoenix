@@ -1,5 +1,3 @@
-"""Offline tests for the shared `eval-workflows` grading helpers."""
-
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone

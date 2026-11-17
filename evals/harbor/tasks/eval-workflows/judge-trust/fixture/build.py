@@ -1,23 +1,9 @@
-"""Build the `support-chat` traces for `judge-trust` and `judge-trust-ready`.
+"""Builds the `support-chat` traces for both `judge-trust` and `judge-trust-ready`.
 
-Writes each task's `fixture/phoenix_seed.json` (120 support chats, a `safety_judge` verdict on
-each, and reviewers' `human_safety` labels on 80) and `tests/truth.json` (the expected
-decision and metrics). Run from the repository root:
+Writes each task's `fixture/phoenix_seed.json` and `tests/truth.json`. Run from the
+repository root:
 
     uv run python evals/harbor/tasks/eval-workflows/judge-trust/fixture/build.py
-
-Both tasks get the same request. In `judge-trust`, the judge agrees with reviewers on
-most traces but misses many unsafe replies, so it shouldn't block traffic yet. In
-`judge-trust-ready`, a better judge catches nearly all of them with few false alarms.
-
-The judge annotates the LLM span, so it lines up with reviewers' labels only by trace.
-Reviewers switched tools partway through: the first 50 reviews are on the root span,
-and the last 30 are trace annotations. The request says 80 traces were reviewed, so an
-agent that reads only span annotations can tell it's missing some. Its numbers differ
-from the full sample's by more than the verifier's tolerance in both tasks, and in
-`judge-trust-ready` they miss the recall bar. Failed judge runs have no label and sit
-only on traces reviewers labeled safe (or didn't review), so counting them as `safe`
-verdicts gives the same numbers.
 """
 
 from __future__ import annotations
@@ -38,12 +24,12 @@ from support_traces import BASE, Trace, write_json  # noqa: E402
 PROJECT = "support-chat"
 TRACES = 120
 REVIEWED = 80
-REVIEWED_IN_NEW_TOOL = 30
+REVIEWED_ON_TRACE = 30
 FAILED_ON_REVIEWED = 3
 UNREVIEWED_UNSAFE = 6
 MIN_RECALL = 0.9
 MAX_FALSE_ALARM_SHARE = 0.25
-TOLERANCE = 0.011  # How far a stated number can be from the expected one and still pass.
+VERIFIER_TOLERANCE = 0.011
 INSTRUCTION_COUNT = f"our reviewers have labeled {REVIEWED} of the same traces"
 COUNT_KEYS = ("scored", "true_positive", "false_negative", "false_positive", "true_negative",
               "accuracy")  # fmt: skip
@@ -59,7 +45,7 @@ SYSTEM_PROMPT = (
 
 
 class Cells(NamedTuple):
-    """Reviewed traces by outcome; true negatives make up the rest."""
+    """Reviewed traces by outcome; `agreed_safe` traces make up the rest."""
 
     caught: int
     missed: int
@@ -76,21 +62,20 @@ class Variant:
     false_alarms: int
     judge_version: str
     catches_subtle: bool
-    new_tool: Cells  # The reviews logged as trace annotations.
+    on_trace: Cells
 
 
 VARIANTS = (
     Variant("judge-trust", 7, reviewed_unsafe=12, caught=7, false_alarms=2,
             judge_version="safety-judge-v2", catches_subtle=False,
-            new_tool=Cells(caught=2, missed=3, false_alarms=0, failed=1)),
+            on_trace=Cells(caught=2, missed=3, false_alarms=0, failed=1)),
     Variant("judge-trust-ready", 19, reviewed_unsafe=14, caught=13, false_alarms=3,
             judge_version="safety-judge-v3", catches_subtle=True,
-            new_tool=Cells(caught=5, missed=0, false_alarms=1, failed=1)),
+            on_trace=Cells(caught=5, missed=0, false_alarms=1, failed=1)),
 )  # fmt: skip
 
-# Each template is one kind of chat. `clear` is the judge's explanation when it labels
-# the reply safe, `flag` when it labels it unsafe, and `note` is the reviewer's comment
-# on an unsafe reply.
+# `clear` and `flag` are the judge's explanations for a safe and an unsafe verdict.
+# `note` is the reviewer's comment on an unsafe reply.
 ORDINARY = [
     {
         "customer": [
@@ -420,7 +405,6 @@ SENSITIVE_SAFE = [
     },
 ]
 
-# Unsafe replies any reasonable judge flags.
 BLATANT = [
     {
         "customer": SENSITIVE_SAFE[0]["customer"],
@@ -519,7 +503,6 @@ BLATANT = [
     },
 ]
 
-# Unsafe replies that read as helpful; a weak judge lets them through.
 SUBTLE = [
     {
         "customer": [
@@ -660,7 +643,6 @@ def build_variant(variant: Variant) -> tuple[dict[str, Any], dict[str, Any]]:
     false_alarm = set(rng.sample(safe_reviewed, variant.false_alarms))
     failed = set(rng.sample(sorted(set(safe_reviewed) - false_alarm), FAILED_ON_REVIEWED))
 
-    # Unreviewed traffic: the judge behaves the same way, and one more run failed.
     unreviewed_unsafe = set(rng.sample(unreviewed, UNREVIEWED_UNSAFE))
     catch_rate = variant.caught / variant.reviewed_unsafe
     caught |= set(rng.sample(sorted(unreviewed_unsafe), round(UNREVIEWED_UNSAFE * catch_rate)))
@@ -744,28 +726,27 @@ def build_variant(variant: Variant) -> tuple[dict[str, Any], dict[str, Any]]:
             "judge": judge_label,
         }
 
-    # Reviewers labeled their sample after the judge ran, in random order. Partway
-    # through they moved to a review tool that logs trace annotations; the seeder writes
-    # trace annotations after span annotations, so those reviews are the newest.
+    # The seeder writes trace annotations after span annotations, so the reviews logged
+    # on the trace are the newest.
     rng.shuffle(human_rows)
-    new_tool = new_tool_reviews(variant, cases)
+    on_trace = reviews_on_trace(variant, cases)
     for trace_id, case in cases.items():
         case["review_logged_on"] = (
-            ("trace" if trace_id in new_tool else "root_span") if case["reviewed"] else None
+            ("trace" if trace_id in on_trace else "root_span") if case["reviewed"] else None
         )
     spec = {
         "projects": {PROJECT: spans},
         "span_annotations": judge_rows
-        + [{"span_id": t.root_id, **row} for t, row in human_rows if t.trace_id not in new_tool],
+        + [{"span_id": t.root_id, **row} for t, row in human_rows if t.trace_id not in on_trace],
         "trace_annotations": [
-            {"trace_id": t.trace_id, **row} for t, row in human_rows if t.trace_id in new_tool
+            {"trace_id": t.trace_id, **row} for t, row in human_rows if t.trace_id in on_trace
         ],
     }
     return spec, truth_for(variant, cases)
 
 
 def outcome(case: dict[str, Any]) -> str:
-    """Names the confusion cell of a reviewed trace, matching the fields of `Cells`."""
+    """Returns the `Cells` field name for a reviewed trace, or `agreed_safe`."""
     if case["judge"] is None:
         return "failed"
     if case["human"] == "unsafe":
@@ -773,20 +754,18 @@ def outcome(case: dict[str, Any]) -> str:
     return "false_alarms" if case["judge"] == "unsafe" else "agreed_safe"
 
 
-def new_tool_reviews(variant: Variant, cases: dict[str, dict[str, Any]]) -> set[str]:
-    """Picks the reviewed traces whose labels are logged as trace annotations."""
+def reviews_on_trace(variant: Variant, cases: dict[str, dict[str, Any]]) -> set[str]:
     rng = random.Random(f"{variant.seed}:new-tool")
     by_outcome: dict[str, list[str]] = {}
     for trace_id, case in sorted(cases.items()):
         if case["reviewed"]:
             by_outcome.setdefault(outcome(case), []).append(trace_id)
-    wanted = variant.new_tool._asdict()
-    wanted["agreed_safe"] = REVIEWED_IN_NEW_TOOL - sum(variant.new_tool)
+    wanted = variant.on_trace._asdict()
+    wanted["agreed_safe"] = REVIEWED_ON_TRACE - sum(variant.on_trace)
     return {t for name, n in wanted.items() for t in rng.sample(by_outcome.get(name, []), n)}
 
 
 def score(cases: list[dict[str, Any]]) -> dict[str, Any]:
-    """Confusion counts and the user's two metrics over traces with both labels."""
     scored = [c for c in cases if c["human"] and c["judge"]]
     tp = sum(c["human"] == "unsafe" and c["judge"] == "unsafe" for c in scored)
     fn = sum(c["human"] == "unsafe" and c["judge"] == "safe" for c in scored)
@@ -821,10 +800,9 @@ def truth_for(variant: Variant, cases: dict[str, dict[str, Any]]) -> dict[str, A
     assert full["decision"] == (
         "turn_on" if variant.task == "judge-trust-ready" else "dont_turn_on"
     )
-    # Reading only span annotations has to give numbers the verifier rejects.
-    assert span_only["reviewed"] == REVIEWED - REVIEWED_IN_NEW_TOOL
+    assert span_only["reviewed"] == REVIEWED - REVIEWED_ON_TRACE
     assert any(
-        abs(span_only[metric] - full[metric]) > TOLERANCE
+        abs(span_only[metric] - full[metric]) > VERIFIER_TOLERANCE
         for metric in ("unsafe_recall", "unsafe_precision")
     )
     instruction = (TASKS / variant.task / "instruction.md").read_text()
@@ -842,7 +820,6 @@ def truth_for(variant: Variant, cases: dict[str, dict[str, Any]]) -> dict[str, A
             "judge_failed_on_reviewed": len(failed_on_reviewed),
             **{k: v for k, v in full.items() if k in COUNT_KEYS},
         },
-        # What an agent that reads only span annotations would find; it must not pass.
         "span_annotations_only": span_only,
         "traces": cases,
     }
@@ -858,7 +835,6 @@ def main() -> None:
         truths[variant.task] = truth
         print(variant.task, json.dumps(truth["expected"]), json.dumps(truth["counts"]))
         print("  span annotations only:", json.dumps(truth["span_annotations_only"]))
-    # In at least one twin, the span-only numbers also lead to the wrong decision.
     assert any(
         t["span_annotations_only"]["decision"] != t["expected"]["decision"] for t in truths.values()
     )

@@ -1,23 +1,3 @@
-"""Grades `improve-app`: a new `support-system` prompt that follows the handbook on new questions.
-
-1. `prompt_updated`: the latest version of the `support-system` prompt in Phoenix differs
-   from the starting prompt.
-2. `experiment_recorded`: the `support-questions` dataset has an experiment besides
-   `baseline` with successful runs on at least 80% of the baseline's examples. The newest
-   such experiment is the agent's experiment, which checks 3 and 4 grade.
-3. `experiment_evaluations`: the agent's experiment carries the baseline's evaluations,
-   so its scores can be compared with the baseline's: `cites_policy`,
-   `under_word_limit`, and `no_false_promises` on at least 80% of its runs, and
-   `account_privacy` on at least 80% of its runs for account questions.
-4. `experiment_code_checks`: the experiment's two code-checkable results are right on at
-   least 90% of the runs they score. `under_word_limit` agrees with the verifier's word
-   count, and `cites_policy` doesn't pass a reply with no tag or an unknown rule ID.
-5. `hidden.<behavior>`: the verifier runs a frozen copy of the app with that prompt
-   version on 32 questions the agent never saw and scores each reply with its own checks
-   (`support_checks.py`). Each behavior must pass on at least 85% of the questions it
-   applies to. The verifier skips this run when check 1 fails.
-"""
-
 from __future__ import annotations
 
 import importlib.util
@@ -41,7 +21,6 @@ details: dict[str, Any] = {}
 
 
 def message_texts(messages: list[dict[str, Any]]) -> list[tuple[str, str]]:
-    """Returns each message's role and text, with whitespace collapsed."""
     texts = []
     for message in messages:
         content = message.get("content")
@@ -133,11 +112,8 @@ def grade_hidden(version: Any) -> None:
 
 
 def copies_dev_examples(messages: list[dict[str, Any]]) -> float:
-    """Returns 1 if the prompt quotes a development question or names its orders, else 0.
-
-    Reported beside the reward, never part of it. Text that the hidden questions, the
-    handbook, or the launch prompt share doesn't count, so only overfitting matches.
-    """
+    """Ignores text that the hidden questions, the handbook, or the launch prompt also
+    contain, so only overfitting matches."""
     from phoenix.client import Client
 
     dataset = Client(base_url=PHOENIX_URL).datasets.get_dataset(dataset=TRUTH["dataset"])

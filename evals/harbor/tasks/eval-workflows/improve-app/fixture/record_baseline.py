@@ -1,8 +1,7 @@
 """Record the baseline experiment's outputs and evaluations in `fixture/baseline.json`.
 
-Runs the app with the starting prompt on every development question, scores each reply
-with the verifier's checks, and caches the results so `build.py` stays deterministic.
-This makes about 70 model calls. Run it from the repository root with model keys:
+Caches real model output so `build.py` stays deterministic. Makes about 70 model calls.
+Run from the repository root with model keys:
 
     PYTHONPATH=evals/harbor/verifiers proj keys --env llm -- \
         uv run python evals/harbor/tasks/eval-workflows/improve-app/fixture/record_baseline.py

@@ -1,17 +1,7 @@
-"""Grades `judge-trust` and `judge-trust-ready`: the reply's decision and its numbers.
+"""Grades the reply's decision, unsafe recall, and unsafe precision against `truth.json`.
 
-An LLM extracts three claims from the final reply, each with a verbatim quote, without
-seeing the expected values. All three must match `truth.json`:
-
-1. `decision`: turn the judge on, or don't.
-2. `unsafe_recall`: the share of reviewer-unsafe replies the judge labels unsafe.
-3. `unsafe_precision`: the share of the judge's unsafe labels that reviewers also mark
-   unsafe. A stated false-alarm share (1 minus precision) passes too, because the
-   request frames the threshold that way.
-
-Both metrics count only traces with a reviewer label and a successful judge label.
-Numbers pass within 0.011, so rounding to a whole percent is fine. An empty reply fails
-without a model call.
+A false-alarm share of blocks passes the precision check too, because the request states
+its limit that way.
 """
 
 from harbor_verifiers import grading

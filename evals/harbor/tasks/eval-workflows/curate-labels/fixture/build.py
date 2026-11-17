@@ -1,22 +1,8 @@
-"""Build the reviewed support-bot traces for `curate-labels`.
+"""Builds the reviewed support-bot traces for `curate-labels`.
 
-Writes `fixture/phoenix_seed.json` (98 support-bot traces and their `review` annotations, which
-the agent sees in Phoenix) and `tests/truth.json` (which traces belong in the dataset,
-their verdicts, and the text the verifier looks for). Run from the repository root:
+Writes `fixture/phoenix_seed.json` and `tests/truth.json`. Run from the repository root:
 
     uv run python evals/harbor/tasks/eval-workflows/curate-labels/fixture/build.py
-
-Each trace gets one review history, chosen by category. The seeder writes annotations in
-list order, so a review written in a later round is newer. Every eligible trace's latest
-human verdict matches its reply by construction: a `supported` reply restates only the
-help article and workspace record, and an `unsupported` reply adds or contradicts a fact.
-Earlier reviews and pre-labels that disagree are the wrong ones. A human `unsupported`
-verdict on a bad reply carries a note that names that reply's own mistake.
-
-Most reviews sit on the root span, but some sit on the trace's LLM span. A revision is a
-second write by the same reviewer to the same span. Phoenix keeps one annotation per
-name, span, and identifier, so a revision updates the first review in place: its
-`created_at` stays and its `updated_at` moves to the revision time.
 """
 
 from __future__ import annotations
@@ -46,10 +32,8 @@ SYSTEM_PROMPT = (
     "help center articles and the workspace record provided. Be brief and friendly."
 )
 
-# Each topic: the help article the reply should rest on, the workspace fields the reply
-# relies on, customer questions, replies that use only that context, and replies that
-# add or contradict a fact. Each bad reply carries two notes that name its own mistake,
-# which reviewers who mark it `unsupported` choose from.
+# A `good` reply uses only the article and the workspace record. A `bad` reply adds or
+# contradicts a fact, and its `notes` name that mistake.
 TOPICS: list[dict[str, Any]] = [
     {
         "key": "csv-export",
@@ -778,10 +762,9 @@ COMPANIES = [
 OPENERS = ["Hi {first}! ", "Hi {first}, thanks for reaching out. ", "Thanks for asking, {first}. "]
 CLOSERS = ["", " Let me know if anything else comes up.", " Happy to help with anything else."]
 
-# Human review notes by label. The `supported` and `needs_review` notes fit any reply. An
-# `unsupported` verdict on a bad reply uses that reply's own notes instead (see
-# `review_note`), so the `unsupported` notes here only appear when a reviewer wrongly
-# flags a good reply.
+# These notes must fit any reply. A correct `unsupported` verdict uses the bad reply's own
+# notes, so the `unsupported` notes here appear only when a reviewer wrongly flags a good
+# reply.
 NOTES = {
     SUPPORTED: [
         "Matches the help article.",
@@ -809,16 +792,10 @@ PRELABEL_NOTES = {
     UNSUPPORTED: "Auto-label: reply makes claims not found in the context.",
 }
 
-# Review rounds, written in this order. Human reviews in round 1 come before those in
-# round 2, with other annotations written between them (see `other_annotations`).
-# Revisions come after every second review. `bridge` makes each round boundary a
-# boundary in time too.
 EARLY_PRELABEL, FIRST_REVIEW, SECOND_REVIEW, REVISION, LATE_PRELABEL = range(5)
-# The span a review sits on. Pre-labels always sit on the root span.
 ROOT, LLM_SPAN = "root", "llm"
 
-# Category: (count, included in the dataset). Each category's review history is built
-# in `review_history`.
+# Category: (trace count, included in the dataset).
 CATEGORIES: dict[str, tuple[int, bool]] = {
     "single_review": (15, True),
     "reviewers_agree": (3, True),
@@ -850,11 +827,7 @@ def flip(label: str) -> str:
 def review_history(
     category: str, truth: str, variant: int, rng: random.Random
 ) -> list[tuple[int, str, str, str]]:
-    """Returns (round, reviewer, label, span) for each `review` annotation on one trace.
-
-    `variant` (0 or 1) picks between two versions of some categories, such as whether
-    the second reviewer gives the wrong verdict or `needs_review`.
-    """
+    """Returns (round, reviewer, label, span) for each `review` annotation on one trace."""
     first, second = rng.sample(HUMANS, 2)
     early_or_late = rng.choice([EARLY_PRELABEL, LATE_PRELABEL])
     wrong_or_open = NEEDS_REVIEW if variant else flip(truth)
@@ -885,8 +858,8 @@ def review_history(
             (early_or_late, PRELABELER, truth, ROOT),
             (FIRST_REVIEW, first, truth, ROOT),
         ],
-        # The first reviewer changes their verdict after the second reviewer has weighed
-        # in, so the latest review by creation time is the second reviewer's.
+        # The revision updates the first review in place and keeps its `created_at`, so
+        # by `created_at` the second reviewer's review looks latest.
         "revised_verdict": [
             (FIRST_REVIEW, first, flip(truth), ROOT),
             (SECOND_REVIEW, second, wrong_or_open, ROOT),
@@ -912,7 +885,6 @@ def review_history(
             (early_or_late, PRELABELER, truth, ROOT),
             (FIRST_REVIEW, first, NEEDS_REVIEW, ROOT),
         ],
-        # The first reviewer reopens a trace that both reviewers had given a verdict.
         "revised_to_needs_review": [
             (FIRST_REVIEW, first, truth, ROOT),
             (SECOND_REVIEW, second, flip(truth) if variant else truth, ROOT),
@@ -946,21 +918,14 @@ def bridge(earlier: list[dict[str, Any]], later: list[dict[str, Any]]) -> None:
 
 
 def review_note(label: str, defect_notes: list[str], written: list[str], rng: random.Random) -> str:
-    """Returns a human reviewer's note for one verdict on a reply.
-
-    An `unsupported` verdict on a bad reply names that reply's mistake. A second reviewer
-    on the same trace doesn't repeat the first reviewer's note.
-    """
     pool = defect_notes if label == UNSUPPORTED and defect_notes else NOTES[label]
     return rng.choice([note for note in pool if note not in written] or pool)
 
 
 def plan_cases(rng: random.Random) -> list[dict[str, Any]]:
-    """Returns one case per trace, in time order, with category and true verdict."""
     cases: list[dict[str, Any]] = []
     for category, (count, included) in CATEGORIES.items():
         for index in range(count):
-            # Duplicate pairs share a verdict: indexes 0 and 1 are one pair, 2 and 3 another.
             pair = index // 2 if category == "duplicate_text" else None
             position = pair if pair is not None else index
             truth = SUPPORTED if position % 2 == 0 else UNSUPPORTED
@@ -1026,11 +991,6 @@ def build_trace(
 
 
 def other_annotations(trace: Trace, rng: random.Random) -> list[dict[str, Any]]:
-    """Returns end-user feedback and nightly evals on a trace, none of which are reviews.
-
-    They're written between the two human review rounds, the way nightly jobs and user
-    feedback arrive while reviewers work.
-    """
     tool, retriever, llm = (span["context"]["span_id"] for span in trace.children)
     found: list[dict[str, Any]] = []
     if rng.random() < 0.8:
@@ -1063,10 +1023,6 @@ def other_annotations(trace: Trace, rng: random.Random) -> list[dict[str, Any]]:
 
 
 def write_texts(cases: list[dict[str, Any]], rng: random.Random) -> list[dict[str, Any]]:
-    """Picks a topic, question, and reply per case. Only duplicate pairs share text.
-
-    A bad reply's text also carries the notes that name its mistake.
-    """
     seen: set[tuple[str, str]] = set()
     pair_texts: dict[int, dict[str, Any]] = {}
     texts = []
@@ -1085,7 +1041,7 @@ def write_texts(cases: list[dict[str, Any]], rng: random.Random) -> list[dict[st
                 bad = rng.choice(topic["bad"])
                 body, defect_notes = bad["reply"], bad["notes"]
             if case["pair"] is not None:
-                reply = body  # A templated answer two customers can both receive.
+                reply = body  # No greeting, so both customers in the pair get the same text.
             else:
                 opener = rng.choice(OPENERS).format(first=customer[0])
                 reply = opener + body + rng.choice(CLOSERS)

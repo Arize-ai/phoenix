@@ -1,7 +1,4 @@
 #!/bin/sh
-# Extract the public skills at a git ref into evals/harbor/.cache/skills-<name>/skills, so a
-# job condition can load the skills exactly as they were at that commit.
-#
 # Usage: evals/harbor/agents/snapshot_skills.sh <git-ref> <name>
 set -eu
 REF=$1

@@ -43,6 +43,35 @@ like any other reply.
 The real grounded rate is 38 of 60 (63%), or 37 of 58 (64%) leaving out the two
 timeouts.
 
+## How the data was made
+
+`fixture/build.py` generates the data from hand-written templates with fixed random
+seeds: 41 for the production traces and 59 for the new ones. The help articles, customer
+messages, reply sentences, made-up claims, and supported extra sentences are
+hand-written, and so is the choice of which traces time out. The generator picks which
+replies get a made-up claim and which messages arrive by email, and each trace's
+scenario, carrier, dates, tracking events, IDs, and timestamps. No reply comes from a
+model, and no public or user data is used. The store and customers are invented.
+
+A reply is ungrounded exactly when the generator gave it one made-up claim. Every other
+sentence restates the order record, the tracking data, or an article, or makes no claim.
+
+The data is checked in these ways:
+
+- The generator raises an error if a reply meant to get one fact wrong keeps the true
+  value or doesn't state that fact. It prints each split's label, claim, timeout, and email counts, and
+  how many replies the shipped script scores.
+- The seeder, `environments/fixtures/seed_phoenix.py`, waits until every span is in
+  Phoenix and fails if any are missing.
+- On November 13, 2026, GPT-6 Astra reviewed the data and labels read-only through
+  Codex. It found that "I've ..." appeared only in ungrounded replies. Commit
+  `f9d2970617` made 13 of the 32 made-up claims change one fact inside a normal reply,
+  and had grounded replies add supported sentences, including "I've ..." lookups, at a
+  similar rate. The timeout traces came later, in `b2c66714d2`, so the review didn't
+  see them.
+- In Docker, the reference solution scores 1 and an agent that does nothing scores 0.
+  The controls under "How it's graded" show what naive approaches score.
+
 ## How it's graded
 
 `reward` is 1 only if all eight checks pass.

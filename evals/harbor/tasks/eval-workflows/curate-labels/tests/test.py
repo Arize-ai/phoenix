@@ -1,16 +1,4 @@
-"""Grades `curate-labels`: `grounding-golden` holds exactly the eligible reviewed traces.
-
-A trace is eligible when its latest human `review`, on any of its spans, is `supported`
-or `unsupported`. Every check must pass:
-
-1. `linked`: every example links to one trace in `support-bot-reviews`, through
-   Phoenix's span link or a `span_id` or `trace_id` in its metadata.
-2. `traces`: the linked traces are exactly the eligible ones, each once.
-3. `labels`: each example's output holds its trace's latest human verdict, as
-   `supported`/`unsupported` or a boolean field such as `{"supported": true}`.
-4. `inputs`: each example's input holds the customer's question and the bot's reply.
-5. `no_label_in_input`: no input holds a verdict word, a label field, or a review note.
-"""
+"""Grades `curate-labels`: `grounding-golden` holds exactly the eligible reviewed traces."""
 
 from __future__ import annotations
 
@@ -54,7 +42,6 @@ def squash(text: str) -> str:
 
 
 def verdict(output: Any) -> str | None:
-    """Returns the one verdict an output states, or None if it states none or several."""
     found = set()
     for path, value in leaves(output):
         key = re.sub(r"[^a-z]", "", path[-1].lower()) if path else ""
@@ -71,7 +58,6 @@ def verdict(output: Any) -> str | None:
 
 
 def linked_trace(example: dict[str, Any], trace_of: dict[str, str]) -> str | None:
-    """Returns the one trace an example links to, or None if it links to none or several."""
     found = set()
     span_id = (example.get("source") or {}).get("span_id")
     if span_id in trace_of:

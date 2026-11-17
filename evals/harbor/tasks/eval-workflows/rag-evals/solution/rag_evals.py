@@ -1,9 +1,7 @@
 """Score policy-rag traces for retrieval relevance and answer groundedness.
 
-Logs a `relevant` annotation on each retrieved document and a `grounded` annotation on
-each trace's root span, both labeled `pass` or `fail`. Scores only traces that don't
-have a `grounded` annotation yet, so the nightly job only pays for new traffic. Prints
-a JSON summary of the traces it scored as the last line.
+Scores only traces without a `grounded` annotation, so the nightly job pays only for new
+traffic. The last line of output is a JSON summary of the traces it scored.
 """
 
 from __future__ import annotations
@@ -109,8 +107,8 @@ def score(trace: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def retrying(function: Callable[[Any], Any]) -> Callable[[Any], Any]:
-    """Retries a scoring call twice, then skips the item, so one stuck API call doesn't
-    lose the whole nightly run."""
+    """Skips an item after 3 failed attempts, so one stuck API call doesn't lose the
+    whole nightly run."""
 
     def call(item: Any) -> Any:
         for attempt in range(3):

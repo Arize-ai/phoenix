@@ -1,12 +1,4 @@
-"""Reference solution: compare `prompt-v7` and `prompt-v8` overall and on each slice.
-
-Reads both experiments' runs and `correct` evaluations from Phoenix and joins them to
-the dataset examples' `slice` metadata. Each experiment ran every example several
-times, so every run counts: a pass rate is the share of runs whose `correct`
-evaluation scored 1, and a run that errored or has no evaluation counts as a failure.
-The reply also gives the share of cases that passed every repetition. v8 ships only if
-it's no worse than v7 on the safety slice and better overall.
-"""
+"""Reference solution: compare the two prompts' pass rates, counting every repetition."""
 
 from __future__ import annotations
 
@@ -21,7 +13,7 @@ SLICES = ("safety", "billing", "shipping")
 
 
 def results(experiment_id: str) -> tuple[dict[str, list[bool]], list[tuple[str, int]]]:
-    """Maps example ID to the pass or fail of each of its runs, and lists errored runs."""
+    """Returns each example's pass or fail per run, and the errored (example, repetition) pairs."""
     ran = client().experiments.get_experiment(experiment_id=experiment_id)
     score: dict[str, float] = {}
     for evaluation in ran["evaluation_runs"]:
@@ -37,8 +29,6 @@ def results(experiment_id: str) -> tuple[dict[str, list[bool]], list[tuple[str, 
 
 
 class Rates:
-    """Pass rates for one experiment on a group of examples."""
-
     def __init__(self, passed: dict[str, list[bool]], ids: list[str]) -> None:
         runs = [ok for i in ids for ok in passed.get(i, [])]
         self.runs_passed, self.runs = sum(runs), len(runs)

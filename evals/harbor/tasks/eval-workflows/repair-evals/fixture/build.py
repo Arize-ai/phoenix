@@ -1,33 +1,8 @@
 """Build the support-bot traces for `repair-evals`.
 
-Writes `fixture/phoenix_seed.json` (the 60 traces the agent sees) and `tests/truth.json` (their
-`grounded` labels, plus 28 unseen traces and labels that the verifier adds before
-rerunning the nightly script). Run from the repository root:
+Run from the repository root:
 
     uv run python evals/harbor/tasks/eval-workflows/repair-evals/fixture/build.py
-
-About a third of replies make exactly one claim that no tool result or help center
-article supports: an action the bot never took, a policy no article states, or a date,
-scan, or order detail that contradicts the order record or tracking data. About 40% of
-those defects change one fact inside a normal reply, so the reply reads exactly like a
-grounded one; the rest add or replace a sentence. Grounded replies add sentences too,
-including "I've ..." statements about what the bot looked up, so neither an added
-sentence nor its wording predicts the label. About a third of messages arrive by email,
-whose payload has `subject` and `body` instead of `message`; the shipped script crashes
-on those and records `pass`. Email and defects are assigned independently.
-
-When `track_shipment` times out, the bot still answers from the order record and help
-articles, and the root span gets a status of `ERROR`. Some of those replies say tracking
-couldn't load; others state a delivery estimate or scan the bot never got. The shipped
-script marks every errored trace `fail` without judging it, so the status doesn't give
-the label away: an errored reply is graded like any other. Two visible traces time out
-(one honest, one made up). One of them falls inside the 100 newest spans, the only ones
-the shipped script scores, so it reports 20 of 21 replies grounded (95%). The unseen
-traces end with a carrier outage: 8 timeouts in a row, 5 honest and 3 made up, so
-marking errored traces `fail` (or `pass`) fails the recall bar on new traffic.
-
-Unseen traces use claim wordings and claim types that the visible traces never show, and
-their grounded replies can add supported sentences that visible replies never use.
 """
 
 from __future__ import annotations
@@ -79,8 +54,8 @@ DESTINATIONS = [
 STREETS = ["Alder St", "Birch Ave", "Cedar Ln", "Dogwood Dr", "Elm Ct", "Fir Way"]
 EVENTS = ["Departed facility", "Arrived at facility", "In transit", "Processed at hub"]
 NOTES = ["Left at front door", "Left in mailroom", "Left at side door", "Handed to resident"]
-# Transit times from the `delivery-estimates` article. Orders that haven't shipped use
-# either method; shipped orders are standard, which fits their tracking dates.
+# Transit times from the `delivery-estimates` article. Shipped orders are always standard,
+# which fits their tracking dates.
 WINDOWS = {"standard": "3 to 5 business days", "expedited": "1 to 2 business days"}
 
 ARTICLES = {
@@ -131,7 +106,7 @@ RELEVANT_ARTICLES = {
 }
 DISTRACTORS = ["returns", "gift-wrap", "cancel-order"]
 
-# One unsupported claim per defective reply, cycled in order within each scenario:
+# One unsupported claim per defective reply:
 # - ("swap", fact) states a wrong value for one fact inside the normal reply, so the
 #   reply reads exactly like a grounded one.
 # - ("insert", text) adds a sentence where grounded replies may add one from EXTRAS.
@@ -206,9 +181,9 @@ CLAIMS: dict[str, dict[str, list[tuple[str, ...]]]] = {
     },
 }  # fmt: skip
 
-# Supported sentences that replies may add, in the same places defective replies add
-# claims. Each one restates a lookup the bot made, a fact from its tool results, or a
-# retrieved article, or makes no claim. Unseen replies can also use the "unseen" ones.
+# Supported sentences that replies add in the same places as made-up claims, so an added
+# sentence doesn't predict the label. Each restates a lookup, a tool result, or an
+# article, or makes no claim.
 EXTRAS: dict[str, dict[str, list[str]]] = {
     "visible": {
         "where": [
@@ -251,8 +226,7 @@ EXTRAS: dict[str, dict[str, list[str]]] = {
     },
 }  # fmt: skip
 TIMEOUT = "CarrierTimeout: tracking service did not respond within 10s"
-# Traces whose `track_shipment` call times out: index -> (channel, made-up claim or None).
-# The bot still answers from the order record and articles, so these are graded.
+# Index -> (channel, made-up claim or None) for traces whose `track_shipment` times out.
 TIMEOUTS: dict[str, dict[int, tuple[str, str | None]]] = {
     "visible": {13: ("chat", "carrier_eta"), 57: ("chat", None)},
     "unseen": {
@@ -269,11 +243,6 @@ TIMEOUTS: dict[str, dict[int, tuple[str, str | None]]] = {
 
 
 def timeout_sentences(f: dict[str, Any], variant: int, claim: str | None) -> list[tuple[str, str]]:
-    """Returns the reply to a message whose tracking lookup timed out.
-
-    An honest reply says tracking couldn't load and restates the order record. A made-up
-    one states a tracking fact the bot never got, with or without mentioning the timeout.
-    """
     if claim == "carrier_eta":
         return [
             ("greet", f"Hi {f['first']}!"),
@@ -307,9 +276,8 @@ def timeout_sentences(f: dict[str, Any], variant: int, claim: str | None) -> lis
     return sentences
 
 
-# Share of replies that add a sentence from EXTRAS. Defective replies that insert a
-# claim never add one, so grounded replies add one more often to keep the share of
-# longer replies about the same in both classes.
+# Defective replies that insert a claim never add an extra, so grounded replies add one
+# more often to keep reply length balanced across labels.
 EXTRA_RATE = {"grounded": 0.6, "defective": 0.4}
 
 QUESTIONS = {
@@ -495,9 +463,8 @@ def make_case(
             for k in range(1, (today - scan_time.date()).days + 1)
         )
         facts["stale_days"] = stale
-    # What the reply says. A "swap" defect changes one fact here and nowhere else. A
-    # swapped date never matches another date in the order record or tracking data, so
-    # no other field seems to support it.
+    # A swapped date never matches another date the bot looked up, so no other field
+    # seems to support it.
     said = dict(facts)
     if claim is not None and claim[0] == "swap":
         fact = claim[1]
@@ -656,10 +623,7 @@ def make_case(
 def build_split(
     split: str, count: int, bad: int, email_bad: int, email_good: int, seed: int
 ) -> list[dict[str, Any]]:
-    """Assigns scenario, channel, and defect to each case so their counts are balanced.
-
-    Timeouts come from `TIMEOUTS` and are left out of the balanced assignment.
-    """
+    """Assigns scenario, channel, and defect to each case so their counts are balanced."""
     rng = random.Random(seed)
     errored = TIMEOUTS[split]
     graded = [i for i in range(count) if i not in errored]

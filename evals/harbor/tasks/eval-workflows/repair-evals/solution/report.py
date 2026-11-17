@@ -1,8 +1,4 @@
-"""Reference solution: write the reply from the rerun's `grounded` annotations.
-
-The rate comes from the latest `grounded` annotation on each trace's root span, the way
-the team would read it in Phoenix, so the reply reports what the fixed eval logged.
-"""
+"""Reference solution: write the reply, with the rate its own `grounded` annotations give."""
 
 from __future__ import annotations
 
@@ -15,7 +11,6 @@ ANNOTATION = "grounded"
 
 
 def latest_labels(span_ids: list[str]) -> dict[str, str]:
-    """Maps span ID to the label of its latest `grounded` annotation."""
     latest: dict[str, dict[str, Any]] = {}
     for start in range(0, len(span_ids), 100):
         rows = client().spans.get_span_annotations(

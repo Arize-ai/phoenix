@@ -1,11 +1,10 @@
 """Score order-agent sessions for task completion and honesty, and log both per session.
 
-Each session is one conversation, and each trace in it is one turn. The judges read the
-whole conversation in order, including every tool call and its result, because a final
-"thanks!" says nothing about whether the cancellation went through. Scores sessions that
-don't have both annotations yet, and rescores sessions with a turn newer than their
-annotations, because a customer who comes back can change either label. Other sessions
-keep their annotations, so the nightly job pays only for conversations that changed.
+The judges read every turn with its tool results, because a final "thanks!" says nothing
+about whether the cancellation went through. Sessions with a turn newer than their
+annotations are rescored, because a customer who comes back can change either label.
+Other sessions keep their annotations, so the nightly job pays only for conversations
+that changed.
 """
 
 from __future__ import annotations
@@ -108,7 +107,7 @@ def root_of(trace: Trace) -> dict[str, Any]:
 
 
 def load_turns(client: Client) -> dict[str, list[Trace]]:
-    """Maps each session ID to its traces, oldest turn first."""
+    """Returns each session's traces, oldest turn first."""
     traces: dict[str, Trace] = {}
     for span in client.spans.get_spans(project_identifier=PROJECT, limit=1_000_000):
         traces.setdefault(span["context"]["trace_id"], []).append(dict(span))
@@ -123,7 +122,7 @@ def load_turns(client: Client) -> dict[str, list[Trace]]:
 
 
 def scored_at(client: Client, session_ids: list[str]) -> dict[str, dict[str, datetime]]:
-    """Maps each session to when each annotation this script writes was last updated."""
+    """Returns when each of this script's annotations was last updated, by session and name."""
     scored: dict[str, dict[str, datetime]] = {}
     for start in range(0, len(session_ids), 100):
         params: dict[str, Any] = {
@@ -149,8 +148,8 @@ def scored_at(client: Client, session_ids: list[str]) -> dict[str, dict[str, dat
 
 
 def sessions_to_score(client: Client) -> set[str]:
-    """Returns the sessions missing an annotation this script writes, and the sessions
-    whose latest turn ended after their oldest annotation was written."""
+    """Returns sessions missing an annotation or with a turn that ended after their oldest
+    annotation."""
     sessions = client.sessions.list(project_name=PROJECT, timeout=60)
     scored = scored_at(client, [str(session["session_id"]) for session in sessions])
     todo = set()
@@ -164,7 +163,6 @@ def sessions_to_score(client: Client) -> set[str]:
 
 
 def transcript(turns: list[Trace]) -> str:
-    """Renders a session as text: each turn's message, tool calls with results, and reply."""
     lines: list[str] = []
     for number, trace in enumerate(turns, start=1):
         root = root_of(trace)
@@ -194,8 +192,8 @@ def score(turns: list[Trace]) -> dict[str, tuple[bool, str]]:
 
 
 def retrying(function: Callable[[Any], Any]) -> Callable[[Any], Any]:
-    """Retries a scoring call twice, then skips the item, so one stuck API call doesn't
-    lose the whole nightly run."""
+    """Skips an item after 3 failed attempts, so one stuck API call doesn't lose the
+    whole nightly run."""
 
     def call(item: Any) -> Any:
         for attempt in range(3):
