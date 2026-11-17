@@ -185,3 +185,61 @@ async def test_concurrent_edit_and_delete_of_one_binding_both_return(
 
     async with db() as session:
         assert await session.get(binding_model, binding.id) is None
+
+
+@pytest.mark.postgres_only
+async def test_dataset_attach_waits_for_owner_before_locking_evaluator(
+    postgresql_engine: AsyncEngine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
+    context = EvaluatorServiceContext(
+        db=db, sandbox_runtime=SandboxRuntimeContext(monty=cast(Any, None))
+    )
+    async with db() as session:
+        dataset = models.Dataset(name=f"attach-order-{token_hex(4)}", metadata_={})
+        session.add(dataset)
+        await session.flush()
+    dataset_id = GlobalID("Dataset", str(dataset.id))
+    original = await dataset_bindings.create_dataset_llm_evaluator(
+        context,
+        dataset_bindings.CreateDatasetLLMEvaluatorInput(
+            dataset_id=dataset_id,
+            name=Identifier(f"original-{token_hex(4)}"),
+            prompt_source=NewPrompt(_prompt_version()),
+            output_configs=_output_configs(1.0),
+            input_mapping=InputMapping(literal_mapping={}, path_mapping={"output": "$.output"}),
+        ),
+    )
+    waiting_for_owner = asyncio.Event()
+    lock_owner = dataset_bindings.lock_dataset_for_binding
+
+    async def observed_lock(*args: Any, **kwargs: Any) -> models.Dataset:
+        waiting_for_owner.set()
+        return await lock_owner(*args, **kwargs)
+
+    monkeypatch.setattr(dataset_bindings, "lock_dataset_for_binding", observed_lock)
+    async with db() as session:
+        await session.execute(
+            select(models.Dataset.id).where(models.Dataset.id == dataset.id).with_for_update()
+        )
+        attach = asyncio.create_task(
+            dataset_bindings.create_dataset_llm_binding(
+                context,
+                dataset_bindings.CreateDatasetLLMBindingInput(
+                    dataset_id=dataset_id,
+                    evaluator_id=GlobalID("LLMEvaluator", str(original.evaluator_id)),
+                    name=Identifier(f"attached-{token_hex(4)}"),
+                    input_mapping=InputMapping(
+                        literal_mapping={}, path_mapping={"output": "$.output"}
+                    ),
+                ),
+            )
+        )
+        await asyncio.wait_for(waiting_for_owner.wait(), 5)
+        await session.execute(
+            select(models.Evaluator.id)
+            .where(models.Evaluator.id == original.evaluator_id)
+            .with_for_update(nowait=True)
+        )
+    attached = await asyncio.wait_for(attach, 5)
+    assert attached.dataset_id == dataset.id
