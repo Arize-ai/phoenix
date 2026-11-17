@@ -52,10 +52,9 @@ describe("createSentimentEvaluator", () => {
   });
 
   it("allows overriding the prompt and choices", async () => {
-    vi.spyOn(
-      generateClassificationModule,
-      "generateClassification"
-    ).mockResolvedValue({ label: "yes", explanation: "Custom result" });
+    const generate = vi
+      .spyOn(generateClassificationModule, "generateClassification")
+      .mockResolvedValue({ label: "yes", explanation: "Custom result" });
     const evaluator = createSentimentEvaluator({
       model,
       promptTemplate: "History: {{conversation}}\nLatest: {{userMessage}}",
@@ -67,5 +66,15 @@ describe("createSentimentEvaluator", () => {
       userMessage: "This is perfect, thank you so much!",
     });
     expect(result.label).toBe("yes");
+    // The score comes from the custom choices map; if the override were
+    // ignored, "yes" wouldn't be a known label and the score would be undefined.
+    expect(result.score).toBe(1);
+    // The custom labels and prompt template must reach generateClassification.
+    expect(generate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        labels: ["yes", "no"],
+        prompt: expect.stringContaining("History:"),
+      })
+    );
   });
 });
