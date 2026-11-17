@@ -38,6 +38,7 @@ import {
   useTimeRange,
 } from "@phoenix/components/datetime";
 import { TopNavActions } from "@phoenix/components/nav";
+import { ClearingTracesIndicator } from "@phoenix/components/project/ClearingTracesIndicator";
 import { TableSkeleton } from "@phoenix/components/table";
 import {
   SESSION_FILTER_CONDITION_PARAM,
@@ -49,7 +50,6 @@ import {
   StreamStateProvider,
   useStreamState,
 } from "@phoenix/contexts/StreamStateContext";
-import { useInterval } from "@phoenix/hooks";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
@@ -63,7 +63,7 @@ import {
   readFilterConditionParam,
   withFilterConditionParam,
 } from "./filterConditionParam";
-import { ClearingTracesIndicator } from "../projects/ClearingTracesIndicator";
+import { MetricFetchKeyProvider } from "./metrics/types";
 import { ProjectOnboardingOverlay } from "./ProjectOnboardingOverlay";
 import {
   ProjectPageQueriesOnboardingQuery,
@@ -78,8 +78,6 @@ import { ProjectTimeRangeControls } from "./ProjectTimeRangeControls";
 import { DEFAULT_SPAN_FILTER_CONDITION } from "./spanFilterRootScopeConstants";
 import { type SettledSpanFilterSeed, spanFilterSeed } from "./spanFilterSeed";
 import { TableMetricsChartsPanelGroup } from "./TableMetricsCharts";
-
-const CLEARING_POLL_INTERVAL_MS = 3_000;
 
 const mainCSS = css`
   flex: 1 1 auto;
@@ -635,7 +633,7 @@ function ProjectPageContentBody({
   );
 }
 
-function useProjectPageQuery(projectId: string, fetchKey = 0) {
+function useProjectPageQuery(projectId: string) {
   return useLazyLoadQuery<ProjectPageQueryType>(
     graphql`
       query ProjectPageQuery($id: ID!) {
@@ -652,18 +650,13 @@ function useProjectPageQuery(projectId: string, fetchKey = 0) {
       }
     `,
     { id: projectId },
-    { fetchPolicy: "store-and-network", fetchKey }
+    { fetchPolicy: "store-and-network" }
   );
 }
 
 function ProjectPageTimeRangeControls({ projectId }: { projectId: string }) {
-  const [fetchKey, setFetchKey] = useState(0);
-  const data = useProjectPageQuery(projectId, fetchKey);
+  const data = useProjectPageQuery(projectId);
   const isClearingTraces = data.project.isClearingTraces ?? false;
-  useInterval(
-    () => setFetchKey((key) => key + 1),
-    isClearingTraces ? CLEARING_POLL_INTERVAL_MS : null
-  );
   return (
     <>
       {isClearingTraces ? <ClearingTracesIndicator /> : null}
@@ -681,6 +674,7 @@ function ProjectPageTabs({ projectId }: { projectId: string }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { rootPath, tab } = useProjectRootPath();
+  const { fetchKey } = useStreamState();
 
   const onTabChange = (index: number) => {
     startTransition(() => {
@@ -728,7 +722,9 @@ function ProjectPageTabs({ projectId }: { projectId: string }) {
         <StreamingTabPanel id="sessions" />
         <LazyTabPanel padded={false} id="metrics">
           <Suspense fallback={<ProjectPageSkeleton />}>
-            <Outlet />
+            <MetricFetchKeyProvider value={fetchKey}>
+              <Outlet />
+            </MetricFetchKeyProvider>
           </Suspense>
         </LazyTabPanel>
         <LazyTabPanel padded={false} id="config">

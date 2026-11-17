@@ -4,9 +4,13 @@ import { createRoot } from "react-dom/client";
 import { userEvent } from "storybook/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
+import { ThemeProvider } from "@phoenix/contexts";
 import type { EvaluatorKind } from "@phoenix/types";
 
 import { DeleteEvaluatorDialog } from "../DeleteEvaluatorDialog";
+
+installTestMatchMedia();
 
 function findByText({ text }: { text: string }) {
   return Array.from(
@@ -63,17 +67,14 @@ describe("DeleteEvaluatorDialog", () => {
   it.each([
     ["LLM", "Delete associated prompt"],
     ["DECISION", "Delete associated decision"],
-  ] as const)(
-    "defaults the %s checkbox on",
-    async (evaluatorKind, label) => {
-      expect(
-        await renderAndDelete({ evaluatorKind }).then(
-          (onDelete) => onDelete.mock.calls[0][0]
-        )
-      ).toEqual({ deleteUnusedPromptOrDecision: true });
-      expect(findByText({ text: label })).toBeDefined();
-    }
-  );
+  ] as const)("defaults the %s checkbox on", async (evaluatorKind, label) => {
+    expect(
+      await renderAndDelete({ evaluatorKind }).then(
+        (onDelete) => onDelete.mock.calls[0][0]
+      )
+    ).toEqual({ deleteUnusedPromptOrDecision: true });
+    expect(findByText({ text: label })).toBeDefined();
+  });
 
   it("sends false when the user unchecks the decision box", async () => {
     const onDelete = await renderAndDelete({
@@ -95,4 +96,103 @@ describe("DeleteEvaluatorDialog", () => {
       });
     }
   );
+
+  it("resets the checkbox back to checked after closing and reopening", async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    let isOpen = true;
+    const renderDialog = () => {
+      root.render(
+        <ThemeProvider themeMode="light" disableBodyTheme>
+          <DeleteEvaluatorDialog
+            evaluatorName="judge"
+            evaluatorKind="LLM"
+            target="project"
+            isOpen={isOpen}
+            onOpenChange={(nextIsOpen) => {
+              isOpen = nextIsOpen;
+              renderDialog();
+            }}
+            isDeleting={false}
+            onDelete={onDelete}
+          />
+        </ThemeProvider>
+      );
+    };
+
+    act(() => {
+      renderDialog();
+    });
+
+    const checkboxLabel = findByText({ text: "Delete associated prompt" });
+    expect(checkboxLabel).toBeDefined();
+    await act(async () => {
+      await userEvent.click(checkboxLabel as HTMLElement);
+    });
+    await act(async () => {
+      await userEvent.click(findByText({ text: "Cancel" }) as HTMLElement);
+    });
+    expect(isOpen).toBe(false);
+
+    act(() => {
+      isOpen = true;
+      renderDialog();
+    });
+
+    await act(async () => {
+      await userEvent.click(
+        findByText({ text: "Delete evaluator" }) as HTMLElement
+      );
+    });
+    expect(onDelete).toHaveBeenCalledWith({
+      deleteUnusedPromptOrDecision: true,
+    });
+  });
+
+  it("clears the error banner after closing and reopening", async () => {
+    const onDelete = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Evaluator is locked"));
+    let isOpen = true;
+    const renderDialog = () => {
+      root.render(
+        <ThemeProvider themeMode="light" disableBodyTheme>
+          <DeleteEvaluatorDialog
+            evaluatorName="judge"
+            evaluatorKind="LLM"
+            target="project"
+            isOpen={isOpen}
+            onOpenChange={(nextIsOpen) => {
+              isOpen = nextIsOpen;
+              renderDialog();
+            }}
+            isDeleting={false}
+            onDelete={onDelete}
+          />
+        </ThemeProvider>
+      );
+    };
+
+    act(() => {
+      renderDialog();
+    });
+
+    await act(async () => {
+      await userEvent.click(
+        findByText({ text: "Delete evaluator" }) as HTMLElement
+      );
+    });
+    expect(document.body.textContent).toContain("Evaluator is locked");
+
+    await act(async () => {
+      await userEvent.click(findByText({ text: "Cancel" }) as HTMLElement);
+    });
+    expect(isOpen).toBe(false);
+
+    act(() => {
+      isOpen = true;
+      renderDialog();
+    });
+
+    expect(document.body.textContent).not.toContain("Evaluator is locked");
+  });
 });

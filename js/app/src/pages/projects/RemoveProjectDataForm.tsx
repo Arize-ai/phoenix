@@ -4,12 +4,13 @@ import {
   parseAbsoluteToLocal,
 } from "@internationalized/date";
 import { isValid as dateIsValid } from "date-fns";
-import { useCallback, useRef } from "react";
+import { useCallback, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 
 import type { DateValue } from "@phoenix/components";
 import {
+  Alert,
   Button,
   DateField,
   DateInput,
@@ -23,8 +24,8 @@ import {
   View,
 } from "@phoenix/components";
 import { ONE_MONTH_MS } from "@phoenix/constants/timeConstants";
-import { useNotifyError } from "@phoenix/contexts";
 import { useCurrentTime, useLocalTimeFormatPattern } from "@phoenix/hooks";
+import { getMutationErrorMessage } from "@phoenix/utils/errorUtils";
 
 import type { RemoveProjectDataFormMutation } from "./__generated__/RemoveProjectDataFormMutation.graphql";
 
@@ -37,17 +38,26 @@ type RemoveProjectDataFormParams = {
   endDate: DateValue;
 };
 
-export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
+export function RemoveProjectDataForm({
+  projectId,
+  onComplete,
+}: RemoveProjectDataFormProps) {
   const { nowEpochMs } = useCurrentTime();
-  const { projectId } = props;
   const dateFormatPattern = useLocalTimeFormatPattern();
-  const notifyError = useNotifyError();
-  const formRef = useRef<HTMLFormElement>(null);
+  const [mutationError, setMutationError] = useState<string | null>(null);
   const [commit, isCommitting] = useMutation<RemoveProjectDataFormMutation>(
     graphql`
-      mutation RemoveProjectDataFormMutation($input: ClearProjectInput!) {
+      mutation RemoveProjectDataFormMutation(
+        $input: ClearProjectInput!
+        $projectId: ID!
+      ) {
         clearProject(input: $input) {
-          __typename
+          node(id: $projectId) {
+            ... on Project {
+              id
+              isClearingTraces
+            }
+          }
         }
       }
     `
@@ -69,7 +79,7 @@ export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
 
   const onSubmit = useCallback(
     (params: RemoveProjectDataFormParams) => {
-      // Validate date is a valid date
+      setMutationError(null);
       const parsedDate = params.endDate.toDate(getLocalTimeZone());
       if (!dateIsValid(parsedDate)) {
         return setError("endDate", {
@@ -83,22 +93,32 @@ export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
             id: projectId,
             endTime: new Date(parsedDate).toISOString(),
           },
+          projectId,
         },
-        onCompleted: () => {
-          props.onComplete();
+        onCompleted: (_response, errors) => {
+          if (errors?.length) {
+            setMutationError(errors.map(({ message }) => message).join("\n"));
+            return;
+          }
+          onComplete();
         },
         onError: (error) => {
-          notifyError({
-            title: "Failed to remove project data",
-            message: error.message,
-          });
+          setMutationError(getMutationErrorMessage(error));
         },
       });
     },
-    [commit, projectId, props, setError, notifyError]
+    [commit, projectId, onComplete, setError]
   );
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
+    <form onSubmit={handleSubmit(onSubmit)}>
+      {mutationError ? (
+        <View paddingX="size-200" paddingTop="size-100">
+          <Alert variant="danger" banner>
+            {mutationError}
+          </Alert>
+        </View>
+      ) : null}
       <View padding="size-200">
         <Text color="danger">
           {` This will remove all data before the following date. This cannot be undone.`}
@@ -158,11 +178,6 @@ export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
             leadingVisual={
               isCommitting ? <Icon svg={<Icons.Loading />} /> : undefined
             }
-            onPress={() => {
-              // TODO: This is a bit of a hack as the form is not working in a dialog for some reason
-              // It probably has to do with the nested DOM structure under which it is being mounted
-              formRef.current?.requestSubmit();
-            }}
           >
             {isCommitting ? "Removing..." : "Remove Data"}
           </Button>

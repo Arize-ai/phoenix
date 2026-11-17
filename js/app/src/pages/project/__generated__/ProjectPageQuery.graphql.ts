@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dd4456f7619d5a19ab22d58adeed0aa4>>
+ * @generated SignedSource<<a83e2dbaf5394d3ee211de21022a3973>>
  * @lightSyntaxTransform
  */
 
@@ -149,12 +149,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a3ef6ab7f47eb716e88411426806661a",
+    "cacheID": "d6f50107c27a282fe4dfeceee12aa00c",
     "id": null,
     "metadata": {},
     "name": "ProjectPageQuery",
     "operationKind": "query",
-    "text": "query ProjectPageQuery(\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      name\n      evaluatorCount\n      isClearingTraces\n      ...ProjectTimeRangeControls_data\n    }\n    id\n  }\n}\n\nfragment ProjectTimeRangeControls_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n"
+    "text": "query ProjectPageQuery(\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      name\n      evaluatorCount\n      isClearingTraces\n      ...ProjectTimeRangeControls_data\n    }\n    id\n  }\n}\n\nfragment ProjectTimeRangeControls_data on Project {\n  streamingLastUpdatedAt\n  isClearingTraces\n  id\n}\n"
   }
 };
 })();
