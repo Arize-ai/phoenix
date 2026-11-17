@@ -22,11 +22,11 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import {
   type GenerativeModelSDK,
+  SDK_LABELS,
   SDK_TO_PROVIDER_MAP,
   STRING_TO_PROVIDER_MAP,
 } from "@phoenix/constants/generativeConstants";
 import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
-import { getProviderName } from "@phoenix/utils/generativeUtils";
 
 import type {
   CustomProvidersCard_data$data,
@@ -52,102 +52,62 @@ void _assertSDKTypesMatch; // Prevent unused variable warning
 type DataRow =
   CustomProvidersCard_data$data["generativeModelCustomProviders"]["edges"][number]["node"];
 
-interface ProviderDisplayInfo {
-  providerKey: ModelProvider;
-  displayText: string;
-}
-
 /**
- * Resolves provider information from provider string and SDK.
- * Returns the ModelProvider key and display text.
- *
- * Resolution priority:
- * 1. If provider string matches a known provider (e.g., "openai" → OPENAI), use that
- * 2. Otherwise, fall back to SDK mapping (e.g., SDK "OPENAI" → OPENAI provider)
- *
- * For display text:
- * - Known providers use their formatted name (e.g., "OpenAI")
- * - Unknown providers display the raw provider string as-is
+ * The provider whose icon represents a custom provider: the one its provider
+ * string names (e.g., "openai" → OPENAI), or else the one its SDK targets.
  */
-function resolveProviderDisplay(
-  providerString: string,
-  sdk: GenerativeModelSDK
-): ProviderDisplayInfo {
-  // Normalize provider string for matching
-  const normalized = providerString.toLowerCase().replace(/[_-]/g, "");
-
-  const matchedProvider = STRING_TO_PROVIDER_MAP[normalized];
-
-  if (matchedProvider) {
-    // Provider string matched a known provider
-    return {
-      providerKey: matchedProvider,
-      displayText: getProviderName(matchedProvider),
-    };
-  }
-
-  // Fall back to SDK mapping
-  const providerKey = SDK_TO_PROVIDER_MAP[sdk];
-  invariant(providerKey, `Unknown SDK type: ${sdk}`);
-
-  // Use raw provider string if available and didn't match, otherwise use provider name
-  const displayText = providerString
-    ? providerString
-    : getProviderName(providerKey);
-
-  return { providerKey, displayText };
-}
-
-/**
- * Provider cell component - memoizes the resolved display info
- */
-function ProviderCell({
-  provider,
+function resolveProviderIconKey({
+  providerString,
   sdk,
 }: {
-  provider: string;
+  providerString: string;
   sdk: GenerativeModelSDK;
-}) {
-  const displayInfo = useMemo(
-    () => resolveProviderDisplay(provider, sdk),
-    [provider, sdk]
-  );
-
-  return (
-    <Flex direction="row" gap="size-100" alignItems="center">
-      <GenerativeProviderIcon provider={displayInfo.providerKey} height={18} />
-      <span>{displayInfo.displayText}</span>
-    </Flex>
-  );
+}): ModelProvider {
+  const normalized = providerString.toLowerCase().replace(/[_-]/g, "");
+  const matchedProvider = STRING_TO_PROVIDER_MAP[normalized];
+  if (matchedProvider) {
+    return matchedProvider;
+  }
+  const providerKey = SDK_TO_PROVIDER_MAP[sdk];
+  invariant(providerKey, `Unknown SDK type: ${sdk}`);
+  return providerKey;
 }
 
 /**
- * Name cell component - shows a status if the config has a parse error
+ * Name cell component - the provider icon before the name, and a status if the
+ * config has a parse error
  */
 function NameCell({
   name,
+  providerString,
+  sdk,
   hasParseError,
 }: {
   name: string;
+  providerString: string;
+  sdk: GenerativeModelSDK;
   hasParseError: boolean;
 }) {
-  if (!hasParseError) {
-    return <span>{name}</span>;
-  }
-
+  const providerKey = useMemo(
+    () => resolveProviderIconKey({ providerString, sdk }),
+    [providerString, sdk]
+  );
   return (
     <Flex direction="row" gap="size-100" alignItems="center">
+      <GenerativeProviderIcon provider={providerKey} height={18} />
       <span>{name}</span>
-      <MarkerTrigger
-        explanation={
-          <>
-            This provider&apos;s configuration could not be parsed. Use edit to
-            enter a new configuration.
-          </>
-        }
-      >
-        <StatusIndicator category="failed" label="Invalid configuration" />
-      </MarkerTrigger>
+      {hasParseError ? (
+        <MarkerTrigger
+          explanation={
+            <>
+              This provider&apos;s configuration could not be parsed. Use edit
+              to enter a new configuration.
+            </>
+          }
+        >
+          <StatusIndicator category="failed" label="Invalid configuration" />
+        </MarkerTrigger>
+      ) : null}
     </Flex>
   );
 }
@@ -233,6 +193,8 @@ export function CustomProvidersCard({
         cell: ({ row }) => (
           <NameCell
             name={row.original.name}
+            providerString={row.original.provider}
+            sdk={row.original.sdk}
             hasParseError={Boolean(row.original.config?.parseError)}
           />
         ),
@@ -258,12 +220,12 @@ export function CustomProvidersCard({
         header: "Provider",
         accessorFn: (row) => row.provider ?? undefined,
         sortUndefined: "last",
-        cell: ({ row }) => (
-          <ProviderCell
-            provider={row.original.provider}
-            sdk={row.original.sdk}
-          />
-        ),
+        cell: ({ row }) => <Text>{row.original.provider}</Text>,
+      },
+      {
+        header: "SDK",
+        accessorKey: "sdk",
+        cell: ({ row }) => <Text>{SDK_LABELS[row.original.sdk]}</Text>,
       },
     ];
 
