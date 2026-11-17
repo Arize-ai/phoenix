@@ -327,16 +327,16 @@ def test_server_error_propagates(monkeypatch):
         decision.generate_classification("something", ["correct", "incorrect"])
 
 
-def test_rate_limit_errors_registered_for_retry():
-    # A 429 must be retriable: the provider registers the real RateLimitError class (distinct from
-    # BadRequestError, so refusals/400s are never retried) so DecisionModel builds a rate limiter.
-    from google.genai._interactions import BadRequestError, RateLimitError
+def test_rate_limit_errors_registered_for_retry(monkeypatch):
+    # A 429 must be retriable, so the provider must register the real RateLimitError class and
+    # DecisionModel must build a limiter around it.
+    from google.genai._interactions import RateLimitError
 
-    from phoenix.evals.decision.adapters.google.factories import get_google_rate_limit_errors
+    _patch_clients(monkeypatch)
 
-    errors = get_google_rate_limit_errors()
-    assert errors == [RateLimitError]
-    assert RateLimitError is not BadRequestError
+    decision = DecisionModel(provider="google", model="gemini-decision-1")
+    assert decision._rate_limit_errors == [RateLimitError]
+    assert [limiter._rate_limit_error for limiter in decision._rate_limiters] == [(RateLimitError,)]
 
 
 def test_forces_v1beta_api_version(monkeypatch):
@@ -345,6 +345,27 @@ def test_forces_v1beta_api_version(monkeypatch):
 
     DecisionModel(provider="google", model="gemini-decision-1")
     assert ctor.call_args.kwargs["http_options"]["api_version"] == "v1beta"
+
+
+def test_disables_sdk_retries_so_they_do_not_stack_on_the_rate_limiter(monkeypatch):
+    ctor = MagicMock(return_value=MagicMock())
+    monkeypatch.setattr("google.genai.Client", ctor)
+
+    DecisionModel(provider="google", model="gemini-decision-1")
+    assert ctor.call_args.kwargs["http_options"]["retry_options"] == {"attempts": 1}
+
+
+def test_caller_can_override_retry_options(monkeypatch):
+    # ``setdefault`` leaves a caller-supplied retry_options untouched.
+    ctor = MagicMock(return_value=MagicMock())
+    monkeypatch.setattr("google.genai.Client", ctor)
+
+    DecisionModel(
+        provider="google",
+        model="gemini-decision-1",
+        http_options={"retry_options": {"attempts": 3}},
+    )
+    assert ctor.call_args.kwargs["http_options"]["retry_options"] == {"attempts": 3}
 
 
 def test_old_sdk_without_decisions_raises_a_helpful_error(monkeypatch):
