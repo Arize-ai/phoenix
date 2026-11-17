@@ -253,7 +253,7 @@ export function ProjectEvaluatorsTabTable({
     {
       id: "share",
       header: () => (
-        <ColumnHeaderWithHelp help="This evaluator's part of the server queue.">
+        <ColumnHeaderWithHelp help="This evaluator's share of all queued evaluations.">
           share of server queue
         </ColumnHeaderWithHelp>
       ),

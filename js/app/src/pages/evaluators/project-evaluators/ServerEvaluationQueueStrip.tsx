@@ -14,7 +14,6 @@ import {
 } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
 import {
   formatAddedPerHour,
-  DEGRADED_WAIT_MS,
   formatCompletedPerHour,
   getNetPerHour,
   getQueueStatusDetail,
@@ -26,8 +25,6 @@ import {
 import { formatEvaluationTarget } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import { StatItem } from "@phoenix/pages/project/TableAside";
 import { costFormatter, intFormatter } from "@phoenix/utils/numberFormatUtils";
-
-const DEGRADED_WAIT_MINUTES = DEGRADED_WAIT_MS / 60_000;
 
 const stripCSS = css`
   display: flex;
@@ -141,10 +138,7 @@ function ServerEvaluationQueueStripContent({
   return (
     <>
       <div css={stripCSS}>
-        <StatItem
-          label="Status"
-          help={`Healthy while nothing has waited more than ${DEGRADED_WAIT_MINUTES} minutes to start; Degraded once something has.`}
-        >
+        <StatItem label="Status">
           <HoverDetail
             detail={
               statusDetail != null ? <Text size="S">{statusDetail}</Text> : null
@@ -155,7 +149,7 @@ function ServerEvaluationQueueStripContent({
         </StatItem>
         <StatItem
           label="In queue"
-          help="Evaluations waiting, running, or awaiting a retry, across every project. Hover the count for a breakdown."
+          help="Evaluations waiting, running, or retrying, across all projects."
         >
           <HoverDetail
             detail={
@@ -194,13 +188,13 @@ function ServerEvaluationQueueStripContent({
         </StatItem>
         <StatItem
           label="Added per hour"
-          help="Evaluations added to the queue over the last hour."
+          help="Evaluations queued in the last hour."
         >
           <StatValue>{formatAddedPerHour(queue.addedPerMinute)}</StatValue>
         </StatItem>
         <StatItem
           label="Completed per hour"
-          help="Evaluations that finished over the last hour, whether they succeeded or failed."
+          help="Evaluations finished in the last hour, including failures."
         >
           <StatValue>
             {formatCompletedPerHour(queue.completedPerMinute)}
@@ -208,7 +202,7 @@ function ServerEvaluationQueueStripContent({
         </StatItem>
         <StatItem
           label="Net per hour"
-          help="Added per hour minus completed per hour. Above zero, evaluations are being queued faster than they finish, so the queue is backing up; below zero, it is draining."
+          help="Added minus completed. Positive means the queue is growing."
         >
           <StatValue color={net.netPerHour > 0 ? "warning" : null}>
             {net.formatted}
@@ -216,11 +210,11 @@ function ServerEvaluationQueueStripContent({
         </StatItem>
         <OldestWaitStat
           oldestWaitingAt={queue.oldestWaitingAt}
-          help={`How long the evaluation that has waited longest has been waiting to start. Past ${DEGRADED_WAIT_MINUTES} minutes, the queue shows as Degraded.`}
+          help="How long the oldest queued evaluation has waited to start."
         />
         <StatItem
           label="Evaluation cost"
-          help="What evaluations cost over the selected time range, from the traces evaluators write. Hover the value for counts."
+          help="Cost of evaluations in the selected time range."
         >
           <Suspense fallback={<StatValue>--</StatValue>}>
             <EvaluationCostValue fetchKey={fetchKey} />
