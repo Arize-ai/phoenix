@@ -44,8 +44,9 @@ export function DecisionModelsSection({
               isSelected={isOn}
               isDisabled={isTypeSafe || isSubmitting}
               onChange={field.onChange}
+              labelPlacement="start"
             >
-              {isOn ? "On" : "Off"}
+              {isOn ? "Enabled" : "Disabled"}
             </Switch>
           )}
         />
