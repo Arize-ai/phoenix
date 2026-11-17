@@ -266,6 +266,8 @@ Podman, it uses `podman compose`, which runs `docker-compose` against Podman.
 | Phoenix loses the database with the `toxiproxy` profile | The `toxiproxy` container restarted and lost its proxy | `./dev.sh up --profile toxiproxy` |
 | The Toxiproxy page or `toxiproxy-scenario.sh` cannot connect | The `toxiproxy` profile is not running | `./dev.sh up --profile toxiproxy` |
 | The Toxiproxy page says the `postgres` proxy does not exist | `toxiproxy-init` did not run after Toxiproxy started | `./dev.sh up --profile toxiproxy` |
+| `default kernel not configured for architecture arm64` | Apple `container` has no default Linux kernel | `container system kernel set --recommended` (`./dev.sh up` runs it when the kernel is missing) |
+| `connection reset by peer` on `127.0.0.1:6445`, or localhost URLs do not answer under Apple `container` | macOS Local Network privacy blocks the `container` port forwarder (`container system logs` shows `No route to host`) | Allow `container` in System Settings > Privacy & Security > Local Network, then `./dev.sh up` |
 
 ## Other Documentation
 
