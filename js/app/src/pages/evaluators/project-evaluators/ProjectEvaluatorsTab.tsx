@@ -72,7 +72,7 @@ function ProjectEvaluatorsTabContent() {
   const [filter, setFilter] = useState("");
   const { refreshKey, refresh } = useServerEvaluatorsRefreshKey();
   const isLive = usePreferencesContext(
-    (state) => state.serverEvaluatorsLiveEnabled
+    (state) => state.serverEvaluatorsStreamingEnabled
   );
   // One poll keeps the strip and the charts in step, while the page is live.
   const { fetchKey } = useQueueStatsPoll(refreshKey, isLive);

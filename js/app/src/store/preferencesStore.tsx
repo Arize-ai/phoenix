@@ -89,12 +89,10 @@ export interface PreferencesProps {
    */
   traceStreamingEnabled: boolean;
   /**
-   * Whether the project evaluators page refreshes as new data lands. Kept
-   * apart from trace streaming and off by default, so the numbers hold still
-   * while someone reads them.
+   * Whether streaming is enabled on the project evaluators page
    * @default false
    */
-  serverEvaluatorsLiveEnabled: boolean;
+  serverEvaluatorsStreamingEnabled: boolean;
   /**
    * The charts shown on the project evaluators page, in display order
    */
@@ -229,10 +227,10 @@ export interface PreferencesState extends PreferencesProps {
    */
   setTraceStreamingEnabled: (traceStreamingEnabled: boolean) => void;
   /**
-   * Setter for whether the project evaluators page refreshes live
+   * Setter for enabling/disabling streaming on the project evaluators page
    */
-  setServerEvaluatorsLiveEnabled: (
-    serverEvaluatorsLiveEnabled: boolean
+  setServerEvaluatorsStreamingEnabled: (
+    serverEvaluatorsStreamingEnabled: boolean
   ) => void;
   /**
    * Setter for the charts shown on the project evaluators page
@@ -385,10 +383,10 @@ export const createPreferencesStore = (
         type: "setTraceStreamingEnabled",
       });
     },
-    serverEvaluatorsLiveEnabled: false,
-    setServerEvaluatorsLiveEnabled: (serverEvaluatorsLiveEnabled) => {
-      set({ serverEvaluatorsLiveEnabled }, false, {
-        type: "setServerEvaluatorsLiveEnabled",
+    serverEvaluatorsStreamingEnabled: false,
+    setServerEvaluatorsStreamingEnabled: (serverEvaluatorsStreamingEnabled) => {
+      set({ serverEvaluatorsStreamingEnabled }, false, {
+        type: "setServerEvaluatorsStreamingEnabled",
       });
     },
     serverEvaluationChartKeys: DEFAULT_SERVER_EVALUATION_CHART_KEYS,

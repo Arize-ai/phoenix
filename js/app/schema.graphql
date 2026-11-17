@@ -2842,6 +2842,11 @@ type EvaluationActivityBin {
   Groups with any activity in the bin, most evaluations over the range first.
   """
   groups: [EvaluationActivityBinGroup!]!
+
+  """
+  Evaluations in queue at the end of the bin, across every group. Read only when selected, from every evaluation in queue.
+  """
+  queueSize: Int!
 }
 
 """One group's evaluation activity in one time bin."""
@@ -2869,11 +2874,6 @@ type EvaluationActivityBinGroup {
   Cost in USD of the evaluations' traces started in the bin; null if none. Evaluators with tracing off write no traces, so their evaluations add no cost.
   """
   cost: Float
-
-  """
-  Evaluations in queue at the end of the bin. Read only when selected, from every evaluation in queue.
-  """
-  queueSize: Int!
 }
 
 """

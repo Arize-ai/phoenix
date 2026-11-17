@@ -65,6 +65,7 @@ import type {
   ServerEvaluationChartsQuery,
   ServerEvaluationChartsQuery$data,
 } from "@phoenix/pages/evaluators/project-evaluators/__generated__/ServerEvaluationChartsQuery.graphql";
+import type { ServerEvaluationQueueSizeChartQuery } from "@phoenix/pages/evaluators/project-evaluators/__generated__/ServerEvaluationQueueSizeChartQuery.graphql";
 import type {
   ServerEvaluationChart,
   ServerEvaluationChartKey,
@@ -99,13 +100,8 @@ const AREA_FILL_TOP_OPACITY = 0.3;
 
 /**
  * The server's evaluation activity over the selected range, grouped by
- * project, with the evaluations in the queue now and at each bin's end. The
- * charts and the queue strip's cost read the same request.
- *
- * The queue's size per bin is read here rather than in a request of its own:
- * a second request for `evaluationActivity` with the same arguments would
- * share these records in the Relay store, and whichever response landed last
- * would replace the other's per-bin groups.
+ * project, with the evaluations in the queue now. The charts and the queue
+ * strip's cost read the same request.
  */
 export function useServerEvaluationActivity({
   fetchKey,
@@ -161,7 +157,6 @@ export function useServerEvaluationActivity({
               failedCount
               addedCount
               lagP95Seconds
-              queueSize
             }
           }
         }
@@ -170,7 +165,50 @@ export function useServerEvaluationActivity({
     variables,
     { fetchKey, fetchPolicy }
   );
-  return { data, timeRange, scale };
+  return { data, timeRange, scale, variables };
+}
+
+type QueueSizeVariables = ReturnType<
+  typeof useServerEvaluationActivity
+>["variables"] & { fetchKey: string };
+
+/**
+ * The evaluations in queue at each bin's end, keyed by the bin's start. A
+ * request of its own, so the other charts don't wait on it: it reads every
+ * evaluation in queue. It shares the activity request's bins in the Relay
+ * store, which is safe because it only adds a value to each bin.
+ */
+function useQueueSizeByTimestamp({
+  fetchKey,
+  timeRange,
+  timeBinConfig,
+}: QueueSizeVariables): Map<number, number> {
+  const data = useLazyLoadQuery<ServerEvaluationQueueSizeChartQuery>(
+    graphql`
+      query ServerEvaluationQueueSizeChartQuery(
+        $timeRange: TimeRange!
+        $timeBinConfig: TimeBinConfig!
+      ) {
+        evaluationActivity(
+          timeRange: $timeRange
+          timeBinConfig: $timeBinConfig
+        ) {
+          series {
+            timestamp
+            queueSize
+          }
+        }
+      }
+    `,
+    { timeRange, timeBinConfig },
+    { fetchKey, fetchPolicy: "store-and-network" }
+  );
+  return new Map(
+    data.evaluationActivity.series.map((bin) => [
+      new Date(bin.timestamp).getTime(),
+      bin.queueSize,
+    ])
+  );
 }
 
 /** A project series' color: the next palette color by rank, gray for the rest. */
@@ -265,7 +303,7 @@ function ServerEvaluationCharts({
   fetchKey: string;
   charts: ServerEvaluationChart[];
 }) {
-  const { data, timeRange, scale } = useServerEvaluationActivity({
+  const { data, timeRange, scale, variables } = useServerEvaluationActivity({
     fetchKey,
   });
   const projectSeries = getServerProjectSeries(data.evaluationActivity.groups);
@@ -275,7 +313,12 @@ function ServerEvaluationCharts({
     domain: [timeRange.start.getTime(), timeRange.end.getTime()],
     tickFormatter: (x: number) => timeTickFormatter(new Date(x)),
   };
-  const context: ChartContext = { data, projectSeries, xAxisProps };
+  const context: ChartContext = {
+    data,
+    projectSeries,
+    xAxisProps,
+    queueSizeVariables: { ...variables, fetchKey },
+  };
   return (
     <ChartPanelStrip chartCount={charts.length}>
       {charts.map((chart) => (
@@ -298,6 +341,7 @@ type ChartContext = {
   data: ActivityData;
   projectSeries: ServerProjectSeries;
   xAxisProps: XAxisOverrides;
+  queueSizeVariables: QueueSizeVariables;
 };
 
 function ServerEvaluationChartPanel({
@@ -307,7 +351,7 @@ function ServerEvaluationChartPanel({
   chart: ServerEvaluationChart;
   context: ChartContext;
 }) {
-  const { data, projectSeries, xAxisProps } = context;
+  const { data, projectSeries, xAxisProps, queueSizeVariables } = context;
   const activity = data.evaluationActivity;
   const panel = (subtitle: string | undefined, content: ReactNode) => (
     <ChartPanel
@@ -327,12 +371,20 @@ function ServerEvaluationChartPanel({
     case "queueThroughput":
       return panel(
         formatQueueGrowthSummary(getTotalNet(activity)),
-        <QueueThroughputChart activity={activity} xAxisProps={xAxisProps} />
+        <QueueThroughputChart
+          activity={activity}
+          xAxisProps={xAxisProps}
+          queueSizeVariables={queueSizeVariables}
+        />
       );
     case "queueSize":
       return panel(
         `${intShortFormatter(data.evaluationQueue.queuedCount)} in queue now`,
-        <QueueSizeChart activity={activity} xAxisProps={xAxisProps} />
+        <QueueSizeChart
+          activity={activity}
+          xAxisProps={xAxisProps}
+          queueSizeVariables={queueSizeVariables}
+        />
       );
     case "lagByProject":
       return panel(
@@ -418,11 +470,6 @@ function TimeTooltipContent({
 
 function LagTooltipContent(props: TooltipContentProps) {
   return <TimeTooltipContent {...props} formatValue={formatLag} />;
-}
-
-/** The evaluations in queue at a bin's end, across projects. */
-function getQueueSize(bin: Activity["series"][number]): number {
-  return bin.groups.reduce((sum, group) => sum + group.queueSize, 0);
 }
 
 /** Each bin's evaluations completed, evaluated or failed, across projects. */
@@ -555,22 +602,26 @@ function QueueThroughputTooltipContent({
 function QueueThroughputChart({
   activity,
   xAxisProps,
+  queueSizeVariables,
 }: {
   activity: Activity;
   xAxisProps: XAxisOverrides;
+  queueSizeVariables: QueueSizeVariables;
 }) {
+  const queueSizeByTimestamp = useQueueSizeByTimestamp(queueSizeVariables);
   const grayscaleColors = useGrayscaleCategoricalColors();
   const sequentialColors = useSequentialChartColors();
   const addedColor = grayscaleColors.gray1;
   const completedColor = grayscaleColors.gray3;
   const rows: QueueThroughputRow[] = activity.series.map((bin) => {
+    const timestamp = new Date(bin.timestamp).getTime();
     const completed = getCompletedCount(bin);
     return {
-      timestamp: new Date(bin.timestamp).getTime(),
+      timestamp,
       added: getAddedCount(bin),
       completedBelow: -completed,
       completed,
-      queueSize: getQueueSize(bin),
+      queueSize: queueSizeByTimestamp.get(timestamp) ?? 0,
     };
   });
   const hasData = rows.some((row) => row.added > 0 || row.completed > 0);
@@ -651,20 +702,26 @@ function QueueThroughputChart({
 function QueueSizeChart({
   activity,
   xAxisProps,
+  queueSizeVariables,
 }: {
   activity: Activity;
   xAxisProps: XAxisOverrides;
+  queueSizeVariables: QueueSizeVariables;
 }) {
+  const queueSizeByTimestamp = useQueueSizeByTimestamp(queueSizeVariables);
   const sequentialColors = useSequentialChartColors();
   const grayscaleColors = useGrayscaleCategoricalColors();
   const queueSizeColor = sequentialColors.blue500;
   const processedColor = grayscaleColors.gray1;
   const gradientId = useId();
-  const chartData = activity.series.map((bin) => ({
-    timestamp: new Date(bin.timestamp).getTime(),
-    queueSize: getQueueSize(bin),
-    processed: getCompletedCount(bin),
-  }));
+  const chartData = activity.series.map((bin) => {
+    const timestamp = new Date(bin.timestamp).getTime();
+    return {
+      timestamp,
+      queueSize: queueSizeByTimestamp.get(timestamp) ?? 0,
+      processed: getCompletedCount(bin),
+    };
+  });
   const hasData = chartData.some(
     (datum) => datum.queueSize > 0 || datum.processed > 0
   );

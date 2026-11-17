@@ -198,15 +198,16 @@ async def test_project_activity_is_grouped_by_evaluator(db: DbSessionFactory) ->
     ]
     assert [activity_bin.groups for activity_bin in activity.series] == [
         (
-            ActivityBinGroup(project_id, span, 1, 0, 2, _approx(1200), _approx(0.75), 2),
-            ActivityBinGroup(project_id, trace, 1, 0, 1, _approx(600), None, 0),
+            ActivityBinGroup(project_id, span, 1, 0, 2, _approx(1200), _approx(0.75)),
+            ActivityBinGroup(project_id, trace, 1, 0, 1, _approx(600), None),
         ),
-        (ActivityBinGroup(project_id, span, 1, 1, 1, _approx(2595), None, 1),),
+        (ActivityBinGroup(project_id, span, 1, 1, 1, _approx(2595), None),),
         (
-            ActivityBinGroup(project_id, span, 0, 0, 1, None, _approx(1.0), 2),
-            ActivityBinGroup(project_id, trace, 0, 0, 1, None, None, 1),
+            ActivityBinGroup(project_id, span, 0, 0, 1, None, _approx(1.0)),
+            ActivityBinGroup(project_id, trace, 0, 0, 1, None, None),
         ),
     ]
+    assert [activity_bin.queue_size for activity_bin in activity.series] == [2, 1, 3]
 
 
 async def test_server_activity_is_grouped_by_project(db: DbSessionFactory) -> None:
@@ -223,16 +224,17 @@ async def test_server_activity_is_grouped_by_project(db: DbSessionFactory) -> No
         ActivityGroup(second, None, 0, 1, _approx(2.0), _approx(1)),
     )
     assert [activity_bin.groups for activity_bin in activity.series] == [
-        (ActivityBinGroup(first, None, 2, 0, 3, _approx(1170), _approx(0.75), 2),),
+        (ActivityBinGroup(first, None, 2, 0, 3, _approx(1170), _approx(0.75)),),
         (
-            ActivityBinGroup(first, None, 1, 1, 1, _approx(2595), None, 1),
-            ActivityBinGroup(second, None, 0, 0, 1, None, _approx(2.0), 1),
+            ActivityBinGroup(first, None, 1, 1, 1, _approx(2595), None),
+            ActivityBinGroup(second, None, 0, 0, 1, None, _approx(2.0)),
         ),
         (
-            ActivityBinGroup(first, None, 0, 0, 2, None, _approx(1.0), 3),
-            ActivityBinGroup(second, None, 0, 1, 0, _approx(3600), None, 0),
+            ActivityBinGroup(first, None, 0, 0, 2, None, _approx(1.0)),
+            ActivityBinGroup(second, None, 0, 1, 0, _approx(3600), None),
         ),
     ]
+    assert [activity_bin.queue_size for activity_bin in activity.series] == [2, 2, 3]
 
 
 async def test_activity_says_when_it_leaves_out_untraced_evaluators(
@@ -306,9 +308,7 @@ async def test_activity_bins_follow_the_time_bin_config(
     assert sum(group.cost or 0 for group in bin_groups) == _approx(1.75)
     # Queued or running at 15:00: one PENDING and one RUNNING span evaluation, one trace
     # evaluation awaiting a retry.
-    assert {
-        group.project_evaluator_id: group.queue_size for group in activity.series[-1].groups
-    } == {seeded.span_evaluator_id: 2, seeded.trace_evaluator_id: 1}
+    assert activity.series[-1].queue_size == 3
 
 
 async def test_queue_size_is_read_only_when_asked(db: DbSessionFactory) -> None:
@@ -316,9 +316,8 @@ async def test_queue_size_is_read_only_when_asked(db: DbSessionFactory) -> None:
     activity = await load_evaluation_activity(
         db, project_id=seeded.first_project_id, start=_at(12), end=_at(15), time_bins=_HOURLY
     )
-    bin_groups = [group for activity_bin in activity.series for group in activity_bin.groups]
-    assert bin_groups
-    assert {group.queue_size for group in bin_groups} == {0}
+    assert activity.series
+    assert {activity_bin.queue_size for activity_bin in activity.series} == {0}
     assert activity.evaluated_count == 3
 
 
@@ -349,7 +348,7 @@ async def test_queue_size_counts_only_the_projects_own_work(db: DbSessionFactory
         db, project_id=project.id, start=_at(12), end=_at(13), **_EVERY_BIN_FIELD
     )
 
-    assert [group.queue_size for group in activity.series[-1].groups] == [1]
+    assert activity.series[-1].queue_size == 1
 
 
 async def test_queue_size_counts_only_work_queued_before_the_range_end(
@@ -363,7 +362,7 @@ async def test_queue_size_counts_only_work_queued_before_the_range_end(
         db, project_id=project.id, start=_at(12), end=_at(13), **_EVERY_BIN_FIELD
     )
 
-    assert [group.queue_size for group in activity.series[-1].groups] == [1]
+    assert activity.series[-1].queue_size == 1
 
 
 async def test_activity_over_an_empty_range(db: DbSessionFactory) -> None:
@@ -403,12 +402,8 @@ async def test_evaluation_activity_graphql(
                         groups { projectEvaluator { id } evaluatedCount failedCount cost }
                         series {
                             timestamp
-                            groups {
-                                projectEvaluator { id }
-                                addedCount
-                                queueSize
-                                lagP95Seconds
-                            }
+                            queueSize
+                            groups { projectEvaluator { id } addedCount lagP95Seconds }
                         }
                     }
                 }
@@ -440,14 +435,10 @@ async def test_evaluation_activity_graphql(
     assert [
         datetime.fromisoformat(activity_bin["timestamp"]) for activity_bin in project["series"]
     ] == [_at(12), _at(13), _at(14)]
+    assert [activity_bin["queueSize"] for activity_bin in project["series"]] == [2, 1, 3]
     assert project["series"][2]["groups"] == [
-        {"projectEvaluator": {"id": span}, "addedCount": 1, "queueSize": 2, "lagP95Seconds": None},
-        {
-            "projectEvaluator": {"id": trace},
-            "addedCount": 1,
-            "queueSize": 1,
-            "lagP95Seconds": None,
-        },
+        {"projectEvaluator": {"id": span}, "addedCount": 1, "lagP95Seconds": None},
+        {"projectEvaluator": {"id": trace}, "addedCount": 1, "lagP95Seconds": None},
     ]
 
 
@@ -472,9 +463,9 @@ async def test_evaluation_activity_graphql_reads_queue_size_only_when_selected(
             evaluationActivity(timeRange: $timeRange) { series { groups { addedCount } } }
         }""",
         """query ($timeRange: TimeRange!) {
-            evaluationActivity(timeRange: $timeRange) { series { groups { ...Bin } } }
+            evaluationActivity(timeRange: $timeRange) { series { ...Bin } }
         }
-        fragment Bin on EvaluationActivityBinGroup { queueSize }""",
+        fragment Bin on EvaluationActivityBin { queueSize }""",
     ):
         response = await gql_client.execute(query, {"timeRange": time_range})
         assert not response.errors

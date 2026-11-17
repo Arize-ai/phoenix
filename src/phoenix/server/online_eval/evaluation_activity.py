@@ -66,8 +66,7 @@ class ActivityGroup:
 
 @dataclass(frozen=True)
 class ActivityBinGroup:
-    """One group's activity in one time bin. ``queue_size`` is how many of its evaluations
-    were in queue at the bin's end."""
+    """One group's activity in one time bin."""
 
     project_id: int
     project_evaluator_id: Optional[int]
@@ -76,13 +75,14 @@ class ActivityBinGroup:
     added_count: int = 0
     lag_p95_seconds: Optional[float] = None
     cost: Optional[float] = None
-    queue_size: int = 0
 
 
 @dataclass(frozen=True)
 class ActivityBin:
     timestamp: datetime
     groups: tuple[ActivityBinGroup, ...]
+    queue_size: int = 0
+    """How many evaluations in scope were in queue at the bin's end; 0 unless read."""
 
 
 @dataclass(frozen=True)
@@ -278,19 +278,17 @@ class _ActivityReader:
                     groups=tuple(
                         ActivityBinGroup(
                             *self._identity(key, project_ids[key]),
-                            evaluated_count=group_bin.evaluated_count,
-                            failed_count=group_bin.failed_count,
-                            added_count=group_bin.added_count,
-                            lag_p95_seconds=group_bin.lag_p95_seconds,
-                            cost=group_bin.cost,
-                            queue_size=queue_size,
+                            evaluated_count=bin_activity.evaluated_count,
+                            failed_count=bin_activity.failed_count,
+                            added_count=bin_activity.added_count,
+                            lag_p95_seconds=bin_activity.lag_p95_seconds,
+                            cost=bin_activity.cost,
                         )
                         for key in group_keys
-                        for group_bin, queue_size in [
-                            (groups[key].bins.get(i, _GroupBin()), groups[key].queue_sizes[i])
-                        ]
-                        if i in groups[key].bins or queue_size
+                        if i in groups[key].bins
+                        for bin_activity in [groups[key].bins[i]]
                     ),
+                    queue_size=sum(totals.queue_sizes[i] for totals in groups.values()),
                 )
                 for i, timestamp in enumerate(bins)
             ),
