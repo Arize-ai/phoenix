@@ -55,6 +55,17 @@ def _multi_response(
     return SimpleNamespace(answers=ans, usage=usage)
 
 
+def _status_error(error_cls, status_code, message, body):
+    """Construct a ``google.genai._interactions`` APIStatusError subclass without ``httpx``.
+
+    The real errors only read ``response.request`` and ``response.status_code`` in their
+    constructor, so a ``SimpleNamespace`` stands in for the HTTP response. google-genai 3.3+
+    depends on ``httpx2`` rather than plain ``httpx``, so the test must not import ``httpx``.
+    """
+    response = SimpleNamespace(request=SimpleNamespace(), status_code=status_code)
+    return error_cls(message, response=response, body=body)
+
+
 def _bad_request_error(message="invalid argument"):
     """The real exception a next-gen (v1beta) ``decisions.create`` raises on a 400.
 
@@ -63,14 +74,13 @@ def _bad_request_error(message="invalid argument"):
     These are operational errors (malformed input, bad MIME, missing ``api_version``), not
     refusals, so the adapter lets them propagate unchanged.
     """
-    import httpx
     from google.genai._interactions import BadRequestError
 
-    request = httpx.Request("POST", "http://decisions.test")
-    return BadRequestError(
+    return _status_error(
+        BadRequestError,
+        400,
         message,
-        response=httpx.Response(400, request=request),
-        body={"error": {"code": "INVALID_ARGUMENT", "message": message}},
+        {"error": {"code": "INVALID_ARGUMENT", "message": message}},
     )
 
 
@@ -312,13 +322,11 @@ def test_http_400_propagates_and_is_not_a_refusal(monkeypatch):
 
 def test_server_error_propagates(monkeypatch):
     # A 5xx is a backend fault, not a refusal, so it must propagate unchanged.
-    import httpx
     from google.genai._interactions import InternalServerError
 
-    request = httpx.Request("POST", "http://decisions.test")
     client = MagicMock()
-    client.decisions.create.side_effect = InternalServerError(
-        "boom", response=httpx.Response(503, request=request), body={"error": {"code": "internal"}}
+    client.decisions.create.side_effect = _status_error(
+        InternalServerError, 503, "boom", {"error": {"code": "internal"}}
     )
     _patch_clients(monkeypatch, client)
 
