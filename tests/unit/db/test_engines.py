@@ -99,6 +99,26 @@ async def test_migrated_sqlite_file_is_in_wal_mode(tmp_path: Path) -> None:
         await engine.dispose()
 
 
+@pytest.mark.postgres_only
+async def test_postgresql_connections_plan_every_execution_with_its_parameters(
+    postgresql_engine: AsyncEngine,
+) -> None:
+    async with postgresql_engine.connect() as conn:
+        assert await conn.scalar(text("SHOW plan_cache_mode")) == "force_custom_plan"
+
+
+@pytest.mark.postgres_only
+async def test_postgresql_connection_plans_every_execution_after_a_rolled_back_transaction(
+    postgresql_engine: AsyncEngine,
+) -> None:
+    async with postgresql_engine.connect() as conn:
+        pid = await conn.scalar(text("SELECT pg_backend_pid()"))
+        await conn.rollback()
+    async with postgresql_engine.connect() as conn:
+        assert await conn.scalar(text("SELECT pg_backend_pid()")) == pid
+        assert await conn.scalar(text("SHOW plan_cache_mode")) == "force_custom_plan"
+
+
 async def test_sqlite_read_session_holds_one_snapshot(tmp_path: Path) -> None:
     path = tmp_path / "phoenix.db"
     setup = sqlean.connect(str(path))
