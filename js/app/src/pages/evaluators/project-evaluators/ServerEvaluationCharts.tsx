@@ -19,6 +19,7 @@ import {
 } from "recharts";
 
 import {
+  Alert,
   Button,
   Flex,
   Icon,
@@ -57,6 +58,8 @@ import {
   useSemanticChartColors,
   useSequentialChartColors,
 } from "@phoenix/components/chart";
+import { useTimeRange } from "@phoenix/components/datetime";
+import { ErrorBoundary } from "@phoenix/components/exception";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
@@ -66,6 +69,13 @@ import type {
   ServerEvaluationChartsQuery$data,
 } from "@phoenix/pages/evaluators/project-evaluators/__generated__/ServerEvaluationChartsQuery.graphql";
 import type { ServerEvaluationQueueSizeChartQuery } from "@phoenix/pages/evaluators/project-evaluators/__generated__/ServerEvaluationQueueSizeChartQuery.graphql";
+import {
+  formatQueueGrowthSummary,
+  getAddedCount,
+  getCompletedCount,
+  getMirroredCountAxis,
+  getTotalNet,
+} from "@phoenix/pages/evaluators/project-evaluators/queueThroughput";
 import type {
   ServerEvaluationChart,
   ServerEvaluationChartKey,
@@ -98,18 +108,8 @@ type Activity = ActivityData["evaluationActivity"];
 /** The top of an area's fill, fading to nothing at the baseline. */
 const AREA_FILL_TOP_OPACITY = 0.3;
 
-/**
- * The server's evaluation activity over the selected range, grouped by
- * project, with the evaluations in the queue now. The charts and the queue
- * strip's cost read the same request.
- */
-export function useServerEvaluationActivity({
-  fetchKey,
-  fetchPolicy = "store-and-network",
-}: {
-  fetchKey: string;
-  fetchPolicy?: "store-and-network" | "store-or-network";
-}) {
+/** The selected range and its bins, as the activity requests take them. */
+function useServerEvaluationActivityVariables() {
   const timeRange = useClosedTimeRange();
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
@@ -120,6 +120,21 @@ export function useServerEvaluationActivity({
     },
     timeBinConfig: { scale, utcOffsetMinutes },
   };
+  return { timeRange, scale, variables };
+}
+
+/**
+ * The server's evaluation activity over the selected range, grouped by
+ * project, with the evaluations in the queue now. The charts and the queue
+ * strip's cost read the same request.
+ */
+export function useServerEvaluationActivity({
+  fetchKey,
+}: {
+  fetchKey: string;
+}) {
+  const { timeRange, scale, variables } =
+    useServerEvaluationActivityVariables();
   const data = useLazyLoadQuery<ServerEvaluationChartsQuery>(
     graphql`
       query ServerEvaluationChartsQuery(
@@ -163,13 +178,13 @@ export function useServerEvaluationActivity({
       }
     `,
     variables,
-    { fetchKey, fetchPolicy }
+    { fetchKey, fetchPolicy: "store-and-network" }
   );
   return { data, timeRange, scale, variables };
 }
 
 type QueueSizeVariables = ReturnType<
-  typeof useServerEvaluationActivity
+  typeof useServerEvaluationActivityVariables
 >["variables"] & { fetchKey: string };
 
 /**
@@ -211,6 +226,17 @@ function useQueueSizeByTimestamp({
   );
 }
 
+/**
+ * Starts the queue size request beside the activity request. The charts read
+ * queue size only once activity has loaded, so without this the two requests
+ * run one after the other. Renders nothing: the charts read the same request.
+ */
+function QueueSizePreload({ fetchKey }: { fetchKey: string }) {
+  const { variables } = useServerEvaluationActivityVariables();
+  useQueueSizeByTimestamp({ ...variables, fetchKey });
+  return null;
+}
+
 /** A project series' color: the next palette color by rank, gray for the rest. */
 function useProjectSeriesColor() {
   const colors = useCategoryChartColors();
@@ -238,6 +264,10 @@ export function ServerEvaluationChartsPanelGroup({
   );
   const charts = getServerEvaluationCharts(chartKeys);
   const hasCharts = charts.length > 0;
+  const readsQueueSize = charts.some((chart) => chart.readsQueueSize);
+  const { timeRangeISOStrings } = useTimeRange();
+  // Retry after an error once the page refetches or the range changes.
+  const errorResetKey = `${fetchKey} ${timeRangeISOStrings.start} ${timeRangeISOStrings.end}`;
   const chartsLayout = useMetricChartsLayout({
     id: "server-evaluations-metrics-layout",
     isChartsPanelShown: hasCharts,
@@ -252,9 +282,28 @@ export function ServerEvaluationChartsPanelGroup({
             paddingTop="size-100"
             height="100%"
           >
-            <Suspense fallback={<ChartPanelStripSkeleton />}>
-              <ServerEvaluationCharts fetchKey={fetchKey} charts={charts} />
-            </Suspense>
+            <ErrorBoundary
+              resetKey={errorResetKey}
+              fallback={() => (
+                <Alert variant="danger">Couldn't load the charts</Alert>
+              )}
+            >
+              <Suspense fallback={<ChartPanelStripSkeleton />}>
+                <ServerEvaluationCharts fetchKey={fetchKey} charts={charts} />
+              </Suspense>
+            </ErrorBoundary>
+            {readsQueueSize && (
+              // The charts that read queue size show and report its errors.
+              <ErrorBoundary
+                resetKey={errorResetKey}
+                fallback={() => null}
+                isExpectedError={() => true}
+              >
+                <Suspense fallback={null}>
+                  <QueueSizePreload fetchKey={fetchKey} />
+                </Suspense>
+              </ErrorBoundary>
+            )}
           </View>
         </MetricChartsPanel>
       )}
@@ -370,7 +419,7 @@ function ServerEvaluationChartPanel({
   switch (key) {
     case "queueThroughput":
       return panel(
-        formatQueueGrowthSummary(getTotalNet(activity)),
+        formatQueueGrowthSummary(getTotalNet(activity.series)),
         <QueueThroughputChart
           activity={activity}
           xAxisProps={xAxisProps}
@@ -470,53 +519,6 @@ function TimeTooltipContent({
 
 function LagTooltipContent(props: TooltipContentProps) {
   return <TimeTooltipContent {...props} formatValue={formatLag} />;
-}
-
-/** Each bin's evaluations completed, evaluated or failed, across projects. */
-function getCompletedCount(bin: Activity["series"][number]): number {
-  return bin.groups.reduce(
-    (sum, group) => sum + group.evaluatedCount + group.failedCount,
-    0
-  );
-}
-
-/** Each bin's evaluations added to the queue, across projects. */
-function getAddedCount(bin: Activity["series"][number]): number {
-  return bin.groups.reduce((sum, group) => sum + group.addedCount, 0);
-}
-
-/** Added minus completed over the range, or null without activity. */
-function getTotalNet(activity: Activity): number | null {
-  let hasActivity = false;
-  let totalNet = 0;
-  for (const bin of activity.series) {
-    const added = getAddedCount(bin);
-    const completed = getCompletedCount(bin);
-    hasActivity ||= added > 0 || completed > 0;
-    totalNet += added - completed;
-  }
-  return hasActivity ? totalNet : null;
-}
-
-/** The range's net change as a sentence, or nothing without activity. */
-function formatQueueGrowthSummary(totalNet: number | null): string | undefined {
-  if (totalNet == null) {
-    return undefined;
-  }
-  if (totalNet > 0) {
-    return `Queue grew by ${intShortFormatter(totalNet)} in this range`;
-  }
-  if (totalNet < 0) {
-    return `Queue shrank by ${intShortFormatter(-totalNet)} in this range`;
-  }
-  return "Queue kept pace in this range";
-}
-
-/** The smallest 1, 2, or 5 times a power of ten at or above `value`. */
-function getNiceCeiling(value: number): number {
-  const magnitude = 10 ** Math.floor(Math.log10(value));
-  const step = [1, 2, 5, 10].find((multiple) => multiple * magnitude >= value);
-  return (step ?? 10) * magnitude;
 }
 
 type QueueThroughputRow = {
@@ -625,11 +627,9 @@ function QueueThroughputChart({
     };
   });
   const hasData = rows.some((row) => row.added > 0 || row.completed > 0);
-  // Even above and below, so the two halves read on one scale.
-  const extent = getNiceCeiling(
-    Math.max(1, ...rows.map((row) => Math.max(row.added, row.completed)))
+  const { extent, ticks } = getMirroredCountAxis(
+    Math.max(0, ...rows.map((row) => Math.max(row.added, row.completed)))
   );
-  const ticks = [-extent, -extent / 2, 0, extent / 2, extent];
   const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
     useInteractiveLegend();
   return (

@@ -4,7 +4,11 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { Alert, Flex, Text, View } from "@phoenix/components";
 import { Skeleton } from "@phoenix/components/core/loading";
-import { ErrorBoundary } from "@phoenix/components/exception/ErrorBoundary";
+import { useTimeRange } from "@phoenix/components/datetime";
+import {
+  ErrorBoundary,
+  TextErrorBoundaryFallback,
+} from "@phoenix/components/exception";
 import type { ServerEvaluationQueueStripQuery } from "@phoenix/pages/evaluators/project-evaluators/__generated__/ServerEvaluationQueueStripQuery.graphql";
 import { useServerEvaluationActivity } from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluationCharts";
 import { ClearAllQueuedEvaluationsMenu } from "@phoenix/pages/project/evaluators/ClearQueuedEvaluationsButton";
@@ -148,6 +152,7 @@ function ServerEvaluationQueueStripContent({
     { fetchKey, fetchPolicy: "store-and-network" }
   );
   const queue = data.evaluationQueue;
+  const { timeRangeISOStrings } = useTimeRange();
   const queuedTargets = queue.targets.filter(
     (target) => target.queuedCount > 0
   );
@@ -238,21 +243,27 @@ function ServerEvaluationQueueStripContent({
           label="Evaluation cost"
           help="Cost of evaluations in the selected time range."
         >
-          <Suspense fallback={<StatValue>--</StatValue>}>
-            <EvaluationCostValue fetchKey={fetchKey} />
-          </Suspense>
+          {/* Cost reads the heavier activity request; its errors stay here. */}
+          <ErrorBoundary
+            resetKey={`${fetchKey} ${timeRangeISOStrings.start} ${timeRangeISOStrings.end}`}
+            fallback={TextErrorBoundaryFallback}
+          >
+            <Suspense fallback={<StatValue>--</StatValue>}>
+              <EvaluationCostValue fetchKey={fetchKey} />
+            </Suspense>
+          </ErrorBoundary>
         </StatItem>
       </div>
     </>
   );
 }
 
-/** The selected range's cost, from the charts' activity request. */
+/**
+ * The selected range's cost. It shares the charts' activity request when they
+ * are shown, and fetches it on its own when they are not.
+ */
 function EvaluationCostValue({ fetchKey }: { fetchKey: string }) {
-  const { data } = useServerEvaluationActivity({
-    fetchKey,
-    fetchPolicy: "store-or-network",
-  });
+  const { data } = useServerEvaluationActivity({ fetchKey });
   const activity = data.evaluationActivity;
   return (
     <HoverDetail

@@ -13,6 +13,8 @@ export type ServerEvaluationChart =
   ChartSelectorOption<ServerEvaluationChartKey> & {
     /** What the chart shows, behind an info icon beside its title. */
     help: string;
+    /** Whether the chart reads the queue size, a request of its own. */
+    readsQueueSize?: boolean;
   };
 
 /** Every chart, in the order the chart picker lists them. */
@@ -23,6 +25,7 @@ export const SERVER_EVALUATION_CHARTS: readonly ServerEvaluationChart[] = [
     description: "Evaluations added to and completed from the queue",
     chartType: "bar",
     help: "Evaluations queued (above) and finished (below) over time. When the top bar is taller, the queue grew.",
+    readsQueueSize: true,
   },
   {
     key: "queueSize",
@@ -30,6 +33,7 @@ export const SERVER_EVALUATION_CHARTS: readonly ServerEvaluationChart[] = [
     description: "Evaluations in queue, and how many were processed",
     chartType: "line",
     help: "Evaluations in the queue over time.",
+    readsQueueSize: true,
   },
   {
     key: "lagByProject",

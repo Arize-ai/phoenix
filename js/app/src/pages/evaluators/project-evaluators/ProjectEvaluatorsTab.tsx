@@ -2,7 +2,7 @@ import { css } from "@emotion/react";
 import type { SortingState } from "@tanstack/react-table";
 import { Suspense, useState } from "react";
 
-import { DebouncedSearch, Flex, View } from "@phoenix/components";
+import { Alert, DebouncedSearch, Flex, View } from "@phoenix/components";
 import {
   CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS,
   ChartPanelStripSkeleton,
@@ -11,7 +11,9 @@ import { Skeleton } from "@phoenix/components/core/loading";
 import {
   ConnectedTimeRangeSelector,
   TimeRangeProvider,
+  useTimeRange,
 } from "@phoenix/components/datetime";
+import { ErrorBoundary } from "@phoenix/components/exception";
 import { TopNavActions } from "@phoenix/components/nav";
 import { TableSkeleton } from "@phoenix/components/table";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
@@ -71,11 +73,15 @@ export function ProjectEvaluatorsTab() {
 function ProjectEvaluatorsTabContent() {
   const [filter, setFilter] = useState("");
   const { refreshKey, refresh } = useServerEvaluatorsRefreshKey();
+  const { timeRangeISOStrings } = useTimeRange();
   const isLive = usePreferencesContext(
     (state) => state.serverEvaluatorsStreamingEnabled
   );
   // One poll keeps the strip and the charts in step, while the page is live.
-  const { fetchKey } = useQueueStatsPoll(refreshKey, isLive);
+  const { fetchKey } = useQueueStatsPoll({
+    refreshKey,
+    isPolling: isLive,
+  });
   const [sorting, setSorting] = useState<SortingState>([
     { id: "queue", desc: true },
   ]);
@@ -107,14 +113,25 @@ function ProjectEvaluatorsTabContent() {
                 </Flex>
               </View>
               <div css={tableScrollCSS}>
-                <Suspense fallback={<TableSkeleton rowCount="fill" />}>
-                  <ProjectEvaluatorsTabTable
-                    filter={filter}
-                    fetchKey={refreshKey}
-                    sorting={sorting}
-                    onSortingChange={setSorting}
-                  />
-                </Suspense>
+                <ErrorBoundary
+                  resetKey={`${refreshKey} ${timeRangeISOStrings.start} ${timeRangeISOStrings.end}`}
+                  fallback={() => (
+                    <View padding="size-200">
+                      <Alert variant="danger">
+                        Couldn't load the evaluators
+                      </Alert>
+                    </View>
+                  )}
+                >
+                  <Suspense fallback={<TableSkeleton rowCount="fill" />}>
+                    <ProjectEvaluatorsTabTable
+                      filter={filter}
+                      fetchKey={refreshKey}
+                      sorting={sorting}
+                      onSortingChange={setSorting}
+                    />
+                  </Suspense>
+                </ErrorBoundary>
               </div>
             </div>
           </ServerEvaluationChartsPanelGroup>

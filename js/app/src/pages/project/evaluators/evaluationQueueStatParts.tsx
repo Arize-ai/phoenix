@@ -35,10 +35,13 @@ const QUEUE_STATS_POLL_INTERVAL_MS = 30_000;
  * Call it once per page, so the stats and charts refresh together. Paused
  * while `isPolling` is false; a refresh still changes the key.
  */
-export function useQueueStatsPoll(
-  refreshKey: string | number,
-  isPolling: boolean = true
-) {
+export function useQueueStatsPoll({
+  refreshKey,
+  isPolling = true,
+}: {
+  refreshKey: string | number;
+  isPolling?: boolean;
+}) {
   const [pollCount, setPollCount] = useState(0);
   useEffect(() => {
     const interval = isPolling
