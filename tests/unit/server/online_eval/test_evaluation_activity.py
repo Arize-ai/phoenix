@@ -187,8 +187,9 @@ async def test_project_activity_is_grouped_by_evaluator(db: DbSessionFactory) ->
     assert (activity.evaluated_count, activity.failed_count) == (3, 1)
     assert activity.cost == _approx(1.75)
     assert activity.groups == (
-        ActivityGroup(project_id, span, 2, 1, _approx(1.75)),
-        ActivityGroup(project_id, trace, 1, 0, None),
+        # Evaluator traces of 1 second each started at 12:30 and 14:10.
+        ActivityGroup(project_id, span, 2, 1, _approx(1.75), _approx(2)),
+        ActivityGroup(project_id, trace, 1, 0, None, None),
     )
     assert [activity_bin.timestamp for activity_bin in activity.series] == [
         _at(12),
@@ -218,8 +219,8 @@ async def test_server_activity_is_grouped_by_project(db: DbSessionFactory) -> No
     assert (activity.evaluated_count, activity.failed_count) == (3, 2)
     assert activity.cost == _approx(3.75)
     assert activity.groups == (
-        ActivityGroup(first, None, 3, 1, _approx(1.75)),
-        ActivityGroup(second, None, 0, 1, _approx(2.0)),
+        ActivityGroup(first, None, 3, 1, _approx(1.75), _approx(2)),
+        ActivityGroup(second, None, 0, 1, _approx(2.0), _approx(1)),
     )
     assert [activity_bin.groups for activity_bin in activity.series] == [
         (ActivityBinGroup(first, None, 2, 0, 3, _approx(1170), _approx(0.75), 2),),

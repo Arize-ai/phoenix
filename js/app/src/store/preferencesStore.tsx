@@ -5,6 +5,8 @@ import { devtools, persist } from "zustand/middleware";
 import type { LastNTimeRangeKey } from "@phoenix/components/datetime/types";
 import type { AIQueryModelConfig } from "@phoenix/components/filter/ai/types";
 import { PREFERENCES_STORAGE_KEY } from "@phoenix/constants/storageConstants";
+import type { ServerEvaluationChartKey } from "@phoenix/pages/evaluators/project-evaluators/serverEvaluationChartCatalog";
+import { DEFAULT_SERVER_EVALUATION_CHART_KEYS } from "@phoenix/pages/evaluators/project-evaluators/serverEvaluationChartCatalog";
 import type { ProjectKind } from "@phoenix/pages/projects/types";
 import type { PackageManager, ProgrammingLanguage } from "@phoenix/types/code";
 import {
@@ -86,6 +88,17 @@ export interface PreferencesProps {
    * @default true
    */
   traceStreamingEnabled: boolean;
+  /**
+   * Whether the project evaluators page refreshes as new data lands. Kept
+   * apart from trace streaming: the page's reads cost more, so it starts
+   * paused.
+   * @default false
+   */
+  serverEvaluatorsLiveEnabled: boolean;
+  /**
+   * The charts shown on the project evaluators page, in display order
+   */
+  serverEvaluationChartKeys: ServerEvaluationChartKey[];
   /**
    * The last N time range to load data for
    */
@@ -215,6 +228,18 @@ export interface PreferencesState extends PreferencesProps {
    * @param traceStreamingEnabled
    */
   setTraceStreamingEnabled: (traceStreamingEnabled: boolean) => void;
+  /**
+   * Setter for whether the project evaluators page refreshes live
+   */
+  setServerEvaluatorsLiveEnabled: (
+    serverEvaluatorsLiveEnabled: boolean
+  ) => void;
+  /**
+   * Setter for the charts shown on the project evaluators page
+   */
+  setServerEvaluationChartKeys: (
+    serverEvaluationChartKeys: ServerEvaluationChartKey[]
+  ) => void;
   /**
    * Setter for the last N time range to load data for
    */
@@ -358,6 +383,18 @@ export const createPreferencesStore = (
     setTraceStreamingEnabled: (traceStreamingEnabled) => {
       set({ traceStreamingEnabled }, false, {
         type: "setTraceStreamingEnabled",
+      });
+    },
+    serverEvaluatorsLiveEnabled: false,
+    setServerEvaluatorsLiveEnabled: (serverEvaluatorsLiveEnabled) => {
+      set({ serverEvaluatorsLiveEnabled }, false, {
+        type: "setServerEvaluatorsLiveEnabled",
+      });
+    },
+    serverEvaluationChartKeys: DEFAULT_SERVER_EVALUATION_CHART_KEYS,
+    setServerEvaluationChartKeys: (serverEvaluationChartKeys) => {
+      set({ serverEvaluationChartKeys }, false, {
+        type: "setServerEvaluationChartKeys",
       });
     },
     lastNTimeRangeKey: DEFAULT_LAST_N_TIME_RANGE_KEY,

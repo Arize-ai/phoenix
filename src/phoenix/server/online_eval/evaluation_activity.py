@@ -7,12 +7,14 @@ evaluation writes to its project evaluator's trace project. An evaluator with tr
 no traces, so its evaluations count and lag like any other but add no cost.
 
 An evaluation's lag is from when it was queued, its work row's ``created_at``, to its result,
-the ``updated_at`` of the row's last transition. Work rows are not written once they reach an
-outcome, except that a trace or session evaluation that ended without a result is offered
-again when its trace or session has newer spans: the row returns to the queue with a new
-``created_at``, and the earlier offer leaves no record. Rows are deleted with their span,
-trace, session, or project evaluator, and finished span work is deleted once it is older than
-the online evaluation retention period, so a range reaching past it counts less than it covers.
+the ``updated_at`` of the row's last transition. Its evaluation time is the duration of the
+trace it writes, placed, like its cost, by when that trace started. Work rows are not written
+once they reach an outcome, except that a trace or session evaluation that ended without a
+result is offered again when its trace or session has newer spans: the row returns to the queue
+with a new ``created_at``, and the earlier offer leaves no record. Rows are deleted with their
+span, trace, session, or project evaluator, and finished span work is deleted once it is older
+than the online evaluation retention period, so a range reaching past it counts less than it
+covers.
 """
 
 from __future__ import annotations
@@ -58,6 +60,8 @@ class ActivityGroup:
     evaluated_count: int = 0
     failed_count: int = 0
     cost: Optional[float] = None
+    evaluation_seconds: Optional[float] = None
+    """The summed duration of the evaluations' traces started in the range; None if none."""
 
 
 @dataclass(frozen=True)
@@ -178,6 +182,7 @@ class _GroupTotals:
     evaluated_count: int = 0
     failed_count: int = 0
     cost: Optional[float] = None
+    evaluation_seconds: Optional[float] = None
     bins: dict[int, _GroupBin] = field(default_factory=dict)
     queue_sizes: list[int] = field(default_factory=list)
 
@@ -245,6 +250,7 @@ class _ActivityReader:
         if self.read_queue_size:
             await self._read_queue_size(session, groups, group_keys_by_evaluator, bin_index)
         await self._read_cost(session, groups, bin_index)
+        await self._read_evaluation_seconds(session, groups)
 
         group_keys = sorted(
             groups,
@@ -262,6 +268,7 @@ class _ActivityReader:
                     evaluated_count=groups[key].evaluated_count,
                     failed_count=groups[key].failed_count,
                     cost=groups[key].cost,
+                    evaluation_seconds=groups[key].evaluation_seconds,
                 )
                 for key in group_keys
             ),
@@ -375,6 +382,30 @@ class _ActivityReader:
             cost = float(cost or 0)
             totals.bins.setdefault(bin_index[_as_datetime(timestamp)], _GroupBin()).cost = cost
             totals.cost = (totals.cost or 0) + cost
+
+    async def _read_evaluation_seconds(
+        self,
+        session: AsyncSession,
+        groups: dict[_GroupKey, _GroupTotals],
+    ) -> None:
+        """How long the evaluations' traces started in the range took, summed per group."""
+        trace = models.Trace
+        project_evaluator = models.ProjectEvaluator
+        group = project_evaluator.project_id if self.by_project else project_evaluator.id
+        async for key, milliseconds in await session.stream(
+            sa.select(group, sa.func.sum(trace.latency_ms))
+            .select_from(project_evaluator)
+            .join(trace, trace.project_rowid == project_evaluator.trace_project_id)
+            .where(
+                project_evaluator.id.in_(self.scope),
+                trace.start_time >= self.start,
+                trace.start_time < self.end,
+            )
+            .group_by(group)
+        ):
+            if (totals := groups.get(key)) is None:
+                continue
+            totals.evaluation_seconds = float(milliseconds or 0) / 1000
 
     def _group(self, rows: sa.Subquery) -> sa.ColumnElement[int]:
         """The group of rows keyed by project evaluator. The project is looked up per row:

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f505067b0952d1728cf25c12052882e1>>
+ * @generated SignedSource<<cd728850deda069d73d9420223179bdd>>
  * @lightSyntaxTransform
  */
 
@@ -31,6 +31,7 @@ export type ServerEvaluationChartsQuery$data = {
     readonly groups: ReadonlyArray<{
       readonly cost: number | null;
       readonly evaluatedCount: number;
+      readonly evaluationSeconds: number | null;
       readonly failedCount: number;
       readonly project: {
         readonly id: string;
@@ -51,12 +52,6 @@ export type ServerEvaluationChartsQuery$data = {
     }>;
   };
   readonly evaluationQueue: {
-    readonly projects: ReadonlyArray<{
-      readonly project: {
-        readonly id: string;
-      };
-      readonly queuedCount: number;
-    }>;
     readonly queuedCount: number;
   };
 };
@@ -80,50 +75,31 @@ v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "queuedCount",
+  "name": "evaluatedCount",
   "storageKey": null
 },
 v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "id",
-  "storageKey": null
-},
-v4 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "Project",
-  "kind": "LinkedField",
-  "name": "project",
-  "plural": false,
-  "selections": [
-    (v3/*:: as any*/)
-  ],
-  "storageKey": null
-},
-v5 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "evaluatedCount",
-  "storageKey": null
-},
-v6 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
   "name": "failedCount",
   "storageKey": null
 },
-v7 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "cost",
   "storageKey": null
 },
-v8 = [
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v6 = [
   {
     "alias": null,
     "args": null,
@@ -132,25 +108,12 @@ v8 = [
     "name": "evaluationQueue",
     "plural": false,
     "selections": [
-      (v2/*:: as any*/),
       {
         "alias": null,
-        "args": [
-          {
-            "kind": "Literal",
-            "name": "first",
-            "value": 1000
-          }
-        ],
-        "concreteType": "EvaluationQueueProject",
-        "kind": "LinkedField",
-        "name": "projects",
-        "plural": true,
-        "selections": [
-          (v4/*:: as any*/),
-          (v2/*:: as any*/)
-        ],
-        "storageKey": "projects(first:1000)"
+        "args": null,
+        "kind": "ScalarField",
+        "name": "queuedCount",
+        "storageKey": null
       }
     ],
     "storageKey": null
@@ -174,9 +137,9 @@ v8 = [
     "name": "evaluationActivity",
     "plural": false,
     "selections": [
-      (v5/*:: as any*/),
-      (v6/*:: as any*/),
-      (v7/*:: as any*/),
+      (v2/*:: as any*/),
+      (v3/*:: as any*/),
+      (v4/*:: as any*/),
       {
         "alias": null,
         "args": null,
@@ -200,7 +163,7 @@ v8 = [
             "name": "project",
             "plural": false,
             "selections": [
-              (v3/*:: as any*/),
+              (v5/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -211,9 +174,16 @@ v8 = [
             ],
             "storageKey": null
           },
-          (v5/*:: as any*/),
-          (v6/*:: as any*/),
-          (v7/*:: as any*/)
+          (v2/*:: as any*/),
+          (v3/*:: as any*/),
+          (v4/*:: as any*/),
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "evaluationSeconds",
+            "storageKey": null
+          }
         ],
         "storageKey": null
       },
@@ -240,9 +210,20 @@ v8 = [
             "name": "groups",
             "plural": true,
             "selections": [
-              (v4/*:: as any*/),
-              (v5/*:: as any*/),
-              (v6/*:: as any*/),
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "Project",
+                "kind": "LinkedField",
+                "name": "project",
+                "plural": false,
+                "selections": [
+                  (v5/*:: as any*/)
+                ],
+                "storageKey": null
+              },
+              (v2/*:: as any*/),
+              (v3/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -276,7 +257,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "ServerEvaluationChartsQuery",
-    "selections": (v8/*:: as any*/),
+    "selections": (v6/*:: as any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -288,19 +269,19 @@ return {
     ],
     "kind": "Operation",
     "name": "ServerEvaluationChartsQuery",
-    "selections": (v8/*:: as any*/)
+    "selections": (v6/*:: as any*/)
   },
   "params": {
-    "cacheID": "9797fac5f3c007a24d565c7aa19acce9",
+    "cacheID": "6b0f73a7d9c3df6401dd7bf538f80e6a",
     "id": null,
     "metadata": {},
     "name": "ServerEvaluationChartsQuery",
     "operationKind": "query",
-    "text": "query ServerEvaluationChartsQuery(\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  evaluationQueue {\n    queuedCount\n    projects(first: 1000) {\n      project {\n        id\n      }\n      queuedCount\n    }\n  }\n  evaluationActivity(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n    evaluatedCount\n    failedCount\n    cost\n    excludesUntracedEvaluators\n    groups {\n      project {\n        id\n        name\n      }\n      evaluatedCount\n      failedCount\n      cost\n    }\n    series {\n      timestamp\n      groups {\n        project {\n          id\n        }\n        evaluatedCount\n        failedCount\n        addedCount\n        lagP95Seconds\n      }\n    }\n  }\n}\n"
+    "text": "query ServerEvaluationChartsQuery(\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  evaluationQueue {\n    queuedCount\n  }\n  evaluationActivity(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n    evaluatedCount\n    failedCount\n    cost\n    excludesUntracedEvaluators\n    groups {\n      project {\n        id\n        name\n      }\n      evaluatedCount\n      failedCount\n      cost\n      evaluationSeconds\n    }\n    series {\n      timestamp\n      groups {\n        project {\n          id\n        }\n        evaluatedCount\n        failedCount\n        addedCount\n        lagP95Seconds\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ead78a20d718d111cb33a7c2d884904c";
+(node as any).hash = "b03c54348cacbcac02f90e4f039b27a4";
 
 export default node;

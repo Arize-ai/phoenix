@@ -87,6 +87,15 @@ class EvaluationActivityGroup:
     def cost(self) -> Optional[float]:
         return self.group.cost
 
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Seconds the evaluations' traces started in the range took, summed; null if none. "
+            "Evaluators with tracing off write no traces, so their evaluations add no time."
+        )
+    )
+    def evaluation_seconds(self) -> Optional[float]:
+        return self.group.evaluation_seconds
+
 
 @strawberry.type(description="One group's evaluation activity in one time bin.")
 class EvaluationActivityBinGroup:

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1e5fee23f1d8f1f970bdff747cf2f2e3>>
+ * @generated SignedSource<<225ba911e05a5aff57b1d14cb20c03da>>
  * @lightSyntaxTransform
  */
 
@@ -26,9 +26,6 @@ export type ServerEvaluationQueueSizeChartQuery$data = {
   readonly evaluationActivity: {
     readonly series: ReadonlyArray<{
       readonly groups: ReadonlyArray<{
-        readonly project: {
-          readonly id: string;
-        };
         readonly queueSize: number;
       }>;
       readonly timestamp: string;
@@ -97,24 +94,6 @@ v2 = [
               {
                 "alias": null,
                 "args": null,
-                "concreteType": "Project",
-                "kind": "LinkedField",
-                "name": "project",
-                "plural": false,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "id",
-                    "storageKey": null
-                  }
-                ],
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
                 "kind": "ScalarField",
                 "name": "queueSize",
                 "storageKey": null
@@ -153,16 +132,16 @@ return {
     "selections": (v2/*:: as any*/)
   },
   "params": {
-    "cacheID": "385e5657580eedfca76e318f0a17fba3",
+    "cacheID": "07a882475316f34a313961fc3ec7e239",
     "id": null,
     "metadata": {},
     "name": "ServerEvaluationQueueSizeChartQuery",
     "operationKind": "query",
-    "text": "query ServerEvaluationQueueSizeChartQuery(\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  evaluationActivity(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n    series {\n      timestamp\n      groups {\n        project {\n          id\n        }\n        queueSize\n      }\n    }\n  }\n}\n"
+    "text": "query ServerEvaluationQueueSizeChartQuery(\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  evaluationActivity(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n    series {\n      timestamp\n      groups {\n        queueSize\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "512f439d093756ac1185c1887819dbd6";
+(node as any).hash = "a8f7714f597de224a7397704eba970f7";
 
 export default node;

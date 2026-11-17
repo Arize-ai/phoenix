@@ -32,17 +32,27 @@ const QUEUE_STATS_POLL_INTERVAL_MS = 30_000;
 
 /**
  * Polls the queue stats: a fetch key that changes on every poll or refresh.
- * Call it once per page, so the stats and charts refresh together.
+ * Call it once per page, so the stats and charts refresh together. Paused
+ * while `isPolling` is false; a refresh still changes the key.
  */
-export function useQueueStatsPoll(refreshKey: string | number) {
+export function useQueueStatsPoll(
+  refreshKey: string | number,
+  isPolling: boolean = true
+) {
   const [pollCount, setPollCount] = useState(0);
   useEffect(() => {
-    const interval = setInterval(() => {
-      // Keep the current stats up while the next poll loads.
-      startTransition(() => setPollCount((count) => count + 1));
-    }, QUEUE_STATS_POLL_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, []);
+    const interval = isPolling
+      ? setInterval(() => {
+          // Keep the current stats up while the next poll loads.
+          startTransition(() => setPollCount((count) => count + 1));
+        }, QUEUE_STATS_POLL_INTERVAL_MS)
+      : null;
+    return () => {
+      if (interval != null) {
+        clearInterval(interval);
+      }
+    };
+  }, [isPolling]);
   return { fetchKey: `${refreshKey}:${pollCount}` };
 }
 
@@ -135,13 +145,16 @@ export function hasWaitedTooLong(since: string): boolean {
  */
 export function OldestWaitStat({
   oldestWaitingAt,
+  help,
 }: {
   oldestWaitingAt: string | null;
+  /** What the stat means, behind an info icon beside its label. */
+  help?: ReactNode;
 }) {
   const isWaitingTooLong =
     oldestWaitingAt != null && hasWaitedTooLong(oldestWaitingAt);
   return (
-    <StatItem label="Oldest wait">
+    <StatItem label="Oldest wait" help={help}>
       <StatValue color={isWaitingTooLong ? "warning" : null}>
         {oldestWaitingAt != null ? formatElapsedShort(oldestWaitingAt) : "--"}
       </StatValue>

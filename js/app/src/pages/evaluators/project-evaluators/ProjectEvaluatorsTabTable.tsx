@@ -1,4 +1,3 @@
-import { css } from "@emotion/react";
 import type { OnChangeFn, SortingState } from "@tanstack/react-table";
 import { flexRender, useTable } from "@tanstack/react-table";
 import { graphql, useLazyLoadQuery } from "react-relay";
@@ -36,13 +35,6 @@ type TableRow = QueryData["projectEvaluators"]["edges"][number]["node"];
 /** Every project evaluator on the server is loaded; sorting happens here. */
 const PROJECT_EVALUATORS_LIMIT = 1000;
 
-/**
- * While the server queue is Degraded, the evaluators driving it: the fewest
- * that together hold most of it, each holding a sizable part on its own.
- */
-const DRIVERS_CUMULATIVE_SHARE = 0.8;
-const DRIVER_MIN_SHARE = 0.1;
-
 /** An evaluator's part of the server queue, at most all of it. */
 function getEvaluatorShareOfServerQueue({
   evaluatorQueuedCount,
@@ -56,69 +48,12 @@ function getEvaluatorShareOfServerQueue({
     : 0;
 }
 
-function getServerQueueDriverIds({
-  rows,
-  serverQueuedCount,
-}: {
-  rows: ReadonlyArray<{ id: string; runSummary: { queuedCount: number } }>;
-  serverQueuedCount: number;
-}): Set<string> {
-  const drivers = new Set<string>();
-  if (serverQueuedCount <= 0) {
-    return drivers;
-  }
-  const ranked = [...rows].sort(
-    (a, b) => b.runSummary.queuedCount - a.runSummary.queuedCount
-  );
-  let cumulative = 0;
-  for (const row of ranked) {
-    const share = getEvaluatorShareOfServerQueue({
-      evaluatorQueuedCount: row.runSummary.queuedCount,
-      serverQueuedCount,
-    });
-    if (cumulative >= DRIVERS_CUMULATIVE_SHARE || share < DRIVER_MIN_SHARE) {
-      break;
-    }
-    drivers.add(row.id);
-    cumulative += share;
-  }
-  return drivers;
-}
-
 const shareFormatter = new Intl.NumberFormat(undefined, {
   style: "percent",
   maximumFractionDigits: 0,
 });
 
-const shareCellCSS = css`
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--global-dimension-size-100);
-  .queue-share__track {
-    flex: none;
-    width: 48px;
-    height: 6px;
-    border-radius: 2px;
-    background-color: var(--global-color-gray-200);
-    overflow: hidden;
-  }
-  .queue-share__bar {
-    height: 100%;
-    background-color: var(--global-color-gray-600);
-  }
-  &[data-driver="true"] .queue-share__bar {
-    background-color: var(--global-color-warning);
-  }
-`;
-
-function ServerQueueShareCell({
-  share,
-  isDriver,
-}: {
-  share: number | null;
-  isDriver: boolean;
-}) {
+function ServerQueueShareCell({ share }: { share: number | null }) {
   if (share == null || share === 0) {
     return (
       <Text fontFamily="mono" color="text-700">
@@ -127,17 +62,9 @@ function ServerQueueShareCell({
     );
   }
   return (
-    <div css={shareCellCSS} data-driver={isDriver}>
-      <div className="queue-share__track">
-        <div
-          className="queue-share__bar"
-          style={{ width: `${Math.min(share, 1) * 100}%` }}
-        />
-      </div>
-      <Text fontFamily="mono" color={isDriver ? "warning" : undefined}>
-        {share < 0.01 ? "<1%" : shareFormatter.format(share)}
-      </Text>
-    </div>
+    <Text fontFamily="mono">
+      {share < 0.01 ? "<1%" : shareFormatter.format(share)}
+    </Text>
   );
 }
 
@@ -151,15 +78,12 @@ function getProjectEvaluatorDetailsPath(row: TableRow): string {
  */
 export function ProjectEvaluatorsTabTable({
   filter,
-  projectIds,
   fetchKey,
   sorting,
   onSortingChange,
 }: {
   /** Matches an evaluator's name or its project's name. */
   filter: string;
-  /** Only these projects' evaluators; all when empty. */
-  projectIds: ReadonlyArray<string>;
   /** Changes when the queue was changed from this page, to refetch at once. */
   fetchKey: number;
   sorting: SortingState;
@@ -173,7 +97,6 @@ export function ProjectEvaluatorsTabTable({
         $timeRange: TimeRange!
       ) {
         evaluationQueue {
-          status
           queuedCount
         }
         projectEvaluators(first: $first) {
@@ -244,29 +167,13 @@ export function ProjectEvaluatorsTabTable({
   );
   const trimmedFilter = filter.trim().toLowerCase();
   const nodes = data.projectEvaluators.edges.map((edge) => edge.node);
-  // Picks naming a deleted project are ignored, as the charts ignore them.
-  const projectIdsWithEvaluators = new Set(
-    nodes.map((node) => node.project.id)
+  const rows = nodes.filter(
+    (node) =>
+      trimmedFilter.length === 0 ||
+      node.name.toLowerCase().includes(trimmedFilter) ||
+      node.project.name.toLowerCase().includes(trimmedFilter)
   );
-  const picked = new Set(
-    projectIds.filter((id) => projectIdsWithEvaluators.has(id))
-  );
-  const rows = nodes
-    .filter((node) => picked.size === 0 || picked.has(node.project.id))
-    .filter(
-      (node) =>
-        trimmedFilter.length === 0 ||
-        node.name.toLowerCase().includes(trimmedFilter) ||
-        node.project.name.toLowerCase().includes(trimmedFilter)
-    );
   const serverQueuedCount = data.evaluationQueue.queuedCount;
-  const driverIds =
-    data.evaluationQueue.status === "DEGRADED"
-      ? getServerQueueDriverIds({
-          rows: data.projectEvaluators.edges.map((edge) => edge.node),
-          serverQueuedCount,
-        })
-      : new Set<string>();
   const columns: ColumnDef<TableRow>[] = [
     {
       id: "enabled",
@@ -346,7 +253,7 @@ export function ProjectEvaluatorsTabTable({
     {
       id: "share",
       header: () => (
-        <ColumnHeaderWithHelp help="This evaluator's part of the server queue. Highlighted when the queue is degraded and this evaluator is one of the few holding most of it.">
+        <ColumnHeaderWithHelp help="This evaluator's part of the server queue.">
           share of server queue
         </ColumnHeaderWithHelp>
       ),
@@ -358,11 +265,8 @@ export function ProjectEvaluatorsTabTable({
           evaluatorQueuedCount: row.runSummary.queuedCount,
           serverQueuedCount,
         }),
-      cell: ({ row, getValue }) => (
-        <ServerQueueShareCell
-          share={getValue() as number}
-          isDriver={driverIds.has(row.original.id)}
-        />
+      cell: ({ getValue }) => (
+        <ServerQueueShareCell share={getValue() as number} />
       ),
     },
     {
@@ -493,7 +397,7 @@ export function ProjectEvaluatorsTabTable({
           <CompactEmptyState
             icon={<Icon svg={<Icons.Scale />} />}
             description="No project evaluators"
-            isFiltered={trimmedFilter.length > 0 || picked.size > 0}
+            isFiltered={trimmedFilter.length > 0}
           />
         </TableEmptyWrap>
       ) : (
