@@ -134,6 +134,8 @@ async def create_decision_evaluator(
             await session.flush()
             await session.refresh(evaluator)
     except (IntegrityError, SQLiteIntegrityError) as error:
+        if is_foreign_key_violation(error):
+            raise NotFound(f"Decision version not found: {input.decision_version_id}") from error
         raise await evaluator_name_taken(context, input.name) from error
     except ValueError as error:
         raise BadRequest(str(error)) from error
@@ -209,6 +211,8 @@ async def patch_decision_evaluator(
             await session.flush()
             await session.refresh(evaluator)
     except (IntegrityError, SQLiteIntegrityError) as error:
+        if is_foreign_key_violation(error):
+            raise NotFound("Decision version not found") from error
         if patch.name is not UNSET and patch.name is not None:
             raise await evaluator_name_taken(context, patch.name) from error
         raise Conflict("The decision evaluator could not be updated") from error
