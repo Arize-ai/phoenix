@@ -1616,6 +1616,7 @@ def create_app(
     app.state.online_eval_trace_consumer = online_eval_trace_consumer
     app.state.online_eval_session_producer = online_eval_session_producer
     app.state.online_eval_trace_producer = online_eval_trace_producer
+    app.state.experiment_runner = experiment_runner
     app.state.cleanup_worker = cleanup_worker
     app.state.graphql_schema = graphql_schema
     # Snapshot the provider allow-list once at app creation so the REST and

@@ -17,6 +17,7 @@ from phoenix.db import models
 from phoenix.db.cleanup_tasks import live_row_predicate
 from phoenix.db.helpers import (
     SupportedSQLDialect,
+    get_eval_trace_ids_for_experiments,
     get_experiment_incomplete_runs_query,
     insert_experiment_with_examples_snapshot,
 )
@@ -25,6 +26,7 @@ from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.server.api.routers.v1.datasets import DatasetExample
 from phoenix.server.api.routers.v1.models import IsoDatetime
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.utils import delete_traces
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.cleanup.lifecycle import (
@@ -607,6 +609,7 @@ async def delete_experiment(
     # harmless since the experiment is being deleted anyway.
     await request.state.experiment_runner.stop_experiment(experiment_rowid)
 
+    eval_trace_ids_stmt = get_eval_trace_ids_for_experiments(experiment_rowid)
     stmt = (
         sa.delete(models.Experiment)
         .where(models.Experiment.id == experiment_rowid)
@@ -616,6 +619,9 @@ async def delete_experiment(
     dialect = SupportedSQLDialect(db.dialect.value)
     enqueued_projects: list[int] = []
     async with db() as session:
+        eval_trace_ids = [
+            trace_id for trace_id in (await session.scalars(eval_trace_ids_stmt)).all() if trace_id
+        ]
         result = (await session.execute(stmt)).first()
         if result is None:
             raise HTTPException(detail="Experiment does not exist", status_code=404)
@@ -641,6 +647,12 @@ async def delete_experiment(
         cleanup_worker = getattr(request.app.state, "cleanup_worker", None)
         if cleanup_worker is not None:
             cleanup_worker.wake()
+    if eval_trace_ids:
+        await delete_traces(
+            db,
+            *eval_trace_ids,
+            event_queue=request.state.event_queue,
+        )
 
 
 class ListExperimentsResponseBody(PaginatedResponseBody[Experiment]):

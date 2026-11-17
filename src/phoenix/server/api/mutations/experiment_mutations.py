@@ -1,4 +1,3 @@
-import asyncio
 from datetime import datetime, timezone
 
 import strawberry
@@ -397,9 +396,10 @@ class ExperimentMutationMixin:
             info.context.event_queue.put(ProjectDeleteEvent(tombstoned_ids))
             info.context.wake_cleanup_worker()
         if eval_trace_ids:
-            await asyncio.gather(
-                delete_traces(info.context.db, *eval_trace_ids),
-                return_exceptions=True,
+            await delete_traces(
+                info.context.db,
+                *eval_trace_ids,
+                event_queue=info.context.event_queue,
             )
         info.context.event_queue.put(ExperimentDeleteEvent(tuple(experiments.keys())))
         return ExperimentMutationPayload(

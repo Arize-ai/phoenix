@@ -2,24 +2,48 @@
 
 from __future__ import annotations
 
+import asyncio
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Iterable, Optional
+from typing import Any, Optional, Protocol
 
-from sqlalchemy import and_, exists, insert, or_, select, update
+from sqlalchemy import and_, delete, exists, insert, literal, or_, select, text, update
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.config import DEFAULT_PROJECT_NAME, PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.helpers import SupportedSQLDialect, get_eval_trace_ids_for_datasets
 from phoenix.db.insertion.helpers import get_sqlstate
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
+from phoenix.server.cleanup.primitives import (
+    CLEANUP_BATCH_ROWS,
+    PrimitiveStatus,
+    drain_traces_step,
+)
+from phoenix.server.dml_event import (
+    DatasetDeleteEvent,
+    DmlEvent,
+    ProjectDeleteEvent,
+    SpanDeleteEvent,
+)
 from phoenix.server.evaluators.services.management import (
     garbage_collect_evaluators,
     lock_evaluators,
 )
 from phoenix.server.online_eval.clock import current_database_time
+from phoenix.server.types import CanPutItem, DbSessionFactory
+
+_TRACE_DRAIN_STATEMENT_TIMEOUT_MS = 60_000
+_TRACE_DRAIN_LOCK_TIMEOUT_MS = 5_000
+_TRANSIENT_CONTENTION_SQLSTATES = frozenset({"55P03", "40P01"})
+_MAX_YIELD_RETRIES_PER_CHUNK = 5
+_YIELD_RETRY_DELAY_SECONDS = 0.05
+
+
+class CanStopExperiment(Protocol):
+    async def stop_experiment(self, experiment_id: int) -> Any: ...
 
 
 @dataclass(frozen=True)
@@ -32,6 +56,15 @@ class LogicalEvaluatorDeleteResult:
 class AdmittedProjectDelete:
     project: models.Project
     tombstoned_project_ids: list[int]
+
+
+@dataclass(frozen=True)
+class AdmittedDatasetDelete:
+    dataset: models.Dataset
+    experiment_ids: list[int]
+    eval_trace_ids: list[str]
+    tombstoned_project_ids: list[int]
+    enqueued_cleanup: bool
 
 
 async def _lock_projects(
@@ -743,3 +776,244 @@ async def promote_retained_experiment_projects_to_standard(
         )
         .values(kind="STANDARD", updated_at=now)
     )
+
+
+async def delete_standalone_traces_by_trace_id(
+    db: DbSessionFactory,
+    trace_ids: Iterable[str],
+    *,
+    event_queue: Optional[CanPutItem[DmlEvent]] = None,
+    batch_limit: int = CLEANUP_BATCH_ROWS,
+) -> set[int]:
+    """Drain standalone traces matching ``trace_ids`` in bounded batches, skipping traces
+    owned by ``EVALUATOR`` or tombstoned projects, and emit ``SpanDeleteEvent`` for
+    affected projects."""
+    if batch_limit <= 0:
+        raise ValueError("batch_limit must be positive")
+    unique_trace_ids = sorted({trace_id for trace_id in trace_ids if trace_id})
+    if not unique_trace_ids:
+        return set()
+
+    dialect = SupportedSQLDialect(db.dialect.value)
+    chunk_size = min(batch_limit, CLEANUP_BATCH_ROWS)
+    affected_project_ids: set[int] = set()
+
+    for chunk_start in range(0, len(unique_trace_ids), chunk_size):
+        chunk_trace_ids = unique_trace_ids[chunk_start : chunk_start + chunk_size]
+        async with db() as session:
+            if dialect is SupportedSQLDialect.POSTGRESQL:
+                await session.execute(
+                    text(f"SET LOCAL statement_timeout = {_TRACE_DRAIN_STATEMENT_TIMEOUT_MS}")
+                )
+                await session.execute(
+                    text(f"SET LOCAL lock_timeout = {_TRACE_DRAIN_LOCK_TIMEOUT_MS}")
+                )
+            eligible_rows = (
+                await session.execute(
+                    select(models.Trace.id, models.Trace.project_rowid)
+                    .join(models.Project, models.Project.id == models.Trace.project_rowid)
+                    .where(
+                        models.Trace.trace_id.in_(chunk_trace_ids),
+                        models.Project.deleted_at.is_(None),
+                        models.Project.kind != "EVALUATOR",
+                    )
+                )
+            ).all()
+        if not eligible_rows:
+            continue
+
+        trace_rowids_by_project: dict[int, list[int]] = {}
+        for row in eligible_rows:
+            trace_rowids_by_project.setdefault(int(row.project_rowid), []).append(int(row.id))
+
+        for project_rowid, project_trace_rowids in sorted(trace_rowids_by_project.items()):
+            project_trace_rowids.sort()
+            live_non_evaluator_project = exists(
+                select(literal(1)).where(
+                    models.Project.id == project_rowid,
+                    models.Project.deleted_at.is_(None),
+                    models.Project.kind != "EVALUATOR",
+                )
+            )
+            trace_condition = and_(
+                models.Trace.project_rowid == project_rowid,
+                models.Trace.id.in_(project_trace_rowids),
+                live_non_evaluator_project,
+            )
+            num_yields = 0
+            while True:
+                try:
+                    async with db() as session:
+                        if dialect is SupportedSQLDialect.POSTGRESQL:
+                            await session.execute(
+                                text(
+                                    f"SET LOCAL statement_timeout = "
+                                    f"{_TRACE_DRAIN_STATEMENT_TIMEOUT_MS}"
+                                )
+                            )
+                            await session.execute(
+                                text(f"SET LOCAL lock_timeout = {_TRACE_DRAIN_LOCK_TIMEOUT_MS}")
+                            )
+                        step_result = await drain_traces_step(
+                            session,
+                            dialect=dialect,
+                            trace_cond=trace_condition,
+                            batch_limit=batch_limit,
+                            reset_session_evaluations=False,
+                        )
+                except DBAPIError as error:
+                    if get_sqlstate(error) in _TRANSIENT_CONTENTION_SQLSTATES:
+                        num_yields += 1
+                        if num_yields > _MAX_YIELD_RETRIES_PER_CHUNK:
+                            break
+                        await asyncio.sleep(_YIELD_RETRY_DELAY_SECONDS)
+                        continue
+                    raise
+
+                if step_result.status is PrimitiveStatus.PROGRESS:
+                    affected_project_ids.add(project_rowid)
+                    num_yields = 0
+                    await asyncio.sleep(0)
+                    continue
+                if step_result.status is PrimitiveStatus.YIELD:
+                    num_yields += 1
+                    if num_yields > _MAX_YIELD_RETRIES_PER_CHUNK:
+                        break
+                    await asyncio.sleep(_YIELD_RETRY_DELAY_SECONDS)
+                    continue
+                break
+
+    if affected_project_ids and event_queue is not None:
+        event_queue.put(SpanDeleteEvent(tuple(sorted(affected_project_ids))))
+    return affected_project_ids
+
+
+async def admit_dataset_delete(
+    session: AsyncSession,
+    *,
+    dialect: SupportedSQLDialect,
+    dataset_id: int,
+) -> AdmittedDatasetDelete:
+    """Delete ``dataset_id`` inside ``session`` under canonical
+    ``Dataset -> Project (id ASC) -> Evaluator (id ASC) -> Binding`` lock order,
+    tombstoning live dataset evaluator bindings and exclusive experiment projects."""
+    locked_dataset = await session.get(models.Dataset, dataset_id, with_for_update=True)
+    if locked_dataset is None:
+        raise NotFound(f"Dataset with ID {dataset_id} not found")
+
+    eval_trace_ids = [
+        trace_id
+        for trace_id in (await session.scalars(get_eval_trace_ids_for_datasets(dataset_id))).all()
+        if trace_id
+    ]
+    experiment_rows = (
+        await session.execute(
+            select(models.Experiment.id, models.Experiment.project_id)
+            .where(models.Experiment.dataset_id == dataset_id)
+            .order_by(models.Experiment.id.asc())
+        )
+    ).all()
+    experiment_ids = [int(row.id) for row in experiment_rows]
+    candidate_project_ids = {
+        int(row.project_id) for row in experiment_rows if row.project_id is not None
+    }
+
+    enqueued_cleanup = False
+    tombstoned_project_ids: set[int] = set()
+    live_binding_ids = await lock_dataset_delete_targets(
+        session,
+        dialect=dialect,
+        dataset_id=dataset_id,
+        candidate_project_ids=candidate_project_ids,
+    )
+    if live_binding_ids:
+        deleted_bindings = await logical_delete_dataset_evaluators(
+            session,
+            dialect=dialect,
+            binding_ids=live_binding_ids,
+            collect_unused_evaluator=False,
+            collect_unused_prompt_or_decision=False,
+        )
+        enqueued_cleanup = enqueued_cleanup or bool(deleted_bindings.binding_ids)
+        tombstoned_project_ids.update(deleted_bindings.tombstoned_project_ids)
+
+    deleted_dataset = await session.scalar(
+        delete(models.Dataset).where(models.Dataset.id == dataset_id).returning(models.Dataset)
+    )
+    if deleted_dataset is None:
+        raise NotFound(f"Dataset with ID {dataset_id} not found")
+
+    if candidate_project_ids:
+        deleted_projects = await admit_exclusive_experiment_projects_delete(
+            session,
+            dialect=dialect,
+            candidate_project_ids=candidate_project_ids,
+        )
+        enqueued_cleanup = enqueued_cleanup or bool(deleted_projects)
+        tombstoned_project_ids.update(deleted_projects)
+
+    return AdmittedDatasetDelete(
+        dataset=deleted_dataset,
+        experiment_ids=experiment_ids,
+        eval_trace_ids=eval_trace_ids,
+        tombstoned_project_ids=sorted(tombstoned_project_ids),
+        enqueued_cleanup=enqueued_cleanup,
+    )
+
+
+async def execute_dataset_delete(
+    *,
+    db: DbSessionFactory,
+    dataset_id: int,
+    experiment_runner: Optional[CanStopExperiment] = None,
+    event_queue: Optional[CanPutItem[DmlEvent]] = None,
+    wake_cleanup_worker: Callable[[], None] = lambda: None,
+) -> AdmittedDatasetDelete:
+    """Stop active dataset experiments, commit the canonical dataset-deletion transaction,
+    emit tombstoning and dataset-delete events, wake the cleanup worker, and drain
+    standalone SDK evaluation traces in bounded batches."""
+    stopped_experiment_ids: set[int] = set()
+    if experiment_runner is not None:
+        async with db() as session:
+            initial_experiment_ids = [
+                int(experiment_id)
+                for experiment_id in (
+                    await session.scalars(
+                        select(models.Experiment.id)
+                        .where(models.Experiment.dataset_id == dataset_id)
+                        .order_by(models.Experiment.id.asc())
+                    )
+                ).all()
+            ]
+        for experiment_id in initial_experiment_ids:
+            await experiment_runner.stop_experiment(experiment_id)
+            stopped_experiment_ids.add(experiment_id)
+
+    dialect = SupportedSQLDialect(db.dialect.value)
+    async with db() as session:
+        admitted = await admit_dataset_delete(
+            session,
+            dialect=dialect,
+            dataset_id=dataset_id,
+        )
+
+    if experiment_runner is not None:
+        for experiment_id in admitted.experiment_ids:
+            if experiment_id not in stopped_experiment_ids:
+                await experiment_runner.stop_experiment(experiment_id)
+
+    if admitted.tombstoned_project_ids and event_queue is not None:
+        sorted_project_ids = tuple(admitted.tombstoned_project_ids)
+        event_queue.put(SpanDeleteEvent(sorted_project_ids))
+        event_queue.put(ProjectDeleteEvent(sorted_project_ids))
+    if admitted.enqueued_cleanup:
+        wake_cleanup_worker()
+    if admitted.eval_trace_ids:
+        await delete_standalone_traces_by_trace_id(
+            db,
+            admitted.eval_trace_ids,
+            event_queue=event_queue,
+        )
+    if event_queue is not None:
+        event_queue.put(DatasetDeleteEvent((admitted.dataset.id,)))
+    return admitted
