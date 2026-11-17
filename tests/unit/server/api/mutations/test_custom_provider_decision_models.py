@@ -9,6 +9,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
+import httpx
 import pytest
 import respx
 import sqlalchemy as sa
@@ -786,6 +787,88 @@ async def test_removing_a_served_type_deletes_its_links_and_profiles(
         )
 
 
+async def test_deleting_a_provider_deletes_its_types_links_and_profiles(
+    gql_client: AsyncGraphQLClient, db: DbSessionFactory
+) -> None:
+    provider_id = await create(
+        gql_client,
+        "OpenAI deletable with profiles",
+        openai_config(),
+        {
+            "chat": {"names": ["gpt-4o", "gpt-4o-mini"]},
+            "decision": {"names": ["gpt-6-luna"]},
+        },
+    )
+    other_provider_id = await create(
+        gql_client,
+        "OpenAI bystander with profiles",
+        openai_config(),
+        {"chat": {"names": ["keep-me"]}},
+    )
+    provider_rowid = int(GlobalID.from_id(provider_id).node_id)
+    other_rowid = int(GlobalID.from_id(other_provider_id).node_id)
+
+    async with db() as session:
+        profile_ids = (
+            await session.scalars(
+                sa.select(models.CustomProviderModelProfile.model_profile_id).where(
+                    models.CustomProviderModelProfile.provider_id == provider_rowid
+                )
+            )
+        ).all()
+        other_profile_ids = (
+            await session.scalars(
+                sa.select(models.CustomProviderModelProfile.model_profile_id).where(
+                    models.CustomProviderModelProfile.provider_id == other_rowid
+                )
+            )
+        ).all()
+        assert len(profile_ids) == 3
+        assert len(other_profile_ids) == 1
+
+    result = await gql_client.execute(
+        """mutation ($input: DeleteGenerativeModelCustomProviderMutationInput!) {
+          deleteGenerativeModelCustomProvider(input: $input) { id }
+        }""",
+        variables={"input": {"id": provider_id}},
+    )
+    assert result.data and not result.errors, result.errors
+    assert result.data["deleteGenerativeModelCustomProvider"]["id"] == provider_id
+
+    async with db() as session:
+        assert await session.get(models.GenerativeModelCustomProvider, provider_rowid) is None
+        remaining_types = (
+            await session.scalars(
+                sa.select(models.CustomProviderModelType).where(
+                    models.CustomProviderModelType.provider_id == provider_rowid
+                )
+            )
+        ).all()
+        assert remaining_types == []
+        remaining_links = (
+            await session.scalars(
+                sa.select(models.CustomProviderModelProfile).where(
+                    models.CustomProviderModelProfile.provider_id == provider_rowid
+                )
+            )
+        ).all()
+        assert remaining_links == []
+        remaining_profiles = (
+            await session.scalars(
+                sa.select(models.ModelProfile).where(models.ModelProfile.id.in_(profile_ids))
+            )
+        ).all()
+        assert remaining_profiles == []
+        kept_profiles = (
+            await session.scalars(
+                sa.select(models.ModelProfile.name).where(
+                    models.ModelProfile.id.in_(other_profile_ids)
+                )
+            )
+        ).all()
+        assert list(kept_profiles) == ["keep-me"]
+
+
 async def test_renaming_to_a_taken_name_while_dropping_decisions_is_a_conflict(
     gql_client: AsyncGraphQLClient,
 ) -> None:
@@ -1057,6 +1140,18 @@ async def test_the_google_check_posts_to_gemini_decisions(
         assert payload["error"] and reason in payload["error"], payload["error"]
         assert GEMINI_PROXY_URL in payload["error"]
         assert API_KEY not in payload["error"]
+
+
+async def test_a_google_connection_error_names_the_decisions_url(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    with respx.mock:
+        respx.post(GEMINI_PROXY_URL).mock(side_effect=httpx.ConnectError(f"refused ({API_KEY})"))
+        payload = await check(gql_client, google_config())
+    assert payload["error"] and payload["error"].startswith(
+        f"Could not connect to {GEMINI_PROXY_URL}:"
+    )
+    assert API_KEY not in payload["error"]
 
 
 async def test_a_google_provider_serves_decisions_with_its_own_connection(

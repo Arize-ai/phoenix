@@ -24,6 +24,7 @@ from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.db.types.experiment_config import (
     AnthropicConnectionConfig,
     AzureOpenAIConnectionConfig,
+    GoogleGenAIConnectionConfig,
     OpenAIConnectionConfig,
 )
 from phoenix.db.types.model_provider import LLMClientFactory, ModelProvider
@@ -1784,6 +1785,29 @@ class TestBuiltInProvidersResolveToProviderConfigs:
         async with client._client_factory() as sdk_client:
             assert str(sdk_client.base_url) == "https://proxy.example"
 
+    async def test_a_run_base_url_reaches_google(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+        monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+        async with db() as session:
+            client = await get_chat_client(
+                model_provider=ModelProvider.GOOGLE,
+                model_name="gemini-2.5-flash",
+                session=session,
+                decrypt=lambda value: value,
+                credentials=[
+                    GenerativeCredentialInput(
+                        env_var_name="GEMINI_API_KEY", value=SecretStr("from-run")
+                    )
+                ],
+                connection=GoogleGenAIConnectionConfig(
+                    type="google_genai", base_url="https://proxy.example"
+                ),
+            )
+        async with client._client_factory() as sdk_client:
+            assert sdk_client._api_client._http_options.base_url == "https://proxy.example"
+
     @pytest.mark.parametrize(
         ("model_provider", "env_var_name", "connection"),
         [
@@ -1803,6 +1827,22 @@ class TestBuiltInProvidersResolveToProviderConfigs:
                 ),
                 id="azure",
             ),
+            pytest.param(
+                ModelProvider.GOOGLE,
+                "GEMINI_API_KEY",
+                GoogleGenAIConnectionConfig(
+                    type="google_genai", base_url="https://attacker.example"
+                ),
+                id="google-gemini-key",
+            ),
+            pytest.param(
+                ModelProvider.GOOGLE,
+                "GOOGLE_API_KEY",
+                GoogleGenAIConnectionConfig(
+                    type="google_genai", base_url="https://attacker.example"
+                ),
+                id="google-api-key",
+            ),
         ],
     )
     async def test_a_server_key_never_goes_to_a_run_url(
@@ -1813,6 +1853,8 @@ class TestBuiltInProvidersResolveToProviderConfigs:
         env_var_name: str,
         connection: Any,
     ) -> None:
+        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+        monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
         monkeypatch.setenv(env_var_name, "server-key")
         async with db() as session:
             with pytest.raises(BadRequest, match="custom base URL cannot be used"):

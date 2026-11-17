@@ -1,5 +1,5 @@
 import type { Control } from "react-hook-form";
-import { Controller, useFormState, useWatch } from "react-hook-form";
+import { Controller, useWatch } from "react-hook-form";
 
 import { Input, Label, Switch, Text, TextField } from "@phoenix/components";
 
@@ -24,12 +24,6 @@ export function DecisionModelsSection({
 }) {
   const isTypeSafe = sdk === "TYPESAFE";
   const isEnabled = useWatch({ control, name: "decision_enabled" });
-
-  const enabledError = (
-    useFormState({ control, name: "decision_enabled" }).errors as {
-      decision_enabled?: { message?: string };
-    }
-  ).decision_enabled;
   const isOn = isTypeSafe || Boolean(isEnabled);
 
   return (
@@ -57,11 +51,6 @@ export function DecisionModelsSection({
         />
       }
     >
-      {enabledError?.message ? (
-        <Text size="S" color="danger">
-          {enabledError.message}
-        </Text>
-      ) : null}
       {isOn ? (
         <Controller
           name="decision_model_names"

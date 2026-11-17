@@ -688,11 +688,21 @@ export function transformToPatchInput(
   // This is simpler and safer than trying to diff nested config structures.
   if (
     formData.sdk !== originalValues.sdk ||
-    hasChanged(formData, originalValues, CONNECTION_FIELDS_BY_SDK[formData.sdk])
+    hasChanged({
+      formData,
+      originalValues,
+      fields: CONNECTION_FIELDS_BY_SDK[formData.sdk],
+    })
   ) {
     input.clientConfig = buildClientConfig(formData);
   }
-  if (hasChanged(formData, originalValues, SERVED_MODEL_TYPE_FIELDS)) {
+  if (
+    hasChanged({
+      formData,
+      originalValues,
+      fields: SERVED_MODEL_TYPE_FIELDS,
+    })
+  ) {
     input.models = buildProviderModels(formData);
   }
 
@@ -747,11 +757,22 @@ const CONNECTION_FIELDS_BY_SDK: Record<GenerativeModelSDK, readonly string[]> =
     ],
   };
 
-function hasChanged(
-  formData: ProviderFormData,
-  originalValues: ProviderFormData,
-  fields: readonly string[]
-): boolean {
+/**
+ * Check whether any of the specified fields differ between the current and original form values.
+ * @param params - comparison inputs
+ * @param params.formData - current form values
+ * @param params.originalValues - initial form values before edits
+ * @param params.fields - field keys to compare
+ */
+function hasChanged({
+  formData,
+  originalValues,
+  fields,
+}: {
+  formData: ProviderFormData;
+  originalValues: ProviderFormData;
+  fields: readonly string[];
+}): boolean {
   const current = formData as unknown as Record<string, unknown>;
   const original = originalValues as unknown as Record<string, unknown>;
   return fields.some((field) => current[field] !== original[field]);

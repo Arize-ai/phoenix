@@ -472,7 +472,7 @@ async def _post_google_decisions_check(client_factory: ClientFactory[Any]) -> st
             body=error.body,
         )
     except APIConnectionError as error:
-        return f"Could not connect to the decision endpoint: {error}"
+        return f"Could not connect to {error.request.url}: {error}"
     if response.answers is None and response.prompt_feedback is None:
         return (
             "The decision endpoint answered with a body that is not a Gemini decisions "
@@ -912,6 +912,12 @@ class GenerativeModelCustomProviderMutationMixin:
             models.GenerativeModelCustomProvider.id == provider_id
         )
         async with info.context.db() as session:
+            # Lock the provider row so concurrent patches serialize before profile cleanup.
+            await session.execute(
+                sa.select(models.GenerativeModelCustomProvider.id)
+                .where(models.GenerativeModelCustomProvider.id == provider_id)
+                .with_for_update()
+            )
             # TODO: prompt tasks have the same flaw as decision tasks did: a task's
             # custom_provider_id is cleared (ON DELETE SET NULL) when the provider is
             # deleted, and a resumed task then silently runs on the built-in provider.
