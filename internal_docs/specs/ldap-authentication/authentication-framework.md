@@ -89,26 +89,11 @@ const defaultTab = showLocalTab
 - LDAP user with `alice@corp.com` → OAuth2 login hijacks account
 - OAuth2 user with `bob@corp.com` → LDAP login creates duplicate
 
-**Solution** (Implemented in `auth.py` and `oauth2.py`):
+**Solution**:
 
-1. **LDAP Login Checks for OAuth2 Conflict** (`auth.py`):
-```python
-# Before creating LDAP user, check for OAuth2 user with same email
-existing_oauth2_user = await session.scalar(
-    select(models.User)
-    .where(models.User.auth_method == "OAUTH2")
-    .where(models.User.oauth2_client_id != LDAP_CLIENT_ID_MARKER)
-    .where(func.lower(models.User.email) == email.lower())
-)
-if existing_oauth2_user:
-    raise Unauthorized("Invalid username and/or password")  # Generic error
-```
-
-2. **OAuth2 Login Checks for LDAP Conflict** (`oauth2.py`):
-```python
-if user.oauth2_client_id == LDAP_CLIENT_ID_MARKER:
-    raise SignInNotAllowed("Sign in is not allowed.")  # Generic error
-```
+1. **LDAP sign-up rejects an email owned by another method** (`get_or_create_ldap_user` in `routers/ldap.py`): before creating an `LDAPUser`, Phoenix looks up the email across all users. If the row's `auth_method` is not `LDAP`, the login fails with the generic 401.
+2. **OAuth2 sign-in accepts only OAuth2 rows** (`routers/oauth2.py`): when the email lookup finds a user that is not an `OAuth2User`, sign-in fails with `SignInNotAllowed`.
+3. **Password login accepts only LOCAL rows**: an LDAP or OAuth2 row has no password hash, so a password login cannot succeed.
 
 **Error Messages**: Always generic to prevent username enumeration.
 
