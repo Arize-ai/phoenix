@@ -446,23 +446,25 @@ PHOENIX_LDAP_GROUP_ROLE_MAPPINGS='{
 
 ### Success Criteria
 
+[Implementation Status](#implementation-status) records which criteria tests verify and which remain unvalidated.
+
 **Functional**:
-- ✅ Active Directory authentication works end-to-end
-- ✅ OpenLDAP authentication works end-to-end
-- ✅ Group-based role mapping assigns correct Phoenix roles
-- ✅ Multiple LDAP servers with failover functions correctly
-- ✅ Coexists with LOCAL and OAuth2 authentication
+- Active Directory authentication works end-to-end
+- OpenLDAP authentication works end-to-end
+- Group-based role mapping assigns correct Phoenix roles
+- Multiple LDAP servers with failover functions correctly
+- Coexists with LOCAL and OAuth2 authentication
 
 **Non-Functional**:
-- ✅ P95 login latency < 2 seconds
-- ✅ No security vulnerabilities (LDAP injection, timing attacks)
-- ✅ Graceful degradation when LDAP unavailable
-- ✅ Comprehensive audit logging
+- P95 login latency < 2 seconds
+- No security vulnerabilities (LDAP injection, timing attacks)
+- Graceful degradation when LDAP unavailable
+- Comprehensive audit logging
 
 **Code Quality**:
-- ✅ Unit test coverage > 80%
-- ✅ Integration tests with in-process mock LDAP server
-- ✅ Clear error messages for troubleshooting
+- Unit test coverage > 80%
+- Integration tests with in-process mock LDAP server
+- Clear error messages for troubleshooting
 
 ---
 
