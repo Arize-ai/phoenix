@@ -1159,10 +1159,10 @@ class TestDefaultApiTypeRouting:
             pass
 
         provider_key = GenerativeProviderKey.from_model_provider(model_provider)
-        poisoned = dict(CLIENT_REGISTRY._registry["chat"][provider_key])
+        poisoned = dict(CLIENT_REGISTRY._registry["CHAT"][provider_key])
         poisoned[model_name] = WrongClient
         poisoned[PROVIDER_DEFAULT] = WrongClient
-        monkeypatch.setitem(CLIENT_REGISTRY._registry["chat"], provider_key, poisoned)
+        monkeypatch.setitem(CLIENT_REGISTRY._registry["CHAT"], provider_key, poisoned)
 
         async with db() as session:
             client = await _get_builtin_provider_client(
@@ -1251,10 +1251,10 @@ class TestDefaultApiTypeRouting:
         class WrongClient(OpenAIChatCompletionsClient):
             pass
 
-        provider_registry = dict(CLIENT_REGISTRY._registry["chat"][provider_key])
+        provider_registry = dict(CLIENT_REGISTRY._registry["CHAT"][provider_key])
         provider_registry[model_name] = WrongClient
         provider_registry[PROVIDER_DEFAULT] = WrongClient
-        monkeypatch.setitem(CLIENT_REGISTRY._registry["chat"], provider_key, provider_registry)
+        monkeypatch.setitem(CLIENT_REGISTRY._registry["CHAT"], provider_key, provider_registry)
 
         assert get_openai_client_class(provider_key, model_name, None) is expected_class
 
@@ -1290,7 +1290,7 @@ class TestCurrentLineupIsOfferedInThePlayground:
         provider_key: GenerativeProviderKey,
         model_name: str,
     ) -> None:
-        assert model_name in CLIENT_REGISTRY.list_models(provider_key, model_type="chat")
+        assert model_name in CLIENT_REGISTRY.list_models(provider_key, model_type="CHAT")
 
 
 class TestChatCompletionsMessageRoles:
@@ -1366,7 +1366,7 @@ def _identity_decrypt(value: bytes) -> bytes:
 
 class TestMiniMaxProvider:
     def test_registry_includes_target_models(self) -> None:
-        assert CLIENT_REGISTRY.list_models(GenerativeProviderKey.MINIMAX, model_type="chat") == [
+        assert CLIENT_REGISTRY.list_models(GenerativeProviderKey.MINIMAX, model_type="CHAT") == [
             "MiniMax-M3.1-Flash",
             "MiniMax-M3",
         ]
@@ -1376,7 +1376,7 @@ class TestMiniMaxProvider:
     )
     def test_registry_preserves_custom_model_support(self, model_name: str) -> None:
         assert (
-            CLIENT_REGISTRY.get_client(GenerativeProviderKey.MINIMAX, model_name, model_type="chat")
+            CLIENT_REGISTRY.get_client(GenerativeProviderKey.MINIMAX, model_name, model_type="CHAT")
             is MiniMaxClient
         )
 
@@ -1933,9 +1933,9 @@ class TestBuiltInProvidersResolveToProviderConfigs:
 
 
 def test_the_catalog_lists_each_providers_model_types() -> None:
-    assert CLIENT_REGISTRY.model_types(GenerativeProviderKey.FIREWORKS) == ["chat", "decision"]
-    assert CLIENT_REGISTRY.model_types(GenerativeProviderKey.TYPESAFE) == ["decision"]
-    assert CLIENT_REGISTRY.model_types(GenerativeProviderKey.ANTHROPIC) == ["chat"]
+    assert CLIENT_REGISTRY.model_types(GenerativeProviderKey.FIREWORKS) == ["CHAT", "DECISION"]
+    assert CLIENT_REGISTRY.model_types(GenerativeProviderKey.TYPESAFE) == ["DECISION"]
+    assert CLIENT_REGISTRY.model_types(GenerativeProviderKey.ANTHROPIC) == ["CHAT"]
 
 
 def test_endpoint_key_names_come_from_the_providers_credentials() -> None:

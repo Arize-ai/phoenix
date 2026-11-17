@@ -92,13 +92,11 @@ from phoenix.db.types.experiment_config import ConnectionConfig, PlaygroundConfi
 from phoenix.db.types.experiment_log import ExperimentLogDetail
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import (
-    MODEL_TYPE_KEY,
-    STORED_MODEL_TYPE,
+    MODEL_TYPES,
     ModelProvider,
     ModelsOfType,
     ModelTypeKey,
     ProviderModels,
-    StoredModelType,
     default_provider_models,
 )
 from phoenix.db.types.prompts import (
@@ -3985,7 +3983,7 @@ class CustomProviderModelType(Base):
         ForeignKey("generative_model_custom_providers.id", ondelete="CASCADE"),
         nullable=False,
     )
-    model_type: Mapped[StoredModelType] = mapped_column(String, nullable=False)
+    model_type: Mapped[ModelTypeKey] = mapped_column(String, nullable=False)
 
     provider: Mapped["GenerativeModelCustomProvider"] = relationship(
         "GenerativeModelCustomProvider",
@@ -4008,7 +4006,7 @@ class CustomProviderModelType(Base):
 
 class ModelProfile(HasId):
     __tablename__ = "model_profiles"
-    model_type: Mapped[StoredModelType] = mapped_column(String, nullable=False)
+    model_type: Mapped[ModelTypeKey] = mapped_column(String, nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
 
     __table_args__ = (
@@ -4022,7 +4020,7 @@ class ModelProfile(HasId):
 class CustomProviderModelProfile(Base):
     __tablename__ = "custom_provider_model_profiles"
     provider_id: Mapped[int] = mapped_column(nullable=False)
-    model_type: Mapped[StoredModelType] = mapped_column(String, nullable=False)
+    model_type: Mapped[ModelTypeKey] = mapped_column(String, nullable=False)
     model_profile_id: Mapped[int] = mapped_column(nullable=False, index=True)
     position: Mapped[int] = mapped_column(Integer, nullable=False)
 
@@ -4061,29 +4059,26 @@ def provider_models_from_rows(
     by_type: dict[ModelTypeKey, ModelsOfType] = {}
     for row in rows:
         links = sorted(row.profile_links, key=lambda link: link.position)
-        by_type[MODEL_TYPE_KEY[row.model_type]] = ModelsOfType(
-            names=tuple(link.profile.name for link in links)
-        )
+        by_type[row.model_type] = ModelsOfType(names=tuple(link.profile.name for link in links))
     return ProviderModels(
-        chat=by_type.get("chat"),
-        decision=by_type.get("decision"),
+        chat=by_type.get("CHAT"),
+        decision=by_type.get("DECISION"),
     )
 
 
 def provider_models_to_rows(served: ProviderModels) -> list[CustomProviderModelType]:
     rows: list[CustomProviderModelType] = []
-    keys: tuple[ModelTypeKey, ...] = ("chat", "decision")
-    for key in keys:
-        models_of_type: Optional[ModelsOfType] = getattr(served, key)
+    for key in MODEL_TYPES:
+        models_of_type = served.get_models_of_type(key)
         if models_of_type is None:
             continue
         rows.append(
             CustomProviderModelType(
-                model_type=STORED_MODEL_TYPE[key],
+                model_type=key,
                 profile_links=[
                     CustomProviderModelProfile(
                         position=position,
-                        profile=ModelProfile(model_type=STORED_MODEL_TYPE[key], name=name),
+                        profile=ModelProfile(model_type=key, name=name),
                     )
                     for position, name in enumerate(models_of_type.names)
                 ],

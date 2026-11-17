@@ -62,7 +62,7 @@ def new_decision_version(
     )
 
     provider_key = GenerativeProviderKey.from_model_provider(model_provider)
-    if not CLIENT_REGISTRY.offers(provider_key, "decision"):
+    if not CLIENT_REGISTRY.offers(provider_key, "DECISION"):
         raise InvalidDecisionVersion(
             f"{provider_key.value} does not offer decision models.",
             ("model_provider",),

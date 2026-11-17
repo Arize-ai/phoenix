@@ -1208,7 +1208,7 @@ class OpenAICompatibleClient(ChatClient["AsyncOpenAI"]):
 
 
 @register_client(
-    model_type="chat",
+    model_type="CHAT",
     provider_key=GenerativeProviderKey.DEEPSEEK,
     model_names=[
         PROVIDER_DEFAULT,
@@ -1219,7 +1219,7 @@ class DeepSeekClient(OpenAICompatibleClient):
 
 
 @register_client(
-    model_type="chat",
+    model_type="CHAT",
     provider_key=GenerativeProviderKey.XAI,
     model_names=[
         PROVIDER_DEFAULT,
@@ -1236,7 +1236,7 @@ class XAIClient(OpenAICompatibleClient):
 
 
 @register_client(
-    model_type="chat",
+    model_type="CHAT",
     provider_key=GenerativeProviderKey.OLLAMA,
     model_names=[
         PROVIDER_DEFAULT,
@@ -1258,7 +1258,7 @@ class OllamaClient(OpenAICompatibleClient):
 
 
 @register_client(
-    model_type="chat",
+    model_type="CHAT",
     provider_key=GenerativeProviderKey.CEREBRAS,
     model_names=[
         PROVIDER_DEFAULT,
@@ -1272,7 +1272,7 @@ class CerebrasClient(OpenAICompatibleClient):
 
 
 @register_client(
-    model_type="chat",
+    model_type="CHAT",
     provider_key=GenerativeProviderKey.FIREWORKS,
     model_names=[
         PROVIDER_DEFAULT,
@@ -1283,7 +1283,7 @@ class FireworksClient(OpenAICompatibleClient):
 
 
 @register_client(
-    model_type="chat",
+    model_type="CHAT",
     provider_key=GenerativeProviderKey.GROQ,
     model_names=[
         PROVIDER_DEFAULT,
@@ -1297,7 +1297,7 @@ class GroqClient(OpenAICompatibleClient):
 
 
 @register_client(
-    model_type="chat",
+    model_type="CHAT",
     provider_key=GenerativeProviderKey.MOONSHOT,
     model_names=[
         PROVIDER_DEFAULT,
@@ -1322,7 +1322,7 @@ MINIMAX_MODEL_NAMES = ("MiniMax-M3.1-Flash", "MiniMax-M3")
 
 
 @register_client(
-    model_type="chat",
+    model_type="CHAT",
     provider_key=GenerativeProviderKey.MINIMAX,
     model_names=[
         PROVIDER_DEFAULT,
@@ -1334,7 +1334,7 @@ class MiniMaxClient(OpenAICompatibleClient):
 
 
 @register_client(
-    model_type="chat",
+    model_type="CHAT",
     provider_key=GenerativeProviderKey.PERPLEXITY,
     model_names=[
         PROVIDER_DEFAULT,
@@ -1349,7 +1349,7 @@ class PerplexityClient(OpenAICompatibleClient):
 
 
 @register_client(
-    model_type="chat",
+    model_type="CHAT",
     provider_key=GenerativeProviderKey.TOGETHER,
     model_names=[
         PROVIDER_DEFAULT,
@@ -1367,7 +1367,7 @@ class TogetherClient(OpenAICompatibleClient):
 
 
 @register_client(
-    model_type="chat",
+    model_type="CHAT",
     provider_key=GenerativeProviderKey.ZAI,
     model_names=[
         PROVIDER_DEFAULT,
@@ -1387,7 +1387,7 @@ class ZAIClient(OpenAICompatibleClient):
 
 
 @register_client(
-    model_type="chat",
+    model_type="CHAT",
     provider_key=GenerativeProviderKey.META,
     model_names=[
         PROVIDER_DEFAULT,
@@ -1404,7 +1404,7 @@ class MetaClient(OpenAICompatibleClient):
 
 
 @register_client(
-    model_type="chat",
+    model_type="CHAT",
     provider_key=GenerativeProviderKey.AWS,
     model_names=[
         PROVIDER_DEFAULT,
@@ -1932,7 +1932,7 @@ not, defaults to the Responses API. See ``get_openai_client_class``."""
 
 
 @register_client(
-    model_type="chat",
+    model_type="CHAT",
     provider_key=GenerativeProviderKey.OPENAI,
     model_names=[
         PROVIDER_DEFAULT,
@@ -1977,7 +1977,7 @@ OPENAI_REASONING_MODELS = [
 
 
 @register_client(
-    model_type="chat",
+    model_type="CHAT",
     provider_key=GenerativeProviderKey.OPENAI,
     model_names=[
         PROVIDER_DEFAULT,
@@ -2018,7 +2018,7 @@ class OpenAIResponsesClient(OpenAIChatCompletionsClient):
 
 
 @register_client(
-    model_type="chat",
+    model_type="CHAT",
     provider_key=GenerativeProviderKey.AZURE_OPENAI,
     model_names=[
         PROVIDER_DEFAULT,
@@ -2037,7 +2037,7 @@ class AzureOpenAIChatCompletionsClient(OpenAICompatibleClient):
 
 
 @register_client(
-    model_type="chat",
+    model_type="CHAT",
     provider_key=GenerativeProviderKey.AZURE_OPENAI,
     model_names=OPENAI_REASONING_MODELS,
 )
@@ -2181,7 +2181,7 @@ def anthropic_model_supports_forced_tool_choice(model_name: str) -> bool:
 
 
 @register_client(
-    model_type="chat",
+    model_type="CHAT",
     provider_key=GenerativeProviderKey.ANTHROPIC,
     model_names=[
         PROVIDER_DEFAULT,
@@ -2646,7 +2646,7 @@ GEMINI_2_5_MODELS = [
 
 
 @register_client(
-    model_type="chat",
+    model_type="CHAT",
     provider_key=GenerativeProviderKey.GOOGLE,
     model_names=[
         PROVIDER_DEFAULT,
@@ -3023,7 +3023,7 @@ GEMINI_3_MODELS = [
 
 
 @register_client(
-    model_type="chat",
+    model_type="CHAT",
     provider_key=GenerativeProviderKey.GOOGLE,
     model_names=[*GEMINI_4_MODELS, *GEMINI_3_MODELS],
 )

@@ -718,8 +718,8 @@ def test_chat_guard_is_capability_based_not_provider_based() -> None:
         require_chat_provider,
     )
 
-    assert CLIENT_REGISTRY.offers(GenerativeProviderKey.OPENAI, "chat")
-    assert not CLIENT_REGISTRY.offers(GenerativeProviderKey.TYPESAFE, "chat")
+    assert CLIENT_REGISTRY.offers(GenerativeProviderKey.OPENAI, "CHAT")
+    assert not CLIENT_REGISTRY.offers(GenerativeProviderKey.TYPESAFE, "CHAT")
     require_chat_provider(GenerativeProviderKey.OPENAI)
     with pytest.raises(BadRequest, match="decision models only"):
         require_chat_provider(GenerativeProviderKey.TYPESAFE)
@@ -730,8 +730,8 @@ def test_decision_clients_declare_capability_credentials_and_endpoints() -> None
     branches on which provider it is building for."""
     # One client per provider: a second claiming the same provider would replace the first.
     assert {
-        provider_key: CLIENT_REGISTRY.get_client(provider_key, model_type="decision")
-        for provider_key in CLIENT_REGISTRY.list_all_providers(model_type="decision")
+        provider_key: CLIENT_REGISTRY.get_client(provider_key, model_type="DECISION")
+        for provider_key in CLIENT_REGISTRY.list_all_providers(model_type="DECISION")
     } == {
         GenerativeProviderKey.TYPESAFE: TypeSafeDecisionClient,
         GenerativeProviderKey.OPENAI: OpenAIDecisionClient,
@@ -739,7 +739,7 @@ def test_decision_clients_declare_capability_credentials_and_endpoints() -> None
         GenerativeProviderKey.OLLAMA: OllamaDecisionClient,
         GenerativeProviderKey.GOOGLE: GoogleDecisionClient,
     }
-    assert CLIENT_REGISTRY.list_models(GenerativeProviderKey.TYPESAFE, model_type="decision") == [
+    assert CLIENT_REGISTRY.list_models(GenerativeProviderKey.TYPESAFE, model_type="DECISION") == [
         "jev-latest",
         "jev-1.14.0",
         "jev-1.13.0",

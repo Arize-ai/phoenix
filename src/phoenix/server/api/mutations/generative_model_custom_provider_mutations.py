@@ -16,7 +16,7 @@ from typing_extensions import assert_never
 
 from phoenix.db import models
 from phoenix.db.types.model_provider import (
-    STORED_MODEL_TYPE,
+    MODEL_TYPES,
     AnthropicCustomProviderConfig,
     AuthenticationMethodApiKey,
     AuthenticationMethodAzureADTokenProvider,
@@ -532,14 +532,13 @@ async def replace_provider_models(
     if served == current:
         return
 
-    keys: tuple[ModelTypeKey, ...] = ("chat", "decision")
     changed_types: list[tuple[ModelTypeKey, ModelsOfType]] = []
     added_types: list[tuple[ModelTypeKey, ModelsOfType]] = []
     removed_types: list[ModelTypeKey] = []
 
-    for key in keys:
-        old_of_type: ModelsOfType | None = getattr(current, key)
-        new_of_type: ModelsOfType | None = getattr(served, key)
+    for key in MODEL_TYPES:
+        old_of_type = current.get_models_of_type(key)
+        new_of_type = served.get_models_of_type(key)
         if old_of_type == new_of_type:
             continue
         if old_of_type is not None and new_of_type is None:
@@ -549,9 +548,7 @@ async def replace_provider_models(
         elif old_of_type is not None and new_of_type is not None:
             changed_types.append((key, new_of_type))
 
-    types_to_clear = [STORED_MODEL_TYPE[key] for key, _ in changed_types] + [
-        STORED_MODEL_TYPE[key] for key in removed_types
-    ]
+    types_to_clear = [key for key, _ in changed_types] + removed_types
     if types_to_clear:
         profile_ids = (
             await session.scalars(
@@ -575,9 +572,7 @@ async def replace_provider_models(
             await session.execute(
                 sa.delete(models.CustomProviderModelType).where(
                     models.CustomProviderModelType.provider_id == provider.id,
-                    models.CustomProviderModelType.model_type.in_(
-                        [STORED_MODEL_TYPE[key] for key in removed_types]
-                    ),
+                    models.CustomProviderModelType.model_type.in_(removed_types),
                 )
             )
         # Flush deletions before inserting positions 0..n so the unique
@@ -589,9 +584,9 @@ async def replace_provider_models(
             session.add(
                 models.CustomProviderModelProfile(
                     provider_id=provider.id,
-                    model_type=STORED_MODEL_TYPE[key],
+                    model_type=key,
                     position=position,
-                    profile=models.ModelProfile(model_type=STORED_MODEL_TYPE[key], name=name),
+                    profile=models.ModelProfile(model_type=key, name=name),
                 )
             )
 
@@ -599,11 +594,11 @@ async def replace_provider_models(
         session.add(
             models.CustomProviderModelType(
                 provider_id=provider.id,
-                model_type=STORED_MODEL_TYPE[key],
+                model_type=key,
                 profile_links=[
                     models.CustomProviderModelProfile(
                         position=position,
-                        profile=models.ModelProfile(model_type=STORED_MODEL_TYPE[key], name=name),
+                        profile=models.ModelProfile(model_type=key, name=name),
                     )
                     for position, name in enumerate(models_of_type.names)
                 ],

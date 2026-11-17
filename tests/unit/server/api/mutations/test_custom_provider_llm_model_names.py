@@ -117,7 +117,7 @@ async def test_no_suggested_names_lists_the_built_in_models(
     provider_id = await create(gql_client, f"{sdk} plain", {sdk: config})
     names = await model_names(gql_client, provider_id)
     assert names["configured"] == []
-    assert names["llm"] == CLIENT_REGISTRY.list_models(provider_key, model_type="chat")
+    assert names["llm"] == CLIENT_REGISTRY.list_models(provider_key, model_type="CHAT")
     assert names["llm"]
 
 
@@ -133,7 +133,7 @@ async def test_clearing_the_names_restores_the_built_in_list(
     )
     assert result.data and not result.errors, result.errors
     assert (await model_names(gql_client, provider_id))["llm"] == (
-        CLIENT_REGISTRY.list_models(GenerativeProviderKey.OPENAI, model_type="chat")
+        CLIENT_REGISTRY.list_models(GenerativeProviderKey.OPENAI, model_type="CHAT")
     )
 
 

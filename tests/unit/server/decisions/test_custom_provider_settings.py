@@ -43,16 +43,16 @@ def test_a_config_stored_with_model_settings_still_parses() -> None:
 @pytest.mark.parametrize(
     ("sdk", "servable", "default"),
     [
-        ("openai", {"chat", "decision"}, {"chat"}),
-        ("azure_openai", {"chat"}, {"chat"}),
-        ("anthropic", {"chat"}, {"chat"}),
-        ("aws_bedrock", {"chat"}, {"chat"}),
-        ("google_genai", {"chat", "decision"}, {"chat"}),
-        ("typesafe", {"decision"}, {"decision"}),
+        ("openai", {"CHAT", "DECISION"}, {"CHAT"}),
+        ("azure_openai", {"CHAT"}, {"CHAT"}),
+        ("anthropic", {"CHAT"}, {"CHAT"}),
+        ("aws_bedrock", {"CHAT"}, {"CHAT"}),
+        ("google_genai", {"CHAT", "DECISION"}, {"CHAT"}),
+        ("typesafe", {"DECISION"}, {"DECISION"}),
     ],
 )
 def test_what_each_sdk_can_serve_and_serves_by_default(
-    sdk: Any, servable: set[str], default: set[str]
+    sdk: Any, servable: set[mp.ModelTypeKey], default: set[mp.ModelTypeKey]
 ) -> None:
     assert mp.servable_model_types(sdk) == servable
     assert mp.default_provider_models(sdk).types() == default

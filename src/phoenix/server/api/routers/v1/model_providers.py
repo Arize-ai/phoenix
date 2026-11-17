@@ -1,10 +1,10 @@
-from typing import Literal, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Query
 from pydantic import Field
 from starlette.requests import Request
 
-from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.model_provider import ModelProvider, ModelTypeKey
 from phoenix.server.api.helpers.chat_clients import initialize_chat_clients
 from phoenix.server.api.helpers.client_registry import CLIENT_REGISTRY
 
@@ -50,7 +50,7 @@ class GetModelProvidersResponseBody(ResponseBody[list[BuiltInModelProvider]]):
 )
 async def get_model_providers(
     request: Request,
-    model_type: Optional[Literal["CHAT", "DECISION"]] = Query(
+    model_type: Optional[ModelTypeKey] = Query(
         default=None,
         description="The kind of model the listed providers offer. Defaults to CHAT.",
     ),
@@ -64,7 +64,7 @@ async def get_model_providers(
     """
     allowed_provider_names = request.app.state.allowed_provider_names
     provider_keys = CLIENT_REGISTRY.list_allowed_providers(
-        allowed_provider_names, model_type="decision" if model_type == "DECISION" else "chat"
+        allowed_provider_names, model_type=model_type or "CHAT"
     )
     return GetModelProvidersResponseBody(
         data=[

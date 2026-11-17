@@ -605,12 +605,9 @@ class GenerativeModelCustomProvider(Node):
     )  # type: ignore
     async def model_types(self, info: Info[Context, None]) -> list[ModelType]:
         served = await self._provider_models(info)
-        model_types: list[ModelType] = []
-        if served.chat is not None:
-            model_types.append(ModelType.CHAT)
-        if served.decision is not None:
-            model_types.append(ModelType.DECISION)
-        return model_types
+        return [
+            ModelType[key] for key in mp.MODEL_TYPES if served.get_models_of_type(key) is not None
+        ]
 
     @strawberry.field(
         description=(
@@ -623,8 +620,8 @@ class GenerativeModelCustomProvider(Node):
         self, info: Info[Context, None], model_type: ModelType = ModelType.CHAT
     ) -> list[str]:
         served = await self._provider_models(info)
-        key: mp.ModelTypeKey = "decision" if model_type is ModelType.DECISION else "chat"
-        models_of_type = served.decision if key == "decision" else served.chat
+        key = model_type.to_model_type_key()
+        models_of_type = served.get_models_of_type(key)
         if models_of_type is None:
             return []
         if models_of_type.names:

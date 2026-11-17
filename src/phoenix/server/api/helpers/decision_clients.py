@@ -373,7 +373,7 @@ TYPESAFE_DECISION_MODELS: tuple[str, ...] = (
 @register_client(
     GenerativeProviderKey.TYPESAFE,
     (PROVIDER_DEFAULT, *TYPESAFE_DECISION_MODELS),
-    model_type="decision",
+    model_type="DECISION",
 )
 class TypeSafeDecisionClient(DecisionClient):
     """TypeSafe System One. Any System One-compatible host (OpenRouter, a LiteLLM
@@ -499,7 +499,7 @@ OPENAI_DECISION_MODELS: tuple[str, ...] = ("gpt-6-luna",)
 @register_client(
     GenerativeProviderKey.OPENAI,
     (PROVIDER_DEFAULT, *OPENAI_DECISION_MODELS),
-    model_type="decision",
+    model_type="DECISION",
 )
 class OpenAIDecisionClient(DecisionClient):
     """OpenAI Decisions API client."""
@@ -654,7 +654,7 @@ input."""
 @register_client(
     GenerativeProviderKey.GOOGLE,
     (PROVIDER_DEFAULT, *GOOGLE_DECISION_MODELS),
-    model_type="decision",
+    model_type="DECISION",
 )
 class GoogleDecisionClient(DecisionClient):
     """Gemini Decisions API client (``/v1beta/decisions``)."""
@@ -820,7 +820,7 @@ FIREWORKS_DECISION_MODELS: tuple[str, ...] = ("accounts/fireworks/models/rune",)
 @register_client(
     GenerativeProviderKey.FIREWORKS,
     (PROVIDER_DEFAULT, *FIREWORKS_DECISION_MODELS),
-    model_type="decision",
+    model_type="DECISION",
 )
 class FireworksDecisionClient(TypeSafeDecisionClient):
     """Fireworks System One decision client (``/inference/v1/systemone``)."""
@@ -861,7 +861,7 @@ on Ollama's cloud."""
 @register_client(
     GenerativeProviderKey.OLLAMA,
     (PROVIDER_DEFAULT, *OLLAMA_DECISION_MODELS),
-    model_type="decision",
+    model_type="DECISION",
 )
 class OllamaDecisionClient(TypeSafeDecisionClient):
     """Ollama System One decision client (``/v1/systemone``)."""
@@ -881,7 +881,7 @@ class OllamaDecisionClient(TypeSafeDecisionClient):
 
 
 def decision_client_class(provider_key: GenerativeProviderKey) -> Optional[type[DecisionClient]]:
-    client_class = CLIENT_REGISTRY.get_client(provider_key, model_type="decision")
+    client_class = CLIENT_REGISTRY.get_client(provider_key, model_type="DECISION")
     assert client_class is None or issubclass(client_class, DecisionClient)
     return client_class
 

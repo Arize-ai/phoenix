@@ -42,7 +42,7 @@ class TestModelProviders:
         expected = {
             provider_key.to_model_provider().value: provider_key.value
             for provider_key in CLIENT_REGISTRY.list_allowed_providers(
-                app.state.allowed_provider_names, model_type="chat"
+                app.state.allowed_provider_names, model_type="CHAT"
             )
         }
         assert expected, "The client registry should have registered provider families"

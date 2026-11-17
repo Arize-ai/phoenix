@@ -298,17 +298,8 @@ def _clean_model_names(value: tuple[str, ...]) -> tuple[str, ...]:
 
 ModelNames: TypeAlias = Annotated[tuple[str, ...], AfterValidator(_clean_model_names)]
 
-ModelTypeKey: TypeAlias = Literal["chat", "decision"]
-StoredModelType: TypeAlias = Literal["CHAT", "DECISION"]
-
-# Model types are stored in upper case, like the database's other enumerated values and the
-# GraphQL ModelType enum; in Python they stay lower case to match ProviderModels' fields.
-STORED_MODEL_TYPE: Mapping[ModelTypeKey, StoredModelType] = MappingProxyType(
-    {"chat": "CHAT", "decision": "DECISION"}
-)
-MODEL_TYPE_KEY: Mapping[StoredModelType, ModelTypeKey] = MappingProxyType(
-    {stored: key for key, stored in STORED_MODEL_TYPE.items()}
-)
+ModelTypeKey: TypeAlias = Literal["CHAT", "DECISION"]
+MODEL_TYPES: tuple[ModelTypeKey, ...] = ("CHAT", "DECISION")
 
 
 class ModelsOfType(BaseModel):
@@ -329,17 +320,27 @@ class ProviderModels(BaseModel):
     chat: ModelsOfType | None = None
     decision: ModelsOfType | None = None
 
+    def get_models_of_type(self, model_type: ModelTypeKey) -> ModelsOfType | None:
+        if model_type == "CHAT":
+            return self.chat
+        if model_type == "DECISION":
+            return self.decision
+        assert_never(model_type)
+
     def types(self) -> frozenset[ModelTypeKey]:
-        keys: tuple[ModelTypeKey, ...] = ("chat", "decision")
-        return frozenset(key for key in keys if getattr(self, key) is not None)
+        return frozenset(
+            model_type
+            for model_type in MODEL_TYPES
+            if self.get_models_of_type(model_type) is not None
+        )
 
 
 def servable_model_types(sdk: "GenerativeModelSDK") -> frozenset[ModelTypeKey]:
     servable: set[ModelTypeKey] = set()
     if sdk_offers_chat(sdk):
-        servable.add("chat")
+        servable.add("CHAT")
     if sdk_offers_decisions(sdk):
-        servable.add("decision")
+        servable.add("DECISION")
     return frozenset(servable)
 
 

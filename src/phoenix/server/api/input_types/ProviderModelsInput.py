@@ -10,7 +10,7 @@ from phoenix.db.types.model_provider import (
 )
 from phoenix.server.api.exceptions import BadRequest
 
-_LABELS: dict[ModelTypeKey, str] = {"chat": "chat", "decision": "decision"}
+_LABELS: dict[ModelTypeKey, str] = {"CHAT": "chat", "DECISION": "decision"}
 
 
 @strawberry.input(description="A custom provider's models of one type, with their settings.")

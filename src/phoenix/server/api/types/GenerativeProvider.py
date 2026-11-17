@@ -11,7 +11,6 @@ from phoenix.config import getenv
 from phoenix.db.types.model_provider import (
     SDK_TO_MODEL_PROVIDER,
     ModelProvider,
-    ModelTypeKey,
 )
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.ModelType import ModelType
@@ -287,8 +286,7 @@ class GenerativeProvider:
         from phoenix.server.api.helpers.client_registry import CLIENT_REGISTRY
 
         if model_type is not None:
-            key: ModelTypeKey = "decision" if model_type is ModelType.DECISION else "chat"
-            return CLIENT_REGISTRY.get_client(self.key, model_type=key)
+            return CLIENT_REGISTRY.get_client(self.key, model_type=model_type.to_model_type_key())
         for key in CLIENT_REGISTRY.model_types(self.key):
             if client := CLIENT_REGISTRY.get_client(self.key, model_type=key):
                 return client
@@ -313,10 +311,7 @@ class GenerativeProvider:
     async def model_types(self) -> list[ModelType]:
         from phoenix.server.api.helpers.client_registry import CLIENT_REGISTRY
 
-        return [
-            ModelType.CHAT if model_type == "chat" else ModelType.DECISION
-            for model_type in CLIENT_REGISTRY.model_types(self.key)
-        ]
+        return [ModelType[model_type] for model_type in CLIENT_REGISTRY.model_types(self.key)]
 
     @strawberry.field(description="The credential requirements for the provider")  # type: ignore
     async def credential_requirements(self) -> list[GenerativeProviderCredentialConfig]:

@@ -37,6 +37,7 @@ from phoenix.db.helpers import (
 )
 from phoenix.db.models import LatencyMs
 from phoenix.db.types.annotation_configs import OptimizationDirection
+from phoenix.db.types.model_provider import MODEL_TYPES
 from phoenix.db.types.prompts import PromptMessageRole
 from phoenix.server.agents.config import AgentsEnvConfig
 from phoenix.server.agents.github import GITHUB_PAT_SECRET_KEY, decrypt_workspace_secret
@@ -47,7 +48,7 @@ from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
 from phoenix.server.api.helpers.chat_clients import (
     initialize_chat_clients,
 )
-from phoenix.server.api.helpers.client_registry import CLIENT_REGISTRY, MODEL_TYPES
+from phoenix.server.api.helpers.client_registry import CLIENT_REGISTRY
 from phoenix.server.api.helpers.experiment_run_filters import (
     ExperimentRunFilterConditionSyntaxError,
     compile_sqlalchemy_filter_condition,
@@ -483,14 +484,14 @@ class Query:
                     model_type=ModelType.DECISION,
                 )
                 for provider_key in CLIENT_REGISTRY.list_allowed_providers(
-                    info.context.allowed_provider_names, model_type="decision"
+                    info.context.allowed_provider_names, model_type="DECISION"
                 )
                 if input.provider_key is None or input.provider_key is provider_key
-                for model_name in CLIENT_REGISTRY.list_models(provider_key, model_type="decision")
+                for model_name in CLIENT_REGISTRY.list_models(provider_key, model_type="DECISION")
             ]
         if input is not None and input.provider_key is not None:
             supported_model_names = CLIENT_REGISTRY.list_models(
-                input.provider_key, model_type="chat"
+                input.provider_key, model_type="CHAT"
             )
             supported_models = [
                 PlaygroundModel(name_value=model_name, provider_key_value=input.provider_key)
@@ -498,7 +499,7 @@ class Query:
             ]
             return supported_models
 
-        registered_models = CLIENT_REGISTRY.list_all_models(model_type="chat")
+        registered_models = CLIENT_REGISTRY.list_all_models(model_type="CHAT")
         all_models: list[PlaygroundModel] = []
         for provider_key, model_name in registered_models:
             if model_name is not None and provider_key is not None:

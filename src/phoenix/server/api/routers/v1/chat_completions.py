@@ -58,7 +58,7 @@ initialize_chat_clients()
 # Chat completions need a chat client, so decision-only providers are not offered.
 _CHAT_PROVIDER_NAMES = sorted(
     provider_key.to_model_provider().value.lower()
-    for provider_key in CLIENT_REGISTRY.list_all_providers(model_type="chat")
+    for provider_key in CLIENT_REGISTRY.list_all_providers(model_type="CHAT")
 )
 
 _MODEL_FORMAT_HELP = (

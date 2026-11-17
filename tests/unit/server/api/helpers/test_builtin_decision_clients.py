@@ -179,8 +179,8 @@ def _key(env_var_name: str) -> list[GenerativeCredentialInput]:
 
 def test_registry_includes_fireworks() -> None:
     fireworks = GenerativeProviderKey.FIREWORKS
-    assert CLIENT_REGISTRY.get_client(fireworks, model_type="decision") is FireworksDecisionClient
-    assert CLIENT_REGISTRY.list_models(fireworks, model_type="decision") == [
+    assert CLIENT_REGISTRY.get_client(fireworks, model_type="DECISION") is FireworksDecisionClient
+    assert CLIENT_REGISTRY.list_models(fireworks, model_type="DECISION") == [
         "accounts/fireworks/models/rune"
     ]
     assert FireworksDecisionClient.built_in_endpoint.api_key_env_vars == ("FIREWORKS_API_KEY",)
@@ -190,7 +190,7 @@ def test_registry_includes_fireworks() -> None:
 async def test_azure_openai_does_not_offer_decision_models(db: DbSessionFactory) -> None:
     # Azure's decision model, Microsoft-Decision-1, is System One on Foundry with an
     # Entra ID token, not OpenAI's Decisions API.
-    assert not CLIENT_REGISTRY.offers(GenerativeProviderKey.AZURE_OPENAI, "decision")
+    assert not CLIENT_REGISTRY.offers(GenerativeProviderKey.AZURE_OPENAI, "DECISION")
     async with db() as session:
         with pytest.raises(BadRequest, match="does not offer decision models"):
             await get_decision_client(
@@ -204,7 +204,7 @@ async def test_azure_openai_does_not_offer_decision_models(db: DbSessionFactory)
 
 
 def test_ollama_lists_its_documented_decision_models_first() -> None:
-    names = CLIENT_REGISTRY.list_models(GenerativeProviderKey.OLLAMA, model_type="decision")
+    names = CLIENT_REGISTRY.list_models(GenerativeProviderKey.OLLAMA, model_type="DECISION")
     assert names[:4] == ["nimble", "tev1", "clef", "clef-flash"]
     assert len(set(names)) == len(names)
 
@@ -416,8 +416,8 @@ class TestGoogleDecisions:
 
     def test_registry_includes_google(self) -> None:
         google = GenerativeProviderKey.GOOGLE
-        assert CLIENT_REGISTRY.get_client(google, model_type="decision") is GoogleDecisionClient
-        assert CLIENT_REGISTRY.list_models(google, model_type="decision") == ["gemini-decision-1"]
+        assert CLIENT_REGISTRY.get_client(google, model_type="DECISION") is GoogleDecisionClient
+        assert CLIENT_REGISTRY.list_models(google, model_type="DECISION") == ["gemini-decision-1"]
         assert GoogleDecisionClient.built_in_endpoint.api_key_env_vars == (
             "GEMINI_API_KEY",
             "GOOGLE_API_KEY",

@@ -3,6 +3,9 @@
 from enum import Enum
 
 import strawberry
+from typing_extensions import assert_never
+
+from phoenix.db.types.model_provider import ModelTypeKey
 
 
 @strawberry.enum(description="The kind of model a playground instance runs.")
@@ -17,3 +20,10 @@ class ModelType(Enum):
             "and return probabilities rather than text."
         ),
     )
+
+    def to_model_type_key(self) -> ModelTypeKey:
+        if self is ModelType.CHAT:
+            return "CHAT"
+        if self is ModelType.DECISION:
+            return "DECISION"
+        assert_never(self)

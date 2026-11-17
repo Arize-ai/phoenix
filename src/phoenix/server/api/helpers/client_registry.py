@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence, TypeVar, Union
 
-from phoenix.db.types.model_provider import ModelTypeKey
+from phoenix.db.types.model_provider import MODEL_TYPES, ModelTypeKey
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 
 if TYPE_CHECKING:
@@ -13,7 +13,6 @@ ModelKey = tuple[GenerativeProviderKey, ModelName]
 
 PROVIDER_DEFAULT = None
 
-MODEL_TYPES: tuple[ModelTypeKey, ...] = ("chat", "decision")
 
 ClientClassT = TypeVar("ClientClassT", bound="type[ModelClient[Any]]")
 
@@ -116,7 +115,7 @@ CLIENT_REGISTRY: ClientRegistry = ClientRegistry()
 def require_chat_provider(provider_key: GenerativeProviderKey) -> None:
     from phoenix.server.api.exceptions import BadRequest
 
-    if not CLIENT_REGISTRY.offers(provider_key, "chat"):
+    if not CLIENT_REGISTRY.offers(provider_key, "CHAT"):
         raise BadRequest(
             f"{provider_key.value} offers decision models only and cannot be used for "
             "chat completions. Choose a chat model provider, or run it as a decision model."
