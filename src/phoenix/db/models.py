@@ -1053,10 +1053,6 @@ class Span(HasId):
             sqlite_on_conflict="IGNORE",
         ),
         Index(
-            "ix_cumulative_llm_token_count_total",
-            text("(cumulative_llm_token_count_prompt + cumulative_llm_token_count_completion)"),
-        ),
-        Index(
             "ix_spans_session_id",
             column("attributes", JSON_)[["session", "id"]].as_string(),
             postgresql_where=column("attributes", JSON_)[["session", "id"]]
