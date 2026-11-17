@@ -13,6 +13,7 @@ import {
   getClearableCount,
 } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
 import {
+  DEGRADED_WAIT_MS,
   formatAddedPerHour,
   formatCompletedPerHour,
   getNetPerHour,
@@ -24,7 +25,28 @@ import {
 } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
 import { formatEvaluationTarget } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import { StatItem } from "@phoenix/pages/project/TableAside";
-import { costFormatter, intFormatter } from "@phoenix/utils/numberFormatUtils";
+import { costFormatter } from "@phoenix/utils/numberFormatUtils";
+
+const DEGRADED_WAIT_MINUTES = DEGRADED_WAIT_MS / 60_000;
+
+const statusLegendCSS = css`
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  column-gap: var(--global-dimension-size-100);
+  row-gap: var(--global-dimension-size-50);
+  white-space: nowrap;
+`;
+
+/** What each queue status means, beside its badge. */
+const STATUS_LEGEND = (
+  <div css={statusLegendCSS}>
+    <QueueStatusBadge status="HEALTHY" />
+    <Text size="S">{`Evaluations start within ${DEGRADED_WAIT_MINUTES} min`}</Text>
+    <QueueStatusBadge status="DEGRADED" />
+    <Text size="S">{`Some have waited over ${DEGRADED_WAIT_MINUTES} min`}</Text>
+  </div>
+);
 
 const stripCSS = css`
   display: flex;
@@ -138,7 +160,7 @@ function ServerEvaluationQueueStripContent({
   return (
     <>
       <div css={stripCSS}>
-        <StatItem label="Status">
+        <StatItem label="Status" help={STATUS_LEGEND}>
           <HoverDetail
             detail={
               statusDetail != null ? <Text size="S">{statusDetail}</Text> : null
@@ -235,15 +257,9 @@ function EvaluationCostValue({ fetchKey }: { fetchKey: string }) {
   return (
     <HoverDetail
       detail={
-        <Flex direction="column" gap="size-50">
-          <Text size="S">{`${intFormatter(activity.evaluatedCount)} evaluated · ${intFormatter(activity.failedCount)} failed`}</Text>
-          {activity.excludesUntracedEvaluators ? (
-            <Text size="S" color="text-700">
-              Excludes evaluators with tracing off, whose evaluations write no
-              trace to measure cost from.
-            </Text>
-          ) : null}
-        </Flex>
+        activity.excludesUntracedEvaluators ? (
+          <Text size="S">Excludes evaluators with tracing off</Text>
+        ) : null
       }
     >
       <StatValue>

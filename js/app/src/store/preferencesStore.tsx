@@ -90,8 +90,8 @@ export interface PreferencesProps {
   traceStreamingEnabled: boolean;
   /**
    * Whether the project evaluators page refreshes as new data lands. Kept
-   * apart from trace streaming: the page's reads cost more, so it starts
-   * paused.
+   * apart from trace streaming and off by default, so the numbers hold still
+   * while someone reads them.
    * @default false
    */
   serverEvaluatorsLiveEnabled: boolean;

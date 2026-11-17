@@ -18,7 +18,7 @@ import type { ServerEvaluatorsTimeRangeControlsQuery } from "./__generated__/Ser
  * same live toggle the project page shows. While live, checks every few
  * seconds whether any project received new spans or evaluation results, and
  * calls `onNewData` when one did. Has its own live preference, off until
- * turned on: the page's reads span every project, so it starts paused.
+ * turned on, so the numbers hold still while someone reads them.
  */
 export function ServerEvaluatorsTimeRangeControls({
   onNewData,
