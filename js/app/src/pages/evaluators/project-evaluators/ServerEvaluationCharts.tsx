@@ -65,7 +65,6 @@ import type {
   ServerEvaluationChartsQuery,
   ServerEvaluationChartsQuery$data,
 } from "@phoenix/pages/evaluators/project-evaluators/__generated__/ServerEvaluationChartsQuery.graphql";
-import type { ServerEvaluationQueueSizeChartQuery } from "@phoenix/pages/evaluators/project-evaluators/__generated__/ServerEvaluationQueueSizeChartQuery.graphql";
 import type {
   ServerEvaluationChart,
   ServerEvaluationChartKey,
@@ -100,8 +99,13 @@ const AREA_FILL_TOP_OPACITY = 0.3;
 
 /**
  * The server's evaluation activity over the selected range, grouped by
- * project, with the evaluations in the queue now. The charts and the queue
- * strip's cost read the same request.
+ * project, with the evaluations in the queue now and at each bin's end. The
+ * charts and the queue strip's cost read the same request.
+ *
+ * The queue's size per bin is read here rather than in a request of its own:
+ * a second request for `evaluationActivity` with the same arguments would
+ * share these records in the Relay store, and whichever response landed last
+ * would replace the other's per-bin groups.
  */
 export function useServerEvaluationActivity({
   fetchKey,
@@ -157,6 +161,7 @@ export function useServerEvaluationActivity({
               failedCount
               addedCount
               lagP95Seconds
+              queueSize
             }
           }
         }
@@ -165,12 +170,8 @@ export function useServerEvaluationActivity({
     variables,
     { fetchKey, fetchPolicy }
   );
-  return { data, timeRange, scale, variables };
+  return { data, timeRange, scale };
 }
-
-type ActivityVariables = ReturnType<
-  typeof useServerEvaluationActivity
->["variables"];
 
 /** A project series' color: the next palette color by rank, gray for the rest. */
 function useProjectSeriesColor() {
@@ -264,7 +265,7 @@ function ServerEvaluationCharts({
   fetchKey: string;
   charts: ServerEvaluationChart[];
 }) {
-  const { data, timeRange, scale, variables } = useServerEvaluationActivity({
+  const { data, timeRange, scale } = useServerEvaluationActivity({
     fetchKey,
   });
   const projectSeries = getServerProjectSeries(data.evaluationActivity.groups);
@@ -274,12 +275,7 @@ function ServerEvaluationCharts({
     domain: [timeRange.start.getTime(), timeRange.end.getTime()],
     tickFormatter: (x: number) => timeTickFormatter(new Date(x)),
   };
-  const context: ChartContext = {
-    data,
-    projectSeries,
-    xAxisProps,
-    queueSizeVariables: { ...variables, fetchKey },
-  };
+  const context: ChartContext = { data, projectSeries, xAxisProps };
   return (
     <ChartPanelStrip chartCount={charts.length}>
       {charts.map((chart) => (
@@ -298,13 +294,10 @@ type XAxisOverrides = {
   tickFormatter: (x: number) => string;
 };
 
-type QueueSizeVariables = ActivityVariables & { fetchKey: string };
-
 type ChartContext = {
   data: ActivityData;
   projectSeries: ServerProjectSeries;
   xAxisProps: XAxisOverrides;
-  queueSizeVariables: QueueSizeVariables;
 };
 
 function ServerEvaluationChartPanel({
@@ -314,7 +307,7 @@ function ServerEvaluationChartPanel({
   chart: ServerEvaluationChart;
   context: ChartContext;
 }) {
-  const { data, projectSeries, xAxisProps, queueSizeVariables } = context;
+  const { data, projectSeries, xAxisProps } = context;
   const activity = data.evaluationActivity;
   const panel = (subtitle: string | undefined, content: ReactNode) => (
     <ChartPanel
@@ -334,20 +327,12 @@ function ServerEvaluationChartPanel({
     case "queueThroughput":
       return panel(
         formatQueueGrowthSummary(getTotalNet(activity)),
-        <QueueThroughputChart
-          activity={activity}
-          xAxisProps={xAxisProps}
-          queueSizeVariables={queueSizeVariables}
-        />
+        <QueueThroughputChart activity={activity} xAxisProps={xAxisProps} />
       );
     case "queueSize":
       return panel(
         `${intShortFormatter(data.evaluationQueue.queuedCount)} in queue now`,
-        <QueueSizeChart
-          activity={activity}
-          xAxisProps={xAxisProps}
-          variables={queueSizeVariables}
-        />
+        <QueueSizeChart activity={activity} xAxisProps={xAxisProps} />
       );
     case "lagByProject":
       return panel(
@@ -435,44 +420,9 @@ function LagTooltipContent(props: TooltipContentProps) {
   return <TimeTooltipContent {...props} formatValue={formatLag} />;
 }
 
-/**
- * The evaluations in queue at each bin's end, summed across projects, keyed by
- * the bin's start. Read only by the charts that show it: it counts every
- * evaluation in queue.
- */
-function useQueueSizeByTimestamp({
-  fetchKey,
-  timeRange,
-  timeBinConfig,
-}: QueueSizeVariables): Map<number, number> {
-  const data = useLazyLoadQuery<ServerEvaluationQueueSizeChartQuery>(
-    graphql`
-      query ServerEvaluationQueueSizeChartQuery(
-        $timeRange: TimeRange!
-        $timeBinConfig: TimeBinConfig!
-      ) {
-        evaluationActivity(
-          timeRange: $timeRange
-          timeBinConfig: $timeBinConfig
-        ) {
-          series {
-            timestamp
-            groups {
-              queueSize
-            }
-          }
-        }
-      }
-    `,
-    { timeRange, timeBinConfig },
-    { fetchKey, fetchPolicy: "store-and-network" }
-  );
-  return new Map(
-    data.evaluationActivity.series.map((bin) => [
-      new Date(bin.timestamp).getTime(),
-      bin.groups.reduce((sum, group) => sum + group.queueSize, 0),
-    ])
-  );
+/** The evaluations in queue at a bin's end, across projects. */
+function getQueueSize(bin: Activity["series"][number]): number {
+  return bin.groups.reduce((sum, group) => sum + group.queueSize, 0);
 }
 
 /** Each bin's evaluations completed, evaluated or failed, across projects. */
@@ -528,7 +478,7 @@ type QueueThroughputRow = {
   /** Completed, negated so its bar hangs below the line. */
   completedBelow: number;
   completed: number;
-  queueSize: number | null;
+  queueSize: number;
 };
 
 function formatSignedCount(value: number): string {
@@ -587,14 +537,12 @@ function QueueThroughputTooltipContent({
         name={netItem.name}
         value={formatSignedCount(net)}
       />
-      {row.queueSize != null ? (
-        <ChartTooltipItem
-          color={queueSizeColor}
-          shape="line"
-          name="Queue size"
-          value={intFormatter(row.queueSize)}
-        />
-      ) : null}
+      <ChartTooltipItem
+        color={queueSizeColor}
+        shape="line"
+        name="Queue size"
+        value={intFormatter(row.queueSize)}
+      />
     </ChartTooltip>
   );
 }
@@ -607,26 +555,22 @@ function QueueThroughputTooltipContent({
 function QueueThroughputChart({
   activity,
   xAxisProps,
-  queueSizeVariables,
 }: {
   activity: Activity;
   xAxisProps: XAxisOverrides;
-  queueSizeVariables: QueueSizeVariables;
 }) {
   const grayscaleColors = useGrayscaleCategoricalColors();
   const sequentialColors = useSequentialChartColors();
   const addedColor = grayscaleColors.gray1;
   const completedColor = grayscaleColors.gray3;
-  const queueSizeByTimestamp = useQueueSizeByTimestamp(queueSizeVariables);
   const rows: QueueThroughputRow[] = activity.series.map((bin) => {
-    const timestamp = new Date(bin.timestamp).getTime();
     const completed = getCompletedCount(bin);
     return {
-      timestamp,
+      timestamp: new Date(bin.timestamp).getTime(),
       added: getAddedCount(bin),
       completedBelow: -completed,
       completed,
-      queueSize: queueSizeByTimestamp.get(timestamp) ?? null,
+      queueSize: getQueueSize(bin),
     };
   });
   const hasData = rows.some((row) => row.added > 0 || row.completed > 0);
@@ -707,26 +651,20 @@ function QueueThroughputChart({
 function QueueSizeChart({
   activity,
   xAxisProps,
-  variables,
 }: {
   activity: Activity;
   xAxisProps: XAxisOverrides;
-  variables: QueueSizeVariables;
 }) {
   const sequentialColors = useSequentialChartColors();
   const grayscaleColors = useGrayscaleCategoricalColors();
   const queueSizeColor = sequentialColors.blue500;
   const processedColor = grayscaleColors.gray1;
   const gradientId = useId();
-  const queueSizeByTimestamp = useQueueSizeByTimestamp(variables);
-  const chartData = activity.series.map((bin) => {
-    const timestamp = new Date(bin.timestamp).getTime();
-    return {
-      timestamp,
-      queueSize: queueSizeByTimestamp.get(timestamp) ?? 0,
-      processed: getCompletedCount(bin),
-    };
-  });
+  const chartData = activity.series.map((bin) => ({
+    timestamp: new Date(bin.timestamp).getTime(),
+    queueSize: getQueueSize(bin),
+    processed: getCompletedCount(bin),
+  }));
   const hasData = chartData.some(
     (datum) => datum.queueSize > 0 || datum.processed > 0
   );
