@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+from collections import Counter
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
+from types import SimpleNamespace
 from typing import Any, Optional, cast
 from unittest.mock import MagicMock
 
@@ -14,10 +16,11 @@ import httpx2
 import pytest
 from sqlalchemy import delete, event, func, insert, select, update
 from sqlalchemy.exc import DBAPIError, OperationalError
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.eval_work import MAX_ATTEMPTS
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.span import insert_span
 from phoenix.db.types.annotation_configs import (
@@ -53,10 +56,14 @@ from phoenix.server.evaluators.snapshots import (
     stored_evaluator_definition,
 )
 from phoenix.server.monty_runtime import MontyRuntime
+from phoenix.server.online_eval import coordinator as online_eval_coordinator_module
 from phoenix.server.online_eval.clock import current_database_time
 from phoenix.server.online_eval.coordinator import (
+    CLAIM_LEASE_TTL_SECONDS,
     EvalWorkCoordinator,
+    PublicationClaimLostError,
     PublicationEvaluatorDisabledError,
+    recover_lapsed_claims,
 )
 from phoenix.server.online_eval.executor import HydrationFailure, OnlineEvalExecutor
 from phoenix.server.online_eval.tracing import marked_evaluator_tracer, persist_evaluator_traces
@@ -942,6 +949,296 @@ class TestWatermarkClearAndOverlap:
                 == "DONE"
             )
 
+    async def test_range_clear_fences_in_flight_and_queued_session_evaluations(
+        self, db: DbSessionFactory
+    ) -> None:
+        dialect = SupportedSQLDialect(db.dialect.value)
+        base_time = datetime(2026, 6, 2, 6, 0, 0, tzinfo=timezone.utc)
+
+        async with db() as session:
+            project = await _add_project(session, name=f"sess-inflight-clear-{token_hex(4)}")
+            trace_project = models.Project(name=f"eval-sink-{token_hex(4)}", kind="EVALUATOR")
+            evaluator = models.BuiltinEvaluator(
+                name=Identifier(root=f"builtin-{token_hex(4)}"),
+                kind="BUILTIN",
+                key=token_hex(8),
+                input_schema={},
+                output_configs=[],
+            )
+            session.add_all([trace_project, evaluator])
+            await session.flush()
+            session_binding = models.ProjectEvaluator(
+                project_id=project.id,
+                evaluator_id=evaluator.id,
+                trace_project_id=trace_project.id,
+                name=Identifier(root="sess-eval"),
+                evaluation_target="SESSION",
+                filter_condition="",
+                sampling_rate=1.0,
+            )
+            session.add(session_binding)
+            await session.flush()
+
+            running_session = await _add_project_session(session, project, start_time=base_time)
+            cleared_running_trace = await _add_trace(
+                session, project, project_session=running_session, start_time=base_time
+            )
+            await _add_span(session, trace=cleared_running_trace, start_time=base_time)
+            surviving_running_trace = await _add_trace(
+                session,
+                project,
+                project_session=running_session,
+                start_time=base_time + timedelta(hours=2),
+            )
+            await _add_span(
+                session,
+                trace=surviving_running_trace,
+                start_time=base_time + timedelta(hours=2),
+            )
+            running_unit = models.EvalSessionWorkUnit(
+                project_session_rowid=running_session.id,
+                project_evaluator_id=session_binding.id,
+                decided_through=base_time + timedelta(hours=2),
+                status="PENDING",
+                attempts=0,
+            )
+            session.add(running_unit)
+            await session.flush()
+
+            project_id = project.id
+            session_binding_id = session_binding.id
+            running_session_id = running_session.id
+            running_unit_id = running_unit.id
+            cleared_running_trace_id = cleared_running_trace.id
+            surviving_running_trace_id = surviving_running_trace.id
+
+        work_coordinator = EvalWorkCoordinator(db, evaluation_target="SESSION")
+        (claimed_unit,) = await work_coordinator.claim(claimed_by="session-worker", limit=1)
+        assert claimed_unit.work_unit_id == running_unit_id
+
+        async with db() as session:
+            live_project = await session.get(models.Project, project_id)
+            assert live_project is not None
+
+            pending_session = await _add_project_session(
+                session, live_project, start_time=base_time
+            )
+            cleared_pending_trace = await _add_trace(
+                session, live_project, project_session=pending_session, start_time=base_time
+            )
+            await _add_span(session, trace=cleared_pending_trace, start_time=base_time)
+            surviving_pending_trace = await _add_trace(
+                session,
+                live_project,
+                project_session=pending_session,
+                start_time=base_time + timedelta(hours=2),
+            )
+            await _add_span(
+                session,
+                trace=surviving_pending_trace,
+                start_time=base_time + timedelta(hours=2),
+            )
+            pending_unit = models.EvalSessionWorkUnit(
+                project_session_rowid=pending_session.id,
+                project_evaluator_id=session_binding_id,
+                decided_through=base_time + timedelta(hours=2),
+                status="PENDING",
+                attempts=0,
+            )
+
+            error_session = await _add_project_session(session, live_project, start_time=base_time)
+            cleared_error_trace = await _add_trace(
+                session, live_project, project_session=error_session, start_time=base_time
+            )
+            await _add_span(session, trace=cleared_error_trace, start_time=base_time)
+            surviving_error_trace = await _add_trace(
+                session,
+                live_project,
+                project_session=error_session,
+                start_time=base_time + timedelta(hours=2),
+            )
+            await _add_span(
+                session,
+                trace=surviving_error_trace,
+                start_time=base_time + timedelta(hours=2),
+            )
+            error_unit = models.EvalSessionWorkUnit(
+                project_session_rowid=error_session.id,
+                project_evaluator_id=session_binding_id,
+                decided_through=base_time + timedelta(hours=2),
+                status="ERROR",
+                claimed_at=base_time,
+                claimed_by="prior-worker",
+                cooldown_until=base_time + timedelta(minutes=5),
+                attempts=1,
+                error="transient timeout",
+            )
+            session.add_all([pending_unit, error_unit])
+            await session.flush()
+            pending_unit_id = pending_unit.id
+            error_unit_id = error_unit.id
+
+            await admit_or_reuse_project_clear(
+                session,
+                dialect=dialect,
+                project_id=project_id,
+                start_time=base_time - timedelta(minutes=1),
+                end_time=base_time + timedelta(hours=1),
+            )
+
+        await _drain_all(CleanupCoordinator(db, batch_limit=2))
+
+        async def _write_stale_annotation(publish_session: AsyncSession) -> None:
+            publish_session.add(
+                models.ProjectSessionAnnotation(
+                    project_session_id=running_session_id,
+                    name="sess-eval",
+                    label="stale",
+                    score=0.0,
+                    explanation="hydrated cleared trace",
+                    metadata_={},
+                    annotator_kind="CODE",
+                    source="API",
+                    identifier="online:stale",
+                )
+            )
+
+        with pytest.raises(PublicationClaimLostError):
+            await work_coordinator.publish(
+                work_unit_id=claimed_unit.work_unit_id,
+                claimed_by=claimed_unit.claimed_by,
+                project_evaluator_id=session_binding_id,
+                write=_write_stale_annotation,
+            )
+
+        async with db() as session:
+            assert await session.get(models.Trace, cleared_running_trace_id) is None
+            assert await session.get(models.Trace, surviving_running_trace_id) is not None
+            num_annotations = await session.scalar(
+                select(func.count(models.ProjectSessionAnnotation.id)).where(
+                    models.ProjectSessionAnnotation.project_session_id == running_session_id
+                )
+            )
+            assert num_annotations == 0
+
+            reset_units = (
+                await session.scalars(
+                    select(models.EvalSessionWorkUnit)
+                    .where(
+                        models.EvalSessionWorkUnit.id.in_(
+                            [running_unit_id, pending_unit_id, error_unit_id]
+                        )
+                    )
+                    .order_by(models.EvalSessionWorkUnit.id.asc())
+                )
+            ).all()
+            assert len(reset_units) == 3
+            for reset_unit in reset_units:
+                assert reset_unit.status == "DROPPED"
+                assert reset_unit.claimed_at is None
+                assert reset_unit.claimed_by is None
+                assert reset_unit.cooldown_until is None
+
+    async def test_range_clear_deletes_span_drained_trace_in_same_step_as_session_reset(
+        self, db: DbSessionFactory
+    ) -> None:
+        dialect = SupportedSQLDialect(db.dialect.value)
+        base_time = datetime(2026, 6, 2, 8, 0, 0, tzinfo=timezone.utc)
+
+        async with db() as session:
+            project = await _add_project(session, name=f"sess-atomic-clear-{token_hex(4)}")
+            trace_project = models.Project(name=f"eval-sink-{token_hex(4)}", kind="EVALUATOR")
+            evaluator = models.BuiltinEvaluator(
+                name=Identifier(root=f"builtin-{token_hex(4)}"),
+                kind="BUILTIN",
+                key=token_hex(8),
+                input_schema={},
+                output_configs=[],
+            )
+            session.add_all([trace_project, evaluator])
+            await session.flush()
+            session_binding = models.ProjectEvaluator(
+                project_id=project.id,
+                evaluator_id=evaluator.id,
+                trace_project_id=trace_project.id,
+                name=Identifier(root="sess-eval"),
+                evaluation_target="SESSION",
+                filter_condition="",
+                sampling_rate=1.0,
+            )
+            session.add(session_binding)
+            await session.flush()
+
+            project_session = await _add_project_session(session, project, start_time=base_time)
+            cleared_trace = await _add_trace(
+                session, project, project_session=project_session, start_time=base_time
+            )
+            await _add_span(session, trace=cleared_trace, start_time=base_time)
+            surviving_trace = await _add_trace(
+                session,
+                project,
+                project_session=project_session,
+                start_time=base_time + timedelta(hours=2),
+            )
+            await _add_span(
+                session,
+                trace=surviving_trace,
+                start_time=base_time + timedelta(hours=2),
+            )
+            session_unit = models.EvalSessionWorkUnit(
+                project_session_rowid=project_session.id,
+                project_evaluator_id=session_binding.id,
+                decided_through=base_time + timedelta(hours=2),
+                status="DONE",
+                attempts=1,
+            )
+            session.add(session_unit)
+            await session.flush()
+
+            cleared_trace_id = cleared_trace.id
+            session_unit_id = session_unit.id
+
+            await admit_or_reuse_project_clear(
+                session,
+                dialect=dialect,
+                project_id=project.id,
+                start_time=base_time - timedelta(minutes=1),
+                end_time=base_time + timedelta(hours=1),
+            )
+
+        coordinator = CleanupCoordinator(db, batch_limit=10)
+
+        first_claim = await coordinator.claim_next()
+        assert first_claim is not None
+        first_step = await coordinator.execute_claimed_step(first_claim)
+        assert first_step.outcome == "progress" and first_step.affected_rows == 1
+        async with db() as session:
+            assert (
+                await session.scalar(
+                    select(models.EvalSessionWorkUnit.status).where(
+                        models.EvalSessionWorkUnit.id == session_unit_id
+                    )
+                )
+                == "DONE"
+            )
+
+        second_claim = await coordinator.claim_next()
+        assert second_claim is not None
+        second_step = await coordinator.execute_claimed_step(second_claim)
+        assert second_step.outcome == "progress"
+        async with db() as session:
+            assert (
+                await session.scalar(
+                    select(models.EvalSessionWorkUnit.status).where(
+                        models.EvalSessionWorkUnit.id == session_unit_id
+                    )
+                )
+                == "DROPPED"
+            )
+            assert await session.get(models.Trace, cleared_trace_id) is None
+
+        await _drain_all(coordinator)
+
     async def test_empty_range_clear_leaves_surviving_session_evaluations_intact(
         self, db: DbSessionFactory
     ) -> None:
@@ -1415,6 +1712,132 @@ class TestEvaluatorSnapshotsAndOnlineEvalFences:
                 )
             )
             assert trace_sink_count == 0
+
+    async def test_recover_lapsed_claims_ignores_tombstoned_project_evaluator(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        dialect = SupportedSQLDialect(db.dialect.value)
+        increments: Counter[tuple[str, str]] = Counter()
+
+        def counter_labels(*, evaluation_target: str, outcome: str) -> SimpleNamespace:
+            key = (evaluation_target, outcome)
+            return SimpleNamespace(inc=lambda count=1: increments.update({key: count}))
+
+        def lag_labels(*, evaluation_target: str, outcome: str) -> SimpleNamespace:
+            return SimpleNamespace(observe=lambda _seconds: None)
+
+        monkeypatch.setattr(
+            online_eval_coordinator_module, "get_env_enable_prometheus", lambda: True
+        )
+        monkeypatch.setattr(
+            online_eval_coordinator_module,
+            "ONLINE_EVAL_COMPLETED_WORK_UNITS",
+            SimpleNamespace(labels=counter_labels),
+        )
+        monkeypatch.setattr(
+            online_eval_coordinator_module,
+            "ONLINE_EVAL_QUEUE_TO_RESULT_SECONDS",
+            SimpleNamespace(labels=lag_labels),
+        )
+
+        async with db() as session:
+            database_now = await current_database_time(session, dialect)
+            lapsed_claimed_at = database_now - timedelta(seconds=CLAIM_LEASE_TTL_SECONDS + 1)
+            project = await _add_project(session, name=f"oe-lapsed-{token_hex(4)}")
+            tombstoned_sink = models.Project(name=f"oe-tomb-sink-{token_hex(4)}", kind="EVALUATOR")
+            live_sink = models.Project(name=f"oe-live-sink-{token_hex(4)}", kind="EVALUATOR")
+            evaluator = models.BuiltinEvaluator(
+                name=Identifier(root=f"oe-lapsed-bi-{token_hex(4)}"),
+                kind="BUILTIN",
+                key=token_hex(8),
+                input_schema={},
+                output_configs=[],
+            )
+            session.add_all([tombstoned_sink, live_sink, evaluator])
+            await session.flush()
+
+            tombstoned_binding = models.ProjectEvaluator(
+                project_id=project.id,
+                evaluator_id=evaluator.id,
+                trace_project_id=tombstoned_sink.id,
+                name=Identifier(root="tombstoned-eval"),
+                evaluation_target="SPAN",
+                filter_condition="",
+                sampling_rate=1.0,
+                enabled=True,
+            )
+            live_binding = models.ProjectEvaluator(
+                project_id=project.id,
+                evaluator_id=evaluator.id,
+                trace_project_id=live_sink.id,
+                name=Identifier(root="live-eval"),
+                evaluation_target="SPAN",
+                filter_condition="",
+                sampling_rate=1.0,
+                enabled=True,
+            )
+            session.add_all([tombstoned_binding, live_binding])
+            await session.flush()
+
+            trace = await _add_trace(session, project)
+            span = await _add_span(session, trace=trace)
+            tombstoned_unit = models.EvalWorkUnit(
+                span_rowid=span.id,
+                project_evaluator_id=tombstoned_binding.id,
+                status="RUNNING",
+                claimed_at=lapsed_claimed_at,
+                claimed_by="crashed-worker",
+                attempts=MAX_ATTEMPTS - 1,
+            )
+            live_unit = models.EvalWorkUnit(
+                span_rowid=span.id,
+                project_evaluator_id=live_binding.id,
+                status="RUNNING",
+                claimed_at=lapsed_claimed_at,
+                claimed_by="crashed-worker",
+                attempts=MAX_ATTEMPTS - 1,
+            )
+            session.add_all([tombstoned_unit, live_unit])
+            await session.flush()
+
+            tombstoned_binding_id = tombstoned_binding.id
+            tombstoned_unit_id = tombstoned_unit.id
+            live_unit_id = live_unit.id
+
+            await logical_delete_project_evaluators(
+                session,
+                dialect=dialect,
+                binding_ids=[tombstoned_binding_id],
+                collect_unused_evaluator=False,
+                collect_unused_prompt_or_decision=False,
+            )
+
+        work_coordinator = EvalWorkCoordinator(db, evaluation_target="SPAN")
+        assert await work_coordinator.claim(claimed_by="worker-2", limit=10) == []
+        assert increments == {("SPAN", "failed"): 1}
+
+        async with db() as session:
+            database_now = await current_database_time(session, dialect)
+            assert (
+                await recover_lapsed_claims(
+                    session,
+                    models.EvalWorkUnit,
+                    now=database_now,
+                    max_attempts=MAX_ATTEMPTS,
+                )
+                == []
+            )
+            loaded_tombstoned_unit = await session.get(models.EvalWorkUnit, tombstoned_unit_id)
+            loaded_live_unit = await session.get(models.EvalWorkUnit, live_unit_id)
+            assert loaded_tombstoned_unit is not None
+            assert loaded_tombstoned_unit.status == "RUNNING"
+            assert loaded_live_unit is not None
+            assert loaded_live_unit.status == "FAILED"
+
+        await _drain_all(CleanupCoordinator(db))
+        async with db() as session:
+            assert await session.get(models.EvalWorkUnit, tombstoned_unit_id) is None
+            assert await session.get(models.ProjectEvaluator, tombstoned_binding_id) is None
 
 
 class TestStorageLockoutExemptionsAndCleanupWorker:

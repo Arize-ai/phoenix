@@ -32,7 +32,7 @@ from sqlalchemy import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
-from phoenix.db.eval_work import queued_index_predicate
+from phoenix.db.eval_work import QUEUED_STATUSES, queued_index_predicate
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.online_eval.work_tables import WORK_TABLES, WorkUnitModel
 
@@ -42,6 +42,7 @@ _WORK_UNIT_MODELS: tuple[WorkUnitModel, ...] = tuple(
     table.work_unit_model for table in WORK_TABLES.values()
 )
 _RESETTABLE_SESSION_EVAL_STATUSES: tuple[models.EvalWorkStatus, ...] = (
+    *QUEUED_STATUSES,
     "DONE",
     "FILTERED_OUT",
     "SAMPLED_OUT",
@@ -360,6 +361,7 @@ async def drain_traces_step(
             models.Trace.id.in_(trace_ids),
             no_spans_attached,
         )
+        reset_rows = 0
         if reset_session_evaluations:
             reset_result = await reset_session_evaluations_step(
                 session,
@@ -367,13 +369,21 @@ async def drain_traces_step(
                 ready_trace_cond=ready_trace_cond,
                 batch_limit=batch_limit,
             )
-            if reset_result.status is not PrimitiveStatus.EMPTY:
+            if reset_result.status is PrimitiveStatus.YIELD:
                 return reset_result
+            if reset_result.status is PrimitiveStatus.PROGRESS:
+                reset_rows = reset_result.affected_rows
+                if reset_rows >= batch_limit or await _has_any(
+                    session, _resettable_session_evaluations_condition(ready_trace_cond)
+                ):
+                    return reset_result
         deleted_traces = _rowcount(
             await session.execute(delete(models.Trace).where(ready_trace_cond))
         )
         if deleted_traces > 0:
             return PrimitiveResult(PrimitiveStatus.PROGRESS, deleted_traces)
+        if reset_rows > 0:
+            return PrimitiveResult(PrimitiveStatus.PROGRESS, reset_rows)
         return PrimitiveResult(PrimitiveStatus.YIELD, 0)
 
     if await _has_any(session, trace_cond):
@@ -583,6 +593,19 @@ async def clear_project_historical_references_step(
     return PrimitiveResult(PrimitiveStatus.EMPTY, 0)
 
 
+def _resettable_session_evaluations_condition(
+    ready_trace_cond: ColumnElement[bool],
+) -> ColumnElement[bool]:
+    affected_sessions = select(models.Trace.project_session_rowid).where(
+        ready_trace_cond,
+        models.Trace.project_session_rowid.is_not(None),
+    )
+    return and_(
+        models.EvalSessionWorkUnit.project_session_rowid.in_(affected_sessions),
+        models.EvalSessionWorkUnit.status.in_(_RESETTABLE_SESSION_EVAL_STATUSES),
+    )
+
+
 async def reset_session_evaluations_step(
     session: AsyncSession,
     *,
@@ -590,15 +613,8 @@ async def reset_session_evaluations_step(
     ready_trace_cond: ColumnElement[bool],
     batch_limit: int,
 ) -> PrimitiveResult:
-    """Reset final session evaluation decisions for span-drained traces about to be cleared."""
-    affected_sessions = select(models.Trace.project_session_rowid).where(
-        ready_trace_cond,
-        models.Trace.project_session_rowid.is_not(None),
-    )
-    condition = and_(
-        models.EvalSessionWorkUnit.project_session_rowid.in_(affected_sessions),
-        models.EvalSessionWorkUnit.status.in_(_RESETTABLE_SESSION_EVAL_STATUSES),
-    )
+    """Reset queued and final session evaluations for span-drained traces about to be cleared."""
+    condition = _resettable_session_evaluations_condition(ready_trace_cond)
     candidates = select(models.EvalSessionWorkUnit.id).where(condition).limit(batch_limit)
     if dialect is SupportedSQLDialect.POSTGRESQL:
         candidates = candidates.with_for_update(skip_locked=True)
@@ -612,7 +628,12 @@ async def reset_session_evaluations_step(
                     models.EvalSessionWorkUnit.id.in_(ids),
                     models.EvalSessionWorkUnit.status.in_(_RESETTABLE_SESSION_EVAL_STATUSES),
                 )
-                .values(status="DROPPED")
+                .values(
+                    status="DROPPED",
+                    claimed_at=None,
+                    claimed_by=None,
+                    cooldown_until=None,
+                )
             )
         )
         if count > 0:

@@ -95,6 +95,15 @@ def claim_lease_lapsed(
     return work_unit_model.claimed_at < now - timedelta(seconds=CLAIM_LEASE_TTL_SECONDS)
 
 
+def _live_binding(work_unit_model: WorkUnitModel) -> ColumnElement[bool]:
+    return exists(
+        select(literal(1)).where(
+            models.ProjectEvaluator.id == work_unit_model.project_evaluator_id,
+            models.ProjectEvaluator.deleted_at.is_(None),
+        )
+    )
+
+
 async def recover_lapsed_claims(
     session: AsyncSession,
     work_unit_model: WorkUnitModel,
@@ -110,6 +119,7 @@ async def recover_lapsed_claims(
         .where(
             # SQLite reads a partial index only when the query repeats its predicate.
             text(queued_index_predicate()),
+            _live_binding(work_unit_model),
             work_unit_model.status == "RUNNING",
             work_unit_model.attempts >= max_attempts - 1,
             claim_lease_lapsed(now, work_unit_model),
@@ -156,14 +166,8 @@ class EvalWorkCoordinator:
 
     def _claimable(self, now: datetime) -> ColumnElement[bool]:
         work_unit_model = self._work_unit_model
-        live_binding = exists(
-            select(literal(1)).where(
-                models.ProjectEvaluator.id == work_unit_model.project_evaluator_id,
-                models.ProjectEvaluator.deleted_at.is_(None),
-            )
-        )
         return and_(
-            live_binding,
+            _live_binding(work_unit_model),
             or_(
                 work_unit_model.status == "PENDING",
                 and_(
