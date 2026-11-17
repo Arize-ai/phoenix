@@ -4066,25 +4066,27 @@ def provider_models_from_rows(
     )
 
 
-def provider_models_to_rows(served: ProviderModels) -> list[CustomProviderModelType]:
-    rows: list[CustomProviderModelType] = []
-    for key in MODEL_TYPES:
-        models_of_type = served.get_models_of_type(key)
-        if models_of_type is None:
-            continue
-        rows.append(
-            CustomProviderModelType(
-                model_type=key,
-                profile_links=[
-                    CustomProviderModelProfile(
-                        position=position,
-                        profile=ModelProfile(model_type=key, name=name),
-                    )
-                    for position, name in enumerate(models_of_type.names)
-                ],
+def build_model_type_row(
+    model_type: ModelTypeKey, models_of_type: ModelsOfType
+) -> CustomProviderModelType:
+    return CustomProviderModelType(
+        model_type=model_type,
+        profile_links=[
+            CustomProviderModelProfile(
+                position=position,
+                profile=ModelProfile(model_type=model_type, name=name),
             )
-        )
-    return rows
+            for position, name in enumerate(models_of_type.names)
+        ],
+    )
+
+
+def provider_models_to_rows(served: ProviderModels) -> list[CustomProviderModelType]:
+    return [
+        build_model_type_row(model_type, models_of_type)
+        for model_type in MODEL_TYPES
+        if (models_of_type := served.get_models_of_type(model_type)) is not None
+    ]
 
 
 @event.listens_for(GenerativeModelCustomProvider, "init")

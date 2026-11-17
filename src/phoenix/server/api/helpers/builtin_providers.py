@@ -69,7 +69,7 @@ def credential_env_vars(provider_key: GenerativeProviderKey) -> tuple[str, ...]:
     )
 
 
-async def _resolve_secrets(
+async def resolve_secrets(
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
     *keys: str,
@@ -97,7 +97,7 @@ async def _resolve_secrets(
     return result
 
 
-def _get_credential_from_input(
+def get_credential_from_input(
     credentials: Sequence[GenerativeCredentialInput] | None,
     env_var_name: str,
 ) -> str | None:
@@ -136,9 +136,9 @@ async def resolve_provider_api_key(
     from a DB secret is allowed with a custom base URL.
     """
     for name in env_var_names:
-        if from_input := _get_credential_from_input(credentials, name):
+        if from_input := get_credential_from_input(credentials, name):
             return from_input
-    secrets = await _resolve_secrets(session, decrypt, *env_var_names)
+    secrets = await resolve_secrets(session, decrypt, *env_var_names)
     for name in env_var_names:
         if from_secret := secrets.get(name):
             return from_secret

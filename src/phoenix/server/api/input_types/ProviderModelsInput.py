@@ -3,14 +3,11 @@ import strawberry
 from phoenix.db.models import GenerativeModelSDK
 from phoenix.db.types.model_provider import (
     ModelsOfType,
-    ModelTypeKey,
     ProviderModels,
     sdk_offers_chat,
     servable_model_types,
 )
 from phoenix.server.api.exceptions import BadRequest
-
-_LABELS: dict[ModelTypeKey, str] = {"CHAT": "chat", "DECISION": "decision"}
 
 
 @strawberry.input(description="A custom provider's models of one type, with their settings.")
@@ -56,7 +53,7 @@ def check_servable_model_types(
     served: ProviderModels,
 ) -> None:
     for key in sorted(served.types() - servable_model_types(sdk)):
-        raise BadRequest(f"A provider with the {sdk} SDK can't serve {_LABELS[key]} models.")
+        raise BadRequest(f"A provider with the {sdk} SDK can't serve {key.lower()} models.")
     if not served.types():
         raise BadRequest("A provider must serve at least one model type.")
 

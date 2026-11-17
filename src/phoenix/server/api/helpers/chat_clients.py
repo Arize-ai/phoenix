@@ -85,13 +85,13 @@ from phoenix.db.types.prompts import (
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.builtin_providers import (
     BuiltInEndpoint,
-    _get_credential_from_input,
-    _resolve_secrets,
     check_provider_base_urls,
     checked_base_url,
     credential_env_vars,
+    get_credential_from_input,
     resolve_builtin_config,
     resolve_provider_api_key,
+    resolve_secrets,
 )
 from phoenix.server.api.helpers.client_registry import (
     PROVIDER_DEFAULT,
@@ -3372,9 +3372,9 @@ async def _builtin_chat_config(
         )
     if provider_key is GenerativeProviderKey.AWS:
         names = ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN")
-        values = {name: _get_credential_from_input(credentials, name) for name in names}
+        values = {name: get_credential_from_input(credentials, name) for name in names}
         if not values["AWS_ACCESS_KEY_ID"] or not values["AWS_SECRET_ACCESS_KEY"]:
-            secrets = await _resolve_secrets(session, decrypt, *names)
+            secrets = await resolve_secrets(session, decrypt, *names)
             values = {name: values[name] or secrets.get(name) for name in names}
         values = {name: values[name] or getenv(name) or None for name in names}
         access_key_id = values["AWS_ACCESS_KEY_ID"]
