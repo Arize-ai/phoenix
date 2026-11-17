@@ -9,9 +9,6 @@ from .factories import create_google_client
 _QUESTION_NAME = "label"
 # The Decisions API rejects a choice question without instructions.
 _CHOICE_INSTRUCTIONS = "Select the single best label for the input."
-_SAFETY_CODES = frozenset(
-    {"safety", "other", "blocklist", "prohibited_content", "image_safety", "content_blocked"}
-)
 
 
 @register_provider(
@@ -107,39 +104,6 @@ class GoogleDecisionAdapter(BaseDecisionAdapter):
         ]
         return {"results": results, "usage": self._usage_dict(response)}
 
-    @staticmethod
-    def _raise_if_refusal(exc: Any) -> None:
-        """Re-raise a Gemini input-safety 400 as a refusal; leave any other error to propagate."""
-        details = getattr(exc, "details", None)
-        error = details.get("error", {}) if isinstance(details, dict) else {}
-        code = error.get("code") if isinstance(error, dict) else None
-        if isinstance(code, str) and code in _SAFETY_CODES:
-            raise PhoenixDecisionRefusal(
-                f"The decision model refused to classify (safety block '{code}')."
-            ) from exc
-
-    def _create(self, prompt: PromptLike, questions: Dict[str, Any], **kwargs: Any) -> Any:
-        from google.genai.errors import ClientError
-
-        try:
-            return self.client.decisions.create(
-                model=self.model, input=self._to_input(prompt), questions=questions, **kwargs
-            )
-        except ClientError as exc:
-            self._raise_if_refusal(exc)
-            raise
-
-    async def _acreate(self, prompt: PromptLike, questions: Dict[str, Any], **kwargs: Any) -> Any:
-        from google.genai.errors import ClientError
-
-        try:
-            return await self.client.aio.decisions.create(
-                model=self.model, input=self._to_input(prompt), questions=questions, **kwargs
-            )
-        except ClientError as exc:
-            self._raise_if_refusal(exc)
-            raise
-
     def generate_classification(
         self,
         prompt: PromptLike,
@@ -147,7 +111,10 @@ class GoogleDecisionAdapter(BaseDecisionAdapter):
         **kwargs: Any,
     ) -> Dict[str, Any]:
         questions = dict([self._build_choice_question(_QUESTION_NAME, labels, None)])
-        return self._to_result(self._create(prompt, questions, **kwargs))
+        response = self.client.decisions.create(
+            model=self.model, input=self._to_input(prompt), questions=questions, **kwargs
+        )
+        return self._to_result(response)
 
     async def async_generate_classification(
         self,
@@ -156,7 +123,10 @@ class GoogleDecisionAdapter(BaseDecisionAdapter):
         **kwargs: Any,
     ) -> Dict[str, Any]:
         questions = dict([self._build_choice_question(_QUESTION_NAME, labels, None)])
-        return self._to_result(await self._acreate(prompt, questions, **kwargs))
+        response = await self.client.aio.decisions.create(
+            model=self.model, input=self._to_input(prompt), questions=questions, **kwargs
+        )
+        return self._to_result(response)
 
     def generate_classifications(
         self,
@@ -168,7 +138,9 @@ class GoogleDecisionAdapter(BaseDecisionAdapter):
             self._build_choice_question(c["name"], c["labels"], c.get("instructions"))
             for c in criteria
         )
-        response = self._create(prompt, questions, **kwargs)
+        response = self.client.decisions.create(
+            model=self.model, input=self._to_input(prompt), questions=questions, **kwargs
+        )
         return self._to_results(response, [c["name"] for c in criteria])
 
     async def async_generate_classifications(
@@ -181,5 +153,7 @@ class GoogleDecisionAdapter(BaseDecisionAdapter):
             self._build_choice_question(c["name"], c["labels"], c.get("instructions"))
             for c in criteria
         )
-        response = await self._acreate(prompt, questions, **kwargs)
+        response = await self.client.aio.decisions.create(
+            model=self.model, input=self._to_input(prompt), questions=questions, **kwargs
+        )
         return self._to_results(response, [c["name"] for c in criteria])
