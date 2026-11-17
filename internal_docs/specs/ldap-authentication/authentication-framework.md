@@ -127,25 +127,10 @@ When `PHOENIX_ADMINS` is configured, Phoenix automatically creates admin users a
 | Condition | User Type Created |
 |-----------|-------------------|
 | `PHOENIX_DISABLE_BASIC_AUTH=false` | `LocalUser` (random password, must reset) |
-| `PHOENIX_DISABLE_BASIC_AUTH=true` + LDAP configured (no OAuth2) | **LDAP user** (`oauth2_client_id=\ue000LDAP(stopgap)`, `oauth2_user_id=NULL`) |
+| `PHOENIX_DISABLE_BASIC_AUTH=true` + LDAP configured (no OAuth2) | `LDAPUser` (email set, `ldap_unique_id` NULL) |
 | `PHOENIX_DISABLE_BASIC_AUTH=true` + OAuth2 configured | `OAuth2User` (generic) |
 
-**LDAP Startup Admin Flow**:
-```python
-# facilitator.py creates LDAP admin at startup
-user = models.OAuth2User(
-    email=email,
-    username=username,
-    oauth2_client_id=LDAP_CLIENT_ID_MARKER,  # Identifies as LDAP
-    oauth2_user_id=None,  # NULL until first login
-)
-
-# On first LDAP login (auth.py):
-# 1. DN lookup fails (oauth2_user_id=NULL)
-# 2. Email fallback finds user
-# 3. Upgrades oauth2_user_id to DN
-user.oauth2_user_id = user_dn  # Now DN-based lookup works
-```
+On the user's first LDAP login, Phoenix finds the row by email. In enterprise mode, it then stores the user's unique ID in `ldap_unique_id` ([User Identification Strategy](./user-identification-strategy.md#admin-provisioned-users)). `PHOENIX_ADMINS` is rejected in null-email mode, because it creates users by email.
 
 **Configuration Example**:
 ```bash

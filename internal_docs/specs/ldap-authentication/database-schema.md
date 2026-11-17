@@ -1,109 +1,44 @@
-# Database Schema Details
+# Database Schema
 
-## Current Implementation (Stopgap)
+LDAP users are rows in the `users` table with `auth_method='LDAP'`. The ORM maps them to `LDAPUser`, a polymorphic subclass of `User` next to `LocalUser` and `OAuth2User` (`src/phoenix/db/models.py`).
 
-**Storage Format**:
-```
-users table:
-  auth_method = 'OAUTH2'
-  oauth2_client_id = '\ue000LDAP(stopgap)'  ← Identifies as LDAP user
-  oauth2_user_id = '<unique_id>' or NULL    ← Immutable ID (if configured) or NULL (email-based)
-  email = 'john@example.com'                ← User identifier (simple mode) or synced attribute
-  username = 'John Doe'                     ← Display name (synced from LDAP)
-```
+## Columns by Auth Method
 
-**Marker Format**: `\ue000LDAP(stopgap)`
-- `\ue000` = Unicode Private Use Area (U+E000-U+F8FF)
-- `LDAP` = Human-readable identifier
-- Simple constant value for all LDAP users
+R = required, N = must be NULL, O = optional.
 
-**Why This Is Collision-Free**:
-1. **Unicode PUA Guarantee**: U+E000-U+F8FF reserved for private use, never assigned by Unicode Standard (30+ year guarantee)
-2. **OAuth2 RFC 6749**: Restricts `client_id` to ASCII (0x20-0x7E), cannot contain Unicode
-3. **Real-World Validation**: No OAuth2 provider uses Unicode characters in client IDs
-4. **Active Defense**: `_validate_oauth2_client_id()` rejects PUA characters in configured OAuth2 client IDs
+| Column | LOCAL | OAUTH2 | LDAP |
+|--------|-------|--------|------|
+| `password_hash`, `password_salt` | R | N | N |
+| `email` | R | R | O* |
+| `ldap_unique_id` | N | N | O* |
+| `oauth2_client_id` | N | O | N |
+| `oauth2_user_id` | N | O | N |
 
-**User Identification**:
+\* An LDAP row must have `email`, `ldap_unique_id`, or both. A row with neither could never be found again at login.
 
-| Mode | `oauth2_user_id` | Lookup |
-|------|------------------|--------|
-| Simple (default) | `NULL` | By `email` column |
-| Enterprise | objectGUID/entryUUID | By `oauth2_user_id`, fallback to `email` |
+CHECK constraints enforce every cell of this table.
 
-See [User Identification Strategy](./user-identification-strategy.md) for details.
+## Indexes
 
-**Implementation**:
+- `email` is unique across all users. It is nullable, so many LDAP users without email can coexist.
+- `ix_users_ldap_unique_id` is a partial unique index on `ldap_unique_id` where `auth_method = 'LDAP' AND ldap_unique_id IS NOT NULL`.
+- `ix_users_oauth2_unique` is a partial unique index on the OAuth2 identifiers where `auth_method = 'OAUTH2'`.
 
-```python
-LDAP_CLIENT_ID_MARKER = "\ue000LDAP(stopgap)"  # Simple constant marker
-```
+Both partial indexes use `postgresql_where` and `sqlite_where`, so they behave the same on both backends.
 
-**Helper Function**:
-```python
-LDAP_CLIENT_ID_MARKER = "\ue000LDAP(stopgap)"
+## No DN Column
 
+Phoenix does not store the user's DN. DNs change when users move between organizational units, so Phoenix identifies users by email or `ldap_unique_id` instead. See [User Identification Strategy](./user-identification-strategy.md).
 
-def is_ldap_user(oauth2_client_id: Optional[str]) -> bool:
-    """Check if user is authenticated via LDAP."""
-    return oauth2_client_id == LDAP_CLIENT_ID_MARKER
-```
+## History
 
-**Database Queries**:
-```sql
--- Find all LDAP users
-SELECT * FROM users 
-WHERE oauth2_client_id = E'\uE000LDAP(stopgap)';
+The first release could not change the `auth_method` CHECK constraint. It stored LDAP users as `auth_method='OAUTH2'` rows with the marker `\ue000LDAP(stopgap)` in `oauth2_client_id` and the unique ID in `oauth2_user_id`. Users without an email got a placeholder of the form `\ue000NULL(stopgap){md5(unique_id)}`, because `email` was `NOT NULL`.
 
--- Simple mode: Find LDAP user by email
-SELECT * FROM users 
-WHERE oauth2_client_id = E'\uE000LDAP(stopgap)'
-  AND LOWER(email) = 'john@example.com';
+Migration `a1b2c3d4e5f6` (January 2026) replaced that layout with the one above:
 
--- Enterprise mode: Find LDAP user by unique_id
-SELECT * FROM users 
-WHERE oauth2_client_id = E'\uE000LDAP(stopgap)'
-  AND oauth2_user_id = '550e8400-e29b-41d4-a716-446655440000';
-```
+1. It added `'LDAP'` to the `auth_method` CHECK constraint.
+2. It added `ldap_unique_id` and moved the unique IDs out of `oauth2_user_id`.
+3. It set `auth_method='LDAP'` and cleared `oauth2_client_id` and `oauth2_user_id` on the marked rows.
+4. It made `email` nullable and replaced placeholder emails with NULL.
 
----
-
-## Future Migration (Dedicated Schema)
-
-If/when we migrate to a dedicated LDAP schema, the changes would be:
-
-**Schema Changes**:
-```sql
--- Step 1: Allow 'LDAP' as auth_method
-ALTER TABLE users DROP CONSTRAINT IF EXISTS users_auth_method_check;
-ALTER TABLE users ADD CONSTRAINT users_auth_method_check
-    CHECK (auth_method IN ('LOCAL', 'OAUTH2', 'LDAP'));
-
--- Step 2: Migrate LDAP users
-UPDATE users 
-SET auth_method = 'LDAP'
-WHERE oauth2_client_id = E'\uE000LDAP(stopgap)';
-```
-
-**Note**: We do NOT add a `ldap_dn` column. DN is not used for user identification
-(DNs change too frequently). Users are identified by email or unique_id (objectGUID/entryUUID).
-
-**Post-Migration Queries**:
-```sql
--- Find all LDAP users (cleaner!)
-SELECT * FROM users WHERE auth_method = 'LDAP';
-
--- Simple mode: Find LDAP user by email
-SELECT * FROM users 
-WHERE auth_method = 'LDAP'
-  AND LOWER(email) = 'john@example.com';
-
--- Enterprise mode: Find LDAP user by unique_id
-SELECT * FROM users 
-WHERE auth_method = 'LDAP'
-  AND oauth2_user_id = '550e8400-e29b-41d4-a716-446655440000';
-```
-
-**Key Point**: The migration only changes `auth_method` for semantic clarity. The identification
-strategy (email or unique_id) remains unchanged.
-
-Migration `a1b2c3d4e5f6` performed this change.
+`tests/integration/db_migrations/test_data_migration_a1b2c3d4e5f6_ldap_schema_migration.py` covers the upgrade and the downgrade.
