@@ -14,12 +14,13 @@ from starlette.responses import PlainTextResponse
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.cleanup_tasks import live_row_predicate
 from phoenix.db.helpers import (
     SupportedSQLDialect,
     get_experiment_incomplete_runs_query,
     insert_experiment_with_examples_snapshot,
 )
-from phoenix.db.insertion.helpers import insert_on_conflict
+from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.server.api.routers.v1.datasets import DatasetExample
 from phoenix.server.api.routers.v1.models import IsoDatetime
@@ -219,9 +220,17 @@ async def create_experiment(
                 dialect=dialect,
                 table=models.Project,
                 unique_by=("name",),
-                index_where=sa.text("deleted_at IS NULL"),
+                on_conflict=OnConflict.DO_NOTHING,
+                index_where=sa.text(live_row_predicate()),
             ).returning(models.Project.id)
         )
+        if project_rowid is None:
+            project_rowid = await session.scalar(
+                select(models.Project.id).where(
+                    models.Project.name == project_name,
+                    models.Project.deleted_at.is_(None),
+                )
+            )
         assert project_rowid is not None
         experiment = models.Experiment(
             dataset_id=int(dataset_rowid),

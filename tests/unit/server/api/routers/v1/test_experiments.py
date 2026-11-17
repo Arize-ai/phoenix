@@ -2030,3 +2030,56 @@ class TestPatchExperiment:
             json={"name": "x"},
         )
         assert response.status_code == 404
+
+
+async def test_create_experiment_preserves_existing_live_project_on_name_collision(
+    httpx_client: httpx2.AsyncClient,
+    simple_dataset: Any,
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    colliding_project_name = f"Experiment-{token_hex(12)}"
+    existing_description = "Existing live standard project"
+    existing_start_color = "#112233"
+    existing_end_color = "#445566"
+
+    async with db() as session:
+        existing_project = models.Project(
+            name=colliding_project_name,
+            kind="STANDARD",
+            description=existing_description,
+            gradient_start_color=existing_start_color,
+            gradient_end_color=existing_end_color,
+        )
+        session.add(existing_project)
+        await session.flush()
+        existing_project_id = existing_project.id
+
+    monkeypatch.setattr(
+        "phoenix.server.api.routers.v1.experiments.generate_experiment_project_name",
+        lambda: colliding_project_name,
+    )
+
+    dataset_gid = GlobalID("Dataset", "0")
+    response = await httpx_client.post(
+        f"v1/datasets/{dataset_gid}/experiments",
+        json={"version_id": None, "repetitions": 1},
+    )
+    assert response.status_code == 200
+    created_experiment = response.json()["data"]
+    assert created_experiment["project_name"] == colliding_project_name
+    experiment_rowid = from_global_id_with_expected_type(
+        GlobalID.from_id(created_experiment["id"]), "Experiment"
+    )
+
+    async with db() as session:
+        experiment_row = await session.get(models.Experiment, experiment_rowid)
+        assert experiment_row is not None
+        assert experiment_row.project_id == existing_project_id
+
+        project_row = await session.get(models.Project, existing_project_id)
+        assert project_row is not None
+        assert project_row.kind == "STANDARD"
+        assert project_row.description == existing_description
+        assert project_row.gradient_start_color == existing_start_color
+        assert project_row.gradient_end_color == existing_end_color
