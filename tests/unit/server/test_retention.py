@@ -9,11 +9,14 @@ from unittest.mock import MagicMock, call, patch
 import pytest
 import sqlalchemy as sa
 from prometheus_client import REGISTRY
-from sqlalchemy import func
+from sqlalchemy import event, func
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import selectinload
 from starlette.types import ASGIApp
 
 from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
+from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.trace_retention import (
     MaxCountRule,
     MaxDaysOrCountRule,
@@ -940,18 +943,35 @@ async def test_retention_yields_when_trace_spans_are_locked(postgresql_engine: A
 
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
     async with db() as session:
-        project = await _add_project(session, name=f"locked-retention-{token_hex(4)}")
-        trace = await _add_trace(session, project, start_time=datetime(2020, 1, 1))
-        span = await _add_span(session, trace=trace)
+        locked_project = await _add_project(session, name=f"locked-retention-{token_hex(4)}")
+        locked_trace = await _add_trace(
+            session, locked_project, start_time=datetime(2020, 1, 1, tzinfo=timezone.utc)
+        )
+        locked_span = await _add_span(session, trace=locked_trace)
+        unblocked_project = await _add_project(session, name=f"unblocked-retention-{token_hex(4)}")
+        unblocked_trace = await _add_trace(
+            session, unblocked_project, start_time=datetime(2020, 1, 2, tzinfo=timezone.utc)
+        )
+        await _add_span(session, trace=unblocked_trace)
     async with db() as locker:
         await locker.execute(
-            sa.select(models.Span.id).where(models.Span.id == span.id).with_for_update()
+            sa.select(models.Span.id).where(models.Span.id == locked_span.id).with_for_update()
         )
-        await wait_for(MaxDaysRule(max_days=1).delete_traces_in_batches(db, [project.id]), 5)
-        assert await locker.get(models.Trace, trace.id) is not None
-    await MaxDaysRule(max_days=1).delete_traces_in_batches(db, [project.id])
+        affected_project_ids = await wait_for(
+            MaxDaysRule(max_days=1).delete_traces_in_batches(
+                db, [locked_project.id, unblocked_project.id], batch_size=1
+            ),
+            5,
+        )
+        assert await locker.get(models.Trace, locked_trace.id) is not None
+        assert await locker.get(models.Trace, unblocked_trace.id) is None
+        assert affected_project_ids == {unblocked_project.id}
+    affected_after_unlock = await MaxDaysRule(max_days=1).delete_traces_in_batches(
+        db, [locked_project.id, unblocked_project.id], batch_size=1
+    )
+    assert affected_after_unlock == {locked_project.id}
     async with db() as session:
-        assert await session.get(models.Trace, trace.id) is None
+        assert await session.get(models.Trace, locked_trace.id) is None
 
 
 async def test_count_retention_ranks_once_per_sweep_and_breaks_timestamp_ties(
@@ -974,7 +994,8 @@ async def test_count_retention_ranks_once_per_sweep_and_breaks_timestamp_ties(
         engine = session.bind
         assert engine is not None
 
-    ranking_queries: list[str] = []
+    row_number_queries: list[str] = []
+    cutoff_queries: list[str] = []
 
     def record_query(
         connection: Any,
@@ -985,14 +1006,20 @@ async def test_count_retention_ranks_once_per_sweep_and_breaks_timestamp_ties(
         executemany: bool,
     ) -> None:
         if "row_number()" in statement:
-            ranking_queries.append(statement)
+            row_number_queries.append(statement)
+        if "ORDER BY traces.start_time DESC, traces.id DESC" in statement:
+            cutoff_queries.append(statement)
 
-    sa.event.listen(engine.sync_engine, "before_cursor_execute", record_query)
+    event.listen(engine.sync_engine, "before_cursor_execute", record_query)
     try:
-        await MaxCountRule(max_count=2).delete_traces_in_batches(db, [project.id], batch_size=1)
+        affected_project_ids = await MaxCountRule(max_count=2).delete_traces_in_batches(
+            db, [project.id], batch_size=1
+        )
     finally:
-        sa.event.remove(engine.sync_engine, "before_cursor_execute", record_query)
-    assert len(ranking_queries) == 1
+        event.remove(engine.sync_engine, "before_cursor_execute", record_query)
+    assert row_number_queries == []
+    assert len(cutoff_queries) == 1
+    assert affected_project_ids == {project.id}
     async with db() as session:
         surviving_ids = set(
             (
@@ -1002,3 +1029,291 @@ async def test_count_retention_ranks_once_per_sweep_and_breaks_timestamp_ties(
             ).all()
         )
     assert surviving_ids == {newest_trace.id, tied_traces[-1].id}
+
+
+@pytest.mark.parametrize("use_default_policy", [True, False])
+@pytest.mark.parametrize("rule_kind", ["max_days", "max_count", "max_days_or_count"])
+async def test_apply_emits_span_delete_event_only_for_affected_projects(
+    rule_kind: Literal["max_days", "max_count", "max_days_or_count"],
+    use_default_policy: bool,
+    db: DbSessionFactory,
+) -> None:
+    from tests.unit._helpers import _add_project, _add_span, _add_trace
+
+    now = datetime.now(timezone.utc)
+    expected_affected_ids: set[int] = set()
+    all_projects: list[models.Project] = []
+
+    async with db() as session:
+        unaffected_project = await _add_project(session, name=f"unaffected-{token_hex(4)}")
+        all_projects.append(unaffected_project)
+        unaffected_trace = await _add_trace(
+            session, unaffected_project, start_time=now - timedelta(hours=1)
+        )
+        await _add_span(session, trace=unaffected_trace)
+
+        if rule_kind == "max_days":
+            rule = TraceRetentionRule(root=MaxDaysRule(max_days=7))
+            affected_project = await _add_project(session, name=f"days-affected-{token_hex(4)}")
+            all_projects.append(affected_project)
+            expected_affected_ids.add(affected_project.id)
+            expired_trace = await _add_trace(
+                session, affected_project, start_time=now - timedelta(days=10)
+            )
+            await _add_span(session, trace=expired_trace)
+            recent_trace = await _add_trace(
+                session, affected_project, start_time=now - timedelta(hours=1)
+            )
+            await _add_span(session, trace=recent_trace)
+        elif rule_kind == "max_count":
+            rule = TraceRetentionRule(root=MaxCountRule(max_count=1))
+            affected_project = await _add_project(session, name=f"count-affected-{token_hex(4)}")
+            all_projects.append(affected_project)
+            expected_affected_ids.add(affected_project.id)
+            for hour_offset in range(3):
+                trace = await _add_trace(
+                    session,
+                    affected_project,
+                    start_time=now - timedelta(hours=hour_offset),
+                )
+                await _add_span(session, trace=trace)
+        else:
+            rule = TraceRetentionRule(root=MaxDaysOrCountRule(max_days=7, max_count=2))
+            days_project = await _add_project(session, name=f"or-days-{token_hex(4)}")
+            count_project = await _add_project(session, name=f"or-count-{token_hex(4)}")
+            all_projects.extend([days_project, count_project])
+            expected_affected_ids.update({days_project.id, count_project.id})
+            expired_trace = await _add_trace(
+                session, days_project, start_time=now - timedelta(days=10)
+            )
+            await _add_span(session, trace=expired_trace)
+            kept_days_trace = await _add_trace(
+                session, days_project, start_time=now - timedelta(hours=1)
+            )
+            await _add_span(session, trace=kept_days_trace)
+            for hour_offset in range(3):
+                trace = await _add_trace(
+                    session,
+                    count_project,
+                    start_time=now - timedelta(hours=hour_offset),
+                )
+                await _add_span(session, trace=trace)
+
+        if use_default_policy:
+            policy_id = DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
+            default_policy = await session.get(models.ProjectTraceRetentionPolicy, policy_id)
+            assert default_policy is not None
+            default_policy.rule = rule
+            default_policy.cron_expression = TraceRetentionCronExpression(root="0 * * * *")
+            await session.flush()
+        else:
+            custom_policy = models.ProjectTraceRetentionPolicy(
+                name=f"policy-{token_hex(4)}",
+                rule=rule,
+                cron_expression=TraceRetentionCronExpression(root="0 * * * *"),
+                projects=all_projects,
+            )
+            session.add(custom_policy)
+            await session.flush()
+            policy_id = custom_policy.id
+
+    async with db() as session:
+        policy = await session.scalar(
+            sa.select(models.ProjectTraceRetentionPolicy)
+            .where(models.ProjectTraceRetentionPolicy.id == policy_id)
+            .options(
+                selectinload(models.ProjectTraceRetentionPolicy.projects).load_only(
+                    models.Project.id, models.Project.deleted_at
+                )
+            )
+        )
+        assert policy is not None
+
+    dml_event_handler = MagicMock(spec=DmlEventHandler)
+    sweeper = TraceDataSweeper(db=db, dml_event_handler=dml_event_handler)
+
+    await sweeper._apply(policy)
+    assert dml_event_handler.put.call_count == 1
+    emitted_event = dml_event_handler.put.call_args[0][0]
+    assert isinstance(emitted_event, SpanDeleteEvent)
+    assert bool(emitted_event)
+    assert set(emitted_event.ids) == expected_affected_ids
+    assert unaffected_project.id not in emitted_event.ids
+
+    dml_event_handler.reset_mock()
+    await sweeper._apply(policy)
+    assert dml_event_handler.put.call_count == 0
+
+
+@pytest.mark.parametrize("contention_mode", ["yield", "lock_timeout", "deadlock"])
+async def test_max_days_sweep_continues_past_yielding_project(
+    contention_mode: Literal["yield", "lock_timeout", "deadlock"],
+    db: DbSessionFactory,
+) -> None:
+    from phoenix.server.cleanup import primitives as cleanup_primitives
+    from phoenix.server.cleanup.primitives import PrimitiveResult, PrimitiveStatus
+    from tests.unit._helpers import _add_project, _add_span, _add_trace
+
+    class _SqlStateDriverError(Exception):
+        def __init__(self, code: str) -> None:
+            super().__init__(code)
+            self.sqlstate = code
+
+    now = datetime.now(timezone.utc)
+    async with db() as session:
+        contended_project = await _add_project(session, name=f"contended-{token_hex(4)}")
+        contended_trace = await _add_trace(
+            session, contended_project, start_time=now - timedelta(days=10)
+        )
+        await _add_span(session, trace=contended_trace)
+
+        unblocked_project = await _add_project(session, name=f"unblocked-{token_hex(4)}")
+        expired_unblocked_trace = await _add_trace(
+            session, unblocked_project, start_time=now - timedelta(days=8)
+        )
+        await _add_span(session, trace=expired_unblocked_trace)
+        recent_unblocked_trace = await _add_trace(
+            session, unblocked_project, start_time=now - timedelta(hours=1)
+        )
+        await _add_span(session, trace=recent_unblocked_trace)
+
+    real_drain_traces_step = cleanup_primitives.drain_traces_step
+
+    async def yield_on_contended_project(
+        session: Any,
+        *,
+        dialect: Any,
+        trace_cond: sa.ColumnElement[bool],
+        batch_limit: int = 1_000,
+        reset_session_evaluations: bool = False,
+    ) -> PrimitiveResult:
+        next_project_rowid = await session.scalar(
+            sa.select(models.Trace.project_rowid)
+            .where(trace_cond)
+            .order_by(models.Trace.start_time.asc(), models.Trace.id.desc())
+            .limit(1)
+        )
+        if next_project_rowid == contended_project.id:
+            if contention_mode == "yield":
+                return PrimitiveResult(PrimitiveStatus.YIELD, 0)
+            sqlstate = "55P03" if contention_mode == "lock_timeout" else "40P01"
+            raise OperationalError("SELECT 1", {}, _SqlStateDriverError(sqlstate))
+        return await real_drain_traces_step(
+            session,
+            dialect=dialect,
+            trace_cond=trace_cond,
+            batch_limit=batch_limit,
+            reset_session_evaluations=reset_session_evaluations,
+        )
+
+    with patch.object(cleanup_primitives, "drain_traces_step", yield_on_contended_project):
+        affected_project_ids = await MaxDaysRule(max_days=7).delete_traces_in_batches(
+            db, [contended_project.id, unblocked_project.id], batch_size=1
+        )
+
+    async with db() as session:
+        assert await session.get(models.Trace, contended_trace.id) is not None
+        assert await session.get(models.Trace, expired_unblocked_trace.id) is None
+        assert await session.get(models.Trace, recent_unblocked_trace.id) is not None
+    assert affected_project_ids == {unblocked_project.id}
+
+
+async def test_retention_resets_surviving_session_evaluation_work_units(
+    db: DbSessionFactory,
+) -> None:
+    from tests.unit._helpers import _add_project, _add_project_session, _add_span, _add_trace
+
+    now = datetime.now(timezone.utc)
+    async with db() as session:
+        project = await _add_project(session, name=f"session-reset-{token_hex(4)}")
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(root=f"eval-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        session.add(evaluator)
+        await session.flush()
+        project_evaluator = models.ProjectEvaluator(
+            trace_project=models.Project(name=f"eval-sink-{token_hex(8)}", kind="EVALUATOR"),
+            project_id=project.id,
+            evaluator_id=evaluator.id,
+            name=Identifier(root=f"session-criteria-{token_hex(4)}"),
+            filter_condition="",
+            sampling_rate=1.0,
+            evaluation_target="SESSION",
+        )
+        session.add(project_evaluator)
+        await session.flush()
+
+        surviving_session = await _add_project_session(
+            session, project, start_time=now - timedelta(days=10)
+        )
+        expired_trace = await _add_trace(
+            session,
+            project,
+            project_session=surviving_session,
+            start_time=now - timedelta(days=10),
+        )
+        await _add_span(session, trace=expired_trace, start_time=now - timedelta(days=10))
+        recent_trace = await _add_trace(
+            session,
+            project,
+            project_session=surviving_session,
+            start_time=now - timedelta(hours=1),
+        )
+        await _add_span(session, trace=recent_trace, start_time=now - timedelta(hours=1))
+        surviving_work_unit = models.EvalSessionWorkUnit(
+            project_session_rowid=surviving_session.id,
+            project_evaluator_id=project_evaluator.id,
+            decided_through=now - timedelta(hours=1),
+            status="DONE",
+            attempts=1,
+        )
+
+        untouched_session = await _add_project_session(
+            session, project, start_time=now - timedelta(hours=2)
+        )
+        untouched_trace = await _add_trace(
+            session,
+            project,
+            project_session=untouched_session,
+            start_time=now - timedelta(hours=2),
+        )
+        await _add_span(session, trace=untouched_trace, start_time=now - timedelta(hours=2))
+        untouched_work_unit = models.EvalSessionWorkUnit(
+            project_session_rowid=untouched_session.id,
+            project_evaluator_id=project_evaluator.id,
+            decided_through=now - timedelta(hours=2),
+            status="DONE",
+            attempts=1,
+        )
+        session.add_all([surviving_work_unit, untouched_work_unit])
+        await session.flush()
+        surviving_work_unit_id = surviving_work_unit.id
+        untouched_work_unit_id = untouched_work_unit.id
+
+    affected_project_ids = await MaxDaysRule(max_days=7).delete_traces_in_batches(db, [project.id])
+
+    async with db() as session:
+        assert await session.get(models.ProjectSession, surviving_session.id) is not None
+        assert await session.get(models.Trace, expired_trace.id) is None
+        assert await session.get(models.Trace, recent_trace.id) is not None
+        assert (
+            await session.scalar(
+                sa.select(models.EvalSessionWorkUnit.status).where(
+                    models.EvalSessionWorkUnit.id == surviving_work_unit_id
+                )
+            )
+            == "DROPPED"
+        )
+        assert (
+            await session.scalar(
+                sa.select(models.EvalSessionWorkUnit.status).where(
+                    models.EvalSessionWorkUnit.id == untouched_work_unit_id
+                )
+            )
+            == "DONE"
+        )
+    assert affected_project_ids == {project.id}

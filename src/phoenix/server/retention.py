@@ -94,10 +94,12 @@ class TraceDataSweeper(DaemonTask):
                     )
                 )
                 if policy.id == DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
-                else [p.id for p in policy.projects if p.deleted_at is None]
+                else [project.id for project in policy.projects if project.deleted_at is None]
             )
-            result = await policy.rule.delete_traces_in_batches(self._db, project_rowids)
-            self._dml_event_handler.put(SpanDeleteEvent(tuple(result)))
+            if affected_project_ids := await policy.rule.delete_traces_in_batches(
+                self._db, project_rowids
+            ):
+                self._dml_event_handler.put(SpanDeleteEvent(tuple(sorted(affected_project_ids))))
             RETENTION_POLICY_EXECUTIONS.labels(status="success").inc()
         except Exception:
             logger.exception(f"Failed to apply retention policy '{policy.name}' (id={policy.id})")
