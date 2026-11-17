@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { getCustomProviders } from "../useModelMenuData";
+import {
+  getCustomProviders,
+  getDecisionModelProviders,
+} from "../useModelMenuData";
 
 type Edges = Parameters<typeof getCustomProviders>[0]["edges"];
 
@@ -109,6 +112,83 @@ describe("getCustomProviders", () => {
         sdk: "OPENAI",
         modelNames: [],
       },
+    ]);
+  });
+});
+
+type ModelProviderRows = Parameters<
+  typeof getDecisionModelProviders
+>[0]["modelProviders"];
+
+function builtInProvider({
+  key,
+  modelTypes,
+  decisionDependenciesInstalled,
+}: {
+  key: ModelProviderRows[number]["key"];
+  modelTypes: ModelProviderRows[number]["modelTypes"];
+  decisionDependenciesInstalled?: boolean;
+}): ModelProviderRows[number] {
+  return {
+    key,
+    name: key,
+    dependenciesInstalled: true,
+    decisionDependenciesInstalled,
+    credentialsSet: true,
+    modelTypes,
+  };
+}
+
+describe("getDecisionModelProviders", () => {
+  it("lists only providers that offer decision models", () => {
+    const providers = getDecisionModelProviders({
+      modelProviders: [
+        builtInProvider({ key: "ANTHROPIC", modelTypes: ["CHAT"] }),
+        builtInProvider({
+          key: "TYPESAFE",
+          modelTypes: ["DECISION"],
+          decisionDependenciesInstalled: true,
+        }),
+        builtInProvider({
+          key: "OPENAI",
+          modelTypes: ["CHAT", "DECISION"],
+          decisionDependenciesInstalled: true,
+        }),
+      ],
+      localCredentials: {},
+    });
+    expect(providers.map((provider) => provider.key)).toEqual([
+      "TYPESAFE",
+      "OPENAI",
+    ]);
+  });
+
+  it("enables a provider only when its decision client dependencies are installed", () => {
+    const providers = getDecisionModelProviders({
+      modelProviders: [
+        builtInProvider({
+          key: "OPENAI",
+          modelTypes: ["CHAT", "DECISION"],
+          decisionDependenciesInstalled: true,
+        }),
+        builtInProvider({
+          key: "GOOGLE",
+          modelTypes: ["CHAT", "DECISION"],
+          decisionDependenciesInstalled: false,
+        }),
+        builtInProvider({ key: "TYPESAFE", modelTypes: ["DECISION"] }),
+      ],
+      localCredentials: {},
+    });
+    expect(
+      providers.map(({ key, dependenciesInstalled }) => ({
+        key,
+        dependenciesInstalled,
+      }))
+    ).toEqual([
+      { key: "OPENAI", dependenciesInstalled: true },
+      { key: "GOOGLE", dependenciesInstalled: false },
+      { key: "TYPESAFE", dependenciesInstalled: false },
     ]);
   });
 });

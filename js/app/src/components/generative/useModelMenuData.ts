@@ -30,6 +30,9 @@ export type CustomProviderInfo = {
 type CustomProviderEdge =
   useModelMenuDataQuery["response"]["generativeModelCustomProviders"]["edges"][number];
 
+type ModelProviderRow =
+  useModelMenuDataQuery["response"]["modelProviders"][number];
+
 export function getCustomProviders({
   edges,
   modelType,
@@ -138,6 +141,33 @@ export function getModelsByProvider(
 export type ModelCredentialSource = "any" | "server";
 
 /** Surfaces that preload and retain the catalog can let nested pickers reuse it. */
+/**
+ * The built-in providers to list for decision models: those that offer them,
+ * including decision-only providers (TypeSafe) that the chat lists leave out.
+ * A provider is enabled only when its decision client's dependencies are
+ * installed, which can differ from its chat client's.
+ * @param params.modelProviders - built-in providers, as the query returns them
+ * @param params.localCredentials - credentials saved in the browser
+ */
+export function getDecisionModelProviders({
+  modelProviders,
+  localCredentials,
+}: {
+  modelProviders: readonly ModelProviderRow[];
+  localCredentials: LocalProviderCredentials;
+}): ModelProviderInfo[] {
+  return modelProviders
+    .filter((provider) => provider.modelTypes.includes("DECISION"))
+    .map((provider) => ({
+      ...provider,
+      dependenciesInstalled: provider.decisionDependenciesInstalled ?? false,
+      needsCredentials: providerNeedsCredentials({
+        provider,
+        localCredentials,
+      }),
+    }));
+}
+
 export const ModelMenuFetchPolicyContext =
   createContext<FetchPolicy>("store-and-network");
 
@@ -353,19 +383,10 @@ export function useModelMenuData({
   // disabled.
   const visibleProviders = useMemo<ModelProviderInfo[]>(() => {
     if (modelType === "DECISION") {
-      // Decision-only providers (TypeSafe), which the chat lists leave out, are
-      // included, and each provider's decision client dependency is checked.
-      return data.modelProviders
-        .filter((provider) => provider.modelTypes.includes("DECISION"))
-        .map((provider) => ({
-          ...provider,
-          dependenciesInstalled:
-            provider.decisionDependenciesInstalled ?? false,
-          needsCredentials: providerNeedsCredentials({
-            provider,
-            localCredentials,
-          }),
-        }));
+      return getDecisionModelProviders({
+        modelProviders: data.modelProviders,
+        localCredentials,
+      });
     }
     if (hasProvisionedProvider) {
       return readyProviders.filter((provider) =>
