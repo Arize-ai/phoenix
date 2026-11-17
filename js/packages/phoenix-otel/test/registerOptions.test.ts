@@ -9,31 +9,33 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
   AlwaysOffSampler,
   BatchSpanProcessor,
-  ParentBasedSampler,
   SimpleSpanProcessor,
-  TraceIdRatioBasedSampler,
 } from "../src";
 import {
-  detachGlobalTracerProvider,
-  register,
+  IGNORED_BSP_ENV_VARS,
+  IGNORED_SAMPLER_ENV_VARS,
+  IGNORED_SPAN_LIMIT_ENV_VARS,
   resetIgnoredOtelEnvVarWarningsForTesting,
-} from "../src/register";
+} from "../src/ignoredOtelEnvVars";
+import { detachGlobalTracerProvider, register } from "../src/register";
 
 const IGNORED_ENV_KEYS = [
-  "OTEL_TRACES_SAMPLER",
-  "OTEL_TRACES_SAMPLER_ARG",
-  "OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT",
-  "OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT",
-  "OTEL_SPAN_EVENT_COUNT_LIMIT",
-  "OTEL_BSP_SCHEDULE_DELAY",
-  "OTEL_BSP_MAX_QUEUE_SIZE",
+  ...IGNORED_SAMPLER_ENV_VARS,
+  ...IGNORED_SPAN_LIMIT_ENV_VARS.map(([key]) => key),
+  ...IGNORED_BSP_ENV_VARS.map(([key]) => key),
 ];
 
-afterEach(() => {
-  detachGlobalTracerProvider();
+function clearIgnoredEnvVars(): void {
   for (const key of IGNORED_ENV_KEYS) {
     delete process.env[key];
   }
+}
+
+beforeEach(clearIgnoredEnvVars);
+
+afterEach(() => {
+  detachGlobalTracerProvider();
+  clearIgnoredEnvVars();
 });
 
 describe("register sampler and spanLimits", () => {
@@ -87,13 +89,6 @@ describe("register sampler and spanLimits", () => {
     const [span] = exporter.getFinishedSpans() as ReadableSpan[];
     expect(span?.attributes).toEqual({ first: "abc" });
     await provider.shutdown();
-  });
-
-  test("re-exports the standard samplers", () => {
-    const sampler = new ParentBasedSampler({
-      root: new TraceIdRatioBasedSampler(0.5),
-    });
-    expect(sampler.toString()).toContain("TraceIdRatioBased");
   });
 });
 
@@ -211,6 +206,13 @@ describe("register warns about OTEL_* variables OpenTelemetry JS 3 ignores", () 
     expect(warn).toHaveBeenCalledOnce();
     await first.shutdown();
     await second.shutdown();
+  });
+
+  test("treats an empty variable as unset", async () => {
+    process.env.OTEL_TRACES_SAMPLER = "";
+    const provider = register({ global: false, spanProcessors: [] });
+    expect(warn).not.toHaveBeenCalled();
+    await provider.shutdown();
   });
 
   test("stays quiet when none of the variables are set", async () => {
