@@ -84,6 +84,27 @@ describe("CustomProviderForm decision models", () => {
     expect(container.textContent).not.toContain("Decision client");
   });
 
+  it("names each section by its own heading", () => {
+    render();
+    const sectionNames = [...container.querySelectorAll("section")].map(
+      (section) => {
+        const headingId = section.getAttribute("aria-labelledby");
+        return headingId
+          ? document.getElementById(headingId)?.textContent
+          : undefined;
+      }
+    );
+    expect(sectionNames).toEqual([
+      "Connection",
+      "Chat models",
+      "Decision models",
+    ]);
+    const headings = [...container.querySelectorAll("h3")].map(
+      (heading) => heading.textContent
+    );
+    expect(headings).not.toContain("Provider");
+  });
+
   it("shows only the decision heading while decision models are off", () => {
     render();
     const section = [...container.querySelectorAll("section")].find(

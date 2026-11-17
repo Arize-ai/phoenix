@@ -220,9 +220,19 @@ const formCSS = css`
 `;
 
 const formBodyCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-300);
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  padding: var(--global-dimension-size-200);
+`;
+
+const providerIdentityFieldsCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-100);
 `;
 
 const OPENAI_OPTIONAL_FIELDS = [
@@ -1181,7 +1191,7 @@ export const ProviderForm = ({
       validationBehavior="aria"
     >
       <div css={formBodyCSS}>
-        <ProviderFormSection title="Provider">
+        <div css={providerIdentityFieldsCSS}>
           <Controller
             name="name"
             control={control}
@@ -1243,7 +1253,7 @@ export const ProviderForm = ({
               )}
             />
           </Flex>
-        </ProviderFormSection>
+        </div>
 
         <ConnectionSection
           // Keys are unique among siblings; a shared one leaves stale sections
