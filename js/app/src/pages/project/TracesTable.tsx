@@ -415,11 +415,14 @@ export function TracesTable(props: TracesTableProps) {
           }
           traceFilterCondition: { type: "String", defaultValue: null }
           numDescendants: { type: "Int", defaultValue: 50 }
+          includeAnnotationNames: { type: "Boolean", defaultValue: true }
         ) {
           id
           name
           ...ProjectAnnotationConfigsByNameFragment
-          ...useSpanAnnotationNames_project @defer
+          ...useSpanAnnotationNames_project
+            @defer
+            @include(if: $includeAnnotationNames)
           rootSpans: spans(
             first: $first
             after: $after

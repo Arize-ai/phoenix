@@ -369,3 +369,70 @@ describe("SpansTable span annotation names", () => {
     ]);
   });
 });
+
+describe("SpansTable next page", () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        observe() {}
+        disconnect() {}
+      }
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("loads the next page without asking for the annotation names again", async () => {
+    const load = createStreamingMultipartResponse();
+    authFetchMock.mockResolvedValueOnce(load.response).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          data: {
+            node: {
+              ...ROWS_PART.data.project,
+              spans: {
+                edges: [makeSpanEdge(3)],
+                pageInfo: { endCursor: "cursor-3", hasNextPage: false },
+              },
+            },
+          },
+        }),
+        { headers: { "Content-Type": "application/json" } }
+      )
+    );
+    await renderTable();
+    load.sendPart({
+      ...ROWS_PART,
+      data: {
+        project: {
+          ...ROWS_PART.data.project,
+          spans: {
+            ...ROWS_PART.data.project.spans,
+            pageInfo: { endCursor: "cursor-2", hasNextPage: true },
+          },
+        },
+      },
+    });
+    load.sendPart(NAMES_PART);
+    load.end();
+    await settle();
+
+    const loadMoreButton = [...container.querySelectorAll("button")].find(
+      (button) => button.textContent === "Load More"
+    );
+    await act(async () => loadMoreButton?.click());
+    await settle();
+
+    expect(authFetchMock).toHaveBeenCalledTimes(2);
+    const { variables } = JSON.parse(authFetchMock.mock.calls[1][1].body);
+    expect(variables).toMatchObject({
+      after: "cursor-2",
+      includeAnnotationNames: false,
+    });
+    expect(readRowNames()).toEqual(["span-1", "span-2", "span-3"]);
+    expect(readColumnHeaders()).toContain("correctness");
+  });
+});

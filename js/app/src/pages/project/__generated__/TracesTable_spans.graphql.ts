@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9fa6db2057d76bbba8ee738533342e03>>
+ * @generated SignedSource<<1462fc0d7c7ed4bacb1d0c78ff58a026>>
  * @lightSyntaxTransform
  */
 
@@ -281,6 +281,11 @@ return {
       "kind": "LocalArgument",
       "name": "first"
     },
+    {
+      "defaultValue": true,
+      "kind": "LocalArgument",
+      "name": "includeAnnotationNames"
+    },
     (v0/*:: as any*/),
     {
       "defaultValue": {
@@ -339,29 +344,36 @@ return {
       "name": "ProjectAnnotationConfigsByNameFragment"
     },
     {
-      "kind": "Defer",
+      "condition": "includeAnnotationNames",
+      "kind": "Condition",
+      "passingValue": true,
       "selections": [
         {
-          "kind": "InlineDataFragmentSpread",
-          "name": "useSpanAnnotationNames_project",
+          "kind": "Defer",
           "selections": [
             {
-              "alias": null,
+              "kind": "InlineDataFragmentSpread",
+              "name": "useSpanAnnotationNames_project",
+              "selections": [
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "spanAnnotationNames",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "traceAnnotationNames",
+                  "storageKey": null
+                }
+              ],
               "args": null,
-              "kind": "ScalarField",
-              "name": "spanAnnotationNames",
-              "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "traceAnnotationNames",
-              "storageKey": null
+              "argumentDefinitions": []
             }
-          ],
-          "args": null,
-          "argumentDefinitions": []
+          ]
         }
       ]
     },
@@ -672,6 +684,6 @@ return {
 };
 })();
 
-(node as any).hash = "7f4809782af0bdc05fabc6dbf3b2afa5";
+(node as any).hash = "a1d2b0d6a7dffc9c103298aa2f961b0c";
 
 export default node;

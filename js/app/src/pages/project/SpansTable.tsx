@@ -381,9 +381,12 @@ export function SpansTable(props: SpansTableProps) {
           }
           filterCondition: { type: "String", defaultValue: null }
           projectEvaluatorId: { type: "ID", defaultValue: null }
+          includeAnnotationNames: { type: "Boolean", defaultValue: true }
         ) {
           name
-          ...useSpanAnnotationNames_project @defer
+          ...useSpanAnnotationNames_project
+            @defer
+            @include(if: $includeAnnotationNames)
           ...ProjectAnnotationConfigsByNameFragment
           spans(
             first: $first
