@@ -55,6 +55,8 @@ def railway(query: str, **variables: Any) -> dict[str, Any]:
         headers={
             "Content-Type": "application/json",
             "Project-Access-Token": os.environ["RAILWAY_TOKEN"],
+            # Railway's Cloudflare front rejects urllib's default user agent with a 403.
+            "User-Agent": "phoenix-factory-preview",
         },
     )
     try:
