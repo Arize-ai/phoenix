@@ -1,4 +1,3 @@
-import logging
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, replace
 from datetime import datetime
@@ -26,8 +25,6 @@ from phoenix.db.helpers import SupportedSQLDialect, random_project_gradient
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.trace.attributes import get_attribute_value
 from phoenix.trace.schemas import Span, SpanEvent, SpanKind, SpanStatusCode
-
-logger = logging.getLogger(__name__)
 
 
 class SpanInsertionEvent(NamedTuple):

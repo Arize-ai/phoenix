@@ -497,11 +497,13 @@ class DatasetMutationMixin:
             if locked_dataset is None:
                 raise NotFound(f"Unknown dataset: {input.dataset_id}")
             eval_trace_ids = [
-                tid for tid in (await session.scalars(eval_trace_ids_stmt)).all() if tid
+                trace_id
+                for trace_id in (await session.scalars(eval_trace_ids_stmt)).all()
+                if trace_id
             ]
             candidate_project_ids = {
-                pid
-                for pid in (
+                project_id
+                for project_id in (
                     await session.scalars(
                         select(models.Experiment.project_id).where(
                             models.Experiment.dataset_id == dataset_id,
@@ -509,7 +511,7 @@ class DatasetMutationMixin:
                         )
                     )
                 ).all()
-                if pid is not None
+                if project_id is not None
             }
             live_binding_ids = list(
                 await session.scalars(

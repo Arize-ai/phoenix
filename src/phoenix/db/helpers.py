@@ -6,7 +6,6 @@ from typing import Any, Literal, Optional, Sequence, TypeVar, TypeVarTuple, Unio
 
 import sqlalchemy as sa
 from sqlalchemy import (
-    ColumnElement,
     Insert,
     Select,
     SQLColumnExpression,
@@ -30,7 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import QueryableAttribute, aliased
 from sqlalchemy.sql.roles import InElementRole
 from sqlalchemy.sql.selectable import CTE, Subquery
-from typing_extensions import TypeAlias, assert_never
+from typing_extensions import assert_never
 
 from phoenix.config import (
     get_env_database_schema,
@@ -163,28 +162,12 @@ def get_eval_trace_ids_for_datasets(*dataset_ids: int) -> Select[Optional[str]]:
     )
 
 
-def get_project_names_for_datasets(*dataset_ids: int) -> Select[Optional[str]]:
-    return (
-        select(distinct(models.Experiment.project_name))
-        .where(models.Experiment.dataset_id.in_(set(dataset_ids)))
-        .where(models.Experiment.project_name.isnot(None))
-    )
-
-
 def get_eval_trace_ids_for_experiments(*experiment_ids: int) -> Select[Optional[str]]:
     return (
         select(distinct(models.ExperimentRunAnnotation.trace_id))
         .join(models.ExperimentRun)
         .where(models.ExperimentRun.experiment_id.in_(set(experiment_ids)))
         .where(models.ExperimentRunAnnotation.trace_id.isnot(None))
-    )
-
-
-def get_project_names_for_experiments(*experiment_ids: int) -> Select[Optional[str]]:
-    return (
-        select(distinct(models.Experiment.project_name))
-        .where(models.Experiment.id.in_(set(experiment_ids)))
-        .where(models.Experiment.project_name.isnot(None))
     )
 
 
@@ -452,35 +435,6 @@ def exclude_project_evaluator_trace_projects(
             .exists(),
         )
     )
-
-
-ProjectKind: TypeAlias = Literal["STANDARD", "PLAYGROUND", "EXPERIMENT", "EVALUATOR"]
-
-
-def project_kind_expression() -> ColumnElement[ProjectKind]:
-    """The stored classification of what writes a project's traces."""
-    return models.Project.kind.expression.expression
-
-
-async def delete_projects_and_evaluator_trace_projects(
-    session: AsyncSession,
-    project_ids: Iterable[int],
-) -> None:
-    ids = set(project_ids)
-    if not ids:
-        return
-    trace_project_ids = (
-        await session.scalars(
-            select(models.ProjectEvaluator.trace_project_id).where(
-                models.ProjectEvaluator.project_id.in_(ids)
-            )
-        )
-    ).all()
-    await session.execute(sa.delete(models.Project).where(models.Project.id.in_(ids)))
-    if trace_project_ids:
-        await session.execute(
-            sa.delete(models.Project).where(models.Project.id.in_(trace_project_ids))
-        )
 
 
 def date_trunc(

@@ -15,7 +15,9 @@ class ProjectIsClearingTracesDataLoader(DataLoader[Key, Result]):
         self._db = db
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
-        pid = models.ProjectClearCleanupTask.project_id
+        project_id_column = models.ProjectClearCleanupTask.project_id
         async with self._db.read() as session:
-            clearing = set(await session.scalars(select(pid).where(pid.in_(keys))))
+            clearing = set(
+                await session.scalars(select(project_id_column).where(project_id_column.in_(keys)))
+            )
         return [key in clearing for key in keys]
