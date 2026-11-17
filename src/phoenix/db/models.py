@@ -4920,35 +4920,39 @@ class DatasetEvaluatorCleanupTask(CleanupTask):
     )
 
 
-def _read_sqlite_trace_max_rowid(conn: sa.Connection) -> int:
-    table_max = int(conn.scalar(select(func.coalesce(func.max(Trace.id), 0))) or 0)
-    stored = conn.scalar(
-        select(SystemState.value).where(SystemState.key == SQLITE_TRACE_ROWID_STATE_KEY)
+def _advance_sqlite_trace_rowid_floor(
+    conn: sa.Connection,
+    *,
+    count: int = 0,
+    floor: int = 0,
+) -> int:
+    table_floor = select(func.coalesce(func.max(Trace.id), 0)).scalar_subquery()
+    stored_floor = func.coalesce(func.json_extract(SystemState.value, "$.max_id"), 0)
+    insert_base = func.max(table_floor, floor)
+    update_base = func.max(table_floor, stored_floor, floor)
+    stmt = (
+        sqlite_insert(SystemState)
+        .values(
+            key=SQLITE_TRACE_ROWID_STATE_KEY,
+            value=func.json_object("max_id", insert_base + count),
+        )
+        .on_conflict_do_update(
+            index_elements=["key"],
+            set_={"value": func.json_object("max_id", update_base + count)},
+        )
+        .returning(func.json_extract(SystemState.value, "$.max_id"))
     )
-    stored_max = int(stored["max_id"]) if isinstance(stored, dict) and "max_id" in stored else 0
-    return max(table_max, stored_max)
-
-
-def _write_sqlite_trace_max_rowid(conn: sa.Connection, max_rowid: int) -> None:
-    stmt = sqlite_insert(SystemState).values(
-        key=SQLITE_TRACE_ROWID_STATE_KEY,
-        value={"max_id": max_rowid},
-    )
-    stmt = stmt.on_conflict_do_update(
-        index_elements=["key"],
-        set_={"value": {"max_id": max_rowid}},
-    )
-    conn.execute(stmt)
+    new_max = conn.scalar(stmt)
+    assert isinstance(new_max, int)
+    return new_max
 
 
 def allocate_sqlite_trace_rowids_sync(conn: sa.Connection, count: int) -> list[int]:
     """Allocate ``count`` monotonic SQLite ``traces.id`` values inside ``conn``'s transaction."""
     if count <= 0:
         return []
-    base = _read_sqlite_trace_max_rowid(conn)
-    new_max = base + count
-    _write_sqlite_trace_max_rowid(conn, new_max)
-    return list(range(base + 1, new_max + 1))
+    new_max = _advance_sqlite_trace_rowid_floor(conn, count=count)
+    return list(range(new_max - count + 1, new_max + 1))
 
 
 async def allocate_sqlite_trace_rowid(session: AsyncSession) -> int:
@@ -4962,13 +4966,7 @@ async def capture_trace_max_rowid(session: AsyncSession) -> int:
     """Capture the current global ``traces.id`` watermark, pinning SQLite's monotonic floor."""
     conn = await session.connection()
     if conn.dialect.name == "sqlite":
-
-        def _pin(sync_conn: sa.Connection) -> int:
-            watermark = _read_sqlite_trace_max_rowid(sync_conn)
-            _write_sqlite_trace_max_rowid(sync_conn, watermark)
-            return watermark
-
-        return await conn.run_sync(_pin)
+        return await conn.run_sync(_advance_sqlite_trace_rowid_floor)
     return int((await session.scalar(select(func.coalesce(func.max(Trace.id), 0)))) or 0)
 
 
@@ -4986,11 +4984,13 @@ def _assign_sqlite_trace_rowids_on_flush(
         return
     unassigned = [trace for trace in new_traces if trace.id is None]
     explicit_max = max((trace.id for trace in new_traces if trace.id is not None), default=0)
-    current_floor = max(_read_sqlite_trace_max_rowid(conn), explicit_max)
-    if unassigned:
-        new_max = current_floor + len(unassigned)
-        for offset, trace in enumerate(unassigned, start=1):
-            trace.id = current_floor + offset
-        _write_sqlite_trace_max_rowid(conn, new_max)
-    elif explicit_max > 0:
-        _write_sqlite_trace_max_rowid(conn, current_floor)
+    if not unassigned and explicit_max <= 0:
+        return
+    new_max = _advance_sqlite_trace_rowid_floor(
+        conn,
+        count=len(unassigned),
+        floor=explicit_max,
+    )
+    base = new_max - len(unassigned)
+    for offset, trace in enumerate(unassigned, start=1):
+        trace.id = base + offset
