@@ -1,5 +1,5 @@
 import { type ReactNode, Suspense, useId, useState } from "react";
-import { graphql, useLazyLoadQuery } from "react-relay";
+import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
 import { Group, Panel } from "react-resizable-panels";
 import type { LegendPayload, TooltipContentProps } from "recharts";
 import {
@@ -17,6 +17,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import invariant from "tiny-invariant";
 
 import {
   Alert,
@@ -64,11 +65,11 @@ import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
+import type { ServerEvaluationCharts_queueSize$key } from "@phoenix/pages/evaluators/project-evaluators/__generated__/ServerEvaluationCharts_queueSize.graphql";
 import type {
   ServerEvaluationChartsQuery,
   ServerEvaluationChartsQuery$data,
 } from "@phoenix/pages/evaluators/project-evaluators/__generated__/ServerEvaluationChartsQuery.graphql";
-import type { ServerEvaluationQueueSizeChartQuery } from "@phoenix/pages/evaluators/project-evaluators/__generated__/ServerEvaluationQueueSizeChartQuery.graphql";
 import {
   formatQueueGrowthSummary,
   getAddedCount,
@@ -108,38 +109,33 @@ type Activity = ActivityData["evaluationActivity"];
 /** The top of an area's fill, fading to nothing at the baseline. */
 const AREA_FILL_TOP_OPACITY = 0.3;
 
-/** The selected range and its bins, as the activity requests take them. */
-function useServerEvaluationActivityVariables() {
-  const timeRange = useClosedTimeRange();
-  const scale = useTimeBinScale({ timeRange });
-  const utcOffsetMinutes = useUTCOffsetMinutes();
-  const variables = {
-    timeRange: {
-      start: timeRange.start.toISOString(),
-      end: timeRange.end.toISOString(),
-    },
-    timeBinConfig: { scale, utcOffsetMinutes },
-  };
-  return { timeRange, scale, variables };
-}
-
 /**
  * The server's evaluation activity over the selected range, grouped by
  * project, with the evaluations in the queue now. The charts and the queue
- * strip's cost read the same request.
+ * strip's cost read the same request. When a selected chart reads the queue
+ * size, it arrives in a deferred part of the response, so the other charts
+ * don't wait on it: it reads every evaluation in queue.
  */
 export function useServerEvaluationActivity({
   fetchKey,
 }: {
   fetchKey: string;
 }) {
-  const { timeRange, scale, variables } =
-    useServerEvaluationActivityVariables();
+  const timeRange = useClosedTimeRange();
+  const scale = useTimeBinScale({ timeRange });
+  const utcOffsetMinutes = useUTCOffsetMinutes();
+  const chartKeys = usePreferencesContext(
+    (state) => state.serverEvaluationChartKeys
+  );
+  const includeQueueSize = getServerEvaluationCharts(chartKeys).some(
+    (chart) => chart.readsQueueSize
+  );
   const data = useLazyLoadQuery<ServerEvaluationChartsQuery>(
     graphql`
       query ServerEvaluationChartsQuery(
         $timeRange: TimeRange!
         $timeBinConfig: TimeBinConfig!
+        $includeQueueSize: Boolean!
       ) {
         evaluationQueue {
           queuedCount
@@ -175,66 +171,72 @@ export function useServerEvaluationActivity({
             }
           }
         }
+        ...ServerEvaluationCharts_queueSize
+          @defer
+          @arguments(
+            timeRange: $timeRange
+            timeBinConfig: $timeBinConfig
+            includeQueueSize: $includeQueueSize
+          )
       }
     `,
-    variables,
+    {
+      timeRange: {
+        start: timeRange.start.toISOString(),
+        end: timeRange.end.toISOString(),
+      },
+      timeBinConfig: { scale, utcOffsetMinutes },
+      includeQueueSize,
+    },
     { fetchKey, fetchPolicy: "store-and-network" }
   );
-  return { data, timeRange, scale, variables };
+  return { data, timeRange, scale };
 }
 
-type QueueSizeVariables = ReturnType<
-  typeof useServerEvaluationActivityVariables
->["variables"] & { fetchKey: string };
-
 /**
- * The evaluations in queue at each bin's end, keyed by the bin's start. A
- * request of its own, so the other charts don't wait on it: it reads every
- * evaluation in queue. It shares the activity request's bins in the Relay
- * store, which is safe because it only adds a value to each bin.
+ * The evaluations in queue at each bin's end, keyed by the bin's start.
+ * Suspends until the deferred part of the activity response arrives.
  */
-function useQueueSizeByTimestamp({
-  fetchKey,
-  timeRange,
-  timeBinConfig,
-}: QueueSizeVariables): Map<number, number> {
-  const data = useLazyLoadQuery<ServerEvaluationQueueSizeChartQuery>(
+function useQueueSizeByTimestamp(
+  queueSizeRef: ServerEvaluationCharts_queueSize$key
+): Map<number, number> {
+  const { queueSizeActivity } = useFragment(
     graphql`
-      query ServerEvaluationQueueSizeChartQuery(
-        $timeRange: TimeRange!
-        $timeBinConfig: TimeBinConfig!
+      fragment ServerEvaluationCharts_queueSize on Query
+      @argumentDefinitions(
+        timeRange: { type: "TimeRange!" }
+        timeBinConfig: { type: "TimeBinConfig!" }
+        includeQueueSize: { type: "Boolean!" }
       ) {
-        evaluationActivity(
+        # Aliased so the server resolves it apart from the activity above and
+        # reads only the queue size, instead of merging the two selections.
+        # The Relay store keeps both on the same records, which is safe
+        # because this only adds a value to each bin.
+        queueSizeActivity: evaluationActivity(
           timeRange: $timeRange
           timeBinConfig: $timeBinConfig
-        ) {
+        ) @include(if: $includeQueueSize) {
           series {
             timestamp
-            queueSize
+            # A failed deferred part leaves it unset, and Relay only logs the
+            # error, so throw instead of drawing an empty queue.
+            queueSize @required(action: THROW)
           }
         }
       }
     `,
-    { timeRange, timeBinConfig },
-    { fetchKey, fetchPolicy: "store-and-network" }
+    queueSizeRef
+  );
+  invariant(
+    queueSizeActivity != null,
+    "Queue size is read only by charts that request it"
   );
   return new Map(
-    data.evaluationActivity.series.map((bin) => [
+    queueSizeActivity.series.map((bin) => [
       new Date(bin.timestamp).getTime(),
       bin.queueSize,
     ])
   );
-}
-
-/**
- * Starts the queue size request beside the activity request. The charts read
- * queue size only once activity has loaded, so without this the two requests
- * run one after the other. Renders nothing: the charts read the same request.
- */
-function QueueSizePreload({ fetchKey }: { fetchKey: string }) {
-  const { variables } = useServerEvaluationActivityVariables();
-  useQueueSizeByTimestamp({ ...variables, fetchKey });
-  return null;
 }
 
 /** A project series' color: the next palette color by rank, gray for the rest. */
@@ -264,10 +266,7 @@ export function ServerEvaluationChartsPanelGroup({
   );
   const charts = getServerEvaluationCharts(chartKeys);
   const hasCharts = charts.length > 0;
-  const readsQueueSize = charts.some((chart) => chart.readsQueueSize);
   const { timeRangeISOStrings } = useTimeRange();
-  // Retry after an error once the page refetches or the range changes.
-  const errorResetKey = `${fetchKey} ${timeRangeISOStrings.start} ${timeRangeISOStrings.end}`;
   const chartsLayout = useMetricChartsLayout({
     id: "server-evaluations-metrics-layout",
     isChartsPanelShown: hasCharts,
@@ -282,8 +281,9 @@ export function ServerEvaluationChartsPanelGroup({
             paddingTop="size-100"
             height="100%"
           >
+            {/* Retries after an error once the page refetches or the range changes. */}
             <ErrorBoundary
-              resetKey={errorResetKey}
+              resetKey={`${fetchKey} ${timeRangeISOStrings.start} ${timeRangeISOStrings.end}`}
               fallback={() => (
                 <Alert variant="danger">Couldn't load the charts</Alert>
               )}
@@ -292,18 +292,6 @@ export function ServerEvaluationChartsPanelGroup({
                 <ServerEvaluationCharts fetchKey={fetchKey} charts={charts} />
               </Suspense>
             </ErrorBoundary>
-            {readsQueueSize && (
-              // The charts that read queue size show and report its errors.
-              <ErrorBoundary
-                resetKey={errorResetKey}
-                fallback={() => null}
-                isExpectedError={() => true}
-              >
-                <Suspense fallback={null}>
-                  <QueueSizePreload fetchKey={fetchKey} />
-                </Suspense>
-              </ErrorBoundary>
-            )}
           </View>
         </MetricChartsPanel>
       )}
@@ -352,7 +340,7 @@ function ServerEvaluationCharts({
   fetchKey: string;
   charts: ServerEvaluationChart[];
 }) {
-  const { data, timeRange, scale, variables } = useServerEvaluationActivity({
+  const { data, timeRange, scale } = useServerEvaluationActivity({
     fetchKey,
   });
   const projectSeries = getServerProjectSeries(data.evaluationActivity.groups);
@@ -366,7 +354,7 @@ function ServerEvaluationCharts({
     data,
     projectSeries,
     xAxisProps,
-    queueSizeVariables: { ...variables, fetchKey },
+    queueSizeRef: data,
   };
   return (
     <ChartPanelStrip chartCount={charts.length}>
@@ -390,7 +378,7 @@ type ChartContext = {
   data: ActivityData;
   projectSeries: ServerProjectSeries;
   xAxisProps: XAxisOverrides;
-  queueSizeVariables: QueueSizeVariables;
+  queueSizeRef: ServerEvaluationCharts_queueSize$key;
 };
 
 function ServerEvaluationChartPanel({
@@ -400,7 +388,7 @@ function ServerEvaluationChartPanel({
   chart: ServerEvaluationChart;
   context: ChartContext;
 }) {
-  const { data, projectSeries, xAxisProps, queueSizeVariables } = context;
+  const { data, projectSeries, xAxisProps, queueSizeRef } = context;
   const activity = data.evaluationActivity;
   const panel = (subtitle: string | undefined, content: ReactNode) => (
     <ChartPanel
@@ -423,7 +411,7 @@ function ServerEvaluationChartPanel({
         <QueueThroughputChart
           activity={activity}
           xAxisProps={xAxisProps}
-          queueSizeVariables={queueSizeVariables}
+          queueSizeRef={queueSizeRef}
         />
       );
     case "queueSize":
@@ -432,7 +420,7 @@ function ServerEvaluationChartPanel({
         <QueueSizeChart
           activity={activity}
           xAxisProps={xAxisProps}
-          queueSizeVariables={queueSizeVariables}
+          queueSizeRef={queueSizeRef}
         />
       );
     case "lagByProject":
@@ -604,13 +592,13 @@ function QueueThroughputTooltipContent({
 function QueueThroughputChart({
   activity,
   xAxisProps,
-  queueSizeVariables,
+  queueSizeRef,
 }: {
   activity: Activity;
   xAxisProps: XAxisOverrides;
-  queueSizeVariables: QueueSizeVariables;
+  queueSizeRef: ServerEvaluationCharts_queueSize$key;
 }) {
-  const queueSizeByTimestamp = useQueueSizeByTimestamp(queueSizeVariables);
+  const queueSizeByTimestamp = useQueueSizeByTimestamp(queueSizeRef);
   const grayscaleColors = useGrayscaleCategoricalColors();
   const sequentialColors = useSequentialChartColors();
   const addedColor = grayscaleColors.gray1;
@@ -702,13 +690,13 @@ function QueueThroughputChart({
 function QueueSizeChart({
   activity,
   xAxisProps,
-  queueSizeVariables,
+  queueSizeRef,
 }: {
   activity: Activity;
   xAxisProps: XAxisOverrides;
-  queueSizeVariables: QueueSizeVariables;
+  queueSizeRef: ServerEvaluationCharts_queueSize$key;
 }) {
-  const queueSizeByTimestamp = useQueueSizeByTimestamp(queueSizeVariables);
+  const queueSizeByTimestamp = useQueueSizeByTimestamp(queueSizeRef);
   const sequentialColors = useSequentialChartColors();
   const grayscaleColors = useGrayscaleCategoricalColors();
   const queueSizeColor = sequentialColors.blue500;

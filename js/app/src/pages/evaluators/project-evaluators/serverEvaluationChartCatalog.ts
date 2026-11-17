@@ -13,7 +13,7 @@ export type ServerEvaluationChart =
   ChartSelectorOption<ServerEvaluationChartKey> & {
     /** What the chart shows, behind an info icon beside its title. */
     help: string;
-    /** Whether the chart reads the queue size, a request of its own. */
+    /** Whether the chart reads the queue size, a deferred part of the request. */
     readsQueueSize?: boolean;
   };
 
