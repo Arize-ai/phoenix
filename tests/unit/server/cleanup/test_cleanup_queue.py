@@ -61,7 +61,6 @@ from phoenix.server.online_eval.clock import current_database_time
 from phoenix.server.online_eval.coordinator import (
     CLAIM_LEASE_TTL_SECONDS,
     EvalWorkCoordinator,
-    PublicationClaimLostError,
     PublicationEvaluatorDisabledError,
     recover_lapsed_claims,
 )
@@ -949,14 +948,23 @@ class TestWatermarkClearAndOverlap:
                 == "DONE"
             )
 
-    async def test_range_clear_fences_in_flight_and_queued_session_evaluations(
+    async def test_range_clear_resets_final_session_decisions_while_preserving_queued_work(
         self, db: DbSessionFactory
     ) -> None:
         dialect = SupportedSQLDialect(db.dialect.value)
         base_time = datetime(2026, 6, 2, 6, 0, 0, tzinfo=timezone.utc)
+        final_decision_statuses: tuple[models.EvalWorkStatus, ...] = (
+            "DONE",
+            "FILTERED_OUT",
+            "SAMPLED_OUT",
+        )
+        final_unit_ids: list[int] = []
+        cleared_trace_ids: list[int] = []
+        surviving_trace_ids: list[int] = []
+        surviving_session_ids: list[int] = []
 
         async with db() as session:
-            project = await _add_project(session, name=f"sess-inflight-clear-{token_hex(4)}")
+            project = await _add_project(session, name=f"sess-contract-clear-{token_hex(4)}")
             trace_project = models.Project(name=f"eval-sink-{token_hex(4)}", kind="EVALUATOR")
             evaluator = models.BuiltinEvaluator(
                 name=Identifier(root=f"builtin-{token_hex(4)}"),
@@ -978,6 +986,37 @@ class TestWatermarkClearAndOverlap:
             )
             session.add(session_binding)
             await session.flush()
+
+            for final_status in final_decision_statuses:
+                final_session = await _add_project_session(session, project, start_time=base_time)
+                cleared_final_trace = await _add_trace(
+                    session, project, project_session=final_session, start_time=base_time
+                )
+                await _add_span(session, trace=cleared_final_trace, start_time=base_time)
+                surviving_final_trace = await _add_trace(
+                    session,
+                    project,
+                    project_session=final_session,
+                    start_time=base_time + timedelta(hours=2),
+                )
+                await _add_span(
+                    session,
+                    trace=surviving_final_trace,
+                    start_time=base_time + timedelta(hours=2),
+                )
+                final_unit = models.EvalSessionWorkUnit(
+                    project_session_rowid=final_session.id,
+                    project_evaluator_id=session_binding.id,
+                    decided_through=base_time + timedelta(hours=2),
+                    status=final_status,
+                    attempts=1 if final_status == "DONE" else 0,
+                )
+                session.add(final_unit)
+                await session.flush()
+                final_unit_ids.append(final_unit.id)
+                cleared_trace_ids.append(cleared_final_trace.id)
+                surviving_trace_ids.append(surviving_final_trace.id)
+                surviving_session_ids.append(final_session.id)
 
             running_session = await _add_project_session(session, project, start_time=base_time)
             cleared_running_trace = await _add_trace(
@@ -1009,8 +1048,9 @@ class TestWatermarkClearAndOverlap:
             session_binding_id = session_binding.id
             running_session_id = running_session.id
             running_unit_id = running_unit.id
-            cleared_running_trace_id = cleared_running_trace.id
-            surviving_running_trace_id = surviving_running_trace.id
+            cleared_trace_ids.append(cleared_running_trace.id)
+            surviving_trace_ids.append(surviving_running_trace.id)
+            surviving_session_ids.append(running_session.id)
 
         work_coordinator = EvalWorkCoordinator(db, evaluation_target="SESSION")
         (claimed_unit,) = await work_coordinator.claim(claimed_by="session-worker", limit=1)
@@ -1062,6 +1102,7 @@ class TestWatermarkClearAndOverlap:
                 trace=surviving_error_trace,
                 start_time=base_time + timedelta(hours=2),
             )
+            expected_cooldown_until = base_time + timedelta(minutes=5)
             error_unit = models.EvalSessionWorkUnit(
                 project_session_rowid=error_session.id,
                 project_evaluator_id=session_binding_id,
@@ -1069,7 +1110,7 @@ class TestWatermarkClearAndOverlap:
                 status="ERROR",
                 claimed_at=base_time,
                 claimed_by="prior-worker",
-                cooldown_until=base_time + timedelta(minutes=5),
+                cooldown_until=expected_cooldown_until,
                 attempts=1,
                 error="transient timeout",
             )
@@ -1077,6 +1118,9 @@ class TestWatermarkClearAndOverlap:
             await session.flush()
             pending_unit_id = pending_unit.id
             error_unit_id = error_unit.id
+            cleared_trace_ids.extend([cleared_pending_trace.id, cleared_error_trace.id])
+            surviving_trace_ids.extend([surviving_pending_trace.id, surviving_error_trace.id])
+            surviving_session_ids.extend([pending_session.id, error_session.id])
 
             await admit_or_reuse_project_clear(
                 session,
@@ -1088,56 +1132,75 @@ class TestWatermarkClearAndOverlap:
 
         await _drain_all(CleanupCoordinator(db, batch_limit=2))
 
-        async def _write_stale_annotation(publish_session: AsyncSession) -> None:
+        async with db() as session:
+            for cleared_trace_id in cleared_trace_ids:
+                assert await session.get(models.Trace, cleared_trace_id) is None
+            for surviving_trace_id in surviving_trace_ids:
+                assert await session.get(models.Trace, surviving_trace_id) is not None
+            for surviving_session_id in surviving_session_ids:
+                assert await session.get(models.ProjectSession, surviving_session_id) is not None
+
+            final_statuses_after_clear = list(
+                await session.scalars(
+                    select(models.EvalSessionWorkUnit.status)
+                    .where(models.EvalSessionWorkUnit.id.in_(final_unit_ids))
+                    .order_by(models.EvalSessionWorkUnit.id.asc())
+                )
+            )
+            assert final_statuses_after_clear == ["DROPPED"] * len(final_unit_ids)
+
+            loaded_running_unit = await session.get(models.EvalSessionWorkUnit, running_unit_id)
+            assert loaded_running_unit is not None
+            assert loaded_running_unit.status == "RUNNING"
+            assert loaded_running_unit.claimed_by == "session-worker"
+            assert loaded_running_unit.claimed_at is not None
+
+            loaded_pending_unit = await session.get(models.EvalSessionWorkUnit, pending_unit_id)
+            assert loaded_pending_unit is not None
+            assert loaded_pending_unit.status == "PENDING"
+            assert loaded_pending_unit.attempts == 0
+
+            loaded_error_unit = await session.get(models.EvalSessionWorkUnit, error_unit_id)
+            assert loaded_error_unit is not None
+            assert loaded_error_unit.status == "ERROR"
+            assert loaded_error_unit.claimed_by == "prior-worker"
+            assert loaded_error_unit.claimed_at == base_time
+            assert loaded_error_unit.cooldown_until == expected_cooldown_until
+            assert loaded_error_unit.attempts == 1
+            assert loaded_error_unit.error == "transient timeout"
+
+        async def _write_surviving_annotation(publish_session: AsyncSession) -> None:
             publish_session.add(
                 models.ProjectSessionAnnotation(
                     project_session_id=running_session_id,
                     name="sess-eval",
-                    label="stale",
-                    score=0.0,
-                    explanation="hydrated cleared trace",
+                    label="pass",
+                    score=1.0,
+                    explanation="evaluated surviving session",
                     metadata_={},
                     annotator_kind="CODE",
                     source="API",
-                    identifier="online:stale",
+                    identifier="online:surviving",
                 )
             )
 
-        with pytest.raises(PublicationClaimLostError):
-            await work_coordinator.publish(
-                work_unit_id=claimed_unit.work_unit_id,
-                claimed_by=claimed_unit.claimed_by,
-                project_evaluator_id=session_binding_id,
-                write=_write_stale_annotation,
-            )
+        await work_coordinator.publish(
+            work_unit_id=claimed_unit.work_unit_id,
+            claimed_by=claimed_unit.claimed_by,
+            project_evaluator_id=session_binding_id,
+            write=_write_surviving_annotation,
+        )
 
         async with db() as session:
-            assert await session.get(models.Trace, cleared_running_trace_id) is None
-            assert await session.get(models.Trace, surviving_running_trace_id) is not None
+            published_unit = await session.get(models.EvalSessionWorkUnit, running_unit_id)
+            assert published_unit is not None
+            assert published_unit.status == "DONE"
             num_annotations = await session.scalar(
                 select(func.count(models.ProjectSessionAnnotation.id)).where(
                     models.ProjectSessionAnnotation.project_session_id == running_session_id
                 )
             )
-            assert num_annotations == 0
-
-            reset_units = (
-                await session.scalars(
-                    select(models.EvalSessionWorkUnit)
-                    .where(
-                        models.EvalSessionWorkUnit.id.in_(
-                            [running_unit_id, pending_unit_id, error_unit_id]
-                        )
-                    )
-                    .order_by(models.EvalSessionWorkUnit.id.asc())
-                )
-            ).all()
-            assert len(reset_units) == 3
-            for reset_unit in reset_units:
-                assert reset_unit.status == "DROPPED"
-                assert reset_unit.claimed_at is None
-                assert reset_unit.claimed_by is None
-                assert reset_unit.cooldown_until is None
+            assert num_annotations == 1
 
     async def test_range_clear_deletes_span_drained_trace_in_same_step_as_session_reset(
         self, db: DbSessionFactory

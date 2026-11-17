@@ -1218,14 +1218,17 @@ async def test_max_days_sweep_continues_past_yielding_project(
     assert affected_project_ids == {unblocked_project.id}
 
 
-async def test_retention_resets_surviving_session_evaluation_work_units(
+@pytest.mark.parametrize("rule_kind", ["max_days", "max_count"])
+async def test_retention_preserves_surviving_session_evaluation_work_units(
+    rule_kind: Literal["max_days", "max_count"],
     db: DbSessionFactory,
 ) -> None:
     from tests.unit._helpers import _add_project, _add_project_session, _add_span, _add_trace
 
     now = datetime.now(timezone.utc)
+    claimed_timestamp = now.replace(microsecond=0) - timedelta(minutes=1)
     async with db() as session:
-        project = await _add_project(session, name=f"session-reset-{token_hex(4)}")
+        project = await _add_project(session, name=f"session-preserve-{token_hex(4)}")
         evaluator = models.BuiltinEvaluator(
             name=Identifier(root=f"eval-{token_hex(4)}"),
             kind="BUILTIN",
@@ -1247,73 +1250,84 @@ async def test_retention_resets_surviving_session_evaluation_work_units(
         session.add(project_evaluator)
         await session.flush()
 
-        surviving_session = await _add_project_session(
+        done_session = await _add_project_session(
             session, project, start_time=now - timedelta(days=10)
         )
-        expired_trace = await _add_trace(
+        expired_done_trace = await _add_trace(
             session,
             project,
-            project_session=surviving_session,
+            project_session=done_session,
             start_time=now - timedelta(days=10),
         )
-        await _add_span(session, trace=expired_trace, start_time=now - timedelta(days=10))
-        recent_trace = await _add_trace(
+        await _add_span(session, trace=expired_done_trace, start_time=now - timedelta(days=10))
+        recent_done_trace = await _add_trace(
             session,
             project,
-            project_session=surviving_session,
+            project_session=done_session,
             start_time=now - timedelta(hours=1),
         )
-        await _add_span(session, trace=recent_trace, start_time=now - timedelta(hours=1))
-        surviving_work_unit = models.EvalSessionWorkUnit(
-            project_session_rowid=surviving_session.id,
+        await _add_span(session, trace=recent_done_trace, start_time=now - timedelta(hours=1))
+        done_work_unit = models.EvalSessionWorkUnit(
+            project_session_rowid=done_session.id,
             project_evaluator_id=project_evaluator.id,
             decided_through=now - timedelta(hours=1),
             status="DONE",
             attempts=1,
         )
 
-        untouched_session = await _add_project_session(
-            session, project, start_time=now - timedelta(hours=2)
+        running_session = await _add_project_session(
+            session, project, start_time=now - timedelta(days=9)
         )
-        untouched_trace = await _add_trace(
+        expired_running_trace = await _add_trace(
             session,
             project,
-            project_session=untouched_session,
+            project_session=running_session,
+            start_time=now - timedelta(days=9),
+        )
+        await _add_span(session, trace=expired_running_trace, start_time=now - timedelta(days=9))
+        recent_running_trace = await _add_trace(
+            session,
+            project,
+            project_session=running_session,
             start_time=now - timedelta(hours=2),
         )
-        await _add_span(session, trace=untouched_trace, start_time=now - timedelta(hours=2))
-        untouched_work_unit = models.EvalSessionWorkUnit(
-            project_session_rowid=untouched_session.id,
+        await _add_span(session, trace=recent_running_trace, start_time=now - timedelta(hours=2))
+        running_work_unit = models.EvalSessionWorkUnit(
+            project_session_rowid=running_session.id,
             project_evaluator_id=project_evaluator.id,
             decided_through=now - timedelta(hours=2),
-            status="DONE",
+            status="RUNNING",
+            claimed_at=claimed_timestamp,
+            claimed_by="session-worker",
             attempts=1,
         )
-        session.add_all([surviving_work_unit, untouched_work_unit])
+        session.add_all([done_work_unit, running_work_unit])
         await session.flush()
-        surviving_work_unit_id = surviving_work_unit.id
-        untouched_work_unit_id = untouched_work_unit.id
+        done_work_unit_id = done_work_unit.id
+        running_work_unit_id = running_work_unit.id
 
-    affected_project_ids = await MaxDaysRule(max_days=7).delete_traces_in_batches(db, [project.id])
+    rule: MaxDaysRule | MaxCountRule = (
+        MaxDaysRule(max_days=7) if rule_kind == "max_days" else MaxCountRule(max_count=2)
+    )
+    affected_project_ids = await rule.delete_traces_in_batches(db, [project.id], batch_size=1)
 
     async with db() as session:
-        assert await session.get(models.ProjectSession, surviving_session.id) is not None
-        assert await session.get(models.Trace, expired_trace.id) is None
-        assert await session.get(models.Trace, recent_trace.id) is not None
-        assert (
-            await session.scalar(
-                sa.select(models.EvalSessionWorkUnit.status).where(
-                    models.EvalSessionWorkUnit.id == surviving_work_unit_id
-                )
-            )
-            == "DROPPED"
-        )
-        assert (
-            await session.scalar(
-                sa.select(models.EvalSessionWorkUnit.status).where(
-                    models.EvalSessionWorkUnit.id == untouched_work_unit_id
-                )
-            )
-            == "DONE"
-        )
+        assert await session.get(models.ProjectSession, done_session.id) is not None
+        assert await session.get(models.ProjectSession, running_session.id) is not None
+        assert await session.get(models.Trace, expired_done_trace.id) is None
+        assert await session.get(models.Trace, expired_running_trace.id) is None
+        assert await session.get(models.Trace, recent_done_trace.id) is not None
+        assert await session.get(models.Trace, recent_running_trace.id) is not None
+
+        retained_done_unit = await session.get(models.EvalSessionWorkUnit, done_work_unit_id)
+        assert retained_done_unit is not None
+        assert retained_done_unit.status == "DONE"
+        assert retained_done_unit.attempts == 1
+
+        retained_running_unit = await session.get(models.EvalSessionWorkUnit, running_work_unit_id)
+        assert retained_running_unit is not None
+        assert retained_running_unit.status == "RUNNING"
+        assert retained_running_unit.claimed_by == "session-worker"
+        assert retained_running_unit.claimed_at == claimed_timestamp
+        assert retained_running_unit.attempts == 1
     assert affected_project_ids == {project.id}
