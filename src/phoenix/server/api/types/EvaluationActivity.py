@@ -237,13 +237,34 @@ async def resolve_evaluation_activity(
         start=time_range.start,
         end=end,
         time_bins=TimeBucketSpec.from_config(time_bin_config),
-        read_queue_size=_selects_series_field(info, "queueSize"),
+        **_reads_for_selection(info),
     )
     return EvaluationActivity(activity=activity)
 
 
-def _selects_series_field(info: Info[Context, None], name: str) -> bool:
-    return any(_selects(field.selections, ("series", name)) for field in info.selected_fields)
+def _reads_for_selection(info: Info[Context, None]) -> dict[str, bool]:
+    """The activity reads the selection needs, so each request pays only for what it shows.
+
+    A bin's groups are the groups with counts, additions, or cost in the bin, so selecting
+    them reads all three: reading fewer would list fewer groups, and two requests that
+    select different fields would disagree on the list. The top-level groups are ordered
+    by their counts.
+    """
+
+    def selects(*path: str) -> bool:
+        return any(_selects(field.selections, path) for field in info.selected_fields)
+
+    reads_bin_groups = selects("series", "groups")
+    return {
+        "read_counts": reads_bin_groups
+        or selects("groups")
+        or selects("evaluatedCount")
+        or selects("failedCount"),
+        "read_added": reads_bin_groups,
+        "read_cost": reads_bin_groups or selects("cost") or selects("groups", "cost"),
+        "read_evaluation_seconds": selects("groups", "evaluationSeconds"),
+        "read_queue_size": selects("series", "queueSize"),
+    }
 
 
 def _selects(selections: Sequence[Selection], path: Sequence[str]) -> bool:

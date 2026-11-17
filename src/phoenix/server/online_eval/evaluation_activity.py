@@ -123,13 +123,28 @@ async def load_evaluation_activity(
     start: datetime,
     end: datetime,
     time_bins: TimeBucketSpec,
+    read_counts: bool = True,
+    read_added: bool = True,
+    read_cost: bool = True,
+    read_evaluation_seconds: bool = True,
     read_queue_size: bool = False,
 ) -> EvaluationActivity:
     """Activity of one project's evaluators, grouped by project evaluator, or, with no
     ``project_id``, of every project evaluator on the server, grouped by project.
 
-    The queue's size at each bin's end is read with ``read_queue_size``, and is otherwise 0:
-    it reads every evaluation in queue in the scope, so it costs as much as the queue is long.
+    Each part of the activity is a read of its own, made only when asked for, and otherwise
+    left at its zero or None:
+
+    - ``read_counts``: evaluated and failed counts, and lag, from the work rows completed in
+      the range. Groups are ordered by them, so without them groups keep a fixed order.
+    - ``read_added``: evaluations added to the queue in each bin.
+    - ``read_cost``: cost, from the evaluators' traces started in the range.
+    - ``read_evaluation_seconds``: how long those traces took, summed per group.
+    - ``read_queue_size``: the queue's size at each bin's end. It reads every evaluation in
+      queue in the scope, so it costs as much as the queue is long.
+
+    A bin lists the groups with counts, additions, or cost in it, so a caller reading a bin's
+    groups reads all three, or the bins would list fewer groups.
     """
     reader = _ActivityReader(
         dialect=db.dialect,
@@ -138,6 +153,10 @@ async def load_evaluation_activity(
         start=start,
         end=end,
         time_bins=time_bins,
+        read_counts=read_counts,
+        read_added=read_added,
+        read_cost=read_cost,
+        read_evaluation_seconds=read_evaluation_seconds,
         read_queue_size=read_queue_size,
     )
     async with db.read() as session:
@@ -195,6 +214,10 @@ class _ActivityReader:
     start: datetime
     end: datetime
     time_bins: TimeBucketSpec
+    read_counts: bool
+    read_added: bool
+    read_cost: bool
+    read_evaluation_seconds: bool
     read_queue_size: bool
 
     async def read(self, session: AsyncSession) -> EvaluationActivity:
@@ -223,34 +246,16 @@ class _ActivityReader:
                 excludes_untraced_evaluators = True
         groups = {key: _GroupTotals(queue_sizes=[0] * len(bins)) for key in project_ids}
 
-        completed = _completed(self.scope, self.start, self.end)
-        group = self._group(completed)
-        bucket = self.time_bins.truncate(self.dialect, completed.c.completed_at)
-        async for key, timestamp, evaluated_count, count, lag_p95 in await session.stream(
-            sa.select(
-                group,
-                bucket,
-                sa.func.sum(completed.c.evaluated),
-                sa.func.count(),
-                _percentile(self.dialect, completed.c.lag_seconds, 0.95),
-            )
-            .select_from(completed)
-            .group_by(group, bucket)
-        ):
-            if (totals := groups.get(key)) is None:
-                continue
-            group_bin = totals.bins.setdefault(bin_index[_as_datetime(timestamp)], _GroupBin())
-            group_bin.evaluated_count = evaluated_count
-            group_bin.failed_count = count - evaluated_count
-            group_bin.lag_p95_seconds = lag_p95
-            totals.evaluated_count += evaluated_count
-            totals.failed_count += count - evaluated_count
-
-        await self._read_added(session, groups, group_keys_by_evaluator, bin_index)
+        if self.read_counts:
+            await self._read_counts(session, groups, bin_index)
+        if self.read_added:
+            await self._read_added(session, groups, group_keys_by_evaluator, bin_index)
         if self.read_queue_size:
             await self._read_queue_size(session, groups, group_keys_by_evaluator, bin_index)
-        await self._read_cost(session, groups, bin_index)
-        await self._read_evaluation_seconds(session, groups)
+        if self.read_cost:
+            await self._read_cost(session, groups, bin_index)
+        if self.read_evaluation_seconds:
+            await self._read_evaluation_seconds(session, groups)
 
         group_keys = sorted(
             groups,
@@ -293,6 +298,36 @@ class _ActivityReader:
                 for i, timestamp in enumerate(bins)
             ),
         )
+
+    async def _read_counts(
+        self,
+        session: AsyncSession,
+        groups: dict[_GroupKey, _GroupTotals],
+        bin_index: dict[datetime, int],
+    ) -> None:
+        """Evaluations evaluated and failed in each bin, with their lag p95."""
+        completed = _completed(self.scope, self.start, self.end)
+        group = self._group(completed)
+        bucket = self.time_bins.truncate(self.dialect, completed.c.completed_at)
+        async for key, timestamp, evaluated_count, count, lag_p95 in await session.stream(
+            sa.select(
+                group,
+                bucket,
+                sa.func.sum(completed.c.evaluated),
+                sa.func.count(),
+                _percentile(self.dialect, completed.c.lag_seconds, 0.95),
+            )
+            .select_from(completed)
+            .group_by(group, bucket)
+        ):
+            if (totals := groups.get(key)) is None:
+                continue
+            group_bin = totals.bins.setdefault(bin_index[_as_datetime(timestamp)], _GroupBin())
+            group_bin.evaluated_count = evaluated_count
+            group_bin.failed_count = count - evaluated_count
+            group_bin.lag_p95_seconds = lag_p95
+            totals.evaluated_count += evaluated_count
+            totals.failed_count += count - evaluated_count
 
     async def _read_added(
         self,

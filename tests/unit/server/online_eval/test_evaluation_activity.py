@@ -442,34 +442,71 @@ async def test_evaluation_activity_graphql(
     ]
 
 
-async def test_evaluation_activity_graphql_reads_queue_size_only_when_selected(
+async def test_evaluation_activity_graphql_reads_only_what_is_selected(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from phoenix.server.online_eval import evaluation_activity
 
-    reads: list[bool] = []
+    reads: list[set[str]] = []
     load = evaluation_activity.load_evaluation_activity
 
     async def recording_load(*args: Any, **kwargs: Any) -> Any:
-        reads.append(kwargs["read_queue_size"])
+        reads.append({name for name, value in kwargs.items() if name.startswith("read_") and value})
         return await load(*args, **kwargs)
 
     monkeypatch.setattr(evaluation_activity, "load_evaluation_activity", recording_load)
     time_range = {"start": _at(12).isoformat(), "end": _at(15).isoformat()}
     for query in (
+        # A bin's groups are listed from its counts, additions, and cost, so all three are read.
         """query ($timeRange: TimeRange!) {
             evaluationActivity(timeRange: $timeRange) { series { groups { addedCount } } }
         }""",
         """query ($timeRange: TimeRange!) {
-            evaluationActivity(timeRange: $timeRange) { series { ...Bin } }
+            evaluationActivity(timeRange: $timeRange) { series { timestamp ...Bin } }
         }
         fragment Bin on EvaluationActivityBin { queueSize }""",
+        # Groups are ordered by their counts.
+        """query ($timeRange: TimeRange!) {
+            evaluationActivity(timeRange: $timeRange) { groups { evaluationSeconds } }
+        }""",
+        """query ($timeRange: TimeRange!) {
+            evaluationActivity(timeRange: $timeRange) { cost excludesUntracedEvaluators }
+        }""",
     ):
         response = await gql_client.execute(query, {"timeRange": time_range})
         assert not response.errors
-    assert reads == [False, True]
+    assert reads == [
+        {"read_counts", "read_added", "read_cost"},
+        {"read_queue_size"},
+        {"read_counts", "read_evaluation_seconds"},
+        {"read_cost"},
+    ]
+
+
+async def test_activity_left_unread_stays_empty(db: DbSessionFactory) -> None:
+    seeded = await _seed(db)
+    activity = await load_evaluation_activity(
+        db,
+        project_id=None,
+        start=_at(12),
+        end=_at(15),
+        time_bins=_HOURLY,
+        read_counts=False,
+        read_added=False,
+        read_cost=False,
+        read_evaluation_seconds=False,
+        read_queue_size=True,
+    )
+    assert (activity.evaluated_count, activity.failed_count, activity.cost) == (0, 0, None)
+    # Without counts, groups keep a fixed order.
+    assert [group.project_id for group in activity.groups] == [
+        seeded.first_project_id,
+        seeded.second_project_id,
+    ]
+    assert all(activity_bin.groups == () for activity_bin in activity.series)
+    assert [activity_bin.queue_size for activity_bin in activity.series] == [2, 2, 3]
 
 
 async def test_project_evaluator_lag_graphql(
