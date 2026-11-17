@@ -13,11 +13,6 @@ Detailed technical references for the [LDAP Authentication specification](../lda
 - [Security Deep-Dive](./security.md) - Threat model, LDAP injection prevention
 - [Authentication Framework](./authentication-framework.md) - Multi-method auth, cross-auth security, admin provisioning
 
-**Implementation**:
-- [Code Examples](./code-examples.md)
-- [Frontend Implementation](./frontend-implementation.md)
-- [Phoenix Integration](./phoenix-integration.md)
-
 **Design & Architecture**:
 - [Database Schema](./database-schema.md)
 - [User Identification Strategy](./user-identification-strategy.md)
