@@ -327,6 +327,27 @@ const RECORD_PAGE_SIZE = 10;
 /** No search params to carry over: the bench's own URL has nothing the viewer should inherit. */
 const NO_SEARCH_PARAMS = new URLSearchParams();
 
+/**
+ * Appends newly loaded rows below already-listed rows. When the listing is the
+ * newest N records and that window keeps filling, a wider re-read starting from
+ * the top returns records that arrived since the first page above the rows
+ * already shown. This fn keeps the listed rows and appends only what the wider
+ * page adds at the end, so "Load more" adds rows at the bottom.
+ */
+function appendLoadedRows<T extends { key: string }>(
+  currentRows: T[],
+  loadedRows: T[]
+): T[] {
+  if (currentRows.length === 0) {
+    return loadedRows;
+  }
+
+  const currentKeys = new Set(currentRows.map((row) => row.key));
+  const newRows = loadedRows.filter((row) => !currentKeys.has(row.key));
+
+  return [...currentRows, ...newRows];
+}
+
 function formatTraceMetric(numSpans: number, totalTokens: number): string {
   const spans = `${numSpans.toLocaleString()} span${numSpans === 1 ? "" : "s"}`;
   return `${spans} · ${totalTokens.toLocaleString()} tokens`;
@@ -338,6 +359,7 @@ function TraceRecordSource({
   ...benchProps
 }: RecordSourceProps) {
   const [limit, setLimit] = useState(RECORD_PAGE_SIZE);
+  const [displayedRows, setDisplayedRows] = useState<RecordedRunRow[]>([]);
   const [isShowingMore, startShowMoreTransition] = useTransition();
   const data = useLazyLoadQuery<ProjectEvaluatorScopePanelTracesQuery>(
     graphql`
@@ -393,7 +415,7 @@ function TraceRecordSource({
   );
   const rootSpans = data.project?.rootSpans?.edges.map(({ span }) => span);
   const sample = rootSpans?.length ? null : getSampleTraceEvaluationContext();
-  const rows: RecordedRunRow[] = rootSpans?.length
+  const loadedRows: RecordedRunRow[] = rootSpans?.length
     ? rootSpans.map(({ name, trace }) => ({
         key: trace.id,
         name,
@@ -429,6 +451,19 @@ function TraceRecordSource({
           },
         ]
       : [];
+
+  // Reset displayed rows when the limit resets (new filter/window) or append
+  // newly loaded rows below already-listed rows when loading more.
+  const rows =
+    limit === RECORD_PAGE_SIZE
+      ? loadedRows
+      : appendLoadedRows(displayedRows, loadedRows);
+
+  // Track the displayed rows for the next append
+  if (rows !== displayedRows) {
+    setDisplayedRows(rows);
+  }
+
   return (
     <ProjectEvaluatorTestBench
       {...benchProps}
@@ -462,6 +497,7 @@ function SessionRecordSource({
   ...benchProps
 }: RecordSourceProps) {
   const [limit, setLimit] = useState(RECORD_PAGE_SIZE);
+  const [displayedRows, setDisplayedRows] = useState<RecordedRunRow[]>([]);
   const [isShowingMore, startShowMoreTransition] = useTransition();
   const data = useLazyLoadQuery<ProjectEvaluatorScopePanelSessionsQuery>(
     graphql`
@@ -509,7 +545,7 @@ function SessionRecordSource({
   );
   const sessions = data.project?.sessions?.edges.map(({ session }) => session);
   const sample = sessions?.length ? null : getSampleSessionEvaluationContext();
-  const rows: RecordedRunRow[] = sessions?.length
+  const loadedRows: RecordedRunRow[] = sessions?.length
     ? sessions.map((session) => ({
         key: session.id,
         name: session.sessionId,
@@ -544,6 +580,19 @@ function SessionRecordSource({
           },
         ]
       : [];
+
+  // Reset displayed rows when the limit resets (new filter/window) or append
+  // newly loaded rows below already-listed rows when loading more.
+  const rows =
+    limit === RECORD_PAGE_SIZE
+      ? loadedRows
+      : appendLoadedRows(displayedRows, loadedRows);
+
+  // Track the displayed rows for the next append
+  if (rows !== displayedRows) {
+    setDisplayedRows(rows);
+  }
+
   return (
     <ProjectEvaluatorTestBench
       {...benchProps}
@@ -566,6 +615,7 @@ function SpanRecordSource({
   ...benchProps
 }: RecordSourceProps) {
   const [limit, setLimit] = useState(RECORD_PAGE_SIZE);
+  const [displayedRows, setDisplayedRows] = useState<RecordedRunRow[]>([]);
   const [isShowingMore, startShowMoreTransition] = useTransition();
   const data = useLazyLoadQuery<ProjectEvaluatorScopePanelSpansQuery>(
     graphql`
@@ -615,7 +665,7 @@ function SpanRecordSource({
   );
   const spans = data.project?.spans?.edges.map(({ span }) => span) ?? [];
   const sample = spans.length === 0 ? getSampleSpanEvaluationContext() : null;
-  const rows: RecordedRunRow[] = spans.length
+  const loadedRows: RecordedRunRow[] = spans.length
     ? spans.map((span) => ({
         key: span.id,
         name: span.name,
@@ -646,6 +696,19 @@ function SpanRecordSource({
           },
         ]
       : [];
+
+  // Reset displayed rows when the limit resets (new filter/window) or append
+  // newly loaded rows below already-listed rows when loading more.
+  const rows =
+    limit === RECORD_PAGE_SIZE
+      ? loadedRows
+      : appendLoadedRows(displayedRows, loadedRows);
+
+  // Track the displayed rows for the next append
+  if (rows !== displayedRows) {
+    setDisplayedRows(rows);
+  }
+
   return (
     <ProjectEvaluatorTestBench
       {...benchProps}
