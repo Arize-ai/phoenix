@@ -6,7 +6,7 @@
 
 LDAP authentication for Phoenix enabling corporate user adoption. Supports Active Directory/OpenLDAP, group-based role mapping, multi-server failover, and Grafana-compatible configuration.
 
-→ *Full details*: [Architecture Overview](#architecture-overview) | [Security & Risks](#security--risks) | [Implementation Plan](#implementation-plan) | [Grafana Compatibility](./ldap-authentication/grafana-comparison.md)
+→ *Full details*: [Architecture Overview](#architecture-overview) | [Security & Risks](#security--risks) | [Implementation Status](#implementation-status) | [Grafana Compatibility](./ldap-authentication/grafana-comparison.md)
 
 ### The Decision
 
@@ -83,11 +83,7 @@ LDAP users are identified by email (default) or immutable unique ID (objectGUID/
 - [Security & Risks](#security--risks) - Threat model and mitigations (2 pages)
 
 ### 📋 Implementation Guide (20-30 minutes)
-- [Implementation Plan](#implementation-plan) - Phase-by-phase breakdown
-  - [Phase 0: Grafana Verification](#phase-0-grafana-compatibility-verification-️) *(See [Grafana Comparison](./ldap-authentication/grafana-comparison.md) for full research)*
-  - [Phase 1: Core LDAP Authentication](#phase-1-core-ldap-authentication)
-  - [Phase 2: Testing & Hardening](#phase-2-testing--hardening)
-  - [Phase 3: Frontend & Documentation](#phase-3-frontend--documentation)
+- [Implementation Status](#implementation-status) - What shipped, the requirements adopted from Grafana, and what tests verify
 
 ### 📚 Detailed Reference (Appendices)
 
@@ -112,7 +108,7 @@ All appendices have been extracted to separate files. See [ldap-authentication/R
 
 **For Backend Engineers** (20 min):
 1. [Architecture Overview](#architecture-overview)
-2. [Implementation Plan](#implementation-plan)
+2. [Implementation Status](#implementation-status)
 3. [Database Schema](./ldap-authentication/database-schema.md)
 4. [Code Examples](./ldap-authentication/code-examples.md)
 5. [Grafana Research](./ldap-authentication/grafana-comparison.md)
@@ -470,296 +466,46 @@ PHOENIX_LDAP_GROUP_ROLE_MAPPINGS='{
 
 ---
 
-## Implementation Plan
+## Implementation Status
 
-**Overview**: Implementation divided into three phases: backend, testing, and frontend/documentation.
+LDAP authentication shipped in December 2025 ([release note](../../docs/phoenix/release-notes/12-2025/12-06-2025-ldap-authentication-support.mdx)). The user-facing setup guide is the LDAP section of [`docs/phoenix/self-hosting/features/authentication.mdx`](../../docs/phoenix/self-hosting/features/authentication.mdx).
 
-**Current Status** (as of implementation):
-- ✅ **Phase 0**: Grafana Compatibility Verification - COMPLETE
-- ✅ **Phase 1**: Core LDAP Authentication - COMPLETE
-- ✅ **Phase 2**: Testing & Hardening - COMPLETE (22/22 integration tests passing)
-- ✅ **Phase 3**: Frontend & Documentation - COMPLETE
+The first release used Approach 1: LDAP users were OAuth2 rows marked by `\ue000LDAP(stopgap)` in `oauth2_client_id`. Migration `a1b2c3d4e5f6` (January 2026) then moved to Approach 2. LDAP users now have `auth_method='LDAP'`, their unique ID is in `ldap_unique_id`, and `email` is nullable. The sections above that compare the two approaches record the original decision.
 
-**Implementation Approach**: **Approach 1 (Zero-Migration)** - Using Unicode marker `\ue000LDAP(stopgap)` in `oauth2_client_id` column.
+### Requirements Adopted from Grafana
 
-**Frontend Scope Summary**: All UI changes implemented
-- ✅ New component: `LDAPLoginForm.tsx` (end-user login)
-- ✅ New component: `NewUserDialog.tsx` with LDAP tab (admin user creation)
-- ✅ Backend config: `window.Config.ldapEnabled` exposed
-- ✅ GraphQL resolver translation for `AuthMethod.LDAP`
+The [Grafana comparison](./ldap-authentication/grafana-comparison.md) fixed these behaviors before implementation:
 
----
+1. **Group role mapping format**: `{"group_dn": "...", "role": "..."}`. Phoenix uses `role` instead of Grafana's `org_role`, because Phoenix has no organizations.
+2. **Role values**: Phoenix role names (`ADMIN`, `MEMBER`, `VIEWER`) instead of Grafana's `Admin`, `Editor`, `Viewer`.
+3. **Group DN matching**: case-insensitive.
+4. **Wildcard**: `"*"` matches every user. Mappings are evaluated in order, and the first match wins.
+5. **LDAP injection**: user input is escaped with `ldap3.utils.conv.escape_filter_chars` before it enters a search filter.
+6. **Connection timeout**: 10 seconds.
 
-### Phase 0: Grafana Compatibility Verification ⚠️
+Phoenix configures LDAP with environment variables. Grafana uses a TOML file.
 
-**Status**: ✅ **COMPLETE** - All ONE-WAY door decisions have been verified against Grafana source code.
+### Verified Properties
 
-**Quick Summary**:
-- ✅ Verified group role mapping structure adapted from Grafana (`group_dn`, `role`)
-- ✅ Confirmed case-insensitive DN matching, wildcard `"*"` support
-- ✅ Verified role values: "Admin", "Editor", "Viewer" (capitalized)
-- ✅ Analyzed Grafana's two-table design (`user` + `user_auth`) vs Phoenix's single-table discriminator
-- ✅ Documented configuration divergence: Grafana uses TOML files, Phoenix uses env vars
-- ✅ Reviewed LDAP injection prevention, error handling, TLS, background sync
+Tests enforce the following properties. The unit tests are in `tests/unit/server/test_ldap.py` and `tests/unit/test_config.py`, and the integration tests (against an in-process mock LDAP server) are in `tests/integration/auth/test_ldap.py`. The dev stack's `ldap-test` profile checks the same properties against real OpenLDAP servers ([Protocol Compliance §6](./ldap-authentication/protocol-compliance.md#6-real-directory-testing)).
 
-**For full details, see**: [Grafana Source Code Research](./ldap-authentication/grafana-comparison.md)
+- **STARTTLS before bind**: in STARTTLS mode, the TLS upgrade completes before any bind request is sent. A man-in-the-middle proxy extracted no credentials from Phoenix, and extracted both the service-account and the user credentials from Grafana v11.4 ([Protocol Compliance §7](./ldap-authentication/protocol-compliance.md#7-starttls-implementation--security)).
+- **Ambiguous search results**: login is rejected when the user search returns more than one entry.
+- **Anonymous bind**: a login with an empty password is rejected before Phoenix contacts the directory.
+- **LDAP injection**: filter metacharacters in the username do not change the search filter.
+- **Username enumeration**: an invalid password and an unknown user produce the same response, and an unknown user still costs a bind attempt (timing mitigation).
+- **Cross-method isolation**: an LDAP login cannot take over a LOCAL or OAuth2 account, and the reverse.
+- **Role mapping**: the first matching mapping wins, and `"*"` matches users with no matching group.
+- **DN canonicalization**: DNs that differ only in case or spacing identify the same user (RFC 4514).
+- **Port defaulting**: an unset `PHOENIX_LDAP_PORT` defaults to 636 in LDAPS mode and to 389 otherwise.
 
-**Critical Requirements** (adapted from Grafana):
-1. **Group Role Mapping JSON** - Must use `{"group_dn": "...", "role": "..."}` format (Phoenix uses `role`, not Grafana's `org_role`, since Phoenix has no org concept)
-2. **Case-Insensitive Matching** - Use `strings.EqualFold()` for DN comparison
-3. **Wildcard Support** - `"*"` matches all users (checked first)
-4. **Role Values** - Use Phoenix roles directly: "ADMIN", "MEMBER", "VIEWER" (not Grafana's "Admin", "Editor", "Viewer")
-5. **LDAP Injection** - Must escape user input with `ldap.EscapeFilter()`
-6. **Default Timeout** - 10 seconds for connection attempts
+### Not Yet Validated
 
-**Implementation Note**: Phoenix uses its internal role names directly in the configuration, removing Grafana's role names as an intermediary. This simplifies the implementation and makes the configuration more Phoenix-native while maintaining Grafana's behavior patterns (wildcards, case-insensitive matching, first-match-wins).
+- Login against a real Active Directory server. Only OpenLDAP has been tested.
+- Performance: P95 login latency, connection reuse, behavior when the directory is unavailable, and failover latency across multiple servers.
+- A health check that reports LDAP status.
 
-**Checklist**:
-- [x] Reviewed Grafana source code (6 files)
-- [x] Documented JSON structure compatibility
-- [x] Verified DN matching logic
-- [x] Analyzed database schema differences
-- [x] Reviewed security patterns (injection, TLS)
-- [x] Documented configuration method divergence
-
----
-
-### Phase 1: Core LDAP Authentication ✅ **COMPLETE**
-
-**Objective**: Implement core LDAP authentication with group-based role mapping
-
-**Milestone 1.1: Configuration & Data Models** ✅
-- [x] Add `LDAPConfig` to `src/phoenix/config.py`
-- [x] Add environment variable parsing  
-- [x] Update `AuthSettings` to include LDAP
-- [x] Add validation for required fields
-
-**Milestone 1.2: LDAP Authenticator** ✅
-- [x] Create `src/phoenix/server/ldap.py`
-- [x] Implement `LDAPAuthenticator` class
-  - [x] Server connection with TLS
-  - [x] Service account bind
-  - [x] User search
-  - [x] User authentication
-  - [x] Attribute retrieval
-  - [x] Group membership query
-- [x] Helper function: `is_ldap_user()` (implemented as `LDAP_CLIENT_ID_MARKER` check)
-- [x] Note: `get_ldap_client_data()` not needed - using simple marker approach
-
-**Milestone 1.3: API Integration** ✅
-- [x] Add `/auth/ldap/login` endpoint
-- [x] Implement user creation/update logic (integrated in ldap_login endpoint)
-- [x] Add JWT token issuance (using existing token creation)
-- [x] Rate limiting added to `/auth/ldap/login`
-- [ ] Update health check to include LDAP status (deferred - not critical for MVP)
-
----
-
-### Phase 2: Testing & Hardening ✅ **COMPLETE**
-
-**Milestone 2.1: Unit Tests** ✅
-- [x] Test `LDAPConfig` validation (13 test cases)
-- [x] Test environment variable parsing
-- [x] Test JSON validation for group role mappings
-- [x] Test role validation (ADMIN, MEMBER, VIEWER)
-- [x] Test TLS configuration validation
-- [x] Test group search configuration validation
-
-**Milestone 2.2: Integration Tests** ✅
-- [x] Create in-process mock LDAP server (`tests/integration/_mock_ldap_server.py`)
-  - [x] Active Directory schema support (memberOf attribute)
-  - [x] POSIX/OpenLDAP schema support (group search with member attribute)
-  - [x] **DN validation** - Returns `LDAP_INVALID_DN_SYNTAX` (error code 34) for malformed DNs
-  - [x] **Ambiguous result support** - Can return multiple entries for duplicate usernames
-- [x] Test end-to-end authentication flow (37 passing tests across multiple test files)
-  - **Active Directory Tests** (22 tests in `test_ldap.py`):
-    - [x] Basic authentication (admin, viewer, no groups)
-    - [x] User creation and attribute updates
-    - [x] Role mapping from memberOf attribute
-    - [x] Error handling (invalid credentials, nonexistent users, missing email)
-    - [x] Special characters in usernames (LDAP filter escaping)
-    - [x] Concurrent requests
-    - [x] `allow_sign_up` configuration (true/false, email fallback)
-  - **POSIX Group Search Tests** (6 tests in `test_ldap_posix.py`):
-    - [x] ADMIN role via group search
-    - [x] Multiple group membership with priority
-    - [x] **DN escaping for LDAP injection prevention** (special characters in DN)
-    - [x] Wildcard role assignment (no groups)
-    - [x] Case-insensitive DN matching (RFC 4514 compliance)
-    - [x] Graceful degradation on group search failure
-  - **Cross-Authentication Security** (4 tests):
-    - [x] LOCAL ↔ LDAP isolation
-    - [x] LDAP ↔ OAuth2 isolation
-    - [x] REST API marker validation
-  - **DN Validation & Ambiguous Results** (4 tests in `test_ldap.py::TestLDAPDNValidation`):
-    - [x] Mock server rejects invalid DN syntax
-    - [x] Duplicate username in different OUs rejected (security)
-- [x] Test group matching (memberOf, wildcards, case-insensitive)
-- [x] Test user creation and updates
-- [x] Test role mapping (ADMIN, MEMBER, VIEWER)
-- [x] Test error handling (invalid credentials, nonexistent users, missing fields)
-- [x] Test Phoenix-specific logic (email fallback, group priority, role downgrades)
-- [x] Test special characters in usernames (LDAP filter escaping)
-- [x] Test concurrent requests
-- [x] **Test ambiguous search result rejection** (duplicate usernames across OUs)
-- [ ] Test multi-server failover (deferred - requires multiple mock servers)
-- [x] Test TLS/LDAPS connections (validated via Docker TLS profile with real OpenLDAP + adversarial MITM proxy)
-
-**Milestone 2.3: Security Hardening** ✅
-- [x] Verify LDAP injection prevention (ldap.py uses ldap3's escape_filter_chars)
-- [x] Test LDAP injection attempts (test_ldap_injection_prevention)
-- [x] Verify generic error messages (no username enumeration)
-  - [x] **Enhanced**: Replaced informative error messages with generic ones to prevent enumeration
-  - [x] LDAP login with existing OAuth2 email: "Invalid username and/or password" (was: 409 with specific message)
-  - [x] OAuth2 login attempt by LDAP user: "Sign in is not allowed." (was: specific LDAP message)
-- [x] Rate limiting configured on `/auth/ldap/login` (auth.py)
-- [x] **Security Enhancement**: Cross-authentication protection implemented
-  - [x] Prevent OIDC from hijacking LDAP users
-    - Detects `LDAP_CLIENT_ID_MARKER` and rejects OAuth2 login
-    - Returns generic "Sign in is not allowed" error
-  - [x] Prevent LDAP from creating duplicate OAuth2 accounts
-    - Checks for existing OAuth2 user with same email
-    - Returns generic "Invalid username and/or password" error (401)
-  - [x] Integration tests for cross-auth security
-    - `test_ldap_user_cannot_login_via_oauth2`
-    - `test_ldap_login_rejected_when_oauth2_user_exists`
-- [ ] Timing attack mitigations (basic implementation, could be enhanced)
-- [x] TLS security validation (STARTTLS/LDAPS tested via adversarial MITM proxy with OpenLDAP self-signed certs)
-- [x] **PII Protection in Logs** (privacy/compliance)
-  - [x] Removed usernames from 6 logging statements in `ldap.py`
-  - [x] Removed user DNs from ambiguous search error logging  
-  - [x] Replaced PII with generic messages and configuration hints
-  - [x] Maintains operational troubleshooting capability without exposing identities
-
-**Milestone 2.4: Docker Development & Testing Environment** ✅
-- [x] Create Docker Compose LDAP profile (`scripts/devops/compose/overrides/ldap.yml`)
-  - [x] Real OpenLDAP server (osixia/openldap:1.5.0)
-  - [x] phpLDAPadmin web interface for LDAP management
-  - [x] Automated seed data loading via ldap-seed container
-  - [x] Phoenix integration with LDAP environment variables
-  - [x] Automated test runner container with Python test suite
-- [x] Create enhanced LDAP seed data (`scripts/devops/ldap-seed.ldif`)
-  - [x] **11 test users** covering all edge cases (was 4 basic users)
-  - [x] **Organizational structure**: ou=users, ou=IT, ou=HR, ou=groups
-  - [x] **Edge case users**:
-    - [x] `nogroups` - User with NO groups (wildcard fallback)
-    - [x] `multigroup` - User in MULTIPLE groups (role precedence)
-    - [x] `nodisplay` - User with MISSING displayName (fallback logic)
-    - [x] `special(user)` - Username with SPECIAL characters (injection prevention)
-    - [x] `josé` - UNICODE username (UTF-8 support)
-    - [x] `duplicate` (IT & HR) - DUPLICATE usernames in different OUs (ambiguous rejection)
-  - [x] **3 groups**: admins, members, viewers with proper memberOf attributes
-- [x] Create rigorous test script (`scripts/devops/scripts/test_ldap_integration.py`)
-  - [x] **14 comprehensive test cases** covering all success criteria
-  - [x] Tests all security controls (injection, anonymous bind, ambiguous results)
-  - [x] Tests all edge cases (no groups, multi-groups, special chars, unicode)
-  - [x] Tests error handling (invalid password, nonexistent user, empty credentials)
-  - [x] Automated execution on Docker Compose startup
-  - [x] **Test Results**: 14/14 PASSED ✅
-  - [x] Integrate into dev.sh workflow
-  - [x] `./dev.sh up --profile ldap` starts full LDAP environment
-  - [x] `docker logs devops-ldap-test` shows test results
-  - [x] LDAP Admin accessible at http://localhost:6443
-
-**Milestone 2.5: TLS Security Testing & Adversarial Validation** ✅
-- [x] Create Docker Compose TLS profile (`scripts/devops/compose/overrides/ldap-test.yml`)
-  - [x] OpenLDAP with TLS enabled (auto-generated self-signed certificates)
-  - [x] Phoenix STARTTLS instance (port 6007, STARTTLS mode)
-  - [x] Phoenix LDAPS instance (port 6008, LDAPS mode)
-  - [x] Grafana LDAP instance (port 3000, comparison baseline)
-  - [x] Adversarial MITM proxy (port 3389, credential extraction)
-  - [x] Automated test runner executing comprehensive security validation
-- [x] Implement adversarial MITM proxy (`scripts/devops/scripts/ldap_mitm_proxy.py`)
-  - [x] LDAP ASN.1/BER protocol parsing for bind request analysis
-  - [x] Credential extraction from Simple Authentication (RFC 4513 §5.1.1)
-  - [x] StartTLS and TLS handshake detection
-  - [x] Credential verification against real LDAP server
-  - [x] Structured JSON logging for automated analysis
-  - [x] Application identification via reverse DNS
-- [x] Implement comprehensive test suite (`scripts/devops/scripts/test_ldap_tls.py`)
-  - [x] **Phase 1: Baseline** - Direct LDAP connectivity tests (plaintext, STARTTLS, LDAPS)
-  - [x] **Phase 2: Applications** - Phoenix STARTTLS/LDAPS + Grafana STARTTLS via MITM proxy
-  - [x] **Phase 3: Adversarial** - MITM proxy log analysis + credential verification
-  - [x] Exit codes: 0 = all tests passed, 1 = failures detected
-  - [x] **Test Results**: 7/7 PASSED ✅
-- [x] Fix STARTTLS vulnerability in Phoenix (`src/phoenix/server/ldap.py`)
-  - [x] Service account binds use `AUTO_BIND_TLS_BEFORE_BIND` for STARTTLS mode
-  - [x] User password verification calls `start_tls()` before `bind()` for STARTTLS
-  - [x] LDAPS mode unaffected (TLS from start)
-- [x] Validation results documented (`scripts/devops/LDAP-TLS-TESTING.md`)
-  - [x] **Phoenix**: ✅ SECURE - MITM proxy extracted 0 credentials
-  - [x] **Grafana v11.4**: 🚨 VULNERABLE - MITM proxy extracted 2 credentials
-  - [x] Comprehensive architecture diagrams and test flow documentation
-- [x] Integrate into dev.sh workflow
-  - [x] `./dev.sh up --profile ldap-test` starts full TLS test environment
-  - [x] `docker logs devops-ldap-test` shows automated test results
-  - [x] `docker logs devops-ldap-mitm-proxy` shows adversarial analysis
-
----
-
-### Phase 3: Frontend & Documentation ✅ **COMPLETE**
-
-**Milestone 3.1: Frontend Components** ✅ **COMPLETE**
-- [x] Create `LDAPLoginForm.tsx` (username + password form, POSTs to `/auth/ldap/login`)
-- [x] Update `LoginPage.tsx` to include LDAP form with conditional rendering
-- [x] Update `NewUserDialog.tsx` with LDAP tab for admin user creation
-- [x] Update `UsersTable.tsx` to display LDAP users correctly (no changes needed - works automatically)
-- [x] Add `"LDAP"` to GraphQL `AuthMethod` enum
-- [x] Update `window.Config` to include `ldapEnabled` flag
-- [x] Update backend `AppConfig` and `index.html` template to expose `ldapEnabled`
-
-**Implementation Details**:
-- **End-User Login**: `LDAPLoginForm.tsx` accepts username/password, sanitizes input, handles errors (401, 429), shows loading state
-- **Admin User Creation**: `NewUserDialog.tsx` includes tabbed interface (Local/OAuth2/LDAP) with intelligent default tab selection
-- **Separator Logic**: "or" separators correctly shown between Local/LDAP and OAuth2 sections
-- **Config Propagation**: Backend → `window.Config.ldapEnabled` → Frontend conditional rendering
-
-**Milestone 3.2: Documentation** ✅ **COMPLETE**
-- [x] Configuration guide (environment variables) - See [Configuration Reference](./ldap-authentication/configuration.md)
-- [x] Group role mapping examples - See [Configuration Reference](./ldap-authentication/configuration.md)
-- [x] Database schema documentation - See [Database Schema](./ldap-authentication/database-schema.md)
-- [x] Security considerations - See [Security Deep-Dive](./ldap-authentication/security.md)
-- [x] Migration guide (Approach 1 → 2) - See [Migration Plan](./ldap-authentication/migration-plan.md)
-- [x] Grafana compatibility analysis - See [Grafana Comparison](./ldap-authentication/grafana-comparison.md)
-- [ ] Active Directory setup guide (user-facing docs - TBD)
-- [ ] OpenLDAP setup guide (user-facing docs - TBD)
-- [ ] Troubleshooting guide (user-facing docs - TBD)
-
----
-
-### Technical Validation Required
-
-Before production release:
-
-1. **Spike Phase** (early validation with real LDAP): ✅ **COMPLETE**
-   - [x] Test ldap3 library with real OpenLDAP instance (Docker + 11 test users)
-   - [x] Test group membership queries (memberOf) against real directory
-   - [x] Measure authentication latency in realistic environment (< 2s P95)
-   - [x] Validate configuration patterns work end-to-end (14/14 tests passed)
-   - [x] Validate ambiguous search result handling (duplicate users across OUs)
-   - [x] Verify STARTTLS/LDAPS compatibility with real LDAP server (OpenLDAP with self-signed certs)
-   - [x] **STARTTLS security validated** - Adversarial MITM proxy confirms no plaintext credential transmission
-   - [ ] Test with real Active Directory instance (OpenLDAP validated, AD pending)
-   
-   **Note**: This complements automated integration tests (in-process mock LDAP server in Milestone 2.2). Real OpenLDAP Docker environment validates production scenarios with actual protocol implementation.
-
-2. **Security Review**: ✅ **COMPLETE**
-   - [x] LDAP injection prevention verified (uses ldap3.escape_filter_chars, tested)
-   - [x] Username enumeration prevention verified (generic error messages implemented)
-   - [x] Rate limiting configured (10 attempts/minute on /auth/ldap/login)
-   - [x] Cross-authentication security verified (LDAP↔OAuth2 isolation)
-   - [x] **Ambiguous search result rejection** (non-deterministic auth prevention)
-   - [x] **PII protection** - Removed usernames/DNs from all logs (GDPR/CCPA compliance)
-   - [x] **Anonymous bind prevention** - Explicit empty credential checks (security)
-   - [x] **STARTTLS sequencing validated** - Adversarial MITM proxy with ASN.1/BER parsing confirms TLS upgrade before bind
-   - [x] **DN case-insensitivity** - Normalized storage prevents account duplication/lockout (RFC 4514 compliance)
-   - [x] **TLS mode-aware port defaulting** - LDAPS defaults to 636, STARTTLS defaults to 389
-
-3. **Performance Testing**: ⏳ **PENDING**
-   - [ ] P95 login latency < 2 seconds
-   - [ ] Connection pooling effectiveness measured
-   - [ ] Graceful degradation when LDAP unavailable
-   - [ ] Multi-server failover latency acceptable
+Two properties are implemented but no test covers them: `/auth/ldap/login` is rate limited, and log lines do not contain usernames or DNs.
 
 ---
 
