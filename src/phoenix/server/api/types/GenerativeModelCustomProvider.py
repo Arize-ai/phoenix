@@ -10,7 +10,7 @@ from strawberry.scalars import JSON
 from strawberry.types import Info
 from typing_extensions import Self, assert_never
 
-from phoenix.db import models
+from phoenix.db import models as db_models
 from phoenix.db.types import model_provider as mp
 from phoenix.server.api.context import Context
 from phoenix.server.api.helpers.client_registry import CLIENT_REGISTRY
@@ -436,7 +436,7 @@ CustomProviderConfig = Annotated[
 
 
 def _parse_config(
-    sdk: models.GenerativeModelSDK,
+    sdk: db_models.GenerativeModelSDK,
     encrypted_config: bytes,
     decrypt: Callable[[bytes], bytes],
 ) -> CustomProviderConfig:
@@ -474,7 +474,7 @@ def _parse_config(
 @strawberry.type
 class GenerativeModelCustomProvider(Node):
     id: NodeID[int]
-    db_record: strawberry.Private[models.GenerativeModelCustomProvider | None] = None
+    db_record: strawberry.Private[db_models.GenerativeModelCustomProvider | None] = None
 
     def __post_init__(self) -> None:
         if self.db_record and self.id != self.db_record.id:
@@ -486,7 +486,7 @@ class GenerativeModelCustomProvider(Node):
             val = self.db_record.name
         else:
             val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.name),
+                (self.id, db_models.GenerativeModelCustomProvider.name),
             )
         return val
 
@@ -496,7 +496,7 @@ class GenerativeModelCustomProvider(Node):
             val = self.db_record.description
         else:
             val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.description),
+                (self.id, db_models.GenerativeModelCustomProvider.description),
             )
         return val
 
@@ -506,7 +506,7 @@ class GenerativeModelCustomProvider(Node):
             val = self.db_record.provider
         else:
             val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.provider),
+                (self.id, db_models.GenerativeModelCustomProvider.provider),
             )
         return val
 
@@ -516,7 +516,7 @@ class GenerativeModelCustomProvider(Node):
             val = self.db_record.created_at
         else:
             val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.created_at),
+                (self.id, db_models.GenerativeModelCustomProvider.created_at),
             )
         return val
 
@@ -526,7 +526,7 @@ class GenerativeModelCustomProvider(Node):
             val = self.db_record.updated_at
         else:
             val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.updated_at),
+                (self.id, db_models.GenerativeModelCustomProvider.updated_at),
             )
         return val
 
@@ -536,7 +536,7 @@ class GenerativeModelCustomProvider(Node):
             sdk = self.db_record.sdk
         else:
             sdk = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.sdk),
+                (self.id, db_models.GenerativeModelCustomProvider.sdk),
             )
         return GenerativeModelSDK(sdk)
 
@@ -551,8 +551,8 @@ class GenerativeModelCustomProvider(Node):
                 encrypted_config,
             ) = await info.context.data_loaders.generative_model_custom_provider_fields.load_many(
                 [
-                    (self.id, models.GenerativeModelCustomProvider.sdk),
-                    (self.id, models.GenerativeModelCustomProvider.config),
+                    (self.id, db_models.GenerativeModelCustomProvider.sdk),
+                    (self.id, db_models.GenerativeModelCustomProvider.config),
                 ]
             )
         return _parse_config(sdk, encrypted_config, info.context.decrypt)
@@ -565,7 +565,7 @@ class GenerativeModelCustomProvider(Node):
             user_id = self.db_record.user_id
         else:
             user_id = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.user_id),
+                (self.id, db_models.GenerativeModelCustomProvider.user_id),
             )
         if user_id is None:
             return None
@@ -573,12 +573,12 @@ class GenerativeModelCustomProvider(Node):
 
         return User(id=user_id)
 
-    async def _sdk(self, info: Info[Context, None]) -> models.GenerativeModelSDK:
+    async def _sdk(self, info: Info[Context, None]) -> db_models.GenerativeModelSDK:
         if self.db_record:
             return self.db_record.sdk
-        sdk: models.GenerativeModelSDK = (
+        sdk: db_models.GenerativeModelSDK = (
             await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.sdk),
+                (self.id, db_models.GenerativeModelCustomProvider.sdk),
             )
         )
         return sdk
