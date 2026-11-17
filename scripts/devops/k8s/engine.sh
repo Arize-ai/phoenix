@@ -255,14 +255,32 @@ ensure_apple_container_system() {
         log_info "Starting Apple container system service..."
         container system start --disable-kernel-install >/dev/null 2>&1 || container system start
     fi
-    # Ensure a default Linux kernel is configured
-    if ! container system kernel ls 2>/dev/null | grep -q .; then
-        if [[ ! -e "$HOME/Library/Application Support/com.apple.container/kernels/default.kernel-arm64" ]] && \
-           [[ ! -d "$HOME/Library/Application Support/com.apple.container/kernels" ]]; then
-            log_info "Installing recommended Linux kernel for Apple container..."
-            container system kernel set --recommended
-        fi
+    # The container CLI has no command to list kernels, so check for the default kernel file.
+    # Starting the service with --disable-kernel-install leaves an empty kernels directory.
+    if ! apple_container_kernel_configured; then
+        log_info "Installing recommended Linux kernel for Apple container..."
+        container system kernel set --recommended
     fi
+}
+
+apple_container_kernel_configured() {
+    [[ -e "$HOME/Library/Application Support/com.apple.container/kernels/default.kernel-$(uname -m)" ]]
+}
+
+# The API server is published on 127.0.0.1 by container-runtime-linux. macOS Local Network
+# privacy can block that helper from reaching the node VM, which shows up as connection resets.
+wait_for_apple_container_api() {
+    local attempt
+    for attempt in {1..15}; do
+        if kctl get --raw /readyz >/dev/null 2>&1; then
+            return 0
+        fi
+        sleep 2
+    done
+    log_error "Cannot reach the Kubernetes API server through its localhost port forward"
+    echo "   If 'container system logs' shows 'No route to host', allow 'container' under"
+    echo "   System Settings > Privacy & Security > Local Network, then run './dev.sh up' again."
+    exit 1
 }
 
 cluster_exists() {
@@ -302,6 +320,8 @@ ensure_cluster() {
         elif [[ ! -f "$KUBECONFIG_PATH" ]]; then
             container cluster write-config --name "$CLUSTER_NAME" --kubeconfig "$KUBECONFIG_PATH"
         fi
+
+        wait_for_apple_container_api
 
         # kindest/node ships local-path-provisioner in /kind/manifests/default-storage.yaml,
         # which `container cluster create` does not apply automatically. Install it idempotently
@@ -1113,6 +1133,11 @@ run_doctor() {
             log_success "Apple container daemon is running"
         else
             log_warning "Apple container daemon is stopped ('./dev.sh up' will start it)"
+        fi
+        if apple_container_kernel_configured; then
+            log_success "Apple container default kernel is configured"
+        else
+            log_warning "Apple container default kernel is not configured ('./dev.sh up' will run 'container system kernel set --recommended')"
         fi
     elif [[ "$BACKEND" == "kind" ]]; then
         log_success "Backend: kind ($(kind --version))"
