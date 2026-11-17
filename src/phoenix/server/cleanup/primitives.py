@@ -32,7 +32,7 @@ from sqlalchemy import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
-from phoenix.db.eval_work import QUEUED_STATUSES, queued_index_predicate
+from phoenix.db.eval_work import queued_index_predicate
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.online_eval.work_tables import WORK_TABLES, WorkUnitModel
 
@@ -42,7 +42,6 @@ _WORK_UNIT_MODELS: tuple[WorkUnitModel, ...] = tuple(
     table.work_unit_model for table in WORK_TABLES.values()
 )
 _RESETTABLE_SESSION_EVAL_STATUSES: tuple[models.EvalWorkStatus, ...] = (
-    *QUEUED_STATUSES,
     "DONE",
     "FILTERED_OUT",
     "SAMPLED_OUT",
@@ -613,7 +612,7 @@ async def reset_session_evaluations_step(
     ready_trace_cond: ColumnElement[bool],
     batch_limit: int,
 ) -> PrimitiveResult:
-    """Reset queued and final session evaluations for span-drained traces about to be cleared."""
+    """Reset final session evaluation decisions for span-drained traces about to be cleared."""
     condition = _resettable_session_evaluations_condition(ready_trace_cond)
     candidates = select(models.EvalSessionWorkUnit.id).where(condition).limit(batch_limit)
     if dialect is SupportedSQLDialect.POSTGRESQL:
@@ -628,12 +627,7 @@ async def reset_session_evaluations_step(
                     models.EvalSessionWorkUnit.id.in_(ids),
                     models.EvalSessionWorkUnit.status.in_(_RESETTABLE_SESSION_EVAL_STATUSES),
                 )
-                .values(
-                    status="DROPPED",
-                    claimed_at=None,
-                    claimed_by=None,
-                    cooldown_until=None,
-                )
+                .values(status="DROPPED")
             )
         )
         if count > 0:

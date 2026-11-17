@@ -91,7 +91,7 @@ async def _delete_matching_traces_in_batches(
                         dialect=dialect,
                         trace_cond=condition,
                         batch_limit=batch_size,
-                        reset_session_evaluations=True,
+                        reset_session_evaluations=False,
                     )
             except DBAPIError as exc:
                 if get_sqlstate(exc) in _TRANSIENT_CONTENTION_SQLSTATES:
