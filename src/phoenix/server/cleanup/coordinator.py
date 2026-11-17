@@ -579,6 +579,7 @@ class CleanupCoordinator:
             dialect=dialect,
             project_id=project_id,
             batch_limit=self._batch_limit,
+            rehome_shared_sessions=True,
         )
         if trace_res.status is PrimitiveStatus.PROGRESS:
             events_after_commit.append(SpanDeleteEvent((project_id,)))
@@ -668,6 +669,7 @@ class CleanupCoordinator:
             dialect=dialect,
             project_id=trace_project_id,
             batch_limit=self._batch_limit,
+            rehome_shared_sessions=True,
         )
         if trace_res.status is not PrimitiveStatus.EMPTY:
             return trace_res
@@ -762,6 +764,7 @@ class CleanupCoordinator:
             dialect=dialect,
             project_id=trace_project_id,
             batch_limit=self._batch_limit,
+            rehome_shared_sessions=True,
         )
         if trace_res.status is not PrimitiveStatus.EMPTY:
             return trace_res

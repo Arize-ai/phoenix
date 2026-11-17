@@ -378,6 +378,7 @@ async def drain_trace_scope_step(
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
     batch_limit: int = CLEANUP_BATCH_ROWS,
+    rehome_shared_sessions: bool = False,
 ) -> PrimitiveResult:
     """Drain one bounded step of spans, traces, and eligible orphan sessions for a project scope.
 
@@ -385,7 +386,8 @@ async def drain_trace_scope_step(
     reads oldest in-scope rows first. Each step drains the spans of the oldest window of traces and
     deletes the window's span-less traces, so the window advances as rows are removed. A ``Trace``
     row is deleted only when zero ``Span`` rows remain attached to it, bounding any residual
-    cascade.
+    cascade. When ``rehome_shared_sessions`` is ``True``, sessions owned by ``project_id`` whose
+    only remaining traces belong to other projects are reassigned before ``project_id`` is deleted.
     """
     trace_cond = trace_scope_condition(
         project_id,
@@ -463,6 +465,9 @@ async def drain_trace_scope_step(
             return PrimitiveResult(PrimitiveStatus.PROGRESS, deleted_sessions)
     if await _has_any(session, orphan_session_cond):
         return PrimitiveResult(PrimitiveStatus.YIELD, 0)
+
+    if not rehome_shared_sessions:
+        return PrimitiveResult(PrimitiveStatus.EMPTY, 0)
 
     # If a ProjectSession owned by `project_id` still has surviving traces in another
     # project (because `project_sessions.session_id` is globally unique across projects),
