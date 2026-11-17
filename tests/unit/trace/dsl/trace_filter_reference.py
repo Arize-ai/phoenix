@@ -242,10 +242,6 @@ _ELEMENT_FIELDS: Mapping[str, frozenset[str]] = {
             "start_time",
             "end_time",
             "latency_ms",
-            "cumulative_error_count",
-            "cumulative_llm_token_count_prompt",
-            "cumulative_llm_token_count_completion",
-            "cumulative_llm_token_count_total",
             "llm_token_count_prompt",
             "llm_token_count_completion",
             "llm_token_count_total",
@@ -396,16 +392,6 @@ class _Evaluator:
             value = self._trace.start_time_for(element)
         elif iterable == "spans" and field == "end_time":
             value = self._trace.end_time_for(element)
-        elif iterable == "spans" and field == "cumulative_error_count":
-            value = self._trace.cumulative_error_count(element)
-        elif iterable == "spans" and field == "cumulative_llm_token_count_prompt":
-            value = self._trace.cumulative_token_count(element, "prompt")
-        elif iterable == "spans" and field == "cumulative_llm_token_count_completion":
-            value = self._trace.cumulative_token_count(element, "completion")
-        elif iterable == "spans" and field == "cumulative_llm_token_count_total":
-            value = self._trace.cumulative_token_count(
-                element, "prompt"
-            ) + self._trace.cumulative_token_count(element, "completion")
         else:
             value = getattr(element, field)
         return MISSING if value is None else value
@@ -910,10 +896,6 @@ DIFFERENTIAL_CONDITIONS: tuple[str, ...] = (
     'trace_id == "CLEAN"',
     'any("CHAT" in s.name for s in spans)',
     'any(s.name == "Chat" for s in spans)',
-    "any(s.cumulative_error_count > 0 for s in spans)",
-    "any(s.cumulative_llm_token_count_prompt == 10 for s in spans)",
-    "any(s.cumulative_llm_token_count_completion == 5 for s in spans)",
-    "any(s.cumulative_llm_token_count_total == 15 for s in spans)",
     'max(s.start_time for s in spans if s.status_code == "ERROR") > '
     'max(s.start_time for s in spans if "finalize" in s.name)',
     'min(s.end_time for s in spans if s.name == "absent") is None',
