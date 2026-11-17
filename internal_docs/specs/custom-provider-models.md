@@ -66,7 +66,7 @@ What it requires:
 
 - A write path that replaces rows, a dataloader, an ORM `init` event for defaults, an explicit `updated_at` update, and profile cleanup on patch and delete.
 - Three extra queries whenever an ORM query loads providers (see Caveats).
-- Duplicate names are prevented by the write path. Because the name lives in `model_profiles` and the link holds only an ID, the database can't enforce unique names per type.
+- Duplicate names per type are prevented in code, not by a constraint (see Caveats).
 
 Sharing and per-model fields aren't implemented. Building on the layout for them would still take work:
 
@@ -80,8 +80,8 @@ Sharing and per-model fields aren't implemented. Building on the layout for them
 - An ORM `init` event gives a provider built without `model_types` its SDK's default types: `CHAT` for chat SDKs, `DECISION` for TypeSafe.
 - A patch holds the provider row's lock. For each type that is turned on, turned off or has its names changed, it deletes the profiles first (their links go with them), then the type row, and then rebuilds the type if it is still served. It uses `build_model_type_row`, the same builder that create uses.
 - A patch sets `provider.updated_at` itself, because a change to type rows or links doesn't touch the provider row. Online-eval resolution fingerprints a custom provider by `(id, updated_at)`, so a change to what a provider serves has to move it.
-- `CustomProviderModelsDataLoader` loads the rows for GraphQL in batches.
-- Tables that reference a custom provider (decision versions, prompt versions, experiment tasks, agent sessions) have foreign keys to the provider row, not to a type row. Python checks the type instead. Saving a decision version reads the provider `FOR SHARE`, so a patch that stops the provider serving decisions waits for it, and the patch's reference check then sees the new version.
+- GraphQL fields that already hold the provider record, such as the provider list and mutation payloads, read its eagerly loaded rows. References that carry only an ID, such as `node(id:)`, `PromptVersion.customProvider` and `Decision.customProvider`, load them through `CustomProviderModelsDataLoader` in batches.
+- Tables that reference a custom provider (decision versions, prompt versions, experiment tasks, agent sessions) have foreign keys to the provider row, not to a type row. Python checks the type instead. Saving a decision version reads the provider `FOR SHARE`, so a patch that stops the provider serving decisions waits for it, and the patch's reference check then sees the new version. Creating a decision experiment task takes no such lock; if the provider stops serving decisions first, the task fails when it runs, because the decision client checks again.
 
 ### Migration
 
