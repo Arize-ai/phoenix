@@ -12,8 +12,8 @@
       "source": "daytona/skills",
       "sourceType": "github",
       "skillPath": "skills/daytona/SKILL.md",
-      "computedHash": "c9253ef3e3bd9683a5e99eadffae395a2e5f37ba4f1fa4392adc328ea2eb3b45",
-      "commit": "1d33f46d16a10f5c510d20c480c53315866ce675"
+      "computedHash": "acd76ed68f11e7e9d8f5e53ea880f0d50c846cde3ae44d208f2f7ad9dde207d8",
+      "commit": "ee273cd79456eea631cb013b1282594fb8c6f00e"
     },
     "gh-stack": {
       "source": "github/gh-stack",
@@ -33,8 +33,8 @@
       "source": "mintlify.com",
       "sourceUrl": "https://mintlify.com/docs",
       "sourceType": "well-known",
-      "computedHash": "83566eabffd16efa218620644d1ea6d48095e2d63eca68d66f5f59d0191345fa",
-      "wellKnownDigest": "sha256:92daaa3875982ac416aa606522fafb54eab9af5decb1be9ffad7fa45708ba7cb"
+      "computedHash": "179fcd351ba0f5522a8816b710d5ec69dcc0366574113034379e37d76a4d00b4",
+      "wellKnownDigest": "sha256:a78c1aea5269bfee7aafe6dfba101bfba07e821a15e5eaad21cb2ba2fa45d286"
     },
     "rewardkit": {
       "source": "harbor-framework/harbor",
