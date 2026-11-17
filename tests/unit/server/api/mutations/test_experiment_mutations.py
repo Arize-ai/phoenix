@@ -87,6 +87,99 @@ class TestDeleteExperiment:
             f"['{str(GlobalID('Experiment', str(3)))}']"
         )
 
+    async def test_deletes_sdk_eval_traces_while_preserving_evaluator_project_traces(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        from datetime import datetime, timezone
+        from secrets import token_hex
+
+        now_time = datetime.now(timezone.utc)
+        async with db() as session:
+            dataset = models.Dataset(name=f"gql-exp-ds-{token_hex(4)}", metadata_={})
+            sdk_evaluators_project = models.Project(name="evaluators", kind="STANDARD")
+            evaluator_sink_project = models.Project(
+                name=f"gql-eval-sink-{token_hex(4)}", kind="EVALUATOR"
+            )
+            session.add_all([dataset, sdk_evaluators_project, evaluator_sink_project])
+            await session.flush()
+
+            dataset_version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+            dataset_example = models.DatasetExample(dataset_id=dataset.id)
+            sdk_trace = models.Trace(
+                project_rowid=sdk_evaluators_project.id,
+                trace_id=f"gql-sdk-eval-{token_hex(8)}",
+                start_time=now_time,
+                end_time=now_time,
+            )
+            sink_trace = models.Trace(
+                project_rowid=evaluator_sink_project.id,
+                trace_id=f"gql-sink-eval-{token_hex(8)}",
+                start_time=now_time,
+                end_time=now_time,
+            )
+            session.add_all([dataset_version, dataset_example, sdk_trace, sink_trace])
+            await session.flush()
+
+            experiment = models.Experiment(
+                dataset_id=dataset.id,
+                dataset_version_id=dataset_version.id,
+                name="exp-with-eval-traces",
+                repetitions=1,
+                metadata_={},
+            )
+            session.add(experiment)
+            await session.flush()
+            experiment_run = models.ExperimentRun(
+                experiment_id=experiment.id,
+                dataset_example_id=dataset_example.id,
+                repetition_number=1,
+                output={"output": "ok"},
+                start_time=now_time,
+                end_time=now_time,
+            )
+            session.add(experiment_run)
+            await session.flush()
+            session.add_all(
+                [
+                    models.ExperimentRunAnnotation(
+                        experiment_run_id=experiment_run.id,
+                        name="sdk-eval",
+                        annotator_kind="CODE",
+                        score=1.0,
+                        trace_id=sdk_trace.trace_id,
+                        metadata_={},
+                        start_time=now_time,
+                        end_time=now_time,
+                    ),
+                    models.ExperimentRunAnnotation(
+                        experiment_run_id=experiment_run.id,
+                        name="server-eval",
+                        annotator_kind="LLM",
+                        score=1.0,
+                        trace_id=sink_trace.trace_id,
+                        metadata_={},
+                        start_time=now_time,
+                        end_time=now_time,
+                    ),
+                ]
+            )
+            await session.flush()
+            experiment_id = experiment.id
+            sdk_trace_rowid = sdk_trace.id
+            sink_trace_rowid = sink_trace.id
+
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={"experimentIds": [str(GlobalID("Experiment", str(experiment_id)))]},
+        )
+        assert not response.errors
+
+        async with db() as session:
+            assert await session.get(models.Trace, sdk_trace_rowid) is None
+            assert await session.get(models.Trace, sink_trace_rowid) is not None
+
 
 class TestPatchExperimentMutation:
     MUTATION = """

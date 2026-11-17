@@ -14,7 +14,6 @@ from sqlalchemy import (
     and_,
     case,
     column,
-    distinct,
     exists,
     func,
     insert,
@@ -154,20 +153,40 @@ def _latest_code_evaluator_versions_sqlite_stmt(keys: list[int]) -> Select[*tupl
 
 def get_eval_trace_ids_for_datasets(*dataset_ids: int) -> Select[Optional[str]]:
     return (
-        select(distinct(models.ExperimentRunAnnotation.trace_id))
+        select(models.ExperimentRunAnnotation.trace_id)
+        .distinct()
         .join(models.ExperimentRun)
         .join_from(models.ExperimentRun, models.Experiment)
-        .where(models.Experiment.dataset_id.in_(set(dataset_ids)))
-        .where(models.ExperimentRunAnnotation.trace_id.isnot(None))
+        .join(
+            models.Trace,
+            models.Trace.trace_id == models.ExperimentRunAnnotation.trace_id,
+        )
+        .join(models.Project, models.Project.id == models.Trace.project_rowid)
+        .where(
+            models.Experiment.dataset_id.in_(set(dataset_ids)),
+            models.ExperimentRunAnnotation.trace_id.isnot(None),
+            models.Project.deleted_at.is_(None),
+            models.Project.kind != "EVALUATOR",
+        )
     )
 
 
 def get_eval_trace_ids_for_experiments(*experiment_ids: int) -> Select[Optional[str]]:
     return (
-        select(distinct(models.ExperimentRunAnnotation.trace_id))
+        select(models.ExperimentRunAnnotation.trace_id)
+        .distinct()
         .join(models.ExperimentRun)
-        .where(models.ExperimentRun.experiment_id.in_(set(experiment_ids)))
-        .where(models.ExperimentRunAnnotation.trace_id.isnot(None))
+        .join(
+            models.Trace,
+            models.Trace.trace_id == models.ExperimentRunAnnotation.trace_id,
+        )
+        .join(models.Project, models.Project.id == models.Trace.project_rowid)
+        .where(
+            models.ExperimentRun.experiment_id.in_(set(experiment_ids)),
+            models.ExperimentRunAnnotation.trace_id.isnot(None),
+            models.Project.deleted_at.is_(None),
+            models.Project.kind != "EVALUATOR",
+        )
     )
 
 

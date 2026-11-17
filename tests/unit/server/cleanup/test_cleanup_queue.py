@@ -3247,3 +3247,224 @@ async def test_postgres_dataset_evaluator_dependents_skip_locked_past_locked_pre
             batch_limit=2,
         )
         assert empty_result == PrimitiveResult(PrimitiveStatus.EMPTY, 0)
+
+
+async def test_delete_traces_handles_more_than_32767_trace_ids_without_bind_param_crash(
+    db: DbSessionFactory,
+) -> None:
+    from phoenix.server.api.utils import delete_traces
+
+    base_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    async with db() as session:
+        sdk_evaluators_project = models.Project(name="evaluators", kind="STANDARD")
+        tombstoned_evaluator_sink = models.Project(
+            name=f"tombstoned-eval-{token_hex(4)}",
+            kind="EVALUATOR",
+            deleted_at=base_time,
+        )
+        session.add_all([sdk_evaluators_project, tombstoned_evaluator_sink])
+        await session.flush()
+
+        sdk_trace = await _add_trace(session, sdk_evaluators_project, start_time=base_time)
+        await _add_span(session, trace=sdk_trace, start_time=base_time)
+        sink_trace = await _add_trace(session, tombstoned_evaluator_sink, start_time=base_time)
+        await _add_span(session, trace=sink_trace, start_time=base_time)
+        sdk_trace_rowid = sdk_trace.id
+        sink_trace_rowid = sink_trace.id
+        over_limit_trace_ids = [
+            sdk_trace.trace_id,
+            sink_trace.trace_id,
+            *(f"nonexistent-trace-{idx:06d}" for idx in range(35_000)),
+        ]
+
+    await delete_traces(db, *over_limit_trace_ids)
+
+    async with db() as session:
+        assert await session.get(models.Trace, sdk_trace_rowid) is None
+        assert await session.get(models.Trace, sink_trace_rowid) is not None
+
+
+async def test_delete_traces_chunks_above_bind_param_limit_skips_evaluator_projects_and_emits_event(
+    db: DbSessionFactory,
+) -> None:
+    from phoenix.db.helpers import (
+        get_eval_trace_ids_for_datasets,
+        get_eval_trace_ids_for_experiments,
+    )
+    from phoenix.server.api.utils import delete_traces
+
+    base_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    async with db() as session:
+        sdk_evaluators_project = models.Project(name="evaluators", kind="STANDARD")
+        live_evaluator_sink = models.Project(
+            name=f"live-eval-sink-{token_hex(4)}", kind="EVALUATOR"
+        )
+        tombstoned_evaluator_sink = models.Project(
+            name=f"tombstoned-eval-sink-{token_hex(4)}",
+            kind="EVALUATOR",
+            deleted_at=base_time,
+        )
+        tombstoned_standard_project = models.Project(
+            name=f"tombstoned-std-{token_hex(4)}",
+            kind="STANDARD",
+            deleted_at=base_time,
+        )
+        untouched_project = models.Project(name=f"untouched-{token_hex(4)}", kind="STANDARD")
+        dataset = models.Dataset(name=f"eval-trace-ds-{token_hex(4)}", metadata_={})
+        session.add_all(
+            [
+                sdk_evaluators_project,
+                live_evaluator_sink,
+                tombstoned_evaluator_sink,
+                tombstoned_standard_project,
+                untouched_project,
+                dataset,
+            ]
+        )
+        await session.flush()
+
+        sdk_trace_first = await _add_trace(session, sdk_evaluators_project, start_time=base_time)
+        sdk_trace_second = await _add_trace(
+            session, sdk_evaluators_project, start_time=base_time + timedelta(seconds=1)
+        )
+        sdk_trace_third = await _add_trace(
+            session, sdk_evaluators_project, start_time=base_time + timedelta(seconds=2)
+        )
+        for sdk_trace in (sdk_trace_first, sdk_trace_second, sdk_trace_third):
+            sdk_span = await _add_span(session, trace=sdk_trace, start_time=base_time)
+            session.add_all(
+                [
+                    models.SpanAnnotation(
+                        span_rowid=sdk_span.id,
+                        name=f"note-{idx}",
+                        label="ok",
+                        score=1.0,
+                        annotator_kind="CODE",
+                        source="API",
+                        metadata_={},
+                    )
+                    for idx in range(3)
+                ]
+            )
+
+        live_sink_trace = await _add_trace(session, live_evaluator_sink, start_time=base_time)
+        await _add_span(session, trace=live_sink_trace, start_time=base_time)
+        tombstoned_sink_trace = await _add_trace(
+            session, tombstoned_evaluator_sink, start_time=base_time
+        )
+        await _add_span(session, trace=tombstoned_sink_trace, start_time=base_time)
+        tombstoned_std_trace = await _add_trace(
+            session, tombstoned_standard_project, start_time=base_time
+        )
+        await _add_span(session, trace=tombstoned_std_trace, start_time=base_time)
+        untouched_trace = await _add_trace(session, untouched_project, start_time=base_time)
+        await _add_span(session, trace=untouched_trace, start_time=base_time)
+
+        dataset_version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+        dataset_example = models.DatasetExample(dataset_id=dataset.id)
+        session.add_all([dataset_version, dataset_example])
+        await session.flush()
+        experiment = models.Experiment(
+            dataset_id=dataset.id,
+            dataset_version_id=dataset_version.id,
+            name=f"exp-{token_hex(4)}",
+            repetitions=1,
+            metadata_={},
+        )
+        session.add(experiment)
+        await session.flush()
+        experiment_run = models.ExperimentRun(
+            experiment_id=experiment.id,
+            dataset_example_id=dataset_example.id,
+            repetition_number=1,
+            output={"output": "ok"},
+            start_time=base_time,
+            end_time=base_time,
+        )
+        session.add(experiment_run)
+        await session.flush()
+        for idx, candidate_trace in enumerate(
+            (
+                sdk_trace_first,
+                sdk_trace_second,
+                sdk_trace_third,
+                live_sink_trace,
+                tombstoned_sink_trace,
+                tombstoned_std_trace,
+            )
+        ):
+            session.add(
+                models.ExperimentRunAnnotation(
+                    experiment_run_id=experiment_run.id,
+                    name=f"eval-{idx}",
+                    annotator_kind="CODE",
+                    score=1.0,
+                    trace_id=candidate_trace.trace_id,
+                    metadata_={},
+                    start_time=base_time,
+                    end_time=base_time,
+                )
+            )
+        await session.flush()
+
+        expected_sdk_trace_ids = {
+            sdk_trace_first.trace_id,
+            sdk_trace_second.trace_id,
+            sdk_trace_third.trace_id,
+        }
+        dataset_eval_trace_ids = set(
+            (await session.scalars(get_eval_trace_ids_for_datasets(dataset.id))).all()
+        )
+        experiment_eval_trace_ids = set(
+            (await session.scalars(get_eval_trace_ids_for_experiments(experiment.id))).all()
+        )
+        assert dataset_eval_trace_ids == expected_sdk_trace_ids
+        assert experiment_eval_trace_ids == expected_sdk_trace_ids
+
+        sdk_evaluators_project_id = sdk_evaluators_project.id
+        protected_trace_rowids = {
+            live_sink_trace.id,
+            tombstoned_sink_trace.id,
+            tombstoned_std_trace.id,
+            untouched_trace.id,
+        }
+        over_limit_trace_ids = [
+            sdk_trace_first.trace_id,
+            sdk_trace_second.trace_id,
+            sdk_trace_third.trace_id,
+            live_sink_trace.trace_id,
+            tombstoned_sink_trace.trace_id,
+            tombstoned_std_trace.trace_id,
+            *(f"nonexistent-eval-trace-{idx:06d}" for idx in range(35_000)),
+        ]
+
+    recorded_events: list[DmlEvent] = []
+
+    class _RecordingQueue:
+        def put(self, item: DmlEvent) -> None:
+            recorded_events.append(item)
+
+    affected_project_ids = await delete_traces(
+        db,
+        *over_limit_trace_ids,
+        event_queue=_RecordingQueue(),
+        batch_limit=2,
+    )
+    assert set(affected_project_ids) == {sdk_evaluators_project_id}
+    assert recorded_events == [SpanDeleteEvent((sdk_evaluators_project_id,))]
+
+    async with db() as session:
+        remaining_sdk_traces = list(
+            await session.scalars(
+                select(models.Trace.id).where(
+                    models.Trace.project_rowid == sdk_evaluators_project_id
+                )
+            )
+        )
+        assert remaining_sdk_traces == []
+        remaining_protected_traces = set(
+            await session.scalars(
+                select(models.Trace.id).where(models.Trace.id.in_(protected_trace_rowids))
+            )
+        )
+        assert remaining_protected_traces == protected_trace_rowids
