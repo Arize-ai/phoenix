@@ -16,7 +16,8 @@ def create_google_client(model: str, is_async: bool, **kwargs: Any) -> Any:
     # The Decisions API lives on the v1beta surface, so force it regardless of caller input.
     http_options: Any = dict(kwargs.pop("http_options", None) or {})
     http_options["api_version"] = "v1beta"
-    http_options.setdefault("retry_options", {"attempts": 1})
+    if http_options.get("retry_options") is None: 
+        http_options["retry_options"] = {"attempts": 1}
 
     # A single genai.Client serves both sync (``client.decisions``) and async
     # (``client.aio.decisions``) calls, so ``is_async`` needs no special handling here.
