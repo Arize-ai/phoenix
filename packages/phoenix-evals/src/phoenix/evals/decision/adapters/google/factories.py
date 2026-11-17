@@ -1,5 +1,5 @@
 from importlib.metadata import version
-from typing import Any
+from typing import Any, List, Type
 
 _MIN_GOOGLE_GENAI_VERSION = "3.2"
 
@@ -27,3 +27,9 @@ def create_google_client(model: str, is_async: bool, **kwargs: Any) -> Any:
             f"Run: pip install 'google-genai>={_MIN_GOOGLE_GENAI_VERSION}'"
         )
     return client
+
+
+def get_google_rate_limit_errors() -> List[Type[Exception]]:
+    from google.genai._interactions import RateLimitError
+
+    return [RateLimitError]

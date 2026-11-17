@@ -4,7 +4,7 @@ from ....exceptions import PhoenixDecisionRefusal
 from ....llm.prompts import PromptLike
 from ...registries import register_provider
 from ...types import BaseDecisionAdapter, ClassificationCriterion
-from .factories import create_google_client
+from .factories import create_google_client, get_google_rate_limit_errors
 
 _QUESTION_NAME = "label"
 # The Decisions API rejects a choice question without instructions.
@@ -14,6 +14,7 @@ _CHOICE_INSTRUCTIONS = "Select the single best label for the input."
 @register_provider(
     provider="google",
     client_factory=create_google_client,
+    get_rate_limit_errors=get_google_rate_limit_errors,
     dependencies=["google-genai"],
 )
 class GoogleDecisionAdapter(BaseDecisionAdapter):
