@@ -35,6 +35,7 @@ import {
   HoverDetail,
   QUEUE_METER_COLOR_BY_TARGET,
   OldestWaitStat,
+  QUEUE_STAT_HELP,
   QueueStatusBadge,
   StatValue,
 } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
@@ -203,7 +204,7 @@ function ProjectEvaluatorQueueStatsContent({
           label="Added per hour"
           rates={projectQueue}
           formatRate={(rates) => formatAddedPerHour(rates.addedPerMinute)}
-          description="This project's evaluations added in the last hour"
+          description="This project's evaluations added to the queue in the last hour."
         />
         <QueueRateStat
           label="Completed per hour"
@@ -211,7 +212,7 @@ function ProjectEvaluatorQueueStatsContent({
           formatRate={(rates) =>
             formatCompletedPerHour(rates.completedPerMinute)
           }
-          description="This project's evaluations completed in the last hour"
+          description="This project's evaluations that finished in the last hour, whether they produced an annotation or failed."
         />
       </Flex>
       <OldestWaitStat oldestWaitingAt={projectQueue?.oldestWaitingAt ?? null} />
@@ -247,7 +248,7 @@ function QueueStatsPlaceholder() {
 function ServerQueueStatusStat({ queue }: { queue: EvaluationQueue }) {
   const detail = getQueueStatusDetail(queue);
   return (
-    <StatItem label="Server queue">
+    <StatItem label="Server queue" help={QUEUE_STAT_HELP.status}>
       {/* The queue-wide figures live here: the other stats are this project's. */}
       <HoverDetail
         detail={
@@ -337,7 +338,10 @@ function ProjectQueuedStat({
     },
   ];
   return (
-    <StatItem label="In queue">
+    <StatItem
+      label="In queue"
+      help="This project's evaluations queued or running, including ones waiting to retry. The bar shows its share of the server queue, which every project draws from."
+    >
       <Flex direction="column" gap="size-100" width="100%">
         <HoverDetail
           detail={
@@ -409,16 +413,8 @@ function QueueRateStat({
   description: string;
 }) {
   return (
-    <StatItem label={label}>
-      <HoverDetail
-        detail={
-          <Text size="S" color="text-700">
-            {description}
-          </Text>
-        }
-      >
-        <StatValue>{rates != null ? formatRate(rates) : "--"}</StatValue>
-      </HoverDetail>
+    <StatItem label={label} help={description}>
+      <StatValue>{rates != null ? formatRate(rates) : "--"}</StatValue>
     </StatItem>
   );
 }

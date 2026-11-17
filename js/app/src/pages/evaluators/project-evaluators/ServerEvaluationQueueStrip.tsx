@@ -21,6 +21,7 @@ import {
   getQueueStatusDetail,
   HoverDetail,
   OldestWaitStat,
+  QUEUE_STAT_HELP,
   QUEUE_METER_COLOR_BY_TARGET,
   QueueStatusBadge,
   StatValue,
@@ -34,7 +35,7 @@ const stripCSS = css`
   flex-direction: row;
   flex-wrap: wrap;
   align-items: flex-start;
-  column-gap: var(--global-dimension-size-400);
+  column-gap: var(--global-dimension-size-300);
   row-gap: var(--global-dimension-size-150);
 `;
 
@@ -150,7 +151,7 @@ function ServerEvaluationQueueStripContent({
   return (
     <>
       <div css={stripCSS}>
-        <StatItem label="Status">
+        <StatItem label="Status" help={QUEUE_STAT_HELP.status}>
           <HoverDetail
             detail={
               statusDetail != null ? <Text size="S">{statusDetail}</Text> : null
@@ -159,7 +160,7 @@ function ServerEvaluationQueueStripContent({
             <QueueStatusBadge status={queue.status} />
           </HoverDetail>
         </StatItem>
-        <StatItem label="In queue">
+        <StatItem label="In queue" help={QUEUE_STAT_HELP.inQueue}>
           <Flex direction="column" gap="size-50" minWidth="size-2400">
             <HoverDetail
               detail={
@@ -182,29 +183,24 @@ function ServerEvaluationQueueStripContent({
             <EvaluationQueueMeter segments={segments} />
           </Flex>
         </StatItem>
-        <StatItem label="Added per hour">
+        <StatItem label="Added per hour" help={QUEUE_STAT_HELP.addedPerHour}>
           <StatValue>{formatAddedPerHour(queue.addedPerMinute)}</StatValue>
         </StatItem>
-        <StatItem label="Completed per hour">
+        <StatItem
+          label="Completed per hour"
+          help={QUEUE_STAT_HELP.completedPerHour}
+        >
           <StatValue>
             {formatCompletedPerHour(queue.completedPerMinute)}
           </StatValue>
         </StatItem>
-        <StatItem label="Net per hour">
-          <HoverDetail
-            detail={
-              <Text size="S" color="text-700">
-                Added minus completed, last hour
-              </Text>
-            }
-          >
-            <StatValue color={net.netPerHour > 0 ? "warning" : null}>
-              {net.formatted}
-            </StatValue>
-          </HoverDetail>
+        <StatItem label="Net per hour" help={QUEUE_STAT_HELP.netPerHour}>
+          <StatValue color={net.netPerHour > 0 ? "warning" : null}>
+            {net.formatted}
+          </StatValue>
         </StatItem>
         <OldestWaitStat oldestWaitingAt={queue.oldestWaitingAt} />
-        <StatItem label="Evaluation cost">
+        <StatItem label="Evaluation cost" help={QUEUE_STAT_HELP.evaluationCost}>
           <Suspense fallback={<StatValue>--</StatValue>}>
             <EvaluationCostValue fetchKey={fetchKey} />
           </Suspense>

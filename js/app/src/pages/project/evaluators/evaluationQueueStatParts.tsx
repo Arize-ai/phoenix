@@ -122,6 +122,26 @@ export function getNetPerHour({
   };
 }
 
+/**
+ * What each queue stat measures, for the info tip beside its label. The
+ * server-wide strip and the project aside share them so a stat reads the same
+ * in both.
+ */
+export const QUEUE_STAT_HELP = {
+  status:
+    "Healthy while every evaluation not yet started has waited 10 minutes or less. Degraded once one has waited longer.",
+  inQueue: `Evaluations queued or running, including ones waiting to retry. The bar splits them by span, trace and session. Counts stop at ${MAX_QUEUE_COUNT.toLocaleString("en-US")}.`,
+  addedPerHour: "Evaluations added to the queue in the last hour.",
+  completedPerHour:
+    "Evaluations that finished in the last hour, whether they produced an annotation or failed.",
+  netPerHour:
+    "Added minus completed in the last hour. Positive means the queue is growing; zero or negative means it is keeping up.",
+  oldestWait:
+    "How long the longest-waiting evaluation not yet started has been in the queue. Retries are not counted. Over 10 minutes marks the queue Degraded.",
+  evaluationCost:
+    "Model cost of the evaluations run in the selected time range, read from their traces. Evaluators with tracing off add no cost.",
+} as const;
+
 /** How long an evaluation may wait before its queue counts as Degraded. */
 export const DEGRADED_WAIT_MS = 10 * 60_000;
 
@@ -141,7 +161,7 @@ export function OldestWaitStat({
   const isWaitingTooLong =
     oldestWaitingAt != null && hasWaitedTooLong(oldestWaitingAt);
   return (
-    <StatItem label="Oldest wait">
+    <StatItem label="Oldest wait" help={QUEUE_STAT_HELP.oldestWait}>
       <StatValue color={isWaitingTooLong ? "warning" : null}>
         {oldestWaitingAt != null ? formatElapsedShort(oldestWaitingAt) : "--"}
       </StatValue>
