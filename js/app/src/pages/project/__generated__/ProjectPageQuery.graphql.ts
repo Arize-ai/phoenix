@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<414f444cf3e11cc2315e813cadd3e570>>
+ * @generated SignedSource<<cafdaf17baf883780c325307f6d7be8b>>
  * @lightSyntaxTransform
  */
 
@@ -158,12 +158,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e9c35a93f906b75c947411290a734941",
+    "cacheID": "6ebd21c7f0937ed1411885208fb4ec24",
     "id": null,
     "metadata": {},
     "name": "ProjectPageQuery",
     "operationKind": "query",
-    "text": "query ProjectPageQuery(\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      evaluatorCount\n      isClearingTraces\n      ...ProjectTimeRangeControls_data\n      ...ProjectOnboardingOverlay_project\n    }\n    id\n  }\n}\n\nfragment ProjectOnboardingOverlay_project on Project {\n  name\n  hasTraces\n  id\n}\n\nfragment ProjectTimeRangeControls_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n"
+    "text": "query ProjectPageQuery(\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      evaluatorCount\n      isClearingTraces\n      ...ProjectTimeRangeControls_data\n      ...ProjectOnboardingOverlay_project\n    }\n    id\n  }\n}\n\nfragment ProjectOnboardingOverlay_project on Project {\n  name\n  hasTraces\n  id\n}\n\nfragment ProjectTimeRangeControls_data on Project {\n  streamingLastUpdatedAt\n  isClearingTraces\n  id\n}\n"
   }
 };
 })();

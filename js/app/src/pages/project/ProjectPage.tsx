@@ -33,6 +33,7 @@ import {
   useTimeRange,
 } from "@phoenix/components/datetime";
 import { TopNavActions } from "@phoenix/components/nav";
+import { ClearingTracesIndicator } from "@phoenix/components/project/ClearingTracesIndicator";
 import {
   SESSION_FILTER_CONDITION_PARAM,
   SPAN_FILTER_CONDITION_PARAM,
@@ -43,7 +44,6 @@ import {
   StreamStateProvider,
   useStreamState,
 } from "@phoenix/contexts/StreamStateContext";
-import { useInterval } from "@phoenix/hooks";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
@@ -57,7 +57,7 @@ import {
   readFilterConditionParam,
   withFilterConditionParam,
 } from "./filterConditionParam";
-import { ClearingTracesIndicator } from "../projects/ClearingTracesIndicator";
+import { MetricFetchKeyProvider } from "./metrics/types";
 import { ProjectOnboardingOverlay } from "./ProjectOnboardingOverlay";
 import {
   ProjectPageQueriesProjectConfigQuery,
@@ -69,8 +69,6 @@ import {
 import { ProjectTimeRangeControls } from "./ProjectTimeRangeControls";
 import { DEFAULT_SPAN_FILTER_CONDITION } from "./spanFilterRootScopeConstants";
 import { type SettledSpanFilterSeed, spanFilterSeed } from "./spanFilterSeed";
-
-const CLEARING_POLL_INTERVAL_MS = 3_000;
 
 const mainCSS = css`
   flex: 1 1 auto;
@@ -166,11 +164,11 @@ const TABS = [
 /**
  * Type guard for the tab path in the URL
  */
-const isTab = (tab: string): tab is typeof TABS[number] => {
-  return TABS.includes(tab as typeof TABS[number]);
+const isTab = (tab: string): tab is (typeof TABS)[number] => {
+  return TABS.includes(tab as (typeof TABS)[number]);
 };
 
-const TAB_INDEX_MAP: Record<typeof TABS[number], number> = {
+const TAB_INDEX_MAP: Record<(typeof TABS)[number], number> = {
   spans: 0,
   traces: 1,
   sessions: 2,
@@ -181,7 +179,7 @@ const TAB_INDEX_MAP: Record<typeof TABS[number], number> = {
 
 const TAB_PATH_BY_INDEX = Object.fromEntries(
   Object.entries(TAB_INDEX_MAP).map(([tab, index]) => [index, tab])
-) as Record<number, typeof TABS[number]>;
+) as Record<number, (typeof TABS)[number]>;
 
 export function ProjectPageContent({
   projectId,
@@ -613,7 +611,7 @@ function ProjectPageTabs({ projectId }: { projectId: string }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { rootPath, tab } = useProjectRootPath();
-  const [fetchKey, setFetchKey] = useState(0);
+  const { fetchKey } = useStreamState();
   const data = useLazyLoadQuery<ProjectPageQueryType>(
     graphql`
       query ProjectPageQuery($id: ID!) {
@@ -628,13 +626,9 @@ function ProjectPageTabs({ projectId }: { projectId: string }) {
       }
     `,
     { id: projectId },
-    { fetchPolicy: "store-and-network", fetchKey }
+    { fetchPolicy: "store-and-network" }
   );
   const isClearingTraces = data.project.isClearingTraces ?? false;
-  useInterval(
-    () => setFetchKey((key) => key + 1),
-    isClearingTraces ? CLEARING_POLL_INTERVAL_MS : null
-  );
 
   const onTabChange = (index: number) => {
     startTransition(() => {
@@ -678,7 +672,9 @@ function ProjectPageTabs({ projectId }: { projectId: string }) {
         <StreamingTabPanel id="traces" project={data.project} />
         <StreamingTabPanel id="sessions" project={data.project} />
         <LazyTabPanel padded={false} id="metrics">
-          <Outlet />
+          <MetricFetchKeyProvider value={fetchKey}>
+            <Outlet />
+          </MetricFetchKeyProvider>
         </LazyTabPanel>
         <LazyTabPanel padded={false} id="config">
           <Outlet />

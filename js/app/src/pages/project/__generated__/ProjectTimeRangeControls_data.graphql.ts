@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<17b0a62cdee5ba70ffcf3562c8d83432>>
+ * @generated SignedSource<<9d18730139d597221230818321280a3c>>
  * @lightSyntaxTransform
  */
 
@@ -11,6 +11,7 @@ import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ProjectTimeRangeControls_data$data = {
   readonly id: string;
+  readonly isClearingTraces: boolean;
   readonly streamingLastUpdatedAt: string | null;
   readonly " $fragmentType": "ProjectTimeRangeControls_data";
 };
@@ -50,6 +51,13 @@ const node: ReaderFragment = {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
+      "name": "isClearingTraces",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
       "name": "id",
       "storageKey": null
     }
@@ -58,6 +66,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "401b5dd6a1381f66c736661d739d069e";
+(node as any).hash = "82ed3c1fea90c3757e5c182c122f42f4";
 
 export default node;
