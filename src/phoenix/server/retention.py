@@ -23,7 +23,6 @@ from phoenix.utilities import hour_of_week
 logger = logging.getLogger(__name__)
 
 _ORPHAN_SESSION_DELETE_BATCH_SIZE = 1000
-_TRACE_DELETE_BATCH_SIZE = 1000
 _ORPHAN_SESSION_GRACE_PERIOD = timedelta(hours=1)
 
 

@@ -3,15 +3,13 @@ from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from itertools import chain
 from secrets import token_hex
-from typing import Any, Dict, Iterable, Type, Union
+from typing import Any, Dict, Type, Union
 
 import pytest
 import sqlalchemy as sa
 from faker import Faker
 from freezegun import freeze_time
 from pydantic import ValidationError
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.sql.roles import InElementRole
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
@@ -27,14 +25,6 @@ from phoenix.db.types.trace_retention import (
 from phoenix.server.types import DbSessionFactory
 
 fake = Faker()
-
-
-async def _delete_traces(
-    session: AsyncSession,
-    rule: Union[MaxDaysRule, MaxCountRule, MaxDaysOrCountRule],
-    project_rowids: Union[Iterable[int], InElementRole],
-) -> None:
-    await session.execute(sa.delete(models.Trace).where(rule.deletion_filter(project_rowids)))
 
 
 class TestMaxDaysMixin:
@@ -81,19 +71,6 @@ class TestMaxCountMixin:
         with nullcontext() if is_valid else pytest.raises(ValidationError):
             _MaxCount(max_count=max_count)
 
-    @pytest.mark.parametrize(
-        "max_count,expected",
-        [
-            pytest.param(0, "false", id="zero_count"),
-        ],
-    )
-    def test_filter(self, max_count: int, expected: str) -> None:
-        """Test that max_count_filter generates correct SQL query."""
-        rule: _MaxCount = _MaxCount(max_count=max_count)
-        actual = str(rule.max_count_filter(()).compile(compile_kwargs={"literal_binds": True}))
-        actual = " ".join(actual.split())
-        assert actual == expected
-
 
 class TestTraceRetentionRuleMaxDays:
     """Test the MaxDaysRule which enforces a time-based retention policy.
@@ -105,34 +82,31 @@ class TestTraceRetentionRuleMaxDays:
     """
 
     @pytest.mark.parametrize("scalar_subquery", [True, False])
-    async def test_delete_traces(
+    async def test_delete_traces_in_batches(
         self,
         scalar_subquery: bool,
         db: DbSessionFactory,
     ) -> None:
-        # Setup test data
         affected_projects: defaultdict[int, list[int]] = defaultdict(list)
         unaffected_projects: defaultdict[int, list[int]] = defaultdict(list)
-        num_projects = 10  # half will be affected, half will be unaffected
+        num_projects = 10
 
         async with db() as session:
-            # Create projects with traces of varying ages. Each affected project
-            # should have one trace remaining after deletion.
-            for i in range(num_projects):
+            for project_index in range(num_projects):
                 project = models.Project(name=token_hex(8))
                 session.add(project)
                 await session.flush()
                 start_time = fake.date_time_between(start_date="-12h", tzinfo=timezone.utc)
-                for days in range(5):
+                for day_offset in range(5):
                     trace = models.Trace(
                         project_rowid=project.id,
                         trace_id=token_hex(16),
-                        start_time=start_time - timedelta(days=days),
+                        start_time=start_time - timedelta(days=day_offset),
                         end_time=datetime.now(timezone.utc),
                     )
                     session.add(trace)
                     await session.flush()
-                    if i < num_projects // 2:
+                    if project_index < num_projects // 2:
                         affected_projects[project.id].append(trace.id)
                     else:
                         unaffected_projects[project.id].append(trace.id)
@@ -140,19 +114,20 @@ class TestTraceRetentionRuleMaxDays:
         assert affected_projects, "Should be non-empty"
         assert unaffected_projects, "Should be non-empty"
 
-        # Apply retention rule
         rule = MaxDaysRule(max_days=1)
-        async with db() as session:
-            if scalar_subquery:
-                await _delete_traces(
-                    session,
-                    rule,
-                    sa.select(models.Project.id)
-                    .where(models.Project.id.in_(affected_projects.keys()))
-                    .scalar_subquery(),
-                )
-            else:
-                await _delete_traces(session, rule, affected_projects.keys())
+        project_rowids = (
+            sa.select(models.Project.id)
+            .where(models.Project.id.in_(affected_projects.keys()))
+            .scalar_subquery()
+            if scalar_subquery
+            else affected_projects.keys()
+        )
+        deleted_project_ids = await rule.delete_traces_in_batches(
+            db,
+            project_rowids,
+            batch_size=2,
+        )
+        assert deleted_project_ids == set(affected_projects.keys())
 
         # Verify affected projects have only one trace
         async with db() as session:
@@ -187,34 +162,31 @@ class TestTraceRetentionRuleMaxCount:
     """
 
     @pytest.mark.parametrize("scalar_subquery", [True, False])
-    async def test_delete_traces(
+    async def test_delete_traces_in_batches(
         self,
         scalar_subquery: bool,
         db: DbSessionFactory,
     ) -> None:
-        # Setup test data
         affected_projects: defaultdict[int, list[int]] = defaultdict(list)
         unaffected_projects: defaultdict[int, list[int]] = defaultdict(list)
-        num_projects = 10  # half will be affected, half will be unaffected
+        num_projects = 10
 
         async with db() as session:
-            # Create projects with multiple traces. Each affected project should
-            # have one trace remaining after deletion.
-            for i in range(num_projects):
+            for project_index in range(num_projects):
                 project = models.Project(name=token_hex(8))
                 session.add(project)
                 await session.flush()
                 start_time = fake.date_time_between(tzinfo=timezone.utc)
-                for j in range(5):
+                for day_offset in range(5):
                     trace = models.Trace(
                         project_rowid=project.id,
                         trace_id=token_hex(16),
-                        start_time=start_time - timedelta(days=j),
+                        start_time=start_time - timedelta(days=day_offset),
                         end_time=datetime.now(timezone.utc),
                     )
                     session.add(trace)
                     await session.flush()
-                    if i < num_projects // 2:
+                    if project_index < num_projects // 2:
                         affected_projects[project.id].append(trace.id)
                     else:
                         unaffected_projects[project.id].append(trace.id)
@@ -222,19 +194,20 @@ class TestTraceRetentionRuleMaxCount:
         assert affected_projects, "Should be non-empty"
         assert unaffected_projects, "Should be non-empty"
 
-        # Apply retention rule
         rule = MaxCountRule(max_count=1)
-        async with db() as session:
-            if scalar_subquery:
-                await _delete_traces(
-                    session,
-                    rule,
-                    sa.select(models.Project.id)
-                    .where(models.Project.id.in_(affected_projects.keys()))
-                    .scalar_subquery(),
-                )
-            else:
-                await _delete_traces(session, rule, affected_projects.keys())
+        project_rowids = (
+            sa.select(models.Project.id)
+            .where(models.Project.id.in_(affected_projects.keys()))
+            .scalar_subquery()
+            if scalar_subquery
+            else affected_projects.keys()
+        )
+        deleted_project_ids = await rule.delete_traces_in_batches(
+            db,
+            project_rowids,
+            batch_size=2,
+        )
+        assert deleted_project_ids == set(affected_projects.keys())
 
         # Verify affected projects have only one trace
         async with db() as session:
@@ -334,15 +307,21 @@ class TestTraceRetentionRuleMaxCount:
                         project_rowid=project.id,
                         project_session_rowid=project_session.id,
                         trace_id=token_hex(16),
-                        start_time=now - timedelta(minutes=offset),
-                        end_time=now - timedelta(minutes=offset),
+                        start_time=now - timedelta(minutes=minute_offset),
+                        end_time=now - timedelta(minutes=minute_offset),
                     )
-                    for offset in (0, 1)
+                    for minute_offset in range(4)
                 ]
             )
 
+        deleted_project_ids = await MaxCountRule(max_count=1).delete_traces_in_batches(
+            db,
+            [project_id],
+            batch_size=2,
+        )
+        assert deleted_project_ids == {project_id}
+
         async with db() as session:
-            await _delete_traces(session, MaxCountRule(max_count=1), [project_id])
             retained_session = await session.get(models.ProjectSession, project_session_id)
             assert retained_session is not None
             retained_work = await session.get(models.EvalSessionWorkUnit, work_unit_id)
@@ -382,58 +361,52 @@ class TestTraceRetentionRuleMaxDaysOrCountRule:
     """
 
     @pytest.mark.parametrize("scalar_subquery", [True, False])
-    async def test_delete_traces(
+    async def test_delete_traces_in_batches(
         self,
         scalar_subquery: bool,
         db: DbSessionFactory,
     ) -> None:
-        # Setup test data
         affected_projects: defaultdict[int, list[int]] = defaultdict(list)
         unaffected_projects: defaultdict[int, list[int]] = defaultdict(list)
         old_projects: defaultdict[int, list[int]] = defaultdict(list)
-        num_projects = 10  # half will be affected, half will be unaffected
+        num_projects = 10
 
         async with db() as session:
-            # Create projects with traces of varying ages. Each affected project
-            # should have one trace remaining after deletion.
-            for i in range(num_projects):
+            for project_index in range(num_projects):
                 project = models.Project(name=token_hex(8))
                 session.add(project)
                 await session.flush()
                 start_time = fake.date_time_between(start_date="-12h", tzinfo=timezone.utc)
-                for j in range(5):
+                for day_offset in range(5):
                     trace = models.Trace(
                         project_rowid=project.id,
                         trace_id=token_hex(16),
-                        start_time=start_time - timedelta(days=j),
+                        start_time=start_time - timedelta(days=day_offset),
                         end_time=datetime.now(timezone.utc),
                     )
                     session.add(trace)
                     await session.flush()
-                    if i < num_projects // 2:
+                    if project_index < num_projects // 2:
                         affected_projects[project.id].append(trace.id)
                     else:
                         unaffected_projects[project.id].append(trace.id)
 
-            # Create projects with old traces. Each affected project should have
-            # no trace remaining after deletion.
-            for i in range(num_projects):
+            for project_index in range(num_projects):
                 project = models.Project(name=token_hex(8))
                 session.add(project)
                 await session.flush()
-                # Ensure all traces are older than max_days (2 days)
                 start_time = fake.date_time_between(end_date="-3d", tzinfo=timezone.utc)
-                for j in range(5):
+                for day_offset in range(5):
                     trace = models.Trace(
                         project_rowid=project.id,
                         trace_id=token_hex(16),
-                        start_time=start_time - timedelta(days=j),
+                        start_time=start_time - timedelta(days=day_offset),
                         end_time=datetime.now(timezone.utc),
                     )
                     session.add(trace)
                     await session.flush()
                     old_projects[project.id].append(trace.id)
-                    if i < num_projects // 2:
+                    if project_index < num_projects // 2:
                         affected_projects[project.id].append(trace.id)
                     else:
                         unaffected_projects[project.id].append(trace.id)
@@ -441,19 +414,20 @@ class TestTraceRetentionRuleMaxDaysOrCountRule:
         assert affected_projects, "Should be non-empty"
         assert unaffected_projects, "Should be non-empty"
 
-        # Apply retention rule
         rule = MaxDaysOrCountRule(max_days=2, max_count=1)
-        async with db() as session:
-            if scalar_subquery:
-                await _delete_traces(
-                    session,
-                    rule,
-                    sa.select(models.Project.id)
-                    .where(models.Project.id.in_(affected_projects.keys()))
-                    .scalar_subquery(),
-                )
-            else:
-                await _delete_traces(session, rule, affected_projects.keys())
+        project_rowids = (
+            sa.select(models.Project.id)
+            .where(models.Project.id.in_(affected_projects.keys()))
+            .scalar_subquery()
+            if scalar_subquery
+            else affected_projects.keys()
+        )
+        deleted_project_ids = await rule.delete_traces_in_batches(
+            db,
+            project_rowids,
+            batch_size=2,
+        )
+        assert deleted_project_ids == set(affected_projects.keys())
 
         # Verify affected projects have only one trace
         async with db() as session:
