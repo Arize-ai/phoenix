@@ -137,6 +137,32 @@ describe("InteractiveLegend", () => {
     expect(uvButton.getAttribute("data-inactive")).toBe("true");
   });
 
+  it("keeps a horizontal legend to one overflow row instead of wrapping", () => {
+    act(() => {
+      root.render(<TestChart />);
+    });
+
+    const legend = container.querySelector(".recharts-default-legend");
+    const row = legend?.querySelector(":scope > .overflow-row");
+    expect(row).not.toBeNull();
+    expect(row?.classList.contains("overflow-row--collapsed")).toBe(true);
+    expect(row?.querySelectorAll(".recharts-legend-item")).toHaveLength(2);
+    expect(legend?.querySelector("li")).toBeNull();
+  });
+
+  it("lists a vertical legend's items without an overflow row", () => {
+    act(() => {
+      root.render(
+        <TestChart legendProps={{ layout: "vertical", align: "right" }} />
+      );
+    });
+
+    const legend = container.querySelector(".recharts-default-legend");
+    expect(legend?.tagName).toBe("UL");
+    expect(legend?.querySelector(".overflow-row")).toBeNull();
+    expect(legend?.querySelectorAll("li.recharts-legend-item")).toHaveLength(2);
+  });
+
   it("renders supplemental entries without data keys as static items", () => {
     const additionalLegendItems: ReadonlyArray<LegendPayload> = [
       {

@@ -85,20 +85,6 @@ import {
 } from "./evaluatorActivity";
 
 /**
- * At most two rows of evaluators, scrolling past that, so a project with many
- * evaluators keeps room in the strip to draw them.
- */
-const evaluatorLegendProps = {
-  ...compactLegendProps,
-  wrapperStyle: {
-    ...compactLegendProps.wrapperStyle,
-    maxHeight:
-      "calc(var(--global-dimension-size-50) + 2 * var(--global-line-height-xs) + var(--global-dimension-size-100))",
-    overflowY: "auto",
-  },
-} satisfies typeof compactLegendProps;
-
-/**
  * What a chart's time range is, apart from where "now" falls: a live range
  * is its preset, so each refresh that moves it forward is the same range,
  * whatever its length; any other range is its bounds.
@@ -443,7 +429,7 @@ function EvaluatorTimeSeriesChart({
                 />
               )}
               <InteractiveLegend
-                {...evaluatorLegendProps}
+                {...compactLegendProps}
                 hiddenDataKeys={hiddenDataKeys}
                 iconType={shape}
                 iconSize={8}
