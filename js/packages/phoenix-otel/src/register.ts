@@ -36,6 +36,7 @@ import { TracerProvider as SdkTracerProvider } from "@opentelemetry/sdk-trace";
 import { getEnvConfig, getEnvProjectName } from "./config";
 import {
   IGNORED_BSP_ENV_VARS,
+  IGNORED_SAMPLER_ENV_VARS,
   IGNORED_SPAN_LIMIT_ENV_VARS,
   warnAboutIgnoredOtelEnvVars,
 } from "./ignoredOtelEnvVars";
@@ -427,7 +428,7 @@ function bindGlobalTracerProviderRegistrationToShutdown({
 function warnAboutIgnoredOtelEnvVarsForRegister(params: RegisterParams): void {
   if (params.sampler === undefined) {
     warnAboutIgnoredOtelEnvVars(
-      ["OTEL_TRACES_SAMPLER", "OTEL_TRACES_SAMPLER_ARG"],
+      IGNORED_SAMPLER_ENV_VARS,
       "the `sampler` option of register()"
     );
   }
@@ -447,8 +448,6 @@ function warnAboutIgnoredOtelEnvVarsForRegister(params: RegisterParams): void {
     );
   }
 }
-
-export { resetIgnoredOtelEnvVarWarningsForTesting } from "./ignoredOtelEnvVars";
 
 /**
  * Registers Phoenix OpenTelemetry tracing with the specified configuration.

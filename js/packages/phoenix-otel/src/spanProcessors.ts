@@ -22,18 +22,22 @@ import {
  * and the only signal is a rejected `forceFlush()` or `shutdown()`.
  */
 function assertExporterOptions(processorName: string, options: unknown): void {
-  const exporter = (options as { exporter?: { export?: unknown } } | undefined)
-    ?.exporter;
-  if (typeof exporter?.export === "function") {
+  if (
+    isSpanExporter((options as { exporter?: unknown } | undefined)?.exporter)
+  ) {
     return;
   }
-  const passedExporterPositionally =
-    typeof (options as { export?: unknown } | undefined)?.export === "function";
   throw new TypeError(
-    passedExporterPositionally
+    isSpanExporter(options)
       ? `${processorName} takes an options object: use new ${processorName}({ exporter }) ` +
           `instead of new ${processorName}(exporter). See MIGRATION.md in @arizeai/phoenix-otel.`
       : `${processorName} requires an exporter: new ${processorName}({ exporter }).`
+  );
+}
+
+function isSpanExporter(value: unknown): boolean {
+  return (
+    typeof (value as { export?: unknown } | undefined)?.export === "function"
   );
 }
 

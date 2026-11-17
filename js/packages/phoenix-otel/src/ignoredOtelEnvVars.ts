@@ -1,7 +1,17 @@
+import { getStrFromEnvironment } from "@arizeai/phoenix-config";
 import type {
   BatchSpanProcessorOptions,
   SpanLimits,
 } from "@opentelemetry/sdk-trace";
+
+/**
+ * `OTEL_*` sampler variables the OpenTelemetry JS 2.x SDK read and JS 3
+ * ignores. They map to the `sampler` option of `register()`.
+ */
+export const IGNORED_SAMPLER_ENV_VARS: readonly string[] = [
+  "OTEL_TRACES_SAMPLER",
+  "OTEL_TRACES_SAMPLER_ARG",
+];
 
 /**
  * `OTEL_*` span limit variables the OpenTelemetry JS 2.x SDK read and JS 3
@@ -48,12 +58,10 @@ export function warnAboutIgnoredOtelEnvVars(
   keys: readonly string[],
   replacement: string
 ): void {
-  if (typeof process === "undefined" || !process.env) {
-    return;
-  }
   const setKeys = keys.filter(
     (key) =>
-      process.env[key] !== undefined && !warnedIgnoredOtelEnvVars.has(key)
+      !warnedIgnoredOtelEnvVars.has(key) &&
+      getStrFromEnvironment(key) !== undefined
   );
   if (setKeys.length === 0) {
     return;
