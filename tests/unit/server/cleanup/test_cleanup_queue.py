@@ -20,7 +20,11 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.span import insert_span
-from phoenix.db.types.annotation_configs import ContinuousOutputConfig, OptimizationDirection
+from phoenix.db.types.annotation_configs import (
+    ContinuousAnnotationConfig,
+    ContinuousOutputConfig,
+    OptimizationDirection,
+)
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import Conflict
@@ -36,6 +40,9 @@ from phoenix.server.cleanup.lifecycle import (
 from phoenix.server.cleanup.primitives import (
     PrimitiveResult,
     PrimitiveStatus,
+    clear_project_historical_references_step,
+    drain_dataset_evaluator_dependents_step,
+    drain_eval_work_units_step,
     drain_trace_scope_step,
 )
 from phoenix.server.daemons.cleanup_worker import CleanupWorker
@@ -2002,3 +2009,713 @@ async def test_cleanup_batches_trace_work_units_before_deleting_trace(db: DbSess
     async with db() as session:
         assert await session.get(models.Trace, trace.id) is not None
         assert await session.scalar(select(func.count()).select_from(models.EvalTraceWorkUnit)) == 3
+
+
+async def test_dataset_evaluator_delete_drains_eval_logs_and_links_in_batches(
+    db: DbSessionFactory,
+) -> None:
+    dialect = SupportedSQLDialect(db.dialect.value)
+    base_time = datetime(2026, 8, 1, 0, 0, 0, tzinfo=timezone.utc)
+
+    async with db() as session:
+        dataset = models.Dataset(name=f"de-del-ds-{token_hex(4)}", metadata_={})
+        target_trace_project = models.Project(
+            name=f"de-target-proj-{token_hex(4)}", kind="EVALUATOR"
+        )
+        other_trace_project = models.Project(name=f"de-other-proj-{token_hex(4)}", kind="EVALUATOR")
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(root=f"de-builtin-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        session.add_all([dataset, target_trace_project, other_trace_project, evaluator])
+        await session.flush()
+
+        dataset_version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+        dataset_example = models.DatasetExample(dataset_id=dataset.id)
+        target_binding = models.DatasetEvaluators(
+            dataset_id=dataset.id,
+            evaluator_id=evaluator.id,
+            project_id=target_trace_project.id,
+            name=Identifier(root="target-eval"),
+            input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+        )
+        other_binding = models.DatasetEvaluators(
+            dataset_id=dataset.id,
+            evaluator_id=evaluator.id,
+            project_id=other_trace_project.id,
+            name=Identifier(root="other-eval"),
+            input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+        )
+        session.add_all([dataset_version, dataset_example, target_binding, other_binding])
+        await session.flush()
+
+        evaluator_trace = await _add_trace(session, target_trace_project, start_time=base_time)
+        await _add_span(session, trace=evaluator_trace, start_time=base_time)
+
+        experiments: list[models.Experiment] = []
+        runs: list[models.ExperimentRun] = []
+        for index in range(5):
+            experiment = models.Experiment(
+                dataset_id=dataset.id,
+                dataset_version_id=dataset_version.id,
+                name=f"exp-{index}-{token_hex(4)}",
+                repetitions=1,
+                metadata_={},
+            )
+            session.add(experiment)
+            await session.flush()
+            job = models.ExperimentEvalOnlyConfig(id=experiment.id, status="COMPLETED")
+            run = models.ExperimentRun(
+                experiment_id=experiment.id,
+                dataset_example_id=dataset_example.id,
+                repetition_number=1,
+                output={},
+                start_time=base_time + timedelta(seconds=index),
+                end_time=base_time + timedelta(seconds=index + 1),
+            )
+            session.add_all(
+                [
+                    job,
+                    run,
+                    models.ExperimentDatasetEvaluator(
+                        experiment_id=experiment.id,
+                        dataset_evaluator_id=target_binding.id,
+                    ),
+                ]
+            )
+            await session.flush()
+            experiments.append(experiment)
+            runs.append(run)
+
+        target_eval_logs = [
+            models.ExperimentEvalLog(
+                experiment_id=experiments[index].id,
+                level="ERROR",
+                message=f"target-eval-err-{index}",
+                experiment_run_id=runs[index].id,
+                dataset_evaluator_id=target_binding.id,
+            )
+            for index in range(5)
+        ]
+        preserved_task_log = models.ExperimentTaskLog(
+            experiment_id=experiments[0].id,
+            level="ERROR",
+            message="preserved-task-log",
+            dataset_example_id=dataset_example.id,
+            repetition_number=1,
+        )
+        preserved_job_log = models.ExperimentJobLog(
+            experiment_id=experiments[0].id,
+            level="INFO",
+            message="preserved-job-log",
+        )
+        other_eval_logs = [
+            models.ExperimentEvalLog(
+                experiment_id=experiments[index].id,
+                level="ERROR",
+                message=f"other-eval-err-{index}",
+                experiment_run_id=runs[index].id,
+                dataset_evaluator_id=other_binding.id,
+            )
+            for index in range(2)
+        ]
+        other_link = models.ExperimentDatasetEvaluator(
+            experiment_id=experiments[0].id,
+            dataset_evaluator_id=other_binding.id,
+        )
+        session.add_all(
+            [*target_eval_logs, preserved_task_log, preserved_job_log, *other_eval_logs, other_link]
+        )
+        await session.flush()
+
+        target_binding_id = target_binding.id
+        other_binding_id = other_binding.id
+        target_trace_project_id = target_trace_project.id
+        target_eval_log_ids = [log.id for log in target_eval_logs]
+        preserved_log_ids = {
+            preserved_task_log.id,
+            preserved_job_log.id,
+            *(log.id for log in other_eval_logs),
+        }
+        preserved_task_log_id = preserved_task_log.id
+        first_experiment_id = experiments[0].id
+
+        await logical_delete_dataset_evaluators(
+            session,
+            dialect=dialect,
+            binding_ids=[target_binding_id],
+            collect_unused_evaluator=False,
+            collect_unused_prompt_or_decision=False,
+        )
+
+    coordinator = CleanupCoordinator(db, batch_limit=2)
+    step_counts: list[int] = []
+    for _ in range(3):
+        claimed = await coordinator.claim_next()
+        assert claimed is not None
+        step_result = await coordinator.execute_claimed_step(claimed)
+        assert step_result.outcome == "progress"
+        step_counts.append(step_result.affected_rows)
+    assert step_counts == [2, 2, 1]
+
+    async with db() as session:
+        remaining_target_logs = await session.scalar(
+            select(func.count()).where(
+                models.ExperimentEvalLog.__table__.c.dataset_evaluator_id == target_binding_id
+            )
+        )
+        remaining_target_links = await session.scalar(
+            select(func.count()).where(
+                models.ExperimentDatasetEvaluator.dataset_evaluator_id == target_binding_id
+            )
+        )
+        assert remaining_target_logs == 0
+        assert remaining_target_links == 5
+
+    link_step_counts: list[int] = []
+    for _ in range(3):
+        claimed = await coordinator.claim_next()
+        assert claimed is not None
+        step_result = await coordinator.execute_claimed_step(claimed)
+        assert step_result.outcome == "progress"
+        link_step_counts.append(step_result.affected_rows)
+    assert link_step_counts == [2, 2, 1]
+
+    remaining_steps = await _drain_all(coordinator)
+    assert remaining_steps >= 2
+
+    async with db() as session:
+        assert await session.get(models.DatasetEvaluators, target_binding_id) is None
+        assert await session.get(models.Project, target_trace_project_id) is None
+        assert await session.get(models.DatasetEvaluators, other_binding_id) is not None
+        surviving_target_logs = list(
+            await session.scalars(
+                select(models.ExperimentLog.id).where(
+                    models.ExperimentLog.id.in_(target_eval_log_ids)
+                )
+            )
+        )
+        assert surviving_target_logs == []
+        surviving_target_eval_subrows = await session.scalar(
+            select(func.count()).where(
+                models.ExperimentEvalLog.__table__.c.dataset_evaluator_id == target_binding_id
+            )
+        )
+        assert surviving_target_eval_subrows == 0
+        surviving_target_links = await session.scalar(
+            select(func.count()).where(
+                models.ExperimentDatasetEvaluator.dataset_evaluator_id == target_binding_id
+            )
+        )
+        assert surviving_target_links == 0
+
+        surviving_preserved_logs = set(
+            await session.scalars(
+                select(models.ExperimentLog.id).where(
+                    models.ExperimentLog.id.in_(preserved_log_ids)
+                )
+            )
+        )
+        assert surviving_preserved_logs == preserved_log_ids
+        surviving_task_subrow = await session.scalar(
+            select(models.ExperimentTaskLog.__table__.c.id).where(
+                models.ExperimentTaskLog.__table__.c.id == preserved_task_log_id
+            )
+        )
+        assert surviving_task_subrow == preserved_task_log_id
+        surviving_other_eval_subrows = await session.scalar(
+            select(func.count()).where(
+                models.ExperimentEvalLog.__table__.c.dataset_evaluator_id == other_binding_id
+            )
+        )
+        assert surviving_other_eval_subrows == 2
+        surviving_other_link = await session.scalar(
+            select(func.count()).where(
+                models.ExperimentDatasetEvaluator.experiment_id == first_experiment_id,
+                models.ExperimentDatasetEvaluator.dataset_evaluator_id == other_binding_id,
+            )
+        )
+        assert surviving_other_link == 1
+
+
+async def test_sqlite_cleanup_primitives_use_fk_indexes_without_temp_btrees(
+    db: DbSessionFactory,
+) -> None:
+    if db.dialect is not SupportedSQLDialect.SQLITE:
+        pytest.skip("SQLite EXPLAIN QUERY PLAN check")
+
+    base_time = datetime(2026, 8, 2, 0, 0, 0, tzinfo=timezone.utc)
+    async with db() as session:
+        project = await _add_project(session, name=f"eqp-proj-{token_hex(4)}")
+        trace_sink_a = models.Project(name=f"eqp-sink-a-{token_hex(4)}", kind="EVALUATOR")
+        trace_sink_b = models.Project(name=f"eqp-sink-b-{token_hex(4)}", kind="EVALUATOR")
+        dataset_trace_sink = models.Project(name=f"eqp-ds-sink-{token_hex(4)}", kind="EVALUATOR")
+        dataset = models.Dataset(name=f"eqp-ds-{token_hex(4)}", metadata_={})
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(root=f"eqp-bi-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        annotation_configs = [
+            models.AnnotationConfig(
+                name=f"eqp-cfg-{index}-{token_hex(4)}",
+                config=ContinuousAnnotationConfig(
+                    type="CONTINUOUS",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                ),
+            )
+            for index in range(3)
+        ]
+        session.add_all(
+            [
+                trace_sink_a,
+                trace_sink_b,
+                dataset_trace_sink,
+                dataset,
+                evaluator,
+                *annotation_configs,
+            ]
+        )
+        await session.flush()
+
+        session.add_all(
+            [
+                models.ProjectAnnotationConfig(
+                    project_id=project.id,
+                    annotation_config_id=config.id,
+                )
+                for config in annotation_configs
+            ]
+        )
+        span_evaluator = models.ProjectEvaluator(
+            project_id=project.id,
+            evaluator_id=evaluator.id,
+            trace_project_id=trace_sink_a.id,
+            name=Identifier(root="eqp-span-eval"),
+            evaluation_target="SPAN",
+            filter_condition="",
+            sampling_rate=1.0,
+        )
+        session_evaluator = models.ProjectEvaluator(
+            project_id=project.id,
+            evaluator_id=evaluator.id,
+            trace_project_id=trace_sink_b.id,
+            name=Identifier(root="eqp-session-eval"),
+            evaluation_target="SESSION",
+            filter_condition="",
+            sampling_rate=1.0,
+        )
+        dataset_version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+        dataset_binding = models.DatasetEvaluators(
+            dataset_id=dataset.id,
+            evaluator_id=evaluator.id,
+            project_id=dataset_trace_sink.id,
+            name=Identifier(root="eqp-ds-eval"),
+            input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+        )
+        session.add_all([span_evaluator, session_evaluator, dataset_version, dataset_binding])
+        await session.flush()
+
+        project_session = await _add_project_session(session, project, start_time=base_time)
+        await _add_project_session(session, project, start_time=base_time + timedelta(minutes=1))
+        first_trace = await _add_trace(
+            session, project, project_session=project_session, start_time=base_time
+        )
+        second_trace = await _add_trace(
+            session, project, start_time=base_time + timedelta(seconds=1)
+        )
+        first_span = await _add_span(session, trace=first_trace, start_time=base_time)
+        second_span = await _add_span(
+            session, trace=first_trace, start_time=base_time + timedelta(milliseconds=10)
+        )
+        third_span = await _add_span(
+            session, trace=second_trace, start_time=base_time + timedelta(seconds=1)
+        )
+
+        dataset_examples = [
+            models.DatasetExample(dataset_id=dataset.id, span_rowid=first_span.id) for _ in range(3)
+        ]
+        span_annotations = [
+            models.SpanAnnotation(
+                span_rowid=first_span.id,
+                name=f"eqp-ann-{index}",
+                label="ok",
+                score=1.0,
+                explanation=None,
+                metadata_={},
+                annotator_kind="CODE",
+                source="API",
+                identifier="",
+            )
+            for index in range(4)
+        ]
+        work_units = [
+            models.EvalWorkUnit(
+                span_rowid=first_span.id,
+                project_evaluator_id=span_evaluator.id,
+                status="PENDING",
+            ),
+            models.EvalWorkUnit(
+                span_rowid=second_span.id,
+                project_evaluator_id=span_evaluator.id,
+                status="DONE",
+            ),
+            models.EvalWorkUnit(
+                span_rowid=third_span.id,
+                project_evaluator_id=span_evaluator.id,
+                status="DONE",
+            ),
+        ]
+        session_work_unit = models.EvalSessionWorkUnit(
+            project_session_rowid=project_session.id,
+            project_evaluator_id=session_evaluator.id,
+            decided_through=base_time,
+            status="DONE",
+        )
+        session.add_all([*dataset_examples, *span_annotations, *work_units, session_work_unit])
+        await session.flush()
+
+        for index in range(3):
+            experiment = models.Experiment(
+                dataset_id=dataset.id,
+                dataset_version_id=dataset_version.id,
+                name=f"eqp-exp-{index}-{token_hex(4)}",
+                repetitions=1,
+                metadata_={},
+                project_id=project.id,
+            )
+            session.add(experiment)
+            await session.flush()
+            job = models.ExperimentEvalOnlyConfig(id=experiment.id, status="COMPLETED")
+            run = models.ExperimentRun(
+                experiment_id=experiment.id,
+                dataset_example_id=dataset_examples[0].id,
+                repetition_number=1,
+                output={},
+                start_time=base_time,
+                end_time=base_time + timedelta(seconds=1),
+            )
+            session.add_all(
+                [
+                    job,
+                    run,
+                    models.ExperimentDatasetEvaluator(
+                        experiment_id=experiment.id,
+                        dataset_evaluator_id=dataset_binding.id,
+                    ),
+                ]
+            )
+            await session.flush()
+            session.add(
+                models.ExperimentEvalLog(
+                    experiment_id=experiment.id,
+                    level="ERROR",
+                    message=f"eqp-eval-log-{index}",
+                    experiment_run_id=run.id,
+                    dataset_evaluator_id=dataset_binding.id,
+                )
+            )
+        session.add(
+            models.AgentSession(
+                title="eqp-agent",
+                project_name=project.name,
+                project_id=project.id,
+                model_provider="OPENAI",
+                model_name="gpt-4o",
+            )
+        )
+        await session.flush()
+
+        project_id = project.id
+        span_evaluator_id = span_evaluator.id
+        dataset_binding_id = dataset_binding.id
+        max_trace_rowid = second_trace.id
+
+    recorded_selects: list[tuple[str, Any]] = []
+
+    def record_select(
+        _connection: Any,
+        _cursor: Any,
+        statement: str,
+        parameters: Any,
+        _context: Any,
+        _executemany: bool,
+    ) -> None:
+        normalized = statement.lstrip()
+        if normalized.upper().startswith("SELECT") and "EXPLAIN" not in normalized.upper():
+            recorded_selects.append((statement, parameters))
+
+    async with db() as session:
+        bind = session.get_bind()
+        event.listen(bind, "before_cursor_execute", record_select)
+        try:
+            while (
+                await drain_dataset_evaluator_dependents_step(
+                    session,
+                    dialect=SupportedSQLDialect.SQLITE,
+                    dataset_evaluator_id=dataset_binding_id,
+                    batch_limit=2,
+                )
+            ).status is not PrimitiveStatus.EMPTY:
+                pass
+            while (
+                await drain_eval_work_units_step(
+                    session,
+                    dialect=SupportedSQLDialect.SQLITE,
+                    project_evaluator_id=span_evaluator_id,
+                    batch_limit=2,
+                )
+            ).status is not PrimitiveStatus.EMPTY:
+                pass
+            while (
+                await clear_project_historical_references_step(
+                    session,
+                    dialect=SupportedSQLDialect.SQLITE,
+                    project_id=project_id,
+                    batch_limit=2,
+                )
+            ).status is not PrimitiveStatus.EMPTY:
+                pass
+            while (
+                await drain_trace_scope_step(
+                    session,
+                    dialect=SupportedSQLDialect.SQLITE,
+                    project_id=project_id,
+                    max_trace_rowid=max_trace_rowid,
+                    batch_limit=2,
+                )
+            ).status is not PrimitiveStatus.EMPTY:
+                pass
+        finally:
+            event.remove(bind, "before_cursor_execute", record_select)
+
+        connection = await session.connection()
+        plans_by_statement: list[tuple[str, Any, list[str]]] = []
+        for statement, parameters in recorded_selects:
+            plan_rows = (
+                await connection.exec_driver_sql(f"EXPLAIN QUERY PLAN {statement}", parameters)
+            ).all()
+            plans_by_statement.append((statement, parameters, [str(row[-1]) for row in plan_rows]))
+
+    eval_log_plans = [
+        (statement, details)
+        for statement, _parameters, details in plans_by_statement
+        if "experiment_eval_logs" in statement and "EXISTS" not in statement
+    ]
+    assert eval_log_plans, "Expected ExperimentEvalLog candidate SELECT"
+    for statement, details in eval_log_plans:
+        joined = " | ".join(details)
+        assert "ix_experiment_eval_logs_dataset_evaluator_id" in joined, (
+            f"Expected ix_experiment_eval_logs_dataset_evaluator_id for {statement}, got: {joined}"
+        )
+        assert "sqlite_autoindex_experiment_logs_1" not in joined, (
+            f"Unexpected experiment_logs category scan for {statement}: {joined}"
+        )
+        assert "TEMP B-TREE" not in joined, f"Unexpected TEMP B-TREE for {statement}: {joined}"
+
+    trace_window_plans = [
+        (statement, details)
+        for statement, _parameters, details in plans_by_statement
+        if "FROM traces" in statement and "ORDER BY" in statement
+    ]
+    assert trace_window_plans, "Expected window_stmt SELECT on traces"
+    for statement, details in trace_window_plans:
+        joined = " | ".join(details)
+        assert "ix_traces_project_rowid_start_time" in joined, (
+            f"Expected ix_traces_project_rowid_start_time for {statement}, got: {joined}"
+        )
+        assert "TEMP B-TREE" not in joined, f"Unexpected TEMP B-TREE for {statement}: {joined}"
+
+    span_candidate_plans = [
+        (statement, details)
+        for statement, _parameters, details in plans_by_statement
+        if "SELECT spans.id" in statement and "FROM spans" in statement
+    ]
+    assert span_candidate_plans, "Expected span_candidates_stmt SELECT"
+    for statement, details in span_candidate_plans:
+        joined = " | ".join(details)
+        assert "ix_spans_trace_rowid" in joined, (
+            f"Expected ix_spans_trace_rowid for {statement}, got: {joined}"
+        )
+        assert "TEMP B-TREE" not in joined, f"Unexpected TEMP B-TREE for {statement}: {joined}"
+
+    span_annotation_delete_plans = [
+        (statement, details)
+        for statement, _parameters, details in plans_by_statement
+        if "SELECT span_annotations.id" in statement and "FROM span_annotations" in statement
+    ]
+    assert span_annotation_delete_plans, "Expected _delete_by_ids SELECT on span_annotations"
+    for statement, details in span_annotation_delete_plans:
+        joined = " | ".join(details)
+        assert "ix_span_annotations_span_rowid" in joined, (
+            f"Expected ix_span_annotations_span_rowid for {statement}, got: {joined}"
+        )
+        assert "TEMP B-TREE" not in joined, f"Unexpected TEMP B-TREE for {statement}: {joined}"
+
+    temp_btree_offenders = [
+        (statement, details)
+        for statement, _parameters, details in plans_by_statement
+        if any("TEMP B-TREE" in detail for detail in details)
+    ]
+    assert temp_btree_offenders == []
+
+    batch_plus_one_probes = [
+        (statement, parameters)
+        for statement, parameters, _details in plans_by_statement
+        if isinstance(parameters, (tuple, list))
+        and len(parameters) >= 2
+        and parameters[-2:] == (3, 0)
+    ]
+    assert batch_plus_one_probes == [], (
+        f"Expected .offset(batch_limit).limit(1) probes instead of limit(batch_limit + 1): "
+        f"{batch_plus_one_probes}"
+    )
+
+
+@pytest.mark.postgres_only
+async def test_postgres_dataset_evaluator_dependents_skip_locked_past_locked_prefix(
+    postgresql_engine: Any,
+) -> None:
+    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
+    base_time = datetime(2026, 8, 3, 0, 0, 0, tzinfo=timezone.utc)
+
+    async with db() as session:
+        dataset = models.Dataset(name=f"pg-skip-ds-{token_hex(4)}", metadata_={})
+        trace_project = models.Project(name=f"pg-skip-proj-{token_hex(4)}", kind="EVALUATOR")
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(root=f"pg-skip-bi-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        session.add_all([dataset, trace_project, evaluator])
+        await session.flush()
+
+        dataset_version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+        dataset_example = models.DatasetExample(dataset_id=dataset.id)
+        binding = models.DatasetEvaluators(
+            dataset_id=dataset.id,
+            evaluator_id=evaluator.id,
+            project_id=trace_project.id,
+            name=Identifier(root="pg-skip-eval"),
+            input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+        )
+        session.add_all([dataset_version, dataset_example, binding])
+        await session.flush()
+
+        experiment = models.Experiment(
+            dataset_id=dataset.id,
+            dataset_version_id=dataset_version.id,
+            name=f"pg-skip-exp-{token_hex(4)}",
+            repetitions=1,
+            metadata_={},
+        )
+        session.add(experiment)
+        await session.flush()
+        job = models.ExperimentEvalOnlyConfig(id=experiment.id, status="COMPLETED")
+        run = models.ExperimentRun(
+            experiment_id=experiment.id,
+            dataset_example_id=dataset_example.id,
+            repetition_number=1,
+            output={},
+            start_time=base_time,
+            end_time=base_time + timedelta(seconds=1),
+        )
+        session.add_all([job, run])
+        await session.flush()
+
+        eval_logs = [
+            models.ExperimentEvalLog(
+                experiment_id=experiment.id,
+                level="ERROR",
+                message=f"pg-skip-err-{index}",
+                experiment_run_id=run.id,
+                dataset_evaluator_id=binding.id,
+            )
+            for index in range(4)
+        ]
+        session.add_all(eval_logs)
+        await session.flush()
+        locked_prefix_ids = [eval_logs[0].id, eval_logs[1].id]
+        binding_id = binding.id
+
+    recorded_selects: list[tuple[str, Any]] = []
+
+    def record_select(
+        _connection: Any,
+        _cursor: Any,
+        statement: str,
+        parameters: Any,
+        _context: Any,
+        _executemany: bool,
+    ) -> None:
+        normalized = statement.lstrip()
+        if (
+            normalized.upper().startswith("SELECT")
+            and "experiment_eval_logs" in normalized
+            and "EXISTS" not in normalized.upper()
+            and "EXPLAIN" not in normalized.upper()
+        ):
+            recorded_selects.append((statement, parameters))
+
+    async with db() as locker:
+        await locker.execute(
+            select(models.ExperimentLog.id)
+            .where(models.ExperimentLog.id.in_(locked_prefix_ids))
+            .order_by(models.ExperimentLog.id.asc())
+            .with_for_update()
+        )
+        async with db() as session:
+            bind = session.get_bind()
+            event.listen(bind, "before_cursor_execute", record_select)
+            try:
+                first_result = await drain_dataset_evaluator_dependents_step(
+                    session,
+                    dialect=SupportedSQLDialect.POSTGRESQL,
+                    dataset_evaluator_id=binding_id,
+                    batch_limit=2,
+                )
+            finally:
+                event.remove(bind, "before_cursor_execute", record_select)
+            assert first_result == PrimitiveResult(PrimitiveStatus.PROGRESS, 2)
+
+            assert recorded_selects
+            statement, parameters = recorded_selects[0]
+            connection = await session.connection()
+            explain_rows = (
+                await connection.exec_driver_sql(f"EXPLAIN {statement}", parameters)
+            ).all()
+            explain_text = "\n".join(str(row[0]) for row in explain_rows)
+            assert "ix_experiment_eval_logs_dataset_evaluator_id" in explain_text
+            assert "Seq Scan on experiment_logs" not in explain_text
+
+        async with db() as session:
+            yield_result = await drain_dataset_evaluator_dependents_step(
+                session,
+                dialect=SupportedSQLDialect.POSTGRESQL,
+                dataset_evaluator_id=binding_id,
+                batch_limit=2,
+            )
+            assert yield_result == PrimitiveResult(PrimitiveStatus.YIELD, 0)
+
+    async with db() as session:
+        final_logs_result = await drain_dataset_evaluator_dependents_step(
+            session,
+            dialect=SupportedSQLDialect.POSTGRESQL,
+            dataset_evaluator_id=binding_id,
+            batch_limit=2,
+        )
+        assert final_logs_result == PrimitiveResult(PrimitiveStatus.PROGRESS, 2)
+        empty_result = await drain_dataset_evaluator_dependents_step(
+            session,
+            dialect=SupportedSQLDialect.POSTGRESQL,
+            dataset_evaluator_id=binding_id,
+            batch_limit=2,
+        )
+        assert empty_result == PrimitiveResult(PrimitiveStatus.EMPTY, 0)

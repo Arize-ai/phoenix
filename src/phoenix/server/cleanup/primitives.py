@@ -95,17 +95,41 @@ async def _delete_by_ids(
     condition: ColumnElement[bool],
     batch_limit: int,
 ) -> PrimitiveResult:
-    candidates = select(model.id).where(condition).order_by(model.id.asc()).limit(batch_limit)
+    candidates = select(model.id).where(condition).limit(batch_limit)
     if dialect is SupportedSQLDialect.POSTGRESQL:
         candidates = candidates.with_for_update(skip_locked=True)
     ids = list(await session.scalars(candidates))
     if ids:
+        ids.sort()
         deleted = _rowcount(await session.execute(delete(model).where(model.id.in_(ids))))
         if deleted > 0:
             return PrimitiveResult(PrimitiveStatus.PROGRESS, deleted)
     if await _has_any(session, condition):
         return PrimitiveResult(PrimitiveStatus.YIELD, 0)
     return PrimitiveResult(PrimitiveStatus.EMPTY, 0)
+
+
+async def _drain_overflow_by_ids(
+    session: AsyncSession,
+    *,
+    dialect: SupportedSQLDialect,
+    model: type[models.HasId],
+    condition: ColumnElement[bool],
+    batch_limit: int,
+) -> Optional[PrimitiveResult]:
+    probe_stmt = select(literal(1)).where(condition).offset(batch_limit).limit(1)
+    if (await session.scalar(probe_stmt)) is None:
+        return None
+    result = await _delete_by_ids(
+        session,
+        dialect=dialect,
+        model=model,
+        condition=condition,
+        batch_limit=batch_limit,
+    )
+    if result.status is PrimitiveStatus.EMPTY:
+        return None
+    return result
 
 
 async def drain_eval_work_units_step(
@@ -144,17 +168,30 @@ async def drain_dataset_evaluator_dependents_step(
     ``experiment_dataset_evaluators`` links before removing a dataset-evaluator tombstone."""
     eval_log_table = models.ExperimentEvalLog.__table__
     eval_log_condition = eval_log_table.c.dataset_evaluator_id == dataset_evaluator_id
-    log_ids_stmt = (
-        select(models.ExperimentLog.id)
-        .join(eval_log_table, eval_log_table.c.id == models.ExperimentLog.id)
-        .where(models.ExperimentLog.category == "EVAL", eval_log_condition)
-        .order_by(models.ExperimentLog.id.asc())
-        .limit(batch_limit)
-    )
     if dialect is SupportedSQLDialect.POSTGRESQL:
-        log_ids_stmt = log_ids_stmt.with_for_update(of=models.ExperimentLog, skip_locked=True)
-    log_ids = list(await session.scalars(log_ids_stmt))
+        # LATERAL keeps the outer scan on ix_experiment_eval_logs_dataset_evaluator_id (avoiding a
+        # Hash/Merge Join across all experiment_logs) while letting SKIP LOCKED advance past locked
+        # rows before LIMIT batch_limit stops the scan.
+        locked_eval_log = (
+            select(models.ExperimentLog.id)
+            .where(
+                models.ExperimentLog.id == eval_log_table.c.id,
+                models.ExperimentLog.category == "EVAL",
+            )
+            .with_for_update(skip_locked=True)
+            .lateral("locked_eval_log")
+        )
+        log_ids_stmt = (
+            select(locked_eval_log.c.id)
+            .select_from(eval_log_table.join(locked_eval_log, literal(True)))
+            .where(eval_log_condition)
+            .limit(batch_limit)
+        )
+    else:
+        log_ids_stmt = select(eval_log_table.c.id).where(eval_log_condition).limit(batch_limit)
+    log_ids: list[int] = [int(log_id) for log_id in await session.scalars(log_ids_stmt)]
     if log_ids:
+        log_ids.sort()
         deleted_logs = _rowcount(
             await session.execute(
                 delete(models.ExperimentLog).where(
@@ -169,19 +206,16 @@ async def drain_dataset_evaluator_dependents_step(
         return PrimitiveResult(PrimitiveStatus.YIELD, 0)
 
     link_condition = models.ExperimentDatasetEvaluator.dataset_evaluator_id == dataset_evaluator_id
-    link_pairs_stmt = (
-        select(
-            models.ExperimentDatasetEvaluator.experiment_id,
-            models.ExperimentDatasetEvaluator.dataset_evaluator_id,
-        )
+    experiment_ids_stmt = (
+        select(models.ExperimentDatasetEvaluator.experiment_id)
         .where(link_condition)
-        .order_by(models.ExperimentDatasetEvaluator.experiment_id.asc())
         .limit(batch_limit)
     )
     if dialect is SupportedSQLDialect.POSTGRESQL:
-        link_pairs_stmt = link_pairs_stmt.with_for_update(skip_locked=True)
-    experiment_ids = [row.experiment_id for row in (await session.execute(link_pairs_stmt)).all()]
+        experiment_ids_stmt = experiment_ids_stmt.with_for_update(skip_locked=True)
+    experiment_ids = list(await session.scalars(experiment_ids_stmt))
     if experiment_ids:
+        experiment_ids.sort()
         deleted_links = _rowcount(
             await session.execute(
                 delete(models.ExperimentDatasetEvaluator).where(
@@ -208,16 +242,12 @@ async def _drain_span_children_batch(
     """Ensure no selected span batch triggers an unbounded child cascade or SET NULL update."""
     # 1. Clear dataset_examples.span_rowid in bounded updates before deleting spans.
     example_cond = models.DatasetExample.span_rowid.in_(span_ids)
-    example_ids_stmt = (
-        select(models.DatasetExample.id)
-        .where(example_cond)
-        .order_by(models.DatasetExample.id.asc())
-        .limit(batch_limit)
-    )
+    example_ids_stmt = select(models.DatasetExample.id).where(example_cond).limit(batch_limit)
     if dialect is SupportedSQLDialect.POSTGRESQL:
         example_ids_stmt = example_ids_stmt.with_for_update(skip_locked=True)
     example_ids = list(await session.scalars(example_ids_stmt))
     if example_ids:
+        example_ids.sort()
         cleared = _rowcount(
             await session.execute(
                 update(models.DatasetExample)
@@ -236,21 +266,15 @@ async def _drain_span_children_batch(
     detail_condition = models.SpanCostDetail.span_cost_id.in_(
         select(models.SpanCost.id).where(models.SpanCost.span_rowid.in_(span_ids))
     )
-    detail_probe = list(
-        await session.scalars(
-            select(models.SpanCostDetail.id).where(detail_condition).limit(batch_limit + 1)
-        )
+    detail_result = await _drain_overflow_by_ids(
+        session,
+        dialect=dialect,
+        model=models.SpanCostDetail,
+        condition=detail_condition,
+        batch_limit=batch_limit,
     )
-    if len(detail_probe) > batch_limit:
-        detail_result = await _delete_by_ids(
-            session,
-            dialect=dialect,
-            model=models.SpanCostDetail,
-            condition=detail_condition,
-            batch_limit=batch_limit,
-        )
-        if detail_result.status is not PrimitiveStatus.EMPTY:
-            return detail_result
+    if detail_result is not None:
+        return detail_result
 
     for child_model in (
         models.DocumentAnnotation,
@@ -258,20 +282,15 @@ async def _drain_span_children_batch(
         models.SpanCost,
         models.EvalWorkUnit,
     ):
-        child_cond = child_model.span_rowid.in_(span_ids)
-        probe_ids = list(
-            await session.scalars(select(child_model.id).where(child_cond).limit(batch_limit + 1))
+        child_result = await _drain_overflow_by_ids(
+            session,
+            dialect=dialect,
+            model=child_model,
+            condition=child_model.span_rowid.in_(span_ids),
+            batch_limit=batch_limit,
         )
-        if len(probe_ids) > batch_limit:
-            res = await _delete_by_ids(
-                session,
-                dialect=dialect,
-                model=child_model,
-                condition=child_cond,
-                batch_limit=batch_limit,
-            )
-            if res.status is not PrimitiveStatus.EMPTY:
-                return res
+        if child_result is not None:
+            return child_result
     return None
 
 
@@ -287,26 +306,27 @@ async def drain_traces_step(
     # Phases 1-2 work on a window of the oldest in-scope traces. Spans in the window are drained
     # first; once the window's traces are span-less they are deleted, so the next window starts at
     # the next-oldest traces and every step touches rows proportional to its own batch.
+    # ix_traces_project_rowid_start_time is (project_rowid, start_time DESC), whose reverse B-tree
+    # order on SQLite is (start_time ASC, id DESC).
     window_stmt = (
         select(models.Trace.id)
         .where(trace_cond)
-        .order_by(models.Trace.start_time.asc(), models.Trace.id.asc())
+        .order_by(models.Trace.start_time.asc(), models.Trace.id.desc())
         .limit(batch_limit)
     )
     if dialect is SupportedSQLDialect.POSTGRESQL:
         window_stmt = window_stmt.with_for_update(skip_locked=True)
     trace_ids = list(await session.scalars(window_stmt))
     if trace_ids:
+        trace_ids.sort()
         span_candidates_stmt = (
-            select(models.Span.id)
-            .where(models.Span.trace_rowid.in_(trace_ids))
-            .order_by(models.Span.id.asc())
-            .limit(batch_limit)
+            select(models.Span.id).where(models.Span.trace_rowid.in_(trace_ids)).limit(batch_limit)
         )
         if dialect is SupportedSQLDialect.POSTGRESQL:
             span_candidates_stmt = span_candidates_stmt.with_for_update(skip_locked=True)
         span_ids = list(await session.scalars(span_candidates_stmt))
         if span_ids:
+            span_ids.sort()
             child_step = await _drain_span_children_batch(
                 session,
                 dialect=dialect,
@@ -322,22 +342,15 @@ async def drain_traces_step(
                 return PrimitiveResult(PrimitiveStatus.PROGRESS, deleted_spans)
 
         for child_model in (models.TraceAnnotation, models.EvalTraceWorkUnit):
-            child_condition = child_model.trace_rowid.in_(trace_ids)
-            child_probe = list(
-                await session.scalars(
-                    select(child_model.id).where(child_condition).limit(batch_limit + 1)
-                )
+            child_result = await _drain_overflow_by_ids(
+                session,
+                dialect=dialect,
+                model=child_model,
+                condition=child_model.trace_rowid.in_(trace_ids),
+                batch_limit=batch_limit,
             )
-            if len(child_probe) > batch_limit:
-                child_result = await _delete_by_ids(
-                    session,
-                    dialect=dialect,
-                    model=child_model,
-                    condition=child_condition,
-                    batch_limit=batch_limit,
-                )
-                if child_result.status is not PrimitiveStatus.EMPTY:
-                    return child_result
+            if child_result is not None:
+                return child_result
         # Delete only traces that still have zero spans attached; a span locked by another
         # writer or attached by a concurrent insert keeps its trace.
         no_spans_attached = (
@@ -417,37 +430,28 @@ async def drain_trace_scope_step(
         .exists(),
     )
     session_candidates_stmt = (
-        select(models.ProjectSession.id)
-        .where(orphan_session_cond)
-        .order_by(models.ProjectSession.id.asc())
-        .limit(batch_limit)
+        select(models.ProjectSession.id).where(orphan_session_cond).limit(batch_limit)
     )
     if dialect is SupportedSQLDialect.POSTGRESQL:
         session_candidates_stmt = session_candidates_stmt.with_for_update(skip_locked=True)
     session_ids = list(await session.scalars(session_candidates_stmt))
     if session_ids:
-        for sess_child in (models.ProjectSessionAnnotation, models.EvalSessionWorkUnit):
-            sess_child_col = (
+        session_ids.sort()
+        for session_child_model in (models.ProjectSessionAnnotation, models.EvalSessionWorkUnit):
+            session_child_col = (
                 models.ProjectSessionAnnotation.project_session_id
-                if sess_child is models.ProjectSessionAnnotation
+                if session_child_model is models.ProjectSessionAnnotation
                 else models.EvalSessionWorkUnit.project_session_rowid
             )
-            sess_child_cond = sess_child_col.in_(session_ids)
-            probe_children = list(
-                await session.scalars(
-                    select(sess_child.id).where(sess_child_cond).limit(batch_limit + 1)
-                )
+            child_result = await _drain_overflow_by_ids(
+                session,
+                dialect=dialect,
+                model=session_child_model,
+                condition=session_child_col.in_(session_ids),
+                batch_limit=batch_limit,
             )
-            if len(probe_children) > batch_limit:
-                child_res = await _delete_by_ids(
-                    session,
-                    dialect=dialect,
-                    model=sess_child,
-                    condition=sess_child_cond,
-                    batch_limit=batch_limit,
-                )
-                if child_res.status is not PrimitiveStatus.EMPTY:
-                    return child_res
+            if child_result is not None:
+                return child_result
         still_orphan = (
             ~select(literal(1))
             .where(models.Trace.project_session_rowid == models.ProjectSession.id)
@@ -515,15 +519,13 @@ async def drain_trace_scope_step(
         .exists(),
     )
     shared_session_ids_stmt = (
-        select(models.ProjectSession.id)
-        .where(shared_session_cond)
-        .order_by(models.ProjectSession.id.asc())
-        .limit(batch_limit)
+        select(models.ProjectSession.id).where(shared_session_cond).limit(batch_limit)
     )
     if dialect is SupportedSQLDialect.POSTGRESQL:
         shared_session_ids_stmt = shared_session_ids_stmt.with_for_update(skip_locked=True)
     shared_session_ids = list(await session.scalars(shared_session_ids_stmt))
     if shared_session_ids:
+        shared_session_ids.sort()
         reassigned = _rowcount(
             await session.execute(
                 update(models.ProjectSession)
@@ -553,11 +555,12 @@ async def clear_project_historical_references_step(
     before physically deleting ``projects(id = project_id)``."""
     for model in (models.Experiment, models.AgentSession):
         cond = model.project_id == project_id
-        ids_stmt = select(model.id).where(cond).order_by(model.id.asc()).limit(batch_limit)
+        ids_stmt = select(model.id).where(cond).limit(batch_limit)
         if dialect is SupportedSQLDialect.POSTGRESQL:
             ids_stmt = ids_stmt.with_for_update(skip_locked=True)
         ids = list(await session.scalars(ids_stmt))
         if ids:
+            ids.sort()
             cleared = _rowcount(
                 await session.execute(
                     update(model).where(model.id.in_(ids)).values(project_id=None)
@@ -568,20 +571,15 @@ async def clear_project_historical_references_step(
         if await _has_any(session, cond):
             return PrimitiveResult(PrimitiveStatus.YIELD, 0)
 
-    config_cond = models.ProjectAnnotationConfig.project_id == project_id
-    probe_configs = list(
-        await session.scalars(
-            select(models.ProjectAnnotationConfig.id).where(config_cond).limit(batch_limit + 1)
-        )
+    overflow_result = await _drain_overflow_by_ids(
+        session,
+        dialect=dialect,
+        model=models.ProjectAnnotationConfig,
+        condition=models.ProjectAnnotationConfig.project_id == project_id,
+        batch_limit=batch_limit,
     )
-    if len(probe_configs) > batch_limit:
-        return await _delete_by_ids(
-            session,
-            dialect=dialect,
-            model=models.ProjectAnnotationConfig,
-            condition=config_cond,
-            batch_limit=batch_limit,
-        )
+    if overflow_result is not None:
+        return overflow_result
     return PrimitiveResult(PrimitiveStatus.EMPTY, 0)
 
 
@@ -601,16 +599,12 @@ async def reset_session_evaluations_step(
         models.EvalSessionWorkUnit.project_session_rowid.in_(affected_sessions),
         models.EvalSessionWorkUnit.status.in_(_RESETTABLE_SESSION_EVAL_STATUSES),
     )
-    candidates = (
-        select(models.EvalSessionWorkUnit.id)
-        .where(condition)
-        .order_by(models.EvalSessionWorkUnit.id)
-        .limit(batch_limit)
-    )
+    candidates = select(models.EvalSessionWorkUnit.id).where(condition).limit(batch_limit)
     if dialect is SupportedSQLDialect.POSTGRESQL:
         candidates = candidates.with_for_update(skip_locked=True)
     ids = list(await session.scalars(candidates))
     if ids:
+        ids.sort()
         count = _rowcount(
             await session.execute(
                 update(models.EvalSessionWorkUnit)
