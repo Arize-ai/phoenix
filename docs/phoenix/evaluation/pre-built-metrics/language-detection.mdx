@@ -124,17 +124,18 @@ The default prompt is maintained in the
 
   <Tab title="TypeScript" icon="js">
     ```typescript
-    import {
-      LANGUAGE_DETECTION_CLASSIFICATION_EVALUATOR_CONFIG,
-      createLanguageDetectionEvaluator,
-    } from "@arizeai/phoenix-evals";
+    import { createLanguageDetectionEvaluator } from "@arizeai/phoenix-evals";
     import { openai } from "@ai-sdk/openai";
 
-    console.log(LANGUAGE_DETECTION_CLASSIFICATION_EVALUATOR_CONFIG.template);
+    const evaluator = createLanguageDetectionEvaluator({ model: openai("gpt-4o") });
 
+    // Inspect the default prompt.
+    console.log(evaluator.promptTemplate);
+
+    // Reuse or adapt it in a custom evaluator.
     const customEvaluator = createLanguageDetectionEvaluator({
       model: openai("gpt-4o"),
-      promptTemplate: LANGUAGE_DETECTION_CLASSIFICATION_EVALUATOR_CONFIG.template,
+      promptTemplate: evaluator.promptTemplate,
     });
     ```
   </Tab>
