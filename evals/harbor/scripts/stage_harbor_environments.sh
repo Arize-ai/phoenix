@@ -83,10 +83,12 @@ for config in "$TASKS_DIR"/*/task.toml "$TASKS_DIR"/*/*/task.toml; do
   # Hard links keep a dozen copies of the wheel and the database from costing a dozen
   # times the disk; Docker and Daytona read them as ordinary files.
   rsync -a --delete --link-dest="$CONTEXT/" "$CONTEXT/" "$task/environment/"
-  # Files the agent finds in /app, such as the app's code and existing eval scripts.
   mkdir -p "$task/environment/workdir"
   if [ -d "$task/workdir" ]; then
     rsync -a --exclude __pycache__ "$task/workdir/" "$task/environment/workdir/"
+  else
+    # Daytona uploads only files, so `COPY workdir/` fails on an empty directory.
+    touch "$task/environment/workdir/.keep"
   fi
   mkdir -p "$task/environment/data"
   ln -f "$FIXTURES/$fixture/phoenix.db" "$task/environment/data/phoenix.db" 2>/dev/null \
