@@ -2927,77 +2927,6 @@
             }
           }
         }
-      },
-      "delete": {
-        "tags": [
-          "datasets"
-        ],
-        "summary": "Permanently delete examples from a dataset",
-        "description": "Permanently delete examples and all of their revisions from every version of the dataset. The experiment runs on these examples, their evaluations, their task and evaluator traces, and their experiment logs are deleted too. The dataset, its versions, its experiments, and its other examples are kept. This cannot be undone. Example IDs that are not in the dataset are skipped, so a repeated request succeeds. Wait for experiments on the dataset to finish first, because runs and traces that arrive after the request are kept.",
-        "operationId": "deleteDatasetExamples",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "The ID of the dataset",
-              "title": "Id"
-            },
-            "description": "The ID of the dataset"
-          },
-          {
-            "name": "example_ids",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "maxItems": 100,
-              "description": "Identifiers of the examples to delete: dataset example IDs (GlobalIDs) or user-provided IDs. To delete more examples, send more requests.",
-              "title": "Example Ids"
-            },
-            "description": "Identifiers of the examples to delete: dataset example IDs (GlobalIDs) or user-provided IDs. To delete more examples, send more requests."
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "403": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Forbidden"
-          },
-          "404": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Dataset not found"
-          },
-          "422": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Invalid dataset ID, no example IDs, or too many example IDs"
-          }
-        }
       }
     },
     "/v1/datasets/{dataset_identifier}/splits": {
@@ -6674,7 +6603,7 @@
           "traces"
         ],
         "summary": "Delete traces from a project",
-        "description": "Delete traces from a project without deleting the project or its configuration. Only traces whose start time is within the required `[start_time, end_time)` interval are deleted. Associated spans are cascade deleted, and project sessions left with no remaining traces are also deleted. Naive datetimes are interpreted as UTC.",
+        "description": "Delete traces from a project without deleting the project or its configuration. Only traces whose start time is within the required `[start_time, end_time)` interval are deleted. Associated spans are cascade deleted, and project sessions left with no remaining traces are also deleted. Naive datetimes are interpreted as UTC. Returns 409 when the project holds an evaluator's traces or another clear with a different time range is already in progress. If the wait exceeds the request timeout, returns 504 while deletion continues in the background; retrying with the identical `[start_time, end_time)` range waits on the active clear.",
         "operationId": "deleteProjectTraces",
         "parameters": [
           {
@@ -6948,6 +6877,16 @@
           },
           "404": {
             "description": "Destination project or trace not found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A trace clear is in progress on the source or destination project",
             "content": {
               "text/plain": {
                 "schema": {
@@ -8721,7 +8660,7 @@
           "prompts"
         ],
         "summary": "Delete a prompt",
-        "description": "Delete a prompt and all its versions, tags, and labels by identifier. Returns 409 if one or more LLM evaluators use the prompt.",
+        "description": "Delete a prompt and all its versions, tags, and labels by identifier. A prompt referenced by an LLM evaluator is refused with 409; delete the evaluator first.",
         "operationId": "deletePrompt",
         "parameters": [
           {
