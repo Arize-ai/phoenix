@@ -2236,10 +2236,11 @@ class LDAPConfig:
     Both modes handle DN changes. The only difference is email change handling.
     DN is NOT used for identity matching (DNs change too frequently).
 
-    Email as Required Attribute:
-    - Email MUST be present in LDAP for authentication to succeed
-    - Used for Phoenix's user email field (UI, notifications, audit logs)
-    - Provides human-readable identifier for operators
+    Email Attribute:
+    - When PHOENIX_LDAP_ATTR_EMAIL names an attribute, it MUST be present in LDAP
+      for authentication to succeed
+    - When PHOENIX_LDAP_ATTR_EMAIL is "null", users are stored without email and
+      identified by PHOENIX_LDAP_ATTR_UNIQUE_ID alone, which is then required
 
     See: internal_docs/specs/ldap-authentication.md for full design rationale.
 
