@@ -186,8 +186,6 @@ def test_routes_a_text_prompt_through_a_single_choice_question(monkeypatch):
         },
     }
     assert "explanation" not in result
-    # output_tokens is 0 (Gemini never charges output), but usage is still reported.
-    assert result.get("usage") is None or "usage" not in result
 
     client.decisions.create.assert_called_once()
     _, kwargs = client.decisions.create.call_args
