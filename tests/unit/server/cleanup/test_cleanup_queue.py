@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 
 import httpx2
 import pytest
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, event, func, select, update
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -1250,3 +1250,42 @@ class TestClearWatermarkReuse:
         await _drain_all(CleanupCoordinator(db, batch_limit=2))
         async with db() as session:
             assert await session.get(models.Trace, late_trace_id) is None
+
+
+async def test_sqlite_trace_allocator_rolls_back_reservations(db: DbSessionFactory) -> None:
+    if db.dialect is not SupportedSQLDialect.SQLITE:
+        pytest.skip("SQLite allocation protocol")
+    async with db() as session:
+        first = await models.allocate_sqlite_trace_rowid(session)
+        bind = session.get_bind()
+        statements: list[str] = []
+
+        def record_statement(
+            _connection: Any,
+            _cursor: Any,
+            statement: str,
+            _parameters: Any,
+            _context: Any,
+            _executemany: bool,
+        ) -> None:
+            if not statement.upper().startswith(("SAVEPOINT", "RELEASE", "ROLLBACK")):
+                statements.append(statement)
+
+        event.listen(bind, "before_cursor_execute", record_statement)
+        try:
+            second = await models.allocate_sqlite_trace_rowid(session)
+            assert second == first + 1
+            assert len(statements) == 1
+            statements.clear()
+            assert await models.capture_trace_max_rowid(session) == second
+            assert len(statements) == 1
+        finally:
+            event.remove(bind, "before_cursor_execute", record_statement)
+
+        savepoint = await session.begin_nested()
+        reserved = await models.allocate_sqlite_trace_rowid(session)
+        assert reserved > second
+        await savepoint.rollback()
+        assert await models.allocate_sqlite_trace_rowid(session) == reserved
+    async with db() as session:
+        assert await models.allocate_sqlite_trace_rowid(session) > reserved
