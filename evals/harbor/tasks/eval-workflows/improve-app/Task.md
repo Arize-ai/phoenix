@@ -107,9 +107,10 @@ These don't change `reward`. The [suite README](../README.md#what-a-run-reports)
 explains each one.
 
 - `turns`, `tool_calls`, and a `loaded_<skill>` flag for each skill.
-- `copies_dev_examples`: 1 if the saved prompt quotes 10 or more words in a row from a
-  development question or its notes, or names one of their order or customer IDs. Text
-  that the new questions, the handbook, or the launch prompt also contain doesn't count.
+- `no_overfit`: 0 if the saved prompt quotes 10 or more words in a row from a
+  development question or its notes, or names one of their order or customer IDs, and 1
+  otherwise. Text that the new questions, the handbook, or the launch prompt also
+  contain doesn't count.
 
 ## What the task tests
 

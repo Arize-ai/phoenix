@@ -189,9 +189,10 @@ requests, the verifier reports two measures of the judges the agent built:
 `prompt_quality` is noisy: the same prompt can pass in one run and miss an item in the
 next, so compare it across many runs, not one.
 
-`improve-app` has no eval script. It reports `copies_dev_examples` instead: 1 if the
-agent's saved prompt quotes one of the dataset's questions or names one of its order
-numbers, a sign the prompt was tuned to the dataset rather than the handbook.
+`improve-app` has no eval script. It reports `no_overfit` instead: 0 if the agent's
+saved prompt quotes 10 or more words in a row from one of the dataset's questions or
+names one of its order or customer IDs, a sign the prompt was tuned to the dataset
+rather than the handbook, and 1 otherwise.
 
 ## Run the suite
 
@@ -228,9 +229,9 @@ make harbor-run HARBOR_JOB=evals/harbor/.cache/haiku.yaml
 
 ### Check the tasks themselves
 
-Run the reference solutions and a do-nothing agent after you change a task, a seed file,
-or the verifiers. Every task should score 1 with the reference and 0 with nothing.
-These runs need no px archive:
+Run the reference solutions (Harbor's `oracle` agent) and Harbor's do-nothing `nop`
+agent after you change a task, a seed file, or the verifiers. Every task should score 1
+with `oracle` and 0 with `nop`. These runs need no px archive:
 
 ```bash
 HARBOR_CLI=0 HARBOR_TASKS_DIR=$PWD/evals/harbor/tasks/eval-workflows make harbor-stage
@@ -280,19 +281,6 @@ uv run python evals/harbor/tasks/eval-workflows/session-evals/fixture/build.py
 
 [`.gitattributes`](.gitattributes) marks the generated JSON files so GitHub collapses
 them in pull request diffs. Review `fixture/build.py` instead.
-
-To check a task's verifier in about a minute, without building an image, run
-[`check_task_locally.py`](../../environments/fixtures/check_task_locally.py). It seeds a
-temporary Phoenix from the task's seed file, runs the task in a local process, and
-prints the reward. By default it does nothing before grading, so the reward must be 0.
-`--solution` runs the reference solution first, so the reward must be 1. `--evals DIR`
-copies someone's eval code into `/app/evals` first, which is how you replay an agent's
-saved script against a changed task. A Harbor run is still the real check.
-
-```bash
-uv run python evals/harbor/environments/fixtures/check_task_locally.py session-evals
-uv run python evals/harbor/environments/fixtures/check_task_locally.py session-evals --solution
-```
 
 The shared code is in these files:
 

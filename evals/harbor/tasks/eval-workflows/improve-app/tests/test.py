@@ -111,9 +111,8 @@ def grade_hidden(version: Any) -> None:
     details["hidden_replies"] = {r["case_id"]: r["reply"][:1200] for r in results}
 
 
-def copies_dev_examples(messages: list[dict[str, Any]]) -> float:
-    """Ignores text that the hidden questions, the handbook, or the launch prompt also
-    contain, so only overfitting matches."""
+def no_overfit(messages: list[dict[str, Any]]) -> float:
+    """Returns 0 if the prompt copies text or IDs that only the dev examples contain."""
     from phoenix.client import Client
 
     dataset = Client(base_url=PHOENIX_URL).datasets.get_dataset(dataset=TRUTH["dataset"])
@@ -127,7 +126,7 @@ def copies_dev_examples(messages: list[dict[str, Any]]) -> float:
     runs = judge_prompts.copied_runs(prompt, judge_prompts.seen_only_shingles(dev, shared))
     ids = sorted(i for i in judge_prompts.seen_only_ids(dev, shared) if i in prompt)
     details["copied_examples"] = {"text": runs[:10], "ids": ids}
-    return float(bool(runs or ids))
+    return float(not (runs or ids))
 
 
 def main() -> None:
@@ -149,7 +148,7 @@ def main() -> None:
         for behavior in support_checks.BEHAVIORS:
             checks[behavior] = False
         details["hidden"] = "skipped: the prompt is unchanged or missing"
-    measures = {"copies_dev_examples": copies_dev_examples(messages)} if messages else {}
+    measures = {"no_overfit": no_overfit(messages)} if messages else {}
     grading.finish(checks, details, measures)
 
 
