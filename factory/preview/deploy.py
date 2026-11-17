@@ -55,6 +55,7 @@ def railway(query: str, **variables: Any) -> dict[str, Any]:
         headers={
             "Content-Type": "application/json",
             "Project-Access-Token": os.environ["RAILWAY_TOKEN"],
+            "User-Agent": "phoenix-factory-preview",
         },
     )
     try:
