@@ -1,4 +1,4 @@
-"""Shared grading for the `phoenix-evals` Harbor tasks.
+"""Shared grading for the `eval-workflows` Harbor tasks.
 
 Each task grades one deliverable the instruction names: annotations with a given name,
 a dataset, or a reply. The helpers here read those deliverables from Phoenix, compare
@@ -34,7 +34,7 @@ prompts, and for task-specific judges. It's the cheapest model that matched
 
 Unit = TypeVar("Unit", bound=Hashable)
 
-# Overridable so `scripts/check_task_locally.py` can grade a task outside a container.
+# Overridable so `environments/fixtures/check_task_locally.py` can grade a task outside a container.
 APP_DIR = os.environ.get("TASK_APP_DIR", "/app")
 TESTS_DIR = Path(os.environ.get("TASK_TESTS_DIR", "/tests"))
 

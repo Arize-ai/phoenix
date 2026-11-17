@@ -1,0 +1,41 @@
+datasets:
+  - path: evals/harbor/tasks/eval-workflows
+agents:
+  - name: claude-code-opus-no-skills
+    import_path: evals.harbor.agents.coding_agents:ClaudeCodeCliAgent
+    model_name: anthropic/claude-opus-5-5
+    extra_allowed_hosts: [api.anthropic.com]
+    resume_trajectory: true
+  - name: claude-code-opus-skills
+    import_path: evals.harbor.agents.coding_agents:ClaudeCodeCliAgent
+    model_name: anthropic/claude-opus-5-5
+    extra_allowed_hosts: [api.anthropic.com]
+    resume_trajectory: true
+    skills:
+      - skills/phoenix-cli
+      - skills/phoenix-error-analysis
+      - skills/phoenix-evals
+      - skills/phoenix-tracing
+  - name: claude-code-haiku-no-skills
+    import_path: evals.harbor.agents.coding_agents:ClaudeCodeCliAgent
+    model_name: anthropic/claude-haiku-5-5
+    extra_allowed_hosts: [api.anthropic.com]
+    resume_trajectory: true
+  - name: claude-code-haiku-skills
+    import_path: evals.harbor.agents.coding_agents:ClaudeCodeCliAgent
+    model_name: anthropic/claude-haiku-5-5
+    extra_allowed_hosts: [api.anthropic.com]
+    resume_trajectory: true
+    skills:
+      - skills/phoenix-cli
+      - skills/phoenix-error-analysis
+      - skills/phoenix-evals
+      - skills/phoenix-tracing
+environment:
+  type: daytona
+  kwargs:
+    auto_stop_interval_mins: 30
+    auto_delete_interval_mins: 30
+n_attempts: 3
+retry:
+  max_retries: 1

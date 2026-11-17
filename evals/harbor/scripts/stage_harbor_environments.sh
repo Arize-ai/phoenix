@@ -63,20 +63,18 @@ for config in "$TASKS_DIR"/*/task.toml "$TASKS_DIR"/*/*/task.toml; do
     echo "$config names no fixture: add [metadata] fixture = \"<name>\"" >&2
     exit 1
   fi
-  if [ "$fixture" = spec ]; then
-    # The task seeds its own Phoenix state from fixture/spec.json. Cache by content so
-    # an unchanged spec is seeded once.
-    spec="$task/fixture/spec.json"
-    if [ ! -f "$spec" ]; then
-      echo "$spec is missing; run the task's fixture/build.py" >&2
+  if [ "$fixture" = phoenix-seed ]; then
+    seed_file="$task/fixture/phoenix_seed.json"
+    if [ ! -f "$seed_file" ]; then
+      echo "$seed_file is missing; run the task's fixture/build.py" >&2
       skipped="$skipped ${task#"$TASKS_DIR/"}"
       continue
     fi
-    fixture="spec-$(shasum -a 256 "$spec" | cut -c1-16)"
+    fixture="phoenix-seed-$(shasum -a 256 "$seed_file" | cut -c1-16)"
     if [ ! -f "$FIXTURES/$fixture/phoenix.db" ]; then
-      echo "Seeding $fixture from $spec..."
-      (cd "$ROOT" && uv run python "$ENVIRONMENTS/fixtures/seed_spec.py" \
-        --spec "$spec" --output "$FIXTURES/$fixture/phoenix.db")
+      echo "Seeding $fixture from $seed_file..."
+      (cd "$ROOT" && uv run python "$ENVIRONMENTS/fixtures/seed_phoenix.py" \
+        --seed "$seed_file" --output "$FIXTURES/$fixture/phoenix.db")
     fi
   elif ! ensure_fixture "$fixture"; then
     skipped="$skipped ${task#"$TASKS_DIR/"}"

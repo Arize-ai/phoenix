@@ -1,7 +1,7 @@
 """Build OpenInference spans for synthetic support-agent traces.
 
-Task fixture builders (`tasks/phoenix-evals/<task>/fixture/build.py`) use this module to
-write `fixture/spec.json` for the seeder and the hidden traces in `tests/`. IDs derive
+Task fixture builders (`tasks/eval-workflows/<task>/fixture/build.py`) use this module to
+write `fixture/phoenix_seed.json` for the seeder and the hidden traces in `tests/`. IDs derive
 from a case key, so rebuilding a fixture gives the same IDs.
 
 Example:

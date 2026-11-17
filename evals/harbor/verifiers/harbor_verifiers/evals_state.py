@@ -1,6 +1,6 @@
 """Read the end state of eval-building tasks from the task's Phoenix server.
 
-The `phoenix-evals` tasks grade what an agent left in Phoenix, whatever interface it used.
+The `eval-workflows` tasks grade what an agent left in Phoenix, whatever interface it used.
 These helpers read datasets, their examples, and experiments with their runs and
 evaluations over REST.
 """
