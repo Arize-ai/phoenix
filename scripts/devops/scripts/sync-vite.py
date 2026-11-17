@@ -189,7 +189,8 @@ def main() -> None:
                 args.kubeconfig, args.context, args.namespace, pod, root, changed, deleted
             ):
                 print(
-                    f"[vite-sync] updated {len(changed)} file(s), removed {len(deleted)} file(s) in {pod}",
+                    f"[vite-sync] updated {len(changed)} file(s), "
+                    f"removed {len(deleted)} file(s) in {pod}",
                     flush=True,
                 )
                 snapshot = current
