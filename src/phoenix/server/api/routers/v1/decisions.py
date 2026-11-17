@@ -342,7 +342,9 @@ async def delete_decision(
 ) -> None:
     where_clause = decision_where_clause(decision_identifier)
     async with request.app.state.db() as session:
-        decision_id = await session.scalar(select(models.Decision.id).where(where_clause))
+        decision_id = await session.scalar(
+            select(models.Decision.id).where(where_clause).with_for_update()
+        )
         if decision_id is None:
             raise decision_not_found(decision_identifier)
         evaluator_names = (

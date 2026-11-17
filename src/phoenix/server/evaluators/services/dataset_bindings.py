@@ -22,6 +22,7 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import AlreadyExists, BadRequest, Conflict, NotFound
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.cleanup.lifecycle import logical_delete_dataset_evaluators
+from phoenix.server.dml_event import ProjectDeleteEvent, SpanDeleteEvent
 from phoenix.server.evaluators.runtime.builtin import get_builtin_evaluator_by_key
 from phoenix.server.evaluators.services.definitions import (
     EvaluatorServiceContext,
@@ -38,6 +39,7 @@ from phoenix.server.evaluators.services.management import (
     get_live_dataset_evaluator,
     get_project_for_dataset_evaluator,
     is_sole_evaluator_binding,
+    lock_evaluators,
     parse_evaluator_id,
 )
 from phoenix.server.evaluators.services.prompt_source import CreatePromptSource
@@ -220,7 +222,7 @@ async def update_dataset_llm_evaluator(
                 )
             )
             if evaluator_id is not None:
-                await session.get(models.LLMEvaluator, evaluator_id, with_for_update=True)
+                await lock_evaluators(session, [evaluator_id])
             pair = (
                 await session.execute(
                     select(models.DatasetEvaluators, models.LLMEvaluator)
@@ -299,7 +301,7 @@ async def delete_dataset_evaluators(
 
     dialect = SupportedSQLDialect(context.db.dialect.value)
     async with context.db() as session:
-        deleted_rowids = await logical_delete_dataset_evaluators(
+        delete_result = await logical_delete_dataset_evaluators(
             session,
             dialect=dialect,
             binding_ids=dataset_evaluator_rowids,
@@ -308,9 +310,13 @@ async def delete_dataset_evaluators(
                 input.delete_unused_evaluator and input.delete_unused_prompt_or_decision
             ),
         )
-    if deleted_rowids:
+    if delete_result.tombstoned_project_ids and context.event_queue is not None:
+        tombstoned_ids = tuple(delete_result.tombstoned_project_ids)
+        context.event_queue.put(SpanDeleteEvent(tombstoned_ids))
+        context.event_queue.put(ProjectDeleteEvent(tombstoned_ids))
+    if delete_result.binding_ids:
         context.wake_cleanup_worker()
-    return [GlobalID("DatasetEvaluator", str(row_id)) for row_id in deleted_rowids]
+    return [GlobalID("DatasetEvaluator", str(row_id)) for row_id in delete_result.binding_ids]
 
 
 async def create_dataset_builtin_evaluator(
@@ -473,8 +479,9 @@ async def create_dataset_code_evaluator(
             code_evaluator: Optional[models.CodeEvaluator]
             if evaluator_id is not None:
                 # Locked so a concurrent definition delete sees the binding.
+                await lock_evaluators(session, [evaluator_id])
                 code_evaluator = await session.get(
-                    models.CodeEvaluator, evaluator_id, with_for_update=True
+                    models.CodeEvaluator, evaluator_id, populate_existing=True
                 )
                 if code_evaluator is None:
                     raise NotFound(f"Code evaluator with id {input.evaluator_id} not found")
@@ -614,8 +621,9 @@ async def create_dataset_llm_binding(
     try:
         async with context.db() as session:
             dataset = await lock_dataset_for_binding(session, binding)
+            await lock_evaluators(session, [evaluator_rowid])
             evaluator = await session.get(
-                models.LLMEvaluator, evaluator_rowid, with_for_update=True
+                models.LLMEvaluator, evaluator_rowid, populate_existing=True
             )
             if evaluator is None:
                 raise NotFound(f"LLM evaluator not found: {input.evaluator_id}")
@@ -828,7 +836,6 @@ async def detach_dataset_evaluators(
     if not rowids:
         return
     dialect = SupportedSQLDialect(context.db.dialect.value)
-    deleted_rowids: list[int] = []
     async with context.db() as session:
         elsewhere: Sequence[int] = []
         if dataset_id is not None:
@@ -849,14 +856,18 @@ async def detach_dataset_evaluators(
             listed = ", ".join(str(GlobalID("DatasetEvaluator", str(i))) for i in elsewhere)
             raise BadRequest(f"These bindings belong to another dataset: {listed}")
 
-        deleted_rowids = await logical_delete_dataset_evaluators(
+        delete_result = await logical_delete_dataset_evaluators(
             session,
             dialect=dialect,
             binding_ids=rowids,
             collect_unused_evaluator=False,
             collect_unused_prompt_or_decision=False,
         )
-    if deleted_rowids:
+    if delete_result.tombstoned_project_ids and context.event_queue is not None:
+        tombstoned_ids = tuple(delete_result.tombstoned_project_ids)
+        context.event_queue.put(SpanDeleteEvent(tombstoned_ids))
+        context.event_queue.put(ProjectDeleteEvent(tombstoned_ids))
+    if delete_result.binding_ids:
         context.wake_cleanup_worker()
 
 

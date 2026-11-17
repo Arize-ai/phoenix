@@ -2,13 +2,14 @@
 
 import logging
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.types.annotation_configs import OutputConfigType
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.cleanup.lifecycle import (
+    _lock_projects,
     logical_delete_dataset_evaluators,
     logical_delete_project_evaluators,
 )
@@ -16,6 +17,9 @@ from phoenix.server.evaluators.runtime.builtin import get_builtin_evaluators
 from phoenix.server.types import DbSessionFactory
 
 logger = logging.getLogger(__name__)
+
+# Distinct from cleanup admission (0x636C6E705F717565) and model costs (0x70686F656E6978).
+_BUILTIN_EVALUATOR_SYNC_LOCK_ID = 0x626C746E5F65766C  # "bltn_evl"
 
 
 async def sync_builtin_evaluators(db: DbSessionFactory) -> None:
@@ -26,10 +30,16 @@ async def sync_builtin_evaluators(db: DbSessionFactory) -> None:
     1. Creates or updates builtin evaluators using ORM (handles inheritance)
     2. Removes any stale evaluators no longer in the registry
 
-    Safe to call multiple times (idempotent).
+    Safe to call multiple times (idempotent) and concurrently across replicas.
     """
+    dialect = SupportedSQLDialect(db.dialect.value)
+    current_keys: set[str] = set()
+
     async with db() as session:
-        current_keys: set[str] = set()
+        if dialect is SupportedSQLDialect.POSTGRESQL:
+            await session.execute(
+                select(func.pg_advisory_xact_lock(_BUILTIN_EVALUATOR_SYNC_LOCK_ID))
+            )
 
         for key, evaluator_cls in get_builtin_evaluators():
             current_keys.add(key)
@@ -60,46 +70,109 @@ async def sync_builtin_evaluators(db: DbSessionFactory) -> None:
 
         await session.flush()
 
-        if current_keys:
-            stale_ids_stmt = select(models.BuiltinEvaluator.id).where(
-                models.BuiltinEvaluator.key.notin_(current_keys)
-            )
-            stale_ids_result = await session.execute(stale_ids_stmt)
-            stale_ids = [row[0] for row in stale_ids_result.fetchall()]
+    if current_keys:
+        async with db() as session:
+            if dialect is SupportedSQLDialect.POSTGRESQL:
+                await session.execute(
+                    select(func.pg_advisory_xact_lock(_BUILTIN_EVALUATOR_SYNC_LOCK_ID))
+                )
 
-            if stale_ids:
-                # Live bindings must be tombstoned (and their cleanup enqueued) before the
-                # evaluator row goes, since a live binding cannot have a NULL evaluator_id.
-                dialect = SupportedSQLDialect(db.dialect.value)
-                dataset_binding_ids = await session.scalars(
-                    select(models.DatasetEvaluators.id).where(
-                        models.DatasetEvaluators.evaluator_id.in_(stale_ids),
-                        models.DatasetEvaluators.deleted_at.is_(None),
+            stale_ids = sorted(
+                await session.scalars(
+                    select(models.BuiltinEvaluator.id).where(
+                        models.BuiltinEvaluator.key.notin_(current_keys)
                     )
                 )
+            )
+
+            if stale_ids:
+                dataset_binding_rows = (
+                    await session.execute(
+                        select(
+                            models.DatasetEvaluators.id,
+                            models.DatasetEvaluators.dataset_id,
+                            models.DatasetEvaluators.project_id,
+                        ).where(
+                            models.DatasetEvaluators.evaluator_id.in_(stale_ids),
+                            models.DatasetEvaluators.deleted_at.is_(None),
+                        )
+                    )
+                ).all()
+                project_binding_rows = (
+                    await session.execute(
+                        select(
+                            models.ProjectEvaluator.id,
+                            models.ProjectEvaluator.project_id,
+                            models.ProjectEvaluator.trace_project_id,
+                        ).where(
+                            models.ProjectEvaluator.evaluator_id.in_(stale_ids),
+                            models.ProjectEvaluator.deleted_at.is_(None),
+                        )
+                    )
+                ).all()
+
+                dataset_ids = sorted(
+                    {
+                        int(row.dataset_id)
+                        for row in dataset_binding_rows
+                        if row.dataset_id is not None
+                    }
+                )
+                if dataset_ids and dialect is SupportedSQLDialect.POSTGRESQL:
+                    await session.execute(
+                        select(models.Dataset.id)
+                        .where(models.Dataset.id.in_(dataset_ids))
+                        .order_by(models.Dataset.id.asc())
+                        .with_for_update(key_share=True)
+                    )
+
+                all_project_ids = {int(row.project_id) for row in dataset_binding_rows} | {
+                    project_id
+                    for row in project_binding_rows
+                    for project_id in (int(row.project_id), int(row.trace_project_id))
+                }
+                await _lock_projects(session, dialect, all_project_ids, key_share=True)
+
+                if dialect is SupportedSQLDialect.POSTGRESQL:
+                    await session.execute(
+                        select(models.Evaluator.id)
+                        .where(
+                            models.Evaluator.kind == "BUILTIN",
+                            models.Evaluator.id.in_(stale_ids),
+                        )
+                        .order_by(models.Evaluator.id.asc())
+                        .with_for_update()
+                    )
+
                 await logical_delete_dataset_evaluators(
                     session,
                     dialect=dialect,
-                    binding_ids=list(dataset_binding_ids),
+                    binding_ids=[int(row.id) for row in dataset_binding_rows],
                     collect_unused_evaluator=False,
                     collect_unused_prompt_or_decision=False,
-                )
-                project_binding_ids = await session.scalars(
-                    select(models.ProjectEvaluator.id).where(
-                        models.ProjectEvaluator.evaluator_id.in_(stale_ids),
-                        models.ProjectEvaluator.deleted_at.is_(None),
-                    )
                 )
                 await logical_delete_project_evaluators(
                     session,
                     dialect=dialect,
-                    binding_ids=list(project_binding_ids),
+                    binding_ids=[int(row.id) for row in project_binding_rows],
                     collect_unused_evaluator=False,
                     collect_unused_prompt_or_decision=False,
                 )
                 delete_stmt = delete(models.Evaluator).where(
                     models.Evaluator.kind == "BUILTIN",
                     models.Evaluator.id.in_(stale_ids),
+                    ~select(models.DatasetEvaluators.id)
+                    .where(
+                        models.DatasetEvaluators.evaluator_id == models.Evaluator.id,
+                        models.DatasetEvaluators.deleted_at.is_(None),
+                    )
+                    .exists(),
+                    ~select(models.ProjectEvaluator.id)
+                    .where(
+                        models.ProjectEvaluator.evaluator_id == models.Evaluator.id,
+                        models.ProjectEvaluator.deleted_at.is_(None),
+                    )
+                    .exists(),
                 )
                 result = await session.execute(delete_stmt)
                 if result.rowcount and result.rowcount > 0:  # type: ignore[attr-defined]
@@ -108,4 +181,4 @@ async def sync_builtin_evaluators(db: DbSessionFactory) -> None:
                         "from database"
                     )
 
-        logger.info(f"Synced {len(current_keys)} builtin evaluators to database")
+    logger.info(f"Synced {len(current_keys)} builtin evaluators to database")

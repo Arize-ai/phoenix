@@ -456,65 +456,76 @@ async def garbage_collect_evaluators(
     *,
     dialect: SupportedSQLDialect,
     evaluator_ids: set[int],
-    prompt_ids: set[int],
-    decision_ids: set[int] = set(),
     delete_unused_prompt_or_decision: bool,
 ) -> None:
     """Delete the evaluators nothing live binds, with the version tags they run through.
 
-    With ``delete_unused_prompt_or_decision``, also lock candidate prompts and decisions in
-    ascending ID order and, in a subsequent statement, delete each one that no remaining
-    evaluator uses.
+    With ``delete_unused_prompt_or_decision``, also lock prompts and decisions of deleted
+    evaluators in ascending ID order and, in a subsequent statement, delete each one that no
+    remaining evaluator uses.
     Built-in evaluators are never deleted.
     """
-    deleted_ids: set[int] = set()
-    llm_evaluator_prompts: dict[int, tuple[Optional[int], int]] = {}
-    decision_evaluator_tags: dict[int, Optional[int]] = {}
-    if evaluator_ids:
-        decision_evaluator_tags = {
-            row.id: row.decision_version_tag_id
-            for row in await session.execute(
-                select(
-                    models.DecisionEvaluator.id,
-                    models.DecisionEvaluator.decision_version_tag_id,
-                ).where(models.DecisionEvaluator.id.in_(evaluator_ids))
-            )
-        }
-        llm_evaluator_prompts = {
-            row.id: (row.prompt_version_tag_id, row.prompt_id)
-            for row in await session.execute(
-                select(
-                    models.LLMEvaluator.id,
-                    models.LLMEvaluator.prompt_version_tag_id,
-                    models.LLMEvaluator.prompt_id,
-                ).where(models.LLMEvaluator.id.in_(evaluator_ids))
-            )
-        }
-        deleted_ids = set(
-            await session.scalars(
-                delete(models.Evaluator)
-                .where(
-                    models.Evaluator.id.in_(evaluator_ids),
-                    models.Evaluator.kind != "BUILTIN",
-                    ~select(models.DatasetEvaluators.id)
-                    .where(
-                        models.DatasetEvaluators.evaluator_id == models.Evaluator.id,
-                        models.DatasetEvaluators.deleted_at.is_(None),
-                    )
-                    .exists(),
-                    ~select(models.ProjectEvaluator.id)
-                    .where(
-                        models.ProjectEvaluator.evaluator_id == models.Evaluator.id,
-                        models.ProjectEvaluator.deleted_at.is_(None),
-                    )
-                    .exists(),
-                )
-                .returning(models.Evaluator.id)
-            )
-        )
-        await session.flush()
+    if not evaluator_ids:
+        return
 
-    if delete_unused_prompt_or_decision and prompt_ids and deleted_ids:
+    decision_evaluators: dict[int, tuple[Optional[int], int]] = {
+        int(row.id): (row.decision_version_tag_id, int(row.decision_id))
+        for row in await session.execute(
+            select(
+                models.DecisionEvaluator.id,
+                models.DecisionEvaluator.decision_version_tag_id,
+                models.DecisionEvaluator.decision_id,
+            ).where(models.DecisionEvaluator.id.in_(evaluator_ids))
+        )
+    }
+    llm_evaluators: dict[int, tuple[Optional[int], int]] = {
+        int(row.id): (row.prompt_version_tag_id, int(row.prompt_id))
+        for row in await session.execute(
+            select(
+                models.LLMEvaluator.id,
+                models.LLMEvaluator.prompt_version_tag_id,
+                models.LLMEvaluator.prompt_id,
+            ).where(models.LLMEvaluator.id.in_(evaluator_ids))
+        )
+    }
+    deleted_ids = set(
+        await session.scalars(
+            delete(models.Evaluator)
+            .where(
+                models.Evaluator.id.in_(evaluator_ids),
+                models.Evaluator.kind != "BUILTIN",
+                ~select(models.DatasetEvaluators.id)
+                .where(
+                    models.DatasetEvaluators.evaluator_id == models.Evaluator.id,
+                    models.DatasetEvaluators.deleted_at.is_(None),
+                )
+                .exists(),
+                ~select(models.ProjectEvaluator.id)
+                .where(
+                    models.ProjectEvaluator.evaluator_id == models.Evaluator.id,
+                    models.ProjectEvaluator.deleted_at.is_(None),
+                )
+                .exists(),
+            )
+            .returning(models.Evaluator.id)
+        )
+    )
+    await session.flush()
+    if not deleted_ids:
+        return
+
+    prompt_ids = {
+        llm_evaluators[evaluator_id][1]
+        for evaluator_id in deleted_ids
+        if evaluator_id in llm_evaluators
+    }
+    decision_ids = {
+        decision_evaluators[evaluator_id][1]
+        for evaluator_id in deleted_ids
+        if evaluator_id in decision_evaluators
+    }
+
+    if delete_unused_prompt_or_decision and prompt_ids:
         sorted_prompts = sorted(prompt_ids)
         if dialect is SupportedSQLDialect.POSTGRESQL:
             await session.execute(
@@ -532,7 +543,7 @@ async def garbage_collect_evaluators(
             )
         )
 
-    if delete_unused_prompt_or_decision and decision_ids and deleted_ids:
+    if delete_unused_prompt_or_decision and decision_ids:
         sorted_decisions = sorted(decision_ids)
         if dialect is SupportedSQLDialect.POSTGRESQL:
             await session.execute(
@@ -550,14 +561,16 @@ async def garbage_collect_evaluators(
             )
         )
 
-    for evaluator_id in deleted_ids:
-        if (prompt_info := llm_evaluator_prompts.get(evaluator_id)) is not None:
+    for evaluator_id in sorted(deleted_ids):
+        if (prompt_info := llm_evaluators.get(evaluator_id)) is not None:
             tag_id, prompt_id = prompt_info
             await release_llm_evaluator_prompt(
                 session, prompt_version_tag_id=tag_id, prompt_id=prompt_id
             )
-        if (decision_tag_id := decision_evaluator_tags.get(evaluator_id)) is not None:
-            await release_decision_evaluator_tag(session, decision_tag_id)
+        if (decision_info := decision_evaluators.get(evaluator_id)) is not None:
+            decision_tag_id, _ = decision_info
+            if decision_tag_id is not None:
+                await release_decision_evaluator_tag(session, decision_tag_id)
 
 
 def parse_evaluator_id(global_id: GlobalID) -> tuple[int, EvaluatorKind]:

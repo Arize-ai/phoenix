@@ -30,7 +30,7 @@ from phoenix.server.api.types.ExperimentJob import ExperimentJob
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.utils import delete_traces
 from phoenix.server.cleanup.lifecycle import admit_exclusive_experiment_projects_delete
-from phoenix.server.dml_event import ExperimentDeleteEvent
+from phoenix.server.dml_event import ExperimentDeleteEvent, ProjectDeleteEvent, SpanDeleteEvent
 
 
 @strawberry.type
@@ -392,6 +392,9 @@ class ExperimentMutationMixin:
                     candidate_project_ids=candidate_project_ids,
                 )
         if enqueued_projects:
+            tombstoned_ids = tuple(enqueued_projects)
+            info.context.event_queue.put(SpanDeleteEvent(tombstoned_ids))
+            info.context.event_queue.put(ProjectDeleteEvent(tombstoned_ids))
             info.context.wake_cleanup_worker()
         if eval_trace_ids:
             await asyncio.gather(

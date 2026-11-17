@@ -892,7 +892,9 @@ async def delete_prompt(
     else:
         assert_never(identifier)
     async with request.app.state.db() as session:
-        prompt_id = await session.scalar(select(models.Prompt.id).where(where_clause))
+        prompt_id = await session.scalar(
+            select(models.Prompt.id).where(where_clause).with_for_update()
+        )
         if prompt_id is None:
             raise HTTPException(status_code=404, detail="Prompt not found")
         evaluator_names = (

@@ -67,13 +67,16 @@ class ProjectMutationMixin:
         dialect = SupportedSQLDialect(info.context.db.dialect.value)
         try:
             async with info.context.db() as session:
-                await admit_project_delete(session, dialect=dialect, project_id=project_id)
+                admitted = await admit_project_delete(
+                    session, dialect=dialect, project_id=project_id
+                )
         except NotFound as error:
             raise ValueError(f"Unknown project: {id}") from error
         except BadRequest as error:
             raise ValueError(str(error)) from error
-        info.context.event_queue.put(SpanDeleteEvent((project_id,)))
-        info.context.event_queue.put(ProjectDeleteEvent((project_id,)))
+        tombstoned_ids = tuple(admitted.tombstoned_project_ids)
+        info.context.event_queue.put(SpanDeleteEvent(tombstoned_ids))
+        info.context.event_queue.put(ProjectDeleteEvent(tombstoned_ids))
         info.context.wake_cleanup_worker()
         return Query()
 

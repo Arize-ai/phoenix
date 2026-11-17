@@ -1614,7 +1614,7 @@ class EvalWorkItem(WorkItem):
                             models.DatasetEvaluators.deleted_at.is_(None),
                             models.Project.deleted_at.is_(None),
                         )
-                        .with_for_update(read=True)
+                        .with_for_update(read=True, of=models.DatasetEvaluators)
                     )
                     if binding_still_live is not None:
                         session.add_all(db_traces)

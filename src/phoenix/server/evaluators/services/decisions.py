@@ -39,6 +39,7 @@ from phoenix.server.evaluators.services.management import (
     generate_unique_evaluator_name,
     get_live_dataset_evaluator,
     get_live_project_evaluator,
+    lock_evaluators,
     release_decision_evaluator_tag,
     validate_project_evaluator_project,
     validate_project_evaluator_target_update,
@@ -225,11 +226,13 @@ async def delete_decision_evaluator(
     context: EvaluatorServiceContext, evaluator_id: GlobalID
 ) -> None:
     """Delete an unbound judge with the tag it runs through; the decision is kept."""
+    row_id = _id(evaluator_id, "DecisionEvaluator")
     async with context.db() as session:
+        await lock_evaluators(session, [row_id])
         evaluator = await session.get(
             models.DecisionEvaluator,
-            _id(evaluator_id, "DecisionEvaluator"),
-            with_for_update=True,
+            row_id,
+            populate_existing=True,
         )
         if evaluator is None:
             return
@@ -489,8 +492,9 @@ async def update_dataset_decision_evaluator(
             binding = await get_live_dataset_evaluator(session, binding_rowid)
             if binding is None or binding.evaluator_id is None:
                 raise NotFound("Dataset evaluator not found")
+            await lock_evaluators(session, [binding.evaluator_id])
             evaluator = await session.get(
-                models.DecisionEvaluator, binding.evaluator_id, with_for_update=True
+                models.DecisionEvaluator, binding.evaluator_id, populate_existing=True
             )
             if evaluator is None:
                 raise BadRequest("The dataset evaluator is not a decision evaluator")
@@ -613,8 +617,9 @@ async def update_project_decision_evaluator(
             binding = await get_live_project_evaluator(session, project_evaluator_id)
             if binding is None or binding.evaluator_id is None:
                 raise NotFound("Project evaluator not found")
+            await lock_evaluators(session, [binding.evaluator_id])
             evaluator = await session.get(
-                models.DecisionEvaluator, binding.evaluator_id, with_for_update=True
+                models.DecisionEvaluator, binding.evaluator_id, populate_existing=True
             )
             if evaluator is None:
                 raise BadRequest("The project evaluator is not a decision evaluator")
