@@ -1,6 +1,7 @@
 """Bounded, transaction-neutral deletion primitives for background reclamation.
 
-Each primitive modifies at most ``batch_limit`` rows inside a caller-owned ``AsyncSession``
+Each primitive limits directly modified rows to ``batch_limit`` inside a caller-owned
+``AsyncSession``; residual cascades are separately bounded per dependent collection
 without committing. A short or zero delete count is never assumed to prove emptiness when
 ``SKIP LOCKED`` or concurrent deletes can skip rows; each primitive verifies remaining scope
 with an unskipped ``EXISTS`` check and distinguishes:
@@ -230,7 +231,27 @@ async def _drain_span_children_batch(
         return PrimitiveResult(PrimitiveStatus.YIELD, 0)
 
     # 2. Drain potentially high-fanout child tables if their count across the selected spans
-    # exceeds batch_limit; small child sets cascade directly with the span batch.
+    # exceeds batch_limit; small child sets cascade directly with the span batch. SpanCostDetail
+    # sits one level below SpanCost and is drained leaf-first before SpanCost or Span deletes.
+    detail_condition = models.SpanCostDetail.span_cost_id.in_(
+        select(models.SpanCost.id).where(models.SpanCost.span_rowid.in_(span_ids))
+    )
+    detail_probe = list(
+        await session.scalars(
+            select(models.SpanCostDetail.id).where(detail_condition).limit(batch_limit + 1)
+        )
+    )
+    if len(detail_probe) > batch_limit:
+        detail_result = await _delete_by_ids(
+            session,
+            dialect=dialect,
+            model=models.SpanCostDetail,
+            condition=detail_condition,
+            batch_limit=batch_limit,
+        )
+        if detail_result.status is not PrimitiveStatus.EMPTY:
+            return detail_result
+
     for child_model in (
         models.DocumentAnnotation,
         models.SpanAnnotation,
@@ -300,22 +321,23 @@ async def drain_traces_step(
             if deleted_spans > 0:
                 return PrimitiveResult(PrimitiveStatus.PROGRESS, deleted_spans)
 
-        trace_ann_cond = models.TraceAnnotation.trace_rowid.in_(trace_ids)
-        probe_anns = list(
-            await session.scalars(
-                select(models.TraceAnnotation.id).where(trace_ann_cond).limit(batch_limit + 1)
+        for child_model in (models.TraceAnnotation, models.EvalTraceWorkUnit):
+            child_condition = child_model.trace_rowid.in_(trace_ids)
+            child_probe = list(
+                await session.scalars(
+                    select(child_model.id).where(child_condition).limit(batch_limit + 1)
+                )
             )
-        )
-        if len(probe_anns) > batch_limit:
-            ann_res = await _delete_by_ids(
-                session,
-                dialect=dialect,
-                model=models.TraceAnnotation,
-                condition=trace_ann_cond,
-                batch_limit=batch_limit,
-            )
-            if ann_res.status is not PrimitiveStatus.EMPTY:
-                return ann_res
+            if len(child_probe) > batch_limit:
+                child_result = await _delete_by_ids(
+                    session,
+                    dialect=dialect,
+                    model=child_model,
+                    condition=child_condition,
+                    batch_limit=batch_limit,
+                )
+                if child_result.status is not PrimitiveStatus.EMPTY:
+                    return child_result
         # Delete only traces that still have zero spans attached; a span locked by another
         # writer or attached by a concurrent insert keeps its trace.
         no_spans_attached = (

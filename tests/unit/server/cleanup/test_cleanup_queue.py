@@ -1289,3 +1289,116 @@ async def test_sqlite_trace_allocator_rolls_back_reservations(db: DbSessionFacto
         assert await models.allocate_sqlite_trace_rowid(session) == reserved
     async with db() as session:
         assert await models.allocate_sqlite_trace_rowid(session) > reserved
+
+
+async def test_cleanup_batches_cost_details_before_deleting_their_parent(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session, name=f"cost-fanout-{token_hex(4)}")
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace=trace)
+        cost = models.SpanCost(
+            span_rowid=span.id,
+            trace_rowid=trace.id,
+            span_start_time=span.start_time,
+        )
+        session.add(cost)
+        await session.flush()
+        session.add_all(
+            [
+                models.SpanCostDetail(
+                    span_cost_id=cost.id,
+                    token_type=f"token-{index}",
+                    is_prompt=True,
+                )
+                for index in range(5)
+            ]
+        )
+        await session.flush()
+    async with db() as session:
+        first_step = await drain_trace_scope_step(
+            session,
+            dialect=db.dialect,
+            project_id=project.id,
+            batch_limit=2,
+        )
+        assert first_step.status is PrimitiveStatus.PROGRESS and first_step.affected_rows == 2
+    async with db() as session:
+        assert await session.scalar(select(func.count()).select_from(models.SpanCostDetail)) == 3
+        assert await session.get(models.SpanCost, cost.id) is not None
+        assert await session.get(models.Span, span.id) is not None
+    async with db() as session:
+        second_step = await drain_trace_scope_step(
+            session,
+            dialect=db.dialect,
+            project_id=project.id,
+            batch_limit=2,
+        )
+        assert second_step.status is PrimitiveStatus.PROGRESS and second_step.affected_rows == 2
+    async with db() as session:
+        assert await session.scalar(select(func.count()).select_from(models.SpanCostDetail)) == 1
+        assert await session.get(models.SpanCost, cost.id) is not None
+        assert await session.get(models.Span, span.id) is not None
+    async with db() as session:
+        # Once both SpanCostDetail and SpanCost fit within batch_limit, they cascade directly
+        # with the Span delete rather than consuming an extra transaction.
+        third_step = await drain_trace_scope_step(
+            session,
+            dialect=db.dialect,
+            project_id=project.id,
+            batch_limit=2,
+        )
+        assert third_step.status is PrimitiveStatus.PROGRESS and third_step.affected_rows == 1
+    async with db() as session:
+        assert await session.get(models.Span, span.id) is None
+        assert await session.get(models.SpanCost, cost.id) is None
+        assert await session.scalar(select(func.count()).select_from(models.SpanCostDetail)) == 0
+
+
+async def test_cleanup_batches_trace_work_units_before_deleting_trace(db: DbSessionFactory) -> None:
+    async with db() as session:
+        project = await _add_project(session, name=f"trace-ledger-{token_hex(4)}")
+        trace = await _add_trace(session, project)
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(f"trace-ledger-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        session.add(evaluator)
+        await session.flush()
+        for index in range(5):
+            trace_project = await _add_project(session, name=f"ledger-sink-{token_hex(4)}")
+            binding = models.ProjectEvaluator(
+                project_id=project.id,
+                evaluator_id=evaluator.id,
+                trace_project_id=trace_project.id,
+                name=Identifier(f"ledger-{index}"),
+                evaluation_target="TRACE",
+                filter_condition="",
+                sampling_rate=1.0,
+            )
+            session.add(binding)
+            await session.flush()
+            session.add(
+                models.EvalTraceWorkUnit(
+                    trace_rowid=trace.id,
+                    project_evaluator_id=binding.id,
+                    decided_through=trace.start_time,
+                    status="DONE",
+                )
+            )
+        await session.flush()
+    async with db() as session:
+        result = await drain_trace_scope_step(
+            session,
+            dialect=db.dialect,
+            project_id=project.id,
+            batch_limit=2,
+        )
+        assert result.status is PrimitiveStatus.PROGRESS and result.affected_rows == 2
+    async with db() as session:
+        assert await session.get(models.Trace, trace.id) is not None
+        assert await session.scalar(select(func.count()).select_from(models.EvalTraceWorkUnit)) == 3
