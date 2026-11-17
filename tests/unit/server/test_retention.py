@@ -952,3 +952,53 @@ async def test_retention_yields_when_trace_spans_are_locked(postgresql_engine: A
     await MaxDaysRule(max_days=1).delete_traces_in_batches(db, [project.id])
     async with db() as session:
         assert await session.get(models.Trace, trace.id) is None
+
+
+async def test_count_retention_ranks_once_per_sweep_and_breaks_timestamp_ties(
+    db: DbSessionFactory,
+) -> None:
+    from tests.unit._helpers import _add_project, _add_span, _add_trace
+
+    shared_timestamp = datetime(2020, 1, 1, tzinfo=timezone.utc)
+    newer_timestamp = datetime(2021, 1, 1, tzinfo=timezone.utc)
+    async with db() as session:
+        project = await _add_project(session, name=f"rank-retention-{token_hex(4)}")
+        tied_traces = [
+            await _add_trace(session, project, start_time=shared_timestamp) for _ in range(4)
+        ]
+        for trace in tied_traces:
+            for _ in range(2):
+                await _add_span(session, trace=trace)
+        newest_trace = await _add_trace(session, project, start_time=newer_timestamp)
+        await _add_span(session, trace=newest_trace)
+        engine = session.bind
+        assert engine is not None
+
+    ranking_queries: list[str] = []
+
+    def record_query(
+        connection: Any,
+        cursor: Any,
+        statement: str,
+        parameters: Any,
+        context: Any,
+        executemany: bool,
+    ) -> None:
+        if "row_number()" in statement:
+            ranking_queries.append(statement)
+
+    sa.event.listen(engine.sync_engine, "before_cursor_execute", record_query)
+    try:
+        await MaxCountRule(max_count=2).delete_traces_in_batches(db, [project.id], batch_size=1)
+    finally:
+        sa.event.remove(engine.sync_engine, "before_cursor_execute", record_query)
+    assert len(ranking_queries) == 1
+    async with db() as session:
+        surviving_ids = set(
+            (
+                await session.scalars(
+                    sa.select(models.Trace.id).where(models.Trace.project_rowid == project.id)
+                )
+            ).all()
+        )
+    assert surviving_ids == {newest_trace.id, tied_traces[-1].id}

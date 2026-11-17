@@ -32,6 +32,10 @@ async def _delete_matching_traces_in_batches(
     *,
     batch_size: int = 1_000,
 ) -> set[int]:
+    if not isinstance(project_rowids, InElementRole):
+        project_rowids = list(project_rowids)
+        if not project_rowids:
+            return set()
     from phoenix.db.models import Trace
     from phoenix.server.cleanup.primitives import PrimitiveStatus, drain_traces_step
 
@@ -61,6 +65,28 @@ class _MaxDays(BaseModel):
 class _MaxCount(BaseModel):
     max_count: Annotated[int, Field(ge=0)]
 
+    def _ranked_traces_cte(
+        self,
+        project_rowids: Union[Iterable[int], InElementRole],
+    ) -> sa.CTE:
+        from phoenix.db.models import Trace
+
+        return (
+            sa.select(
+                Trace.project_rowid,
+                Trace.start_time,
+                Trace.id,
+                func.row_number()
+                .over(
+                    partition_by=Trace.project_rowid,
+                    order_by=(Trace.start_time.desc(), Trace.id.desc()),
+                )
+                .label("rn"),
+            )
+            .where(Trace.project_rowid.in_(project_rowids))
+            .cte("ranked")
+        )
+
     def max_count_filter(
         self,
         project_rowids: Union[Iterable[int], InElementRole],
@@ -69,17 +95,46 @@ class _MaxCount(BaseModel):
             return sa.literal(False)
         from phoenix.db.models import Trace
 
-        ranked = (
-            sa.select(
-                Trace.id,
-                func.row_number()
-                .over(partition_by=Trace.project_rowid, order_by=Trace.start_time.desc())
-                .label("rn"),
-            )
-            .where(Trace.project_rowid.in_(project_rowids))
-            .cte("ranked")
-        )
+        ranked = self._ranked_traces_cte(project_rowids)
         return Trace.id.in_(sa.select(ranked.c.id).where(ranked.c.rn > self.max_count))
+
+    async def _delete_count_excess_in_batches(
+        self,
+        db: Any,
+        project_rowids: Union[Iterable[int], InElementRole],
+        *,
+        batch_size: int = 1_000,
+    ) -> None:
+        if self.max_count <= 0:
+            return
+        if not isinstance(project_rowids, InElementRole):
+            project_rowids = list(project_rowids)
+            if not project_rowids:
+                return
+        from phoenix.db.models import Trace
+
+        ranked = self._ranked_traces_cte(project_rowids)
+        cutoff_stmt = (
+            sa.select(ranked.c.project_rowid, ranked.c.start_time, ranked.c.id)
+            .where(ranked.c.rn == self.max_count + 1)
+            .order_by(ranked.c.project_rowid.asc())
+        )
+        async with db() as session:
+            cutoffs = list((await session.execute(cutoff_stmt)).all())
+        for project_rowid, cutoff_start_time, cutoff_id in cutoffs:
+            cutoff_filter = sa.and_(
+                Trace.start_time <= cutoff_start_time,
+                sa.or_(
+                    Trace.start_time < cutoff_start_time,
+                    Trace.id <= cutoff_id,
+                ),
+            )
+            await _delete_matching_traces_in_batches(
+                db,
+                (int(project_rowid),),
+                cutoff_filter,
+                batch_size=batch_size,
+            )
 
 
 class MaxDaysRule(_MaxDays, BaseModel):
@@ -131,9 +186,8 @@ class MaxCountRule(_MaxCount, BaseModel):
     ) -> set[int]:
         if self.max_count <= 0:
             return set()
-        return await _delete_matching_traces_in_batches(
-            db, project_rowids, self.max_count_filter(project_rowids), batch_size=batch_size
-        )
+        await self._delete_count_excess_in_batches(db, project_rowids, batch_size=batch_size)
+        return set()
 
 
 class MaxDaysOrCountRule(_MaxDays, _MaxCount, BaseModel):
@@ -162,12 +216,17 @@ class MaxDaysOrCountRule(_MaxDays, _MaxCount, BaseModel):
     ) -> set[int]:
         if self.max_days <= 0 and self.max_count <= 0:
             return set()
-        return await _delete_matching_traces_in_batches(
-            db,
-            project_rowids,
-            sa.or_(self.max_days_filter, self.max_count_filter(project_rowids)),
-            batch_size=batch_size,
-        )
+        if not isinstance(project_rowids, InElementRole):
+            project_rowids = list(project_rowids)
+            if not project_rowids:
+                return set()
+        if self.max_days > 0:
+            await _delete_matching_traces_in_batches(
+                db, project_rowids, self.max_days_filter, batch_size=batch_size
+            )
+        if self.max_count > 0:
+            await self._delete_count_excess_in_batches(db, project_rowids, batch_size=batch_size)
+        return set()
 
 
 class TraceRetentionRule(RootModel[Union[MaxDaysRule, MaxCountRule, MaxDaysOrCountRule]]):
