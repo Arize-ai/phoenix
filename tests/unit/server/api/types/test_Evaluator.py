@@ -3215,6 +3215,7 @@ class TestProjectEvaluatorAnnotationScoreMetrics:
                                 timeBinConfig: $timeBinConfig
                             ) {
                                 summary { meanScore }
+                                previousSummary { meanScore }
                                 series { meanScore }
                             }
                         }

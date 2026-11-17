@@ -3033,14 +3033,14 @@ type EvaluatorAnnotationScoreMetrics {
   summary: AnnotationSummary
 
   """
-  Aggregates over the previous window, for change-over-time comparisons: previousTimeRange when given, otherwise the equal-length window immediately before the requested time range.
-  """
-  previousSummary: AnnotationSummary
-
-  """
   Mean score per time bin across the requested time range. Bins follow the project metrics convention: spans and traces bucket by their trace's start time, sessions by their own.
   """
   series: [EvaluatorScoreSeriesBin!]!
+
+  """
+  Aggregates over the previous window, for change-over-time comparisons: previousTimeRange when given, otherwise the equal-length window immediately before the requested time range.
+  """
+  previousSummary: AnnotationSummary
 }
 
 """
