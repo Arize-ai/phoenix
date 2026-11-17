@@ -211,7 +211,7 @@ describe("CustomProviderForm decision models", () => {
     expect(container.textContent).toContain("Test connection");
   });
 
-  it("offers suggested chat model names on chat SDKs", () => {
+  it("offers chat model names on chat SDKs", () => {
     render({
       ...(createDefaultFormData("ANTHROPIC") as ProviderFormData),
       name: "anthropic",

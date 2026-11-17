@@ -61,11 +61,11 @@ export function DecisionModelsSection({
               value={field.value ?? ""}
               isDisabled={isSubmitting}
             >
-              <Label>Suggested model names</Label>
+              <Label>Model names</Label>
               <Input placeholder={DECISION_MODEL_PLACEHOLDERS[sdk]} />
               <Text slot="description">
-                Optional, comma separated. Listed in the model menu; any model
-                the endpoint accepts can be used.
+                Optional, comma separated. Leave empty to list the built-in
+                models. Any model the endpoint accepts can be used.
               </Text>
             </TextField>
           )}

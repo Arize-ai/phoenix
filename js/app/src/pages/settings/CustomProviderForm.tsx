@@ -87,12 +87,12 @@ const OPENAI_API_TYPE_OPTIONS: { id: OpenAIApiTypeForm; label: string }[] = [
 export interface DecisionModelsFormData {
   /** Whether the provider serves decision models. Always true for TypeSafe. */
   decision_enabled: boolean;
-  /** Suggested decision model names, comma or newline separated. */
+  /** Decision model names, comma or newline separated. */
   decision_model_names?: string;
 }
 
 /**
- * Suggested chat model names, shared by the SDKs that serve chat models.
+ * Chat model names, shared by the SDKs that serve chat models.
  */
 export interface ChatModelsFormData {
   /**
@@ -1022,7 +1022,7 @@ function ChatModelsSection({
             value={field.value ?? ""}
             isDisabled={isSubmitting}
           >
-            <Label>Suggested model names</Label>
+            <Label>Model names</Label>
             <Input placeholder="qwen3-coder, llama-5-70b" />
             <Text slot="description">
               Optional, comma separated. Leave empty to list the built-in
