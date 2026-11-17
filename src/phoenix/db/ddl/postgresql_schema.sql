@@ -324,8 +324,6 @@ CREATE TABLE public.spans (
         ON DELETE CASCADE
 );
 
-CREATE INDEX ix_cumulative_llm_token_count_total ON public.spans
-    USING btree (((cumulative_llm_token_count_prompt + cumulative_llm_token_count_completion)));
 CREATE INDEX ix_spans_parent_id ON public.spans
     USING btree (parent_id);
 CREATE INDEX ix_spans_session_id ON public.spans
