@@ -185,7 +185,11 @@ async def validate_decision_custom_provider(
     mismatches ``version.model_provider``."""
     if (provider_id := version.custom_provider_id) is None:
         return
-    provider = await session.get(models.GenerativeModelCustomProvider, provider_id)
+    # FOR SHARE makes a concurrent patch that stops the provider serving decisions wait, so
+    # its reference check sees this version instead of both committing.
+    provider = await session.get(
+        models.GenerativeModelCustomProvider, provider_id, with_for_update={"read": True}
+    )
     global_id = GlobalID("GenerativeModelCustomProvider", str(provider_id))
     if provider is None:
         raise NotFound(f"Custom provider not found: {global_id}")

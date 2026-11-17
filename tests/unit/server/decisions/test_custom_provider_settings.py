@@ -1,9 +1,13 @@
 from typing import Any
 
 import pytest
+import sqlalchemy as sa
 
+from phoenix.db import models
 from phoenix.db.types import model_provider as mp
 from phoenix.server.api.helpers.decision_clients import OllamaDecisionClient
+from phoenix.server.decisions.validation import validate_decision_custom_provider
+from phoenix.server.encryption import EncryptionService
 from phoenix.server.types import DbSessionFactory
 from tests.unit.server.decision_client_factories import resolved_base_url
 
@@ -189,3 +193,36 @@ async def test_azure_default_credentials_client_ignores_openai_env_vars(
     )
     async with azure.get_client_factory()() as client:
         assert (client.organization, client.project) == (None, None)
+
+
+@pytest.mark.postgres_only
+async def test_validating_a_decision_version_holds_its_provider_against_patches(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        provider = models.GenerativeModelCustomProvider(
+            name="decision-validation-lock",
+            provider="openai",
+            sdk="openai",
+            config=EncryptionService().encrypt(b"{}"),
+            model_types=models.provider_models_to_rows(
+                mp.ProviderModels(chat=mp.ModelsOfType(), decision=mp.ModelsOfType())
+            ),
+        )
+        session.add(provider)
+        await session.flush()
+        provider_id = provider.id
+
+    version = models.DecisionVersion(
+        custom_provider_id=provider_id, model_provider=mp.ModelProvider.OPENAI
+    )
+    async with db() as session:
+        await validate_decision_custom_provider(session, version)
+        # A patch locks the provider row FOR UPDATE; it must wait for the validated save.
+        with pytest.raises(sa.exc.DBAPIError, match="could not obtain lock"):
+            async with db() as patch_session:
+                await patch_session.execute(
+                    sa.select(models.GenerativeModelCustomProvider.id)
+                    .where(models.GenerativeModelCustomProvider.id == provider_id)
+                    .with_for_update(nowait=True)
+                )
