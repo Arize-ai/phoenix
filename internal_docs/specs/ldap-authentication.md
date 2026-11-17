@@ -95,7 +95,7 @@ All appendices have been extracted to separate files. See [ldap-authentication/R
 
 **Most Frequently Used**:
 - [Configuration Reference](./ldap-authentication/configuration.md) - Environment variables, Phoenix vs. Grafana comparison
-- [Protocol Compliance](./ldap-authentication/protocol-compliance.md) - STARTTLS security, group DN matching, Docker testing
+- [Protocol Compliance](./ldap-authentication/protocol-compliance.md) - STARTTLS security, group DN matching, real-directory testing
 - [Security Deep-Dive](./ldap-authentication/security.md) - Threat model, LDAP injection prevention
 - [Code Examples](./ldap-authentication/code-examples.md) - LDAPConfig, LDAPAuthenticator, API endpoints
 - [Future Improvements](./ldap-authentication/future-improvements.md) - Post-MVP enhancements (password policy, metrics, nested groups)

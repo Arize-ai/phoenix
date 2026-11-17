@@ -10,9 +10,7 @@ LDAP search operations can return zero, one, or multiple entries per RFC 4511. T
 - Mock server implementation accuracy for testing
 - Anonymous bind protection mechanisms
 - PII protection in logging
-- Docker development & testing environment
-
-**Implementation Status**: ✅ All requirements implemented and validated with 14/14 automated tests passing.
+- Real-directory testing
 
 ---
 
@@ -246,70 +244,21 @@ Map specific LDAP error codes to actionable messages:
 
 ---
 
-### 6. Docker Development & Testing Environment
+### 6. Real-Directory Testing
 
-Phoenix provides a comprehensive Docker Compose profile for LDAP development and testing that exceeds specification requirements.
+The integration tests in `tests/integration/auth/test_ldap.py` run against an in-process mock LDAP server (`tests/integration/_mock_ldap_server.py`). The dev stack's `ldap-test` profile runs the same login behaviors against real OpenLDAP servers, and adds the TLS and man-in-the-middle tests that section 7 describes. The dev stack README (`scripts/devops/README.md`) explains how to start the profile and read its results.
 
-#### Quick Start
+The real-directory seed data covers these directory edge cases:
 
-```bash
-./dev.sh up --profile ldap    # Start full LDAP environment + automated tests
-docker logs devops-ldap-test  # View test results (14/14 PASSED ✅)
-```
-
-#### Components
-
-**Docker Services** (`scripts/devops/compose/overrides/ldap.yml`):
-
-| Service | Image | Purpose | Access |
-|---------|-------|---------|--------|
-| `ldap` | osixia/openldap:1.5.0 | Real LDAP server | ldap://localhost:389 |
-| `ldap-admin` | osixia/phpldapadmin | Web UI | http://localhost:6443 |
-| `ldap-seed` | osixia/openldap | Auto-populate directory | (runs once) |
-| `ldap-test` | python:3.10-slim | Automated test runner | (runs on startup) |
-
-#### Enhanced Seed Data
-
-**File**: `scripts/devops/ldap-seed.ldif` (245 lines, 11 users)
-
-**Specification**: 4 basic users → **Implementation**: 11 comprehensive users (+175%)
-
-| User | Edge Case Tested |
-|------|------------------|
-| `admin`, `alice`, `bob`, `charlie` | Happy path (ADMIN, MEMBER, VIEWER roles) |
-| **`nogroups`** | Wildcard "*" fallback → VIEWER |
-| **`multigroup`** | Multiple groups → role precedence (first wins) |
-| **`nodisplay`** | Missing displayName → fallback to email prefix |
-| **`special(user)`** | LDAP injection prevention (special characters) |
-| **`josé`** | UTF-8/Unicode support |
-| **`duplicate`** (IT & HR) | **Ambiguous search rejection (security)** |
-
-#### Automated Test Suite
-
-**File**: `scripts/devops/scripts/test_ldap_integration.py` (438 lines)
-
-**14 Test Cases** covering all success criteria:
-
-| Tests | Category |
-|-------|----------|
-| 1-3 | Happy path (admin/member/viewer logins) |
-| 4-5 | Error handling (invalid password, nonexistent user) |
-| 6-8 | Anonymous bind prevention (empty credentials) |
-| **9** | **Security: Duplicate username rejection** |
-| 10-14 | Edge cases (no groups, multi-groups, special chars, unicode, missing attrs) |
-
-**Results**: ✅ **14/14 PASSED** (real OpenLDAP + Phoenix integration)
-
-#### Benefits vs Specification
-
-| Aspect | Specified | Implemented | Delta |
-|--------|-----------|-------------|-------|
-| Test users | 4 basic | 11 comprehensive | +175% |
-| Edge cases | Basic only | All from spec + security | Enhanced |
-| LDAP server | Mock only | Mock + Real OpenLDAP | Both |
-| Testing | Manual | Automated (14 tests) | Zero-touch |
-| Ambiguous results | Not covered | Tested (Test 9) | Security fix |
-| PII protection | Not covered | Validated | Compliance |
+| User | Edge case |
+|------|-----------|
+| `admin`, `alice`, `bob`, `charlie` | One user for each role (ADMIN, MEMBER, VIEWER) |
+| `nogroups` | No group membership, so the wildcard `"*"` mapping applies |
+| `multigroup` | Several matching groups, so the first mapping wins |
+| `nodisplay` | No `displayName`, so the display name falls back to the email prefix |
+| `special(user)` | Filter metacharacters in the username (LDAP injection) |
+| `josé` | Non-ASCII username (UTF-8) |
+| `duplicate` (in two OUs) | Two entries match the search, so login is rejected |
 
 ---
 
@@ -418,50 +367,13 @@ def _verify_user_password(self, server: Server, user_dn: str, password: str) -> 
 
 #### Validation Strategy
 
-**Docker Test Environment**: `scripts/devops/compose/overrides/ldap-test.yml`
+The `ldap-test` profile validates TLS by acting as a network attacker. A man-in-the-middle proxy sits between each application and OpenLDAP, parses every LDAP bind request, and tries to read the bind DN and password. If the proxy extracts credentials that then authenticate against the directory, the application sent them in plaintext.
 
-Automated security testing infrastructure with adversarial validation:
-- **OpenLDAP Server**: Port 389 (STARTTLS) and 636 (LDAPS) with self-signed certificates
-- **MITM Proxy**: Port 3389 - Adversarial credential extraction proxy
-- **Phoenix STARTTLS**: Port 6007 - Routes through MITM proxy for validation
-- **Phoenix LDAPS**: Port 6008 - Direct connection to port 636
-- **Grafana**: Port 3000 - Comparison baseline (routes through MITM proxy)
-- **Test Runner**: Executes comprehensive test suite on startup
+The test runner checks three things in order:
 
-**Test Script**: `scripts/devops/scripts/test_ldap_tls.py`
-
-Three-phase automated security validation:
-
-**Phase 1 - Baseline LDAP Connectivity**:
-1. Direct plaintext LDAP (port 389, no TLS)
-2. Direct STARTTLS with `AUTO_BIND_TLS_BEFORE_BIND` (correct implementation)
-3. Direct LDAPS (port 636, TLS from start)
-
-**Phase 2 - Application Security Tests**:
-4. Phoenix STARTTLS authentication via MITM proxy
-5. Phoenix LDAPS authentication (direct connection)
-6. Grafana STARTTLS authentication via MITM proxy (comparison)
-
-**Phase 3 - Adversarial Analysis**:
-7. Parse MITM proxy logs for extracted credentials
-8. Verify extracted credentials against LDAP server
-9. Generate security verdict
-
-**MITM Proxy**: `scripts/devops/scripts/ldap_mitm_proxy.py`
-
-Acts as network adversary to validate TLS security:
-- Intercepts LDAP traffic between applications and server
-- Parses LDAP ASN.1/BER protocol structures
-- Attempts to extract DN and password from Simple Bind requests
-- Detects StartTLS requests and TLS handshakes
-- Identifies connecting applications via reverse DNS
-- Outputs structured JSON logs for automated parsing
-
-**Security Model**:
-- IF proxy successfully extracts working credentials → **TLS vulnerability** (plaintext transmission)
-- IF proxy fails to extract credentials → **TLS working correctly** (encrypted data only)
-
-This approach provides definitive proof of TLS security by simulating a real network attacker attempting credential theft. Protocol-level parsing ensures detection works for any password, not just known test values.
+1. **Baseline**: direct connections to OpenLDAP succeed in plaintext, STARTTLS, and LDAPS modes.
+2. **Applications**: Phoenix logs in through the proxy in STARTTLS mode, and directly in LDAPS mode. Grafana logs in through the proxy in STARTTLS mode, as a comparison.
+3. **Adversarial analysis**: the runner reads the proxy's events, tries each extracted credential against OpenLDAP, and reports a verdict for each application.
 
 #### Validation Results
 
@@ -547,9 +459,7 @@ PHOENIX_LDAP_BIND_PASSWORD=${LDAP_SERVICE_PASSWORD}
 
 **Approach**: Active credential extraction via protocol parsing.
 
-The MITM proxy (`ldap_mitm_proxy.py`) implements the following attack:
-
-1. **Intercept**: Position between application and LDAP server
+The MITM proxy implements1. **Intercept**: Position between application and LDAP server
 2. **Parse**: Decode LDAP ASN.1/BER structures in bind requests
 3. **Extract**: Attempt to read DN and password from Simple Authentication (RFC 4513 §5.1.1)
 4. **Verify**: Authenticate with extracted credentials against LDAP server
@@ -595,39 +505,6 @@ For production deployment validation:
 1. **Preferred**: Use LDAPS (port 636) - TLS is implicit, no upgrade sequencing required
 2. **If STARTTLS required**: Test with adversarial MITM proxy or packet capture to verify credentials are encrypted
 3. **Avoid**: Plaintext LDAP (no TLS) in production environments
-
-**Automated Testing**:
-```bash
-# Start test environment (includes MITM proxy)
-cd scripts/devops
-COMPOSE_PROFILES=ldap-test docker compose \
-    -f docker-compose.yml \
-    -f overrides/ldap-test.yml \
-    up -d --build
-
-# View test results (7 tests: baseline + application + adversarial)
-docker logs devops-ldap-test
-
-# View MITM proxy analysis (structured JSON logs)
-docker logs devops-ldap-mitm-proxy
-docker logs devops-ldap-mitm-proxy 2>&1 | grep "^{" | jq
-```
-
-**Manual Validation**:
-```bash
-# Test Phoenix STARTTLS
-curl -X POST http://localhost:6007/auth/ldap/login \
-     -H "Content-Type: application/json" \
-     -d '{"username":"admin","password":"password123"}'
-
-# Check if MITM proxy extracted credentials
-docker logs devops-ldap-mitm-proxy 2>&1 | grep "CREDENTIALS STOLEN"
-# Expected: No output (Phoenix is secure)
-```
-
-For comprehensive documentation of the testing infrastructure, see: `scripts/devops/LDAP-TLS-TESTING.md`
-
-Expected: HTTP 204 with `set-cookie` headers containing access/refresh tokens.
 
 ---
 
@@ -874,28 +751,9 @@ return cls(
 # Expected: port=636
 ```
 
-**Result**: ✅ Both tests pass (27/27 LDAP config tests passing)
+#### Real-Directory Validation
 
-#### Docker Validation
-
-**Files**: 
-- `scripts/devops/compose/overrides/ldap.yml`
-- `scripts/devops/compose/overrides/ldap-test.yml`
-
-All Docker LDAP configurations **omit** `PHOENIX_LDAP_PORT` to validate port defaulting in real-world scenarios:
-
-| Configuration | TLS Mode | Port Omitted? | Expected Default | Validated By |
-|--------------|----------|---------------|------------------|--------------|
-| `ldap.yml` | None (`tls_mode=none`) | ✅ Yes | 389 | LDAP integration tests |
-| `ldap-test.yml` (`phoenix-starttls`) | STARTTLS | ✅ Yes | 389 | TLS test script |
-| `ldap-test.yml` (`phoenix`) | LDAPS | ✅ Yes | 636 | TLS test script |
-
-**Validation Strategy**:
-- Phoenix containers start successfully without explicit `PHOENIX_LDAP_PORT`
-- LDAP authentication works in all three modes (no TLS, STARTTLS, LDAPS)
-- Confirms port defaulting matches IANA standards (RFC 4516)
-
-**Result**: ✅ Docker tests confirm correct port defaults for all TLS modes
+The `ldap` dev-stack profile runs Phoenix in no-TLS mode, and the main Phoenix instance of the `ldap-test` profile runs in LDAPS mode. Both leave `PHOENIX_LDAP_PORT` unset, so their logins confirm the 389 and 636 defaults against a real server. The STARTTLS instances set port 3389 to route through the man-in-the-middle proxy, so only the unit test above covers the STARTTLS default.
 
 #### Impact Analysis
 

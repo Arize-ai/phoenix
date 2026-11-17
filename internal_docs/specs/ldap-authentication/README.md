@@ -9,7 +9,7 @@ Detailed technical references for the [LDAP Authentication specification](../lda
 
 **Most Frequently Used**:
 - [Configuration Reference](./configuration.md) - Environment variables, Phoenix vs. Grafana comparison
-- [Protocol Compliance](./protocol-compliance.md) - STARTTLS security, DN canonicalization, Docker testing
+- [Protocol Compliance](./protocol-compliance.md) - STARTTLS security, DN canonicalization, real-directory testing
 - [Security Deep-Dive](./security.md) - Threat model, LDAP injection prevention
 - [Authentication Framework](./authentication-framework.md) - Multi-method auth, cross-auth security, admin provisioning
 - [DN + Email Strategy](./dn-email-strategy.md) - User identification, RFC 4514 canonicalization, email fallback
