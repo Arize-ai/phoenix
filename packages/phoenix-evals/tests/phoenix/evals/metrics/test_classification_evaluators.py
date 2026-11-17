@@ -186,6 +186,57 @@ class TestKwargsForwarding:
         assert ev.invocation_parameters.get("temperature") == 0.5
 
 
+# ---------------------------------------------------------------------------
+# Tests: sentiment-specific behavior
+# ---------------------------------------------------------------------------
+
+
+class RecordingMockLLM:
+    """MockLLM that returns a fixed label and records the prompt and labels it received."""
+
+    def __init__(self, label: str, model: str = "test-model"):
+        self.provider = "openai"
+        self.model = model
+        self._label = label
+        self.last_prompt = None
+        self.last_labels = None
+
+    def generate_classification(self, prompt, labels, include_explanation, method):
+        self.last_prompt = prompt
+        self.last_labels = labels
+        return {"label": self._label, "explanation": "mock explanation"}
+
+    async def async_generate_classification(self, prompt, labels, include_explanation, method):
+        self.last_prompt = prompt
+        self.last_labels = labels
+        return {"label": self._label, "explanation": "mock explanation"}
+
+
+def test_sentiment_evaluator_classifies_negative() -> None:
+    """The three-way choice, the -1.0 score, and the user_message placeholder are exercised."""
+    llm = RecordingMockLLM(label="negative")
+    ev = SentimentEvaluator(llm=llm)
+    eval_input = {
+        "conversation": "User: My order still hasn't arrived.\nAssistant: Let me check.",
+        "user_message": "This is the third time I've had to ask.",
+    }
+
+    scores = ev.evaluate(eval_input)
+
+    assert len(scores) == 1
+    score = scores[0]
+    assert score.score == -1.0
+    assert score.label == "negative"
+    assert score.direction == "neutral"
+
+    # The judge is offered exactly the three sentiment labels, in order.
+    assert llm.last_labels == ["positive", "neutral", "negative"]
+
+    # The target user message is rendered into the prompt via the user_message placeholder.
+    prompt_text = "\n".join(message["content"] for message in llm.last_prompt)
+    assert "This is the third time I've had to ask." in prompt_text
+
+
 def test_document_relevance_evaluator_warns_with_migration_guidance() -> None:
     with pytest.warns(DeprecationWarning) as warning_info:
         DocumentRelevanceEvaluator(llm=MockLLM())
