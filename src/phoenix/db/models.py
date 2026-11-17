@@ -3989,6 +3989,7 @@ class DatasetEvaluators(HasId):
             postgresql_where=text(live_row_predicate()),
             sqlite_where=text(live_row_predicate()),
         ),
+        dict(sqlite_autoincrement=True),
     )
 
 
@@ -4226,6 +4227,10 @@ def _compile_matches_uuid_format_postgresql(
     return f"{compiler.preparer.quote(element.column_name)} ~ '{_UUID_REGEX}'"
 
 
+def _default_agent_session_project_was_bound(context: DefaultExecutionContext) -> bool:
+    return context.get_current_parameters().get("project_id") is not None  # type: ignore[no-untyped-call]
+
+
 class AgentSession(HasId):
     __tablename__ = "agent_sessions"
     project_name: Mapped[str] = mapped_column(String, nullable=False)
@@ -4254,6 +4259,12 @@ class AgentSession(HasId):
         ForeignKey("projects.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
+    )
+    project_was_bound: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=_default_agent_session_project_was_bound,
+        server_default=sa.false(),
     )
     user: Mapped[Optional["User"]] = relationship("User")
     project: Mapped[Optional["Project"]] = relationship("Project")
@@ -4450,6 +4461,7 @@ class ProjectEvaluator(HasId):
             postgresql_where=text(live_row_predicate()),
             sqlite_where=text(live_row_predicate()),
         ),
+        dict(sqlite_autoincrement=True),
     )
 
 

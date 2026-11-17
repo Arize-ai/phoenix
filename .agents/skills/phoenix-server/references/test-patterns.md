@@ -182,8 +182,9 @@ The unit conftest cuts app startup short in every test. Some steps are memoized 
 worker, since each worker is its own process: key derivation, the GraphQL schema, the
 routers, and FastAPI's route analysis. Others are stubbed out because no test observes them
 except deliberately: the docs MCP session, the model-cost seeding, the WASM prefetch, the
-`/mcp` mount, the Monty runtime probe, the agent MCP server, and the agent-session sweeper's
-loop. Each worker's template database also carries the rows the app seeds at startup.
+`/mcp` mount, the Monty runtime probe, the agent MCP server, the agent-session sweeper's
+loop, and the background cleanup worker's loop. Each worker's template database also carries
+the rows the app seeds at startup.
 
 A test whose subject is one of these behaviors opts out with the marker below; without it,
 the test passes against the shortcut. The registrations in the unit conftest's
@@ -197,6 +198,7 @@ the test passes against the shortcut. The registrations in the unit conftest's
 | `real_agent_mcp_server` | exercises the agent's MCP server derived from the OpenAPI document |
 | `real_monty_runtime_probe` | exercises the Monty runtime startup probe |
 | `real_agent_session_sweeper` | needs the agent-session sweeper's loop to run |
+| `real_cleanup_worker` | needs the background cleanup worker's loop to run |
 | `real_key_derivation` | asserts on the PBKDF2 derivation itself |
 | `real_graphql_schema_build` | inspects the schema object the app builds |
 | `real_app_routers` | inspects the router objects the app builds |

@@ -102,6 +102,14 @@ def _upgrade_projects() -> None:
         "SELECT trace_project_id FROM project_evaluators"
         ")"
     )
+    is_sqlite = op.get_bind().dialect.name == "sqlite"
+    generated_experiment_name_pred = (
+        "(LENGTH(projects.name) = 35 "
+        "AND SUBSTR(projects.name, 1, 11) = 'Experiment-' "
+        "AND NOT SUBSTR(projects.name, 12) GLOB '*[^0-9a-f]*')"
+        if is_sqlite
+        else "projects.name ~ '^Experiment-[0-9a-f]{24}$'"
+    )
     op.execute(
         "UPDATE projects SET kind = 'EXPERIMENT' "
         "WHERE kind = 'STANDARD' "
@@ -109,10 +117,13 @@ def _upgrade_projects() -> None:
         "AND EXISTS ("
         "SELECT 1 FROM experiments "
         "WHERE experiments.project_name = projects.name "
-        "AND EXISTS ("
+        "AND ("
+        f"{generated_experiment_name_pred} "
+        "OR EXISTS ("
         "SELECT 1 FROM experiment_runs er "
         "JOIN traces t ON t.trace_id = er.trace_id "
         "WHERE er.experiment_id = experiments.id AND t.project_rowid = projects.id"
+        ")"
         ")"
         ") "
         "AND NOT EXISTS ("
@@ -120,8 +131,8 @@ def _upgrade_projects() -> None:
         ") "
         "AND NOT EXISTS ("
         "SELECT 1 FROM traces t "
-        "WHERE t.project_rowid = projects.id "
-        "AND NOT EXISTS (SELECT 1 FROM experiment_runs er WHERE er.trace_id = t.trace_id)"
+        "LEFT JOIN experiment_runs er ON er.trace_id = t.trace_id "
+        "WHERE t.project_rowid = projects.id AND er.id IS NULL"
         ")"
     )
 
@@ -143,6 +154,18 @@ def _upgrade_projects() -> None:
 
 
 def _upgrade_historical_project_references() -> None:
+    is_sqlite = op.get_bind().dialect.name == "sqlite"
+    experiment_time_pred = (
+        "julianday(p.created_at) <= julianday(experiments.created_at)"
+        if is_sqlite
+        else "p.created_at <= experiments.created_at"
+    )
+    agent_session_time_pred = (
+        "julianday(p.created_at) <= julianday(agent_sessions.updated_at) + (5.0 / 86400.0)"
+        if is_sqlite
+        else "p.created_at <= agent_sessions.updated_at + INTERVAL '5 seconds'"
+    )
+
     op.drop_index("ix_experiments_ephemeral_updated_at", table_name="experiments")
     with op.batch_alter_table("experiments") as batch_op:
         batch_op.add_column(
@@ -168,7 +191,7 @@ def _upgrade_historical_project_references() -> None:
         "WHERE p.name = experiments.project_name "
         "AND ("
         "p.name = 'playground' "
-        "OR p.created_at <= experiments.created_at "
+        f"OR {experiment_time_pred} "
         "OR EXISTS ("
         "SELECT 1 FROM experiment_runs er "
         "JOIN traces t ON t.trace_id = er.trace_id "
@@ -195,6 +218,14 @@ def _upgrade_historical_project_references() -> None:
                 nullable=True,
             )
         )
+        batch_op.add_column(
+            sa.Column(
+                "project_was_bound",
+                sa.Boolean(),
+                nullable=False,
+                server_default=sa.false(),
+            )
+        )
     op.create_index(
         "ix_agent_sessions_user_id_updated_at",
         "agent_sessions",
@@ -213,13 +244,16 @@ def _upgrade_historical_project_references() -> None:
         "SET project_id = ("
         "SELECT p.id FROM projects p "
         "WHERE p.name = agent_sessions.project_name "
-        "AND p.created_at <= agent_sessions.updated_at"
+        f"AND {agent_session_time_pred}"
         ")"
     )
+    op.execute("UPDATE agent_sessions SET project_was_bound = TRUE WHERE project_id IS NOT NULL")
 
 
 def _upgrade_evaluator_bindings() -> None:
-    with op.batch_alter_table("project_evaluators") as batch_op:
+    with op.batch_alter_table(
+        "project_evaluators", table_kwargs={"sqlite_autoincrement": True}
+    ) as batch_op:
         batch_op.add_column(sa.Column("deleted_at", sa.TIMESTAMP(timezone=True), nullable=True))
         batch_op.alter_column("evaluator_id", existing_type=_Integer, nullable=True)
         batch_op.drop_constraint(
@@ -243,7 +277,9 @@ def _upgrade_evaluator_bindings() -> None:
         sqlite_where=sa.text(_LIVE_PREDICATE),
     )
 
-    with op.batch_alter_table("dataset_evaluators") as batch_op:
+    with op.batch_alter_table(
+        "dataset_evaluators", table_kwargs={"sqlite_autoincrement": True}
+    ) as batch_op:
         batch_op.add_column(sa.Column("deleted_at", sa.TIMESTAMP(timezone=True), nullable=True))
         batch_op.alter_column("dataset_id", existing_type=_Integer, nullable=True)
         batch_op.alter_column("evaluator_id", existing_type=_Integer, nullable=True)
@@ -422,10 +458,218 @@ def _create_cleanup_task_tables() -> None:
     )
 
 
+def _backfill_code_evaluator_task_snapshots() -> None:
+    if op.get_bind().dialect.name == "sqlite":
+        op.execute(
+            """
+            WITH resolved AS (
+                SELECT
+                    t.id AS task_id,
+                    v.id AS version_id,
+                    ce.sandbox_config_id AS sandbox_config_id,
+                    ce.language AS language,
+                    e.name AS name,
+                    e.description AS description,
+                    v.source_code AS source_code,
+                    (
+                        SELECT json_group_array(json(elem.value))
+                        FROM json_each(ce.output_configs) AS elem
+                        WHERE json_extract(elem.value, '$.name') IS NOT NULL
+                    ) AS output_configs_json
+                FROM experiment_evaluator_tasks t
+                JOIN code_evaluators ce
+                    ON ce.id = CAST(json_extract(t.definition, '$.code_evaluator_id') AS INTEGER)
+                JOIN evaluators e ON e.id = ce.id
+                JOIN code_evaluator_code_versions v
+                    ON v.code_evaluator_id = ce.id
+                    AND v.id = COALESCE(
+                        (
+                            SELECT v1.id
+                            FROM code_evaluator_code_versions v1
+                            WHERE v1.code_evaluator_id = ce.id
+                              AND v1.id = CAST(
+                                  json_extract(t.definition, '$.code_evaluator_version_id')
+                                  AS INTEGER
+                              )
+                        ),
+                        (
+                            SELECT v2.id
+                            FROM code_evaluator_code_versions v2
+                            WHERE v2.code_evaluator_id = ce.id
+                            ORDER BY v2.id DESC
+                            LIMIT 1
+                        )
+                    )
+                WHERE json_extract(t.definition, '$.type') = 'code_evaluator'
+            )
+            UPDATE experiment_evaluator_tasks
+            SET definition = (
+                SELECT json_set(
+                    experiment_evaluator_tasks.definition,
+                    '$.code_evaluator_version_id',
+                    COALESCE(
+                        CAST(
+                            json_extract(
+                                experiment_evaluator_tasks.definition,
+                                '$.code_evaluator_version_id'
+                            ) AS INTEGER
+                        ),
+                        r.version_id
+                    ),
+                    '$.sandbox_config_id',
+                    COALESCE(
+                        CAST(
+                            json_extract(
+                                experiment_evaluator_tasks.definition,
+                                '$.sandbox_config_id'
+                            ) AS INTEGER
+                        ),
+                        r.sandbox_config_id
+                    ),
+                    '$.language',
+                    COALESCE(
+                        json_extract(experiment_evaluator_tasks.definition, '$.language'),
+                        r.language
+                    ),
+                    '$.name',
+                    COALESCE(
+                        json_extract(experiment_evaluator_tasks.definition, '$.name'),
+                        r.name
+                    ),
+                    '$.description',
+                    COALESCE(
+                        json_extract(experiment_evaluator_tasks.definition, '$.description'),
+                        r.description
+                    ),
+                    '$.source_code',
+                    COALESCE(
+                        json_extract(experiment_evaluator_tasks.definition, '$.source_code'),
+                        r.source_code
+                    ),
+                    '$.output_configs',
+                    json(
+                        CASE
+                            WHEN json_type(
+                                experiment_evaluator_tasks.definition, '$.output_configs'
+                            ) IS NOT NULL
+                            AND json_type(
+                                experiment_evaluator_tasks.definition, '$.output_configs'
+                            ) <> 'null'
+                            THEN json_extract(
+                                experiment_evaluator_tasks.definition, '$.output_configs'
+                            )
+                            ELSE r.output_configs_json
+                        END
+                    )
+                )
+                FROM resolved r
+                WHERE r.task_id = experiment_evaluator_tasks.id
+            )
+            WHERE id IN (SELECT task_id FROM resolved)
+            """
+        )
+    else:
+        op.execute(
+            """
+            WITH resolved AS (
+                SELECT
+                    t.id AS task_id,
+                    v.id AS version_id,
+                    ce.sandbox_config_id AS sandbox_config_id,
+                    ce.language AS language,
+                    e.name AS name,
+                    e.description AS description,
+                    v.source_code AS source_code,
+                    COALESCE(
+                        (
+                            SELECT jsonb_agg(elem)
+                            FROM jsonb_array_elements(ce.output_configs) AS elem
+                            WHERE elem->>'name' IS NOT NULL
+                        ),
+                        '[]'::jsonb
+                    ) AS output_configs_json
+                FROM experiment_evaluator_tasks t
+                JOIN code_evaluators ce
+                    ON ce.id = NULLIF(t.definition->>'code_evaluator_id', '')::bigint
+                JOIN evaluators e ON e.id = ce.id
+                JOIN code_evaluator_code_versions v
+                    ON v.code_evaluator_id = ce.id
+                    AND v.id = COALESCE(
+                        (
+                            SELECT v1.id
+                            FROM code_evaluator_code_versions v1
+                            WHERE v1.code_evaluator_id = ce.id
+                              AND v1.id = NULLIF(
+                                  t.definition->>'code_evaluator_version_id', ''
+                              )::bigint
+                        ),
+                        (
+                            SELECT v2.id
+                            FROM code_evaluator_code_versions v2
+                            WHERE v2.code_evaluator_id = ce.id
+                            ORDER BY v2.id DESC
+                            LIMIT 1
+                        )
+                    )
+                WHERE t.definition->>'type' = 'code_evaluator'
+            )
+            UPDATE experiment_evaluator_tasks t
+            SET definition = t.definition || jsonb_build_object(
+                'code_evaluator_version_id',
+                COALESCE(
+                    NULLIF(t.definition->>'code_evaluator_version_id', '')::bigint,
+                    r.version_id
+                ),
+                'sandbox_config_id',
+                COALESCE(
+                    NULLIF(t.definition->>'sandbox_config_id', '')::bigint,
+                    r.sandbox_config_id
+                ),
+                'language',
+                COALESCE(t.definition->>'language', r.language),
+                'name',
+                COALESCE(t.definition->>'name', r.name),
+                'description',
+                COALESCE(t.definition->>'description', r.description),
+                'source_code',
+                COALESCE(t.definition->>'source_code', r.source_code),
+                'output_configs',
+                CASE
+                    WHEN t.definition->'output_configs' IS NOT NULL
+                         AND jsonb_typeof(t.definition->'output_configs') <> 'null'
+                    THEN t.definition->'output_configs'
+                    ELSE r.output_configs_json
+                END
+            )
+            FROM resolved r
+            WHERE t.id = r.task_id
+            """
+        )
+
+
+def _strip_code_evaluator_task_snapshots() -> None:
+    if op.get_bind().dialect.name == "sqlite":
+        op.execute(
+            "UPDATE experiment_evaluator_tasks "
+            "SET definition = json_remove("
+            "definition, '$.name', '$.description', '$.source_code', '$.output_configs'"
+            ") "
+            "WHERE json_extract(definition, '$.type') = 'code_evaluator'"
+        )
+    else:
+        op.execute(
+            "UPDATE experiment_evaluator_tasks "
+            "SET definition = definition "
+            "- 'name' - 'description' - 'source_code' - 'output_configs' "
+            "WHERE definition->>'type' = 'code_evaluator'"
+        )
+
+
 def upgrade() -> None:
     _upgrade_projects()
     _upgrade_historical_project_references()
     _upgrade_evaluator_bindings()
+    _backfill_code_evaluator_task_snapshots()
     _create_cleanup_task_tables()
     connection = op.get_bind()
     if connection.dialect.name == "sqlite":
@@ -456,6 +700,25 @@ def downgrade() -> None:
             "Cannot downgrade while cleanup_tasks has pending rows; "
             "run the server until cleanup tasks drain first."
         )
+    missing_code_evaluator_sql = (
+        "SELECT COUNT(*) "
+        "FROM experiment_evaluator_tasks t "
+        "LEFT JOIN code_evaluators ce "
+        "ON ce.id = CAST(json_extract(t.definition, '$.code_evaluator_id') AS INTEGER) "
+        "WHERE json_extract(t.definition, '$.type') = 'code_evaluator' AND ce.id IS NULL"
+        if connection.dialect.name == "sqlite"
+        else "SELECT COUNT(*) "
+        "FROM experiment_evaluator_tasks t "
+        "LEFT JOIN code_evaluators ce "
+        "ON ce.id = NULLIF(t.definition->>'code_evaluator_id', '')::bigint "
+        "WHERE t.definition->>'type' = 'code_evaluator' AND ce.id IS NULL"
+    )
+    if connection.scalar(sa.text(missing_code_evaluator_sql)):
+        raise ValueError(
+            "Cannot downgrade because experiment_evaluator_tasks references a "
+            "code_evaluators definition that was already garbage-collected."
+        )
+    _strip_code_evaluator_task_snapshots()
     if connection.dialect.name == "sqlite":
         connection.execute(
             sa.text("DELETE FROM system_state WHERE key = :key"),
@@ -527,6 +790,7 @@ def downgrade() -> None:
             "agent_sessions", table_kwargs={"sqlite_autoincrement": True}
         ) as batch_op,
     ):
+        batch_op.drop_column("project_was_bound")
         batch_op.drop_column("project_id")
     op.create_index(
         "ix_agent_sessions_user_id_updated_at",

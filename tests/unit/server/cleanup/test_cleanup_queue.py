@@ -3249,6 +3249,268 @@ async def test_postgres_dataset_evaluator_dependents_skip_locked_past_locked_pre
         assert empty_result == PrimitiveResult(PrimitiveStatus.EMPTY, 0)
 
 
+async def test_late_spans_dropped_after_internal_projects_are_physically_purged(
+    db: DbSessionFactory,
+) -> None:
+    dialect = SupportedSQLDialect(db.dialect.value)
+    base_time = datetime(2026, 8, 4, 0, 0, 0, tzinfo=timezone.utc)
+    deleted_experiment_project_name = f"Experiment-{token_hex(12)}"
+    retained_experiment_project_name = f"Experiment-{token_hex(12)}"
+    dataset_evaluator_project_name = f"dataset-evaluator-{token_hex(12)}"
+    project_evaluator_project_name = f"project-evaluator-{token_hex(12)}"
+    custom_user_project_name = f"my-custom-exp-{token_hex(4)}"
+
+    async with db() as session:
+        dataset = models.Dataset(name=f"late-span-ds-{token_hex(4)}", metadata_={})
+        owner_project = models.Project(name=f"late-span-owner-{token_hex(4)}", kind="STANDARD")
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(root=f"late-span-bi-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        deleted_experiment_project = models.Project(
+            name=deleted_experiment_project_name, kind="EXPERIMENT"
+        )
+        retained_experiment_project = models.Project(
+            name=retained_experiment_project_name, kind="EXPERIMENT"
+        )
+        dataset_evaluator_project = models.Project(
+            name=dataset_evaluator_project_name, kind="EVALUATOR"
+        )
+        project_evaluator_project = models.Project(
+            name=project_evaluator_project_name, kind="EVALUATOR"
+        )
+        session.add_all(
+            [
+                dataset,
+                owner_project,
+                evaluator,
+                deleted_experiment_project,
+                retained_experiment_project,
+                dataset_evaluator_project,
+                project_evaluator_project,
+            ]
+        )
+        await session.flush()
+
+        version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+        dataset_binding = models.DatasetEvaluators(
+            dataset_id=dataset.id,
+            evaluator_id=evaluator.id,
+            project_id=dataset_evaluator_project.id,
+            name=Identifier(root="late-ds-eval"),
+            input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+        )
+        project_binding = models.ProjectEvaluator(
+            project_id=owner_project.id,
+            evaluator_id=evaluator.id,
+            trace_project_id=project_evaluator_project.id,
+            name=Identifier(root="late-pe-eval"),
+            sampling_rate=1.0,
+            evaluation_target="SPAN",
+            evaluation_delay_seconds=0,
+        )
+        session.add_all([version, dataset_binding, project_binding])
+        await session.flush()
+
+        retained_experiment = models.Experiment(
+            dataset_id=dataset.id,
+            dataset_version_id=version.id,
+            name="retained-exp-record",
+            repetitions=1,
+            metadata_={},
+            project_name=retained_experiment_project_name,
+            project_id=retained_experiment_project.id,
+        )
+        session.add(retained_experiment)
+        await session.flush()
+
+        purged_project_ids = [
+            deleted_experiment_project.id,
+            retained_experiment_project.id,
+            dataset_evaluator_project.id,
+            project_evaluator_project.id,
+        ]
+        await admit_project_delete(
+            session, dialect=dialect, project_id=deleted_experiment_project.id
+        )
+        await admit_project_delete(
+            session, dialect=dialect, project_id=retained_experiment_project.id
+        )
+        await logical_delete_dataset_evaluators(
+            session,
+            dialect=dialect,
+            binding_ids=[dataset_binding.id],
+            collect_unused_evaluator=False,
+            collect_unused_prompt_or_decision=False,
+        )
+        await logical_delete_project_evaluators(
+            session,
+            dialect=dialect,
+            binding_ids=[project_binding.id],
+            collect_unused_evaluator=False,
+            collect_unused_prompt_or_decision=False,
+        )
+
+    coordinator = CleanupCoordinator(db, batch_limit=10)
+    await _drain_all(coordinator)
+
+    async with db() as session:
+        for project_id in purged_project_ids:
+            assert await session.get(models.Project, project_id) is None
+
+    for internal_name in (
+        deleted_experiment_project_name,
+        retained_experiment_project_name,
+        dataset_evaluator_project_name,
+        project_evaluator_project_name,
+    ):
+        late_span = Span(
+            name="late-buffered-span",
+            context=SpanContext(trace_id=token_hex(16), span_id=token_hex(8)),
+            span_kind=SpanKind.LLM,
+            parent_id=None,
+            start_time=base_time,
+            end_time=base_time + timedelta(seconds=1),
+            status_code=SpanStatusCode.OK,
+            status_message="",
+            attributes={},
+            events=[],
+            conversation=None,
+        )
+        async with db() as session:
+            assert await insert_span(session, late_span, internal_name) is None
+            assert (
+                await session.scalar(
+                    select(models.Project.id).where(models.Project.name == internal_name)
+                )
+                is None
+            )
+
+    custom_span = Span(
+        name="custom-user-span",
+        context=SpanContext(trace_id=token_hex(16), span_id=token_hex(8)),
+        span_kind=SpanKind.LLM,
+        parent_id=None,
+        start_time=base_time,
+        end_time=base_time + timedelta(seconds=1),
+        status_code=SpanStatusCode.OK,
+        status_message="",
+        attributes={},
+        events=[],
+        conversation=None,
+    )
+    async with db() as session:
+        inserted = await insert_span(session, custom_span, custom_user_project_name)
+        assert inserted is not None
+
+
+@pytest.mark.postgres_only
+async def test_postgres_live_for_no_key_update_prevents_expired_lease_stealing(
+    postgresql_engine: Any,
+) -> None:
+    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
+    async with db() as session:
+        first_project = await _add_project(session, name=f"pg-lease-first-{token_hex(4)}")
+        second_project = await _add_project(session, name=f"pg-lease-second-{token_hex(4)}")
+        await admit_project_delete(
+            session, dialect=SupportedSQLDialect.POSTGRESQL, project_id=first_project.id
+        )
+        await admit_project_delete(
+            session, dialect=SupportedSQLDialect.POSTGRESQL, project_id=second_project.id
+        )
+
+    coordinator_a = CleanupCoordinator(db, batch_limit=1, lease_ttl_seconds=30.0)
+    coordinator_b = CleanupCoordinator(db, batch_limit=1, lease_ttl_seconds=30.0)
+
+    claimed_a = await coordinator_a.claim_next()
+    assert claimed_a is not None
+
+    async with db() as session:
+        now = await current_database_time(session, SupportedSQLDialect.POSTGRESQL)
+        await session.execute(
+            update(models.CleanupTask)
+            .where(models.CleanupTask.id == claimed_a.task_id)
+            .values(claimed_at=now - timedelta(seconds=31.0))
+        )
+
+    async with db() as active_step_session:
+        locked_task_id = await active_step_session.scalar(
+            select(models.CleanupTask.id)
+            .where(models.CleanupTask.id == claimed_a.task_id)
+            .with_for_update(key_share=True, nowait=True)
+        )
+        assert locked_task_id == claimed_a.task_id
+
+        assert await coordinator_b.claim_next() is None
+
+        async with db() as inspector:
+            task_row = await inspector.get(models.CleanupTask, claimed_a.task_id)
+            assert task_row is not None
+            assert task_row.claimed_by == claimed_a.claimed_by
+            assert task_row.claimed_at is not None
+            assert task_row.failure_count == 0
+
+    claimed_b = await coordinator_b.claim_next()
+    assert claimed_b is not None
+    assert claimed_b.task_id != claimed_a.task_id
+
+
+@pytest.mark.postgres_only
+async def test_postgres_locked_span_causes_drain_traces_step_to_yield_without_deleting_trace(
+    postgresql_engine: Any,
+) -> None:
+    from phoenix.server.cleanup.primitives import drain_traces_step, trace_scope_condition
+
+    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
+    base_time = datetime(2026, 8, 5, 0, 0, 0, tzinfo=timezone.utc)
+    async with db() as session:
+        project = await _add_project(session, name=f"pg-span-lock-{token_hex(4)}")
+        trace = await _add_trace(session, project, start_time=base_time)
+        span = await _add_span(session, trace=trace, start_time=base_time)
+        project_id, trace_id, span_id = project.id, trace.id, span.id
+
+    trace_cond = trace_scope_condition(project_id)
+    async with db() as locker:
+        await locker.execute(
+            select(models.Span.id).where(models.Span.id == span_id).with_for_update()
+        )
+        async with db() as cleaner:
+            yield_result = await drain_traces_step(
+                cleaner,
+                dialect=SupportedSQLDialect.POSTGRESQL,
+                trace_cond=trace_cond,
+                batch_limit=10,
+            )
+            assert yield_result == PrimitiveResult(PrimitiveStatus.YIELD, 0)
+
+        async with db() as inspector:
+            assert await inspector.get(models.Trace, trace_id) is not None
+            assert await inspector.get(models.Span, span_id) is not None
+
+    async with db() as cleaner:
+        span_progress = await drain_traces_step(
+            cleaner,
+            dialect=SupportedSQLDialect.POSTGRESQL,
+            trace_cond=trace_cond,
+            batch_limit=10,
+        )
+        assert span_progress == PrimitiveResult(PrimitiveStatus.PROGRESS, 1)
+    async with db() as cleaner:
+        trace_progress = await drain_traces_step(
+            cleaner,
+            dialect=SupportedSQLDialect.POSTGRESQL,
+            trace_cond=trace_cond,
+            batch_limit=10,
+        )
+        assert trace_progress == PrimitiveResult(PrimitiveStatus.PROGRESS, 1)
+    async with db() as inspector:
+        assert await inspector.get(models.Span, span_id) is None
+        assert await inspector.get(models.Trace, trace_id) is None
+
+
 async def test_delete_traces_handles_more_than_32767_trace_ids_without_bind_param_crash(
     db: DbSessionFactory,
 ) -> None:

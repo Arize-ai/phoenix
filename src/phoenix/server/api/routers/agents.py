@@ -1677,14 +1677,16 @@ async def _resolve_agent_session_trace_project_id(
     async with db() as session:
         row = (
             await session.execute(
-                select(models.AgentSession.project_id, models.AgentSession.created_at).where(
-                    models.AgentSession.id == agent_session_rowid
-                )
+                select(
+                    models.AgentSession.project_id,
+                    models.AgentSession.project_was_bound,
+                    models.AgentSession.created_at,
+                ).where(models.AgentSession.id == agent_session_rowid)
             )
         ).one_or_none()
         if row is None:
             return None
-        bound_project_id, session_created_at = row
+        bound_project_id, project_was_bound, session_created_at = row
         if bound_project_id is not None:
             live_id = await session.scalar(
                 select(models.Project.id).where(
@@ -1692,7 +1694,15 @@ async def _resolve_agent_session_trace_project_id(
                     models.Project.deleted_at.is_(None),
                 )
             )
+            if live_id is None and not project_was_bound:
+                await session.execute(
+                    update(models.AgentSession)
+                    .where(models.AgentSession.id == agent_session_rowid)
+                    .values(project_was_bound=True)
+                )
             return live_id
+        if project_was_bound:
+            return None
         # Never rebind an agent session whose original project was deleted (SET NULL).
         deleted_prior = await session.scalar(
             select(models.Project.id)
@@ -1704,18 +1714,38 @@ async def _resolve_agent_session_trace_project_id(
             .limit(1)
         )
         if deleted_prior is not None:
+            await session.execute(
+                update(models.AgentSession)
+                .where(models.AgentSession.id == agent_session_rowid)
+                .values(project_was_bound=True)
+            )
             return None
     project_id = await _ensure_project_exists(db, project_name)
     async with db() as session:
-        await session.execute(
+        bound_result = await session.execute(
             update(models.AgentSession)
             .where(
                 models.AgentSession.id == agent_session_rowid,
                 models.AgentSession.project_id.is_(None),
+                models.AgentSession.project_was_bound.is_(False),
             )
-            .values(project_id=project_id)
+            .values(project_id=project_id, project_was_bound=True)
         )
-    return project_id
+        if getattr(bound_result, "rowcount", 0) == 1:
+            return project_id
+        current_project_id = await session.scalar(
+            select(models.AgentSession.project_id).where(
+                models.AgentSession.id == agent_session_rowid
+            )
+        )
+        if current_project_id is None:
+            return None
+        return await session.scalar(
+            select(models.Project.id).where(
+                models.Project.id == current_project_id,
+                models.Project.deleted_at.is_(None),
+            )
+        )
 
 
 async def _upsert_project_sessions(
@@ -2829,6 +2859,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     title=title,
                     project_name=assistant_project_name,
                     project_id=existing_project_id,
+                    project_was_bound=existing_project_id is not None,
                     is_ephemeral=request_body.is_ephemeral,
                     model_provider=routing.model_provider,
                     model_name=routing.model_name,

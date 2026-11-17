@@ -6,6 +6,11 @@ coordinator can share exact predicate text (required for SQLite partial-index ma
 
 from __future__ import annotations
 
+import re
+
+EXPERIMENT_PROJECT_NAME_PATTERN = re.compile(r"^Experiment-[0-9a-f]{24}$")
+EVALUATOR_TRACE_PROJECT_NAME_PATTERN = re.compile(r"^(?:dataset|project)-evaluator-[0-9a-f]{24}$")
+
 CLEANUP_TASK_KINDS = (
     "DELETE_PROJECT",
     "CLEAR_PROJECT_TRACES",
@@ -50,3 +55,13 @@ def unclaimed_cleanup_tasks_predicate() -> str:
 def claimed_cleanup_tasks_predicate() -> str:
     """SQL partial-index predicate selecting claimed cleanup tasks."""
     return "claimed_at IS NOT NULL"
+
+
+def is_generated_experiment_project_name(name: str) -> bool:
+    """Whether ``name`` matches Phoenix's generated ``Experiment-<24hex>`` pattern."""
+    return bool(EXPERIMENT_PROJECT_NAME_PATTERN.match(name))
+
+
+def is_generated_evaluator_trace_project_name(name: str) -> bool:
+    """Whether ``name`` matches Phoenix's generated evaluator trace project pattern."""
+    return bool(EVALUATOR_TRACE_PROJECT_NAME_PATTERN.match(name))
