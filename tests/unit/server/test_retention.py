@@ -931,3 +931,24 @@ class TestRetentionPolicyBatchedDelete:
             "a sweep stopped partway through its backlog should not count as a success"
         )
         assert self._count_executions("error") == num_errors
+
+
+@pytest.mark.postgres_only
+async def test_retention_yields_when_trace_spans_are_locked(postgresql_engine: Any) -> None:
+    from phoenix.server.app import _db
+    from tests.unit._helpers import _add_project, _add_span, _add_trace
+
+    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
+    async with db() as session:
+        project = await _add_project(session, name=f"locked-retention-{token_hex(4)}")
+        trace = await _add_trace(session, project, start_time=datetime(2020, 1, 1))
+        span = await _add_span(session, trace=trace)
+    async with db() as locker:
+        await locker.execute(
+            sa.select(models.Span.id).where(models.Span.id == span.id).with_for_update()
+        )
+        await wait_for(MaxDaysRule(max_days=1).delete_traces_in_batches(db, [project.id]), 5)
+        assert await locker.get(models.Trace, trace.id) is not None
+    await MaxDaysRule(max_days=1).delete_traces_in_batches(db, [project.id])
+    async with db() as session:
+        assert await session.get(models.Trace, trace.id) is None

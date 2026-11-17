@@ -254,31 +254,15 @@ async def _drain_span_children_batch(
     return None
 
 
-async def drain_trace_scope_step(
+async def drain_traces_step(
     session: AsyncSession,
     *,
     dialect: SupportedSQLDialect,
-    project_id: int,
-    max_trace_rowid: Optional[int] = None,
-    start_time: Optional[datetime] = None,
-    end_time: Optional[datetime] = None,
+    trace_cond: ColumnElement[bool],
     batch_limit: int = CLEANUP_BATCH_ROWS,
+    reset_session_evaluations: bool = False,
 ) -> PrimitiveResult:
-    """Drain one bounded step of spans, traces, and eligible orphan sessions for a project scope.
-
-    Traces are scanned in ascending ``start_time`` order so ``ix_traces_project_rowid_start_time``
-    reads oldest in-scope rows first. Each step drains the spans of the oldest window of traces and
-    deletes the window's span-less traces, so the window advances as rows are removed. A ``Trace``
-    row is deleted only when zero ``Span`` rows remain attached to it, bounding any residual
-    cascade.
-    """
-    trace_cond = trace_scope_condition(
-        project_id,
-        max_trace_rowid=max_trace_rowid,
-        start_time=start_time,
-        end_time=end_time,
-    )
-
+    """Drain a bounded trace window, yielding when its remaining rows are locked."""
     # Phases 1-2 work on a window of the oldest in-scope traces. Spans in the window are drained
     # first; once the window's traces are span-less they are deleted, so the next window starts at
     # the next-oldest traces and every step touches rows proportional to its own batch.
@@ -341,7 +325,7 @@ async def drain_trace_scope_step(
             models.Trace.id.in_(trace_ids),
             no_spans_attached,
         )
-        if max_trace_rowid is not None:
+        if reset_session_evaluations:
             reset_result = await reset_session_evaluations_step(
                 session,
                 dialect=dialect,
@@ -359,6 +343,44 @@ async def drain_trace_scope_step(
 
     if await _has_any(session, trace_cond):
         return PrimitiveResult(PrimitiveStatus.YIELD, 0)
+
+    return PrimitiveResult(PrimitiveStatus.EMPTY, 0)
+
+
+async def drain_trace_scope_step(
+    session: AsyncSession,
+    *,
+    dialect: SupportedSQLDialect,
+    project_id: int,
+    max_trace_rowid: Optional[int] = None,
+    start_time: Optional[datetime] = None,
+    end_time: Optional[datetime] = None,
+    batch_limit: int = CLEANUP_BATCH_ROWS,
+) -> PrimitiveResult:
+    """Drain one bounded step of spans, traces, and eligible orphan sessions for a project scope.
+
+    Traces are scanned in ascending ``start_time`` order so ``ix_traces_project_rowid_start_time``
+    reads oldest in-scope rows first. Each step drains the spans of the oldest window of traces and
+    deletes the window's span-less traces, so the window advances as rows are removed. A ``Trace``
+    row is deleted only when zero ``Span`` rows remain attached to it, bounding any residual
+    cascade.
+    """
+    trace_cond = trace_scope_condition(
+        project_id,
+        max_trace_rowid=max_trace_rowid,
+        start_time=start_time,
+        end_time=end_time,
+    )
+
+    trace_result = await drain_traces_step(
+        session,
+        dialect=dialect,
+        trace_cond=trace_cond,
+        batch_limit=batch_limit,
+        reset_session_evaluations=max_trace_rowid is not None,
+    )
+    if trace_result.status is not PrimitiveStatus.EMPTY:
+        return trace_result
 
     # Phase 3: Drain eligible orphan project_sessions (only sessions with zero traces anywhere).
     # If any pre-existing cross-project trace still points at a session in this project,

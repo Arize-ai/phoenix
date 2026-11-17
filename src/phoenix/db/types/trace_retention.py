@@ -32,42 +32,18 @@ async def _delete_matching_traces_in_batches(
     *,
     batch_size: int = 1_000,
 ) -> set[int]:
-    from phoenix.db.helpers import SupportedSQLDialect
-    from phoenix.db.models import Span, Trace
+    from phoenix.db.models import Trace
+    from phoenix.server.cleanup.primitives import PrimitiveStatus, drain_traces_step
 
-    dialect = getattr(db, "dialect", None)
+    condition = sa.and_(Trace.project_rowid.in_(project_rowids), trace_filter)
     while True:
         async with db() as session:
-            candidate_stmt = (
-                sa.select(Trace.id)
-                .where(Trace.project_rowid.in_(project_rowids), trace_filter)
-                .order_by(Trace.start_time.asc(), Trace.id.asc())
-                .limit(batch_size)
+            result = await drain_traces_step(
+                session, dialect=db.dialect, trace_cond=condition, batch_limit=batch_size
             )
-            if dialect is SupportedSQLDialect.POSTGRESQL:
-                candidate_stmt = candidate_stmt.with_for_update(skip_locked=True)
-            trace_ids = list(await session.scalars(candidate_stmt))
-            if not trace_ids:
-                break
-            span_stmt = (
-                sa.select(Span.id)
-                .where(Span.trace_rowid.in_(trace_ids))
-                .order_by(Span.id.asc())
-                .limit(batch_size)
-            )
-            if dialect is SupportedSQLDialect.POSTGRESQL:
-                span_stmt = span_stmt.with_for_update(skip_locked=True)
-            span_ids = list(await session.scalars(span_stmt))
-            if span_ids:
-                await session.execute(sa.delete(Span).where(Span.id.in_(span_ids)))
-                continue
-            await session.execute(
-                sa.delete(Trace).where(
-                    Trace.id.in_(trace_ids),
-                    ~sa.select(sa.literal(1)).where(Span.trace_rowid == Trace.id).exists(),
-                )
-            )
-    return set()
+        if result.status is not PrimitiveStatus.PROGRESS:
+            # A contended window is revisited on the next sweep, not in a tight loop.
+            return set()
 
 
 class _MaxDays(BaseModel):
