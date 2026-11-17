@@ -191,6 +191,10 @@ async function checkExternal(href, timeoutMs, maxRetries = 5, backoffBaseMs = 50
     return [true, "Arize NPM package"];
   }
 
+  if (href.startsWith("https://central.sonatype.com/artifact/com.arize")) {
+    return [true, "Sonatype rate-limits (HTTP 429) from actions, but the artifact is valid"];
+  }
+
   if (href === "https://docs.arconia.io/arconia/latest/observability/semantic-conventions/openinference/") {
     return [true, "Arconia returns 404 from actions, but is valid"];
   }
