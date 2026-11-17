@@ -3,6 +3,7 @@ import type { LanguageModel } from "ai";
 import { getTemplateVariables } from "../template";
 import type {
   ClassificationChoices,
+  ClassificationChoicesMap,
   CreateClassificationEvaluatorArgs,
   EvaluatorFn,
   PromptTemplate,
@@ -17,7 +18,10 @@ import { LLMEvaluator } from "./LLMEvaluator";
 /**
  * An LLM evaluator that performs evaluation via classification
  */
-export class ClassificationEvaluator<RecordType extends Record<string, unknown>>
+export class ClassificationEvaluator<
+  RecordType extends Record<string, unknown>,
+  ChoicesType extends ClassificationChoices = ClassificationChoicesMap,
+>
   extends LLMEvaluator<RecordType>
   implements WithPromptTemplate
 {
@@ -34,13 +38,13 @@ export class ClassificationEvaluator<RecordType extends Record<string, unknown>>
   /**
    * The choices to classify the example into
    */
-  readonly choices: ClassificationChoices;
+  readonly choices: ChoicesType;
 
   constructor(args: CreateClassificationEvaluatorArgs<RecordType>) {
     super(args);
     this.promptTemplate = args.promptTemplate;
     this.model = args.model;
-    this.choices = args.choices;
+    this.choices = args.choices as ChoicesType;
     this.evaluatorFn = createClassifierFn<RecordType>({
       ...args,
     });
@@ -70,8 +74,8 @@ export class ClassificationEvaluator<RecordType extends Record<string, unknown>>
    */
   bindInputMapping(
     inputMapping: ObjectMapping<RecordType>
-  ): ClassificationEvaluator<RecordType> {
-    return new ClassificationEvaluator({
+  ): ClassificationEvaluator<RecordType, ChoicesType> {
+    return new ClassificationEvaluator<RecordType, ChoicesType>({
       ...this,
       inputMapping,
     });

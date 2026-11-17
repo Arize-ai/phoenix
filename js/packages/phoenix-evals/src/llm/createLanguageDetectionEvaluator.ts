@@ -54,7 +54,7 @@ export function createLanguageDetectionEvaluator<
     LanguageDetectionEvaluationRecord,
 >(
   args: LanguageDetectionEvaluatorArgs<RecordType>
-): ClassificationEvaluator<RecordType> {
+): ClassificationEvaluator<RecordType, readonly string[]> {
   const {
     choices = LANGUAGE_DETECTION_CLASSIFICATION_EVALUATOR_CONFIG.choices,
     promptTemplate = LANGUAGE_DETECTION_CLASSIFICATION_EVALUATOR_CONFIG.template,
@@ -62,7 +62,7 @@ export function createLanguageDetectionEvaluator<
     name = LANGUAGE_DETECTION_CLASSIFICATION_EVALUATOR_CONFIG.name,
     ...rest
   } = args;
-  return createClassificationEvaluator<RecordType>({
+  return createClassificationEvaluator<RecordType, readonly string[]>({
     ...rest,
     promptTemplate,
     choices,
