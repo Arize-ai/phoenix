@@ -246,7 +246,7 @@ Map specific LDAP error codes to actionable messages:
 
 ### 6. Real-Directory Testing
 
-The integration tests in `tests/integration/auth/test_ldap.py` run against an in-process mock LDAP server (`tests/integration/_mock_ldap_server.py`). The dev stack's `ldap-test` profile runs the same login behaviors against real OpenLDAP servers, and adds the TLS and man-in-the-middle tests that section 7 describes. The dev stack README (`scripts/devops/README.md`) explains how to start the profile and read its results.
+The integration tests in `tests/integration/auth/test_ldap.py` run against an in-process mock LDAP server (`tests/integration/_mock_ldap_server.py`). A second suite runs the same login behaviors against real OpenLDAP servers, and adds the TLS and man-in-the-middle tests that section 7 describes.
 
 The real-directory seed data covers these directory edge cases:
 
@@ -367,7 +367,7 @@ def _verify_user_password(self, server: Server, user_dn: str, password: str) -> 
 
 #### Validation Strategy
 
-The `ldap-test` profile validates TLS by acting as a network attacker. A man-in-the-middle proxy sits between each application and OpenLDAP, parses every LDAP bind request, and tries to read the bind DN and password. If the proxy extracts credentials that then authenticate against the directory, the application sent them in plaintext.
+The real-directory suite validates TLS by acting as a network attacker. A man-in-the-middle proxy sits between each application and OpenLDAP, parses every LDAP bind request, and tries to read the bind DN and password. If the proxy extracts credentials that then authenticate against the directory, the application sent them in plaintext.
 
 The test runner checks three things in order:
 
@@ -753,7 +753,7 @@ return cls(
 
 #### Real-Directory Validation
 
-The `ldap` dev-stack profile runs Phoenix in no-TLS mode, and the main Phoenix instance of the `ldap-test` profile runs in LDAPS mode. Both leave `PHOENIX_LDAP_PORT` unset, so their logins confirm the 389 and 636 defaults against a real server. The STARTTLS instances set port 3389 to route through the man-in-the-middle proxy, so only the unit test above covers the STARTTLS default.
+The real-directory suite runs Phoenix in no-TLS mode and in LDAPS mode with `PHOENIX_LDAP_PORT` unset, so those logins confirm the 389 and 636 defaults against a real server. Its STARTTLS instances set an explicit port to route through the man-in-the-middle proxy, so only the unit test above covers the STARTTLS default.
 
 #### Impact Analysis
 

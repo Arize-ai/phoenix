@@ -489,7 +489,7 @@ Phoenix configures LDAP with environment variables. Grafana uses a TOML file.
 
 ### Verified Properties
 
-Tests enforce the following properties. The unit tests are in `tests/unit/server/test_ldap.py` and `tests/unit/test_config.py`, and the integration tests (against an in-process mock LDAP server) are in `tests/integration/auth/test_ldap.py`. The dev stack's `ldap-test` profile checks the same properties against real OpenLDAP servers ([Protocol Compliance §6](./ldap-authentication/protocol-compliance.md#6-real-directory-testing)).
+Tests enforce the following properties. The unit tests are in `tests/unit/server/test_ldap.py` and `tests/unit/test_config.py`, and the integration tests (against an in-process mock LDAP server) are in `tests/integration/auth/test_ldap.py`. The same properties have also been checked against real OpenLDAP servers ([Protocol Compliance §6](./ldap-authentication/protocol-compliance.md#6-real-directory-testing)).
 
 - **STARTTLS before bind**: in STARTTLS mode, the TLS upgrade completes before any bind request is sent. A man-in-the-middle proxy extracted no credentials from Phoenix, and extracted both the service-account and the user credentials from Grafana v11.4 ([Protocol Compliance §7](./ldap-authentication/protocol-compliance.md#7-starttls-implementation--security)).
 - **Ambiguous search results**: login is rejected when the user search returns more than one entry.
