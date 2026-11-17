@@ -34,9 +34,11 @@ from phoenix.db.types.prompts import (
 from phoenix.server import app as server_app
 from phoenix.server.api.dataloaders import (
     CacheForDataLoaders,
-    RecordCountDataLoader,
-    SpanCostSummaryByProjectDataLoader,
     project_evaluator_run_counts,
+)
+from phoenix.server.api.dataloaders.record_counts import RecordCountDataLoader
+from phoenix.server.api.dataloaders.span_cost_summary_by_project import (
+    SpanCostSummaryByProjectDataLoader,
 )
 from phoenix.server.api.types.Evaluator import (
     BuiltInEvaluator,
