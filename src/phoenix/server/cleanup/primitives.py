@@ -570,10 +570,11 @@ async def clear_project_historical_references_step(
         ids = list(await session.scalars(ids_stmt))
         if ids:
             ids.sort()
+            values: dict[str, object] = {"project_id": None}
+            if model is models.AgentSession:
+                values["project_was_bound"] = True
             cleared = _rowcount(
-                await session.execute(
-                    update(model).where(model.id.in_(ids)).values(project_id=None)
-                )
+                await session.execute(update(model).where(model.id.in_(ids)).values(**values))
             )
             if cleared > 0:
                 return PrimitiveResult(PrimitiveStatus.PROGRESS, cleared)

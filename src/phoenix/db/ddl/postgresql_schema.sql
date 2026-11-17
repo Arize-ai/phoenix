@@ -1451,6 +1451,7 @@ CREATE TABLE public.agent_sessions (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     project_id BIGINT,
+    project_was_bound BOOLEAN NOT NULL DEFAULT false,
     CONSTRAINT pk_agent_sessions PRIMARY KEY (id),
     CONSTRAINT fk_agent_sessions_custom_provider_id_generative_model_c_af13
         FOREIGN KEY (custom_provider_id)

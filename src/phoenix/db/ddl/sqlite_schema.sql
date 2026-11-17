@@ -927,7 +927,7 @@ CREATE TABLE builtin_evaluators (
 -- Table: dataset_evaluators
 -- -------------------------
 CREATE TABLE dataset_evaluators (
-    id INTEGER NOT NULL,
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     dataset_id INTEGER,
     evaluator_id INTEGER,
     name VARCHAR NOT NULL,
@@ -939,7 +939,6 @@ CREATE TABLE dataset_evaluators (
     created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
     updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
     deleted_at TIMESTAMP,
-    CONSTRAINT pk_dataset_evaluators PRIMARY KEY (id),
     CONSTRAINT "ck_dataset_evaluators_`valid_lifecycle`"
         CHECK (
             (deleted_at IS NULL AND dataset_id IS NOT NULL AND evaluator_id IS NOT NULL)
@@ -1362,6 +1361,7 @@ CREATE TABLE agent_sessions (
     created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
     updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
     project_id INTEGER,
+    project_was_bound BOOLEAN DEFAULT 0 NOT NULL,
     CONSTRAINT fk_agent_sessions_custom_provider_id_generative_model_custom_providers
         FOREIGN KEY (custom_provider_id)
         REFERENCES generative_model_custom_providers (id)
@@ -1681,7 +1681,7 @@ CREATE UNIQUE INDEX ix_password_reset_tokens_user_id ON password_reset_tokens (u
 -- Table: project_evaluators
 -- -------------------------
 CREATE TABLE project_evaluators (
-    id INTEGER NOT NULL,
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     project_id INTEGER NOT NULL,
     evaluator_id INTEGER,
     trace_project_id INTEGER NOT NULL,
@@ -1696,7 +1696,6 @@ CREATE TABLE project_evaluators (
     created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
     updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
     deleted_at TIMESTAMP,
-    CONSTRAINT pk_project_evaluators PRIMARY KEY (id),
     CONSTRAINT "ck_project_evaluators_`valid_evaluation_delay_seconds`"
         CHECK (
             (evaluation_target = 'SPAN' AND evaluation_delay_seconds = 0)

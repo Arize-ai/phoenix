@@ -20,7 +20,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
-from phoenix.db.cleanup_tasks import live_row_predicate
+from phoenix.db.cleanup_tasks import (
+    is_generated_evaluator_trace_project_name,
+    is_generated_experiment_project_name,
+    live_row_predicate,
+)
 from phoenix.db.helpers import SupportedSQLDialect, random_project_gradient
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.trace.attributes import get_attribute_value
@@ -256,6 +260,20 @@ async def insert_span(
             )
             if tombstoned_internal is not None:
                 return None
+            if is_generated_evaluator_trace_project_name(project_name):
+                return None
+            if is_generated_experiment_project_name(project_name):
+                live_experiment_id = await session.scalar(
+                    select(models.Experiment.id)
+                    .join(models.Project, models.Project.id == models.Experiment.project_id)
+                    .where(
+                        models.Experiment.project_name == project_name,
+                        models.Project.deleted_at.is_(None),
+                    )
+                    .limit(1)
+                )
+                if live_experiment_id is None:
+                    return None
             project_kind: models.ProjectKindName = (
                 "PLAYGROUND" if project_name == PLAYGROUND_PROJECT_NAME else "STANDARD"
             )
