@@ -41,6 +41,7 @@ These choices are visible to operators. Changing them would break existing confi
 2. **Group role mapping format**: a JSON array of `{"group_dn": "...", "role": "..."}` objects. The field is `role` rather than Grafana's `org_role`, because Phoenix has no organizations. Role values are Phoenix role names (`ADMIN`, `MEMBER`, `VIEWER`), matched case-insensitively.
 3. **Role mapping semantics**: group DNs match case-insensitively, `"*"` matches every user, and the first matching entry determines the role.
 4. **`PHOENIX_LDAP_ALLOW_SIGN_UP` defaults to `true`**, as in Grafana. Changing the default would stop new users from signing in on deployments that rely on it.
+5. **Value formats**: booleans are the strings `"true"` and `"false"` (case-insensitive), `PHOENIX_LDAP_HOST` is comma-separated, and search filters use `%s` as the username placeholder.
 
 ### Configuration Format
 

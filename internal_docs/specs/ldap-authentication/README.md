@@ -22,11 +22,6 @@ Detailed technical references for the [LDAP Authentication specification](../lda
 - [Database Schema](./database-schema.md)
 - [User Identification Strategy](./user-identification-strategy.md)
 - [Optional Email for LDAP Users](./optional-email.md) - Support for LDAP directories without email attribute
-- [Decision Reversibility](./decision-reversibility.md)
-- [Migration Plan](./migration-plan.md)
-
-**Security & Compliance**:
-- [Collision Prevention](./collision-prevention.md)
 
 **Research**:
 - [Grafana Comparison](./grafana-comparison.md)

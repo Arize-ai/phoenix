@@ -106,4 +106,4 @@ WHERE auth_method = 'LDAP'
 **Key Point**: The migration only changes `auth_method` for semantic clarity. The identification
 strategy (email or unique_id) remains unchanged.
 
-See [Migration Plan](./migration-plan.md) for full details.
+Migration `a1b2c3d4e5f6` performed this change.
