@@ -71,15 +71,6 @@ key is stored beside `input.value`.
 numeric and datetime fields. Empty reductions are missing, and comparisons against them are
 false except for explicit `is None` checks, as defined by the shared family rules.
 
-The cumulative fields on a span are ingestion-time subtree rollups:
-
-- `cumulative_error_count` counts ERROR spans at or below that span.
-- `cumulative_llm_token_count_prompt`, `...completion`, and `...total` sum LLM token counts at
-  or below that span.
-
-"Below" follows stored parent edges within the same trace. It does not infer ancestry across
-traces when OpenTelemetry span IDs collide or an orphan points at a span stored elsewhere.
-
 ## Parent and Nested Relationships
 
 `span.parent_span` traverses to the direct stored parent in the same trace. It is missing for

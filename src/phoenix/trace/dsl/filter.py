@@ -127,9 +127,6 @@ _STRING_NAMES: typing.Mapping[str, sqlalchemy.SQLColumnExpression[typing.Any]] =
 _FLOAT_NAMES: typing.Mapping[str, sqlalchemy.SQLColumnExpression[typing.Any]] = MappingProxyType(
     {
         "latency_ms": models.Span.latency_ms,
-        "cumulative_llm_token_count_completion": models.Span.cumulative_llm_token_count_completion,
-        "cumulative_llm_token_count_prompt": models.Span.cumulative_llm_token_count_prompt,
-        "cumulative_llm_token_count_total": models.Span.cumulative_llm_token_count_total,
     }
 )
 _DATETIME_NAMES: typing.Mapping[str, sqlalchemy.SQLColumnExpression[typing.Any]] = MappingProxyType(
@@ -152,9 +149,6 @@ _BACKWARD_COMPATIBILITY_REPLACEMENTS: typing.Mapping[str, str] = MappingProxyTyp
         # for backward-compatibility
         "context.span_id": "span_id",
         "context.trace_id": "trace_id",
-        "cumulative_token_count.completion": "cumulative_llm_token_count_completion",
-        "cumulative_token_count.prompt": "cumulative_llm_token_count_prompt",
-        "cumulative_token_count.total": "cumulative_llm_token_count_total",
     }
 )
 

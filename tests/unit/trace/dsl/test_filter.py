@@ -96,8 +96,8 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[list[str]])
             "and_(or_(parent_id == None, not_(CaseInsensitiveContains(name, 'abc'))), not_(or_(span_kind != 'LLM', span_id.not_in(('123',)))))",
         ),
         (
-            "1000 < latency_ms < 2000 or status_code == 'ERROR' or 2000 <= cumulative_llm_token_count_total",
-            "or_(and_(1000 < latency_ms, latency_ms < 2000), status_code == 'ERROR', 2000 <= cumulative_llm_token_count_total)",
+            "1000 < latency_ms < 2000 or status_code == 'ERROR'",
+            "or_(and_(1000 < latency_ms, latency_ms < 2000), status_code == 'ERROR')",
         ),
         (
             "llm.token_count.total - llm.token_count.prompt > 1000",
@@ -313,7 +313,6 @@ def test_filter_still_accepts_every_condition_form(condition: str) -> None:
         "context.span_id == 1",
         "latency_ms == 'slow'",
         "llm.token_count.total == 'many'",
-        "cumulative_token_count.total == 'many'",
         "annotations['quality'].label < 1",
         "annotations['quality'].score == 'high'",
     ],

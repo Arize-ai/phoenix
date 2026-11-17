@@ -538,30 +538,6 @@ async def test_filter_on_latency(
     )
 
 
-async def test_filter_on_cumulative_token_count(
-    db: DbSessionFactory,
-    default_project: Any,
-    abc_project: Any,
-) -> None:
-    sq = (
-        SpanQuery()
-        .select("name")
-        .where("290 < cumulative_token_count.total < 310 and llm.token_count.prompt is None")
-    )
-    expected = pd.DataFrame(
-        {
-            "context.span_id": ["234"],
-            "name": ["root span"],
-        }
-    ).set_index("context.span_id")
-    async with db() as session:
-        actual = await session.run_sync(sq, project_name="abc")
-    assert_frame_equal(
-        actual.sort_index().sort_index(axis=1),
-        expected.sort_index().sort_index(axis=1),
-    )
-
-
 async def test_filter_on_metadata_with_arithmetic(
     db: DbSessionFactory,
     default_project: Any,
