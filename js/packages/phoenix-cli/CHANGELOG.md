@@ -1,5 +1,11 @@
 # @arizeai/phoenix-cli
 
+## 1.23.0
+
+### Minor Changes
+
+- 5160fd5: Add `px prompt tag <prompt-version-id> --tag <name> [--description <text>]` to create a prompt version tag or move an existing one. Omitting `--description` clears the tag's existing description.
+
 ## 1.22.1
 
 ### Patch Changes
