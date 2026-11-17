@@ -12,7 +12,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceResponse,
 )
 from pydantic import BeforeValidator, Field
-from sqlalchemy import Select, exists, insert, or_, select, tuple_, update
+from sqlalchemy import Select, and_, exists, insert, or_, select, tuple_, update
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import State
 from starlette.requests import Request
@@ -818,6 +818,7 @@ async def transfer_traces(
             )
         except ValueError:
             otel_trace_ids.add(identifier)
+    dialect = SupportedSQLDialect(request.app.state.db.dialect.value)
     async with request.app.state.db() as session:
         project = await get_project_by_identifier(
             session, request_body.destination_project_identifier
@@ -862,11 +863,34 @@ async def transfer_traces(
                 detail="Cannot transfer traces from multiple projects",
                 status_code=422,
             )
+
+        involved_project_ids = sorted({*source_project_rowids, project.id})
+        live_projects_stmt = (
+            select(models.Project.id, models.Project.kind)
+            .where(
+                models.Project.id.in_(involved_project_ids),
+                models.Project.deleted_at.is_(None),
+            )
+            .order_by(models.Project.id.asc())
+        )
+        if dialect is SupportedSQLDialect.POSTGRESQL:
+            live_projects_stmt = live_projects_stmt.with_for_update(read=True)
+        live_projects = {
+            int(row.id): row.kind for row in (await session.execute(live_projects_stmt)).all()
+        }
+        if project.id not in live_projects:
+            raise HTTPException(detail="Destination project not found", status_code=404)
+        if live_projects[project.id] in ("EVALUATOR", "EXPERIMENT"):
+            raise HTTPException(
+                detail="Cannot transfer traces into an evaluator or experiment trace project",
+                status_code=422,
+            )
+        if not (source_project_rowids <= set(live_projects)):
+            raise HTTPException(detail="One or more traces not found", status_code=404)
+
         active_clear_project_id = await session.scalar(
             select(models.ProjectClearCleanupTask.project_id)
-            .where(
-                models.ProjectClearCleanupTask.project_id.in_({*source_project_rowids, project.id})
-            )
+            .where(models.ProjectClearCleanupTask.project_id.in_(involved_project_ids))
             .limit(1)
         )
         if active_clear_project_id is not None:
@@ -876,7 +900,10 @@ async def transfer_traces(
             )
         result = await session.execute(
             update(models.Trace)
-            .where(models.Trace.id.in_(found_rowids))
+            .where(
+                models.Trace.id.in_(found_rowids),
+                models.Trace.project_rowid.in_(source_project_rowids),
+            )
             .values(project_rowid=project.id)
         )
     # Invalidate per-project cached aggregates (record counts, token counts/costs, latency
@@ -936,7 +963,11 @@ async def delete_trace(
             trace_filter = models.Trace.trace_id == trace_identifier
             error_detail = f"Trace with trace_id '{trace_identifier}' not found"
 
-        project_id = await session.scalar(select(models.Trace.project_rowid).where(trace_filter))
+        project_id = await session.scalar(
+            select(models.Trace.project_rowid)
+            .join(models.Project, models.Trace.project_rowid == models.Project.id)
+            .where(trace_filter, models.Project.deleted_at.is_(None))
+        )
 
         if project_id is None:
             raise HTTPException(
@@ -944,7 +975,16 @@ async def delete_trace(
                 detail=error_detail,
             )
 
-        await delete_traces(session, trace_filter)
+        await delete_traces(
+            session,
+            and_(
+                trace_filter,
+                exists().where(
+                    models.Project.id == models.Trace.project_rowid,
+                    models.Project.deleted_at.is_(None),
+                ),
+            ),
+        )
 
     # Trigger cache invalidation event
     request.state.event_queue.put(SpanDeleteEvent((project_id,)))

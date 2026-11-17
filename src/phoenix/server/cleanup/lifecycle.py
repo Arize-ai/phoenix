@@ -505,7 +505,10 @@ async def admit_project_delete(
             )
         )
     )
-    locked_project_ids = {project_id, *(int(pid) for pid in initial_trace_project_ids)}
+    locked_project_ids = {
+        project_id,
+        *(int(trace_project_id) for trace_project_id in initial_trace_project_ids),
+    }
     await _lock_projects(session, dialect, locked_project_ids, key_share=True)
 
     project = await session.get(models.Project, project_id)
@@ -526,6 +529,7 @@ async def admit_project_delete(
     )
     if holds_evaluator_traces:
         raise Conflict("This project holds an evaluator's traces; delete the evaluator instead")
+    await _lock_projects(session, dialect, [project_id], key_share=False)
 
     current_live_bindings = (
         await session.execute(

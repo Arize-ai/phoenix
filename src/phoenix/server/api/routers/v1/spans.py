@@ -1638,7 +1638,12 @@ async def delete_span(
             predicate = models.Span.span_id == span_identifier
             error_detail = f"Span with span_id '{span_identifier}' not found"
 
-        target_span = await session.scalar(select(models.Span).where(predicate))
+        target_span = await session.scalar(
+            select(models.Span)
+            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+            .join(models.Project, models.Trace.project_rowid == models.Project.id)
+            .where(predicate, models.Project.deleted_at.is_(None))
+        )
 
         if target_span is None:
             raise HTTPException(
@@ -1646,7 +1651,17 @@ async def delete_span(
                 detail=error_detail,
             )
 
-        await delete_spans(session, models.Span.id == target_span.id)
+        await delete_spans(
+            session,
+            sa.and_(
+                models.Span.id == target_span.id,
+                exists().where(
+                    models.Trace.id == models.Span.trace_rowid,
+                    models.Project.id == models.Trace.project_rowid,
+                    models.Project.deleted_at.is_(None),
+                ),
+            ),
+        )
 
         # Store values needed for later operations
         trace_rowid = target_span.trace_rowid

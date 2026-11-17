@@ -10,7 +10,7 @@ from openinference.semconv.trace import (
 from sqlalchemy import func, insert, select, update
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import contains_eager, joinedload
+from sqlalchemy.orm import contains_eager
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay.types import GlobalID
@@ -270,6 +270,8 @@ class DatasetMutationMixin:
                 (
                     await session.scalars(
                         select(models.Span)
+                        .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+                        .join(models.Project, models.Trace.project_rowid == models.Project.id)
                         .outerjoin(
                             models.SpanAnnotation,
                             models.Span.id == models.SpanAnnotation.span_rowid,
@@ -280,9 +282,12 @@ class DatasetMutationMixin:
                             models.SpanAnnotation.name,
                             models.User.username,
                         )
-                        .where(models.Span.id.in_(span_rowids))
+                        .where(
+                            models.Span.id.in_(span_rowids),
+                            models.Project.deleted_at.is_(None),
+                        )
                         .options(
-                            joinedload(models.Span.trace),
+                            contains_eager(models.Span.trace),
                             contains_eager(models.Span.span_annotations).contains_eager(
                                 models.SpanAnnotation.user
                             ),
@@ -370,13 +375,21 @@ class DatasetMutationMixin:
             )
 
             # Fetch spans and span annotations
-            spans = (
-                await session.execute(
-                    select(models.Span.id)
-                    .select_from(models.Span)
-                    .where(models.Span.id.in_(span_rowids))
-                )
-            ).all()
+            live_span_rowids = set(
+                (
+                    await session.scalars(
+                        select(models.Span.id)
+                        .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+                        .join(models.Project, models.Trace.project_rowid == models.Project.id)
+                        .where(
+                            models.Span.id.in_(span_rowids),
+                            models.Project.deleted_at.is_(None),
+                        )
+                    )
+                ).all()
+            )
+            if span_rowids - live_span_rowids:
+                raise NotFound("Some spans could not be found")
 
             span_annotations = (
                 await session.execute(
@@ -390,11 +403,13 @@ class DatasetMutationMixin:
                         models.SpanAnnotation.annotator_kind,
                     )
                     .select_from(models.SpanAnnotation)
-                    .where(models.SpanAnnotation.span_rowid.in_(span_rowids))
+                    .where(models.SpanAnnotation.span_rowid.in_(live_span_rowids))
                 )
             ).all()
 
-            span_annotations_by_span: dict[int, dict[Any, Any]] = {span.id: {} for span in spans}
+            span_annotations_by_span: dict[int, dict[Any, Any]] = {
+                span_rowid: {} for span_rowid in live_span_rowids
+            }
             for annotation in span_annotations:
                 span_id = annotation.span_rowid
                 if span_id not in span_annotations_by_span:

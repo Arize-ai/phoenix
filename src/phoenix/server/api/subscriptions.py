@@ -115,8 +115,7 @@ async def _stream_single_chat_completion(
     llm_client: "ChatClient[Any]",
     repetition_number: RepetitionNumber,
     db: DbSessionFactory,
-    project_id: int,
-    on_span_insertion: Callable[[], None],
+    on_span_insertion: Callable[[int], None],
     span_cost_calculator: SpanCostCalculator,
     otel_context: OtelContext,
 ) -> ChatStream:
@@ -156,8 +155,9 @@ async def _stream_single_chat_completion(
             repetition_number=repetition_number,
         )
 
-    db_traces = tracer.get_db_traces(project_id=project_id)
     async with db() as session:
+        resolved_project_id = await get_or_create_playground_project_id(session)
+        db_traces = tracer.get_db_traces(project_id=resolved_project_id)
         session.add_all(db_traces)
         await session.flush()
     if db_traces and db_traces[0].spans:
@@ -166,7 +166,7 @@ async def _stream_single_chat_completion(
             span=Span(id=db_span.id, db_record=db_span),
             repetition_number=repetition_number,
         )
-        on_span_insertion()
+        on_span_insertion(resolved_project_id)
 
 
 async def _cleanup_chat_completion_resources(
@@ -250,7 +250,7 @@ class Subscription:
                 connection=connection,
                 headers=headers,
             )
-            playground_project_id = await get_or_create_playground_project_id(session)
+            await get_or_create_playground_project_id(session)
 
         not_started: deque[tuple[RepetitionNumber, ChatStream]] = deque(
             (
@@ -260,9 +260,8 @@ class Subscription:
                     llm_client=llm_client,
                     repetition_number=repetition_number,
                     db=info.context.db,
-                    project_id=playground_project_id,
-                    on_span_insertion=lambda: info.context.event_queue.put(
-                        SpanInsertEvent(ids=(playground_project_id,))
+                    on_span_insertion=lambda resolved_project_id: info.context.event_queue.put(
+                        SpanInsertEvent(ids=(resolved_project_id,))
                     ),
                     span_cost_calculator=info.context.span_cost_calculator,
                     otel_context=OtelContext(),

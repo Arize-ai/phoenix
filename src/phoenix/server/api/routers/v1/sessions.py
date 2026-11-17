@@ -5,7 +5,7 @@ from typing import Annotated, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import BeforeValidator, Field
-from sqlalchemy import delete, insert, select
+from sqlalchemy import delete, exists, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from strawberry.relay import GlobalID
@@ -264,7 +264,13 @@ async def delete_session(
 
         delete_stmt = (
             delete(models.ProjectSession)
-            .where(where_clause)
+            .where(
+                where_clause,
+                exists().where(
+                    models.Project.id == models.ProjectSession.project_id,
+                    models.Project.deleted_at.is_(None),
+                ),
+            )
             .returning(models.ProjectSession.project_id)
         )
         project_id = await session.scalar(delete_stmt)
@@ -329,7 +335,13 @@ async def delete_sessions(
 
         delete_stmt = (
             delete(models.ProjectSession)
-            .where(where_clause)
+            .where(
+                where_clause,
+                exists().where(
+                    models.Project.id == models.ProjectSession.project_id,
+                    models.Project.deleted_at.is_(None),
+                ),
+            )
             .returning(models.ProjectSession.project_id)
         )
         result = await session.scalars(delete_stmt)

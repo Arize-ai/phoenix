@@ -17,7 +17,14 @@ class TraceByTraceIdsDataLoader(DataLoader[Key, Result]):
         self._db = db
 
     async def _load_fn(self, keys: List[Key]) -> List[Result]:
-        stmt = select(models.Trace).where(models.Trace.trace_id.in_(keys))
+        stmt = (
+            select(models.Trace)
+            .join(models.Project, models.Trace.project_rowid == models.Project.id)
+            .where(
+                models.Trace.trace_id.in_(keys),
+                models.Project.deleted_at.is_(None),
+            )
+        )
         async with self._db.read() as session:
             result: dict[Key, models.Trace] = {
                 trace.trace_id: trace async for trace in await session.stream_scalars(stmt)

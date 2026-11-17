@@ -2987,6 +2987,10 @@ class ExperimentRunner(DaemonTask):
                             logger.debug("Work available, resuming dispatch loop")
                             continue
 
+                        if self._db.should_not_insert_or_update:
+                            await anyio.sleep(self.POLL_INTERVAL)
+                            continue
+
                         # Semaphore-first: acquire slot before looking for work
                         await self._seats.acquire()
                         acquired = True
@@ -3064,6 +3068,9 @@ class ExperimentRunner(DaemonTask):
         Sorts experiments by last_served_at so least-recently-served gets priority.
         Each experiment's try_get_ready_work_item() checks rate limit non-blocking.
         """
+        if (db := getattr(self, "_db", None)) is not None and db.should_not_insert_or_update:
+            return None
+
         # Sort by fairness: least recently served first
         candidates = sorted(
             self._experiments.values(),
@@ -3218,6 +3225,9 @@ class ExperimentRunner(DaemonTask):
         side-effect of deleting prior-run errors before they could be
         inspected.
         """
+        if self._db.should_not_insert_or_update:
+            return
+
         cutoff = datetime.now(timezone.utc) - self.STALE_CLAIM_TIMEOUT
 
         async with self._db() as session:
