@@ -210,10 +210,12 @@ async def delete_dataset(
         locked_dataset = await session.get(models.Dataset, dataset_id, with_for_update=True)
         if locked_dataset is None:
             raise HTTPException(detail="Dataset does not exist", status_code=404)
-        eval_trace_ids = [tid for tid in (await session.scalars(eval_trace_ids_stmt)).all() if tid]
+        eval_trace_ids = [
+            trace_id for trace_id in (await session.scalars(eval_trace_ids_stmt)).all() if trace_id
+        ]
         candidate_project_ids = {
-            pid
-            for pid in (
+            project_id
+            for project_id in (
                 await session.scalars(
                     select(models.Experiment.project_id).where(
                         models.Experiment.dataset_id == dataset_id,
@@ -221,7 +223,7 @@ async def delete_dataset(
                     )
                 )
             ).all()
-            if pid is not None
+            if project_id is not None
         }
         live_binding_ids = list(
             await session.scalars(

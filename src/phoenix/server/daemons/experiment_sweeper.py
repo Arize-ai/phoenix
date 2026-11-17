@@ -60,7 +60,9 @@ class ExperimentSweeper(DaemonTask):
         async with self._db() as session:
             project_ids = (await session.scalars(stmt)).all()
             num_deleted = len(project_ids)
-            candidate_project_ids = {pid for pid in project_ids if pid is not None}
+            candidate_project_ids = {
+                project_id for project_id in project_ids if project_id is not None
+            }
             if candidate_project_ids:
                 enqueued_projects = await admit_exclusive_experiment_projects_delete(
                     session,

@@ -18,7 +18,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from secrets import token_hex
-from typing import Optional
+from typing import Literal, Optional
 
 from sqlalchemy import (
     ColumnElement,
@@ -36,7 +36,7 @@ from sqlalchemy import (
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, with_polymorphic
-from typing_extensions import assert_never
+from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
 from phoenix.db.cleanup_tasks import (
@@ -78,36 +78,47 @@ class ClaimedCleanupTask:
     claimed_by: str
 
 
+StepOutcome: TypeAlias = Literal["progress", "yield", "completed", "claim_lost", "error"]
+
+
 @dataclass(frozen=True)
 class StepExecutionResult:
-    outcome: str  # "progress" | "yield" | "completed" | "claim_lost" | "error"
+    outcome: StepOutcome
     affected_rows: int = 0
 
 
 def _ineligible_waiting_delete_predicate() -> ColumnElement[bool]:
-    """Fixed ordering rule (§3.1 / §3.5):
+    """Fixed ordering rule:
     - Exclude ``DELETE_PROJECT`` while a clear task or any ``project_evaluators`` row still
       references that owner project.
     - Exclude ``DELETE_PROJECT_EVALUATOR`` / ``DELETE_DATASET_EVALUATOR`` while a clear task
       exists on their trace project.
     """
-    pd = aliased(models.ProjectDeleteCleanupTask)
-    pc = aliased(models.ProjectClearCleanupTask)
-    pe_task = aliased(models.ProjectEvaluatorCleanupTask)
-    de_task = aliased(models.DatasetEvaluatorCleanupTask)
-    pe = aliased(models.ProjectEvaluator)
-    de = aliased(models.DatasetEvaluators)
+    project_delete_task = aliased(models.ProjectDeleteCleanupTask)
+    project_clear_task = aliased(models.ProjectClearCleanupTask)
+    project_evaluator_task = aliased(models.ProjectEvaluatorCleanupTask)
+    dataset_evaluator_task = aliased(models.DatasetEvaluatorCleanupTask)
+    project_evaluator = aliased(models.ProjectEvaluator)
+    dataset_evaluator = aliased(models.DatasetEvaluators)
 
     waiting_project_delete = and_(
         models.CleanupTask.kind == "DELETE_PROJECT",
         exists(
             select(literal(1))
-            .select_from(pd)
+            .select_from(project_delete_task)
             .where(
-                pd.id == models.CleanupTask.id,
+                project_delete_task.id == models.CleanupTask.id,
                 or_(
-                    exists(select(literal(1)).where(pc.project_id == pd.project_id)),
-                    exists(select(literal(1)).where(pe.project_id == pd.project_id)),
+                    exists(
+                        select(literal(1)).where(
+                            project_clear_task.project_id == project_delete_task.project_id
+                        )
+                    ),
+                    exists(
+                        select(literal(1)).where(
+                            project_evaluator.project_id == project_delete_task.project_id
+                        )
+                    ),
                 ),
             )
         ),
@@ -116,11 +127,18 @@ def _ineligible_waiting_delete_predicate() -> ColumnElement[bool]:
         models.CleanupTask.kind == "DELETE_PROJECT_EVALUATOR",
         exists(
             select(literal(1))
-            .select_from(pe_task)
-            .join(pe, pe.id == pe_task.project_evaluator_id)
+            .select_from(project_evaluator_task)
+            .join(
+                project_evaluator,
+                project_evaluator.id == project_evaluator_task.project_evaluator_id,
+            )
             .where(
-                pe_task.id == models.CleanupTask.id,
-                exists(select(literal(1)).where(pc.project_id == pe.trace_project_id)),
+                project_evaluator_task.id == models.CleanupTask.id,
+                exists(
+                    select(literal(1)).where(
+                        project_clear_task.project_id == project_evaluator.trace_project_id
+                    )
+                ),
             )
         ),
     )
@@ -128,11 +146,18 @@ def _ineligible_waiting_delete_predicate() -> ColumnElement[bool]:
         models.CleanupTask.kind == "DELETE_DATASET_EVALUATOR",
         exists(
             select(literal(1))
-            .select_from(de_task)
-            .join(de, de.id == de_task.dataset_evaluator_id)
+            .select_from(dataset_evaluator_task)
+            .join(
+                dataset_evaluator,
+                dataset_evaluator.id == dataset_evaluator_task.dataset_evaluator_id,
+            )
             .where(
-                de_task.id == models.CleanupTask.id,
-                exists(select(literal(1)).where(pc.project_id == de.project_id)),
+                dataset_evaluator_task.id == models.CleanupTask.id,
+                exists(
+                    select(literal(1)).where(
+                        project_clear_task.project_id == dataset_evaluator.project_id
+                    )
+                ),
             )
         ),
     )
@@ -178,7 +203,6 @@ class CleanupCoordinator:
 
         async with self._db() as session:
             if dialect is SupportedSQLDialect.POSTGRESQL:
-                # Statement 1: serialize cleanup claim admission (~1 ms hold time).
                 await session.execute(
                     select(func.pg_advisory_xact_lock(_CLEANUP_ADMISSION_LOCK_ID))
                 )
@@ -191,7 +215,6 @@ class CleanupCoordinator:
                     .values(claimed_by=None)
                 )
 
-            # Statement 2+: fresh READ COMMITTED snapshot after acquiring the admission gate.
             now = await current_database_time(session, dialect)
             lapsed_cutoff = now - timedelta(seconds=self._lease_ttl_seconds)
             error_available_at = now + timedelta(seconds=self._error_retry_delay_seconds)
@@ -369,8 +392,8 @@ class CleanupCoordinator:
             return StepExecutionResult("error", 0)
 
         if self._event_queue is not None:
-            for ev in events_after_commit:
-                self._event_queue.put(ev)
+            for event in events_after_commit:
+                self._event_queue.put(event)
         return outcome
 
     async def _release_claim(
@@ -528,7 +551,7 @@ class CleanupCoordinator:
         events_after_commit: list[DmlEvent],
     ) -> PrimitiveResult:
         project_id = task.project_id
-        # Recheck fixed ordering invariants (§3.5 / §5.2) before draining/finalizing.
+        # Recheck fixed ordering invariants before draining/finalizing.
         has_clear_or_bindings = bool(
             await session.scalar(
                 select(

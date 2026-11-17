@@ -93,7 +93,7 @@ async def logical_delete_project_evaluators(
     }
     evaluator_ids = {row.evaluator_id for row in discovered if row.evaluator_id is not None}
 
-    # Canonical lock order (§4.2): Project (FOR NO KEY UPDATE) -> Evaluator -> Binding.
+    # Canonical lock order: Project (FOR NO KEY UPDATE) -> Evaluator -> Binding.
     await _lock_projects(session, dialect, project_ids, key_share=True)
     await lock_evaluators(session, evaluator_ids)
 
@@ -351,7 +351,7 @@ async def admit_project_delete(
     project_id: int,
 ) -> models.Project:
     """Tombstone a live non-evaluator project, detach its live bindings, and enqueue its
-    ``ProjectDeleteCleanupTask`` (preserving any active clear task per §3.5)."""
+    ``ProjectDeleteCleanupTask`` (preserving any active clear task)."""
     trace_project_ids = list(
         await session.scalars(
             select(models.ProjectEvaluator.trace_project_id).where(
@@ -428,7 +428,7 @@ async def admit_or_reuse_project_clear(
     end_time: Optional[datetime] = None,
 ) -> int:
     """Admit a watermark clear task under the project lock, reusing an equivalent active clear
-    or rejecting a conflicting active clear range (§3.4)."""
+    or rejecting a conflicting active clear range."""
     await _lock_projects(session, dialect, [project_id])
     project = await session.get(models.Project, project_id)
     if project is None or project.deleted_at is not None:
@@ -490,7 +490,7 @@ async def admit_exclusive_experiment_projects_delete(
     """Tombstone and enqueue ``ProjectDeleteCleanupTask`` for ``EXPERIMENT`` projects in
     ``candidate_project_ids`` that have zero remaining ``Experiment`` references after the
     owning experiment/dataset rows were deleted in ``session``."""
-    ids = sorted({pid for pid in candidate_project_ids if pid is not None})
+    ids = sorted({project_id for project_id in candidate_project_ids if project_id is not None})
     if not ids:
         return []
 
@@ -529,7 +529,7 @@ async def promote_retained_experiment_projects_to_standard(
     """When an experiment is deleted without deleting its project, promote any unreferenced
     ``EXPERIMENT`` project in ``candidate_project_ids`` to ``STANDARD`` so it remains visible
     in standard project listings."""
-    ids = sorted({pid for pid in candidate_project_ids if pid is not None})
+    ids = sorted({project_id for project_id in candidate_project_ids if project_id is not None})
     if not ids:
         return
 

@@ -355,7 +355,9 @@ class ExperimentMutationMixin:
         enqueued_projects: list[int] = []
         async with info.context.db() as session:
             eval_trace_ids = [
-                tid for tid in (await session.scalars(eval_trace_ids_stmt)).all() if tid
+                trace_id
+                for trace_id in (await session.scalars(eval_trace_ids_stmt)).all()
+                if trace_id
             ]
             savepoint = await session.begin_nested()
             experiments = {
