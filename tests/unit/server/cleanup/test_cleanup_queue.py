@@ -528,6 +528,7 @@ class TestWatermarkClearAndOverlap:
                 session, project, project_session=proj_session, start_time=t0
             )
             await _add_span(session, trace=old_trace, start_time=t0)
+            await _add_span(session, trace=old_trace, start_time=t0 + timedelta(seconds=1))
             newer_trace = await _add_trace(
                 session,
                 project,
@@ -536,15 +537,31 @@ class TestWatermarkClearAndOverlap:
             )
             await _add_span(session, trace=newer_trace, start_time=t0 + timedelta(hours=2))
 
-            session.add(
-                models.EvalSessionWorkUnit(
-                    project_session_rowid=proj_session.id,
-                    project_evaluator_id=pe.id,
-                    decided_through=t0,
-                    status="DONE",
-                    attempts=1,
-                )
+            target_unit = models.EvalSessionWorkUnit(
+                project_session_rowid=proj_session.id,
+                project_evaluator_id=pe.id,
+                decided_through=t0,
+                status="DONE",
+                attempts=1,
             )
+            session.add(target_unit)
+            await session.flush()
+
+            unrelated_session = await _add_project_session(session, project, start_time=t0)
+            unrelated_trace = await _add_trace(
+                session,
+                project,
+                project_session=unrelated_session,
+                start_time=t0 + timedelta(hours=3),
+            )
+            await _add_span(session, trace=unrelated_trace, start_time=t0 + timedelta(hours=3))
+            unrelated_unit = models.EvalSessionWorkUnit(
+                project_session_rowid=unrelated_session.id,
+                project_evaluator_id=pe.id,
+                decided_through=t0,
+                status="DONE",
+            )
+            session.add(unrelated_unit)
             await session.flush()
 
             await admit_or_reuse_project_clear(
@@ -555,7 +572,21 @@ class TestWatermarkClearAndOverlap:
                 end_time=t0 + timedelta(hours=1),
             )
 
-        coordinator = CleanupCoordinator(db, batch_limit=2)
+        coordinator = CleanupCoordinator(db, batch_limit=1)
+        claimed = await coordinator.claim_next()
+        assert claimed is not None
+        result = await coordinator.execute_claimed_step(claimed)
+        assert result.outcome == "progress" and result.affected_rows == 1
+        async with db() as session:
+            # Session ledger is not reset until old_trace's spans have all been drained.
+            assert (
+                await session.scalar(
+                    select(models.EvalSessionWorkUnit.status).where(
+                        models.EvalSessionWorkUnit.id == target_unit.id
+                    )
+                )
+                == "DONE"
+            )
         await _drain_all(coordinator)
 
         async with db() as session:
@@ -573,6 +604,96 @@ class TestWatermarkClearAndOverlap:
                 )
             ).all()
             assert remaining_statuses == ["DROPPED"]
+            assert (
+                await session.scalar(
+                    select(models.EvalSessionWorkUnit.status).where(
+                        models.EvalSessionWorkUnit.id == unrelated_unit.id
+                    )
+                )
+                == "DONE"
+            )
+
+    async def test_empty_range_clear_leaves_surviving_session_evaluations_intact(
+        self, db: DbSessionFactory
+    ) -> None:
+        dialect = SupportedSQLDialect(db.dialect.value)
+        t0 = datetime(2026, 6, 2, 12, 0, 0, tzinfo=timezone.utc)
+        expected_statuses: dict[int, models.EvalWorkStatus] = {}
+
+        async with db() as session:
+            project = await _add_project(session, name=f"empty-range-clear-{token_hex(4)}")
+            trace_project = models.Project(name=f"eval-trace-{token_hex(4)}", kind="EVALUATOR")
+            evaluator = models.BuiltinEvaluator(
+                name=Identifier(root=f"bi-{token_hex(4)}"),
+                kind="BUILTIN",
+                key=token_hex(8),
+                input_schema={},
+                output_configs=[],
+            )
+            session.add_all([trace_project, evaluator])
+            await session.flush()
+            binding = models.ProjectEvaluator(
+                project_id=project.id,
+                evaluator_id=evaluator.id,
+                trace_project_id=trace_project.id,
+                name=Identifier(root="sess-eval"),
+                evaluation_target="SESSION",
+                filter_condition="",
+                sampling_rate=1.0,
+            )
+            session.add(binding)
+            await session.flush()
+
+            resettable_statuses: tuple[models.EvalWorkStatus, ...] = (
+                "DONE",
+                "FILTERED_OUT",
+                "SAMPLED_OUT",
+            )
+            for offset, status in enumerate(resettable_statuses):
+                project_session = await _add_project_session(
+                    session, project, start_time=t0 + timedelta(hours=offset + 2)
+                )
+                trace = await _add_trace(
+                    session,
+                    project,
+                    project_session=project_session,
+                    start_time=t0 + timedelta(hours=offset + 2),
+                )
+                await _add_span(
+                    session,
+                    trace=trace,
+                    start_time=t0 + timedelta(hours=offset + 2),
+                )
+                unit = models.EvalSessionWorkUnit(
+                    project_session_rowid=project_session.id,
+                    project_evaluator_id=binding.id,
+                    decided_through=t0 + timedelta(hours=offset + 2),
+                    status=status,
+                )
+                session.add(unit)
+                await session.flush()
+                expected_statuses[unit.id] = status
+
+            await admit_or_reuse_project_clear(
+                session,
+                dialect=dialect,
+                project_id=project.id,
+                start_time=t0 - timedelta(hours=2),
+                end_time=t0 - timedelta(hours=1),
+            )
+
+        await _drain_all(CleanupCoordinator(db, batch_limit=2))
+
+        async with db() as session:
+            rows = (
+                await session.execute(
+                    select(
+                        models.EvalSessionWorkUnit.id,
+                        models.EvalSessionWorkUnit.status,
+                    ).where(models.EvalSessionWorkUnit.id.in_(expected_statuses))
+                )
+            ).all()
+            assert {row.id: row.status for row in rows} == expected_statuses
 
     async def test_delete_during_active_clear_waits_for_clear_and_binding_tasks(
         self, db: DbSessionFactory

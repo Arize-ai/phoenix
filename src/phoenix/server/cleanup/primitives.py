@@ -24,7 +24,6 @@ from sqlalchemy import (
     exists,
     func,
     literal,
-    or_,
     select,
     text,
     update,
@@ -40,6 +39,11 @@ CLEANUP_BATCH_ROWS = 1_000
 
 _WORK_UNIT_MODELS: tuple[WorkUnitModel, ...] = tuple(
     table.work_unit_model for table in WORK_TABLES.values()
+)
+_RESETTABLE_SESSION_EVAL_STATUSES: tuple[models.EvalWorkStatus, ...] = (
+    "DONE",
+    "FILTERED_OUT",
+    "SAMPLED_OUT",
 )
 
 
@@ -333,13 +337,21 @@ async def drain_trace_scope_step(
         no_spans_attached = (
             ~select(literal(1)).where(models.Span.trace_rowid == models.Trace.id).exists()
         )
-        deleted_traces = _rowcount(
-            await session.execute(
-                delete(models.Trace).where(
-                    models.Trace.id.in_(trace_ids),
-                    no_spans_attached,
-                )
+        ready_trace_cond = and_(
+            models.Trace.id.in_(trace_ids),
+            no_spans_attached,
+        )
+        if max_trace_rowid is not None:
+            reset_result = await reset_session_evaluations_step(
+                session,
+                dialect=dialect,
+                ready_trace_cond=ready_trace_cond,
+                batch_limit=batch_limit,
             )
+            if reset_result.status is not PrimitiveStatus.EMPTY:
+                return reset_result
+        deleted_traces = _rowcount(
+            await session.execute(delete(models.Trace).where(ready_trace_cond))
         )
         if deleted_traces > 0:
             return PrimitiveResult(PrimitiveStatus.PROGRESS, deleted_traces)
@@ -524,25 +536,44 @@ async def clear_project_historical_references_step(
     return PrimitiveResult(PrimitiveStatus.EMPTY, 0)
 
 
-async def reset_surviving_session_evaluations(
+async def reset_session_evaluations_step(
     session: AsyncSession,
     *,
-    project_id: int,
-) -> None:
-    """Allow sessions that survive a range/watermark clear to be re-evaluated when later turns
-    arrive, without failing active claims."""
-    surviving_sessions = select(models.ProjectSession.id).where(
-        models.ProjectSession.project_id == project_id
+    dialect: SupportedSQLDialect,
+    ready_trace_cond: ColumnElement[bool],
+    batch_limit: int,
+) -> PrimitiveResult:
+    """Reset final session evaluation decisions for span-drained traces about to be cleared."""
+    affected_sessions = select(models.Trace.project_session_rowid).where(
+        ready_trace_cond,
+        models.Trace.project_session_rowid.is_not(None),
     )
-    await session.execute(
-        update(models.EvalSessionWorkUnit)
-        .where(
-            models.EvalSessionWorkUnit.project_session_rowid.in_(surviving_sessions),
-            or_(
-                models.EvalSessionWorkUnit.status == "DONE",
-                models.EvalSessionWorkUnit.status == "FILTERED_OUT",
-                models.EvalSessionWorkUnit.status == "SAMPLED_OUT",
-            ),
+    condition = and_(
+        models.EvalSessionWorkUnit.project_session_rowid.in_(affected_sessions),
+        models.EvalSessionWorkUnit.status.in_(_RESETTABLE_SESSION_EVAL_STATUSES),
+    )
+    candidates = (
+        select(models.EvalSessionWorkUnit.id)
+        .where(condition)
+        .order_by(models.EvalSessionWorkUnit.id)
+        .limit(batch_limit)
+    )
+    if dialect is SupportedSQLDialect.POSTGRESQL:
+        candidates = candidates.with_for_update(skip_locked=True)
+    ids = list(await session.scalars(candidates))
+    if ids:
+        count = _rowcount(
+            await session.execute(
+                update(models.EvalSessionWorkUnit)
+                .where(
+                    models.EvalSessionWorkUnit.id.in_(ids),
+                    models.EvalSessionWorkUnit.status.in_(_RESETTABLE_SESSION_EVAL_STATUSES),
+                )
+                .values(status="DROPPED")
+            )
         )
-        .values(status="DROPPED")
-    )
+        if count > 0:
+            return PrimitiveResult(PrimitiveStatus.PROGRESS, count)
+    if await _has_any(session, condition):
+        return PrimitiveResult(PrimitiveStatus.YIELD, 0)
+    return PrimitiveResult(PrimitiveStatus.EMPTY, 0)

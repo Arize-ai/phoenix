@@ -53,7 +53,6 @@ from phoenix.server.cleanup.primitives import (
     drain_dataset_evaluator_dependents_step,
     drain_eval_work_units_step,
     drain_trace_scope_step,
-    reset_surviving_session_evaluations,
 )
 from phoenix.server.dml_event import DmlEvent, ProjectDeleteEvent, SpanDeleteEvent
 from phoenix.server.online_eval.clock import current_database_time
@@ -516,7 +515,6 @@ class CleanupCoordinator:
         if res.status is PrimitiveStatus.YIELD:
             return res
 
-        await reset_surviving_session_evaluations(session, project_id=task.project_id)
         await session.execute(delete(models.CleanupTask).where(models.CleanupTask.id == task.id))
         events_after_commit.append(SpanDeleteEvent((task.project_id,)))
         return PrimitiveResult(PrimitiveStatus.EMPTY, 0)
