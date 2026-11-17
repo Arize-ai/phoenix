@@ -1,0 +1,6 @@
+# Use the Vite-enabled Phoenix dev image (Dockerfile.vite)
+image:
+  registry: "docker.io/library"
+  repository: "devops-phoenix-vite"
+  tag: "local"
+  pullPolicy: "IfNotPresent"

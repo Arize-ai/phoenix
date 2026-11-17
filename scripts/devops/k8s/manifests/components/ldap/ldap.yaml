@@ -1,0 +1,171 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ldap
+  labels:
+    app: ldap
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ldap
+  template:
+    metadata:
+      labels:
+        app: ldap
+    spec:
+      enableServiceLinks: false
+      hostname: ldap
+      containers:
+        - name: ldap
+          image: osixia/openldap:1.5.0
+          args: ["--copy-service", "--loglevel", "debug"]
+          ports:
+            - name: ldap
+              containerPort: 389
+            - name: ldaps
+              containerPort: 636
+          env:
+            - name: LDAP_ORGANISATION
+              value: "Example Corp"
+            - name: LDAP_DOMAIN
+              value: "example.com"
+            - name: LDAP_ADMIN_PASSWORD
+              value: "admin_password"
+            - name: LDAP_CONFIG_PASSWORD
+              value: "config_password"
+            - name: LDAP_READONLY_USER
+              value: "true"
+            - name: LDAP_READONLY_USER_USERNAME
+              value: "readonly"
+            - name: LDAP_READONLY_USER_PASSWORD
+              value: "readonly_password"
+            - name: LDAP_TLS
+              value: "false"
+            - name: LDAP_LOG_LEVEL
+              value: "256"
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/ldap
+            - name: config
+              mountPath: /etc/ldap/slapd.d
+          resources:
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      volumes:
+        - name: data
+          emptyDir: {}
+        - name: config
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ldap
+  labels:
+    app: ldap
+spec:
+  selector:
+    app: ldap
+  ports:
+    - name: ldap
+      port: 389
+      targetPort: 389
+    - name: ldaps
+      port: 636
+      targetPort: 636
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ldap-admin
+  labels:
+    app: ldap-admin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ldap-admin
+  template:
+    metadata:
+      labels:
+        app: ldap-admin
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: ldap-admin
+          image: osixia/phpldapadmin:0.9.0
+          ports:
+            - name: http
+              containerPort: 80
+          env:
+            - name: PHPLDAPADMIN_LDAP_HOSTS
+              value: "ldap"
+            - name: PHPLDAPADMIN_HTTPS
+              value: "false"
+          resources:
+            limits:
+              memory: "256Mi"
+              cpu: "250m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ldap-admin
+  labels:
+    app: ldap-admin
+spec:
+  type: NodePort
+  selector:
+    app: ldap-admin
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      nodePort: 30643
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ldap-seed
+  labels:
+    app: ldap-seed
+spec:
+  backoffLimit: 5
+  template:
+    metadata:
+      labels:
+        app: ldap-seed
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: ldap-seed
+          image: osixia/openldap:1.5.0
+          command:
+            - /bin/bash
+            - -c
+            - |
+              echo 'Waiting for LDAP server to be ready...'
+              READY=0
+              for i in $(seq 1 45); do
+                if ldapsearch -x -H ldap://ldap:389 -b 'dc=example,dc=com' '(objectClass=*)' dn 2>/dev/null | grep -q 'dc=example,dc=com'; then
+                  echo 'LDAP server is ready'
+                  READY=1
+                  break
+                fi
+                echo "Attempt $i/45: LDAP not ready, waiting..."
+                sleep 2
+              done
+              [ "$READY" -eq 1 ] || { echo 'LDAP server failed to become ready'; exit 1; }
+              echo 'Loading seed data...'
+              ldapadd -c -x -H ldap://ldap:389 -D 'cn=admin,dc=example,dc=com' -w admin_password -f /seed/ldap-seed.ldif || [ $? -eq 68 ]
+              echo 'LDAP seed data loaded'
+          volumeMounts:
+            - name: seeds
+              mountPath: /seed
+              readOnly: true
+      volumes:
+        - name: seeds
+          configMap:
+            name: ldap-seeds

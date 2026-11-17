@@ -1,0 +1,33 @@
+# LDAP authentication without email addresses (entryUUID unique ID)
+auth:
+  enableAuth: true
+  admins: ""
+  disableBasicAuth: false
+  oauth2:
+    enabled: true
+    providers:
+      dev:
+        client_id: "phoenix-oidc-client-id"
+        client_secret: "phoenix-oidc-client-secret-abc-123"
+        oidc_config_url: "http://localhost:18273/oidc/.well-known/openid-configuration"
+        display_name: "OIDC"
+        allow_sign_up: true
+        auto_login: false
+        scopes: "roles"
+        role_attribute_path: "role"
+        role_mapping: "admin:ADMIN,editor:MEMBER,viewer:VIEWER"
+  ldap:
+    enabled: true
+    host: "ldap"
+    tlsMode: "none"
+    bindDn: "cn=readonly,dc=example,dc=com"
+    bindPassword: "readonly_password"
+    userSearchBaseDns:
+      - "ou=users,dc=example,dc=com"
+    userSearchFilter: "(uid=%s)"
+    attrEmail: "null"
+    attrDisplayName: "displayName"
+    attrMemberOf: "memberOf"
+    attrUniqueId: "entryUUID"
+    groupRoleMappings: '[{"group_dn":"cn=admins,ou=groups,dc=example,dc=com","role":"ADMIN"},{"group_dn":"cn=members,ou=groups,dc=example,dc=com","role":"MEMBER"},{"group_dn":"*","role":"VIEWER"}]'
+    allowSignUp: true

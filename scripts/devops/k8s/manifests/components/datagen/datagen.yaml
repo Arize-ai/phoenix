@@ -1,0 +1,81 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dev-datagen-cache
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: datagen
+  labels:
+    app: datagen
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: datagen
+  template:
+    metadata:
+      labels:
+        app: datagen
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: datagen
+          image: docker.io/library/devops-phoenix:local
+          imagePullPolicy: IfNotPresent
+          command:
+            - python
+            - -m
+            - phoenix.server.main
+            - datagen
+            - --endpoint
+            - http://phoenix:6006
+            - --control-host
+            - 0.0.0.0
+            - --control-port
+            - "8080"
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: PHOENIX_PORT
+              value: "6006"
+            - name: PHOENIX_API_KEY
+              value: "phoenix-admin-secret-abc-123-for-development-only-not-secure"
+            - name: PYTHONUNBUFFERED
+              value: "1"
+          volumeMounts:
+            - name: cache
+              mountPath: /root/.cache/phoenix/datagen
+          resources:
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+      volumes:
+        - name: cache
+          persistentVolumeClaim:
+            claimName: dev-datagen-cache
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: datagen
+  labels:
+    app: datagen
+spec:
+  selector:
+    app: datagen
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080

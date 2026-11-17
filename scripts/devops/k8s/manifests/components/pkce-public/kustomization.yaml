@@ -1,0 +1,44 @@
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+patches:
+  - target:
+      kind: Deployment
+      name: oidc-dev
+    patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: oidc-dev
+      spec:
+        template:
+          spec:
+            containers:
+              - name: oidc-dev
+                env:
+                  - name: OIDC_CLIENT_AUTH_METHOD
+                    value: "pkce-public"
+  - target:
+      kind: Deployment
+      name: grafana
+    patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: grafana
+      spec:
+        template:
+          spec:
+            containers:
+              - name: grafana
+                env:
+                  - name: GF_AUTH_GENERIC_OAUTH_USE_PKCE
+                    value: "true"
+                  - name: GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET
+                    value: ""
+                  - name: GF_AUTH_GENERIC_OAUTH_AUTH_URL
+                    value: "http://localhost:18273/oidc/auth"
+                  - name: GF_AUTH_GENERIC_OAUTH_TOKEN_URL
+                    value: "http://oidc-dev:9000/token"
+                  - name: GF_AUTH_GENERIC_OAUTH_API_URL
+                    value: "http://oidc-dev:9000/userinfo"

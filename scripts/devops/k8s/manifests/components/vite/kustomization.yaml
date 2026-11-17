@@ -1,0 +1,30 @@
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - vite.yaml
+
+patches:
+  - target:
+      kind: ConfigMap
+      name: traefik-dynamic-profiles
+    patch: |
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: traefik-dynamic-profiles
+      data:
+        vite.yml: |
+          http:
+            routers:
+              vite-dev:
+                rule: "PathPrefix(`/phoenix/vite`)"
+                priority: 100
+                entryPoints:
+                  - web
+                service: vite-dev
+            services:
+              vite-dev:
+                loadBalancer:
+                  servers:
+                    - url: "http://vite-dev:5173"

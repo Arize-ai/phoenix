@@ -1,0 +1,9 @@
+# Route Phoenix database traffic through Toxiproxy
+database:
+  url: ""
+  postgres:
+    host: "toxiproxy"
+    port: 5433
+    db: "postgres"
+    user: "postgres"
+    password: "postgres"

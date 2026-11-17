@@ -1,0 +1,60 @@
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+patches:
+  - target:
+      kind: Deployment
+      name: ldap
+    patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: ldap
+      spec:
+        template:
+          spec:
+            hostname: ldap-posix
+            containers:
+              - name: ldap
+                env:
+                  - name: LDAP_ORGANISATION
+                    value: "Example Corp POSIX"
+                  - name: LDAP_REMOVE_CONFIG_AFTER_SETUP
+                    value: "false"
+  - target:
+      kind: Job
+      name: ldap-seed
+    patch: |
+      apiVersion: batch/v1
+      kind: Job
+      metadata:
+        name: ldap-seed
+      spec:
+        template:
+          spec:
+            containers:
+              - name: ldap-seed
+                command:
+                  - /bin/bash
+                  - -c
+                  - |
+                    echo 'Waiting for LDAP POSIX server to be ready...'
+                    READY=0
+                    for i in $(seq 1 45); do
+                      if ldapsearch -x -H ldap://ldap:389 -b 'dc=example,dc=com' '(objectClass=*)' dn 2>/dev/null | grep -q 'dc=example,dc=com'; then
+                        echo 'LDAP server is ready'
+                        READY=1
+                        break
+                      fi
+                      echo "Attempt $i/45: LDAP not ready, waiting..."
+                      sleep 2
+                    done
+                    [ "$READY" -eq 1 ] || { echo 'LDAP server failed to become ready'; exit 1; }
+                    echo 'Disabling memberOf overlay for pure POSIX mode...'
+                    ldapmodify -x -H ldap://ldap:389 -D 'cn=admin,cn=config' -w config_password <<'EOFMOD' || echo 'memberOf overlay may already be disabled'
+                    dn: olcOverlay={0}memberof,olcDatabase={1}mdb,cn=config
+                    changetype: delete
+                    EOFMOD
+                    echo 'Loading POSIX seed data...'
+                    ldapadd -c -x -H ldap://ldap:389 -D 'cn=admin,dc=example,dc=com' -w admin_password -f /seed/ldap-posix-seed.ldif || [ $? -eq 68 ]
+                    echo 'LDAP POSIX seed data loaded'
