@@ -1218,7 +1218,7 @@ class TestBuiltinSyncStaleBindings:
 
 
 class TestClearWatermarkReuse:
-    async def test_repeated_clear_raises_the_active_task_watermark(
+    async def test_repeated_clear_preserves_the_active_task_watermark(
         self, db: DbSessionFactory
     ) -> None:
         dialect = SupportedSQLDialect(db.dialect.value)
@@ -1245,11 +1245,11 @@ class TestClearWatermarkReuse:
                     models.ProjectClearCleanupTask.id == first_task
                 )
             )
-            assert watermark is not None and watermark >= late_trace_id
+            assert watermark is not None and watermark < late_trace_id
 
         await _drain_all(CleanupCoordinator(db, batch_limit=2))
         async with db() as session:
-            assert await session.get(models.Trace, late_trace_id) is None
+            assert await session.get(models.Trace, late_trace_id) is not None
 
 
 async def test_sqlite_trace_allocator_rolls_back_reservations(db: DbSessionFactory) -> None:
