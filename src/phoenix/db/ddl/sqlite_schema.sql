@@ -1322,6 +1322,8 @@ CREATE TABLE custom_provider_model_profiles (
     position INTEGER NOT NULL,
     CONSTRAINT pk_custom_provider_model_profiles
         PRIMARY KEY (provider_id, model_type, position),
+    CONSTRAINT uq_custom_provider_model_profiles_model_profile_id
+        UNIQUE (model_profile_id),
     CONSTRAINT fk_custom_provider_model_profiles_model_profile_id_model_profiles
         FOREIGN KEY (model_profile_id, model_type)
         REFERENCES model_profiles (id, model_type)
@@ -1331,9 +1333,6 @@ CREATE TABLE custom_provider_model_profiles (
         REFERENCES custom_provider_model_types (provider_id, model_type)
         ON DELETE CASCADE
 );
-
-CREATE INDEX ix_custom_provider_model_profiles_model_profile_id ON custom_provider_model_profiles
-    (model_profile_id);
 
 
 -- Table: decision_versions

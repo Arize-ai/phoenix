@@ -4021,7 +4021,7 @@ class CustomProviderModelProfile(Base):
     __tablename__ = "custom_provider_model_profiles"
     provider_id: Mapped[int] = mapped_column(nullable=False)
     model_type: Mapped[ModelTypeKey] = mapped_column(String, nullable=False)
-    model_profile_id: Mapped[int] = mapped_column(nullable=False, index=True)
+    model_profile_id: Mapped[int] = mapped_column(nullable=False, unique=True)
     position: Mapped[int] = mapped_column(Integer, nullable=False)
 
     provider_model_type: Mapped["CustomProviderModelType"] = relationship(

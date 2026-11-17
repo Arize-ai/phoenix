@@ -81,16 +81,17 @@ def upgrade() -> None:
             name=op.f("fk_custom_provider_model_profiles_model_profile_id_model_profiles"),
             ondelete="CASCADE",
         ),
-    )
-    op.create_index(
-        "ix_custom_provider_model_profiles_model_profile_id",
-        "custom_provider_model_profiles",
-        ["model_profile_id"],
+        sa.UniqueConstraint(
+            "model_profile_id",
+            name=op.f("uq_custom_provider_model_profiles_model_profile_id"),
+        ),
     )
 
+    # TypeSafe providers serve decision models only; every other SDK serves chat by default.
     op.execute(
         "INSERT INTO custom_provider_model_types (provider_id, model_type) "
-        "SELECT id, 'CHAT' FROM generative_model_custom_providers"
+        "SELECT id, CASE WHEN sdk = 'typesafe' THEN 'DECISION' ELSE 'CHAT' END "
+        "FROM generative_model_custom_providers"
     )
 
 

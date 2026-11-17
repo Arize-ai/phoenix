@@ -980,6 +980,35 @@ async def test_db_rejects_crosswalk_without_served_type_row(db: DbSessionFactory
             )
 
 
+async def test_db_rejects_linking_one_profile_twice(db: DbSessionFactory) -> None:
+    encrypted_config = EncryptionService().encrypt(b"{}")
+    async with db() as session:
+        provider = models.GenerativeModelCustomProvider(
+            name="profile-linked-twice",
+            provider="openai",
+            sdk="openai",
+            config=encrypted_config,
+            model_types=models.provider_models_to_rows(
+                mp.ProviderModels(chat=mp.ModelsOfType(names=("gpt-4o",)))
+            ),
+        )
+        session.add(provider)
+        await session.flush()
+        provider_rowid = provider.id
+        profile_id = provider.model_types[0].profile_links[0].model_profile_id
+
+    with pytest.raises((PostgreSQLIntegrityError, SQLiteIntegrityError)):
+        async with db() as session:
+            await session.execute(
+                sa.insert(models.CustomProviderModelProfile).values(
+                    provider_id=provider_rowid,
+                    model_type="CHAT",
+                    model_profile_id=profile_id,
+                    position=1,
+                )
+            )
+
+
 async def test_db_rejects_crosswalk_whose_model_type_differs_from_profile(
     db: DbSessionFactory,
 ) -> None:

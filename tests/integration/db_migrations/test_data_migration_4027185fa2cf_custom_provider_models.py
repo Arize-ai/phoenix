@@ -12,7 +12,7 @@ from . import _down, _get_table_schema_info, _run_async, _TableSchemaInfo, _up, 
 _DOWN = "ef09e3bc213f"
 _UP = "4027185fa2cf"
 
-_SDKS = ("openai", "azure_openai", "anthropic", "google_genai", "aws_bedrock")
+_SDKS = ("openai", "azure_openai", "anthropic", "google_genai", "aws_bedrock", "typesafe")
 _NEW_TABLES = (
     "custom_provider_model_types",
     "model_profiles",
@@ -97,6 +97,15 @@ def _exercise_constraints(conn: Connection, db_backend: Literal["sqlite", "postg
         profile_id=other_profile_id,
     )
 
+    # The same profile linked twice
+    _expect_failure(
+        "INSERT INTO custom_provider_model_profiles "
+        "(provider_id, model_type, model_profile_id, position) "
+        "VALUES (:provider_id, 'CHAT', :profile_id, 1)",
+        provider_id=provider_id,
+        profile_id=profile_id,
+    )
+
     # Invalid model_type CHECK on both tables
     _expect_failure(
         "INSERT INTO custom_provider_model_types (provider_id, model_type) "
@@ -166,7 +175,9 @@ async def test_custom_provider_model_tables_migration(
     assert "models" not in providers_info["column_names"]
     assert await _run_async(_engine, _providers) == before
 
-    assert await _run_async(_engine, _served_types) == {sdk: ["CHAT"] for sdk in _SDKS}
+    assert await _run_async(_engine, _served_types) == {
+        sdk: ["DECISION"] if sdk == "typesafe" else ["CHAT"] for sdk in _SDKS
+    }
 
     types_info = await table_info("custom_provider_model_types")
     assert types_info is not None
@@ -191,7 +202,9 @@ async def test_custom_provider_model_tables_migration(
         {"provider_id", "model_type", "model_profile_id", "position"}
     )
     assert crosswalk_info["nullable_column_names"] == frozenset()
-    assert "ix_custom_provider_model_profiles_model_profile_id" in crosswalk_info["index_names"]
+    assert (
+        "uq_custom_provider_model_profiles_model_profile_id" in crosswalk_info["constraint_names"]
+    )
 
     await _run_async(_engine, lambda conn: _exercise_constraints(conn, _db_backend))
 
