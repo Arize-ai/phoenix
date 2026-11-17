@@ -460,9 +460,8 @@ async def admit_or_reuse_project_clear(
         if existing.start_time == start_time and existing.end_time == end_time:
             return int(existing.id)
         raise Conflict(
-            f"Another clear is in progress for project {project_id} (operation {existing.id})",
+            "Another trace clear is already in progress for this project",
             reason="clear_in_progress",
-            active_task_id=int(existing.id),
         )
 
     now = await current_database_time(session, dialect)

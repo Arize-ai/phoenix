@@ -873,7 +873,10 @@ async def patch_prompt(
     "/prompts/{prompt_identifier}",
     operation_id="deletePrompt",
     summary="Delete a prompt",
-    description="Delete a prompt and all its versions, tags, and labels by identifier.",
+    description=(
+        "Delete a prompt and all its versions, tags, and labels by identifier. "
+        "A prompt referenced by an LLM evaluator is refused with 409; delete the evaluator first."
+    ),
     status_code=204,
     responses=_errors([404, 409, 422]),
 )
