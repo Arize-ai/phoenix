@@ -45,18 +45,28 @@ class CleanupWorker(DaemonTask):
     async def _run(self) -> None:
         while self._running:
             self._woken.clear()
+            next_delay_seconds: Optional[float] = None
             try:
-                while self._running and await self._coordinator.run_one_step():
+                while self._running:
+                    ran_step, next_delay_seconds = await self._coordinator.step_or_next_delay()
+                    if not ran_step:
+                        break
                     await asyncio.sleep(0)
             except Exception:
                 logger.exception("Unexpected error in cleanup worker loop")
             if self._running and not self._woken.is_set():
-                await self._sleep()
+                await self._sleep(self._compute_sleep_delay_seconds(next_delay_seconds))
 
-    async def _sleep(self) -> None:
-        delay = max(
+    def _compute_sleep_delay_seconds(self, next_delay_seconds: Optional[float] = None) -> float:
+        idle_delay = max(
             0.05,
             self._idle_poll_seconds + random.uniform(-_JITTER_SECONDS, _JITTER_SECONDS),
         )
+        if next_delay_seconds is None:
+            return idle_delay
+        return min(idle_delay, max(0.01, next_delay_seconds))
+
+    async def _sleep(self, delay_seconds: Optional[float] = None) -> None:
+        delay = self._compute_sleep_delay_seconds() if delay_seconds is None else delay_seconds
         with suppress(asyncio.TimeoutError):
             await asyncio.wait_for(self._woken.wait(), delay)

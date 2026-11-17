@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import asyncio
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
-from typing import Any, cast
+from typing import Any, Optional, cast
 from unittest.mock import MagicMock
 
 import httpx2
 import pytest
 from sqlalchemy import delete, event, func, insert, select, update
+from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.ext.asyncio import create_async_engine
 from strawberry.relay import GlobalID
 
@@ -21,7 +25,7 @@ from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import Conflict
 from phoenix.server.app import _db
-from phoenix.server.cleanup.coordinator import CleanupCoordinator
+from phoenix.server.cleanup.coordinator import ClaimedCleanupTask, CleanupCoordinator
 from phoenix.server.cleanup.lifecycle import (
     admit_exclusive_experiment_projects_delete,
     admit_or_reuse_project_clear,
@@ -29,8 +33,13 @@ from phoenix.server.cleanup.lifecycle import (
     logical_delete_dataset_evaluators,
     logical_delete_project_evaluators,
 )
-from phoenix.server.cleanup.primitives import PrimitiveStatus, drain_trace_scope_step
+from phoenix.server.cleanup.primitives import (
+    PrimitiveResult,
+    PrimitiveStatus,
+    drain_trace_scope_step,
+)
 from phoenix.server.daemons.cleanup_worker import CleanupWorker
+from phoenix.server.dml_event import DmlEvent, SpanDeleteEvent
 from phoenix.server.evaluators.resolution import build_evaluator_from_definition
 from phoenix.server.evaluators.snapshots import (
     pin_evaluator_definition,
@@ -58,6 +67,70 @@ async def _drain_all(coordinator: CleanupCoordinator) -> int:
     while await coordinator.run_one_step():
         steps += 1
     return steps
+
+
+class _DaemonController:
+    """Drives ``CleanupWorker`` cycles deterministically in place of real sleeps."""
+
+    def __init__(self) -> None:
+        self._release = asyncio.Event()
+        self._parked = asyncio.Event()
+        self.sleep_delays: list[Optional[float]] = []
+        self.original_sleep = CleanupWorker._sleep
+
+    def install(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        controller = self
+
+        async def _park(
+            worker: CleanupWorker,
+            delay_seconds: Optional[float] = None,
+        ) -> None:
+            controller.sleep_delays.append(delay_seconds)
+            controller._parked.set()
+            wake_waiter = asyncio.create_task(worker._woken.wait())
+            release_waiter = asyncio.create_task(controller._release.wait())
+            try:
+                await asyncio.wait(
+                    {wake_waiter, release_waiter},
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+            finally:
+                for waiter in (wake_waiter, release_waiter):
+                    if not waiter.done():
+                        waiter.cancel()
+                await asyncio.gather(wake_waiter, release_waiter, return_exceptions=True)
+                controller._release.clear()
+
+        monkeypatch.setattr(CleanupWorker, "_sleep", _park)
+
+    async def wait_until_parked(self, timeout: float = 30.0) -> None:
+        await self._parked_within(timeout, "the cleanup worker never parked")
+
+    async def run_once(self, timeout: float = 30.0) -> None:
+        await self._parked_within(timeout, "the cleanup worker never parked")
+        self._parked.clear()
+        self._release.set()
+        await self._parked_within(timeout, "the cleanup cycle did not finish")
+
+    @asynccontextmanager
+    async def expect_wake_cycle(self, timeout: float = 30.0) -> AsyncIterator[None]:
+        await self._parked_within(timeout, "the cleanup worker never parked")
+        self._parked.clear()
+        yield
+        await self._parked_within(timeout, "the cleanup worker was not woken or did not finish")
+
+    async def _parked_within(self, timeout: float, failure: str) -> None:
+        try:
+            await asyncio.wait_for(self._parked.wait(), timeout)
+        except asyncio.TimeoutError:
+            pytest.fail(f"{failure} within {timeout:.0f}s")
+
+
+@pytest.fixture
+def cleanup_worker_controller(monkeypatch: pytest.MonkeyPatch) -> _DaemonController:
+    controller = _DaemonController()
+    controller.install(monkeypatch)
+    return controller
 
 
 class TestCleanupQueueSchedulingAndFencing:
@@ -267,7 +340,7 @@ class TestCleanupQueueSchedulingAndFencing:
         assert claimed is not None
 
         async def _boom(*args: object, **kwargs: object) -> object:
-            raise RuntimeError("injected step failure")
+            raise OperationalError("SELECT 1", {}, Exception("injected step failure"))
 
         monkeypatch.setattr(coordinator, "_run_domain_step", _boom)
         result = await coordinator.execute_claimed_step(claimed)
@@ -294,8 +367,6 @@ class TestCleanupQueueSchedulingAndFencing:
     async def test_repeated_failures_double_the_retry_delay_and_lock_timeouts_yield(
         self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from sqlalchemy.exc import DBAPIError
-
         dialect = SupportedSQLDialect(db.dialect.value)
         async with db() as session:
             project = await _add_project(session, name=f"poison-{token_hex(4)}")
@@ -308,7 +379,10 @@ class TestCleanupQueueSchedulingAndFencing:
         class _LockNotAvailable(Exception):
             sqlstate = "55P03"
 
-        failure: Exception = RuntimeError("injected step failure")
+        class _DeadlockDetected(Exception):
+            sqlstate = "40P01"
+
+        failure: Exception = OperationalError("SELECT 1", {}, Exception("injected step failure"))
 
         async def _boom(*args: object, **kwargs: object) -> object:
             raise failure
@@ -324,24 +398,214 @@ class TestCleanupQueueSchedulingAndFencing:
                 task = await session.get(models.CleanupTask, claimed.task_id)
                 assert task is not None
                 delay = (task.available_at - now).total_seconds()
-                failures = task.failure_count
+                num_failures = task.failure_count
                 await session.execute(
                     update(models.CleanupTask)
                     .where(models.CleanupTask.id == claimed.task_id)
                     .values(available_at=now)
                 )
-            return result.outcome, failures, delay
+            return result.outcome, num_failures, delay
 
         outcomes = [await _fail_once() for _ in range(3)]
-        assert [(o, f) for o, f, _ in outcomes] == [("error", 1), ("error", 2), ("error", 3)]
+        assert [(outcome, count) for outcome, count, _ in outcomes] == [
+            ("error", 1),
+            ("error", 2),
+            ("error", 3),
+        ]
         assert 5.0 < outcomes[0][2] <= 10.0
         assert 15.0 < outcomes[1][2] <= 20.0
         assert 30.0 < outcomes[2][2] <= 40.0
 
         failure = DBAPIError("stmt", {}, _LockNotAvailable())
-        outcome, failures, delay = await _fail_once()
-        assert (outcome, failures) == ("yield", 3)
+        outcome, num_failures, delay = await _fail_once()
+        assert (outcome, num_failures) == ("yield", 3)
         assert delay <= 1.0
+
+        failure = DBAPIError("stmt", {}, _DeadlockDetected())
+        outcome, num_failures, delay = await _fail_once()
+        assert (outcome, num_failures) == ("yield", 3)
+        assert delay <= 1.0
+
+    async def test_non_sqlalchemy_programming_error_propagates_immediately(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        dialect = SupportedSQLDialect(db.dialect.value)
+        async with db() as session:
+            project = await _add_project(session, name=f"prog-bug-{token_hex(4)}")
+            await admit_project_delete(session, dialect=dialect, project_id=project.id)
+
+        coordinator = CleanupCoordinator(db)
+        claimed = await coordinator.claim_next()
+        assert claimed is not None
+
+        async def _programming_bug(*args: object, **kwargs: object) -> object:
+            raise TypeError("unexpected programming bug")
+
+        monkeypatch.setattr(coordinator, "_run_domain_step", _programming_bug)
+        with pytest.raises(TypeError, match="unexpected programming bug"):
+            await coordinator.execute_claimed_step(claimed)
+
+    async def test_mid_step_claim_loss_rolls_back_batch_and_returns_claim_lost(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        dialect = SupportedSQLDialect(db.dialect.value)
+        marker_name = f"rolled-back-{token_hex(4)}"
+        async with db() as session:
+            project = await _add_project(session, name=f"claim-lost-{token_hex(4)}")
+            project_id = project.id
+            await admit_project_delete(session, dialect=dialect, project_id=project_id)
+
+        emitted_events: list[DmlEvent] = []
+        event_queue = MagicMock()
+        event_queue.put.side_effect = emitted_events.append
+        coordinator = CleanupCoordinator(db, event_queue=event_queue)
+        claimed = await coordinator.claim_next()
+        assert claimed is not None
+
+        async def _lose_claim_mid_step(
+            session: Any,
+            *,
+            dialect: SupportedSQLDialect,
+            task: models.CleanupTask,
+            events_after_commit: list[DmlEvent],
+        ) -> PrimitiveResult:
+            session.add(models.Project(name=marker_name))
+            await session.flush()
+            events_after_commit.append(SpanDeleteEvent((project_id,)))
+            await session.execute(
+                update(models.CleanupTask)
+                .where(models.CleanupTask.id == task.id)
+                .values(claimed_by="reassigned-worker-token")
+            )
+            return PrimitiveResult(PrimitiveStatus.PROGRESS, 1)
+
+        monkeypatch.setattr(coordinator, "_run_domain_step", _lose_claim_mid_step)
+        result = await coordinator.execute_claimed_step(claimed)
+        assert result.outcome == "claim_lost"
+        assert result.affected_rows == 0
+        assert emitted_events == []
+
+        async with db() as session:
+            marker_project = await session.scalar(
+                select(models.Project.id).where(models.Project.name == marker_name)
+            )
+            assert marker_project is None
+            still_claimed_by = await session.scalar(
+                select(models.CleanupTask.claimed_by).where(
+                    models.CleanupTask.id == claimed.task_id
+                )
+            )
+            assert still_claimed_by == claimed.claimed_by
+
+    async def test_cancelled_step_shields_immediate_claim_release_and_reraises(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        dialect = SupportedSQLDialect(db.dialect.value)
+        async with db() as session:
+            first_project = await _add_project(session, name=f"cancel-1-{token_hex(4)}")
+            second_project = await _add_project(session, name=f"cancel-2-{token_hex(4)}")
+            await admit_project_delete(session, dialect=dialect, project_id=first_project.id)
+            await admit_project_delete(session, dialect=dialect, project_id=second_project.id)
+            first_project_id = first_project.id
+            second_project_id = second_project.id
+
+        coord_cancelled = CleanupCoordinator(db, lease_ttl_seconds=90.0)
+        coord_peer = CleanupCoordinator(db, lease_ttl_seconds=90.0)
+        claimed_first = await coord_cancelled.claim_next()
+        assert claimed_first is not None
+
+        step_started = asyncio.Event()
+        release_entered = asyncio.Event()
+        allow_release_finish = asyncio.Event()
+        release_completed = asyncio.Event()
+        original_release_on_cancel = coord_cancelled._release_claim_on_cancel
+
+        async def _hang_in_step(*args: object, **kwargs: object) -> PrimitiveResult:
+            step_started.set()
+            await asyncio.Event().wait()
+            return PrimitiveResult(PrimitiveStatus.EMPTY, 0)
+
+        async def _gated_release_on_cancel(claimed_task: ClaimedCleanupTask) -> None:
+            release_entered.set()
+            await allow_release_finish.wait()
+            await original_release_on_cancel(claimed_task)
+            release_completed.set()
+
+        monkeypatch.setattr(coord_cancelled, "_run_domain_step", _hang_in_step)
+        monkeypatch.setattr(coord_cancelled, "_release_claim_on_cancel", _gated_release_on_cancel)
+        step_task = asyncio.create_task(coord_cancelled.execute_claimed_step(claimed_first))
+        await asyncio.wait_for(step_started.wait(), timeout=5.0)
+        step_task.cancel()
+        await asyncio.wait_for(release_entered.wait(), timeout=5.0)
+        # Cancel a second time while claim release is in-flight to verify asyncio.shield protects it.
+        step_task.cancel()
+        allow_release_finish.set()
+        with pytest.raises(asyncio.CancelledError):
+            await step_task
+        await asyncio.wait_for(release_completed.wait(), timeout=5.0)
+
+        async with db() as session:
+            now = await current_database_time(session, dialect)
+            released_task = await session.get(models.CleanupTask, claimed_first.task_id)
+            assert released_task is not None
+            assert released_task.claimed_at is None
+            assert released_task.claimed_by is None
+            assert released_task.failure_count == 0
+            assert released_task.available_at <= now
+
+        next_claimed = await coord_peer.claim_next()
+        assert next_claimed is not None
+        await coord_peer.execute_claimed_step(next_claimed)
+        await _drain_all(coord_peer)
+
+        async with db() as session:
+            assert await session.get(models.Project, first_project_id) is None
+            assert await session.get(models.Project, second_project_id) is None
+
+    async def test_lapsed_claim_recovery_increments_failure_count_with_exponential_backoff(
+        self, db: DbSessionFactory
+    ) -> None:
+        dialect = SupportedSQLDialect(db.dialect.value)
+        async with db() as session:
+            project = await _add_project(session, name=f"crash-loop-{token_hex(4)}")
+            await admit_project_delete(session, dialect=dialect, project_id=project.id)
+
+        coordinator = CleanupCoordinator(
+            db,
+            lease_ttl_seconds=30.0,
+            error_retry_delay_seconds=10.0,
+        )
+
+        recorded_recoveries: list[tuple[int, float]] = []
+        for _ in range(3):
+            claimed = await coordinator.claim_next()
+            assert claimed is not None
+            async with db() as session:
+                now = await current_database_time(session, dialect)
+                await session.execute(
+                    update(models.CleanupTask)
+                    .where(models.CleanupTask.id == claimed.task_id)
+                    .values(claimed_at=now - timedelta(seconds=31.0))
+                )
+            assert await coordinator.claim_next() is None
+            async with db() as session:
+                now = await current_database_time(session, dialect)
+                task = await session.get(models.CleanupTask, claimed.task_id)
+                assert task is not None
+                assert task.claimed_at is None
+                assert task.claimed_by is None
+                delay_seconds = (task.available_at - now).total_seconds()
+                recorded_recoveries.append((task.failure_count, delay_seconds))
+                await session.execute(
+                    update(models.CleanupTask)
+                    .where(models.CleanupTask.id == claimed.task_id)
+                    .values(available_at=now)
+                )
+
+        assert [count for count, _ in recorded_recoveries] == [1, 2, 3]
+        assert 5.0 < recorded_recoveries[0][1] <= 10.0
+        assert 15.0 < recorded_recoveries[1][1] <= 20.0
+        assert 30.0 < recorded_recoveries[2][1] <= 40.0
 
     async def test_task_ids_are_monotonic_across_completions(self, db: DbSessionFactory) -> None:
         dialect = SupportedSQLDialect(db.dialect.value)
@@ -1217,30 +1481,148 @@ class TestStorageLockoutExemptionsAndCleanupWorker:
             assert await session.get(models.ProjectEvaluator, pe_id) is None
 
     @pytest.mark.real_cleanup_worker
-    async def test_live_cleanup_worker_wakes_and_drains(self, db: DbSessionFactory) -> None:
+    async def test_live_cleanup_worker_wakes_and_drains(
+        self,
+        db: DbSessionFactory,
+        cleanup_worker_controller: _DaemonController,
+    ) -> None:
+        dialect = SupportedSQLDialect(db.dialect.value)
+        worker = CleanupWorker(db, idle_poll_seconds=10.0)
+        async with worker:
+            await cleanup_worker_controller.wait_until_parked()
+            async with db() as session:
+                project = await _add_project(session, name=f"daemon-proj-{token_hex(4)}")
+                trace = await _add_trace(session, project)
+                await _add_span(session, trace=trace)
+                project_id = project.id
+                await admit_project_delete(session, dialect=dialect, project_id=project_id)
+
+            async with cleanup_worker_controller.expect_wake_cycle():
+                worker.wake()
+
+        async with db() as session:
+            assert await session.get(models.Project, project_id) is None
+
+    @pytest.mark.real_cleanup_worker
+    async def test_cleanup_worker_sleeps_for_yield_delay_rather_than_idle_poll(
+        self,
+        db: DbSessionFactory,
+        cleanup_worker_controller: _DaemonController,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
         dialect = SupportedSQLDialect(db.dialect.value)
         async with db() as session:
-            proj = await _add_project(session, name=f"daemon-proj-{token_hex(4)}")
-            tr = await _add_trace(session, proj)
-            await _add_span(session, trace=tr)
-            await admit_project_delete(session, dialect=dialect, project_id=proj.id)
+            project = await _add_project(session, name=f"yield-proj-{token_hex(4)}")
+            trace = await _add_trace(session, project)
+            await _add_span(session, trace=trace)
+            project_id = project.id
+            await admit_project_delete(session, dialect=dialect, project_id=project_id)
             task_id = await session.scalar(
                 select(models.ProjectDeleteCleanupTask.id).where(
-                    models.ProjectDeleteCleanupTask.project_id == proj.id
+                    models.ProjectDeleteCleanupTask.project_id == project_id
                 )
             )
             assert task_id is not None
 
-        worker = CleanupWorker(db, idle_poll_seconds=10.0)
+        worker = CleanupWorker(db, idle_poll_seconds=30.0)
+        original_run_domain_step = worker.coordinator._run_domain_step
+        yielded_once = False
+
+        async def _yield_then_run(*args: Any, **kwargs: Any) -> PrimitiveResult:
+            nonlocal yielded_once
+            if not yielded_once:
+                yielded_once = True
+                return PrimitiveResult(PrimitiveStatus.YIELD, 0)
+            return await original_run_domain_step(*args, **kwargs)
+
+        monkeypatch.setattr(worker.coordinator, "_run_domain_step", _yield_then_run)
+
         async with worker:
-            worker.wake()
-            finished = await worker.coordinator.wait_for_completion(
-                task_id, timeout_seconds=5.0, drive=False
-            )
-            assert finished is True
+            await cleanup_worker_controller.wait_until_parked()
+            assert len(cleanup_worker_controller.sleep_delays) == 1
+            first_delay = cleanup_worker_controller.sleep_delays[0]
+            assert first_delay is not None
+            assert 0.0 < first_delay <= 0.5
+
+            async with db() as session:
+                now = await current_database_time(session, dialect)
+                await session.execute(
+                    update(models.CleanupTask)
+                    .where(models.CleanupTask.id == task_id)
+                    .values(available_at=now)
+                )
+
+            await cleanup_worker_controller.run_once()
+            assert len(cleanup_worker_controller.sleep_delays) == 2
+            second_delay = cleanup_worker_controller.sleep_delays[1]
+            assert second_delay is not None
+            assert second_delay >= 29.0
 
         async with db() as session:
-            assert await session.get(models.Project, proj.id) is None
+            assert await session.get(models.Project, project_id) is None
+
+        worker.wake()
+        await asyncio.wait_for(cleanup_worker_controller.original_sleep(worker, 30.0), timeout=1.0)
+        worker._woken.clear()
+        await asyncio.wait_for(cleanup_worker_controller.original_sleep(worker, 0.01), timeout=1.0)
+
+    @pytest.mark.real_cleanup_worker
+    async def test_api_mutations_wake_lifespan_cleanup_worker(
+        self,
+        db: DbSessionFactory,
+        cleanup_worker_controller: _DaemonController,
+        gql_client: AsyncGraphQLClient,
+        httpx_client: httpx2.AsyncClient,
+    ) -> None:
+        async with db() as session:
+            clear_project = await _add_project(session, name=f"api-clear-{token_hex(4)}")
+            clear_trace = await _add_trace(session, clear_project)
+            await _add_span(session, trace=clear_trace)
+
+            gql_delete_project = await _add_project(session, name=f"api-gql-del-{token_hex(4)}")
+            gql_trace = await _add_trace(session, gql_delete_project)
+            await _add_span(session, trace=gql_trace)
+
+            rest_delete_project = await _add_project(session, name=f"api-rest-del-{token_hex(4)}")
+            rest_trace = await _add_trace(session, rest_delete_project)
+            await _add_span(session, trace=rest_trace)
+
+            clear_project_id = clear_project.id
+            clear_trace_id = clear_trace.id
+            gql_delete_project_id = gql_delete_project.id
+            rest_delete_project_id = rest_delete_project.id
+            rest_delete_project_name = rest_delete_project.name
+
+        async with cleanup_worker_controller.expect_wake_cycle():
+            clear_resp = await gql_client.execute(
+                """mutation($input: ClearProjectInput!) {
+                    clearProject(input: $input) { __typename }
+                }""",
+                variables={"input": {"id": str(GlobalID("Project", str(clear_project_id)))}},
+            )
+            assert clear_resp.data and not clear_resp.errors
+
+        async with db() as session:
+            assert await session.get(models.Trace, clear_trace_id) is None
+            surviving_project = await session.get(models.Project, clear_project_id)
+            assert surviving_project is not None and surviving_project.deleted_at is None
+
+        async with cleanup_worker_controller.expect_wake_cycle():
+            del_resp = await gql_client.execute(
+                "mutation($id: ID!) { deleteProject(id: $id) { __typename } }",
+                variables={"id": str(GlobalID("Project", str(gql_delete_project_id)))},
+            )
+            assert del_resp.data and not del_resp.errors
+
+        async with db() as session:
+            assert await session.get(models.Project, gql_delete_project_id) is None
+
+        async with cleanup_worker_controller.expect_wake_cycle():
+            rest_resp = await httpx_client.delete(f"v1/projects/{rest_delete_project_name}")
+            assert rest_resp.status_code == 204
+
+        async with db() as session:
+            assert await session.get(models.Project, rest_delete_project_id) is None
 
     async def test_heavy_child_fanout_drains_in_bounded_batches_without_large_final_cascade(
         self, db: DbSessionFactory
