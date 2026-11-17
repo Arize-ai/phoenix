@@ -51,7 +51,17 @@ MANIFEST = AnalyticsSqlManifest(
             "telemetry": Area(
                 tables=MappingProxyType(
                     {
-                        "projects": TableCuration(),
+                        "projects": TableCuration(
+                            column_notes=MappingProxyType(
+                                {
+                                    "deleted_at": (
+                                        "NULL on live rows, set while background cleanup drains a "
+                                        "deleted project; filter deleted_at IS NULL (projects.name "
+                                        "is unique only among live rows)"
+                                    )
+                                }
+                            )
+                        ),
                         "traces": TableCuration(
                             time_column="start_time",
                             virtual_columns=frozenset({"latency_ms"}),
@@ -316,7 +326,15 @@ MANIFEST = AnalyticsSqlManifest(
                             grain=(
                                 "One evaluator attached to a dataset, with the dataset's own "
                                 "name, mapping and output config for it"
-                            )
+                            ),
+                            column_notes=MappingProxyType(
+                                {
+                                    "deleted_at": (
+                                        "NULL on live rows, set while background cleanup drains a "
+                                        "deleted binding; filter deleted_at IS NULL"
+                                    )
+                                }
+                            ),
                         ),
                         "languages": TableCuration(),
                         "sandbox_configs": TableCuration(

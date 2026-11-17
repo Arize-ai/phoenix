@@ -98,7 +98,18 @@ def _build_cost_detail_summary_statement(
             models.SpanCost,
             models.SpanCostDetail.span_cost_id == models.SpanCost.id,
         )
-        .where(models.SpanCost.model_id.in_(model_ids))
+        .join(
+            models.Trace,
+            models.SpanCost.trace_rowid == models.Trace.id,
+        )
+        .join(
+            models.Project,
+            models.Trace.project_rowid == models.Project.id,
+        )
+        .where(
+            models.SpanCost.model_id.in_(model_ids),
+            models.Project.deleted_at.is_(None),
+        )
         .group_by(
             models.SpanCost.model_id,
             models.SpanCostDetail.token_type,
@@ -106,10 +117,7 @@ def _build_cost_detail_summary_statement(
         )
     )
     if scope.project_id is not None:
-        statement = statement.join(
-            models.Trace,
-            models.SpanCost.trace_rowid == models.Trace.id,
-        ).where(models.Trace.project_rowid == scope.project_id)
+        statement = statement.where(models.Trace.project_rowid == scope.project_id)
     if scope.start_time is not None:
         statement = statement.where(models.SpanCost.span_start_time >= scope.start_time)
     if scope.end_time is not None:

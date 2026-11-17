@@ -5,7 +5,7 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
-from phoenix.db.helpers import delete_traces
+from phoenix.db.helpers import SupportedSQLDialect, delete_traces
 from phoenix.server.api.auth import IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict
@@ -35,8 +35,11 @@ class TraceMutationMixin:
         async with info.context.db() as session:
             traces = (
                 await session.execute(
-                    select(models.Trace.project_rowid, models.Trace.project_session_rowid).where(
-                        models.Trace.id.in_(trace_rowids)
+                    select(models.Trace.project_rowid, models.Trace.project_session_rowid)
+                    .join(models.Project, models.Trace.project_rowid == models.Project.id)
+                    .where(
+                        models.Trace.id.in_(trace_rowids),
+                        models.Project.deleted_at.is_(None),
                     )
                 )
             ).all()
@@ -46,7 +49,16 @@ class TraceMutationMixin:
             if len(project_ids) > 1:
                 raise BadRequest("Cannot delete traces from multiple projects")
             session_ids = set(session_id for _, session_id in traces if session_id is not None)
-            await delete_traces(session, models.Trace.id.in_(trace_rowids))
+            await delete_traces(
+                session,
+                and_(
+                    models.Trace.id.in_(trace_rowids),
+                    exists().where(
+                        models.Project.id == models.Trace.project_rowid,
+                        models.Project.deleted_at.is_(None),
+                    ),
+                ),
+            )
             if session_ids:
                 await session.execute(
                     delete(models.ProjectSession).where(
@@ -86,6 +98,7 @@ class TraceMutationMixin:
         except ValueError as error:
             raise BadRequest(str(error))
 
+        dialect = SupportedSQLDialect(info.context.db.dialect.value)
         async with info.context.db() as session:
             dest_project = await session.get(models.Project, dest_project_rowid)
             if dest_project is None or dest_project.deleted_at is not None:
@@ -118,13 +131,33 @@ class TraceMutationMixin:
                     "Cannot transfer traces attached to a session; remove the session "
                     "association before transferring them"
                 )
+
+            involved_project_ids = sorted({*source_project_ids, dest_project_rowid})
+            live_projects_stmt = (
+                select(models.Project.id, models.Project.kind)
+                .where(
+                    models.Project.id.in_(involved_project_ids),
+                    models.Project.deleted_at.is_(None),
+                )
+                .order_by(models.Project.id.asc())
+            )
+            if dialect is SupportedSQLDialect.POSTGRESQL:
+                live_projects_stmt = live_projects_stmt.with_for_update(read=True)
+            live_projects = {
+                int(row.id): row.kind for row in (await session.execute(live_projects_stmt)).all()
+            }
+            if dest_project_rowid not in live_projects:
+                raise BadRequest("Destination project does not exist")
+            if live_projects[dest_project_rowid] in ("EVALUATOR", "EXPERIMENT"):
+                raise BadRequest(
+                    "Cannot transfer traces into an evaluator or experiment trace project"
+                )
+            if not (source_project_ids <= set(live_projects)):
+                raise BadRequest("Invalid trace IDs provided")
+
             active_clear_project_id = await session.scalar(
                 select(models.ProjectClearCleanupTask.project_id)
-                .where(
-                    models.ProjectClearCleanupTask.project_id.in_(
-                        {*source_project_ids, dest_project_rowid}
-                    )
-                )
+                .where(models.ProjectClearCleanupTask.project_id.in_(involved_project_ids))
                 .limit(1)
             )
             if active_clear_project_id is not None:
@@ -132,7 +165,10 @@ class TraceMutationMixin:
 
             await session.execute(
                 update(models.Trace)
-                .where(models.Trace.id.in_(trace_rowids))
+                .where(
+                    models.Trace.id.in_(trace_rowids),
+                    models.Trace.project_rowid.in_(source_project_ids),
+                )
                 .values(project_rowid=dest_project_rowid)
             )
 

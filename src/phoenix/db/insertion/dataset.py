@@ -342,7 +342,13 @@ async def resolve_span_ids_to_rowids(
 
         # Query spans table for matching span_ids in this batch
         result = await session.execute(
-            select(models.Span.span_id, models.Span.id).where(models.Span.span_id.in_(batch))
+            select(models.Span.span_id, models.Span.id)
+            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+            .join(models.Project, models.Trace.project_rowid == models.Project.id)
+            .where(
+                models.Span.span_id.in_(batch),
+                models.Project.deleted_at.is_(None),
+            )
         )
 
         for span_id, row_id in result.all():

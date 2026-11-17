@@ -25,25 +25,27 @@ async def get_or_create_playground_project_id(session: AsyncSession) -> int:
         The playground project's primary key.
     """
     dialect = SupportedSQLDialect(session.get_bind().dialect.name)
-    await session.execute(
-        insert_on_conflict(
-            {
-                "name": PLAYGROUND_PROJECT_NAME,
-                "description": PLAYGROUND_PROJECT_DESCRIPTION,
-                "kind": "PLAYGROUND",
-            },
-            table=models.Project,
-            dialect=dialect,
-            unique_by=("name",),
-            on_conflict=OnConflict.DO_NOTHING,
-            index_where=text(live_row_predicate()),
-        )
+    stmt = select(models.Project.id).where(
+        models.Project.name == PLAYGROUND_PROJECT_NAME,
+        models.Project.deleted_at.is_(None),
     )
-    project_id = await session.scalar(
-        select(models.Project.id).where(
-            models.Project.name == PLAYGROUND_PROJECT_NAME,
-            models.Project.deleted_at.is_(None),
+    if dialect is SupportedSQLDialect.POSTGRESQL:
+        stmt = stmt.with_for_update(read=True, key_share=True)
+    for _ in range(2):
+        await session.execute(
+            insert_on_conflict(
+                {
+                    "name": PLAYGROUND_PROJECT_NAME,
+                    "description": PLAYGROUND_PROJECT_DESCRIPTION,
+                    "kind": "PLAYGROUND",
+                },
+                table=models.Project,
+                dialect=dialect,
+                unique_by=("name",),
+                on_conflict=OnConflict.DO_NOTHING,
+                index_where=text(live_row_predicate()),
+            )
         )
-    )
-    assert project_id is not None
-    return project_id
+        if (project_id := await session.scalar(stmt)) is not None:
+            return project_id
+    raise RuntimeError("Playground project disappeared during creation")

@@ -711,7 +711,7 @@ class EvaluatorMutationMixin:
         )
 
     @strawberry.mutation(
-        permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
+        permission_classes=[IsNotReadOnly, IsNotViewer],
         description=(
             "Clear the queued evaluations of one project evaluator, without enabling or "
             "disabling it. Evaluations already running are not affected. Cleared evaluations "
@@ -734,7 +734,7 @@ class EvaluatorMutationMixin:
         )
 
     @strawberry.mutation(
-        permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
+        permission_classes=[IsNotReadOnly, IsNotViewer],
         description=(
             "Clear the queued evaluations of every evaluator in a project. Evaluations "
             "already running are not affected. Cleared evaluations do not "
@@ -753,7 +753,7 @@ class EvaluatorMutationMixin:
         )
 
     @strawberry.mutation(
-        permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
+        permission_classes=[IsNotReadOnly, IsNotViewer],
         description=(
             "Clear the queued evaluations of every evaluator in every project. Evaluations "
             "already running are not affected. Cleared evaluations do not "

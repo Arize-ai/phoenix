@@ -28,7 +28,12 @@ class LastUsedTimesByGenerativeModelIdDataLoader(DataLoader[Key, Result]):
                         func.max(models.SpanCost.span_start_time).label("last_used_time"),
                     )
                     .select_from(models.SpanCost)
-                    .where(models.SpanCost.model_id.in_(keys))
+                    .join(models.Trace, models.SpanCost.trace_rowid == models.Trace.id)
+                    .join(models.Project, models.Trace.project_rowid == models.Project.id)
+                    .where(
+                        models.SpanCost.model_id.in_(keys),
+                        models.Project.deleted_at.is_(None),
+                    )
                     .group_by(models.SpanCost.model_id)
                 )
                 if model_id is not None

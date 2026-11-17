@@ -114,9 +114,12 @@ async def _get_or_create(
     skip_initial_lookup: bool = False,
     where: Sequence[ColumnElement[bool]] = (),
     index_where: Optional[Union[ColumnElement[bool], TextClause]] = None,
+    lock_for_share: bool = False,
 ) -> _RowT:
     query = select(*_columns(table, row_type)).filter_by(**key).where(*where)
     dialect = SupportedSQLDialect(session.get_bind().dialect.name)
+    if lock_for_share and dialect is SupportedSQLDialect.POSTGRESQL:
+        query = query.with_for_update(read=True, key_share=True)
     for attempt in range(2):
         if (not skip_initial_lookup or attempt > 0) and (
             record := await _fetch_row(session, query, row_type)
@@ -231,11 +234,14 @@ async def insert_span(
             existing_trace.end_time,
         )
     else:
+        project_stmt = select(models.Project.id).where(
+            models.Project.name == project_name, models.Project.deleted_at.is_(None)
+        )
+        if dialect is SupportedSQLDialect.POSTGRESQL:
+            project_stmt = project_stmt.with_for_update(read=True, key_share=True)
         project = await _fetch_row(
             session,
-            select(models.Project.id).where(
-                models.Project.name == project_name, models.Project.deleted_at.is_(None)
-            ),
+            project_stmt,
             _ProjectRow,
         )
         if project is None:
@@ -262,6 +268,7 @@ async def insert_span(
                 skip_initial_lookup=True,
                 where=(models.Project.deleted_at.is_(None),),
                 index_where=text(live_row_predicate()),
+                lock_for_share=True,
             )
         trace_values: dict[str, Any] = dict(
             project_rowid=project.id,

@@ -1263,8 +1263,10 @@ class Query:
         elif type_name == ProjectTraceRetentionPolicy.__name__:
             return ProjectTraceRetentionPolicy(id=node_id)
         elif type_name == SpanAnnotation.__name__:
+            await _raise_if_in_deleted_project(info, type_name, node_id)
             return SpanAnnotation(id=node_id)
         elif type_name == TraceAnnotation.__name__:
+            await _raise_if_in_deleted_project(info, type_name, node_id)
             return TraceAnnotation(id=node_id)
         elif type_name == GenerativeModel.__name__:
             return GenerativeModel(id=node_id)
@@ -2078,7 +2080,15 @@ class Query:
         info: Info[Context, None],
         span_id: str,
     ) -> Optional[Span]:
-        stmt = select(models.Span.id).filter_by(span_id=span_id)
+        stmt = (
+            select(models.Span.id)
+            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+            .join(models.Project, models.Trace.project_rowid == models.Project.id)
+            .where(
+                models.Span.span_id == span_id,
+                models.Project.deleted_at.is_(None),
+            )
+        )
         async with info.context.db.read() as session:
             span_rowid = await session.scalar(stmt)
         if span_rowid:
@@ -2091,7 +2101,14 @@ class Query:
         info: Info[Context, None],
         trace_id: str,
     ) -> Optional[Trace]:
-        stmt = select(models.Trace.id).where(models.Trace.trace_id == trace_id)
+        stmt = (
+            select(models.Trace.id)
+            .join(models.Project, models.Trace.project_rowid == models.Project.id)
+            .where(
+                models.Trace.trace_id == trace_id,
+                models.Project.deleted_at.is_(None),
+            )
+        )
         async with info.context.db.read() as session:
             trace_rowid = await session.scalar(stmt)
         if trace_rowid:
@@ -2120,7 +2137,14 @@ class Query:
         info: Info[Context, None],
         session_id: str,
     ) -> Optional[ProjectSession]:
-        stmt = select(models.ProjectSession).where(models.ProjectSession.session_id == session_id)
+        stmt = (
+            select(models.ProjectSession)
+            .join(models.Project, models.ProjectSession.project_id == models.Project.id)
+            .where(
+                models.ProjectSession.session_id == session_id,
+                models.Project.deleted_at.is_(None),
+            )
+        )
         async with info.context.db.read() as session:
             session_row = await session.scalar(stmt)
         if session_row:
@@ -2408,7 +2432,7 @@ def _comparison_count_expression(
 async def _raise_if_in_deleted_project(
     info: Info[Context, None], type_name: str, node_id: int
 ) -> None:
-    """Treat a trace, span, or session owned by a tombstoned project as not found."""
+    """Treat a trace, span, session, or annotation owned by a tombstoned project as not found."""
     if type_name == Trace.__name__:
         project_rowid = select(models.Trace.project_rowid).where(models.Trace.id == node_id)
     elif type_name == Span.__name__:
@@ -2416,6 +2440,19 @@ async def _raise_if_in_deleted_project(
             select(models.Trace.project_rowid)
             .join(models.Span, models.Span.trace_rowid == models.Trace.id)
             .where(models.Span.id == node_id)
+        )
+    elif type_name == SpanAnnotation.__name__:
+        project_rowid = (
+            select(models.Trace.project_rowid)
+            .join(models.Span, models.Span.trace_rowid == models.Trace.id)
+            .join(models.SpanAnnotation, models.SpanAnnotation.span_rowid == models.Span.id)
+            .where(models.SpanAnnotation.id == node_id)
+        )
+    elif type_name == TraceAnnotation.__name__:
+        project_rowid = (
+            select(models.Trace.project_rowid)
+            .join(models.TraceAnnotation, models.TraceAnnotation.trace_rowid == models.Trace.id)
+            .where(models.TraceAnnotation.id == node_id)
         )
     else:
         project_rowid = select(models.ProjectSession.project_id).where(
