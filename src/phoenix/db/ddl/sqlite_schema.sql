@@ -305,8 +305,6 @@ CREATE TABLE spans (
         ON DELETE CASCADE
 );
 
-CREATE INDEX ix_cumulative_llm_token_count_total ON spans
-    ((cumulative_llm_token_count_prompt + cumulative_llm_token_count_completion));
 CREATE INDEX ix_spans_parent_id ON spans (parent_id);
 CREATE INDEX ix_spans_session_id ON spans
     (CAST(JSON_EXTRACT(attributes, '$."session"."id"') AS VARCHAR))
