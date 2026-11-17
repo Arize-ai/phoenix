@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { getMessagePreview } from "@phoenix/components/playground/template/messagePreview";
 import type { ChatMessage } from "@phoenix/store";
-
-import { getMessagePreview } from "../messagePreview";
 
 function message(patch: Partial<ChatMessage>): ChatMessage {
   return { id: 1, role: "user", content: "", ...patch } as ChatMessage;

@@ -25,11 +25,6 @@ import {
 import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import { TemplateInput } from "@phoenix/components/templateEditor";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
-import type {
-  DecisionQuestionDraft,
-  DecisionQuestionType,
-} from "@phoenix/store/playground/types";
-
 import {
   createChoiceOption,
   createDecisionQuestion,
@@ -41,7 +36,11 @@ import {
   MAX_SCALE_LEVELS,
   MIN_CHOICE_OPTIONS,
   MIN_SCALE_LEVELS,
-} from "./decisionUtils";
+} from "@phoenix/pages/playground/decisionUtils";
+import type {
+  DecisionQuestionDraft,
+  DecisionQuestionType,
+} from "@phoenix/store/playground/types";
 
 const identityRowCSS = css`
   display: grid;

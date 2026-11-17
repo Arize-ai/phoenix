@@ -1,15 +1,6 @@
 import { Suspense } from "react";
 
-import {
-  Button,
-  CompositeField,
-  Icon,
-  Icons,
-  Loading,
-  Tooltip,
-  TooltipArrow,
-  TooltipTrigger,
-} from "@phoenix/components";
+import { CompositeField, Loading } from "@phoenix/components";
 import { InvocationParameterSpecsSync } from "@phoenix/components/playground/model/InvocationParameterSpecsSync";
 import { ModelParametersConfigButton } from "@phoenix/components/playground/model/ModelParametersConfigButton";
 import {
@@ -19,6 +10,8 @@ import {
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { isDecisionInstance } from "@phoenix/store/playground";
 
+import type { InstanceModelRouting } from "./modelControlTypes";
+
 /**
  * The model picker and parameters of an instance, for the header row of a
  * prompt task and of an LLM or decision evaluator, whose judge is the
@@ -26,20 +19,13 @@ import { isDecisionInstance } from "@phoenix/store/playground";
  */
 export function PlaygroundInstanceModelControls({
   instanceId,
-  disableEphemeralRouting,
-  supportsDecisionModels,
-  decisionTabNotice,
-  fixedModelType,
+  modelTypes,
   credentialSource,
-}: Pick<PlaygroundModelMenuProps, "fixedModelType" | "credentialSource"> & {
+  routing,
+}: Pick<PlaygroundModelMenuProps, "modelTypes" | "credentialSource"> & {
   instanceId: number;
-  /**
-   * Hide the endpoint, region and base URL fields; used where routing must
-   * come from custom providers or environment variables.
-   */
-  disableEphemeralRouting?: boolean;
-  supportsDecisionModels?: boolean;
-  decisionTabNotice?: string;
+  /** Defaults to "editable". */
+  routing?: InstanceModelRouting;
 }) {
   const isDecision = usePlaygroundContext((state) =>
     isDecisionInstance(
@@ -64,43 +50,16 @@ export function PlaygroundInstanceModelControls({
       <CompositeField>
         <PlaygroundModelMenu
           playgroundInstanceId={instanceId}
-          supportsDecisionModels={supportsDecisionModels}
-          decisionTabNotice={decisionTabNotice}
-          fixedModelType={fixedModelType}
+          modelTypes={modelTypes}
           credentialSource={credentialSource}
         />
         {/* A decision instance has no sampling parameters, but its model
             name and endpoint are set here too. */}
         <ModelParametersConfigButton
           playgroundInstanceId={instanceId}
-          disableEphemeralRouting={disableEphemeralRouting}
+          routing={routing}
         />
       </CompositeField>
     </>
-  );
-}
-
-export function PlaygroundInstanceDeleteButton({
-  instanceId,
-}: {
-  instanceId: number;
-}) {
-  const deleteInstance = usePlaygroundContext((state) => state.deleteInstance);
-
-  return (
-    <TooltipTrigger>
-      <Button
-        size="S"
-        aria-label="Delete this instance of the playground"
-        leadingVisual={<Icon svg={<Icons.Trash />} />}
-        onPress={() => {
-          deleteInstance(instanceId);
-        }}
-      />
-      <Tooltip>
-        <TooltipArrow />
-        Delete this instance of the playground
-      </Tooltip>
-    </TooltipTrigger>
   );
 }

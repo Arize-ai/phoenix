@@ -5,3 +5,5 @@ export * from "./ModelInvocationParametersFormFields";
 export * from "./ModelParametersConfigButton";
 export * from "./PlaygroundModelMenu";
 export * from "./SaveModelConfigButton";
+export * from "./PlaygroundInstanceModelControls";
+export * from "./modelControlTypes";

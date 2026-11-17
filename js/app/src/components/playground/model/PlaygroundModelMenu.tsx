@@ -16,17 +16,15 @@ import {
 import { generateMessageId, isDecisionInstance } from "@phoenix/store";
 import { selectPlaygroundInstanceDecisionPrompt } from "@phoenix/store/playground/selectors";
 
+import type { InstanceModelTypes } from "./modelControlTypes";
+
 export type PlaygroundModelMenuProps = {
   /**
    * The playground instance ID to configure
    */
   playgroundInstanceId: number;
-  /** Enable the Decision tab in the menu. */
-  supportsDecisionModels?: boolean;
-  /** Shown above the Decision tab's providers; see {@link ModelMenu}. */
-  decisionTabNotice?: string;
-  /** Restrict the menu to one model type; see {@link ModelMenu}. */
-  fixedModelType?: ModelType;
+  /** The model types the menu offers. Defaults to chat models only. */
+  modelTypes?: InstanceModelTypes;
   credentialSource?: ModelCredentialSource;
 };
 
@@ -36,9 +34,7 @@ export type PlaygroundModelMenuProps = {
  */
 export function PlaygroundModelMenu({
   playgroundInstanceId,
-  supportsDecisionModels = false,
-  decisionTabNotice,
-  fixedModelType,
+  modelTypes = "CHAT",
   credentialSource,
 }: PlaygroundModelMenuProps) {
   const store = usePlaygroundStore();
@@ -188,11 +184,10 @@ export function PlaygroundModelMenu({
     <ModelMenu
       value={value}
       onChange={handleChange}
-      supportsDecisionModels={supportsDecisionModels}
+      supportsDecisionModels={modelTypes !== "CHAT"}
       // A decision task with no model picked yet opens on the Decision tab.
       defaultModelType={isDecisionInstance(instance) ? "DECISION" : "CHAT"}
-      decisionTabNotice={decisionTabNotice}
-      fixedModelType={fixedModelType}
+      fixedModelType={modelTypes === "DECISION" ? "DECISION" : undefined}
       credentialSource={credentialSource}
       isDisabled={instance.activeRunId != null}
     />

@@ -19,6 +19,17 @@ import {
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
+  createDecisionDraft,
+  createDecisionQuestion,
+  DECISION_QUESTION_TYPES,
+  decisionFieldId,
+  maskUntouchedErrors,
+  MAX_DECISION_QUESTIONS,
+  switchDecisionStateMode,
+  validateDecisionDraft,
+} from "@phoenix/pages/playground/decisionUtils";
+import type { PlaygroundInstanceProps } from "@phoenix/pages/playground/types";
+import {
   selectPlaygroundInstance,
   selectPlaygroundInstanceDecisionPrompt,
 } from "@phoenix/store/playground/selectors";
@@ -31,17 +42,6 @@ import type {
 
 import { DecisionQuestionEditor } from "./DecisionQuestionEditor";
 import { DecisionStateEditor } from "./DecisionStateEditor";
-import {
-  createDecisionDraft,
-  createDecisionQuestion,
-  DECISION_QUESTION_TYPES,
-  decisionFieldId,
-  maskUntouchedErrors,
-  MAX_DECISION_QUESTIONS,
-  switchDecisionStateMode,
-  validateDecisionDraft,
-} from "./decisionUtils";
-import type { PlaygroundInstanceProps } from "./types";
 
 const ADD_QUESTION_TYPES = (["predicate", "choice", "scale"] as const).map(
   (id) => ({

@@ -16,7 +16,7 @@ import {
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
-import { sourceMenuTriggerCSS } from "@phoenix/pages/playground/searchablePickerStyles";
+import { sourceMenuTriggerCSS } from "@phoenix/components/playground/searchablePickerStyles";
 
 export type PromptOrDecisionMenuItem = {
   id: string;

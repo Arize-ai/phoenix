@@ -2,19 +2,18 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
+import { DecisionPromptEditor } from "@phoenix/components/decision/DecisionPromptEditor";
 import { PlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { ThemeContext } from "@phoenix/contexts/ThemeContext";
+import {
+  createDecisionDraft,
+  createDecisionStateDraft,
+} from "@phoenix/pages/playground/decisionUtils";
 import {
   createDecisionTaskInstance,
   createPlaygroundStore,
 } from "@phoenix/store/playground/playgroundStore";
 import { selectPlaygroundInstanceDecisionPrompt } from "@phoenix/store/playground/selectors";
-
-import { DecisionPromptEditor } from "../DecisionPromptEditor";
-import {
-  createDecisionDraft,
-  createDecisionStateDraft,
-} from "../decisionUtils";
 
 vi.mock("@phoenix/components/templateEditor", () => ({
   TemplateEditor: ({ defaultValue }: { defaultValue: string }) => (
@@ -22,7 +21,7 @@ vi.mock("@phoenix/components/templateEditor", () => ({
   ),
   TemplateEditorWrap: ({ children }: { children: React.ReactNode }) => children,
 }));
-vi.mock("../DecisionQuestionEditor", () => ({
+vi.mock("@phoenix/components/decision/DecisionQuestionEditor", () => ({
   DecisionQuestionEditor: () => null,
 }));
 

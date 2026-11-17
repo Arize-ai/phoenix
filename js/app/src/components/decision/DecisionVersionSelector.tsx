@@ -15,12 +15,12 @@ import {
   SelectChevronUpDownIcon,
   Text,
 } from "@phoenix/components";
+import { IdTruncate } from "@phoenix/components/IdTruncate";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { TagVersionLabel } from "@phoenix/pages/prompt/PromptVersionTagsList";
 import type { PlaygroundInstanceDecision } from "@phoenix/store/playground";
 
 import type { DecisionVersionSelectorVersionsQuery } from "./__generated__/DecisionVersionSelectorVersionsQuery.graphql";
-import { IdTruncate } from "./PromptMenu";
 
 /**
  * The version a decision task is on, and a menu to load another by version or

@@ -13,7 +13,7 @@ import {
 } from "@phoenix/components/core/select";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import type { DatasetExampleSelect_ExampleSelectPopoverContentQuery } from "@phoenix/components/dataset/__generated__/DatasetExampleSelect_ExampleSelectPopoverContentQuery.graphql";
-import { IdTruncate } from "@phoenix/pages/playground/PromptMenu";
+import { IdTruncate } from "@phoenix/components/IdTruncate";
 
 export type DatasetExampleSelectProps = {
   datasetId: string | null;

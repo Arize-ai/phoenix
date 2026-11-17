@@ -4,7 +4,6 @@ import { Autocomplete, Input, useFilter } from "react-aria-components";
 import { useLazyLoadQuery } from "react-relay";
 import { graphql } from "relay-runtime";
 
-import type { TextProps } from "@phoenix/components";
 import {
   Button,
   CompositeField,
@@ -28,10 +27,11 @@ import {
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { IdTruncate } from "@phoenix/components/IdTruncate";
+import type { PromptMenuQuery } from "@phoenix/components/playground/__generated__/PromptMenuQuery.graphql";
+import { PromptOrDecisionMenu } from "@phoenix/components/playground/PromptOrDecisionMenu";
+import { sourceMenuContainerCSS } from "@phoenix/components/playground/searchablePickerStyles";
 import { useTimeFormatters } from "@phoenix/hooks";
-import type { PromptMenuQuery } from "@phoenix/pages/playground/__generated__/PromptMenuQuery.graphql";
-import { PromptOrDecisionMenu } from "@phoenix/pages/playground/PromptOrDecisionMenu";
-import { sourceMenuContainerCSS } from "@phoenix/pages/playground/searchablePickerStyles";
 import { TagVersionLabel } from "@phoenix/pages/prompt/PromptVersionTagsList";
 
 export type PromptVersion = {
@@ -439,41 +439,4 @@ export function PromptVersionLabel({
     );
   }
   return <IdTruncate id={id} />;
-}
-
-/**
- * Character based truncation for IDs.
- * Truncates from the start, preserving the last 6 characters (by default).
- * Adds underline as an affordance for hovering, to show the un-truncated ID.
- */
-export function IdTruncate({
-  id,
-  length = 6,
-  textProps,
-  ellipsis,
-}: {
-  id: string;
-  length?: number;
-  textProps?: Partial<TextProps>;
-  ellipsis?: boolean;
-}) {
-  const truncatedValue = useMemo(() => {
-    if (id.length <= length) return id;
-    return id.slice(length * -1);
-  }, [id, length]);
-
-  return (
-    <Text
-      title={id}
-      css={css`
-        text-decoration: underline;
-        text-underline-offset: 4px;
-        font-family: monospace;
-      `}
-      {...textProps}
-    >
-      {ellipsis ? <>&hellip;</> : ""}
-      {truncatedValue}
-    </Text>
-  );
 }

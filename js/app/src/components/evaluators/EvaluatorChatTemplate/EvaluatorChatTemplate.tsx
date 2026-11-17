@@ -1,11 +1,23 @@
-import { useMemo } from "react";
+import { css } from "@emotion/react";
+import { Suspense, useMemo } from "react";
 
+import { Flex, View } from "@phoenix/components";
 import { materializeEvaluatorContext } from "@phoenix/components/evaluators/evaluatorContext";
+import { InstancePromptMenu } from "@phoenix/components/playground/InstancePromptMenu";
+import { PlaygroundInstanceModelControls } from "@phoenix/components/playground/model";
+import {
+  AddMessageButton,
+  ChatTemplateFooter,
+  ChatTemplateMessages,
+} from "@phoenix/components/playground/template";
 import { TemplateEvaluatorContextProvider } from "@phoenix/components/templateEditor/TemplateEvaluatorContext";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { PlaygroundTemplate } from "@phoenix/pages/playground/PlaygroundTemplate";
 import { extractPathsFromDatasetExamples } from "@phoenix/utils/objectUtils";
+
+const promptMenuContainerCSS = css`
+  overflow: hidden;
+`;
 
 export const EvaluatorChatTemplate = () => {
   const instances = usePlaygroundContext((state) => state.instances);
@@ -44,17 +56,36 @@ export const EvaluatorChatTemplate = () => {
   }, [evaluatorMappingSource, inputMapping]);
   return (
     <TemplateEvaluatorContextProvider value={evaluationContext}>
-      <PlaygroundTemplate
-        playgroundInstanceId={instanceId}
-        availablePaths={availablePaths}
-        disablePromptSave
-        disableResponseFormat
-        disableNewTool
-        disableTools
-        disableAlphabeticIndex
-        disableEphemeralRouting
-        disableDuplicate
-      />
+      <Flex direction="row" justifyContent="space-between">
+        <Flex
+          direction="row"
+          gap="size-100"
+          alignItems="center"
+          marginEnd="size-100"
+          minWidth={0}
+          flex="1 1 auto"
+          css={promptMenuContainerCSS}
+        >
+          <InstancePromptMenu instanceId={instanceId} />
+        </Flex>
+        <Flex direction="row" gap="size-100" flex="none">
+          <PlaygroundInstanceModelControls
+            instanceId={instanceId}
+            routing="configured"
+          />
+        </Flex>
+      </Flex>
+      <View paddingY="size-100">
+        <Suspense>
+          <ChatTemplateMessages
+            playgroundInstanceId={instanceId}
+            availablePaths={availablePaths}
+          />
+          <ChatTemplateFooter>
+            <AddMessageButton instanceId={instanceId} />
+          </ChatTemplateFooter>
+        </Suspense>
+      </View>
     </TemplateEvaluatorContextProvider>
   );
 };

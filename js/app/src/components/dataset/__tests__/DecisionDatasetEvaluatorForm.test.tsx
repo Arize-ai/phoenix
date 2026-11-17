@@ -53,9 +53,12 @@ vi.mock("@phoenix/pages/playground/fetchPlaygroundDecision", () => ({
   fetchPlaygroundDecisionAsInstance: (...args: unknown[]) =>
     loadVersion(...args),
 }));
-vi.mock("@phoenix/pages/playground/PlaygroundInstanceControls", () => ({
-  PlaygroundInstanceModelControls: () => <span>Decision model</span>,
-}));
+vi.mock(
+  "@phoenix/components/playground/model/PlaygroundInstanceModelControls",
+  () => ({
+    PlaygroundInstanceModelControls: () => <span>Decision model</span>,
+  })
+);
 vi.mock("@phoenix/components/evaluators/EvaluatorExampleDataset", () => ({
   EvaluatorExampleDataset: () => null,
 }));
@@ -82,7 +85,7 @@ vi.mock("@phoenix/components/evaluators/EvaluatorInputMapping", () => ({
     );
   },
 }));
-vi.mock("@phoenix/pages/playground/DecisionPromptEditor", () => ({
+vi.mock("@phoenix/components/decision/DecisionPromptEditor", () => ({
   DecisionPromptEditor: () => {
     const store = usePlaygroundStore();
     return (
@@ -177,7 +180,7 @@ vi.mock(
     ),
   })
 );
-vi.mock("@phoenix/pages/playground/DecisionVersionSelector", () => ({
+vi.mock("@phoenix/components/decision/DecisionVersionSelector", () => ({
   DecisionVersionSelector: ({
     onSelectVersion,
   }: {

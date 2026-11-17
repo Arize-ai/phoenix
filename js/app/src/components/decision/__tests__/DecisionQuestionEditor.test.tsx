@@ -2,11 +2,13 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { userEvent } from "storybook/test";
 
+import { DecisionQuestionEditor } from "@phoenix/components/decision/DecisionQuestionEditor";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
-
-import { DecisionQuestionEditor } from "../DecisionQuestionEditor";
-import { createDecisionQuestion, createScaleLevel } from "../decisionUtils";
+import {
+  createDecisionQuestion,
+  createScaleLevel,
+} from "@phoenix/pages/playground/decisionUtils";
 
 vi.mock("@phoenix/components/templateEditor", () => ({
   TemplateEditor: () => null,
