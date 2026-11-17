@@ -92,10 +92,13 @@ from phoenix.db.types.experiment_config import ConnectionConfig, PlaygroundConfi
 from phoenix.db.types.experiment_log import ExperimentLogDetail
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import (
+    MODEL_TYPE_KEY,
+    STORED_MODEL_TYPE,
     ModelProvider,
     ModelsOfType,
     ModelTypeKey,
     ProviderModels,
+    StoredModelType,
     default_provider_models,
 )
 from phoenix.db.types.prompts import (
@@ -3982,7 +3985,7 @@ class CustomProviderModelType(Base):
         ForeignKey("generative_model_custom_providers.id", ondelete="CASCADE"),
         nullable=False,
     )
-    model_type: Mapped[ModelTypeKey] = mapped_column(String, nullable=False)
+    model_type: Mapped[StoredModelType] = mapped_column(String, nullable=False)
 
     provider: Mapped["GenerativeModelCustomProvider"] = relationship(
         "GenerativeModelCustomProvider",
@@ -3999,18 +4002,18 @@ class CustomProviderModelType(Base):
 
     __table_args__ = (
         PrimaryKeyConstraint("provider_id", "model_type"),
-        CheckConstraint("model_type IN ('chat', 'decision')", name="valid_model_type"),
+        CheckConstraint("model_type IN ('CHAT', 'DECISION')", name="valid_model_type"),
     )
 
 
 class ModelProfile(HasId):
     __tablename__ = "model_profiles"
-    model_type: Mapped[ModelTypeKey] = mapped_column(String, nullable=False)
+    model_type: Mapped[StoredModelType] = mapped_column(String, nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
 
     __table_args__ = (
         UniqueConstraint("id", "model_type"),
-        CheckConstraint("model_type IN ('chat', 'decision')", name="valid_model_type"),
+        CheckConstraint("model_type IN ('CHAT', 'DECISION')", name="valid_model_type"),
         CheckConstraint("name <> '' AND name = trim(name)", name="valid_name"),
         dict(sqlite_autoincrement=True),
     )
@@ -4019,7 +4022,7 @@ class ModelProfile(HasId):
 class CustomProviderModelProfile(Base):
     __tablename__ = "custom_provider_model_profiles"
     provider_id: Mapped[int] = mapped_column(nullable=False)
-    model_type: Mapped[ModelTypeKey] = mapped_column(String, nullable=False)
+    model_type: Mapped[StoredModelType] = mapped_column(String, nullable=False)
     model_profile_id: Mapped[int] = mapped_column(nullable=False, index=True)
     position: Mapped[int] = mapped_column(Integer, nullable=False)
 
@@ -4058,7 +4061,9 @@ def provider_models_from_rows(
     by_type: dict[ModelTypeKey, ModelsOfType] = {}
     for row in rows:
         links = sorted(row.profile_links, key=lambda link: link.position)
-        by_type[row.model_type] = ModelsOfType(names=tuple(link.profile.name for link in links))
+        by_type[MODEL_TYPE_KEY[row.model_type]] = ModelsOfType(
+            names=tuple(link.profile.name for link in links)
+        )
     return ProviderModels(
         chat=by_type.get("chat"),
         decision=by_type.get("decision"),
@@ -4074,11 +4079,11 @@ def provider_models_to_rows(served: ProviderModels) -> list[CustomProviderModelT
             continue
         rows.append(
             CustomProviderModelType(
-                model_type=key,
+                model_type=STORED_MODEL_TYPE[key],
                 profile_links=[
                     CustomProviderModelProfile(
                         position=position,
-                        profile=ModelProfile(model_type=key, name=name),
+                        profile=ModelProfile(model_type=STORED_MODEL_TYPE[key], name=name),
                     )
                     for position, name in enumerate(models_of_type.names)
                 ],

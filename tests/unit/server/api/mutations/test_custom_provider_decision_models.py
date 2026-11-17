@@ -737,7 +737,7 @@ async def test_removing_a_served_type_deletes_its_links_and_profiles(
             await session.scalars(
                 sa.select(models.CustomProviderModelProfile.model_profile_id).where(
                     models.CustomProviderModelProfile.provider_id == provider_rowid,
-                    models.CustomProviderModelProfile.model_type == "decision",
+                    models.CustomProviderModelProfile.model_type == "DECISION",
                 )
             )
         ).all()
@@ -760,12 +760,12 @@ async def test_removing_a_served_type_deletes_its_links_and_profiles(
                 )
             )
         ).all()
-        assert list(type_rows) == ["chat"]
+        assert list(type_rows) == ["CHAT"]
         decision_links = (
             await session.scalars(
                 sa.select(models.CustomProviderModelProfile).where(
                     models.CustomProviderModelProfile.provider_id == provider_rowid,
-                    models.CustomProviderModelProfile.model_type == "decision",
+                    models.CustomProviderModelProfile.model_type == "DECISION",
                 )
             )
         ).all()
@@ -879,7 +879,7 @@ async def test_db_rejects_crosswalk_without_served_type_row(db: DbSessionFactory
             sdk="openai",
             config=encrypted_config,
         )
-        profile = models.ModelProfile(model_type="decision", name="gpt-6-luna")
+        profile = models.ModelProfile(model_type="DECISION", name="gpt-6-luna")
         session.add_all([provider, profile])
         await session.flush()
         provider_rowid = provider.id
@@ -890,7 +890,7 @@ async def test_db_rejects_crosswalk_without_served_type_row(db: DbSessionFactory
             await session.execute(
                 sa.insert(models.CustomProviderModelProfile).values(
                     provider_id=provider_rowid,
-                    model_type="decision",
+                    model_type="DECISION",
                     model_profile_id=profile_id,
                     position=0,
                 )
@@ -908,7 +908,7 @@ async def test_db_rejects_crosswalk_whose_model_type_differs_from_profile(
             sdk="openai",
             config=encrypted_config,
         )
-        profile = models.ModelProfile(model_type="decision", name="gpt-6-luna")
+        profile = models.ModelProfile(model_type="DECISION", name="gpt-6-luna")
         session.add_all([provider, profile])
         await session.flush()
         provider_rowid = provider.id
@@ -919,7 +919,7 @@ async def test_db_rejects_crosswalk_whose_model_type_differs_from_profile(
             await session.execute(
                 sa.insert(models.CustomProviderModelProfile).values(
                     provider_id=provider_rowid,
-                    model_type="chat",
+                    model_type="CHAT",
                     model_profile_id=profile_id,
                     position=0,
                 )
@@ -929,11 +929,12 @@ async def test_db_rejects_crosswalk_whose_model_type_differs_from_profile(
 @pytest.mark.parametrize(
     ("model_type", "name"),
     [
-        pytest.param("embedding", "text-embedding-3-small", id="invalid-model-type"),
-        pytest.param("chat", "", id="empty-name"),
-        pytest.param("chat", "   ", id="blank-name"),
-        pytest.param("chat", " gpt-4o", id="leading-space"),
-        pytest.param("chat", "gpt-4o ", id="trailing-space"),
+        pytest.param("EMBEDDING", "text-embedding-3-small", id="invalid-model-type"),
+        pytest.param("chat", "gpt-4o", id="lower-case-model-type"),
+        pytest.param("CHAT", "", id="empty-name"),
+        pytest.param("CHAT", "   ", id="blank-name"),
+        pytest.param("CHAT", " gpt-4o", id="leading-space"),
+        pytest.param("CHAT", "gpt-4o ", id="trailing-space"),
     ],
 )
 async def test_db_rejects_invalid_model_profile_type_or_name(
@@ -967,7 +968,7 @@ async def test_db_rejects_invalid_custom_provider_model_type(db: DbSessionFactor
             await session.execute(
                 sa.insert(models.CustomProviderModelType).values(
                     provider_id=provider_rowid,
-                    model_type="embedding",
+                    model_type="EMBEDDING",
                 )
             )
 

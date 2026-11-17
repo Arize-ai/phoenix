@@ -16,6 +16,7 @@ from typing_extensions import assert_never
 
 from phoenix.db import models
 from phoenix.db.types.model_provider import (
+    STORED_MODEL_TYPE,
     AnthropicCustomProviderConfig,
     AuthenticationMethodApiKey,
     AuthenticationMethodAzureADTokenProvider,
@@ -548,7 +549,9 @@ async def replace_provider_models(
         elif old_of_type is not None and new_of_type is not None:
             changed_types.append((key, new_of_type))
 
-    types_to_clear = [key for key, _ in changed_types] + removed_types
+    types_to_clear = [STORED_MODEL_TYPE[key] for key, _ in changed_types] + [
+        STORED_MODEL_TYPE[key] for key in removed_types
+    ]
     if types_to_clear:
         profile_ids = (
             await session.scalars(
@@ -572,7 +575,9 @@ async def replace_provider_models(
             await session.execute(
                 sa.delete(models.CustomProviderModelType).where(
                     models.CustomProviderModelType.provider_id == provider.id,
-                    models.CustomProviderModelType.model_type.in_(removed_types),
+                    models.CustomProviderModelType.model_type.in_(
+                        [STORED_MODEL_TYPE[key] for key in removed_types]
+                    ),
                 )
             )
         # Flush deletions before inserting positions 0..n so the unique
@@ -584,9 +589,9 @@ async def replace_provider_models(
             session.add(
                 models.CustomProviderModelProfile(
                     provider_id=provider.id,
-                    model_type=key,
+                    model_type=STORED_MODEL_TYPE[key],
                     position=position,
-                    profile=models.ModelProfile(model_type=key, name=name),
+                    profile=models.ModelProfile(model_type=STORED_MODEL_TYPE[key], name=name),
                 )
             )
 
@@ -594,11 +599,11 @@ async def replace_provider_models(
         session.add(
             models.CustomProviderModelType(
                 provider_id=provider.id,
-                model_type=key,
+                model_type=STORED_MODEL_TYPE[key],
                 profile_links=[
                     models.CustomProviderModelProfile(
                         position=position,
-                        profile=models.ModelProfile(model_type=key, name=name),
+                        profile=models.ModelProfile(model_type=STORED_MODEL_TYPE[key], name=name),
                     )
                     for position, name in enumerate(models_of_type.names)
                 ],

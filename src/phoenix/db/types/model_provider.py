@@ -299,6 +299,16 @@ def _clean_model_names(value: tuple[str, ...]) -> tuple[str, ...]:
 ModelNames: TypeAlias = Annotated[tuple[str, ...], AfterValidator(_clean_model_names)]
 
 ModelTypeKey: TypeAlias = Literal["chat", "decision"]
+StoredModelType: TypeAlias = Literal["CHAT", "DECISION"]
+
+# Model types are stored in upper case, like the database's other enumerated values and the
+# GraphQL ModelType enum; in Python they stay lower case to match ProviderModels' fields.
+STORED_MODEL_TYPE: Mapping[ModelTypeKey, StoredModelType] = MappingProxyType(
+    {"chat": "CHAT", "decision": "DECISION"}
+)
+MODEL_TYPE_KEY: Mapping[StoredModelType, ModelTypeKey] = MappingProxyType(
+    {stored: key for key, stored in STORED_MODEL_TYPE.items()}
+)
 
 
 class ModelsOfType(BaseModel):

@@ -113,8 +113,8 @@ CREATE TABLE public.model_profiles (
         UNIQUE (id, model_type),
     CONSTRAINT "ck_model_profiles_`valid_model_type`"
         CHECK (((model_type)::text = ANY ((ARRAY[
-            'chat'::character varying,
-            'decision'::character varying
+            'CHAT'::character varying,
+            'DECISION'::character varying
         ])::text[]))),
     CONSTRAINT "ck_model_profiles_`valid_name`" CHECK ((((name)::text <> ''::text) AND ((name)::text = TRIM(BOTH FROM name))))
 );
@@ -1399,8 +1399,8 @@ CREATE TABLE public.custom_provider_model_types (
     CONSTRAINT pk_custom_provider_model_types PRIMARY KEY (provider_id, model_type),
     CONSTRAINT "ck_custom_provider_model_types_`valid_model_type`"
         CHECK (((model_type)::text = ANY ((ARRAY[
-            'chat'::character varying,
-            'decision'::character varying
+            'CHAT'::character varying,
+            'DECISION'::character varying
         ])::text[]))),
     CONSTRAINT fk_custom_provider_model_types_provider_id_generative_m_5bba
         FOREIGN KEY (provider_id)

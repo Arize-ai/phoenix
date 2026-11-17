@@ -21,7 +21,7 @@ _Integer = sa.Integer().with_variant(
     "postgresql",
 )
 
-_VALID_MODEL_TYPE = "model_type IN ('chat', 'decision')"
+_VALID_MODEL_TYPE = "model_type IN ('CHAT', 'DECISION')"
 
 
 def upgrade() -> None:
@@ -90,7 +90,7 @@ def upgrade() -> None:
 
     op.execute(
         "INSERT INTO custom_provider_model_types (provider_id, model_type) "
-        "SELECT id, 'chat' FROM generative_model_custom_providers"
+        "SELECT id, 'CHAT' FROM generative_model_custom_providers"
     )
 
 

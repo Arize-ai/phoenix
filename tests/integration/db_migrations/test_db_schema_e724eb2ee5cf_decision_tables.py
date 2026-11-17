@@ -342,7 +342,7 @@ def _insert_custom_provider(conn: Connection) -> int:
     conn.execute(
         text(
             "INSERT INTO custom_provider_model_types (provider_id, model_type) "
-            "VALUES (:provider_id, 'decision')"
+            "VALUES (:provider_id, 'DECISION')"
         ),
         {"provider_id": provider_id},
     )

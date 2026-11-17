@@ -64,13 +64,13 @@ def _exercise_constraints(conn: Connection, db_backend: Literal["sqlite", "postg
     ).scalar_one()
 
     profile_id = conn.execute(
-        text("INSERT INTO model_profiles (model_type, name) VALUES ('chat', 'gpt-4o') RETURNING id")
+        text("INSERT INTO model_profiles (model_type, name) VALUES ('CHAT', 'gpt-4o') RETURNING id")
     ).scalar_one()
     conn.execute(
         text(
             "INSERT INTO custom_provider_model_profiles "
             "(provider_id, model_type, model_profile_id, position) "
-            "VALUES (:provider_id, 'chat', :profile_id, 0)"
+            "VALUES (:provider_id, 'CHAT', :profile_id, 0)"
         ),
         {"provider_id": provider_id, "profile_id": profile_id},
     )
@@ -85,14 +85,14 @@ def _exercise_constraints(conn: Connection, db_backend: Literal["sqlite", "postg
     other_profile_id = conn.execute(
         text(
             "INSERT INTO model_profiles (model_type, name) "
-            "VALUES ('chat', 'gpt-4o-mini') RETURNING id"
+            "VALUES ('CHAT', 'gpt-4o-mini') RETURNING id"
         )
     ).scalar_one()
     conn.commit()
     _expect_failure(
         "INSERT INTO custom_provider_model_profiles "
         "(provider_id, model_type, model_profile_id, position) "
-        "VALUES (:provider_id, 'chat', :profile_id, 0)",
+        "VALUES (:provider_id, 'CHAT', :profile_id, 0)",
         provider_id=provider_id,
         profile_id=other_profile_id,
     )
@@ -106,22 +106,22 @@ def _exercise_constraints(conn: Connection, db_backend: Literal["sqlite", "postg
     _expect_failure("INSERT INTO model_profiles (model_type, name) VALUES ('embedding', 'ada')")
 
     # Blank or untrimmed name CHECK
-    _expect_failure("INSERT INTO model_profiles (model_type, name) VALUES ('chat', '')")
-    _expect_failure("INSERT INTO model_profiles (model_type, name) VALUES ('chat', '  ')")
-    _expect_failure("INSERT INTO model_profiles (model_type, name) VALUES ('chat', ' gpt-4o')")
+    _expect_failure("INSERT INTO model_profiles (model_type, name) VALUES ('CHAT', '')")
+    _expect_failure("INSERT INTO model_profiles (model_type, name) VALUES ('CHAT', '  ')")
+    _expect_failure("INSERT INTO model_profiles (model_type, name) VALUES ('CHAT', ' gpt-4o')")
 
     # Crosswalk row whose (provider_id, model_type) has no type row
     decision_profile_id = conn.execute(
         text(
             "INSERT INTO model_profiles (model_type, name) "
-            "VALUES ('decision', 'jev-latest') RETURNING id"
+            "VALUES ('DECISION', 'jev-latest') RETURNING id"
         )
     ).scalar_one()
     conn.commit()
     _expect_failure(
         "INSERT INTO custom_provider_model_profiles "
         "(provider_id, model_type, model_profile_id, position) "
-        "VALUES (:provider_id, 'decision', :profile_id, 0)",
+        "VALUES (:provider_id, 'DECISION', :profile_id, 0)",
         provider_id=provider_id,
         profile_id=decision_profile_id,
     )
@@ -130,7 +130,7 @@ def _exercise_constraints(conn: Connection, db_backend: Literal["sqlite", "postg
     _expect_failure(
         "INSERT INTO custom_provider_model_profiles "
         "(provider_id, model_type, model_profile_id, position) "
-        "VALUES (:provider_id, 'chat', :profile_id, 1)",
+        "VALUES (:provider_id, 'CHAT', :profile_id, 1)",
         provider_id=provider_id,
         profile_id=decision_profile_id,
     )
@@ -166,7 +166,7 @@ async def test_custom_provider_model_tables_migration(
     assert "models" not in providers_info["column_names"]
     assert await _run_async(_engine, _providers) == before
 
-    assert await _run_async(_engine, _served_types) == {sdk: ["chat"] for sdk in _SDKS}
+    assert await _run_async(_engine, _served_types) == {sdk: ["CHAT"] for sdk in _SDKS}
 
     types_info = await table_info("custom_provider_model_types")
     assert types_info is not None

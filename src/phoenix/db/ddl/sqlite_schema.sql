@@ -107,7 +107,7 @@ CREATE TABLE model_profiles (
     name VARCHAR NOT NULL,
     CONSTRAINT uq_model_profiles_id_model_type UNIQUE (id, model_type),
     CONSTRAINT "ck_model_profiles_`valid_model_type`"
-        CHECK (model_type IN ('chat', 'decision')),
+        CHECK (model_type IN ('CHAT', 'DECISION')),
     CONSTRAINT "ck_model_profiles_`valid_name`" CHECK (name <> '' AND name = trim(name))
 );
 
@@ -1305,7 +1305,7 @@ CREATE TABLE custom_provider_model_types (
     model_type VARCHAR NOT NULL,
     CONSTRAINT pk_custom_provider_model_types PRIMARY KEY (provider_id, model_type),
     CONSTRAINT "ck_custom_provider_model_types_`valid_model_type`"
-        CHECK (model_type IN ('chat', 'decision')),
+        CHECK (model_type IN ('CHAT', 'DECISION')),
     CONSTRAINT fk_custom_provider_model_types_provider_id_generative_model_custom_providers
         FOREIGN KEY (provider_id)
         REFERENCES generative_model_custom_providers (id)
