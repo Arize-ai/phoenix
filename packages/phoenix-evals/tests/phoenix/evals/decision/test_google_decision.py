@@ -55,13 +55,22 @@ def _multi_response(
     return SimpleNamespace(answers=ans, usage=usage)
 
 
-def _client_error(code):
-    """A google-genai ClientError carrying a Gemini safety ``error.code``."""
-    from google.genai.errors import ClientError
+def _bad_request_error(message="invalid argument"):
+    """The real exception a next-gen (v1beta) ``decisions.create`` raises on a 400.
 
-    return ClientError(
-        400,
-        {"error": {"code": code, "status": "INVALID_ARGUMENT", "message": "blocked"}},
+    The Decisions API resource surfaces a 4xx as a ``google.genai._interactions`` APIStatusError
+    subclass (``BadRequestError`` for 400), not the legacy ``google.genai.errors.ClientError``.
+    These are operational errors (malformed input, bad MIME, missing ``api_version``), not
+    refusals, so the adapter lets them propagate unchanged.
+    """
+    import httpx
+    from google.genai._interactions import BadRequestError
+
+    request = httpx.Request("POST", "http://decisions.test")
+    return BadRequestError(
+        message,
+        response=httpx.Response(400, request=request),
+        body={"error": {"code": "INVALID_ARGUMENT", "message": message}},
     )
 
 
@@ -273,16 +282,6 @@ def test_invocation_kwargs_reach_create_but_evaluator_params_do_not(monkeypatch)
     assert "method" not in kwargs
 
 
-def test_safety_block_raises_refusal(monkeypatch):
-    client = MagicMock()
-    client.decisions.create.side_effect = _client_error("prohibited_content")
-    _patch_clients(monkeypatch, client)
-
-    decision = DecisionModel(provider="google", model="gemini-decision-1")
-    with pytest.raises(PhoenixDecisionRefusal, match="refused"):
-        decision.generate_classification("something", ["correct", "incorrect"])
-
-
 def test_prompt_feedback_block_raises_refusal(monkeypatch):
     # A block can arrive as a 200 with empty `answers` and a populated `prompt_feedback`
     # rather than a 400; it must still surface as a refusal, not a missing-answer KeyError.
@@ -299,16 +298,47 @@ def test_prompt_feedback_block_raises_refusal(monkeypatch):
         decision.generate_classification("something", ["correct", "incorrect"])
 
 
-def test_non_safety_client_error_propagates(monkeypatch):
-    from google.genai.errors import ClientError
+def test_http_400_propagates_and_is_not_a_refusal(monkeypatch):
+    # A BadRequestError (malformed input, bad MIME, missing api_version) is an operational error,
+    # not a refusal, so it must propagate unchanged rather than become a PhoenixDecisionRefusal.
+    from google.genai._interactions import BadRequestError
 
     client = MagicMock()
-    client.decisions.create.side_effect = _client_error("INVALID_ARGUMENT")
+    client.decisions.create.side_effect = _bad_request_error()
     _patch_clients(monkeypatch, client)
 
     decision = DecisionModel(provider="google", model="gemini-decision-1")
-    with pytest.raises(ClientError):
+    with pytest.raises(BadRequestError):
         decision.generate_classification("something", ["correct", "incorrect"])
+
+
+def test_server_error_propagates(monkeypatch):
+    # A 5xx is a backend fault, not a refusal, so it must propagate unchanged.
+    import httpx
+    from google.genai._interactions import InternalServerError
+
+    request = httpx.Request("POST", "http://decisions.test")
+    client = MagicMock()
+    client.decisions.create.side_effect = InternalServerError(
+        "boom", response=httpx.Response(503, request=request), body={"error": {"code": "internal"}}
+    )
+    _patch_clients(monkeypatch, client)
+
+    decision = DecisionModel(provider="google", model="gemini-decision-1")
+    with pytest.raises(InternalServerError):
+        decision.generate_classification("something", ["correct", "incorrect"])
+
+
+def test_rate_limit_errors_registered_for_retry():
+    # A 429 must be retriable: the provider registers the real RateLimitError class (distinct from
+    # BadRequestError, so refusals/400s are never retried) so DecisionModel builds a rate limiter.
+    from google.genai._interactions import BadRequestError, RateLimitError
+
+    from phoenix.evals.decision.adapters.google.factories import get_google_rate_limit_errors
+
+    errors = get_google_rate_limit_errors()
+    assert errors == [RateLimitError]
+    assert RateLimitError is not BadRequestError
 
 
 def test_forces_v1beta_api_version(monkeypatch):
