@@ -120,6 +120,12 @@ Setup detects your framework and LLM provider, installs the right [OpenInference
 
 Phoenix container images are available via [Docker Hub](https://hub.docker.com/r/arizephoenix/phoenix) and can be deployed using Docker or Kubernetes via the [Helm chart](https://github.com/Arize-ai/phoenix/tree/main/helm).
 
+When authentication is enabled (automatic for non-localhost deployments), use these default credentials on first login:
+- **Email**: `admin@localhost`
+- **Password**: `admin`
+
+You'll be required to change the default password before you can sign in.
+
 For Docker Compose, Kubernetes/Helm, and other deployment options, see the [self-hosting documentation](https://arize.com/docs/phoenix/self-hosting).
 
 <p align="center">
