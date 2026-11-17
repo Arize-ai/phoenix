@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oidc-dev
+  labels:
+    app: oidc-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: oidc-dev
+  template:
+    metadata:
+      labels:
+        app: oidc-dev
+    spec:
+      containers:
+        - name: oidc-dev
+          image: docker.io/library/devops-oidc-dev:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 9000
+          env:
+            - name: OIDC_PORT
+              value: "9000"
+            - name: OIDC_ISSUER
+              value: "http://localhost:18273/oidc"
+            - name: OIDC_PUBLIC_BASE_URL
+              value: "http://localhost:18273/oidc"
+            - name: OIDC_AUTH_ENDPOINT
+              value: "http://localhost:18273/oidc/auth"
+            - name: OIDC_CLIENT_ID
+              value: "phoenix-oidc-client-id"
+            - name: OIDC_CLIENT_SECRET
+              value: "phoenix-oidc-client-secret-abc-123"
+            - name: OIDC_CLIENT_AUTH_METHOD
+              value: "oidc"
+            - name: DB_HOST
+              value: "db"
+            - name: DB_PORT
+              value: "5433"
+            - name: DB_NAME
+              value: "postgres"
+            - name: DB_USER
+              value: "postgres"
+            - name: DB_PASSWORD
+              value: "postgres"
+          volumeMounts:
+            - name: runtime
+              mountPath: /app/runtime
+          resources:
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+      volumes:
+        - name: runtime
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: oidc-dev
+  labels:
+    app: oidc-dev
+spec:
+  selector:
+    app: oidc-dev
+  ports:
+    - name: http
+      port: 9000
+      targetPort: 9000

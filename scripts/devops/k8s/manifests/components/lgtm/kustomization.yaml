@@ -1,0 +1,45 @@
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - lgtm.yaml
+
+patches:
+  - target:
+      kind: ConfigMap
+      name: traefik-dynamic-profiles
+    patch: |
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: traefik-dynamic-profiles
+      data:
+        lgtm.yml: |
+          http:
+            middlewares:
+              grafana-mcp-stripprefix:
+                stripPrefix:
+                  prefixes:
+                    - "/grafana-mcp"
+            routers:
+              lgtm:
+                rule: "PathPrefix(`/lgtm`)"
+                entryPoints:
+                  - web
+                service: lgtm
+              grafana-mcp:
+                rule: "PathPrefix(`/grafana-mcp`)"
+                entryPoints:
+                  - web
+                middlewares:
+                  - grafana-mcp-stripprefix
+                service: grafana-mcp
+            services:
+              lgtm:
+                loadBalancer:
+                  servers:
+                    - url: "http://lgtm:3000"
+              grafana-mcp:
+                loadBalancer:
+                  servers:
+                    - url: "http://grafana-mcp:8000"

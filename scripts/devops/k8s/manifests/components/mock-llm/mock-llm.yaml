@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mock-llm
+  labels:
+    app: mock-llm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mock-llm
+  template:
+    metadata:
+      labels:
+        app: mock-llm
+    spec:
+      containers:
+        - name: mock-llm
+          image: docker.io/library/devops-mock-llm:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 57593
+          env:
+            - name: PORT
+              value: "57593"
+          resources:
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mock-llm
+  labels:
+    app: mock-llm
+spec:
+  selector:
+    app: mock-llm
+  ports:
+    - name: http
+      port: 57593
+      targetPort: 57593

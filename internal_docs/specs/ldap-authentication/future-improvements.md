@@ -1,6 +1,6 @@
 # Future Improvements (Post-MVP)
 
-This document catalogs potential enhancements to elevate the LDAP implementation from production-ready (A-) to enterprise-grade (A+). These are **not blockers** for the current release but represent opportunities for future iterations.
+This document lists LDAP enhancements that have not been implemented. None of them blocks the current release.
 
 ---
 
@@ -14,6 +14,7 @@ This document catalogs potential enhancements to elevate the LDAP implementation
 | [Nested Group Resolution](#4-nested-group-resolution-for-active-directory) | Medium | High | Phase 3 |
 | [Connection Health Checks](#5-connection-health-checks) | Low | Medium | Phase 3 |
 | [Group Search Pagination](#6-group-search-pagination) | Low | Low | As needed |
+| [Background Sync](#7-background-sync) | Medium | High | On request |
 
 **Phase 2 Recommendation**: Items 1-3 should be bundled in the next LDAP release for significant UX and operational improvements with modest effort.
 
@@ -328,6 +329,8 @@ Phoenix Admins (group)
 
 Current implementation won't see Alice as a member of "Phoenix Admins".
 
+Operators can already work around this with a group search instead of `memberOf`: set `PHOENIX_LDAP_GROUP_SEARCH_FILTER=(member:1.2.840.113556.1.4.1941:=%s)` and `PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR=distinguishedName`. The options below would make nested groups work with the default `memberOf` configuration.
+
 ### Option A: LDAP_MATCHING_RULE_IN_CHAIN (Recommended)
 
 ```python
@@ -624,15 +627,50 @@ Only implement if a customer reports truncation issues. Signs of this problem:
 
 ---
 
+## 7. Background Sync
+
+**Impact**: Medium | **Complexity**: High | **Target**: On request
+
+### Current Behavior
+
+Phoenix syncs a user's email and role from LDAP only when that user logs in. A user removed from the directory keeps their Phoenix account and sessions until an admin deletes them.
+
+### Proposal
+
+A scheduled job, modeled on Grafana Enterprise's background sync, would:
+
+1. Iterate over every LDAP user in the database.
+2. Sync email and role from the directory.
+3. Disable users that are no longer in the directory, and revoke their sessions.
+4. Re-enable previously disabled users found in the directory again.
+
+Phoenix users have no disabled state today, so steps 3 and 4 would need one.
+
+It would follow the existing `DaemonTask` pattern used by `TraceDataSweeper`. Proposed configuration:
+
+```bash
+PHOENIX_LDAP_BACKGROUND_SYNC_ENABLED="true"     # default: false
+PHOENIX_LDAP_BACKGROUND_SYNC_CRON="0 1 * * *"   # default: 1 AM daily
+```
+
+### When It Helps
+
+- Organizations with many LDAP users, or users who log in rarely.
+- Security policies that require prompt deprovisioning.
+
+Login-time sync is enough for small deployments whose users log in often, and a sync job costs directory queries. The decision is to defer this until users request it. A manual sync endpoint would be a smaller first step.
+
+---
+
 ## Implementation Recommendations
 
 ### Phase 2 (Next LDAP Release)
 
 Bundle these three improvements for significant operational value:
 
-1. ✅ **Metrics/Observability** - Low effort, essential for production operations
-2. ✅ **Retry Logic** - Low effort, improves reliability
-3. ⚠️ **Password Policy Handling** - Medium effort, major UX improvement
+1. **Metrics/Observability** - Low effort, essential for production operations
+2. **Retry Logic** - Low effort, improves reliability
+3. **Password Policy Handling** - Medium effort, major UX improvement
 
 **Estimated Effort**: 2-3 days total
 
@@ -640,9 +678,10 @@ Bundle these three improvements for significant operational value:
 
 Implement based on customer demand:
 
-4. ⏳ **Nested Group Resolution** - Only if customers report AD nested group issues
-5. ⏳ **Connection Health Checks** - Only for large multi-server deployments
-6. ⏳ **Group Search Pagination** - Only if truncation reported
+4. **Nested Group Resolution** - Only if customers report AD nested group issues
+5. **Connection Health Checks** - Only for large multi-server deployments
+6. **Group Search Pagination** - Only if truncation reported
+7. **Background Sync** - Only if users request it
 
 ### Not Recommended
 

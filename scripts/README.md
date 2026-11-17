@@ -40,11 +40,11 @@ Data wrangling and corpus building (LangChain / LlamaIndex).
 - The checked-in canonical schema assets live in `src/phoenix/db/ddl/`.
 - `compare_schemas.py` — assert both dialects describe the same tables, columns, explicitly created indexes, and CHECK/UNIQUE/FOREIGN KEY constraint names; each generator only validates against its own database, so nothing else catches the two files drifting apart. Names are normalized for PostgreSQL's 63-byte identifier cap, which SQLite does not share. Constraint-backed indexes and PRIMARY KEY names are excluded because the dialects legitimately differ there. PEP 723 script.
 
-### `docker/devops/`
-Local docker-compose stack for development: Phoenix, OIDC, LDAP, SMTP, mock LLM server, Grafana, Prometheus, Toxiproxy, Vite dev server, k8s manifests. See `docker/devops/README.md`.
+### `devops/`
+Unified local development stack supporting Kubernetes (**Apple `container cluster`** default on macOS 26+, or **`kind`**) and Compose (**Podman** or **Docker**): Phoenix (via `helm/` on K8s or Compose), OIDC, LDAP, SMTP, mock LLM server, Grafana, Prometheus, Tempo, Loki, LGTM (`otel-lgtm` + `grafana-mcp`), Toxiproxy, Datagen, and Vite dev server. Run with `make dev-stack` or `scripts/devops/dev.sh`. See `devops/README.md`.
 
-### `docker/devops/mock-llm-server/`
-TypeScript mock for OpenAI / Anthropic / Google GenAI / TypeSafe APIs with a real-time dashboard. Run it with `make dev-mock-llm`, or in the devops stack with `./dev.sh up --profile mock-llm`. See `docker/devops/mock-llm-server/README.md`.
+### `devops/mock-llm-server/`
+TypeScript mock for OpenAI / Anthropic / Google GenAI / TypeSafe APIs with a real-time dashboard. Run it with `make dev-mock-llm`, or in the devops stack with `./dev.sh up --profile mock-llm`. See `devops/mock-llm-server/README.md`.
 
 ### `evaluators/`
 GraphQL smoke tests for the chat / playground / evaluator surface.
