@@ -55,7 +55,7 @@ def railway(query: str, **variables: Any) -> dict[str, Any]:
         headers={
             "Content-Type": "application/json",
             "Project-Access-Token": os.environ["RAILWAY_TOKEN"],
-            "-Agent": "phoenix-factory-preview",
+            "User-Agent": "phoenix-factory-preview",
         },
     )
     try:
@@ -283,10 +283,10 @@ def ghcr_package(image: str) -> tuple[str, str]:
 
 def packages_api_root(owner: str) -> str:
     try:
-        owner_type = run_gh("api", f"s/{owner}", "--jq", ".type").strip()
+        owner_type = run_gh("api", f"users/{owner}", "--jq", ".type").strip()
     except subprocess.CalledProcessError:
         owner_type = "Organization"
-    return f"{'orgs' if owner_type == 'Organization' else 's'}/{owner}/packages/container"
+    return f"{'orgs' if owner_type == 'Organization' else 'users'}/{owner}/packages/container"
 
 
 def list_image_versions(*, image: str) -> dict[str, list[str]]:
