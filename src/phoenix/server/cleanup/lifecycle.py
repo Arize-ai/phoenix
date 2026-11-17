@@ -72,66 +72,58 @@ async def logical_delete_project_evaluators(
     if not requested_ids:
         return []
 
-    while True:
-        discovered = (
-            await session.execute(
-                select(
-                    models.ProjectEvaluator.id,
-                    models.ProjectEvaluator.project_id,
-                    models.ProjectEvaluator.trace_project_id,
-                    models.ProjectEvaluator.evaluator_id,
-                ).where(
-                    models.ProjectEvaluator.id.in_(requested_ids),
-                    models.ProjectEvaluator.deleted_at.is_(None),
-                )
-            )
-        ).all()
-        if not discovered:
-            return []
-
-        project_ids = {row.project_id for row in discovered} | {
-            row.trace_project_id for row in discovered
-        }
-        evaluator_ids = {row.evaluator_id for row in discovered if row.evaluator_id is not None}
-
-        # Canonical lock order (§4.2): Project (FOR NO KEY UPDATE) -> Evaluator -> Binding.
-        await _lock_projects(session, dialect, project_ids, key_share=True)
-        await lock_evaluators(session, evaluator_ids)
-
-        bindings_stmt = (
+    discovered = (
+        await session.execute(
             select(
                 models.ProjectEvaluator.id,
                 models.ProjectEvaluator.project_id,
                 models.ProjectEvaluator.trace_project_id,
                 models.ProjectEvaluator.evaluator_id,
-            )
-            .where(
+            ).where(
                 models.ProjectEvaluator.id.in_(requested_ids),
                 models.ProjectEvaluator.deleted_at.is_(None),
             )
-            .order_by(models.ProjectEvaluator.id.asc())
         )
-        if dialect is SupportedSQLDialect.POSTGRESQL:
-            bindings_stmt = bindings_stmt.with_for_update()
-        locked_rows = (await session.execute(bindings_stmt)).all()
-        if not locked_rows:
-            return []
+    ).all()
+    if not discovered:
+        return []
 
-        locked_projects = {row.project_id for row in locked_rows} | {
-            row.trace_project_id for row in locked_rows
-        }
-        locked_evaluators = {
-            row.evaluator_id for row in locked_rows if row.evaluator_id is not None
-        }
-        if not (locked_projects <= project_ids and locked_evaluators <= evaluator_ids):
-            # Discovery changed before locking; expand and retry on a fresh transaction.
-            requested_ids = [row.id for row in locked_rows]
-            project_ids |= locked_projects
-            evaluator_ids |= locked_evaluators
-            await _lock_projects(session, dialect, project_ids, key_share=True)
-            await lock_evaluators(session, evaluator_ids)
+    project_ids = {row.project_id for row in discovered} | {
+        row.trace_project_id for row in discovered
+    }
+    evaluator_ids = {row.evaluator_id for row in discovered if row.evaluator_id is not None}
 
-        break
+    # Canonical lock order (§4.2): Project (FOR NO KEY UPDATE) -> Evaluator -> Binding.
+    await _lock_projects(session, dialect, project_ids, key_share=True)
+    await lock_evaluators(session, evaluator_ids)
+
+    bindings_stmt = (
+        select(
+            models.ProjectEvaluator.id,
+            models.ProjectEvaluator.project_id,
+            models.ProjectEvaluator.trace_project_id,
+            models.ProjectEvaluator.evaluator_id,
+        )
+        .where(
+            models.ProjectEvaluator.id.in_(requested_ids),
+            models.ProjectEvaluator.deleted_at.is_(None),
+        )
+        .order_by(models.ProjectEvaluator.id.asc())
+    )
+    if dialect is SupportedSQLDialect.POSTGRESQL:
+        bindings_stmt = bindings_stmt.with_for_update()
+    locked_rows = (await session.execute(bindings_stmt)).all()
+    if not locked_rows:
+        return []
+
+    locked_projects = {row.project_id for row in locked_rows} | {
+        row.trace_project_id for row in locked_rows
+    }
+    locked_evaluators = {row.evaluator_id for row in locked_rows if row.evaluator_id is not None}
+    if not (locked_projects <= project_ids and locked_evaluators <= evaluator_ids):
+        # Owner and evaluator identities are immutable for a live binding. Acquiring a
+        # newly discovered earlier lock here would violate the transaction's lock order.
+        raise RuntimeError("Live evaluator binding ownership changed while acquiring locks")
 
     now = await current_database_time(session, dialect)
     marked_ids = [int(row.id) for row in locked_rows]
@@ -219,70 +211,68 @@ async def logical_delete_dataset_evaluators(
     if not requested_ids:
         return []
 
-    while True:
-        discovered = (
-            await session.execute(
-                select(
-                    models.DatasetEvaluators.id,
-                    models.DatasetEvaluators.dataset_id,
-                    models.DatasetEvaluators.project_id,
-                    models.DatasetEvaluators.evaluator_id,
-                ).where(
-                    models.DatasetEvaluators.id.in_(requested_ids),
-                    models.DatasetEvaluators.deleted_at.is_(None),
-                )
-            )
-        ).all()
-        if not discovered:
-            return []
-
-        dataset_ids = sorted(
-            {int(row.dataset_id) for row in discovered if row.dataset_id is not None}
-        )
-        project_ids = {int(row.project_id) for row in discovered}
-        evaluator_ids = {
-            int(row.evaluator_id) for row in discovered if row.evaluator_id is not None
-        }
-
-        if dataset_ids and dialect is SupportedSQLDialect.POSTGRESQL:
-            await session.execute(
-                select(models.Dataset.id)
-                .where(models.Dataset.id.in_(dataset_ids))
-                .order_by(models.Dataset.id.asc())
-                .with_for_update(key_share=True)
-            )
-        await _lock_projects(session, dialect, project_ids, key_share=True)
-        await lock_evaluators(session, evaluator_ids)
-
-        bindings_stmt = (
+    discovered = (
+        await session.execute(
             select(
                 models.DatasetEvaluators.id,
                 models.DatasetEvaluators.dataset_id,
                 models.DatasetEvaluators.project_id,
                 models.DatasetEvaluators.evaluator_id,
-            )
-            .where(
+            ).where(
                 models.DatasetEvaluators.id.in_(requested_ids),
                 models.DatasetEvaluators.deleted_at.is_(None),
             )
-            .order_by(models.DatasetEvaluators.id.asc())
         )
-        if dialect is SupportedSQLDialect.POSTGRESQL:
-            bindings_stmt = bindings_stmt.with_for_update()
-        locked_rows = (await session.execute(bindings_stmt)).all()
-        if not locked_rows:
-            return []
+    ).all()
+    if not discovered:
+        return []
 
-        locked_projects = {int(row.project_id) for row in locked_rows}
-        locked_evaluators = {
-            int(row.evaluator_id) for row in locked_rows if row.evaluator_id is not None
-        }
-        if not (locked_projects <= project_ids and locked_evaluators <= evaluator_ids):
-            project_ids |= locked_projects
-            evaluator_ids |= locked_evaluators
-            await _lock_projects(session, dialect, project_ids, key_share=True)
-            await lock_evaluators(session, evaluator_ids)
-        break
+    dataset_ids = {int(row.dataset_id) for row in discovered if row.dataset_id is not None}
+    project_ids = {int(row.project_id) for row in discovered}
+    evaluator_ids = {int(row.evaluator_id) for row in discovered if row.evaluator_id is not None}
+
+    if dataset_ids and dialect is SupportedSQLDialect.POSTGRESQL:
+        await session.execute(
+            select(models.Dataset.id)
+            .where(models.Dataset.id.in_(sorted(dataset_ids)))
+            .order_by(models.Dataset.id.asc())
+            .with_for_update(key_share=True)
+        )
+    await _lock_projects(session, dialect, project_ids, key_share=True)
+    await lock_evaluators(session, evaluator_ids)
+
+    bindings_stmt = (
+        select(
+            models.DatasetEvaluators.id,
+            models.DatasetEvaluators.dataset_id,
+            models.DatasetEvaluators.project_id,
+            models.DatasetEvaluators.evaluator_id,
+        )
+        .where(
+            models.DatasetEvaluators.id.in_(requested_ids),
+            models.DatasetEvaluators.deleted_at.is_(None),
+        )
+        .order_by(models.DatasetEvaluators.id.asc())
+    )
+    if dialect is SupportedSQLDialect.POSTGRESQL:
+        bindings_stmt = bindings_stmt.with_for_update()
+    locked_rows = (await session.execute(bindings_stmt)).all()
+    if not locked_rows:
+        return []
+
+    locked_datasets = {int(row.dataset_id) for row in locked_rows if row.dataset_id is not None}
+    locked_projects = {int(row.project_id) for row in locked_rows}
+    locked_evaluators = {
+        int(row.evaluator_id) for row in locked_rows if row.evaluator_id is not None
+    }
+    if not (
+        locked_datasets <= dataset_ids
+        and locked_projects <= project_ids
+        and locked_evaluators <= evaluator_ids
+    ):
+        # Owner and evaluator identities are immutable for a live binding. Acquiring a
+        # newly discovered earlier lock here would violate the transaction's lock order.
+        raise RuntimeError("Live evaluator binding ownership changed while acquiring locks")
 
     now = await current_database_time(session, dialect)
     marked_ids = [int(row.id) for row in locked_rows]
