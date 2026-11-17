@@ -27,6 +27,7 @@ from phoenix.server.evaluators.services.dataset_bindings import (
     bind_dataset_evaluator,
     check_dataset_binding,
     dataset_binding_error,
+    lock_dataset_for_binding,
     write_dataset_evaluator,
 )
 from phoenix.server.evaluators.services.definitions import (
@@ -260,10 +261,11 @@ async def create_dataset_decision_binding(
     )
     try:
         async with context.db() as session:
+            dataset = await lock_dataset_for_binding(session, settings)
             evaluator = await get_decision_evaluator(
                 session, _id(input.evaluator_id, "DecisionEvaluator"), lock=True
             )
-            binding = await bind_dataset_evaluator(session, evaluator, settings)
+            binding = await bind_dataset_evaluator(session, evaluator, settings, dataset=dataset)
     except (IntegrityError, SQLiteIntegrityError) as error:
         raise await dataset_binding_error(
             context, error, name=settings.name, dataset_id=input.dataset_id
@@ -436,6 +438,7 @@ async def create_dataset_decision_evaluator(
     )
     try:
         async with context.db() as session:
+            dataset = await lock_dataset_for_binding(session, settings)
             evaluator = await _new_decision_evaluator_from_source(
                 session,
                 user_id=context.user_id,
@@ -446,7 +449,7 @@ async def create_dataset_decision_evaluator(
                 decision_version=decision_version,
                 scoring_policy=scoring_policy,
             )
-            binding = await bind_dataset_evaluator(session, evaluator, settings)
+            binding = await bind_dataset_evaluator(session, evaluator, settings, dataset=dataset)
     except (IntegrityError, SQLiteIntegrityError) as error:
         raise await dataset_binding_error(
             context, error, name=settings.name, dataset_id=dataset_id

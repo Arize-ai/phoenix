@@ -139,6 +139,7 @@ async def create_dataset_llm_evaluator(
     output_configs = check_output_configs("LLM", input.output_configs)
     try:
         async with context.db() as session:
+            dataset = await lock_dataset_for_binding(session, binding)
             evaluator = await create_llm_definition(
                 session,
                 name=await generate_unique_evaluator_name(session, binding.name),
@@ -149,7 +150,9 @@ async def create_dataset_llm_evaluator(
                 input_schema=input.input_schema,
                 binding_name=binding.name,
             )
-            dataset_evaluator = await bind_dataset_evaluator(session, evaluator, binding)
+            dataset_evaluator = await bind_dataset_evaluator(
+                session, evaluator, binding, dataset=dataset
+            )
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
         raise await dataset_binding_error(
             context, error, name=binding.name, dataset_id=input.dataset_id
@@ -329,13 +332,16 @@ async def create_dataset_builtin_evaluator(
 
     try:
         async with context.db() as session:
+            dataset = await lock_dataset_for_binding(session, binding)
             builtin_db = await session.get(models.BuiltinEvaluator, built_in_evaluator_id)
             if builtin_db is None:
                 raise NotFound(f"Built-in evaluator with id {input.evaluator_id} not found")
             builtin_evaluator = get_builtin_evaluator_by_key(builtin_db.key)
             if builtin_evaluator is None:
                 raise NotFound(f"Built-in evaluator class not found for key: {builtin_db.key}")
-            dataset_evaluator = await bind_dataset_evaluator(session, builtin_db, binding)
+            dataset_evaluator = await bind_dataset_evaluator(
+                session, builtin_db, binding, dataset=dataset
+            )
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
         raise await dataset_binding_error(
             context, error, name=binding.name, dataset_id=input.dataset_id
@@ -463,6 +469,7 @@ async def create_dataset_code_evaluator(
 
     try:
         async with context.db() as session:
+            dataset = await lock_dataset_for_binding(session, binding)
             code_evaluator: Optional[models.CodeEvaluator]
             if evaluator_id is not None:
                 # Locked so a concurrent definition delete sees the binding.
@@ -482,7 +489,9 @@ async def create_dataset_code_evaluator(
                     user_id=context.user_id,
                     description=input.description,
                 )
-            dataset_evaluator = await bind_dataset_evaluator(session, code_evaluator, binding)
+            dataset_evaluator = await bind_dataset_evaluator(
+                session, code_evaluator, binding, dataset=dataset
+            )
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
         raise await dataset_binding_error(
             context, error, name=binding.name, dataset_id=input.dataset_id
@@ -604,12 +613,15 @@ async def create_dataset_llm_binding(
     evaluator_rowid = _decode_id(input.evaluator_id, "LLMEvaluator", "evaluator")
     try:
         async with context.db() as session:
+            dataset = await lock_dataset_for_binding(session, binding)
             evaluator = await session.get(
                 models.LLMEvaluator, evaluator_rowid, with_for_update=True
             )
             if evaluator is None:
                 raise NotFound(f"LLM evaluator not found: {input.evaluator_id}")
-            dataset_evaluator = await bind_dataset_evaluator(session, evaluator, binding)
+            dataset_evaluator = await bind_dataset_evaluator(
+                session, evaluator, binding, dataset=dataset
+            )
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
         raise await dataset_binding_error(
             context, error, name=binding.name, dataset_id=input.dataset_id
@@ -659,11 +671,10 @@ def check_dataset_binding(
     )
 
 
-async def bind_dataset_evaluator(
-    session: AsyncSession, evaluator: models.Evaluator, binding: DatasetBinding
-) -> models.DatasetEvaluators:
-    """Bind an evaluator to a dataset with its own trace project, after check_dataset_binding.
-    A decision evaluator's mapping must fill its variables from an experiment run."""
+async def lock_dataset_for_binding(
+    session: AsyncSession, binding: DatasetBinding
+) -> models.Dataset:
+    """Lock the owner before acquiring evaluator locks when attaching a binding."""
     dataset = await session.get(
         models.Dataset,
         binding.dataset_rowid,
@@ -671,6 +682,17 @@ async def bind_dataset_evaluator(
     )
     if dataset is None:
         raise NotFound(f"Dataset not found: {binding.dataset_id}")
+    return dataset
+
+
+async def bind_dataset_evaluator(
+    session: AsyncSession,
+    evaluator: models.Evaluator,
+    binding: DatasetBinding,
+    *,
+    dataset: models.Dataset,
+) -> models.DatasetEvaluators:
+    """Bind an evaluator after locking the dataset owner, then its evaluator."""
     dataset_name = dataset.name
     output_configs = (
         dataset_binding_overrides(evaluator, binding.output_configs)
