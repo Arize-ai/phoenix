@@ -1,0 +1,146 @@
+# Dynamic file-provider configuration for Traefik v3.6.2 in scripts/devops/k8s.
+# All routes live in a single ConfigMap (`traefik-dynamic-profiles`) mounted as a
+# flat directory `/etc/traefik/dynamic` so Kustomize profile components can add keys.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: traefik-dynamic-profiles
+data:
+  core.yml: |
+    http:
+      middlewares:
+        phoenix-redirect-middleware:
+          redirectRegex:
+            regex: "^http://([^/]+)/phoenix$"
+            replacement: "http://${1}/phoenix/"
+        phoenix-stripprefix:
+          stripPrefix:
+            prefixes:
+              - "/phoenix"
+        oidcserver-stripprefix:
+          stripPrefix:
+            prefixes:
+              - "/oidc"
+        smtp-stripprefix:
+          stripPrefix:
+            prefixes:
+              - "/mail"
+
+      routers:
+        phoenix-redirect:
+          rule: "Path(`/phoenix`)"
+          entryPoints:
+            - web
+          middlewares:
+            - phoenix-redirect-middleware
+          service: phoenix
+        phoenix:
+          rule: "PathPrefix(`/phoenix/`)"
+          entryPoints:
+            - web
+          middlewares:
+            - phoenix-stripprefix
+          service: phoenix
+        phoenix-wellknown:
+          rule: "PathPrefix(`/.well-known/`)"
+          entryPoints:
+            - web
+          service: phoenix
+        oidcserver:
+          rule: "PathPrefix(`/oidc`)"
+          entryPoints:
+            - web
+          middlewares:
+            - oidcserver-stripprefix
+          service: oidcserver
+        smtp:
+          rule: "PathPrefix(`/mail`)"
+          entryPoints:
+            - web
+          middlewares:
+            - smtp-stripprefix
+          service: smtp
+
+      services:
+        phoenix:
+          loadBalancer:
+            servers:
+              - url: "http://phoenix:6006"
+        oidcserver:
+          loadBalancer:
+            servers:
+              - url: "http://oidc-dev:9000"
+        smtp:
+          loadBalancer:
+            servers:
+              - url: "http://smtp-dev:8025"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traefik
+  labels:
+    app: traefik
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: traefik
+  template:
+    metadata:
+      labels:
+        app: traefik
+    spec:
+      containers:
+        - name: traefik
+          image: traefik:v3.6.2
+          args:
+            - "--api.insecure=true"
+            - "--api.dashboard=true"
+            - "--providers.file.directory=/etc/traefik/dynamic"
+            - "--providers.file.watch=true"
+            - "--entrypoints.web.address=:80"
+            - "--log.level=INFO"
+            - "--log.format=json"
+            - "--accesslog=true"
+            - "--accesslog.format=json"
+            - "--accesslog.fields.headers.defaultmode=keep"
+          ports:
+            - name: web
+              containerPort: 80
+            - name: admin
+              containerPort: 8080
+          volumeMounts:
+            - name: dynamic-profiles
+              mountPath: /etc/traefik/dynamic
+              readOnly: true
+          resources:
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+      volumes:
+        - name: dynamic-profiles
+          configMap:
+            name: traefik-dynamic-profiles
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: traefik
+  labels:
+    app: traefik
+spec:
+  type: NodePort
+  selector:
+    app: traefik
+  ports:
+    - name: web
+      port: 80
+      targetPort: 80
+      nodePort: 30080
+    - name: admin
+      port: 8080
+      targetPort: 8080

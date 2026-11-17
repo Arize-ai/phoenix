@@ -1,0 +1,65 @@
+# Main Phoenix instance in ldap-test profile: LDAPS + No Email (port 636, TLS, null email markers)
+postgresql:
+  enabled: false
+
+persistence:
+  enabled: false
+  inMemory: true
+
+database:
+  url: "sqlite:///:memory:"
+
+server:
+  hostRootPath: ""
+  rootUrl: "http://phoenix:6006"
+
+auth:
+  enableAuth: true
+  disableBasicAuth: false
+  disableBruteForceLoginProtection: true
+  admins: ""
+  secret:
+    - key: "PHOENIX_SECRET"
+      value: "dev-secret-for-ldap-testing-only-12345678"
+    - key: "PHOENIX_ADMIN_SECRET"
+      value: "dev-admin-secret-for-ldap-testing-abc-0123456789"
+    - key: "PHOENIX_POSTGRES_PASSWORD"
+      value: "postgres"
+    - key: "PHOENIX_SMTP_PASSWORD"
+      value: "dev"
+    - key: "PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD"
+      value: "admin"
+  oauth2:
+    enabled: true
+    providers:
+      dev:
+        client_id: "phoenix-oidc-client-id"
+        client_secret: "phoenix-oidc-client-secret-abc-123"
+        oidc_config_url: "http://localhost:18273/oidc/.well-known/openid-configuration"
+        display_name: "OIDC"
+        allow_sign_up: false
+        auto_login: false
+  ldap:
+    enabled: true
+    host: "ldap-no-email"
+    tlsMode: "ldaps"
+    tlsVerify: false
+    bindDn: "cn=readonly,dc=example,dc=com"
+    bindPassword: "readonly_password"
+    userSearchBaseDns:
+      - "ou=users,dc=example,dc=com"
+    userSearchFilter: "(uid=%s)"
+    attrEmail: "null"
+    attrDisplayName: "displayName"
+    attrMemberOf: "memberOf"
+    attrUniqueId: "entryUUID"
+    groupRoleMappings: '[{"group_dn":"cn=admins,ou=groups,dc=example,dc=com","role":"ADMIN"},{"group_dn":"cn=members,ou=groups,dc=example,dc=com","role":"MEMBER"},{"group_dn":"*","role":"VIEWER"}]'
+    allowSignUp: true
+
+additionalEnv:
+  - name: PYTHONDONTWRITEBYTECODE
+    value: "1"
+  - name: PYTHONUNBUFFERED
+    value: "1"
+  - name: PHOENIX_DISABLE_RATE_LIMIT
+    value: "true"

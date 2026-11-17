@@ -1,0 +1,106 @@
+# Base Helm values for deploying Phoenix in scripts/devops via ../../helm
+fullnameOverride: phoenix
+
+replicaCount: 1
+
+image:
+  registry: "docker.io/library"
+  repository: "devops-phoenix"
+  tag: "local"
+  pullPolicy: "IfNotPresent"
+
+ingress:
+  enabled: false
+
+service:
+  type: "ClusterIP"
+
+postgresql:
+  enabled: false
+
+persistence:
+  enabled: false
+  inMemory: false
+
+database:
+  url: ""
+  postgres:
+    host: "db"
+    port: 5433
+    db: "postgres"
+    user: "postgres"
+    password: "postgres"
+    schema: ""
+
+server:
+  enablePrometheus: true
+  host: "::"
+  port: 6006
+  grpcPort: 4317
+  hostRootPath: "/phoenix"
+  rootUrl: "http://localhost:18273/phoenix"
+  workingDir: "/data"
+
+smtp:
+  hostname: "smtp-dev"
+  port: 1025
+  username: "dev"
+  password: "dev"
+  mailFrom: "noreply@phoenix.dev"
+  validateCerts: false
+
+logging:
+  level: "debug"
+  dbLevel: "warning"
+  logMigrations: true
+
+auth:
+  enableAuth: true
+  disableBasicAuth: true
+  admins: "TestUser=testuser@arize.com"
+  name: "phoenix-secret"
+  createSecret: true
+  secret:
+    - key: "PHOENIX_SECRET"
+      value: "phoenix-secret-abc-123-for-development-only-not-secure"
+    - key: "PHOENIX_ADMIN_SECRET"
+      value: "phoenix-admin-secret-abc-123-for-development-only-not-secure"
+    - key: "PHOENIX_POSTGRES_PASSWORD"
+      value: "postgres"
+    - key: "PHOENIX_SMTP_PASSWORD"
+      value: "dev"
+    - key: "PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD"
+      value: "admin"
+  oauth2:
+    enabled: true
+    providers:
+      dev:
+        client_id: "phoenix-oidc-client-id"
+        client_secret: "phoenix-oidc-client-secret-abc-123"
+        oidc_config_url: "http://localhost:18273/oidc/.well-known/openid-configuration"
+        display_name: "OIDC"
+        allow_sign_up: false
+        auto_login: true
+
+resources:
+  limits:
+    cpu: "2000m"
+    memory: "2Gi"
+  requests:
+    cpu: "250m"
+    memory: "512Mi"
+
+healthChecks:
+  startupProbe:
+    enabled: true
+    initialDelaySeconds: 2
+    periodSeconds: 2
+    timeoutSeconds: 2
+    failureThreshold: 90
+    successThreshold: 1
+
+additionalEnv:
+  - name: PYTHONDONTWRITEBYTECODE
+    value: "1"
+  - name: PYTHONUNBUFFERED
+    value: "1"
