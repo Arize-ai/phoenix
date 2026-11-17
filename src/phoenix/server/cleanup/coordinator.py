@@ -789,11 +789,11 @@ class CleanupCoordinator:
         return True
 
     async def task_exists(self, task_id: int) -> bool:
-        async with self._db.read() as session:
-            found = await session.scalar(
+        async with self._db() as session:
+            found_task_id = await session.scalar(
                 select(models.CleanupTask.id).where(models.CleanupTask.id == task_id)
             )
-            return found is not None
+            return found_task_id is not None
 
     async def wait_for_completion(
         self,

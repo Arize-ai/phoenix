@@ -9,7 +9,8 @@ from unittest.mock import MagicMock
 
 import httpx2
 import pytest
-from sqlalchemy import delete, event, func, select, update
+from sqlalchemy import delete, event, func, insert, select, update
+from sqlalchemy.ext.asyncio import create_async_engine
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -19,6 +20,7 @@ from phoenix.db.types.annotation_configs import ContinuousOutputConfig, Optimiza
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import Conflict
+from phoenix.server.app import _db
 from phoenix.server.cleanup.coordinator import CleanupCoordinator
 from phoenix.server.cleanup.lifecycle import (
     admit_exclusive_experiment_projects_delete,
@@ -185,6 +187,62 @@ class TestCleanupQueueSchedulingAndFencing:
         async with db() as session:
             assert await session.get(models.Project, second_id) is None
             assert await session.get(models.Project, first_id) is not None
+
+    async def test_wait_for_completion_reads_primary_when_read_replica_lags(
+        self, db: DbSessionFactory
+    ) -> None:
+        dialect = SupportedSQLDialect(db.dialect.value)
+        base_start_time = datetime(2026, 6, 1, 0, 0, 0, tzinfo=timezone.utc)
+        async with db() as session:
+            project = await _add_project(session, name=f"lagging-clear-{token_hex(4)}")
+            project_id = project.id
+            for trace_index in range(3):
+                trace_start_time = base_start_time + timedelta(seconds=trace_index)
+                trace = await _add_trace(session, project, start_time=trace_start_time)
+                await _add_span(session, trace=trace, start_time=trace_start_time)
+            task_id = await admit_or_reuse_project_clear(
+                session, dialect=dialect, project_id=project_id
+            )
+
+        stale_replica_engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        try:
+            cleanup_tasks_table = models.Base.metadata.tables["cleanup_tasks"]
+            async with stale_replica_engine.begin() as replica_connection:
+                await replica_connection.run_sync(
+                    models.Base.metadata.create_all,
+                    tables=[cleanup_tasks_table],
+                )
+            lagging_db = DbSessionFactory(
+                db=db,
+                dialect=db.dialect.value,
+                read_db=_db(stale_replica_engine),
+            )
+            coordinator = CleanupCoordinator(lagging_db, batch_limit=1)
+            is_completed = await coordinator.wait_for_completion(task_id, timeout_seconds=10.0)
+            assert is_completed is True
+
+            async with db() as session:
+                num_remaining_traces = await session.scalar(
+                    select(func.count(models.Trace.id)).where(
+                        models.Trace.project_rowid == project_id
+                    )
+                )
+                assert num_remaining_traces == 0
+                assert await session.get(models.CleanupTask, task_id) is None
+
+            async with stale_replica_engine.begin() as replica_connection:
+                await replica_connection.execute(
+                    insert(models.CleanupTask).values(
+                        id=task_id,
+                        kind="CLEAR_PROJECT_TRACES",
+                        available_at=base_start_time,
+                        failure_count=0,
+                        created_at=base_start_time,
+                    )
+                )
+            assert await coordinator.task_exists(task_id) is False
+        finally:
+            await stale_replica_engine.dispose()
 
     def test_postgres_claim_locks_use_for_no_key_update(self) -> None:
         from sqlalchemy.dialects import postgresql
