@@ -6,9 +6,7 @@ from typing import TYPE_CHECKING, Annotated, Iterable, Literal, Optional, Union
 
 import sqlalchemy as sa
 from pydantic import AfterValidator, BaseModel, Field, RootModel
-from sqlalchemy import func
 from sqlalchemy.exc import DBAPIError
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.roles import InElementRole
 
 from phoenix.utilities import hour_of_week
@@ -41,20 +39,6 @@ async def _resolve_project_rowids(
                 await session.execute(sa.text(f"SET LOCAL lock_timeout = {_LOCK_TIMEOUT_MS}"))
             return [int(project_id) for project_id in (await session.scalars(stmt)).all()]
     return sorted({int(project_id) for project_id in project_rowids})
-
-
-async def _delete_matching_traces(
-    session: AsyncSession,
-    project_rowids: Union[Iterable[int], InElementRole],
-    trace_filter: sa.ColumnElement[bool],
-) -> None:
-    from phoenix.db.helpers import delete_traces
-    from phoenix.db.models import Trace
-
-    candidate_trace_ids = (
-        sa.select(Trace.id).where(Trace.project_rowid.in_(project_rowids)).where(trace_filter)
-    )
-    await delete_traces(session, Trace.id.in_(candidate_trace_ids))
 
 
 async def _delete_matching_traces_in_batches(
@@ -120,39 +104,6 @@ class _MaxDays(BaseModel):
 
 class _MaxCount(BaseModel):
     max_count: Annotated[int, Field(ge=0)]
-
-    def _ranked_traces_cte(
-        self,
-        project_rowids: Union[Iterable[int], InElementRole],
-    ) -> sa.CTE:
-        from phoenix.db.models import Trace
-
-        return (
-            sa.select(
-                Trace.project_rowid,
-                Trace.start_time,
-                Trace.id,
-                func.row_number()
-                .over(
-                    partition_by=Trace.project_rowid,
-                    order_by=(Trace.start_time.desc(), Trace.id.desc()),
-                )
-                .label("rn"),
-            )
-            .where(Trace.project_rowid.in_(project_rowids))
-            .cte("ranked")
-        )
-
-    def max_count_filter(
-        self,
-        project_rowids: Union[Iterable[int], InElementRole],
-    ) -> sa.ColumnElement[bool]:
-        if self.max_count <= 0:
-            return sa.literal(False)
-        from phoenix.db.models import Trace
-
-        ranked = self._ranked_traces_cte(project_rowids)
-        return Trace.id.in_(sa.select(ranked.c.id).where(ranked.c.rn > self.max_count))
 
     async def _delete_count_excess_in_batches(
         self,
@@ -223,14 +174,6 @@ class MaxDaysRule(_MaxDays, BaseModel):
     def __bool__(self) -> bool:
         return self.max_days > 0
 
-    def deletion_filter(
-        self,
-        project_rowids: Union[Iterable[int], InElementRole],
-    ) -> sa.ColumnElement[bool]:
-        from phoenix.db.models import Trace
-
-        return sa.and_(Trace.project_rowid.in_(project_rowids), self.max_days_filter)
-
     async def delete_traces_in_batches(
         self,
         db: DbSessionFactory,
@@ -251,12 +194,6 @@ class MaxCountRule(_MaxCount, BaseModel):
     def __bool__(self) -> bool:
         return self.max_count > 0
 
-    def deletion_filter(
-        self,
-        project_rowids: Union[Iterable[int], InElementRole],
-    ) -> sa.ColumnElement[bool]:
-        return self.max_count_filter(project_rowids)
-
     async def delete_traces_in_batches(
         self,
         db: DbSessionFactory,
@@ -274,17 +211,6 @@ class MaxDaysOrCountRule(_MaxDays, _MaxCount, BaseModel):
 
     def __bool__(self) -> bool:
         return self.max_days > 0 or self.max_count > 0
-
-    def deletion_filter(
-        self,
-        project_rowids: Union[Iterable[int], InElementRole],
-    ) -> sa.ColumnElement[bool]:
-        from phoenix.db.models import Trace
-
-        return sa.and_(
-            Trace.project_rowid.in_(project_rowids),
-            sa.or_(self.max_days_filter, self.max_count_filter(project_rowids)),
-        )
 
     async def delete_traces_in_batches(
         self,
@@ -319,16 +245,6 @@ class TraceRetentionRule(RootModel[Union[MaxDaysRule, MaxCountRule, MaxDaysOrCou
 
     def __bool__(self) -> bool:
         return bool(self.root)
-
-    def deletion_filter(
-        self,
-        project_rowids: Union[Iterable[int], InElementRole],
-    ) -> sa.ColumnElement[bool]:
-        """Return a deletion filter restricted to the specified projects.
-
-        A no-op rule (e.g. max_days == 0) matches no trace.
-        """
-        return self.root.deletion_filter(project_rowids)
 
     async def delete_traces_in_batches(
         self,
