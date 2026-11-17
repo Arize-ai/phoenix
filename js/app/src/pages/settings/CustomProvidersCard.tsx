@@ -1,12 +1,12 @@
 import { flexRender, useTable } from "@tanstack/react-table";
 import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
-import invariant from "tiny-invariant";
 
 import {
   Card,
   DocumentationHelp,
   Flex,
+  Link,
   MarkerTrigger,
   StatusIndicator,
   Text,
@@ -18,21 +18,17 @@ import { GenerativeProviderIcon } from "@phoenix/components/generative/Generativ
 import { tableCSS } from "@phoenix/components/table/styles";
 import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
 import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
-import { TimestampCell } from "@phoenix/components/table/TimestampCell";
-import { UserPicture } from "@phoenix/components/user/UserPicture";
 import {
   type GenerativeModelSDK,
   SDK_LABELS,
-  SDK_TO_PROVIDER_MAP,
-  STRING_TO_PROVIDER_MAP,
 } from "@phoenix/constants/generativeConstants";
-import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 
 import type {
   CustomProvidersCard_data$data,
   CustomProvidersCard_data$key,
   GenerativeModelSDK as GraphQLGenerativeModelSDK,
 } from "./__generated__/CustomProvidersCard_data.graphql";
+import { resolveProviderIconKey } from "./customProviderIcon";
 import { DeleteCustomProviderButton } from "./DeleteCustomProviderButton";
 import { EditCustomProviderButton } from "./EditCustomProviderButton";
 import { formatModelTypes } from "./modelTypeUtils";
@@ -53,36 +49,17 @@ type DataRow =
   CustomProvidersCard_data$data["generativeModelCustomProviders"]["edges"][number]["node"];
 
 /**
- * The provider whose icon represents a custom provider: the one its provider
- * string names (e.g., "openai" → OPENAI), or else the one its SDK targets.
- */
-function resolveProviderIconKey({
-  providerString,
-  sdk,
-}: {
-  providerString: string;
-  sdk: GenerativeModelSDK;
-}): ModelProvider {
-  const normalized = providerString.toLowerCase().replace(/[_-]/g, "");
-  const matchedProvider = STRING_TO_PROVIDER_MAP[normalized];
-  if (matchedProvider) {
-    return matchedProvider;
-  }
-  const providerKey = SDK_TO_PROVIDER_MAP[sdk];
-  invariant(providerKey, `Unknown SDK type: ${sdk}`);
-  return providerKey;
-}
-
-/**
- * Name cell component - the provider icon before the name, and a status if the
- * config has a parse error
+ * Name cell component - the provider icon before a link to the provider's
+ * details, and a status if the config has a parse error
  */
 function NameCell({
+  id,
   name,
   providerString,
   sdk,
   hasParseError,
 }: {
+  id: string;
   name: string;
   providerString: string;
   sdk: GenerativeModelSDK;
@@ -95,7 +72,9 @@ function NameCell({
   return (
     <Flex direction="row" gap="size-100" alignItems="center">
       <GenerativeProviderIcon provider={providerKey} height={18} />
-      <span>{name}</span>
+      <Link to={`/settings/providers/custom/${encodeURIComponent(id)}`}>
+        {name}
+      </Link>
       {hasParseError ? (
         <MarkerTrigger
           explanation={
@@ -112,31 +91,11 @@ function NameCell({
   );
 }
 
-/**
- * User cell component for "Created By" column
- */
-function UserCell({ user }: { user: DataRow["user"] }) {
-  if (!user) {
-    return <Text color="text-700">—</Text>;
-  }
-  return (
-    <Flex direction="row" gap="size-50" alignItems="center">
-      <UserPicture
-        name={user.username}
-        profilePictureUrl={user.profilePictureUrl ?? null}
-        size={20}
-      />
-      <span>{user.username}</span>
-    </Flex>
-  );
-}
-
 export function CustomProvidersCard({
   query,
 }: {
   query: CustomProvidersCard_data$key;
 }) {
-  const { authenticationEnabled } = useFunctionality();
   const data = useFragment<CustomProvidersCard_data$key>(
     graphql`
       fragment CustomProvidersCard_data on Query
@@ -153,19 +112,11 @@ export function CustomProvidersCard({
             node {
               id
               name
-              description
               sdk
               provider
               modelTypes
-              createdAt
-              updatedAt
-              user {
-                id
-                username
-                profilePictureUrl
-              }
-              # Only fetch parseError to detect unparseable configs
-              # Full config is fetched by EditCustomProviderButton when editing
+              # Only fetch parseError to detect unparseable configs; the details
+              # drawer and EditCustomProviderButton fetch the full config
               config {
                 ... on UnparsableConfig {
                   parseError
@@ -186,12 +137,13 @@ export function CustomProvidersCard({
 
   // Define columns with memoization and proper typing
   const columns = useMemo<ColumnDef<DataRow>[]>(() => {
-    const cols: ColumnDef<DataRow>[] = [
+    return [
       {
         header: "Name",
         accessorKey: "name",
         cell: ({ row }) => (
           <NameCell
+            id={row.original.id}
             name={row.original.name}
             providerString={row.original.provider}
             sdk={row.original.sdk}
@@ -207,16 +159,6 @@ export function CustomProvidersCard({
         ),
       },
       {
-        header: "Description",
-        accessorKey: "description",
-        cell: ({ getValue }) => {
-          const value = getValue<string | null>();
-          return (
-            <Text color={value ? undefined : "text-700"}>{value || "—"}</Text>
-          );
-        },
-      },
-      {
         header: "Provider",
         accessorFn: (row) => row.provider ?? undefined,
         sortUndefined: "last",
@@ -226,28 +168,6 @@ export function CustomProvidersCard({
         header: "SDK",
         accessorKey: "sdk",
         cell: ({ row }) => <Text>{SDK_LABELS[row.original.sdk]}</Text>,
-      },
-    ];
-
-    // Add "Created By" column only if authentication is enabled
-    if (authenticationEnabled) {
-      cols.push({
-        header: "Created By",
-        accessorKey: "user",
-        cell: ({ row }) => <UserCell user={row.original.user} />,
-      });
-    }
-
-    cols.push(
-      {
-        header: "Created At",
-        accessorKey: "createdAt",
-        cell: TimestampCell,
-      },
-      {
-        header: "Updated At",
-        accessorKey: "updatedAt",
-        cell: TimestampCell,
       },
       {
         id: "actions",
@@ -263,11 +183,9 @@ export function CustomProvidersCard({
             />
           </Flex>
         ),
-      }
-    );
-
-    return cols;
-  }, [authenticationEnabled]);
+      },
+    ];
+  }, []);
 
   const table = useTable({
     features: appTableFeatures,

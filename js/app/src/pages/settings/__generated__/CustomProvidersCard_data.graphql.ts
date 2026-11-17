@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<74782b817b727ede6650ffa11d500843>>
+ * @generated SignedSource<<8cb055aaf88c1e9c79b94eae9da5747c>>
  * @lightSyntaxTransform
  */
 
@@ -18,19 +18,11 @@ export type CustomProvidersCard_data$data = {
         readonly config: {
           readonly parseError?: string;
         };
-        readonly createdAt: string;
-        readonly description: string | null;
         readonly id: string;
         readonly modelTypes: ReadonlyArray<ModelType>;
         readonly name: string;
         readonly provider: string;
         readonly sdk: GenerativeModelSDK;
-        readonly updatedAt: string;
-        readonly user: {
-          readonly id: string;
-          readonly profilePictureUrl: string | null;
-          readonly username: string;
-        } | null;
       };
     }>;
   };
@@ -46,14 +38,7 @@ import CustomProvidersCardQuery_graphql from './CustomProvidersCardQuery.graphql
 const node: ReaderFragment = (function(){
 var v0 = [
   "generativeModelCustomProviders"
-],
-v1 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "id",
-  "storageKey": null
-};
+];
 return {
   "argumentDefinitions": [
     {
@@ -116,19 +101,18 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v1/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
-                  "name": "name",
+                  "name": "id",
                   "storageKey": null
                 },
                 {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
-                  "name": "description",
+                  "name": "name",
                   "storageKey": null
                 },
                 {
@@ -150,46 +134,6 @@ return {
                   "args": null,
                   "kind": "ScalarField",
                   "name": "modelTypes",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "createdAt",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "updatedAt",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "concreteType": "User",
-                  "kind": "LinkedField",
-                  "name": "user",
-                  "plural": false,
-                  "selections": [
-                    (v1/*:: as any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "username",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "profilePictureUrl",
-                      "storageKey": null
-                    }
-                  ],
                   "storageKey": null
                 },
                 {
@@ -271,6 +215,6 @@ return {
 };
 })();
 
-(node as any).hash = "2ce45756ef1147680a38d0786c5d971b";
+(node as any).hash = "23b6d022f28f9227a28b33e14b3ec33d";
 
 export default node;

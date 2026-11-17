@@ -62,6 +62,8 @@ import {
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTracePage";
 import { PromptsLayout } from "@phoenix/pages/prompts/PromptsLayout";
 import { RootLayout } from "@phoenix/pages/RootLayout";
+import { BuiltInProviderDetailsDrawer } from "@phoenix/pages/settings/BuiltInProviderDetailsDrawer";
+import { CustomProviderDetailsDrawer } from "@phoenix/pages/settings/CustomProviderDetailsDrawer";
 import { settingsPromptsPageLoader } from "@phoenix/pages/settings/prompts/settingsPromptsPageLoader";
 import { RetentionPolicyDetailsDrawer } from "@phoenix/pages/settings/RetentionPolicyDetailsDrawer";
 import { SettingsSecretsPage } from "@phoenix/pages/settings/secrets/SettingsSecretsPage";
@@ -1492,7 +1494,30 @@ export const appRouteObjects = createRoutesFromElements(
                   "Configure AI providers, custom providers, provider credentials, base URLs, default model, provider headers, and AI query (natural-language filter conditions using Browser AI or a model provider).",
               },
             }}
-          />
+          >
+            <Route
+              path="built-in/:providerKey"
+              element={<BuiltInProviderDetailsDrawer />}
+              handle={{
+                agentRoute: {
+                  label: "AI Provider Details",
+                  description:
+                    "View a built-in AI provider's model types, credential environment variables, whether server credentials are set, dependencies, and built-in models. The providerKey route param is the GenerativeProviderKey enum value, such as OPENAI or ANTHROPIC.",
+                },
+              }}
+            />
+            <Route
+              path="custom/:providerId"
+              element={<CustomProviderDetailsDrawer />}
+              handle={{
+                agentRoute: {
+                  label: "Custom Provider Details",
+                  description:
+                    "View a custom AI provider's configuration: provider string, SDK, base URL or endpoint, authentication, header names, model types and model names. The providerId route param is the GraphQL GenerativeModelCustomProvider.id Relay node ID.",
+                },
+              }}
+            />
+          </Route>
           <Route
             path="sandboxes"
             loader={settingsSandboxesPageLoader}

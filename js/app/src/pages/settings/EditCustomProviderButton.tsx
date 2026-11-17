@@ -168,6 +168,8 @@ function EditCustomProviderDialogContent({
         patchGenerativeModelCustomProvider(input: $input) {
           provider {
             id
+            # Keeps an open details drawer in sync with the saved settings
+            ...CustomProviderDetailsDrawer_provider
             name
             description
             sdk
