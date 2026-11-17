@@ -122,6 +122,8 @@ import {
   TRACE_ANNOTATIONS_COLUMN_ID,
 } from "./tableUtils";
 import { TraceNotesTableCell } from "./TraceNotesTableCell";
+import { useDeferredPartsFailure } from "./useDeferredPartsFailure";
+import { useLoadNextPage } from "./useLoadNextPage";
 import { useSpanAnnotationNames } from "./useSpanAnnotationNames";
 
 type SpansTableProps = {
@@ -383,7 +385,6 @@ export function SpansTable(props: SpansTableProps) {
           name
           ...useSpanAnnotationNames_project @defer
           ...ProjectAnnotationConfigsByNameFragment
-          ...SpanColumnSelector_traceAnnotations
           spans(
             first: $first
             after: $after
@@ -454,15 +455,12 @@ export function SpansTable(props: SpansTableProps) {
       `,
       props.project
     );
+  const { hasRequestFailed, onRefetchComplete, onLoadMoreComplete } =
+    useDeferredPartsFailure({ initialRequest: props.initialRequest });
+  const loadNextPage = useLoadNextPage({ loadNext, onLoadMoreComplete });
   const annotationConfigsByName = useProjectAnnotationConfigsByName(data);
-  const {
-    spanAnnotationNames,
-    hasSpanAnnotationNamesError,
-    onRequestComplete,
-  } = useSpanAnnotationNames({
-    project: data,
-    initialRequest: props.initialRequest,
-  });
+  const { spanAnnotationNames, traceAnnotationNames, hasAnnotationNamesError } =
+    useSpanAnnotationNames({ project: data, hasRequestFailed });
 
   const pagination = useTracePagination();
   const setTraceSequence = pagination?.setTraceSequence;
@@ -905,7 +903,7 @@ export function SpansTable(props: SpansTableProps) {
           projectEvaluatorId,
           timeRange: timeRangeISOStrings,
         },
-        { fetchPolicy: "store-and-network", onComplete: onRequestComplete }
+        { fetchPolicy: "store-and-network", onComplete: onRefetchComplete }
       );
     });
   }, [
@@ -916,12 +914,12 @@ export function SpansTable(props: SpansTableProps) {
     rootSpansOnly,
     projectEvaluatorId,
     timeRangeISOStrings,
-    onRequestComplete,
+    onRefetchComplete,
   ]);
   const loadMoreSentinelRef = useLoadMoreSentinel<HTMLDivElement>({
     hasNext,
     isLoadingNext,
-    loadNext,
+    loadNext: loadNextPage,
     pageSize: PAGE_SIZE,
     rows: data.spans.edges,
   });
@@ -1025,9 +1023,9 @@ export function SpansTable(props: SpansTableProps) {
             <TableMetricsChartSelector view="spans" />
             <SpanColumnSelector
               columns={table.getAllColumns()}
-              query={data}
               spanAnnotationNames={spanAnnotationNames}
-              hasSpanAnnotationNamesError={hasSpanAnnotationNamesError}
+              traceAnnotationNames={traceAnnotationNames}
+              hasAnnotationNamesError={hasAnnotationNamesError}
             />
             <RowExpandToggleButton
               isExpanded={areRowsExpanded}
@@ -1161,7 +1159,7 @@ export function SpansTable(props: SpansTableProps) {
                     <MemoizedTableBody
                       table={table}
                       hasNext={hasNext}
-                      onLoadNext={() => loadNext(PAGE_SIZE)}
+                      onLoadNext={() => loadNextPage(PAGE_SIZE)}
                       isLoadingNext={isLoadingNext}
                     />
                   ) : (
@@ -1169,7 +1167,7 @@ export function SpansTable(props: SpansTableProps) {
                       table={table}
                       selectedRowId={props.selectedRowId}
                       hasNext={hasNext}
-                      onLoadNext={() => loadNext(PAGE_SIZE)}
+                      onLoadNext={() => loadNextPage(PAGE_SIZE)}
                       isLoadingNext={isLoadingNext}
                     />
                   )}

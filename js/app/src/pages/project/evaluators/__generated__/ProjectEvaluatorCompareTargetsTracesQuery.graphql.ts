@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<99771e326fe9e4f6c8c9ec17cbab3ae4>>
+ * @generated SignedSource<<3e6fe7defa2c4b9fa3bc671c9378fff5>>
  * @lightSyntaxTransform
  */
 
@@ -847,13 +847,6 @@ return {
                 "storageKey": "annotationConfigs(first:100)"
               },
               {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "traceAnnotationNames",
-                "storageKey": null
-              },
-              {
                 "alias": "rootSpans",
                 "args": (v15/*:: as any*/),
                 "concreteType": "SpanConnection",
@@ -1015,85 +1008,92 @@ return {
                           (v39/*:: as any*/),
                           (v40/*:: as any*/),
                           {
-                            "alias": null,
-                            "args": [
-                              {
-                                "kind": "Literal",
-                                "name": "first",
-                                "value": 50
-                              }
-                            ],
-                            "concreteType": "SpanConnection",
-                            "kind": "LinkedField",
-                            "name": "descendants",
-                            "plural": false,
+                            "if": null,
+                            "kind": "Defer",
+                            "label": "TracesTable_spans$defer$TracesTable_descendants_4h4iof",
                             "selections": [
                               {
                                 "alias": null,
-                                "args": null,
-                                "concreteType": "SpanEdge",
+                                "args": [
+                                  {
+                                    "kind": "Literal",
+                                    "name": "first",
+                                    "value": 50
+                                  }
+                                ],
+                                "concreteType": "SpanConnection",
                                 "kind": "LinkedField",
-                                "name": "edges",
-                                "plural": true,
+                                "name": "descendants",
+                                "plural": false,
                                 "selections": [
                                   {
                                     "alias": null,
                                     "args": null,
-                                    "concreteType": "Span",
+                                    "concreteType": "SpanEdge",
                                     "kind": "LinkedField",
-                                    "name": "node",
-                                    "plural": false,
+                                    "name": "edges",
+                                    "plural": true,
                                     "selections": [
-                                      (v6/*:: as any*/),
-                                      (v16/*:: as any*/),
-                                      (v7/*:: as any*/),
-                                      {
-                                        "alias": "statusCode",
-                                        "args": null,
-                                        "kind": "ScalarField",
-                                        "name": "propagatedStatusCode",
-                                        "storageKey": null
-                                      },
-                                      (v17/*:: as any*/),
-                                      (v18/*:: as any*/),
-                                      (v19/*:: as any*/),
-                                      (v20/*:: as any*/),
-                                      (v21/*:: as any*/),
-                                      {
-                                        "alias": "cumulativeTokenCountTotal",
-                                        "args": null,
-                                        "kind": "ScalarField",
-                                        "name": "tokenCountTotal",
-                                        "storageKey": null
-                                      },
-                                      (v23/*:: as any*/),
-                                      (v24/*:: as any*/),
-                                      (v25/*:: as any*/),
                                       {
                                         "alias": null,
                                         "args": null,
-                                        "concreteType": "Trace",
+                                        "concreteType": "Span",
                                         "kind": "LinkedField",
-                                        "name": "trace",
+                                        "name": "node",
                                         "plural": false,
                                         "selections": [
                                           (v6/*:: as any*/),
-                                          (v26/*:: as any*/)
+                                          (v16/*:: as any*/),
+                                          (v7/*:: as any*/),
+                                          {
+                                            "alias": "statusCode",
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "propagatedStatusCode",
+                                            "storageKey": null
+                                          },
+                                          (v17/*:: as any*/),
+                                          (v18/*:: as any*/),
+                                          (v19/*:: as any*/),
+                                          (v20/*:: as any*/),
+                                          (v21/*:: as any*/),
+                                          {
+                                            "alias": "cumulativeTokenCountTotal",
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "tokenCountTotal",
+                                            "storageKey": null
+                                          },
+                                          (v23/*:: as any*/),
+                                          (v24/*:: as any*/),
+                                          (v25/*:: as any*/),
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "concreteType": "Trace",
+                                            "kind": "LinkedField",
+                                            "name": "trace",
+                                            "plural": false,
+                                            "selections": [
+                                              (v6/*:: as any*/),
+                                              (v26/*:: as any*/)
+                                            ],
+                                            "storageKey": null
+                                          },
+                                          (v37/*:: as any*/),
+                                          (v38/*:: as any*/),
+                                          (v39/*:: as any*/),
+                                          (v40/*:: as any*/)
                                         ],
                                         "storageKey": null
-                                      },
-                                      (v37/*:: as any*/),
-                                      (v38/*:: as any*/),
-                                      (v39/*:: as any*/),
-                                      (v40/*:: as any*/)
+                                      }
                                     ],
                                     "storageKey": null
                                   }
                                 ],
-                                "storageKey": null
+                                "storageKey": "descendants(first:50)"
                               }
-                            ],
-                            "storageKey": "descendants(first:50)"
+                            ]
                           }
                         ],
                         "storageKey": null
@@ -1174,6 +1174,13 @@ return {
                     "kind": "ScalarField",
                     "name": "spanAnnotationNames",
                     "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "traceAnnotationNames",
+                    "storageKey": null
                   }
                 ]
               }
@@ -1187,12 +1194,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a6f2031d1c8c6c75e5de07bbf225d8d9",
+    "cacheID": "bd8d85976d0d61e04f26ae2c971155af",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorCompareTargetsTracesQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorCompareTargetsTracesQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n  $condition: String!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      ...TracesTable_spans_1Z0wvm\n    }\n    id\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  summarySpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}}) {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n    decision {\n      status\n      question {\n        name\n        type\n        choices {\n          value\n          description\n        }\n        levels {\n          label\n          description\n        }\n      }\n      answer {\n        __typename\n        ... on PredicateAnswer {\n          probability\n        }\n        ... on ChoiceAnswer {\n          choice\n          confidence\n          choiceProbabilities: probabilities {\n            value\n            probability\n          }\n        }\n        ... on ScaleAnswer {\n          expectedLevel\n          confidence\n          levelProbabilities: probabilities {\n            level\n            probability\n          }\n        }\n      }\n      requestedModel\n      resolvedModel\n      modelProvider\n    }\n  }\n  summarySpanAnnotationSummaries: spanAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  evaluators(first: 100, filter: {}) {\n    edges {\n      node {\n        name\n        evaluator {\n          __typename\n          outputConfigs {\n            __typename\n            ...useProjectAnnotationConfigsByName_config\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          id\n        }\n        id\n      }\n    }\n  }\n  configsByName: annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ...useProjectAnnotationConfigsByName_config\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SpanColumnSelector_traceAnnotations on Project {\n  traceAnnotationNames\n}\n\nfragment TraceAnnotationSummaryGroup on Trace {\n  summaryTraceAnnotations: traceAnnotations(filter: {exclude: {names: [\"note\"]}}) {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n    decision {\n      status\n      question {\n        name\n        type\n        choices {\n          value\n          description\n        }\n        levels {\n          label\n          description\n        }\n      }\n      answer {\n        __typename\n        ... on PredicateAnswer {\n          probability\n        }\n        ... on ChoiceAnswer {\n          choice\n          confidence\n          choiceProbabilities: probabilities {\n            value\n            probability\n          }\n        }\n        ... on ScaleAnswer {\n          expectedLevel\n          confidence\n          levelProbabilities: probabilities {\n            level\n            probability\n          }\n        }\n      }\n      requestedModel\n      resolvedModel\n      modelProvider\n    }\n  }\n  summaryTraceAnnotationSummaries: traceAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment TracesTable_spans_1Z0wvm on Project {\n  id\n  name\n  ...ProjectAnnotationConfigsByNameFragment\n  ...useSpanAnnotationNames_project @defer(label: \"TracesTable_spans$defer$useSpanAnnotationNames_project\")\n  ...SpanColumnSelector_traceAnnotations\n  rootSpans: spans(first: 30, sort: {col: startTime, dir: desc}, filterCondition: \"parent_span is None\", traceFilterCondition: $condition, timeRange: $timeRange) {\n    edges {\n      rootSpan: node {\n        id\n        spanKind\n        name\n        metadata\n        statusCode\n        statusMessage\n        startTime\n        endTime\n        latencyMs\n        cumulativeTokenCountTotal\n        parentId\n        input {\n          value: truncatedValue\n        }\n        output {\n          value: truncatedValue\n        }\n        spanId\n        trace {\n          id\n          traceId\n          userId\n          numSpans\n          costSummary {\n            total {\n              cost\n            }\n          }\n          ...TraceAnnotationSummaryGroup\n        }\n        spanAnnotations {\n          id\n          name\n          label\n          score\n          annotatorKind\n          createdAt\n        }\n        ...AnnotationSummaryGroup\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n        descendants(first: 50) {\n          edges {\n            node {\n              id\n              spanKind\n              name\n              statusCode: propagatedStatusCode\n              statusMessage\n              startTime\n              endTime\n              latencyMs\n              parentId\n              cumulativeTokenCountTotal: tokenCountTotal\n              input {\n                value: truncatedValue\n              }\n              output {\n                value: truncatedValue\n              }\n              spanId\n              trace {\n                id\n                traceId\n              }\n              spanAnnotations {\n                id\n                name\n                label\n                score\n                annotatorKind\n                createdAt\n              }\n              ...AnnotationSummaryGroup\n              documentRetrievalMetrics {\n                evaluationName\n                ndcg\n                precision\n                hit\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment useProjectAnnotationConfigsByName_config on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  name\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    optimizationDirection\n    lowerBound\n    upperBound\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n    lowerBound\n    upperBound\n  }\n}\n\nfragment useSpanAnnotationNames_project on Project {\n  spanAnnotationNames\n}\n"
+    "text": "query ProjectEvaluatorCompareTargetsTracesQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n  $condition: String!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      ...TracesTable_spans_1Z0wvm\n    }\n    id\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  summarySpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}}) {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n    decision {\n      status\n      question {\n        name\n        type\n        choices {\n          value\n          description\n        }\n        levels {\n          label\n          description\n        }\n      }\n      answer {\n        __typename\n        ... on PredicateAnswer {\n          probability\n        }\n        ... on ChoiceAnswer {\n          choice\n          confidence\n          choiceProbabilities: probabilities {\n            value\n            probability\n          }\n        }\n        ... on ScaleAnswer {\n          expectedLevel\n          confidence\n          levelProbabilities: probabilities {\n            level\n            probability\n          }\n        }\n      }\n      requestedModel\n      resolvedModel\n      modelProvider\n    }\n  }\n  summarySpanAnnotationSummaries: spanAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  evaluators(first: 100, filter: {}) {\n    edges {\n      node {\n        name\n        evaluator {\n          __typename\n          outputConfigs {\n            __typename\n            ...useProjectAnnotationConfigsByName_config\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          id\n        }\n        id\n      }\n    }\n  }\n  configsByName: annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ...useProjectAnnotationConfigsByName_config\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment TraceAnnotationSummaryGroup on Trace {\n  summaryTraceAnnotations: traceAnnotations(filter: {exclude: {names: [\"note\"]}}) {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n    decision {\n      status\n      question {\n        name\n        type\n        choices {\n          value\n          description\n        }\n        levels {\n          label\n          description\n        }\n      }\n      answer {\n        __typename\n        ... on PredicateAnswer {\n          probability\n        }\n        ... on ChoiceAnswer {\n          choice\n          confidence\n          choiceProbabilities: probabilities {\n            value\n            probability\n          }\n        }\n        ... on ScaleAnswer {\n          expectedLevel\n          confidence\n          levelProbabilities: probabilities {\n            level\n            probability\n          }\n        }\n      }\n      requestedModel\n      resolvedModel\n      modelProvider\n    }\n  }\n  summaryTraceAnnotationSummaries: traceAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment TracesTable_descendants_42nkKs on Span {\n  descendants(first: 50) {\n    edges {\n      node {\n        id\n        spanKind\n        name\n        statusCode: propagatedStatusCode\n        statusMessage\n        startTime\n        endTime\n        latencyMs\n        parentId\n        cumulativeTokenCountTotal: tokenCountTotal\n        input {\n          value: truncatedValue\n        }\n        output {\n          value: truncatedValue\n        }\n        spanId\n        trace {\n          id\n          traceId\n        }\n        spanAnnotations {\n          id\n          name\n          label\n          score\n          annotatorKind\n          createdAt\n        }\n        ...AnnotationSummaryGroup\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n      }\n    }\n  }\n}\n\nfragment TracesTable_spans_1Z0wvm on Project {\n  id\n  name\n  ...ProjectAnnotationConfigsByNameFragment\n  ...useSpanAnnotationNames_project @defer(label: \"TracesTable_spans$defer$useSpanAnnotationNames_project\")\n  rootSpans: spans(first: 30, sort: {col: startTime, dir: desc}, filterCondition: \"parent_span is None\", traceFilterCondition: $condition, timeRange: $timeRange) {\n    edges {\n      rootSpan: node {\n        id\n        spanKind\n        name\n        metadata\n        statusCode\n        statusMessage\n        startTime\n        endTime\n        latencyMs\n        cumulativeTokenCountTotal\n        parentId\n        input {\n          value: truncatedValue\n        }\n        output {\n          value: truncatedValue\n        }\n        spanId\n        trace {\n          id\n          traceId\n          userId\n          numSpans\n          costSummary {\n            total {\n              cost\n            }\n          }\n          ...TraceAnnotationSummaryGroup\n        }\n        spanAnnotations {\n          id\n          name\n          label\n          score\n          annotatorKind\n          createdAt\n        }\n        ...AnnotationSummaryGroup\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n        ...TracesTable_descendants_42nkKs @defer(label: \"TracesTable_spans$defer$TracesTable_descendants_4h4iof\")\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment useProjectAnnotationConfigsByName_config on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  name\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    optimizationDirection\n    lowerBound\n    upperBound\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n    lowerBound\n    upperBound\n  }\n}\n\nfragment useSpanAnnotationNames_project on Project {\n  spanAnnotationNames\n  traceAnnotationNames\n}\n"
   }
 };
 })();

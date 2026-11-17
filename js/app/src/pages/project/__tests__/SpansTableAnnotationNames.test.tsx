@@ -188,7 +188,6 @@ const ROWS_PART = {
       name: "project",
       evaluators: { edges: [] },
       configsByName: { edges: [] },
-      traceAnnotationNames: [],
       spans: {
         edges: [makeSpanEdge(1), makeSpanEdge(2)],
         pageInfo: { endCursor: "cursor-2", hasNextPage: false },
@@ -202,7 +201,13 @@ const ROWS_PART = {
 const NAMES_PART = {
   hasNext: false,
   incremental: [
-    { id: "0", data: { spanAnnotationNames: ["correctness", "note"] } },
+    {
+      id: "0",
+      data: {
+        spanAnnotationNames: ["correctness", "note"],
+        traceAnnotationNames: ["trace-check"],
+      },
+    },
   ],
   completed: [{ id: "0" }],
 };
@@ -293,8 +298,8 @@ function readColumnHeaders() {
   );
 }
 
-/** Opens the column selector and counts the failed states in it. */
-async function countColumnSelectorFailures() {
+/** Opens the column selector and lists the failed states in it. */
+async function readColumnSelectorFailures() {
   const columnsButton = [...container.querySelectorAll("button")].find(
     (button) => button.textContent === "Columns"
   );
@@ -302,11 +307,13 @@ async function countColumnSelectorFailures() {
     columnsButton?.click();
   });
   const popover = document.querySelector(".react-aria-Popover");
-  return [...(popover?.querySelectorAll("*") ?? [])].filter(
-    (element) =>
-      element.children.length === 0 &&
-      element.textContent === "Span annotation names failed to load."
-  ).length;
+  return [...(popover?.querySelectorAll("*") ?? [])]
+    .filter(
+      (element) =>
+        element.children.length === 0 &&
+        element.textContent?.endsWith("failed to load.")
+    )
+    .map((element) => element.textContent);
 }
 
 describe("SpansTable span annotation names", () => {
@@ -356,6 +363,9 @@ describe("SpansTable span annotation names", () => {
     await settle();
 
     expect(readRowNames()).toEqual(["span-1", "span-2"]);
-    expect(await countColumnSelectorFailures()).toBe(1);
+    expect(await readColumnSelectorFailures()).toEqual([
+      "Span annotation names failed to load.",
+      "Trace annotation names failed to load.",
+    ]);
   });
 });

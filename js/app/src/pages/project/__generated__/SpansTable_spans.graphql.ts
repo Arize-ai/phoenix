@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a6beee92f4a41bc1fc41fdb497868b05>>
+ * @generated SignedSource<<aef958f43f265af085e27b6115a282a2>>
  * @lightSyntaxTransform
  */
 
@@ -74,7 +74,7 @@ export type SpansTable_spans$data = {
       };
     }>;
   };
-  readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment" | "SpanColumnSelector_traceAnnotations" | "useSpanAnnotationNames_project">;
+  readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment" | "useSpanAnnotationNames_project">;
   readonly " $fragmentType": "SpansTable_spans";
 };
 export type SpansTable_spans$key = {
@@ -225,6 +225,13 @@ return {
               "kind": "ScalarField",
               "name": "spanAnnotationNames",
               "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "traceAnnotationNames",
+              "storageKey": null
             }
           ],
           "args": null,
@@ -236,11 +243,6 @@ return {
       "args": null,
       "kind": "FragmentSpread",
       "name": "ProjectAnnotationConfigsByNameFragment"
-    },
-    {
-      "args": null,
-      "kind": "FragmentSpread",
-      "name": "SpanColumnSelector_traceAnnotations"
     },
     {
       "alias": "spans",
@@ -603,6 +605,6 @@ return {
 };
 })();
 
-(node as any).hash = "8b12d5d04d2a0374a5036e0b4d34109e";
+(node as any).hash = "41bb7c82d4d8bce44edf4c294451213e";
 
 export default node;
