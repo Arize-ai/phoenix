@@ -2202,13 +2202,13 @@ class TestTraceScopeDrain:
 
 
 class TestBuiltinSyncStaleBindings:
+    @pytest.mark.parametrize("binding_target", ["dataset", "project"])
     async def test_stale_builtin_with_live_binding_is_removed_and_binding_tombstoned(
-        self, db: DbSessionFactory
+        self, db: DbSessionFactory, binding_target: str
     ) -> None:
         from phoenix.server.evaluators.services.builtin_sync import sync_builtin_evaluators
 
         async with db() as session:
-            dataset = models.Dataset(name=f"stale-ds-{token_hex(4)}", metadata_={})
             trace_proj = models.Project(name=f"stale-proj-{token_hex(4)}", kind="EVALUATOR")
             stale = models.BuiltinEvaluator(
                 name=Identifier(root=f"stale-{token_hex(4)}"),
@@ -2219,32 +2219,74 @@ class TestBuiltinSyncStaleBindings:
                 input_schema={},
                 output_configs=[],
             )
-            session.add_all([dataset, trace_proj, stale])
+            session.add_all([trace_proj, stale])
             await session.flush()
-            binding = models.DatasetEvaluators(
-                dataset_id=dataset.id,
-                evaluator_id=stale.id,
-                project_id=trace_proj.id,
-                name=Identifier(root="stale-binding"),
-                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-            )
-            session.add(binding)
-            await session.flush()
-            stale_id, binding_id = stale.id, binding.id
+            if binding_target == "dataset":
+                dataset = models.Dataset(name=f"stale-ds-{token_hex(4)}", metadata_={})
+                session.add(dataset)
+                await session.flush()
+                dataset_binding = models.DatasetEvaluators(
+                    dataset_id=dataset.id,
+                    evaluator_id=stale.id,
+                    project_id=trace_proj.id,
+                    name=Identifier(root="stale-binding"),
+                    input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                )
+                session.add(dataset_binding)
+                await session.flush()
+                binding_id = dataset_binding.id
+            else:
+                owner_project = models.Project(name=f"stale-owner-{token_hex(4)}")
+                session.add(owner_project)
+                await session.flush()
+                project_binding = models.ProjectEvaluator(
+                    project_id=owner_project.id,
+                    evaluator_id=stale.id,
+                    trace_project_id=trace_proj.id,
+                    name=Identifier(root="stale-binding"),
+                    evaluation_target="TRACE",
+                    filter_condition="",
+                    sampling_rate=1.0,
+                )
+                session.add(project_binding)
+                await session.flush()
+                binding_id = project_binding.id
+            stale_id, trace_proj_id = stale.id, trace_proj.id
 
         await sync_builtin_evaluators(db)
 
         async with db() as session:
             assert await session.get(models.Evaluator, stale_id) is None
-            tombstoned = await session.get(models.DatasetEvaluators, binding_id)
-            assert tombstoned is not None
-            assert tombstoned.deleted_at is not None and tombstoned.evaluator_id is None
-            task_ids = await session.scalars(
-                select(models.DatasetEvaluatorCleanupTask.id).where(
-                    models.DatasetEvaluatorCleanupTask.dataset_evaluator_id == binding_id
-                )
+            tombstoned_trace_proj = await session.get(models.Project, trace_proj_id)
+            assert (
+                tombstoned_trace_proj is not None and tombstoned_trace_proj.deleted_at is not None
             )
-            assert len(list(task_ids)) == 1
+            if binding_target == "dataset":
+                tombstoned_ds_binding = await session.get(models.DatasetEvaluators, binding_id)
+                assert tombstoned_ds_binding is not None
+                assert (
+                    tombstoned_ds_binding.deleted_at is not None
+                    and tombstoned_ds_binding.evaluator_id is None
+                )
+                ds_task_ids = await session.scalars(
+                    select(models.DatasetEvaluatorCleanupTask.id).where(
+                        models.DatasetEvaluatorCleanupTask.dataset_evaluator_id == binding_id
+                    )
+                )
+                assert len(list(ds_task_ids)) == 1
+            else:
+                tombstoned_proj_binding = await session.get(models.ProjectEvaluator, binding_id)
+                assert tombstoned_proj_binding is not None
+                assert (
+                    tombstoned_proj_binding.deleted_at is not None
+                    and tombstoned_proj_binding.evaluator_id is None
+                )
+                proj_task_ids = await session.scalars(
+                    select(models.ProjectEvaluatorCleanupTask.id).where(
+                        models.ProjectEvaluatorCleanupTask.project_evaluator_id == binding_id
+                    )
+                )
+                assert len(list(proj_task_ids)) == 1
 
 
 class TestClearWatermarkReuse:

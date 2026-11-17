@@ -1310,6 +1310,7 @@ def create_app(
     )
     experiment_sweeper = ExperimentSweeper(
         db,
+        event_queue=dml_event_handler,
         wake_cleanup_worker=(cleanup_worker.wake if cleanup_worker is not None else (lambda: None)),
     )
     graphql_schema = build_graphql_schema(graphql_schema_extensions)

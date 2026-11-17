@@ -52,9 +52,15 @@ from phoenix.server.api.types.Span import Span
 from phoenix.server.api.utils import delete_traces
 from phoenix.server.cleanup.lifecycle import (
     admit_exclusive_experiment_projects_delete,
+    lock_dataset_delete_targets,
     logical_delete_dataset_evaluators,
 )
-from phoenix.server.dml_event import DatasetDeleteEvent, DatasetInsertEvent
+from phoenix.server.dml_event import (
+    DatasetDeleteEvent,
+    DatasetInsertEvent,
+    ProjectDeleteEvent,
+    SpanDeleteEvent,
+)
 
 _MAX_REPORTED_EXTERNAL_ID_CONFLICTS = 10
 _MAX_REPORTED_EXAMPLE_IDS = 10
@@ -492,6 +498,7 @@ class DatasetMutationMixin:
             delete(models.Dataset).where(models.Dataset.id == dataset_id).returning(models.Dataset)
         )
         enqueued_cleanup = False
+        tombstoned_project_ids: set[int] = set()
         async with info.context.db() as session:
             locked_dataset = await session.get(models.Dataset, dataset_id, with_for_update=True)
             if locked_dataset is None:
@@ -513,13 +520,11 @@ class DatasetMutationMixin:
                 ).all()
                 if project_id is not None
             }
-            live_binding_ids = list(
-                await session.scalars(
-                    select(models.DatasetEvaluators.id).where(
-                        models.DatasetEvaluators.dataset_id == dataset_id,
-                        models.DatasetEvaluators.deleted_at.is_(None),
-                    )
-                )
+            live_binding_ids = await lock_dataset_delete_targets(
+                session,
+                dialect=dialect,
+                dataset_id=dataset_id,
+                candidate_project_ids=candidate_project_ids,
             )
             if live_binding_ids:
                 deleted_bindings = await logical_delete_dataset_evaluators(
@@ -529,7 +534,8 @@ class DatasetMutationMixin:
                     collect_unused_evaluator=False,
                     collect_unused_prompt_or_decision=False,
                 )
-                enqueued_cleanup = enqueued_cleanup or bool(deleted_bindings)
+                enqueued_cleanup = enqueued_cleanup or bool(deleted_bindings.binding_ids)
+                tombstoned_project_ids.update(deleted_bindings.tombstoned_project_ids)
             dataset = await session.scalar(stmt)
             if dataset is None:
                 raise NotFound(f"Unknown dataset: {input.dataset_id}")
@@ -540,6 +546,11 @@ class DatasetMutationMixin:
                     candidate_project_ids=candidate_project_ids,
                 )
                 enqueued_cleanup = enqueued_cleanup or bool(deleted_projects)
+                tombstoned_project_ids.update(deleted_projects)
+        if tombstoned_project_ids:
+            sorted_project_ids = tuple(sorted(tombstoned_project_ids))
+            info.context.event_queue.put(SpanDeleteEvent(sorted_project_ids))
+            info.context.event_queue.put(ProjectDeleteEvent(sorted_project_ids))
         if enqueued_cleanup:
             info.context.wake_cleanup_worker()
         if eval_trace_ids:

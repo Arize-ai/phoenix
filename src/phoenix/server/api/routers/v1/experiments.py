@@ -31,7 +31,12 @@ from phoenix.server.cleanup.lifecycle import (
     admit_exclusive_experiment_projects_delete,
     promote_retained_experiment_projects_to_standard,
 )
-from phoenix.server.dml_event import ExperimentDeleteEvent, ExperimentInsertEvent
+from phoenix.server.dml_event import (
+    ExperimentDeleteEvent,
+    ExperimentInsertEvent,
+    ProjectDeleteEvent,
+    SpanDeleteEvent,
+)
 from phoenix.server.experiments.utils import generate_experiment_project_name
 
 from .datasets import _resolve_split_identifiers
@@ -630,6 +635,9 @@ async def delete_experiment(
                 )
     request.state.event_queue.put(ExperimentDeleteEvent((experiment_rowid,)))
     if enqueued_projects:
+        tombstoned_ids = tuple(enqueued_projects)
+        request.state.event_queue.put(SpanDeleteEvent(tombstoned_ids))
+        request.state.event_queue.put(ProjectDeleteEvent(tombstoned_ids))
         cleanup_worker = getattr(request.app.state, "cleanup_worker", None)
         if cleanup_worker is not None:
             cleanup_worker.wake()

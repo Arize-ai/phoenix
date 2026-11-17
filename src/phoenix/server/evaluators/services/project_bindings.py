@@ -25,6 +25,7 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import AlreadyExists, BadRequest, Conflict, NotFound
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.cleanup.lifecycle import logical_delete_project_evaluators
+from phoenix.server.dml_event import ProjectDeleteEvent, SpanDeleteEvent
 from phoenix.server.evaluators.services.definitions import (
     EvaluatorServiceContext,
     ValidatedCode,
@@ -41,6 +42,7 @@ from phoenix.server.evaluators.services.management import (
     get_live_project_evaluator,
     get_trace_project_for_project_evaluator,
     is_sole_evaluator_binding,
+    lock_evaluators,
     materialize_project_evaluator_evaluation_delay,
     parse_evaluator_id,
     validate_project_evaluator_filter,
@@ -217,7 +219,7 @@ async def update_project_llm_evaluator(
                 )
             )
             if evaluator_id is not None:
-                await session.get(models.LLMEvaluator, evaluator_id, with_for_update=True)
+                await lock_evaluators(session, [evaluator_id])
             pair = (
                 await session.execute(
                     select(models.ProjectEvaluator, models.LLMEvaluator)
@@ -300,7 +302,8 @@ async def add_project_evaluator(
             project = await validate_project_evaluator_project(
                 session, project_id, settings.project_id, lock=True
             )
-            evaluator = await session.get(evaluator_model, evaluator_rowid, with_for_update=True)
+            await lock_evaluators(session, [evaluator_rowid])
+            evaluator = await session.get(evaluator_model, evaluator_rowid, populate_existing=True)
             if evaluator is None:
                 if evaluator_kind == "CODE":
                     raise NotFound(f"Code evaluator with id {evaluator_id} not found")
@@ -462,7 +465,6 @@ async def detach_project_evaluators(
     if not rowids:
         return
     dialect = SupportedSQLDialect(context.db.dialect.value)
-    deleted_rowids: list[int] = []
     async with context.db() as session:
         if project_id is not None:
             elsewhere = (
@@ -478,14 +480,18 @@ async def detach_project_evaluators(
                 listed = ", ".join(str(GlobalID("ProjectEvaluator", str(i))) for i in elsewhere)
                 raise BadRequest(f"These bindings belong to another project: {listed}")
 
-        deleted_rowids = await logical_delete_project_evaluators(
+        delete_result = await logical_delete_project_evaluators(
             session,
             dialect=dialect,
             binding_ids=rowids,
             collect_unused_evaluator=False,
             collect_unused_prompt_or_decision=False,
         )
-    if deleted_rowids:
+    if delete_result.tombstoned_project_ids and context.event_queue is not None:
+        tombstoned_ids = tuple(delete_result.tombstoned_project_ids)
+        context.event_queue.put(SpanDeleteEvent(tombstoned_ids))
+        context.event_queue.put(ProjectDeleteEvent(tombstoned_ids))
+    if delete_result.binding_ids:
         context.wake_cleanup_worker()
 
 
@@ -603,7 +609,7 @@ async def update_project_code_evaluator(
                 )
             )
             if evaluator_id is not None:
-                await session.get(models.CodeEvaluator, evaluator_id, with_for_update=True)
+                await lock_evaluators(session, [evaluator_id])
             pair = (
                 await session.execute(
                     select(models.ProjectEvaluator, models.CodeEvaluator)
@@ -946,7 +952,7 @@ async def delete_project_evaluators(
 
     dialect = SupportedSQLDialect(context.db.dialect.value)
     async with context.db() as session:
-        deleted_rowids = await logical_delete_project_evaluators(
+        delete_result = await logical_delete_project_evaluators(
             session,
             dialect=dialect,
             binding_ids=project_evaluator_ids,
@@ -955,9 +961,13 @@ async def delete_project_evaluators(
                 input.delete_unused_evaluator and input.delete_unused_prompt_or_decision
             ),
         )
-    if deleted_rowids:
+    if delete_result.tombstoned_project_ids and context.event_queue is not None:
+        tombstoned_ids = tuple(delete_result.tombstoned_project_ids)
+        context.event_queue.put(SpanDeleteEvent(tombstoned_ids))
+        context.event_queue.put(ProjectDeleteEvent(tombstoned_ids))
+    if delete_result.binding_ids:
         context.wake_cleanup_worker()
-    return [GlobalID("ProjectEvaluator", str(row_id)) for row_id in deleted_rowids]
+    return [GlobalID("ProjectEvaluator", str(row_id)) for row_id in delete_result.binding_ids]
 
 
 async def patch_project_evaluator(

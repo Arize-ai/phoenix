@@ -57,9 +57,15 @@ from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.cleanup.lifecycle import (
     admit_exclusive_experiment_projects_delete,
+    lock_dataset_delete_targets,
     logical_delete_dataset_evaluators,
 )
-from phoenix.server.dml_event import DatasetDeleteEvent, DatasetInsertEvent, SpanDeleteEvent
+from phoenix.server.dml_event import (
+    DatasetDeleteEvent,
+    DatasetInsertEvent,
+    ProjectDeleteEvent,
+    SpanDeleteEvent,
+)
 from phoenix.utilities.content_hashing import compute_example_content_hash
 
 from .models import V1RoutesBaseModel
@@ -209,6 +215,7 @@ async def delete_dataset(
         delete(models.Dataset).where(models.Dataset.id == dataset_id).returning(models.Dataset.id)
     )
     enqueued_cleanup = False
+    tombstoned_project_ids: set[int] = set()
     async with db() as session:
         locked_dataset = await session.get(models.Dataset, dataset_id, with_for_update=True)
         if locked_dataset is None:
@@ -228,13 +235,11 @@ async def delete_dataset(
             ).all()
             if project_id is not None
         }
-        live_binding_ids = list(
-            await session.scalars(
-                select(models.DatasetEvaluators.id).where(
-                    models.DatasetEvaluators.dataset_id == dataset_id,
-                    models.DatasetEvaluators.deleted_at.is_(None),
-                )
-            )
+        live_binding_ids = await lock_dataset_delete_targets(
+            session,
+            dialect=dialect,
+            dataset_id=dataset_id,
+            candidate_project_ids=candidate_project_ids,
         )
         if live_binding_ids:
             deleted_bindings = await logical_delete_dataset_evaluators(
@@ -244,7 +249,8 @@ async def delete_dataset(
                 collect_unused_evaluator=False,
                 collect_unused_prompt_or_decision=False,
             )
-            enqueued_cleanup = enqueued_cleanup or bool(deleted_bindings)
+            enqueued_cleanup = enqueued_cleanup or bool(deleted_bindings.binding_ids)
+            tombstoned_project_ids.update(deleted_bindings.tombstoned_project_ids)
         if (await session.scalar(stmt)) is None:
             raise HTTPException(detail="Dataset does not exist", status_code=404)
         if candidate_project_ids:
@@ -254,6 +260,11 @@ async def delete_dataset(
                 candidate_project_ids=candidate_project_ids,
             )
             enqueued_cleanup = enqueued_cleanup or bool(deleted_projects)
+            tombstoned_project_ids.update(deleted_projects)
+    if tombstoned_project_ids:
+        sorted_project_ids = tuple(sorted(tombstoned_project_ids))
+        request.state.event_queue.put(SpanDeleteEvent(sorted_project_ids))
+        request.state.event_queue.put(ProjectDeleteEvent(sorted_project_ids))
     if enqueued_cleanup:
         cleanup_worker = getattr(request.app.state, "cleanup_worker", None)
         if cleanup_worker is not None:

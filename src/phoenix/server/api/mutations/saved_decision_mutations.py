@@ -206,10 +206,15 @@ class SavedDecisionMutationMixin:
     ) -> DeleteDecisionMutationPayload:
         row_id = from_global_id_with_expected_type(input.decision_id, Decision.__name__)
         async with info.context.db() as session:
+            locked_decision_id = await session.scalar(
+                select(models.Decision.id).where(models.Decision.id == row_id).with_for_update()
+            )
+            if locked_decision_id is None:
+                raise NotFound(f"Decision not found: {input.decision_id}")
             evaluator_names = (
                 await session.scalars(
                     select(models.DecisionEvaluator.name)
-                    .where(models.DecisionEvaluator.decision_id == row_id)
+                    .where(models.DecisionEvaluator.decision_id == locked_decision_id)
                     .order_by(models.DecisionEvaluator.name)
                 )
             ).all()
@@ -224,7 +229,7 @@ class SavedDecisionMutationMixin:
             try:
                 async with session.begin_nested():
                     result = await session.execute(
-                        delete(models.Decision).where(models.Decision.id == row_id)
+                        delete(models.Decision).where(models.Decision.id == locked_decision_id)
                     )
             except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
                 raise Conflict(

@@ -20,13 +20,16 @@ from phoenix.db.types.evaluator_definition import (
 )
 from phoenix.db.types.prompts import PromptChatTemplate
 from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.evaluators.services.management import lock_evaluators
 
 
 async def get_decision_evaluator(
     session: AsyncSession, row_id: int, *, lock: bool = False
 ) -> models.DecisionEvaluator:
     """Load a saved judge and its pinned version, optionally locking its definition."""
-    evaluator = await session.get(models.DecisionEvaluator, row_id, with_for_update=lock)
+    if lock:
+        await lock_evaluators(session, [row_id])
+    evaluator = await session.get(models.DecisionEvaluator, row_id, populate_existing=lock)
     if evaluator is None:
         raise NotFound(f"Decision evaluator not found: {row_id}")
     return evaluator

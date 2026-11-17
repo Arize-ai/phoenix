@@ -338,7 +338,7 @@ async def delete_project(
         async with request.app.state.db() as session:
             project = await get_project_by_identifier(session, project_identifier)
             project_id = project.id
-            await admit_project_delete(session, dialect=dialect, project_id=project_id)
+            admitted = await admit_project_delete(session, dialect=dialect, project_id=project_id)
     except NotFound as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
     except BadRequest as error:
@@ -348,8 +348,9 @@ async def delete_project(
     except Conflict as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
 
-    request.state.event_queue.put(SpanDeleteEvent((project_id,)))
-    request.state.event_queue.put(ProjectDeleteEvent((project_id,)))
+    tombstoned_ids = tuple(admitted.tombstoned_project_ids)
+    request.state.event_queue.put(SpanDeleteEvent(tombstoned_ids))
+    request.state.event_queue.put(ProjectDeleteEvent(tombstoned_ids))
     cleanup_worker = getattr(request.app.state, "cleanup_worker", None)
     if cleanup_worker is not None:
         cleanup_worker.wake()

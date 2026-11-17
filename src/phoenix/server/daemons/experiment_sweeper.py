@@ -4,7 +4,7 @@ import logging
 import random
 from asyncio import sleep
 from datetime import datetime, timedelta, timezone
-from typing import Callable
+from typing import Callable, Optional
 
 import sqlalchemy as sa
 
@@ -12,7 +12,8 @@ from phoenix.config import EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.cleanup.lifecycle import admit_exclusive_experiment_projects_delete
-from phoenix.server.types import DaemonTask, DbSessionFactory
+from phoenix.server.dml_event import DmlEvent, ProjectDeleteEvent, SpanDeleteEvent
+from phoenix.server.types import CanPutItem, DaemonTask, DbSessionFactory
 
 logger = logging.getLogger(__name__)
 
@@ -31,10 +32,12 @@ class ExperimentSweeper(DaemonTask):
         self,
         db: DbSessionFactory,
         *,
+        event_queue: Optional[CanPutItem[DmlEvent]] = None,
         wake_cleanup_worker: Callable[[], None] = lambda: None,
     ) -> None:
         super().__init__()
         self._db = db
+        self._event_queue = event_queue
         self._wake_cleanup_worker = wake_cleanup_worker
 
     async def _run(self) -> None:
@@ -70,6 +73,10 @@ class ExperimentSweeper(DaemonTask):
                     candidate_project_ids=candidate_project_ids,
                 )
         if enqueued_projects:
+            if self._event_queue is not None:
+                tombstoned_ids = tuple(enqueued_projects)
+                self._event_queue.put(SpanDeleteEvent(tombstoned_ids))
+                self._event_queue.put(ProjectDeleteEvent(tombstoned_ids))
             self._wake_cleanup_worker()
         if num_deleted:
             logger.info(f"Deleted {num_deleted} ephemeral experiment(s).")
