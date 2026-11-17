@@ -234,12 +234,14 @@ async def insert_span(
             existing_trace.end_time,
         )
     else:
-        live_project_exists = await session.scalar(
-            select(models.Project.id)
-            .where(models.Project.name == project_name, models.Project.deleted_at.is_(None))
-            .limit(1)
+        project = await _fetch_row(
+            session,
+            select(models.Project.id).where(
+                models.Project.name == project_name, models.Project.deleted_at.is_(None)
+            ),
+            _ProjectRow,
         )
-        if live_project_exists is None:
+        if project is None:
             tombstoned_internal = await session.scalar(
                 select(models.Project.id)
                 .where(
@@ -251,18 +253,19 @@ async def insert_span(
             )
             if tombstoned_internal is not None:
                 return None
-        project_kind: models.ProjectKindName = (
-            "PLAYGROUND" if project_name == PLAYGROUND_PROJECT_NAME else "STANDARD"
-        )
-        project = await _get_or_create(
-            session,
-            models.Project,
-            _ProjectRow,
-            {"name": project_name},
-            {**random_project_gradient(), "kind": project_kind},
-            where=(models.Project.deleted_at.is_(None),),
-            index_where=text(live_row_predicate()),
-        )
+            project_kind: models.ProjectKindName = (
+                "PLAYGROUND" if project_name == PLAYGROUND_PROJECT_NAME else "STANDARD"
+            )
+            project = await _get_or_create(
+                session,
+                models.Project,
+                _ProjectRow,
+                {"name": project_name},
+                {**random_project_gradient(), "kind": project_kind},
+                skip_initial_lookup=True,
+                where=(models.Project.deleted_at.is_(None),),
+                index_where=text(live_row_predicate()),
+            )
         trace_values: dict[str, Any] = dict(
             project_rowid=project.id,
             start_time=span.start_time,
