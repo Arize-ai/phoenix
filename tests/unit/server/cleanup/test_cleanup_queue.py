@@ -804,6 +804,166 @@ class TestWatermarkClearAndOverlap:
             assert await session.get(models.Project, trace_proj.id) is None
             assert await session.get(models.ProjectEvaluator, pe.id) is None
 
+    async def test_clear_preserves_shared_session_and_annotations_when_other_project_is_tombstoned(
+        self, db: DbSessionFactory
+    ) -> None:
+        dialect = SupportedSQLDialect(db.dialect.value)
+        base_time = datetime(2026, 6, 4, 0, 0, 0, tzinfo=timezone.utc)
+
+        async with db() as session:
+            live_project = await _add_project(session, name=f"live-clear-{token_hex(4)}")
+            tombstoned_project = await _add_project(
+                session, name=f"tombstoned-other-{token_hex(4)}"
+            )
+            shared_session = await _add_project_session(
+                session,
+                live_project,
+                session_id=f"shared-clear-{token_hex(4)}",
+                start_time=base_time,
+                end_time=base_time + timedelta(minutes=5),
+            )
+            session_annotation = models.ProjectSessionAnnotation(
+                project_session_id=shared_session.id,
+                name="session-quality",
+                label="good",
+                score=1.0,
+                explanation="keep on live project",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="APP",
+                identifier="",
+            )
+            session.add(session_annotation)
+            await session.flush()
+
+            cleared_trace = await _add_trace(
+                session,
+                live_project,
+                project_session=shared_session,
+                start_time=base_time,
+            )
+            await _add_span(session, trace=cleared_trace, start_time=base_time)
+
+            other_trace = await _add_trace(
+                session,
+                tombstoned_project,
+                project_session=shared_session,
+                start_time=base_time + timedelta(minutes=1),
+            )
+            await _add_span(
+                session,
+                trace=other_trace,
+                start_time=base_time + timedelta(minutes=1),
+            )
+
+            live_project_id = live_project.id
+            tombstoned_project_id = tombstoned_project.id
+            shared_session_id = shared_session.id
+            annotation_id = session_annotation.id
+            cleared_trace_id = cleared_trace.id
+            other_trace_id = other_trace.id
+
+            await admit_project_delete(session, dialect=dialect, project_id=tombstoned_project_id)
+            clear_task_id = await admit_or_reuse_project_clear(
+                session, dialect=dialect, project_id=live_project_id
+            )
+
+        coordinator = CleanupCoordinator(db, batch_limit=1)
+        while await coordinator.run_one_step(only_task_id=clear_task_id):
+            pass
+        async with db() as session:
+            owner_after_clear = await session.scalar(
+                select(models.ProjectSession.project_id).where(
+                    models.ProjectSession.id == shared_session_id
+                )
+            )
+        await _drain_all(coordinator)
+
+        async with db() as session:
+            assert await session.get(models.Project, tombstoned_project_id) is None
+            assert await session.get(models.Trace, cleared_trace_id) is None
+            assert await session.get(models.Trace, other_trace_id) is None
+            surviving_project = await session.get(models.Project, live_project_id)
+            assert surviving_project is not None and surviving_project.deleted_at is None
+            surviving_session = await session.get(models.ProjectSession, shared_session_id)
+            surviving_annotation = await session.get(models.ProjectSessionAnnotation, annotation_id)
+            assert (
+                owner_after_clear,
+                surviving_session is not None,
+                surviving_annotation is not None,
+            ) == (live_project_id, True, True)
+            assert surviving_session is not None
+            assert surviving_session.project_id == live_project_id
+            assert surviving_annotation is not None
+
+    async def test_clear_does_not_transfer_shared_session_to_live_other_project(
+        self, db: DbSessionFactory
+    ) -> None:
+        dialect = SupportedSQLDialect(db.dialect.value)
+        base_time = datetime(2026, 6, 5, 0, 0, 0, tzinfo=timezone.utc)
+
+        async with db() as session:
+            live_project = await _add_project(session, name=f"live-owner-{token_hex(4)}")
+            other_live_project = await _add_project(session, name=f"live-other-{token_hex(4)}")
+            shared_session = await _add_project_session(
+                session,
+                live_project,
+                session_id=f"shared-live-{token_hex(4)}",
+                start_time=base_time,
+                end_time=base_time + timedelta(minutes=5),
+            )
+            session_annotation = models.ProjectSessionAnnotation(
+                project_session_id=shared_session.id,
+                name="session-quality",
+                label="good",
+                score=1.0,
+                explanation="remains owned by live_project",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="APP",
+                identifier="",
+            )
+            session.add(session_annotation)
+            await session.flush()
+
+            cleared_trace = await _add_trace(
+                session,
+                live_project,
+                project_session=shared_session,
+                start_time=base_time,
+            )
+            await _add_span(session, trace=cleared_trace, start_time=base_time)
+
+            other_trace = await _add_trace(
+                session,
+                other_live_project,
+                project_session=shared_session,
+                start_time=base_time + timedelta(minutes=1),
+            )
+            await _add_span(
+                session,
+                trace=other_trace,
+                start_time=base_time + timedelta(minutes=1),
+            )
+
+            live_project_id = live_project.id
+            shared_session_id = shared_session.id
+            annotation_id = session_annotation.id
+            cleared_trace_id = cleared_trace.id
+            other_trace_id = other_trace.id
+
+            await admit_or_reuse_project_clear(session, dialect=dialect, project_id=live_project_id)
+
+        await _drain_all(CleanupCoordinator(db, batch_limit=1))
+
+        async with db() as session:
+            assert await session.get(models.Trace, cleared_trace_id) is None
+            assert await session.get(models.Trace, other_trace_id) is not None
+            surviving_session = await session.get(models.ProjectSession, shared_session_id)
+            assert surviving_session is not None
+            assert surviving_session.project_id == live_project_id
+            assert await session.get(models.ProjectSessionAnnotation, annotation_id) is not None
+
 
 class TestEvaluatorSnapshotsAndOnlineEvalFences:
     async def test_pinned_code_evaluator_snapshot_survives_synchronous_definition_gc(
