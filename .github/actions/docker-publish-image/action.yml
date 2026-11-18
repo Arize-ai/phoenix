@@ -1,4 +1,4 @@
-name: Merge per-platform digests into one manifest list
+name: Docker Publish Image
 description: >-
   Upload a variant's OCI archives to one registry, then publish and verify its
   multi-platform tags. Registry publishing jobs share no credentials or uploads.
