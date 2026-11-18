@@ -4,13 +4,40 @@ import { Controller, useWatch } from "react-hook-form";
 import { Input, Label, Switch, Text, TextField } from "@phoenix/components";
 
 import type { ProviderFormData } from "./CustomProviderForm";
-import { DECISION_SDK_LABELS, type DecisionSDK } from "./decisionSdks";
+import type { DecisionSDK } from "./decisionSdks";
 import { ProviderFormSection } from "./ProviderFormSection";
 
-const DECISION_MODEL_PLACEHOLDERS: Record<DecisionSDK, string> = {
-  OPENAI: "gpt-6-luna",
-  TYPESAFE: "jev-latest, jev-1.14.0",
-  GOOGLE_GENAI: "gemini-decision-1",
+const DECISION_MODEL_FIELDS: Record<
+  DecisionSDK,
+  { placeholder: string; subtitle: string; description: string }
+> = {
+  OPENAI: {
+    placeholder: "gpt-6-luna",
+    subtitle:
+      "OpenAI Decisions API at this provider's base URL, with its API key and headers",
+    description:
+      "Optional, comma separated. Leave empty to list the built-in models. Any model the endpoint accepts can be used.",
+  },
+  AZURE_OPENAI: {
+    placeholder: "gpt-6-luna",
+    subtitle:
+      "Azure OpenAI Decisions API at this provider's Azure endpoint, with its credentials",
+    description:
+      "Optional, comma separated. Enter Azure deployment names. Leave empty to list the built-in models.",
+  },
+  TYPESAFE: {
+    placeholder: "jev-latest, jev-1.14.0",
+    subtitle: "Always on: System One at this provider's base URL",
+    description:
+      "Optional, comma separated. Leave empty to list the built-in models. Any model the endpoint accepts can be used.",
+  },
+  GOOGLE_GENAI: {
+    placeholder: "gemini-decision-1",
+    subtitle:
+      "Gemini Decisions API at this provider's base URL, with its API key and headers",
+    description:
+      "Optional, comma separated. Leave empty to list the built-in models. Any model the endpoint accepts can be used.",
+  },
 };
 
 export function DecisionModelsSection({
@@ -25,15 +52,12 @@ export function DecisionModelsSection({
   const isTypeSafe = sdk === "TYPESAFE";
   const isEnabled = useWatch({ control, name: "decision_enabled" });
   const isOn = isTypeSafe || Boolean(isEnabled);
+  const fields = DECISION_MODEL_FIELDS[sdk];
 
   return (
     <ProviderFormSection
       title="Decision models"
-      subtitle={
-        isTypeSafe
-          ? "Always on: System One at this provider's base URL"
-          : `${DECISION_SDK_LABELS[sdk]} at this provider's base URL, with its API key and headers`
-      }
+      subtitle={fields.subtitle}
       extra={
         <Controller
           name="decision_enabled"
@@ -63,11 +87,8 @@ export function DecisionModelsSection({
               isDisabled={isSubmitting}
             >
               <Label>Model names</Label>
-              <Input placeholder={DECISION_MODEL_PLACEHOLDERS[sdk]} />
-              <Text slot="description">
-                Optional, comma separated. Leave empty to list the built-in
-                models. Any model the endpoint accepts can be used.
-              </Text>
+              <Input placeholder={fields.placeholder} />
+              <Text slot="description">{fields.description}</Text>
             </TextField>
           )}
         />

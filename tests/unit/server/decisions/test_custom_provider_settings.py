@@ -48,7 +48,7 @@ def test_a_config_stored_with_model_settings_still_parses() -> None:
     ("sdk", "servable", "default"),
     [
         ("openai", {"CHAT", "DECISION"}, {"CHAT"}),
-        ("azure_openai", {"CHAT"}, {"CHAT"}),
+        ("azure_openai", {"CHAT", "DECISION"}, {"CHAT"}),
         ("anthropic", {"CHAT"}, {"CHAT"}),
         ("aws_bedrock", {"CHAT"}, {"CHAT"}),
         ("google_genai", {"CHAT", "DECISION"}, {"CHAT"}),

@@ -970,6 +970,11 @@ suggested model names as ordered `model_profiles` rows linked through
   API when it has a `decision` type row. Both use the provider's base URL, API key,
   organization, project, and headers. `openai_api_type` stays a choice between
   chat surfaces.
+- An `azure_openai` provider always serves chat and can also serve OpenAI's
+  Decisions API when it has a `decision` type row. Both use the provider's Azure
+  endpoint and credentials. The model name is the deployment name. The request is
+  `POST {endpoint}/openai/v1/decisions`. The span's `decision.system` is `openai`,
+  because the call is the OpenAI Decisions API.
 - A `typesafe` provider is any System One-compatible endpoint (API key, base
   URL, headers). It serves decision models only, so every chat path refuses it:
   prompts (no prompt provider is compatible with it), the playground, agents,
@@ -1053,6 +1058,20 @@ serve it too (section 10.5).
   `{"error": {"code": "not_found", "message": "Requested model not found. ..."}}`
   (the message doesn't name the model), or on a decision response. Google's
   generic 404 has a numeric `code` and fails.
+
+### 10.9 Azure OpenAI
+
+The built-in `AZURE_OPENAI` provider runs OpenAI's Decisions API
+(`POST {endpoint}/openai/v1/decisions`) with the same client as a custom Azure
+provider: a plain `AsyncOpenAI` at `{endpoint}/openai/v1/`. It is configured
+the way Azure chat is. The endpoint comes from the run or
+`AZURE_OPENAI_ENDPOINT`. The key is `AZURE_OPENAI_API_KEY`, then a stored
+secret, and default Azure credentials when no key is set. A request-supplied
+endpoint never receives the server-configured key. The model name is the
+deployment name. The catalog suggests the same names as OpenAI; any deployment
+name works. The span's `decision.system` is `openai` and `decision.provider`
+is `azure`, a plain string until OpenInference has a value. Azure OpenAI
+custom providers serve it too (section 10.5).
 
 ## 11. App Access
 
@@ -1762,10 +1781,10 @@ is in the [appendix](#19-appendix-decision-evaluator-implementation).
 ## 17. Implementation Status
 
 Everywhere Phoenix uses a chat model, a decision model needs an equivalent.
-Providers and models are done: built-in TypeSafe, OpenAI, Ollama, and
-Fireworks; custom
-`openai` and `typesafe` providers with capability checks; credentials; the
-catalog; and decision models kept out of every chat path. The server also
+Providers and models are done: built-in TypeSafe, OpenAI, Azure OpenAI, Google,
+Ollama, and Fireworks; custom `openai`, `azure_openai`, `google_genai`, and
+`typesafe` providers with capability checks; credentials; the catalog; and
+decision models kept out of every chat path. The server also
 blocks deleting a custom provider referenced by a saved decision version or a
 decision experiment task. The tables follow the [Build Order](#18-build-order),
 one per track, with the chat equivalent of each step in parentheses.

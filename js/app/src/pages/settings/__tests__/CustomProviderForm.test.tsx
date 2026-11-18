@@ -202,6 +202,22 @@ describe("CustomProviderForm decision models", () => {
     expect(container.textContent).toContain("Test connection");
   });
 
+  it("names Azure decision models as deployment names at the Azure endpoint", () => {
+    render({
+      ...(createDefaultFormData("AZURE_OPENAI") as ProviderFormData),
+      name: "azure",
+      azure_endpoint: "https://res.openai.azure.com",
+      azure_api_key: "az-key",
+      decision_enabled: true,
+    } as ProviderFormData);
+    expect(decisionSwitch().checked).toBe(true);
+    expect(container.textContent).toContain(
+      "Azure OpenAI Decisions API at this provider's Azure endpoint, with its credentials"
+    );
+    expect(container.textContent).toContain("Enter Azure deployment names");
+    expect(input("gpt-6-luna")).toBeTruthy();
+  });
+
   it("offers no decision section on SDKs that cannot serve decisions", () => {
     render({
       ...(createDefaultFormData("ANTHROPIC") as ProviderFormData),

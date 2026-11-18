@@ -109,6 +109,7 @@ export function createDefaultFormData(
         azure_scope: undefined,
         azure_default_headers: undefined,
         model_names: undefined,
+        ...noDecisionModels,
       } satisfies AzureOpenAIFormData;
 
     case "ANTHROPIC":
@@ -280,6 +281,7 @@ function transformAzureOpenAIConfig(
     ),
     ...getAzureClientFormValues(config?.azureOpenaiClientKwargs),
     ...getChatModelsFormValues(provider.models),
+    ...getDecisionModelsFormValues(provider.models),
   };
 }
 
@@ -401,6 +403,7 @@ export function buildProviderModels(
 ): ProviderModelsInput {
   switch (formData.sdk) {
     case "OPENAI":
+    case "AZURE_OPENAI":
     case "GOOGLE_GENAI":
       return {
         chat: buildModelsOfType(formData.model_names),
@@ -408,7 +411,6 @@ export function buildProviderModels(
           decision: buildModelsOfType(formData.decision_model_names),
         }),
       };
-    case "AZURE_OPENAI":
     case "ANTHROPIC":
     case "AWS_BEDROCK":
       return { chat: buildModelsOfType(formData.model_names) };

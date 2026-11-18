@@ -19,6 +19,7 @@ from typing import (
     Optional,
     Sequence,
     TypedDict,
+    TypeGuard,
 )
 
 from openinference.semconv.trace import (
@@ -32,7 +33,7 @@ from opentelemetry.trace import Span as OtelSpan
 from opentelemetry.trace import Status, StatusCode, Tracer
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing_extensions import assert_never, override
+from typing_extensions import TypeAlias, assert_never, override
 
 from phoenix.db import models
 from phoenix.db.types.decisions import (
@@ -42,6 +43,7 @@ from phoenix.db.types.decisions import (
     ScaleQuestion,
 )
 from phoenix.db.types.model_provider import (
+    AzureOpenAICustomProviderConfig,
     ClientFactory,
     GenerativeModelCustomerProviderConfig,
     GenerativeModelCustomerProviderConfigType,
@@ -55,6 +57,7 @@ from phoenix.server.api.helpers.builtin_providers import (
     BuiltInEndpoint,
     check_provider_base_urls,
     credential_env_vars,
+    resolve_azure_openai_config,
     resolve_builtin_config,
 )
 from phoenix.server.api.helpers.chat_clients import CHAT_ENDPOINTS
@@ -268,6 +271,33 @@ class DecisionClient(ModelClient[Any]):
     system: ClassVar[str]
     """The ``decision.system`` value: the decision API the client calls."""
     built_in_endpoint: ClassVar[BuiltInEndpoint]
+    """How this provider finds its URL and API key for a built-in run."""
+
+    @classmethod
+    async def resolve_config(
+        cls,
+        *,
+        base_url: str | None,
+        credentials: Sequence[GenerativeCredentialInput] | None,
+        session: AsyncSession,
+        decrypt: Callable[[bytes], bytes],
+    ) -> GenerativeModelCustomerProviderConfigType:
+        """Resolve this provider's built-in config for one decision run.
+
+        ``base_url`` is the endpoint supplied with the request. A server-configured
+        API key is never sent there.
+
+        Raises:
+            BadRequest: The provider's URL or credentials can't be used.
+        """
+        return await resolve_builtin_config(
+            cls.built_in_endpoint,
+            base_url=base_url,
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            models_label="decision models",
+        )
 
     @override
     def get_rate_limit_key(self) -> Hashable:
@@ -496,18 +526,13 @@ class TypeSafeDecisionClient(DecisionClient):
 OPENAI_DECISION_MODELS: tuple[str, ...] = ("gpt-6-luna",)
 
 
-@register_client(
-    GenerativeProviderKey.OPENAI,
-    (PROVIDER_DEFAULT, *OPENAI_DECISION_MODELS),
-    model_type="DECISION",
-)
-class OpenAIDecisionClient(DecisionClient):
-    """OpenAI Decisions API client."""
+class _OpenAIDecisionsAPIClient(DecisionClient):
+    """OpenAI Decisions API request and response handling.
 
-    provider_key = GenerativeProviderKey.OPENAI
-    system = OpenInferenceDecisionSystemValues.OPENAI.value
-    provider = OpenInferenceDecisionProviderValues.OPENAI.value
-    built_in_endpoint = CHAT_ENDPOINTS[GenerativeProviderKey.OPENAI]
+    OpenAI and Azure OpenAI both speak this API. Only OpenAI is a base URL plus
+    an API key, so ``built_in_endpoint`` stays unset here: ``OpenAIDecisionClient``
+    sets one, and ``AzureOpenAIDecisionClient`` resolves a resource URL instead.
+    """
 
     @classmethod
     @override
@@ -637,6 +662,57 @@ class OpenAIDecisionClient(DecisionClient):
             raise ValueError("Duplicate level probability")
         return ScaleAnswer(
             expected_level=answer.score, confidence=answer.confidence, probabilities=levels
+        )
+
+
+@register_client(
+    GenerativeProviderKey.OPENAI,
+    (PROVIDER_DEFAULT, *OPENAI_DECISION_MODELS),
+    model_type="DECISION",
+)
+class OpenAIDecisionClient(_OpenAIDecisionsAPIClient):
+    """OpenAI Decisions API client."""
+
+    provider_key = GenerativeProviderKey.OPENAI
+    system = OpenInferenceDecisionSystemValues.OPENAI.value
+    provider = OpenInferenceDecisionProviderValues.OPENAI.value
+    built_in_endpoint = CHAT_ENDPOINTS[GenerativeProviderKey.OPENAI]
+
+
+@register_client(
+    GenerativeProviderKey.AZURE_OPENAI,
+    (PROVIDER_DEFAULT, *OPENAI_DECISION_MODELS),
+    model_type="DECISION",
+)
+class AzureOpenAIDecisionClient(_OpenAIDecisionsAPIClient):
+    """OpenAI Decisions API on Azure. The model name is the deployment name.
+
+    The client posts to ``{endpoint}/openai/v1/decisions``. ``endpoint`` is the
+    Azure resource URL from the request or ``AZURE_OPENAI_ENDPOINT``. A resource
+    URL plus optional default credentials is not a :class:`BuiltInEndpoint`, so
+    this class resolves that config itself.
+    """
+
+    provider_key = GenerativeProviderKey.AZURE_OPENAI
+    system = OpenInferenceDecisionSystemValues.OPENAI.value
+    provider = "azure"  # OpenInference has no Azure decision provider value yet.
+
+    @classmethod
+    @override
+    async def resolve_config(
+        cls,
+        *,
+        base_url: str | None,
+        credentials: Sequence[GenerativeCredentialInput] | None,
+        session: AsyncSession,
+        decrypt: Callable[[bytes], bytes],
+    ) -> GenerativeModelCustomerProviderConfigType:
+        return await resolve_azure_openai_config(
+            endpoint=base_url,
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            models_label="decision models",
         )
 
 
@@ -915,21 +991,42 @@ async def get_decision_client(
         raise BadRequest(f"{provider.value} does not offer decision models.")
     _require_model_name(model_name)
     _require_dependencies(client_class)
-    config = await resolve_builtin_config(
-        client_class.built_in_endpoint,
+    config = await client_class.resolve_config(
         base_url=base_url,
         credentials=credentials,
         session=session,
         decrypt=decrypt,
-        models_label="decision models",
     )
     return client_class(client_factory=config.get_client_factory(), model_name=model_name)
+
+
+DecisionCustomProviderConfig: TypeAlias = (
+    OpenAICustomProviderConfig
+    | AzureOpenAICustomProviderConfig
+    | TypeSafeCustomProviderConfig
+    | GoogleGenAICustomProviderConfig
+)
+
+_DECISION_CUSTOM_PROVIDER_CONFIGS = (
+    OpenAICustomProviderConfig,
+    AzureOpenAICustomProviderConfig,
+    TypeSafeCustomProviderConfig,
+    GoogleGenAICustomProviderConfig,
+)
+
+
+def is_decision_custom_provider_config(
+    config: GenerativeModelCustomerProviderConfigType,
+) -> TypeGuard[DecisionCustomProviderConfig]:
+    return isinstance(config, _DECISION_CUSTOM_PROVIDER_CONFIGS)
 
 
 def custom_provider_decision_client_class(
     config: GenerativeModelCustomerProviderConfigType, *, provider_name: str
 ) -> type[DecisionClient]:
-    if isinstance(config, OpenAICustomProviderConfig):
+    if isinstance(config, (OpenAICustomProviderConfig, AzureOpenAICustomProviderConfig)):
+        # Azure's factory returns AsyncOpenAI rooted at ``{endpoint}/openai/v1/``, where
+        # Azure serves the OpenAI Decisions API, so the OpenAI client works unchanged.
         return OpenAIDecisionClient
     if isinstance(config, TypeSafeCustomProviderConfig):
         return TypeSafeDecisionClient
@@ -939,9 +1036,7 @@ def custom_provider_decision_client_class(
 
 
 def custom_provider_decision_client_factory(
-    config: OpenAICustomProviderConfig
-    | TypeSafeCustomProviderConfig
-    | GoogleGenAICustomProviderConfig,
+    config: DecisionCustomProviderConfig,
 ) -> ClientFactory[Any]:
     check_provider_base_urls(config)
     return config.get_client_factory()
@@ -990,10 +1085,7 @@ async def get_custom_provider_decision_client(
         ) from error
     client_class = custom_provider_decision_client_class(config, provider_name=record.name)
     _require_dependencies(client_class)
-    assert isinstance(
-        config,
-        (OpenAICustomProviderConfig, TypeSafeCustomProviderConfig, GoogleGenAICustomProviderConfig),
-    )
+    assert is_decision_custom_provider_config(config)
     return client_class(
         model_name=model_name,
         client_factory=custom_provider_decision_client_factory(config),

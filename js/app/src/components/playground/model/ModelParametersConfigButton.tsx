@@ -183,6 +183,15 @@ export function ModelParametersConfigButton(
                   </Text>
                   <Text size="S">{customProvider.name}</Text>
                 </Flex>
+              ) : showAzureFields ? (
+                <EndpointConfigFormField
+                  playgroundInstanceId={playgroundInstanceId}
+                />
+              ) : showEnvVarInfo && canConfigureAzureFields ? (
+                <EnvVarRoutingInfo
+                  label="Endpoint"
+                  envVarName="AZURE_OPENAI_ENDPOINT"
+                />
               ) : disableEphemeralRouting ? null : (
                 <BaseUrlConfigFormField
                   playgroundInstanceId={playgroundInstanceId}

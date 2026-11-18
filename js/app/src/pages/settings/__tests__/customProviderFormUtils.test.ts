@@ -1,12 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type {
-  AWSBedrockFormData,
-  AzureOpenAIFormData,
-  GoogleGenAIFormData,
-  OpenAIFormData,
-  TypeSafeFormData,
-} from "../CustomProviderForm";
+import type { OpenAIFormData, ProviderFormData } from "../CustomProviderForm";
 import {
   buildClientConfig,
   buildProviderModels,
@@ -17,9 +11,31 @@ import {
   transformToPatchInput,
 } from "../customProviderFormUtils";
 
+type CustomProviderNode = Extract<
+  ProviderNode,
+  { __typename: "GenerativeModelCustomProvider" }
+>;
+
+function requireFormSdk<SDK extends ProviderFormData["sdk"]>({
+  values,
+  sdk,
+}: {
+  values: ProviderFormData;
+  sdk: SDK;
+}): Extract<ProviderFormData, { sdk: SDK }> {
+  if (values.sdk !== sdk) {
+    throw new Error(`expected ${sdk}, got ${values.sdk}`);
+  }
+  // TypeScript can't narrow a union by comparing its discriminant to a generic.
+  return values as Extract<ProviderFormData, { sdk: SDK }>;
+}
+
 function openai(overrides: Partial<OpenAIFormData> = {}): OpenAIFormData {
   return {
-    ...(createDefaultFormData("OPENAI") as OpenAIFormData),
+    ...requireFormSdk({
+      values: createDefaultFormData("OPENAI"),
+      sdk: "OPENAI",
+    }),
     name: "proxy",
     openai_api_key: "sk-test",
     ...overrides,
@@ -48,8 +64,11 @@ describe("provider models", () => {
   });
 
   it("always serves decision models, and only them, on TypeSafe", () => {
-    const typesafe: TypeSafeFormData = {
-      ...(createDefaultFormData("TYPESAFE") as TypeSafeFormData),
+    const typesafe = {
+      ...requireFormSdk({
+        values: createDefaultFormData("TYPESAFE"),
+        sdk: "TYPESAFE",
+      }),
       name: "ts",
       typesafe_api_key: "ts-key",
       decision_enabled: false,
@@ -62,9 +81,14 @@ describe("provider models", () => {
 
   it("serves Gemini decision models alongside chat on Google GenAI when on", () => {
     const google = (
-      overrides: Partial<GoogleGenAIFormData> = {}
-    ): GoogleGenAIFormData => ({
-      ...(createDefaultFormData("GOOGLE_GENAI") as GoogleGenAIFormData),
+      overrides: Partial<
+        Extract<ProviderFormData, { sdk: "GOOGLE_GENAI" }>
+      > = {}
+    ): Extract<ProviderFormData, { sdk: "GOOGLE_GENAI" }> => ({
+      ...requireFormSdk({
+        values: createDefaultFormData("GOOGLE_GENAI"),
+        sdk: "GOOGLE_GENAI",
+      }),
       name: "gemini",
       google_api_key: "g-key",
       ...overrides,
@@ -83,9 +107,12 @@ describe("provider models", () => {
     });
   });
 
-  it("serves chat models only on Azure OpenAI", () => {
-    const azure: AzureOpenAIFormData = {
-      ...(createDefaultFormData("AZURE_OPENAI") as AzureOpenAIFormData),
+  it("serves chat models on Azure OpenAI, and decision models when on", () => {
+    const azure = {
+      ...requireFormSdk({
+        values: createDefaultFormData("AZURE_OPENAI"),
+        sdk: "AZURE_OPENAI",
+      }),
       name: "azure",
       azure_endpoint: "https://res.openai.azure.com",
       azure_api_key: "az-key",
@@ -93,6 +120,16 @@ describe("provider models", () => {
     };
     expect(buildProviderModels(azure)).toEqual({
       chat: { names: ["gpt-6"] },
+    });
+    expect(
+      buildProviderModels({
+        ...azure,
+        decision_enabled: true,
+        decision_model_names: "gpt-6-luna",
+      })
+    ).toEqual({
+      chat: { names: ["gpt-6"] },
+      decision: { names: ["gpt-6-luna"] },
     });
   });
 
@@ -103,7 +140,10 @@ describe("provider models", () => {
     ).toEqual({ names: ["qwen3-coder", "llama-5-70b"] });
     expect(
       buildProviderModels({
-        ...(createDefaultFormData("AWS_BEDROCK") as AWSBedrockFormData),
+        ...requireFormSdk({
+          values: createDefaultFormData("AWS_BEDROCK"),
+          sdk: "AWS_BEDROCK",
+        }),
         name: "bedrock",
         aws_region: "us-east-1",
         model_names: "us.anthropic.claude-gateway",
@@ -128,7 +168,7 @@ describe("provider models", () => {
   });
 
   it("defaults decision models off, except for TypeSafe", () => {
-    for (const sdk of ["OPENAI", "GOOGLE_GENAI"] as const) {
+    for (const sdk of ["OPENAI", "AZURE_OPENAI", "GOOGLE_GENAI"] as const) {
       expect(createDefaultFormData(sdk)).toMatchObject({
         decision_enabled: false,
       });
@@ -136,7 +176,7 @@ describe("provider models", () => {
     expect(createDefaultFormData("TYPESAFE")).toMatchObject({
       decision_enabled: true,
     });
-    for (const sdk of ["AZURE_OPENAI", "ANTHROPIC"] as const) {
+    for (const sdk of ["ANTHROPIC", "AWS_BEDROCK"] as const) {
       expect(createDefaultFormData(sdk)).not.toHaveProperty("decision_enabled");
     }
   });
@@ -169,7 +209,9 @@ describe("parseModelNames", () => {
   });
 });
 
-function savedOpenAIProvider(decisionModelNames: string[] | null) {
+function savedOpenAIProvider(
+  decisionModelNames: readonly string[] | null
+): CustomProviderNode {
   return {
     __typename: "GenerativeModelCustomProvider",
     id: "provider-id",
@@ -177,13 +219,15 @@ function savedOpenAIProvider(decisionModelNames: string[] | null) {
     description: null,
     sdk: "OPENAI",
     provider: "openai",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    user: null,
     models: {
       chat: { names: [] },
       decision:
         decisionModelNames === null ? null : { names: decisionModelNames },
     },
     config: {
-      __typename: "OpenAICustomProviderConfig",
       openaiApiType: "RESPONSES",
       openaiAuthenticationMethod: { apiKey: "sk-old" },
       openaiClientKwargs: {
@@ -193,11 +237,14 @@ function savedOpenAIProvider(decisionModelNames: string[] | null) {
         defaultHeaders: null,
       },
     },
-  } as unknown as ProviderNode;
+  };
 }
 
-function saveUnrelatedEdit(node: ProviderNode) {
-  const original = transformConfigToFormValues(node) as OpenAIFormData;
+function saveUnrelatedEdit(node: CustomProviderNode) {
+  const original = requireFormSdk({
+    values: transformConfigToFormValues(node),
+    sdk: "OPENAI",
+  });
   return {
     original,
     patch: transformToPatchInput(
@@ -215,7 +262,12 @@ describe("a saved provider's models", () => {
       expected: "default_credentials",
     },
     {
-      config: { awsBedrockAuthenticationMethod: { defaultCredentials: true } },
+      config: {
+        awsBedrockAuthenticationMethod: {
+          accessKeys: null,
+          defaultCredentials: true,
+        },
+      },
       expected: "default_credentials",
     },
     {
@@ -224,18 +276,23 @@ describe("a saved provider's models", () => {
           accessKeys: {
             awsAccessKeyId: "access-key",
             awsSecretAccessKey: "secret-key",
+            awsSessionToken: null,
           },
+          defaultCredentials: null,
         },
       },
       expected: "access_keys",
     },
   ])("uses $expected for AWS authentication", ({ config, expected }) => {
-    const provider = {
+    const provider: CustomProviderNode = {
       ...savedOpenAIProvider(null),
       sdk: "AWS_BEDROCK",
       config,
-    } as unknown as ProviderNode;
-    const values = transformConfigToFormValues(provider) as AWSBedrockFormData;
+    };
+    const values = requireFormSdk({
+      values: transformConfigToFormValues(provider),
+      sdk: "AWS_BEDROCK",
+    });
     expect(values.aws_auth_method).toBe(expected);
     if (expected === "access_keys") {
       expect(values.aws_access_key_id).toBe("access-key");
@@ -243,16 +300,45 @@ describe("a saved provider's models", () => {
     }
   });
 
-  it("load into the form", () => {
-    const values = transformConfigToFormValues(
-      savedOpenAIProvider(["gpt-6-luna"])
-    ) as OpenAIFormData;
+  it("load Azure decision models into the form", () => {
+    const provider: CustomProviderNode = {
+      ...savedOpenAIProvider(["gpt-6-luna"]),
+      sdk: "AZURE_OPENAI",
+      config: {
+        openaiApiType: "RESPONSES",
+        azureOpenaiAuthenticationMethod: {
+          apiKey: "az-key",
+          azureAdTokenProvider: null,
+          defaultCredentials: null,
+        },
+        azureOpenaiClientKwargs: {
+          azureEndpoint: "https://res.openai.azure.com",
+          defaultHeaders: null,
+        },
+      },
+    };
+    const values = requireFormSdk({
+      values: transformConfigToFormValues(provider),
+      sdk: "AZURE_OPENAI",
+    });
     expect(values.decision_enabled).toBe(true);
     expect(values.decision_model_names).toBe("gpt-6-luna");
-    expect(
-      (transformConfigToFormValues(savedOpenAIProvider(null)) as OpenAIFormData)
-        .decision_enabled
-    ).toBe(false);
+    expect(values.azure_endpoint).toBe("https://res.openai.azure.com");
+    expect(values.azure_api_key).toBe("az-key");
+  });
+
+  it("load into the form", () => {
+    const values = requireFormSdk({
+      values: transformConfigToFormValues(savedOpenAIProvider(["gpt-6-luna"])),
+      sdk: "OPENAI",
+    });
+    expect(values.decision_enabled).toBe(true);
+    expect(values.decision_model_names).toBe("gpt-6-luna");
+    const withoutDecisions = requireFormSdk({
+      values: transformConfigToFormValues(savedOpenAIProvider(null)),
+      sdk: "OPENAI",
+    });
+    expect(withoutDecisions.decision_enabled).toBe(false);
   });
 
   it("are not resent when only the connection changes", () => {
@@ -264,18 +350,20 @@ describe("a saved provider's models", () => {
   });
 
   it("remain intact when the encrypted connection config cannot be parsed", () => {
-    const unparsable = {
+    const unparsable: CustomProviderNode = {
       ...savedOpenAIProvider(["gpt-6-luna"]),
       models: {
         chat: { names: ["gpt-4o-custom"] },
         decision: { names: ["gpt-6-luna"] },
       },
       config: {
-        __typename: "UnparsableConfig",
         parseError: "Config cannot be decrypted",
       },
-    } as unknown as ProviderNode;
-    const values = transformConfigToFormValues(unparsable) as OpenAIFormData;
+    };
+    const values = requireFormSdk({
+      values: transformConfigToFormValues(unparsable),
+      sdk: "OPENAI",
+    });
     expect(values.openai_api_key).toBe("");
     expect(values.model_names).toBe("gpt-4o-custom");
     expect(values.decision_enabled).toBe(true);

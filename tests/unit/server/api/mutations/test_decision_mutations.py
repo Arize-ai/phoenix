@@ -20,6 +20,7 @@ from phoenix.server.api.helpers.client_registry import CLIENT_REGISTRY
 from phoenix.server.api.helpers.decision_clients import (
     OPENAI_DECISION_MODELS,
     TYPESAFE_DECISION_MODELS,
+    AzureOpenAIDecisionClient,
     DecisionRateLimitError,
     DecisionRequest,
     DecisionTransientError,
@@ -526,6 +527,7 @@ async def test_catalog_keeps_same_name_types_distinct(gql_client: AsyncGraphQLCl
     assert all(model["modelType"] == "DECISION" for model in result.data["decision"])
     assert {model["providerKey"] for model in result.data["decision"]} == {
         "OPENAI",
+        "AZURE_OPENAI",
         "TYPESAFE",
         "FIREWORKS",
         "OLLAMA",
@@ -735,6 +737,7 @@ def test_decision_clients_declare_capability_credentials_and_endpoints() -> None
     } == {
         GenerativeProviderKey.TYPESAFE: TypeSafeDecisionClient,
         GenerativeProviderKey.OPENAI: OpenAIDecisionClient,
+        GenerativeProviderKey.AZURE_OPENAI: AzureOpenAIDecisionClient,
         GenerativeProviderKey.FIREWORKS: FireworksDecisionClient,
         GenerativeProviderKey.OLLAMA: OllamaDecisionClient,
         GenerativeProviderKey.GOOGLE: GoogleDecisionClient,
@@ -838,6 +841,43 @@ async def test_provider_outside_allow_list_is_refused(gql_client: AsyncGraphQLCl
     )
     assert catalog.data and not catalog.errors
     assert {model["providerKey"] for model in catalog.data["decision"]} == {"OPENAI"}
+
+
+@pytest.fixture
+def _allow_only_azure(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PHOENIX_ALLOWED_PROVIDERS", "AZURE_OPENAI")
+
+
+@pytest.mark.usefixtures("_allow_only_azure")
+async def test_azure_decisions_follow_the_provider_allow_list(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    """The allow list admits Azure decisions the same way it admits other built-ins."""
+    catalog = await gql_client.execute(
+        "query { decision: playgroundModels(input: {modelType: DECISION}) { providerKey name } }"
+    )
+    assert catalog.data and not catalog.errors
+    models = catalog.data["decision"]
+    assert {model["providerKey"] for model in models} == {"AZURE_OPENAI"}
+    assert "gpt-6-luna" in {model["name"] for model in models}
+    with respx.mock(assert_all_called=False):
+        refused = await gql_client.execute(
+            MUTATION,
+            variables={
+                "input": {
+                    "connection": {
+                        "builtIn": {
+                            "providerKey": "OPENAI",
+                            "credentials": [{"envVarName": "OPENAI_API_KEY", "value": "test-key"}],
+                        }
+                    },
+                    "modelName": "gpt-6-luna",
+                    **text_state("hello"),
+                    "questions": QUESTIONS,
+                }
+            },
+        )
+    assert refused.errors and "not permitted" in str(refused.errors)
 
 
 @pytest.mark.parametrize("provider", ["OPENAI", "TYPESAFE"])
@@ -1274,8 +1314,8 @@ async def test_typesafe_credentials_without_a_base_url_go_to_typesafe(
 
 def test_custom_provider_capabilities_come_from_the_sdk() -> None:
     assert not mp.sdk_offers_chat("typesafe") and mp.sdk_offers_decisions("typesafe")
-    both: tuple[models.GenerativeModelSDK, ...] = ("openai", "google_genai")
-    chat_only: tuple[models.GenerativeModelSDK, ...] = ("azure_openai", "anthropic", "aws_bedrock")
+    both: tuple[models.GenerativeModelSDK, ...] = ("openai", "azure_openai", "google_genai")
+    chat_only: tuple[models.GenerativeModelSDK, ...] = ("anthropic", "aws_bedrock")
     for sdk in both:
         assert mp.sdk_offers_chat(sdk) and mp.sdk_offers_decisions(sdk)
     for sdk in chat_only:

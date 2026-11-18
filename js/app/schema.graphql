@@ -627,7 +627,7 @@ input BuiltInDecisionConnectionInput {
   providerKey: GenerativeProviderKey!
 
   """
-  Send the request to this endpoint instead of the provider default. Requires an API key in `credentials` or a stored secret; the server-configured key is never sent to a custom URL.
+  Send the request to this endpoint instead of the provider default. For Azure OpenAI, this is the resource endpoint (https://<resource>.openai.azure.com). Requires an API key in `credentials` or a stored secret; the server-configured key is never sent to a custom URL.
   """
   baseUrl: String = null
 
@@ -1434,7 +1434,7 @@ scalar CronExpression
 union CustomProviderConfig = OpenAICustomProviderConfig | AzureOpenAICustomProviderConfig | AnthropicCustomProviderConfig | AWSBedrockCustomProviderConfig | GoogleGenAICustomProviderConfig | TypeSafeCustomProviderConfig | UnparsableConfig
 
 """
-A custom provider, reached with its stored key, endpoint, and headers. Its SDK must serve decision models: `openai` runs OpenAI's Decisions API, `typesafe` runs System One.
+A custom provider, reached with its stored key, endpoint, and headers. Its SDK must serve decision models: `openai` runs OpenAI's Decisions API, `azure_openai` runs that API on Azure, `typesafe` runs System One, and `google_genai` runs Gemini's Decisions API.
 """
 input CustomProviderDecisionConnectionInput {
   """The custom provider's ID."""

@@ -329,6 +329,25 @@ describe("span replay", () => {
       "Could not determine the decision provider"
     );
   });
+
+  it("replays an Azure decision span as Azure OpenAI", () => {
+    const { playgroundInstance, parsingErrors } =
+      buildDecisionInstanceFromSpanAttributes({
+        base,
+        spanId: "span",
+        attributes: {
+          openinference: { span: { kind: "DECISION" } },
+          decision: {
+            system: "openai",
+            provider: "azure",
+            request: { model_name: "luna-deploy" },
+          },
+        },
+      });
+    expect(playgroundInstance.model.provider).toBe("AZURE_OPENAI");
+    expect(playgroundInstance.model.modelName).toBe("luna-deploy");
+    expect(parsingErrors.join("\n")).not.toContain("custom provider");
+  });
 });
 
 describe("structured output", () => {
@@ -512,6 +531,40 @@ describe("buildDecisionConnection", () => {
       })
     ).toEqual({
       builtIn: { providerKey: "TYPESAFE", baseUrl: null, credentials },
+    });
+  });
+
+  it("sends an Azure resource endpoint as the base URL", () => {
+    expect(
+      buildDecisionConnection({
+        provider: "AZURE_OPENAI",
+        endpoint: " https://res.openai.azure.com ",
+        baseUrl: "https://ignored.example",
+        credentials: [{ envVarName: "AZURE_OPENAI_API_KEY", value: "key" }],
+      })
+    ).toEqual({
+      builtIn: {
+        providerKey: "AZURE_OPENAI",
+        baseUrl: "https://res.openai.azure.com",
+        credentials: [{ envVarName: "AZURE_OPENAI_API_KEY", value: "key" }],
+      },
+    });
+  });
+
+  it("uses baseUrl when an Azure instance has no resource endpoint", () => {
+    expect(
+      buildDecisionConnection({
+        provider: "AZURE_OPENAI",
+        endpoint: "  ",
+        baseUrl: " https://fallback.openai.azure.com ",
+        credentials: [],
+      })
+    ).toEqual({
+      builtIn: {
+        providerKey: "AZURE_OPENAI",
+        baseUrl: "https://fallback.openai.azure.com",
+        credentials: [],
+      },
     });
   });
 });

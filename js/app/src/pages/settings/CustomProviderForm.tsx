@@ -121,7 +121,7 @@ export interface OpenAIFormData
  * Supports both API key and Azure AD token provider authentication.
  */
 export interface AzureOpenAIFormData
-  extends BaseProviderFormData, ChatModelsFormData {
+  extends BaseProviderFormData, ChatModelsFormData, DecisionModelsFormData {
   sdk: "AZURE_OPENAI";
   openai_api_type: OpenAIApiTypeForm;
   azure_endpoint: string;

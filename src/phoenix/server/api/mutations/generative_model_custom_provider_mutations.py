@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from secrets import token_hex
-from typing import Annotated, Any, Iterator, Mapping, Sequence
+from typing import Annotated, Any, Iterator, Literal, Mapping, Sequence
 
 import anyio
 import sqlalchemy as sa
@@ -41,6 +41,7 @@ from phoenix.server.api.helpers.builtin_providers import check_provider_base_url
 from phoenix.server.api.helpers.decision_clients import (
     custom_provider_decision_client_class,
     custom_provider_decision_client_factory,
+    is_decision_custom_provider_config,
 )
 from phoenix.server.api.input_types.GenerativeModelCustomerProviderConfigInput import (
     GenerativeModelCustomerProviderConfigInput,
@@ -179,6 +180,9 @@ def _rejects_model(decision_sdk: DecisionSDK, body: Any, model: str) -> bool:
 
     - OpenAI Decisions: ``{"error": {"code": "model_not_found"}}``, or an
       ``error.message`` that names the model.
+    - Azure OpenAI Decisions: ``{"error": {"code": "DeploymentNotFound"}}``. The
+      message does not name the deployment. A generic 404 for an unknown path has
+      ``code`` ``"404"``, so it doesn't pass.
     - Gemini Decisions: ``{"error": {"code": "not_found", "message": "Requested model
       not found. ..."}}``; the message doesn't name the model. Google's generic 404
       for an unknown path has a numeric ``code``, so it doesn't pass.
@@ -186,6 +190,9 @@ def _rejects_model(decision_sdk: DecisionSDK, body: Any, model: str) -> bool:
     """
     if not isinstance(body, Mapping):
         return False
+    if decision_sdk == "azure_openai":
+        error = body.get("error")
+        return isinstance(error, Mapping) and error.get("code") == "DeploymentNotFound"
     if decision_sdk in ("openai", "google_genai"):
         error = body.get("error")
         if not isinstance(error, Mapping):
@@ -328,18 +335,15 @@ async def _test_chat_credentials(config: GenerativeModelCustomerProviderConfig) 
 async def _test_decision_endpoint(config: GenerativeModelCustomerProviderConfig) -> str | None:
     """Probe the provider's decision endpoint with a sentinel model name.
 
-    Passes when the endpoint either rejects the sentinel model by name (proving URL and
-    credentials without running a model) or returns a valid decision response (for
-    single-model servers that ignore the model field).
+    Passes when the endpoint rejects the sentinel model in that SDK's own error (proving
+    URL and credentials without running a model) or returns a valid decision response
+    (for single-model servers that ignore the model field).
 
     Returns:
         Unredacted failure reason, or ``None`` if the check passed.
     """
     root = config.root
-    assert isinstance(
-        root,
-        (OpenAICustomProviderConfig, TypeSafeCustomProviderConfig, GoogleGenAICustomProviderConfig),
-    )
+    assert is_decision_custom_provider_config(root)
     client_class = custom_provider_decision_client_class(root, provider_name="This provider")
     if not client_class.dependencies_are_installed():
         names = ", ".join(dependency.name for dependency in client_class.dependencies())
@@ -354,7 +358,7 @@ async def _test_decision_endpoint(config: GenerativeModelCustomerProviderConfig)
                 return await _post_system_one_check(client_factory)
             if isinstance(root, GoogleGenAICustomProviderConfig):
                 return await _post_google_decisions_check(client_factory)
-            return await _post_openai_decisions_check(client_factory)
+            return await _post_openai_decisions_check(client_factory, decision_sdk=root.type)
         except Exception as error:
             return f"The decision request failed: {error}"
     assert scope.cancelled_caught
@@ -400,7 +404,9 @@ def _endpoint_url(endpoint: str | None) -> str | None:
     return endpoint.split(" ", 1)[-1] if endpoint else None
 
 
-async def _post_openai_decisions_check(client_factory: ClientFactory[Any]) -> str | None:
+async def _post_openai_decisions_check(
+    client_factory: ClientFactory[Any], *, decision_sdk: Literal["openai", "azure_openai"]
+) -> str | None:
     from openai import APIConnectionError, APIStatusError
     from openai.types import Decision
 
@@ -436,7 +442,7 @@ async def _post_openai_decisions_check(client_factory: ClientFactory[Any]) -> st
         except ValueError:
             body = error.response.text
         return _describe_endpoint_rejection(
-            decision_sdk="openai",
+            decision_sdk=decision_sdk,
             model=model,
             url=str(error.request.url),
             status=error.status_code,

@@ -1147,12 +1147,15 @@ async def test_decisions_stay_on_while_decision_versions_use_them(
     assert (
         "referenced by saved decision versions (triage), so you cannot stop it serving decision models"
     ) in blocked.errors[0].message
-    blocked = await gql_client.execute(
+    switched = await gql_client.execute(
         _PATCH_SDK,
         variables=patch(clientConfig={"azureOpenai": azure}),
     )
-    assert blocked.errors
-    assert "azure_openai SDK can't serve decision models" in blocked.errors[0].message
+    assert switched.data and not switched.errors, switched.errors
+    async with db() as session:
+        record = await session.get(models.GenerativeModelCustomProvider, provider_rowid)
+        assert record is not None and record.sdk == "azure_openai"
+        assert record.models.decision is not None
     blocked = await gql_client.execute(
         _PATCH_SDK,
         variables=patch(clientConfig={"azureOpenai": azure}, models={"chat": {}}),
@@ -1161,7 +1164,7 @@ async def test_decisions_stay_on_while_decision_versions_use_them(
     assert "so you cannot stop it serving decision models" in blocked.errors[0].message
     async with db() as session:
         record = await session.get(models.GenerativeModelCustomProvider, provider_rowid)
-        assert record is not None and record.sdk == "openai"
+        assert record is not None and record.sdk == "azure_openai"
 
     kept = await gql_client.execute(
         _PATCH_SDK,

@@ -55,13 +55,10 @@ from phoenix.config import getenv
 from phoenix.db import models
 from phoenix.db.types.experiment_config import ConnectionConfig
 from phoenix.db.types.model_provider import (
-    AuthenticationMethodApiKey,
     AuthenticationMethodDefaultCredentials,
     AWSBedrockAuthenticationMethodAccessKeys,
     AWSBedrockClientKwargs,
     AWSBedrockCustomProviderConfig,
-    AzureOpenAIClientKwargs,
-    AzureOpenAICustomProviderConfig,
     ClientFactory,
     GenerativeModelCustomerProviderConfig,
     GenerativeModelCustomerProviderConfigType,
@@ -86,11 +83,10 @@ from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.builtin_providers import (
     BuiltInEndpoint,
     check_provider_base_urls,
-    checked_base_url,
     credential_env_vars,
     get_credential_from_input,
+    resolve_azure_openai_config,
     resolve_builtin_config,
-    resolve_provider_api_key,
     resolve_secrets,
 )
 from phoenix.server.api.helpers.client_registry import (
@@ -3347,28 +3343,11 @@ async def _builtin_chat_config(
             decrypt=decrypt,
         )
     if provider_key is GenerativeProviderKey.AZURE_OPENAI:
-        endpoint_override = (connection.endpoint or "").strip() or None
-        api_key = await resolve_provider_api_key(
+        return await resolve_azure_openai_config(
+            endpoint=connection.endpoint,
             credentials=credentials,
             session=session,
             decrypt=decrypt,
-            env_var_names=("AZURE_OPENAI_API_KEY",),
-            client_base_url=endpoint_override,
-            provider_label=provider_key.value,
-        )
-        azure_endpoint = endpoint_override or getenv("AZURE_OPENAI_ENDPOINT")
-        if not azure_endpoint:
-            raise BadRequest(
-                "An Azure endpoint is required for Azure OpenAI models. "
-                "Set the AZURE_OPENAI_ENDPOINT environment variable or use a custom provider."
-            )
-        return AzureOpenAICustomProviderConfig(
-            azure_openai_authentication_method=AuthenticationMethodApiKey(api_key=api_key)
-            if api_key
-            else AuthenticationMethodDefaultCredentials(),
-            azure_openai_client_kwargs=AzureOpenAIClientKwargs(
-                azure_endpoint=checked_base_url(azure_endpoint)
-            ),
         )
     if provider_key is GenerativeProviderKey.AWS:
         names = ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN")

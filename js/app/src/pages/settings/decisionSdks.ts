@@ -1,12 +1,10 @@
 import type { GenerativeModelSDK } from "@phoenix/constants/generativeConstants";
 
-export type DecisionSDK = "OPENAI" | "TYPESAFE" | "GOOGLE_GENAI";
-
-export const DECISION_SDK_LABELS: Record<DecisionSDK, string> = {
-  OPENAI: "OpenAI Decisions API",
-  TYPESAFE: "System One",
-  GOOGLE_GENAI: "Gemini Decisions API",
-};
+export type DecisionSDK =
+  | "OPENAI"
+  | "AZURE_OPENAI"
+  | "TYPESAFE"
+  | "GOOGLE_GENAI";
 
 /**
  * Mirrors `sdk_offers_decisions` in `src/phoenix/db/types/model_provider.py`.
@@ -14,5 +12,10 @@ export const DECISION_SDK_LABELS: Record<DecisionSDK, string> = {
 export function sdkCanServeDecisions(
   sdk: GenerativeModelSDK
 ): sdk is DecisionSDK {
-  return sdk === "OPENAI" || sdk === "TYPESAFE" || sdk === "GOOGLE_GENAI";
+  return (
+    sdk === "OPENAI" ||
+    sdk === "AZURE_OPENAI" ||
+    sdk === "TYPESAFE" ||
+    sdk === "GOOGLE_GENAI"
+  );
 }

@@ -110,6 +110,7 @@ const azureOpenAISchema = baseProviderSchema.extend({
   azure_scope: z.string().optional(),
   azure_default_headers: httpHeadersFieldSchema,
   ...chatModelsSchema,
+  ...decisionModelsSchema,
 });
 
 // Anthropic schema

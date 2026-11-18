@@ -15,6 +15,9 @@ from phoenix.db.types.model_provider import (
     AnthropicClientKwargs,
     AnthropicCustomProviderConfig,
     AuthenticationMethodApiKey,
+    AuthenticationMethodDefaultCredentials,
+    AzureOpenAIClientKwargs,
+    AzureOpenAICustomProviderConfig,
     GenerativeModelCustomerProviderConfigType,
     GoogleGenAIClientKwargs,
     GoogleGenAICustomProviderConfig,
@@ -268,4 +271,59 @@ async def resolve_builtin_config(
     return TypeSafeCustomProviderConfig(
         typesafe_authentication_method=auth,
         typesafe_client_kwargs=TypeSafeClientKwargs(base_url=resolved),
+    )
+
+
+async def resolve_azure_openai_config(
+    *,
+    endpoint: str | None,
+    credentials: Sequence[GenerativeCredentialInput] | None,
+    session: AsyncSession,
+    decrypt: Callable[[bytes], bytes],
+    models_label: str = "models",
+) -> AzureOpenAICustomProviderConfig:
+    """Resolve built-in Azure OpenAI from the request, stored secrets, and environment.
+
+    ``endpoint`` is the request's resource URL (``https://<resource>.openai.azure.com``).
+    A server-configured ``AZURE_OPENAI_API_KEY`` is never sent to that URL. With no key
+    at all, the config uses default Azure credentials.
+
+    Args:
+        endpoint: Resource URL supplied with this request, or None to use
+            ``AZURE_OPENAI_ENDPOINT``.
+        credentials: Request credentials, checked before stored secrets and the environment.
+        session: Database session used to read stored secrets.
+        decrypt: Decrypts a stored secret.
+        models_label: Noun in the missing-endpoint error, such as ``models`` or
+            ``decision models``.
+
+    Returns:
+        An Azure config whose client posts to ``{endpoint}/openai/v1/``.
+
+    Raises:
+        BadRequest: No endpoint is configured, the endpoint is not a usable URL, or the
+            only available key is the server's and the request supplied an endpoint.
+    """
+    endpoint_override = (endpoint or "").strip() or None
+    api_key = await resolve_provider_api_key(
+        credentials=credentials,
+        session=session,
+        decrypt=decrypt,
+        env_var_names=("AZURE_OPENAI_API_KEY",),
+        client_base_url=endpoint_override,
+        provider_label=GenerativeProviderKey.AZURE_OPENAI.value,
+    )
+    azure_endpoint = endpoint_override or getenv("AZURE_OPENAI_ENDPOINT")
+    if not azure_endpoint:
+        raise BadRequest(
+            f"An Azure endpoint is required for Azure OpenAI {models_label}. "
+            "Set the AZURE_OPENAI_ENDPOINT environment variable or use a custom provider."
+        )
+    return AzureOpenAICustomProviderConfig(
+        azure_openai_authentication_method=AuthenticationMethodApiKey(api_key=api_key)
+        if api_key
+        else AuthenticationMethodDefaultCredentials(),
+        azure_openai_client_kwargs=AzureOpenAIClientKwargs(
+            azure_endpoint=checked_base_url(azure_endpoint)
+        ),
     )

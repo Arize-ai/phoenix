@@ -64,21 +64,22 @@ Custom providers for the OpenAI, Azure OpenAI, Anthropic, AWS Bedrock, and Googl
 
 ## Decision Models
 
-Custom providers for the OpenAI, Google GenAI, and TypeSafe SDKs can serve decision models. Decision models use the provider's base URL, API key, and headers. Each provider serves decisions through the decision API of its SDK:
+Custom providers for the OpenAI, Azure OpenAI, Google GenAI, and TypeSafe SDKs can serve decision models. For OpenAI, Google GenAI, and TypeSafe, decision models use the provider's base URL, API key, and headers. An Azure OpenAI provider uses its Azure endpoint and its credentials. On Azure OpenAI, a decision model name is a deployment name. Each provider serves decisions through the decision API of its SDK:
 
 | SDK | Decision API | Request |
 | :--- | :--- | :--- |
 | OpenAI | OpenAI Decisions API | `POST {base URL}/decisions` |
+| Azure OpenAI | OpenAI Decisions API | `POST {Azure endpoint}/openai/v1/decisions` |
 | Google GenAI | Gemini Decisions API | `POST {base URL}/v1beta/decisions` |
 | TypeSafe | System One | `POST {base URL}/v1/systemone` |
 
-The provider's SDK adds the path to the base URL as you enter it, and uses its default base URL when you leave it empty. For a TypeSafe provider, do not end the base URL in `/v1`, because System One adds `/v1` itself. For example, for a self-hosted Ollama, enter `http://localhost:11434`, not `http://localhost:11434/v1`. For a Google GenAI provider, do not end the base URL in an API version such as `/v1beta`, because the SDK adds it.
+The provider's SDK adds the path to the base URL as you enter it, and uses its default base URL when you leave it empty. For an Azure OpenAI provider, enter the resource endpoint. Phoenix adds `/openai/v1` when the endpoint does not end with `/openai/v1`. For a TypeSafe provider, do not end the base URL in `/v1`, because System One adds `/v1` itself. For example, for a self-hosted Ollama, enter `http://localhost:11434`, not `http://localhost:11434/v1`. For a Google GenAI provider, do not end the base URL in an API version such as `/v1beta`, because the SDK adds it.
 
-To turn on decision models for an OpenAI or Google GenAI provider:
+To turn on decision models for an OpenAI, Azure OpenAI, or Google GenAI provider:
 
 1.  In the **Decision models** section, turn on the switch.
-2.  Optional: enter **Model names** for decision models, separated by commas. If you leave the field empty, the model menu shows the built-in decision models.
-3.  Click **Test connection** in the **Connection** section. For decision models, the test sends a request for a model that does not exist to the URL that a run uses. If the endpoint answers with an error, the error shows that URL. The test passes when the endpoint rejects that model by name, which shows that the URL and the API key are correct. No model runs. Some servers, such as a server that runs one model, ignore the model name and send an answer. The test also passes when that answer is a valid decision response. For a Google GenAI provider, the test passes when Gemini answers that the requested model is not found.
+2.  Optional: enter **Model names** for decision models, separated by commas. For Azure OpenAI, enter deployment names. If you leave the field empty, the model menu shows the built-in decision models.
+3.  Click **Test connection** in the **Connection** section. For decision models, the test sends a request for a model that does not exist to the URL that a run uses. If the endpoint answers with an error, the error shows that URL. The test passes when the endpoint rejects that model by name, which shows that the URL and the API key are correct. No model runs. Some servers, such as a server that runs one model, ignore the model name and send an answer. The test also passes when that answer is a valid decision response. For a Google GenAI provider, the test passes when Gemini answers that the requested model is not found. For an Azure OpenAI provider, the test passes when Azure answers that the deployment does not exist.
 
 <Note>
 If the endpoint serves decisions at a different base URL than chat, add a second provider with that base URL and turn on its decision models.
@@ -88,7 +89,7 @@ If the endpoint serves decisions at a different base URL than chat, add a second
 *   If a host serves OpenAI-compatible chat and System One decisions, for example a self-hosted Ollama or a proxy in front of Fireworks, add two providers: an OpenAI provider for chat and a TypeSafe provider for decisions.
 *   A Google GenAI provider sends each question name as a Gemini question key. A name must have 1 to 64 letters, digits, underscores, or hyphens.
 *   When Gemini safety filters block the input, every question gets a refusal answer.
-*   Azure OpenAI, Anthropic, and AWS Bedrock providers do not serve decision models.
+*   Anthropic and AWS Bedrock providers do not serve decision models.
 *   Saved decisions record the provider's SDK, as saved prompts do. While saved decisions use a provider, you cannot turn off its decision models.
 *   Providers that existed before decision models were added do not serve decision models until you turn them on.
 

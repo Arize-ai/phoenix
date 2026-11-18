@@ -37,6 +37,7 @@ if TYPE_CHECKING:
 
 DecisionSDK: TypeAlias = Literal[
     "openai",
+    "azure_openai",
     "typesafe",
     "google_genai",
 ]
@@ -264,6 +265,7 @@ _CHAT_SDKS: frozenset["GenerativeModelSDK"] = frozenset(
 _DECISION_SDKS: frozenset["GenerativeModelSDK"] = frozenset(
     {
         "openai",
+        "azure_openai",
         "typesafe",
         "google_genai",
     }

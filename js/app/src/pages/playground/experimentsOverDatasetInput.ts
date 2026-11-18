@@ -216,6 +216,7 @@ function getDecisionTaskInput({
     connection: buildDecisionConnection({
       provider: instance.model.provider,
       baseUrl: instance.model.baseUrl,
+      endpoint: instance.model.endpoint,
       customProvider: instance.model.customProvider,
       credentials: Object.entries(providerCredentials).flatMap(
         ([envVarName, value]) =>

@@ -498,12 +498,156 @@ async def test_a_wrong_base_url_fails_the_check(gql_client: AsyncGraphQLClient) 
     assert payload["error"].startswith("POST https://api.typesafe.ai/v1/v1/systemone answered")
 
 
-AZURE = {
-    "azureOpenai": {
-        "azureOpenaiAuthenticationMethod": {"apiKey": API_KEY},
-        "azureOpenaiClientKwargs": {"azureEndpoint": "https://res.openai.azure.com"},
+AZURE_ENDPOINT = "https://res.openai.azure.com"
+AZURE_DECISIONS_URL = f"{AZURE_ENDPOINT}/openai/v1/decisions"
+AZURE_DEPLOYMENT_NOT_FOUND = {
+    "error": {
+        "code": "DeploymentNotFound",
+        "message": (
+            "The API deployment for this resource does not exist. If you created the "
+            "deployment within the last 5 minutes, please wait a moment and try again."
+        ),
     }
 }
+AZURE_RESOURCE_NOT_FOUND = {"error": {"code": "404", "message": "Resource not found"}}
+
+
+def azure_config(
+    *,
+    endpoint: str = AZURE_ENDPOINT,
+    headers: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    client_kwargs: dict[str, Any] = {"azureEndpoint": endpoint}
+    if headers is not None:
+        client_kwargs["defaultHeaders"] = headers
+    return {
+        "azureOpenai": {
+            "azureOpenaiAuthenticationMethod": {"apiKey": API_KEY},
+            "azureOpenaiClientKwargs": client_kwargs,
+        }
+    }
+
+
+@pytest.mark.parametrize(
+    ("body", "reason"),
+    [
+        pytest.param(AZURE_DEPLOYMENT_NOT_FOUND, None, id="deployment-not-found"),
+        pytest.param(
+            AZURE_RESOURCE_NOT_FOUND,
+            "HTTP 404 with a response that is not a decision API's",
+            id="generic-404",
+        ),
+    ],
+)
+async def test_the_azure_check_posts_to_openai_v1_decisions(
+    gql_client: AsyncGraphQLClient, body: dict[str, Any], reason: str | None
+) -> None:
+    with respx.mock:
+        route = respx.post(AZURE_DECISIONS_URL).respond(404, json=body)
+        payload = await check(gql_client, azure_config(headers={"X-Team": "decisions"}))
+    assert route.call_count == 1
+    sent = route.calls[0].request
+    assert str(sent.url) == AZURE_DECISIONS_URL
+    assert json.loads(sent.content)["model"] == CHECK_MODEL
+    assert sent.headers["authorization"] == f"Bearer {API_KEY}"
+    assert sent.headers["x-team"] == "decisions"
+    if reason is None:
+        assert payload["error"] is None
+    else:
+        assert payload["error"] and reason in payload["error"], payload["error"]
+        assert AZURE_DECISIONS_URL in payload["error"]
+        assert API_KEY not in payload["error"]
+
+
+async def test_an_azure_provider_stores_decision_models(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    provider_id = await create(
+        gql_client,
+        "Azure decisions",
+        azure_config(),
+        {"chat": {"names": ["chat-deploy"]}, "decision": {"names": ["luna-deploy"]}},
+    )
+    result = await gql_client.execute(PROVIDER, variables={"id": provider_id})
+    assert result.data and not result.errors, result.errors
+    node = result.data["node"]
+    assert node["modelTypes"] == ["CHAT", "DECISION"]
+    assert node["models"] == {
+        "chat": {"names": ["chat-deploy"]},
+        "decision": {"names": ["luna-deploy"]},
+    }
+    result = await gql_client.execute(
+        """mutation ($input: PatchGenerativeModelCustomProviderMutationInput!) {
+          patchGenerativeModelCustomProvider(input: $input) {
+            provider { modelTypes decision: modelNames(modelType: DECISION) }
+          }
+        }""",
+        variables={
+            "input": {
+                "id": provider_id,
+                "models": {
+                    "chat": {"names": ["chat-deploy"]},
+                    "decision": {"names": ["other-deploy"]},
+                },
+            }
+        },
+    )
+    assert result.data and not result.errors, result.errors
+    patched = result.data["patchGenerativeModelCustomProvider"]["provider"]
+    assert patched["modelTypes"] == ["CHAT", "DECISION"]
+    assert patched["decision"] == ["other-deploy"]
+
+
+async def test_an_azure_provider_runs_decisions_at_its_v1_endpoint(
+    gql_client: AsyncGraphQLClient, db: DbSessionFactory
+) -> None:
+    provider_id = await create(
+        gql_client,
+        "Azure decisions",
+        azure_config(headers={"X-Team": "decisions"}),
+        LLM_AND_DECISIONS,
+    )
+    with respx.mock:
+        route = respx.post(AZURE_DECISIONS_URL).respond(
+            200,
+            json={
+                "model": "luna-deploy",
+                "answers": [{"name": "urgent", "type": "predicate", "probability": 0.5}],
+                "usage": {
+                    "input_tokens": 20,
+                    "output_tokens": 0,
+                    "total_tokens": 20,
+                    "input_tokens_details": {"cached_tokens": 0, "cache_write_tokens": 0},
+                    "output_tokens_details": {"reasoning_tokens": 0},
+                },
+            },
+        )
+        result = await gql_client.execute(
+            RUN,
+            variables={
+                "input": {
+                    "connection": {"customProvider": {"id": provider_id}},
+                    "modelName": "luna-deploy",
+                    **text_state("hello"),
+                    "questions": [URGENT],
+                }
+            },
+        )
+    assert result.data and not result.errors, result.errors
+    assert result.data["runDecision"]["error"] is None
+    assert result.data["runDecision"]["result"]["model"] == "luna-deploy"
+    sent = route.calls[0].request
+    assert str(sent.url) == AZURE_DECISIONS_URL
+    assert json.loads(sent.content)["model"] == "luna-deploy"
+    assert sent.headers["authorization"] == f"Bearer {API_KEY}"
+    assert sent.headers["x-team"] == "decisions"
+    async with db() as session:
+        span = await session.scalar(
+            sa.select(models.Span).where(models.Span.span_kind == "DECISION")
+        )
+        assert span is not None
+        assert span.attributes["decision"]["system"] == "openai"
+        assert span.attributes["decision"]["provider"] == "proxy"
 
 
 @pytest.mark.parametrize(
@@ -512,7 +656,6 @@ AZURE = {
         pytest.param(
             {"anthropic": {"anthropicAuthenticationMethod": {"apiKey": API_KEY}}}, id="anthropic"
         ),
-        pytest.param(AZURE, id="azure"),
     ],
 )
 async def test_the_check_refuses_an_sdk_without_decisions(
@@ -646,10 +789,10 @@ async def test_a_provider_serves_what_its_sdk_serves_by_default(
             id="openai-without-chat",
         ),
         pytest.param(
-            AZURE,
-            LLM_AND_DECISIONS,
-            "azure_openai SDK can't serve decision models",
-            id="azure-decision",
+            azure_config(),
+            {"decision": {}},
+            "azure_openai SDK always serves chat models",
+            id="azure-without-chat",
         ),
         pytest.param(
             {"typesafe": {"typesafeAuthenticationMethod": {"apiKey": API_KEY}}},
