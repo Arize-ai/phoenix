@@ -9,8 +9,8 @@ import {
   Label,
   TextArea,
   TextField,
-  Token,
   View,
+  Tag,
 } from "@phoenix/components";
 import {
   ColorSwatch,
@@ -54,7 +54,7 @@ export function NewLabelForm({ onSubmit, isSubmitting }: NewLabelFormProps) {
             justifyContent="center"
             width="100%"
           >
-            <Token color={color}>{name || "label preview"}</Token>
+            <Tag userColor={color}>{name || "label preview"}</Tag>
           </Flex>
         </View>
         <Flex direction="column" gap="size-200">

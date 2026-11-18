@@ -20,9 +20,10 @@ import {
   Icons,
   Link,
   LinkButton,
-  Token,
+  TagGroup,
 } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { labelTagItem } from "@phoenix/components/label";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import {
   ACTIONS_COLUMN_ID,
@@ -220,31 +221,14 @@ export function DatasetsTable(props: DatasetsTableProps) {
         enableSorting: false,
         cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => {
           return (
-            <ul
-              css={css`
-                display: flex;
-                flex-direction: row;
-                gap: var(--global-dimension-size-100);
-                min-width: 0;
-                flex-wrap: wrap;
-              `}
-            >
-              {row.original.labels.map((label) => (
-                <li key={label.id}>
-                  <StopPropagation>
-                    <Token
-                      color={label.color}
-                      onPress={() => toggleLabelFilter(label.id)}
-                      aria-label={`Filter datasets by label ${label.name}`}
-                    >
-                      <Truncate maxWidth={200} title={label.name}>
-                        {label.name}
-                      </Truncate>
-                    </Token>
-                  </StopPropagation>
-                </li>
-              ))}
-            </ul>
+            <StopPropagation>
+              <TagGroup
+                aria-label="Filter datasets by label"
+                items={row.original.labels.map(labelTagItem)}
+                overflow="collapse"
+                onAction={toggleLabelFilter}
+              />
+            </StopPropagation>
           );
         },
       },

@@ -24,11 +24,13 @@ import {
   SearchField,
   SelectChevronUpDownIcon,
   Text,
-  Token,
+  Tag,
+  TagGroup,
 } from "@phoenix/components";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { labelTagItem } from "@phoenix/components/label";
 import { useAgentDataChangeFetchKey } from "@phoenix/hooks";
 
 import type { DatasetSelectWithSplitsQuery } from "./__generated__/DatasetSelectWithSplitsQuery.graphql";
@@ -202,9 +204,9 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
               {selectedSplits.length === 1 ? (
                 <>
                   <Text color="text-700">&nbsp;/&nbsp;</Text>
-                  <Token color={selectedSplits[0].color} size="S">
+                  <Tag userColor={selectedSplits[0].color} size="S">
                     {selectedSplits[0].name}
-                  </Token>
+                  </Tag>
                 </>
               ) : (
                 <Text color="text-700" minWidth={0}>
@@ -286,27 +288,12 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                           {exampleCount === 1 ? "example" : "examples"}
                         </Text>
                       </Flex>
-                      {labels.length > 0 && (
-                        <ul
-                          css={css`
-                            display: flex;
-                            flex-direction: row;
-                            gap: var(--global-dimension-size-50);
-                            min-width: 0;
-                            flex-wrap: wrap;
-                          `}
-                        >
-                          {labels.map((label) => (
-                            <li key={label.id}>
-                              <Token color={label.color}>
-                                <Truncate maxWidth={150} title={label.name}>
-                                  {label.name}
-                                </Truncate>
-                              </Token>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
+                      <TagGroup
+                        aria-label="Labels"
+                        size="S"
+                        itemMaxWidth={150}
+                        items={labels.map(labelTagItem)}
+                      />
                     </Flex>
                   </MenuItem>
                 );
@@ -335,27 +322,12 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                           {exampleCount === 1 ? "example" : "examples"}
                         </Text>
                       </Flex>
-                      {labels.length > 0 && (
-                        <ul
-                          css={css`
-                            display: flex;
-                            flex-direction: row;
-                            gap: var(--global-dimension-size-50);
-                            min-width: 0;
-                            flex-wrap: wrap;
-                          `}
-                        >
-                          {labels.map((label) => (
-                            <li key={label.id}>
-                              <Token color={label.color}>
-                                <Truncate maxWidth={150} title={label.name}>
-                                  {label.name}
-                                </Truncate>
-                              </Token>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
+                      <TagGroup
+                        aria-label="Labels"
+                        size="S"
+                        itemMaxWidth={150}
+                        items={labels.map(labelTagItem)}
+                      />
                     </Flex>
                   </MenuItem>
                   <MenuContainer
@@ -468,7 +440,9 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                         {({ id: itemId, name, color }) => (
                           <MenuItem id={itemId} textValue={name}>
                             {color ? (
-                              <Token color={color}>{name}</Token>
+                              <Tag userColor={color} size="S">
+                                {name}
+                              </Tag>
                             ) : (
                               <Text>{name}</Text>
                             )}

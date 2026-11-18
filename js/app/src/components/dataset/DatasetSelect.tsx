@@ -14,9 +14,9 @@ import {
   SelectItem,
   SelectValue,
   Text,
-  Token,
+  TagGroup,
 } from "@phoenix/components";
-import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { labelTagItem } from "@phoenix/components/label";
 import { useAgentDataChangeFetchKey } from "@phoenix/hooks";
 
 import type { DatasetSelect_dataset$key } from "./__generated__/DatasetSelect_dataset.graphql";
@@ -125,27 +125,12 @@ export function DatasetSelect(props: DatasetSelectProps) {
                       {dataset.exampleCount} examples
                     </Text>
                   </Flex>
-                  {dataset.labels.length > 0 && (
-                    <ul
-                      css={css`
-                        display: flex;
-                        flex-direction: row;
-                        gap: var(--global-dimension-size-50);
-                        min-width: 0;
-                        flex-wrap: wrap;
-                      `}
-                    >
-                      {dataset.labels.map((label) => (
-                        <li key={label.id}>
-                          <Token color={label.color}>
-                            <Truncate maxWidth={150} title={label.name}>
-                              {label.name}
-                            </Truncate>
-                          </Token>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                  <TagGroup
+                    aria-label="Labels"
+                    size="S"
+                    itemMaxWidth={150}
+                    items={dataset.labels.map(labelTagItem)}
+                  />
                 </Flex>
               </SelectItem>
             );

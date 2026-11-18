@@ -30,10 +30,11 @@ import {
   TooltipTrigger,
   Truncate,
   VisuallyHidden,
+  TagGroup,
 } from "@phoenix/components";
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { Link } from "@phoenix/components/core/Link";
-import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
+import { labelTagItem } from "@phoenix/components/label";
 import {
   CellWithControlsWrap,
   CompactJSONCell,
@@ -565,7 +566,13 @@ export function ExamplesTable({
         maxSize: 150,
         size: 30,
         minSize: 30,
-        cell: ({ row }) => <DatasetSplits labels={row.original.splits} />,
+        cell: ({ row }) => (
+          <TagGroup
+            aria-label="Splits"
+            items={row.original.splits.map(labelTagItem)}
+            overflow="collapse"
+          />
+        ),
       },
       ...(
         [

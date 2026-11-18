@@ -1,8 +1,7 @@
-import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import type { TokenProps } from "@phoenix/components";
-import { Flex, Token } from "@phoenix/components";
+import type { TagProps } from "@phoenix/components";
+import { Tag, TagGroup } from "@phoenix/components";
 import { getPromptVersionTagColor } from "@phoenix/constants/promptConstants";
 
 import type { PromptVersionTagsList_data$key } from "./__generated__/PromptVersionTagsList_data.graphql";
@@ -24,34 +23,38 @@ export function PromptVersionTagsList({
     promptVersion
   );
 
-  if (data.tags.length === 0) {
-    return null;
-  }
   return (
-    <Flex direction="row" gap="size-50" alignItems="center" wrap="wrap">
-      {data.tags.map((tag) => (
-        <TagVersionLabel key={tag.id}>{tag.name}</TagVersionLabel>
-      ))}
-    </Flex>
+    <TagGroup
+      aria-label="Version tags"
+      items={data.tags.map((tag) => ({
+        id: tag.id,
+        label: tag.name,
+        color: getPromptVersionTagColor(tag.name),
+      }))}
+    />
   );
 }
 
+/**
+ * A prompt version tag on its own, colored by its name like every other
+ * appearance of that tag.
+ */
 export function TagVersionLabel({
   children,
   maxWidth,
   size = "M",
 }: {
   children: string;
-  maxWidth?: TokenProps["maxWidth"];
-  size?: TokenProps["size"];
+  maxWidth?: TagProps["maxWidth"];
+  size?: TagProps["size"];
 }) {
-  const color: TokenProps["color"] = useMemo(
-    () => getPromptVersionTagColor(children),
-    [children]
-  );
   return (
-    <Token size={size} color={color} maxWidth={maxWidth} title={children}>
+    <Tag
+      size={size}
+      color={getPromptVersionTagColor(children)}
+      maxWidth={maxWidth}
+    >
       {children}
-    </Token>
+    </Tag>
   );
 }

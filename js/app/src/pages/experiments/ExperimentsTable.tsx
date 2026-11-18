@@ -21,14 +21,13 @@ import {
   Icons,
   Link,
   LinkButton,
-  OverflowRow,
   ProgressBar,
   RichTooltip,
   Text,
-  Token,
   TooltipTrigger,
   TriggerWrap,
   View,
+  TagGroup,
 } from "@phoenix/components";
 import type { AnnotationConfig } from "@phoenix/components/annotation";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation";
@@ -53,6 +52,7 @@ import {
   ExperimentRunMetricDelta,
 } from "@phoenix/components/experiment/ExperimentMetricDelta";
 import { ExperimentTokenCosts } from "@phoenix/components/experiment/ExperimentTokenCosts";
+import { labelTagItem } from "@phoenix/components/label";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import {
   ColumnHeaderCell,
@@ -588,14 +588,13 @@ export function ExperimentsTable({
         if (!datasetSplits || datasetSplits.edges.length === 0) {
           return <>all examples</>;
         }
-        return (
-          <OverflowRow isExpanded={areRowsExpanded}>
-            {datasetSplits.edges.map((edge) => (
-              <Token key={edge.node.id} color={edge.node.color}>
-                {edge.node.name}
-              </Token>
-            ))}
-          </OverflowRow>
+        const items = datasetSplits.edges.map((edge) =>
+          labelTagItem(edge.node)
+        );
+        return areRowsExpanded ? (
+          <TagGroup aria-label="Splits" items={items} />
+        ) : (
+          <TagGroup aria-label="Splits" items={items} overflow="collapse" />
         );
       },
     },

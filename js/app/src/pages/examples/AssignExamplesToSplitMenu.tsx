@@ -20,8 +20,8 @@ import {
   MenuItem,
   MenuTrigger,
   SearchField,
-  Token,
   useFilter,
+  Tag,
 } from "@phoenix/components";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
@@ -314,7 +314,9 @@ const SplitMenuApplyContent = ({
               isSelected={splitStates[id] === "checked"}
               isIndeterminate={splitStates[id] === "indeterminate"}
             />
-            <Token color={color}>{name}</Token>
+            <Tag userColor={color} size="S">
+              {name}
+            </Tag>
           </Flex>
         </MenuItem>
       )}

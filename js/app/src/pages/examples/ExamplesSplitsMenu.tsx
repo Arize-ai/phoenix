@@ -15,8 +15,8 @@ import {
   MenuItem,
   MenuTrigger,
   SearchField,
-  Token,
   useFilter,
+  Tag,
 } from "@phoenix/components";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
@@ -148,7 +148,9 @@ const SplitMenuFilterContent = ({
     >
       {({ id, name, color }) => (
         <MenuItem id={id} textValue={name}>
-          <Token color={color}>{name}</Token>
+          <Tag userColor={color} size="S">
+            {name}
+          </Tag>
         </MenuItem>
       )}
     </Menu>

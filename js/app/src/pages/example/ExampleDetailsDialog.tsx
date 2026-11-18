@@ -26,12 +26,13 @@ import {
   SelectItem,
   SelectValue,
   View,
+  TagGroup,
 } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
 import { SelectChevronUpDownIcon } from "@phoenix/components/core/icon";
 import { Skeleton } from "@phoenix/components/core/loading";
-import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
+import { labelTagItem } from "@phoenix/components/label";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useNotifySuccess } from "@phoenix/contexts";
@@ -246,7 +247,10 @@ function ExampleDetailsDialogContent({
           />
         </Flex>
         <DialogTitleExtra>
-          <DatasetSplits labels={datasetSplits} />
+          <TagGroup
+            aria-label="Splits"
+            items={datasetSplits.map(labelTagItem)}
+          />
           {sourceSpanInfo ? (
             <LinkButton
               size="S"

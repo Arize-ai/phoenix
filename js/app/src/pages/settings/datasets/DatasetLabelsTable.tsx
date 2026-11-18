@@ -2,7 +2,7 @@ import { flexRender, useTable } from "@tanstack/react-table";
 import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { Flex, Token } from "@phoenix/components";
+import { Flex, Tag } from "@phoenix/components";
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { IntCell } from "@phoenix/components/table/IntCell";
 import { tableCSS } from "@phoenix/components/table/styles";
@@ -49,7 +49,7 @@ export function DatasetLabelsTable({
         header: "label",
         accessorKey: "name",
         cell: ({ row }) => {
-          return <Token color={row.original.color}>{row.original.name}</Token>;
+          return <Tag userColor={row.original.color}>{row.original.name}</Tag>;
         },
       },
       {

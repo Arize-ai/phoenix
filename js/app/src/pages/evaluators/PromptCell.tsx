@@ -1,8 +1,9 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 
-import { Badge, Flex, Link, Text, Token } from "@phoenix/components";
+import { Badge, Flex, Link, Text } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { TagVersionLabel } from "@phoenix/pages/prompt/PromptVersionTagsList";
 
 export const PromptCell = ({
   prompt,
@@ -53,9 +54,9 @@ export const PromptLink = ({
   // otherwise, we assume the latest version is pinned
   if (promptVersionTag) {
     specifier = (
-      <Token size="S" color="var(--global-color-gray-700)">
-        <Truncate maxWidth="10rem">{promptVersionTag}</Truncate>
-      </Token>
+      <TagVersionLabel size="S" maxWidth="10rem">
+        {promptVersionTag}
+      </TagVersionLabel>
     );
     to = `/redirects/prompts/${promptId}/tags/${encodeURIComponent(promptVersionTag)}`;
   } else {
