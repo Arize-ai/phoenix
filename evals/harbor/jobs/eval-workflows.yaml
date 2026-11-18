@@ -5,27 +5,27 @@ agents:
     import_path: evals.harbor.agents.coding_agents:ClaudeCodeCliAgent
     model_name: anthropic/claude-opus-5-5
     extra_allowed_hosts: [api.anthropic.com]
-    resume_trajectory: true
   - name: claude-code-opus-skills
     import_path: evals.harbor.agents.coding_agents:ClaudeCodeCliAgent
     model_name: anthropic/claude-opus-5-5
     extra_allowed_hosts: [api.anthropic.com]
-    resume_trajectory: true
     skills:
       - skills/phoenix-cli
       - skills/phoenix-error-analysis
       - skills/phoenix-evals
       - skills/phoenix-tracing
-  - name: claude-code-haiku-no-skills
-    import_path: evals.harbor.agents.coding_agents:ClaudeCodeCliAgent
-    model_name: anthropic/claude-haiku-5-5
-    extra_allowed_hosts: [api.anthropic.com]
-    resume_trajectory: true
-  - name: claude-code-haiku-skills
-    import_path: evals.harbor.agents.coding_agents:ClaudeCodeCliAgent
-    model_name: anthropic/claude-haiku-5-5
-    extra_allowed_hosts: [api.anthropic.com]
-    resume_trajectory: true
+  - name: codex-sol-no-skills
+    import_path: evals.harbor.agents.coding_agents:CodexCliAgent
+    model_name: openai/gpt-6.2-sol
+    extra_allowed_hosts: [api.openai.com]
+    kwargs:
+      web_search: disabled
+  - name: codex-sol-skills
+    import_path: evals.harbor.agents.coding_agents:CodexCliAgent
+    model_name: openai/gpt-6.2-sol
+    extra_allowed_hosts: [api.openai.com]
+    kwargs:
+      web_search: disabled
     skills:
       - skills/phoenix-cli
       - skills/phoenix-error-analysis
