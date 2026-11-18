@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import os
 from collections.abc import AsyncGenerator
 from typing import get_args
 
@@ -28,6 +29,7 @@ from phoenix.client.client import (
 )
 from phoenix.client.harbor._adapter import build_job_plan, existing_trial_results
 from phoenix.client.harbor._errors import HarborPluginError
+from phoenix.client.harbor._masking import SecretMasker, collect_secret_values
 from phoenix.client.harbor._model import JobPlan, TraceMode
 from phoenix.client.harbor._naming import (
     validate_experiment_name_for_plan,
@@ -103,6 +105,7 @@ class PhoenixJobPlugin(BaseJobPlugin):
         self._runs: dict[RunKey, v1.ExperimentRun] = {}
         self._attempts: dict[str, int] = {}
         self._retry_config: RetryConfig | None = None
+        self._secret_masker = SecretMasker()
         self._record_lock = asyncio.Lock()
         self._terminal_failure: Exception | None = None
 
@@ -112,9 +115,22 @@ class PhoenixJobPlugin(BaseJobPlugin):
         validate_experiment_name_for_plan(plan, experiment_name=self.experiment_name)
         _validate_step_names(plan)
         resumed_trials = existing_trial_results(job)
+        # Harbor passes the host's provider keys and the configured environments
+        # to the agent, which can print them into its trajectory.
+        self._secret_masker = SecretMasker(
+            collect_secret_values(
+                environments=[
+                    os.environ,
+                    job.config.environment.env,
+                    *(agent.env for agent in job.config.agents),
+                ],
+                extra_values=[self._api_key],
+            )
+        )
         async with self._open_client() as client:
             recorder = PhoenixRecorder(
                 client,
+                secret_masker=self._secret_masker,
                 experiment_name=self.experiment_name,
                 experiment_name_template=self.experiment_name_template,
             )
@@ -216,6 +232,8 @@ class PhoenixJobPlugin(BaseJobPlugin):
                 error,
             )
             run_output = None
+        # Stored runs hold masked output, so the reuse check compares masked forms.
+        run_output = self._secret_masker.mask(run_output)
         existing_experiment_run = self._runs.get(run_key)
         reusable_experiment_run = (
             existing_experiment_run
@@ -281,6 +299,7 @@ class PhoenixJobPlugin(BaseJobPlugin):
             async with self._open_client() as client:
                 live_recorder = PhoenixRecorder(
                     client,
+                    secret_masker=self._secret_masker,
                     experiment_name=self.experiment_name,
                     experiment_name_template=self.experiment_name_template,
                 )

@@ -79,6 +79,7 @@ Use this mapping when explaining a job or checking its results:
 | Final textual agent turn | Experiment run output |
 | Final verifier reward | Experiment evaluation with the original key and CODE annotator kind |
 | Step verifier reward | Evaluation named `<step_name>.<reward_key>` |
+| Agent cost reported to Harbor | Evaluation named `cost_usd`, in US dollars |
 | Trial or step exception | Run error and `infra_ok=0` |
 | Saved ATIF trajectories | One trace linked to the run, with one step span per attempted step in a multi-step task |
 
@@ -89,6 +90,8 @@ The plugin records only the terminal physical attempt for a logical trial. An at
 When a saved terminal ATIF trajectory ends with a user-facing textual agent turn, the plugin records it in chat-message format so Phoenix experiment comparisons render it as Markdown. Structured messages contribute their text parts in order; media parts are omitted. The output stays empty for missing or invalid trajectories, terminal tool calls, media-only turns, and state-only tasks. Multi-step tasks use the last attempted step, and continued trajectories use the terminal continuation. Output extraction still runs with `trace_mode=null`; that setting disables trace creation, not result display.
 
 Successful runs written by older plugin versions keep their legacy Harbor metadata output because Phoenix runs are immutable. Resume recognizes that exact legacy shape and reuses the run.
+
+Before upload, the plugin replaces OpenAI and Anthropic keys (`sk-...`) and the values of secret-named environment variables with `<redacted>` in run output, run errors, evaluations, and trace spans. An agent can read its own environment, so treat masking as a safeguard: recommend scoped benchmark keys, and rotate any key that appears in a Harbor trajectory. Harbor's local job files stay unmasked.
 
 ## Add optional reference outputs
 
@@ -178,6 +181,7 @@ Keep behavioral outcomes separate from execution health. Phoenix does not run an
 | --- | --- |
 | `reward` | Present only when the final Harbor verifier emits a literal `reward` key. A value of `0` is behavioral failure, not an infrastructure error. |
 | `infra_ok` | Present on every run. `1` means Harbor recorded no trial or step exception. `0` means at least one exception occurred. |
+| `cost_usd` | Present when the agent reports its cost to Harbor. The agent's cost in US dollars, summed across steps. A verifier reward with this name stops the job. |
 | `<reward_key>` | A task-specific final-verifier score in its original numeric scale. |
 | `<step_name>.<reward_key>` | A task-specific step score for multi-step diagnosis. |
 

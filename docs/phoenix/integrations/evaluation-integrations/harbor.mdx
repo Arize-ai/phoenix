@@ -18,7 +18,7 @@ Recording a job in Phoenix gives you four things:
 - **An experiment per agent configuration.** A job that runs three agent and model combinations produces three experiments on one dataset, so you can compare them with each other and with earlier jobs.
 - **Rewards as annotations.** Each verifier reward becomes a named score on the run it belongs to, next to an `infra_ok` score that tells a failed agent apart from a broken sandbox.
 - **A trace for every trial.** The plugin converts the agent's ATIF trajectory into a span tree of LLM calls, tool calls, and subagents, with no tracing code inside the sandbox.
-- **Efficiency next to reward.** Traces carry token counts, so each experiment shows tokens and cost beside its scores. When two agents pass every task, compare tokens, cost, and iterations to see which one did less work to get there.
+- **Efficiency next to reward.** Traces carry token counts, and each run records the agent's reported cost as a `cost_usd` score, so each experiment shows tokens and cost beside its scores. When two agents pass every task, compare tokens, cost, and iterations to see which one did less work to get there.
 
 ## How a Harbor trial runs
 
@@ -92,6 +92,7 @@ As each final logical trial finishes, Phoenix records:
 - the agent's final textual response when its terminal ATIF trajectory contains one;
 - Harbor's verifier rewards as experiment evaluations;
 - an `infra_ok` evaluation for execution health;
+- a `cost_usd` evaluation when the agent reports its cost to Harbor;
 - a run error when Harbor recorded an exception; and
 - a link to the ATIF trace when tracing succeeds.
 
@@ -111,6 +112,7 @@ Start with the default `atif` mode when your Harbor agent writes ATIF trajectori
 | Final logical trial | Experiment run | Physical retries keep the logical repetition number. The plugin records only the terminal attempt. |
 | Final agent response | Run output | Text from the terminal ATIF agent turn appears as Markdown in experiment comparisons. |
 | Verifier reward | Experiment evaluation | The plugin records each Harbor reward as a named CODE evaluation on the experiment run. |
+| Agent cost | Experiment evaluation | Harbor's reported agent cost becomes a `cost_usd` CODE evaluation on the experiment run. |
 | Trial or step exception | Run error | Errors are stored separately from behavioral rewards. |
 | ATIF trajectory | Trace | One trial-level trace links to the experiment run when conversion succeeds. Multi-step trials include one span per attempted step. |
 
@@ -157,6 +159,20 @@ The plugin matches secrets by name. A credential stored under a neutral name, su
 </Warning>
 
 Experiments created by earlier plugin versions keep their original metadata and don't have the newer fields.
+
+### Secret masking
+
+An agent can read its own environment, so its trajectory can contain API keys. For example, Harbor's Daytona environment starts the agent with its keys on the command line, so an agent that runs `ps` prints them. Before the plugin sends a trial to Phoenix, it replaces these strings with `<redacted>`:
+
+- OpenAI and Anthropic API keys, which start with `sk-`, such as `sk-proj-` and `sk-ant-` keys.
+- The values of secret-named variables in the host environment, the job's `environment.env`, and each agent's `env`, such as `DAYTONA_API_KEY` or `GITHUB_TOKEN`. A name is secret-named when it contains `KEY`, `SECRET`, `TOKEN`, `PASSWORD`, `CREDENTIAL`, or `AUTH`. Values shorter than 8 characters are kept.
+- The Phoenix API key that the plugin uses.
+
+Masking covers run output, run errors, evaluation labels, explanations, and metadata, and every trace span. Harbor's own trial files under the job directory still contain the unmasked trajectories.
+
+<Warning>
+Masking is a safeguard, not access control. It can't recognize a credential that has neither a known prefix nor a secret-named variable. Give benchmark agents scoped keys with spending limits, and rotate any key that appears in a trajectory. Runs and traces recorded by earlier plugin versions aren't masked. If you resume a job whose earlier run stored an unmasked secret in its output, the plugin reports a conflict; use a new Harbor job name instead.
+</Warning>
 
 ### Optional reference outputs
 
@@ -240,6 +256,7 @@ Harbor tasks can use different verifiers, so the plugin keeps summary metrics se
 | --- | --- | --- |
 | `reward` | Runs whose final verifier emits a literal `reward` key | Harbor's conventional behavioral score. A score of `0` is a valid result, not an infrastructure error. |
 | `infra_ok` | Every recorded run | `1` when Harbor records no trial or step exception, otherwise `0`. |
+| `cost_usd` | Runs whose agent reports a cost to Harbor | The agent's cost in US dollars from Harbor's `agent_result.cost_usd`, summed across steps. It doesn't depend on Phoenix knowing the model's price. A verifier reward named `cost_usd` conflicts with it and stops the job. |
 | `<reward_key>` | Runs whose final verifier emits that key | A trial-level reward or diagnostic in Harbor's original numeric scale. |
 | `<step_name>.<reward_key>` | Runs whose step verifier emits that key | A step-level score for diagnosing multi-step tasks. |
 
