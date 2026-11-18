@@ -72,15 +72,15 @@ PHRASES: dict[str, tuple[list[str], list[str]]] = {
     ),
     "refund_request": (
         [
-            "My {item} arrived broken. Order {oid}. Can I get a refund?",
-            "I'd like a refund for order {oid}, the {item} doesn't fit.",
-            "Refund please for {oid}. The {item} stopped working after two days.",
-            "Can you refund my {item}? Order {oid}. It's not what the photos showed.",
-            "hi, the {item} from {oid} has a big tear in it. I want a refund",
+            "My {item} arrived broken. Order {oid}. Can I get {amount} back {method}?",
+            "I'd like a refund for order {oid}, the {item} doesn't fit. Please send {amount} {method}.",
+            "Refund please for {oid}: {amount}, {method}. The {item} stopped working after two days.",
+            "Can you refund {amount} {method}? It's my {item}, order {oid}. Not what the photos showed.",
+            "hi, the {item} from {oid} has a big tear in it. i want {amount} back {method}",
         ],
         [
-            "The {item} from order {oid} came damaged, I'd like a refund.",
-            "Requesting a refund on {oid}; the {item} was the wrong color.",
+            "The {item} from order {oid} came damaged, I'd like {amount} refunded {method}.",
+            "Requesting a refund on {oid}, {amount} {method}; the {item} was the wrong color.",
         ],
     ),
     "refund_unshipped_request": (
@@ -111,14 +111,6 @@ PHRASES: dict[str, tuple[list[str], list[str]]] = {
             "I need to cancel a purchase please.",
         ],
         ["Is it possible to call off an order?"],
-    ),
-    "refund_vague": (
-        [
-            "Hi, I need a refund on something I bought.",
-            "hello, how do I get a refund for an order?",
-            "I want to return an item for a refund.",
-        ],
-        ["Got a dud item, want a refund."],
     ),
     "address_vague": (
         [
@@ -416,8 +408,8 @@ PHRASES: dict[str, tuple[list[str], list[str]]] = {
     ),
     "more_refund": (
         [
-            "I also need a refund for order {oid}. The {item} arrived damaged.",
-            "One more thing: the {item} from order {oid} doesn't work. Can I get a refund?",
+            "I also need a refund for order {oid}, {amount} {method}. The {item} arrived damaged.",
+            "One more thing: the {item} from order {oid} doesn't work. Can I get {amount} back {method}?",
         ],
         [],
     ),
@@ -641,11 +633,11 @@ class Convo:
 
     def request(self, action: str, order: Order, addr: str | None = None) -> str:
         """Returns the request message. Can add a greeting or an ask-for-ID turn first."""
-        if action == "refund":
-            return self.refund_request(order)
         values = {"oid": order.order_id, "item": order.item, "addr": addr}
         if not self.turns and self.rng.random() < 0.25:
             self.turn(self.say("greeting"), self.say("greeting_reply"))
+        if action == "refund":
+            return self.refund_request(order)
         if self.rng.random() < 0.35:
             if action == "address":
                 self.turn(self.say("address_vague"), self.say("ask_order_and_address"))
@@ -658,18 +650,19 @@ class Convo:
         self,
         order: Order,
         *,
-        method: str = "original payment method",
+        method: str = "to my original payment method",
         continued: bool = False,
     ) -> str:
-        """Returns a refund request with an explicit amount, scope, and payment method."""
+        """Returns a refund request that names the amount, whether shipping is included,
+        and where the money goes, so whether the refund completes it is never a guess."""
         if order.refunds_shipping:
-            scope = f"the full ${order.total:.2f}, including the ${SHIPPING:.2f} shipping charge"
+            amount = f"the full ${order.total:.2f} with shipping"
         else:
-            scope = f"the ${order.price:.2f} item charge, without the shipping charge"
-        request = (
-            f"Please refund {scope} for the {order.item} on order {order.order_id} to my {method}."
-        )
-        return self.come_back(request) if continued else request
+            amount = f"just the ${order.price:.2f} for the item"
+        values = {"oid": order.order_id, "item": order.item, "amount": amount, "method": method}
+        if continued:
+            return self.come_back(self.say("more_refund", **values))
+        return self.say("refund_request", **values)
 
     def lookup(self, order: Order) -> ToolCall:
         return ("lookup_order", {"order_id": order.order_id}, order.record(), None)
@@ -959,7 +952,7 @@ def refund_credit_misstated(c: Convo) -> None:
     """The requested store credit completes the task, but the reply names the wrong method."""
     o = c.order("delivered")
     refund = c.refund(o, "refunded", method="store_credit")
-    request = c.refund_request(o, method="store credit")
+    request = c.refund_request(o, method="as store credit")
     c.turn(request, c.done("refund", o), c.lookup(o), refund)
     c.maybe_thanks()
 
