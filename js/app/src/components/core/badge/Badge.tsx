@@ -12,7 +12,7 @@ import { derivedColorCSS, familySizeCSS, inheritedStateCSS } from "../styles";
  * out because they are the success, warning and danger variants: a green span
  * kind would read as "OK".
  */
-export const BADGE_COLORS = [
+const BADGE_COLORS = [
   "neutral",
   "blue",
   "cyan",
@@ -31,7 +31,7 @@ export type BadgeColor = (typeof BADGE_COLORS)[number];
  * The variants an evaluative Kind may take, each meaning what it means
  * everywhere else in Phoenix: good, worth knowing, caution, harm.
  */
-export const BADGE_VARIANTS = ["success", "info", "warning", "danger"] as const;
+const BADGE_VARIANTS = ["success", "info", "warning", "danger"] as const;
 
 export type BadgeVariant = (typeof BADGE_VARIANTS)[number];
 
