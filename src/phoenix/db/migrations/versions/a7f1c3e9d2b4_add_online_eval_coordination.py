@@ -525,13 +525,7 @@ def _add_experiment_evaluator_tasks() -> None:
     An evaluator task is a playground evaluator draft run over a dataset as an experiment;
     the table freezes the evaluator definition so the runner can rebuild it on resume.
     """
-    # SQLite cannot alter a CHECK constraint in place, so batch mode rewrites the table.
-    with op.batch_alter_table("experiment_jobs") as batch_op:
-        batch_op.drop_constraint(constraint_name="valid_type", type_="check")
-        batch_op.create_check_constraint(
-            constraint_name="valid_type",
-            condition=_JOB_TYPES_AFTER,
-        )
+    _set_job_types(condition=_JOB_TYPES_AFTER)
     op.create_table(
         "experiment_evaluator_tasks",
         sa.Column(
@@ -570,62 +564,34 @@ def _add_experiment_evaluator_tasks() -> None:
 
 
 def _drop_experiment_evaluator_tasks() -> None:
-    # Restoring the narrower CHECK fails while EVALUATOR jobs exist, which stops the
-    # downgrade before it touches anything else rather than discarding those experiments'
-    # bookkeeping.
-    with op.batch_alter_table("experiment_jobs") as batch_op:
-        batch_op.drop_constraint(constraint_name="valid_type", type_="check")
-        batch_op.create_check_constraint(
-            constraint_name="valid_type",
-            condition=_JOB_TYPES_BEFORE,
-        )
+    # The narrower CHECK cannot hold while EVALUATOR jobs exist, so refuse before any DDL
+    # rather than discard those experiments' bookkeeping. This runs first in downgrade(),
+    # so nothing else of the migration is undone either.
+    if op.get_bind().scalar(
+        sa.text("SELECT COUNT(*) FROM experiment_jobs WHERE type = 'EVALUATOR'")
+    ):
+        raise ValueError("Cannot restore valid_type while EVALUATOR jobs exist")
+    _set_job_types(condition=_JOB_TYPES_BEFORE)
     op.drop_table("experiment_evaluator_tasks")
+
+
+def _set_job_types(*, condition: str) -> None:
+    # Alembic's SQLite dialect cannot drop a constraint, but the bundled SQLite alters it
+    # in place, as PostgreSQL does.
+    op.execute('ALTER TABLE experiment_jobs DROP CONSTRAINT "ck_experiment_jobs_`valid_type`"')
+    op.execute(
+        'ALTER TABLE experiment_jobs ADD CONSTRAINT "ck_experiment_jobs_`valid_type`" '
+        f"CHECK ({condition})"
+    )
 
 
 def downgrade() -> None:
     _drop_experiment_evaluator_tasks()
-    op.drop_index(
-        "ix_eval_trace_work_units_project_evaluator_failed", table_name="eval_trace_work_units"
-    )
-    op.drop_index(
-        "ix_eval_trace_work_units_project_evaluator_done", table_name="eval_trace_work_units"
-    )
-    op.drop_index(
-        "ix_eval_trace_work_units_project_evaluator_live", table_name="eval_trace_work_units"
-    )
-    op.drop_index(
-        "ix_eval_trace_work_units_project_evaluator_id", table_name="eval_trace_work_units"
-    )
-    op.drop_index("ix_eval_trace_work_units_terminal", table_name="eval_trace_work_units")
-    op.drop_index("ix_eval_trace_work_units_claimable", table_name="eval_trace_work_units")
+    # DROP TABLE drops each table's own indexes.
     op.drop_table("eval_trace_work_units")
-
-    op.drop_index(
-        "ix_eval_session_work_units_project_evaluator_failed", table_name="eval_session_work_units"
-    )
-    op.drop_index(
-        "ix_eval_session_work_units_project_evaluator_done", table_name="eval_session_work_units"
-    )
-    op.drop_index(
-        "ix_eval_session_work_units_project_evaluator_live", table_name="eval_session_work_units"
-    )
-    op.drop_index(
-        "ix_eval_session_work_units_project_evaluator_id", table_name="eval_session_work_units"
-    )
-    op.drop_index("ix_eval_session_work_units_terminal", table_name="eval_session_work_units")
-    op.drop_index("ix_eval_session_work_units_claimable", table_name="eval_session_work_units")
     op.drop_table("eval_session_work_units")
-
-    op.drop_index("ix_eval_work_units_project_evaluator_failed", table_name="eval_work_units")
-    op.drop_index("ix_eval_work_units_project_evaluator_done", table_name="eval_work_units")
-    op.drop_index("ix_eval_work_units_project_evaluator_live", table_name="eval_work_units")
-    op.drop_index("ix_eval_work_units_project_evaluator_id", table_name="eval_work_units")
-    op.drop_index("ix_eval_work_units_terminal", table_name="eval_work_units")
-    op.drop_index("ix_eval_work_units_claimable", table_name="eval_work_units")
     op.drop_table("eval_work_units")
     op.drop_table("project_evaluator_state")
-    op.drop_index("ix_project_evaluators_evaluator_id", table_name="project_evaluators")
-    op.drop_index("ix_project_evaluators_project_id", table_name="project_evaluators")
     op.drop_table("project_evaluators")
     op.drop_table("eval_work_leases")
     op.drop_table("eval_span_cursors")
