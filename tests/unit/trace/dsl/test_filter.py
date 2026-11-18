@@ -22,6 +22,7 @@ from phoenix.trace.dsl.filter import (
     SpanFilterError,
     _apply_eval_aliasing,
     _get_attribute_keys_list,
+    is_root_span_predicate,
     root_span_scope,
 )
 from phoenix.trace.dsl.session_filter import SessionFilter
@@ -1628,6 +1629,31 @@ def test_parent_predicate_sentinels_unreachable_from_user_input(sentinel: str) -
     translated = unparse(SpanFilter(f"{sentinel} == 'x'").translated).strip()
     # resolves to an attribute path, not the bare injected name
     assert translated.startswith(f"attributes[['{sentinel}']]")
+
+
+@pytest.mark.parametrize(
+    "condition, expected",
+    [
+        ("parent_id is None", True),
+        ("parent_span is None", True),
+        ("  parent_span is None  ", True),
+        ("None is parent_id", True),
+        ("parent_id == None", True),
+        ("(parent_id is None)", True),
+        ("parent_id is None and span_kind == 'LLM'", False),
+        ("parent_id is None or parent_span is None", False),
+        ("not (parent_id is not None)", False),
+        ("parent_id is not None", False),
+        ("parent_id is None is None", False),
+        ("span_kind == 'LLM'", False),
+        ("", False),
+        ("parent_id is", False),
+    ],
+)
+def test_is_root_span_predicate_accepts_one_root_predicate_and_nothing_else(
+    condition: str, expected: bool
+) -> None:
+    assert is_root_span_predicate(condition) is expected
 
 
 @pytest.mark.parametrize(

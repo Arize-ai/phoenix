@@ -5,14 +5,16 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from itertools import cycle, product
 from random import Random, random
-from secrets import token_hex
+from secrets import token_bytes, token_hex
 from typing import Any, Literal, Optional, cast
 
 import httpx2
 import pandas as pd
 import pytest
 from faker import Faker
-from sqlalchemy import event, insert, select
+from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
+from opentelemetry.proto.trace.v1.trace_pb2 import Span as OtlpSpan
+from sqlalchemy import event, insert, select, text, update
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from strawberry.relay import GlobalID
 from typing_extensions import assert_never
@@ -20,6 +22,7 @@ from typing_extensions import assert_never
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.insertion.span import insert_span
 from phoenix.db.types.annotation_configs import (
     AnnotationType,
     CategoricalAnnotationConfig,
@@ -36,6 +39,7 @@ from phoenix.server.api.types.Project import Project
 from phoenix.server.sandbox.sync import sync_languages
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
+from phoenix.trace.otel import decode_otlp_span
 from tests.unit.graphql import AsyncGraphQLClient
 
 from ...._helpers import _add_project, _add_project_session, _add_span, _add_trace, _gid, _node
@@ -5564,6 +5568,8 @@ _SPANS_BY_START_TIME_QUERY = """
         $after: String
         $dir: SortDir!
         $filterCondition: String
+        $traceFilterCondition: String
+        $projectEvaluatorId: ID
         $timeRange: TimeRange
     ) {
         node(id: $projectId) {
@@ -5573,6 +5579,8 @@ _SPANS_BY_START_TIME_QUERY = """
                     after: $after
                     sort: {col: startTime, dir: $dir}
                     filterCondition: $filterCondition
+                    traceFilterCondition: $traceFilterCondition
+                    projectEvaluatorId: $projectEvaluatorId
                     timeRange: $timeRange
                 ) {
                     edges {
@@ -5596,8 +5604,10 @@ async def test_spans_sorted_by_start_time_page_through_the_unpaged_list(
     gql_client: AsyncGraphQLClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Pages of a list sorted by start time add up to what one unpaged statement sorted by
-    span start time returns, whatever the filter, time range, direction and page size."""
+    """Pages of a list sorted by start time add up to what one unpaged statement returns,
+    whatever the filter, time range, direction and page size. The statement is sorted by span
+    start time, or, for the newest root spans with no other filter and no short time range,
+    by trace start time and then span start time."""
     rng = Random(0)
     base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
     async with db() as session:
@@ -5657,7 +5667,9 @@ async def test_spans_sorted_by_start_time_page_through_the_unpaged_list(
         project_rowid = projects[0].id
     start, end = base_time + timedelta(minutes=20), base_time + timedelta(minutes=45)
 
-    async def unpaged(condition: Optional[str], time_range: dict[str, datetime]) -> list[int]:
+    async def unpaged(
+        condition: Optional[str], time_range: dict[str, datetime], by_trace: bool = False
+    ) -> list[int]:
         stmt = (
             select(models.Span.id)
             .join(models.Trace)
@@ -5669,6 +5681,8 @@ async def test_spans_sorted_by_start_time_page_through_the_unpaged_list(
             stmt = stmt.where(models.Span.start_time < time_range["end"])
         if condition:
             stmt = SpanFilter(condition=condition)(stmt)
+        if by_trace:
+            stmt = stmt.order_by(models.Trace.start_time.desc(), models.Trace.id.desc())
         stmt = stmt.order_by(models.Span.start_time.desc(), models.Span.id.desc())
         async with db() as session:
             return list(await session.scalars(stmt))
@@ -5696,6 +5710,7 @@ async def test_spans_sorted_by_start_time_page_through_the_unpaged_list(
             if not connection["pageInfo"]["hasNextPage"]:
                 return rowids
             assert len(page) == first
+            assert len(rowids) < 1000, "the list does not end"
             after = connection["pageInfo"]["endCursor"]
 
     cases = product(
@@ -5711,21 +5726,32 @@ async def test_spans_sorted_by_start_time_page_through_the_unpaged_list(
     )
     page_sizes_and_looks = cycle(product([1, 4, 30], [(1,), (2, 20), (500, 5000)]))
     for (condition, time_range, descending), (first, looks) in zip(cases, page_sizes_and_looks):
-        expected = await unpaged(condition, time_range)
+        by_trace = (
+            descending
+            and condition in ("parent_id is None", "parent_span is None")
+            # The range with an end is 25 minutes long.
+            and "end" not in time_range
+        )
+        expected = await unpaged(condition, time_range, by_trace)
+        if by_trace:
+            assert expected != await unpaged(condition, time_range)
         monkeypatch.setattr("phoenix.server.api.types.Project._NEWEST_SPANS_LOOKS", looks)
-        actual = await paged(
-            first,
-            dir="desc" if descending else "asc",
-            filterCondition=condition,
-            timeRange={key: value.isoformat() for key, value in time_range.items()} or None,
-        )
-        assert actual == (expected if descending else expected[::-1]), (
-            condition,
-            time_range,
-            descending,
-            first,
-            looks,
-        )
+        for first, walk in product([1, 4, 30], [1, 3, 5000]) if by_trace else [(first, 5000)]:
+            monkeypatch.setattr("phoenix.server.api.types.Project._NEWEST_TRACES_WALK", walk)
+            actual = await paged(
+                first,
+                dir="desc" if descending else "asc",
+                filterCondition=condition,
+                timeRange={key: value.isoformat() for key, value in time_range.items()} or None,
+            )
+            assert actual == (expected if descending else expected[::-1]), (
+                condition,
+                time_range,
+                descending,
+                first,
+                looks,
+                walk,
+            )
 
 
 @pytest.mark.parametrize(
@@ -5733,7 +5759,12 @@ async def test_spans_sorted_by_start_time_page_through_the_unpaged_list(
     [
         pytest.param("busy", None, False, id="busy-project-range-only"),
         pytest.param("quiet", None, False, id="quiet-project-range-only"),
-        pytest.param("stale", "parent_span is None", True, id="stale-project-root-spans"),
+        pytest.param(
+            "stale",
+            "parent_span is None and span_kind == 'CHAIN'",
+            True,
+            id="stale-project-root-spans-of-one-kind",
+        ),
     ],
 )
 async def test_first_page_of_newest_spans_reads_few_spans_on_postgresql(
@@ -5747,9 +5778,9 @@ async def test_first_page_of_newest_spans_reads_few_spans_on_postgresql(
 ) -> None:
     """The first page of a project's newest spans reads a handful of span rows, not every
     span the project has in the time range, whether the project receives most of the recent
-    spans or a small share of them. A list of root spans that finds none in its first look
-    skips the wider look and falls back to one more statement, which reads that project's
-    spans and none of the newer spans of other projects."""
+    spans or a small share of them. A list of root spans with another filter that finds none
+    in its first look skips the wider look and falls back to one more statement, which reads
+    that project's spans and none of the newer spans of other projects."""
     if db.dialect is not SupportedSQLDialect.POSTGRESQL:
         pytest.skip("counts the rows PostgreSQL reads")
     engine: AsyncEngine = request.getfixturevalue("postgresql_engine")
@@ -5841,6 +5872,772 @@ async def test_first_page_of_newest_spans_reads_few_spans_on_postgresql(
             await conn.exec_driver_sql(statement, parameters)
         spans_read = (await conn.exec_driver_sql(spans_read_so_far)).scalar_one() - read_before
     assert spans_read <= 4 * first_look + (2 * len(stale_traces) if falls_back else 0)
+
+
+@pytest.mark.parametrize("filter_condition", ["parent_id is None", "parent_span is None"])
+async def test_first_page_of_newest_root_spans_reads_few_spans_when_other_projects_are_newer(
+    filter_condition: str,
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+    request: pytest.FixtureRequest,
+) -> None:
+    """The first page of a project's newest root spans reads the spans of the traces on the
+    page, however many newer spans other projects have and however many older traces the
+    project has."""
+    if db.dialect is not SupportedSQLDialect.POSTGRESQL:
+        pytest.skip("counts the rows PostgreSQL reads")
+    engine: AsyncEngine = request.getfixturevalue("postgresql_engine")
+    base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+    first = 2
+    async with db() as session:
+        projects = {name: models.Project(name=name) for name in ("busy", "stale")}
+        session.add_all(projects.values())
+        await session.flush()
+        traces = [
+            models.Trace(
+                trace_id=token_hex(16),
+                project_rowid=projects["busy" if i >= 0 else "stale"].id,
+                start_time=base_time + timedelta(seconds=i),
+                end_time=base_time + timedelta(seconds=i + 1),
+            )
+            for i in range(-100, 200)
+        ]
+        session.add_all(traces)
+        await session.flush()
+        for trace in traces:
+            root = _span(trace, trace.start_time)
+            session.add_all([root, _span(trace, trace.start_time, parent_id=root.span_id)])
+        await session.flush()
+        project_rowid = projects["stale"].id
+    async with engine.begin() as conn:
+        await conn.exec_driver_sql("ANALYZE traces, spans")
+    statements: list[tuple[str, Any]] = []
+
+    def capture(
+        conn: Any,
+        cursor: Any,
+        statement: str,
+        parameters: Any,
+        context: Any,
+        executemany: bool,
+    ) -> None:
+        if "FROM spans" in statement:
+            statements.append((statement, parameters))
+
+    event.listen(engine.sync_engine, "before_cursor_execute", capture)
+    try:
+        response = await gql_client.execute(
+            query=_SPANS_BY_START_TIME_QUERY,
+            variables={
+                "projectId": str(GlobalID("Project", str(project_rowid))),
+                "first": first,
+                "dir": "desc",
+                "filterCondition": filter_condition,
+                "timeRange": {"start": (base_time - timedelta(hours=1)).isoformat()},
+            },
+        )
+    finally:
+        event.remove(engine.sync_engine, "before_cursor_execute", capture)
+    assert not response.errors
+    assert response.data is not None
+    assert len(response.data["node"]["spans"]["edges"]) == first
+    assert len(statements) == 1
+    async with engine.connect() as conn:
+        # The tables are small enough that reading them whole is the cheapest plan, which
+        # hides whether a statement stops once the page is full.
+        for setting in ("enable_seqscan", "enable_bitmapscan"):
+            await conn.exec_driver_sql(f"SET LOCAL {setting} = off")
+        # The view also counts what this connection read in transactions before this one.
+        spans_read_so_far = (
+            "SELECT seq_tup_read + idx_tup_fetch FROM pg_stat_xact_user_tables "
+            "WHERE relname = 'spans'"
+        )
+        read_before = (await conn.exec_driver_sql(spans_read_so_far)).scalar_one()
+        for statement, parameters in statements:
+            await conn.exec_driver_sql(statement, parameters)
+        spans_read = (await conn.exec_driver_sql(spans_read_so_far)).scalar_one() - read_before
+    # PostgreSQL sorts the rows it reads in batches of at least 32, so it reads up to that
+    # many traces past the page: two spans each, and the parent of one when orphans count.
+    assert spans_read <= 3 * 32
+
+
+async def _page_through_spans_by_start_time(
+    gql_client: AsyncGraphQLClient,
+    project_rowid: int,
+    first: int,
+    after: Optional[str] = None,
+    **variables: Any,
+) -> list[int]:
+    rowids: list[int] = []
+    while True:
+        response = await gql_client.execute(
+            query=_SPANS_BY_START_TIME_QUERY,
+            variables={
+                "projectId": str(GlobalID("Project", str(project_rowid))),
+                "first": first,
+                "after": after,
+                "dir": "desc",
+                **variables,
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+        connection = response.data["node"]["spans"]
+        page = [int(GlobalID.from_id(edge["node"]["id"]).node_id) for edge in connection["edges"]]
+        rowids.extend(page)
+        if not connection["pageInfo"]["hasNextPage"]:
+            return rowids
+        assert len(page) == first
+        assert len(rowids) < 1000, "the list does not end"
+        after = connection["pageInfo"]["endCursor"]
+
+
+@pytest.mark.parametrize("filter_condition", ["parent_id is None", "parent_span is None"])
+async def test_newest_root_spans_that_start_their_traces_are_listed_by_span_start_time(
+    filter_condition: str,
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When every root span is the earliest span of its trace and no two traces start
+    together, the newest root spans come in the order of their own start times, the order of
+    every other list of spans."""
+    rng = Random(0)
+    base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+    async with db() as session:
+        projects = [models.Project(name=token_hex(8)) for _ in range(2)]
+        session.add_all(projects)
+        await session.flush()
+        traces = [
+            models.Trace(
+                trace_id=token_hex(16),
+                project_rowid=projects[i % 2].id,
+                start_time=base_time + timedelta(seconds=second),
+                end_time=base_time + timedelta(seconds=second + 60),
+            )
+            for i, second in enumerate(rng.sample(range(3600), 80))
+        ]
+        session.add_all(traces)
+        await session.flush()
+        spans = []
+        for trace in traces:
+            root = _span(trace, trace.start_time)
+            spans.append(root)
+            spans.extend(
+                _span(trace, trace.start_time + timedelta(seconds=rng.randrange(60)), root.span_id)
+                for _ in range(rng.randrange(3))
+            )
+        rng.shuffle(spans)
+        session.add_all(spans)
+        await session.flush()
+        project_rowid = projects[0].id
+        expected = list(
+            await session.scalars(
+                SpanFilter(condition=filter_condition)(
+                    select(models.Span.id)
+                    .join(models.Trace)
+                    .where(models.Trace.project_rowid == project_rowid)
+                ).order_by(models.Span.start_time.desc(), models.Span.id.desc())
+            )
+        )
+    assert len(expected) == 40
+    for first, walk in product([1, 7, 30], [1, 3, 5000]):
+        monkeypatch.setattr("phoenix.server.api.types.Project._NEWEST_TRACES_WALK", walk)
+        actual = await _page_through_spans_by_start_time(
+            gql_client, project_rowid, first, filterCondition=filter_condition
+        )
+        assert actual == expected, (first, walk)
+
+
+_ROOT_SPANS_BASE_TIME = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+
+
+async def _add_traces_whose_root_spans_do_not_start_them(
+    session: AsyncSession,
+) -> tuple[int, dict[str, int]]:
+    """Adds a project in which a root span does not always start when its trace is recorded
+    as starting, and returns the project's id and each root span's id under a name that gives
+    its trace and the hour it starts: a root that starts after its child (L), a trace with
+    two roots (W), a trace with a root and a later span whose parent never arrived (O), a
+    trace whose earliest span was deleted, which leaves the trace's start time as it was (K),
+    two traces that start in the same instant (S and T), and one ordinary trace (P)."""
+    project = models.Project(name=token_hex(8))
+    session.add(project)
+    await session.flush()
+
+    async def add_trace(*hours: float) -> models.Trace:
+        start_time = _ROOT_SPANS_BASE_TIME + timedelta(hours=min(hours))
+        trace = models.Trace(
+            trace_id=token_hex(16),
+            project_rowid=project.id,
+            start_time=start_time,
+            end_time=_ROOT_SPANS_BASE_TIME + timedelta(hours=max(hours) + 1),
+        )
+        session.add(trace)
+        await session.flush()
+        return trace
+
+    rowids: dict[str, int] = {}
+
+    async def add_span(
+        name: Optional[str], trace: models.Trace, hour: float, parent_id: Optional[str] = None
+    ) -> models.Span:
+        span = _span(trace, _ROOT_SPANS_BASE_TIME + timedelta(hours=hour), parent_id)
+        session.add(span)
+        await session.flush()
+        if name:
+            rowids[name] = span.id
+        return span
+
+    late_root = await add_trace(0, 5)
+    root = await add_span("L5", late_root, 5)
+    await add_span(None, late_root, 0, parent_id=root.span_id)
+    two_roots = await add_trace(1, 10)
+    await add_span("W10", two_roots, 10)
+    await add_span("W1", two_roots, 1)
+    with_orphan = await add_trace(2, 8)
+    await add_span("O2", with_orphan, 2)
+    await add_span("O8 orphan", with_orphan, 8, parent_id=token_hex(8))
+    same_start, same_start_too = await add_trace(4), await add_trace(4)
+    await add_span("T4", same_start_too, 4)
+    await add_span("S4", same_start, 4)
+    await add_span("P3", await add_trace(3), 3)
+    earliest_span_deleted = await add_trace(3.5, 9)
+    await add_span("K9", earliest_span_deleted, 9)
+    await session.delete(await add_span(None, earliest_span_deleted, 3.5))
+    await session.flush()
+    return project.id, rowids
+
+
+@pytest.mark.parametrize(
+    "filter_condition, trace_filter_condition, of_evaluator, expected",
+    [
+        pytest.param(
+            "parent_id is None",
+            None,
+            False,
+            ["T4", "S4", "K9", "P3", "O2", "W10", "W1", "L5"],
+            id="roots",
+        ),
+        pytest.param(
+            "parent_span is None",
+            None,
+            False,
+            ["T4", "S4", "K9", "P3", "O8 orphan", "O2", "W10", "W1", "L5"],
+            id="roots-and-orphans",
+        ),
+        pytest.param(
+            "parent_id is None and span_kind == 'CHAIN'",
+            None,
+            False,
+            ["W10", "K9", "L5", "S4", "T4", "P3", "O2", "W1"],
+            id="roots-with-another-clause-stay-in-span-order",
+        ),
+        pytest.param(
+            "parent_id is None",
+            "num_spans > 0",
+            False,
+            ["W10", "K9", "L5", "S4", "T4", "P3", "O2", "W1"],
+            id="roots-with-a-trace-filter-stay-in-span-order",
+        ),
+        pytest.param(
+            "parent_id is None",
+            None,
+            True,
+            ["W10", "L5", "W1"],
+            id="roots-of-one-evaluator-stay-in-span-order",
+        ),
+    ],
+)
+async def test_newest_root_spans_are_listed_by_trace_then_by_span(
+    filter_condition: str,
+    trace_filter_condition: Optional[str],
+    of_evaluator: bool,
+    expected: list[str],
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A newest-first list of root spans with no other filter is ordered by the recorded
+    start time and the id of each span's trace, and by span start time and id within a trace.
+    A root span that starts after its trace's recorded start therefore sits where the trace
+    starts, a trace's root spans sit together, and of two traces that start together the one
+    added later comes first. A list with any other filter is ordered by span start time and
+    id alone."""
+    evaluator_id = str(GlobalID("ProjectEvaluator", "1"))
+    async with db() as session:
+        project_rowid, rowids = await _add_traces_whose_root_spans_do_not_start_them(session)
+        await session.execute(
+            update(models.Span)
+            .where(models.Span.id.in_([rowids[name] for name in ("W10", "L5", "W1")]))
+            .values(attributes={"phoenix": {"project_evaluator_id": evaluator_id}})
+        )
+    for first, walk in product([1, 2, 30], [1, 2, 5000]):
+        monkeypatch.setattr("phoenix.server.api.types.Project._NEWEST_TRACES_WALK", walk)
+        actual = await _page_through_spans_by_start_time(
+            gql_client,
+            project_rowid,
+            first,
+            filterCondition=filter_condition,
+            traceFilterCondition=trace_filter_condition,
+            projectEvaluatorId=evaluator_id if of_evaluator else None,
+        )
+        assert actual == [rowids[name] for name in expected], (first, walk)
+
+
+@pytest.mark.parametrize(
+    "filter_condition, start, end, expected",
+    [
+        pytest.param("parent_id is None", 2, 6, ["T4", "S4", "P3", "O2", "L5"], id="roots"),
+        pytest.param(
+            "parent_span is None", 2, 6, ["T4", "S4", "P3", "O2", "L5"], id="roots-and-orphans"
+        ),
+        pytest.param(
+            "parent_span is None",
+            5,
+            None,
+            ["K9", "O8 orphan", "W10", "L5"],
+            id="every-trace-starts-before-the-range",
+        ),
+        pytest.param(
+            "parent_id is None",
+            2.5,
+            4.25,
+            ["S4", "T4", "P3"],
+            id="a-range-shorter-than-two-hours-stays-in-span-order",
+        ),
+    ],
+)
+async def test_newest_root_spans_in_a_time_range_are_those_that_start_in_it(
+    filter_condition: str,
+    start: float,
+    end: Optional[float],
+    expected: list[str],
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A time range keeps the root spans that start in it, as it does for any list of spans.
+    One whose trace started before the range comes after those whose trace started in it, and
+    one that starts after the range is left out though its trace started in it. A range
+    shorter than two hours is listed in span order, as any other list of spans is."""
+    async with db() as session:
+        project_rowid, rowids = await _add_traces_whose_root_spans_do_not_start_them(session)
+    time_range = {"start": (_ROOT_SPANS_BASE_TIME + timedelta(hours=start)).isoformat()}
+    if end is not None:
+        time_range["end"] = (_ROOT_SPANS_BASE_TIME + timedelta(hours=end)).isoformat()
+    for first, walk in product([1, 2, 30], [1, 2, 5000]):
+        monkeypatch.setattr("phoenix.server.api.types.Project._NEWEST_TRACES_WALK", walk)
+        actual = await _page_through_spans_by_start_time(
+            gql_client, project_rowid, first, filterCondition=filter_condition, timeRange=time_range
+        )
+        assert actual == [rowids[name] for name in expected], (first, walk)
+
+
+@pytest.mark.parametrize(
+    "hours, expected",
+    [
+        pytest.param(
+            1.5, ["second", "first"], id="in-span-order-when-it-began-under-two-hours-ago"
+        ),
+        pytest.param(3, ["first", "second"], id="in-trace-order-when-it-began-earlier"),
+    ],
+)
+async def test_newest_root_spans_in_a_time_range_with_no_end_are_listed_by_how_long_it_is(
+    hours: float,
+    expected: list[str],
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    """A time range with no end runs to the present. One that began less than two hours ago is
+    listed in span order, and one that began earlier in trace order."""
+    started = datetime.now(timezone.utc) - timedelta(minutes=30)
+    async with db() as session:
+        project = models.Project(name=token_hex(8))
+        session.add(project)
+        await session.flush()
+        traces = [
+            models.Trace(
+                trace_id=token_hex(16),
+                project_rowid=project.id,
+                start_time=started,
+                end_time=started + timedelta(seconds=1),
+            )
+            for _ in range(2)
+        ]
+        session.add_all(traces)
+        await session.flush()
+        rowids = {}
+        # The later trace gets its root span first, so the two orders disagree.
+        for name, trace in (("first", traces[1]), ("second", traces[0])):
+            span = _span(trace, started)
+            session.add(span)
+            await session.flush()
+            rowids[name] = span.id
+        project_rowid = project.id
+    actual = await _page_through_spans_by_start_time(
+        gql_client,
+        project_rowid,
+        1,
+        filterCondition="parent_id is None",
+        timeRange={"start": (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()},
+    )
+    assert actual == [rowids[name] for name in expected]
+
+
+async def test_newest_root_spans_in_a_short_time_range_read_nothing_from_before_it(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+    request: pytest.FixtureRequest,
+) -> None:
+    """A short time range that holds less than a page of a project's root spans is read
+    within the range: the rows read are counted in the spans the range holds, however many
+    earlier traces the project has."""
+    if db.dialect is not SupportedSQLDialect.POSTGRESQL:
+        pytest.skip("counts the rows PostgreSQL reads")
+    engine: AsyncEngine = request.getfixturevalue("postgresql_engine")
+    base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+    in_range = {"old": range(0, 400, 100), "other": range(300)}
+    async with db() as session:
+        projects = {name: models.Project(name=name) for name in ("old", "other")}
+        session.add_all(projects.values())
+        await session.flush()
+        traces = [
+            models.Trace(
+                trace_id=token_hex(16),
+                project_rowid=projects[name].id,
+                start_time=base_time + timedelta(seconds=second),
+                end_time=base_time + timedelta(seconds=second + 1),
+            )
+            for name, seconds in (("old", range(-2000, 0)), *in_range.items())
+            for second in seconds
+        ]
+        session.add_all(traces)
+        await session.flush()
+        for trace in traces:
+            root = _span(trace, trace.start_time)
+            session.add_all([root, _span(trace, trace.start_time, parent_id=root.span_id)])
+        await session.flush()
+        project_rowid = projects["old"].id
+    async with engine.begin() as conn:
+        await conn.exec_driver_sql("ANALYZE traces, spans")
+    statements: list[tuple[str, Any]] = []
+
+    def capture(
+        conn: Any,
+        cursor: Any,
+        statement: str,
+        parameters: Any,
+        context: Any,
+        executemany: bool,
+    ) -> None:
+        if "FROM spans" in statement:
+            statements.append((statement, parameters))
+
+    event.listen(engine.sync_engine, "before_cursor_execute", capture)
+    try:
+        response = await gql_client.execute(
+            query=_SPANS_BY_START_TIME_QUERY,
+            variables={
+                "projectId": str(GlobalID("Project", str(project_rowid))),
+                "first": 5,
+                "dir": "desc",
+                "filterCondition": "parent_id is None",
+                "timeRange": {
+                    "start": base_time.isoformat(),
+                    "end": (base_time + timedelta(hours=1)).isoformat(),
+                },
+            },
+        )
+    finally:
+        event.remove(engine.sync_engine, "before_cursor_execute", capture)
+    assert not response.errors
+    assert response.data is not None
+    assert len(response.data["node"]["spans"]["edges"]) == len(in_range["old"])
+    async with engine.connect() as conn:
+        # The tables are small enough that reading them whole is the cheapest plan, which
+        # hides what a statement has to read.
+        for setting in ("enable_seqscan", "enable_bitmapscan"):
+            await conn.exec_driver_sql(f"SET LOCAL {setting} = off")
+        # The view also counts what this connection read in transactions before this one.
+        rows_read_so_far = text(
+            "SELECT relname, seq_tup_read + idx_tup_fetch AS rows_read "
+            "FROM pg_stat_xact_user_tables WHERE relname IN ('spans', 'traces')"
+        )
+        read_before = {row.relname: row.rows_read for row in await conn.execute(rows_read_so_far)}
+        for statement, parameters in statements:
+            await conn.exec_driver_sql(statement, parameters)
+        read = {
+            row.relname: row.rows_read - read_before[row.relname]
+            for row in await conn.execute(rows_read_so_far)
+        }
+    spans_in_range = 2 * sum(len(seconds) for seconds in in_range.values())
+    # Each statement reads the range's spans at most twice, and a trace for each.
+    assert read["spans"] <= len(statements) * 2 * spans_in_range
+    assert read["traces"] <= len(statements) * spans_in_range
+
+
+async def test_newest_root_spans_of_a_trace_with_more_than_a_page_of_them_are_all_listed(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    """A trace with more root spans than a page holds gives each page its newest root spans
+    not yet listed, and the next trace follows the last of them."""
+    base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+    async with db() as session:
+        project = models.Project(name=token_hex(8))
+        session.add(project)
+        await session.flush()
+        traces = [
+            models.Trace(
+                trace_id=token_hex(16),
+                project_rowid=project.id,
+                start_time=base_time + timedelta(minutes=minute),
+                end_time=base_time + timedelta(minutes=minute + 10),
+            )
+            for minute in (20, 10)
+        ]
+        session.add_all(traces)
+        await session.flush()
+        spans = [_span(traces[0], traces[0].start_time + timedelta(seconds=n)) for n in range(7)]
+        spans.append(_span(traces[1], traces[1].start_time))
+        for span in spans:
+            session.add(span)
+            await session.flush()
+        expected = [span.id for span in reversed(spans[:7])] + [spans[7].id]
+        project_rowid = project.id
+    for first in (1, 2, 3, 30):
+        actual = await _page_through_spans_by_start_time(
+            gql_client, project_rowid, first, filterCondition="parent_id is None"
+        )
+        assert actual == expected, first
+
+
+@pytest.mark.parametrize("arrives", ["newer-traces", "an-earlier-span-of-a-trace-already-read"])
+async def test_a_page_of_newest_root_spans_never_holds_a_span_twice(
+    arrives: str,
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A page that its first statement does not fill is completed by a second. Whatever is
+    committed between the two, newer traces or a span that moves the start of a trace already
+    read back past the others, no span is on the page twice and none is left out."""
+    if db.dialect is not SupportedSQLDialect.POSTGRESQL:
+        pytest.skip("commits on a second connection, which the SQLite fixture does not have")
+    monkeypatch.setattr("phoenix.server.api.types.Project._NEWEST_TRACES_WALK", 3)
+    base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+
+    async def add_trace(second: int, root: bool) -> models.Span:
+        async with db() as session:
+            trace = models.Trace(
+                trace_id=token_hex(16),
+                project_rowid=project_rowid,
+                start_time=base_time + timedelta(seconds=second),
+                end_time=base_time + timedelta(seconds=second + 1),
+            )
+            session.add(trace)
+            await session.flush()
+            span = _span(trace, trace.start_time, parent_id=None if root else token_hex(8))
+            session.add(span)
+            await session.flush()
+            return span
+
+    async with db() as session:
+        project = models.Project(name=token_hex(8))
+        session.add(project)
+        await session.flush()
+        project_rowid = project.id
+    # Of ten traces the newest three and the oldest have a root span, so the three traces
+    # the first statement reads cannot fill a page of five.
+    roots = [(await add_trace(100 - i, root=i < 3 or i == 9)) for i in range(10)]
+    expected = [roots[i].id for i in (0, 1, 2, 9)]
+    statements = 0
+    execute = AsyncSession.execute
+
+    async def execute_then_commit(
+        self: AsyncSession, statement: Any, *args: Any, **kwargs: Any
+    ) -> Any:
+        nonlocal statements
+        result = await execute(self, statement, *args, **kwargs)
+        if "spans" in str(statement) and "traces" in str(statement):
+            statements += 1
+            if statements == 1 and arrives == "newer-traces":
+                await add_trace(200, root=False)
+                await add_trace(201, root=False)
+            elif statements == 1:
+                async with db() as session:
+                    await session.execute(
+                        update(models.Trace)
+                        .where(models.Trace.id == roots[0].trace_rowid)
+                        .values(start_time=base_time)
+                    )
+        return result
+
+    monkeypatch.setattr(AsyncSession, "execute", execute_then_commit)
+    response = await gql_client.execute(
+        query=_SPANS_BY_START_TIME_QUERY,
+        variables={
+            "projectId": str(GlobalID("Project", str(project_rowid))),
+            "first": 5,
+            "dir": "desc",
+            "filterCondition": "parent_id is None",
+        },
+    )
+    assert not response.errors
+    assert response.data is not None
+    assert statements == 1
+    assert [
+        int(GlobalID.from_id(edge["node"]["id"]).node_id)
+        for edge in response.data["node"]["spans"]["edges"]
+    ] == expected
+
+
+@pytest.mark.parametrize(
+    "moves_back, expected",
+    [
+        pytest.param("a0", ["a40", "b35", "b30", "c20", "d10", "a40"], id="a-trace-already-listed"),
+        pytest.param("b25", ["a40", "b35", "b30", "c20", "d10"], id="the-trace-of-the-cursor"),
+    ],
+)
+async def test_newest_root_spans_are_not_skipped_when_a_trace_start_moves_back_between_pages(
+    moves_back: str,
+    expected: list[str],
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    """A trace's start time moves back when an earlier span of it arrives. When that happens
+    between two pages, the later pages still list every span after the cursor. A trace the
+    list had passed is listed again where it now sorts. The trace the cursor points into goes
+    on with the spans the list had not reached, and does not repeat the others."""
+    base_time = datetime.now(timezone.utc).replace(microsecond=0) - timedelta(hours=1)
+    trace_ids = {name: token_bytes(16) for name in "abcd"}
+
+    def otlp_span(name: str, second: int, parent_span_id: bytes = b"") -> OtlpSpan:
+        start = int((base_time + timedelta(seconds=second)).timestamp() * 1e9)
+        return OtlpSpan(
+            trace_id=trace_ids[name[0]],
+            span_id=token_bytes(8),
+            parent_span_id=parent_span_id,
+            name=name,
+            start_time_unix_nano=start,
+            end_time_unix_nano=start + 1,
+            attributes=[
+                KeyValue(key="openinference.span.kind", value=AnyValue(string_value="CHAIN"))
+            ],
+        )
+
+    roots = {name: otlp_span(name, int(name[1:])) for name in ("a40", "b35", "b30", "c20", "d10")}
+    project_name = token_hex(8)
+    async with db() as session:
+        for root in roots.values():
+            await insert_span(session, decode_otlp_span(root), project_name)
+    async with db() as session:
+        project_rowid = await session.scalar(
+            select(models.Project.id).where(models.Project.name == project_name)
+        )
+        names = dict((await session.execute(select(models.Span.id, models.Span.name))).all())
+    assert project_rowid is not None
+
+    async def page(after: Optional[str]) -> tuple[list[str], Optional[str]]:
+        response = await gql_client.execute(
+            query=_SPANS_BY_START_TIME_QUERY,
+            variables={
+                "projectId": str(GlobalID("Project", str(project_rowid))),
+                "first": 2,
+                "after": after,
+                "dir": "desc",
+                "filterCondition": "parent_id is None",
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+        connection = response.data["node"]["spans"]
+        listed = [
+            names[int(GlobalID.from_id(edge["node"]["id"]).node_id)] for edge in connection["edges"]
+        ]
+        page_info = connection["pageInfo"]
+        return listed, page_info["endCursor"] if page_info["hasNextPage"] else None
+
+    listed, after = await page(None)
+    assert listed == ["a40", "b35"]
+    root = roots["a40" if moves_back == "a0" else "b30"]
+    earlier_child = otlp_span(moves_back, int(moves_back[1:]), parent_span_id=root.span_id)
+    async with db() as session:
+        await insert_span(session, decode_otlp_span(earlier_child), project_name)
+    while after and len(listed) < 20:
+        more, after = await page(after)
+        listed.extend(more)
+    assert listed == expected
+
+
+async def test_a_cursor_continues_a_list_of_spans_in_the_order_the_list_has(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    """A cursor that carries a span's position alone, as every cursor of a list in span order
+    does, continues a list of root spans in span order, and its pages hand out cursors of the
+    same kind. A cursor of a list in trace order continues a list in span order from the span
+    it points at, and a list of root spans in trace order whatever its time range."""
+    async with db() as session:
+        project_rowid, rowids = await _add_traces_whose_root_spans_do_not_start_them(session)
+        start_time = await session.scalar(
+            select(models.Span.start_time).where(models.Span.id == rowids["W10"])
+        )
+    by_span = ["W10", "K9", "L5", "S4", "T4", "P3", "O2", "W1"]
+    in_span_order = str(
+        Cursor(
+            rowid=rowids["W10"],
+            sort_column=CursorSortColumn(type=CursorSortColumnDataType.DATETIME, value=start_time),
+        )
+    )
+    for first in (1, 2, 30):
+        actual = await _page_through_spans_by_start_time(
+            gql_client,
+            project_rowid,
+            first,
+            after=in_span_order,
+            filterCondition="parent_id is None",
+        )
+        assert actual == [rowids[name] for name in by_span[1:]], first
+    response = await gql_client.execute(
+        query=_SPANS_BY_START_TIME_QUERY,
+        variables={
+            "projectId": str(GlobalID("Project", str(project_rowid))),
+            "first": 2,
+            "dir": "desc",
+            "filterCondition": "parent_id is None",
+        },
+    )
+    assert not response.errors
+    assert response.data is not None
+    connection = response.data["node"]["spans"]
+    assert [int(GlobalID.from_id(edge["node"]["id"]).node_id) for edge in connection["edges"]] == [
+        rowids["T4"],
+        rowids["S4"],
+    ]
+    actual = await _page_through_spans_by_start_time(
+        gql_client,
+        project_rowid,
+        2,
+        after=connection["pageInfo"]["endCursor"],
+        filterCondition="parent_id is None and span_kind == 'CHAIN'",
+    )
+    assert actual == [rowids[name] for name in ("T4", "P3", "O2", "W1")]
+    # A range shorter than two hours would begin a list in span order, but does not change
+    # the order of one already begun.
+    actual = await _page_through_spans_by_start_time(
+        gql_client,
+        project_rowid,
+        2,
+        after=connection["pageInfo"]["endCursor"],
+        filterCondition="parent_id is None",
+        timeRange={
+            "start": (_ROOT_SPANS_BASE_TIME + timedelta(hours=2.5)).isoformat(),
+            "end": (_ROOT_SPANS_BASE_TIME + timedelta(hours=4.25)).isoformat(),
+        },
+    )
+    assert actual == [rowids["P3"]]
 
 
 async def test_cost_summary_returns_expected_results(

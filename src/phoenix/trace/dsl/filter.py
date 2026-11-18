@@ -1500,6 +1500,16 @@ def root_span_scope(condition: str) -> typing.Optional[RootSpanScope]:
     return _scope_or_none(body)
 
 
+def is_root_span_predicate(condition: str) -> bool:
+    """Whether `condition` is one root predicate (`parent_id is None` or `parent_span is
+    None`) and nothing else."""
+    try:
+        body = ast.parse(condition.strip(), mode="eval").body
+    except (SyntaxError, ValueError, RecursionError):
+        return False
+    return _root_predicate_scope(body) is not None
+
+
 def _scope_or_none(body: ast.expr) -> typing.Optional[RootSpanScope]:
     """`_scope` with stack exhaustion folded into the unrecognized case."""
     try:
