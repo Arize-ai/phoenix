@@ -204,7 +204,7 @@ function ProjectEvaluatorQueueStatsContent({
           label="Added per hour"
           rates={projectQueue}
           formatRate={(rates) => formatAddedPerHour(rates.addedPerMinute)}
-          description="This project's evaluations added to the queue in the last hour."
+          description="The number of this project's evaluations added to the queue in the last hour."
         />
         <QueueRateStat
           label="Completed per hour"
@@ -212,7 +212,7 @@ function ProjectEvaluatorQueueStatsContent({
           formatRate={(rates) =>
             formatCompletedPerHour(rates.completedPerMinute)
           }
-          description="This project's evaluations that finished in the last hour, whether they produced an annotation or failed."
+          description="The number of this project's evaluations completed in the last hour. This number includes evaluations that failed."
         />
       </Flex>
       <OldestWaitStat oldestWaitingAt={projectQueue?.oldestWaitingAt ?? null} />
@@ -340,7 +340,7 @@ function ProjectQueuedStat({
   return (
     <StatItem
       label="In queue"
-      help="This project's evaluations queued or running, including ones waiting to retry. The bar shows its share of the server queue, which every project draws from."
+      help="The number of this project's evaluations that wait to start, are in progress, or wait to retry. The bar shows this project's part of the server queue. All projects use the same server queue."
     >
       <Flex direction="column" gap="size-100" width="100%">
         <HoverDetail

@@ -129,17 +129,18 @@ export function getNetPerHour({
  */
 export const QUEUE_STAT_HELP = {
   status:
-    "Healthy while every evaluation not yet started has waited 10 minutes or less. Degraded once one has waited longer.",
-  inQueue: `Evaluations queued or running, including ones waiting to retry. The bar splits them by span, trace and session. Counts stop at ${MAX_QUEUE_COUNT.toLocaleString("en-US")}.`,
-  addedPerHour: "Evaluations added to the queue in the last hour.",
+    "The queue is Healthy when no evaluation waits more than 10 minutes to start. If not, it is Degraded.",
+  inQueue: `The number of evaluations that wait to start, are in progress, or wait to retry. The bar shows how many are for spans, traces and sessions. The count stops at ${MAX_QUEUE_COUNT.toLocaleString("en-US")}.`,
+  addedPerHour:
+    "The number of evaluations added to the queue in the last hour.",
   completedPerHour:
-    "Evaluations that finished in the last hour, whether they produced an annotation or failed.",
+    "The number of evaluations completed in the last hour. This number includes evaluations that failed.",
   netPerHour:
-    "Added minus completed in the last hour. Positive means the queue is growing; zero or negative means it is keeping up.",
+    "The number of evaluations added in the last hour, minus the number completed. If the number is more than 0, the queue gets longer. If the number is 0 or less, the queue does not get longer.",
   oldestWait:
-    "How long the longest-waiting evaluation not yet started has been in the queue. Retries are not counted. Over 10 minutes marks the queue Degraded.",
+    "The longest time that an evaluation in the queue has waited to start. This time does not include evaluations that wait to retry. If this time is more than 10 minutes, the queue is Degraded.",
   evaluationCost:
-    "Model cost of the evaluations run in the selected time range, read from their traces. Evaluators with tracing off add no cost.",
+    "The model cost of the evaluations that ran in the selected time range. Phoenix gets this cost from the evaluator traces. If tracing is off for an evaluator, its cost is not included.",
 } as const;
 
 /** How long an evaluation may wait before its queue counts as Degraded. */
