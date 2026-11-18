@@ -73,6 +73,8 @@ const STALE_SCORE_WINDOW: EvaluatorScoreWindow = {
   ...SCORE_WINDOW,
   timeBinConfig: { ...SCORE_WINDOW.timeBinConfig, scale: "HOUR" },
 };
+/** A range the table does not show, so loading with it makes the table refetch. */
+const STALE_TIME_RANGE = { ...TIME_RANGE, start: "2026-06-30T00:00:00.000Z" };
 /** The label the route query gives the deferred fragment named `fragmentName`. */
 function getDeferLabel(fragmentName: string) {
   const text = getRequest(projectEvaluatorsLoaderGQL).params.text ?? "";
@@ -349,10 +351,12 @@ function makeFailedCostPart({ indexes }: { indexes: number[] }) {
 
 function TableOwner({
   queryRef,
+  initialTimeRange,
   initialScoreWindow,
   onTableCommit,
 }: {
   queryRef: PreloadedQuery<projectEvaluatorsLoaderQuery>;
+  initialTimeRange: typeof TIME_RANGE;
   initialScoreWindow: EvaluatorScoreWindow;
   onTableCommit: () => void;
 }) {
@@ -371,7 +375,7 @@ function TableOwner({
         filter=""
         timeRange={TIME_RANGE}
         initialFilter=""
-        initialTimeRange={TIME_RANGE}
+        initialTimeRange={initialTimeRange}
         initialScoreWindow={initialScoreWindow}
         initialIncludeMeanScore
         initialRequest={queryRef.source}
@@ -411,9 +415,11 @@ afterEach(() => {
 });
 
 async function renderTable({
+  initialTimeRange = TIME_RANGE,
   initialScoreWindow = SCORE_WINDOW,
   onTableCommit = () => {},
 }: {
+  initialTimeRange?: typeof TIME_RANGE;
   initialScoreWindow?: EvaluatorScoreWindow;
   onTableCommit?: () => void;
 } = {}) {
@@ -427,7 +433,7 @@ async function renderTable({
     {
       projectId: PROJECT_ID,
       filter: null,
-      timeRange: TIME_RANGE,
+      timeRange: initialTimeRange,
       scoreTimeRange: initialScoreWindow.timeRange,
       scorePreviousTimeRange: initialScoreWindow.previousTimeRange,
       scoreTimeBinConfig: initialScoreWindow.timeBinConfig,
@@ -451,6 +457,7 @@ async function renderTable({
                       <Suspense fallback="loading">
                         <TableOwner
                           queryRef={queryRef}
+                          initialTimeRange={initialTimeRange}
                           initialScoreWindow={ownerScoreWindow}
                           onTableCommit={onTableCommit}
                         />
@@ -743,6 +750,69 @@ describe("ProjectEvaluatorsTable cost columns", () => {
     expect(costs["evaluator-3"]).toEqual(["tracing off", "tracing off"]);
     expect(costs["evaluator-4"]).toEqual([
       expect.stringContaining("0.5"),
+      expect.stringContaining("0.25"),
+    ]);
+  });
+
+  it("keeps measured costs loading until a refetch's cost part arrives", async () => {
+    const load = createStreamingMultipartResponse();
+    const refetch = createStreamingMultipartResponse();
+    authFetchMock
+      .mockResolvedValueOnce(load.response)
+      .mockResolvedValueOnce(refetch.response);
+    await renderTable({ initialTimeRange: STALE_TIME_RANGE });
+    load.sendPart(
+      makeInitialPart({
+        root: "project",
+        indexes: [1, 2, 3, 4],
+        nodes: COST_ROWS,
+      })
+    );
+    load.sendPart(makeScoresPart({ indexes: [1, 2, 3, 4], meanScore: 0.75 }));
+    load.sendPart(
+      makeCostPart({
+        costs: {
+          1: null,
+          2: null,
+          3: null,
+          4: { totalCost: 0.5, tracedEvaluationCount: 2 },
+        },
+      })
+    );
+    load.end();
+    await settle();
+
+    refetch.sendPart(
+      makeInitialPart({ root: "node", indexes: [1, 2, 3, 4], nodes: COST_ROWS })
+    );
+    refetch.sendPart(
+      makeScoresPart({ indexes: [1, 2, 3, 4], meanScore: 0.75 })
+    );
+    await settle();
+
+    expect(authFetchMock).toHaveBeenCalledTimes(2);
+    expect(readCostCells()).toEqual({
+      "evaluator-1": ["--", "--"],
+      "evaluator-2": ["--", "--"],
+      "evaluator-3": ["tracing off", "tracing off"],
+      "evaluator-4": ["loading", "loading"],
+    });
+
+    refetch.sendPart(
+      makeCostPart({
+        costs: {
+          1: null,
+          2: null,
+          3: null,
+          4: { totalCost: 0.75, tracedEvaluationCount: 3 },
+        },
+      })
+    );
+    refetch.end();
+    await settle();
+
+    expect(readCostCells()["evaluator-4"]).toEqual([
+      expect.stringContaining("0.75"),
       expect.stringContaining("0.25"),
     ]);
   });

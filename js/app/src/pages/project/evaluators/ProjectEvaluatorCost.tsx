@@ -112,8 +112,14 @@ function MeasuredProjectEvaluatorCostCell({
     projectEvaluator
   );
   const deferredError = useEvaluatorDeferredError();
-  if (costSummary === undefined && deferredError != null) {
-    return <TextErrorBoundaryFallback error="Cost failed to load." />;
+  // A refetch reads the deferred cost as undefined, without suspending, until
+  // its part arrives; a cost that is not measured is null.
+  if (costSummary === undefined) {
+    return deferredError != null ? (
+      <TextErrorBoundaryFallback error="Cost failed to load." />
+    ) : (
+      <ProjectEvaluatorCostCellSkeleton />
+    );
   }
   if (measure === "average") {
     return (
