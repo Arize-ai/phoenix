@@ -3,10 +3,11 @@ from typing import Any, Literal
 
 import pandas as pd
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.dialects import postgresql, sqlite
 
 from phoenix.db import models
+from phoenix.server.api.dataloaders import CacheForDataLoaders, build_data_loaders
 from phoenix.server.api.dataloaders.annotation_summaries import (
     AnnotationSummaryCache,
     AnnotationSummaryDataLoader,
@@ -14,7 +15,9 @@ from phoenix.server.api.dataloaders.annotation_summaries import (
     _get_stmt,
 )
 from phoenix.server.api.input_types.TimeRange import TimeRange
-from phoenix.server.types import DbSessionFactory
+from phoenix.server.dml_event import DmlEvent, SpanAnnotationDeleteEvent
+from phoenix.server.dml_event_handler import DmlEventHandler
+from phoenix.server.types import DbSessionFactory, LastUpdatedAt
 
 from ...._helpers import _add_project, _add_project_session, _add_span, _add_trace
 
@@ -434,3 +437,54 @@ async def test_summary_cache_evicts_the_least_recently_read_window() -> None:
     assert cache.get(key(0)) is not None
     assert cache.get(key(1)) is None
     assert cache.get(key(8)) is not None
+
+
+async def test_annotation_delete_refreshes_the_cached_summary(db: DbSessionFactory) -> None:
+    """The summary cache that `build_data_loaders` wires in, which serves the evaluators
+    table's previous window and the project page's summaries, drops a deleted annotation
+    once its delete event arrives."""
+    start = datetime.fromisoformat("2026-03-01T00:00:00+00:00")
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project, start_time=start)
+        written = []
+        for score in (1.0, 0.0):
+            span = await _add_span(session, trace, start_time=start + timedelta(minutes=1))
+            annotation = models.SpanAnnotation(
+                span_rowid=span.id,
+                name="quality",
+                label=None,
+                score=score,
+                explanation=None,
+                metadata_={},
+                annotator_kind="LLM",
+                source="API",
+                identifier="",
+            )
+            session.add(annotation)
+            written.append(annotation)
+        await session.flush()
+    key = ("span", project.id, TimeRange(start=start, end=None), None, None, "quality")
+    cache = CacheForDataLoaders()
+    handler = DmlEventHandler(db=db, last_updated_at=LastUpdatedAt(), cache_for_dataloaders=cache)
+
+    async def mean_score() -> Any:
+        summary = await build_data_loaders(db, cache).annotation_summaries.load(key)  # type: ignore[arg-type]
+        assert summary is not None
+        return summary.mean_score()  # type: ignore[call-arg]
+
+    async def handle(event: DmlEvent) -> None:
+        handler.put(event)
+        for batched in handler._all_handlers:
+            if not batched._batch.empty:
+                await batched()
+                batched._batch.clear()
+
+    assert await mean_score() == pytest.approx(0.5)
+    async with db() as session:
+        await session.execute(
+            delete(models.SpanAnnotation).where(models.SpanAnnotation.id == written[1].id)
+        )
+    assert await mean_score() == pytest.approx(0.5)
+    await handle(SpanAnnotationDeleteEvent((written[1].id,)))
+    assert await mean_score() == pytest.approx(1.0)

@@ -254,9 +254,10 @@ class _ProjectSessionAnnotationDmlEventHandler(
 class _AnnotationDeleteEventHandler(_DmlEventHandler[DmlEvent]):
     async def __call__(self) -> None:
         # A delete event arrives after its rows are gone, so the annotation handlers can't
-        # look up their project and name. Clear the whole series cache instead; deletes are
-        # rare, and the series would otherwise show deleted scores until the TTL expires.
+        # look up their project and name. Clear the annotation caches instead; deletes
+        # are rare, and they would otherwise show deleted scores until the TTL expires.
         if cache := self._cache_for_dataloaders:
+            cache.annotation_summary.clear()
             cache.annotation_mean_score_time_series.clear()
             cache.annotation_score_metrics.clear()
 
