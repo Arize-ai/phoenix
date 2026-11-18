@@ -140,6 +140,7 @@ class _SpanDeleteEventHandler(_SpanDmlEventHandler):
         # Then invalidate annotation-specific caches
         cache.annotation_summary.invalidate_project(project_id)
         cache.annotation_mean_score_time_series.invalidate_project(project_id)
+        cache.annotation_score_metrics.invalidate_project(project_id)
         cache.document_evaluation_summary.invalidate_project(project_id)
 
 
@@ -202,6 +203,7 @@ class _SpanAnnotationDmlEventHandler(_AnnotationDmlEventHandler[SpanAnnotationDm
     def _clear(cache: CacheForDataLoaders, project_id: int, name: str) -> None:
         cache.annotation_summary.invalidate((project_id, name, "span"))
         cache.annotation_mean_score_time_series.invalidate((project_id, name, "span"))
+        cache.annotation_score_metrics.invalidate((project_id, name, "span"))
 
 
 class _TraceAnnotationDmlEventHandler(_AnnotationDmlEventHandler[TraceAnnotationDmlEvent]):
@@ -215,6 +217,7 @@ class _TraceAnnotationDmlEventHandler(_AnnotationDmlEventHandler[TraceAnnotation
     def _clear(cache: CacheForDataLoaders, project_id: int, name: str) -> None:
         cache.annotation_summary.invalidate((project_id, name, "trace"))
         cache.annotation_mean_score_time_series.invalidate((project_id, name, "trace"))
+        cache.annotation_score_metrics.invalidate((project_id, name, "trace"))
 
 
 class _DocumentAnnotationDmlEventHandler(_AnnotationDmlEventHandler[DocumentAnnotationDmlEvent]):
@@ -245,6 +248,7 @@ class _ProjectSessionAnnotationDmlEventHandler(
     def _clear(cache: CacheForDataLoaders, project_id: int, name: str) -> None:
         cache.annotation_summary.invalidate((project_id, name, "session"))
         cache.annotation_mean_score_time_series.invalidate((project_id, name, "session"))
+        cache.annotation_score_metrics.invalidate((project_id, name, "session"))
 
 
 class _AnnotationDeleteEventHandler(_DmlEventHandler[DmlEvent]):
@@ -254,6 +258,7 @@ class _AnnotationDeleteEventHandler(_DmlEventHandler[DmlEvent]):
         # rare, and the series would otherwise show deleted scores until the TTL expires.
         if cache := self._cache_for_dataloaders:
             cache.annotation_mean_score_time_series.clear()
+            cache.annotation_score_metrics.clear()
 
 
 class DmlEventHandler:

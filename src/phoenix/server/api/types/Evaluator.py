@@ -1720,19 +1720,8 @@ class ProjectEvaluator(Node):
         project_rowid = record.project_id
 
         async def load_metrics(annotation_name: str) -> EvaluatorAnnotationScoreMetrics:
-            summary, bins_by_bucket = await asyncio.gather(
-                loaders.annotation_summaries.load(
-                    (kind, project_rowid, time_range, None, None, annotation_name)
-                ),
-                loaders.annotation_mean_score_time_series.load(
-                    (
-                        kind,
-                        project_rowid,
-                        (window_start, window_end),
-                        time_bins,
-                        annotation_name,
-                    )
-                ),
+            summary, bins_by_bucket = await loaders.annotation_score_metrics.load(
+                (kind, project_rowid, (window_start, window_end), time_bins, annotation_name)
             )
             series = [
                 EvaluatorScoreSeriesBin(
