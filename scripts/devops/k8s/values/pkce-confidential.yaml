@@ -1,0 +1,20 @@
+# OIDC PKCE Confidential Client (with client secret)
+auth:
+  oauth2:
+    enabled: true
+    providers:
+      dev:
+        client_id: "phoenix-oidc-client-id"
+        client_secret: "phoenix-oidc-client-secret-abc-123"
+        oidc_config_url: "http://localhost:18273/oidc/.well-known/openid-configuration"
+        display_name: "OIDC"
+        allow_sign_up: false
+        auto_login: true
+        use_pkce: true
+        token_endpoint_auth_method: "client_secret_basic"
+        scopes: "groups"
+        groups_attribute_path: "groups"
+        allowed_groups:
+          - "phoenix-admins"
+          - "phoenix-members"
+          - "phoenix-viewers"

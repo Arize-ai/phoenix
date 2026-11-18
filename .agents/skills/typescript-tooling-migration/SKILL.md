@@ -304,8 +304,7 @@ When upgrading shared tooling, upgrade `js/app/` and the `js/` workspace root to
 ### Out of Scope Directories
 
 These directories have their own tooling and should NOT be included in migrations:
-- `scripts/docker/devops/oidc-server/` - Separate OIDC test server
-- `scripts/mock-llm-server/` - Separate mock server  
+- `scripts/` - Dev stack and helper tooling, each with its own dependencies
 - `internal_docs/` - Internal documentation utilities
 
 ## Troubleshooting

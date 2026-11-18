@@ -1,0 +1,161 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dev-lgtm-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lgtm
+  labels:
+    app: lgtm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lgtm
+  template:
+    metadata:
+      labels:
+        app: lgtm
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: lgtm
+          image: grafana/otel-lgtm:0.40.0
+          ports:
+            - name: http
+              containerPort: 3000
+            - name: otlp-grpc
+              containerPort: 4317
+            - name: otlp-http
+              containerPort: 4318
+          env:
+            - name: GF_SERVER_ROOT_URL
+              value: "http://localhost:18273/lgtm"
+            - name: GF_SERVER_SERVE_FROM_SUB_PATH
+              value: "true"
+            - name: OTELCOL_EXTRA_ARGS
+              value: "--config=file:/otel-lgtm/phoenix/otelcol-phoenix.yaml"
+            - name: PHOENIX_METRICS_TARGET
+              value: "phoenix:9090"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: lgtm-config
+              mountPath: /otel-lgtm/phoenix/otelcol-phoenix.yaml
+              subPath: otelcol-phoenix.yaml
+              readOnly: true
+            - name: lgtm-dashboards
+              mountPath: /otel-lgtm/phoenix/dashboards
+              readOnly: true
+            - name: lgtm-config
+              mountPath: /otel-lgtm/grafana/conf/provisioning/dashboards/phoenix.yaml
+              subPath: phoenix.yaml
+              readOnly: true
+            - name: lgtm-alerting
+              mountPath: /otel-lgtm/grafana/conf/provisioning/alerting
+              readOnly: true
+          resources:
+            limits:
+              memory: "2Gi"
+              cpu: "2000m"
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: dev-lgtm-data
+        - name: lgtm-config
+          configMap:
+            name: lgtm-config
+        - name: lgtm-dashboards
+          configMap:
+            name: lgtm-dashboards
+        - name: lgtm-alerting
+          configMap:
+            name: lgtm-alerting
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lgtm
+  labels:
+    app: lgtm
+spec:
+  selector:
+    app: lgtm
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana-mcp
+  labels:
+    app: grafana-mcp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana-mcp
+  template:
+    metadata:
+      labels:
+        app: grafana-mcp
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: grafana-mcp
+          image: grafana/mcp-grafana:2.3.0
+          command: ["/app/mcp-grafana"]
+          args:
+            - "--transport"
+            - "streamable-http"
+            - "--address"
+            - "0.0.0.0:8000"
+            - "--allowed-hosts=*"
+            - "--disable-write"
+            - "--enabled-tools"
+            - "datasource,loki,tempo,prometheus"
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: GRAFANA_URL
+              value: "http://lgtm:3000/lgtm"
+            - name: GRAFANA_USAGE_STATS
+              value: "disabled"
+          resources:
+            limits:
+              memory: "256Mi"
+              cpu: "250m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-mcp
+  labels:
+    app: grafana-mcp
+spec:
+  selector:
+    app: grafana-mcp
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
