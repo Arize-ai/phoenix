@@ -41,4 +41,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RAILWAY_TOKEN: ${{ secrets.FACTORY_RAILWAY_TOKEN }}
-        run: uv run --script factory/preview/deploy.py sweep --image "ghcr.io/$(echo "$GH_REPO" | tr '[:upper:]' '[:lower:]' | cut -d/ -f1)/phoenix-preview"
+        run: uv run --script factory/preview/deploy.py sweep --image "ghcr.io/$(echo "$GH_REPO" | tr '[:upper:]' '[:lower:]' | cut -d/ -f1)/phoenix"
