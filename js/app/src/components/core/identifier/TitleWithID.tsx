@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { Heading } from "@phoenix/components/core/content";
 import { Flex } from "@phoenix/components/core/layout";
 
-import { IDBadge } from "./IDBadge";
+import { Identifier } from "./Identifier";
 
 interface TitleWithIDProps {
   /**
@@ -11,16 +11,17 @@ interface TitleWithIDProps {
    */
   title: ReactNode;
   /**
-   * The ID value to display in a badge alongside the title.
+   * The ID of the titled thing, shown as a copyable `Identifier` beside the
+   * title.
    */
   id: string;
 }
 
 export const TitleWithID = ({ title, id }: TitleWithIDProps) => {
   return (
-    <Flex direction="row" gap="size-100" alignItems="center">
+    <Flex direction="row" gap="size-100" alignItems="center" minWidth={0}>
       <Heading>{title}</Heading>
-      <IDBadge size="S" id={id} />
+      <Identifier value={id} copyNoun="ID" />
     </Flex>
   );
 };

@@ -25,7 +25,7 @@ import {
   BaselineExperimentBadge,
   useExperimentColors,
 } from "@phoenix/components/experiment";
-import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
+import { SequenceNumber } from "@phoenix/components/experiment/SequenceNumber";
 import type { ExperimentComparePageQueriesMultiSelectorQuery as ExperimentComparePageQueriesMultiSelectorQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesMultiSelectorQuery.graphql";
 import { ExperimentComparePageQueriesMultiSelectorQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
 
@@ -186,7 +186,7 @@ export function ExperimentMultiSelector(props: {
                       >
                         <Flex direction="column" gap="size-50">
                           <Flex direction="row" gap="size-100">
-                            <SequenceNumberToken
+                            <SequenceNumber
                               sequenceNumber={experiment.sequenceNumber}
                             />
                             <Text
@@ -246,7 +246,7 @@ export function ExperimentMultiSelector(props: {
                         >
                           <Flex direction="column" gap="size-50">
                             <Flex direction="row" gap="size-100">
-                              <SequenceNumberToken
+                              <SequenceNumber
                                 sequenceNumber={experiment.sequenceNumber}
                               />
                               <Text

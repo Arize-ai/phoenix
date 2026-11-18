@@ -39,7 +39,7 @@ import {
   BaselineExperimentBadge,
   ExperimentStatus,
   ExperimentTokenCount,
-  SequenceNumberToken,
+  SequenceNumber,
 } from "@phoenix/components/experiment";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
 import {
@@ -531,7 +531,7 @@ export function ExperimentsTable({
         const isBaseline = row.original.isBaseline;
         return (
           <Flex direction="row" gap="size-100" alignItems="center">
-            <SequenceNumberToken sequenceNumber={sequenceNumber} />
+            <SequenceNumber sequenceNumber={sequenceNumber} />
             <Link
               to={`/datasets/${data.id}/compare?experimentId=${experimentId}`}
             >

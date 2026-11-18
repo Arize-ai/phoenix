@@ -57,6 +57,6 @@ export * from "./datetime/DateField";
 export * from "./datetime/RangeCalendar";
 export * from "./datetime/TimeField";
 export * from "./timer";
-export * from "./id";
+export * from "./identifier";
 export * from "./markerTrigger";
 export * from "./statusIndicator";

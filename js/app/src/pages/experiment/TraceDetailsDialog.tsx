@@ -4,7 +4,7 @@ import {
   Dialog,
   DialogCloseButton,
   Flex,
-  IDBadge,
+  Identifier,
   LinkButton,
 } from "@phoenix/components";
 import {
@@ -30,7 +30,7 @@ export function TraceDetailsDialog({
         <DialogHeader>
           <Flex direction="row" gap="size-100" alignItems="center" minWidth={0}>
             <DialogTitle>{title}</DialogTitle>
-            <IDBadge id={traceId} tooltipText="Copy Trace ID" />
+            <Identifier value={traceId} copyNoun="trace ID" />
           </Flex>
           <DialogTitleExtra>
             <LinkButton

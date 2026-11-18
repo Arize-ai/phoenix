@@ -4,6 +4,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { Button, Flex, Label, Text } from "@phoenix/components";
 import { SelectChevronUpDownIcon } from "@phoenix/components/core/icon";
+import { Identifier } from "@phoenix/components/core/identifier";
 import { ListBox } from "@phoenix/components/core/listbox";
 import { Popover } from "@phoenix/components/core/overlay";
 import {
@@ -13,7 +14,6 @@ import {
 } from "@phoenix/components/core/select";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import type { EvaluatorExampleSelectQuery } from "@phoenix/components/evaluators/__generated__/EvaluatorExampleSelectQuery.graphql";
-import { IdTruncate } from "@phoenix/pages/playground/PromptMenu";
 
 export type EvaluatorExampleSelectProps = {
   datasetId: string | null;
@@ -126,7 +126,7 @@ const EvaluatorExampleSelectContent = ({
       {(item) => (
         <SelectItem key={item.id} id={item.id} textValue={item.snippet}>
           <Flex gap="size-100">
-            <IdTruncate id={item.id} />
+            <Identifier value={item.id} maxWidth="12ch" />
             <Text color="text-500" size="S" fontFamily="mono">
               <Truncate maxWidth="100%">{item.snippet}</Truncate>
             </Text>

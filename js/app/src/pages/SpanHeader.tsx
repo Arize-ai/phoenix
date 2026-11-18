@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { Flex, IDBadge, Text } from "@phoenix/components";
+import { Flex, Identifier, Text } from "@phoenix/components";
 import { dotSeparatedRowCSS } from "@phoenix/components/core/styles";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanMetrics } from "@phoenix/components/trace/SpanMetrics";
@@ -102,13 +102,9 @@ export function SpanHeader(props: SpanHeaderProps) {
         ) : null}
       </div>
       <div className="span-header__meta" css={metaRowCSS}>
-        <span>
-          <IDBadge
-            id={span.spanId}
-            variant="quiet"
-            tooltipText="Copy Span ID"
-          />
-        </span>
+        <Text size="S" color="text-500">
+          <Identifier value={span.spanId} copyNoun="span ID" />
+        </Text>
         <span>
           <Text size="S" color="text-500" fontFamily="mono">
             {fullTimeFormatter(startTime)}

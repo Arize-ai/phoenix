@@ -6,7 +6,7 @@ import {
   Icon,
   IconButton,
   Icons,
-  IDBadge,
+  Identifier,
   Text,
 } from "@phoenix/components";
 import {
@@ -77,11 +77,9 @@ export function ExperimentInputCell({
       >
         <Flex direction="row" gap="size-100" alignItems="center">
           <Text color="text-500">example</Text>
-          <IDBadge
-            id={externalId ?? exampleId}
-            variant="quiet"
-            tooltipText="Copy example ID"
-          />
+          <Text size="S" color="text-500">
+            <Identifier value={externalId ?? exampleId} copyNoun="example ID" />
+          </Text>
         </Flex>
       </CellTop>
       <ExpandableContent height={height}>

@@ -1,2 +1,2 @@
-export * from "./IDBadge";
+export * from "./Identifier";
 export * from "./TitleWithID";

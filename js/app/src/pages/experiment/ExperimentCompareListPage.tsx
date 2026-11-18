@@ -36,7 +36,7 @@ import {
   Icon,
   IconButton,
   Icons,
-  IDBadge,
+  Identifier,
   ProgressBar,
   Text,
   View,
@@ -552,11 +552,12 @@ export function ExperimentCompareListPage({
       cell: ({ row }) => {
         return (
           <Flex direction="row" gap="size-100" alignItems="center">
-            <IDBadge
-              id={row.original.externalId ?? row.original.example}
-              variant="quiet"
-              tooltipText="Copy example ID"
-            />
+            <Text size="S" color="text-500">
+              <Identifier
+                value={row.original.externalId ?? row.original.example}
+                copyNoun="example ID"
+              />
+            </Text>
             <TooltipTrigger>
               <IconButton
                 size="S"
