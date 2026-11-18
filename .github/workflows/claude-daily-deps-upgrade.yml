@@ -43,20 +43,65 @@ jobs:
 
       - name: Create branch
         id: branch
+        env:
+          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
         run: |
           DATE=$(date -u +%Y-%m-%d)
           BRANCH="claude/daily-deps-upgrade"
-          git checkout -b "$BRANCH"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # The push later leases against the branch tip seen here (empty: the
+          # branch must not exist), so a finish-lane push made in between is
+          # never overwritten.
+          REMOTE_SHA=$(git rev-parse --verify --quiet "refs/remotes/origin/$BRANCH" || true)
+          PR_LABELS=$(gh pr list --head "$BRANCH" --state open --json labels \
+            --jq '.[0] | if . == null then "none" else [.labels[].name] | join(",") end')
+          skip=false
+          carried=false
+          if [ "$PR_LABELS" = "none" ]; then
+            git checkout -b "$BRANCH"
+          elif [[ ",$PR_LABELS," == *",factory-finish,"* ]]; then
+            # The finish lane removes its label when its run ends; pushing now
+            # would race the session's own commits.
+            echo "The finish lane is still working on the open PR; skipping today."
+            skip=true
+          else
+            # Build on the open PR so fixes the finish lane already pushed
+            # survive the days the PR waits for review.
+            git checkout -b "$BRANCH" "$REMOTE_SHA"
+            if git merge --no-edit origin/main; then
+              carried=true
+            else
+              conflicted=$(git diff --name-only --diff-filter=U)
+              if ! grep -qvxE 'uv\.lock|js/pnpm-lock\.yaml' <<< "$conflicted"; then
+                # The upgrade below re-resolves both lockfiles, so main's copy
+                # loses nothing.
+                git checkout --theirs -- $conflicted
+                git add -- $conflicted
+                git commit --no-edit
+                carried=true
+              else
+                echo "::warning::The open PR conflicts with main outside the lockfiles; rebuilding it from main, which drops its earlier fixes."
+                printf '%s\n' "$conflicted"
+                git merge --abort
+                git checkout -B "$BRANCH" origin/main
+              fi
+            fi
+          fi
           {
             echo "BRANCH=$BRANCH"
             echo "DATE=$DATE"
+            echo "REMOTE_SHA=$REMOTE_SHA"
+            echo "CARRIED=$carried"
           } >> "$GITHUB_ENV"
           {
             echo "branch=$BRANCH"
             echo "date=$DATE"
+            echo "skip=$skip"
           } >> "$GITHUB_OUTPUT"
 
       - name: Bump exact Python pins
+        if: steps.branch.outputs.skip != 'true'
         # `uv lock --upgrade` won't cross `==` pins; `uv pip compile` inherits
         # `exclude-newer` from `[tool.uv]` and skips yanked/pre-releases.
         run: |
@@ -70,11 +115,13 @@ jobs:
           git diff --stat -- pyproject.toml
 
       - name: Upgrade Python (uv)
+        if: steps.branch.outputs.skip != 'true'
         run: |
           uv lock --upgrade
           uv sync
 
       - name: Upgrade JavaScript (pnpm)
+        if: steps.branch.outputs.skip != 'true'
         working-directory: ./js
         run: |
           pnpm update --recursive
@@ -82,8 +129,11 @@ jobs:
 
       - name: Detect changes
         id: changes
+        if: steps.branch.outputs.skip != 'true'
         run: |
-          if git diff --quiet; then
+          # A carried PR may need only the merge from main, e.g. to clear a
+          # lockfile conflict.
+          if git diff --quiet && { [ "$CARRIED" != true ] || [ "$(git rev-parse HEAD)" = "$REMOTE_SHA" ]; }; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "Nothing to upgrade — exiting."
           else
@@ -96,8 +146,6 @@ jobs:
           GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
         run: |
           gh auth setup-git
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           blocked_files=$({ git diff --name-only origin/main...HEAD; git diff --name-only; } | sort -u | awk '
             /^\.github\// ||
             /^\.cursor\// ||
@@ -121,8 +169,8 @@ jobs:
             done <<< "$blocked_files"
           fi
           git add -A
-          git commit -m "chore(deps): daily dependency upgrade ${DATE}"
-          git push --force -u origin "${BRANCH}"
+          git diff --cached --quiet || git commit -m "chore(deps): daily dependency upgrade ${DATE}"
+          git push --force-with-lease="refs/heads/${BRANCH}:${REMOTE_SHA}" -u origin "HEAD:refs/heads/${BRANCH}"
           TITLE="chore(deps): daily dependency upgrade ${DATE}"
           BODY="Automated daily dependency upgrade.
 
