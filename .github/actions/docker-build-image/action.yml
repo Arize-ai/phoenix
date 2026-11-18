@@ -17,9 +17,6 @@ inputs:
   startup-and-data-dir:
     description: Preview Dockerfile, startup scripts, and sample-data script directory.
     default: ""
-  enable-cache:
-    description: Allow the shared WASM cache; disabled for PR builds.
-    default: "true"
   revision:
     description: Source commit recorded in image labels.
     default: ""
@@ -78,7 +75,6 @@ runs:
     # layer is in the local builder, which is what the variant builds below
     # consume — they need no cache-from of their own.
     - name: Warm the WASM layer cache
-      if: inputs.enable-cache == 'true'
       uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
       with:
         platforms: ${{ inputs.platform }}

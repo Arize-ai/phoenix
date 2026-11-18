@@ -1,7 +1,7 @@
 name: Factory Preview
 
 # This job holds write tokens: PR code must run only inside the Docker build.
-# Keep scripts, shared actions and the preview Dockerfile on the base branch; do not restore caches.
+# Keep scripts, shared actions and the preview Dockerfile on the base branch.
 on:
   # zizmor: ignore[dangerous-triggers] See above: the PR's checkout is a build context only.
   pull_request_target:
@@ -57,6 +57,7 @@ jobs:
 
   deploy:
     name: Build and deploy
+    cache-mode: write
     needs: authorize
     if: needs.authorize.outputs.allowed == 'true'
     concurrency:
@@ -114,7 +115,6 @@ jobs:
           platform: linux/amd64
           source-dir: ${{ github.workspace }}/head
           startup-and-data-dir: ${{ runner.temp }}/preview-startup
-          enable-cache: "false"
           dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
           dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
