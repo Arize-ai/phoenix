@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
-import type { ReactNode } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { Suspense, useEffect, useRef } from "react";
-import { DialogTrigger } from "react-aria-components";
+import { DialogTrigger, FormContext } from "react-aria-components";
 
 import { IconButton } from "@phoenix/components/core/button";
 import { Text } from "@phoenix/components/core/content";
@@ -47,6 +47,14 @@ const editableTagGroupCSS = css`
   gap: var(--global-dimension-size-50);
   min-width: 0;
 `;
+
+const pickerContentCSS = css`
+  display: contents;
+`;
+
+function stopSubmitPropagation(event: FormEvent) {
+  event.stopPropagation();
+}
 
 /**
  * A set of tags a person edits in place, in a form or a page header. The set
@@ -112,7 +120,16 @@ export function EditableTagGroup({
           >
             <PopoverArrow />
             <Dialog aria-label={label}>
-              <Suspense fallback={<Loading />}>{picker}</Suspense>
+              {/* A group placed inside a form must never submit it from the
+                  picker's own forms (such as its create form). A Form passes
+                  its props, onSubmit included, to any Form beneath it through
+                  FormContext, and React bubbles a submit up the component
+                  tree even out of a portal, so both stop here. */}
+              <FormContext.Provider value={null}>
+                <div css={pickerContentCSS} onSubmit={stopSubmitPropagation}>
+                  <Suspense fallback={<Loading />}>{picker}</Suspense>
+                </div>
+              </FormContext.Provider>
             </Dialog>
           </Popover>
         </DialogTrigger>

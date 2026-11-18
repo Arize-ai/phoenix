@@ -1,4 +1,5 @@
 import { act, useState } from "react";
+import { Form } from "react-aria-components";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router";
 import { userEvent } from "storybook/test";
@@ -201,5 +202,34 @@ describe("EditableTagGroup", () => {
     expect(document.querySelectorAll('[role="menuitemcheckbox"]')).toHaveLength(
       4
     );
+  });
+
+  it("does not submit a surrounding form when a form inside the picker submits", async () => {
+    const onOuterSubmit = vi.fn((event: React.FormEvent) =>
+      event.preventDefault()
+    );
+    const onInnerSubmit = vi.fn((event: React.FormEvent) =>
+      event.preventDefault()
+    );
+    render(
+      <Form onSubmit={onOuterSubmit}>
+        <EditableTagGroup
+          aria-label="Dataset labels"
+          items={[]}
+          onRemove={vi.fn()}
+          picker={
+            <Form onSubmit={onInnerSubmit}>
+              <button type="submit">Create Label</button>
+            </Form>
+          }
+        />
+      </Form>
+    );
+    await act(async () => userEvent.click(getByRole("button", "Add label")));
+    await act(async () =>
+      userEvent.click(getByRole("button", "Create Label"))
+    );
+    expect(onInnerSubmit).toHaveBeenCalledTimes(1);
+    expect(onOuterSubmit).not.toHaveBeenCalled();
   });
 });
