@@ -40,7 +40,7 @@ listed item appears, `incomplete` when something is knowingly missing.
   component that styles them stays `incomplete` rather than faking the state
   with story-only CSS or props.
 - A state the component keeps in its own `useState` with no prop to set it —
-  `ID Badge`'s copied tooltip and checkmark after a press — is described in
+  `Identifier`'s copied tooltip and checkmark after a press — is described in
   the meta docblock, and the entry stays `incomplete`. Do not give it a lone
   `play` story: as a file's only sidebar story it must be `!dev`, and on the
   Docs page, where `play` does not run, it duplicates `Default`.

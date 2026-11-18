@@ -6,6 +6,19 @@ import { SubjectOverview } from "../../utils/SubjectOverview";
 
 # Badges
 
-Compact labels for counts, IDs, tags, statuses, and keyboard shortcuts.
+The badge family: small markers that say something about the thing they sit
+on. Pick one by the role the element plays, not by how it looks.
+
+A `Status Indicator` shows a thing's lifecycle or health, a `Badge` its
+kind, and a `Counter` how many of something it holds. These are never
+focusable; to open detail from one or explain it, wrap it in a
+`MarkerTrigger`, and to filter by one, give the table cell, row or a menu
+the affordance. A `Swatched Name` is a name led by a color swatch that
+matches it to its other appearances on the page. An `Identifier` is a
+thing's ID in monospace, optionally copyable. A `Keyboard Token` shows a
+keyboard shortcut.
+
+`Token` still carries attached labels (dataset and prompt labels, splits,
+version tags) until they move to `Tag`.
 
 <SubjectOverview title="Design System/Badges" />
