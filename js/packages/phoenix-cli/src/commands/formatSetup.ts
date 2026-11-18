@@ -193,3 +193,53 @@ export function formatToolingOutput({
     [`px CLI: ${tooling.cli}`, `skills: ${tooling.skills}`].join("\n")
   );
 }
+
+// ---------------------------------------------------------------------------
+// `px setup doctor`
+// ---------------------------------------------------------------------------
+
+export type DoctorCheckName = "config" | "connectivity" | "version" | "auth";
+
+export type DoctorCheckStatus = "pass" | "fail" | "skip";
+
+export interface DoctorCheck {
+  name: DoctorCheckName;
+  status: DoctorCheckStatus;
+  /** What the check found, e.g. the server version or the signed-in user. */
+  message: string;
+  /** How to resolve a failed check. Absent when there is nothing to fix. */
+  fix?: string;
+}
+
+/** The JSON envelope, in the order the checks ran. */
+export interface DoctorOutput {
+  checks: DoctorCheck[];
+}
+
+const DOCTOR_STATUS_SYMBOLS: Record<DoctorCheckStatus, string> = {
+  pass: "✓",
+  fail: "✗",
+  skip: "-",
+};
+
+const DOCTOR_NAME_WIDTH = "connectivity".length;
+
+export interface FormatDoctorOutputOptions {
+  output: DoctorOutput;
+  format?: OutputFormat;
+}
+
+export function formatDoctorOutput({
+  output,
+  format = "pretty",
+}: FormatDoctorOutputOptions): string {
+  return (
+    renderJson(output, format) ??
+    output.checks
+      .flatMap((check) => [
+        `${DOCTOR_STATUS_SYMBOLS[check.status]} ${check.name.padEnd(DOCTOR_NAME_WIDTH)}  ${check.message}`,
+        ...(check.fix ? [`    fix: ${check.fix}`] : []),
+      ])
+      .join("\n")
+  );
+}

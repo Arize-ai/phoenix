@@ -172,6 +172,22 @@ value"` (repeatable) for an API-key bearer fallback — for Codex a
 `Authorization: Bearer ${VAR}` header becomes `bearer_token_env_var`. `--format
 raw` prints `{"endpoint","url","serverName","agent","scope","auth","file?"}`.
 
+### `px setup doctor` — diagnose a broken connection
+
+Run this first when `px` commands fail and the cause is unclear. It checks, in
+order, config (settings file, `--profile`, endpoint URL), connectivity, server
+version, and auth; checks after a failed config or connectivity check are
+skipped.
+
+```bash
+px setup doctor --format raw
+px setup doctor --profile staging --format raw
+```
+
+`--format raw` prints `{"checks":[{"name","status","message","fix?"}]}` with
+`status` of `pass`, `fail`, or `skip`. The exit code comes from the first failed
+check: `3` config, `5` connectivity, `1` version, `4` auth.
+
 ## Auth
 
 ```bash
@@ -211,7 +227,7 @@ px profile edit prod                         # open profile JSON in $EDITOR (val
 px profile delete prod --yes                 # delete a profile (--yes skips confirmation)
 ```
 
-Only `px auth login`, `px auth logout`, `px auth status` and `px setup mcp` take `--profile <name>`. Other commands use the active profile, so to run one against another profile, switch to it with `px profile use` first:
+Only `px auth login`, `px auth logout`, `px auth status`, `px setup mcp` and `px setup doctor` take `--profile <name>`. Other commands use the active profile, so to run one against another profile, switch to it with `px profile use` first:
 
 ```bash
 px auth status --profile prod                # check a named profile without switching

@@ -80,7 +80,7 @@ px profile edit prod           # open in $EDITOR, validates on save
 px profile delete prod         # remove a profile (--yes to skip prompt)
 ```
 
-Pass `--profile <name>` to `auth login`, `auth logout`, or `auth status` to scope a single invocation to a profile other than the active one.
+Pass `--profile <name>` to `auth login`, `auth logout`, `auth status`, or `setup doctor` to scope a single invocation to a profile other than the active one.
 
 ### Editor autocompletion via `$schema`
 
@@ -235,6 +235,33 @@ with `--header` (repeatable):
 px setup mcp --agent codex --no-input --format raw
 px setup mcp --agent claude --header 'Authorization: Bearer ${PHOENIX_API_KEY}'
 ```
+
+#### `px setup doctor`
+
+Diagnose why `px` cannot work with your Phoenix server. Four checks run in
+order, each reporting pass, fail, or skip with a fix hint: **config** (the
+settings file parses, the `--profile` exists, the endpoint is a valid URL),
+**connectivity** (the server answers as Phoenix), **version** (the server
+reports its version), and **auth** (credentials are accepted, or the server
+allows anonymous access). Once config or connectivity fails, the later checks
+are skipped, so the first failure is the one to fix.
+
+```bash
+px setup doctor
+px setup doctor --profile staging
+px setup doctor --format raw        # {"checks":[{"name","status","message","fix"?}]}
+```
+
+```
+✓ config        Using http://localhost:6006
+✗ connectivity  Could not reach http://localhost:6006: TypeError: fetch failed
+    fix: Start the Phoenix server, or point px at it with --endpoint or PHOENIX_ENDPOINT
+- version       Skipped: connectivity check failed
+- auth          Skipped: connectivity check failed
+```
+
+The exit code comes from the first failed check: `3` config, `5` connectivity,
+`1` version, `4` auth, and `0` when nothing failed.
 
 ---
 

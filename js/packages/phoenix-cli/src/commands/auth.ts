@@ -127,7 +127,7 @@ async function fetchViewer(config: PhoenixConfig): Promise<FetchViewerResult> {
  * credentials and accept the result only when the server explicitly reports
  * anonymous access.
  */
-async function fetchViewerForStatus(
+export async function fetchViewerForStatus(
   config: PhoenixConfig
 ): Promise<FetchViewerResult> {
   const viewerResult = await fetchViewer(config);
