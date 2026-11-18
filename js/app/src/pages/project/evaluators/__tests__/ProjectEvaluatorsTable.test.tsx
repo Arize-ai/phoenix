@@ -1,4 +1,4 @@
-import { act, Suspense } from "react";
+import { act, Profiler, Suspense } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import {
   loadQuery,
@@ -46,8 +46,10 @@ vi.mock("@phoenix/components/datetime", async (importOriginal) => ({
   useTimeRange: () => ({ timeRange: PAGE_TIME_RANGE }),
 }));
 
+const streamState = vi.hoisted(() => ({ fetchKey: 0 }));
+
 vi.mock("@phoenix/contexts/StreamStateContext", () => ({
-  useStreamState: () => ({ fetchKey: 0 }),
+  useStreamState: () => ({ fetchKey: streamState.fetchKey }),
 }));
 
 import type { projectEvaluatorsLoaderQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorsLoaderQuery.graphql";
@@ -252,9 +254,11 @@ function makeFailedScoresPart({ indexes }: { indexes: number[] }) {
 function TableOwner({
   queryRef,
   initialScoreWindow,
+  onTableCommit,
 }: {
   queryRef: PreloadedQuery<projectEvaluatorsLoaderQuery>;
   initialScoreWindow: EvaluatorScoreWindow;
+  onTableCommit: () => void;
 }) {
   const data = usePreloadedQuery<projectEvaluatorsLoaderQuery>(
     projectEvaluatorsLoaderGQL,
@@ -264,19 +268,21 @@ function TableOwner({
     throw new Error("project is required");
   }
   return (
-    <ProjectEvaluatorsTable
-      project={data.project}
-      projectId={PROJECT_ID}
-      filter=""
-      timeRange={TIME_RANGE}
-      initialFilter=""
-      initialTimeRange={TIME_RANGE}
-      initialScoreWindow={initialScoreWindow}
-      initialIncludeMeanScore
-      initialRequest={queryRef.source}
-      selection={{}}
-      onSelectionChange={() => {}}
-    />
+    <Profiler id="table" onRender={onTableCommit}>
+      <ProjectEvaluatorsTable
+        project={data.project}
+        projectId={PROJECT_ID}
+        filter=""
+        timeRange={TIME_RANGE}
+        initialFilter=""
+        initialTimeRange={TIME_RANGE}
+        initialScoreWindow={initialScoreWindow}
+        initialIncludeMeanScore
+        initialRequest={queryRef.source}
+        selection={{}}
+        onSelectionChange={() => {}}
+      />
+    </Profiler>
   );
 }
 
@@ -288,6 +294,7 @@ beforeEach(() => {
   document.body.appendChild(container);
   root = createRoot(container);
   authFetchMock.mockReset();
+  streamState.fetchKey = 0;
   localStorage.setItem(
     PROJECT_EVALUATORS_TABLE_STORAGE_KEY,
     JSON.stringify({
@@ -309,7 +316,11 @@ afterEach(() => {
 
 async function renderTable({
   initialScoreWindow = SCORE_WINDOW,
-}: { initialScoreWindow?: EvaluatorScoreWindow } = {}) {
+  onTableCommit = () => {},
+}: {
+  initialScoreWindow?: EvaluatorScoreWindow;
+  onTableCommit?: () => void;
+} = {}) {
   const environment = new Environment({
     network: Network.create(fetchRelay),
     store: new Store(new RecordSource()),
@@ -328,7 +339,7 @@ async function renderTable({
     },
     { fetchPolicy: "store-and-network" }
   );
-  await act(async () => {
+  const renderOwner = (ownerScoreWindow: EvaluatorScoreWindow) =>
     root.render(
       <ThemeProvider themeMode="light">
         <PreferencesProvider>
@@ -344,7 +355,8 @@ async function renderTable({
                       <Suspense fallback="loading">
                         <TableOwner
                           queryRef={queryRef}
-                          initialScoreWindow={initialScoreWindow}
+                          initialScoreWindow={ownerScoreWindow}
+                          onTableCommit={onTableCommit}
                         />
                       </Suspense>
                     </ProjectEvaluatorsTableProvider>
@@ -356,7 +368,14 @@ async function renderTable({
         </PreferencesProvider>
       </ThemeProvider>
     );
-  });
+  await act(async () => renderOwner(initialScoreWindow));
+  return {
+    /** Re-renders the owner, as a parent render or a loader revalidation does. */
+    rerender: ({
+      initialScoreWindow: ownerScoreWindow = initialScoreWindow,
+    }: { initialScoreWindow?: EvaluatorScoreWindow } = {}) =>
+      act(async () => renderOwner(ownerScoreWindow)),
+  };
 }
 
 /** Lets streamed parts reach Relay and React render what they wrote. */
@@ -487,5 +506,61 @@ describe("ProjectEvaluatorsTable results column", () => {
       "evaluator-1": expect.stringContaining("0.75"),
       "evaluator-2": "error",
     });
+  });
+
+  it("does not refetch when re-rendered with equal initial query inputs", async () => {
+    const load = createStreamingMultipartResponse();
+    authFetchMock.mockResolvedValueOnce(load.response);
+    const { rerender } = await renderTable();
+    load.sendPart(makeInitialPart({ root: "project", indexes: [1] }));
+    load.sendPart(makeScoresPart({ indexes: [1], meanScore: 0.75 }));
+    load.end();
+    await settle();
+
+    await rerender({ initialScoreWindow: { ...SCORE_WINDOW } });
+    await settle();
+
+    expect(authFetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not keep re-rendering while a refetch of rows already in the store is in flight", async () => {
+    const load = createStreamingMultipartResponse();
+    const firstRefetch = createStreamingMultipartResponse();
+    const secondRefetch = createStreamingMultipartResponse();
+    authFetchMock
+      .mockResolvedValueOnce(load.response)
+      .mockResolvedValueOnce(firstRefetch.response)
+      .mockResolvedValueOnce(secondRefetch.response);
+    const MAX_TABLE_COMMITS = 100;
+    let numTableCommits = 0;
+    const { rerender } = await renderTable({
+      initialScoreWindow: STALE_SCORE_WINDOW,
+      onTableCommit: () => {
+        numTableCommits++;
+        // Unmounts the tree: the loop otherwise runs inside act until the
+        // worker runs out of memory, since the refetch never completes.
+        if (numTableCommits > MAX_TABLE_COMMITS) {
+          throw new Error("ProjectEvaluatorsTable kept re-rendering");
+        }
+      },
+    });
+    load.sendPart(makeInitialPart({ root: "project", indexes: [1] }));
+    load.sendPart(makeScoresPart({ indexes: [1], meanScore: 0.75 }));
+    load.end();
+    firstRefetch.sendPart(makeInitialPart({ root: "node", indexes: [1] }));
+    firstRefetch.sendPart(makeScoresPart({ indexes: [1], meanScore: 0.75 }));
+    firstRefetch.end();
+    await settle();
+    expect(authFetchMock).toHaveBeenCalledTimes(2);
+
+    numTableCommits = 0;
+    streamState.fetchKey++;
+    await rerender();
+    await settle();
+
+    expect(authFetchMock).toHaveBeenCalledTimes(3);
+    expect(numTableCommits).toBeLessThan(10);
+    secondRefetch.end();
+    await settle();
   });
 });

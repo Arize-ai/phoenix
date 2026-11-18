@@ -1,5 +1,9 @@
 import { css } from "@emotion/react";
-import type { OnChangeFn, RowSelectionState } from "@tanstack/react-table";
+import type {
+  ColumnPinningState,
+  OnChangeFn,
+  RowSelectionState,
+} from "@tanstack/react-table";
 import { functionalUpdate, flexRender, useTable } from "@tanstack/react-table";
 import {
   startTransition,
@@ -106,6 +110,14 @@ const PAGE_SIZE = 30;
 const COLUMN_LABELS: Partial<Record<string, string>> = {
   results: "results",
 };
+
+// Module-level so the pinning keeps its identity across renders: tanstack's
+// v9 store compares state slices by reference, and a fresh object every render
+// reads as a state change that schedules another render.
+const COLUMN_PINNING = {
+  start: [...CHECKBOX_COLUMN_PINNING.start, "enabled"],
+  end: [ACTIONS_COLUMN_ID],
+} satisfies ColumnPinningState;
 
 const scrollableAreaCSS = css`
   flex: 1 1 auto;
@@ -395,21 +407,30 @@ export function ProjectEvaluatorsTable({
   // Advances while the project page streams and new spans or evaluation
   // results land, so the rows refetch as evaluations run.
   const { fetchKey } = useStreamState();
+  // Frozen at mount: they are compared only on the effect's first run, and a
+  // loader revalidation (opening a slideover) passes fresh copies of the same
+  // inputs that would otherwise re-run the effect and refetch.
+  const [initialQueryInputs] = useState(() => ({
+    filter: initialFilter,
+    timeRange: initialTimeRange,
+    scoreWindow: initialScoreWindow,
+    includeMeanScore: initialIncludeMeanScore,
+  }));
   const hasComparedInitialQueryInputs = useRef(false);
   // Filtered server-side; a client-side filter would only see the loaded page.
   useEffect(() => {
     if (!hasComparedInitialQueryInputs.current) {
       hasComparedInitialQueryInputs.current = true;
-      const hasInitialFilter = trimmedFilter === initialFilter;
+      const hasInitialFilter = trimmedFilter === initialQueryInputs.filter;
       const hasInitialTimeRange =
-        timeRange.start === initialTimeRange.start &&
-        timeRange.end === initialTimeRange.end;
+        timeRange.start === initialQueryInputs.timeRange.start &&
+        timeRange.end === initialQueryInputs.timeRange.end;
       const hasInitialScoreWindow = isSameEvaluatorScoreWindow(
         scoreWindow,
-        initialScoreWindow
+        initialQueryInputs.scoreWindow
       );
       const hasInitialIncludeMeanScore =
-        includeMeanScore === initialIncludeMeanScore;
+        includeMeanScore === initialQueryInputs.includeMeanScore;
       // Avoid a duplicate request only when the rows supplied by the owner
       // query already answer the table's current filter, range, and columns.
       if (
@@ -440,10 +461,7 @@ export function ProjectEvaluatorsTable({
       );
     });
   }, [
-    initialFilter,
-    initialTimeRange,
-    initialScoreWindow,
-    initialIncludeMeanScore,
+    initialQueryInputs,
     trimmedFilter,
     refetch,
     timeRange,
@@ -857,10 +875,7 @@ export function ProjectEvaluatorsTable({
     columns,
     data: tableData,
     state: {
-      columnPinning: {
-        start: [...CHECKBOX_COLUMN_PINNING.start, "enabled"],
-        end: [ACTIONS_COLUMN_ID],
-      },
+      columnPinning: COLUMN_PINNING,
       columnSizing,
       columnVisibility,
       columnOrder: leafColumnOrder,
