@@ -80,9 +80,10 @@ class TraceDataSweeper(DaemonTask):
     async def _apply(self, policy: ProjectTraceRetentionPolicy) -> None:
         """Delete the policy's traces in batches, committing after each batch.
 
-        Each batch is its own short statement and transaction, so a large backlog
-        stays under a server-side ``statement_timeout`` and a failed batch does not
-        roll back the batches before it. On PostgreSQL, candidates are locked with
+        Each batch bounds the number of deleted traces and commits independently,
+        so a failed batch does not roll back earlier batches. This does not bound
+        statement duration: candidate selection and cascading deletes can still
+        exceed a server-side ``statement_timeout``. On PostgreSQL, candidates are locked with
         FOR UPDATE SKIP LOCKED, so replicas sweeping at the same hour take disjoint
         batches instead of waiting on each other's row locks; a batch that comes
         back short ends the sweep, leaving any locked traces to the replica that
@@ -95,8 +96,8 @@ class TraceDataSweeper(DaemonTask):
                 else [p.id for p in policy.projects]
             )
             # For max_count rules the filter's row_number() window is re-evaluated per batch
-            # over all of the policy's traces; that costs more in total than one delete but
-            # keeps each statement short.
+            # over all of the policy's traces. The batch limit bounds deletions, not the
+            # ranking work, which can still exceed the statement timeout.
             deletion_filter = policy.rule.deletion_filter(project_rowids)
             num_deleted_traces = 0
             try:
