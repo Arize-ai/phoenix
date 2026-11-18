@@ -1,4 +1,3 @@
-import { css } from "@emotion/react";
 import { Suspense, useRef, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
@@ -13,6 +12,7 @@ import {
   Popover,
   useFilter,
   View,
+  TagGroup,
 } from "@phoenix/components";
 import { Counter } from "@phoenix/components/core/counter";
 import {
@@ -24,7 +24,7 @@ import { DebouncedSearch } from "@phoenix/components/core/field";
 import type { ProjectSelectionMenuProject } from "@phoenix/components/project";
 import {
   ProjectSelectionMenu,
-  ProjectToken,
+  projectTagItem,
   sortProjectsByName,
   useAllProjects,
 } from "@phoenix/components/project";
@@ -38,15 +38,6 @@ import type { RetentionPolicyProjectsPatchMutation } from "./__generated__/Reten
  * the full list is scannable at a glance and a filter is just clutter.
  */
 const FILTER_VISIBLE_THRESHOLD = 10;
-
-const projectTokenListCSS = css`
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--global-dimension-size-50);
-`;
 
 /**
  * The projects a retention policy applies to, as a filterable token list.
@@ -160,25 +151,19 @@ export function RetentionPolicyProjects({
             isFiltered
           />
         ) : (
-          <ul css={projectTokenListCSS}>
-            {visibleProjects.map((project) => (
-              <li key={project.id}>
-                <ProjectToken
-                  projectId={project.id}
-                  name={project.name}
-                  gradientStartColor={project.gradientStartColor}
-                  gradientEndColor={project.gradientEndColor}
-                  size="L"
-                  maxWidth="100%"
-                  onRemove={
-                    canManage
-                      ? () => patchProjects("remove", project.id)
-                      : undefined
-                  }
-                />
-              </li>
-            ))}
-          </ul>
+          <TagGroup
+            aria-label="Projects"
+            items={visibleProjects.map(projectTagItem)}
+            itemMaxWidth="100%"
+            onRemove={
+              canManage
+                ? (projectIds) =>
+                    projectIds.forEach((projectId) =>
+                      patchProjects("remove", projectId)
+                    )
+                : undefined
+            }
+          />
         )}
       </View>
     </Card>
