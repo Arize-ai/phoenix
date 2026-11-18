@@ -7,6 +7,9 @@ on:
       - main
       - version-*
 
+env:
+  IMAGE_NAME: phoenix
+
 # One push supersedes the previous one on the same branch: the older run is
 # only racing to publish a `nightly` tag that the newer run will overwrite.
 concurrency:
@@ -14,6 +17,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  prepare-tags:
+    name: Prepare image tags
+    runs-on: ubuntu-latest
+    outputs:
+      tags: ${{ steps.tags.outputs.tags }}
+    steps:
+      - name: Compute shared tags
+        id: tags
+        run: |
+          set -euo pipefail
+          tags=$(jq -cn --arg commit "commit-${GITHUB_SHA::7}" '{
+            root: ["nightly", $commit],
+            nonroot: ["nightly-nonroot"],
+            debug: ["nightly-debug"]
+          }')
+          echo "tags=$tags" >> "$GITHUB_OUTPUT"
+
   build:
     name: Build ${{ matrix.platform }}
     # linux/arm64 builds on a native ARM runner rather than under QEMU
@@ -34,7 +54,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Build every variant as an OCI archive
+      - name: Build image
         uses: ./.github/actions/docker-build-image
         with:
           variants: root nonroot debug
@@ -44,9 +64,9 @@ jobs:
 
   publish-dockerhub:
     name: Publish ${{ matrix.variant }} to Docker Hub
-    needs: build
+    needs: [build, prepare-tags]
     # Publish complete variants even if a different variant failed to build.
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && needs.prepare-tags.result == 'success' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -54,40 +74,29 @@ jobs:
         variant: [root, nonroot, debug]
     env:
       REGISTRY: arizephoenix
-      IMAGE_NAME: phoenix
     steps:
       - name: Check out the repo
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
-      - name: Compute tag suffix and commit hash
+      - name: Add registry namespace to shared tags
+        id: tags
         env:
-          VARIANT: ${{ matrix.variant }}
+          TAGS: ${{ toJSON(fromJSON(needs.prepare-tags.outputs.tags)[matrix.variant]) }}
         run: |
           set -euo pipefail
-          if [ "$VARIANT" = "root" ]; then
-            echo "TAG_SUFFIX=" >> "$GITHUB_ENV"
-          else
-            echo "TAG_SUFFIX=-${VARIANT}" >> "$GITHUB_ENV"
-          fi
-          echo "COMMIT_HASH=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
-
-      - name: Compute tags
-        id: meta
-        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          flavor: latest=false
-          tags: |
-            type=raw,value=nightly${{ env.TAG_SUFFIX }}
-            type=raw,value=commit-${{ env.COMMIT_HASH }},enable=${{ matrix.variant == 'root' }}
+          {
+            echo 'tags<<TAGS'
+            jq -r --arg image "${REGISTRY}/${IMAGE_NAME}" '.[] | "\($image):\(.)"' <<< "$TAGS"
+            echo 'TAGS'
+          } >> "$GITHUB_OUTPUT"
 
       - name: Upload images and publish Docker Hub tags
         uses: ./.github/actions/docker-merge-manifest
         with:
           variant: ${{ matrix.variant }}
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ steps.tags.outputs.tags }}
           expected-digests: 2
           dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
           dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
@@ -97,9 +106,9 @@ jobs:
     permissions:
       contents: read
       packages: write
-    needs: build
+    needs: [build, prepare-tags]
     # Publish complete variants even if a different variant failed to build.
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && needs.prepare-tags.result == 'success' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -107,45 +116,34 @@ jobs:
         variant: [root, nonroot, debug]
     env:
       REGISTRY: ghcr.io/arize-ai
-      IMAGE_NAME: phoenix
     steps:
       - name: Check out the repo
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
-      - name: Compute tag suffix and commit hash
+      - name: Add registry namespace to shared tags
+        id: tags
         env:
-          VARIANT: ${{ matrix.variant }}
+          TAGS: ${{ toJSON(fromJSON(needs.prepare-tags.outputs.tags)[matrix.variant]) }}
         run: |
           set -euo pipefail
-          if [ "$VARIANT" = "root" ]; then
-            echo "TAG_SUFFIX=" >> "$GITHUB_ENV"
-          else
-            echo "TAG_SUFFIX=-${VARIANT}" >> "$GITHUB_ENV"
-          fi
-          echo "COMMIT_HASH=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
-
-      - name: Compute tags
-        id: meta
-        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          flavor: latest=false
-          tags: |
-            type=raw,value=nightly${{ env.TAG_SUFFIX }}
-            type=raw,value=commit-${{ env.COMMIT_HASH }},enable=${{ matrix.variant == 'root' }}
+          {
+            echo 'tags<<TAGS'
+            jq -r --arg image "${REGISTRY}/${IMAGE_NAME}" '.[] | "\($image):\(.)"' <<< "$TAGS"
+            echo 'TAGS'
+          } >> "$GITHUB_OUTPUT"
 
       - name: Upload images and publish GHCR tags
         uses: ./.github/actions/docker-merge-manifest
         with:
           variant: ${{ matrix.variant }}
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ steps.tags.outputs.tags }}
           expected-digests: 2
 
   slack:
     name: Slack notification
-    needs: [build, publish-dockerhub, publish-ghcr]
+    needs: [prepare-tags, build, publish-dockerhub, publish-ghcr]
     if: always() && contains(needs.*.result, 'failure')
     runs-on: ubuntu-latest
     steps:
