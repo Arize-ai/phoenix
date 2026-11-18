@@ -9,6 +9,7 @@ import type {
 } from "./__generated__/CreateDatasetFormMutation.graphql";
 import type { DatasetFormParams } from "./DatasetForm";
 import { DatasetForm } from "./DatasetForm";
+import { useSetDatasetLabels } from "./DatasetLabelPicker";
 
 export type CreateDatasetFormProps = {
   onDatasetCreated: (
@@ -28,6 +29,8 @@ export function CreateDatasetForm({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isAwaitingCreatedHandler, setIsAwaitingCreatedHandler] =
     useState(false);
+  const [isSavingLabels, setIsSavingLabels] = useState(false);
+  const { setDatasetLabels, error: labelsError } = useSetDatasetLabels();
   const [commit, isCommitting] = useMutation<CreateDatasetFormMutation>(graphql`
     mutation CreateDatasetFormMutation(
       $name: String!
@@ -46,19 +49,35 @@ export function CreateDatasetForm({
     }
   `);
   const onSubmit = useCallback(
-    (params: DatasetFormParams) => {
+    ({ labels, ...params }: DatasetFormParams) => {
       commit({
         variables: { ...params, metadata: JSON.parse(params.metadata) },
         onCompleted: (response) => {
-          const handled = onDatasetCreated(
-            response["createDataset"]["dataset"]
-          );
-          if (handled) {
-            setIsAwaitingCreatedHandler(true);
-            handled.finally(() =>
-              startTransition(() => setIsAwaitingCreatedHandler(false))
-            );
+          const dataset = response["createDataset"]["dataset"];
+          const notifyCreated = () => {
+            const handled = onDatasetCreated(dataset);
+            if (handled) {
+              setIsAwaitingCreatedHandler(true);
+              handled.finally(() =>
+                startTransition(() => setIsAwaitingCreatedHandler(false))
+              );
+            }
+          };
+          if (labels.length === 0) {
+            notifyCreated();
+            return;
           }
+          // createDataset takes no labels, so they are attached once the
+          // dataset exists
+          setIsSavingLabels(true);
+          setDatasetLabels({
+            datasetId: dataset.id,
+            labels,
+            onSettled: () => {
+              setIsSavingLabels(false);
+              notifyCreated();
+            },
+          });
         },
         updater: (store) => {
           // Add the new dataset to the list of datasets
@@ -86,17 +105,18 @@ export function CreateDatasetForm({
         },
       });
     },
-    [commit, onDatasetCreated, onDatasetCreateError]
+    [commit, onDatasetCreated, onDatasetCreateError, setDatasetLabels]
   );
 
-  const isSubmitting = isCommitting || isAwaitingCreatedHandler;
+  const isSubmitting =
+    isCommitting || isSavingLabels || isAwaitingCreatedHandler;
   return (
     <DatasetForm
       isSubmitting={isSubmitting}
       onSubmit={onSubmit}
       submitButtonText={isSubmitting ? "Creating..." : submitButtonText}
       formMode="create"
-      errorMessage={errorMessage}
+      errorMessage={errorMessage ?? labelsError}
       onCancel={onCancel}
     />
   );

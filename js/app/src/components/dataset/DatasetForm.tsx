@@ -14,7 +14,11 @@ import {
   TextField,
 } from "@phoenix/components";
 import { CodeEditorFieldWrapper, JSONEditor } from "@phoenix/components/code";
+import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
+
+import type { DatasetLabel } from "./DatasetLabelPicker";
+import { DatasetLabelsField } from "./DatasetLabelPicker";
 
 const formCSS = css`
   display: flex;
@@ -35,12 +39,14 @@ export type DatasetFormParams = {
   name: string;
   description: string;
   metadata: string;
+  labels: DatasetLabel[];
 };
 
 export function DatasetForm({
   datasetName,
   datasetDescription,
   datasetMetadata,
+  datasetLabels,
   onSubmit,
   isSubmitting,
   submitButtonText,
@@ -51,6 +57,7 @@ export function DatasetForm({
   datasetName?: string | null;
   datasetDescription?: string | null;
   datasetMetadata?: Record<string, unknown> | null;
+  datasetLabels?: readonly DatasetLabel[];
   onSubmit: (params: DatasetFormParams) => void;
   isSubmitting: boolean;
   submitButtonText: string;
@@ -68,6 +75,7 @@ export function DatasetForm({
       name: datasetName ?? "Dataset " + new Date().toISOString(),
       description: datasetDescription ?? "",
       metadata: JSON.stringify(datasetMetadata, null, 2) ?? "{}",
+      labels: datasetLabels ? [...datasetLabels] : [],
     },
   });
 
@@ -126,6 +134,16 @@ export function DatasetForm({
                 <Text slot="description">The description of the dataset</Text>
               )}
             </TextField>
+          )}
+        />
+        <Controller
+          name="labels"
+          control={control}
+          render={({ field: { onChange, value } }) => (
+            <div css={fieldBaseCSS}>
+              <Label elementType="span">Labels</Label>
+              <DatasetLabelsField value={value} onChange={onChange} />
+            </div>
           )}
         />
         <Controller

@@ -353,6 +353,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
                 datasetName={row.original.name}
                 datasetDescription={row.original.description}
                 datasetMetadata={row.original.metadata}
+                datasetLabels={row.original.labels}
                 onDatasetEdit={() => {
                   notifySuccess({
                     title: "Dataset updated",

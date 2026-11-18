@@ -15,6 +15,7 @@ import {
   PopoverArrow,
   Text,
 } from "@phoenix/components";
+import type { DatasetLabel } from "@phoenix/components/dataset/DatasetLabelPicker";
 import { DatasetLabelSelectionContent } from "@phoenix/components/dataset/DatasetLabelPicker";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 
@@ -25,6 +26,7 @@ type DatasetActionMenuProps = {
   datasetName: string;
   datasetDescription?: string | null;
   datasetMetadata?: Record<string, unknown> | null;
+  datasetLabels: readonly DatasetLabel[];
   onDatasetDelete: () => void;
   onDatasetEdit: () => void;
 };
@@ -41,6 +43,7 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
     datasetName,
     datasetDescription,
     datasetMetadata,
+    datasetLabels,
     onDatasetDelete,
     onDatasetEdit,
   } = props;
@@ -143,6 +146,7 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
         datasetName={datasetName}
         datasetDescription={datasetDescription}
         datasetMetadata={datasetMetadata}
+        datasetLabels={datasetLabels}
         onDatasetEdited={onDatasetEdit}
         isOpen={isEditOpen}
         onOpenChange={setIsEditOpen}

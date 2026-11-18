@@ -6,6 +6,8 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
 import type { EditDatasetFormMutation } from "./__generated__/EditDatasetFormMutation.graphql";
 import type { DatasetFormParams } from "./DatasetForm";
 import { DatasetForm } from "./DatasetForm";
+import type { DatasetLabel } from "./DatasetLabelPicker";
+import { useSetDatasetLabels } from "./DatasetLabelPicker";
 
 export function EditDatasetForm({
   datasetName,
@@ -13,14 +15,18 @@ export function EditDatasetForm({
   datasetDescription,
   onDatasetEdited,
   datasetMetadata,
+  datasetLabels,
 }: {
   datasetName: string;
   datasetId: string;
   datasetDescription?: string | null;
   datasetMetadata?: Record<string, unknown> | null;
+  datasetLabels: readonly DatasetLabel[];
   onDatasetEdited: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
+  const [isSavingLabels, setIsSavingLabels] = useState(false);
+  const { setDatasetLabels, error: labelsError } = useSetDatasetLabels();
   const [commit, isCommitting] = useMutation<EditDatasetFormMutation>(graphql`
     mutation EditDatasetFormMutation(
       $datasetId: ID!
@@ -45,8 +51,11 @@ export function EditDatasetForm({
     }
   `);
 
-  const onSubmit = (params: DatasetFormParams) => {
+  const onSubmit = ({ labels, ...params }: DatasetFormParams) => {
     setError(null);
+    const areLabelsChanged =
+      labels.length !== datasetLabels.length ||
+      labels.some((label, index) => label.id !== datasetLabels[index]?.id);
     commit({
       variables: {
         datasetId,
@@ -54,7 +63,19 @@ export function EditDatasetForm({
         metadata: JSON.parse(params.metadata),
       },
       onCompleted: () => {
-        onDatasetEdited();
+        if (!areLabelsChanged) {
+          onDatasetEdited();
+          return;
+        }
+        setIsSavingLabels(true);
+        setDatasetLabels({
+          datasetId,
+          labels,
+          onSettled: () => {
+            setIsSavingLabels(false);
+            onDatasetEdited();
+          },
+        });
       },
       onError: (error) => {
         const formattedError = getErrorMessagesFromRelayMutationError(error);
@@ -68,11 +89,12 @@ export function EditDatasetForm({
       datasetName={datasetName}
       datasetDescription={datasetDescription}
       datasetMetadata={datasetMetadata}
+      datasetLabels={datasetLabels}
       onSubmit={onSubmit}
-      isSubmitting={isCommitting}
-      submitButtonText={isCommitting ? "Saving..." : "Save"}
+      isSubmitting={isCommitting || isSavingLabels}
+      submitButtonText={isCommitting || isSavingLabels ? "Saving..." : "Save"}
       formMode="edit"
-      errorMessage={error}
+      errorMessage={error ?? labelsError}
     />
   );
 }
