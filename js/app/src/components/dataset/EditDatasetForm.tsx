@@ -26,7 +26,7 @@ export function EditDatasetForm({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [isSavingLabels, setIsSavingLabels] = useState(false);
-  const { setDatasetLabels, error: labelsError } = useSetDatasetLabels();
+  const { setDatasetLabels } = useSetDatasetLabels();
   const [commit, isCommitting] = useMutation<EditDatasetFormMutation>(graphql`
     mutation EditDatasetFormMutation(
       $datasetId: ID!
@@ -71,9 +71,15 @@ export function EditDatasetForm({
         setDatasetLabels({
           datasetId,
           labels,
-          onSettled: () => {
+          onSaved: () => {
             setIsSavingLabels(false);
             onDatasetEdited();
+          },
+          onFailed: (message) => {
+            // the rest saved; the dialog stays open so the labels can be
+            // saved again
+            setIsSavingLabels(false);
+            setError(`The labels were not saved: ${message}`);
           },
         });
       },
@@ -94,7 +100,7 @@ export function EditDatasetForm({
       isSubmitting={isCommitting || isSavingLabels}
       submitButtonText={isCommitting || isSavingLabels ? "Saving..." : "Save"}
       formMode="edit"
-      errorMessage={error ?? labelsError}
+      errorMessage={error}
     />
   );
 }

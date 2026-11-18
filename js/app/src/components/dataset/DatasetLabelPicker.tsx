@@ -61,16 +61,25 @@ export function useSetDatasetLabels() {
     ({
       datasetId,
       labels,
-      onSettled,
+      onSaved,
+      onFailed,
     }: {
       datasetId: string;
       labels: readonly DatasetLabel[];
       /**
-       * Called once the server has answered, whether or not it saved.
+       * Called once the server has saved the set.
        */
-      onSettled?: () => void;
+      onSaved?: () => void;
+      /**
+       * Called with the reason when the server did not save the set.
+       */
+      onFailed?: (message: string) => void;
     }) => {
       setError(null);
+      const fail = (message: string) => {
+        setError(message);
+        onFailed?.(message);
+      };
       commit({
         variables: {
           datasetId,
@@ -81,12 +90,17 @@ export function useSetDatasetLabels() {
             dataset: { id: datasetId, labels: [...labels] },
           },
         },
-        onCompleted: () => onSettled?.(),
+        onCompleted: (_response, payloadErrors) => {
+          if (payloadErrors && payloadErrors.length > 0) {
+            fail(payloadErrors[0].message);
+            return;
+          }
+          onSaved?.();
+        },
         onError: (mutationError) => {
           const formattedError =
             getErrorMessagesFromRelayMutationError(mutationError);
-          setError(formattedError?.[0] ?? mutationError.message);
-          onSettled?.();
+          fail(formattedError?.[0] ?? mutationError.message);
         },
       });
     },

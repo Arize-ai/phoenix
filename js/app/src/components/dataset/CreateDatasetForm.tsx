@@ -1,6 +1,7 @@
 import { startTransition, useCallback, useState } from "react";
 import { ConnectionHandler, graphql, useMutation } from "react-relay";
 
+import { Alert, Button, DialogFooter, View } from "@phoenix/components";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type {
@@ -11,10 +12,11 @@ import type { DatasetFormParams } from "./DatasetForm";
 import { DatasetForm } from "./DatasetForm";
 import { useSetDatasetLabels } from "./DatasetLabelPicker";
 
+type CreatedDataset =
+  CreateDatasetFormMutation$data["createDataset"]["dataset"];
+
 export type CreateDatasetFormProps = {
-  onDatasetCreated: (
-    dataset: CreateDatasetFormMutation$data["createDataset"]["dataset"]
-  ) => void | Promise<void>;
+  onDatasetCreated: (dataset: CreatedDataset) => void | Promise<void>;
   onDatasetCreateError?: (error: Error) => void;
   onCancel?: () => void;
   submitButtonText?: string;
@@ -30,7 +32,23 @@ export function CreateDatasetForm({
   const [isAwaitingCreatedHandler, setIsAwaitingCreatedHandler] =
     useState(false);
   const [isSavingLabels, setIsSavingLabels] = useState(false);
-  const { setDatasetLabels, error: labelsError } = useSetDatasetLabels();
+  const [unlabeledDataset, setUnlabeledDataset] = useState<{
+    dataset: CreatedDataset;
+    message: string;
+  } | null>(null);
+  const { setDatasetLabels } = useSetDatasetLabels();
+  const notifyCreated = useCallback(
+    (dataset: CreatedDataset) => {
+      const handled = onDatasetCreated(dataset);
+      if (handled) {
+        setIsAwaitingCreatedHandler(true);
+        handled.finally(() =>
+          startTransition(() => setIsAwaitingCreatedHandler(false))
+        );
+      }
+    },
+    [onDatasetCreated]
+  );
   const [commit, isCommitting] = useMutation<CreateDatasetFormMutation>(graphql`
     mutation CreateDatasetFormMutation(
       $name: String!
@@ -54,17 +72,8 @@ export function CreateDatasetForm({
         variables: { ...params, metadata: JSON.parse(params.metadata) },
         onCompleted: (response) => {
           const dataset = response["createDataset"]["dataset"];
-          const notifyCreated = () => {
-            const handled = onDatasetCreated(dataset);
-            if (handled) {
-              setIsAwaitingCreatedHandler(true);
-              handled.finally(() =>
-                startTransition(() => setIsAwaitingCreatedHandler(false))
-              );
-            }
-          };
           if (labels.length === 0) {
-            notifyCreated();
+            notifyCreated(dataset);
             return;
           }
           // createDataset takes no labels, so they are attached once the
@@ -73,9 +82,15 @@ export function CreateDatasetForm({
           setDatasetLabels({
             datasetId: dataset.id,
             labels,
-            onSettled: () => {
+            onSaved: () => {
               setIsSavingLabels(false);
-              notifyCreated();
+              notifyCreated(dataset);
+            },
+            onFailed: (message) => {
+              // the dataset exists: submitting the form again would create
+              // a second one, so the form gives way to a way to go on
+              setIsSavingLabels(false);
+              setUnlabeledDataset({ dataset, message });
             },
           });
         },
@@ -105,18 +120,39 @@ export function CreateDatasetForm({
         },
       });
     },
-    [commit, onDatasetCreated, onDatasetCreateError, setDatasetLabels]
+    [commit, notifyCreated, onDatasetCreateError, setDatasetLabels]
   );
 
   const isSubmitting =
     isCommitting || isSavingLabels || isAwaitingCreatedHandler;
+  if (unlabeledDataset) {
+    return (
+      <>
+        <View padding="size-200">
+          <Alert variant="danger" title="Labels not attached">
+            {`Dataset "${unlabeledDataset.dataset.name}" was created without its labels: ${unlabeledDataset.message}. Add them from the dataset's page.`}
+          </Alert>
+        </View>
+        <DialogFooter>
+          <Button
+            variant="primary"
+            size="M"
+            isDisabled={isAwaitingCreatedHandler}
+            onPress={() => notifyCreated(unlabeledDataset.dataset)}
+          >
+            Continue
+          </Button>
+        </DialogFooter>
+      </>
+    );
+  }
   return (
     <DatasetForm
       isSubmitting={isSubmitting}
       onSubmit={onSubmit}
       submitButtonText={isSubmitting ? "Creating..." : submitButtonText}
       formMode="create"
-      errorMessage={errorMessage ?? labelsError}
+      errorMessage={errorMessage}
       onCancel={onCancel}
     />
   );
