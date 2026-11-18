@@ -958,6 +958,7 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [10.16.2026: Claude Managed Agents Tracing and Gemini 4 Argon](https://arize.com/docs/phoenix/release-notes/10-2026/10-16-2026-claude-managed-agents-tracing-and-gemini-4-argon): Trace Claude Managed Agents and Atomic Agents, try Gemini 4 Argon in the Playground, and export server logs over OTLP
 - [10.27.2026: Decision-Model Evaluators and Project Onboarding](https://arize.com/docs/phoenix/release-notes/10-2026/10-27-2026-decision-model-evaluators-and-project-onboarding): Run TypeScript classification evaluators on AI SDK decision models and get setup guides in empty projects
 - [11.02.2026: Breaking Change: Authentication by Default](https://arize.com/docs/phoenix/release-notes/11-2026/11-02-2026-authentication-by-default-and-decision-annotations): Upgrade to Phoenix 21 loopback binding and default auth; record DECISION and AGENT annotator kinds
+- [11.18.2026: Python Decision-Model Evaluators and OpenTelemetry JS 3](https://arize.com/docs/phoenix/release-notes/11-2026/11-18-2026-python-decision-model-evaluators-and-opentelemetry-js-3): Run Python classification evaluators on decision models, upgrade @arizeai/phoenix-otel to OpenTelemetry JS 3, and tag prompts with px
 
 ### 2025
 
