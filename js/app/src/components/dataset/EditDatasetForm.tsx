@@ -53,9 +53,10 @@ export function EditDatasetForm({
 
   const onSubmit = ({ labels, ...params }: DatasetFormParams) => {
     setError(null);
+    const savedLabelIds = new Set(datasetLabels.map((label) => label.id));
     const areLabelsChanged =
-      labels.length !== datasetLabels.length ||
-      labels.some((label, index) => label.id !== datasetLabels[index]?.id);
+      labels.length !== savedLabelIds.size ||
+      labels.some((label) => !savedLabelIds.has(label.id));
     commit({
       variables: {
         datasetId,

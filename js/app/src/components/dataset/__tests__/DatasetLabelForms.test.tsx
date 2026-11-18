@@ -248,6 +248,20 @@ describe("EditDatasetForm labels", () => {
     );
     expect(container.querySelector("form")).not.toBeNull();
   });
+
+  it("leaves the labels alone when only their order changed", async () => {
+    const { environment, onDatasetEdited } = renderEditForm();
+    // removing and re-adding production moves it to the end
+    await click(getByText({ selector: "button", text: "Remove production" }));
+    await checkLabel("production");
+    await click(getByText({ selector: "button", text: "Save" }));
+    await resolveMutation({ environment, name: "EditDatasetFormMutation" });
+
+    expect(pendingOperationNames(environment)).not.toContain(
+      "DatasetLabelPickerSetLabelsMutation"
+    );
+    expect(onDatasetEdited).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("DatasetLabelPicker", () => {
