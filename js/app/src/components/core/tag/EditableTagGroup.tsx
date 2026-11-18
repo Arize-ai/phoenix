@@ -97,8 +97,12 @@ export function EditableTagGroup({
     : undefined;
 
   return (
+    // The group keeps the set's name when it is empty and the tag list,
+    // which carries it otherwise, is gone
     <div
       ref={groupRef}
+      role="group"
+      aria-label={label}
       className="editable-tag-group"
       css={editableTagGroupCSS}
     >

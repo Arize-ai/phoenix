@@ -120,6 +120,7 @@ describe("EditableTagGroup", () => {
     render(<LabelsHarness initialIds={[]} onChange={vi.fn()} />);
     expect(container.textContent).toContain("No labels");
     expect(getByRole("button", "Add label")).toBeTruthy();
+    expect(getByRole("group", "Dataset labels")).toBeTruthy();
   });
 
   it("is read-only without onRemove and a picker", () => {
@@ -226,9 +227,7 @@ describe("EditableTagGroup", () => {
       </Form>
     );
     await act(async () => userEvent.click(getByRole("button", "Add label")));
-    await act(async () =>
-      userEvent.click(getByRole("button", "Create Label"))
-    );
+    await act(async () => userEvent.click(getByRole("button", "Create Label")));
     expect(onInnerSubmit).toHaveBeenCalledTimes(1);
     expect(onOuterSubmit).not.toHaveBeenCalled();
   });
