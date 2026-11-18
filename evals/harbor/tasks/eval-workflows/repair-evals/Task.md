@@ -1,8 +1,8 @@
 # repair-evals
 
 The agent fixes a nightly grounding eval that reports 95% of a support bot's replies as
-grounded when the real rate is 63%. The shipped script has five bugs that inflate the
-rate, plus a rule that labels every errored trace `fail` without judging it. The task
+grounded when the real rate is 63%. The shipped script has five bugs that make the
+rate misleading, plus a rule that labels every errored trace `fail` without judging it. The task
 tests whether the agent can debug an eval that runs cleanly, rerun it so every trace's
 `grounded` annotation is right, keep it working on new traffic, and explain what was
 wrong.
@@ -108,7 +108,7 @@ lists the result for each bug and for the rate under `reply`.
 | Bug | Counts as `named` when the reply says |
 | --- | --- |
 | `span_limit` | The span query returned a limited number of spans, such as the client's default of 100 or one page, so only some replies were scored. "Only recent replies were scored" alone is `vague`. |
-| `verdict_case` | The code compared the judge's uppercase `FAIL` with lowercase `"fail"`, so no reply could fail. |
+| `verdict_case` | The code compared the judge's uppercase `FAIL` with lowercase `"fail"`, so no judged reply could fail. |
 | `errors_pass` | An error while scoring was recorded as `pass`, such as the `KeyError` on email messages. |
 | `judge_evidence` | The judge saw only the message and the reply, not what the bot looked up. "The prompt was weak" alone is `vague`. |
 | `wrong_traces` | Verdicts went to traces or spans other than the ones they judged. |
@@ -139,7 +139,7 @@ reply.
 | Leaving the verdict comparison case-sensitive | `production_traces` and `new_traces`: no reply is labeled ungrounded. |
 | Leaving errors recorded as `pass`, so every email message counts as grounded | `production_traces` and `new_traces`: at most 68% of ungrounded production replies and 57% of new ones are caught. |
 | Leaving the judge with only the message and the reply | `production_traces` and `new_traces`: in one `gpt-5-nano` run, the judge caught 23% of ungrounded production replies and none of the new ones. |
-| Leaving verdicts matched to the wrong traces | `production_traces`: even a perfect judge gets 63% recall on grounded and 36% on ungrounded production replies. |
+| Leaving verdicts matched to the wrong traces | `production_traces` and `new_traces`: even a perfect judge gets 63% recall on grounded and 36% on ungrounded production replies, and 64% and 36% on new ones. |
 | Keeping the rule that marks errored traces `fail` | `new_traces`: at most 17 of 22 grounded new replies (77%) are labeled grounded. Production loses only one trace and passes. |
 | Skipping errored traces, or marking them `pass` | `new_traces`: skipping covers 78% of new traces, and `pass` catches at most 11 of 14 ungrounded new replies (79%). |
 | Running the shipped script first, then rescoring only traces without an annotation | `production_traces`: the 20 newest traces keep the shipped script's verdicts, almost all `pass`. |

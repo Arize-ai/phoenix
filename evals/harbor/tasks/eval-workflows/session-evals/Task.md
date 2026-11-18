@@ -16,7 +16,7 @@ whether its script also rescores sessions that customers come back to.
 
 | Item | Contents |
 | --- | --- |
-| Project `order-agent` | 40 sessions of 2 to 5 turns, 116 traces in all, and no annotations. Each turn is one trace. Its root `order-agent` span has the session ID, the customer's message, and the agent's reply. Its child spans are the turn's tool calls (`lookup_order`, `cancel_order`, `refund_order`, `change_address`) with their JSON results, and one LLM call. A tool call that errored has status `ERROR`. |
+| Project `order-agent` | 40 sessions of 2 to 5 turns, 111 traces in all, and no annotations. Each turn is one trace. Its root `order-agent` span has the session ID, the customer's message, and the agent's reply. Its child spans are the turn's tool calls (`lookup_order`, `cancel_order`, `refund_order`, `change_address`) with their JSON results, and one LLM call. A tool call that errored has status `ERROR`. |
 | `/app/order_agent.py` | The agent's system prompt and tool stubs. The tool docstrings say what each result status means: `cancelled`, `refunded`, and `updated` mean done, and `queued` means the change waits on the warehouse or a review. |
 | Environment | `OPENAI_API_KEY` and `ANTHROPIC_API_KEY`, so the agent can run LLM judges. |
 
@@ -30,7 +30,7 @@ The generator builds three sets of sessions:
 
 | Set | Sessions | Traces | Pass both | Fail only `task_completed` | Fail only `honest` | Fail both |
 | --- | --- | --- | --- | --- | --- | --- |
-| Production, in the seed | 40 | 116 | 16 | 8 | 8 | 8 |
+| Production, in the seed | 40 | 111 | 16 | 8 | 8 | 8 |
 | New, added before the rerun | 25 | 64 | 9 | 6 | 6 | 4 |
 | Continued, turns added to production sessions before the rerun | 16 | 27 | 4 | 4 | 4 | 4 |
 
@@ -48,9 +48,9 @@ Each scenario fixes both labels and builds the tool results that make them true:
   isn't done.
 
 Honest and dishonest refund replies use the same wordings, so only the `refund_order`
-result tells them apart. Refund requests state the amount, whether shipping is included,
-and the requested payment method, so task completion does not depend on an unstated
-interpretation of "refund." Every error result says that no changes were made, so a
+result tells them apart. Every refund the agent carries out has an amount, a shipping scope, and a payment
+method that the customer stated or accepted, so task completion doesn't depend on an
+unstated reading of "refund." Every error result says that no changes were made, so a
 reply that reports "nothing changed" is grounded. Before each turn, the generator adds
 a `lookup_order` call wherever the reply names an item or refund amount that the session
 hasn't shown yet, so the evidence for `honest` is always in the session.
@@ -94,15 +94,15 @@ and at least 80% of failing ones. `expected.json` holds the bars and the label c
 After it grades the production sessions, the verifier adds the 25 new sessions and the
 continued turns, then runs `python evals/session_evals.py` in `/app` as the agent user.
 The continued turns keep their session's `session.id`, and each LLM call in them carries
-the earlier turns as history. The verifier places them in the 90 seconds before the
-rerun, so they're newer than every annotation the agent wrote. During the rerun, a local
-proxy refuses any model except `gpt-5-nano` with a 403.
+the earlier turns as history. The verifier places them between the start of grading and the
+rerun, at least 90 seconds, so they're newer than every annotation the agent wrote.
+During the rerun, a local proxy refuses any chat model except `gpt-5-nano` with a 403.
 
 | Check | Type | Uses | Passes when |
 | --- | --- | --- | --- |
 | `production_sessions` | Code | `grading_data.json` | Both labels meet the bar on the 40 production sessions. |
 | `new_sessions` | Code | `grading_data.json` | After the rerun, both labels meet the bar on the 25 new sessions. |
-| `continued_sessions` | Code | `grading_data.json` | After the rerun, both labels meet the bar on the 16 continued sessions, judged over every turn, old and new. Each class has 8 sessions, so one miss per class passes. |
+| `continued_sessions` | Code | `grading_data.json` | After the rerun, both labels meet the bar on the 16 continued sessions, judged over every turn, old and new. Each class has 8 sessions, so one wrong label per class passes. Every continued session must be annotated. |
 
 `reward` is 1 only when every check passes. `details.json` gives each label's coverage
 and recall for each check, and the rerun's exit code and output.
@@ -140,8 +140,8 @@ approaches, such as a final-reply judge, a judge without tool results, and a con
 - The checks grade `gpt-5-nano` judges, so a script near the 80% bar can pass one run and
   fail the next. The reference judges cleared the bar by at least 10 points on every
   check in 3 of 3 runs.
-- Each `continued_sessions` class has 8 sessions, so one miss per class passes and two
-  fail. It's the noisiest check.
+- Each `continued_sessions` class has 8 sessions, so one wrong label per class passes and
+  two fail, and one unannotated session fails. It's the noisiest check.
 - The conversations come from templates. The new sessions' extra scenarios and wordings
   limit how far a judge tuned to the production wording gets, but they're still
   templates.

@@ -709,7 +709,7 @@ def expected_output(visible: list[dict[str, Any]], unseen: list[dict[str, Any]])
     labels = [c["label"] for c in visible]
     good, calm_good = sum(labels), sum(calm)
     reference = (
-        "The shipped script has five bugs that inflate its rate: it scores only the newest "
+        "The shipped script has five bugs that make its rate misleading: it scores only the newest "
         "100 spans, compares the judge's `FAIL` with lowercase `fail`, records errors such as "
         "the `KeyError` on email messages as `pass`, shows the judge only the message and "
         "reply, and attaches verdicts to the wrong traces. Fixed, and judging the "

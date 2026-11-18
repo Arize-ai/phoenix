@@ -84,7 +84,7 @@ The seeder writes annotations one at a time in file order. `build.py` orders the
 rounds: early pre-labels, first reviews, the other annotations, second reviews,
 revisions, and late pre-labels. Phoenix stores times to the second, and the seeder waits
 for the next second before it writes an annotation name to a span a second time. At each
-boundary between review rounds, `build.py` puts two writes to the same span, so every
+boundary between human review rounds, `build.py` puts two writes to the same span, so every
 review in a later round gets a later second than every review in an earlier round, even
 on another span of the same trace.
 
@@ -110,8 +110,8 @@ in the trace counts.
 | Check | Type | Uses | Passes when |
 | --- | --- | --- | --- |
 | `settled_traces` | Code | `grading_data.json` | Every example links to one trace in the project, and the linked traces are exactly the 56 traces whose latest human review is a verdict, each once. |
-| `latest_verdicts` | Code | `grading_data.json` | Every example's output gives its trace's latest human verdict: the word `supported` or `unsupported`, or a true or false value under a key containing `support` or `ground`, such as `{"supported": true}`. An output that gives both fails. |
-| `inputs` | Code | `grading_data.json` | Every example's input contains the question and the reply, ignoring case and spacing. No input contains a verdict word, a key such as `label`, `verdict`, or `review`, or one of its trace's review notes. |
+| `latest_verdicts` | Code | `grading_data.json` | Every example linked to a trace has an output that gives its trace's latest human verdict: the word `supported` or `unsupported`, or a true or false value under a key containing `support` or `ground`, such as `{"supported": true}`. An output that gives both fails. |
+| `inputs` | Code | `grading_data.json` | Every example linked to a trace has an input that contains the question and the reply, ignoring case and spacing. No input contains a verdict word, a key such as `label`, `verdict`, or `review`, or one of its trace's review notes. |
 
 `reward` is 1 only when every check passes. The reply isn't graded; the dataset is the
 deliverable. `details.json` lists the missing, extra, repeated, and mislabeled traces by

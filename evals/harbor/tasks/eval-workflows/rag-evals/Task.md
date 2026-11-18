@@ -33,10 +33,10 @@ agent can separate retrieval failures from generation failures with judges that 
   that answers it.
 - Each policy's questions, faithful answer, wrong answer, and a claim that no passage
   makes, each with separate wordings for the production and new traces. The
-  production wrong answers reuse the passage's wording with one fact changed, and
+  production wrong answers reuse the passage's wording with one or more facts changed, and
   faithful answers paraphrase it, so word overlap doesn't decide the label.
-- For each policy, 6 distractor passages that share a topic or words with its questions
-  without answering them.
+- For each policy, 4 to 6 distractor passages that share a topic or words with its
+  questions without answering them.
 - The refusal wordings, with a different set for the new traces.
 - The number of traces that get each case, in the table below. The case sets the
   trace's `grounded` label.
@@ -62,7 +62,7 @@ answers are ungrounded when the right passage was retrieved.
 The random seed, 31 for production traces and 47 for new traces, decides these things:
 
 - Which question gets which case in the table.
-- Which 3 or 4 of the policy's 6 distractors are retrieved, and their order.
+- Which 3 or 4 of the policy's distractors are retrieved, and their order.
 - The retriever scores. The first document scores between 0.74 and 0.9, and each next
   one scores 0.015 to 0.06 lower, whether or not the answering passage was retrieved.
 - Which refusal wording a declining answer uses.
@@ -96,8 +96,8 @@ GPT-6 Astra reviewed the data and labels.
 The annotation checks read the latest annotation with each name. A `relevant` label
 counts only as a document annotation, because an annotation on the retriever span can't
 say which document is relevant. Labels count by meaning, so `relevant` and `grounded`
-count the same as `pass`. During the rerun, a local proxy refuses any model except
-`gpt-5-nano` with a 403. `details.json` reports coverage and recall for `relevant` and
+count the same as `pass`. During the rerun, a local proxy refuses any chat model
+except `gpt-5-nano` with a 403. `details.json` reports coverage and recall for `relevant` and
 `grounded` separately under each check.
 
 These measures are reported beside `reward` and don't affect it:
@@ -112,7 +112,7 @@ These measures are reported beside `reward` and don't affect it:
 
 | Wrong approach | Fails | Why |
 | --- | --- | --- |
-| Judge relevance by words shared with the question | `production_traces`, `new_traces` | Distractors share a topic and words with the question, and questions paraphrase the answering passage. No word-overlap threshold reaches 85% recall on both classes. |
+| Judge relevance by words shared with the question | `new_traces`, and usually `production_traces` | Distractors share a topic and words with the question, and questions paraphrase the answering passage. No word-overlap threshold reaches 85% recall on both classes. Marking each trace's highest-overlap passage relevant, after stemming, can just pass the production traces, but it catches only 67% on the new ones. |
 | Mark the top-ranked passage relevant | `production_traces`, `new_traces` | The answering passage ranks lower in 13 production traces, so this catches 19 of 32 relevant documents. |
 | Judge groundedness from the question and answer alone | `production_traces`, `new_traces` | Contradictions, added claims, and made-up policies read as plausible answers without the passages. |
 | Check answers against the true policy instead of the retrieved passages | `production_traces`, `new_traces` | 4 production answers state the true policy without retrieving it. They're ungrounded, so ungrounded recall drops to 73%. |

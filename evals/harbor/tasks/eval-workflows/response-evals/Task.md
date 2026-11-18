@@ -29,8 +29,10 @@ on traces it never saw.
 `tests/grading_data.json`. Every reply comes from hand-written parts: 6 policy passages,
 10 items with prices, 12 customers, the greeting and claim sentences, the contact
 sentences, 10 unsupported claims, and 5 ways to break the format. Each message is a
-greeting, 1 to 3 supported claims, and a sentence explaining the refund, in shuffled
-order, followed by any contact sentences. No reply comes from a model.
+greeting, then 1 to 3 supported claims and a sentence explaining the refund in shuffled
+order, then any contact sentences. The production and new traces use different
+wordings for the supported claims and the refund sentence, so a list of production
+sentences doesn't carry over to the new traces. No reply comes from a model.
 
 The trace's index sets its customer, item, order ID, similar-ticket contacts, and
 timestamps. The random seed, 11 for production traces and 23 for new traces, decides the
@@ -40,8 +42,6 @@ rest:
   failure doesn't predict another.
 - The scenario (unused, damaged, or opened electronics), the days since delivery, and
   whether the customer asks for the item price or the price plus shipping.
-- Separate supported-claim and refund-reason wordings for the production and new traces,
-  so a production sentence allowlist doesn't transfer to the new set.
 - Whether one of the 2 similar tickets is the customer's own earlier ticket, and whether
   the reply repeats the customer's email.
 - Which supported claims, contact wording, and third policy passage the trace gets.
@@ -74,7 +74,7 @@ and labels. No person has.
 Each check reads the latest annotation with the requirement's name on the trace or any of
 its spans. Labels count by meaning, so `true` or `grounded` works as well as `pass`, and a
 missing or unclear label counts as wrong. During the rerun, a local proxy records every
-model request and refuses any model except `gpt-5-nano` with a 403 error. `details.json`
+model request and refuses any chat model except `gpt-5-nano` with a 403 error. `details.json`
 reports each requirement's coverage and recall under each check.
 
 `reward` is 1 only when both checks pass.

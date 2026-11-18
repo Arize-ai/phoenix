@@ -16,7 +16,7 @@ it needs, including member rules that no reviewed trace shows.
 | Where | What |
 | --- | --- |
 | Project `refund-decisions` | 80 traces, one per refund request. The root `refund-agent` span has the customer's request and the agent's reply, with its decision, amount, and reason. Its children are a `get_order` tool call that returns the order record (category, price, shipping paid, final-sale flag, days since delivery, condition, opened flag, and membership), a `search_policies` retriever with the 4 policy passages that best match the order, and the LLM call. |
-| `human_review` annotations | On 40 traces: `compliant` or `noncompliant`, with a one-line reason such as "Not damaged, so shipping isn't refundable. Should be $59.99, not $66.94." No reviewed trace is from an Acme Plus member. |
+| `human_review` annotations | On 40 traces: `compliant` or `noncompliant`, with a one-line reason such as "Not damaged, so shipping isn't refundable. Should be $64.00, not $72.95." No reviewed trace is from an Acme Plus member. |
 | `policy_compliant` annotations | On all 80 traces, labeled `pass` or `fail` by the starting judge. |
 | `/app/evals/policy_judge.py` | The starting judge, on `gpt-5-nano`. It sees only the reply, asks whether the reply is polite and mentions the 30-day return window, and skips traces that already have a `policy_compliant` annotation. |
 | Model access | Real `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` values, so the agent can run its judge. |
@@ -54,8 +54,9 @@ judge with conflicting instructions.
 A trace is compliant when the agent's refund matches that amount to the cent, where a
 denial is a refund of 0. The review notes quote the same amounts. The Plus rules are in
 one passage, `plus-members`, which `search_policies` returns only for a member's order.
-Each phrase that states a decision, a fee, a delivery date, or a membership appears in
-both compliant and noncompliant replies, so only the order record decides the label.
+Nearly every phrase that states a decision, a fee, a delivery date, or a membership
+appears in both compliant and noncompliant replies. The few that don't appear in 1 to 3
+traces each, so only the order record reliably decides the label.
 
 The starting `policy_compliant` annotations come from `starting_judge_label`, a stand-in
 for the starting prompt that passes a reply when it mentions the 30-day window.
@@ -77,9 +78,9 @@ does. GPT-6 Astra checked the data and labels.
 Both checks read the latest `policy_compliant` annotation on each trace, whether it's on a
 span or on the trace. The request doesn't name the labels, so any clear binary label
 counts: `pass` and `fail`, `compliant` and `noncompliant`, negations such as
-`not_compliant`, or a score of 1 or 0. A label the verifier can't read counts as missing.
-During the rerun, a local recorder answers any model request except `gpt-5-nano` with a
-403.
+`not_compliant`, or a score. A label the verifier can't read falls back to the score,
+where 0.5 or more passes, and counts as missing without one. During the rerun, a local
+recorder answers any chat model request except `gpt-5-nano` with a 403.
 
 These measures are reported beside `reward` and don't change it. The
 [suite README](../README.md#what-a-run-reports) explains each one.
@@ -108,6 +109,9 @@ hard-coding the policy without the Plus rules, score 0.
 
 ## Known limits
 
+- Only the 40 unreviewed traces are graded in the project. The request asks for a fresh
+  label on every trace, but the reviewed traces' labels, and whether any label is new,
+  aren't checked.
 - Most kinds of mistake have 1 or 2 traces in each check, so a judge can miss a whole
   kind and still clear the 80% bar. The Plus kinds are the exception: a judge that gets
   all of them wrong fails `new_traces`.
