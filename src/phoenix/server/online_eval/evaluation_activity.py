@@ -394,27 +394,43 @@ class _ActivityReader:
         groups: dict[_GroupKey, _GroupTotals],
         bin_index: dict[datetime, int],
     ) -> None:
-        trace = models.Trace
+        """Cost per trace project and bin, credited to each group the trace project belongs to.
+
+        The trace projects are listed rather than joined from the evaluators: joined, the
+        database reads each trace's costs one trace at a time instead of in one pass.
+        """
         project_evaluator = models.ProjectEvaluator
-        bucket = self.time_bins.truncate(self.dialect, trace.start_time)
         group = project_evaluator.project_id if self.by_project else project_evaluator.id
-        async for key, timestamp, cost in await session.stream(
-            sa.select(group, bucket, sa.func.sum(models.SpanCost.total_cost))
-            .select_from(project_evaluator)
-            .join(trace, trace.project_rowid == project_evaluator.trace_project_id)
+        group_keys_by_trace_project: defaultdict[int, list[_GroupKey]] = defaultdict(list)
+        async for key, trace_project_id in await session.stream(
+            sa.select(group, project_evaluator.trace_project_id).where(
+                project_evaluator.id.in_(self.scope)
+            )
+        ):
+            group_keys_by_trace_project[trace_project_id].append(key)
+        if not group_keys_by_trace_project:
+            return
+        trace = models.Trace
+        bucket = self.time_bins.truncate(self.dialect, trace.start_time)
+        async for trace_project_id, timestamp, cost in await session.stream(
+            sa.select(trace.project_rowid, bucket, sa.func.sum(models.SpanCost.total_cost))
+            .select_from(trace)
             .join(models.SpanCost, models.SpanCost.trace_rowid == trace.id)
             .where(
-                project_evaluator.id.in_(self.scope),
+                trace.project_rowid.in_(list(group_keys_by_trace_project)),
                 trace.start_time >= self.start,
                 trace.start_time < self.end,
             )
-            .group_by(group, bucket)
+            .group_by(trace.project_rowid, bucket)
         ):
-            if (totals := groups.get(key)) is None:
-                continue
             cost = float(cost or 0)
-            totals.bins.setdefault(bin_index[_as_datetime(timestamp)], _GroupBin()).cost = cost
-            totals.cost = (totals.cost or 0) + cost
+            bin_position = bin_index[_as_datetime(timestamp)]
+            for key in group_keys_by_trace_project[trace_project_id]:
+                if (totals := groups.get(key)) is None:
+                    continue
+                group_bin = totals.bins.setdefault(bin_position, _GroupBin())
+                group_bin.cost = (group_bin.cost or 0) + cost
+                totals.cost = (totals.cost or 0) + cost
 
     async def _read_evaluation_seconds(
         self,
