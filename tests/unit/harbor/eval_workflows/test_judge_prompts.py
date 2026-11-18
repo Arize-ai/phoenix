@@ -66,6 +66,15 @@ def test_recorder_refuses_other_models(fake_openai: list[dict[str, Any]]) -> Non
     assert recorder.calls[0].status == 403
 
 
+def test_recorder_allows_embedding_models(fake_openai: list[dict[str, Any]]) -> None:
+    body = {"model": "text-embedding-3-small", "input": "support reply"}
+    with judge_prompts.record_llm_calls(allowed_models={"gpt-5-nano"}) as recorder:
+        response = httpx.post(recorder.env["OPENAI_BASE_URL"] + "/embeddings", json=body)
+    assert response.json() == {"echo": body}
+    assert fake_openai == [{"path": "/v1/embeddings", "auth": None}]
+    assert recorder.calls[0].status == 200
+
+
 def test_render_reads_openai_and_anthropic_requests() -> None:
     openai = LLMCall(
         "openai",

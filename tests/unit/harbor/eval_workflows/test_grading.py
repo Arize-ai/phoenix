@@ -167,6 +167,26 @@ def test_stitched_quote_from_one_line_is_accepted() -> None:
     assert grading.check_report_claims({"v8": claim}, {"v8": 0.75}, reply) == {"v8": True}
 
 
+def test_report_claim_sets_require_one_coherent_reading() -> None:
+    reply = "A is 60%, B is 80%."
+    claims = {
+        "a": {"value": 0.6, "quote": "A is 60%", "contradicted": False},
+        "b": {"value": 0.8, "quote": "B is 80%", "contradicted": False},
+    }
+    expected = {
+        "by_run": {"a": 0.6, "b": 0.7},
+        "by_case": {"a": 0.5, "b": 0.8},
+    }
+
+    readings = grading.check_report_claim_sets(claims, expected, reply)
+
+    assert readings == {
+        "by_run": {"a": True, "b": False},
+        "by_case": {"a": False, "b": True},
+    }
+    assert not any(all(checks.values()) for checks in readings.values())
+
+
 @pytest.mark.parametrize(
     ("quote", "passed"),
     [

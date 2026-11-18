@@ -35,13 +35,10 @@ checks = {"decision": False, "numbers": False}
 if reply.strip():
     claims = grading.extract_report_claims(reply, {"decision": DECISION, **RATES})
     decision = grading.check_report_claims(claims, {"decision": EXPECTED["decision"]}, reply)
-    numbers = {
-        rate: any(
-            grading.check_report_claims(claims, {rate: reading[rate]}, reply)[rate]
-            for reading in EXPECTED["accepted_pass_rates"].values()
-        )
-        for rate in RATES
+    readings = grading.check_report_claim_sets(claims, EXPECTED["accepted_pass_rates"], reply)
+    checks = {
+        "decision": decision["decision"],
+        "numbers": any(all(numbers.values()) for numbers in readings.values()),
     }
-    checks = {"decision": decision["decision"], "numbers": all(numbers.values())}
-    details.update(claims=claims, numbers=numbers)
+    details.update(claims=claims, readings=readings)
 grading.finish(checks, details)

@@ -604,6 +604,19 @@ def check_report_claims(
     return checks
 
 
+def check_report_claim_sets(
+    claims: Mapping[str, Any],
+    expected_sets: Mapping[str, Mapping[str, Any]],
+    reply: str,
+    tolerance: float = 0.011,
+) -> dict[str, dict[str, bool]]:
+    """Checks each complete, internally consistent set of expected report claims."""
+    return {
+        name: check_report_claims(claims, expected, reply, tolerance)
+        for name, expected in expected_sets.items()
+    }
+
+
 def stated_number(claim: Mapping[str, Any] | None, reply: str, want: float) -> float | None:
     """Returns the number a claim states, or None if it's missing, unquoted, or contradicted."""
     claim = claim or {}

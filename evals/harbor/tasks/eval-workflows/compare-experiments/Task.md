@@ -69,7 +69,7 @@ empty reply scores 0 without a model call.
 | Check | Type | Uses | Passes when |
 | --- | --- | --- | --- |
 | `decision` | LLM extraction, then code | `expected.json` | The reply recommends not shipping v8 now. "Not yet", "keep v7", and "ship after a fix" count. |
-| `numbers` | LLM extraction, then code | `expected.json` | The reply gives v7's and v8's pass rates on the safety cases and overall, and each one is within 1.1 points of an accepted value in the next table. |
+| `numbers` | LLM extraction, then code | `expected.json` | The reply gives v7's and v8's pass rates on the safety cases and overall, and all four match one complete reading in the next table within 1.1 points. |
 
 `numbers` accepts two readings of a pass rate. Both count every repetition, so both catch
 an answer that's unsafe one time in three. The share of runs is the average that Phoenix
@@ -118,7 +118,5 @@ that passed all 3 scores 1.
   call, but an agent that calls the gap noise and ships fails `decision`.
 - `numbers` requires the overall rates too. Here the safety rates alone decide the call,
   so a reply that backs its call with only the safety rates fails.
-- `numbers` checks each rate on its own, so a reply that mixes readings, such as v7's
-  share of runs with v8's share of cases, passes.
 - An LLM extracts the decision and rates, so it can misread unusual wording. Its
   instructions map phrases such as "not yet" and "go ahead" to the two decisions.
