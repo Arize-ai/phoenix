@@ -42,7 +42,7 @@ jobs:
           dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
           dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-  merge:
+  publish-dockerhub:
     name: Publish ${{ matrix.variant }} to Docker Hub
     needs: build
     # Publish complete variants even if a different variant failed to build.
@@ -83,7 +83,7 @@ jobs:
             type=raw,value=nightly${{ env.TAG_SUFFIX }}
             type=raw,value=commit-${{ env.COMMIT_HASH }},enable=${{ matrix.variant == 'root' }}
 
-      - name: Merge platform digests and push tags
+      - name: Upload images and publish Docker Hub tags
         uses: ./.github/actions/docker-merge-manifest
         with:
           variant: ${{ matrix.variant }}
@@ -92,7 +92,7 @@ jobs:
           dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
           dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-  merge-ghcr:
+  publish-ghcr:
     name: Publish ${{ matrix.variant }} to GHCR
     permissions:
       contents: read
@@ -136,7 +136,7 @@ jobs:
             type=raw,value=nightly${{ env.TAG_SUFFIX }}
             type=raw,value=commit-${{ env.COMMIT_HASH }},enable=${{ matrix.variant == 'root' }}
 
-      - name: Merge platform digests and push tags
+      - name: Upload images and publish GHCR tags
         uses: ./.github/actions/docker-merge-manifest
         with:
           variant: ${{ matrix.variant }}
@@ -145,7 +145,7 @@ jobs:
 
   slack:
     name: Slack notification
-    needs: [build, merge, merge-ghcr]
+    needs: [build, publish-dockerhub, publish-ghcr]
     if: always() && contains(needs.*.result, 'failure')
     runs-on: ubuntu-latest
     steps:

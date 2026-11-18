@@ -41,7 +41,7 @@ jobs:
           dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
           dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-  merge:
+  publish-dockerhub:
     name: Publish ${{ matrix.variant }} to Docker Hub
     needs: build
     # Publish complete variants even if a different variant failed to build.
@@ -72,7 +72,7 @@ jobs:
           tags: |
             type=raw,value=dangerously-experimental-${{ matrix.variant }}
 
-      - name: Merge platform digests and push tags
+      - name: Upload images and publish Docker Hub tags
         uses: ./.github/actions/docker-merge-manifest
         with:
           variant: ${{ matrix.variant }}

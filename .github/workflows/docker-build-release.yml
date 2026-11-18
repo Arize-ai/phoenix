@@ -85,7 +85,7 @@ jobs:
           dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
           dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-  merge:
+  publish-dockerhub:
     name: Publish ${{ matrix.variant }} to Docker Hub
     needs: [version, build]
     # Publish complete variants even if a different variant failed to build.
@@ -137,7 +137,7 @@ jobs:
             type=raw,value=version-${{ needs.version.outputs.major }}.${{ needs.version.outputs.minor }}${{ env.TAG_SUFFIX }}
             type=raw,value=version-${{ needs.version.outputs.major }}${{ env.TAG_SUFFIX }}
 
-      - name: Merge platform digests and push tags
+      - name: Upload images and publish Docker Hub tags
         uses: ./.github/actions/docker-merge-manifest
         with:
           variant: ${{ matrix.variant }}
@@ -146,7 +146,7 @@ jobs:
           dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
           dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-  merge-ghcr:
+  publish-ghcr:
     name: Publish ${{ matrix.variant }} to GHCR
     permissions:
       contents: read
@@ -201,7 +201,7 @@ jobs:
             type=raw,value=version-${{ needs.version.outputs.major }}.${{ needs.version.outputs.minor }}${{ env.TAG_SUFFIX }}
             type=raw,value=version-${{ needs.version.outputs.major }}${{ env.TAG_SUFFIX }}
 
-      - name: Merge platform digests and push tags
+      - name: Upload images and publish GHCR tags
         uses: ./.github/actions/docker-merge-manifest
         with:
           variant: ${{ matrix.variant }}
@@ -211,7 +211,7 @@ jobs:
   update-self-deployment:
     name: Update Kustomize Template
     runs-on: ubuntu-latest
-    needs: [version, merge]
+    needs: [version, publish-dockerhub]
     permissions:
       contents: write
       pull-requests: write
@@ -277,7 +277,7 @@ jobs:
 
   slack:
     name: Slack notification
-    needs: [version, build, merge, merge-ghcr, update-self-deployment]
+    needs: [version, build, publish-dockerhub, publish-ghcr, update-self-deployment]
     if: always() && contains(needs.*.result, 'failure')
     runs-on: ubuntu-latest
     steps:
