@@ -12,7 +12,7 @@ RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
   && rm -rf /var/lib/apt/lists/* \
   && useradd --create-home --shell /bin/bash agent
 # Preinstalled because Harbor's installers need hosts that the allowlist blocks
-ARG CLAUDE_CODE_VERSION=2.1.267
+ARG CLAUDE_CODE_VERSION=2.1.311
 ARG CODEX_VERSION=0.154.0
 RUN npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" "@openai/codex@${CODEX_VERSION}" \
   && chmod 700 /usr/local/lib/node_modules/@anthropic-ai /usr/local/lib/node_modules/@openai
