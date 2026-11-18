@@ -16,6 +16,19 @@ env:
   IMAGE_NAME: phoenix
 
 jobs:
+  prepare-tags:
+    name: Prepare image tags
+    runs-on: ubuntu-latest
+    outputs:
+      tags: ${{ steps.tags.outputs.tags }}
+    steps:
+      - name: Compute shared tags
+        id: tags
+        run: |
+          set -euo pipefail
+          tags=$(jq -cn '{debug: ["dangerously-experimental-debug"]}')
+          echo "tags=$tags" >> "$GITHUB_OUTPUT"
+
   build:
     name: Build ${{ matrix.platform }}
     # linux/arm64 builds on a native ARM runner rather than under QEMU
@@ -46,8 +59,8 @@ jobs:
 
   publish-dockerhub:
     name: Publish ${{ matrix.variant }} to Docker Hub
-    needs: build
-    if: ${{ !cancelled() }}
+    needs: [build, prepare-tags]
+    if: ${{ !cancelled() && needs.prepare-tags.result == 'success' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -61,20 +74,62 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Compute tags
-        id: meta
-        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          flavor: latest=false
-          tags: |
-            type=raw,value=dangerously-experimental-${{ matrix.variant }}
+      - name: Add registry namespace to shared tags
+        id: tags
+        env:
+          TAGS: ${{ toJSON(fromJSON(needs.prepare-tags.outputs.tags)[matrix.variant]) }}
+        run: |
+          set -euo pipefail
+          {
+            echo 'tags<<TAGS'
+            jq -r --arg image "${REGISTRY}/${IMAGE_NAME}" '.[] | "\($image):\(.)"' <<< "$TAGS"
+            echo 'TAGS'
+          } >> "$GITHUB_OUTPUT"
 
       - name: Upload images and publish Docker Hub tags
         uses: ./.github/actions/docker-merge-manifest
         with:
           variant: ${{ matrix.variant }}
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ steps.tags.outputs.tags }}
           expected-digests: 2
           dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
           dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+  publish-ghcr:
+    name: Publish ${{ matrix.variant }} to GHCR
+    permissions:
+      contents: read
+      packages: write
+    needs: [build, prepare-tags]
+    if: ${{ !cancelled() && needs.prepare-tags.result == 'success' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [debug]
+    env:
+      REGISTRY: ghcr.io/arize-ai
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Add registry namespace to shared tags
+        id: tags
+        env:
+          TAGS: ${{ toJSON(fromJSON(needs.prepare-tags.outputs.tags)[matrix.variant]) }}
+        run: |
+          set -euo pipefail
+          {
+            echo 'tags<<TAGS'
+            jq -r --arg image "${REGISTRY}/${IMAGE_NAME}" '.[] | "\($image):\(.)"' <<< "$TAGS"
+            echo 'TAGS'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload images and publish GHCR tags
+        uses: ./.github/actions/docker-merge-manifest
+        with:
+          variant: ${{ matrix.variant }}
+          tags: ${{ steps.tags.outputs.tags }}
+          expected-digests: 2
