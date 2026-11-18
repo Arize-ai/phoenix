@@ -57,8 +57,6 @@ jobs:
 
   build:
     name: Build ${{ matrix.platform }}
-    permissions:
-      contents: read
     needs: version
     # linux/arm64 builds on a native ARM runner rather than under QEMU
     # emulation on x86, which is both far slower and a source of flakes.
@@ -89,8 +87,6 @@ jobs:
 
   merge:
     name: Publish ${{ matrix.variant }} to Docker Hub
-    permissions:
-      contents: read
     needs: [version, build]
     # Publish complete variants even if a different variant failed to build.
     if: ${{ !cancelled() && needs.version.result == 'success' }}
@@ -152,8 +148,6 @@ jobs:
 
   merge-ghcr:
     name: Publish ${{ matrix.variant }} to GHCR
-    permissions:
-      contents: read
       packages: write
     needs: [version, build]
     # Publish complete variants even if a different variant failed to build.
