@@ -35,7 +35,7 @@ from phoenix.server.api.helpers.agent_sessions import (
     require_chat_custom_provider,
     require_chat_model_provider,
 )
-from phoenix.server.api.helpers.playground_clients import _resolve_secrets
+from phoenix.server.api.helpers.builtin_providers import resolve_secrets
 from phoenix.server.types import DbSessionFactory
 from phoenix.utilities.env_vars import without_env_vars
 
@@ -82,12 +82,12 @@ async def _resolve_secrets_or_env(
     environment second; absent keys map to ``None``. A failure to decrypt
     a stored secret surfaces as ``ProviderConfigError`` so callers don't
     need to know about the GraphQL-flavoured exception that
-    ``_resolve_secrets`` raises.
+    ``resolve_secrets`` raises.
     """
     if not keys:
         return {}
     try:
-        secrets = await _resolve_secrets(session, decrypt, *keys)
+        secrets = await resolve_secrets(session, decrypt, *keys)
     except BadRequest as exc:
         raise ProviderConfigError(str(exc)) from exc
     return {key: secrets.get(key) or getenv(key) for key in keys}

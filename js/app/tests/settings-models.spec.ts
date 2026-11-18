@@ -25,7 +25,7 @@ function uniqueModelName() {
 async function openCreateModelDialog(page: Page) {
   await page.goto("/settings/models");
   await page.waitForURL("**/settings/models");
-  await page.getByRole("button", { name: "Create a new model" }).click();
+  await page.getByTestId("create-model-button").click();
   const dialog = modelDialog(page);
   await expect(
     dialog.getByRole("heading", { name: "Create New Model" })
@@ -62,7 +62,7 @@ async function submitCreate(page: Page) {
 }
 
 async function openEditModelDialog(page: Page, name: string) {
-  await page.getByRole("searchbox", { name: "Search models" }).fill(name);
+  await page.getByRole("main").getByRole("searchbox").fill(name);
   const row = page.getByRole("row").filter({ hasText: `^${name}$` });
   await expect(row).toBeVisible();
   await row.getByRole("button", { name: "Edit model" }).click();
@@ -163,7 +163,7 @@ test.describe("Settings Models", () => {
     await submitCreate(page);
     await expect(dialog).not.toBeVisible();
 
-    await page.getByRole("button", { name: "Create a new model" }).click();
+    await page.getByTestId("create-model-button").click();
     dialog = modelDialog(page);
     await fillModelBasics(dialog, { name, provider: "AcmeAI" });
     await submitCreate(page);

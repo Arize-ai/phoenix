@@ -37,6 +37,7 @@ from phoenix.db.helpers import (
 )
 from phoenix.db.models import LatencyMs
 from phoenix.db.types.annotation_configs import OptimizationDirection
+from phoenix.db.types.model_provider import MODEL_TYPES
 from phoenix.db.types.prompts import PromptMessageRole
 from phoenix.server.agents.config import AgentsEnvConfig
 from phoenix.server.agents.github import GITHUB_PAT_SECRET_KEY, decrypt_workspace_secret
@@ -44,19 +45,15 @@ from phoenix.server.api.agent_helpers import get_agent_session_owner_filter
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
-from phoenix.server.api.helpers.decision_clients import (
-    DECISION_CLIENTS,
-    allowed_decision_providers,
+from phoenix.server.api.helpers.chat_clients import (
+    initialize_chat_clients,
 )
+from phoenix.server.api.helpers.client_registry import CLIENT_REGISTRY
 from phoenix.server.api.helpers.experiment_run_filters import (
     ExperimentRunFilterConditionSyntaxError,
     compile_sqlalchemy_filter_condition,
     update_examples_query_with_filter_condition,
 )
-from phoenix.server.api.helpers.playground_clients import (
-    initialize_playground_clients,
-)
-from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.input_types.DatasetEvaluatorFilter import DatasetEvaluatorFilter
 from phoenix.server.api.input_types.DatasetEvaluatorSort import DatasetEvaluatorSort
 from phoenix.server.api.input_types.DatasetFilter import DatasetFilter
@@ -201,7 +198,7 @@ from phoenix.utilities.template_formatters import TemplateFormatterError, get_te
 
 logger = logging.getLogger(__name__)
 
-initialize_playground_clients()
+initialize_chat_clients()
 
 
 def _to_gql_classification_evaluator_config(
@@ -270,7 +267,7 @@ class ModelsInput:
     provider_key: Optional[GenerativeProviderKey] = None
     model_name: Optional[str] = None
     openai_api_type: Optional[OpenAIApiType] = None
-    model_type: ModelType = ModelType.LLM
+    model_type: ModelType = ModelType.CHAT
 
 
 @strawberry.type
@@ -332,14 +329,13 @@ class ExperimentRunMetricComparisons:
 class Query:
     @strawberry.field
     async def model_providers(self, info: Info[Context, None]) -> list[GenerativeProvider]:
-        # A provider is listed if it offers models of either type; decision-only
-        # providers come from the decision clients.
-        available_providers = PLAYGROUND_CLIENT_REGISTRY.list_allowed_providers(
-            info.context.allowed_provider_names
-        )
-        for provider_key in allowed_decision_providers(info.context.allowed_provider_names):
-            if provider_key not in available_providers:
-                available_providers.append(provider_key)
+        available_providers: list[GenerativeProviderKey] = []
+        for model_type in MODEL_TYPES:
+            for provider_key in CLIENT_REGISTRY.list_allowed_providers(
+                info.context.allowed_provider_names, model_type=model_type
+            ):
+                if provider_key not in available_providers:
+                    available_providers.append(provider_key)
         return [
             GenerativeProvider(
                 name=provider_key.value,
@@ -487,19 +483,23 @@ class Query:
                     provider_key_value=provider_key,
                     model_type=ModelType.DECISION,
                 )
-                for provider_key in allowed_decision_providers(info.context.allowed_provider_names)
+                for provider_key in CLIENT_REGISTRY.list_allowed_providers(
+                    info.context.allowed_provider_names, model_type="DECISION"
+                )
                 if input.provider_key is None or input.provider_key is provider_key
-                for model_name in DECISION_CLIENTS[provider_key].model_names
+                for model_name in CLIENT_REGISTRY.list_models(provider_key, model_type="DECISION")
             ]
         if input is not None and input.provider_key is not None:
-            supported_model_names = PLAYGROUND_CLIENT_REGISTRY.list_models(input.provider_key)
+            supported_model_names = CLIENT_REGISTRY.list_models(
+                input.provider_key, model_type="CHAT"
+            )
             supported_models = [
                 PlaygroundModel(name_value=model_name, provider_key_value=input.provider_key)
                 for model_name in supported_model_names
             ]
             return supported_models
 
-        registered_models = PLAYGROUND_CLIENT_REGISTRY.list_all_models()
+        registered_models = CLIENT_REGISTRY.list_all_models(model_type="CHAT")
         all_models: list[PlaygroundModel] = []
         for provider_key, model_name in registered_models:
             if model_name is not None and provider_key is not None:

@@ -119,7 +119,7 @@ From this we learn: the failure is reproducible and tied to the finalizer; aclos
 
 - **Caller-side fix:** If the consumer uses `async with aclosing(stream):` and then `async for chunk in stream: ...`, on break/raise/cancel the context manager awaits `stream.aclose()`. The generator’s `finally` runs in the **same task** (and same context), so any contextvar token in the generator is still valid.
 - **Benefits:** (1) Explicit, prompt cleanup in the same task. (2) Same-context guarantee if we ever add context-dependent cleanup in the generator again. (3) Documented stdlib pattern.
-- **Why we didn’t rely on it:** We have multiple call sites (evaluators, subscriptions, chat_mutations, playground_clients). Requiring every caller to use `aclosing()` would be easy to miss and wouldn’t help legacy or third-party consumers. Fixing the **generator** (no contextvars in cleanup: use `start_span` + `span.end()` in `finally`) makes the stream safe regardless of how the caller iterates. We can still add `aclosing` at our own call sites as optional reinforcement.
+- **Why we didn’t rely on it:** We have multiple call sites (evaluators, subscriptions, chat_mutations, chat_clients). Requiring every caller to use `aclosing()` would be easy to miss and wouldn’t help legacy or third-party consumers. Fixing the **generator** (no contextvars in cleanup: use `start_span` + `span.end()` in `finally`) makes the stream safe regardless of how the caller iterates. We can still add `aclosing` at our own call sites as optional reinforcement.
 
 ### 4.3 Two valid fixes (clarification)
 
@@ -134,7 +134,7 @@ We chose the generator-side fix so correctness doesn’t depend on every caller 
 
 ### 4.4 Why aclosing at our call sites was not enough (chain of generators)
 
-In practice we added `aclosing(stream)` at every place that calls `chat_completion_create` (subscriptions, chat_mutations, evaluators, playground_clients), but the "Token was created in a different Context" error still occurred.
+In practice we added `aclosing(stream)` at every place that calls `chat_completion_create` (subscriptions, chat_mutations, evaluators, chat_clients), but the "Token was created in a different Context" error still occurred.
 
 **Reason:** The **consumer** of our stream is often itself an **async generator** (e.g. a subscription handler that does `async for chunk in stream: yield chunk` to the client). So we have a chain: outer generator A (subscription) uses `async with aclosing(stream B): async for chunk in B: yield chunk`. When the client disconnects or the request is abandoned, the task driving A may be cancelled or A may be dropped. A is then closed only by the **finalizer**, which runs `create_task(A.aclose())` in a **new** task. That task runs A's `aclose()`, which exits A's `async with aclosing(B)` and calls `B.aclose()`. So B is closed from the finalizer's task, not from the original request task. B's `finally` (and thus OTel's detach) runs in the wrong context.
 
@@ -160,7 +160,7 @@ So the stack below us is relevant not because it breaks aclosing, but because it
 
 1. **Generic Python first** — Use only `contextvars` and async generators (no OTel) to prove that a token can be invalid after suspend + exception. This gives generalizable knowledge about Python.
 2. **Map to our architecture** — Generator = streaming LLM client; consumer = evaluator or subscription handler. Design so the generator never uses `start_as_current_span`; use `start_span` and manual `span.end()` in `finally` so cleanup doesn't touch contextvars.
-3. **Application tests** — Existing tests (e.g. `test_playground_clients.py`, evaluator tests, chat_mutations/subscriptions) verify that the generator-side fix produces the expected traces and no "Failed to detach context" or token errors.
+3. **Application tests** — Existing tests (e.g. `test_chat_clients.py`, evaluator tests, chat_mutations/subscriptions) verify that the generator-side fix produces the expected traces and no "Failed to detach context" or token errors.
 
 ---
 
@@ -168,7 +168,7 @@ So the stack below us is relevant not because it breaks aclosing, but because it
 
 | Component | Decision | Rationale |
 |-----------|----------|-----------|
-| **playground_clients.py** `chat_completion_create` | Use `tracer.start_span(...)` and `span.end()` in `finally`. No `start_as_current_span`. | Proven: generator’s contextvar token can be invalid in `finally` when closed in another task; avoid attaching contextvars in the generator. |
+| **chat_clients.py** `chat_completion_create` | Use `tracer.start_span(...)` and `span.end()` in `finally`. No `start_as_current_span`. | Proven: generator’s contextvar token can be invalid in `finally` when closed in another task; avoid attaching contextvars in the generator. |
 | **evaluators.py** | Use `start_as_current_span` as usual; evaluate is an async function, not an async generator, so its cleanup runs in the same task. | Consumer's token stays valid (see §4.1); no generator-side risk in evaluate. |
 | **subscriptions.py / chat_mutations.py** | Use aclosing at call sites that consume the stream; generator-side fix in `chat_completion_create` makes the stream safe even when the subscription resolver is finalized. | Defense in depth; generator does not rely on contextvars in cleanup. |
 
@@ -176,8 +176,8 @@ So the stack below us is relevant not because it breaks aclosing, but because it
 
 ## 7. References
 
-- **Phoenix code:** `src/phoenix/server/api/helpers/playground_clients.py`, `src/phoenix/server/api/evaluators.py`, `src/phoenix/server/api/subscriptions.py`, `src/phoenix/server/api/mutations/chat_mutations.py`.
+- **Phoenix code:** `src/phoenix/server/api/helpers/chat_clients.py`, `src/phoenix/server/api/evaluators.py`, `src/phoenix/server/api/subscriptions.py`, `src/phoenix/server/api/mutations/chat_mutations.py`.
 - **Generic demo:** `internal_docs/vignettes/otel-contextvars-async/contextvars_async_gen_demo.py` — run from repo root: `uv run python internal_docs/vignettes/otel-contextvars-async/contextvars_async_gen_demo.py`.
-- **Application tests:** `tests/unit/server/api/helpers/test_playground_clients.py`, `test_evaluators.py`, and tests that run the full chat/subscriptions flow with tracing.
+- **Application tests:** `tests/unit/server/api/helpers/test_chat_clients.py`, `test_evaluators.py`, and tests that run the full chat/subscriptions flow with tracing.
 - **CPython** (paths under a local cpython clone): `Python/context.c`, `Python/compile.c`, `Python/ceval.c`, `Lib/asyncio/base_events.py`, `Lib/asyncio/tasks.py`, `Lib/asyncio/events.py`.
 - **Official docs:** [Asynchronous generator functions](https://docs.python.org/3/reference/expressions.html#asynchronous-generator-functions), [contextlib.aclosing](https://docs.python.org/3/library/contextlib.html#contextlib.aclosing).
