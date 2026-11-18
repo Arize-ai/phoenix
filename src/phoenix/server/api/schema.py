@@ -27,6 +27,10 @@ from phoenix.server.api.exceptions import (
 )
 from phoenix.server.api.mutations import Mutation
 from phoenix.server.api.queries import Query
+from phoenix.server.api.request_connections import (
+    RequestDbSessionFactory,
+    ShareConnectionsForQueries,
+)
 from phoenix.server.api.subscriptions import Subscription
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionPayload,
@@ -60,6 +64,11 @@ class PhoenixSchema(strawberry.Schema):
     The payloads that follow the first one in an incremental (``@defer``) response
     are sent after the extensions have exited, so their errors are logged and
     masked here instead.
+
+    A request's shared database connections are returned to the pool once its result
+    has been produced, before it is sent, so a client that is slow to read the response
+    does not keep them. For a ``@defer`` response that is when its last part has been
+    produced, which can be while the client is still reading the first.
     """
 
     def process_errors(
@@ -80,6 +89,8 @@ class PhoenixSchema(strawberry.Schema):
         allowed_operation_types: Optional[Iterable[OperationType]] = None,
         operation_extensions: Optional[dict[str, Any]] = None,
     ) -> ExecutionResult:
+        db = getattr(context_value, "db", None)
+        request_db = db if isinstance(db, RequestDbSessionFactory) else None
         result = await super().execute(
             query,
             variable_values=variable_values,
@@ -90,11 +101,14 @@ class PhoenixSchema(strawberry.Schema):
             operation_extensions=operation_extensions,
         )
         if isinstance(result, ExperimentalIncrementalExecutionResults):
-            return result._replace(
-                subsequent_results=_process_subsequent_errors(
-                    result.subsequent_results, query=query, operation_name=operation_name
-                )
+            subsequent_results = _process_subsequent_errors(
+                result.subsequent_results, query=query, operation_name=operation_name
             )
+            if request_db is not None:
+                subsequent_results = _end_request_with_last_part(subsequent_results, request_db)
+            return result._replace(subsequent_results=subsequent_results)
+        if request_db is not None:
+            await request_db.end_request()
         return result
 
 
@@ -112,6 +126,20 @@ def _log_errors(errors: Iterable[GraphQLError], *, operation_name: Optional[str]
                 error.path,
                 exc_info=error.original_error,
             )
+
+
+async def _end_request_with_last_part(
+    results: AsyncGenerator[SubsequentIncrementalExecutionResult, None],
+    request_db: RequestDbSessionFactory,
+) -> AsyncGenerator[SubsequentIncrementalExecutionResult, None]:
+    try:
+        async with aclosing(results):
+            async for result in results:
+                if not result.has_next:
+                    request_db.close_connections()
+                yield result
+    finally:
+        await request_db.end_request()
 
 
 async def _process_subsequent_errors(
@@ -144,7 +172,9 @@ def build_graphql_schema(
     return PhoenixSchema(
         query=Query,
         mutation=Mutation,
-        extensions=list(chain(extensions or [], [get_mask_errors_extension()])),
+        extensions=list(
+            chain(extensions or [], [get_mask_errors_extension(), ShareConnectionsForQueries])
+        ),
         subscription=Subscription,
         config=StrawberryConfig(
             enable_experimental_incremental_execution=True,
