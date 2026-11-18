@@ -143,12 +143,12 @@ export function getEvaluatorTimeSeriesRows({
 export function getQueueSizeRows(
   bins: ReadonlyArray<{
     readonly timestamp: string;
-    readonly groups: ReadonlyArray<{ readonly queueSize: number }>;
+    readonly queueSize: number;
   }>
 ): { timestamp: number; queueSize: number }[] {
-  return bins.map(({ timestamp, groups }) => ({
+  return bins.map(({ timestamp, queueSize }) => ({
     timestamp: new Date(timestamp).getTime(),
-    queueSize: groups.reduce((total, group) => total + group.queueSize, 0),
+    queueSize,
   }));
 }
 

@@ -2,7 +2,7 @@ import { css } from "@emotion/react";
 import React, { Suspense } from "react";
 
 import type { HeadingProps } from "@phoenix/components";
-import { Heading, Skeleton, Text } from "@phoenix/components";
+import { ContextualHelp, Heading, Skeleton, Text } from "@phoenix/components";
 import { ErrorBoundary } from "@phoenix/components/exception";
 
 import { ChartSkeleton } from "./ChartSkeleton";
@@ -79,6 +79,14 @@ const chartPanelCSS = css`
     flex: none;
   }
 
+  .chart-panel__title-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--global-dimension-size-25);
+    min-width: 0;
+  }
+
   .chart-panel__title,
   .chart-panel__subtitle {
     display: block;
@@ -124,9 +132,19 @@ const fillHeightPanelCSS = css`
   }
 `;
 
+const helpTooltipCSS = css`
+  max-width: 280px;
+`;
+
 interface ChartPanelHeaderProps {
   title: string;
   subtitle?: string;
+  /**
+   * What the chart shows, behind an info icon beside the title. Use it when
+   * the title alone does not say how to read the chart. A string is rendered
+   * as small text.
+   */
+  help?: React.ReactNode;
   actions?: React.ReactNode;
   /**
    * Semantic heading level for the chart title. The visual size remains
@@ -139,20 +157,28 @@ interface ChartPanelHeaderProps {
 function ChartPanelHeader({
   title,
   subtitle,
+  help,
   actions,
   headingLevel = 4,
 }: ChartPanelHeaderProps) {
   return (
     <div className="chart-panel__header">
       <div className="chart-panel__header-content">
-        <Heading
-          level={headingLevel}
-          weight="heavy"
-          className="chart-panel__title"
-          title={title}
-        >
-          {title}
-        </Heading>
+        <div className="chart-panel__title-row">
+          <Heading
+            level={headingLevel}
+            weight="heavy"
+            className="chart-panel__title"
+            title={title}
+          >
+            {title}
+          </Heading>
+          {help != null ? (
+            <ContextualHelp variant="info" placement="top" css={helpTooltipCSS}>
+              {typeof help === "string" ? <Text size="S">{help}</Text> : help}
+            </ContextualHelp>
+          ) : null}
+        </div>
         {subtitle && (
           <Text
             size="XS"
@@ -189,6 +215,7 @@ interface ChartPanelProps extends ChartPanelHeaderProps {
 export function ChartPanel({
   title,
   subtitle,
+  help,
   actions,
   headingLevel,
   fillHeight = false,
@@ -203,6 +230,7 @@ export function ChartPanel({
       <ChartPanelHeader
         title={title}
         subtitle={subtitle}
+        help={help}
         actions={actions}
         headingLevel={headingLevel}
       />
