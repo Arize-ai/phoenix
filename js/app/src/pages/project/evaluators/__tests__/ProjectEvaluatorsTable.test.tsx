@@ -111,7 +111,13 @@ const HIDDEN_COLUMN_IDS = [
 type EvaluatorFixtureKind = "CODE" | "BUILTIN" | "LLM";
 
 /** Each kind's evaluator selections, as the row fragment reads them. */
-function makeEvaluator(index: number, kind: EvaluatorFixtureKind) {
+function makeEvaluator({
+  index,
+  kind,
+}: {
+  index: number;
+  kind: EvaluatorFixtureKind;
+}) {
   const outputConfigs = [
     {
       __typename: "ContinuousAnnotationConfig",
@@ -159,13 +165,16 @@ function makeEvaluator(index: number, kind: EvaluatorFixtureKind) {
   }
 }
 
-function makeEvaluatorNode(
-  index: number,
-  {
-    kind = "CODE",
-    tracingEnabled = true,
-  }: { kind?: EvaluatorFixtureKind; tracingEnabled?: boolean } = {}
-) {
+type EvaluatorNodeFixtureOptions = {
+  kind?: EvaluatorFixtureKind;
+  tracingEnabled?: boolean;
+};
+
+function makeEvaluatorNode({
+  index,
+  kind = "CODE",
+  tracingEnabled = true,
+}: { index: number } & EvaluatorNodeFixtureOptions) {
   return {
     __typename: "ProjectEvaluator",
     id: `ProjectEvaluator:${index}`,
@@ -192,7 +201,7 @@ function makeEvaluatorNode(
       shareOfEvaluationTime: null,
       excludesUntracedEvaluators: false,
     },
-    evaluator: makeEvaluator(index, kind),
+    evaluator: makeEvaluator({ index, kind }),
     failureSummary: {
       failedCount: 0,
       evaluatedCount: 0,
@@ -219,7 +228,7 @@ function makeInitialPart({
   indexes: number[];
   hasNextPage?: boolean;
   /** Per-row fixture options, by index; rows default to traced code evaluators. */
-  nodes?: Record<number, Parameters<typeof makeEvaluatorNode>[1]>;
+  nodes?: Record<number, EvaluatorNodeFixtureOptions>;
 }) {
   return {
     data: {
@@ -228,7 +237,7 @@ function makeInitialPart({
         ...(root === "project" ? { evaluatorCount: indexes.length } : {}),
         evaluators: {
           edges: indexes.map((index) => ({
-            node: makeEvaluatorNode(index, nodes[index]),
+            node: makeEvaluatorNode({ index, ...nodes[index] }),
             cursor: `cursor-${index}`,
           })),
           pageInfo: {
