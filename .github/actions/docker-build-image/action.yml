@@ -18,6 +18,9 @@ inputs:
   registry:
     description: Docker Hub namespace.
     required: true
+  additional-image:
+    description: Additional GHCR image repository to publish.
+    default: ""
   image-name:
     description: Repository name within the namespace.
     required: true
@@ -63,6 +66,14 @@ runs:
       with:
         images: ${{ inputs.registry }}/${{ inputs.image-name }}
 
+    - name: Log in to GHCR
+      if: inputs.additional-image != ''
+      uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
+
     # The WASM fetch is the only download here with no registry-protocol
     # retry beneath it, and the release asset drops connections. Building
     # that stage alone parks its layer in the Actions cache so the builds
@@ -101,10 +112,12 @@ runs:
         VARIANTS: ${{ inputs.variants }}
         PLATFORM: ${{ inputs.platform }}
         IMAGE: ${{ inputs.registry }}/${{ inputs.image-name }}
+        ADDITIONAL_IMAGE: ${{ inputs.additional-image }}
         LABELS: ${{ steps.meta.outputs.labels }}
       run: |
         set -uo pipefail
 
+        export IMAGE_NAMES="$IMAGE${ADDITIONAL_IMAGE:+,$ADDITIONAL_IMAGE}"
         label_args=()
         while IFS= read -r label; do
           [ -n "$label" ] && label_args+=(--label "$label")
@@ -129,7 +142,7 @@ runs:
                --sbom true \
                "${label_args[@]}" \
                --metadata-file "$meta" \
-               --output "type=image,name=${IMAGE},push-by-digest=true,name-canonical=true,push=true" \
+               --output "type=image,\"name=${IMAGE_NAMES}\",push-by-digest=true,name-canonical=true,push=true" \
                .
           then
             digest=$(jq -r '."containerimage.digest"' "$meta")

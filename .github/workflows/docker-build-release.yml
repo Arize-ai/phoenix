@@ -57,6 +57,9 @@ jobs:
 
   build:
     name: Build ${{ matrix.platform }}
+    permissions:
+      contents: read
+      packages: write
     needs: version
     # linux/arm64 builds on a native ARM runner rather than under QEMU
     # emulation on x86, which is both far slower and a source of flakes.
@@ -84,6 +87,7 @@ jobs:
       - name: Build and push every variant by digest
         uses: ./.github/actions/docker-build-image
         with:
+          additional-image: ghcr.io/arize-ai/phoenix
           variants: root nonroot debug
           platform: ${{ matrix.platform }}
           registry: ${{ env.REGISTRY }}
@@ -93,6 +97,9 @@ jobs:
 
   merge:
     name: Publish ${{ matrix.variant }} manifest
+    permissions:
+      contents: read
+      packages: write
     needs: [version, build]
     # A matrix job reports failure if any cell fails, so plain `needs` would let
     # one variant's failed leg withhold every other variant — including ones
@@ -133,7 +140,9 @@ jobs:
         id: meta
         uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+            ghcr.io/arize-ai/phoenix
           # latest=false because every `latest` variant is listed explicitly
           # below; left on auto it would also add an unsuffixed `latest` to
           # nonroot and debug.
@@ -151,8 +160,6 @@ jobs:
         uses: ./.github/actions/docker-merge-manifest
         with:
           variant: ${{ matrix.variant }}
-          registry: ${{ env.REGISTRY }}
-          image-name: ${{ env.IMAGE_NAME }}
           tags: ${{ steps.meta.outputs.tags }}
           expected-digests: 2
           dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}

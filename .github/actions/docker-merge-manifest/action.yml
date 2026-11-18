@@ -8,12 +8,6 @@ inputs:
   variant:
     description: Image variant whose digests to collect — must match the build job.
     required: true
-  registry:
-    description: Docker Hub namespace.
-    required: true
-  image-name:
-    description: Repository name within the namespace.
-    required: true
   tags:
     description: Newline-separated list of fully qualified tags to apply.
     required: true
@@ -46,11 +40,17 @@ runs:
         username: ${{ inputs.dockerhub-username }}
         password: ${{ inputs.dockerhub-password }}
 
+    - name: Log in to GHCR
+      if: contains(inputs.tags, 'ghcr.io/')
+      uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
+
     - name: Create manifest list and push
-      id: create
       shell: bash
       env:
-        IMAGE: ${{ inputs.registry }}/${{ inputs.image-name }}
         TAGS: ${{ inputs.tags }}
         EXPECTED_DIGESTS: ${{ inputs.expected-digests }}
         VARIANT: ${{ inputs.variant }}
@@ -61,51 +61,57 @@ runs:
         shopt -s nullglob
         cd "${RUNNER_TEMP}/digests"
 
-        sources=()
-        for digest in "${VARIANT}"/*; do
-          [ -f "$digest" ] || continue
-          sources+=("${IMAGE}@sha256:$(basename "$digest")")
+        digests=()
+        for digest_file in "${VARIANT}"/*; do
+          [ -f "$digest_file" ] || continue
+          digests+=("sha256:$(basename "$digest_file")")
         done
-        if [ "${#sources[@]}" -ne "$EXPECTED_DIGESTS" ]; then
-          echo "expected $EXPECTED_DIGESTS platform digests, found ${#sources[@]}" >&2
+        if [ "${#digests[@]}" -ne "$EXPECTED_DIGESTS" ]; then
+          echo "expected $EXPECTED_DIGESTS platform digests, found ${#digests[@]}" >&2
           exit 1
         fi
 
-        tag_args=()
+        repositories=()
         while IFS= read -r tag; do
           [ -n "$tag" ] || continue
-          tag_args+=(--tag "$tag")
-          first_tag="${first_tag:-$tag}"
+          repositories+=("${tag%:*}")
         done <<< "$TAGS"
-        if [ "${#tag_args[@]}" -eq 0 ]; then
+        if [ "${#repositories[@]}" -eq 0 ]; then
           echo "no tags supplied" >&2
           exit 1
         fi
 
-        docker buildx imagetools create "${tag_args[@]}" "${sources[@]}"
-        echo "first-tag=${first_tag}" >> "$GITHUB_OUTPUT"
+        while IFS= read -r repository; do
+          sources=()
+          for digest in "${digests[@]}"; do
+            sources+=("${repository}@${digest}")
+          done
+          tag_args=()
+          while IFS= read -r tag; do
+            [ "${tag%:*}" = "$repository" ] || continue
+            tag_args+=(--tag "$tag")
+          done <<< "$TAGS"
+          docker buildx imagetools create --prefer-index=true "${tag_args[@]}" "${sources[@]}"
+        done < <(printf '%s\n' "${repositories[@]}" | sort -u)
 
-    # The push already happened, so this is a tripwire rather than a gate: it
-    # turns a silently single-architecture tag into a red build.
     - name: Verify published platforms
       shell: bash
       env:
-        FIRST_TAG: ${{ steps.create.outputs.first-tag }}
+        TAGS: ${{ inputs.tags }}
         EXPECTED_DIGESTS: ${{ inputs.expected-digests }}
       run: |
         set -euo pipefail
-        docker buildx imagetools inspect "$FIRST_TAG"
-
-        # Attestation manifests carry platform unknown/unknown; only real
-        # architectures count. `// []` keeps a plain manifest (no index at
-        # all) on the reported-as-0 path instead of erroring out of jq.
-        raw=$(docker buildx imagetools inspect --raw "$FIRST_TAG")
-        real='[.manifests // [] | .[] | select(.platform.os != null and .platform.os != "unknown")]'
-        platforms=$(jq -r "${real} | map(\"\(.platform.os)/\(.platform.architecture)\") | sort | join(\",\")" <<< "$raw")
-        found=$(jq "${real} | length" <<< "$raw")
-
-        echo "published platforms: ${platforms:-<none>}"
-        if [ "$found" -ne "$EXPECTED_DIGESTS" ]; then
-          echo "expected $EXPECTED_DIGESTS platforms in $FIRST_TAG, found $found" >&2
-          exit 1
-        fi
+        while IFS= read -r tag; do
+          [ -n "$tag" ] || continue
+          raw=$(docker buildx imagetools inspect --raw "$tag")
+          platforms=$(jq -r '[.manifests // [] | .[] | select(.platform.os != null and .platform.os != "unknown") | "\(.platform.os)/\(.platform.architecture)"] | sort | join(",")' <<< "$raw")
+          expected="linux/amd64,linux/arm64"
+          if [ "$EXPECTED_DIGESTS" = 1 ]; then
+            expected="linux/amd64"
+          fi
+          echo "$tag platforms: ${platforms:-<none>}"
+          if [ "$platforms" != "$expected" ]; then
+            echo "expected $expected in $tag, found $platforms" >&2
+            exit 1
+          fi
+        done <<< "$TAGS"

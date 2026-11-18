@@ -85,8 +85,6 @@ jobs:
         uses: ./.github/actions/docker-merge-manifest
         with:
           variant: ${{ matrix.variant }}
-          registry: ${{ env.REGISTRY }}
-          image-name: ${{ env.IMAGE_NAME }}
           tags: ${{ steps.meta.outputs.tags }}
           expected-digests: 2
           dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
