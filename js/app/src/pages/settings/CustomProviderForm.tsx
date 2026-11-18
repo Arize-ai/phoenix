@@ -38,7 +38,6 @@ import {
   DEFAULT_AWS_AUTH_METHOD,
   DEFAULT_AZURE_AUTH_METHOD,
   type GenerativeModelSDK,
-  SDK_DEFAULT_PROVIDER,
   SDK_LABELS,
   SDK_OPTIONS,
 } from "@phoenix/constants/generativeConstants";
@@ -48,6 +47,7 @@ import type { CustomProviderFormTestCredentialsMutation } from "./__generated__/
 import { providerFormSchema } from "./customProviderFormSchema";
 import {
   buildClientConfig,
+  buildFormDataForSDKChange,
   buildProviderModels,
   createDefaultFormData,
 } from "./customProviderFormUtils";
@@ -1071,7 +1071,8 @@ function SDKFieldsRenderer({
 }
 
 /**
- * SDK selector that resets SDK-specific fields when SDK changes.
+ * SDK selector. Changing the SDK resets connection fields and keeps
+ * served-model fields the new SDK still serves.
  */
 function SDKSelect({
   control,
@@ -1085,26 +1086,12 @@ function SDKSelect({
   isSubmitting: boolean;
 }) {
   const handleSDKChange = useCallback(
-    (oldSDK: GenerativeModelSDK, newSDK: GenerativeModelSDK) => {
-      // Reset SDK-specific fields while preserving shared fields
-      const currentValues = getValues();
-      const newDefaults = createDefaultFormData(newSDK);
-
-      // Only update provider if it matches the old SDK's default
-      // (i.e., user hasn't customized it)
-      const currentProviderIsDefault =
-        currentValues.provider === SDK_DEFAULT_PROVIDER[oldSDK];
-      const newProvider = currentProviderIsDefault
-        ? SDK_DEFAULT_PROVIDER[newSDK]
-        : currentValues.provider;
-
+    (newSDK: GenerativeModelSDK) => {
       reset(
-        {
-          ...newDefaults,
-          name: currentValues.name || "",
-          description: currentValues.description || "",
-          provider: newProvider,
-        },
+        buildFormDataForSDKChange({
+          currentValues: getValues(),
+          newSDK,
+        }),
         { keepDefaultValues: true }
       );
     },
@@ -1121,12 +1108,10 @@ function SDKSelect({
           value={field.value}
           onChange={(key) => {
             if (key != null) {
-              const oldSDK = field.value;
-              const newSDK = key as GenerativeModelSDK;
               // Note: We don't call field.onChange here because handleSDKChange
               // calls reset() which sets all form values including the SDK field.
               // Calling both would be redundant and could cause race conditions.
-              handleSDKChange(oldSDK, newSDK);
+              handleSDKChange(key as GenerativeModelSDK);
             }
           }}
           isDisabled={isSubmitting}

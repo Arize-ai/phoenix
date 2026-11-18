@@ -35,6 +35,7 @@ import type {
   ProviderFormData,
   TypeSafeFormData,
 } from "./CustomProviderForm";
+import { sdkCanServeDecisions } from "./decisionSdks";
 
 export type ProviderNode = EditCustomProviderButtonQuery$data["node"];
 type CustomProviderNode = Extract<
@@ -171,6 +172,66 @@ export function createDefaultFormData(
       return _exhaustive;
     }
   }
+}
+
+/**
+ * Form values after the SDK select changes.
+ *
+ * Connection fields reset to the new SDK's defaults. Name and description
+ * carry over. The provider string switches to the new SDK's default only when
+ * it still matches the previous SDK's default. Chat and decision model fields
+ * carry over when the new SDK serves that model type. TypeSafe decisions stay
+ * enabled, because that SDK always serves them.
+ *
+ * @param params.currentValues - form values before the change
+ * @param params.newSDK - SDK the form is switching to
+ */
+export function buildFormDataForSDKChange({
+  currentValues,
+  newSDK,
+}: {
+  currentValues: ProviderFormData;
+  newSDK: GenerativeModelSDK;
+}): ProviderFormData {
+  const providerIsSdkDefault =
+    currentValues.provider === SDK_DEFAULT_PROVIDER[currentValues.sdk];
+  const next: ProviderFormData = {
+    ...createDefaultFormData(newSDK),
+    name: currentValues.name || "",
+    description: currentValues.description || "",
+    provider: providerIsSdkDefault
+      ? SDK_DEFAULT_PROVIDER[newSDK]
+      : currentValues.provider,
+  };
+  const withChatModels =
+    "model_names" in currentValues && "model_names" in next
+      ? { ...next, model_names: currentValues.model_names }
+      : next;
+  if (
+    !hasDecisionModelFields(withChatModels) ||
+    !hasDecisionModelFields(currentValues)
+  ) {
+    return withChatModels;
+  }
+  if (withChatModels.sdk === "TYPESAFE") {
+    return {
+      ...withChatModels,
+      // Always on for this SDK; a previous SDK's off switch must not stick.
+      decision_enabled: true,
+      decision_model_names: currentValues.decision_model_names,
+    };
+  }
+  return {
+    ...withChatModels,
+    decision_enabled: currentValues.decision_enabled,
+    decision_model_names: currentValues.decision_model_names,
+  };
+}
+
+function hasDecisionModelFields(
+  formData: ProviderFormData
+): formData is Extract<ProviderFormData, DecisionModelsFormData> {
+  return sdkCanServeDecisions(formData.sdk);
 }
 
 // =============================================================================

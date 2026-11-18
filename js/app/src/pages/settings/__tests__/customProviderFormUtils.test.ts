@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { OpenAIFormData, ProviderFormData } from "../CustomProviderForm";
 import {
   buildClientConfig,
+  buildFormDataForSDKChange,
   buildProviderModels,
   createDefaultFormData,
   parseModelNames,
@@ -196,6 +197,113 @@ describe("provider models", () => {
     const unchanged = transformToPatchInput(original, "provider-id", original);
     expect(unchanged.clientConfig).toBeUndefined();
     expect(unchanged.models).toBeUndefined();
+  });
+});
+
+describe("buildFormDataForSDKChange", () => {
+  it("keeps served models and resets the connection when switching OpenAI to Azure OpenAI", () => {
+    const next = requireFormSdk({
+      values: buildFormDataForSDKChange({
+        currentValues: openai({
+          description: "gateway",
+          model_names: "gpt-6",
+          decision_enabled: true,
+          decision_model_names: "gpt-6-luna",
+          openai_api_key: "sk-test",
+          openai_base_url: "https://proxy.example/v1",
+        }),
+        newSDK: "AZURE_OPENAI",
+      }),
+      sdk: "AZURE_OPENAI",
+    });
+    expect(next.name).toBe("proxy");
+    expect(next.description).toBe("gateway");
+    expect(next.model_names).toBe("gpt-6");
+    expect(next.decision_enabled).toBe(true);
+    expect(next.decision_model_names).toBe("gpt-6-luna");
+    expect(next).not.toHaveProperty("openai_api_key");
+    expect(next.azure_endpoint).toBe("");
+  });
+
+  it("keeps served models and resets the connection when switching Azure OpenAI to OpenAI", () => {
+    const current = {
+      ...requireFormSdk({
+        values: createDefaultFormData("AZURE_OPENAI"),
+        sdk: "AZURE_OPENAI",
+      }),
+      name: "azure",
+      azure_endpoint: "https://res.openai.azure.com",
+      azure_api_key: "az-key",
+      model_names: "gpt-6",
+      decision_enabled: true,
+      decision_model_names: "gpt-6-luna",
+    };
+    const next = requireFormSdk({
+      values: buildFormDataForSDKChange({
+        currentValues: current,
+        newSDK: "OPENAI",
+      }),
+      sdk: "OPENAI",
+    });
+    expect(next.model_names).toBe("gpt-6");
+    expect(next.decision_enabled).toBe(true);
+    expect(next.decision_model_names).toBe("gpt-6-luna");
+    expect(next).not.toHaveProperty("azure_endpoint");
+    expect(next.openai_api_key).toBe("");
+  });
+
+  it("keeps chat model names and drops decision models when switching to Anthropic", () => {
+    const next = requireFormSdk({
+      values: buildFormDataForSDKChange({
+        currentValues: openai({
+          model_names: "gpt-6",
+          decision_enabled: true,
+          decision_model_names: "gpt-6-luna",
+        }),
+        newSDK: "ANTHROPIC",
+      }),
+      sdk: "ANTHROPIC",
+    });
+    expect(next.model_names).toBe("gpt-6");
+    expect(next).not.toHaveProperty("decision_enabled");
+    expect(next).not.toHaveProperty("decision_model_names");
+  });
+
+  it("drops chat models and keeps decision names when switching to TypeSafe, which stays enabled", () => {
+    const next = requireFormSdk({
+      values: buildFormDataForSDKChange({
+        currentValues: openai({
+          model_names: "gpt-6",
+          decision_enabled: false,
+          decision_model_names: "gpt-6-luna",
+        }),
+        newSDK: "TYPESAFE",
+      }),
+      sdk: "TYPESAFE",
+    });
+    expect(next).not.toHaveProperty("model_names");
+    expect(next.decision_model_names).toBe("gpt-6-luna");
+    expect(next.decision_enabled).toBe(true);
+  });
+
+  it("follows the new SDK's default provider unless the current one was customized", () => {
+    const followed = requireFormSdk({
+      values: buildFormDataForSDKChange({
+        currentValues: openai(),
+        newSDK: "ANTHROPIC",
+      }),
+      sdk: "ANTHROPIC",
+    });
+    expect(followed.provider).toBe("anthropic");
+
+    const kept = requireFormSdk({
+      values: buildFormDataForSDKChange({
+        currentValues: openai({ provider: "my-gateway" }),
+        newSDK: "ANTHROPIC",
+      }),
+      sdk: "ANTHROPIC",
+    });
+    expect(kept.provider).toBe("my-gateway");
   });
 });
 

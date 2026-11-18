@@ -227,3 +227,89 @@ it("updates a mounted model menu's custom provider model names in the Relay stor
     decision: ["gpt-6-luna"],
   });
 });
+
+it("keeps served models when the SDK changes to Azure OpenAI", async () => {
+  const environment = createMockEnvironment();
+  const user = userEvent.setup();
+  await act(async () => {
+    root.render(
+      <RelayEnvironmentProvider environment={environment}>
+        <ThemeProvider themeMode="light" disableBodyTheme>
+          <EditCustomProviderButton
+            providerId="provider-id"
+            providerName="proxy"
+          />
+        </ThemeProvider>
+      </RelayEnvironmentProvider>
+    );
+  });
+  const edit = container.querySelector<HTMLButtonElement>(
+    'button[aria-label="Edit provider"]'
+  );
+  if (!edit) throw new Error("Missing edit button");
+  await act(() => user.click(edit));
+  await act(async () => {
+    environment.mock.resolveMostRecentOperation((operation) =>
+      MockPayloadGenerator.generate(operation, {
+        Node: () => ({ __typename: "GenerativeModelCustomProvider" }),
+        GenerativeModelCustomProvider: () => ({
+          id: "provider-id",
+          name: "proxy",
+          description: null,
+          sdk: "OPENAI",
+          provider: "openai",
+          user: null,
+          models: {
+            chat: { names: ["chat-custom"] },
+            decision: { names: ["decision-custom"] },
+          },
+          config: {
+            __typename: "OpenAICustomProviderConfig",
+            openaiApiType: "RESPONSES",
+            openaiAuthenticationMethod: { apiKey: "sk-stored" },
+            openaiClientKwargs: null,
+          },
+        }),
+      })
+    );
+  });
+
+  const dialog = document.querySelector('[role="dialog"]');
+  const sdkSelect = dialog?.querySelector<HTMLButtonElement>(
+    'button[aria-haspopup="listbox"]'
+  );
+  if (!sdkSelect) throw new Error("Missing SDK select");
+  await act(() => user.click(sdkSelect));
+  const azureOption = [
+    ...document.querySelectorAll<HTMLElement>('[role="option"]'),
+  ].find((option) => option.textContent === "Azure OpenAI");
+  if (!azureOption) throw new Error("Missing Azure OpenAI option");
+  await act(() => user.click(azureOption));
+
+  const endpoint = dialog?.querySelector<HTMLInputElement>(
+    'input[name="azure_endpoint"]'
+  );
+  const apiKey = dialog?.querySelector<HTMLInputElement>(
+    'input[name="azure_api_key"]'
+  );
+  if (!endpoint) throw new Error("Missing Azure endpoint");
+  if (!apiKey) throw new Error("Missing Azure API key");
+  await act(() => user.type(endpoint, "https://res.openai.azure.com"));
+  await act(() => user.type(apiKey, "az-key"));
+
+  const submit = [...(dialog?.querySelectorAll("button") ?? [])].find(
+    (button) => button.textContent === "Update Provider"
+  );
+  if (!submit) throw new Error("Missing update button");
+  await act(() => user.click(submit));
+
+  const input =
+    environment.mock.getMostRecentOperation().request.variables.input;
+  expect(
+    input.clientConfig.azureOpenai.azureOpenaiClientKwargs.azureEndpoint
+  ).toBe("https://res.openai.azure.com");
+  expect(
+    input.clientConfig.azureOpenai.azureOpenaiAuthenticationMethod
+  ).toEqual({ apiKey: "az-key" });
+  expect(input.models).toBeUndefined();
+});
