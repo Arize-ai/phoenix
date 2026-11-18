@@ -489,7 +489,7 @@ export function ModelsTable({
   if (isEmpty) {
     return (
       <Flex width="100%" justifyContent="center" alignItems="center">
-        <p>No models found</p>
+        <p>No model costs found</p>
       </Flex>
     );
   }

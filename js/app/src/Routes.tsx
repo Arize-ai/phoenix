@@ -1540,7 +1540,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Models",
                 description:
-                  "Configure saved model settings including provider, model name patterns, start dates, and token pricing.",
+                  "Manage model costs: the model name patterns, start dates, and per-token prices Phoenix uses to calculate LLM costs. Search and filter built-in and custom model costs.",
               },
             }}
           />
