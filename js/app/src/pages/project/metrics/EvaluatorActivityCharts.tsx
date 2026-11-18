@@ -525,9 +525,7 @@ export function EvaluationQueueSizeTimeSeries({
             ) {
               series {
                 timestamp
-                groups {
-                  queueSize
-                }
+                queueSize
               }
             }
           }
