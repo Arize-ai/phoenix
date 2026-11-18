@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<172a8943edcbe1364ef4051862d0dca7>>
+ * @generated SignedSource<<bfb8ef95095304fba5b3c34388984994>>
  * @lightSyntaxTransform
  */
 
@@ -14,7 +14,7 @@ export type PromptIndexPage__aside$data = {
   readonly id: string;
   readonly metadata: any;
   readonly name: string;
-  readonly " $fragmentSpreads": FragmentRefs<"EditPromptButton_data" | "PromptLabels" | "PromptLatestVersionsListFragment">;
+  readonly " $fragmentSpreads": FragmentRefs<"EditPromptButton_data" | "PromptLatestVersionsListFragment">;
   readonly " $fragmentType": "PromptIndexPage__aside";
 };
 export type PromptIndexPage__aside$key = {
@@ -65,17 +65,12 @@ const node: ReaderFragment = {
       "args": null,
       "kind": "FragmentSpread",
       "name": "EditPromptButton_data"
-    },
-    {
-      "args": null,
-      "kind": "FragmentSpread",
-      "name": "PromptLabels"
     }
   ],
   "type": "Prompt",
   "abstractKey": null
 };
 
-(node as any).hash = "407e371e7602b5195f1061fef7705c23";
+(node as any).hash = "4cdc821fb4e307327d25ea9ff40f7dce";
 
 export default node;

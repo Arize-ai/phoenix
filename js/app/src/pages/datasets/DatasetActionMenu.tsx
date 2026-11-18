@@ -15,7 +15,7 @@ import {
   PopoverArrow,
   Text,
 } from "@phoenix/components";
-import { DatasetLabelSelectionContent } from "@phoenix/components/dataset/DatasetLabelConfigButton";
+import { DatasetLabelSelectionContent } from "@phoenix/components/dataset/DatasetLabelPicker";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 
 import { DeleteDatasetDialog } from "./DeleteDatasetDialog";

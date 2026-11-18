@@ -8,17 +8,14 @@ import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAge
 import {
   Counter,
   Flex,
-  Heading,
   LazyTabPanel,
   Loading,
   PageHeader,
   Tab,
   TabList,
   Tabs,
-  Token,
 } from "@phoenix/components";
-import { Truncate } from "@phoenix/components/core/utility/Truncate";
-import { DatasetLabelConfigButton } from "@phoenix/components/dataset";
+import { DatasetLabelsEditor } from "@phoenix/components/dataset";
 import { TableSkeleton } from "@phoenix/components/table";
 import { DatasetProvider } from "@phoenix/contexts/DatasetContext";
 import type { datasetLoader } from "@phoenix/pages/dataset/datasetLoader";
@@ -198,37 +195,17 @@ function DatasetPageContent({
   return (
     <main css={mainCSS}>
       <PageHeader
-        title={
-          <Flex direction="row" gap="size-100" alignItems="center">
-            <Heading level={1}>{dataset.name}</Heading>
-            {dataset.labels && dataset.labels.length > 0 && (
-              <ul
-                css={css`
-                  display: flex;
-                  flex-direction: row;
-                  gap: var(--global-dimension-size-100);
-                  min-width: 0;
-                  flex-wrap: wrap;
-                `}
-              >
-                {dataset.labels.map((label) => (
-                  <li key={label.id}>
-                    <Token color={label.color}>
-                      <Truncate maxWidth={200} title={label.name}>
-                        {label.name}
-                      </Truncate>
-                    </Token>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Flex>
-        }
+        title={dataset.name}
         subTitle={dataset.description || "--"}
+        labels={
+          <DatasetLabelsEditor
+            datasetId={dataset.id}
+            labels={dataset.labels ?? []}
+          />
+        }
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
             <DatasetDownloadMenu datasetId={dataset.id} />
-            <DatasetLabelConfigButton datasetId={dataset.id} />
             <RunDatasetExperimentButton variant="primary" size="M" />
           </Flex>
         }

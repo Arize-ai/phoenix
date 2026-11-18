@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<df725d78f079632848e2b6969d98c83e>>
+ * @generated SignedSource<<b9d954ca545430a4fcfda1fe3da42f86>>
  * @lightSyntaxTransform
  */
 
@@ -8,11 +8,11 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type DatasetLabelConfigButtonSetLabelsMutation$variables = {
+export type DatasetLabelPickerSetLabelsMutation$variables = {
   datasetId: string;
   datasetLabelIds: ReadonlyArray<string>;
 };
-export type DatasetLabelConfigButtonSetLabelsMutation$data = {
+export type DatasetLabelPickerSetLabelsMutation$data = {
   readonly setDatasetLabels: {
     readonly dataset: {
       readonly id: string;
@@ -24,9 +24,9 @@ export type DatasetLabelConfigButtonSetLabelsMutation$data = {
     };
   };
 };
-export type DatasetLabelConfigButtonSetLabelsMutation = {
-  response: DatasetLabelConfigButtonSetLabelsMutation$data;
-  variables: DatasetLabelConfigButtonSetLabelsMutation$variables;
+export type DatasetLabelPickerSetLabelsMutation = {
+  response: DatasetLabelPickerSetLabelsMutation$data;
+  variables: DatasetLabelPickerSetLabelsMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -122,7 +122,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "DatasetLabelConfigButtonSetLabelsMutation",
+    "name": "DatasetLabelPickerSetLabelsMutation",
     "selections": (v2/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -131,20 +131,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "DatasetLabelConfigButtonSetLabelsMutation",
+    "name": "DatasetLabelPickerSetLabelsMutation",
     "selections": (v2/*:: as any*/)
   },
   "params": {
-    "cacheID": "2578453afc9307312ce6d800e272e7fd",
+    "cacheID": "533b216a64a84750ff4e2b9bd01cdd7e",
     "id": null,
     "metadata": {},
-    "name": "DatasetLabelConfigButtonSetLabelsMutation",
+    "name": "DatasetLabelPickerSetLabelsMutation",
     "operationKind": "mutation",
-    "text": "mutation DatasetLabelConfigButtonSetLabelsMutation(\n  $datasetId: ID!\n  $datasetLabelIds: [ID!]!\n) {\n  setDatasetLabels(input: {datasetId: $datasetId, datasetLabelIds: $datasetLabelIds}) {\n    dataset {\n      id\n      labels {\n        id\n        name\n        color\n      }\n    }\n  }\n}\n"
+    "text": "mutation DatasetLabelPickerSetLabelsMutation(\n  $datasetId: ID!\n  $datasetLabelIds: [ID!]!\n) {\n  setDatasetLabels(input: {datasetId: $datasetId, datasetLabelIds: $datasetLabelIds}) {\n    dataset {\n      id\n      labels {\n        id\n        name\n        color\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c3b75ee3be0ec65cbebd4a7b7a9b770c";
+(node as any).hash = "d38b09beb7d7303e5bd563f02ad0a235";
 
 export default node;

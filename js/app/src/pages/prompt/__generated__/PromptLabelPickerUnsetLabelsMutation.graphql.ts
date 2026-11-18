@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6ef126e99aa6c36bea600642045bb458>>
+ * @generated SignedSource<<6e92db184154c44525e1b105d11931eb>>
  * @lightSyntaxTransform
  */
 
@@ -8,23 +8,27 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-import { FragmentRefs } from "relay-runtime";
-export type PromptLabelConfigButtonSetLabelsMutation$variables = {
+export type PromptLabelPickerUnsetLabelsMutation$variables = {
   promptId: string;
   promptLabelIds: ReadonlyArray<string>;
 };
-export type PromptLabelConfigButtonSetLabelsMutation$data = {
-  readonly setPromptLabels: {
+export type PromptLabelPickerUnsetLabelsMutation$data = {
+  readonly unsetPromptLabels: {
     readonly query: {
       readonly node: {
-        readonly " $fragmentSpreads": FragmentRefs<"PromptLabelConfigButton_promptLabels">;
+        readonly id?: string;
+        readonly labels?: ReadonlyArray<{
+          readonly color: string | null;
+          readonly id: string;
+          readonly name: string;
+        }>;
       };
     };
   };
 };
-export type PromptLabelConfigButtonSetLabelsMutation = {
-  response: PromptLabelConfigButtonSetLabelsMutation$data;
-  variables: PromptLabelConfigButtonSetLabelsMutation$variables;
+export type PromptLabelPickerUnsetLabelsMutation = {
+  response: PromptLabelPickerUnsetLabelsMutation$data;
+  variables: PromptLabelPickerUnsetLabelsMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -71,20 +75,46 @@ v3 = {
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "PromptLabel",
+  "kind": "LinkedField",
+  "name": "labels",
+  "plural": true,
+  "selections": [
+    (v3/*:: as any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "name",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "color",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
 };
 return {
   "fragment": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "PromptLabelConfigButtonSetLabelsMutation",
+    "name": "PromptLabelPickerUnsetLabelsMutation",
     "selections": [
       {
         "alias": null,
         "args": (v1/*:: as any*/),
         "concreteType": "PromptLabelAssociationMutationPayload",
         "kind": "LinkedField",
-        "name": "setPromptLabels",
+        "name": "unsetPromptLabels",
         "plural": false,
         "selections": [
           {
@@ -106,11 +136,8 @@ return {
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      {
-                        "args": null,
-                        "kind": "FragmentSpread",
-                        "name": "PromptLabelConfigButton_promptLabels"
-                      }
+                      (v3/*:: as any*/),
+                      (v4/*:: as any*/)
                     ],
                     "type": "Prompt",
                     "abstractKey": null
@@ -132,14 +159,14 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "PromptLabelConfigButtonSetLabelsMutation",
+    "name": "PromptLabelPickerUnsetLabelsMutation",
     "selections": [
       {
         "alias": null,
         "args": (v1/*:: as any*/),
         "concreteType": "PromptLabelAssociationMutationPayload",
         "kind": "LinkedField",
-        "name": "setPromptLabels",
+        "name": "unsetPromptLabels",
         "plural": false,
         "selections": [
           {
@@ -169,18 +196,7 @@ return {
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "PromptLabel",
-                        "kind": "LinkedField",
-                        "name": "labels",
-                        "plural": true,
-                        "selections": [
-                          (v3/*:: as any*/)
-                        ],
-                        "storageKey": null
-                      }
+                      (v4/*:: as any*/)
                     ],
                     "type": "Prompt",
                     "abstractKey": null
@@ -197,16 +213,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0dee2c7f46c3544f59a4f7d1492703a9",
+    "cacheID": "b5276b68a8a41ded1519601e79c6ad14",
     "id": null,
     "metadata": {},
-    "name": "PromptLabelConfigButtonSetLabelsMutation",
+    "name": "PromptLabelPickerUnsetLabelsMutation",
     "operationKind": "mutation",
-    "text": "mutation PromptLabelConfigButtonSetLabelsMutation(\n  $promptId: ID!\n  $promptLabelIds: [ID!]!\n) {\n  setPromptLabels(input: {promptId: $promptId, promptLabelIds: $promptLabelIds}) {\n    query {\n      node(id: $promptId) {\n        __typename\n        ... on Prompt {\n          ...PromptLabelConfigButton_promptLabels\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment PromptLabelConfigButton_promptLabels on Prompt {\n  id\n  labels {\n    id\n  }\n}\n"
+    "text": "mutation PromptLabelPickerUnsetLabelsMutation(\n  $promptId: ID!\n  $promptLabelIds: [ID!]!\n) {\n  unsetPromptLabels(input: {promptId: $promptId, promptLabelIds: $promptLabelIds}) {\n    query {\n      node(id: $promptId) {\n        __typename\n        ... on Prompt {\n          id\n          labels {\n            id\n            name\n            color\n          }\n        }\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "eb92a569b031b4a9bfbac8ae446cd13a";
+(node as any).hash = "86edd6a801adeb769e7c6b7c106a283c";
 
 export default node;

@@ -16,6 +16,12 @@ export type UseDatasetLabelMutationsParams = {
   datasetId?: string;
 };
 
+export type CreatedDatasetLabel = {
+  id: string;
+  name: string;
+  color: string;
+};
+
 export const useDatasetLabelMutations = ({
   updateConnectionIds,
   datasetId,
@@ -52,7 +58,10 @@ export const useDatasetLabelMutations = ({
     `);
 
   const addLabelMutation = useCallback(
-    (label: LabelParams, onCompleted: () => void) => {
+    (
+      label: LabelParams,
+      onCompleted: (createdLabel: CreatedDatasetLabel) => void
+    ) => {
       // Convert RGBA to hex format for backend
       const convertToHex = (color: string): string => {
         if (color.startsWith("#")) return color;
@@ -82,8 +91,8 @@ export const useDatasetLabelMutations = ({
           },
           connections: updateConnectionIds ?? [],
         },
-        onCompleted: () => {
-          onCompleted?.();
+        onCompleted: (response) => {
+          onCompleted(response.createDatasetLabel.datasetLabel);
         },
         onError: (error) => {
           const formattedError = getErrorMessagesFromRelayMutationError(error);

@@ -18,7 +18,7 @@ import {
   Text,
 } from "@phoenix/components";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
-import { PromptLabelSelectionContent } from "@phoenix/pages/prompt/PromptLabelConfigButton";
+import { PromptLabelSelectionContent } from "@phoenix/pages/prompt/PromptLabelPicker";
 
 import { DeletePromptDialog } from "./DeletePromptDialog";
 

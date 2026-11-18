@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5ba18ca5b61dc3fbce88de3b836194fa>>
+ * @generated SignedSource<<d6e4d917ba1e247d5ca78f1ae8ca0cab>>
  * @lightSyntaxTransform
  */
 
@@ -9,21 +9,21 @@
 
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type PromptLabelConfigButton_allLabels$data = {
-  readonly promptLabels: {
+export type DatasetLabelPicker_allLabels$data = {
+  readonly datasetLabels: {
     readonly edges: ReadonlyArray<{
       readonly node: {
-        readonly color: string | null;
+        readonly color: string;
         readonly id: string;
         readonly name: string;
       };
     }>;
   };
-  readonly " $fragmentType": "PromptLabelConfigButton_allLabels";
+  readonly " $fragmentType": "DatasetLabelPicker_allLabels";
 };
-export type PromptLabelConfigButton_allLabels$key = {
-  readonly " $data"?: PromptLabelConfigButton_allLabels$data;
-  readonly " $fragmentSpreads": FragmentRefs<"PromptLabelConfigButton_allLabels">;
+export type DatasetLabelPicker_allLabels$key = {
+  readonly " $data"?: DatasetLabelPicker_allLabels$data;
+  readonly " $fragmentSpreads": FragmentRefs<"DatasetLabelPicker_allLabels">;
 };
 
 const node: ReaderFragment = {
@@ -42,25 +42,25 @@ const node: ReaderFragment = {
         "cursor": null,
         "direction": "forward",
         "path": [
-          "promptLabels"
+          "datasetLabels"
         ]
       }
     ]
   },
-  "name": "PromptLabelConfigButton_allLabels",
+  "name": "DatasetLabelPicker_allLabels",
   "selections": [
     {
-      "alias": "promptLabels",
+      "alias": "datasetLabels",
       "args": null,
-      "concreteType": "PromptLabelConnection",
+      "concreteType": "DatasetLabelConnection",
       "kind": "LinkedField",
-      "name": "__PromptLabelConfigButtonAllLabels_promptLabels_connection",
+      "name": "__DatasetLabelPicker_datasetLabels_connection",
       "plural": false,
       "selections": [
         {
           "alias": null,
           "args": null,
-          "concreteType": "PromptLabelEdge",
+          "concreteType": "DatasetLabelEdge",
           "kind": "LinkedField",
           "name": "edges",
           "plural": true,
@@ -68,7 +68,7 @@ const node: ReaderFragment = {
             {
               "alias": null,
               "args": null,
-              "concreteType": "PromptLabel",
+              "concreteType": "DatasetLabel",
               "kind": "LinkedField",
               "name": "node",
               "plural": false,
@@ -147,6 +147,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "f7e56efc1063f0b5739b9b64f84be12c";
+(node as any).hash = "4336693f2979252dd3e8d19ef6594bbc";
 
 export default node;

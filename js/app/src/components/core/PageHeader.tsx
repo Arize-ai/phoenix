@@ -14,6 +14,12 @@ export type PageHeaderProps = {
    */
   subTitle?: ReactNode;
   /**
+   * The labels attached to the page's subject, on their own row beneath the
+   * subtitle. Pass an `EditableTagGroup` where the person can edit them, or a
+   * read-only `TagGroup`.
+   */
+  labels?: ReactNode;
+  /**
    * The extra content of the page header.
    */
   extra?: ReactNode;
@@ -40,7 +46,12 @@ function SubTitle({ children }: { children: ReactNode }) {
   return children;
 }
 
-export function PageHeader({ title, subTitle, extra }: PageHeaderProps) {
+export function PageHeader({
+  title,
+  subTitle,
+  labels,
+  extra,
+}: PageHeaderProps) {
   return (
     <View padding="size-200" flex="none" data-testid="page-header">
       <Flex
@@ -53,6 +64,7 @@ export function PageHeader({ title, subTitle, extra }: PageHeaderProps) {
         <Flex direction="column" gap="size-50" minWidth={0}>
           <Title>{title}</Title>
           <SubTitle>{subTitle}</SubTitle>
+          {labels ? <div data-testid="page-header-labels">{labels}</div> : null}
         </Flex>
         {extra}
       </Flex>

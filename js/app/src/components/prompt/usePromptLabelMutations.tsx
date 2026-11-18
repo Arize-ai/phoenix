@@ -15,7 +15,7 @@ function getPromptLabelConnectionIds(): string[] {
   return [
     ConnectionHandler.getConnectionID(
       "client:root",
-      "PromptLabelConfigButtonAllLabels_promptLabels"
+      "PromptLabelPicker_promptLabels"
     ),
     ConnectionHandler.getConnectionID(
       "client:root",
@@ -23,6 +23,12 @@ function getPromptLabelConnectionIds(): string[] {
     ),
   ];
 }
+
+export type CreatedPromptLabel = {
+  id: string;
+  name: string;
+  color: string | null;
+};
 
 /**
  * Owns the "create prompt label" mutation and its Relay connection wiring,
@@ -54,10 +60,15 @@ export const usePromptLabelMutations = () => {
     `);
 
   const addLabelMutation = useCallback(
-    (label: LabelParams, onCompleted: () => void) => {
+    (
+      label: LabelParams,
+      onCompleted: (createdLabel: CreatedPromptLabel | undefined) => void
+    ) => {
       createLabel({
         variables: { label, connections: getPromptLabelConnectionIds() },
-        onCompleted,
+        onCompleted: (response) => {
+          onCompleted(response.createPromptLabel.promptLabels[0]);
+        },
         onError: (error) => {
           const formattedError = getErrorMessagesFromRelayMutationError(error);
           setError(formattedError?.[0] ?? error.message);
