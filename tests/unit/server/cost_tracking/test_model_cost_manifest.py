@@ -179,7 +179,7 @@ def test_flat_rate_models_carry_every_token_rate(
     [
         # Direct Mistral AI API prices from LiteLLM ``mistral/*`` IDs. OpenInference uses
         # ``llm.provider = "mistralai"`` (not LiteLLM's ``mistral`` string).
-        ("mistral/mistral-large-latest", "mistralai", 5e-7, 1.5e-6, 5e-8),
+        ("mistral/mistral-large-latest", "mistralai", 7e-7, 2.1e-6, 7e-8),
         ("mistral/mistral-small-latest", "mistralai", 1.5e-7, 6e-7, 1.5e-8),
         ("mistral/codestral-latest", "mistralai", 3e-7, 9e-7, 3e-8),
         ("mistral/pixtral-large-latest", "mistralai", 2e-6, 6e-6, 2e-7),
@@ -272,8 +272,9 @@ def built_in_lookup(manifest: dict[str, Any]) -> CostModelLookup:
         # and vice versa: claude-opus-5's pattern also matches claude-opus-5-5.
         ("claude-opus-5-5", "claude-opus-5-5"),
         ("claude-opus-5", "claude-opus-5"),
-        # Platform-specific IDs for the same model resolve to the same entry.
-        ("anthropic.claude-opus-5-5", "claude-opus-5-5"),
+        # Platform-specific IDs for the same model resolve to the same entry, unless LiteLLM
+        # lists the platform ID with its own prices.
+        ("anthropic.claude-opus-5-5", "anthropic.claude-opus-5-5"),
         ("claude-opus-5-5@default", "claude-opus-5-5"),
         # The GPT-6 tiers released alongside the flagship, plus the GPT-5.6 Terra tier
         # that has no GPT-6 counterpart.
@@ -301,6 +302,38 @@ def test_current_lineup_resolves_to_its_own_manifest_entry(
     )
     assert model is not None, f"no built-in model priced {span_model_name}"
     assert model.name == expected_entry
+
+
+@pytest.mark.parametrize(
+    "span_model_name, input_rate, output_rate",
+    [
+        # Bedrock cross-region inference profiles bill at Bedrock's regional rate, 10% above
+        # Anthropic's list price, as LiteLLM lists for these ids: $3.30/$16.50 per MTok for
+        # Sonnet 4.5 and $5.50/$27.50 for Opus 4.5.
+        ("us.anthropic.claude-sonnet-4-5-20250929-v1:0", 3.3e-6, 1.65e-5),
+        ("jp.anthropic.claude-sonnet-4-5-20250929-v1:0", 3.3e-6, 1.65e-5),
+        ("eu.anthropic.claude-opus-4-5-20251101-v1:0", 5.5e-6, 2.75e-5),
+    ],
+)
+def test_bedrock_cross_region_claude_ids_resolve_to_regional_rates(
+    built_in_lookup: CostModelLookup,
+    models_by_name: dict[str, dict[str, Any]],
+    span_model_name: str,
+    input_rate: float,
+    output_rate: float,
+) -> None:
+    model = built_in_lookup.find_model(
+        start_time=datetime.now(timezone.utc),
+        attributes={"llm": {"model_name": span_model_name}},
+    )
+    assert model is not None, f"no built-in model priced {span_model_name}"
+    prices = {
+        (price["token_type"], price["is_prompt"]): price["base_rate"]
+        for price in models_by_name[model.name]["token_prices"]
+    }
+    billed_at = f"{span_model_name} bills at the rates of {model.name}"
+    assert prices[("input", True)] == pytest.approx(input_rate, rel=1e-9), billed_at
+    assert prices[("output", False)] == pytest.approx(output_rate, rel=1e-9), billed_at
 
 
 def test_checked_in_manifest_parses_without_skipping_entries(
