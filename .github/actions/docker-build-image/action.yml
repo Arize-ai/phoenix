@@ -11,14 +11,11 @@ inputs:
   platform:
     description: Target platform in Docker form, e.g. linux/amd64.
     required: true
-  context:
+  source-dir:
     description: Application source directory.
     default: .
-  preview-context:
-    description: Trusted preview launcher directory; empty for regular images.
-    default: ""
-  seed-context:
-    description: Preview seed directory.
+  startup-and-data-dir:
+    description: Preview Dockerfile, startup scripts, and sample-data script directory.
     default: ""
   enable-cache:
     description: Allow the shared WASM cache; disabled for PR builds.
@@ -85,8 +82,8 @@ runs:
       uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
       with:
         platforms: ${{ inputs.platform }}
-        context: ${{ inputs.context }}
-        file: ${{ inputs.context }}/Dockerfile
+        context: ${{ inputs.source-dir }}
+        file: ${{ inputs.source-dir }}/Dockerfile
         target: wasm-runtime
         provenance: false
         sbom: false
@@ -107,16 +104,15 @@ runs:
       env:
         VARIANTS: ${{ inputs.variants }}
         PLATFORM: ${{ inputs.platform }}
-        BUILD_CONTEXT: ${{ inputs.context }}
-        PREVIEW_CONTEXT: ${{ inputs.preview-context }}
-        SEED_CONTEXT: ${{ inputs.seed-context }}
+        SOURCE_DIR: ${{ inputs.source-dir }}
+        STARTUP_AND_DATA_DIR: ${{ inputs.startup-and-data-dir }}
         BAKE_FILE: ${{ github.action_path }}/docker-bake.hcl
         LABELS: ${{ steps.meta.outputs.labels }}
       run: |
         set -uo pipefail
 
         build_target=application
-        if [ -n "$PREVIEW_CONTEXT" ]; then
+        if [ -n "$STARTUP_AND_DATA_DIR" ]; then
           build_target=preview
         fi
         label_args=()

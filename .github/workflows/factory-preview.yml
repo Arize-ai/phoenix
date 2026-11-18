@@ -93,7 +93,7 @@ jobs:
           python-version: "3.12"
           enable-cache: false
 
-      - name: Prepare preview seed and tags
+      - name: Prepare startup files, sample data, and tags
         id: plan
         env:
           GH_TOKEN: ${{ github.token }}
@@ -101,7 +101,9 @@ jobs:
           set -euo pipefail
           image="ghcr.io/$(echo "$GH_REPO" | tr '[:upper:]' '[:lower:]' | cut -d/ -f1)/phoenix"
           echo "image=$image" >> "$GITHUB_OUTPUT"
-          uv run --script base/factory/preview/plan.py --pr "$PR_NUMBER" --head-sha "$HEAD_SHA" --seed-dir "$GITHUB_WORKSPACE/seed" > "$RUNNER_TEMP/plan.out"
+          mkdir -p "$RUNNER_TEMP/preview-startup"
+          cp base/factory/preview/{Dockerfile,launch.py,seed_log.py} "$RUNNER_TEMP/preview-startup/"
+          uv run --script base/factory/preview/plan.py --pr "$PR_NUMBER" --head-sha "$HEAD_SHA" --seed-dir "$RUNNER_TEMP/preview-startup" > "$RUNNER_TEMP/plan.out"
           cat "$RUNNER_TEMP/plan.out" >> "$GITHUB_OUTPUT"
 
       - name: Build image
@@ -110,9 +112,8 @@ jobs:
           variants: root
           revision: ${{ github.event.pull_request.head.sha }}
           platform: linux/amd64
-          context: ${{ github.workspace }}/head
-          preview-context: ${{ github.workspace }}/base/factory/preview
-          seed-context: ${{ github.workspace }}/seed
+          source-dir: ${{ github.workspace }}/head
+          startup-and-data-dir: ${{ runner.temp }}/preview-startup
           enable-cache: "false"
           dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
           dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
