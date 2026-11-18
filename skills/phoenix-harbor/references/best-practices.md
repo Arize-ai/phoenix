@@ -18,7 +18,7 @@ Prefer checks that accept valid approaches across agents and implementations. Te
 
 Use language and detail that a user would plausibly provide. A script, database change, set of annotations, or Markdown review can be a natural deliverable. A JSON answer file added only to simplify grading usually isn't, because real users don't ask for one and the task stops matching real use. When the deliverable is an answer, grade the agent's final reply instead. Ask for structured output only when a user would.
 
-Users often leave details unstated, and a task can too. The exception is anything the verifier strictly requires: if the grade depends on where or in what form a result is saved, such as an experiment in Phoenix rather than a local file, say so. Otherwise capable agents fail for reasons they can't see.
+Users often leave details unstated, and a task can too. The exception is anything the verifier strictly requires: if the grade depends on where or in what form a result is saved, such as an exact file path, say so. Otherwise capable agents fail for reasons they can't see.
 
 Include requirements that matter to the user's goal. Avoid adding formatting, rounding, units, or implementation steps only to satisfy a narrow verifier. Let the verifier accept equivalent representations and reasonable interpretations. If ambiguity makes success impossible to assess fairly, revise the task or its criteria.
 
@@ -75,7 +75,7 @@ Give a judge the task criteria and independent evidence. Treat agent content as 
 
 To align a verifier or judge with what you mean by success:
 
-- Pick the judge model by measured agreement, not cost. A small model can misread an unambiguous reply.
+- Test every judge used as a verifier on realistic cases and measure its agreement with your intended verdicts to find gaps. A small model with a well-tested prompt is often enough and costs less.
 - Give a judge one criterion per call when criteria interact. A judge asked about several at once can blend them, for example by counting a privacy leak as an unsupported claim.
 - Rerun the judge on the same inputs. If its verdict flips, take a majority over repeated calls or tighten the criteria before the score affects `reward`.
 - Grade the behavior that matters, not exact output. Exact matches against references that fix arbitrary choices fail correct work.
@@ -98,7 +98,7 @@ A verifier that grades the final reply is the exception. Oracle and `nop` usuall
 
 Also test a valid alternative and a realistic incorrect result. For multiple criteria, test partial completion and the combinations that affect the aggregate. Check that verifier errors remain errors. Rerun affected cases after changes to the environment, fixtures, or verifier. Oracle and `nop` do not call an agent model, but an LLM verifier still incurs judge calls.
 
-Oracle and `nop` show only that the verifier can tell finished work from no work. Before a full run, pilot each task with real agents and read their trajectories for verdicts the verifier got wrong: valid work it failed and flawed work it passed. Don't predict outcomes by replaying earlier agents' scripts on new data; live agents adapt to what they see.
+Oracle and `nop` show only that the verifier can tell finished work from no work. Before a full run, pilot each task with real agents and read their trajectories for verdicts the verifier got wrong: valid work it failed and flawed work it passed. With ATIF tracing enabled, the experiment in Phoenix records a trace for every run, so you can review them there.
 
 Also check that the task can separate the conditions you plan to compare. Run it under the strongest and weakest condition first. If both pass easily, the instruction probably spells out the method or the task is too easy, and the comparison can't show a difference.
 
