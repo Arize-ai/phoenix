@@ -1,5 +1,22 @@
 # Changelog
 
+## [21.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v21.1.0...arize-phoenix-v21.2.0) (2026-11-18)
+
+
+### Features
+
+* **cli:** add prompt tag command ([#17759](https://github.com/Arize-ai/phoenix/issues/17759)) ([5160fd5](https://github.com/Arize-ai/phoenix/commit/5160fd586e1ad247ed131c12aa8b7bd168037e45))
+
+
+### Bug Fixes
+
+* **evaluators:** run LLM evaluators on Anthropic prompts with extended thinking ([#17734](https://github.com/Arize-ai/phoenix/issues/17734)) ([593a776](https://github.com/Arize-ai/phoenix/commit/593a776b28da6eb329051f28fdba8f6e2559ae47))
+* **factory:** pin commits and screen inputs before agent sessions ([#17811](https://github.com/Arize-ai/phoenix/issues/17811)) ([7d3a245](https://github.com/Arize-ai/phoenix/commit/7d3a2450feec8f6b71ab21220b2c41c62bc05207))
+* **factory:** send a user agent Railway accepts from the preview deploy script ([#18007](https://github.com/Arize-ai/phoenix/issues/18007)) ([a94d129](https://github.com/Arize-ai/phoenix/commit/a94d1297f99d42473e19cefe28732d53e11c2c82))
+* **factory:** stop mentioning the requester in factory comments ([#18012](https://github.com/Arize-ai/phoenix/issues/18012)) ([9f9ee7d](https://github.com/Arize-ai/phoenix/commit/9f9ee7de153e43064d8ae1a530139b6191338bc4))
+* **notebooks:** deprecate legacy eval benchmark notebooks ([#17981](https://github.com/Arize-ai/phoenix/issues/17981)) ([9c80b63](https://github.com/Arize-ai/phoenix/commit/9c80b636b4d127a54e7dd347f62c2059b87a5efc))
+* **server:** delete retention traces in batches that skip locked rows ([#18021](https://github.com/Arize-ai/phoenix/issues/18021)) ([364d93e](https://github.com/Arize-ai/phoenix/commit/364d93e3b3792492659e8526a0f848209e2fb9bf))
+
 ## [21.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v21.0.0...arize-phoenix-v21.1.0) (2026-11-13)
 
 
