@@ -30,6 +30,7 @@ CUSTOM_PROVIDERS: dict[str, dict[str, Any]] = {
         "provider": "openai",
         "sdk": "OPENAI",
         "description": "Datagen-owned OpenAI custom provider.",
+        "models": {"chat": {}, "decision": {}},
         "clientConfig": {
             "openai": {
                 "openaiAuthenticationMethod": {"apiKey": "fake"},
@@ -40,6 +41,7 @@ CUSTOM_PROVIDERS: dict[str, dict[str, Any]] = {
         "provider": "anthropic",
         "sdk": "ANTHROPIC",
         "description": "Datagen-owned Anthropic custom provider.",
+        "models": {"chat": {}},
         "clientConfig": {
             "anthropic": {
                 "anthropicAuthenticationMethod": {"apiKey": "fake"},
@@ -50,6 +52,7 @@ CUSTOM_PROVIDERS: dict[str, dict[str, Any]] = {
         "provider": "google",
         "sdk": "GOOGLE_GENAI",
         "description": "Datagen-owned Google GenAI custom provider.",
+        "models": {"chat": {}},
         "clientConfig": {
             "googleGenai": {
                 "googleGenaiAuthenticationMethod": {"apiKey": "fake"},
@@ -60,6 +63,7 @@ CUSTOM_PROVIDERS: dict[str, dict[str, Any]] = {
         "provider": "typesafe",
         "sdk": "TYPESAFE",
         "description": "Datagen-owned TypeSafe custom provider.",
+        "models": {"decision": {}},
         "clientConfig": {
             "typesafe": {
                 "typesafeAuthenticationMethod": {"apiKey": "fake"},
@@ -71,7 +75,7 @@ CUSTOM_PROVIDERS: dict[str, dict[str, Any]] = {
 _FIND_CUSTOM_PROVIDERS = """
 query DatagenCustomProviders($after: String) {
   generativeModelCustomProviders(first: 100, after: $after) {
-    edges { node { id name sdk } }
+    edges { node { id name sdk modelTypes } }
     pageInfo { hasNextPage endCursor }
   }
 }
@@ -79,6 +83,11 @@ query DatagenCustomProviders($after: String) {
 _CREATE_CUSTOM_PROVIDER = """
 mutation DatagenCreateCustomProvider($input: CreateGenerativeModelCustomProviderMutationInput!) {
   createGenerativeModelCustomProvider(input: $input) { provider { id } }
+}
+"""
+_PATCH_CUSTOM_PROVIDER = """
+mutation DatagenPatchCustomProvider($input: PatchGenerativeModelCustomProviderMutationInput!) {
+  patchGenerativeModelCustomProvider(input: $input) { provider { id } }
 }
 """
 
@@ -176,6 +185,7 @@ def seed_custom_providers(http: httpx.Client) -> list[tuple[str, str]]:
                         "name": name,
                         "description": spec["description"],
                         "provider": spec["provider"],
+                        "models": spec["models"],
                         "clientConfig": spec["clientConfig"],
                     }
                 },
@@ -185,6 +195,13 @@ def seed_custom_providers(http: httpx.Client) -> list[tuple[str, str]]:
             raise DatasetError(f"{name}: a custom provider with another SDK already exists")
         else:
             provider_id = str(saved["id"])
+            expected_model_types = {key.upper() for key in spec["models"]}
+            if not expected_model_types.issubset(saved.get("modelTypes", ())):
+                _graphql(
+                    http,
+                    _PATCH_CUSTOM_PROVIDER,
+                    {"input": {"id": provider_id, "models": spec["models"]}},
+                )
         results.append((name, provider_id))
     return results
 

@@ -23,7 +23,7 @@ declare type ModelProvider =
  * The kind of model an instance runs: a chat (LLM) model or a decision model.
  * Mirrors the `ModelType` GraphQL enum.
  */
-declare type ModelType = "LLM" | "DECISION";
+declare type ModelType = "CHAT" | "DECISION";
 
 /**
  * The role of a chat message

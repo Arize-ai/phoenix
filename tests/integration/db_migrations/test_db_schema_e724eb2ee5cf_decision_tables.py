@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from . import _down, _run_async, _up, _verify_clean_state
 
-_DOWN = "ef09e3bc213f"
+_DOWN = "4027185fa2cf"
 _UP = "e724eb2ee5cf"
 
 _VERSION_COLUMNS = (
@@ -338,8 +338,15 @@ def _insert_custom_provider(conn: Connection) -> int:
         ),
         {"config": b"encrypted", "now": datetime.now(timezone.utc)},
     ).scalar()
-    conn.commit()
     assert isinstance(provider_id, int)
+    conn.execute(
+        text(
+            "INSERT INTO custom_provider_model_types (provider_id, model_type) "
+            "VALUES (:provider_id, 'DECISION')"
+        ),
+        {"provider_id": provider_id},
+    )
+    conn.commit()
     return provider_id
 
 

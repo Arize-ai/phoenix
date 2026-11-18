@@ -230,7 +230,7 @@ class TestEvaluatorPreviewSubscription:
     ) -> None:
         llm_client = MagicMock()
         monkeypatch.setattr(
-            "phoenix.server.evaluators.resolution.get_playground_client",
+            "phoenix.server.evaluators.resolution.get_chat_client",
             AsyncMock(return_value=llm_client),
         )
         label = {"type": "string", "enum": ["correct", "incorrect"]}

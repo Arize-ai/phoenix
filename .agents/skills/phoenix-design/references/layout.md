@@ -18,6 +18,12 @@ Each action MUST have one method of invocation. Confirm/cancel SHOULD be placed 
 
 Row actions (e.g. delete, edit) for simple list or menu items MUST be always visible. Hiding actions behind hover states reduces discoverability and is inaccessible to touch users.
 
+## Switches
+
+A switch aligned to the end of its container, such as one in a section header or at the end of a row, MUST place its label before the switch (`labelPlacement="start"`). The label's width changes with its text, so a label after the switch moves the switch every time it is toggled. With the label first, the switch stays fixed at the edge.
+
+A switch that shows its state as its label SHOULD use "Enabled" and "Disabled", not "On" and "Off".
+
 ## Copy affordances
 
 A `Card` whose body holds content worth copying MUST offer a copy button in its header's `extra` slot, and that button MUST be the last control in the slot so it lands in the same place on every card. Copy MUST NOT be placed inside the card body — a reader should never have to hunt for it, or hover to find it.

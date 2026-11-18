@@ -1,5 +1,4 @@
-"""The built-in decision clients for providers whose chat client lives elsewhere: Azure
-OpenAI (OpenAI's Decisions API) and Fireworks (System One), plus Ollama's catalog."""
+"""Tests for built-in Azure OpenAI, Fireworks, Ollama, and Google decision clients."""
 
 import json
 from typing import Any, cast
@@ -11,6 +10,7 @@ import pytest
 import respx
 from pydantic import SecretStr
 
+from phoenix.db import models
 from phoenix.db.types.decisions import (
     ChoiceOption,
     ChoiceQuestion,
@@ -19,22 +19,27 @@ from phoenix.db.types.decisions import (
     ScaleQuestion,
 )
 from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.helpers.client_registry import CLIENT_REGISTRY
 from phoenix.server.api.helpers.decision_clients import (
-    DECISION_CLIENTS,
+    OPENAI_DECISION_MODELS,
     AzureOpenAIDecisionClient,
     ChoiceAnswer,
     DecisionRateLimitError,
     DecisionRequest,
+    DecisionTransientError,
     FireworksDecisionClient,
-    OllamaDecisionClient,
+    GoogleDecisionClient,
     PredicateAnswer,
+    RefusalAnswer,
     ScaleAnswer,
+    TypeSafeDecisionClient,
     get_decision_client,
 )
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import Tracer
+from tests.unit.server.decision_client_factories import built_in_factory, resolved_base_url
 
 
 @pytest.fixture(autouse=True)
@@ -65,6 +70,8 @@ def _clear_provider_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "AZURE_OPENAI_ENDPOINT",
         "FIREWORKS_API_KEY",
         "FIREWORKS_BASE_URL",
+        "GEMINI_API_KEY",
+        "GOOGLE_API_KEY",
         "OPENAI_ORG_ID",
         "OPENAI_PROJECT_ID",
     ):
@@ -175,57 +182,155 @@ def _key(env_var_name: str) -> list[GenerativeCredentialInput]:
     return [GenerativeCredentialInput(env_var_name=env_var_name, value=SecretStr("test-key"))]
 
 
-def test_registry_includes_azure_openai_and_fireworks() -> None:
-    assert DECISION_CLIENTS[GenerativeProviderKey.AZURE_OPENAI] is AzureOpenAIDecisionClient
-    assert DECISION_CLIENTS[GenerativeProviderKey.FIREWORKS] is FireworksDecisionClient
-    # Azure routes by deployment name, which the user chooses, so none is suggested.
-    assert AzureOpenAIDecisionClient.model_names == ()
-    assert FireworksDecisionClient.model_names == ("accounts/fireworks/models/rune",)
-    assert AzureOpenAIDecisionClient.credential_env_var() == "AZURE_OPENAI_API_KEY"
-    assert FireworksDecisionClient.credential_env_var() == "FIREWORKS_API_KEY"
-    assert AzureOpenAIDecisionClient.dependencies_are_installed()
+def test_registry_includes_fireworks() -> None:
+    fireworks = GenerativeProviderKey.FIREWORKS
+    assert CLIENT_REGISTRY.get_client(fireworks, model_type="DECISION") is FireworksDecisionClient
+    assert CLIENT_REGISTRY.list_models(fireworks, model_type="DECISION") == [
+        "accounts/fireworks/models/rune"
+    ]
+    assert FireworksDecisionClient.built_in_endpoint.api_key_env_vars == ("FIREWORKS_API_KEY",)
     assert FireworksDecisionClient.dependencies_are_installed()
 
 
-def test_ollama_lists_its_documented_decision_models_first() -> None:
-    assert OllamaDecisionClient.model_names[:4] == ("nimble", "tev1", "clef", "clef-flash")
-    assert len(set(OllamaDecisionClient.model_names)) == len(OllamaDecisionClient.model_names)
+def test_azure_lists_the_openai_decision_models() -> None:
+    azure = GenerativeProviderKey.AZURE_OPENAI
+    assert CLIENT_REGISTRY.get_client(azure, model_type="DECISION") is AzureOpenAIDecisionClient
+    assert CLIENT_REGISTRY.list_models(azure, model_type="DECISION") == list(OPENAI_DECISION_MODELS)
+    assert AzureOpenAIDecisionClient.provider == "azure"
+    assert AzureOpenAIDecisionClient.system == "openai"
 
 
-class TestAzureOpenAIBaseUrl:
-    @pytest.mark.parametrize(
-        "endpoint",
-        [
-            pytest.param("https://res.openai.azure.com", id="resource"),
-            pytest.param("https://res.openai.azure.com/", id="trailing-slash"),
-            pytest.param("https://res.openai.azure.com/openai/v1", id="v1-root"),
-            pytest.param("https://res.openai.azure.com/openai/v1/", id="v1-root-slash"),
-        ],
-    )
-    def test_the_endpoint_becomes_the_v1_root(
-        self, monkeypatch: pytest.MonkeyPatch, endpoint: str
+AZURE_ENDPOINT = "https://res.openai.azure.com"
+AZURE_DECISIONS_URL = f"{AZURE_ENDPOINT}/openai/v1/decisions"
+AZURE_DEPLOYMENT = "luna-deploy"
+
+
+class TestAzureOpenAIDecisions:
+    async def test_the_env_endpoint_and_key_post_the_deployment_name(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", endpoint)
-        assert (
-            AzureOpenAIDecisionClient.resolve_base_url(None)
-            == "https://res.openai.azure.com/openai/v1"
-        )
+        monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", AZURE_ENDPOINT)
+        monkeypatch.setenv("AZURE_OPENAI_API_KEY", "azure-key")
+        async with db() as session:
+            client = await get_decision_client(
+                provider=GenerativeProviderKey.AZURE_OPENAI,
+                model_name=AZURE_DEPLOYMENT,
+                base_url=None,
+                credentials=None,
+                session=session,
+                decrypt=lambda value: value,
+            )
+        tracer = _tracer()
+        with respx.mock(assert_all_called=True) as router:
+            route = router.post(AZURE_DECISIONS_URL).respond(200, json=OPENAI_DECISION_RESPONSE)
+            await client.create(request=REQUEST, tracer=tracer)
+        sent = route.calls[0].request
+        assert str(sent.url) == AZURE_DECISIONS_URL
+        assert json.loads(sent.content)["model"] == AZURE_DEPLOYMENT
+        assert sent.headers["authorization"] == "Bearer azure-key"
+        attributes = _decision_span(tracer).attributes
+        assert attributes["decision.system"] == "openai"
+        assert attributes["decision.provider"] == "azure"
 
-    def test_the_run_overrides_the_environment(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://env.openai.azure.com")
-        assert (
-            AzureOpenAIDecisionClient.resolve_base_url("https://run.openai.azure.com")
-            == "https://run.openai.azure.com/openai/v1"
-        )
+    async def test_a_request_endpoint_uses_a_stored_key_not_the_env_key(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from phoenix.server.encryption import EncryptionService
 
-    def test_there_is_no_default(self) -> None:
-        assert AzureOpenAIDecisionClient.resolve_base_url(None) is None
+        monkeypatch.setenv("AZURE_OPENAI_API_KEY", "env-key")
+        monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://server.openai.azure.com")
+        encryption = EncryptionService()
+        async with db() as session:
+            session.add(
+                models.Secret(key="AZURE_OPENAI_API_KEY", value=encryption.encrypt(b"stored-key"))
+            )
+            await session.commit()
+        request_endpoint = "https://request.openai.azure.com"
+        async with db() as session:
+            client = await get_decision_client(
+                provider=GenerativeProviderKey.AZURE_OPENAI,
+                model_name=AZURE_DEPLOYMENT,
+                base_url=request_endpoint,
+                credentials=None,
+                session=session,
+                decrypt=encryption.decrypt,
+            )
+        with respx.mock(assert_all_called=True) as router:
+            route = router.post(f"{request_endpoint}/openai/v1/decisions").respond(
+                200, json=OPENAI_DECISION_RESPONSE
+            )
+            await client.create(request=REQUEST, tracer=_tracer())
+        sent = route.calls[0].request
+        assert str(sent.url) == f"{request_endpoint}/openai/v1/decisions"
+        assert sent.headers["authorization"] == "Bearer stored-key"
+        assert "env-key" not in sent.headers["authorization"]
+
+    async def test_a_request_endpoint_uses_the_request_key(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("AZURE_OPENAI_API_KEY", "env-key")
+        request_endpoint = "https://request.openai.azure.com"
+        async with db() as session:
+            client = await get_decision_client(
+                provider=GenerativeProviderKey.AZURE_OPENAI,
+                model_name=AZURE_DEPLOYMENT,
+                base_url=request_endpoint,
+                credentials=_key("AZURE_OPENAI_API_KEY"),
+                session=session,
+                decrypt=lambda value: value,
+            )
+        with respx.mock(assert_all_called=True) as router:
+            route = router.post(f"{request_endpoint}/openai/v1/decisions").respond(
+                200, json=OPENAI_DECISION_RESPONSE
+            )
+            await client.create(request=REQUEST, tracer=_tracer())
+        assert route.calls[0].request.headers["authorization"] == "Bearer test-key"
+
+    async def test_a_request_endpoint_never_receives_the_env_key(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("AZURE_OPENAI_API_KEY", "env-key")
+        monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", AZURE_ENDPOINT)
+        async with db() as session:
+            with pytest.raises(BadRequest, match="custom base URL cannot be used"):
+                await get_decision_client(
+                    provider=GenerativeProviderKey.AZURE_OPENAI,
+                    model_name=AZURE_DEPLOYMENT,
+                    base_url="https://attacker.openai.azure.com",
+                    credentials=None,
+                    session=session,
+                    decrypt=lambda value: value,
+                )
+
+    async def test_a_missing_endpoint_names_the_variable(self, db: DbSessionFactory) -> None:
+        async with db() as session:
+            with pytest.raises(
+                BadRequest, match="An Azure endpoint is required for Azure OpenAI decision models"
+            ):
+                await get_decision_client(
+                    provider=GenerativeProviderKey.AZURE_OPENAI,
+                    model_name=AZURE_DEPLOYMENT,
+                    base_url=None,
+                    credentials=_key("AZURE_OPENAI_API_KEY"),
+                    session=session,
+                    decrypt=lambda value: value,
+                )
+
+
+def test_ollama_lists_its_documented_decision_models_first() -> None:
+    names = CLIENT_REGISTRY.list_models(GenerativeProviderKey.OLLAMA, model_type="DECISION")
+    assert names[:4] == ["nimble", "tev1", "clef", "clef-flash"]
+    assert len(set(names)) == len(names)
 
 
 class TestFireworksBaseUrl:
-    def test_the_default_is_the_inference_root(self) -> None:
+    async def test_the_default_is_the_inference_root(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("FIREWORKS_BASE_URL", raising=False)
         assert (
-            FireworksDecisionClient.resolve_base_url(None) == "https://api.fireworks.ai/inference"
+            await resolved_base_url(db, FireworksDecisionClient)
+            == "https://api.fireworks.ai/inference"
         )
 
     @pytest.mark.parametrize(
@@ -236,32 +341,19 @@ class TestFireworksBaseUrl:
             pytest.param("https://fw.example/inference", id="inference-root"),
         ],
     )
-    def test_the_chat_variable_is_reduced_to_the_inference_root(
-        self, monkeypatch: pytest.MonkeyPatch, configured: str
+    async def test_the_chat_variable_is_reduced_to_the_inference_root(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch, configured: str
     ) -> None:
         monkeypatch.setenv("FIREWORKS_BASE_URL", configured)
-        assert FireworksDecisionClient.resolve_base_url(None) == "https://fw.example/inference"
+        assert (
+            await resolved_base_url(db, FireworksDecisionClient) == "https://fw.example/inference"
+        )
 
 
 class TestMissingConfiguration:
-    async def test_azure_without_an_endpoint_names_the_variable(self, db: DbSessionFactory) -> None:
-        async with db() as session:
-            with pytest.raises(BadRequest, match="Set AZURE_OPENAI_ENDPOINT"):
-                await get_decision_client(
-                    provider=GenerativeProviderKey.AZURE_OPENAI,
-                    model_name="gpt-6-luna",
-                    base_url=None,
-                    credentials=None,
-                    session=session,
-                    decrypt=lambda value: value,
-                )
-
     @pytest.mark.parametrize(
         "provider,env_var_name",
         [
-            pytest.param(
-                GenerativeProviderKey.AZURE_OPENAI, "AZURE_OPENAI_API_KEY", id="azure-openai"
-            ),
             pytest.param(GenerativeProviderKey.FIREWORKS, "FIREWORKS_API_KEY", id="fireworks"),
         ],
     )
@@ -272,9 +364,8 @@ class TestMissingConfiguration:
         provider: GenerativeProviderKey,
         env_var_name: str,
     ) -> None:
-        monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://res.openai.azure.com")
         async with db() as session:
-            with pytest.raises(BadRequest, match=f"Configure {env_var_name}"):
+            with pytest.raises(BadRequest, match=f"Set the {env_var_name} environment variable"):
                 await get_decision_client(
                     provider=provider,
                     model_name="model",
@@ -285,104 +376,29 @@ class TestMissingConfiguration:
                 )
 
 
-class TestAzureOpenAIDecisions:
-    async def test_posts_openai_decisions_to_the_azure_v1_endpoint(
-        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://res.openai.azure.com/")
-        async with db() as session:
-            client = await get_decision_client(
-                provider=GenerativeProviderKey.AZURE_OPENAI,
-                model_name="my-luna-deployment",
-                base_url=None,
-                credentials=_key("AZURE_OPENAI_API_KEY"),
-                session=session,
-                decrypt=lambda value: value,
-            )
-        tracer = _tracer()
-        with respx.mock(assert_all_called=True) as router:
-            route = router.post("https://res.openai.azure.com/openai/v1/decisions").respond(
-                200, json=OPENAI_DECISION_RESPONSE
-            )
-            response = await client.create(request=REQUEST, tracer=tracer)
-        request = route.calls[0].request
-        assert "api-version" not in request.url.params
-        assert request.headers["authorization"] == "Bearer test-key"
-        body = json.loads(request.content)
-        assert body["model"] == "my-luna-deployment"
-        assert json.loads(body["input"]) == {"complaint": "I was charged twice."}
-        assert body["questions"] == [
-            {"name": "refund", "type": "predicate", "instructions": "Refund requested?"},
-            {
-                "name": "team",
-                "type": "choice",
-                "instructions": "Which team?",
-                "choices": [
-                    {"value": "billing", "description": "Payments"},
-                    {"value": "technical"},
-                ],
-            },
-            {
-                "name": "severity",
-                "type": "score",
-                "instructions": "How severe?",
-                "levels": [{"label": "low", "description": "Minor"}, {"label": "high"}],
-            },
-        ]
-        assert response.answers == EXPECTED_ANSWERS
-        assert (response.model, response.input_tokens, response.output_tokens) == (
-            "gpt-6-luna",
-            40,
-            3,
-        )
-        attributes = _decision_span(tracer).attributes
-        assert attributes["decision.system"] == "openai"
-        assert attributes["decision.provider"] == "azure"
-        assert attributes["decision.request.model_name"] == "my-luna-deployment"
-
-    async def test_the_servers_openai_organization_and_project_stay_off_azure(
-        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setenv("OPENAI_ORG_ID", "org-server")
-        monkeypatch.setenv("OPENAI_PROJECT_ID", "proj-server")
-        async with db() as session:
-            client = await get_decision_client(
-                provider=GenerativeProviderKey.AZURE_OPENAI,
-                model_name="my-luna-deployment",
-                base_url="https://res.openai.azure.com",
-                credentials=_key("AZURE_OPENAI_API_KEY"),
-                session=session,
-                decrypt=lambda value: value,
-            )
-        with respx.mock(assert_all_called=True) as router:
-            route = router.post("https://res.openai.azure.com/openai/v1/decisions").respond(
-                200, json=OPENAI_DECISION_RESPONSE
-            )
-            await client.create(request=REQUEST, tracer=_tracer())
-        headers = route.calls[0].request.headers
-        assert "openai-organization" not in headers
-        assert "openai-project" not in headers
-
-    async def test_an_error_names_azure_openai(self, db: DbSessionFactory) -> None:
-        async with db() as session:
-            client = await get_decision_client(
-                provider=GenerativeProviderKey.AZURE_OPENAI,
-                model_name="gpt-6-luna",
-                base_url="https://res.openai.azure.com",
-                credentials=_key("AZURE_OPENAI_API_KEY"),
-                session=session,
-                decrypt=lambda value: value,
-            )
-        with respx.mock:
-            respx.post("https://res.openai.azure.com/openai/v1/decisions").respond(
-                404, json={"error": {"message": "DeploymentNotFound"}}
-            )
-            with pytest.raises(BadRequest) as raised:
-                await client.create(request=REQUEST, tracer=_tracer())
-        assert str(raised.value) == (
-            "Azure OpenAI decision request failed (HTTP 404). "
-            "Check the base URL and the model name."
-        )
+@pytest.mark.parametrize(
+    ("provider", "span_provider"),
+    [
+        pytest.param(None, "typesafe", id="the-client-class-host"),
+        pytest.param("together", "together", id="a-custom-providers-host"),
+    ],
+)
+async def test_the_span_names_who_hosts_the_model(provider: str | None, span_provider: str) -> None:
+    client = TypeSafeDecisionClient(
+        model_name="jev",
+        client_factory=built_in_factory(
+            TypeSafeDecisionClient, api_key="test-key", base_url="https://host.example"
+        ),
+        provider=provider,
+    )
+    tracer = _tracer()
+    with respx.mock(assert_all_called=True) as router:
+        router.post("https://host.example/v1/systemone").respond(200, json=SYSTEM_ONE_RESPONSE)
+        await client.create(request=REQUEST, tracer=tracer)
+    attributes = _decision_span(tracer).attributes
+    assert attributes["decision.system"] == "typesafe"
+    assert attributes["decision.provider"] == span_provider
+    assert TypeSafeDecisionClient.provider == "typesafe"
 
 
 class TestFireworksDecisions:
@@ -473,3 +489,254 @@ class TestFireworksDecisions:
             "The provider rate-limited the request. Wait and retry."
         )
         assert client.is_rate_limit_error(raised.value)
+
+
+GEMINI_DECISIONS_URL = "https://generativelanguage.googleapis.com/v1beta/decisions"
+
+GEMINI_DECISION_RESPONSE = {
+    "answers": {
+        "refund": {"type": "noul", "noul": 0.97, "confidence": 0.9},
+        "team": {
+            "type": "choice",
+            "choice": "billing",
+            "confidence": 0.8,
+            "probabilities": {"billing": 0.9, "technical": 0.1},
+        },
+        "severity": {
+            "type": "score",
+            "score": 0.7,
+            "confidence": 0.6,
+            "legend": {"0": "Minor", "1": "high"},
+            "probabilities": {"0": 0.3, "1": 0.7},
+        },
+    },
+    "usage": {"total_input_tokens": 52, "total_output_tokens": 0, "total_tokens": 52},
+}
+
+ALL_REFUSED = {name: RefusalAnswer() for name in ("refund", "team", "severity")}
+
+
+class TestGoogleDecisions:
+    async def _client(self, db: DbSessionFactory, env_var_name: str = "GEMINI_API_KEY") -> Any:
+        async with db() as session:
+            return await get_decision_client(
+                provider=GenerativeProviderKey.GOOGLE,
+                model_name="gemini-decision-1",
+                base_url=None,
+                credentials=_key(env_var_name),
+                session=session,
+                decrypt=lambda value: value,
+            )
+
+    def test_registry_includes_google(self) -> None:
+        google = GenerativeProviderKey.GOOGLE
+        assert CLIENT_REGISTRY.get_client(google, model_type="DECISION") is GoogleDecisionClient
+        assert CLIENT_REGISTRY.list_models(google, model_type="DECISION") == ["gemini-decision-1"]
+        assert GoogleDecisionClient.built_in_endpoint.api_key_env_vars == (
+            "GEMINI_API_KEY",
+            "GOOGLE_API_KEY",
+        )
+        assert GoogleDecisionClient.dependencies_are_installed()
+
+    @pytest.mark.parametrize("env_var_name", ["GEMINI_API_KEY", "GOOGLE_API_KEY"])
+    async def test_posts_questions_to_the_v1beta_decisions_endpoint(
+        self, db: DbSessionFactory, env_var_name: str
+    ) -> None:
+        client = await self._client(db, env_var_name)
+        tracer = _tracer()
+        with respx.mock(assert_all_called=True) as router:
+            route = router.post(GEMINI_DECISIONS_URL).respond(200, json=GEMINI_DECISION_RESPONSE)
+            response = await client.create(request=REQUEST, tracer=tracer)
+        request = route.calls[0].request
+        assert request.headers["x-goog-api-key"] == "test-key"
+        assert json.loads(request.content) == {
+            "model": "gemini-decision-1",
+            "input": '{"complaint": "I was charged twice."}',
+            "questions": {
+                "refund": {"type": "noul", "instructions": "Refund requested?"},
+                "team": {
+                    "type": "choice",
+                    "instructions": "Which team?",
+                    "criteria": {"billing": "Payments", "technical": ""},
+                },
+                "severity": {
+                    "type": "score",
+                    "instructions": "How severe?",
+                    "criteria": ["Minor", "high"],
+                },
+            },
+        }
+        assert response.answers == EXPECTED_ANSWERS
+        # Gemini doesn't echo the model, so the requested one is recorded.
+        assert (response.model, response.input_tokens, response.output_tokens) == (
+            "gemini-decision-1",
+            52,
+            0,
+        )
+        attributes = _decision_span(tracer).attributes
+        assert attributes["decision.system"] == "google"
+        assert attributes["decision.provider"] == "google"
+
+    async def test_predicate_criteria_are_sent_as_descriptions(self, db: DbSessionFactory) -> None:
+        client = await self._client(db)
+        request = DecisionRequest(
+            state="Where is my refund?",
+            questions=[
+                PredicateQuestion.model_validate(
+                    {
+                        "type": "predicate",
+                        "name": "refund",
+                        "instructions": "Refund requested?",
+                        "criteria": {"true": "Asks for money back"},
+                    }
+                )
+            ],
+        )
+        with respx.mock(assert_all_called=True) as router:
+            route = router.post(GEMINI_DECISIONS_URL).respond(
+                200, json={"answers": {"refund": {"type": "noul", "noul": 0.9}}}
+            )
+            await client.create(request=request, tracer=_tracer())
+        body = json.loads(route.calls[0].request.content)
+        assert body["input"] == "Where is my refund?"
+        assert body["questions"]["refund"]["criteria"] == {
+            "true_description": "Asks for money back"
+        }
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            pytest.param("needs refund", id="space"),
+            pytest.param("x" * 65, id="too-long"),
+            pytest.param("réfund", id="non-ascii"),
+        ],
+    )
+    async def test_a_name_gemini_cannot_key_fails_before_sending(
+        self, db: DbSessionFactory, name: str
+    ) -> None:
+        client = await self._client(db)
+        request = DecisionRequest(
+            state="x",
+            questions=[PredicateQuestion(type="predicate", name=name, instructions="Ok?")],
+        )
+        with respx.mock(assert_all_called=False) as router:
+            route = router.post(GEMINI_DECISIONS_URL)
+            with pytest.raises(BadRequest, match="letters, digits, underscores, or hyphens"):
+                await client.create(request=request, tracer=_tracer())
+        assert not route.called
+
+    @pytest.mark.parametrize(
+        "code", ["safety", "prohibited_content", "blocklist", "image_safety", "content_blocked"]
+    )
+    async def test_a_safety_block_refuses_every_question(
+        self, db: DbSessionFactory, code: str
+    ) -> None:
+        client = await self._client(db)
+        tracer = _tracer()
+        with respx.mock(assert_all_called=True) as router:
+            router.post(GEMINI_DECISIONS_URL).respond(
+                400, json={"error": {"code": code, "message": "Request blocked."}}
+            )
+            response = await client.create(request=REQUEST, tracer=tracer)
+        assert response.answers == ALL_REFUSED
+        assert response.model == "gemini-decision-1"
+        span = _decision_span(tracer)
+        assert span.status.is_ok
+        assert json.loads(span.attributes["output.value"])["error"]["code"] == code
+
+    async def test_blocked_prompt_feedback_refuses_every_question(
+        self, db: DbSessionFactory
+    ) -> None:
+        client = await self._client(db)
+        with respx.mock(assert_all_called=True) as router:
+            router.post(GEMINI_DECISIONS_URL).respond(
+                200,
+                json={
+                    "prompt_feedback": {"block_reason": "SAFETY"},
+                    "usage": {"total_input_tokens": 12},
+                },
+            )
+            response = await client.create(request=REQUEST, tracer=_tracer())
+        assert response.answers == ALL_REFUSED
+        assert response.input_tokens == 12
+
+    async def test_another_400_is_an_error(self, db: DbSessionFactory) -> None:
+        client = await self._client(db)
+        with respx.mock(assert_all_called=True) as router:
+            router.post(GEMINI_DECISIONS_URL).respond(
+                400,
+                json={
+                    "error": {
+                        "code": 400,
+                        "message": "Too many levels",
+                        "status": "INVALID_ARGUMENT",
+                    }
+                },
+            )
+            with pytest.raises(BadRequest) as raised:
+                await client.create(request=REQUEST, tracer=_tracer())
+        assert str(raised.value) == (
+            "Google Gemini decision request failed (HTTP 400). Check the state and question configuration."
+        )
+        assert not isinstance(raised.value, (DecisionRateLimitError, DecisionTransientError))
+
+    @pytest.mark.parametrize(
+        ("status", "error_class"),
+        [
+            pytest.param(429, DecisionRateLimitError, id="rate-limit"),
+            pytest.param(503, DecisionTransientError, id="unavailable"),
+        ],
+    )
+    async def test_retryable_statuses_are_classified(
+        self, db: DbSessionFactory, status: int, error_class: type[BadRequest]
+    ) -> None:
+        client = await self._client(db)
+        with respx.mock(assert_all_called=True) as router:
+            route = router.post(GEMINI_DECISIONS_URL).respond(
+                status, json={"error": {"code": status, "message": "busy"}}
+            )
+            with pytest.raises(error_class, match=f"HTTP {status}"):
+                await client.create(request=REQUEST, tracer=_tracer())
+        # The SDK's own retries are off; the caller decides whether to retry.
+        assert route.call_count == 1
+
+    async def test_an_unknown_answer_type_is_an_invalid_response(
+        self, db: DbSessionFactory
+    ) -> None:
+        client = await self._client(db)
+        body = {
+            "answers": {
+                **GEMINI_DECISION_RESPONSE["answers"],  # type: ignore[dict-item]
+                "refund": {"type": "someday"},
+            }
+        }
+        with respx.mock(assert_all_called=True) as router:
+            router.post(GEMINI_DECISIONS_URL).respond(200, json=body)
+            with pytest.raises(
+                BadRequest, match="Google Gemini returned an invalid decision response"
+            ):
+                await client.create(request=REQUEST, tracer=_tracer())
+
+    async def test_a_custom_base_url_keeps_the_api_version_path(self) -> None:
+        from phoenix.db.types import model_provider as mp
+
+        config = mp.GoogleGenAICustomProviderConfig(
+            google_genai_authentication_method=mp.AuthenticationMethodApiKey(api_key="k"),
+            google_genai_client_kwargs=mp.GoogleGenAIClientKwargs(
+                http_options=mp.GoogleGenAIHttpOptions(base_url="https://gemini-proxy.example")
+            ),
+        )
+        client = GoogleDecisionClient(
+            model_name="gemini-decision-1",
+            client_factory=config.get_client_factory(),
+            provider="my-gemini",
+        )
+        tracer = _tracer()
+        with respx.mock(assert_all_called=True) as router:
+            router.post("https://gemini-proxy.example/v1beta/decisions").respond(
+                200, json=GEMINI_DECISION_RESPONSE
+            )
+            await client.create(request=REQUEST, tracer=tracer)
+        attributes = _decision_span(tracer).attributes
+        assert attributes["decision.system"] == "google"
+        assert attributes["decision.provider"] == "my-gemini"

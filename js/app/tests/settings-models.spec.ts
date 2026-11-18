@@ -28,7 +28,7 @@ function uniqueModelName() {
 async function openCreateModelDialog(page: Page) {
   await page.goto("/settings/models");
   await page.waitForURL("**/settings/models");
-  await page.getByRole("button", { name: "Create a new model" }).click();
+  await page.getByTestId("create-model-button").click();
   const dialog = modelDialog(page);
   await expect(
     dialog.getByRole("heading", { name: "Create New Model" })
@@ -81,7 +81,7 @@ async function submitCreate(page: Page) {
 }
 
 async function openEditModelDialog(page: Page, name: string) {
-  await page.getByRole("searchbox", { name: "Search models" }).fill(name);
+  await page.getByRole("main").getByRole("searchbox").fill(name);
   const row = page.getByRole("row").filter({ hasText: `^${name}$` });
   await expect(row).toBeVisible();
   await row.getByRole("button", { name: "Edit model" }).click();
@@ -182,7 +182,7 @@ test.describe("Settings Models", () => {
     await submitCreate(page);
     await expect(dialog).not.toBeVisible();
 
-    await page.getByRole("button", { name: "Create a new model" }).click();
+    await page.getByTestId("create-model-button").click();
     dialog = modelDialog(page);
     await fillModelBasics(dialog, { name, provider: "AcmeAI" });
     await submitCreate(page);
@@ -231,7 +231,8 @@ test.describe("Settings Models", () => {
   }) => {
     await page.goto("/settings/models");
     await page
-      .getByRole("searchbox", { name: "Search models" })
+      .getByRole("main")
+      .getByRole("searchbox")
       .fill("typesafe/jev-latest");
     const builtInRow = page
       .getByRole("row")
@@ -261,7 +262,8 @@ test.describe("Settings Models", () => {
   test("filters models by type", async ({ page }) => {
     await page.goto("/settings/models");
     await page
-      .getByRole("searchbox", { name: "Search models" })
+      .getByRole("main")
+      .getByRole("searchbox")
       .fill("gemini-embedding-001");
     const embeddingRow = page
       .getByRole("row")
@@ -271,7 +273,7 @@ test.describe("Settings Models", () => {
     const typeFilter = page.getByRole("button", { name: /Model type filter/ });
     await typeFilter.click();
     await page.getByRole("option", { name: "LLM", exact: true }).click();
-    await expect(page.getByText("No models found")).toBeVisible();
+    await expect(page.getByText("No model costs found")).toBeVisible();
 
     await typeFilter.click();
     await page.getByRole("option", { name: "Embedding", exact: true }).click();
