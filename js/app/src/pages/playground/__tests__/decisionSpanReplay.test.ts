@@ -122,6 +122,39 @@ describe("decision span replay", () => {
     ).toEqual({ text: '{"ticket": "{{raw}}"}' });
   });
 
+  it("rebuilds a Gemini Decisions request run on a Google custom provider", () => {
+    const { playgroundInstance, parsingErrors } =
+      transformSpanAttributesToPlaygroundInstance(
+        decisionSpan({
+          openinference: { span: { kind: "DECISION" } },
+          decision: {
+            system: "google",
+            provider: "my-gemini",
+            request: { model_name: "gemini-decision-1" },
+          },
+          input: {
+            value: JSON.stringify({
+              model: "gemini-decision-1",
+              input: "I was charged twice.",
+              questions: { urgent: { type: "noul", instructions: "Urgent?" } },
+            }),
+          },
+        })
+      );
+    expect(parsingErrors).toEqual([
+      expect.stringContaining('custom provider "my-gemini"'),
+    ]);
+    expect(playgroundInstance.model).toMatchObject({
+      provider: "GOOGLE",
+      modelName: "gemini-decision-1",
+      modelType: "DECISION",
+    });
+    expect(playgroundInstance.decisionPrompt?.questions[0]).toMatchObject({
+      name: "urgent",
+      type: "predicate",
+    });
+  });
+
   it("replays an object state with a __proto__ key and an array state exactly", () => {
     const replay = (state: string) =>
       transformSpanAttributesToPlaygroundInstance(

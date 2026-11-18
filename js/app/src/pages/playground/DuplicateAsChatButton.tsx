@@ -73,7 +73,7 @@ export function DuplicateAsChatButton({
         task: { type: "prompt" },
         decision: null,
         decisionPromptId: null,
-        model: { ...chatModel, modelType: "LLM", responseFormat },
+        model: { ...chatModel, modelType: "CHAT", responseFormat },
         template: { __type: "chat", messageIds: [] },
       },
     });

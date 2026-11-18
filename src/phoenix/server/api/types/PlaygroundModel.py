@@ -11,7 +11,7 @@ from phoenix.server.api.types.ModelType import ModelType
 class PlaygroundModel(ModelInterface):
     name_value: strawberry.Private[str]
     provider_key_value: strawberry.Private[GenerativeProviderKey]
-    model_type: ModelType = ModelType.LLM
+    model_type: ModelType = ModelType.CHAT
 
     @strawberry.field
     async def name(self, info: Info[Context, None]) -> str:

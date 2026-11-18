@@ -203,7 +203,7 @@ async def test_a_misfit_llm_evaluator_errors_the_same_way_in_every_context(
     async def _judge_client(**_: Any) -> _JudgeClient:
         return _JudgeClient()
 
-    monkeypatch.setattr("phoenix.server.evaluators.resolution.get_playground_client", _judge_client)
+    monkeypatch.setattr("phoenix.server.evaluators.resolution.get_chat_client", _judge_client)
     project_id, span_id = await _seed_span(db)
     async with db() as session:
         evaluator = models.LLMEvaluator(

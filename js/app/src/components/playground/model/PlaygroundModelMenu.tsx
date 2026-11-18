@@ -61,48 +61,60 @@ export function PlaygroundModelMenu({
       }
     : null;
 
+  const selectDecisionModel = (model: ModelMenuValue) => {
+    if (!instance) return;
+    const wasDecision = isDecisionInstance(instance);
+    // A base URL belongs to one built-in provider's decision host, so keep it
+    // only when this instance was already a decision on that provider. Azure's
+    // resource endpoint is shared with chat, so it also survives switching
+    // that provider from chat to a decision.
+    const sameBuiltInProvider =
+      model.customProvider == null &&
+      instance.model.customProvider == null &&
+      model.provider === instance.model.provider;
+    updateInstance({
+      instanceId: playgroundInstanceId,
+      dirty: true,
+      patch: {
+        task: { type: "decision" },
+        // Remember the chat configuration so switching back restores it.
+        llmModel: wasDecision ? instance.llmModel : instance.model,
+        model: {
+          provider: model.provider,
+          modelName: model.modelName,
+          modelType: "DECISION",
+          invocationParameters: instance.model.invocationParameters,
+          customProvider: model.customProvider ?? null,
+          baseUrl:
+            sameBuiltInProvider && wasDecision
+              ? (instance.model.baseUrl ?? null)
+              : null,
+          endpoint:
+            sameBuiltInProvider && model.provider === "AZURE_OPENAI"
+              ? (instance.model.endpoint ?? null)
+              : null,
+        },
+        prompt: null,
+        repetitions: {},
+        experiment: null,
+      },
+    });
+    // Keep a decision prompt the instance already had; start one otherwise.
+    if (instance.decisionPromptId == null) {
+      store.getState().updateDecisionPrompt({
+        instanceId: playgroundInstanceId,
+        request: createDecisionDraft(),
+      });
+    }
+  };
+
   const handleChange = (model: ModelMenuValue) => {
     if (!instance) return;
 
     // The picker's Decision tab is a shortcut for the task's type: a
     // decision model makes the instance a decision, an LLM a prompt.
     if (model.modelType === "DECISION") {
-      const wasDecision = isDecisionInstance(instance);
-      updateInstance({
-        instanceId: playgroundInstanceId,
-        dirty: true,
-        patch: {
-          task: { type: "decision" },
-          // Remember the chat configuration so switching back restores it.
-          llmModel: wasDecision ? instance.llmModel : instance.model,
-          model: {
-            provider: model.provider,
-            modelName: model.modelName,
-            modelType: "DECISION",
-            invocationParameters: instance.model.invocationParameters,
-            customProvider: model.customProvider ?? null,
-            // A base URL points at one built-in provider's decision endpoint;
-            // a custom provider brings its own.
-            baseUrl:
-              wasDecision &&
-              !model.customProvider &&
-              !instance.model.customProvider &&
-              model.provider === instance.model.provider
-                ? instance.model.baseUrl
-                : null,
-          },
-          prompt: null,
-          repetitions: {},
-          experiment: null,
-        },
-      });
-      // Keep a decision prompt the instance already had; start one otherwise.
-      if (instance.decisionPromptId == null) {
-        store.getState().updateDecisionPrompt({
-          instanceId: playgroundInstanceId,
-          request: createDecisionDraft(),
-        });
-      }
+      selectDecisionModel(model);
       return;
     }
 
@@ -129,7 +141,7 @@ export function PlaygroundModelMenu({
         dirty: true,
         patch: {
           task: { type: "prompt" },
-          model: { ...restoredModel, modelType: "LLM" },
+          model: { ...restoredModel, modelType: "CHAT" },
           repetitions: {},
         },
       });
@@ -153,7 +165,7 @@ export function PlaygroundModelMenu({
       patch: {
         modelName: model.modelName,
         customProvider: model.customProvider ?? null,
-        modelType: "LLM",
+        modelType: "CHAT",
         ...(chat ? { responseFormat: chat.responseFormat } : {}),
       },
     });
@@ -178,7 +190,7 @@ export function PlaygroundModelMenu({
       onChange={handleChange}
       supportsDecisionModels={supportsDecisionModels}
       // A decision task with no model picked yet opens on the Decision tab.
-      defaultModelType={isDecisionInstance(instance) ? "DECISION" : "LLM"}
+      defaultModelType={isDecisionInstance(instance) ? "DECISION" : "CHAT"}
       decisionTabNotice={decisionTabNotice}
       fixedModelType={fixedModelType}
       credentialSource={credentialSource}

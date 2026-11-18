@@ -204,7 +204,7 @@ async def kinds(
     async def _sandbox_backend(*_: Any, **__: Any) -> _SandboxBackend:
         return _SandboxBackend()
 
-    monkeypatch.setattr("phoenix.server.evaluators.resolution.get_playground_client", _judge_client)
+    monkeypatch.setattr("phoenix.server.evaluators.resolution.get_chat_client", _judge_client)
     monkeypatch.setattr(
         "phoenix.server.evaluators.resolution.build_sandbox_backend", _sandbox_backend
     )
@@ -324,9 +324,7 @@ async def test_llm_unanswered_output_and_disallowed_label_are_errors_per_output(
     async def _misfit_client(**_: Any) -> _JudgeClient:
         return _JudgeClient(("quality", {"label": "great"}))
 
-    monkeypatch.setattr(
-        "phoenix.server.evaluators.resolution.get_playground_client", _misfit_client
-    )
+    monkeypatch.setattr("phoenix.server.evaluators.resolution.get_chat_client", _misfit_client)
     async with db() as session:
         evaluator = await build_evaluator_from_definition(
             definition=kinds["LLM"].definition, session=session, decrypt=lambda value: value

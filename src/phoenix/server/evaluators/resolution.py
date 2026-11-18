@@ -22,8 +22,8 @@ from phoenix.db.types.evaluator_definition import (
     StoredDecisionEvaluatorDefinition,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.helpers.chat_clients import get_chat_client
 from phoenix.server.api.helpers.decision_clients import resolve_decision_client
-from phoenix.server.api.helpers.playground_clients import get_playground_client
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.decisions.validation import validate_questions, validate_template
 from phoenix.server.evaluators.runtime.base import BaseEvaluator
@@ -278,7 +278,7 @@ async def _build_inline_llm_evaluator(
     if not definition.output_configs:
         raise BadRequest("At least one output config is required.")
     prompt_version = definition.prompt_version
-    llm_client = await get_playground_client(
+    llm_client = await get_chat_client(
         model_provider=prompt_version.model_provider,
         model_name=prompt_version.model_name,
         session=session,
