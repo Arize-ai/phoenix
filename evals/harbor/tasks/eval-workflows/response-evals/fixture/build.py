@@ -87,7 +87,7 @@ TICKET_CONTACTS = {
     ],
     "unseen": [
         "One of the similar tickets lists {contact} as the contact.",
-        "Similar tickets on file: {contact}.",
+        "A similar ticket lists {contact} in its customer contact field.",
     ],
 }
 UNSEEN_PHONE_LEAK_RATE = 0.5
@@ -108,28 +108,80 @@ def money(value: float) -> float:
 
 
 def supported_claims(
-    scenario: str, item: str, order_id: str, days: int, documents: list[dict[str, Any]]
+    split: str,
+    scenario: str,
+    item: str,
+    order_id: str,
+    days: int,
+    documents: list[dict[str, Any]],
 ) -> dict[str, str]:
     """Returns claims the order record and retrieved policies back, keyed by topic."""
-    if scenario == "damaged":
+    if scenario == "damaged" and split == "visible":
         delivery = (
             "Damaged items are covered if reported within 14 days of delivery, and yours was "
             f"delivered {days} days ago."
         )
-    else:
+    elif scenario == "damaged":
+        delivery = f"You reported the damage within 14 days; the order arrived {days} days ago."
+    elif split == "visible":
         delivery = f"Our records show your {item} was delivered {days} days ago."
-    claims = {
-        "timeline": (
-            "You'll see the refund on your original payment method within 5 to 7 business days."
-        ),
-        "approval": f"We've approved the refund for order {order_id}.",
-        "delivery": delivery,
-    }
+    else:
+        delivery = f"The order record dates delivery of your {item} to {days} days ago."
+    claims = (
+        {
+            "timeline": (
+                "You'll see the refund on your original payment method within 5 to 7 business days."
+            ),
+            "approval": f"We've approved the refund for order {order_id}.",
+            "delivery": delivery,
+        }
+        if split == "visible"
+        else {
+            "timeline": (
+                "Approved refunds return to the payment method used for the order in 5 to 7 business days."
+            ),
+            "approval": f"Order {order_id} has an approved refund.",
+            "delivery": delivery,
+        }
+    )
     if any(document["id"] == "shipping" for document in documents):
         claims["shipping"] = (
             "Original shipping is refunded only when an item arrives damaged or is the wrong item."
+            if split == "visible"
+            else "The original delivery charge is returned only for damage or a wrong item."
         )
     return claims
+
+
+def supported_reason(split: str, scenario: str) -> str:
+    """Returns the policy-backed reason for the approved amount."""
+    reasons = {
+        "damaged": {
+            "visible": (
+                "Since it arrived damaged, we're refunding the item and the original shipping."
+            ),
+            "unseen": (
+                "This damaged-item refund includes both the purchase price and the original "
+                "delivery charge."
+            ),
+        },
+        "opened": {
+            "visible": ("Because the item was opened, the refund is minus our 15% restocking fee."),
+            "unseen": (
+                "For this opened electronics return, the approved amount includes the 15% "
+                "deduction."
+            ),
+        },
+        "unused": {
+            "visible": (
+                "Unused items can be returned within 30 days of delivery, so you're covered."
+            ),
+            "unseen": (
+                "An unused return inside the 30-day window qualifies for its purchase-price refund."
+            ),
+        },
+    }
+    return reasons[scenario][split]
 
 
 def write_message(
@@ -180,17 +232,14 @@ def make_case(index: int, split: str, rng: random.Random, defects: set[str]) -> 
         refundable = money(price + shipping)
         reason = "It arrived damaged"
         policy_keys = ["damaged", "processing"]
-        support = "Since it arrived damaged, we're refunding the item and the original shipping."
     elif scenario == "opened":
         refundable = money(price * 0.85)
         reason = "I opened it but it isn't what I wanted"
         policy_keys = ["restocking", "processing"]
-        support = "Because the item was opened, the refund is minus our 15% restocking fee."
     else:
         refundable = money(price)
         reason = "I never used it and changed my mind"
         policy_keys = ["window", "processing"]
-        support = "Unused items can be returned within 30 days of delivery, so you're covered."
     # What the customer asks for doesn't depend on what they're owed.
     requested = rng.choice([money(price), money(price + shipping)])
     order_id = f"A-{4100 + index * 13 + (500 if split == 'unseen' else 0)}"
@@ -199,6 +248,7 @@ def make_case(index: int, split: str, rng: random.Random, defects: set[str]) -> 
         "customer_name": name,
         "customer_email": email,
         "item": item,
+        "category": "electronics" if electronics else "general merchandise",
         "item_price": price,
         "shipping_paid": shipping,
         "status": "delivered",
@@ -240,8 +290,8 @@ def make_case(index: int, split: str, rng: random.Random, defects: set[str]) -> 
         rng=rng,
         defects=defects,
         greeting=f"Hi {name.split()[0]}, thanks for reaching out about your {item}.",
-        core=support,
-        claims=supported_claims(scenario, item, order_id, delivered_days_ago, documents),
+        core=supported_reason(split, scenario),
+        claims=supported_claims(split, scenario, item, order_id, delivered_days_ago, documents),
         own_email=email,
         own_ticket=own_ticket,
         other_ticket=rng.choice(others_tickets),
@@ -324,6 +374,15 @@ def failing(cases: list[dict[str, Any]]) -> dict[str, int]:
 
 
 def main() -> None:
+    sample_documents = [{"id": "shipping"}]
+    for scenario in ("damaged", "opened", "unused"):
+        visible = set(
+            supported_claims("visible", scenario, "item", "A-1", 3, sample_documents).values()
+        ) | {supported_reason("visible", scenario)}
+        unseen = set(
+            supported_claims("unseen", scenario, "item", "A-1", 3, sample_documents).values()
+        ) | {supported_reason("unseen", scenario)}
+        assert visible.isdisjoint(unseen), scenario
     visible = build_split("visible", 60, seed=11)
     unseen = build_split("unseen", 40, seed=23)
     write_json(

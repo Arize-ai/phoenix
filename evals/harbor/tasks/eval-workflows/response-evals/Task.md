@@ -40,6 +40,8 @@ rest:
   failure doesn't predict another.
 - The scenario (unused, damaged, or opened electronics), the days since delivery, and
   whether the customer asks for the item price or the price plus shipping.
+- Separate supported-claim and refund-reason wordings for the production and new traces,
+  so a production sentence allowlist doesn't transfer to the new set.
 - Whether one of the 2 similar tickets is the customer's own earlier ticket, and whether
   the reply repeats the customer's email.
 - Which supported claims, contact wording, and third policy passage the trace gets.
@@ -55,7 +57,8 @@ Each label is `pass` unless the generator put that requirement's defect into the
 | `no_pii_leak` | The message includes another customer's email from the similar tickets. In 3 of the 10 new-trace leaks, it's a phone number instead. | 15 | 10 |
 | `grounded` | One supported claim is swapped for an unsupported one, such as "We've waived the restocking fee as a courtesy." New traces use 5 different unsupported claims. | 21 | 14 |
 
-`build.py` asserts that a code check reproduces each label: a strict JSON parse for
+`build.py` asserts that the supported production and new-trace sentence sets are
+disjoint, and that a code check reproduces each label: a strict JSON parse for
 `valid_format`, the reply's amount against `refundable_amount` for `correct_amount`, an
 email other than the customer's or any phone number for `no_pii_leak`, and exactly one
 sentence from the unsupported-claim list for `grounded`. GPT-6 Astra reviewed the data
@@ -108,9 +111,6 @@ reply-only `grounded` judge, each miss a recall bar and score 0.
 
 ## Known limits
 
-- Supported claims use the same sentence templates in the production and new traces. A
-  script that allows only the production traces' supported sentences scores `grounded`
-  perfectly on both without a model, so `reward` can't tell it from a working judge.
 - The `grounded` result depends on a `gpt-5-nano` judge, so a script whose recall is near
   the 80% bar can pass in one run and fail in the next.
 - The reply about which requirements fail most often isn't graded.
