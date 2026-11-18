@@ -90,7 +90,9 @@ The agent's work and the verifier's grading happen in this order:
 3. After the agent finishes, the verifier finds the newest experiment on
    `support-questions` besides `baseline`. It checks that the experiment carries the
    four evaluations, and it reruns its own word count and tag check on the experiment's
-   replies to catch a wrong `under_word_limit` or `cites_policy` evaluator.
+   replies to catch a wrong `under_word_limit` or `cites_policy` evaluator. The same
+   word count and tag check must pass clearly more of the experiment's replies than the
+   baseline's, which shows the experiment ran an improved prompt.
 4. The verifier takes the latest saved `support-system` version and runs its own copy
    of the app with it on the 32 new questions. It grades each reply on the handbook's
    four standards against that question's expectations.
@@ -124,7 +126,7 @@ every standard.
 
 | Check | Type | Uses | Passes when |
 | --- | --- | --- | --- |
-| `experiment` | Code | `expected.json`, `grading_data.json` | `support-questions` has an experiment besides `baseline` with successful runs on at least 80% of its examples. The newest one carries `cites_policy`, `under_word_limit`, and `no_false_promises` on at least 80% of its runs, and `account_privacy` on at least 80% of the runs for the 10 account questions. On at least 90% of the runs each one scores, `under_word_limit` agrees with the verifier's word count, and `cites_policy` doesn't pass a reply that has no tag or tags a rule the handbook doesn't have. |
+| `experiment` | Code | `expected.json`, `grading_data.json` | `support-questions` has an experiment besides `baseline` with successful runs on at least 80% of its examples. The newest one carries `cites_policy`, `under_word_limit`, and `no_false_promises` on at least 80% of its runs, and `account_privacy` on at least 80% of the runs for the 10 account questions. On at least 90% of the runs each one scores, `under_word_limit` agrees with the verifier's word count, and `cites_policy` doesn't pass a reply that has no tag or tags a rule the handbook doesn't have. The verifier's word count and tag check each pass a share of the experiment's replies at least 30 points higher than of the baseline's: at least 73% on length, against the baseline's 43%, and at least 80% on tags, against 50%. |
 | `new_questions` | Code and LLM judge | `expected.json`, `grading_data.json` | The latest `support-system` version differs from the launch prompt, and its replies to the 32 new questions pass each of the four standards at least 85% of the time. |
 
 A run carries an evaluation when the evaluation has a score, or a `pass` or `fail`
@@ -152,6 +154,7 @@ These measures are reported beside `reward` and don't affect it:
 | Refuse every question about an order, to be safe | `new_questions`. Four new questions ask about the customer's own order. |
 | Try drafts with `answer(..., prompt=...)` or edit `/app/support_app.py`, and never save a version | `new_questions`. The verifier uses the latest saved version and its own copy of the app. |
 | Skip the experiment, or run it on a few questions | `experiment` |
+| Run the experiment with the launch prompt, or with a draft that doesn't fix length and citations | `experiment` |
 | Score the experiment with new evaluators under other names, such as `word_limit` or `matches_notes`, or score `account_privacy` only on the 5 development questions that name another customer's order | `experiment` |
 | Score `under_word_limit` by counting characters, or pass replies with no tag on `cites_policy` | `experiment` |
 
@@ -161,14 +164,17 @@ The reference solution scores 1, a do-nothing agent scores 0, and scripted wrong
 approaches score 0, such as a prompt that fixes only promises and privacy, or an
 experiment scored under other evaluation names. The two LLM judges matched the labels
 on all 49 hand-written test replies, 32 for promises and 17 for privacy, in three passes.
-Those test replies aren't in the repository, so this check can't be rerun.
+Those test replies aren't in the repository, so this check can't be rerun. Two reruns of
+the launch prompt on the development questions passed 53% and 57% of replies on length
+and 50% and 57% on tags, below the `experiment` bars of 73% and 80%.
 
 ## Known limits
 
 - The app's model and the LLM judges vary from run to run, so a prompt near the 85% bar
   can pass one run and fail the next. The reference prompt's lowest share was 97%.
-- `experiment` doesn't confirm that the experiment's replies came from the saved prompt.
-  An experiment that reruns the launch prompt with the right evaluations passes it.
+- `experiment` compares only the two code-checked standards with the baseline. An
+  experiment run with a prompt that fixes length and citations but not promises passes
+  it, and `new_questions` fails that prompt.
 - `experiment` doesn't check whether the agent's `no_false_promises` and
   `account_privacy` results are right, only that they're there. Checking them would add
   about 40 model calls to each run.

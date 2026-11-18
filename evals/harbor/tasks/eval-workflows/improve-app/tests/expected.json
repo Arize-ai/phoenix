@@ -15,6 +15,7 @@
  "experiment": {
   "min_examples_run": 0.8,
   "min_runs_evaluated": 0.8,
-  "min_code_check_agreement": 0.9
+  "min_code_check_agreement": 0.9,
+  "min_gain_over_baseline": 0.3
  }
 }

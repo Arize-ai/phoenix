@@ -79,13 +79,38 @@ def grade_experiment() -> None:
         min_evaluated=bars["min_runs_evaluated"],
         min_agreement=bars["min_code_check_agreement"],
     )
-    parts = {"recorded": graded is not None, **parts}
+    baseline_replies = (
+        [support_checks.reply_text(run.output) for run in baseline.runs if not run.error]
+        if baseline
+        else []
+    )
+    rates = {
+        "baseline": support_checks.code_checked_pass_rates(
+            baseline_replies, GRADING_DATA["policy_ids"]
+        ),
+        "experiment": support_checks.code_checked_pass_rates(
+            [run["reply"] for run in runs], GRADING_DATA["policy_ids"]
+        ),
+    }
+    parts = {
+        "recorded": graded is not None,
+        **parts,
+        "beats_baseline": graded is not None
+        and all(
+            rates["experiment"][name] >= rates["baseline"][name] + bars["min_gain_over_baseline"]
+            for name in rates["baseline"]
+        ),
+    }
     checks["experiment"] = all(parts.values())
     details["experiment"] = {
         "parts": parts,
         "examples_run": {e.name or e.id: round(examples_run(e), 2) for e in others},
         "graded": graded.name if graded else None,
         "evaluations": sorted(graded.evaluator_names()) if graded else [],
+        "code_checked_pass_rates": {
+            name: {standard: round(rate, 3) for standard, rate in by_standard.items()}
+            for name, by_standard in rates.items()
+        },
         **why,
     }
 

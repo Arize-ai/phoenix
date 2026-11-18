@@ -200,6 +200,19 @@ def share(values: list[bool]) -> float:
     return sum(values) / len(values) if values else 0.0
 
 
+def has_valid_tags(reply: str, policy_ids: list[str]) -> bool:
+    ids = cited(reply)
+    return bool(ids) and set(ids) <= set(policy_ids)
+
+
+def code_checked_pass_rates(replies: list[str], policy_ids: list[str]) -> dict[str, float]:
+    """Returns the share of replies that pass the verifier's own word count and tag check."""
+    return {
+        "under_word_limit": share([word_count(reply) <= WORD_LIMIT for reply in replies]),
+        "cites_policy": share([has_valid_tags(reply, policy_ids) for reply in replies]),
+    }
+
+
 def grade_experiment_runs(
     runs: list[dict[str, Any]],
     evaluations: list[str],
@@ -228,8 +241,7 @@ def grade_experiment_runs(
     citations = []
     for run in runs:
         if run["outcomes"].get("cites_policy") is not None:
-            ids = cited(run["reply"])
-            valid = bool(ids) and set(ids) <= set(policy_ids)
+            valid = has_valid_tags(run["reply"], policy_ids)
             citations.append(valid or not run["outcomes"]["cites_policy"])
     agreement = {
         "under_word_limit": share([passed == (n <= WORD_LIMIT) for passed, n in words]),

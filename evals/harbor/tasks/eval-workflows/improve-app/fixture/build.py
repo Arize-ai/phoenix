@@ -34,6 +34,7 @@ MIN_PASS_RATE = 0.85
 MIN_EXAMPLES_RUN = 0.8
 MIN_RUNS_EVALUATED = 0.8
 MIN_CODE_CHECK_AGREEMENT = 0.9
+MIN_GAIN_OVER_BASELINE = 0.3
 POLICY_IDS = (
     "returns", "refund-timing", "final-sale", "exchanges", "shipping", "expedited",
     "international", "order-changes", "lost-packages", "warranty", "price-adjustment",
@@ -348,6 +349,7 @@ def write_grading_files() -> None:
                 "min_examples_run": MIN_EXAMPLES_RUN,
                 "min_runs_evaluated": MIN_RUNS_EVALUATED,
                 "min_code_check_agreement": MIN_CODE_CHECK_AGREEMENT,
+                "min_gain_over_baseline": MIN_GAIN_OVER_BASELINE,
             },
         },
     )
