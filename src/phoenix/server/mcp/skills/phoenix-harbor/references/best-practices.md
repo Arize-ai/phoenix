@@ -4,17 +4,7 @@ Use this guide to design, review, or debug Harbor tasks whose results you record
 
 For task scaffolding and configuration, use Harbor's `create-task` skill or [task documentation](https://docs.harborframework.com/tasks/overview). Write verifiers with plain code, [Phoenix Evals](phoenix-evals-verifier.md), or Harbor's `rewardkit` skill and [Rewardkit](https://docs.harborframework.com/rewardkit/quick-start) library, depending on the criteria. If you need Harbor's skills and they aren't installed, offer `npx skills add harbor-framework/harbor`.
 
-## Task structure
-
-A Harbor task packages a request, an execution environment, and a verifier. Create a task with `harbor task init ORG/TASK_NAME`. For a single-step task:
-
-- `instruction.md` contains the request the agent receives.
-- `task.toml` configures resources, timeouts, network access, artifacts, and verifier settings.
-- `environment/` defines the sandbox and its initial files and data.
-- `tests/test.sh` runs the verifier and writes rewards. Other files in `tests/` hold grading code and reference data.
-- `solution/solve.sh` is an optional reference solution, run by Harbor's oracle agent.
-
-A job selects tasks, agents, and run settings. A trial is one agent attempt at a task. Use Harbor's `create-task` skill for scaffolding and details such as multi-step tasks and separate verifier images.
+A Harbor task packages a request (`instruction.md`), an environment, a verifier (`tests/`), and an optional reference solution. A job selects tasks, agents, and run settings; a trial is one agent attempt at a task.
 
 ## Define success
 
@@ -50,21 +40,20 @@ Use the project's supported Harbor version and check its CLI help and configurat
 
 Choose a sandbox provider that supports the task's image, services, artifact transfer, and network requirements. Consult Harbor's [sandbox documentation](https://docs.harborframework.com/sandboxes/pre-integrated-sandboxes) and [network capability tables](https://docs.harborframework.com/tasks/network-policies) for the selected provider and version. Startup commands, multi-container support, and network enforcement vary by provider.
 
-Prefer a separate verifier environment when grading needs only exported files or other artifacts. Declare the required artifacts explicitly; a separate verifier does not inherit the agent's filesystem. Use shared verification when the verifier needs live state that cannot be exported. In that case, restrict the agent's access to grading code and credentials. See [separate verification](https://docs.harborframework.com/tasks/separate-verifier).
+Harbor's `create-task` skill covers shared versus separate verifiers and network phases. Two points cause most surprises: a separate verifier receives only the declared `artifacts`, not the agent's filesystem, and a shared verifier needs grading code and credentials kept away from the agent.
 
-Select network access for environment startup, agent execution, and verification:
+For network access:
 
 - Install dependencies in images where practical. An allowlist must permit any remaining setup downloads and service calls. For example, a Rewardkit `test.sh` downloads `harbor-rewardkit` with `uvx` during verification, so install it in the verifier image or allow PyPI for that phase.
-- A per-phase network override needs a provider that can change network policy after the sandbox starts. Otherwise, give a separate verifier environment its own baseline policy.
 - An allowlist controls traffic from the sandbox, not from the model provider. If the provider's host is allowed, hosted tools that run on the provider's servers, such as web search, still reach outside content. When outside access matters, turn those tools off in the agent's configuration.
 
-Supply judge credentials through verifier configuration, not the image or agent prompt. Check that required credentials and services work before starting a batch.
+Check that judge credentials and required services work before starting a batch.
 
 ## Write and validate the verifier
 
 Use deterministic checks for state and computation. Use an LLM judge for semantic criteria that code cannot reliably assess. Avoid keyword checks for free-text correctness; a wrong answer can mention the right words. For code and configuration, prefer parsing or executing the relevant behavior over matching incidental source text.
 
-Write numeric scores to `/logs/verifier/reward.json`, or a single number to `/logs/verifier/reward.txt`. Use `reward` for the overall result and optional additional keys for individual criteria or measurements. For example:
+In `reward.json`, use `reward` for the overall result and optional additional keys for individual criteria or measurements. For example:
 
 ```python
 scores = {
