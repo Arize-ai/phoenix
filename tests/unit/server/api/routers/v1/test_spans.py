@@ -16,6 +16,8 @@ from phoenix.server.api.routers.v1.spans import (
     OtlpStatus,
     Span,
 )
+from phoenix.server.dml_event import DmlEvent, SpanDeleteEvent
+from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.types import DbSessionFactory
 
 
@@ -631,6 +633,41 @@ async def test_delete_span_not_found(
     )
     assert response.status_code == 404
     assert "not found" in response.text.lower()
+
+
+async def test_delete_span_invalidates_its_project(
+    db: DbSessionFactory,
+    httpx_client: httpx2.AsyncClient,
+    span_factory: Callable[..., models.Span],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async with db() as session:
+        session.add(models.Project(name="unrelated-project"))
+        project = models.Project(name="span-project")
+        session.add(project)
+        await session.flush()
+        trace = models.Trace(
+            project_rowid=project.id,
+            trace_id="trace-for-span-delete",
+            start_time=datetime.now(),
+            end_time=datetime.now(),
+        )
+        session.add(trace)
+        await session.flush()
+        session.add(span_factory(trace.id, "span-to-delete"))
+    # Ids must differ, or a trace id passed as a project id would go unnoticed.
+    assert trace.id != project.id
+    events: list[DmlEvent] = []
+    original_put = DmlEventHandler.put
+
+    def spy_put(self: DmlEventHandler, event: DmlEvent) -> None:
+        events.append(event)
+        original_put(self, event)
+
+    monkeypatch.setattr(DmlEventHandler, "put", spy_put)
+    response = await httpx_client.delete("v1/spans/span-to-delete")
+    assert response.status_code == 204
+    assert [e for e in events if isinstance(e, SpanDeleteEvent)] == [SpanDeleteEvent((project.id,))]
 
 
 @pytest.fixture
