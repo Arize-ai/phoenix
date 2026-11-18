@@ -1,8 +1,9 @@
-from asyncio import Event, wait_for
+from asyncio import Event, create_task, wait, wait_for
 from asyncio import TimeoutError as AsyncTimeoutError
 from datetime import datetime, timedelta, timezone
+from math import ceil
 from secrets import token_hex
-from typing import Any, AsyncIterator
+from typing import Any, AsyncIterator, Union
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -573,3 +574,199 @@ class TestOrphanSessionSweep:
         async with db() as session:
             remaining = set((await session.scalars(sa.select(models.ProjectSession.id))).all())
         assert not (orphan_ids & remaining), "all orphans should be deleted across batches"
+
+
+class TestRetentionPolicyConcurrentSweep:
+    """A replica's retention sweep must not queue behind another replica's in-flight delete."""
+
+    async def test_skips_traces_locked_by_another_replica(
+        self,
+        dialect: str,
+        db: DbSessionFactory,
+    ) -> None:
+        if dialect == "sqlite":
+            pytest.skip("SQLite allows one writer at a time")
+        max_days = 7
+        num_expired = 20
+        now = datetime.now(timezone.utc)
+        async with db() as session:
+            project = models.Project(name=token_hex(8))
+            session.add(project)
+            await session.flush()
+            expired = [
+                models.Trace(
+                    project_rowid=project.id,
+                    trace_id=token_hex(16),
+                    start_time=now - timedelta(days=max_days + 1 + i),
+                    end_time=now - timedelta(days=max_days + 1 + i) + timedelta(seconds=1),
+                )
+                for i in range(num_expired)
+            ]
+            recent = models.Trace(
+                project_rowid=project.id,
+                trace_id=token_hex(16),
+                start_time=now - timedelta(hours=1),
+                end_time=now - timedelta(hours=1) + timedelta(seconds=1),
+            )
+            session.add_all([*expired, recent])
+            policy = await session.get(
+                models.ProjectTraceRetentionPolicy,
+                DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID,
+            )
+            assert policy is not None
+            policy.rule = TraceRetentionRule(root=MaxDaysRule(max_days=max_days))
+            policy.cron_expression = TraceRetentionCronExpression(root="0 * * * *")
+        locked_trace_id = expired[0].trace_id
+
+        sweeper = TraceDataSweeper(db=db, dml_event_handler=MagicMock())
+        sweeper._running = True
+        (policy,) = [
+            p
+            for p in await sweeper._get_policies()
+            if p.id == DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
+        ]
+
+        async def count_traces() -> int:
+            async with db() as session:
+                return int(
+                    await session.scalar(
+                        sa.select(func.count(models.Trace.id)).filter_by(project_rowid=project.id)
+                    )
+                    or 0
+                )
+
+        # Another replica is partway through deleting one expired trace: its
+        # transaction holds that row's lock and has not committed yet.
+        async with db() as other_replica:
+            await other_replica.execute(
+                sa.delete(models.Trace).where(models.Trace.trace_id == locked_trace_id)
+            )
+            sweep = create_task(sweeper._apply(policy))
+            await wait({sweep}, timeout=10)
+            remaining_while_locked = await count_traces()
+            await other_replica.rollback()
+        await sweep
+
+        # Every expired trace except the locked one is deletable now; this
+        # replica should have deleted them rather than waiting on the lock.
+        assert remaining_while_locked == 2, (
+            f"{num_expired - 1} expired traces were not locked by anyone, but after 10s "
+            f"{num_expired + 1 - remaining_while_locked} of them had been deleted "
+            f"({remaining_while_locked} traces remain) while another replica held one row lock"
+        )
+
+
+class TestRetentionPolicyBatchedDelete:
+    """Each retention DELETE is bounded, so a backlog never needs one long statement."""
+
+    @pytest.mark.parametrize(
+        "rule",
+        [
+            pytest.param(MaxDaysRule(max_days=7), id="max_days"),
+            pytest.param(MaxCountRule(max_count=1), id="max_count"),
+            pytest.param(MaxDaysOrCountRule(max_days=7, max_count=1), id="max_days_or_count"),
+        ],
+    )
+    async def test_deletes_backlog_in_bounded_batches(
+        self,
+        rule: Union[MaxDaysRule, MaxCountRule, MaxDaysOrCountRule],
+        db: DbSessionFactory,
+    ) -> None:
+        batch_size = 2
+        num_expired = 5
+        now = datetime.now(timezone.utc)
+        async with db() as session:
+            project = models.Project(name=token_hex(8))
+            session.add(project)
+            await session.flush()
+            session.add_all(
+                models.Trace(
+                    project_rowid=project.id,
+                    trace_id=token_hex(16),
+                    start_time=now - timedelta(days=8 + i),
+                    end_time=now - timedelta(days=8 + i) + timedelta(seconds=1),
+                )
+                for i in range(num_expired)
+            )
+            recent = models.Trace(
+                project_rowid=project.id,
+                trace_id=token_hex(16),
+                start_time=now - timedelta(hours=1),
+                end_time=now - timedelta(hours=1) + timedelta(seconds=1),
+            )
+            session.add(recent)
+            policy = models.ProjectTraceRetentionPolicy(
+                name=token_hex(8),
+                rule=TraceRetentionRule(root=rule),
+                cron_expression=TraceRetentionCronExpression(root="0 * * * *"),
+                projects=[project],
+            )
+            session.add(policy)
+        dml_event_handler = MagicMock()
+        sweeper = TraceDataSweeper(db=db, dml_event_handler=dml_event_handler)
+        sweeper._running = True
+        (policy,) = [p for p in await sweeper._get_policies() if p.name == policy.name]
+
+        num_traces_deleted_per_statement: list[int] = []
+        num_traces_before_statement: list[int] = []
+
+        def count_traces(conn: Any) -> int:
+            return int(conn.exec_driver_sql("SELECT count(*) FROM traces").scalar_one())
+
+        def before_trace_delete(
+            conn: Any,
+            cursor: Any,
+            statement: str,
+            parameters: Any,
+            context: Any,
+            executemany: bool,
+        ) -> None:
+            if "DELETE FROM traces" in statement:
+                num_traces_before_statement.append(count_traces(conn))
+
+        def after_trace_delete(
+            conn: Any,
+            cursor: Any,
+            statement: str,
+            parameters: Any,
+            context: Any,
+            executemany: bool,
+        ) -> None:
+            if "DELETE FROM traces" in statement:
+                num_traces_deleted_per_statement.append(
+                    num_traces_before_statement.pop() - count_traces(conn)
+                )
+
+        sa.event.listen(sa.engine.Engine, "before_cursor_execute", before_trace_delete)
+        sa.event.listen(sa.engine.Engine, "after_cursor_execute", after_trace_delete)
+        try:
+            with patch(
+                "phoenix.server.retention._TRACE_DELETE_BATCH_SIZE", batch_size, create=True
+            ):
+                await sweeper._apply(policy)
+        finally:
+            sa.event.remove(sa.engine.Engine, "before_cursor_execute", before_trace_delete)
+            sa.event.remove(sa.engine.Engine, "after_cursor_execute", after_trace_delete)
+
+        async with db() as session:
+            remaining_trace_ids = set(
+                (
+                    await session.scalars(
+                        sa.select(models.Trace.trace_id).filter_by(project_rowid=project.id)
+                    )
+                ).all()
+            )
+        assert remaining_trace_ids == {recent.trace_id}, "every expired trace should be deleted"
+        assert sum(num_traces_deleted_per_statement) == num_expired
+        dml_event_handler.put.assert_called_once()
+        min_num_statements = ceil(num_expired / batch_size)
+        assert len(num_traces_deleted_per_statement) >= min_num_statements, (
+            f"{num_expired} expired traces were deleted in "
+            f"{len(num_traces_deleted_per_statement)} DELETE statement(s); with a batch size "
+            f"of {batch_size} that takes at least {min_num_statements}"
+        )
+        assert max(num_traces_deleted_per_statement) <= batch_size, (
+            f"a single DELETE removed {max(num_traces_deleted_per_statement)} traces; "
+            f"each retention DELETE should remove at most {batch_size} "
+            f"(deletes per statement: {num_traces_deleted_per_statement})"
+        )

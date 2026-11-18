@@ -23,6 +23,7 @@ from phoenix.utilities import hour_of_week
 logger = logging.getLogger(__name__)
 
 _ORPHAN_SESSION_DELETE_BATCH_SIZE = 1000
+_TRACE_DELETE_BATCH_SIZE = 1000
 _ORPHAN_SESSION_GRACE_PERIOD = timedelta(hours=1)
 
 
@@ -77,16 +78,52 @@ class TraceDataSweeper(DaemonTask):
         return True
 
     async def _apply(self, policy: ProjectTraceRetentionPolicy) -> None:
+        """Delete the policy's traces in batches, committing after each batch.
+
+        Each batch is its own short statement and transaction, so a large backlog
+        stays under a server-side ``statement_timeout`` and a failed batch does not
+        roll back the batches before it. On PostgreSQL, candidates are locked with
+        FOR UPDATE SKIP LOCKED, so replicas sweeping at the same hour take disjoint
+        batches instead of waiting on each other's row locks; a batch that comes
+        back short ends the sweep, leaving any locked traces to the replica that
+        holds them. SQLite serializes writers, so there is no contention to skip.
+        """
         try:
             project_rowids = (
                 (sa.select(Project.id).where(Project.trace_retention_policy_id.is_(None)))
                 if policy.id == DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
                 else [p.id for p in policy.projects]
             )
-            async with self._db() as session:
-                result = await policy.rule.delete_traces(session, project_rowids)
-            self._dml_event_handler.put(SpanDeleteEvent(tuple(result)))
-            RETENTION_POLICY_EXECUTIONS.labels(status="success").inc()
+            # For max_count rules the filter's row_number() window is re-evaluated per batch
+            # over all of the policy's traces; that costs more in total than one delete but
+            # keeps each statement short.
+            deletion_filter = policy.rule.deletion_filter(project_rowids)
+            num_deleted_traces = 0
+            try:
+                while self._running:
+                    candidate_ids = (
+                        sa.select(Trace.id)
+                        .where(Trace.project_rowid.in_(project_rowids))
+                        .where(deletion_filter)
+                        .limit(_TRACE_DELETE_BATCH_SIZE)
+                    )
+                    if self._db.dialect is SupportedSQLDialect.POSTGRESQL:
+                        candidate_ids = candidate_ids.with_for_update(skip_locked=True)
+                    stmt = sa.delete(Trace).where(Trace.id.in_(candidate_ids)).returning(Trace.id)
+                    async with self._db() as session:
+                        num_deleted_in_batch = len((await session.scalars(stmt)).all())
+                    num_deleted_traces += num_deleted_in_batch
+                    if num_deleted_in_batch < _TRACE_DELETE_BATCH_SIZE:
+                        RETENTION_POLICY_EXECUTIONS.labels(status="success").inc()
+                        break
+            finally:
+                # Batches commit independently, so emit the event even if a later batch
+                # fails. The affected project ids only feed CacheForDataLoaders
+                # invalidation, which is None on every backend except SQLite, so they are
+                # not collected. On SQLite the unfiltered summary caches may read stale
+                # until their 1h TTL expires.
+                if num_deleted_traces:
+                    self._dml_event_handler.put(SpanDeleteEvent(()))
         except Exception:
             logger.exception(f"Failed to apply retention policy '{policy.name}' (id={policy.id})")
             RETENTION_POLICY_EXECUTIONS.labels(status="error").inc()
