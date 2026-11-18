@@ -15,7 +15,11 @@ import {
 } from "@phoenix/components";
 import type { CreatedDatasetLabel } from "@phoenix/components/dataset/useDatasetLabelMutations";
 import { useDatasetLabelMutations } from "@phoenix/components/dataset/useDatasetLabelMutations";
-import { labelTagItem, NewLabelForm } from "@phoenix/components/label";
+import {
+  labelTagItem,
+  mergeLabelSelection,
+  NewLabelForm,
+} from "@phoenix/components/label";
 import { useAgentDataChangeFetchKey } from "@phoenix/hooks";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -169,7 +173,7 @@ export function DatasetLabelPicker({
       options={options}
       selectedKeys={selectedKeys}
       onSelectionChange={(ids) =>
-        onChange(labels.filter((label) => ids.has(label.id)))
+        onChange(mergeLabelSelection({ selectedLabels, labels, ids }))
       }
       error={error}
       footer={

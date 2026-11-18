@@ -13,7 +13,11 @@ import {
   LinkButton,
   TagPicker,
 } from "@phoenix/components";
-import { labelTagItem, NewLabelForm } from "@phoenix/components/label";
+import {
+  labelTagItem,
+  mergeLabelSelection,
+  NewLabelForm,
+} from "@phoenix/components/label";
 import type { CreatedPromptLabel } from "@phoenix/components/prompt/usePromptLabelMutations";
 import { usePromptLabelMutations } from "@phoenix/components/prompt/usePromptLabelMutations";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -182,7 +186,7 @@ export function PromptLabelPicker({
       options={options}
       selectedKeys={selectedKeys}
       onSelectionChange={(ids) =>
-        onChange(labels.filter((label) => ids.has(label.id)))
+        onChange(mergeLabelSelection({ selectedLabels, labels, ids }))
       }
       error={error}
       footer={

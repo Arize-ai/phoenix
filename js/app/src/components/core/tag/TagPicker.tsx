@@ -140,7 +140,10 @@ export function TagPicker({
               onSelectionChange={(selection) => {
                 onSelectionChange(
                   selection === "all"
-                    ? new Set(options.map((option) => option.id))
+                    ? new Set([
+                        ...selectedKeys,
+                        ...options.map((option) => option.id),
+                      ])
                     : new Set([...selection].map(String))
                 );
               }}

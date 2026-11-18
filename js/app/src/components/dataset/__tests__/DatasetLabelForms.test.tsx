@@ -14,6 +14,7 @@ import { ThemeProvider } from "@phoenix/contexts";
 
 import { CreateDatasetForm } from "../CreateDatasetForm";
 import type { DatasetLabel } from "../DatasetLabelPicker";
+import { DatasetLabelPicker } from "../DatasetLabelPicker";
 import { EditDatasetForm } from "../EditDatasetForm";
 
 installTestMatchMedia();
@@ -29,6 +30,12 @@ const BANKING: DatasetLabel = {
   id: "RGF0YXNldExhYmVsOjI=",
   name: "banking",
   color: "#ff9b2e",
+};
+/** Attached, but past the first page of labels the picker lists. */
+const ARCHIVED: DatasetLabel = {
+  id: "RGF0YXNldExhYmVsOjE1MA==",
+  name: "archived",
+  color: "#e5484d",
 };
 
 let container: HTMLDivElement;
@@ -240,5 +247,28 @@ describe("EditDatasetForm labels", () => {
       "The labels were not saved: One or more dataset labels not found"
     );
     expect(container.querySelector("form")).not.toBeNull();
+  });
+});
+
+describe("DatasetLabelPicker", () => {
+  it("keeps attached labels the picker does not list", async () => {
+    const onChange = vi.fn();
+    const lastLabelIds = () =>
+      (onChange.mock.lastCall?.[0] as DatasetLabel[]).map((label) => label.id);
+    renderWithRelay(
+      <DatasetLabelPicker
+        selectedLabels={[ARCHIVED, PRODUCTION]}
+        onChange={onChange}
+      />
+    );
+    await click(
+      getByText({ selector: "[role='menuitemcheckbox']", text: "banking" })
+    );
+    expect(lastLabelIds()).toEqual([ARCHIVED.id, PRODUCTION.id, BANKING.id]);
+
+    await click(
+      getByText({ selector: "[role='menuitemcheckbox']", text: "production" })
+    );
+    expect(lastLabelIds()).toEqual([ARCHIVED.id]);
   });
 });
