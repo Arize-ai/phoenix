@@ -22,7 +22,7 @@ wrong.
 | Project `support-bot` | 60 traces, one per customer message about order status, tracking, delivery dates, or address changes. The root `handle_message` span holds the message and the reply. A message arrives as chat, with a `message` field, or as email, with `subject` and `body`. The children are a `lookup_order` tool call (the order record), a `track_shipment` tool call (carrier tracking) once the order has shipped, a `search_help_center` retriever with 3 help articles, and the LLM call. No annotations. |
 | `/app/evals/nightly_grounding.py` | The team's nightly script. It runs without errors and prints `Scored 20 replies: 19 grounded (95%).` Its docstring says it logs `grounded` as `pass` or `fail` on each reply's root span. |
 | `/app/support_bot.py` | The bot's prompt, tools, and message handling. It shows that when `track_shipment` times out, the bot still answers from the order record and articles, and marks the trace as an error. |
-| Model access | Real `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` values, so the agent can run the judge. |
+| Model access | A real `OPENAI_API_KEY`, so the agent can run the judge. |
 
 ## How the data was made
 

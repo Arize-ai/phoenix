@@ -16,12 +16,8 @@ os = "linux"
 cpus = 2
 memory_mb = 4096
 network_mode = "allowlist"
-allowed_hosts = ["api.openai.com", "api.anthropic.com"]
+allowed_hosts = ["api.openai.com"]
 build_timeout_sec = 1200.0
-
-[environment.env]
-ANTHROPIC_API_KEY = "${ANTHROPIC_API_KEY:-}"
-OPENAI_API_KEY = "${OPENAI_API_KEY:-}"
 
 [environment.healthcheck]
 command = "sh /opt/phoenix-eval/start_phoenix_server.sh"
@@ -37,3 +33,9 @@ timeout_sec = 2400.0
 network_mode = "allowlist"
 allowed_hosts = ["api.openai.com"]
 timeout_sec = 1200.0
+
+[verifier.env]
+OPENAI_API_KEY = "${OPENAI_API_KEY:-}"
+
+[solution.env]
+OPENAI_API_KEY = "${OPENAI_API_KEY:-}"

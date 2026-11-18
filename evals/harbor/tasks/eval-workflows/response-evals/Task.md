@@ -21,7 +21,7 @@ on traces it never saw.
 | Project `refund-bot` | 60 traces with no annotations, one per refund request. The root `support-agent` span holds the customer's message and the bot's JSON reply. Its children are a `get_order` tool call that returns the order record, including `refundable_amount` and the customer's email; a `search_policies` retriever span with 3 policy passages; a `find_similar_tickets` tool call that returns 2 tickets about the same item, each with the reporting customer's email and phone; and the LLM call. |
 | `/app/SPEC.md` | The four requirements: `valid_format`, `correct_amount`, `no_pii_leak`, and `grounded`. |
 | `/app/refund_bot.py`, `/app/tools.py` | The bot's system prompt, model call, and tool stubs. |
-| Environment | `OPENAI_API_KEY` and `ANTHROPIC_API_KEY`, so the agent can run LLM judges. |
+| Environment | `OPENAI_API_KEY`, so the agent can run LLM judges. |
 
 ## How the data was made
 

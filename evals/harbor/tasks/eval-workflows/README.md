@@ -127,7 +127,9 @@ The data is built to look like a team's data where that matters for evaluation w
 - **Experiments repeat.** In the comparison tasks, each experiment ran every example
   three times, and one run in each experiment errored.
 - **Traffic keeps coming.** Script reruns add new traces in the last 6 hours, so a
-  nightly script that scores the last day sees all of them. In `session-evals`, some new
+  nightly script that scores the last day sees all of them. A script that remembers when it last ran
+  and scores only traces that started after that time skips most of them, because they're
+  dated before the verifier runs. Scoring traces that have no annotation yet works. In `session-evals`, some new
   turns continue sessions the agent already scored.
 
 Five kinds of checks cover the data:
@@ -143,7 +145,8 @@ Five kinds of checks cover the data:
 3. **A second model checked the answers.** GPT-6 Astra read every task's data and labels
    and checked them against the task's rules. No person has reviewed the labels.
 4. **Reference and do-nothing agents bound the reward.** Each task's reference
-   solution, which makes real model calls, scores 1, and an agent that does nothing
+   solution, which makes real model calls where the task needs them, scores 1, and an
+   agent that does nothing
    scores 0.
 5. **Wrong approaches fail.** Each `Task.md` lists the realistic mistakes the task is
    built to catch and the check each one fails.
@@ -171,7 +174,7 @@ Some rules hold across tasks:
 - **Annotations need recall on each class.** A check requires a minimum recall on good
   cases and on bad cases separately, so labeling everything one way fails.
 - **Judges run on a small model.** Tasks that ask for an LLM judge ask for
-  `gpt-5-nano`, and the rerun refuses any other chat model. On it, the reference prompts pass
+  `gpt-5-nano`, and the rerun's proxy refuses any other chat model. On it, the reference prompts pass
   and naive prompts, such as raw span JSON with labels that aren't defined, fail.
 - **Replies are graded on extracted claims.** An LLM reads the reply, without seeing the
   answers, and extracts the decision and each number with a quote. Code checks that the
@@ -204,6 +207,11 @@ forwards each request and does two things with it:
   similarity.
 - It records the request, so the verifier can see the judge prompts the script sends.
 
+The proxy enforces the pin only for clients that read `OPENAI_BASE_URL` or
+`ANTHROPIC_BASE_URL`, which the OpenAI and Anthropic SDKs and phoenix-evals do. A script
+that hard-codes `https://api.openai.com`, or uses the Batch API, reaches OpenAI directly
+and can call a stronger model.
+
 The rerun's exit code doesn't affect `reward`. The checks grade the annotations the rerun
 writes, so a script that exits 1 after reporting one trace it couldn't score still passes
 if it covers enough of the rest. `details.json` records the exit code, the run time, and
@@ -214,8 +222,8 @@ built:
 
 | Key | Meaning |
 | --- | --- |
-| `uses_phoenix_evals` | The share of the script's judge requests that the phoenix-evals library sent. It shows whether the script uses the library. |
-| `prompt_quality` | The share of judge requests whose prompt meets every item in the rubric below. An LLM scores one request from each of the four most-used prompt templates. |
+| `uses_phoenix_evals` | The share of the script's judge requests that the phoenix-evals library sent. It shows whether the script uses the library. Embedding requests don't count as judge requests. |
+| `prompt_quality` | An LLM scores one request from each of the four most-used prompt templates against the rubric below. `prompt_quality` is the share of those four templates' requests whose template meets every item. If a scoring call fails, that template is left out and `details.json` records the error. |
 
 | Rubric item | A good judge prompt |
 | --- | --- |
@@ -227,20 +235,39 @@ built:
 | `has_evidence` | Includes the evidence the criterion needs, such as retrieved documents or tool results. |
 | `no_missing_reference` | Doesn't refer to a reference answer that isn't there. |
 | `clear_structure` | Separates instructions, data, and question, and says what decides each label. |
-| `no_copied_traces` | Doesn't quote the traces the agent saw. Code checks this one: a 10-word run that appears in the visible traces but not the new ones, in at least 20% of requests. |
+| `no_copied_traces` | Doesn't quote the traces the agent saw. Code checks this one: a 10-word run that appears in the visible traces but not the new ones, in at least 3 requests and at least 20% of them. |
 
 `prompt_quality` is noisy: the same prompt can pass in one run and miss an item in the
 next, so compare it across many runs, not one.
 
-`improve-app` has no eval script. It reports `no_overfit` instead: 0 if the agent's
-saved prompt quotes 10 or more words in a row from one of the dataset's questions or
-names one of its order or customer IDs, a sign the prompt was tuned to the dataset
-rather than the handbook, and 1 otherwise.
+`improve-app` has no eval script. It reports `no_overfit` instead: 0 if the saved prompt
+quotes 10 or more words in a row from a development question or its notes, or names one
+of their order IDs, a sign the prompt was tuned to the dataset rather than the handbook,
+and 1 otherwise. Text that the new questions, the handbook, or the launch prompt also
+contain doesn't count.
 
 ## Run the suite
 
 You need `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, and `DAYTONA_API_KEY`, or Docker in place
 of Daytona. See [the Harbor README](../../README.md#prerequisites) for setup.
+
+Each phase of a trial gets only the keys it needs:
+
+| Phase | Keys | Set in |
+| --- | --- | --- |
+| Agent | Its own model's key, and `OPENAI_API_KEY` for the judges the tasks ask for | `env` on each agent in the job file |
+| Verifier, including script reruns | `OPENAI_API_KEY`, except in `curate-labels`, whose verifier makes no model calls | `[verifier.env]` in `task.toml` |
+| Reference solution (`oracle`) | `OPENAI_API_KEY`, in the six tasks whose solution calls a model | `[solution.env]` in `task.toml` |
+| Sandbox setup and the Phoenix server | None | |
+
+An agent can read and print any key it's given, for example by listing processes. Use
+dedicated benchmark keys with spend limits, not personal keys. After each trial, Harbor
+replaces these keys with `[REDACTED]` in the trial directory. The Phoenix plugin records
+the trial just before that, so a key an agent printed can still reach Phoenix.
+
+Every task allows `api.openai.com` for the whole trial, because the work itself calls
+`gpt-5-nano`. The Claude Code entries in the job file add `api.anthropic.com` for their
+own model.
 
 To stage the tasks and run the full job, run these commands from the repository root:
 
@@ -250,6 +277,8 @@ make harbor-run HARBOR_JOB=evals/harbor/jobs/eval-workflows.yaml
 ```
 
 Restage after you change a seed file, `workdir/`, the verifiers, or the environment.
+Staging caches each seeded database by its seed file's hash, so after you change the
+seeder, `environments/fixtures/seed_phoenix.py`, restage with `RESEED=1`.
 `HARBOR_ARGS` passes options to `harbor run`:
 
 | To | Add |
@@ -320,7 +349,7 @@ Each task directory has the same layout:
 | `fixture/phoenix_seed.json` | The Phoenix state the agent starts with. Generated. |
 | `workdir/` | Files copied to `/app`, such as the app's code or the team's eval script. |
 | `tests/` | The verifier, `tests/test.sh` and `tests/test.py`. Its hidden answers are `expected.json`, the expected outcome, and `grading_data.json`, the labels and added traces it grades against. |
-| `solution/` | A reference solution that does the work for real, including model calls. |
+| `solution/` | A reference solution that does the work for real, including model calls where the task needs them. |
 
 To change a task's data, edit its `fixture/build.py` and run it from the repository root:
 

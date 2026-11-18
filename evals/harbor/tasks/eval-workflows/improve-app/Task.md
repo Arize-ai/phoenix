@@ -27,7 +27,7 @@ The agent receives `instruction.md` word for word:
 | `/app/support_app.py` | The app. `answer(question, customer_id, prompt=None)` sends the latest `support-system` version to `gpt-5.4-mini`, then one message with the handbook's rules, the signed-in customer, their orders and any order the question names, and the question. Passing `prompt` tries a version without saving it. |
 | `/app/policies.md` | The handbook: four reply standards and 14 rules. The standards are to tag each rule a reply relies on as `[policy:<id>]`, use 80 words or fewer, promise only what the handbook allows, and discuss orders only with the account holder. The app sends the model the rules but not the standards, so the prompt has to carry them. |
 | `/app/orders.json` | 18 customers and 21 orders, as of 2026-11-10 15:00: every order the development questions use. It leaves out the 24 orders that only new questions use and the 7 customers who own nothing else, so the agent can't write test questions about them. The verifier's copy of the app has all 25 customers and 45 orders. |
-| Model access | `OPENAI_API_KEY` and `ANTHROPIC_API_KEY`, so the agent can run the app and its own evaluators. |
+| Model access | `OPENAI_API_KEY`, so the agent can run the app and its own evaluators. |
 
 The 32 new questions aren't on the machine. Harbor copies them in with the verifier after
 the agent finishes.

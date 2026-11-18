@@ -42,6 +42,8 @@ class LLMCall:
 
     @property
     def is_generation(self) -> bool:
+        if self.path.rstrip("/").endswith("embeddings"):
+            return False
         return any(key in self.body for key in ("messages", "input", "prompt"))
 
 
@@ -393,13 +395,16 @@ def prompt_scores(
     for call in generations:
         groups.setdefault(_template_key(call), []).append(call)
     graded = sorted(groups.values(), key=len, reverse=True)[:max_templates]
+
+    def grade(group: list[LLMCall]) -> dict[str, Any]:
+        try:
+            return _grade_request(group[0], system, criteria, evidence, deterministic)
+        except Exception as error:
+            # A measure never affects reward, so a failed scoring call mustn't stop grading.
+            return {"error": f"{type(error).__name__}: {error}"}
+
     with ThreadPoolExecutor(4) as pool:
-        verdicts = list(
-            pool.map(
-                lambda group: _grade_request(group[0], system, criteria, evidence, deterministic),
-                graded,
-            )
-        )
+        verdicts = list(pool.map(grade, graded))
 
     hits: set[tuple[str, ...]] = set()
     if copied is not None:
@@ -411,6 +416,11 @@ def prompt_scores(
 
     templates: list[dict[str, Any]] = []
     for group, verdict in zip(graded, verdicts):
+        if "error" in verdict:
+            templates.append(
+                {"requests": len(group), "model": group[0].model, "error": verdict["error"]}
+            )
+            continue
         judged = set(verdict.get("criteria_judged") or [])
         missed_by_llm = set(verdict.get("missed") or [])
         # These two items follow from `criteria_judged`, so code decides them.
@@ -436,8 +446,9 @@ def prompt_scores(
                 "criteria_judged": sorted(judged),
             }
         )
-    total = sum(t["requests"] for t in templates)
-    scores["prompt_quality"] = sum(t["requests"] for t in templates if not t["missed"]) / total
+    scored = [t for t in templates if "error" not in t]
+    if total := sum(t["requests"] for t in scored):
+        scores["prompt_quality"] = sum(t["requests"] for t in scored if not t["missed"]) / total
     details["templates"] = templates
     details["template_count"] = len(groups)
     return scores, details

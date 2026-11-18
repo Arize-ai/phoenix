@@ -199,3 +199,26 @@ def test_prompt_scores_flag_copied_traces(monkeypatch: pytest.MonkeyPatch) -> No
     assert scores["prompt_quality"] == 0.0
     assert details["templates"][0]["missed"] == [judge_prompts.COPIED]
     assert "too narrow" in details["templates"][0]["explanation"]
+
+
+def test_prompt_scores_skip_embeddings_and_failed_scoring(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fail(*_: Any) -> dict[str, Any]:
+        raise RuntimeError("grader unavailable")
+
+    monkeypatch.setattr(judge_prompts, "_grade_request", fail)
+    judge = LLMCall(
+        "openai",
+        "v1/chat/completions",
+        {"model": "m", "messages": [{"role": "user", "content": "Judge: x"}]},
+        200,
+    )
+    embedding = LLMCall("openai", "v1/embeddings", {"model": "e", "input": "x"}, 200)
+    scores, details = judge_prompts.prompt_scores(
+        [judge, embedding, embedding],
+        system="s",
+        criteria={"grounded": "g"},
+        evidence={"grounded": "e"},
+    )
+    assert details["judge_requests"] == 1
+    assert scores == {"uses_phoenix_evals": 0.0}
+    assert details["templates"][0]["error"] == "RuntimeError: grader unavailable"

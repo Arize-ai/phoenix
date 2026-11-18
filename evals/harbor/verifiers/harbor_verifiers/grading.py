@@ -9,9 +9,11 @@ import json
 import math
 import os
 import re
+import signal
 import subprocess
 import time
 from collections.abc import Iterable, Mapping, Sequence
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -403,15 +405,9 @@ def inject_spans(project: str, spans: list[dict[str, Any]], timeout: float = 120
         time.sleep(1)
 
 
-def add_dataset_examples(dataset: str, examples: list[dict[str, Any]]) -> None:
-    from phoenix.client import Client
-
-    Client(base_url=PHOENIX_URL).datasets.add_examples_to_dataset(
-        dataset=dataset,
-        inputs=[e["input"] for e in examples],
-        outputs=[e.get("output", {}) for e in examples],
-        metadata=[e.get("metadata", {}) for e in examples],
-    )
+# Phoenix queues annotations that the client logs with its default `sync=False`, so
+# grading waits this long after a rerun for its insert loop to store them.
+ANNOTATION_SETTLE_SECONDS = 2.0
 
 
 @dataclass
@@ -444,26 +440,32 @@ def run_as_agent(
     if os.geteuid() == 0:
         env.update(HOME="/home/agent", USER="agent", LOGNAME="agent")
         argv = ["runuser", "-u", "agent", "--", *argv]
+        # Harbor uploads the tests as root, and the upload may not keep the image's mode.
+        if TESTS_DIR.is_dir():
+            TESTS_DIR.chmod(0o700)
     started = time.monotonic()
-    try:
-        completed = subprocess.run(
-            argv,
-            cwd=cwd or APP_DIR,
-            env=env,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-        )
-        output = _clip(completed.stdout + completed.stderr)
-        return RunResult(completed.returncode, output, time.monotonic() - started)
-    except subprocess.TimeoutExpired as error:
-        # On POSIX, a timed-out run keeps its partial output as bytes even in text mode.
-        output = _clip(_decode(error.stdout) + _decode(error.stderr))
-        return RunResult(None, output, time.monotonic() - started)
-
-
-def _decode(output: str | bytes | None) -> str:
-    return output.decode(errors="replace") if isinstance(output, bytes) else output or ""
+    # A new session puts every process the command starts in one group, so a timeout
+    # stops them all instead of leaving one to write annotations during grading.
+    with subprocess.Popen(
+        argv,
+        cwd=cwd or APP_DIR,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        start_new_session=True,
+    ) as process:
+        try:
+            output, _ = process.communicate(timeout=timeout)
+            returncode: int | None = process.returncode
+        except subprocess.TimeoutExpired:
+            with suppress(ProcessLookupError):
+                os.killpg(process.pid, signal.SIGKILL)
+            output, _ = process.communicate()
+            returncode = None
+    seconds = time.monotonic() - started
+    time.sleep(ANNOTATION_SETTLE_SECONDS)
+    return RunResult(returncode, _clip(output or ""), seconds)
 
 
 def _clip(output: str, keep: int = 1500) -> str:
@@ -535,7 +537,7 @@ def _quoted(quote: str, reply: str) -> bool:
     haystack = _normalize_quote(reply)
     if not words:
         return False
-    if " ".join(words) in haystack:
+    if f" {' '.join(words)} " in f" {haystack} ":
         return True
     words = [_bare(word) for word in words]
     tokens = [_bare(token) for token in haystack.split()]

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -199,6 +200,26 @@ def test_quote_may_add_one_linking_word(quote: str, passed: bool) -> None:
     reply = "**Yes on the numbers.** The margin is thin.\n\n- **Recall:** 13/14 = 92.9%. More text."
     claim = {"value": 0.929, "quote": quote, "contradicted": False}
     assert grading.check_report_claims({"r": claim}, {"r": 0.929}, reply) == {"r": passed}
+
+
+def test_quote_must_match_whole_words() -> None:
+    reply = "The judge flags 15% of traces."
+    claim = {"value": 0.05, "quote": "5%", "contradicted": False}
+    assert grading.check_report_claims({"r": claim}, {"r": 0.05}, reply) == {"r": False}
+
+
+def test_run_as_agent_stops_the_whole_command_on_timeout(
+    tmp_path: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(grading, "ANNOTATION_SETTLE_SECONDS", 0.0)
+    marker = tmp_path / "late"
+    result = grading.run_as_agent(
+        f"echo started; (sleep 2; touch {marker}) & sleep 30", timeout=0.5, cwd=str(tmp_path)
+    )
+    assert result.returncode is None
+    assert "started" in result.output
+    time.sleep(2.5)
+    assert not marker.exists()
 
 
 def test_quote_scattered_across_the_reply_is_rejected() -> None:

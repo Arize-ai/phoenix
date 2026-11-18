@@ -18,7 +18,7 @@ whether its script also rescores sessions that customers come back to.
 | --- | --- |
 | Project `order-agent` | 40 sessions of 2 to 5 turns, 111 traces in all, and no annotations. Each turn is one trace. Its root `order-agent` span has the session ID, the customer's message, and the agent's reply. Its child spans are the turn's tool calls (`lookup_order`, `cancel_order`, `refund_order`, `change_address`) with their JSON results, and one LLM call. A tool call that errored has status `ERROR`. |
 | `/app/order_agent.py` | The agent's system prompt and tool stubs. The tool docstrings say what each result status means: `cancelled`, `refunded`, and `updated` mean done, and `queued` means the change waits on the warehouse or a review. |
-| Environment | `OPENAI_API_KEY` and `ANTHROPIC_API_KEY`, so the agent can run LLM judges. |
+| Environment | `OPENAI_API_KEY`, so the agent can run LLM judges. |
 
 ## How the data was made
 

@@ -1,3 +1,6 @@
+# Each agent gets only the keys it needs: its own model's key, plus the OpenAI key for
+# the judges the tasks ask for. Harbor masks these values in the trial directory after
+# each trial.
 datasets:
   - path: evals/harbor/tasks/eval-workflows
 agents:
@@ -5,10 +8,16 @@ agents:
     import_path: evals.harbor.agents.coding_agents:ClaudeCodeCliAgent
     model_name: anthropic/claude-opus-5-5
     extra_allowed_hosts: [api.anthropic.com]
+    env:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
   - name: claude-code-opus-skills
     import_path: evals.harbor.agents.coding_agents:ClaudeCodeCliAgent
     model_name: anthropic/claude-opus-5-5
     extra_allowed_hosts: [api.anthropic.com]
+    env:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
     skills:
       - skills/phoenix-cli
       - skills/phoenix-error-analysis
@@ -18,12 +27,16 @@ agents:
     import_path: evals.harbor.agents.coding_agents:CodexCliAgent
     model_name: openai/gpt-6.2-sol
     extra_allowed_hosts: [api.openai.com]
+    env:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
     kwargs:
       web_search: disabled
   - name: codex-sol-skills
     import_path: evals.harbor.agents.coding_agents:CodexCliAgent
     model_name: openai/gpt-6.2-sol
     extra_allowed_hosts: [api.openai.com]
+    env:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
     kwargs:
       web_search: disabled
     skills:

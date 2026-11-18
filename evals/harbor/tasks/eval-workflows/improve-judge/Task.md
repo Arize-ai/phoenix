@@ -19,7 +19,7 @@ it needs, including member rules that no reviewed trace shows.
 | `human_review` annotations | On 40 traces: `compliant` or `noncompliant`, with a one-line reason such as "Not damaged, so shipping isn't refundable. Should be $64.00, not $72.95." No reviewed trace is from an Acme Plus member. |
 | `policy_compliant` annotations | On all 80 traces, labeled `pass` or `fail` by the starting judge. |
 | `/app/evals/policy_judge.py` | The starting judge, on `gpt-5-nano`. It sees only the reply, asks whether the reply is polite and mentions the 30-day return window, and skips traces that already have a `policy_compliant` annotation. |
-| Model access | Real `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` values, so the agent can run its judge. |
+| Model access | A real `OPENAI_API_KEY`, so the agent can run its judge. |
 
 ## How the data was made
 

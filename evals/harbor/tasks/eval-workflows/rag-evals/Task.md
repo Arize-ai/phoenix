@@ -21,7 +21,7 @@ agent can separate retrieval failures from generation failures with judges that 
 | --- | --- |
 | Phoenix project `policy-rag` | 54 traces, one per customer question, with no annotations. The root `rag-query` span holds the question and the answer. Its children are a `retrieve_policies` retriever span with 4 documents (`id`, `content`, `score`) and the LLM call, whose prompt lists those 4 passages. |
 | `/app/policy_assistant.py` | The app's retrieval call and system prompt. The prompt tells the model to answer only from the passages and to say it doesn't know otherwise. The knowledge base module it imports isn't in `/app`. |
-| Environment | `OPENAI_API_KEY` and `ANTHROPIC_API_KEY`, so the agent can run LLM judges. |
+| Environment | `OPENAI_API_KEY`, so the agent can run LLM judges. |
 
 ## How the data was made
 

@@ -16,12 +16,8 @@ os = "linux"
 cpus = 2
 memory_mb = 4096
 network_mode = "allowlist"
-allowed_hosts = ["api.openai.com", "api.anthropic.com"]
+allowed_hosts = ["api.openai.com"]
 build_timeout_sec = 1200.0
-
-[environment.env]
-ANTHROPIC_API_KEY = "${ANTHROPIC_API_KEY:-}"
-OPENAI_API_KEY = "${OPENAI_API_KEY:-}"
 
 [environment.healthcheck]
 command = "sh /opt/phoenix-eval/start_phoenix_server.sh"
@@ -33,7 +29,14 @@ user = "agent"
 timeout_sec = 2400.0
 
 [verifier]
-# The verifier reruns the agent's judge script, which can call either provider.
+# The verifier reruns the agent's judge script. A local proxy passes only its
+# `gpt-5-nano` calls on to OpenAI.
 network_mode = "allowlist"
-allowed_hosts = ["api.openai.com", "api.anthropic.com"]
+allowed_hosts = ["api.openai.com"]
 timeout_sec = 1500.0
+
+[verifier.env]
+OPENAI_API_KEY = "${OPENAI_API_KEY:-}"
+
+[solution.env]
+OPENAI_API_KEY = "${OPENAI_API_KEY:-}"

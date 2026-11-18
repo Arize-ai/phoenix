@@ -20,6 +20,8 @@ def test_task_layout(task: Path) -> None:
     assert isinstance(json.loads((task / "tests" / "expected.json").read_text())["reference"], str)
     assert not (task / "tests" / "truth.json").exists()
     assert config["agent"]["user"] == "agent"
+    # Keys go to the phase that needs them, never to the whole sandbox.
+    assert "env" not in config["environment"]
     assert "environment/" in (task / ".gitignore").read_text().splitlines()
     for name in ("tests/test.sh", "solution/solve.sh"):
         assert os.access(task / name, os.X_OK), f"{name} is not executable"
