@@ -13,6 +13,7 @@ import phoenix.config as phoenix_config
 from phoenix.config import (
     AssignableUserRoleName,
     OAuth2ClientConfig,
+    PostHogConfig,
     ensure_working_dir_if_needed,
     get_env_admins,
     get_env_allowed_origins,
@@ -23,6 +24,7 @@ from phoenix.config import (
     get_env_postgres_azure_scope,
     get_env_postgres_connection_str,
     get_env_postgres_use_azure_managed_identity,
+    get_env_posthog_config,
     get_env_root_url,
     get_env_tls_enabled_for_grpc,
     get_env_tls_enabled_for_http,
@@ -1070,6 +1072,53 @@ def test_allow_external_resources_env_parsing(monkeypatch: pytest.MonkeyPatch) -
     # Test invalid value - should be false (not "true")
     monkeypatch.setenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "invalid")
     assert os.getenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "True").lower() != "true"
+
+
+class TestGetEnvPostHogConfig:
+    @pytest.fixture(autouse=True)
+    def _clear_env(self, monkeypatch: MonkeyPatch) -> None:
+        for name in (
+            "PHOENIX_POSTHOG_API_KEY",
+            "PHOENIX_POSTHOG_HOST",
+            "PHOENIX_TELEMETRY_ENABLED",
+            "PHOENIX_ALLOW_EXTERNAL_RESOURCES",
+        ):
+            monkeypatch.delenv(name, raising=False)
+
+    def test_returns_none_without_api_key(self) -> None:
+        assert get_env_posthog_config() is None
+
+    def test_returns_none_for_blank_api_key(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_POSTHOG_API_KEY", "   ")
+        assert get_env_posthog_config() is None
+
+    def test_uses_default_host(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_POSTHOG_API_KEY", "phc_test")
+        assert get_env_posthog_config() == PostHogConfig(
+            api_key="phc_test", host="https://us.i.posthog.com"
+        )
+
+    def test_uses_custom_host_without_trailing_slash(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_POSTHOG_API_KEY", "phc_test")
+        monkeypatch.setenv("PHOENIX_POSTHOG_HOST", "https://eu.i.posthog.com/")
+        assert get_env_posthog_config() == PostHogConfig(
+            api_key="phc_test", host="https://eu.i.posthog.com"
+        )
+
+    def test_rejects_host_that_is_not_an_http_url(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_POSTHOG_API_KEY", "phc_test")
+        monkeypatch.setenv("PHOENIX_POSTHOG_HOST", "us.i.posthog.com")
+        with pytest.raises(ValueError, match="PHOENIX_POSTHOG_HOST"):
+            get_env_posthog_config()
+
+    @pytest.mark.parametrize(
+        "env_var_name",
+        ["PHOENIX_TELEMETRY_ENABLED", "PHOENIX_ALLOW_EXTERNAL_RESOURCES"],
+    )
+    def test_returns_none_when_opted_out(self, monkeypatch: MonkeyPatch, env_var_name: str) -> None:
+        monkeypatch.setenv("PHOENIX_POSTHOG_API_KEY", "phc_test")
+        monkeypatch.setenv(env_var_name, "false")
+        assert get_env_posthog_config() is None
 
 
 class TestOAuth2ClientConfigFromEnv:

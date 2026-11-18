@@ -13,6 +13,7 @@ import {
   createDataRouterNavigationStateSource,
   registerRouterNavigationStateSource,
 } from "@phoenix/agent/tools/navigation/routerStateRegistry";
+import { startPostHogAnalytics } from "@phoenix/analytics/posthog";
 import type { DatasetEvaluatorDetailsLoaderData } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { datasetEvaluatorDetailsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { DatasetEvaluatorDetailsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorDetailsPage";
@@ -1243,6 +1244,8 @@ registerRouterNavigationStateSource({
     basename: window.Config.basename,
   }),
 });
+
+void startPostHogAnalytics({ router });
 
 export function AppRoutes() {
   return <RouterProvider router={router} />;

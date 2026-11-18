@@ -27,6 +27,11 @@ declare global {
       hasDbThreshold: boolean;
       /** Mirrors the server's PHOENIX_ALLOW_EXTERNAL_RESOURCES. */
       allowExternalResources: boolean;
+      /**
+       * PostHog settings for anonymous product analytics. Null when no API key
+       * is configured or telemetry is disabled.
+       */
+      posthog: { apiKey: string; apiHost: string } | null;
       agentAssistantDisabled: boolean;
       /**
        * Whether the server-side bash tool is disabled
