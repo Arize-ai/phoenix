@@ -131,12 +131,16 @@ jobs:
           - \`pnpm update --recursive\` in \`js/\`
 
           The factory finish lane regenerates artifacts, fixes regressions and takes this PR to green; see its status comment below."
-          if [ "$(gh pr view "${BRANCH}" --json state --jq .state 2>/dev/null)" = "OPEN" ]; then
-            gh pr edit "${BRANCH}" --title "$TITLE" --body "$BODY"
+          # gh pr edit also reads org metadata that needs the read:org scope, which
+          # this PAT lacks; the REST endpoints below need only repo.
+          PR_NUMBER=$(gh pr list --head "${BRANCH}" --state open --json number --jq '.[0].number')
+          if [ -n "$PR_NUMBER" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" -f title="$TITLE" -f body="$BODY" >/dev/null
           else
-            gh pr create --draft --title "$TITLE" --body "$BODY"
+            PR_URL=$(gh pr create --draft --title "$TITLE" --body "$BODY")
+            PR_NUMBER="${PR_URL##*/}"
           fi
-          gh pr edit "${BRANCH}" --add-label factory-finish
+          gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/labels" -f "labels[]=factory-finish" >/dev/null
 
   slack-notification:
     name: Slack Notification
