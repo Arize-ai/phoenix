@@ -65,7 +65,6 @@ jobs:
   publish-dockerhub:
     name: Publish ${{ matrix.variant }} to Docker Hub
     needs: [build, prepare-tags]
-    # Publish complete variants even if a different variant failed to build.
     if: ${{ !cancelled() && needs.prepare-tags.result == 'success' }}
     runs-on: ubuntu-latest
     strategy:
