@@ -73,9 +73,10 @@ and 4 in trace order. IDs and timestamps don't depend on the seed.
 `build.py` asserts these properties of its output:
 
 - Each policy has at least 4 distinct distractors.
-- No passage that restricts or qualifies a policy's answer is one of that policy's
-  distractors. For example, the Final Sale passage is never a distractor for a question
-  about the return window.
+- No passage that restricts, qualifies, or offers a plausible workaround to a policy's
+  answer is one of that policy's distractors. For example, the Final Sale passage is
+  never a distractor for a question about the return window, and return passages are not
+  distractors for a price-adjustment question.
 - Every question gets exactly one case.
 - In the production traces, retrieval misses outnumber ungrounded answers, which
   outnumber ungrounded answers after a hit.

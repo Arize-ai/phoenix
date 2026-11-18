@@ -48,7 +48,7 @@ POLICIES = [
             "delivery. We can't accept returns after day 30."
         ),
         questions=(
-            "It's been three weeks since my boots were delivered and I never wore them. Is that too long to send them back?",
+            "It's been three weeks since my unworn boots were delivered. Is that past your return deadline?",
             "What's the cutoff for returning something I ordered online?",
             "How many days after delivery do I have to return an item?",
         ),
@@ -149,8 +149,8 @@ POLICIES = [
         key="returns-in-store",
         topic="in-store returns",
         text=(
-            "Online orders can be returned at any of our retail stores. Bring the packing "
-            "slip or the order confirmation email."
+            "Online orders, including website and mobile-app purchases, can be returned at "
+            "any of our retail stores. Bring the packing slip or the order confirmation email."
         ),
         questions=(
             "Can I drop off something I bought on the website at one of your shops?",
@@ -260,7 +260,7 @@ POLICIES = [
         questions=(
             "I bought a rain jacket last week and now it's 20% off. Can I get the difference back?",
             "Do you do anything if something I just bought drops in price?",
-            "The stove I ordered 5 days ago is cheaper today. Is there anything you can do?",
+            "The stove I ordered 5 days ago is cheaper today. Do you offer a post-purchase price adjustment?",
         ),
         unseen_questions=(
             "Ugh, the backpack I paid full price for 10 days ago is on sale now. Any chance of a partial refund?",
@@ -341,7 +341,7 @@ POLICIES = [
             "If I order before lunch, how quickly can express get it to me?",
         ),
         unseen_questions=(
-            "I need these boots by Friday. What's your fastest delivery and what does it cost?",
+            "I need these boots delivered to Seattle by Friday. What's your fastest option and what does it cost?",
         ),
         answer=(
             "For $14.95, express gets your order to you in 1 to 2 business days, as long as you place it before 1 p.m. Eastern.",
@@ -365,7 +365,7 @@ POLICIES = [
         ),
         questions=(
             "Do you deliver to Australia?",
-            "How long does an order take to get to Toronto?",
+            "Once an order ships, how long is the transit time to Toronto?",
             "If I order to Vancouver, who pays the import fees?",
         ),
         unseen_questions=("I'm in the UK. Can I order from you?",),
@@ -492,7 +492,7 @@ POLICIES = [
             "on the Warranty page. Approved claims get a replacement within 10 business days."
         ),
         questions=(
-            "What's the process for filing a warranty claim?",
+            "Where is the warranty claim form, and what do I have to upload?",
             "What happens after I submit a warranty request?",
         ),
         unseen_questions=(
@@ -549,7 +549,9 @@ POLICIES = [
             "How do I close my account for good?",
             "If I delete my account, what happens to my past orders?",
         ),
-        unseen_questions=("I'd like to remove my profile and all my data. How do I do that?",),
+        unseen_questions=(
+            "I'd like to close my profile and erase my order history. How do I do that?",
+        ),
         answer=(
             "Account deletion is in Settings > Privacy. There's no undo, and we erase your order history 30 days after you delete.",
             "Go to Settings > Privacy to delete your account. It can't be undone, and your order history is erased 30 days later.",
@@ -653,7 +655,7 @@ DISTRACTORS = {
     "refund-timing": "billing-duplicate-charge returns-label-fee billing-price-adjustment returns-window shipping-standard loyalty-points",
     "billing-duplicate-charge": "refund-timing billing-payment-methods billing-price-adjustment orders-cancel promo-codes loyalty-points",
     "billing-payment-methods": "gift-cards billing-duplicate-charge promo-codes loyalty-points refund-timing shipping-international",
-    "billing-price-adjustment": "promo-codes returns-final-sale refund-timing loyalty-points billing-duplicate-charge returns-window",
+    "billing-price-adjustment": "promo-codes refund-timing loyalty-points billing-duplicate-charge",
     "billing-installments": "billing-payment-methods billing-duplicate-charge gift-cards promo-codes shipping-standard loyalty-points",
     "shipping-standard": "shipping-international shipping-lost-package returns-label-fee billing-installments orders-address-change promo-codes",
     "shipping-express": "shipping-international shipping-lost-package orders-address-change returns-label-fee billing-installments account-password",
@@ -662,7 +664,7 @@ DISTRACTORS = {
     "orders-cancel": "returns-window returns-final-sale account-delete shipping-lost-package billing-duplicate-charge promo-codes",
     "shipping-lost-package": "shipping-standard shipping-express shipping-international orders-address-change returns-in-store warranty-claim",
     "warranty-coverage": "returns-label-fee returns-window returns-restocking shipping-lost-package gift-cards account-delete",
-    "warranty-claim": "warranty-coverage returns-in-store shipping-lost-package returns-label-fee account-password refund-timing",
+    "warranty-claim": "returns-in-store shipping-lost-package returns-label-fee account-password refund-timing",
     "account-password": "account-delete orders-address-change loyalty-points gift-cards orders-cancel billing-payment-methods",
     "account-delete": "account-password orders-cancel loyalty-points gift-cards orders-address-change promo-codes",
     "loyalty-points": "gift-cards promo-codes billing-price-adjustment account-delete billing-installments account-password",
@@ -672,8 +674,9 @@ DISTRACTORS = {
 # Passages that restrict or qualify another policy's answer, so they must never be its
 # distractors.
 BEARS_ON = {
-    "returns-window": "returns-in-store returns-label-fee returns-restocking",
-    "returns-final-sale": "returns-window returns-in-store returns-label-fee returns-restocking",
+    "returns-window": "returns-in-store returns-label-fee returns-restocking billing-price-adjustment",
+    "returns-final-sale": "returns-window returns-in-store returns-label-fee returns-restocking billing-price-adjustment",
+    "warranty-coverage": "warranty-claim",
     "warranty-claim": "warranty-coverage",
 }
 DOC_ID = {policy.key: f"kb-{4100 + 13 * index}" for index, policy in enumerate(POLICIES)}
