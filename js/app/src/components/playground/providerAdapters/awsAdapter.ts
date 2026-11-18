@@ -9,15 +9,15 @@
 
 import { z } from "zod";
 
-import type { CanonicalResponseFormat } from "@phoenix/store/playground/types";
-import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
-
-import type { PromptInvocationParametersReadableFragment$data } from "../__generated__/PromptInvocationParametersReadableFragment.graphql";
+import type { PromptInvocationParametersReadableFragment$data } from "@phoenix/components/playground/__generated__/PromptInvocationParametersReadableFragment.graphql";
+import { AWS_INVOCATION_PARAMETERS } from "@phoenix/components/playground/invocationParameterSpecs";
 import type {
   PromptAwsInvocationParametersInput,
   PromptInvocationParametersInput,
-} from "../__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
-import { AWS_INVOCATION_PARAMETERS } from "../invocationParameterSpecs";
+} from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
+import type { CanonicalResponseFormat } from "@phoenix/store/playground/types";
+import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
+
 import type { ProviderInvocationAdapter } from "./types";
 
 // ---------- canonical types --------------------------------------------------

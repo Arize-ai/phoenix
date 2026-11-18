@@ -1,4 +1,4 @@
-import { getVisibleInvocationParameterSpecs } from "..";
+import { getVisibleInvocationParameterSpecs } from "@phoenix/components/playground/providerAdapters";
 
 describe("visible invocation parameter specs", () => {
   it("hides temperature and top_p only while Anthropic thinking is active", () => {

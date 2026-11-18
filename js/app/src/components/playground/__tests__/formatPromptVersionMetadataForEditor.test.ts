@@ -1,4 +1,4 @@
-import { formatPromptVersionMetadataForEditor } from "../playgroundPromptUtils";
+import { formatPromptVersionMetadataForEditor } from "@phoenix/components/playground/playgroundPromptUtils";
 
 describe("formatPromptVersionMetadataForEditor", () => {
   it("pretty-prints metadata from the latest prompt version", () => {

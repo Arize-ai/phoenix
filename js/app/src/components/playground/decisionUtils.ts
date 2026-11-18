@@ -10,6 +10,7 @@ import {
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { getTemplateFormatUtils } from "@phoenix/components/templateEditor/templateEditorUtils";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
+import type { PlaygroundDecisionOutputMutation$data } from "@phoenix/pages/playground/__generated__/PlaygroundDecisionOutputMutation.graphql";
 import type {
   CanonicalResponseFormat,
   DecisionChoiceOptionDraft,
@@ -24,8 +25,6 @@ import type {
 } from "@phoenix/store/playground/types";
 import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
-
-import type { PlaygroundDecisionOutputMutation$data } from "./__generated__/PlaygroundDecisionOutputMutation.graphql";
 
 /*
  * The playground edits Phoenix question types: predicate, choice, and scale.

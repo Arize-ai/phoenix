@@ -1,7 +1,7 @@
+import { buildDecisionInput } from "@phoenix/components/playground/decisionUtils";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { _resetInstanceId, _resetMessageId } from "@phoenix/store";
 
-import { buildDecisionInput } from "../decisionUtils";
 import { transformSpanAttributesToPlaygroundInstance } from "../playgroundUtils";
 import { basePlaygroundSpan } from "./fixtures";
 

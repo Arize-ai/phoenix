@@ -63,8 +63,9 @@
   // TODO: Enable jsx-a11y globally after the remaining app violations are addressed.
   "overrides": [
     {
-      // Shared components must not depend on the playground page's
-      // components; move what both need into components/ instead.
+      // Shared components must not depend on the playground page; move what
+      // both need into components/playground/ instead. Relay artifacts of the
+      // page's own queries stay importable as types.
       "files": ["src/components/**"],
       "rules": {
         "eslint/no-restricted-imports": [
@@ -79,8 +80,8 @@
             ],
             "patterns": [
               {
-                "regex": "^@phoenix/pages/playground/([^_/][^/]*/)*[A-Z][^/]*$",
-                "message": "Components must not import the playground page's components. Move the shared piece into components/playground/ instead."
+                "regex": "^@phoenix/pages/playground/([^_]|_[^_])",
+                "message": "Components must not import from the playground page. Move the shared code into components/playground/ instead."
               }
             ]
           }

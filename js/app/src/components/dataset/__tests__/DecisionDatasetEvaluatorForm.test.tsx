@@ -8,15 +8,15 @@ import { Dialog } from "@phoenix/components/core/dialog";
 import type { DecisionEvaluatorData } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
 import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
 import {
+  createDecisionQuestion,
+  createDecisionStateDraft,
+} from "@phoenix/components/playground/decisionUtils";
+import {
   EvaluatorStoreProvider,
   useEvaluatorStoreInstance,
 } from "@phoenix/contexts/EvaluatorContext";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { ThemeContext } from "@phoenix/contexts/ThemeContext";
-import {
-  createDecisionQuestion,
-  createDecisionStateDraft,
-} from "@phoenix/pages/playground/decisionUtils";
 import { DEFAULT_STORE_VALUES } from "@phoenix/store/evaluatorStore";
 import { createDecisionTaskInstance } from "@phoenix/store/playground";
 
@@ -49,7 +49,7 @@ vi.mock("@phoenix/contexts/NotificationContext", () => ({
 vi.mock("@phoenix/contexts/CredentialsContext", () => ({
   useCredentialsContext: (selector: (state: object) => unknown) => selector({}),
 }));
-vi.mock("@phoenix/pages/playground/fetchPlaygroundDecision", () => ({
+vi.mock("@phoenix/components/playground/fetchPlaygroundDecision", () => ({
   fetchPlaygroundDecisionAsInstance: (...args: unknown[]) =>
     loadVersion(...args),
 }));

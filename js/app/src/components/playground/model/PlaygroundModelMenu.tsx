@@ -3,16 +3,16 @@ import type {
   ModelMenuValue,
 } from "@phoenix/components/generative";
 import { ModelMenu } from "@phoenix/components/generative";
+import {
+  createDecisionDraft,
+  getChatForDecisionToPrompt,
+} from "@phoenix/components/playground/decisionUtils";
 import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
 import {
   usePlaygroundContext,
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
-import {
-  createDecisionDraft,
-  getChatForDecisionToPrompt,
-} from "@phoenix/pages/playground/decisionUtils";
 import { generateMessageId, isDecisionInstance } from "@phoenix/store";
 import { selectPlaygroundInstanceDecisionPrompt } from "@phoenix/store/playground/selectors";
 

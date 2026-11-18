@@ -16,16 +16,16 @@ import { DecisionVersionPicker } from "@phoenix/components/evaluators/decision/D
 import type { DecisionEvaluatorDraft } from "@phoenix/components/evaluators/decision/useDecisionEvaluatorDraft";
 import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { EvaluatorSectionHeader } from "@phoenix/components/evaluators/EvaluatorSectionHeader";
+import {
+  createDecisionDraft,
+  hasDecisionErrors,
+  validateDecisionDraft,
+} from "@phoenix/components/playground/decisionUtils";
 import { PlaygroundInstanceModelControls } from "@phoenix/components/playground/model/PlaygroundInstanceModelControls";
 import { sourceMenuContainerCSS } from "@phoenix/components/playground/searchablePickerStyles";
 import { TemplateFormatRadioGroup } from "@phoenix/components/playground/TemplateFormatRadioGroup";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
-import {
-  createDecisionDraft,
-  hasDecisionErrors,
-  validateDecisionDraft,
-} from "@phoenix/pages/playground/decisionUtils";
 import { selectPlaygroundInstanceDecisionPrompt } from "@phoenix/store/playground/selectors";
 
 /**

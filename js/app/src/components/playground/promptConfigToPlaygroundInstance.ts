@@ -2,9 +2,9 @@ import {
   deriveToolsAndOpenAIApiType,
   getChatRole,
   type GraphQLPromptTool,
-} from "@phoenix/pages/playground/playgroundUtils";
-import { readPromptInvocationParametersData } from "@phoenix/pages/playground/PromptInvocationParametersReadableFragment";
-import { promptInvocationDataToInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
+} from "@phoenix/components/playground/playgroundInstanceUtils";
+import { readPromptInvocationParametersData } from "@phoenix/components/playground/PromptInvocationParametersReadableFragment";
+import { promptInvocationDataToInvocationConfig } from "@phoenix/components/playground/providerAdapters";
 import { fromPromptToolCallPart } from "@phoenix/schemas/toolCallSchemas";
 import { generateMessageId } from "@phoenix/store/playground";
 import type {

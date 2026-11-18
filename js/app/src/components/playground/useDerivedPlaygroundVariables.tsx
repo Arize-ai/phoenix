@@ -1,11 +1,10 @@
 import { useMemo } from "react";
 
-import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-
 import {
   denormalizePlaygroundInstance,
   getVariablesMapFromInstances,
-} from "./playgroundUtils";
+} from "@phoenix/components/playground/playgroundInstanceUtils";
+import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 /**
  * Get the variable values and keys from all instances in the playground, or

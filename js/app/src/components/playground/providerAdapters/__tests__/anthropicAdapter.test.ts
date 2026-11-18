@@ -1,4 +1,4 @@
-import type { PromptInvocationParametersReadableFragment$data } from "../../__generated__/PromptInvocationParametersReadableFragment.graphql";
+import type { PromptInvocationParametersReadableFragment$data } from "@phoenix/components/playground/__generated__/PromptInvocationParametersReadableFragment.graphql";
 import {
   ANTHROPIC_DEFAULT_MAX_TOKENS,
   ANTHROPIC_MINIMUM_BUDGET_TOKENS,
@@ -13,7 +13,7 @@ import {
   normalizeAnthropicConfig,
   parseAnthropicConfig,
   validateAnthropicConfigForSubmit,
-} from "../anthropicAdapter";
+} from "@phoenix/components/playground/providerAdapters/anthropicAdapter";
 
 describe("parseAnthropicConfig", () => {
   it("fills the default maxTokens when omitted", () => {

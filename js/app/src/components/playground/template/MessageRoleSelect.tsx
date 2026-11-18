@@ -10,7 +10,7 @@ import {
   SelectItem,
   SelectValue,
 } from "@phoenix/components";
-import { isChatMessageRole } from "@phoenix/pages/playground/playgroundUtils";
+import { isChatMessageRole } from "@phoenix/components/playground/playgroundInstanceUtils";
 
 const hiddenLabelCSS = css`
   .field__label {

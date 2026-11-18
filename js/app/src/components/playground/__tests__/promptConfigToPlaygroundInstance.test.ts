@@ -1,8 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { buildPlaygroundInstanceFieldsFromPromptConfig } from "@phoenix/components/playground/promptConfigToPlaygroundInstance";
 import { _resetMessageId, _resetToolId } from "@phoenix/store/playground";
-
-import { buildPlaygroundInstanceFieldsFromPromptConfig } from "../promptConfigToPlaygroundInstance";
 
 const {
   readPromptInvocationParametersMock,
@@ -13,7 +12,7 @@ const {
 }));
 
 vi.mock(
-  "@phoenix/pages/playground/PromptInvocationParametersReadableFragment",
+  "@phoenix/components/playground/PromptInvocationParametersReadableFragment",
   () => ({
     readPromptInvocationParameters: readPromptInvocationParametersMock,
     readPromptInvocationParametersData: readPromptInvocationParametersDataMock,

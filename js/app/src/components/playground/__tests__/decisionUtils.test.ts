@@ -2,11 +2,6 @@ import {
   normalizeDecisionAnswer,
   normalizeDecisionResult,
 } from "@phoenix/components/decision/decisionAnswers";
-import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
-import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
-import { DEFAULT_INSTANCE_PARAMS } from "@phoenix/store/playground";
-import type { PlaygroundInstance } from "@phoenix/store/playground/types";
-
 import {
   buildChatFromDecisionDraft,
   buildDecisionInstanceFromSpanAttributes,
@@ -33,7 +28,11 @@ import {
   toDecisionVariableValues,
   toJsonTemplateOfVariables,
   validateDecisionDraft,
-} from "../decisionUtils";
+} from "@phoenix/components/playground/decisionUtils";
+import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
+import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
+import { DEFAULT_INSTANCE_PARAMS } from "@phoenix/store/playground";
+import type { PlaygroundInstance } from "@phoenix/store/playground/types";
 
 /** A text state. */
 const templateState = (text: string) => createDecisionStateDraft({ text });

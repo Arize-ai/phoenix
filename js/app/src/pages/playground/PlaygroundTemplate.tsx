@@ -18,6 +18,7 @@ import {
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { DecisionPromptEditor } from "@phoenix/components/decision/DecisionPromptEditor";
 import { PlaygroundInstanceModelControls } from "@phoenix/components/playground/model/PlaygroundInstanceModelControls";
+import type { PlaygroundInstanceProps } from "@phoenix/components/playground/types";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "@phoenix/pages/playground/constants";
 import { DuplicateAsChatButton } from "@phoenix/pages/playground/DuplicateAsChatButton";
@@ -27,8 +28,6 @@ import { SaveDecisionDialog } from "@phoenix/pages/playground/SaveDecisionDialog
 import { TaskMenu } from "@phoenix/pages/playground/TaskMenu";
 import { UpsertPromptFromTemplateDialog } from "@phoenix/pages/playground/UpsertPromptFromTemplateDialog";
 import { isDecisionInstance } from "@phoenix/store/playground";
-
-import type { PlaygroundInstanceProps } from "./types";
 
 const taskHeaderStartCSS = css`
   overflow: hidden;

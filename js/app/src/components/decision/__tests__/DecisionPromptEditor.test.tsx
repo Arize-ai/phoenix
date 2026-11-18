@@ -3,12 +3,12 @@ import { createRoot } from "react-dom/client";
 
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import { DecisionPromptEditor } from "@phoenix/components/decision/DecisionPromptEditor";
-import { PlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { ThemeContext } from "@phoenix/contexts/ThemeContext";
 import {
   createDecisionDraft,
   createDecisionStateDraft,
-} from "@phoenix/pages/playground/decisionUtils";
+} from "@phoenix/components/playground/decisionUtils";
+import { PlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { ThemeContext } from "@phoenix/contexts/ThemeContext";
 import {
   createDecisionTaskInstance,
   createPlaygroundStore,

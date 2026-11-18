@@ -11,16 +11,15 @@ vi.mock("react-relay", async (importOriginal) => ({
 
 import { describe, expect, it, vi } from "vitest";
 
-import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
-import { DEFAULT_INSTANCE_PARAMS } from "@phoenix/store/playground";
-
-import type { FetchedDecisionVersion } from "../fetchPlaygroundDecision";
+import type { FetchedDecisionVersion } from "@phoenix/components/playground/fetchPlaygroundDecision";
 import {
   fetchDecisionVersion,
   fetchPlaygroundDecisionAsInstance,
   toDecisionInstance,
   toSavedDecisionVersion,
-} from "../fetchPlaygroundDecision";
+} from "@phoenix/components/playground/fetchPlaygroundDecision";
+import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
+import { DEFAULT_INSTANCE_PARAMS } from "@phoenix/store/playground";
 
 const fetched: FetchedDecisionVersion = {
   decision: { id: "D1", name: "triage", versionId: "DV1" },

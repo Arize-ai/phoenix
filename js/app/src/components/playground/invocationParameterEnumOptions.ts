@@ -3,7 +3,7 @@ import type {
   AnthropicThinkingDisplay,
   GoogleThinkingLevel,
   OpenAIReasoningEffort,
-} from "./__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
+} from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
 
 /**
  * Provider APIs and GraphQL store enum values in uppercase, while SDK users type

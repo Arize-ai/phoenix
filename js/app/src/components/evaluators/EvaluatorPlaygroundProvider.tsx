@@ -4,12 +4,12 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 
 import type { EvaluatorPlaygroundProviderQuery } from "@phoenix/components/evaluators/__generated__/EvaluatorPlaygroundProviderQuery.graphql";
 import { makeLLMEvaluatorInstance } from "@phoenix/components/evaluators/EvaluatorChatTemplate/utils";
+import type { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/components/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
+import { promptVersionToInstance } from "@phoenix/components/playground/fetchPlaygroundPrompt";
 import { NoInstalledProvider } from "@phoenix/components/playground/NoInstalledProvider";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { PlaygroundProvider } from "@phoenix/contexts/PlaygroundContext";
-import type { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
-import { promptVersionToInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import {
   generateInstanceId,
   type PlaygroundChatTemplate,

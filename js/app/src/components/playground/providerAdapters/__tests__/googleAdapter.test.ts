@@ -1,4 +1,4 @@
-import type { PromptInvocationParametersReadableFragment$data } from "../../__generated__/PromptInvocationParametersReadableFragment.graphql";
+import type { PromptInvocationParametersReadableFragment$data } from "@phoenix/components/playground/__generated__/PromptInvocationParametersReadableFragment.graphql";
 import {
   getDefaultGoogleConfig,
   googleReadField,
@@ -7,7 +7,7 @@ import {
   googleConfigFromSpanInvocationParameters,
   googleConfigToPromptInput,
   parseGoogleConfig,
-} from "../googleAdapter";
+} from "@phoenix/components/playground/providerAdapters/googleAdapter";
 
 describe("getDefaultGoogleConfig", () => {
   it("creates the fresh Google playground defaults", () => {

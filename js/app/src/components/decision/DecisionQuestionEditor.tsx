@@ -23,8 +23,6 @@ import {
   View,
 } from "@phoenix/components";
 import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
-import { TemplateInput } from "@phoenix/components/templateEditor";
-import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import {
   createChoiceOption,
   createDecisionQuestion,
@@ -36,7 +34,9 @@ import {
   MAX_SCALE_LEVELS,
   MIN_CHOICE_OPTIONS,
   MIN_SCALE_LEVELS,
-} from "@phoenix/pages/playground/decisionUtils";
+} from "@phoenix/components/playground/decisionUtils";
+import { TemplateInput } from "@phoenix/components/templateEditor";
+import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import type {
   DecisionQuestionDraft,
   DecisionQuestionType,

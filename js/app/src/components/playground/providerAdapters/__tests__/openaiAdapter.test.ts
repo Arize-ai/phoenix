@@ -1,4 +1,4 @@
-import type { PromptInvocationParametersReadableFragment$data } from "../../__generated__/PromptInvocationParametersReadableFragment.graphql";
+import type { PromptInvocationParametersReadableFragment$data } from "@phoenix/components/playground/__generated__/PromptInvocationParametersReadableFragment.graphql";
 import {
   openAIConfigFromPromptInvocationParameters,
   openAIConfigFromSpanInvocationParameters,
@@ -6,7 +6,7 @@ import {
   openAIReadField,
   openAIWriteField,
   parseOpenAIConfig,
-} from "../openaiAdapter";
+} from "@phoenix/components/playground/providerAdapters/openaiAdapter";
 
 describe("parseOpenAIConfig", () => {
   it("drops unknown keys and preserves canonical fields", () => {

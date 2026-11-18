@@ -1,8 +1,7 @@
+import type { PromptInvocationParametersReadableFragment$data } from "@phoenix/components/playground/__generated__/PromptInvocationParametersReadableFragment.graphql";
+import type { ParamSpec } from "@phoenix/components/playground/invocationParameterSpecs";
+import type { PromptInvocationParametersInput } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
 import type { CanonicalResponseFormat } from "@phoenix/store/playground/types";
-
-import type { PromptInvocationParametersReadableFragment$data } from "../__generated__/PromptInvocationParametersReadableFragment.graphql";
-import type { PromptInvocationParametersInput } from "../__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
-import type { ParamSpec } from "../invocationParameterSpecs";
 
 /**
  * Extra model-level state an adapter may need when deciding which generic

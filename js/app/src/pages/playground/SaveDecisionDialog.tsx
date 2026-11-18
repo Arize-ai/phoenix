@@ -26,6 +26,7 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
+import { toDecisionVersionInput } from "@phoenix/components/playground/savedDecisionUtils";
 import { DEFAULT_PROMPT_VERSION_TAGS } from "@phoenix/constants";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
@@ -36,7 +37,6 @@ import { validateIdentifier } from "@phoenix/utils/identifierUtils";
 import type { SaveDecisionDialogCreateMutation } from "./__generated__/SaveDecisionDialogCreateMutation.graphql";
 import type { SaveDecisionDialogQuery } from "./__generated__/SaveDecisionDialogQuery.graphql";
 import type { SaveDecisionDialogVersionMutation } from "./__generated__/SaveDecisionDialogVersionMutation.graphql";
-import { toDecisionVersionInput } from "./savedDecisionUtils";
 
 type SaveDecisionFormValues = {
   name: string;

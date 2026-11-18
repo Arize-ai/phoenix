@@ -1,10 +1,10 @@
 import { fetchQuery, graphql, readInlineData } from "react-relay";
 
+import type { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/components/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
+import { buildPromptVersionInput } from "@phoenix/components/playground/playgroundInstanceUtils";
+import { buildPlaygroundInstanceFieldsFromPromptConfig } from "@phoenix/components/playground/promptConfigToPlaygroundInstance";
 import { DEFAULT_MODEL_NAME } from "@phoenix/constants/generativeConstants";
-import type { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
 import type { ChatPromptVersionInput } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
-import { buildPromptVersionInput } from "@phoenix/pages/playground/playgroundUtils";
-import { buildPlaygroundInstanceFieldsFromPromptConfig } from "@phoenix/pages/playground/promptConfigToPlaygroundInstance";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import type { PlaygroundInstance } from "@phoenix/store/playground";
 import { DEFAULT_INSTANCE_PARAMS } from "@phoenix/store/playground";

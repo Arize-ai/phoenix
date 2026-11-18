@@ -4,7 +4,7 @@ import { graphql, readInlineData } from "react-relay";
 import { createOperationDescriptor, getRequest } from "relay-runtime";
 
 import type { AgentModelSelection } from "@phoenix/agent/chat/buildAgentChatRequestBody";
-import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
+import { getDefaultInvocationConfig } from "@phoenix/components/playground/providerAdapters";
 import type { ModelConfig } from "@phoenix/store/playground/types";
 
 import { getProviderKeyForGenerativeModelSDK } from "../generative/modelProviderUtils";

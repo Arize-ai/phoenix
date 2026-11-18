@@ -1,6 +1,6 @@
+import { fetchPlaygroundPromptAsInstance } from "@phoenix/components/playground/fetchPlaygroundPrompt";
 import { PromptMenu } from "@phoenix/components/playground/PromptMenu";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 
 /**
  * Picks a saved prompt version for an instance and loads it into the

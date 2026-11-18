@@ -22,6 +22,7 @@ import {
 import { CodeWrap, JSONEditor } from "@phoenix/components/code";
 import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import { DragHandle } from "@phoenix/components/dnd";
+import { createToolCallForProvider } from "@phoenix/components/playground/playgroundInstanceUtils";
 import {
   TemplateEditor,
   TemplateEditorWrap,
@@ -31,7 +32,6 @@ import { validateMustacheSections } from "@phoenix/components/templateEditor/lan
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
-import { createToolCallForProvider } from "@phoenix/pages/playground/playgroundUtils";
 import type { ChatMessage, PlaygroundState } from "@phoenix/store";
 import { convertMessageToolCallsToProvider } from "@phoenix/store/playground/playgroundStoreUtils";
 import {

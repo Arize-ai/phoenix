@@ -16,8 +16,6 @@ import {
   TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components";
-import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
   createDecisionDraft,
   createDecisionQuestion,
@@ -27,8 +25,10 @@ import {
   MAX_DECISION_QUESTIONS,
   switchDecisionStateMode,
   validateDecisionDraft,
-} from "@phoenix/pages/playground/decisionUtils";
-import type { PlaygroundInstanceProps } from "@phoenix/pages/playground/types";
+} from "@phoenix/components/playground/decisionUtils";
+import type { PlaygroundInstanceProps } from "@phoenix/components/playground/types";
+import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
   selectPlaygroundInstance,
   selectPlaygroundInstanceDecisionPrompt,

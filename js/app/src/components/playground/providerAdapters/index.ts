@@ -6,17 +6,17 @@
  * provider-agnostic.
  */
 
-import type { ModelConfig } from "@phoenix/store/playground";
-import type { CanonicalResponseFormat } from "@phoenix/store/playground/types";
-import { assertUnreachable } from "@phoenix/typeUtils";
-
-import type { PromptInvocationParametersReadableFragment$data } from "../__generated__/PromptInvocationParametersReadableFragment.graphql";
-import type { PromptInvocationParametersInput } from "../__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
+import type { PromptInvocationParametersReadableFragment$data } from "@phoenix/components/playground/__generated__/PromptInvocationParametersReadableFragment.graphql";
 import {
   getInvocationFamilyForProvider,
   InvocationFamily,
   type ParamSpec,
-} from "../invocationParameterSpecs";
+} from "@phoenix/components/playground/invocationParameterSpecs";
+import type { PromptInvocationParametersInput } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
+import type { ModelConfig } from "@phoenix/store/playground";
+import type { CanonicalResponseFormat } from "@phoenix/store/playground/types";
+import { assertUnreachable } from "@phoenix/typeUtils";
+
 import { anthropicAdapter, type AnthropicConfig } from "./anthropicAdapter";
 import { awsAdapter, type AwsConfig } from "./awsAdapter";
 import { googleAdapter, type GoogleConfig } from "./googleAdapter";

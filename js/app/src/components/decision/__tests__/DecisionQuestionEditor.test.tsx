@@ -3,12 +3,12 @@ import { createRoot, type Root } from "react-dom/client";
 import { userEvent } from "storybook/test";
 
 import { DecisionQuestionEditor } from "@phoenix/components/decision/DecisionQuestionEditor";
-import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
-import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 import {
   createDecisionQuestion,
   createScaleLevel,
-} from "@phoenix/pages/playground/decisionUtils";
+} from "@phoenix/components/playground/decisionUtils";
+import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
+import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
 vi.mock("@phoenix/components/templateEditor", () => ({
   TemplateEditor: () => null,

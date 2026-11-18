@@ -11,25 +11,25 @@
 
 import { z } from "zod";
 
-import type { CanonicalResponseFormat } from "@phoenix/store/playground/types";
-import { assertUnreachable } from "@phoenix/typeUtils";
-
-import type { PromptInvocationParametersReadableFragment$data } from "../__generated__/PromptInvocationParametersReadableFragment.graphql";
+import type { PromptInvocationParametersReadableFragment$data } from "@phoenix/components/playground/__generated__/PromptInvocationParametersReadableFragment.graphql";
+import {
+  ANTHROPIC_OUTPUT_CONFIG_EFFORT_VALUES,
+  ANTHROPIC_THINKING_DISPLAY_VALUES,
+} from "@phoenix/components/playground/invocationParameterEnumOptions";
+import {
+  ANTHROPIC_INVOCATION_PARAMETERS,
+  type ParamSpec,
+} from "@phoenix/components/playground/invocationParameterSpecs";
 import type {
   AnthropicOutputConfigEffort,
   AnthropicThinkingDisplay,
   PromptAnthropicInvocationParametersInput,
   PromptAnthropicThinkingConfigInput,
   PromptInvocationParametersInput,
-} from "../__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
-import {
-  ANTHROPIC_OUTPUT_CONFIG_EFFORT_VALUES,
-  ANTHROPIC_THINKING_DISPLAY_VALUES,
-} from "../invocationParameterEnumOptions";
-import {
-  ANTHROPIC_INVOCATION_PARAMETERS,
-  type ParamSpec,
-} from "../invocationParameterSpecs";
+} from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
+import type { CanonicalResponseFormat } from "@phoenix/store/playground/types";
+import { assertUnreachable } from "@phoenix/typeUtils";
+
 import type { ProviderInvocationAdapter } from "./types";
 
 // ---------- canonical types ---------------------------------------------------

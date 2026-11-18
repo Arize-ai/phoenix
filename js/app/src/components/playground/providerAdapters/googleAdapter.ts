@@ -10,17 +10,17 @@
 
 import { z } from "zod";
 
-import type { CanonicalResponseFormat } from "@phoenix/store/playground/types";
-
-import type { PromptInvocationParametersReadableFragment$data } from "../__generated__/PromptInvocationParametersReadableFragment.graphql";
+import type { PromptInvocationParametersReadableFragment$data } from "@phoenix/components/playground/__generated__/PromptInvocationParametersReadableFragment.graphql";
+import { GOOGLE_THINKING_LEVEL_VALUES } from "@phoenix/components/playground/invocationParameterEnumOptions";
+import { GOOGLE_INVOCATION_PARAMETERS } from "@phoenix/components/playground/invocationParameterSpecs";
 import type {
   GoogleThinkingLevel,
   PromptGoogleInvocationParametersInput,
   PromptGoogleThinkingConfigInput,
   PromptInvocationParametersInput,
-} from "../__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
-import { GOOGLE_THINKING_LEVEL_VALUES } from "../invocationParameterEnumOptions";
-import { GOOGLE_INVOCATION_PARAMETERS } from "../invocationParameterSpecs";
+} from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
+import type { CanonicalResponseFormat } from "@phoenix/store/playground/types";
+
 import type { ProviderInvocationAdapter } from "./types";
 
 // ---------- canonical types --------------------------------------------------

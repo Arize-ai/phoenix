@@ -1,4 +1,4 @@
-import type { PromptInvocationParametersReadableFragment$data } from "../../__generated__/PromptInvocationParametersReadableFragment.graphql";
+import type { PromptInvocationParametersReadableFragment$data } from "@phoenix/components/playground/__generated__/PromptInvocationParametersReadableFragment.graphql";
 import {
   awsConfigFromPromptInvocationParameters,
   awsConfigFromSpanInvocationParameters,
@@ -6,7 +6,7 @@ import {
   awsReadField,
   awsWriteField,
   parseAwsConfig,
-} from "../awsAdapter";
+} from "@phoenix/components/playground/providerAdapters/awsAdapter";
 
 describe("parseAwsConfig", () => {
   it("drops unknown keys and preserves canonical fields", () => {

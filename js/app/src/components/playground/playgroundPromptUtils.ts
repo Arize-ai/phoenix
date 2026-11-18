@@ -1,6 +1,6 @@
+import { instanceToPromptVersion } from "@phoenix/components/playground/fetchPlaygroundPrompt";
+import { denormalizePlaygroundInstance } from "@phoenix/components/playground/playgroundInstanceUtils";
 import { DEFAULT_PROMPT_VERSION_TAGS } from "@phoenix/constants";
-import { instanceToPromptVersion } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
-import { denormalizePlaygroundInstance } from "@phoenix/pages/playground/playgroundUtils";
 import type { PlaygroundStore } from "@phoenix/store/playground";
 
 type PromptVersionTagInput = {

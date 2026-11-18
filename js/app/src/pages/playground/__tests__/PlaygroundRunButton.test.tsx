@@ -5,15 +5,15 @@ import { MemoryRouter } from "react-router";
 import { userEvent } from "storybook/test";
 
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
+import {
+  createDecisionDraft,
+  createDecisionStateDraft,
+} from "@phoenix/components/playground/decisionUtils";
 import { PlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { ThemeContext } from "@phoenix/contexts/ThemeContext";
 import { createPlaygroundStore } from "@phoenix/store/playground";
 import { selectPlaygroundInstanceDecisionPrompt } from "@phoenix/store/playground/selectors";
 
-import {
-  createDecisionDraft,
-  createDecisionStateDraft,
-} from "../decisionUtils";
 import { PlaygroundExampleEditingProvider } from "../examplesEditing";
 import { PlaygroundRunButton } from "../PlaygroundRunButton";
 

@@ -1,5 +1,5 @@
-import { promptInvocationDataToDisplayRecord } from "..";
-import type { PromptInvocationParametersReadableFragment$data } from "../../__generated__/PromptInvocationParametersReadableFragment.graphql";
+import type { PromptInvocationParametersReadableFragment$data } from "@phoenix/components/playground/__generated__/PromptInvocationParametersReadableFragment.graphql";
+import { promptInvocationDataToDisplayRecord } from "@phoenix/components/playground/providerAdapters";
 
 type ReadInput = PromptInvocationParametersReadableFragment$data;
 

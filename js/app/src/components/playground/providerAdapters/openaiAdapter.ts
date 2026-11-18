@@ -12,19 +12,19 @@
 
 import { z } from "zod";
 
-import { DEFAULT_OPENAI_API_TYPE } from "@phoenix/constants/generativeConstants";
+import type { PromptInvocationParametersReadableFragment$data } from "@phoenix/components/playground/__generated__/PromptInvocationParametersReadableFragment.graphql";
 import {
   parseOpenAIReasoningEffort,
   toOpenAIReasoningEffortFormValue,
-} from "@phoenix/pages/playground/invocationParameterEnumOptions";
-import type { CanonicalResponseFormat } from "@phoenix/store/playground/types";
-
-import type { PromptInvocationParametersReadableFragment$data } from "../__generated__/PromptInvocationParametersReadableFragment.graphql";
+} from "@phoenix/components/playground/invocationParameterEnumOptions";
+import { OPENAI_INVOCATION_PARAMETERS } from "@phoenix/components/playground/invocationParameterSpecs";
+import { DEFAULT_OPENAI_API_TYPE } from "@phoenix/constants/generativeConstants";
 import type {
   PromptInvocationParametersInput,
   PromptOpenAIInvocationParametersInput,
-} from "../__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
-import { OPENAI_INVOCATION_PARAMETERS } from "../invocationParameterSpecs";
+} from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
+import type { CanonicalResponseFormat } from "@phoenix/store/playground/types";
+
 import type {
   ProviderFormSpecContext,
   ProviderInvocationAdapter,

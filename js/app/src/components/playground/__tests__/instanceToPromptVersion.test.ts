@@ -1,8 +1,7 @@
+import { instanceToPromptVersion } from "@phoenix/components/playground/fetchPlaygroundPrompt";
+import { getDefaultInvocationConfig } from "@phoenix/components/playground/providerAdapters";
 import { DEFAULT_MODEL_NAME } from "@phoenix/constants/generativeConstants";
 import type { PlaygroundInstance } from "@phoenix/store/playground";
-
-import { instanceToPromptVersion } from "../fetchPlaygroundPrompt";
-import { getDefaultInvocationConfig } from "../providerAdapters";
 
 describe("instanceToPromptVersion", () => {
   it("preserves templateFormat and serializes OpenAI Responses max_completion_tokens", () => {

@@ -1,8 +1,7 @@
+import { buildPromptVersionInput } from "@phoenix/components/playground/playgroundInstanceUtils";
+import { getDefaultInvocationConfig } from "@phoenix/components/playground/providerAdapters";
+import type { ChatPromptVersionInput } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
 import type { PlaygroundInstance } from "@phoenix/store/playground";
-
-import type { ChatPromptVersionInput } from "../__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
-import { buildPromptVersionInput } from "../playgroundUtils";
-import { getDefaultInvocationConfig } from "../providerAdapters";
 
 describe("buildPromptVersionInput", () => {
   it("builds an OpenAI prompt version payload from canonical instance state", () => {
