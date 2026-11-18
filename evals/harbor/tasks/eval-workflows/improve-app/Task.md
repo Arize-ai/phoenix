@@ -138,7 +138,7 @@ each failure.
 
 These measures are reported beside `reward` and don't affect it:
 
-- `turns`, `tool_calls`, and a `loaded_<skill>` flag for each skill.
+- `turn_count`, `tool_count`, and a `loaded_<skill>` flag for each skill.
 - `no_overfit`: 0 if the saved prompt quotes 10 or more words in a row from a
   development question or its notes, or names one of their order or customer IDs, and 1
   otherwise. Text that the new questions, the handbook, or the launch prompt also

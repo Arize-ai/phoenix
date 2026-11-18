@@ -84,7 +84,7 @@ During the rerun, a local recorder answers any model request except `gpt-5-nano`
 These measures are reported beside `reward` and don't change it. The
 [suite README](../README.md#what-a-run-reports) explains each one.
 
-- `turns`, `tool_calls`, and a `loaded_<skill>` flag for each skill.
+- `turn_count`, `tool_count`, and a `loaded_<skill>` flag for each skill.
 - `uses_phoenix_evals`: the share of the rerun's judge requests that phoenix-evals sent.
 - `prompt_quality`: the share of the rerun's judge requests whose prompt meets the
   rubric. For this task, the rubric grader is told that the judge needs the order record,

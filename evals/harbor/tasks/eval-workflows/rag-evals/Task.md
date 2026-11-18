@@ -102,7 +102,7 @@ count the same as `pass`. During the rerun, a local proxy refuses any model exce
 
 These measures are reported beside `reward` and don't affect it:
 
-- `turns`, `tool_calls`, and `loaded_<skill>` show how the agent worked.
+- `turn_count`, `tool_count`, and `loaded_<skill>` show how the agent worked.
 - `uses_phoenix_evals` is the share of the rerun's judge requests that phoenix-evals sent.
 - `prompt_quality` is the share of judge requests whose prompt meets the suite rubric.
   For this task, the rubric expects a `relevant` judge to see the question and the

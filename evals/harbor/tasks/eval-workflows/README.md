@@ -189,8 +189,8 @@ Every task reports how the agent worked:
 
 | Key | Meaning |
 | --- | --- |
-| `turns` | The number of steps in the agent's trajectory. |
-| `tool_calls` | The number of tool calls the agent made. |
+| `turn_count` | The number of steps in the agent's trajectory. |
+| `tool_count` | The number of tool calls the agent made. |
 | `loaded_<skill>` | 1 if the agent loaded that skill, such as `loaded_phoenix_evals`. `details.json` lists every skill loaded, in order. |
 
 Five tasks ask the agent for an eval script that the verifier reruns: `response-evals`,

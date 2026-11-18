@@ -121,7 +121,7 @@ a whole percent at most.
 `reward` is 1 only when every check passes. These measures are reported beside `reward`
 and don't affect it:
 
-- `turns`, `tool_calls`, and `loaded_<skill>`: how the agent worked.
+- `turn_count`, `tool_count`, and `loaded_<skill>`: how the agent worked.
 - `uses_phoenix_evals`: the share of the rerun's judge requests that phoenix-evals sent.
   The shipped script calls the OpenAI client directly, so a fix in place often scores 0.
 - `prompt_quality`: the share of the rerun's judge requests whose prompt meets the suite

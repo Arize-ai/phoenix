@@ -113,8 +113,8 @@ under `numbers`.
 
 These measures are reported beside `reward` and don't affect it:
 
-- `turns`: the number of steps in the agent's trajectory.
-- `tool_calls`: the number of tool calls the agent made.
+- `turn_count`: the number of steps in the agent's trajectory.
+- `tool_count`: the number of tool calls the agent made.
 - `loaded_<skill>`: 1 if the agent loaded that skill.
 
 ## What the task tests

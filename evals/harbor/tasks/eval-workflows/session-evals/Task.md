@@ -109,7 +109,7 @@ and recall for each check, and the rerun's exit code and output.
 
 These measures are reported beside `reward` and don't affect it:
 
-- `turns`, `tool_calls`, and `loaded_<skill>`: how the agent worked.
+- `turn_count`, `tool_count`, and `loaded_<skill>`: how the agent worked.
 - `uses_phoenix_evals`: the share of the rerun's judge requests that phoenix-evals sent.
 - `prompt_quality`: the share of the rerun's judge requests whose prompt meets the suite
   rubric. For this task, the rubric expects both judges to see every turn in order: the

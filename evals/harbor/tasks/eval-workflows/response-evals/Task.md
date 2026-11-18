@@ -81,8 +81,8 @@ reports each requirement's coverage and recall under each check.
 
 These measures are reported beside `reward` and don't affect it:
 
-- `turns`: the number of steps in the agent's trajectory.
-- `tool_calls`: the number of tool calls the agent made.
+- `turn_count`: the number of steps in the agent's trajectory.
+- `tool_count`: the number of tool calls the agent made.
 - `loaded_<skill>`: 1 if the agent loaded that skill.
 - `uses_phoenix_evals`: the share of the rerun's judge requests that phoenix-evals sent.
 - `prompt_quality`: the share of the rerun's judge requests that meet the suite's rubric.

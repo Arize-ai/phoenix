@@ -90,8 +90,8 @@ unsafe one time in three.
 `reward` is 1 only when every check passes. The run also reports these measures, which
 don't affect `reward`:
 
-- `turns` counts the steps in the agent's trajectory.
-- `tool_calls` counts the agent's tool calls.
+- `turn_count` counts the steps in the agent's trajectory.
+- `tool_count` counts the agent's tool calls.
 - `loaded_<skill>` is 1 if the agent loaded that skill and 0 if it didn't. There's one
   key for each Phoenix skill, such as `loaded_phoenix_evals`, and one for any other
   skill the agent loaded. `details.json` lists the skills loaded, in order.
