@@ -49,7 +49,6 @@ export function DocumentAnnotationItem({
   documentPosition: number;
   /** Border color token applied to the item's card container */
   borderColor: ViewProps["borderColor"];
-  /** Color token used for label and score badges */
   /** Whether the current user has permission to annotate */
   canAnnotate: boolean;
   /** The annotation currently being edited, or null if none */
