@@ -173,28 +173,20 @@ test.describe("Prompt label management from the list", () => {
     await page.getByRole("menuitem", { name: "Label" }).hover();
     await page.getByRole("button", { name: "Create new label" }).click();
 
-    // Fill out the inline create form (no modal) and submit.
+    // Fill out the inline create form (no modal) and submit. A label
+    // created here joins the prompt's labels.
     await page.getByLabel("Label Name").fill(labelName);
-    await Promise.all([
-      page.waitForResponse((resp) =>
-        isGraphQLMutationResponse(
-          resp,
-          "usePromptLabelMutationsCreateLabelMutation"
-        )
-      ),
-      page.getByRole("button", { name: "Create Label" }).click(),
-    ]);
-
-    // Back in apply mode, the new label is selectable and applies to the prompt.
-    const labelOption = page.getByRole("menuitemcheckbox", { name: labelName });
-    await labelOption.waitFor({ state: "visible" });
     await Promise.all([
       page.waitForResponse((resp) =>
         isGraphQLMutationResponse(resp, "PromptLabelPickerSetLabelsMutation")
       ),
-      labelOption.click(),
+      page.getByRole("button", { name: "Create Label" }).click(),
     ]);
 
+    // Back in apply mode, the new label is listed and already checked.
+    await expect(
+      page.getByRole("menuitemcheckbox", { name: labelName })
+    ).toHaveAttribute("aria-checked", "true");
     await expect(
       row.getByRole("row", { name: labelName, exact: true })
     ).toBeVisible();
