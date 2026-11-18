@@ -121,10 +121,7 @@ test.describe("Prompt label management from the list", () => {
     await labelOption.waitFor({ state: "visible" });
     await Promise.all([
       page.waitForResponse((resp) =>
-        isGraphQLMutationResponse(
-          resp,
-          "PromptLabelPickerSetLabelsMutation"
-        )
+        isGraphQLMutationResponse(resp, "PromptLabelPickerSetLabelsMutation")
       ),
       labelOption.click(),
     ]);
@@ -193,10 +190,7 @@ test.describe("Prompt label management from the list", () => {
     await labelOption.waitFor({ state: "visible" });
     await Promise.all([
       page.waitForResponse((resp) =>
-        isGraphQLMutationResponse(
-          resp,
-          "PromptLabelPickerSetLabelsMutation"
-        )
+        isGraphQLMutationResponse(resp, "PromptLabelPickerSetLabelsMutation")
       ),
       labelOption.click(),
     ]);
@@ -231,10 +225,7 @@ test.describe("Dataset label management from the list", () => {
     await labelOption.waitFor({ state: "visible" });
     await Promise.all([
       page.waitForResponse((resp) =>
-        isGraphQLMutationResponse(
-          resp,
-          "DatasetLabelPickerSetLabelsMutation"
-        )
+        isGraphQLMutationResponse(resp, "DatasetLabelPickerSetLabelsMutation")
       ),
       labelOption.click(),
     ]);

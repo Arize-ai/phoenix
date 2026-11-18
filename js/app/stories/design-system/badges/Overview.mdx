@@ -18,7 +18,23 @@ matches it to its other appearances on the page. An `Identifier` is a
 thing's ID in monospace, optionally copyable. A `Keyboard Token` shows a
 keyboard shortcut.
 
-`Token` still carries attached labels (dataset and prompt labels, splits,
-version tags) until they move to `Tag`.
+A `Tag` is a separate object attached to the thing, with its own identity:
+a dataset or prompt label, a split, a prompt version tag, a project
+reference. It is the one member that may be a hit target (`onPress` or
+`href`, and `onRemove` where the set is being edited). A `Tag Group` lays
+out any set of tags and owns their overflow, keyboard navigation,
+selection and removal; in a table cell it collapses to one row with a `+N`
+popover. A color Phoenix picks is a named `color`; a color a person picked
+and stored passes through as `userColor`.
+
+An `Editable Tag Group` is a set a person edits in place, in a form or a
+page header: a removable `Tag Group` and an add control that opens a
+`Tag Picker` of everything that can be attached, with inline create. The
+caller loads the options and saves the change, at once in a header or on
+submit in a form.
+
+A value that is not an object, such as a model name, a score or an
+annotation label, is plain text, not a `Tag`; a command, such as "add this
+filter", is a `Button`.
 
 <SubjectOverview title="Design System/Badges" />
