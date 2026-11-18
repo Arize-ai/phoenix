@@ -13,7 +13,6 @@ import { useControlledState } from "react-stately/useControlledState";
 
 import { Dialog } from "@phoenix/components/core/dialog";
 import { Icon, Icons } from "@phoenix/components/core/icon";
-import { Identifier } from "@phoenix/components/core/identifier";
 import { Popover } from "@phoenix/components/core/overlay";
 import type { FamilySize } from "@phoenix/components/core/types";
 import { useTheme } from "@phoenix/contexts/ThemeContext";
@@ -29,11 +28,6 @@ export type TagGroupItem = {
   label: string;
   leadingVisual?: ReactNode;
   isDisabled?: boolean;
-  /**
-   * The label is the object's identifier, for an object with no name of its
-   * own (a trace, a span). It is set as an `Identifier`.
-   */
-  isIdentifier?: boolean;
 } & TagColorProps;
 
 /**
@@ -191,10 +185,6 @@ type TagSetProps = {
   onSelectionChange: (ids: Set<string>) => void;
 };
 
-function labelOf(item: TagGroupItem): ReactNode {
-  return item.isIdentifier ? <Identifier value={item.label} /> : item.label;
-}
-
 function colorPropsOf(item: TagGroupItem): TagColorProps {
   return item.userColor !== undefined
     ? { userColor: item.userColor }
@@ -218,7 +208,7 @@ function StaticTagSet({ label, items, size, itemMaxWidth }: TagSetProps) {
             isDisabled={item.isDisabled}
             textValue={item.label}
           >
-            {labelOf(item)}
+            {item.label}
           </Tag>
         </span>
       ))}
@@ -286,9 +276,9 @@ function InteractiveTagSet({
                 <>
                   <TagContent
                     leadingVisual={item.leadingVisual}
-                    title={item.isIdentifier ? undefined : item.label}
+                    title={item.label}
                   >
-                    {labelOf(item)}
+                    {item.label}
                   </TagContent>
                   {allowsRemoving ? (
                     // React Aria names the button "Remove" followed by
@@ -345,11 +335,7 @@ function useFittedCount({
   // Call sites build their items afresh on every render, so the
   // measurement keys on what sets each tag's width rather than on the array
   const itemsSignature = items
-    .map((item) =>
-      [item.id, item.label, item.isIdentifier ? "identifier" : ""].join(
-        "\u0000"
-      )
-    )
+    .map((item) => [item.id, item.label].join("\u0000"))
     .join("\u0001");
 
   useLayoutEffect(() => {
@@ -398,7 +384,7 @@ function useFittedCount({
           onRemove={isRemovable ? () => {} : undefined}
           textValue={item.label}
         >
-          {labelOf(item)}
+          {item.label}
         </Tag>
       ))}
       <Tag size={size}>{`+${items.length}`}</Tag>

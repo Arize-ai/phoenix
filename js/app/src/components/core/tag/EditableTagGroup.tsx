@@ -24,12 +24,6 @@ export interface EditableTagGroupProps {
    */
   items: readonly TagGroupItem[];
   /**
-   * What one tag is, in the singular ("label"). It names the add control
-   * ("Add label") and the empty state ("No labels").
-   * @default "label"
-   */
-  noun?: string;
-  /**
    * Detaches tags: the remove buttons, and Delete or Backspace on the focused
    * tag. Leave it and `picker` out where the person cannot edit the set.
    */
@@ -83,7 +77,6 @@ function stopSubmitPropagation(event: FormEvent) {
 export function EditableTagGroup({
   "aria-label": label,
   items,
-  noun = "label",
   onRemove,
   picker,
   error,
@@ -124,14 +117,14 @@ export function EditableTagGroup({
     >
       {isEmpty ? (
         <Text size="S" color="text-500">
-          {`No ${noun}s`}
+          No labels
         </Text>
       ) : (
         <TagGroup aria-label={label} items={items} onRemove={handleRemove} />
       )}
       {picker ? (
         <DialogTrigger isOpen={isPickerOpen} onOpenChange={setIsPickerOpen}>
-          <IconButton size="S" aria-label={`Add ${noun}`}>
+          <IconButton size="S" aria-label="Add label">
             <Icon svg={<Icons.Plus />} />
           </IconButton>
           <Popover

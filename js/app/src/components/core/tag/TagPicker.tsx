@@ -33,14 +33,8 @@ export interface TagPickerProps {
    */
   onSelectionChange: (ids: Set<string>) => void;
   /**
-   * What one option is, in the singular ("label"). It names the search
-   * field, the empty state and the create view.
-   * @default "label"
-   */
-  noun?: string;
-  /**
    * The form that creates a new option. When it is given, the picker offers
-   * "Create new {noun}"; call `onDone` to come back to the list once the
+   * "Create new label"; call `onDone` to come back to the list once the
    * option exists (and is attached, if it should be).
    */
   renderCreateForm?: (props: { onDone: () => void }) => ReactNode;
@@ -75,14 +69,14 @@ export function TagPicker({
   options,
   selectedKeys,
   onSelectionChange,
-  noun = "label",
   renderCreateForm,
   footer,
   error,
 }: TagPickerProps) {
   const [mode, setMode] = useState<"apply" | "create">("apply");
   const { contains } = useFilter({ sensitivity: "base" });
-  const plural = `${noun}s`;
+  const noun = "label";
+  const plural = "labels";
   return (
     <>
       {error ? <Alert variant="danger">{error}</Alert> : null}
