@@ -146,7 +146,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Upload images and publish Docker Hub tags
-        uses: ./.github/actions/docker-merge-manifest
+        uses: ./.github/actions/docker-publish-image
         with:
           variant: ${{ matrix.variant }}
           tags: ${{ steps.tags.outputs.tags }}
@@ -188,7 +188,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Upload images and publish GHCR tags
-        uses: ./.github/actions/docker-merge-manifest
+        uses: ./.github/actions/docker-publish-image
         with:
           variant: ${{ matrix.variant }}
           tags: ${{ steps.tags.outputs.tags }}
