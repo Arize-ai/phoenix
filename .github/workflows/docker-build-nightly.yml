@@ -94,6 +94,8 @@ jobs:
 
   merge-ghcr:
     name: Publish ${{ matrix.variant }} to GHCR
+    permissions:
+      contents: read
       packages: write
     needs: build
     # Publish complete variants even if a different variant failed to build.
