@@ -37,10 +37,11 @@ def load_test_json(name: str) -> Any:
 
 POSITIVE = {
     "1", "1.0", "true", "yes", "y", "pass", "passed", "ok", "good", "correct", "valid",
-    "grounded", "supported", "faithful", "honest", "truthful", "accurate",
+    "grounded", "supported", "faithful", "honest", "truthful", "accurate", "factual",
+    "not_hallucinated", "no_hallucination", "non_hallucinated",
     "completed", "complete", "resolved", "done", "success", "successful",
     "relevant", "compliant", "safe", "allowed", "approve", "approved", "no_leak",
-    "no_pii", "private", "clean",
+    "no_pii", "private", "clean", "follows_policy", "within_policy", "in_policy",
 }  # fmt: skip
 NEGATIVE = {
     "0", "0.0", "false", "no", "n", "fail", "failed", "bad", "incorrect", "invalid",
@@ -49,18 +50,31 @@ NEGATIVE = {
     "incomplete", "not_completed", "unresolved", "not_resolved", "failure",
     "irrelevant", "not_relevant", "non_compliant", "noncompliant", "violation",
     "unsafe", "blocked", "reject", "rejected", "leak", "leaked", "pii_leak", "pii",
-    "wrong_amount", "invalid_format",
+    "wrong_amount", "invalid_format", "violates_policy", "policy_violation", "out_of_policy",
 }  # fmt: skip
 
 
+def _word_meaning(word: str) -> bool | None:
+    if word in POSITIVE:
+        return True
+    if word in NEGATIVE:
+        return False
+    negated = re.fullmatch(r"(?:not|non|no)_(.+)", word)
+    if negated and (meaning := _word_meaning(negated[1])) is not None:
+        return not meaning
+    return None
+
+
 def to_bool(label: Any, score: Any) -> bool | None:
-    """Returns True for a good outcome, False for a bad one, or None if unclear."""
+    """Returns True for a good outcome, False for a bad one, or None if unclear.
+
+    A clear label wins over the score. A negated label, such as `not_compliant` or
+    `no_violation`, means the opposite of the word it negates.
+    """
     if isinstance(label, str) and label.strip():
         word = re.sub(r"[\s\-]+", "_", label.strip().lower()).strip("._")
-        if word in POSITIVE:
-            return True
-        if word in NEGATIVE:
-            return False
+        if (meaning := _word_meaning(word)) is not None:
+            return meaning
     if isinstance(score, bool):
         return score
     if isinstance(score, (int, float)) and score == score:
@@ -273,7 +287,7 @@ class Agreement:
 def agreement(
     predictions: Mapping[Unit, Prediction | bool | None], truth: Mapping[Unit, bool]
 ) -> Agreement:
-    """Scores recall per class, so a constant prediction scores 0 on one class.
+    """Returns recall per class, so a constant prediction scores 0 on one class.
 
     Missing or unclear predictions count as wrong.
     """
@@ -500,7 +514,11 @@ def _normalize_quote(text: str) -> str:
 
 
 def _quoted(quote: str, reply: str) -> bool:
-    """Matches loosely: extractors sometimes join a label to a later clause or add "is"."""
+    """Checks whether the quote appears in the reply.
+
+    The match is loose because extractors sometimes join a label to a later clause or add
+    "is".
+    """
     words = _normalize_quote(quote).split()
     haystack = _normalize_quote(reply)
     if not words:
@@ -568,7 +586,7 @@ def _as_number(value: Any, want: float) -> float | None:
 def check_report_claims(
     claims: Mapping[str, Any], expected: Mapping[str, Any], reply: str, tolerance: float = 0.011
 ) -> dict[str, bool]:
-    """Checks each expected claim: stated, quoted from the reply, uncontradicted, correct.
+    """Checks that each expected claim is stated, quoted from the reply, uncontradicted, and correct.
 
     The default `tolerance` allows rounding to two decimals or to a whole percent.
     """
@@ -607,9 +625,10 @@ def finish(
     details: Mapping[str, Any],
     measures: Mapping[str, float] | None = None,
 ) -> None:
-    """Writes reward 1 if every check passed, with checks and `measures` as components.
+    """Writes `reward` as 1 if every check passed and 0 otherwise.
 
-    `measures` don't change the reward.
+    Each check and each entry in `measures` is written as a component. `measures` never
+    change `reward`.
     """
     from harbor_verifiers import skills
     from harbor_verifiers.verify import TRAJECTORY_PATH, read_trajectory, write_reward

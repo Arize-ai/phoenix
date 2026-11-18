@@ -79,7 +79,7 @@ class Trace:
         seconds: float = 1.6,
         error: str | None = None,
     ) -> dict[str, Any]:
-        """`messages` are `{"role", "content"}` dicts."""
+        """Adds an LLM span. Each message is a `{"role", "content"}` dict."""
         attributes: dict[str, Any] = {
             "llm.model_name": model,
             "llm.provider": "openai",
@@ -118,7 +118,8 @@ class Trace:
     def retrieve(
         self, query: str, documents: list[dict[str, Any]], *, name: str = "search_policies"
     ) -> dict[str, Any]:
-        """`documents` are `{"id", "content", "score"}` dicts; `score` is optional."""
+        """Adds a retriever span. Each document is an `{"id", "content", "score"}` dict, and
+        `score` is optional."""
         attributes: dict[str, Any] = {"input.value": query}
         for index, document in enumerate(documents):
             prefix = f"retrieval.documents.{index}.document"
@@ -161,7 +162,7 @@ class Trace:
 
 
 def write_json(path: Any, value: Any) -> None:
-    """Writes readable JSON so fixture diffs stay reviewable."""
+    """Writes indented JSON, so diffs of generated fixtures stay readable."""
     from pathlib import Path
 
     Path(path).parent.mkdir(parents=True, exist_ok=True)

@@ -97,7 +97,7 @@ def _message_text(message: Any) -> str:
 
 
 def final_reply(trajectory: dict[str, Any] | None) -> str:
-    """The agent's text messages after its last tool call, or else its last text message.
+    """Returns the agent's text messages after its last tool call, or else its last text message.
 
     Joining them keeps the answer when the agent adds a follow-up, such as when a
     background task finishes.

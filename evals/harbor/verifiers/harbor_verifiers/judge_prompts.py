@@ -53,7 +53,7 @@ class Recorder:
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
     def allows(self, model: str) -> bool:
-        """Also allows dated snapshots of allowed models."""
+        """Checks whether `model` is allowed, counting dated snapshots of an allowed model."""
         if self.allowed_models is None:
             return True
         return any(model == m or model.startswith(f"{m}-") for m in self.allowed_models)
@@ -127,7 +127,8 @@ def _handler(recorder: Recorder) -> type[BaseHTTPRequestHandler]:
 def record_llm_calls(allowed_models: Collection[str] | None = None) -> Iterator[Recorder]:
     """Records the OpenAI and Anthropic requests of any process run with `recorder.env`.
 
-    With `allowed_models`, other models get a 403, as with a key scoped to those models.
+    If `allowed_models` is set, the proxy refuses other models with a 403 error, as a key
+    scoped to those models would.
     """
     recorder = Recorder(allowed_models=allowed_models)
     server = ThreadingHTTPServer(("127.0.0.1", 0), _handler(recorder))
@@ -230,7 +231,11 @@ def _strings(value: Any) -> Iterator[str]:
 
 
 def seen_only_shingles(seen: Iterable[Any], unseen: Iterable[Any]) -> set[tuple[str, ...]]:
-    """Shared text, such as policy passages, drops out, so a match is an example the agent saw."""
+    """Returns the 10-word runs that appear in `seen` but not in `unseen`.
+
+    Text that both contain, such as policy passages, drops out, so a match in a prompt means
+    the agent copied an example it saw.
+    """
     seen_runs = {run for text in _strings(list(seen)) for run in _shingles(text)}
     unseen_runs = {run for text in _strings(list(unseen)) for run in _shingles(text)}
     return seen_runs - unseen_runs
@@ -360,7 +365,7 @@ def prompt_scores(
     copied: set[tuple[str, ...]] | None = None,
     max_templates: int = 4,
 ) -> tuple[dict[str, float], dict[str, Any]]:
-    """Scores the recorded judge requests. None of it is reward.
+    """Scores the recorded judge requests. The scores never affect `reward`.
 
     Args:
         system: A description of the application the traces come from.

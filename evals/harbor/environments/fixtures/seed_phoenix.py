@@ -1,6 +1,6 @@
 """Creates a Phoenix SQLite fixture from a task's `fixture/phoenix_seed.json`.
 
-Run it with `uv run` from the repository root so it uses this checkout's Phoenix.
+To use this checkout's Phoenix, run it with `uv run` from the repository root.
 
 Seed file keys, all optional:
 
@@ -110,7 +110,7 @@ def _chunks(items: list[Any], size: int = 200) -> Iterator[list[Any]]:
 
 
 def apply_spec(base: str, spec: dict[str, Any]) -> dict[str, Any]:
-    """Writes the seed's state to Phoenix at `base` and returns counts."""
+    """Writes the seed file's state to the Phoenix at `base` and returns what it wrote, by kind."""
     from phoenix.client import Client
 
     client = Client(base_url=base)
@@ -201,11 +201,11 @@ def _create_prompt(client: Any, spec: dict[str, Any]) -> None:
 
 
 def _replay_experiment(client: Any, spec: dict[str, Any]) -> None:
-    """Replays the seed's recorded outputs and evaluations as an experiment.
+    """Replays the seed file's recorded outputs and evaluations as an experiment.
 
-    The task doesn't receive its repetition number, so it counts calls per example. That
-    relies on the client running an example's repetitions in order, which `_check_replay`
-    verifies.
+    The experiment task doesn't receive its repetition number, so it counts calls per
+    example. The count is right only if the client runs an example's repetitions in order,
+    which `_check_replay` verifies.
     """
     from opentelemetry import trace
 
