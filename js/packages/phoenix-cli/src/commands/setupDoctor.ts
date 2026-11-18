@@ -39,6 +39,7 @@ import {
   formatDoctorOutput,
 } from "./formatSetup";
 import type { ConnectionOptions } from "./options";
+import { exitWithError } from "./setupErrors";
 
 /** The typed mirror of the flags `px setup doctor` registers. */
 interface SetupDoctorOptions extends ConnectionOptions {
@@ -328,11 +329,17 @@ async function runDoctorChecks({
 }
 
 async function setupDoctorHandler(options: SetupDoctorOptions): Promise<void> {
-  const outcomes = await runDoctorChecks({ options });
+  const format = options.format ?? "pretty";
+  let outcomes: DoctorCheckOutcome[];
+  try {
+    outcomes = await runDoctorChecks({ options });
+  } catch (error) {
+    exitWithError(error, format);
+  }
   writeOutput({
     message: formatDoctorOutput({
       output: { checks: outcomes.map((outcome) => outcome.check) },
-      format: options.format,
+      format,
     }),
   });
 
@@ -354,7 +361,8 @@ export function createSetupDoctorCommand(): Command {
     .option("--profile <name>", "Profile to check")
     .option(
       "--format <format>",
-      'Output format: pretty, json, or raw (default: "pretty")'
+      "Output format: pretty, json, or raw",
+      "pretty"
     )
     .action(setupDoctorHandler)
     .addHelpText(
