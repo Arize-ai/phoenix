@@ -6,6 +6,7 @@ import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
 
 import { Alert, Flex, Icon, Icons, Truncate } from "@phoenix/components";
 import { JSONText } from "@phoenix/components/code/JSONText";
+import { MarkerTrigger } from "@phoenix/components/core/markerTrigger";
 import { PreformattedTextCell } from "@phoenix/components/table";
 import {
   getCommonPinningStyles,
@@ -15,7 +16,10 @@ import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
 import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
-import { AnnotatorKindToken } from "@phoenix/components/trace/AnnotatorKindToken";
+import {
+  AnnotatorKindBadge,
+  getAnnotatorKindExplanation,
+} from "@phoenix/components/trace/AnnotatorKindBadge";
 import { SessionAnnotationDeleteButton } from "@phoenix/components/trace/SessionAnnotationDeleteButton";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { useNotifySuccess } from "@phoenix/contexts";
@@ -57,7 +61,13 @@ function AnnotationsTable({
         accessorKey: "annotatorKind",
         size: 100,
         cell: ({ row }) => (
-          <AnnotatorKindToken kind={row.original.annotatorKind} />
+          <MarkerTrigger
+            explanation={getAnnotatorKindExplanation(
+              row.original.annotatorKind
+            )}
+          >
+            <AnnotatorKindBadge kind={row.original.annotatorKind} />
+          </MarkerTrigger>
         ),
       },
       {

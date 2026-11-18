@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 
+import type { FamilySize } from "@phoenix/components/core/types";
 import { useTheme } from "@phoenix/contexts";
 
 import { getSpanKindColor } from "./spanKindColor";
@@ -652,12 +653,30 @@ const PromptFilledSVG = () => (
 
 /**
  * Derives the background, border, and foreground colors from the span kind's
- * base color using the same lch formulas as the Token component so that the
- * icon and the SpanKindToken read as one visual system.
+ * base color using the same lch formulas as the badge family so that the
+ * icon and the SpanKindBadge read as one visual system.
  */
 const spanKindIconCSS = css`
   width: 20px;
   height: 20px;
+
+  /* Sized to sit inside a badge of the same size */
+  &[data-size="S"],
+  &[data-size="M"] {
+    display: flex;
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+  &[data-size="S"] {
+    width: 12px;
+    height: 12px;
+  }
+  &[data-size="M"] {
+    width: 14px;
+    height: 14px;
+  }
 
   &[data-theme="light"] {
     --span-kind-icon-background-color: lch(
@@ -670,7 +689,7 @@ const spanKindIconCSS = css`
   }
 
   /*
-   * The dark values run hotter than the Token's (more lightness and chroma)
+   * The dark values run hotter than the Badge's (more lightness and chroma)
    * because at 20px there are too few colored pixels for the muted badge
    * palette to read — the hue stays the same so the two remain one system.
    */
@@ -705,9 +724,15 @@ const SPAN_KIND_ICONS: Record<
 export function SpanKindIcon({
   spanKind,
   variant = "fill",
+  size,
 }: {
   spanKind: string;
   variant?: "fill" | "outline";
+  /**
+   * Shrinks the icon to lead a `Badge` of this size. Leave it out for the
+   * icon's own 20px.
+   */
+  size?: FamilySize;
 }) {
   const { theme } = useTheme();
   const icons = SPAN_KIND_ICONS[spanKind];
@@ -725,7 +750,8 @@ export function SpanKindIcon({
         "--span-kind-icon-color": color,
       }}
       data-theme={theme}
-      title={spanKind}
+      data-size={size}
+      title={size === undefined ? spanKind : undefined}
     >
       {icon}
     </div>

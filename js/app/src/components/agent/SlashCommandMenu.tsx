@@ -3,10 +3,10 @@ import { motion } from "motion/react";
 import { useLayoutEffect } from "react";
 
 import {
+  Badge,
   Flex,
   KeyboardToken,
   Text,
-  Token,
   VisuallyHidden,
 } from "@phoenix/components";
 import { classNames } from "@phoenix/utils/classNames";
@@ -69,7 +69,7 @@ const slashCommandMenuNameCSS = css`
  */
 function SlashMenuItemPill({ item }: { item: SlashMenuItem }) {
   if (item.kind === "skill") {
-    return <Token size="S">skill</Token>;
+    return <Badge size="S">skill</Badge>;
   }
   if (item.keybind) {
     return (

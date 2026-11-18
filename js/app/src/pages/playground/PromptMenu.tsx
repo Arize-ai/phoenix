@@ -5,13 +5,14 @@ import { useLazyLoadQuery } from "react-relay";
 import { graphql } from "relay-runtime";
 
 import {
+  Badge,
   Button,
   CompositeField,
   Flex,
-  LazyTabPanel,
   Icon,
   Icons,
   Identifier,
+  LazyTabPanel,
   Menu,
   MenuContainer,
   MenuHeader,
@@ -23,7 +24,6 @@ import {
   TabList,
   Tabs,
   Text,
-  Token,
 } from "@phoenix/components";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
@@ -451,11 +451,7 @@ export function PromptVersionSelector({
                         <Text size="S">
                           <Identifier value={id} maxWidth="12ch" />
                         </Text>
-                        {isLatest && (
-                          <Token size="S" color="var(--global-color-gray-700)">
-                            latest
-                          </Token>
-                        )}
+                        {isLatest && <Badge size="S">latest</Badge>}
                         {createdAt && (
                           <Text size="XS" color="text-300">
                             {fullTimeFormatter(new Date(createdAt))}
@@ -505,8 +501,8 @@ export function PromptVersionSelector({
 }
 
 /**
- * Renders a label for a prompt version. If the version is the latest, it shows "latest" as a tag.
- * Otherwise, it shows the ID truncated to 6 characters.
+ * Renders a label for a prompt version: "latest" for the latest version,
+ * otherwise its ID.
  */
 export function PromptVersionLabel({
   id,
@@ -516,11 +512,7 @@ export function PromptVersionLabel({
   isLatest: boolean;
 }) {
   if (isLatest) {
-    return (
-      <Token size="S" color="var(--global-color-blue-1000)">
-        latest
-      </Token>
-    );
+    return <Badge size="S">latest</Badge>;
   }
   return <Identifier value={id} maxWidth="12ch" />;
 }

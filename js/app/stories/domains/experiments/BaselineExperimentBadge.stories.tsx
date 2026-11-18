@@ -12,7 +12,7 @@ const meta: Meta<typeof BaselineExperimentBadge> = {
   argTypes: {
     size: {
       control: "select",
-      options: ["S", "M", "L"],
+      options: ["S", "M"],
     },
   },
 };
@@ -37,7 +37,6 @@ export const Sizes: Story = {
     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
       <BaselineExperimentBadge size="S" />
       <BaselineExperimentBadge size="M" />
-      <BaselineExperimentBadge size="L" />
     </div>
   ),
 };

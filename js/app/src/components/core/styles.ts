@@ -160,3 +160,28 @@ export const inheritedStateCSS = css`
     opacity: var(--global-opacity-disabled);
   }
 `;
+
+/**
+ * The heights and type a badge family member with sizes shares, so a Badge
+ * of size `S` lines up with a `Counter` in a row.
+ */
+export const familySizeCSS = css`
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--global-dimension-size-50);
+  max-width: 100%;
+  font-size: var(--global-font-size-xs);
+  line-height: 1;
+  white-space: nowrap;
+  vertical-align: middle;
+
+  &[data-size="S"] {
+    height: var(--global-dimension-size-200);
+    padding: 0 var(--global-dimension-size-75);
+  }
+  &[data-size="M"] {
+    height: var(--global-dimension-size-250);
+    padding: 0 var(--global-dimension-size-100);
+  }
+`;

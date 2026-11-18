@@ -19,7 +19,7 @@ import { Link, useNavigate } from "react-router";
 
 import { Flex, Icon, Icons, Text } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
-import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
+import { EvaluatorKindBadge } from "@phoenix/components/evaluators/EvaluatorKindBadge";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
@@ -293,7 +293,7 @@ export const EvaluatorsTable = ({
         size: 60,
         cell: ({ row }) => {
           if (row.original.rowType === "evaluator") {
-            return <EvaluatorKindToken kind={row.original.data.kind} />;
+            return <EvaluatorKindBadge kind={row.original.data.kind} />;
           }
           return "--";
         },

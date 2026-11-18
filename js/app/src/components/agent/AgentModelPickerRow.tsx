@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 
-import { Badge, Icon, Icons } from "@phoenix/components";
+import { Badge, Icon, Icons, StatusIndicator } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import type { GenerativeProviderKey } from "@phoenix/components/generative/useModelMenuData";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
@@ -69,7 +69,7 @@ export function AgentModelProviderIcon({
 }
 
 /**
- * A row's credential state: "Add key" when a key is missing, "Unavailable"
+ * A row's credential state: "Needs credentials" when a key is missing, "Unavailable"
  * when the row's custom provider was deleted, and nothing otherwise. Providers
  * with an ambient credential chain (AWS, Azure) show nothing: whether that
  * chain works can't be told until a send.
@@ -82,17 +82,11 @@ export function AgentModelCredentialHint({
   isProviderMissing?: boolean;
 }) {
   if (isProviderMissing) {
-    return (
-      <Badge size="S" variant="danger">
-        Unavailable
-      </Badge>
-    );
+    return <StatusIndicator category="unavailable" label="Unavailable" />;
   }
   if (credentialState === "no-key") {
     return (
-      <Badge size="S" variant="warning">
-        Add key
-      </Badge>
+      <StatusIndicator category="needs-credentials" label="Needs credentials" />
     );
   }
   return null;

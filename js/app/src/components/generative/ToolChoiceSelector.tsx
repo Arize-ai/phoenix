@@ -1,4 +1,5 @@
 import {
+  Badge,
   Button,
   Flex,
   Label,
@@ -8,7 +9,6 @@ import {
   SelectChevronUpDownIcon,
   SelectItem,
   SelectValue,
-  Token,
 } from "@phoenix/components";
 import type { CanonicalToolChoice } from "@phoenix/store/playground/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
@@ -124,9 +124,7 @@ const OptionLabel = ({
     width="100%"
   >
     <span>{label}</span>
-    <Token color="var(--global-color-gray-900)" size="S">
-      {tokenText}
-    </Token>
+    <Badge size="S">{tokenText}</Badge>
   </Flex>
 );
 

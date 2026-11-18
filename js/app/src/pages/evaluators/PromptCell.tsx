@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 
-import { Flex, Link, Text, Token } from "@phoenix/components";
+import { Badge, Flex, Link, Text, Token } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 
 export const PromptCell = ({
@@ -59,11 +59,7 @@ export const PromptLink = ({
     );
     to = `/redirects/prompts/${promptId}/tags/${encodeURIComponent(promptVersionTag)}`;
   } else {
-    specifier = (
-      <Token size="S" color="var(--global-color-gray-700)">
-        latest
-      </Token>
-    );
+    specifier = <Badge size="S">latest</Badge>;
     to = `/prompts/${promptId}`;
   }
 

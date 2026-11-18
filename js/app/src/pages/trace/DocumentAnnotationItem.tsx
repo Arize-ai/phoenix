@@ -2,7 +2,7 @@ import { formatRelative } from "date-fns/formatRelative";
 
 import type { TokenProps, ViewProps } from "@phoenix/components";
 import { Flex, Text, Token, View } from "@phoenix/components";
-import { AnnotatorKindToken } from "@phoenix/components/trace/AnnotatorKindToken";
+import { AnnotatorKindBadge } from "@phoenix/components/trace/AnnotatorKindBadge";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { isAnnotatorKind } from "@phoenix/constants";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
@@ -174,7 +174,10 @@ export function DocumentAnnotationItem({
                 <Text size="XS" color="text-900" weight="heavy">
                   Kind
                 </Text>
-                <AnnotatorKindToken kind={documentAnnotation.annotatorKind} />
+                <AnnotatorKindBadge
+                  kind={documentAnnotation.annotatorKind}
+                  size="S"
+                />
               </Flex>
             )}
           </Flex>

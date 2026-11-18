@@ -4,13 +4,17 @@ import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
 
 import { Alert, Flex } from "@phoenix/components";
 import { JSONText } from "@phoenix/components/code/JSONText";
+import { MarkerTrigger } from "@phoenix/components/core/markerTrigger";
 import {
   PreformattedTextCell,
   ResizableTable,
 } from "@phoenix/components/table";
 import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
-import { AnnotatorKindToken } from "@phoenix/components/trace/AnnotatorKindToken";
+import {
+  AnnotatorKindBadge,
+  getAnnotatorKindExplanation,
+} from "@phoenix/components/trace/AnnotatorKindBadge";
 import { SpanAnnotationDeleteButton } from "@phoenix/components/trace/SpanAnnotationDeleteButton";
 import { UserDisplay } from "@phoenix/components/user/UserDisplay";
 import { NOTE_ANNOTATION_NAME } from "@phoenix/constants/annotationConstants";
@@ -61,7 +65,13 @@ function AnnotationsTable({
         accessorKey: "annotatorKind",
         size: 100,
         cell: ({ row }) => (
-          <AnnotatorKindToken kind={row.original.annotatorKind} />
+          <MarkerTrigger
+            explanation={getAnnotatorKindExplanation(
+              row.original.annotatorKind
+            )}
+          >
+            <AnnotatorKindBadge kind={row.original.annotatorKind} />
+          </MarkerTrigger>
         ),
       },
       {

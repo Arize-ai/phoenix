@@ -2,7 +2,7 @@
  * The base color for each span kind as defined by openinference.
  *
  * This is the single source of truth for span kind colors — both the
- * SpanKindToken and the SpanKindIcon derive their theme-aware background,
+ * SpanKindBadge and the SpanKindIcon derive their theme-aware background,
  * border, and foreground colors from these base values so that the two
  * treatments stay visually consistent.
  */

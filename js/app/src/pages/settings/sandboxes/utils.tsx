@@ -4,11 +4,8 @@ import {
   Badge,
   Flex,
   MarkerTrigger,
-  RichTooltip,
   StatusIndicator,
   Text,
-  TooltipTrigger,
-  TriggerWrap,
 } from "@phoenix/components";
 import type { StatusCategory } from "@phoenix/components";
 import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
@@ -96,7 +93,7 @@ export function hostingTypeLabel(hostingType: HostingType) {
   }
 }
 
-const HOSTING_TYPE_TOOLTIP: Record<HostingType, string> = {
+const HOSTING_TYPE_EXPLANATION: Record<HostingType, string> = {
   LOCAL:
     "Runs on the same machine as the Phoenix server. Code is sandboxed, but " +
     "execution consumes Phoenix's CPU and memory.",
@@ -107,8 +104,9 @@ const HOSTING_TYPE_TOOLTIP: Record<HostingType, string> = {
 
 /**
  * A badge identifying whether a sandbox backend executes locally (on the
- * Phoenix server) or on a hosted provider, with a tooltip explaining the
- * resource trade-off.
+ * Phoenix server) or on a hosted provider, explaining the resource
+ * trade-off on hover. Where it runs is a type, not a judgment, so the two
+ * values take hues rather than variants.
  */
 export function SandboxHostingTypeBadge({
   hostingType,
@@ -116,21 +114,11 @@ export function SandboxHostingTypeBadge({
   hostingType: HostingType;
 }) {
   return (
-    <TooltipTrigger delay={100}>
-      <TriggerWrap>
-        <Badge
-          variant={hostingType === "LOCAL" ? "warning" : "info"}
-          css={css`
-            cursor: help;
-          `}
-        >
-          {hostingTypeLabel(hostingType)}
-        </Badge>
-      </TriggerWrap>
-      <RichTooltip width={280}>
-        <Text>{HOSTING_TYPE_TOOLTIP[hostingType]}</Text>
-      </RichTooltip>
-    </TooltipTrigger>
+    <MarkerTrigger explanation={HOSTING_TYPE_EXPLANATION[hostingType]}>
+      <Badge color={hostingType === "LOCAL" ? "neutral" : "blue"}>
+        {hostingTypeLabel(hostingType)}
+      </Badge>
+    </MarkerTrigger>
   );
 }
 
@@ -177,16 +165,11 @@ export function SandboxLanguageDialectBadge({
   if (languageDialect !== "RESTRICTED") {
     return null;
   }
-  return (
-    <TooltipTrigger delay={100}>
-      <TriggerWrap>
-        <Badge variant="warning">Restricted Python</Badge>
-      </TriggerWrap>
-      <RichTooltip width={320}>
-        <Text>{runtimeNotes}</Text>
-      </RichTooltip>
-    </TooltipTrigger>
-  );
+  const badge = <Badge variant="warning">Restricted Python</Badge>;
+  if (!runtimeNotes) {
+    return badge;
+  }
+  return <MarkerTrigger explanation={runtimeNotes}>{badge}</MarkerTrigger>;
 }
 
 /**

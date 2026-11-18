@@ -11,3 +11,9 @@ export type SizingProps = {
    */
   size?: ComponentSize;
 };
+
+/**
+ * The sizes of the badge family: `S` inside menu items and pickers, `M`
+ * everywhere else.
+ */
+export type FamilySize = Exclude<ComponentSize, "L">;

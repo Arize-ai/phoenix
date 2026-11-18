@@ -6,6 +6,7 @@ import { Focusable } from "react-aria";
 import { graphql, useFragment } from "react-relay";
 
 import {
+  Badge,
   Flex,
   Heading,
   Icon,
@@ -187,9 +188,9 @@ export function ModelsTable({
               </Truncate>
               <View flex="none">
                 {row.original.kind === "CUSTOM" ? (
-                  <Token>custom</Token>
+                  <Badge>custom</Badge>
                 ) : (
-                  <Token color="var(--global-color-blue-500)">built-in</Token>
+                  <Badge color="blue">built-in</Badge>
                 )}
               </View>
             </Flex>

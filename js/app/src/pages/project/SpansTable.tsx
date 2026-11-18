@@ -66,7 +66,7 @@ import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftCli
 import { TraceTokenCosts } from "@phoenix/components/trace";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
-import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
+import { SpanKindBadge } from "@phoenix/components/trace/SpanKindBadge";
 import { SpanStatusIndicator } from "@phoenix/components/trace/SpanStatusIndicator";
 import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
@@ -610,7 +610,7 @@ export function SpansTable(props: SpansTableProps) {
       maxSize: 100,
       enableSorting: false,
       cell: ({ getValue }) => {
-        return <SpanKindToken spanKind={getValue() as string} />;
+        return <SpanKindBadge spanKind={getValue() as string} />;
       },
     },
     {

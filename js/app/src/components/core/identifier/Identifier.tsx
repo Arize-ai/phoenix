@@ -62,7 +62,10 @@ const copyButtonCSS = css`
   align-items: center;
   gap: var(--global-dimension-size-50);
   min-width: 0;
-  max-width: 100%;
+  /* The negative inline margins let the hover wash bleed past the text
+     without shifting it; widen the cap by the same amount so the value is
+     not truncated where it fits. */
+  max-width: calc(100% + 2 * var(--global-dimension-size-50));
   margin: calc(-1 * var(--global-dimension-size-25))
     calc(-1 * var(--global-dimension-size-50));
   padding: var(--global-dimension-size-25) var(--global-dimension-size-50);

@@ -343,12 +343,12 @@ describe("AgentModelPicker", () => {
     ).toBeGreaterThanOrEqual(1);
   });
 
-  it("still lists models without a key, marked Add key", async () => {
+  it("still lists models without a key, marked Needs credentials", async () => {
     renderPicker();
     await openAndType("gemini");
 
     const gemini = findItem("gemini-3.7-flash");
-    expect(gemini.textContent).toContain("Add key");
+    expect(gemini.textContent).toContain("Needs credentials");
     await act(() => userEvent.setup().click(gemini));
     expect(onChange).toHaveBeenCalledWith({
       provider: "GOOGLE",
@@ -457,7 +457,7 @@ describe("AgentModelPicker", () => {
     expect(getSubmenuNames()[0]).toBe("Google");
     const google = findSubmenuItem("Google");
     expect(google.textContent).toContain("Guessed from the name");
-    expect(google.textContent).toContain("Add key");
+    expect(google.textContent).toContain("Needs credentials");
     expect(findSubmenuItem("Azure OpenAI").textContent).toContain(
       "As a deployment name"
     );

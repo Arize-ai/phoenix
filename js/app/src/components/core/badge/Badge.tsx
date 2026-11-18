@@ -1,85 +1,143 @@
 import { css } from "@emotion/react";
+import type { ReactNode } from "react";
 
+import type { FamilySize } from "@phoenix/components/core/types";
+import { truncateSingleCSS } from "@phoenix/components/core/utility/Truncate";
 import { useTheme } from "@phoenix/contexts/ThemeContext";
-import { classNames } from "@phoenix/utils/classNames";
 
-import { derivedColorCSS, inheritedStateCSS } from "../styles";
-import type { BadgeProps } from "./types";
+import { derivedColorCSS, familySizeCSS, inheritedStateCSS } from "../styles";
+
+/**
+ * The categorical hues a nominal Kind may take. Green, orange and red are left
+ * out because they are the success, warning and danger variants: a green span
+ * kind would read as "OK".
+ */
+export const BADGE_COLORS = [
+  "neutral",
+  "blue",
+  "cyan",
+  "indigo",
+  "purple",
+  "fuchsia",
+  "magenta",
+  "seafoam",
+  "chartreuse",
+  "yellow",
+] as const;
+
+export type BadgeColor = (typeof BADGE_COLORS)[number];
+
+/**
+ * The variants an evaluative Kind may take, each meaning what it means
+ * everywhere else in Phoenix: good, worth knowing, caution, harm.
+ */
+export const BADGE_VARIANTS = ["success", "info", "warning", "danger"] as const;
+
+export type BadgeVariant = (typeof BADGE_VARIANTS)[number];
+
+interface BadgeBaseProps {
+  /**
+   * The classification, one value from a closed set.
+   */
+  children: ReactNode;
+  /**
+   * `S` inside menu items and pickers; `M` everywhere else, table cells
+   * included.
+   * @default "M"
+   */
+  size?: FamilySize;
+  /**
+   * An icon set before the label.
+   */
+  leadingVisual?: ReactNode;
+}
+
+interface NominalBadgeProps extends BadgeBaseProps {
+  /**
+   * The categorical hue that identifies this value of a nominal axis, one
+   * that names a type.
+   * @default "neutral"
+   */
+  color?: BadgeColor;
+  variant?: never;
+}
+
+interface EvaluativeBadgeProps extends BadgeBaseProps {
+  /**
+   * The judgment this value of an evaluative axis makes. Every value of the
+   * axis takes a variant; its unremarkable value is a neutral `color`.
+   */
+  variant: BadgeVariant;
+  color?: never;
+}
+
+export type BadgeProps = NominalBadgeProps | EvaluativeBadgeProps;
 
 const badgeCSS = css`
+  ${familySizeCSS};
   ${derivedColorCSS};
   ${inheritedStateCSS};
-  display: inline-flex;
-  align-items: center;
-  gap: var(--global-badge-gap);
-  border-radius: var(--global-badge-border-radius);
-  white-space: normal;
-  box-sizing: border-box;
+  border-radius: var(--global-rounding-large);
 
-  &[data-overflow-mode="truncate"] {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  &[data-color="neutral"] {
+    --family-base-color: var(--global-color-gray-600);
   }
+  ${BADGE_COLORS.filter((color) => color !== "neutral")
+    .map(
+      (color) =>
+        `&[data-color="${color}"] { --family-base-color: var(--global-color-${color}-500); }`
+    )
+    .join("\n")}
+  ${BADGE_VARIANTS.map(
+    (variant) =>
+      `&[data-variant="${variant}"] { --family-base-color: var(--global-color-${variant}); }`
+  ).join("\n")}
 
-  /* Sizes. Line heights are paired with the font sizes so the badge keeps
-     its own compact line box instead of stretching to a line-height
-     inherited from surrounding text. */
-  &[data-size="S"] {
-    font-size: var(--global-badge-font-size-s);
-    line-height: var(--global-line-height-xs);
-    padding: var(--global-badge-padding-y-s) var(--global-badge-padding-x-s);
+  .badge__leading-visual {
+    display: flex;
+    flex: none;
+    font-size: 1em;
   }
-  &[data-size="M"] {
-    font-size: var(--global-badge-font-size-m);
-    line-height: var(--global-line-height-s);
-    padding: var(--global-badge-padding-y-m) var(--global-badge-padding-x-m);
-  }
-  &[data-size="L"] {
-    font-size: var(--global-badge-font-size-l);
-    line-height: var(--global-line-height-m);
-    padding: var(--global-badge-padding-y-l) var(--global-badge-padding-x-l);
-  }
-
-  /* Variants */
-  &[data-variant="info"] {
-    --family-base-color: var(--global-color-info);
-  }
-  &[data-variant="success"] {
-    --family-base-color: var(--global-color-success);
-  }
-  &[data-variant="warning"] {
-    --family-base-color: var(--global-color-warning);
-  }
-  &[data-variant="danger"] {
-    --family-base-color: var(--global-color-danger);
+  .badge__text {
+    ${truncateSingleCSS};
+    min-width: 0;
   }
 `;
 
-export const Badge = ({
+/**
+ * A Kind: the classification of a thing, one value from a closed set. Round,
+ * because it is a property of the thing it sits on. A nominal axis, such as
+ * span kind, names a type and takes a categorical `color`; an evaluative
+ * axis, such as a recommendation, judges the thing and takes a `variant`.
+ *
+ * A Badge is never its own hit target and is never focusable. To open detail
+ * from one, put it inside a `MarkerTrigger`; the Badge then shows the
+ * trigger's hover and pressed state. To filter by a kind, give the cell, row
+ * or a menu the affordance, not the Badge.
+ */
+export function Badge({
   children,
-  variant = "default",
-  size = "S",
-  overflowMode = "wrap",
-  css: propCSS,
-  className,
-  ...otherProps
-}: BadgeProps) => {
+  color = "neutral",
+  variant,
+  size = "M",
+  leadingVisual,
+}: BadgeProps) {
   const { theme } = useTheme();
-
   return (
     <span
-      {...otherProps}
-      css={css(badgeCSS, propCSS)}
+      className="badge"
+      css={badgeCSS}
+      data-color={variant ? undefined : color}
       data-variant={variant}
       data-size={size}
-      data-overflow-mode={overflowMode}
       data-theme={theme}
-      // The emotion jsx transform delivers a caller's `css` prop as
-      // `className`, so it must be merged, not overwritten.
-      className={classNames("badge", className)}
     >
-      {children}
+      {leadingVisual ? (
+        <span className="badge__leading-visual" aria-hidden>
+          {leadingVisual}
+        </span>
+      ) : null}
+      <span className="badge__text">{children}</span>
     </span>
   );
-};
+}
