@@ -171,7 +171,7 @@ Some rules hold across tasks:
 - **Annotations need recall on each class.** A check requires a minimum recall on good
   cases and on bad cases separately, so labeling everything one way fails.
 - **Judges run on a small model.** Tasks that ask for an LLM judge ask for
-  `gpt-5-nano`, and the rerun refuses any other model. On it, the reference prompts pass
+  `gpt-5-nano`, and the rerun refuses any other chat model. On it, the reference prompts pass
   and naive prompts, such as raw span JSON with labels that aren't defined, fail.
 - **Replies are graded on extracted claims.** An LLM reads the reply, without seeing the
   answers, and extracts the decision and each number with a quote. Code checks that the
@@ -200,7 +200,8 @@ verifier points the script's OpenAI and Anthropic clients at a proxy inside the 
 forwards each request and does two things with it:
 
 - It refuses any model other than `gpt-5-nano` with a 403 error, the way a key scoped to
-  that model would.
+  that model would. Embedding requests pass, so a script can still pick examples by
+  similarity.
 - It records the request, so the verifier can see the judge prompts the script sends.
 
 From the recorded requests, the verifier reports two measures of the judges the agent

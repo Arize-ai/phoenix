@@ -610,7 +610,7 @@ def check_report_claim_sets(
     reply: str,
     tolerance: float = 0.011,
 ) -> dict[str, dict[str, bool]]:
-    """Checks each complete, internally consistent set of expected report claims."""
+    """Returns the `check_report_claims` results for each accepted set of expected values."""
     return {
         name: check_report_claims(claims, expected, reply, tolerance)
         for name, expected in expected_sets.items()

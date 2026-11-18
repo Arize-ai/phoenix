@@ -95,7 +95,7 @@ classes, so a constant label fails.
 | Check | Type | Uses | Passes when |
 | --- | --- | --- | --- |
 | `production_traces` | Code | `grading_data.json` | The annotations cover at least 95% of the 60 production traces, and call at least 80% of grounded replies grounded and at least 80% of ungrounded replies ungrounded. |
-| `new_traces` | Code | `grading_data.json` | The verifier adds the 36 new traces in the last 6 hours and runs `python evals/nightly_grounding.py` from `/app` as the agent user, with a 15-minute limit. A local proxy refuses every model except `gpt-5-nano` with a 403. The new traces' annotations then meet the same coverage and recall bars. |
+| `new_traces` | Code | `grading_data.json` | The verifier adds the 36 new traces in the last 6 hours and runs `python evals/nightly_grounding.py` from `/app` as the agent user, with a 15-minute limit. A local proxy refuses every chat model except `gpt-5-nano` with a 403. The new traces' annotations then meet the same coverage and recall bars. |
 | `reply` | LLM extraction, then code | `expected.json`, `grading_data.json` | The final reply names each of the five bugs with its mechanism. It also reports a grounded rate within 1.1 points of the share that the agent's production annotations give, over all 60 traces or over the 58 without a timeout, and inside the range that annotations passing `production_traces` can give: 31 to 42 of 60 (52% to 70%), or 30 to 41 of 58 (52% to 71%). |
 
 For `reply`, an LLM (`gpt-6-luna`) reads the reply without seeing the expected values.

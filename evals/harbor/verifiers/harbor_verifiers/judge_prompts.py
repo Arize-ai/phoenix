@@ -53,7 +53,7 @@ class Recorder:
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
     def allows(self, model: str, path: str) -> bool:
-        """Checks the generation model while allowing independent embedding models."""
+        """Checks whether a request to `path` may use `model`. Embedding requests always may."""
         if path.rstrip("/").endswith("/embeddings"):
             return True
         if self.allowed_models is None:
@@ -129,9 +129,8 @@ def _handler(recorder: Recorder) -> type[BaseHTTPRequestHandler]:
 def record_llm_calls(allowed_models: Collection[str] | None = None) -> Iterator[Recorder]:
     """Records the OpenAI and Anthropic requests of any process run with `recorder.env`.
 
-    If `allowed_models` is set, the proxy refuses other generation models with a 403
-    error. Embedding endpoints remain available because embedding and judge models are
-    configured independently.
+    If `allowed_models` is set, the proxy refuses other models with a 403 error, as a key
+    scoped to those models would. Embedding requests pass with any model.
     """
     recorder = Recorder(allowed_models=allowed_models)
     server = ThreadingHTTPServer(("127.0.0.1", 0), _handler(recorder))
