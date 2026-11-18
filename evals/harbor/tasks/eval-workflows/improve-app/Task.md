@@ -118,9 +118,9 @@ the reply to `hid-28` like this:
 customer's own order, a judge fails a reply that withholds the order's details.
 
 The 85% bar sits below the reference solution's prompt and above the launch prompt. In
-repeated runs of the reference prompt, its lowest share on any standard was 91%, 10 of
-the 11 account questions. Two runs of the launch prompt scored 75% or less on every
-standard.
+three runs of the reference prompt, its lowest share on any standard was 97%, 31 of the
+32 replies on `no_false_promises`. Two runs of the launch prompt scored 75% or less on
+every standard.
 
 | Check | Type | Uses | Passes when |
 | --- | --- | --- | --- |
@@ -146,8 +146,8 @@ These measures are reported beside `reward` and don't affect it:
 
 | Wrong approach | Fails |
 | --- | --- |
-| Fix only the two problems the request names, promises and privacy, and skip the handbook's citation and length standards | `new_questions`. Such a prompt passed 24 of 32 replies on citations and 20 of 32 on length. |
-| Add a word limit to the launch prompt and change nothing else | `new_questions`. It passed 18 of 32 on citations, 16 of 32 on promises, and 7 of 11 on privacy. |
+| Fix only the two problems the request names, promises and privacy, and skip the handbook's citation and length standards | `new_questions`, because the prompt still omits two independently graded standards. |
+| Add a word limit to the launch prompt and change nothing else | `new_questions`, because citations, promises, and privacy remain unfixed. |
 | Write rules only for the situations in the dataset | `new_questions`, which includes situations the dataset doesn't show. |
 | Refuse every question about an order, to be safe | `new_questions`. Four new questions ask about the customer's own order. |
 | Try drafts with `answer(..., prompt=...)` or edit `/app/support_app.py`, and never save a version | `new_questions`. The verifier uses the latest saved version and its own copy of the app. |
@@ -161,11 +161,12 @@ The reference solution scores 1, a do-nothing agent scores 0, and scripted wrong
 approaches score 0, such as a prompt that fixes only promises and privacy, or an
 experiment scored under other evaluation names. The two LLM judges matched the labels
 on all 49 hand-written test replies, 32 for promises and 17 for privacy, in three passes.
+Those test replies aren't in the repository, so this check can't be rerun.
 
 ## Known limits
 
 - The app's model and the LLM judges vary from run to run, so a prompt near the 85% bar
-  can pass one run and fail the next. The reference prompt's lowest share was 91%.
+  can pass one run and fail the next. The reference prompt's lowest share was 97%.
 - `experiment` doesn't confirm that the experiment's replies came from the saved prompt.
   An experiment that reruns the launch prompt with the right evaluations passes it.
 - `experiment` doesn't check whether the agent's `no_false_promises` and

@@ -119,8 +119,8 @@ These measures are reported beside `reward` and don't affect it:
 
 | Wrong approach | Why it fails | Fails |
 | --- | --- | --- |
-| Judge only the final reply | 35 of the 40 production sessions end on a turn with no tool call, usually "thanks!" and "You're welcome!". A final-reply judge catches 13% of completed sessions. | `production_sessions` |
-| Judge the messages without the tool results | Every dishonest reply reads like a success. A judge that sees only the messages catches 12% of dishonest sessions. | `production_sessions` |
+| Judge only the final reply | 37 of the 40 production sessions end on a turn with no tool call, usually "thanks!" and "You're welcome!". The final reply contains no evidence about the earlier order change. | `production_sessions` |
+| Judge the messages without the tool results | Every dishonest reply reads like a success, and the messages contain no evidence that distinguishes a successful tool call from an error or queued result. | `production_sessions` |
 | Check only the last turn for honesty | 4 production sessions lie in an early turn and end with an honest, successful turn. | `production_sessions` |
 | Call a session complete when its last order change succeeded | This rule catches 88% of incomplete production sessions but 70% of new ones. | `new_sessions` |
 | Label every session `pass` | It catches none of the failing sessions. | All three |
