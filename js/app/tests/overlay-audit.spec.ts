@@ -119,7 +119,7 @@ const viewportDialogCases: Record<string, ViewportDialogCase> = {
   "Create New Model": {
     route: "/settings/models",
     dialogName: "Create New Model",
-    trigger: (page) => page.getByRole("button", { name: "Create a new model" }),
+    trigger: (page) => page.getByTestId("create-model-button"),
   },
 };
 

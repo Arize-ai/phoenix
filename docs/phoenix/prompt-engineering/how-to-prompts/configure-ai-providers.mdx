@@ -86,6 +86,8 @@ Set these variables in the server environment. Phoenix uses them when it invokes
 
 The OpenAI-compatible built-in providers (OpenAI, DeepSeek, xAI, Ollama, Cerebras, Fireworks, Groq, Moonshot, MiniMax, Perplexity, Together, Z.ai, and Meta) also read a `<PROVIDER>_BASE_URL` variable, for example `DEEPSEEK_BASE_URL` or `META_BASE_URL`. Use it to send requests to a different endpoint, for example a proxy or a regional API. Ollama has no default endpoint, so this variable is required for Ollama.
 
+Azure OpenAI decision models use the same `AZURE_OPENAI_ENDPOINT` and `AZURE_OPENAI_API_KEY`. If you set no API key, Phoenix uses default Azure credentials. Enter the deployment name as the model name. The model menu suggests the same names as OpenAI. Any deployment name the endpoint accepts works.
+
 <Info>
 For Azure, you can also set these server-side environment variables to use [WorkloadIdentityCredential](https://learn.microsoft.com/en-us/python/api/azure-identity/azure.identity.workloadidentitycredential?view=azure-python): `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, and `AZURE_FEDERATED_TOKEN_FILE`.
 

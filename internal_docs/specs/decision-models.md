@@ -943,6 +943,12 @@ and `SystemOneResponse`). These are what the shared translation fixtures in the
 | Usage: input and output tokens | Also cached, cache-write, and reasoning tokens | Input and output tokens | OpenAI's extra token counts, which are kept only on the span |
 | Resolved model | `model` | `model` | Nothing |
 
+Gemini Decisions ([Google](#108-google)) has System One's shapes, with these
+differences: the state is `input` text, as for OpenAI; predicate criteria are
+`true_description` and `false_description`; a choice without a description
+sends `""`, not null; a whole-input safety block is a refusal of every
+question; and the response names no model.
+
 ### 10.4 Models and Preview Flags
 
 `model_name` is free text, and a version pins it. The catalog only suggests
@@ -954,22 +960,34 @@ model the provider no longer lists.
 ### 10.5 Custom Providers
 
 A run reaches either a built-in provider or a custom provider, and a version's
-`custom_provider_id` names the second. What a custom provider can serve comes
-from its SDK (`sdk_offers_chat`, `sdk_offers_decisions`), not its name:
+`custom_provider_id` names the second. Which model types a custom provider
+serves is stored as one `custom_provider_model_types` row per type, and its
+suggested model names as ordered `model_profiles` rows linked through
+`custom_provider_model_profiles` (bounded by `sdk_offers_chat` and
+`sdk_offers_decisions`):
 
-- An `openai` provider serves both. The same endpoint, key, organization,
-  project, and headers run chat or OpenAI's Decisions API; the model type chosen
-  decides which. `openai_api_type` stays a choice between chat surfaces.
+- An `openai` provider always serves chat and can also serve OpenAI's Decisions
+  API when it has a `decision` type row. Both use the provider's base URL, API key,
+  organization, project, and headers. `openai_api_type` stays a choice between
+  chat surfaces.
+- An `azure_openai` provider always serves chat and can also serve OpenAI's
+  Decisions API when it has a `decision` type row. Both use the provider's Azure
+  endpoint and credentials. The model name is the deployment name. The request is
+  `POST {endpoint}/openai/v1/decisions`. The span's `decision.system` is `openai`,
+  because the call is the OpenAI Decisions API.
 - A `typesafe` provider is any System One-compatible endpoint (API key, base
   URL, headers). It serves decision models only, so every chat path refuses it:
   prompts (no prompt provider is compatible with it), the playground, agents,
   and online evals through their prompts.
+- A `google_genai` provider always serves chat and can also serve the Gemini
+  Decisions API when it has a `decision` type row, with the provider's API key,
+  base URL, and headers.
 - Other SDKs serve chat only, and `runDecision` refuses them.
 
 A custom provider brings its own connection. Neither the server's environment
 nor its stored secrets are consulted, and the OpenAI SDK is kept from reading
 `OPENAI_*` variables, so the server's organization never reaches another host.
-The span's `decision.system` is the API family (`openai`, `typesafe`) and
+The span's `decision.system` is the API family (`openai`, `typesafe`, `google`) and
 `decision.provider` is the custom provider's own `provider` name, the host.
 
 The catalog suggests model names per model type (`modelNames(modelType:)`); any
@@ -1006,21 +1024,54 @@ trailing `/v1` is dropped, as for Ollama. The catalog suggests
 and `decision.provider` is `fireworks`, a plain string until OpenInference has
 a value.
 
-### 10.8 Azure OpenAI
+### 10.8 Google
 
-Azure OpenAI serves OpenAI's Decisions API at `{endpoint}/openai/v1/decisions`,
-so the built-in `AZURE_OPENAI` provider runs it with the OpenAI adapter and
-serves both model types. It is configured the way Azure chat is:
-`AZURE_OPENAI_API_KEY`, and the resource endpoint from the run or
-`AZURE_OPENAI_ENDPOINT`, with no default. `/openai/v1` is appended unless the
-endpoint already ends with it. Like chat, it uses the plain OpenAI client on
-Azure's v1 API, which takes no `api-version`. The model name is the user's
-deployment name, so the catalog suggests none. As for a custom provider, the
-OpenAI SDK is kept from reading `OPENAI_*` variables, so the server's OpenAI
-organization and project never reach Azure. An API key is required: unlike
-chat, decisions don't fall back to Entra ID (`DefaultAzureCredential`), and the
-playground's per-model Azure endpoint isn't sent on decision runs. The span's
-`decision.system` is `openai` and `decision.provider` is `azure`.
+The built-in `GOOGLE` provider runs the Gemini Decisions API
+(`POST /v1beta/decisions`) through `google-genai` >= 3.2
+(`client.aio.decisions.create`), so the package floor is 3.2. It is configured
+the way Gemini chat is: `GEMINI_API_KEY`, then `GOOGLE_API_KEY`. The catalog
+suggests `gemini-decision-1`. The SDK's default API version is `v1`, which has
+no decisions route, so every call passes `api_version="v1beta"`; a base URL is
+the bare host, since the SDK appends the version. Google GenAI custom providers
+serve it too (section 10.5).
+
+- **Questions.** The question name is the map key, so it must match
+  `[A-Za-z0-9_-]{1,64}`, checked before sending; at most 1,000 questions. A
+  predicate is a `noul` with `criteria.true_description` /
+  `false_description`; a choice's criteria map each value to its description
+  (`""` when it has none); a scale's criteria are the level descriptions, or
+  labels. The state is sent as `input` text, JSON serialized.
+- **Answers.** `noul` is the predicate probability; a `score` is the
+  probability-weighted average of level indices, Phoenix's `expected_level`,
+  and its string level keys become integers. `confidence` passes through.
+- **Blocks.** Gemini blocks the whole input, never one question, so a block is
+  a `RefusalAnswer` for every question: an HTTP 400 whose `error.code` is
+  `safety`, `prohibited_content`, `blocklist`, `image_safety`, or
+  `content_blocked`, or a `prompt_feedback.block_reason`. Other 400s fail the
+  run.
+- **Span.** The response doesn't echo the model, so the requested one is
+  recorded. Tokens are `usage.total_input_tokens` and `total_output_tokens`
+  (always 0). `decision.system` and `decision.provider` are `google`, plain
+  strings until OpenInference has a value.
+- **Endpoint check.** A Google custom provider's check posts the sentinel
+  model and passes on Gemini's own rejection, a 404 with
+  `{"error": {"code": "not_found", "message": "Requested model not found. ..."}}`
+  (the message doesn't name the model), or on a decision response. Google's
+  generic 404 has a numeric `code` and fails.
+
+### 10.9 Azure OpenAI
+
+The built-in `AZURE_OPENAI` provider runs OpenAI's Decisions API
+(`POST {endpoint}/openai/v1/decisions`) with the same client as a custom Azure
+provider: a plain `AsyncOpenAI` at `{endpoint}/openai/v1/`. It is configured
+the way Azure chat is. The endpoint comes from the run or
+`AZURE_OPENAI_ENDPOINT`. The key is `AZURE_OPENAI_API_KEY`, then a stored
+secret, and default Azure credentials when no key is set. A request-supplied
+endpoint never receives the server-configured key. The model name is the
+deployment name. The catalog suggests the same names as OpenAI; any deployment
+name works. The span's `decision.system` is `openai` and `decision.provider`
+is `azure`, a plain string until OpenInference has a value. Azure OpenAI
+custom providers serve it too (section 10.5).
 
 ## 11. App Access
 
@@ -1366,7 +1417,7 @@ by where a judge runs:
 
 - **A decision judge in an experiment or online evaluation:** `DecisionClient`
   always disables provider SDK retries (`max_retries=0`, matching
-  `PlaygroundClient`), and the runner or online-eval executor owns retry backoff
+  `ChatClient`), and the runner or online-eval executor owns retry backoff
   so retries never stack. As for any retried work, a retried attempt's trace is
   not kept.
 - **A decision judge in a preview:** `DecisionClient` still runs with
@@ -1730,10 +1781,10 @@ is in the [appendix](#19-appendix-decision-evaluator-implementation).
 ## 17. Implementation Status
 
 Everywhere Phoenix uses a chat model, a decision model needs an equivalent.
-Providers and models are done: built-in TypeSafe, OpenAI, Ollama, Fireworks,
-and Azure OpenAI (API key only); custom
-`openai` and `typesafe` providers with capability checks; credentials; the
-catalog; and decision models kept out of every chat path. The server also
+Providers and models are done: built-in TypeSafe, OpenAI, Azure OpenAI, Google,
+Ollama, and Fireworks; custom `openai`, `azure_openai`, `google_genai`, and
+`typesafe` providers with capability checks; credentials; the catalog; and
+decision models kept out of every chat path. The server also
 blocks deleting a custom provider referenced by a saved decision version or a
 decision experiment task. The tables follow the [Build Order](#18-build-order),
 one per track, with the chat equivalent of each step in parentheses.

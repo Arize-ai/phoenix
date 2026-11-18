@@ -68,17 +68,18 @@ export function NewModelButton({
       }}
     >
       <Button
+        data-testid="create-model-button"
         variant="primary"
         size="S"
         leadingVisual={<Icon svg={<Icons.Plus />} />}
-        aria-label="Create a new model"
+        aria-label="Add a model cost"
         onPress={() => {
           setError(null);
           setIsOpen(true);
         }}
         isDisabled={isCommitting}
       >
-        {isCommitting ? "Adding Model..." : "Add Model"}
+        {isCommitting ? "Adding Model Cost..." : "Add Model Cost"}
       </Button>
       <ViewportModalOverlay>
         <ViewportModal>

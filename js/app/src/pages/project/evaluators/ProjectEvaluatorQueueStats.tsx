@@ -215,7 +215,10 @@ function ProjectEvaluatorQueueStatsContent({
           description="The number of this project's evaluations completed in the last hour. This number includes evaluations that failed."
         />
       </Flex>
-      <OldestWaitStat oldestWaitingAt={projectQueue?.oldestWaitingAt ?? null} />
+      <OldestWaitStat
+        oldestWaitingAt={projectQueue?.oldestWaitingAt ?? null}
+        help={QUEUE_STAT_HELP.oldestWait}
+      />
     </>
   );
 }

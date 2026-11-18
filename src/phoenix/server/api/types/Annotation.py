@@ -37,7 +37,7 @@ class AnnotationMetadataMixin:
         self,
         info: Info[Context, None],
     ) -> Optional[Annotated["DecisionAnnotation", strawberry.lazy(".DecisionAnnotation")]]:
-        # Imported here: the decision clients import the playground clients, which import
+        # Imported here: the decision clients import the chat clients, which import
         # the annotation types.
         from phoenix.server.api.types.DecisionAnnotation import (
             decision_annotation_from_metadata,

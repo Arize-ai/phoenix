@@ -29,9 +29,10 @@ class BuiltInDecisionConnectionInput:
     base_url: Optional[str] = strawberry.field(
         default=None,
         description=(
-            "Send the request to this endpoint instead of the provider default. Requires an "
-            "API key in `credentials` or a stored secret; the server-configured key is never "
-            "sent to a custom URL."
+            "Send the request to this endpoint instead of the provider default. For Azure "
+            "OpenAI, this is the resource endpoint (https://<resource>.openai.azure.com). "
+            "Requires an API key in `credentials` or a stored secret; the server-configured "
+            "key is never sent to a custom URL."
         ),
     )
     credentials: Optional[list[GenerativeCredentialInput]] = strawberry.field(
@@ -46,8 +47,8 @@ class BuiltInDecisionConnectionInput:
 @strawberry.input(
     description=(
         "A custom provider, reached with its stored key, endpoint, and headers. Its SDK must "
-        "serve decision models: `openai` runs OpenAI's Decisions API, `typesafe` runs System "
-        "One."
+        "serve decision models: `openai` runs OpenAI's Decisions API, `azure_openai` runs that "
+        "API on Azure, `typesafe` runs System One, and `google_genai` runs Gemini's Decisions API."
     )
 )
 class CustomProviderDecisionConnectionInput:

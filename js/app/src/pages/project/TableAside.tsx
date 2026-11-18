@@ -5,6 +5,7 @@ import type { PanelImperativeHandle } from "react-resizable-panels";
 
 import {
   Button,
+  ContextualHelp,
   CopyField,
   CopyInput,
   ErrorBoundary,
@@ -17,7 +18,6 @@ import {
   TextErrorBoundaryFallback,
   View,
 } from "@phoenix/components";
-import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -129,25 +129,13 @@ export function TableAsideToggleButton() {
   );
 }
 
-/**
- * A single labeled stat in an aside's Stats panel.
- */
-const statLabelCSS = css`
-  display: inline-flex;
-  align-items: center;
-  gap: var(--global-dimension-size-25);
-  white-space: nowrap;
-  /* The info tip's padding is hit area; don't let it widen the stat */
-  & > button {
-    margin-block: calc(-1 * var(--global-dimension-size-50));
-    margin-inline-end: calc(-1 * var(--global-dimension-size-50));
-  }
-`;
-
 const statHelpCSS = css`
   max-width: 280px;
 `;
 
+/**
+ * A single labeled stat in an aside's Stats panel.
+ */
 export function StatItem({
   label,
   help,
@@ -155,16 +143,15 @@ export function StatItem({
 }: {
   label: string;
   /**
-   * What the stat measures, behind an info tip beside the label. Give one when
-   * the label alone doesn't say how the value is counted. A string is rendered
-   * as small text.
+   * What the stat means, behind an info icon beside the label. Use it when
+   * the label alone does not say how to read the value.
    */
   help?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <Flex direction="column" flex="none">
-      <span css={statLabelCSS}>
+      <Flex direction="row" alignItems="center" gap="size-25">
         <Text elementType="h3" size="S" color="text-700">
           {label}
         </Text>
@@ -173,7 +160,7 @@ export function StatItem({
             {typeof help === "string" ? <Text size="S">{help}</Text> : help}
           </ContextualHelp>
         ) : null}
-      </span>
+      </Flex>
       {children}
     </Flex>
   );

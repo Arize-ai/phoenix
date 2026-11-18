@@ -7,12 +7,14 @@ evaluation writes to its project evaluator's trace project. An evaluator with tr
 no traces, so its evaluations count and lag like any other but add no cost.
 
 An evaluation's lag is from when it was queued, its work row's ``created_at``, to its result,
-the ``updated_at`` of the row's last transition. Work rows are not written once they reach an
-outcome, except that a trace or session evaluation that ended without a result is offered
-again when its trace or session has newer spans: the row returns to the queue with a new
-``created_at``, and the earlier offer leaves no record. Rows are deleted with their span,
-trace, session, or project evaluator, and finished span work is deleted once it is older than
-the online evaluation retention period, so a range reaching past it counts less than it covers.
+the ``updated_at`` of the row's last transition. Its evaluation time is the duration of the
+trace it writes, placed, like its cost, by when that trace started. Work rows are not written
+once they reach an outcome, except that a trace or session evaluation that ended without a
+result is offered again when its trace or session has newer spans: the row returns to the queue
+with a new ``created_at``, and the earlier offer leaves no record. Rows are deleted with their
+span, trace, session, or project evaluator, and finished span work is deleted once it is older
+than the online evaluation retention period, so a range reaching past it counts less than it
+covers.
 """
 
 from __future__ import annotations
@@ -58,12 +60,13 @@ class ActivityGroup:
     evaluated_count: int = 0
     failed_count: int = 0
     cost: Optional[float] = None
+    evaluation_seconds: Optional[float] = None
+    """The summed duration of the evaluations' traces started in the range; None if none."""
 
 
 @dataclass(frozen=True)
 class ActivityBinGroup:
-    """One group's activity in one time bin. ``queue_size`` is how many of its evaluations
-    were in queue at the bin's end."""
+    """One group's activity in one time bin."""
 
     project_id: int
     project_evaluator_id: Optional[int]
@@ -72,13 +75,14 @@ class ActivityBinGroup:
     added_count: int = 0
     lag_p95_seconds: Optional[float] = None
     cost: Optional[float] = None
-    queue_size: int = 0
 
 
 @dataclass(frozen=True)
 class ActivityBin:
     timestamp: datetime
     groups: tuple[ActivityBinGroup, ...]
+    queue_size: int = 0
+    """How many evaluations in scope were in queue at the bin's end; 0 unless read."""
 
 
 @dataclass(frozen=True)
@@ -119,13 +123,28 @@ async def load_evaluation_activity(
     start: datetime,
     end: datetime,
     time_bins: TimeBucketSpec,
+    read_counts: bool = True,
+    read_added: bool = True,
+    read_cost: bool = True,
+    read_evaluation_seconds: bool = True,
     read_queue_size: bool = False,
 ) -> EvaluationActivity:
     """Activity of one project's evaluators, grouped by project evaluator, or, with no
     ``project_id``, of every project evaluator on the server, grouped by project.
 
-    The queue's size at each bin's end is read with ``read_queue_size``, and is otherwise 0:
-    it reads every evaluation in queue in the scope, so it costs as much as the queue is long.
+    Each part of the activity is a read of its own, made only when asked for, and otherwise
+    left at its zero or None:
+
+    - ``read_counts``: evaluated and failed counts, and lag, from the work rows completed in
+      the range. Groups are ordered by them, so without them groups keep a fixed order.
+    - ``read_added``: evaluations added to the queue in each bin.
+    - ``read_cost``: cost, from the evaluators' traces started in the range.
+    - ``read_evaluation_seconds``: how long those traces took, summed per group.
+    - ``read_queue_size``: the queue's size at each bin's end. It reads every evaluation in
+      queue in the scope, so it costs as much as the queue is long.
+
+    A bin lists the groups with counts, additions, or cost in it, so a caller reading a bin's
+    groups reads all three, or the bins would list fewer groups.
     """
     reader = _ActivityReader(
         dialect=db.dialect,
@@ -134,6 +153,10 @@ async def load_evaluation_activity(
         start=start,
         end=end,
         time_bins=time_bins,
+        read_counts=read_counts,
+        read_added=read_added,
+        read_cost=read_cost,
+        read_evaluation_seconds=read_evaluation_seconds,
         read_queue_size=read_queue_size,
     )
     async with db.read() as session:
@@ -178,6 +201,7 @@ class _GroupTotals:
     evaluated_count: int = 0
     failed_count: int = 0
     cost: Optional[float] = None
+    evaluation_seconds: Optional[float] = None
     bins: dict[int, _GroupBin] = field(default_factory=dict)
     queue_sizes: list[int] = field(default_factory=list)
 
@@ -190,6 +214,10 @@ class _ActivityReader:
     start: datetime
     end: datetime
     time_bins: TimeBucketSpec
+    read_counts: bool
+    read_added: bool
+    read_cost: bool
+    read_evaluation_seconds: bool
     read_queue_size: bool
 
     async def read(self, session: AsyncSession) -> EvaluationActivity:
@@ -218,6 +246,66 @@ class _ActivityReader:
                 excludes_untraced_evaluators = True
         groups = {key: _GroupTotals(queue_sizes=[0] * len(bins)) for key in project_ids}
 
+        if self.read_counts:
+            await self._read_counts(session, groups, bin_index)
+        if self.read_added:
+            await self._read_added(session, groups, group_keys_by_evaluator, bin_index)
+        if self.read_queue_size:
+            await self._read_queue_size(session, groups, group_keys_by_evaluator, bin_index)
+        if self.read_cost:
+            await self._read_cost(session, groups, bin_index)
+        if self.read_evaluation_seconds:
+            await self._read_evaluation_seconds(session, groups)
+
+        group_keys = sorted(
+            groups,
+            key=lambda key: (-(groups[key].evaluated_count + groups[key].failed_count), key),
+        )
+        costs = [totals.cost for totals in groups.values() if totals.cost is not None]
+        return EvaluationActivity(
+            excludes_untraced_evaluators=excludes_untraced_evaluators,
+            evaluated_count=sum(totals.evaluated_count for totals in groups.values()),
+            failed_count=sum(totals.failed_count for totals in groups.values()),
+            cost=sum(costs) if costs else None,
+            groups=tuple(
+                ActivityGroup(
+                    *self._identity(key, project_ids[key]),
+                    evaluated_count=groups[key].evaluated_count,
+                    failed_count=groups[key].failed_count,
+                    cost=groups[key].cost,
+                    evaluation_seconds=groups[key].evaluation_seconds,
+                )
+                for key in group_keys
+            ),
+            series=tuple(
+                ActivityBin(
+                    timestamp=timestamp,
+                    groups=tuple(
+                        ActivityBinGroup(
+                            *self._identity(key, project_ids[key]),
+                            evaluated_count=bin_activity.evaluated_count,
+                            failed_count=bin_activity.failed_count,
+                            added_count=bin_activity.added_count,
+                            lag_p95_seconds=bin_activity.lag_p95_seconds,
+                            cost=bin_activity.cost,
+                        )
+                        for key in group_keys
+                        if i in groups[key].bins
+                        for bin_activity in [groups[key].bins[i]]
+                    ),
+                    queue_size=sum(totals.queue_sizes[i] for totals in groups.values()),
+                )
+                for i, timestamp in enumerate(bins)
+            ),
+        )
+
+    async def _read_counts(
+        self,
+        session: AsyncSession,
+        groups: dict[_GroupKey, _GroupTotals],
+        bin_index: dict[datetime, int],
+    ) -> None:
+        """Evaluations evaluated and failed in each bin, with their lag p95."""
         completed = _completed(self.scope, self.start, self.end)
         group = self._group(completed)
         bucket = self.time_bins.truncate(self.dialect, completed.c.completed_at)
@@ -240,54 +328,6 @@ class _ActivityReader:
             group_bin.lag_p95_seconds = lag_p95
             totals.evaluated_count += evaluated_count
             totals.failed_count += count - evaluated_count
-
-        await self._read_added(session, groups, group_keys_by_evaluator, bin_index)
-        if self.read_queue_size:
-            await self._read_queue_size(session, groups, group_keys_by_evaluator, bin_index)
-        await self._read_cost(session, groups, bin_index)
-
-        group_keys = sorted(
-            groups,
-            key=lambda key: (-(groups[key].evaluated_count + groups[key].failed_count), key),
-        )
-        costs = [totals.cost for totals in groups.values() if totals.cost is not None]
-        return EvaluationActivity(
-            excludes_untraced_evaluators=excludes_untraced_evaluators,
-            evaluated_count=sum(totals.evaluated_count for totals in groups.values()),
-            failed_count=sum(totals.failed_count for totals in groups.values()),
-            cost=sum(costs) if costs else None,
-            groups=tuple(
-                ActivityGroup(
-                    *self._identity(key, project_ids[key]),
-                    evaluated_count=groups[key].evaluated_count,
-                    failed_count=groups[key].failed_count,
-                    cost=groups[key].cost,
-                )
-                for key in group_keys
-            ),
-            series=tuple(
-                ActivityBin(
-                    timestamp=timestamp,
-                    groups=tuple(
-                        ActivityBinGroup(
-                            *self._identity(key, project_ids[key]),
-                            evaluated_count=group_bin.evaluated_count,
-                            failed_count=group_bin.failed_count,
-                            added_count=group_bin.added_count,
-                            lag_p95_seconds=group_bin.lag_p95_seconds,
-                            cost=group_bin.cost,
-                            queue_size=queue_size,
-                        )
-                        for key in group_keys
-                        for group_bin, queue_size in [
-                            (groups[key].bins.get(i, _GroupBin()), groups[key].queue_sizes[i])
-                        ]
-                        if i in groups[key].bins or queue_size
-                    ),
-                )
-                for i, timestamp in enumerate(bins)
-            ),
-        )
 
     async def _read_added(
         self,
@@ -375,6 +415,30 @@ class _ActivityReader:
             cost = float(cost or 0)
             totals.bins.setdefault(bin_index[_as_datetime(timestamp)], _GroupBin()).cost = cost
             totals.cost = (totals.cost or 0) + cost
+
+    async def _read_evaluation_seconds(
+        self,
+        session: AsyncSession,
+        groups: dict[_GroupKey, _GroupTotals],
+    ) -> None:
+        """How long the evaluations' traces started in the range took, summed per group."""
+        trace = models.Trace
+        project_evaluator = models.ProjectEvaluator
+        group = project_evaluator.project_id if self.by_project else project_evaluator.id
+        async for key, milliseconds in await session.stream(
+            sa.select(group, sa.func.sum(trace.latency_ms))
+            .select_from(project_evaluator)
+            .join(trace, trace.project_rowid == project_evaluator.trace_project_id)
+            .where(
+                project_evaluator.id.in_(self.scope),
+                trace.start_time >= self.start,
+                trace.start_time < self.end,
+            )
+            .group_by(group)
+        ):
+            if (totals := groups.get(key)) is None:
+                continue
+            totals.evaluation_seconds = float(milliseconds or 0) / 1000
 
     def _group(self, rows: sa.Subquery) -> sa.ColumnElement[int]:
         """The group of rows keyed by project evaluator. The project is looked up per row:

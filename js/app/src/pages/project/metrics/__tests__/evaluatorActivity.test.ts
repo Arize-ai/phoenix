@@ -140,14 +140,9 @@ describe("getEvaluatorTimeSeriesRows", () => {
 });
 
 describe("getQueueSizeRows", () => {
-  it("adds up every evaluator's queue at the end of each bin", () => {
+  it("reads each bin's queue size, keyed by the bin's start", () => {
     expect(
-      getQueueSizeRows([
-        {
-          timestamp: "2026-10-28T10:00:00Z",
-          groups: [{ queueSize: 3 }, { queueSize: 4 }],
-        },
-      ])
+      getQueueSizeRows([{ timestamp: "2026-10-28T10:00:00Z", queueSize: 7 }])
     ).toEqual([
       { timestamp: Date.parse("2026-10-28T10:00:00Z"), queueSize: 7 },
     ]);

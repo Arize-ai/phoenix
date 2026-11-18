@@ -7,6 +7,7 @@
     - [Running it directly](#running-it-directly)
     - [Options](#options)
     - [The corpus](#the-corpus)
+  - [Containerized Dev Stack](#containerized-dev-stack)
   - [Setting Up Your macOS Development Environment](#setting-up-your-macos-development-environment)
   - [Testing and Linting](#testing-and-linting)
   - [Installing Pre-Commit Hooks](#installing-pre-commit-hooks)
@@ -184,6 +185,40 @@ The first run downloads the published corpus and caches it locally (content-addr
 ```bash
 uv run phoenix datagen pull   # prints the cached archive path
 ```
+
+## Containerized Dev Stack
+
+`make dev-stack` runs Phoenix with the services that `pnpm dev` does not start: PostgreSQL, OIDC, an SMTP mail catcher, a mock LLM server, Toxiproxy, and an optional Grafana, Prometheus, Tempo, and Loki stack. Use it to test authentication, email, database latency, or Kubernetes deployment behavior.
+
+**Prerequisites.** Install the tools for the engine you want to use. When you do not select an engine, the stack uses Apple `container` if it is installed, then a running Docker or Podman daemon, then `kind`.
+
+| Engine | Install |
+| --- | --- |
+| Apple `container` (Kubernetes, macOS 26+) | `brew install container kubectl helm jq` |
+| `kind` (Kubernetes on Docker) | `brew install kind kubectl helm jq` |
+| Podman (Compose) | `brew install podman docker-compose`, then `podman machine init` and `podman machine start` |
+| Docker (Compose) | Any Docker engine with the Compose plugin |
+
+With Apple `container`, `make dev-stack` installs the recommended Linux kernel on the first run (`container system kernel set --recommended`). The stack serves its ports on `localhost` through the `container` port forwarder, which macOS Local Network privacy can block. If kubectl reports `connection reset by peer` on `127.0.0.1:6445`, or `localhost:18273` does not answer, open System Settings > Privacy & Security > Local Network, allow `container`, and run `make dev-stack` again.
+
+The Kubernetes engines deploy the Phoenix Helm chart in `helm/`. Before the first run, download its PostgreSQL chart dependency:
+
+```bash
+helm repo add groundhog2k https://groundhog2k.github.io/helm-charts/
+helm dependency build helm
+```
+
+**Run it:**
+
+```bash
+make dev-stack                                   # start with the auto-selected engine
+make dev-stack ARGS="up --engine podman"         # select an engine
+make dev-stack ARGS="up --profile grafana"       # add the monitoring stack
+make dev-stack ARGS=doctor                       # check tools, engine, chart, and ports
+make dev-stack ARGS=down                         # stop all services
+```
+
+If `make dev-stack` reports missing dependencies, run `make dev-stack ARGS=doctor` to see which checks fail. Phoenix is served at http://localhost:18273/phoenix/. For profiles, service URLs, and troubleshooting, see [`scripts/devops/README.md`](scripts/devops/README.md).
 
 ## Setting Up Your macOS Development Environment
 

@@ -823,6 +823,48 @@ async def test_savepoint_cleanup_failure_aborts_batch_without_reusing_session(
         assert set(await session.scalars(select(models.Span.span_id))) == {"later"}
 
 
+def _record_connection_during_insert(
+    monkeypatch: pytest.MonkeyPatch,
+) -> list[tuple[int, str]]:
+    """The backend pid and plan_cache_mode of each span insert's session."""
+    seen: list[tuple[int, str]] = []
+
+    async def insert(
+        session: AsyncSession, span: Span, project_name: str
+    ) -> SpanInsertionEvent | None:
+        pid = await session.scalar(text("SELECT pg_backend_pid()"))
+        mode = await session.scalar(text("SHOW plan_cache_mode"))
+        seen.append((pid, mode))
+        return await insert_span(session, span, project_name)
+
+    monkeypatch.setattr(bulk_inserter, "insert_span", insert)
+    return seen
+
+
+@pytest.mark.postgres_only
+async def test_span_batch_reuses_cached_plans_within_its_transaction(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    if db.dialect.name_literal != "postgresql":
+        pytest.skip("plan_cache_mode is a PostgreSQL setting")
+    seen = _record_connection_during_insert(monkeypatch)
+    await _inserter(db, _span("first"), _span("second", parent_id="first"))._insert_spans(2)
+    assert [mode for _, mode in seen] == ["auto", "auto"]
+
+
+@pytest.mark.postgres_only
+async def test_span_batch_returns_its_connection_planning_every_execution(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    if db.dialect.name_literal != "postgresql":
+        pytest.skip("plan_cache_mode is a PostgreSQL setting")
+    seen = _record_connection_during_insert(monkeypatch)
+    await _inserter(db, _span("first"))._insert_spans(1)
+    async with db() as session:
+        assert await session.scalar(text("SELECT pg_backend_pid()")) == seen[0][0]
+        assert await session.scalar(text("SHOW plan_cache_mode")) == "force_custom_plan"
+
+
 @pytest.mark.postgres_only
 async def test_actual_precommit_disconnect_retries_whole_batch_with_fresh_session(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch, metrics: _Metrics

@@ -30,16 +30,9 @@ export type CustomProviderInfo = {
 type CustomProviderEdge =
   useModelMenuDataQuery["response"]["generativeModelCustomProviders"]["edges"][number];
 
-/**
- * The custom providers a model picker lists for a model type.
- *
- * Chat pickers list the providers that serve chat models, with their chat
- * model names, so a provider that serves decision models only (a TypeSafe
- * endpoint) is left out. The Decision tab lists the providers that serve
- * decision models, with their decision model names. Their SDK is their
- * decision client's, which decides the provider a decision is saved with: an
- * OpenAI-SDK provider that runs System One makes TypeSafe decisions.
- */
+type ModelProviderRow =
+  useModelMenuDataQuery["response"]["modelProviders"][number];
+
 export function getCustomProviders({
   edges,
   modelType,
@@ -54,7 +47,7 @@ export function getCustomProviders({
         ? {
             id: node.id,
             name: node.name,
-            sdk: node.decisionSdk ?? node.sdk,
+            sdk: node.sdk,
             modelNames: node.decisionModelNames ?? [],
           }
         : {
@@ -148,6 +141,33 @@ export function getModelsByProvider(
 export type ModelCredentialSource = "any" | "server";
 
 /** Surfaces that preload and retain the catalog can let nested pickers reuse it. */
+/**
+ * The built-in providers to list for decision models: those that offer them,
+ * including decision-only providers (TypeSafe) that the chat lists leave out.
+ * A provider is enabled only when its decision client's dependencies are
+ * installed, which can differ from its chat client's.
+ * @param params.modelProviders - built-in providers, as the query returns them
+ * @param params.localCredentials - credentials saved in the browser
+ */
+export function getDecisionModelProviders({
+  modelProviders,
+  localCredentials,
+}: {
+  modelProviders: readonly ModelProviderRow[];
+  localCredentials: LocalProviderCredentials;
+}): ModelProviderInfo[] {
+  return modelProviders
+    .filter((provider) => provider.modelTypes.includes("DECISION"))
+    .map((provider) => ({
+      ...provider,
+      dependenciesInstalled: provider.decisionDependenciesInstalled ?? false,
+      needsCredentials: providerNeedsCredentials({
+        provider,
+        localCredentials,
+      }),
+    }));
+}
+
 export const ModelMenuFetchPolicyContext =
   createContext<FetchPolicy>("store-and-network");
 
@@ -176,7 +196,7 @@ const NO_LOCAL_CREDENTIALS: LocalProviderCredentials = {};
 export function useModelMenuData({
   fetchPolicy,
   credentialSource = "any",
-  modelType = "LLM",
+  modelType = "CHAT",
   includeDecisionModels = false,
 }: {
   fetchPolicy?: FetchPolicy;
@@ -199,7 +219,6 @@ export function useModelMenuData({
               modelNames
               decisionModelNames: modelNames(modelType: DECISION)
                 @include(if: $includeDecisionModels)
-              decisionSdk @include(if: $includeDecisionModels)
             }
           }
         }
@@ -207,6 +226,9 @@ export function useModelMenuData({
           key
           name
           dependenciesInstalled
+          decisionDependenciesInstalled: dependenciesInstalled(
+            modelType: DECISION
+          ) @include(if: $includeDecisionModels)
           credentialsSet
           modelTypes
         }
@@ -240,7 +262,7 @@ export function useModelMenuData({
     () =>
       getCustomProviders({
         edges: data.generativeModelCustomProviders.edges,
-        modelType: "LLM",
+        modelType: "CHAT",
       }),
     [data.generativeModelCustomProviders]
   );
@@ -361,24 +383,14 @@ export function useModelMenuData({
   // disabled.
   const visibleProviders = useMemo<ModelProviderInfo[]>(() => {
     if (modelType === "DECISION") {
-      // Decision clients speak plain HTTP, so a provider whose chat SDK is
-      // missing can still run decisions; the server reports installation per
-      // provider, not per model type. Decision-only providers (TypeSafe), which
-      // the chat lists leave out, are included.
-      return data.modelProviders
-        .filter((provider) => provider.modelTypes.includes("DECISION"))
-        .map((provider) => ({
-          ...provider,
-          dependenciesInstalled: true,
-          needsCredentials: providerNeedsCredentials({
-            provider,
-            localCredentials,
-          }),
-        }));
+      return getDecisionModelProviders({
+        modelProviders: data.modelProviders,
+        localCredentials,
+      });
     }
     if (hasProvisionedProvider) {
       return readyProviders.filter((provider) =>
-        provider.modelTypes.includes("LLM")
+        provider.modelTypes.includes("CHAT")
       );
     }
     const providersByKey = new Map(

@@ -29,9 +29,10 @@ import type { PlaygroundDecisionOutputMutation$data } from "./__generated__/Play
 
 /*
  * The playground edits Phoenix question types: predicate, choice, and scale.
- * Provider adapters translate at import/export boundaries. TypeSafe uses noul
- * and score; OpenAI uses predicate and score. Neither is Phoenix's canonical
- * model. Span replay accepts provider payloads and Phoenix run outputs.
+ * Provider adapters translate at import/export boundaries. TypeSafe and
+ * Gemini use noul and score; OpenAI uses predicate and score. None is
+ * Phoenix's canonical model. Span replay accepts provider payloads and
+ * Phoenix run outputs.
  */
 
 export type DecisionDraft = DecisionPromptDraft;
@@ -969,25 +970,34 @@ export function buildDecisionTaskDefinition({
  * Where a decision run goes: a custom provider brings its own endpoint and
  * key, so it takes only its id; a built-in provider takes the instance's
  * endpoint (blank for the provider default) and the browser's credentials.
+ * Azure OpenAI sends its resource endpoint, then `baseUrl`.
  */
 export function buildDecisionConnection({
   provider,
   baseUrl,
+  endpoint,
   customProvider,
   credentials,
 }: {
   provider: ModelProvider;
   baseUrl?: string | null;
+  /**
+   * Azure resource endpoint (`https://<resource>.openai.azure.com`).
+   * For `AZURE_OPENAI`, this is sent as `baseUrl` when it is set.
+   */
+  endpoint?: string | null;
   customProvider?: { id: string } | null;
   credentials: ReadonlyArray<{ envVarName: string; value: string }>;
 }) {
   if (customProvider) {
     return { customProvider: { id: customProvider.id } };
   }
+  const connectionUrl =
+    provider === "AZURE_OPENAI" ? endpoint?.trim() || baseUrl : baseUrl;
   return {
     builtIn: {
       providerKey: provider,
-      baseUrl: baseUrl?.trim() || null,
+      baseUrl: connectionUrl?.trim() || null,
       credentials: [...credentials],
     },
   };
@@ -1131,6 +1141,36 @@ const systemOneSchema = z.object({
   ),
 });
 
+const geminiDecisionsSchema = z.object({
+  model: z.string().optional(),
+  input: z.string(),
+  questions: z.record(
+    z.string().min(1),
+    z.discriminatedUnion("type", [
+      z.object({
+        type: z.literal("choice"),
+        instructions: z.string(),
+        criteria: z.record(z.string(), z.string()),
+      }),
+      z.object({
+        type: z.literal("score"),
+        instructions: z.string(),
+        criteria: z.array(z.string()),
+      }),
+      z.object({
+        type: z.literal("noul"),
+        instructions: z.string(),
+        criteria: z
+          .object({
+            true_description: z.string().optional(),
+            false_description: z.string().optional(),
+          })
+          .optional(),
+      }),
+    ])
+  ),
+});
+
 const openAIDecisionsSchema = z.object({
   model: z.string().optional(),
   input: z.unknown(),
@@ -1228,6 +1268,30 @@ export function getImportedTemplateFormat(
 
 type OpenAIDecisionsBody = z.infer<typeof openAIDecisionsSchema>;
 type SystemOneBody = z.infer<typeof systemOneSchema>;
+type GeminiDecisionsBody = z.infer<typeof geminiDecisionsSchema>;
+
+/** Gemini's questions are System One's with text input and named criteria. */
+function toSystemOneFromGemini(body: GeminiDecisionsBody): SystemOneBody {
+  return {
+    model: body.model,
+    state: body.input,
+    questions: Object.fromEntries(
+      Object.entries(body.questions).map(([name, question]) => [
+        name,
+        question.type === "noul"
+          ? {
+              type: "noul",
+              instructions: question.instructions,
+              criteria: question.criteria && {
+                true: question.criteria.true_description,
+                false: question.criteria.false_description,
+              },
+            }
+          : question,
+      ])
+    ),
+  };
+}
 
 function toDraftFromOpenAIDecisions(
   body: OpenAIDecisionsBody
@@ -1318,7 +1382,10 @@ function toDraftFromSystemOne(
   return { draft: { state: toStateDraft(body.state), questions } };
 }
 
-/** Accepts either provider's request body and returns an editable draft. */
+/**
+ * Accepts a System One, OpenAI Decisions, or Gemini Decisions request body
+ * and returns an editable draft.
+ */
 export function parseDecisionImport(text: string): DecisionImportResult {
   let json: unknown;
   try {
@@ -1337,6 +1404,20 @@ export function parseDecisionImport(text: string): DecisionImportResult {
       );
     }
     const { draft } = toDraftFromOpenAIDecisions(parsed.data);
+    return {
+      model: parsed.data.model ?? null,
+      draft,
+      templateFormat: getImportedTemplateFormat(draft),
+    };
+  }
+  if (isStringKeyedObject(json.questions) && "input" in json) {
+    const parsed = geminiDecisionsSchema.safeParse(json);
+    if (!parsed.success) {
+      throw new Error(
+        `Not a valid Gemini Decisions request: ${describeImportIssue(parsed.error.issues[0])}`
+      );
+    }
+    const { draft } = toDraftFromSystemOne(toSystemOneFromGemini(parsed.data));
     return {
       model: parsed.data.model ?? null,
       draft,
@@ -1582,6 +1663,15 @@ function readAttributeValueText(container: unknown): string | null {
 const PROVIDER_BY_DECISION_SYSTEM: Partial<Record<string, ModelProvider>> = {
   openai: "OPENAI",
   typesafe: "TYPESAFE",
+  google: "GOOGLE",
+};
+
+/**
+ * Hosts whose `decision.provider` is not itself a provider key.
+ * Azure records `azure`; the playground provider is `AZURE_OPENAI`.
+ */
+const PROVIDER_BY_DECISION_HOST: Partial<Record<string, ModelProvider>> = {
+  azure: "AZURE_OPENAI",
 };
 
 /**
@@ -1597,18 +1687,22 @@ function readDecisionTarget(decisionAttributes: Record<string, unknown>): {
 } {
   const providerName = readStringAttribute(decisionAttributes.provider);
   const providerKey = providerName?.toUpperCase();
-  const isBuiltIn = providerKey != null && isModelProvider(providerKey);
+  const hostedProvider =
+    providerName != null
+      ? PROVIDER_BY_DECISION_HOST[providerName.toLowerCase()]
+      : undefined;
+  const builtInProvider =
+    hostedProvider ??
+    (providerKey != null && isModelProvider(providerKey) ? providerKey : null);
   const system = readStringAttribute(decisionAttributes.system)?.toLowerCase();
   const request = isStringKeyedObject(decisionAttributes.request)
     ? decisionAttributes.request
     : {};
   return {
-    provider: isBuiltIn
-      ? providerKey
-      : system
-        ? (PROVIDER_BY_DECISION_SYSTEM[system] ?? null)
-        : null,
-    customProviderName: isBuiltIn ? null : providerName,
+    provider:
+      builtInProvider ??
+      (system ? (PROVIDER_BY_DECISION_SYSTEM[system] ?? null) : null),
+    customProviderName: builtInProvider ? null : providerName,
     modelName:
       readStringAttribute(request.model_name) ??
       readStringAttribute(decisionAttributes.model_name),

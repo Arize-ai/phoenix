@@ -329,6 +329,25 @@ describe("span replay", () => {
       "Could not determine the decision provider"
     );
   });
+
+  it("replays an Azure decision span as Azure OpenAI", () => {
+    const { playgroundInstance, parsingErrors } =
+      buildDecisionInstanceFromSpanAttributes({
+        base,
+        spanId: "span",
+        attributes: {
+          openinference: { span: { kind: "DECISION" } },
+          decision: {
+            system: "openai",
+            provider: "azure",
+            request: { model_name: "luna-deploy" },
+          },
+        },
+      });
+    expect(playgroundInstance.model.provider).toBe("AZURE_OPENAI");
+    expect(playgroundInstance.model.modelName).toBe("luna-deploy");
+    expect(parsingErrors.join("\n")).not.toContain("custom provider");
+  });
 });
 
 describe("structured output", () => {
@@ -512,6 +531,40 @@ describe("buildDecisionConnection", () => {
       })
     ).toEqual({
       builtIn: { providerKey: "TYPESAFE", baseUrl: null, credentials },
+    });
+  });
+
+  it("sends an Azure resource endpoint as the base URL", () => {
+    expect(
+      buildDecisionConnection({
+        provider: "AZURE_OPENAI",
+        endpoint: " https://res.openai.azure.com ",
+        baseUrl: "https://ignored.example",
+        credentials: [{ envVarName: "AZURE_OPENAI_API_KEY", value: "key" }],
+      })
+    ).toEqual({
+      builtIn: {
+        providerKey: "AZURE_OPENAI",
+        baseUrl: "https://res.openai.azure.com",
+        credentials: [{ envVarName: "AZURE_OPENAI_API_KEY", value: "key" }],
+      },
+    });
+  });
+
+  it("uses baseUrl when an Azure instance has no resource endpoint", () => {
+    expect(
+      buildDecisionConnection({
+        provider: "AZURE_OPENAI",
+        endpoint: "  ",
+        baseUrl: " https://fallback.openai.azure.com ",
+        credentials: [],
+      })
+    ).toEqual({
+      builtIn: {
+        providerKey: "AZURE_OPENAI",
+        baseUrl: "https://fallback.openai.azure.com",
+        credentials: [],
+      },
     });
   });
 });
@@ -867,6 +920,61 @@ describe("request import", () => {
       parseDecisionImport(systemOne(JSON.stringify('{"ticket": 1}')))
         .templateFormat
     ).toBe(TemplateFormats.Mustache);
+  });
+
+  it("opens a Gemini Decisions request, its input as Text", () => {
+    const { draft, model } = parseDecisionImport(
+      JSON.stringify({
+        model: "gemini-decision-1",
+        input: "I was charged twice.",
+        questions: {
+          refund: {
+            type: "noul",
+            instructions: "Refund requested?",
+            criteria: { true_description: "Asks for money back" },
+          },
+          team: {
+            type: "choice",
+            instructions: "Which team?",
+            criteria: { billing: "Payments", technical: "" },
+          },
+          severity: {
+            type: "score",
+            instructions: "How severe?",
+            criteria: ["Minor", "Major"],
+          },
+        },
+      })
+    );
+    expect(model).toBe("gemini-decision-1");
+    expect(draft.state).toMatchObject({
+      mode: "text",
+      text: "I was charged twice.",
+    });
+    expect(draft.questions).toMatchObject([
+      {
+        type: "predicate",
+        name: "refund",
+        instructions: "Refund requested?",
+        predicate: {
+          trueDescription: "Asks for money back",
+          falseDescription: "",
+        },
+      },
+      {
+        type: "choice",
+        name: "team",
+        choices: [
+          { value: "billing", description: "Payments" },
+          { value: "technical", description: "" },
+        ],
+      },
+      {
+        type: "scale",
+        name: "severity",
+        levels: [{ label: "Minor" }, { label: "Major" }],
+      },
+    ]);
   });
 
   it("keeps an own __proto__ key of the state", () => {

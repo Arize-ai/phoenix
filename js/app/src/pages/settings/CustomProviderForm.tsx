@@ -38,7 +38,6 @@ import {
   DEFAULT_AWS_AUTH_METHOD,
   DEFAULT_AZURE_AUTH_METHOD,
   type GenerativeModelSDK,
-  SDK_DEFAULT_PROVIDER,
   SDK_LABELS,
   SDK_OPTIONS,
 } from "@phoenix/constants/generativeConstants";
@@ -48,10 +47,12 @@ import type { CustomProviderFormTestCredentialsMutation } from "./__generated__/
 import { providerFormSchema } from "./customProviderFormSchema";
 import {
   buildClientConfig,
+  buildFormDataForSDKChange,
+  buildProviderModels,
   createDefaultFormData,
 } from "./customProviderFormUtils";
-import { type DecisionSDK, sdkCanServeDecisions } from "./decisionEndpoints";
 import { DecisionModelsSection } from "./DecisionModelsSection";
+import { sdkCanServeDecisions } from "./decisionSdks";
 import { OptionalFields, ProviderFormSection } from "./ProviderFormSection";
 
 /**
@@ -82,26 +83,18 @@ const OPENAI_API_TYPE_OPTIONS: { id: OpenAIApiTypeForm; label: string }[] = [
 
 /**
  * Decision model settings, shared by the SDKs that can serve decision models.
- * The decision client reuses the provider's API key and headers.
  */
 export interface DecisionModelsFormData {
   /** Whether the provider serves decision models. Always true for TypeSafe. */
   decision_enabled: boolean;
-  /** Which decision API to call. Always TYPESAFE (System One) for TypeSafe. */
-  decision_sdk: DecisionSDK;
-  /**
-   * Base URL of the decision API; empty follows the chat base URL. Ignored for
-   * TypeSafe, which uses its own.
-   */
-  decision_base_url?: string;
-  /** Suggested decision model names, comma or newline separated. */
+  /** Decision model names, comma or newline separated. */
   decision_model_names?: string;
 }
 
 /**
- * Suggested LLM model names, shared by the SDKs that serve LLMs.
+ * Chat model names, shared by the SDKs that serve chat models.
  */
-export interface LLMModelsFormData {
+export interface ChatModelsFormData {
   /**
    * Comma or newline separated. Replaces the SDK's built-in list in the model
    * menu; empty lists the built-in models.
@@ -113,7 +106,7 @@ export interface LLMModelsFormData {
  * OpenAI SDK configuration.
  */
 export interface OpenAIFormData
-  extends BaseProviderFormData, LLMModelsFormData, DecisionModelsFormData {
+  extends BaseProviderFormData, ChatModelsFormData, DecisionModelsFormData {
   sdk: "OPENAI";
   openai_api_type: OpenAIApiTypeForm;
   openai_api_key: string;
@@ -128,7 +121,7 @@ export interface OpenAIFormData
  * Supports both API key and Azure AD token provider authentication.
  */
 export interface AzureOpenAIFormData
-  extends BaseProviderFormData, LLMModelsFormData, DecisionModelsFormData {
+  extends BaseProviderFormData, ChatModelsFormData, DecisionModelsFormData {
   sdk: "AZURE_OPENAI";
   openai_api_type: OpenAIApiTypeForm;
   azure_endpoint: string;
@@ -147,7 +140,7 @@ export interface AzureOpenAIFormData
  * Anthropic SDK configuration.
  */
 export interface AnthropicFormData
-  extends BaseProviderFormData, LLMModelsFormData {
+  extends BaseProviderFormData, ChatModelsFormData {
   sdk: "ANTHROPIC";
   anthropic_api_key: string;
   anthropic_base_url?: string;
@@ -159,7 +152,7 @@ export interface AnthropicFormData
  * Supports both explicit access keys and environment credentials (IAM role).
  */
 export interface AWSBedrockFormData
-  extends BaseProviderFormData, LLMModelsFormData {
+  extends BaseProviderFormData, ChatModelsFormData {
   sdk: "AWS_BEDROCK";
   aws_region: string;
   aws_auth_method: AWSAuthMethod;
@@ -174,7 +167,7 @@ export interface AWSBedrockFormData
  * Google GenAI SDK configuration.
  */
 export interface GoogleGenAIFormData
-  extends BaseProviderFormData, LLMModelsFormData {
+  extends BaseProviderFormData, ChatModelsFormData, DecisionModelsFormData {
   sdk: "GOOGLE_GENAI";
   google_api_key: string;
   google_base_url?: string;
@@ -182,8 +175,7 @@ export interface GoogleGenAIFormData
 }
 
 /**
- * TypeSafe SDK configuration: a System One-compatible endpoint that serves
- * decision models only, always through System One.
+ * TypeSafe SDK configuration.
  */
 export interface TypeSafeFormData
   extends BaseProviderFormData, DecisionModelsFormData {
@@ -228,9 +220,19 @@ const formCSS = css`
 `;
 
 const formBodyCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-300);
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  padding: var(--global-dimension-size-200);
+`;
+
+const providerIdentityFieldsCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-100);
 `;
 
 const OPENAI_OPTIONAL_FIELDS = [
@@ -263,7 +265,7 @@ function OpenAIFields({
             }}
             isDisabled={isSubmitting}
           >
-            <Label>API Type</Label>
+            <Label>Chat API Type</Label>
             <Button>
               <SelectValue />
               <SelectChevronUpDownIcon />
@@ -411,7 +413,7 @@ function AzureOpenAIFields({
             }}
             isDisabled={isSubmitting}
           >
-            <Label>API Type</Label>
+            <Label>Chat API Type</Label>
             <Button>
               <SelectValue />
               <SelectChevronUpDownIcon />
@@ -997,11 +999,7 @@ function TypeSafeFields({
   );
 }
 
-/**
- * Suggested LLM model names. They replace the SDK's built-in list in the model
- * menu, which suits gateways and deployments whose names differ from it.
- */
-function LLMModelsSection({
+function ChatModelsSection({
   sdk,
   control,
   isSubmitting,
@@ -1012,7 +1010,7 @@ function LLMModelsSection({
 }) {
   return (
     <ProviderFormSection
-      title="LLM models"
+      title="Chat models"
       subtitle={`Replaces the built-in ${SDK_LABELS[sdk]} list when set`}
     >
       <Controller
@@ -1024,7 +1022,7 @@ function LLMModelsSection({
             value={field.value ?? ""}
             isDisabled={isSubmitting}
           >
-            <Label>Suggested model names</Label>
+            <Label>Model names</Label>
             <Input placeholder="qwen3-coder, llama-5-70b" />
             <Text slot="description">
               Optional, comma separated. Leave empty to list the built-in
@@ -1073,7 +1071,8 @@ function SDKFieldsRenderer({
 }
 
 /**
- * SDK selector that resets SDK-specific fields when SDK changes.
+ * SDK selector. Changing the SDK resets connection fields and keeps
+ * served-model fields the new SDK still serves.
  */
 function SDKSelect({
   control,
@@ -1087,25 +1086,14 @@ function SDKSelect({
   isSubmitting: boolean;
 }) {
   const handleSDKChange = useCallback(
-    (oldSDK: GenerativeModelSDK, newSDK: GenerativeModelSDK) => {
-      // Reset SDK-specific fields while preserving shared fields
-      const currentValues = getValues();
-      const newDefaults = createDefaultFormData(newSDK);
-
-      // Only update provider if it matches the old SDK's default
-      // (i.e., user hasn't customized it)
-      const currentProviderIsDefault =
-        currentValues.provider === SDK_DEFAULT_PROVIDER[oldSDK];
-      const newProvider = currentProviderIsDefault
-        ? SDK_DEFAULT_PROVIDER[newSDK]
-        : currentValues.provider;
-
-      reset({
-        ...newDefaults,
-        name: currentValues.name || "",
-        description: currentValues.description || "",
-        provider: newProvider,
-      });
+    (newSDK: GenerativeModelSDK) => {
+      reset(
+        buildFormDataForSDKChange({
+          currentValues: getValues(),
+          newSDK,
+        }),
+        { keepDefaultValues: true }
+      );
     },
     [reset, getValues]
   );
@@ -1120,12 +1108,10 @@ function SDKSelect({
           value={field.value}
           onChange={(key) => {
             if (key != null) {
-              const oldSDK = field.value;
-              const newSDK = key as GenerativeModelSDK;
               // Note: We don't call field.onChange here because handleSDKChange
               // calls reset() which sets all form values including the SDK field.
               // Calling both would be redundant and could cause race conditions.
-              handleSDKChange(oldSDK, newSDK);
+              handleSDKChange(key as GenerativeModelSDK);
             }
           }}
           isDisabled={isSubmitting}
@@ -1190,7 +1176,7 @@ export const ProviderForm = ({
       validationBehavior="aria"
     >
       <div css={formBodyCSS}>
-        <ProviderFormSection title="Provider">
+        <div css={providerIdentityFieldsCSS}>
           <Controller
             name="name"
             control={control}
@@ -1252,7 +1238,7 @@ export const ProviderForm = ({
               )}
             />
           </Flex>
-        </ProviderFormSection>
+        </div>
 
         <ConnectionSection
           // Keys are unique among siblings; a shared one leaves stale sections
@@ -1265,8 +1251,7 @@ export const ProviderForm = ({
         />
 
         {sdk !== "TYPESAFE" ? (
-          // A TypeSafe provider serves decision models only.
-          <LLMModelsSection
+          <ChatModelsSection
             sdk={sdk}
             control={control}
             isSubmitting={isSubmitting}
@@ -1278,7 +1263,6 @@ export const ProviderForm = ({
             key={`decisions-${sdk}`}
             sdk={sdk}
             control={control}
-            getValues={getValues}
             isSubmitting={isSubmitting}
           />
         ) : null}
@@ -1302,20 +1286,36 @@ export const ProviderForm = ({
 const testCredentialsMutation = graphql`
   mutation CustomProviderFormTestCredentialsMutation(
     $input: GenerativeModelCustomerProviderConfigInput!
+    $models: ProviderModelsInput
   ) {
-    testGenerativeModelCustomProviderCredentials(input: $input) {
+    testGenerativeModelCustomProviderCredentials(
+      input: $input
+      models: $models
+    ) {
       error
+      chat {
+        error
+      }
+      decision {
+        error
+      }
     }
   }
 `;
 
 type TestStatus = "idle" | "testing" | "valid" | "invalid" | "error";
 type CompletedTestStatus = Exclude<TestStatus, "idle" | "testing">;
+/** The check of one model type the provider serves. */
+type ModelTypeCheck = {
+  label: string;
+  error: string | null;
+};
 type TestConnectionState = {
   isTesting: boolean;
   lastTestResult: {
     status: CompletedTestStatus;
     errorMessage: string | null;
+    checks: ModelTypeCheck[];
   } | null;
   lastTestedValuesSignature: string | null;
 };
@@ -1327,6 +1327,7 @@ type TestConnectionAction =
       payload: {
         status: CompletedTestStatus;
         errorMessage: string | null;
+        checks: ModelTypeCheck[];
         testedValuesSignature: string;
       };
     }
@@ -1359,6 +1360,7 @@ function testConnectionReducer(
         lastTestResult: {
           status: action.payload.status,
           errorMessage: action.payload.errorMessage,
+          checks: action.payload.checks,
         },
         lastTestedValuesSignature: action.payload.testedValuesSignature,
       };
@@ -1446,10 +1448,6 @@ function hasRequiredCredentials(
   }
 }
 
-/**
- * Tests the provider's credentials against the form's current values. A
- * result goes stale as soon as any field changes.
- */
 function useTestCredentials({
   control,
   getValues,
@@ -1525,12 +1523,14 @@ function useTestCredentials({
 
     try {
       const formValues = getValues();
-      const clientConfig = buildClientConfig(formValues);
       const result = await new Promise<
         CustomProviderFormTestCredentialsMutation["response"] | null
       >((resolve, reject) => {
         commitTestCredentials({
-          variables: { input: clientConfig },
+          variables: {
+            input: buildClientConfig(formValues),
+            models: buildProviderModels(formValues),
+          },
           onCompleted: (response) => resolve(response),
           onError: (error) => reject(error),
         });
@@ -1547,33 +1547,36 @@ function useTestCredentials({
           payload: {
             status: "error",
             errorMessage: "No response received from server",
+            checks: [],
             testedValuesSignature,
           },
         });
         return;
       }
 
-      const error = result.testGenerativeModelCustomProviderCredentials.error;
-
-      if (!error) {
-        dispatchTestConnectionState({
-          type: "set_result",
-          payload: {
-            status: "valid",
-            errorMessage: null,
-            testedValuesSignature,
-          },
-        });
-      } else {
-        dispatchTestConnectionState({
-          type: "set_result",
-          payload: {
-            status: "invalid",
-            errorMessage: error,
-            testedValuesSignature,
-          },
+      const payload = result.testGenerativeModelCustomProviderCredentials;
+      const checks: ModelTypeCheck[] = [];
+      if (payload.chat) {
+        checks.push({
+          label: "Chat models",
+          error: payload.chat.error ?? null,
         });
       }
+      if (payload.decision) {
+        checks.push({
+          label: "Decision models",
+          error: payload.decision.error ?? null,
+        });
+      }
+      dispatchTestConnectionState({
+        type: "set_result",
+        payload: {
+          status: payload.error ? "invalid" : "valid",
+          errorMessage: payload.error ?? null,
+          checks,
+          testedValuesSignature,
+        },
+      });
     } catch (err) {
       // Ignore error if form changed during request
       if (shouldIgnoreResultRef.current) {
@@ -1584,6 +1587,7 @@ function useTestCredentials({
         payload: {
           status: "error",
           errorMessage: err instanceof Error ? err.message : "Test failed",
+          checks: [],
           testedValuesSignature,
         },
       });
@@ -1595,12 +1599,18 @@ function useTestCredentials({
   const hasResult = testStatus !== "idle" && testStatus !== "testing";
   const clear = () => dispatchTestConnectionState({ type: "clear" });
 
+  const checks =
+    testStatus === "idle" || testStatus === "testing"
+      ? []
+      : (lastTestResult?.checks ?? []);
+
   return {
     canTest,
     isTesting,
     hasResult,
     testStatus,
     errorMessage,
+    checks,
     handleTest,
     clear,
   };
@@ -1616,10 +1626,6 @@ const CONNECTION_SUBTITLES: Readonly<Record<GenerativeModelSDK, string>> = {
     "Serves decision models only, through System One. Any System One-compatible endpoint works.",
 };
 
-/**
- * The provider's SDK settings, with a credential test in its heading. A
- * TypeSafe provider has none: its test is the decision endpoint test.
- */
 function ConnectionSection({
   sdk,
   control,
@@ -1637,37 +1643,35 @@ function ConnectionSection({
     hasResult,
     testStatus,
     errorMessage,
+    checks,
     handleTest,
     clear,
   } = useTestCredentials({ control, getValues, sdk });
-  const canTestCredentials = sdk !== "TYPESAFE";
 
   return (
     <ProviderFormSection
       title="Connection"
       subtitle={CONNECTION_SUBTITLES[sdk]}
       extra={
-        canTestCredentials ? (
-          <Button
-            variant="default"
-            size="S"
-            onPress={handleTest}
-            isDisabled={isTesting || !canTest}
-          >
-            {isTesting ? (
-              <Flex direction="row" gap="size-50" alignItems="center">
-                <ProgressCircle
-                  isIndeterminate
-                  size="S"
-                  aria-label="Testing credentials"
-                />
-                <span>Testing</span>
-              </Flex>
-            ) : (
-              "Test credentials"
-            )}
-          </Button>
-        ) : null
+        <Button
+          variant="default"
+          size="S"
+          onPress={handleTest}
+          isDisabled={isTesting || !canTest}
+        >
+          {isTesting ? (
+            <Flex direction="row" gap="size-50" alignItems="center">
+              <ProgressCircle
+                isIndeterminate
+                size="S"
+                aria-label="Testing connection"
+              />
+              <span>Testing</span>
+            </Flex>
+          ) : (
+            "Test connection"
+          )}
+        </Button>
       }
     >
       <SDKFieldsRenderer
@@ -1675,24 +1679,38 @@ function ConnectionSection({
         control={control}
         isSubmitting={isSubmitting}
       />
-      {canTestCredentials && hasResult ? (
+      {hasResult ? (
         <Alert
           variant={testStatus === "valid" ? "success" : "danger"}
           title={
             testStatus === "valid"
-              ? "Credentials Valid"
+              ? "Connection works"
               : testStatus === "invalid"
-                ? "Invalid Credentials"
+                ? "Connection check failed"
                 : "Connection Error"
           }
           dismissable
           onDismissClick={clear}
         >
-          {testStatus === "valid"
-            ? "Successfully connected to the provider."
-            : errorMessage}
+          {checks.length > 0 ? (
+            <ul css={checkListCSS}>
+              {checks.map((check) => (
+                <li key={check.label}>
+                  {check.label}: {check.error ?? "connected"}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            errorMessage
+          )}
         </Alert>
       ) : null}
     </ProviderFormSection>
   );
 }
+
+const checkListCSS = css`
+  margin: 0;
+  padding-inline-start: var(--global-dimension-size-200);
+  word-break: break-word;
+`;
