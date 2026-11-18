@@ -141,6 +141,37 @@ Use the Phoenix client to create a tag, list tags, and get a prompt version by t
 
   </Tab>
 
+  <Tab title="CLI" icon="terminal">
+
+    ```bash
+    # Tag a prompt version
+    px prompt tag version-123 --tag production --description "Ready for production environment"
+
+    # Get a prompt version by tag
+    px prompt get my-prompt --tag production
+    ```
+
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+
+    ```typescript
+    import { createClient } from "@arizeai/phoenix-client";
+    import { upsertPromptVersionTag } from "@arizeai/phoenix-client/prompts";
+
+    const client = createClient();
+
+    // Create or move a tag for a prompt version
+    await upsertPromptVersionTag({
+      client,
+      prompt: { versionId: "version-123" },
+      name: "production",
+      description: "Ready for production environment",
+    });
+    ```
+
+  </Tab>
+
 </Tabs>
 
 
