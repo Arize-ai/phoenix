@@ -185,8 +185,9 @@ px setup doctor --profile staging --format raw
 ```
 
 `--format raw` prints `{"checks":[{"name","status","message","fix?"}]}` with
-`status` of `pass`, `fail`, or `skip`. The exit code comes from the first failed
-check: `3` config, `5` connectivity, `1` version, `4` auth.
+`status` of `pass`, `fail`, or `skip`. The exit code reflects the first failure:
+`3` invalid config, `5` server unreachable or not Phoenix, `4` credentials
+missing or rejected, `1` anything else.
 
 ## Auth
 

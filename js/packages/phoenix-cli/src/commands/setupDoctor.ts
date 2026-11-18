@@ -27,7 +27,11 @@ import {
 import { createPhoenixClientFactory } from "../setup/deps/phoenixClient";
 import { probeEndpoint } from "../setup/steps/chooseEndpoint";
 import { ENDPOINT_REQUIREMENT, isEndpointUrl } from "../validation/endpoint";
-import { fetchViewerForStatus } from "./auth";
+import {
+  type FetchViewerResult,
+  exitCodeForResult,
+  fetchViewerForStatus,
+} from "./auth";
 import {
   type DoctorCheck,
   type DoctorCheckName,
@@ -54,13 +58,15 @@ interface SetupDoctorOptions extends ConnectionOptions {
   format?: OutputFormat;
 }
 
-/** The exit code for each check when it is the first to fail. */
-const DOCTOR_FAILURE_EXIT_CODES: Record<DoctorCheckName, ExitCode> = {
-  config: ExitCode.INVALID_ARGUMENT,
-  connectivity: ExitCode.NETWORK_ERROR,
-  version: ExitCode.FAILURE,
-  auth: ExitCode.AUTH_REQUIRED,
-};
+/**
+ * A check's printed result, plus the exit code it implies. The exit code is
+ * kept out of {@link DoctorCheck} so it never appears in the JSON output.
+ */
+interface DoctorCheckOutcome {
+  check: DoctorCheck;
+  /** `ExitCode.SUCCESS` unless the check failed. */
+  exitCode: ExitCode;
+}
 
 function skipCheck({
   name,
@@ -68,16 +74,22 @@ function skipCheck({
 }: {
   name: DoctorCheckName;
   reason: string;
-}): DoctorCheck {
-  return { name, status: "skip", message: `Skipped: ${reason}` };
+}): DoctorCheckOutcome {
+  return {
+    check: { name, status: "skip", message: `Skipped: ${reason}` },
+    exitCode: ExitCode.SUCCESS,
+  };
 }
 
 /**
  * Validate the settings file, resolve the selected profile, and check the
  * resolved endpoint. Returns the config only when every step succeeded.
  */
-function checkConfig({ options }: { options: SetupDoctorOptions }): {
-  check: DoctorCheck;
+function checkConfig({
+  options,
+}: {
+  options: SetupDoctorOptions;
+}): DoctorCheckOutcome & {
   config?: PhoenixConfig & { endpoint: string };
 } {
   try {
@@ -91,6 +103,7 @@ function checkConfig({ options }: { options: SetupDoctorOptions }): {
           message: error.message,
           fix: `Correct ${getSettingsPath()}, or move it aside to start from empty settings`,
         },
+        exitCode: ExitCode.INVALID_ARGUMENT,
       };
     }
     throw error;
@@ -111,6 +124,7 @@ function checkConfig({ options }: { options: SetupDoctorOptions }): {
           message: error.message,
           fix: "Pass a profile listed by `px profile list` to --profile",
         },
+        exitCode: ExitCode.INVALID_ARGUMENT,
       };
     }
     throw error;
@@ -125,6 +139,7 @@ function checkConfig({ options }: { options: SetupDoctorOptions }): {
         message: `Endpoint "${endpoint}" ${ENDPOINT_REQUIREMENT}`,
         fix: "Set a valid endpoint with --endpoint, PHOENIX_ENDPOINT, or the profile",
       },
+      exitCode: ExitCode.INVALID_ARGUMENT,
     };
   }
 
@@ -137,6 +152,7 @@ function checkConfig({ options }: { options: SetupDoctorOptions }): {
       status: "pass",
       message: `Using ${endpoint}${profileSuffix}`,
     },
+    exitCode: ExitCode.SUCCESS,
     config: { ...config, endpoint },
   };
 }
@@ -145,7 +161,7 @@ async function checkConnectivity({
   endpoint,
 }: {
   endpoint: string;
-}): Promise<DoctorCheck> {
+}): Promise<DoctorCheckOutcome> {
   const outcome = await probeEndpoint(
     { createClient: createPhoenixClientFactory() },
     endpoint
@@ -154,23 +170,32 @@ async function checkConnectivity({
     case "authOff":
     case "authOn":
       return {
-        name: "connectivity",
-        status: "pass",
-        message: `Reached ${endpoint}`,
+        check: {
+          name: "connectivity",
+          status: "pass",
+          message: `Reached ${endpoint}`,
+        },
+        exitCode: ExitCode.SUCCESS,
       };
     case "unreachable":
       return {
-        name: "connectivity",
-        status: "fail",
-        message: `Could not reach ${endpoint}: ${outcome.detail}`,
-        fix: "Start the Phoenix server, or point px at it with --endpoint or PHOENIX_ENDPOINT",
+        check: {
+          name: "connectivity",
+          status: "fail",
+          message: `Could not reach ${endpoint}: ${outcome.detail}`,
+          fix: "Start the Phoenix server, or point px at it with --endpoint or PHOENIX_ENDPOINT",
+        },
+        exitCode: ExitCode.NETWORK_ERROR,
       };
     case "notPhoenix":
       return {
-        name: "connectivity",
-        status: "fail",
-        message: `${endpoint} responded, but not as a Phoenix server (${outcome.detail})`,
-        fix: "Use the Phoenix server's base URL as the endpoint",
+        check: {
+          name: "connectivity",
+          status: "fail",
+          message: `${endpoint} responded, but not as a Phoenix server (${outcome.detail})`,
+          fix: "Use the Phoenix server's base URL as the endpoint",
+        },
+        exitCode: ExitCode.NETWORK_ERROR,
       };
     default:
       return assertUnreachable(outcome);
@@ -181,13 +206,16 @@ async function checkVersion({
   config,
 }: {
   config: PhoenixConfig;
-}): Promise<DoctorCheck> {
+}): Promise<DoctorCheckOutcome> {
   try {
     const version = await createPhoenixClient({ config }).getServerVersion();
     return {
-      name: "version",
-      status: "pass",
-      message: `Phoenix server ${formatVersion(version)}`,
+      check: {
+        name: "version",
+        status: "pass",
+        message: `Phoenix server ${formatVersion(version)}`,
+      },
+      exitCode: ExitCode.SUCCESS,
     };
   } catch (error) {
     // getServerVersion documents a plain Error as its only failure.
@@ -195,20 +223,24 @@ async function checkVersion({
       throw error;
     }
     return {
-      name: "version",
-      status: "fail",
-      message: "The server did not report a Phoenix version",
-      fix: "Use the Phoenix server's base URL as the endpoint",
+      check: {
+        name: "version",
+        status: "fail",
+        message: "The server did not report a Phoenix version",
+        fix: "Use the Phoenix server's base URL as the endpoint",
+      },
+      exitCode: ExitCode.FAILURE,
     };
   }
 }
 
-async function checkAuth({
+function describeAuthResult({
+  result,
   config,
 }: {
+  result: FetchViewerResult;
   config: PhoenixConfig;
-}): Promise<DoctorCheck> {
-  const result = await fetchViewerForStatus(config);
+}): DoctorCheck {
   switch (result.status) {
     case "success":
       return {
@@ -230,10 +262,11 @@ async function checkAuth({
         fix: "Run `px auth login`, or pass a valid API key with --api-key or PHOENIX_API_KEY",
       };
     case "not_found":
-      return skipCheck({
+      return {
         name: "auth",
-        reason: "this server version cannot verify credentials",
-      });
+        status: "skip",
+        message: "Skipped: this server version cannot verify credentials",
+      };
     case "network_error":
     case "unknown_error":
       return {
@@ -246,53 +279,68 @@ async function checkAuth({
   }
 }
 
+async function checkAuth({
+  config,
+}: {
+  config: PhoenixConfig;
+}): Promise<DoctorCheckOutcome> {
+  const result = await fetchViewerForStatus(config);
+  return {
+    check: describeAuthResult({ result, config }),
+    exitCode: exitCodeForResult(result),
+  };
+}
+
 async function runDoctorChecks({
   options,
 }: {
   options: SetupDoctorOptions;
-}): Promise<DoctorCheck[]> {
-  const { check: configCheck, config } = checkConfig({ options });
+}): Promise<DoctorCheckOutcome[]> {
+  const configOutcome = checkConfig({ options });
+  const { config } = configOutcome;
   if (!config) {
     return [
-      configCheck,
+      configOutcome,
       skipCheck({ name: "connectivity", reason: "config check failed" }),
       skipCheck({ name: "version", reason: "config check failed" }),
       skipCheck({ name: "auth", reason: "config check failed" }),
     ];
   }
 
-  const connectivityCheck = await checkConnectivity({
+  const connectivityOutcome = await checkConnectivity({
     endpoint: config.endpoint,
   });
-  if (connectivityCheck.status === "fail") {
+  if (connectivityOutcome.check.status === "fail") {
     return [
-      configCheck,
-      connectivityCheck,
+      configOutcome,
+      connectivityOutcome,
       skipCheck({ name: "version", reason: "connectivity check failed" }),
       skipCheck({ name: "auth", reason: "connectivity check failed" }),
     ];
   }
 
   return [
-    configCheck,
-    connectivityCheck,
+    configOutcome,
+    connectivityOutcome,
     await checkVersion({ config }),
     await checkAuth({ config }),
   ];
 }
 
 async function setupDoctorHandler(options: SetupDoctorOptions): Promise<void> {
-  const checks = await runDoctorChecks({ options });
+  const outcomes = await runDoctorChecks({ options });
   writeOutput({
     message: formatDoctorOutput({
-      output: { checks },
+      output: { checks: outcomes.map((outcome) => outcome.check) },
       format: options.format,
     }),
   });
 
-  const firstFailedCheck = checks.find((check) => check.status === "fail");
-  if (firstFailedCheck) {
-    process.exit(DOCTOR_FAILURE_EXIT_CODES[firstFailedCheck.name]);
+  const firstFailedOutcome = outcomes.find(
+    (outcome) => outcome.exitCode !== ExitCode.SUCCESS
+  );
+  if (firstFailedOutcome) {
+    process.exit(firstFailedOutcome.exitCode);
   }
 }
 
@@ -319,10 +367,10 @@ Examples:
 
 Exit codes (from the first failed check):
   0  Every check passed or was skipped
-  1  version: the server did not report a Phoenix version
-  3  config: invalid settings file, unknown --profile, or invalid endpoint
-  4  auth: credentials were rejected or could not be verified
-  5  connectivity: the server could not be reached, or is not Phoenix
+  1  No Phoenix version reported, or a server error while verifying credentials
+  3  Invalid settings file, unknown --profile, or invalid endpoint
+  4  Credentials are missing or were rejected
+  5  The server could not be reached, or is not Phoenix
 `
     );
 }

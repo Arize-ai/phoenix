@@ -200,7 +200,7 @@ export function formatToolingOutput({
 
 export type DoctorCheckName = "config" | "connectivity" | "version" | "auth";
 
-export type DoctorCheckStatus = "pass" | "fail" | "skip";
+type DoctorCheckStatus = "pass" | "fail" | "skip";
 
 export interface DoctorCheck {
   name: DoctorCheckName;
@@ -224,7 +224,7 @@ const DOCTOR_STATUS_SYMBOLS: Record<DoctorCheckStatus, string> = {
 
 const DOCTOR_NAME_WIDTH = "connectivity".length;
 
-export interface FormatDoctorOutputOptions {
+interface FormatDoctorOutputOptions {
   output: DoctorOutput;
   format?: OutputFormat;
 }

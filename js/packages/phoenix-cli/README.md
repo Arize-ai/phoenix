@@ -260,8 +260,9 @@ px setup doctor --format raw        # {"checks":[{"name","status","message","fix
 - auth          Skipped: connectivity check failed
 ```
 
-The exit code comes from the first failed check: `3` config, `5` connectivity,
-`1` version, `4` auth, and `0` when nothing failed.
+The exit code reflects the first failure: `3` invalid config, `5` server
+unreachable or not Phoenix, `4` credentials missing or rejected, `1` anything
+else, and `0` when nothing failed.
 
 ---
 

@@ -306,7 +306,7 @@ function formatAuthOutput(
   return lines.join("\n");
 }
 
-function exitCodeForResult(result: FetchViewerResult): ExitCode {
+export function exitCodeForResult(result: FetchViewerResult): ExitCode {
   switch (result.status) {
     case "success":
     // 404 means the server is an older version without /v1/user — the token

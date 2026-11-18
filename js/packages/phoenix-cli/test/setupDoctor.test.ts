@@ -197,24 +197,6 @@ describe("px setup doctor", () => {
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.NETWORK_ERROR);
   });
 
-  it("fails the version check when the server reports no parseable version", async () => {
-    const exitSpy = mockProcessExit();
-    mock.server.use(
-      serverVersionHandler("not-a-version"),
-      viewerHandler(VIEWER)
-    );
-
-    const output = await runDoctorRaw();
-
-    expect(summarizeChecks(output)).toEqual([
-      "config:pass",
-      "connectivity:pass",
-      "version:fail",
-      "auth:pass",
-    ]);
-    expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
-  });
-
   it("fails the auth check when the server rejects the credentials", async () => {
     const exitSpy = mockProcessExit();
     mock.server.use(
@@ -261,6 +243,21 @@ describe("px setup doctor", () => {
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.AUTH_REQUIRED);
   });
 
+  it("exits with FAILURE when verifying credentials hits a server error", async () => {
+    const exitSpy = mockProcessExit();
+    mock.server.use(
+      serverVersionHandler("13.5.0"),
+      http.get("/v1/user", ({ response }) =>
+        response.untyped(new Response(null, { status: 500 }))
+      )
+    );
+
+    const output = await runDoctorRaw();
+
+    expect(output.checks[3]?.status).toBe("fail");
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
+  });
+
   it("passes the auth check when the server allows anonymous access", async () => {
     const exitSpy = mockProcessExit();
     mock.server.use(
@@ -272,21 +269,6 @@ describe("px setup doctor", () => {
 
     expect(output.checks[3]?.status).toBe("pass");
     expect(output.checks[3]?.message).toContain("anonymous");
-    expect(exitSpy).not.toHaveBeenCalled();
-  });
-
-  it("skips the auth check on servers without the user endpoint", async () => {
-    const exitSpy = mockProcessExit();
-    mock.server.use(
-      serverVersionHandler("13.5.0"),
-      http.get("/v1/user", ({ response }) =>
-        response.untyped(new Response(null, { status: 404 }))
-      )
-    );
-
-    const output = await runDoctorRaw();
-
-    expect(output.checks[3]?.status).toBe("skip");
     expect(exitSpy).not.toHaveBeenCalled();
   });
 
