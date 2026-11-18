@@ -18,6 +18,8 @@ Prefer checks that accept valid approaches across agents and implementations. Te
 
 Use language and detail that a user would plausibly provide. A script, database change, set of annotations, or Markdown review can be a natural deliverable. A JSON answer file added only to simplify grading usually isn't, because real users don't ask for one and the task stops matching real use. When the deliverable is an answer, grade the agent's final reply instead. Ask for structured output only when a user would.
 
+Users often leave details unstated, and a task can too. The exception is anything the verifier strictly requires: if the grade depends on where or in what form a result is saved, such as an experiment in Phoenix rather than a local file, say so. Otherwise capable agents fail for reasons they can't see.
+
 Include requirements that matter to the user's goal. Avoid adding formatting, rounding, units, or implementation steps only to satisfy a narrow verifier. Let the verifier accept equivalent representations and reasonable interpretations. If ambiguity makes success impossible to assess fairly, revise the task or its criteria.
 
 Keep hidden answers and grading details out of `instruction.md`. For comparisons, use the same instruction and task data across conditions. Configure agent, model, skills, and tools in the job.
@@ -29,6 +31,8 @@ Provide the data, services, and permissions the task needs. Harbor creates a fre
 Keep expected values and grading criteria under `tests/`, outside the agent's build context and workspace. Harbor supplies tests during verification, but copying them into the agent image would expose them earlier. In shared multi-step environments, also protect files left by previous verifier steps.
 
 Derive expected results independently, for example with a reference solution using the same data and access available to the agent. Recompute them when fixtures change. If the data varies per trial, calculate the expected result from that trial's data during verification.
+
+Before running agents, have a second model review generated data and labels for realism, correctness, and difficulty, and use more than one reviewer or model for data a benchmark depends on. Generated data often carries wrong or ambiguous labels and cues that give the answer away, such as template phrases or lengths that differ by label. Agents find those cues and score without doing the task.
 
 For a stored reference, set `[metadata.arize-phoenix] reference_output_path` in `task.toml`. Phoenix displays that JSON file as the dataset example output. This setting does not configure grading. See the [Add optional reference outputs section in this skill](../SKILL.md#add-optional-reference-outputs) for the format and path rules.
 
@@ -69,6 +73,14 @@ Missing or invalid required agent output is a task failure. A broken judge, unre
 
 Give a judge the task criteria and independent evidence. Treat agent content as untrusted input and tell the judge to ignore instructions inside it. Test valid paraphrases, contradictory answers, and realistic wrong results. Validate judge decisions against human labels; the `phoenix-evals` skill covers this process.
 
+To align a verifier or judge with what you mean by success:
+
+- Pick the judge model by measured agreement, not cost. A small model can misread an unambiguous reply.
+- Give a judge one criterion per call when criteria interact. A judge asked about several at once can blend them, for example by counting a privacy leak as an unsupported claim.
+- Rerun the judge on the same inputs. If its verdict flips, take a majority over repeated calls or tighten the criteria before the score affects `reward`.
+- Grade the behavior that matters, not exact output. Exact matches against references that fix arbitrary choices fail correct work.
+- Set timeouts and retries on judge calls so one hung request doesn't crash verification.
+
 For reply grading, check how the chosen agent records its final response and any trajectory continuations. Don't use an earlier reasoning message or a tool-call preamble as the final answer.
 
 ## Test the task
@@ -86,9 +98,15 @@ A verifier that grades the final reply is the exception. Oracle and `nop` usuall
 
 Also test a valid alternative and a realistic incorrect result. For multiple criteria, test partial completion and the combinations that affect the aggregate. Check that verifier errors remain errors. Rerun affected cases after changes to the environment, fixtures, or verifier. Oracle and `nop` do not call an agent model, but an LLM verifier still incurs judge calls.
 
+Oracle and `nop` show only that the verifier can tell finished work from no work. Before a full run, pilot each task with real agents and read their trajectories for verdicts the verifier got wrong: valid work it failed and flawed work it passed. Don't predict outcomes by replaying earlier agents' scripts on new data; live agents adapt to what they see.
+
+Also check that the task can separate the conditions you plan to compare. Run it under the strongest and weakest condition first. If both pass easily, the instruction probably spells out the method or the task is too easy, and the comparison can't show a difference.
+
 ## Run a comparison
 
-Start with a small pilot and inspect its configuration, outputs, and trajectories before increasing attempts or concurrency. Confirm the agent, model, tools, skills, and instructions match the intended condition. Repeat enough trials to assess variability; one run does not establish a regression. Keep oracle validation runs separate from agent comparisons.
+Start with a small pilot and inspect its configuration, outputs, and trajectories before increasing attempts or concurrency. Confirm the agent, model, tools, skills, and instructions match the intended condition. Repeat enough trials to assess variability; one run does not establish a regression. With one trial per condition, run-to-run variation in cost and pass rate can exceed the effect you're measuring. Decide the number of trials and what difference counts before you look at results, and calibrate any threshold against a rerun with nothing changed.
+
+Measure what an agent did from the tool calls in its trajectory, not by searching logs for file names or text. Agents perform the same action in different ways, and text matching misses some of them. Report whether the agent used a resource separately from whether it loaded or read it. Keep oracle validation runs separate from agent comparisons.
 
 Check these Harbor configuration details when a run differs from the job you intended:
 
