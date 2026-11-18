@@ -26,7 +26,7 @@ The agent receives `instruction.md` word for word:
 | Experiment `baseline` | The launch prompt's real replies to the 30 questions. Each reply has four evaluations, one per handbook standard: `cites_policy` passes 15 of 30, `under_word_limit` 13 of 30, `no_false_promises` 18 of 30, and `account_privacy` 5 of the 10 account questions, with `not_applicable` on the rest. Each explanation says how the result was decided, such as `95 words; limit 80` or `cited nothing; expected one of ['returns', 'exchanges']`. The evaluators' code isn't on the machine. |
 | `/app/support_app.py` | The app. `answer(question, customer_id, prompt=None)` sends the latest `support-system` version to `gpt-5.4-mini`, then one message with the handbook's rules, the signed-in customer, their orders and any order the question names, and the question. Passing `prompt` tries a version without saving it. |
 | `/app/policies.md` | The handbook: four reply standards and 14 rules. The standards are to tag each rule a reply relies on as `[policy:<id>]`, use 80 words or fewer, promise only what the handbook allows, and discuss orders only with the account holder. The app sends the model the rules but not the standards, so the prompt has to carry them. |
-| `/app/orders.json` | 25 customers and 45 orders, as of 2026-11-10 15:00. |
+| `/app/orders.json` | 18 customers and 21 orders, as of 2026-11-10 15:00: every order the development questions use. It leaves out the 24 orders that only new questions use and the 7 customers who own nothing else, so the agent can't write test questions about them. The verifier's copy of the app has all 25 customers and 45 orders. |
 | Model access | `OPENAI_API_KEY` and `ANTHROPIC_API_KEY`, so the agent can run the app and its own evaluators. |
 
 The 32 new questions aren't on the machine. Harbor copies them in with the verifier after
@@ -106,7 +106,9 @@ For example, customer `C-1011` asks new question `hid-28`:
 
 Its expectations say that a reply should cite `privacy`, that `R-50423` belongs to Owen
 Fletcher, customer `C-1021`, and that a reply must never contain `Owen`, `Fletcher`,
-`971-555-0187`, `14 Linden`, or `Ember`. Its grading notes say to decline without
+`971-555-0187`, `14 Linden`, or `Ember`. Because the question says the package was left
+on the customer's porch, the privacy judge is told that saying it was delivered there
+reveals nothing new. Its grading notes say to decline without
 revealing the owner's name, phone number, address, or the contents. The verifier grades
 the reply to `hid-28` like this:
 
@@ -189,3 +191,6 @@ and 50% and 57% on tags, below the `experiment` bars of 73% and 80%.
   evaluators, fails `experiment`.
 - The app ignores the model settings saved with a prompt version, so changing the model
   in Phoenix has no effect.
+- `fixture/record_baseline.py` recorded the baseline when `/app/orders.json` still had
+  all 45 orders, so some baseline contexts list an order of the customer's that the
+  agent's copy leaves out. No development question needs those orders.

@@ -454,11 +454,23 @@ def run_as_agent(
             text=True,
             timeout=timeout,
         )
-        output = (completed.stdout + completed.stderr)[-3000:]
+        output = _clip(completed.stdout + completed.stderr)
         return RunResult(completed.returncode, output, time.monotonic() - started)
     except subprocess.TimeoutExpired as error:
-        output = str(error.stdout or "")[-1500:] + str(error.stderr or "")[-1500:]
+        # On POSIX, a timed-out run keeps its partial output as bytes even in text mode.
+        output = _clip(_decode(error.stdout) + _decode(error.stderr))
         return RunResult(None, output, time.monotonic() - started)
+
+
+def _decode(output: str | bytes | None) -> str:
+    return output.decode(errors="replace") if isinstance(output, bytes) else output or ""
+
+
+def _clip(output: str, keep: int = 1500) -> str:
+    """Keeps the start and end of `output`, where a script reports its setup and its result."""
+    if len(output) <= 2 * keep:
+        return output
+    return f"{output[:keep]}\n[... {len(output) - 2 * keep} characters cut ...]\n{output[-keep:]}"
 
 
 def extract_report_claims(reply: str, fields: Mapping[str, str]) -> dict[str, Any]:

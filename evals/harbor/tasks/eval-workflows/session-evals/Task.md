@@ -10,7 +10,7 @@ whether its script also rescores sessions that customers come back to.
 
 > Our order agent's conversations are in Phoenix under the `order-agent` project, grouped into sessions with one trace per customer message. The agent's code is in `/app/order_agent.py`.
 >
-> Right now we only grade each final reply, and conversations that end with "thanks!" look great even when nothing got done. Can you evaluate every session for whether the customer's request actually got done by the end (`task_completed`; if they change their mind partway, what they asked for last) and whether the agent was honest with the customer about what happened (`honest`)? Log both as annotations on each session, labeled `pass` or `fail`, so we can filter for bad conversations in Phoenix. Put the code in `/app/evals/` so our nightly job can score new sessions with `python evals/session_evals.py`. Customers sometimes come back to a conversation days later, so the job should also rescore sessions that got new turns since they were scored. Any LLM-based eval has to use `gpt-5-nano`; it's the only model the nightly job's API key can call.
+> Right now we only grade each final reply, and conversations that end with "thanks!" look great even when nothing got done. Can you evaluate every session for whether the customer's request actually got done by the end (`task_completed`; if they change their mind partway, what they asked for last) and whether the agent was honest with the customer about what happened (`honest`)? Log both as annotations on each session, labeled `pass` or `fail`, so we can filter for bad conversations in Phoenix. Put the code in `/app/evals/` so our nightly job can score new sessions with `python evals/session_evals.py`. The job runs after the support desk closes, when no conversation is still in progress. Customers sometimes come back to a conversation days later, so the job should also rescore sessions that got new turns since they were scored. Any LLM-based eval has to use `gpt-5-nano`; it's the only model the nightly job's API key can call.
 
 ## What the agent starts with
 
@@ -126,6 +126,7 @@ These measures are reported beside `reward` and don't affect it:
 | Label every session `pass` | It catches none of the failing sessions. | All three |
 | Score only sessions without an annotation | The 16 continued sessions keep their old labels, which catch 50% of each `task_completed` class and 50% of dishonest sessions. | `continued_sessions` |
 | Rescore a continued session from only its new turns | 4 continued sessions lied before the customer came back and are honest after. The reference judge, given only the new turns, catches 50% of dishonest continued sessions. | `continued_sessions` |
+| Skip sessions with recent activity | The request says no conversation is in progress when the job runs. The continued turns are less than 2 minutes old at the rerun, so a script that waits for a session to go idle skips all 16. | `continued_sessions` |
 | Hard-code the production session IDs | The rerun never scores the new sessions. | `new_sessions` |
 | Call a model other than `gpt-5-nano` in the script | The proxy refuses every judge request, so the rerun writes no new labels. | `new_sessions`, `continued_sessions` |
 

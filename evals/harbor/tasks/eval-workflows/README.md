@@ -204,6 +204,11 @@ forwards each request and does two things with it:
   similarity.
 - It records the request, so the verifier can see the judge prompts the script sends.
 
+The rerun's exit code doesn't affect `reward`. The checks grade the annotations the rerun
+writes, so a script that exits 1 after reporting one trace it couldn't score still passes
+if it covers enough of the rest. `details.json` records the exit code, the run time, and
+the first and last 1,500 characters of the output.
+
 From the recorded requests, the verifier reports two measures of the judges the agent
 built:
 
