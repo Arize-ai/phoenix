@@ -1,0 +1,122 @@
+name: Docker Publish Image
+description: >-
+  Upload a variant's OCI archives to one registry, then publish and verify its
+  multi-platform tags. Registry publishing jobs share no credentials or uploads.
+
+inputs:
+  variant:
+    description: Image variant whose digests to collect — must match the build job.
+    required: true
+  tags:
+    description: Newline-separated tags in a single destination image repository.
+    required: true
+  expected-digests:
+    description: Number of platform digests required before tagging.
+    required: true
+  dockerhub-username:
+    default: ""
+  dockerhub-password:
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Download platform images
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        pattern: image-${{ inputs.variant }}-*
+        merge-multiple: true
+        path: ${{ runner.temp }}/images
+
+    - name: Install Skopeo
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install --yes skopeo
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+
+    - name: Log in to Docker Hub
+      if: ${{ !contains(inputs.tags, 'ghcr.io/') }}
+      uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+      with:
+        username: ${{ inputs.dockerhub-username }}
+        password: ${{ inputs.dockerhub-password }}
+
+    - name: Log in to GHCR
+      if: contains(inputs.tags, 'ghcr.io/')
+      uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
+
+    - name: Create manifest list and push
+      shell: bash
+      env:
+        TAGS: ${{ inputs.tags }}
+        EXPECTED_DIGESTS: ${{ inputs.expected-digests }}
+      run: |
+        set -euo pipefail
+        shopt -s nullglob
+        cd "${RUNNER_TEMP}/images"
+        digest_files=(*/digest)
+        if [ "${#digest_files[@]}" -ne "$EXPECTED_DIGESTS" ]; then
+          echo "expected $EXPECTED_DIGESTS platform images, found ${#digest_files[@]}" >&2
+          exit 1
+        fi
+
+        repository=""
+        tag_args=()
+        while IFS= read -r tag; do
+          [ -n "$tag" ] || continue
+          if [ -n "$repository" ] && [ "${tag%:*}" != "$repository" ]; then
+            echo "each publishing job must target one image repository" >&2
+            exit 1
+          fi
+          repository="${tag%:*}"
+          tag_args+=(--tag "$tag")
+        done <<< "$TAGS"
+        if [ -z "$repository" ]; then
+          echo "no tags supplied" >&2
+          exit 1
+        fi
+
+        sources=()
+        for digest_file in "${digest_files[@]}"; do
+          digest=$(cat "$digest_file")
+          if [[ ! "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "invalid image digest in $digest_file" >&2
+            exit 1
+          fi
+          # Copy OCI archives directly: docker load/push would require the containerd
+          # image store to preserve provenance and SBOM attestations.
+          skopeo copy --all --preserve-digests --retry-times 3 \
+            "oci-archive:${digest_file%/digest}/image.tar" \
+            "docker://${repository}@${digest}"
+          sources+=("${repository}@${digest}")
+        done
+        docker buildx imagetools create --prefer-index=true "${tag_args[@]}" "${sources[@]}"
+
+    - name: Verify published platforms
+      shell: bash
+      env:
+        TAGS: ${{ inputs.tags }}
+        EXPECTED_DIGESTS: ${{ inputs.expected-digests }}
+      run: |
+        set -euo pipefail
+        while IFS= read -r tag; do
+          [ -n "$tag" ] || continue
+          raw=$(docker buildx imagetools inspect --raw "$tag")
+          platforms=$(jq -r '[.manifests // [] | .[] | select(.platform.os != null and .platform.os != "unknown") | "\(.platform.os)/\(.platform.architecture)"] | sort | join(",")' <<< "$raw")
+          expected="linux/amd64,linux/arm64"
+          if [ "$EXPECTED_DIGESTS" = 1 ]; then
+            expected="linux/amd64"
+          fi
+          echo "$tag platforms: ${platforms:-<none>}"
+          if [ "$platforms" != "$expected" ]; then
+            echo "expected $expected in $tag, found $platforms" >&2
+            exit 1
+          fi
+        done <<< "$TAGS"
