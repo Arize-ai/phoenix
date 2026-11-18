@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from math import ceil
 from secrets import token_hex
 from typing import Any, AsyncIterator, Literal, Union
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 import sqlalchemy as sa
@@ -21,6 +21,11 @@ from phoenix.db.types.trace_retention import (
     TraceRetentionCronExpression,
     TraceRetentionRule,
 )
+from phoenix.server.api.dataloaders import CacheForDataLoaders
+from phoenix.server.api.dataloaders.record_counts import Key as RecordCountKey
+from phoenix.server.api.dataloaders.record_counts import RecordCountDataLoader
+from phoenix.server.dml_event import SpanDeleteEvent
+from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.retention import TraceDataSweeper
 from phoenix.server.types import DbSessionFactory
 
@@ -742,7 +747,15 @@ class TestRetentionPolicyBatchedDelete:
         batch_size = 2
         num_expired = 5
         project_id, recent_trace_id, policy_name = await self._seed_backlog(db, rule, num_expired)
-        dml_event_handler = MagicMock()
+        cache = CacheForDataLoaders()
+        count_key: RecordCountKey = ("trace", project_id, None, None, None)
+        assert (
+            await RecordCountDataLoader(db, cache.record_count).load(count_key) == num_expired + 1
+        )
+        event_handler = DmlEventHandler(
+            db=db, last_updated_at=MagicMock(), cache_for_dataloaders=cache
+        )
+        dml_event_handler = MagicMock(wraps=event_handler)
         sweeper = TraceDataSweeper(db=db, dml_event_handler=dml_event_handler)
         sweeper._running = True
         policy = await self._get_policy(sweeper, policy_name)
@@ -791,7 +804,12 @@ class TestRetentionPolicyBatchedDelete:
         remaining_trace_ids = await self._list_trace_ids(db, project_id)
         assert remaining_trace_ids == {recent_trace_id}, "every expired trace should be deleted"
         assert sum(num_traces_deleted_per_statement) == num_expired
-        dml_event_handler.put.assert_called_once()
+        assert dml_event_handler.put.call_args_list == [
+            call(SpanDeleteEvent((project_id,)))
+        ] * ceil(num_expired / batch_size)
+        for handler in event_handler._all_handlers:
+            await handler()
+        assert await RecordCountDataLoader(db, cache.record_count).load(count_key) == 1
         min_num_statements = ceil(num_expired / batch_size)
         assert len(num_traces_deleted_per_statement) >= min_num_statements, (
             f"{num_expired} expired traces were deleted in "
@@ -850,7 +868,7 @@ class TestRetentionPolicyBatchedDelete:
         assert len(remaining_trace_ids) == num_expired + 1 - batch_size, (
             "the first batch committed before the second failed, so its deletes should stay"
         )
-        dml_event_handler.put.assert_called_once()
+        dml_event_handler.put.assert_called_once_with(SpanDeleteEvent((project_id,)))
         assert self._count_executions("error") == num_errors + 1
         assert self._count_executions("success") == num_successes
 
@@ -898,7 +916,7 @@ class TestRetentionPolicyBatchedDelete:
         assert len(remaining_trace_ids) == num_expired + 1 - batch_size, (
             "the sweeper stopped after one batch, so only that batch should be deleted"
         )
-        dml_event_handler.put.assert_called_once()
+        dml_event_handler.put.assert_called_once_with(SpanDeleteEvent((project_id,)))
         assert self._count_executions("success") == num_successes, (
             "a sweep stopped partway through its backlog should not count as a success"
         )

@@ -99,29 +99,28 @@ class TraceDataSweeper(DaemonTask):
             # over all of the policy's traces. The batch limit bounds deletions, not the
             # ranking work, which can still exceed the statement timeout.
             deletion_filter = policy.rule.deletion_filter(project_rowids)
-            num_deleted_traces = 0
-            try:
-                while self._running:
-                    candidate_ids = (
-                        sa.select(Trace.id).where(deletion_filter).limit(_TRACE_DELETE_BATCH_SIZE)
+            while self._running:
+                candidate_ids = (
+                    sa.select(Trace.id).where(deletion_filter).limit(_TRACE_DELETE_BATCH_SIZE)
+                )
+                if self._db.dialect is SupportedSQLDialect.POSTGRESQL:
+                    candidate_ids = candidate_ids.with_for_update(skip_locked=True)
+                stmt = (
+                    sa.delete(Trace)
+                    .where(Trace.id.in_(candidate_ids))
+                    .returning(Trace.project_rowid)
+                )
+                async with self._db() as session:
+                    deleted_project_rowids = (await session.scalars(stmt)).all()
+                # Publish only committed changes, including batches before a later failure.
+                # RETURNING is bounded by the batch size even for a large backlog.
+                if deleted_project_rowids:
+                    self._dml_event_handler.put(
+                        SpanDeleteEvent(tuple(sorted(set(deleted_project_rowids))))
                     )
-                    if self._db.dialect is SupportedSQLDialect.POSTGRESQL:
-                        candidate_ids = candidate_ids.with_for_update(skip_locked=True)
-                    stmt = sa.delete(Trace).where(Trace.id.in_(candidate_ids)).returning(Trace.id)
-                    async with self._db() as session:
-                        num_deleted_in_batch = len((await session.scalars(stmt)).all())
-                    num_deleted_traces += num_deleted_in_batch
-                    if num_deleted_in_batch < _TRACE_DELETE_BATCH_SIZE:
-                        RETENTION_POLICY_EXECUTIONS.labels(status="success").inc()
-                        break
-            finally:
-                # Batches commit independently, so emit the event even if a later batch
-                # fails. The affected project ids only feed CacheForDataLoaders
-                # invalidation, which is None on every backend except SQLite, so they are
-                # not collected. On SQLite the unfiltered summary caches may read stale
-                # until their 1h TTL expires.
-                if num_deleted_traces:
-                    self._dml_event_handler.put(SpanDeleteEvent(()))
+                if len(deleted_project_rowids) < _TRACE_DELETE_BATCH_SIZE:
+                    RETENTION_POLICY_EXECUTIONS.labels(status="success").inc()
+                    break
         except Exception:
             logger.exception(f"Failed to apply retention policy '{policy.name}' (id={policy.id})")
             RETENTION_POLICY_EXECUTIONS.labels(status="error").inc()
