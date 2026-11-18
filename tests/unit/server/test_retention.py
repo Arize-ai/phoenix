@@ -747,15 +747,7 @@ class TestRetentionPolicyBatchedDelete:
         batch_size = 2
         num_expired = 5
         project_id, recent_trace_id, policy_name = await self._seed_backlog(db, rule, num_expired)
-        cache = CacheForDataLoaders()
-        count_key: RecordCountKey = ("trace", project_id, None, None, None)
-        assert (
-            await RecordCountDataLoader(db, cache.record_count).load(count_key) == num_expired + 1
-        )
-        event_handler = DmlEventHandler(
-            db=db, last_updated_at=MagicMock(), cache_for_dataloaders=cache
-        )
-        dml_event_handler = MagicMock(wraps=event_handler)
+        dml_event_handler = MagicMock()
         sweeper = TraceDataSweeper(db=db, dml_event_handler=dml_event_handler)
         sweeper._running = True
         policy = await self._get_policy(sweeper, policy_name)
@@ -807,9 +799,6 @@ class TestRetentionPolicyBatchedDelete:
         assert dml_event_handler.put.call_args_list == [
             call(SpanDeleteEvent((project_id,)))
         ] * ceil(num_expired / batch_size)
-        for handler in event_handler._all_handlers:
-            await handler()
-        assert await RecordCountDataLoader(db, cache.record_count).load(count_key) == 1
         min_num_statements = ceil(num_expired / batch_size)
         assert len(num_traces_deleted_per_statement) >= min_num_statements, (
             f"{num_expired} expired traces were deleted in "
@@ -821,6 +810,27 @@ class TestRetentionPolicyBatchedDelete:
             f"each retention DELETE should remove at most {batch_size} "
             f"(deletes per statement: {num_traces_deleted_per_statement})"
         )
+
+    @pytest.mark.parametrize("dialect", ["sqlite"], indirect=True)
+    async def test_invalidates_cached_trace_count(self, db: DbSessionFactory) -> None:
+        project_id, _, policy_name = await self._seed_backlog(
+            db, MaxDaysRule(max_days=7), num_expired=1
+        )
+        cache = CacheForDataLoaders()
+        count_key: RecordCountKey = ("trace", project_id, None, None, None)
+        assert await RecordCountDataLoader(db, cache.record_count).load(count_key) == 2
+        event_handler = DmlEventHandler(
+            db=db, last_updated_at=MagicMock(), cache_for_dataloaders=cache
+        )
+        sweeper = TraceDataSweeper(db=db, dml_event_handler=event_handler)
+        sweeper._running = True
+        policy = await self._get_policy(sweeper, policy_name)
+
+        await sweeper._apply(policy)
+        for handler in event_handler._all_handlers:
+            await handler()
+
+        assert await RecordCountDataLoader(db, cache.record_count).load(count_key) == 1
 
     async def test_keeps_committed_batches_when_a_later_batch_fails(
         self,
