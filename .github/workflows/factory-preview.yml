@@ -104,7 +104,7 @@ jobs:
           uv run --script base/factory/preview/plan.py --pr "$PR_NUMBER" --head-sha "$HEAD_SHA" --seed-dir "$GITHUB_WORKSPACE/seed" > "$RUNNER_TEMP/plan.out"
           cat "$RUNNER_TEMP/plan.out" >> "$GITHUB_OUTPUT"
 
-      - name: Build the preview with the shared image action
+      - name: Build image
         uses: ./base/.github/actions/docker-build-image
         with:
           variants: root
@@ -117,7 +117,7 @@ jobs:
           dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
           dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-      - name: Publish preview tags with the shared manifest action
+      - name: Upload image and publish GHCR tags
         uses: ./base/.github/actions/docker-merge-manifest
         with:
           variant: root
