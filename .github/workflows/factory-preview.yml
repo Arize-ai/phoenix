@@ -118,7 +118,7 @@ jobs:
           dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
       - name: Upload image and publish GHCR tags
-        uses: ./base/.github/actions/docker-merge-manifest
+        uses: ./base/.github/actions/docker-publish-image
         with:
           variant: root
           tags: |
