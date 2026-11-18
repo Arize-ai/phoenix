@@ -850,8 +850,8 @@ CREATE TABLE dataset_evaluators (
     input_mapping JSONB NOT NULL,
     user_id INTEGER,
     project_id INTEGER NOT NULL,
-    created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
-    updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT pk_dataset_evaluators PRIMARY KEY (id),
     CONSTRAINT uq_dataset_evaluators_dataset_id_name UNIQUE (dataset_id, name),
     CONSTRAINT fk_dataset_evaluators_dataset_id_datasets
@@ -920,16 +920,16 @@ CREATE INDEX ix_experiments_user_id ON experiments (user_id);
 CREATE TABLE experiment_jobs (
     id INTEGER NOT NULL,
     type VARCHAR NOT NULL,
-    status VARCHAR DEFAULT 'STOPPED' NOT NULL,
+    status VARCHAR DEFAULT 'STOPPED' NOT NULL
+        CONSTRAINT "ck_experiment_jobs_`valid_experiment_status`"
+        CHECK (status IN ('RUNNING', 'COMPLETED', 'STOPPED', 'ERROR')),
     claimed_at TIMESTAMP,
     claimed_by VARCHAR,
     cooldown_until TIMESTAMP,
     max_concurrency INTEGER DEFAULT '10' NOT NULL,
-    created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT pk_experiment_jobs PRIMARY KEY (id),
     CONSTRAINT uq_experiment_jobs_type_id UNIQUE (type, id),
-    CONSTRAINT "ck_experiment_jobs_`valid_experiment_status`"
-        CHECK (status IN ('RUNNING', 'COMPLETED', 'STOPPED', 'ERROR')),
     CONSTRAINT "ck_experiment_jobs_`valid_type`"
         CHECK (type IN ('PROMPT', 'EVAL_ONLY', 'EVALUATOR', 'DECISION')),
     CONSTRAINT fk_experiment_jobs_id_experiments
