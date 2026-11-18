@@ -49,6 +49,28 @@ function tagNames() {
   );
 }
 
+/**
+ * The name assistive technology reads: the elements `aria-labelledby` points
+ * to, in order, else `aria-label`.
+ */
+function accessibleNameOf(element: HTMLElement): string {
+  const labelledBy = element.getAttribute("aria-labelledby");
+  if (labelledBy) {
+    return labelledBy
+      .split(" ")
+      .map((id) => {
+        const labelElement = document.getElementById(id);
+        return (
+          labelElement?.getAttribute("aria-label") ??
+          labelElement?.textContent?.trim() ??
+          ""
+        );
+      })
+      .join(" ");
+  }
+  return element.getAttribute("aria-label") ?? "";
+}
+
 describe("TagGroup", () => {
   it("renders nothing for an empty set", () => {
     render(<TagGroup aria-label="Labels" items={[]} />);
@@ -79,10 +101,15 @@ describe("TagGroup", () => {
   it("names each remove button after its tag", async () => {
     const onRemove = vi.fn();
     render(<TagGroup aria-label="Labels" items={ITEMS} onRemove={onRemove} />);
-    const remove = container.querySelector<HTMLElement>(
-      'button[aria-label="Remove needs-review"]'
+    const removeButtons = Array.from(
+      container.querySelectorAll<HTMLElement>(".tag__remove")
     );
-    expect(remove).not.toBeNull();
+    expect(removeButtons.map(accessibleNameOf)).toEqual([
+      "Remove production",
+      "Remove banking",
+      "Remove needs-review",
+    ]);
+    const remove = removeButtons[2];
     await act(async () => userEvent.click(remove!));
     expect(onRemove).toHaveBeenCalledWith(new Set(["needs-review"]));
   });

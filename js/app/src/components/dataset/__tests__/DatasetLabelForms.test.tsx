@@ -107,6 +107,21 @@ function getByText<T extends HTMLElement>({
   return element;
 }
 
+/**
+ * The remove button of the tag named `name`. React Aria names it from the
+ * tag's row, so it carries no label of its own to look up.
+ */
+function getRemoveButton(name: string): HTMLElement {
+  const row = Array.from(
+    document.querySelectorAll<HTMLElement>('[role="row"]')
+  ).find((candidate) => candidate.textContent?.trim() === name);
+  const button = row?.querySelector<HTMLElement>(".tag__remove");
+  if (!button) {
+    throw new Error(`no remove button for ${name}`);
+  }
+  return button;
+}
+
 async function click(element: HTMLElement) {
   await act(async () => userEvent.click(element));
 }
@@ -234,7 +249,7 @@ describe("EditDatasetForm labels", () => {
 
   it("keeps the dialog's form open with the reason when the labels do not save", async () => {
     const { environment, onDatasetEdited } = renderEditForm();
-    await click(getByText({ selector: "button", text: "Remove production" }));
+    await click(getRemoveButton("production"));
     await click(getByText({ selector: "button", text: "Save" }));
     await resolveMutation({ environment, name: "EditDatasetFormMutation" });
     await rejectMutation({
@@ -252,7 +267,7 @@ describe("EditDatasetForm labels", () => {
   it("leaves the labels alone when only their order changed", async () => {
     const { environment, onDatasetEdited } = renderEditForm();
     // removing and re-adding production moves it to the end
-    await click(getByText({ selector: "button", text: "Remove production" }));
+    await click(getRemoveButton("production"));
     await checkLabel("production");
     await click(getByText({ selector: "button", text: "Save" }));
     await resolveMutation({ environment, name: "EditDatasetFormMutation" });

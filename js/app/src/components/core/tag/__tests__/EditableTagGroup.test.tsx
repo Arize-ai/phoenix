@@ -115,6 +115,21 @@ function getByRole(role: string, name: string) {
   return element;
 }
 
+/**
+ * The remove button of the tag named `name`. React Aria names it from the
+ * tag's row, so it carries no label of its own to look up.
+ */
+function getRemoveButton(name: string): HTMLElement {
+  const row = Array.from(
+    document.querySelectorAll<HTMLElement>('[role="row"]')
+  ).find((candidate) => candidate.textContent?.trim() === name);
+  const button = row?.querySelector<HTMLElement>(".tag__remove");
+  if (!button) {
+    throw new Error(`no remove button for ${name}`);
+  }
+  return button;
+}
+
 describe("EditableTagGroup", () => {
   it("shows the empty state and a named add control when nothing is attached", () => {
     render(<LabelsHarness initialIds={[]} onChange={vi.fn()} />);
@@ -142,9 +157,7 @@ describe("EditableTagGroup", () => {
         onChange={onChange}
       />
     );
-    await act(async () =>
-      userEvent.click(getByRole("button", "Remove production"))
-    );
+    await act(async () => userEvent.click(getRemoveButton("production")));
     expect(onChange).toHaveBeenLastCalledWith(["banking"]);
     expect(tagNames()).toEqual(["banking"]);
   });

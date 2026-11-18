@@ -291,11 +291,9 @@ function InteractiveTagSet({
                     {labelOf(item)}
                   </TagContent>
                   {allowsRemoving ? (
-                    <AriaButton
-                      slot="remove"
-                      className="tag__remove"
-                      aria-label={`Remove ${item.label}`}
-                    >
+                    // React Aria names the button "Remove" followed by
+                    // the tag's own label
+                    <AriaButton slot="remove" className="tag__remove">
                       <Icon svg={<Icons.Close />} />
                     </AriaButton>
                   ) : null}
