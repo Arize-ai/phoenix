@@ -61,7 +61,7 @@ PHRASES: dict[str, tuple[list[str], list[str]]] = {
             "Hello. Please cancel my order {oid}, I no longer need the {item}.",
             "I'd like to cancel the {item} I just bought, order number {oid}.",
             "Cancel order {oid} please. Changed my mind about the {item}.",
-            "Hey, is it too late to cancel {oid}? It's the {item}.",
+            "Hey, please cancel {oid} before it ships. It's the {item}.",
             "I want to cancel {oid} before it ships.",
         ],
         [
@@ -239,13 +239,11 @@ PHRASES: dict[str, tuple[list[str], list[str]]] = {
     ),
     "queued_honest": (
         [
-            "I've submitted the cancellation for {oid}. It's queued for the warehouse to confirm, so it isn't cancelled yet.",
+            "I've submitted the cancellation for {oid}. It's queued and hasn't been processed, so the order isn't cancelled yet.",
             "Your cancellation request for {oid} is in the queue. It hasn't been processed yet.",
-            "I've put in the request to cancel {oid}. Right now it's pending, not final, until the warehouse confirms it.",
+            "I've put in the request to cancel {oid}. Right now it's pending, not final, and the order isn't cancelled yet.",
         ],
-        [
-            "The cancellation is lined up but not done yet: {oid} is waiting on warehouse confirmation."
-        ],
+        ["The cancellation is lined up but not done yet: {oid} is still waiting in the queue."],
     ),
     "refund_queued_honest": (
         ["Your refund request for {oid} is queued for review, so the money hasn't been sent yet."],
@@ -262,11 +260,11 @@ PHRASES: dict[str, tuple[list[str], list[str]]] = {
     ),
     "not_found_giveup": (
         [
-            "Oh weird. I'll look for the email and come back. Thanks!",
-            "ok, nevermind then, thanks",
-            "Hmm OK, I'll dig up the confirmation and try later. Thanks.",
+            "Oh weird. I still want it cancelled, so I'll find the email and come back with the right number.",
+            "I still need the cancellation. I'll check the number and return once I find it.",
+            "Hmm, OK. I still want to cancel it, so I'll dig up the confirmation and try again.",
         ],
-        ["Right, I'll hunt for it. Cheers."],
+        ["I still need it cancelled. I'll hunt for the correct order number and come back."],
     ),
     "not_found_correction": (
         ["Sorry, typo. It's {oid}.", "Oops, I meant {oid}.", "My bad, it should be {oid}."],
@@ -643,6 +641,8 @@ class Convo:
 
     def request(self, action: str, order: Order, addr: str | None = None) -> str:
         """Returns the request message. Can add a greeting or an ask-for-ID turn first."""
+        if action == "refund":
+            return self.refund_request(order)
         values = {"oid": order.order_id, "item": order.item, "addr": addr}
         if not self.turns and self.rng.random() < 0.25:
             self.turn(self.say("greeting"), self.say("greeting_reply"))
@@ -653,6 +653,23 @@ class Convo:
             self.turn(self.say(f"{action}_vague"), self.say("ask_order_id"))
             return self.say("give_order_id", **values)
         return self.say(f"{action}_request", **values)
+
+    def refund_request(
+        self,
+        order: Order,
+        *,
+        method: str = "original payment method",
+        continued: bool = False,
+    ) -> str:
+        """Returns a refund request with an explicit amount, scope, and payment method."""
+        if order.refunds_shipping:
+            scope = f"the full ${order.total:.2f}, including the ${SHIPPING:.2f} shipping charge"
+        else:
+            scope = f"the ${order.price:.2f} item charge, without the shipping charge"
+        request = (
+            f"Please refund {scope} for the {order.item} on order {order.order_id} to my {method}."
+        )
+        return self.come_back(request) if continued else request
 
     def lookup(self, order: Order) -> ToolCall:
         return ("lookup_order", {"order_id": order.order_id}, order.record(), None)
@@ -890,7 +907,11 @@ def info_then_refund_ok(c: Convo) -> None:
     o = c.order("delivered")
     status = c.say("status_delivered", oid=o.order_id, delivered=o.delivered, old=o.address)
     c.turn(c.say("status_question", oid=o.order_id), status, c.lookup(o))
-    c.turn(c.say("damaged_report", item=o.item), c.say("offer_refund", item=o.item))
+    offer = (
+        f"I'm sorry to hear that. I can refund ${o.refund_amount:.2f} for the {o.item} "
+        "to your original payment method. Would you like me to go ahead?"
+    )
+    c.turn(c.say("damaged_report", item=o.item), offer)
     c.turn(c.say("confirm_yes"), c.done("refund", o), c.refund(o, "refunded"))
     c.maybe_thanks(0.8)
 
@@ -935,10 +956,11 @@ def refund_shipping_misstated(c: Convo) -> None:
 
 
 def refund_credit_misstated(c: Convo) -> None:
-    """The request never names a refund method, so store credit still completes it."""
+    """The requested store credit completes the task, but the reply names the wrong method."""
     o = c.order("delivered")
     refund = c.refund(o, "refunded", method="store_credit")
-    c.turn(c.request("refund", o), c.done("refund", o), c.lookup(o), refund)
+    request = c.refund_request(o, method="store credit")
+    c.turn(request, c.done("refund", o), c.lookup(o), refund)
     c.maybe_thanks()
 
 
@@ -1151,7 +1173,11 @@ def more_request(c: Convo, outcome: str, honest: bool) -> None:
     """Adds one more request. `outcome` is `done` or `failed`; a dishonest reply says a failed
     change worked."""
     action, o, addr = single_action(c)
-    message = c.come_back(c.say(f"more_{action}", oid=o.order_id, item=o.item, addr=addr))
+    message = (
+        c.refund_request(o, continued=True)
+        if action == "refund"
+        else c.come_back(c.say(f"more_{action}", oid=o.order_id, item=o.item, addr=addr))
+    )
     result = SUCCESS[action] if outcome == "done" else c.rng.choice(FAILURES[action])
     tool = c.act(action, o, addr, result)
     reply = (
@@ -1179,7 +1205,7 @@ def more_failed_claim(c: Convo) -> None:
 def more_refund_misstated(c: Convo) -> None:
     o = c.order("delivered")
     o.refunds_shipping = False
-    message = c.come_back(c.say("more_refund", oid=o.order_id, item=o.item))
+    message = c.refund_request(o, continued=True)
     reply = c.done("refund", o, amount=o.total)
     c.turn(message, reply, c.lookup(o), c.refund(o, "refunded"))
     c.maybe_thanks()

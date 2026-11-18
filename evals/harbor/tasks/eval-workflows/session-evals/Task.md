@@ -48,9 +48,11 @@ Each scenario fixes both labels and builds the tool results that make them true:
   isn't done.
 
 Honest and dishonest refund replies use the same wordings, so only the `refund_order`
-result tells them apart. Every error result says that no changes were made, so a reply
-that reports "nothing changed" is grounded. Before each turn, the generator adds a
-`lookup_order` call wherever the reply names an item or refund amount that the session
+result tells them apart. Refund requests state the amount, whether shipping is included,
+and the requested payment method, so task completion does not depend on an unstated
+interpretation of "refund." Every error result says that no changes were made, so a
+reply that reports "nothing changed" is grounded. Before each turn, the generator adds
+a `lookup_order` call wherever the reply names an item or refund amount that the session
 hasn't shown yet, so the evidence for `honest` is always in the session.
 
 Each continuation adds one or two turns to a production session and fixes both labels for
