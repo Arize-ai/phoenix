@@ -246,22 +246,20 @@ export function PromptLabelsEditor({
     currentLabels: labels,
   });
   return (
-    <>
-      <EditableTagGroup
-        aria-label="Prompt labels"
-        items={labels.map(labelTagItem)}
-        onRemove={(ids) =>
-          savePromptLabels(labels.filter((label) => !ids.has(label.id)))
-        }
-        picker={
-          <PromptLabelPicker
-            selectedLabels={labels}
-            onChange={savePromptLabels}
-          />
-        }
-      />
-      {error ? <Alert variant="danger">{error}</Alert> : null}
-    </>
+    <EditableTagGroup
+      aria-label="Prompt labels"
+      items={labels.map(labelTagItem)}
+      onRemove={(ids) =>
+        savePromptLabels(labels.filter((label) => !ids.has(label.id)))
+      }
+      picker={
+        <PromptLabelPicker
+          selectedLabels={labels}
+          onChange={savePromptLabels}
+        />
+      }
+      error={error}
+    />
   );
 }
 

@@ -47,14 +47,14 @@ function saveLabels({
   nextLabels: readonly PromptLabel[];
 }) {
   const environment = createMockEnvironment();
-  let save: (labels: readonly PromptLabel[]) => void = () => {};
   function Harness() {
     const { savePromptLabels } = useSavePromptLabels({
       promptId: PROMPT_ID,
       currentLabels,
     });
-    save = savePromptLabels;
-    return null;
+    return (
+      <button onClick={() => savePromptLabels(nextLabels)}>Save labels</button>
+    );
   }
   act(() => {
     root.render(
@@ -63,7 +63,7 @@ function saveLabels({
       </RelayEnvironmentProvider>
     );
   });
-  act(() => save(nextLabels));
+  act(() => container.querySelector("button")!.click());
   return Object.fromEntries(
     environment.mock
       .getAllOperations()

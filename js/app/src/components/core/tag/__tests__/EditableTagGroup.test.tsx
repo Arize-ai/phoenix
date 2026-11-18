@@ -244,4 +244,26 @@ describe("EditableTagGroup", () => {
     expect(onInnerSubmit).toHaveBeenCalledTimes(1);
     expect(onOuterSubmit).not.toHaveBeenCalled();
   });
+
+  it("shows a save error under the tags, and at the top of the picker while it is open", async () => {
+    render(
+      <EditableTagGroup
+        aria-label="Dataset labels"
+        items={OPTIONS.slice(0, 1)}
+        onRemove={vi.fn()}
+        picker={<p>picker</p>}
+        error="The label was not saved"
+      />
+    );
+    const alertsIn = (root: ParentNode) =>
+      Array.from(root.querySelectorAll('[data-variant="danger"]')).map(
+        (alert) => alert.textContent
+      );
+    expect(alertsIn(container)).toEqual(["The label was not saved"]);
+
+    await act(async () => userEvent.click(getByRole("button", "Add label")));
+    expect(alertsIn(container)).toEqual([]);
+    const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!;
+    expect(alertsIn(dialog)).toEqual(["The label was not saved"]);
+  });
 });

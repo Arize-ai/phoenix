@@ -283,7 +283,9 @@ describe("DatasetLabelPicker", () => {
   it("keeps attached labels the picker does not list", async () => {
     const onChange = vi.fn();
     const lastLabelIds = () =>
-      (onChange.mock.lastCall?.[0] as DatasetLabel[]).map((label) => label.id);
+      ((onChange.mock.lastCall?.[0] ?? []) as DatasetLabel[]).map(
+        (label) => label.id
+      );
     renderWithRelay(
       <DatasetLabelPicker
         selectedLabels={[ARCHIVED, PRODUCTION]}

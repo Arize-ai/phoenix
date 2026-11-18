@@ -241,19 +241,17 @@ export function DatasetLabelsEditor({
   const saveLabels = (nextLabels: readonly DatasetLabel[]) =>
     setDatasetLabels({ datasetId, labels: nextLabels });
   return (
-    <>
-      <EditableTagGroup
-        aria-label="Dataset labels"
-        items={labels.map(labelTagItem)}
-        onRemove={(ids) =>
-          saveLabels(labels.filter((label) => !ids.has(label.id)))
-        }
-        picker={
-          <DatasetLabelPicker selectedLabels={labels} onChange={saveLabels} />
-        }
-      />
-      {error ? <Alert variant="danger">{error}</Alert> : null}
-    </>
+    <EditableTagGroup
+      aria-label="Dataset labels"
+      items={labels.map(labelTagItem)}
+      onRemove={(ids) =>
+        saveLabels(labels.filter((label) => !ids.has(label.id)))
+      }
+      picker={
+        <DatasetLabelPicker selectedLabels={labels} onChange={saveLabels} />
+      }
+      error={error}
+    />
   );
 }
 
