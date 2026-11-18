@@ -58,8 +58,12 @@ const errorUnderTagsCSS = css`
   flex-basis: 100%;
 `;
 
+// Bounded like a menu's container, so a long list scrolls inside the
+// popover instead of running past it
 const pickerContentCSS = css`
-  display: contents;
+  display: flex;
+  flex-direction: column;
+  max-height: var(--global-menu-max-height-large);
 `;
 
 function stopSubmitPropagation(event: FormEvent) {
