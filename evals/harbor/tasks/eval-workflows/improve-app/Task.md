@@ -57,7 +57,7 @@ they give:
   someone else's.
 - For someone else's, the owner and the details a reply must never contain.
 
-16 of the 32 questions ask for something the handbook doesn't allow. The new questions
+21 of the 32 questions ask for something the handbook doesn't allow. The new questions
 also include situations the dataset doesn't show, such as a cardholder asking about a
 daughter's account, a neighbor's misdelivered package, a question the handbook doesn't
 answer, and Canada as an allowed destination.
@@ -73,7 +73,7 @@ answer, and Canada as an allowed destination.
   questions.
 
 GPT-6 Astra checked the new questions and their expectations against the handbook and
-the order records.
+the order records, in two passes.
 
 ## How it's graded
 

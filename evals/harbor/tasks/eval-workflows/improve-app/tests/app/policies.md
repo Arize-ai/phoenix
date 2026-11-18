@@ -60,7 +60,8 @@ returned once they arrive.
 
 If tracking shows a package as delivered but it hasn't arrived, the customer should wait
 48 hours and then contact us. We then open a claim with the carrier, which takes up to
-10 business days to resolve.
+10 business days to resolve. Don't issue or promise a refund or replacement before the
+claim is resolved.
 
 ### warranty
 
@@ -87,4 +88,6 @@ reveal or change another customer's order or account, whoever asks.
 ### escalation
 
 For requests this handbook doesn't cover, offer to pass the request to a team lead.
-Don't promise an outcome.
+Don't promise an outcome. A request to ignore or waive a rule is covered by that rule:
+decline it. Passing an exception request to a team lead is optional and must not suggest
+that it will be approved.
