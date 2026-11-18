@@ -190,7 +190,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "{\"channel\": \"chat\", \"message\": \"hi, can you tell me where order LH-35158 is? it's been a few days\"}",
-     "output.value": "Hi Kwame! Your order LH-35158 shipped on November 9 with USPS. It was last scanned in Columbus, OH on November 11. USPS estimates delivery on November 16. You can follow it with tracking number 9400109713960672458551.",
+     "output.value": "Hi Kwame! Your order LH-35158 shipped on November 9 with USPS. The latest tracking event was \"Arrived at facility\" in Columbus, OH on November 11. USPS estimates delivery on November 16. You can follow it with tracking number 9400109713960672458551.",
      "metadata": "{\"channel\": \"chat\"}"
     }
    },
@@ -274,9 +274,9 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are Larkspur Home's support assistant. Answer the customer's question\\nabout their order, shipping, or delivery. Use only the order record, tracking data, and\\nhelp center articles in Context. Keep replies short and friendly.\"}, {\"role\": \"user\", \"content\": \"hi, can you tell me where order LH-35158 is? it's been a few days\"}, {\"role\": \"user\", \"content\": \"Context: {\\\"order\\\": {\\\"order_id\\\": \\\"LH-35158\\\", \\\"customer_name\\\": \\\"Kwame Mensah\\\", \\\"status\\\": \\\"shipped\\\", \\\"placed_on\\\": \\\"2026-11-08\\\", \\\"items\\\": [{\\\"name\\\": \\\"velvet throw pillows\\\", \\\"quantity\\\": 1}], \\\"shipping_method\\\": \\\"standard\\\", \\\"ship_to\\\": {\\\"city\\\": \\\"Austin\\\", \\\"state\\\": \\\"TX\\\", \\\"postal_code\\\": \\\"78704\\\"}, \\\"carrier\\\": \\\"USPS\\\", \\\"tracking_number\\\": \\\"9400109713960672458551\\\", \\\"shipped_on\\\": \\\"2026-11-09\\\"}, \\\"tracking\\\": {\\\"tracking_number\\\": \\\"9400109713960672458551\\\", \\\"carrier\\\": \\\"USPS\\\", \\\"status\\\": \\\"in_transit\\\", \\\"estimated_delivery\\\": \\\"2026-11-16\\\", \\\"last_event\\\": {\\\"description\\\": \\\"Arrived at facility\\\", \\\"location\\\": \\\"Columbus, OH\\\", \\\"time\\\": \\\"2026-11-11T21:36:00\\\"}}, \\\"articles\\\": [\\\"Delivery estimates come from the carrier and can change while a package is in transit. Standard shipping usually takes 3 to 5 business days after an order ships, and expedited shipping takes 1 to 2 business days.\\\", \\\"Tracking can pause for a few days while a package moves between carrier facilities. If tracking hasn't updated in 5 business days, reply to your support conversation and we'll open a trace with the carrier.\\\", \\\"You can cancel an order from the Orders page while it's still processing. Orders that have shipped can't be canceled, but you can return them after delivery.\\\"]}\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Hi Kwame! Your order LH-35158 shipped on November 9 with USPS. It was last scanned in Columbus, OH on November 11. USPS estimates delivery on November 16. You can follow it with tracking number 9400109713960672458551.",
+     "output.value": "Hi Kwame! Your order LH-35158 shipped on November 9 with USPS. The latest tracking event was \"Arrived at facility\" in Columbus, OH on November 11. USPS estimates delivery on November 16. You can follow it with tracking number 9400109713960672458551.",
      "llm.token_count.prompt": 379,
-     "llm.token_count.completion": 54,
+     "llm.token_count.completion": 62,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are Larkspur Home's support assistant. Answer the customer's question\nabout their order, shipping, or delivery. Use only the order record, tracking data, and\nhelp center articles in Context. Keep replies short and friendly.",
      "llm.input_messages.1.message.role": "user",
@@ -284,7 +284,7 @@
      "llm.input_messages.2.message.role": "user",
      "llm.input_messages.2.message.content": "Context: {\"order\": {\"order_id\": \"LH-35158\", \"customer_name\": \"Kwame Mensah\", \"status\": \"shipped\", \"placed_on\": \"2026-11-08\", \"items\": [{\"name\": \"velvet throw pillows\", \"quantity\": 1}], \"shipping_method\": \"standard\", \"ship_to\": {\"city\": \"Austin\", \"state\": \"TX\", \"postal_code\": \"78704\"}, \"carrier\": \"USPS\", \"tracking_number\": \"9400109713960672458551\", \"shipped_on\": \"2026-11-09\"}, \"tracking\": {\"tracking_number\": \"9400109713960672458551\", \"carrier\": \"USPS\", \"status\": \"in_transit\", \"estimated_delivery\": \"2026-11-16\", \"last_event\": {\"description\": \"Arrived at facility\", \"location\": \"Columbus, OH\", \"time\": \"2026-11-11T21:36:00\"}}, \"articles\": [\"Delivery estimates come from the carrier and can change while a package is in transit. Standard shipping usually takes 3 to 5 business days after an order ships, and expedited shipping takes 1 to 2 business days.\", \"Tracking can pause for a few days while a package moves between carrier facilities. If tracking hasn't updated in 5 business days, reply to your support conversation and we'll open a trace with the carrier.\", \"You can cancel an order from the Orders page while it's still processing. Orders that have shipped can't be canceled, but you can return them after delivery.\"]}",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Hi Kwame! Your order LH-35158 shipped on November 9 with USPS. It was last scanned in Columbus, OH on November 11. USPS estimates delivery on November 16. You can follow it with tracking number 9400109713960672458551."
+     "llm.output_messages.0.message.content": "Hi Kwame! Your order LH-35158 shipped on November 9 with USPS. The latest tracking event was \"Arrived at facility\" in Columbus, OH on November 11. USPS estimates delivery on November 16. You can follow it with tracking number 9400109713960672458551."
     }
    },
    {
@@ -804,7 +804,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "{\"channel\": \"chat\", \"message\": \"I ordered a copper kettle a few days ago (order LH-35404). When does it ship?\"}",
-     "output.value": "Hi Rafael! Order LH-35404 was placed on November 11 and is still processing, so it hasn't shipped yet. Orders usually ship within 2 business days of being placed. Processing is taking about a week right now because of high demand. You chose expedited shipping, which usually takes 1 to 2 business days after the order ships. We'll email you the tracking number as soon as it ships.",
+     "output.value": "Hi Rafael! Order LH-35404 was placed on November 11 and is still processing, so it hasn't shipped yet. Orders usually ship within 2 business days of being placed. Processing is taking about a week right now because of high demand. The order uses expedited shipping, which usually takes 1 to 2 business days after the order ships. We'll email you the tracking number as soon as it ships.",
      "metadata": "{\"channel\": \"chat\"}"
     }
    },
@@ -868,9 +868,9 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are Larkspur Home's support assistant. Answer the customer's question\\nabout their order, shipping, or delivery. Use only the order record, tracking data, and\\nhelp center articles in Context. Keep replies short and friendly.\"}, {\"role\": \"user\", \"content\": \"I ordered a copper kettle a few days ago (order LH-35404). When does it ship?\"}, {\"role\": \"user\", \"content\": \"Context: {\\\"order\\\": {\\\"order_id\\\": \\\"LH-35404\\\", \\\"customer_name\\\": \\\"Rafael Costa\\\", \\\"status\\\": \\\"processing\\\", \\\"placed_on\\\": \\\"2026-11-11\\\", \\\"items\\\": [{\\\"name\\\": \\\"copper kettle\\\", \\\"quantity\\\": 1}], \\\"shipping_method\\\": \\\"expedited\\\", \\\"ship_to\\\": {\\\"city\\\": \\\"Omaha\\\", \\\"state\\\": \\\"NE\\\", \\\"postal_code\\\": \\\"68102\\\"}, \\\"carrier\\\": null, \\\"tracking_number\\\": null, \\\"shipped_on\\\": null}, \\\"tracking\\\": null, \\\"articles\\\": [\\\"Orders usually ship within 2 business days of being placed. When an order ships, we email you its tracking number.\\\", \\\"Delivery estimates come from the carrier and can change while a package is in transit. Standard shipping usually takes 3 to 5 business days after an order ships, and expedited shipping takes 1 to 2 business days.\\\", \\\"Most items can be returned within 30 days of delivery for a full refund.\\\"]}\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Hi Rafael! Order LH-35404 was placed on November 11 and is still processing, so it hasn't shipped yet. Orders usually ship within 2 business days of being placed. Processing is taking about a week right now because of high demand. You chose expedited shipping, which usually takes 1 to 2 business days after the order ships. We'll email you the tracking number as soon as it ships.",
+     "output.value": "Hi Rafael! Order LH-35404 was placed on November 11 and is still processing, so it hasn't shipped yet. Orders usually ship within 2 business days of being placed. Processing is taking about a week right now because of high demand. The order uses expedited shipping, which usually takes 1 to 2 business days after the order ships. We'll email you the tracking number as soon as it ships.",
      "llm.token_count.prompt": 271,
-     "llm.token_count.completion": 95,
+     "llm.token_count.completion": 96,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are Larkspur Home's support assistant. Answer the customer's question\nabout their order, shipping, or delivery. Use only the order record, tracking data, and\nhelp center articles in Context. Keep replies short and friendly.",
      "llm.input_messages.1.message.role": "user",
@@ -878,7 +878,7 @@
      "llm.input_messages.2.message.role": "user",
      "llm.input_messages.2.message.content": "Context: {\"order\": {\"order_id\": \"LH-35404\", \"customer_name\": \"Rafael Costa\", \"status\": \"processing\", \"placed_on\": \"2026-11-11\", \"items\": [{\"name\": \"copper kettle\", \"quantity\": 1}], \"shipping_method\": \"expedited\", \"ship_to\": {\"city\": \"Omaha\", \"state\": \"NE\", \"postal_code\": \"68102\"}, \"carrier\": null, \"tracking_number\": null, \"shipped_on\": null}, \"tracking\": null, \"articles\": [\"Orders usually ship within 2 business days of being placed. When an order ships, we email you its tracking number.\", \"Delivery estimates come from the carrier and can change while a package is in transit. Standard shipping usually takes 3 to 5 business days after an order ships, and expedited shipping takes 1 to 2 business days.\", \"Most items can be returned within 30 days of delivery for a full refund.\"]}",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Hi Rafael! Order LH-35404 was placed on November 11 and is still processing, so it hasn't shipped yet. Orders usually ship within 2 business days of being placed. Processing is taking about a week right now because of high demand. You chose expedited shipping, which usually takes 1 to 2 business days after the order ships. We'll email you the tracking number as soon as it ships."
+     "llm.output_messages.0.message.content": "Hi Rafael! Order LH-35404 was placed on November 11 and is still processing, so it hasn't shipped yet. Orders usually ship within 2 business days of being placed. Processing is taking about a week right now because of high demand. The order uses expedited shipping, which usually takes 1 to 2 business days after the order ships. We'll email you the tracking number as soon as it ships."
     }
    },
    {
@@ -893,7 +893,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "{\"channel\": \"chat\", \"message\": \"hey, when should I expect my linen duvet cover? order LH-35445\"}",
-     "output.value": "Hi Hannah! UPS currently estimates that order LH-35445 will arrive on November 15. The package was last scanned in Indianapolis, IN on November 11. Delivery estimates come from the carrier and can change while a package is in transit.",
+     "output.value": "Hi Hannah! UPS currently estimates that order LH-35445 will arrive on November 15. The latest tracking event was \"Departed facility\" in Indianapolis, IN on November 11. Delivery estimates come from the carrier and can change while a package is in transit.",
      "metadata": "{\"channel\": \"chat\"}"
     }
    },
@@ -977,9 +977,9 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are Larkspur Home's support assistant. Answer the customer's question\\nabout their order, shipping, or delivery. Use only the order record, tracking data, and\\nhelp center articles in Context. Keep replies short and friendly.\"}, {\"role\": \"user\", \"content\": \"hey, when should I expect my linen duvet cover? order LH-35445\"}, {\"role\": \"user\", \"content\": \"Context: {\\\"order\\\": {\\\"order_id\\\": \\\"LH-35445\\\", \\\"customer_name\\\": \\\"Hannah Weiss\\\", \\\"status\\\": \\\"shipped\\\", \\\"placed_on\\\": \\\"2026-11-05\\\", \\\"items\\\": [{\\\"name\\\": \\\"linen duvet cover\\\", \\\"quantity\\\": 1}], \\\"shipping_method\\\": \\\"standard\\\", \\\"ship_to\\\": {\\\"city\\\": \\\"Portland\\\", \\\"state\\\": \\\"OR\\\", \\\"postal_code\\\": \\\"97214\\\"}, \\\"carrier\\\": \\\"UPS\\\", \\\"tracking_number\\\": \\\"1Z7BTLE0BX7H8VJ6C9\\\", \\\"shipped_on\\\": \\\"2026-11-06\\\"}, \\\"tracking\\\": {\\\"tracking_number\\\": \\\"1Z7BTLE0BX7H8VJ6C9\\\", \\\"carrier\\\": \\\"UPS\\\", \\\"status\\\": \\\"in_transit\\\", \\\"estimated_delivery\\\": \\\"2026-11-15\\\", \\\"last_event\\\": {\\\"description\\\": \\\"Departed facility\\\", \\\"location\\\": \\\"Indianapolis, IN\\\", \\\"time\\\": \\\"2026-11-11T17:10:00\\\"}}, \\\"articles\\\": [\\\"Delivery estimates come from the carrier and can change while a package is in transit. Standard shipping usually takes 3 to 5 business days after an order ships, and expedited shipping takes 1 to 2 business days.\\\", \\\"Orders usually ship within 2 business days of being placed. When an order ships, we email you its tracking number.\\\", \\\"Most items can be returned within 30 days of delivery for a full refund.\\\"]}\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Hi Hannah! UPS currently estimates that order LH-35445 will arrive on November 15. The package was last scanned in Indianapolis, IN on November 11. Delivery estimates come from the carrier and can change while a package is in transit.",
+     "output.value": "Hi Hannah! UPS currently estimates that order LH-35445 will arrive on November 15. The latest tracking event was \"Departed facility\" in Indianapolis, IN on November 11. Delivery estimates come from the carrier and can change while a package is in transit.",
      "llm.token_count.prompt": 332,
-     "llm.token_count.completion": 58,
+     "llm.token_count.completion": 63,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are Larkspur Home's support assistant. Answer the customer's question\nabout their order, shipping, or delivery. Use only the order record, tracking data, and\nhelp center articles in Context. Keep replies short and friendly.",
      "llm.input_messages.1.message.role": "user",
@@ -987,7 +987,7 @@
      "llm.input_messages.2.message.role": "user",
      "llm.input_messages.2.message.content": "Context: {\"order\": {\"order_id\": \"LH-35445\", \"customer_name\": \"Hannah Weiss\", \"status\": \"shipped\", \"placed_on\": \"2026-11-05\", \"items\": [{\"name\": \"linen duvet cover\", \"quantity\": 1}], \"shipping_method\": \"standard\", \"ship_to\": {\"city\": \"Portland\", \"state\": \"OR\", \"postal_code\": \"97214\"}, \"carrier\": \"UPS\", \"tracking_number\": \"1Z7BTLE0BX7H8VJ6C9\", \"shipped_on\": \"2026-11-06\"}, \"tracking\": {\"tracking_number\": \"1Z7BTLE0BX7H8VJ6C9\", \"carrier\": \"UPS\", \"status\": \"in_transit\", \"estimated_delivery\": \"2026-11-15\", \"last_event\": {\"description\": \"Departed facility\", \"location\": \"Indianapolis, IN\", \"time\": \"2026-11-11T17:10:00\"}}, \"articles\": [\"Delivery estimates come from the carrier and can change while a package is in transit. Standard shipping usually takes 3 to 5 business days after an order ships, and expedited shipping takes 1 to 2 business days.\", \"Orders usually ship within 2 business days of being placed. When an order ships, we email you its tracking number.\", \"Most items can be returned within 30 days of delivery for a full refund.\"]}",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Hi Hannah! UPS currently estimates that order LH-35445 will arrive on November 15. The package was last scanned in Indianapolis, IN on November 11. Delivery estimates come from the carrier and can change while a package is in transit."
+     "llm.output_messages.0.message.content": "Hi Hannah! UPS currently estimates that order LH-35445 will arrive on November 15. The latest tracking event was \"Departed facility\" in Indianapolis, IN on November 11. Delivery estimates come from the carrier and can change while a package is in transit."
     }
    },
    {
@@ -1438,7 +1438,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "{\"channel\": \"email\", \"subject\": \"Has my order shipped?\", \"body\": \"Hi,\\n\\nI ordered a stoneware dinner set a few days ago (order LH-35650). When does it ship?\\n\\nThanks,\\nBen\"}",
-     "output.value": "Hi Ben,\n\nOrder LH-35650 was placed on November 11 and is still processing, so it hasn't shipped yet. Orders usually ship within 2 business days of being placed. You chose expedited shipping, which usually takes 1 to 2 business days after the order ships. Since it hasn't shipped, there's no tracking number yet. We'll email you the tracking number as soon as it ships.\n\nBest,\nLarkspur Home Support",
+     "output.value": "Hi Ben,\n\nOrder LH-35650 was placed on November 11 and is still processing, so it hasn't shipped yet. Orders usually ship within 2 business days of being placed. The order uses expedited shipping, which usually takes 1 to 2 business days after the order ships. Since it hasn't shipped, there's no tracking number yet. We'll email you the tracking number as soon as it ships.\n\nBest,\nLarkspur Home Support",
      "metadata": "{\"channel\": \"email\"}"
     }
    },
@@ -1502,9 +1502,9 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are Larkspur Home's support assistant. Answer the customer's question\\nabout their order, shipping, or delivery. Use only the order record, tracking data, and\\nhelp center articles in Context. Keep replies short and friendly.\"}, {\"role\": \"user\", \"content\": \"Subject: Has my order shipped?\\n\\nHi,\\n\\nI ordered a stoneware dinner set a few days ago (order LH-35650). When does it ship?\\n\\nThanks,\\nBen\"}, {\"role\": \"user\", \"content\": \"Context: {\\\"order\\\": {\\\"order_id\\\": \\\"LH-35650\\\", \\\"customer_name\\\": \\\"Ben Carter\\\", \\\"status\\\": \\\"processing\\\", \\\"placed_on\\\": \\\"2026-11-11\\\", \\\"items\\\": [{\\\"name\\\": \\\"stoneware dinner set\\\", \\\"quantity\\\": 1}], \\\"shipping_method\\\": \\\"expedited\\\", \\\"ship_to\\\": {\\\"city\\\": \\\"Tucson\\\", \\\"state\\\": \\\"AZ\\\", \\\"postal_code\\\": \\\"85719\\\"}, \\\"carrier\\\": null, \\\"tracking_number\\\": null, \\\"shipped_on\\\": null}, \\\"tracking\\\": null, \\\"articles\\\": [\\\"Orders usually ship within 2 business days of being placed. When an order ships, we email you its tracking number.\\\", \\\"Delivery estimates come from the carrier and can change while a package is in transit. Standard shipping usually takes 3 to 5 business days after an order ships, and expedited shipping takes 1 to 2 business days.\\\", \\\"You can cancel an order from the Orders page while it's still processing. Orders that have shipped can't be canceled, but you can return them after delivery.\\\"]}\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Hi Ben,\n\nOrder LH-35650 was placed on November 11 and is still processing, so it hasn't shipped yet. Orders usually ship within 2 business days of being placed. You chose expedited shipping, which usually takes 1 to 2 business days after the order ships. Since it hasn't shipped, there's no tracking number yet. We'll email you the tracking number as soon as it ships.\n\nBest,\nLarkspur Home Support",
+     "output.value": "Hi Ben,\n\nOrder LH-35650 was placed on November 11 and is still processing, so it hasn't shipped yet. Orders usually ship within 2 business days of being placed. The order uses expedited shipping, which usually takes 1 to 2 business days after the order ships. Since it hasn't shipped, there's no tracking number yet. We'll email you the tracking number as soon as it ships.\n\nBest,\nLarkspur Home Support",
      "llm.token_count.prompt": 308,
-     "llm.token_count.completion": 99,
+     "llm.token_count.completion": 100,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are Larkspur Home's support assistant. Answer the customer's question\nabout their order, shipping, or delivery. Use only the order record, tracking data, and\nhelp center articles in Context. Keep replies short and friendly.",
      "llm.input_messages.1.message.role": "user",
@@ -1512,7 +1512,7 @@
      "llm.input_messages.2.message.role": "user",
      "llm.input_messages.2.message.content": "Context: {\"order\": {\"order_id\": \"LH-35650\", \"customer_name\": \"Ben Carter\", \"status\": \"processing\", \"placed_on\": \"2026-11-11\", \"items\": [{\"name\": \"stoneware dinner set\", \"quantity\": 1}], \"shipping_method\": \"expedited\", \"ship_to\": {\"city\": \"Tucson\", \"state\": \"AZ\", \"postal_code\": \"85719\"}, \"carrier\": null, \"tracking_number\": null, \"shipped_on\": null}, \"tracking\": null, \"articles\": [\"Orders usually ship within 2 business days of being placed. When an order ships, we email you its tracking number.\", \"Delivery estimates come from the carrier and can change while a package is in transit. Standard shipping usually takes 3 to 5 business days after an order ships, and expedited shipping takes 1 to 2 business days.\", \"You can cancel an order from the Orders page while it's still processing. Orders that have shipped can't be canceled, but you can return them after delivery.\"]}",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Hi Ben,\n\nOrder LH-35650 was placed on November 11 and is still processing, so it hasn't shipped yet. Orders usually ship within 2 business days of being placed. You chose expedited shipping, which usually takes 1 to 2 business days after the order ships. Since it hasn't shipped, there's no tracking number yet. We'll email you the tracking number as soon as it ships.\n\nBest,\nLarkspur Home Support"
+     "llm.output_messages.0.message.content": "Hi Ben,\n\nOrder LH-35650 was placed on November 11 and is still processing, so it hasn't shipped yet. Orders usually ship within 2 business days of being placed. The order uses expedited shipping, which usually takes 1 to 2 business days after the order ships. Since it hasn't shipped, there's no tracking number yet. We'll email you the tracking number as soon as it ships.\n\nBest,\nLarkspur Home Support"
     }
    },
    {
@@ -2052,7 +2052,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "{\"channel\": \"email\", \"subject\": \"When will my order arrive?\", \"body\": \"Hi,\\n\\nhey, when should I expect my wool throw blanket? order LH-35896\\n\\nThanks,\\nMarcus\"}",
-     "output.value": "Thanks for checking in, Marcus.\n\nUSPS currently estimates that order LH-35896 will arrive on November 15. The package was last scanned in Denver, CO on November 12. You'll get a text from USPS about 30 minutes before the driver arrives. Delivery estimates come from the carrier and can change while a package is in transit.\n\nBest,\nLarkspur Home Support",
+     "output.value": "Thanks for checking in, Marcus.\n\nUSPS currently estimates that order LH-35896 will arrive on November 15. The latest tracking event was \"Arrived at facility\" in Denver, CO on November 12. You'll get a text from USPS about 30 minutes before the driver arrives. Delivery estimates come from the carrier and can change while a package is in transit.\n\nBest,\nLarkspur Home Support",
      "metadata": "{\"channel\": \"email\"}"
     }
    },
@@ -2136,9 +2136,9 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are Larkspur Home's support assistant. Answer the customer's question\\nabout their order, shipping, or delivery. Use only the order record, tracking data, and\\nhelp center articles in Context. Keep replies short and friendly.\"}, {\"role\": \"user\", \"content\": \"Subject: When will my order arrive?\\n\\nHi,\\n\\nhey, when should I expect my wool throw blanket? order LH-35896\\n\\nThanks,\\nMarcus\"}, {\"role\": \"user\", \"content\": \"Context: {\\\"order\\\": {\\\"order_id\\\": \\\"LH-35896\\\", \\\"customer_name\\\": \\\"Marcus Lee\\\", \\\"status\\\": \\\"shipped\\\", \\\"placed_on\\\": \\\"2026-11-07\\\", \\\"items\\\": [{\\\"name\\\": \\\"wool throw blanket\\\", \\\"quantity\\\": 1}], \\\"shipping_method\\\": \\\"standard\\\", \\\"ship_to\\\": {\\\"city\\\": \\\"Raleigh\\\", \\\"state\\\": \\\"NC\\\", \\\"postal_code\\\": \\\"27601\\\"}, \\\"carrier\\\": \\\"USPS\\\", \\\"tracking_number\\\": \\\"9400635241063530933838\\\", \\\"shipped_on\\\": \\\"2026-11-08\\\"}, \\\"tracking\\\": {\\\"tracking_number\\\": \\\"9400635241063530933838\\\", \\\"carrier\\\": \\\"USPS\\\", \\\"status\\\": \\\"in_transit\\\", \\\"estimated_delivery\\\": \\\"2026-11-15\\\", \\\"last_event\\\": {\\\"description\\\": \\\"Arrived at facility\\\", \\\"location\\\": \\\"Denver, CO\\\", \\\"time\\\": \\\"2026-11-12T03:35:00\\\"}}, \\\"articles\\\": [\\\"Delivery estimates come from the carrier and can change while a package is in transit. Standard shipping usually takes 3 to 5 business days after an order ships, and expedited shipping takes 1 to 2 business days.\\\", \\\"Orders usually ship within 2 business days of being placed. When an order ships, we email you its tracking number.\\\", \\\"You can cancel an order from the Orders page while it's still processing. Orders that have shipped can't be canceled, but you can return them after delivery.\\\"]}\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Thanks for checking in, Marcus.\n\nUSPS currently estimates that order LH-35896 will arrive on November 15. The package was last scanned in Denver, CO on November 12. You'll get a text from USPS about 30 minutes before the driver arrives. Delivery estimates come from the carrier and can change while a package is in transit.\n\nBest,\nLarkspur Home Support",
+     "output.value": "Thanks for checking in, Marcus.\n\nUSPS currently estimates that order LH-35896 will arrive on November 15. The latest tracking event was \"Arrived at facility\" in Denver, CO on November 12. You'll get a text from USPS about 30 minutes before the driver arrives. Delivery estimates come from the carrier and can change while a package is in transit.\n\nBest,\nLarkspur Home Support",
      "llm.token_count.prompt": 369,
-     "llm.token_count.completion": 88,
+     "llm.token_count.completion": 93,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are Larkspur Home's support assistant. Answer the customer's question\nabout their order, shipping, or delivery. Use only the order record, tracking data, and\nhelp center articles in Context. Keep replies short and friendly.",
      "llm.input_messages.1.message.role": "user",
@@ -2146,7 +2146,7 @@
      "llm.input_messages.2.message.role": "user",
      "llm.input_messages.2.message.content": "Context: {\"order\": {\"order_id\": \"LH-35896\", \"customer_name\": \"Marcus Lee\", \"status\": \"shipped\", \"placed_on\": \"2026-11-07\", \"items\": [{\"name\": \"wool throw blanket\", \"quantity\": 1}], \"shipping_method\": \"standard\", \"ship_to\": {\"city\": \"Raleigh\", \"state\": \"NC\", \"postal_code\": \"27601\"}, \"carrier\": \"USPS\", \"tracking_number\": \"9400635241063530933838\", \"shipped_on\": \"2026-11-08\"}, \"tracking\": {\"tracking_number\": \"9400635241063530933838\", \"carrier\": \"USPS\", \"status\": \"in_transit\", \"estimated_delivery\": \"2026-11-15\", \"last_event\": {\"description\": \"Arrived at facility\", \"location\": \"Denver, CO\", \"time\": \"2026-11-12T03:35:00\"}}, \"articles\": [\"Delivery estimates come from the carrier and can change while a package is in transit. Standard shipping usually takes 3 to 5 business days after an order ships, and expedited shipping takes 1 to 2 business days.\", \"Orders usually ship within 2 business days of being placed. When an order ships, we email you its tracking number.\", \"You can cancel an order from the Orders page while it's still processing. Orders that have shipped can't be canceled, but you can return them after delivery.\"]}",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Thanks for checking in, Marcus.\n\nUSPS currently estimates that order LH-35896 will arrive on November 15. The package was last scanned in Denver, CO on November 12. You'll get a text from USPS about 30 minutes before the driver arrives. Delivery estimates come from the carrier and can change while a package is in transit.\n\nBest,\nLarkspur Home Support"
+     "llm.output_messages.0.message.content": "Thanks for checking in, Marcus.\n\nUSPS currently estimates that order LH-35896 will arrive on November 15. The latest tracking event was \"Arrived at facility\" in Denver, CO on November 12. You'll get a text from USPS about 30 minutes before the driver arrives. Delivery estimates come from the carrier and can change while a package is in transit.\n\nBest,\nLarkspur Home Support"
     }
    },
    {
@@ -2359,7 +2359,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "{\"channel\": \"chat\", \"message\": \"hey, when should I expect my ceramic table lamp? order LH-36019\"}",
-     "output.value": "Hi Hannah! FedEx currently estimates that order LH-36019 will arrive on November 15. The package was last scanned in Memphis, TN on November 12. Delivery estimates come from the carrier and can change while a package is in transit.",
+     "output.value": "Hi Hannah! FedEx currently estimates that order LH-36019 will arrive on November 15. The latest tracking event was \"Arrived at facility\" in Memphis, TN on November 12. Delivery estimates come from the carrier and can change while a package is in transit.",
      "metadata": "{\"channel\": \"chat\"}"
     }
    },
@@ -2443,9 +2443,9 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are Larkspur Home's support assistant. Answer the customer's question\\nabout their order, shipping, or delivery. Use only the order record, tracking data, and\\nhelp center articles in Context. Keep replies short and friendly.\"}, {\"role\": \"user\", \"content\": \"hey, when should I expect my ceramic table lamp? order LH-36019\"}, {\"role\": \"user\", \"content\": \"Context: {\\\"order\\\": {\\\"order_id\\\": \\\"LH-36019\\\", \\\"customer_name\\\": \\\"Hannah Weiss\\\", \\\"status\\\": \\\"shipped\\\", \\\"placed_on\\\": \\\"2026-11-07\\\", \\\"items\\\": [{\\\"name\\\": \\\"ceramic table lamp\\\", \\\"quantity\\\": 1}], \\\"shipping_method\\\": \\\"standard\\\", \\\"ship_to\\\": {\\\"city\\\": \\\"Burlington\\\", \\\"state\\\": \\\"VT\\\", \\\"postal_code\\\": \\\"05401\\\"}, \\\"carrier\\\": \\\"FedEx\\\", \\\"tracking_number\\\": \\\"491833912732\\\", \\\"shipped_on\\\": \\\"2026-11-08\\\"}, \\\"tracking\\\": {\\\"tracking_number\\\": \\\"491833912732\\\", \\\"carrier\\\": \\\"FedEx\\\", \\\"status\\\": \\\"in_transit\\\", \\\"estimated_delivery\\\": \\\"2026-11-15\\\", \\\"last_event\\\": {\\\"description\\\": \\\"Arrived at facility\\\", \\\"location\\\": \\\"Memphis, TN\\\", \\\"time\\\": \\\"2026-11-12T07:16:00\\\"}}, \\\"articles\\\": [\\\"Delivery estimates come from the carrier and can change while a package is in transit. Standard shipping usually takes 3 to 5 business days after an order ships, and expedited shipping takes 1 to 2 business days.\\\", \\\"Orders usually ship within 2 business days of being placed. When an order ships, we email you its tracking number.\\\", \\\"You can cancel an order from the Orders page while it's still processing. Orders that have shipped can't be canceled, but you can return them after delivery.\\\"]}\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Hi Hannah! FedEx currently estimates that order LH-36019 will arrive on November 15. The package was last scanned in Memphis, TN on November 12. Delivery estimates come from the carrier and can change while a package is in transit.",
+     "output.value": "Hi Hannah! FedEx currently estimates that order LH-36019 will arrive on November 15. The latest tracking event was \"Arrived at facility\" in Memphis, TN on November 12. Delivery estimates come from the carrier and can change while a package is in transit.",
      "llm.token_count.prompt": 351,
-     "llm.token_count.completion": 57,
+     "llm.token_count.completion": 63,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are Larkspur Home's support assistant. Answer the customer's question\nabout their order, shipping, or delivery. Use only the order record, tracking data, and\nhelp center articles in Context. Keep replies short and friendly.",
      "llm.input_messages.1.message.role": "user",
@@ -2453,7 +2453,7 @@
      "llm.input_messages.2.message.role": "user",
      "llm.input_messages.2.message.content": "Context: {\"order\": {\"order_id\": \"LH-36019\", \"customer_name\": \"Hannah Weiss\", \"status\": \"shipped\", \"placed_on\": \"2026-11-07\", \"items\": [{\"name\": \"ceramic table lamp\", \"quantity\": 1}], \"shipping_method\": \"standard\", \"ship_to\": {\"city\": \"Burlington\", \"state\": \"VT\", \"postal_code\": \"05401\"}, \"carrier\": \"FedEx\", \"tracking_number\": \"491833912732\", \"shipped_on\": \"2026-11-08\"}, \"tracking\": {\"tracking_number\": \"491833912732\", \"carrier\": \"FedEx\", \"status\": \"in_transit\", \"estimated_delivery\": \"2026-11-15\", \"last_event\": {\"description\": \"Arrived at facility\", \"location\": \"Memphis, TN\", \"time\": \"2026-11-12T07:16:00\"}}, \"articles\": [\"Delivery estimates come from the carrier and can change while a package is in transit. Standard shipping usually takes 3 to 5 business days after an order ships, and expedited shipping takes 1 to 2 business days.\", \"Orders usually ship within 2 business days of being placed. When an order ships, we email you its tracking number.\", \"You can cancel an order from the Orders page while it's still processing. Orders that have shipped can't be canceled, but you can return them after delivery.\"]}",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Hi Hannah! FedEx currently estimates that order LH-36019 will arrive on November 15. The package was last scanned in Memphis, TN on November 12. Delivery estimates come from the carrier and can change while a package is in transit."
+     "llm.output_messages.0.message.content": "Hi Hannah! FedEx currently estimates that order LH-36019 will arrive on November 15. The latest tracking event was \"Arrived at facility\" in Memphis, TN on November 12. Delivery estimates come from the carrier and can change while a package is in transit."
     }
    },
    {
@@ -2468,7 +2468,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "{\"channel\": \"chat\", \"message\": \"Has order LH-36060 shipped yet?\"}",
-     "output.value": "Hi Lucas! Order LH-36060 was placed on November 12 and is still processing, so it hasn't shipped yet. Orders usually ship within 2 business days of being placed. You chose standard shipping, which usually takes 3 to 5 business days after the order ships. We'll send you a 10% discount code for the wait. We'll email you the tracking number as soon as it ships.",
+     "output.value": "Hi Lucas! Order LH-36060 was placed on November 12 and is still processing, so it hasn't shipped yet. Orders usually ship within 2 business days of being placed. The order uses standard shipping, which usually takes 3 to 5 business days after the order ships. We'll send you a 10% discount code for the wait. We'll email you the tracking number as soon as it ships.",
      "metadata": "{\"channel\": \"chat\"}"
     }
    },
@@ -2532,9 +2532,9 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are Larkspur Home's support assistant. Answer the customer's question\\nabout their order, shipping, or delivery. Use only the order record, tracking data, and\\nhelp center articles in Context. Keep replies short and friendly.\"}, {\"role\": \"user\", \"content\": \"Has order LH-36060 shipped yet?\"}, {\"role\": \"user\", \"content\": \"Context: {\\\"order\\\": {\\\"order_id\\\": \\\"LH-36060\\\", \\\"customer_name\\\": \\\"Lucas Silva\\\", \\\"status\\\": \\\"processing\\\", \\\"placed_on\\\": \\\"2026-11-12\\\", \\\"items\\\": [{\\\"name\\\": \\\"stoneware dinner set\\\", \\\"quantity\\\": 1}], \\\"shipping_method\\\": \\\"standard\\\", \\\"ship_to\\\": {\\\"city\\\": \\\"Omaha\\\", \\\"state\\\": \\\"NE\\\", \\\"postal_code\\\": \\\"68102\\\"}, \\\"carrier\\\": null, \\\"tracking_number\\\": null, \\\"shipped_on\\\": null}, \\\"tracking\\\": null, \\\"articles\\\": [\\\"Orders usually ship within 2 business days of being placed. When an order ships, we email you its tracking number.\\\", \\\"Delivery estimates come from the carrier and can change while a package is in transit. Standard shipping usually takes 3 to 5 business days after an order ships, and expedited shipping takes 1 to 2 business days.\\\", \\\"You can cancel an order from the Orders page while it's still processing. Orders that have shipped can't be canceled, but you can return them after delivery.\\\"]}\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Hi Lucas! Order LH-36060 was placed on November 12 and is still processing, so it hasn't shipped yet. Orders usually ship within 2 business days of being placed. You chose standard shipping, which usually takes 3 to 5 business days after the order ships. We'll send you a 10% discount code for the wait. We'll email you the tracking number as soon as it ships.",
+     "output.value": "Hi Lucas! Order LH-36060 was placed on November 12 and is still processing, so it hasn't shipped yet. Orders usually ship within 2 business days of being placed. The order uses standard shipping, which usually takes 3 to 5 business days after the order ships. We'll send you a 10% discount code for the wait. We'll email you the tracking number as soon as it ships.",
      "llm.token_count.prompt": 282,
-     "llm.token_count.completion": 90,
+     "llm.token_count.completion": 91,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are Larkspur Home's support assistant. Answer the customer's question\nabout their order, shipping, or delivery. Use only the order record, tracking data, and\nhelp center articles in Context. Keep replies short and friendly.",
      "llm.input_messages.1.message.role": "user",
@@ -2542,7 +2542,7 @@
      "llm.input_messages.2.message.role": "user",
      "llm.input_messages.2.message.content": "Context: {\"order\": {\"order_id\": \"LH-36060\", \"customer_name\": \"Lucas Silva\", \"status\": \"processing\", \"placed_on\": \"2026-11-12\", \"items\": [{\"name\": \"stoneware dinner set\", \"quantity\": 1}], \"shipping_method\": \"standard\", \"ship_to\": {\"city\": \"Omaha\", \"state\": \"NE\", \"postal_code\": \"68102\"}, \"carrier\": null, \"tracking_number\": null, \"shipped_on\": null}, \"tracking\": null, \"articles\": [\"Orders usually ship within 2 business days of being placed. When an order ships, we email you its tracking number.\", \"Delivery estimates come from the carrier and can change while a package is in transit. Standard shipping usually takes 3 to 5 business days after an order ships, and expedited shipping takes 1 to 2 business days.\", \"You can cancel an order from the Orders page while it's still processing. Orders that have shipped can't be canceled, but you can return them after delivery.\"]}",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Hi Lucas! Order LH-36060 was placed on November 12 and is still processing, so it hasn't shipped yet. Orders usually ship within 2 business days of being placed. You chose standard shipping, which usually takes 3 to 5 business days after the order ships. We'll send you a 10% discount code for the wait. We'll email you the tracking number as soon as it ships."
+     "llm.output_messages.0.message.content": "Hi Lucas! Order LH-36060 was placed on November 12 and is still processing, so it hasn't shipped yet. Orders usually ship within 2 business days of being placed. The order uses standard shipping, which usually takes 3 to 5 business days after the order ships. We'll send you a 10% discount code for the wait. We'll email you the tracking number as soon as it ships."
     }
    },
    {
@@ -2557,7 +2557,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "{\"channel\": \"chat\", \"message\": \"Any update on order LH-36101? I haven't gotten it yet.\"}",
-     "output.value": "Hi Ana! Your order LH-36101 shipped on November 9 with FedEx. It was last scanned in Reno, NV on November 13. FedEx estimates delivery on November 17. You can follow it with tracking number 691990209040. Tracking can pause for a few days while a package moves between carrier facilities.",
+     "output.value": "Hi Ana! Your order LH-36101 shipped on November 9 with FedEx. The latest tracking event was \"Processed at hub\" in Reno, NV on November 13. FedEx estimates delivery on November 17. You can follow it with tracking number 691990209040. Tracking can pause for a few days while a package moves between carrier facilities.",
      "metadata": "{\"channel\": \"chat\"}"
     }
    },
@@ -2641,9 +2641,9 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are Larkspur Home's support assistant. Answer the customer's question\\nabout their order, shipping, or delivery. Use only the order record, tracking data, and\\nhelp center articles in Context. Keep replies short and friendly.\"}, {\"role\": \"user\", \"content\": \"Any update on order LH-36101? I haven't gotten it yet.\"}, {\"role\": \"user\", \"content\": \"Context: {\\\"order\\\": {\\\"order_id\\\": \\\"LH-36101\\\", \\\"customer_name\\\": \\\"Ana Ruiz\\\", \\\"status\\\": \\\"shipped\\\", \\\"placed_on\\\": \\\"2026-11-08\\\", \\\"items\\\": [{\\\"name\\\": \\\"bamboo bath mat\\\", \\\"quantity\\\": 1}], \\\"shipping_method\\\": \\\"standard\\\", \\\"ship_to\\\": {\\\"city\\\": \\\"Portland\\\", \\\"state\\\": \\\"OR\\\", \\\"postal_code\\\": \\\"97214\\\"}, \\\"carrier\\\": \\\"FedEx\\\", \\\"tracking_number\\\": \\\"691990209040\\\", \\\"shipped_on\\\": \\\"2026-11-09\\\"}, \\\"tracking\\\": {\\\"tracking_number\\\": \\\"691990209040\\\", \\\"carrier\\\": \\\"FedEx\\\", \\\"status\\\": \\\"in_transit\\\", \\\"estimated_delivery\\\": \\\"2026-11-17\\\", \\\"last_event\\\": {\\\"description\\\": \\\"Processed at hub\\\", \\\"location\\\": \\\"Reno, NV\\\", \\\"time\\\": \\\"2026-11-13T05:05:00\\\"}}, \\\"articles\\\": [\\\"Delivery estimates come from the carrier and can change while a package is in transit. Standard shipping usually takes 3 to 5 business days after an order ships, and expedited shipping takes 1 to 2 business days.\\\", \\\"Tracking can pause for a few days while a package moves between carrier facilities. If tracking hasn't updated in 5 business days, reply to your support conversation and we'll open a trace with the carrier.\\\", \\\"Gift wrap can be added at checkout for $5 per item.\\\"]}\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Hi Ana! Your order LH-36101 shipped on November 9 with FedEx. It was last scanned in Reno, NV on November 13. FedEx estimates delivery on November 17. You can follow it with tracking number 691990209040. Tracking can pause for a few days while a package moves between carrier facilities.",
+     "output.value": "Hi Ana! Your order LH-36101 shipped on November 9 with FedEx. The latest tracking event was \"Processed at hub\" in Reno, NV on November 13. FedEx estimates delivery on November 17. You can follow it with tracking number 691990209040. Tracking can pause for a few days while a package moves between carrier facilities.",
      "llm.token_count.prompt": 342,
-     "llm.token_count.completion": 71,
+     "llm.token_count.completion": 79,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are Larkspur Home's support assistant. Answer the customer's question\nabout their order, shipping, or delivery. Use only the order record, tracking data, and\nhelp center articles in Context. Keep replies short and friendly.",
      "llm.input_messages.1.message.role": "user",
@@ -2651,7 +2651,7 @@
      "llm.input_messages.2.message.role": "user",
      "llm.input_messages.2.message.content": "Context: {\"order\": {\"order_id\": \"LH-36101\", \"customer_name\": \"Ana Ruiz\", \"status\": \"shipped\", \"placed_on\": \"2026-11-08\", \"items\": [{\"name\": \"bamboo bath mat\", \"quantity\": 1}], \"shipping_method\": \"standard\", \"ship_to\": {\"city\": \"Portland\", \"state\": \"OR\", \"postal_code\": \"97214\"}, \"carrier\": \"FedEx\", \"tracking_number\": \"691990209040\", \"shipped_on\": \"2026-11-09\"}, \"tracking\": {\"tracking_number\": \"691990209040\", \"carrier\": \"FedEx\", \"status\": \"in_transit\", \"estimated_delivery\": \"2026-11-17\", \"last_event\": {\"description\": \"Processed at hub\", \"location\": \"Reno, NV\", \"time\": \"2026-11-13T05:05:00\"}}, \"articles\": [\"Delivery estimates come from the carrier and can change while a package is in transit. Standard shipping usually takes 3 to 5 business days after an order ships, and expedited shipping takes 1 to 2 business days.\", \"Tracking can pause for a few days while a package moves between carrier facilities. If tracking hasn't updated in 5 business days, reply to your support conversation and we'll open a trace with the carrier.\", \"Gift wrap can be added at checkout for $5 per item.\"]}",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Hi Ana! Your order LH-36101 shipped on November 9 with FedEx. It was last scanned in Reno, NV on November 13. FedEx estimates delivery on November 17. You can follow it with tracking number 691990209040. Tracking can pause for a few days while a package moves between carrier facilities."
+     "llm.output_messages.0.message.content": "Hi Ana! Your order LH-36101 shipped on November 9 with FedEx. The latest tracking event was \"Processed at hub\" in Reno, NV on November 13. FedEx estimates delivery on November 17. You can follow it with tracking number 691990209040. Tracking can pause for a few days while a package moves between carrier facilities."
     }
    },
    {
@@ -2864,7 +2864,7 @@
     "status_code": "OK",
     "attributes": {
      "input.value": "{\"channel\": \"chat\", \"message\": \"I ordered a copper kettle a few days ago (order LH-36224). When does it ship?\"}",
-     "output.value": "Hi Ben! Order LH-36224 was placed on November 11 and is still processing, so it hasn't shipped yet. Orders usually ship within 2 business days of being placed. You chose expedited shipping, which usually takes 1 to 2 business days after the order ships. We'll email you the tracking number as soon as it ships.",
+     "output.value": "Hi Ben! Order LH-36224 was placed on November 11 and is still processing, so it hasn't shipped yet. Orders usually ship within 2 business days of being placed. The order uses expedited shipping, which usually takes 1 to 2 business days after the order ships. We'll email you the tracking number as soon as it ships.",
      "metadata": "{\"channel\": \"chat\"}"
     }
    },
@@ -2928,9 +2928,9 @@
      "llm.provider": "openai",
      "input.value": "{\"messages\": [{\"role\": \"system\", \"content\": \"You are Larkspur Home's support assistant. Answer the customer's question\\nabout their order, shipping, or delivery. Use only the order record, tracking data, and\\nhelp center articles in Context. Keep replies short and friendly.\"}, {\"role\": \"user\", \"content\": \"I ordered a copper kettle a few days ago (order LH-36224). When does it ship?\"}, {\"role\": \"user\", \"content\": \"Context: {\\\"order\\\": {\\\"order_id\\\": \\\"LH-36224\\\", \\\"customer_name\\\": \\\"Ben Carter\\\", \\\"status\\\": \\\"processing\\\", \\\"placed_on\\\": \\\"2026-11-11\\\", \\\"items\\\": [{\\\"name\\\": \\\"copper kettle\\\", \\\"quantity\\\": 1}], \\\"shipping_method\\\": \\\"expedited\\\", \\\"ship_to\\\": {\\\"city\\\": \\\"Raleigh\\\", \\\"state\\\": \\\"NC\\\", \\\"postal_code\\\": \\\"27601\\\"}, \\\"carrier\\\": null, \\\"tracking_number\\\": null, \\\"shipped_on\\\": null}, \\\"tracking\\\": null, \\\"articles\\\": [\\\"Orders usually ship within 2 business days of being placed. When an order ships, we email you its tracking number.\\\", \\\"Delivery estimates come from the carrier and can change while a package is in transit. Standard shipping usually takes 3 to 5 business days after an order ships, and expedited shipping takes 1 to 2 business days.\\\", \\\"You can cancel an order from the Orders page while it's still processing. Orders that have shipped can't be canceled, but you can return them after delivery.\\\"]}\"}]}",
      "input.mime_type": "application/json",
-     "output.value": "Hi Ben! Order LH-36224 was placed on November 11 and is still processing, so it hasn't shipped yet. Orders usually ship within 2 business days of being placed. You chose expedited shipping, which usually takes 1 to 2 business days after the order ships. We'll email you the tracking number as soon as it ships.",
+     "output.value": "Hi Ben! Order LH-36224 was placed on November 11 and is still processing, so it hasn't shipped yet. Orders usually ship within 2 business days of being placed. The order uses expedited shipping, which usually takes 1 to 2 business days after the order ships. We'll email you the tracking number as soon as it ships.",
      "llm.token_count.prompt": 292,
-     "llm.token_count.completion": 77,
+     "llm.token_count.completion": 78,
      "llm.input_messages.0.message.role": "system",
      "llm.input_messages.0.message.content": "You are Larkspur Home's support assistant. Answer the customer's question\nabout their order, shipping, or delivery. Use only the order record, tracking data, and\nhelp center articles in Context. Keep replies short and friendly.",
      "llm.input_messages.1.message.role": "user",
@@ -2938,7 +2938,7 @@
      "llm.input_messages.2.message.role": "user",
      "llm.input_messages.2.message.content": "Context: {\"order\": {\"order_id\": \"LH-36224\", \"customer_name\": \"Ben Carter\", \"status\": \"processing\", \"placed_on\": \"2026-11-11\", \"items\": [{\"name\": \"copper kettle\", \"quantity\": 1}], \"shipping_method\": \"expedited\", \"ship_to\": {\"city\": \"Raleigh\", \"state\": \"NC\", \"postal_code\": \"27601\"}, \"carrier\": null, \"tracking_number\": null, \"shipped_on\": null}, \"tracking\": null, \"articles\": [\"Orders usually ship within 2 business days of being placed. When an order ships, we email you its tracking number.\", \"Delivery estimates come from the carrier and can change while a package is in transit. Standard shipping usually takes 3 to 5 business days after an order ships, and expedited shipping takes 1 to 2 business days.\", \"You can cancel an order from the Orders page while it's still processing. Orders that have shipped can't be canceled, but you can return them after delivery.\"]}",
      "llm.output_messages.0.message.role": "assistant",
-     "llm.output_messages.0.message.content": "Hi Ben! Order LH-36224 was placed on November 11 and is still processing, so it hasn't shipped yet. Orders usually ship within 2 business days of being placed. You chose expedited shipping, which usually takes 1 to 2 business days after the order ships. We'll email you the tracking number as soon as it ships."
+     "llm.output_messages.0.message.content": "Hi Ben! Order LH-36224 was placed on November 11 and is still processing, so it hasn't shipped yet. Orders usually ship within 2 business days of being placed. The order uses expedited shipping, which usually takes 1 to 2 business days after the order ships. We'll email you the tracking number as soon as it ships."
     }
    },
    {
@@ -2995,7 +2995,7 @@
      "input.value": "{\"tracking_number\": \"1ZVM86K23PME4N88VH\"}",
      "input.mime_type": "application/json",
      "output.value": "CarrierTimeout: tracking service did not respond within 10s",
-     "output.mime_type": "application/json"
+     "output.mime_type": "text/plain"
     },
     "status_message": "CarrierTimeout: tracking service did not respond within 10s"
    },
@@ -3106,7 +3106,7 @@
      "input.value": "{\"tracking_number\": \"595942231363\"}",
      "input.mime_type": "application/json",
      "output.value": "CarrierTimeout: tracking service did not respond within 10s",
-     "output.mime_type": "application/json"
+     "output.mime_type": "text/plain"
     },
     "status_message": "CarrierTimeout: tracking service did not respond within 10s"
    },
@@ -3217,7 +3217,7 @@
      "input.value": "{\"tracking_number\": \"505130203939\"}",
      "input.mime_type": "application/json",
      "output.value": "CarrierTimeout: tracking service did not respond within 10s",
-     "output.mime_type": "application/json"
+     "output.mime_type": "text/plain"
     },
     "status_message": "CarrierTimeout: tracking service did not respond within 10s"
    },
@@ -3328,7 +3328,7 @@
      "input.value": "{\"tracking_number\": \"9400331400388996861668\"}",
      "input.mime_type": "application/json",
      "output.value": "CarrierTimeout: tracking service did not respond within 10s",
-     "output.mime_type": "application/json"
+     "output.mime_type": "text/plain"
     },
     "status_message": "CarrierTimeout: tracking service did not respond within 10s"
    },
@@ -3439,7 +3439,7 @@
      "input.value": "{\"tracking_number\": \"9400493546853027439660\"}",
      "input.mime_type": "application/json",
      "output.value": "CarrierTimeout: tracking service did not respond within 10s",
-     "output.mime_type": "application/json"
+     "output.mime_type": "text/plain"
     },
     "status_message": "CarrierTimeout: tracking service did not respond within 10s"
    },
@@ -3550,7 +3550,7 @@
      "input.value": "{\"tracking_number\": \"1ZNK0L1L5AMBLM2Y1X\"}",
      "input.mime_type": "application/json",
      "output.value": "CarrierTimeout: tracking service did not respond within 10s",
-     "output.mime_type": "application/json"
+     "output.mime_type": "text/plain"
     },
     "status_message": "CarrierTimeout: tracking service did not respond within 10s"
    },
@@ -3661,7 +3661,7 @@
      "input.value": "{\"tracking_number\": \"1ZJJC9GC32LMJ68A7M\"}",
      "input.mime_type": "application/json",
      "output.value": "CarrierTimeout: tracking service did not respond within 10s",
-     "output.mime_type": "application/json"
+     "output.mime_type": "text/plain"
     },
     "status_message": "CarrierTimeout: tracking service did not respond within 10s"
    },
@@ -3772,7 +3772,7 @@
      "input.value": "{\"tracking_number\": \"9400086447328659411446\"}",
      "input.mime_type": "application/json",
      "output.value": "CarrierTimeout: tracking service did not respond within 10s",
-     "output.mime_type": "application/json"
+     "output.mime_type": "text/plain"
     },
     "status_message": "CarrierTimeout: tracking service did not respond within 10s"
    },

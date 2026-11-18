@@ -105,13 +105,14 @@ class Trace:
         seconds: float = 0.3,
         error: str | None = None,
     ) -> dict[str, Any]:
+        output_mime_type = "text/plain" if isinstance(result, str) else "application/json"
         attributes = {
             "tool.name": name,
             "tool.parameters": json.dumps(arguments),
             "input.value": json.dumps(arguments),
             "input.mime_type": "application/json",
             "output.value": _json(result),
-            "output.mime_type": "application/json",
+            "output.mime_type": output_mime_type,
         }
         return self._span(name, "TOOL", attributes, seconds, error)
 

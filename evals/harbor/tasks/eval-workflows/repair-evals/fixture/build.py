@@ -355,7 +355,10 @@ def grounded_sentences(scenario: str, f: dict[str, Any], variant: int) -> list[t
         return [
             ("greet", f"Hi {first}!"),
             ("shipped", f"Your order {f['oid']} shipped on {f['shipped']} with {f['carrier']}."),
-            ("scan", f"It was last scanned in {f['hub']} on {f['scan_date']}."),
+            (
+                "scan",
+                f'The latest tracking event was "{f["event"]}" in {f["hub"]} on {f["scan_date"]}.',
+            ),
             ("eta", f"{f['carrier']} estimates delivery on {f['eta']}."),
             ("tn", f"You can follow it with tracking number {f['tn']}."),
         ]
@@ -374,7 +377,11 @@ def grounded_sentences(scenario: str, f: dict[str, Any], variant: int) -> list[t
         return [
             ("greet", f"Hi {first}!" if variant == 0 else f"Thanks for checking in, {first}."),
             ("eta", f"{f['carrier']} currently estimates that order {f['oid']} will arrive on {f['eta']}."),
-            ("scan", f"The package was last scanned in {f['hub']} on {f['scan_date']}."),
+            (
+                "scan",
+                f'The latest tracking event was "{f["event"]}" in {f["hub"]} on '
+                f"{f['scan_date']}.",
+            ),
             ("caveat", "Delivery estimates come from the carrier and can change while a package is in transit."),
         ]  # fmt: skip
     if scenario == "address_processing":
@@ -403,7 +410,7 @@ def grounded_sentences(scenario: str, f: dict[str, Any], variant: int) -> list[t
             ("greet", f"Hi {first}!"),
             ("status", f"Order {f['oid']} was placed on {f['placed']} and is still processing, so it hasn't shipped yet."),
             ("timing", "Orders usually ship within 2 business days of being placed."),
-            ("method", f"You chose {f['method']} shipping, which usually takes {f['window']} after the order ships."),
+            ("method", f"The order uses {f['method']} shipping, which usually takes {f['window']} after the order ships."),
             ("email", "We'll email you the tracking number as soon as it ships."),
         ]  # fmt: skip
     return [
