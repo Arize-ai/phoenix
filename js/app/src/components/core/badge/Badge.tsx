@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
-import type { ReactNode } from "react";
+import type { PointerEvent, ReactNode } from "react";
+import { useState } from "react";
 
 import type { FamilySize } from "@phoenix/components/core/types";
 import { truncateSingleCSS } from "@phoenix/components/core/utility/Truncate";
@@ -123,6 +124,17 @@ export function Badge({
   leadingVisual,
 }: BadgeProps) {
   const { theme } = useTheme();
+  const [title, setTitle] = useState<string | undefined>(undefined);
+  // A truncated name shows in full as a native tooltip. Only a truncated one
+  // does, since a Badge inside a MarkerTrigger already explains itself on
+  // hover.
+  const showTitleIfTruncated =
+    typeof children === "string"
+      ? (event: PointerEvent<HTMLSpanElement>) => {
+          const text = event.currentTarget;
+          setTitle(text.scrollWidth > text.clientWidth ? children : undefined);
+        }
+      : undefined;
   return (
     <span
       className="badge"
@@ -137,7 +149,13 @@ export function Badge({
           {leadingVisual}
         </span>
       ) : null}
-      <span className="badge__text">{children}</span>
+      <span
+        className="badge__text"
+        title={title}
+        onPointerEnter={showTitleIfTruncated}
+      >
+        {children}
+      </span>
     </span>
   );
 }
