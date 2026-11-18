@@ -77,6 +77,10 @@ class _TrialResult(Protocol):
     @property
     def verifier(self) -> _TimingInfo | None: ...
 
+    def compute_token_cost_totals(
+        self,
+    ) -> tuple[int | None, int | None, int | None, float | None]: ...
+
 
 @dataclass(frozen=True)
 class ExtractedEvaluation:
@@ -137,6 +141,23 @@ def extract_evaluations(
         ),
         origin="infrastructure status",
     )
+
+    # Harbor sums agent cost across steps. Claude Code reports cost only for the
+    # whole session, so its LLM spans carry tokens but no cost.
+    *_, cost_usd = trial_result.compute_token_cost_totals()
+    if cost_usd is not None:
+        _append_unique(
+            records,
+            origins,
+            ExtractedEvaluation(
+                name="cost_usd",
+                score=float(cost_usd),
+                start_time=trial_result.started_at or fallback_time,
+                end_time=trial_result.finished_at or fallback_time,
+                metadata=metadata.copy(),
+            ),
+            origin="agent cost",
+        )
 
     for step_result in trial_result.step_results or ():
         step_verifier = step_result.verifier_result

@@ -24,6 +24,7 @@ from harbor.models.trial.result import TimingInfo, TrialResult
 
 from phoenix.client.harbor import EXPERIMENT_NAME_TEMPLATE_FIELDS
 from phoenix.client.harbor._errors import HarborPluginError
+from phoenix.client.harbor._masking import MASKED_SECRET, SecretMasker
 from phoenix.client.harbor._model import (
     DatasetIdentity,
     ExperimentSlice,
@@ -205,6 +206,7 @@ class FakeClient:
 
 
 def recorder(client: Any, **kwargs: Any) -> PhoenixRecorder:
+    kwargs.setdefault("secret_masker", SecretMasker())
     return PhoenixRecorder(client, **kwargs)  # pyright: ignore[reportArgumentType]
 
 
@@ -916,3 +918,90 @@ class TestRecordEvaluations:
         assert all(call["experiment_run_id"] == "run-1" for call in experiments.logged_evaluations)
         assert all(call["annotator_kind"] == "CODE" for call in experiments.logged_evaluations)
         assert "error" not in experiments.logged_evaluations[0]
+
+
+class TestSecretMasking:
+    FAKE_KEY = "sk-ant-api03-" + "Fake1" * 8
+    FAKE_TOKEN = "dtn_" + "fake2" * 8
+
+    def masking_recorder(self, client: FakeClient) -> PhoenixRecorder:
+        return recorder(client, secret_masker=SecretMasker([self.FAKE_TOKEN]))
+
+    async def test_run_output_and_error_are_masked(self) -> None:
+        experiments = FakeExperiments()
+        job = plan(
+            trials=(
+                TrialSlot(
+                    config=TrialConfig(
+                        task=TaskConfig(path=Path("task-a")),
+                        agent=slice_().agent,
+                        trial_name="task-a__1",
+                    ),
+                    identity_digest=slice_().identity_digest,
+                    repetition=1,
+                ),
+            )
+        )
+        handles = await recorder(FakeClient(experiments=experiments)).resolve_experiments(
+            job, SNAPSHOT
+        )
+        error = SimpleNamespace(
+            exception_type="NonZeroAgentExitCodeError",
+            exception_message=f"env DAYTONA_API_KEY={self.FAKE_TOKEN} failed",
+        )
+
+        await self.masking_recorder(FakeClient(experiments=experiments)).record_experiment_run(
+            plan=job,
+            snapshot=SNAPSHOT,
+            experiments=handles,
+            trial_result=trial_result(error=error),
+            run_output={"messages": [{"role": "assistant", "content": f"ps: {self.FAKE_KEY}"}]},
+        )
+
+        (logged,) = experiments.logged_runs
+        assert logged["output"] == {
+            "messages": [{"role": "assistant", "content": f"ps: {MASKED_SECRET}"}]
+        }
+        assert logged["error"] == (
+            f"trial: NonZeroAgentExitCodeError: env DAYTONA_API_KEY={MASKED_SECRET} failed"
+        )
+
+    async def test_uploaded_spans_are_masked(self) -> None:
+        leaked = span("1" * 16)
+        leaked["status_message"] = f"exit 1: {self.FAKE_TOKEN}"
+        leaked["attributes"] = {"output.value": f"OPENAI_API_KEY={self.FAKE_KEY}"}
+        spans = FakeSpans(query_results=[[], [leaked]])
+
+        await self.masking_recorder(FakeClient(spans=spans)).confirm_trace(
+            experiment=ExperimentHandle("experiment-1", "test", True, "project"),
+            trace=HarborTrace(trace_id="a" * 32, spans=cast(Any, (leaked,)), source_paths=()),
+        )
+
+        (uploaded,) = spans.logged[0]["spans"]
+        assert uploaded["status_message"] == f"exit 1: {MASKED_SECRET}"
+        assert uploaded["attributes"] == {"output.value": f"OPENAI_API_KEY={MASKED_SECRET}"}
+        assert uploaded["context"] == leaked["context"]
+
+    async def test_evaluation_text_and_metadata_are_masked(self) -> None:
+        experiments = FakeExperiments()
+        now = datetime.now(timezone.utc)
+
+        await self.masking_recorder(FakeClient(experiments=experiments)).record_evaluations(
+            "run-1",
+            (
+                ExtractedEvaluation(
+                    name="infra_ok",
+                    score=0.0,
+                    start_time=now,
+                    end_time=now,
+                    label="infra_failure",
+                    explanation=f"trial: AgentError: {self.FAKE_KEY}",
+                    metadata={"command": f"env TOKEN={self.FAKE_TOKEN}"},
+                ),
+            ),
+        )
+
+        (logged,) = experiments.logged_evaluations
+        assert logged["label"] == "infra_failure"
+        assert logged["explanation"] == f"trial: AgentError: {MASKED_SECRET}"
+        assert logged["metadata"] == {"command": f"env TOKEN={MASKED_SECRET}"}

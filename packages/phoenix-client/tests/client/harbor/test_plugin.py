@@ -387,6 +387,41 @@ class TestJobStart:
             "messages": [{"role": "assistant", "content": "Done: task-a"}]
         }
 
+    async def test_secrets_the_agent_was_given_are_masked_in_the_run(
+        self, monkeypatch: pytest.MonkeyPatch, wired: FakeClient
+    ) -> None:
+        host_key = "dtn_" + "fake2" * 8
+        agent_token = "agent-" + "fake3" * 8
+        provider_key = "sk-ant-api03-" + "Fake1" * 8
+        monkeypatch.setenv("DAYTONA_API_KEY", host_key)
+
+        def extract_output(result: TrialResult) -> dict[str, Any]:
+            del result
+            listing = f"env DAYTONA_API_KEY={host_key} TOKEN={agent_token} KEY={provider_key}"
+            return {"messages": [{"role": "assistant", "content": listing}]}
+
+        monkeypatch.setattr(
+            "phoenix.client.harbor._plugin.extract_harbor_run_output",
+            extract_output,
+        )
+        plugin = PhoenixJobPlugin(trace_mode=None)
+        job = FakeJob()
+        job.config.agents = [
+            AgentConfig(name="claude-code", model_name="sonnet", env={"CUSTOM_TOKEN": agent_token})
+        ]
+        await plugin.on_job_start(job)
+
+        await require_hook(job.ended_hook)(hook_event(trial_result()))
+
+        assert wired.experiments.logged_runs[0]["output"] == {
+            "messages": [
+                {
+                    "role": "assistant",
+                    "content": "env DAYTONA_API_KEY=<redacted> TOKEN=<redacted> KEY=<redacted>",
+                }
+            ]
+        }
+
     async def test_atif_mode_confirms_trace_before_linking_run(
         self, monkeypatch: pytest.MonkeyPatch, wired: FakeClient
     ) -> None:

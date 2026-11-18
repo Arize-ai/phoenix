@@ -10,7 +10,7 @@ import json
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
-from types import SimpleNamespace
+from types import MethodType, SimpleNamespace
 from typing import Any, cast
 
 import pytest
@@ -209,11 +209,55 @@ def test_trial_reward_names_match_harbors_verifier_output(
             verifier_result=(VerifierResult(rewards=rewards) if rewards is not None else None),
             exception_info=None,
             step_results=None,
+            compute_token_cost_totals=lambda: (None, None, None, None),
         ),
     )
 
     extracted = {record.name: record.score for record in extract_evaluations(trial)}
     assert set(extracted) == expected_names
+
+
+@pytest.mark.parametrize(
+    ("agent_cost", "step_costs", "expected_cost"),
+    [
+        (0.25, None, 0.25),
+        (None, [0.125, None, 0.5], 0.625),
+        (None, None, None),
+    ],
+    ids=["single-step", "multi-step", "no-cost"],
+)
+def test_cost_usd_uses_harbors_agent_cost_totals(
+    agent_cost: float | None,
+    step_costs: list[float | None] | None,
+    expected_cost: float | None,
+) -> None:
+    from harbor.models.agent.context import AgentContext
+    from harbor.models.trial.result import StepResult, TrialResult
+
+    now = datetime.now(timezone.utc)
+    trial = SimpleNamespace(
+        id="trial-id",
+        trial_name="task-a__1",
+        started_at=now,
+        finished_at=now,
+        verifier=None,
+        verifier_result=None,
+        exception_info=None,
+        agent_result=AgentContext(cost_usd=agent_cost) if agent_cost is not None else None,
+        step_results=(
+            [
+                StepResult(step_name=f"step_{index}", agent_result=AgentContext(cost_usd=cost))
+                for index, cost in enumerate(step_costs)
+            ]
+            if step_costs is not None
+            else None
+        ),
+    )
+    trial.compute_token_cost_totals = MethodType(TrialResult.compute_token_cost_totals, trial)
+
+    records = {record.name: record.score for record in extract_evaluations(cast(Any, trial))}
+
+    assert records.get("cost_usd") == expected_cost
 
 
 def test_trace_discovery_reads_supported_harbor_attributes() -> None:

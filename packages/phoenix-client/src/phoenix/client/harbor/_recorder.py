@@ -17,6 +17,7 @@ from harbor.models.trial.result import TrialResult
 from phoenix.client.__generated__ import v1
 from phoenix.client.client import AsyncClient
 from phoenix.client.harbor._errors import HarborPluginError
+from phoenix.client.harbor._masking import SecretMasker
 from phoenix.client.harbor._model import ExperimentSlice, JobPlan, canonical_digest
 from phoenix.client.harbor._naming import experiment_names, validate_experiment_naming
 from phoenix.client.harbor._scores import ExtractedEvaluation, infrastructure_failures
@@ -52,16 +53,22 @@ class ExperimentHandle:
 
 
 class PhoenixRecorder:
-    """Create or recover Phoenix records for a Harbor job."""
+    """Create or recover Phoenix records for a Harbor job.
+
+    Trial data passes through ``secret_masker`` before it is sent: run output
+    and errors, trace spans, and evaluation labels, explanations, and metadata.
+    """
 
     def __init__(
         self,
         client: AsyncClient,
         *,
+        secret_masker: SecretMasker,
         experiment_name: str | None = None,
         experiment_name_template: str | None = None,
     ) -> None:
         self._client = client
+        self._secret_masker = secret_masker
         self._experiment_name, self._experiment_name_template = validate_experiment_naming(
             experiment_name=experiment_name,
             experiment_name_template=experiment_name_template,
@@ -264,6 +271,7 @@ class PhoenixRecorder:
                 f"Harbor trial {trial_name!r} has no complete start and end timestamps."
             )
 
+        run_output = self._secret_masker.mask(run_output)
         try:
             return await self._client.experiments.log_run(
                 experiment_id=experiment.experiment_id,
@@ -273,7 +281,7 @@ class PhoenixRecorder:
                 end_time=end_time,
                 repetition_number=slot.repetition,
                 trace_id=trace_id,
-                error=_trial_error(trial_result),
+                error=self._secret_masker.mask(_trial_error(trial_result)),
             )
         except httpx.HTTPStatusError as error:
             if error.response.status_code == 409:
@@ -336,7 +344,9 @@ class PhoenixRecorder:
             if not missing:
                 return trace.trace_id
             spans = [
-                span for span in reversed(trace.spans) if span["context"]["span_id"] in missing
+                self._secret_masker.mask(span)
+                for span in reversed(trace.spans)
+                if span["context"]["span_id"] in missing
             ]
             try:
                 result = await self._client.spans.log_spans(
@@ -410,9 +420,9 @@ class PhoenixRecorder:
                     start_time=record.start_time,
                     end_time=record.end_time,
                     score=record.score,
-                    label=record.label,
-                    explanation=record.explanation,
-                    metadata=record.metadata,
+                    label=self._secret_masker.mask(record.label),
+                    explanation=self._secret_masker.mask(record.explanation),
+                    metadata=self._secret_masker.mask(record.metadata),
                 )
             except Exception as error:
                 raise HarborPluginError(

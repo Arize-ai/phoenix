@@ -450,6 +450,7 @@ while also carrying a run error, `infra_ok = 0`, and an `ERROR` trace root.
 |---|---|---|
 | `reward` | Only where Harbor emits it | Harbor's conventional behavioral score; suitable for cross-task summaries |
 | `infra_ok` | Every attempted run | Infrastructure success rate |
+| `cost_usd` | Only where the agent reports a cost to Harbor | Agent cost in US dollars, summed across steps |
 | `<reward_key>` | Only where Harbor emits it | Trial-level verifier reward or diagnostic |
 | `<step_name>.<reward_key>` | Only where Harbor emits it | Step-level diagnosis within a task |
 
@@ -461,6 +462,8 @@ Rules:
 - Add `multi_step_reward_strategy` to each trial-level reward evaluation for a multi-step task. Resolve Harbor's omitted default to `mean`; preserve an explicit `final`. Do not add this metadata to step-level scores, `infra_ok`, or single-step rewards.
 - Reject empty or duplicate step names before writing and detect any remaining generated-name collision during extraction.
 - Store step rewards in their original numeric scale.
+- Store Harbor's summed agent cost (`TrialResult.compute_token_cost_totals`) as `cost_usd`. Some agents, such as Claude Code, report cost only for the whole session, so their LLM spans carry no per-call cost.
+- Mask OpenAI and Anthropic keys and the values of secret-named environment variables in run output, run errors, evaluations, and trace spans before upload. The agent can read its environment, so its trajectory can contain them.
 - Keep infrastructure failures separate from behavioral failures.
 - Do not add a built-in `all_steps_passed` or `tool_calls` score. Tasks can emit task-specific scores when useful.
 - Store the Harbor terminal trial ID, token usage, and cost in a compact JSON-safe run `output` envelope. The public Phoenix run API has no run-metadata argument. Defer phase timings until the output schema can represent multi-step timings without breaking reuse of immutable runs written by older plugin versions.

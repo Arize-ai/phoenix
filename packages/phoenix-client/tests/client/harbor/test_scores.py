@@ -56,6 +56,7 @@ def trial_result(
     error: Any = None,
     steps: list[StepResult] | None = None,
     verifier_timing: TimingInfo | None = None,
+    cost_usd: float | None = None,
 ) -> TrialResult:
     return cast(
         TrialResult,
@@ -69,6 +70,7 @@ def trial_result(
             exception_info=error,
             step_results=steps,
             verifier=verifier_timing,
+            compute_token_cost_totals=lambda: (None, None, None, cost_usd),
         ),
     )
 
@@ -220,3 +222,26 @@ def test_harbor_numeric_coercion_passes_through_as_float_scores() -> None:
     assert records["reward"].score == 1.0
     assert records["count"].score == 2.0
     assert isinstance(records["reward"].score, float)
+
+
+def test_agent_cost_is_recorded_as_cost_usd() -> None:
+    result = trial_result(rewards={"reward": 1.0}, cost_usd=0.255)
+
+    cost = by_name(extract_evaluations(result))["cost_usd"]
+
+    assert cost.score == 0.255
+    assert (cost.start_time, cost.end_time) == (result.started_at, result.finished_at)
+    assert cost.metadata == {"harbor_trial_id": "trial-id"}
+
+
+def test_trial_without_agent_cost_has_no_cost_usd() -> None:
+    records = by_name(extract_evaluations(trial_result(rewards={"reward": 1.0})))
+
+    assert "cost_usd" not in records
+
+
+def test_reward_named_cost_usd_collides_with_agent_cost() -> None:
+    result = trial_result(rewards={"cost_usd": 1.0}, cost_usd=0.5)
+
+    with pytest.raises(HarborPluginError, match="cost_usd.*both"):
+        extract_evaluations(result)
