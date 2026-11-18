@@ -1,4 +1,4 @@
-import { graphql, useLazyLoadQuery } from "react-relay";
+import { graphql } from "react-relay";
 import type { TooltipContentProps } from "recharts";
 import {
   Area,
@@ -43,6 +43,7 @@ import {
   useSemanticChartColors,
   useSequentialChartColors,
 } from "@phoenix/components/chart";
+import { useRefreshingLazyLoadQuery } from "@phoenix/hooks/useRefreshingLazyLoadQuery";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
@@ -51,7 +52,7 @@ import { formatLag } from "@phoenix/pages/project/evaluators/projectEvaluatorFor
 import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
 import {
   PROJECT_METRICS_CHART_SYNC_ID,
-  useMetricQueryFetchOptions,
+  useMetricQueryFetchKey,
 } from "@phoenix/pages/project/metrics/types";
 import {
   costFormatter,
@@ -99,8 +100,8 @@ function useEvaluatorActivity({
 }: Pick<ProjectMetricViewProps, "projectId" | "timeRange">) {
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
-  const data = useLazyLoadQuery<EvaluatorActivityChartsQuery>(
-    graphql`
+  const data = useRefreshingLazyLoadQuery<EvaluatorActivityChartsQuery>({
+    query: graphql`
       query EvaluatorActivityChartsQuery(
         $projectId: ID!
         $timeRange: TimeRange!
@@ -138,7 +139,7 @@ function useEvaluatorActivity({
         }
       }
     `,
-    {
+    variables: {
       projectId,
       timeRange: {
         start: timeRange.start?.toISOString(),
@@ -146,8 +147,8 @@ function useEvaluatorActivity({
       },
       timeBinConfig: { scale, utcOffsetMinutes },
     },
-    useMetricQueryFetchOptions()
-  );
+    fetchKey: useMetricQueryFetchKey(),
+  });
   const groups = data.project.evaluationActivity?.groups ?? [];
   const bins = data.project.evaluationActivity?.series ?? [];
   const { series, getDataKey } = getEvaluatorSeries({
@@ -510,8 +511,8 @@ export function EvaluationQueueSizeTimeSeries({
 }: ProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
-  const data = useLazyLoadQuery<EvaluatorQueueSizeChartQuery>(
-    graphql`
+  const data = useRefreshingLazyLoadQuery<EvaluatorQueueSizeChartQuery>({
+    query: graphql`
       query EvaluatorQueueSizeChartQuery(
         $projectId: ID!
         $timeRange: TimeRange!
@@ -532,7 +533,7 @@ export function EvaluationQueueSizeTimeSeries({
         }
       }
     `,
-    {
+    variables: {
       projectId,
       timeRange: {
         start: timeRange.start?.toISOString(),
@@ -540,8 +541,8 @@ export function EvaluationQueueSizeTimeSeries({
       },
       timeBinConfig: { scale, utcOffsetMinutes },
     },
-    useMetricQueryFetchOptions()
-  );
+    fetchKey: useMetricQueryFetchKey(),
+  });
   const chartData = getQueueSizeRows(
     data.project.evaluationActivity?.series ?? []
   );
