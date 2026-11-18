@@ -21,4 +21,3 @@ After the first publication, a package admin must make the `phoenix` package
 public and confirm that `Arize-ai/phoenix` has publishing access under
 **Manage Actions access**. If organization policy blocks public packages, an
 organization owner must allow them first.
-
