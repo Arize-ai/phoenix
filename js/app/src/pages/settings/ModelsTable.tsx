@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import type { ColumnPinningState } from "@tanstack/react-table";
 import { flexRender, useTable } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useMemo, useRef } from "react";
@@ -45,6 +46,12 @@ import { DeleteModelButton } from "./DeleteModelButton";
 // Initial estimate only — rows are measured once rendered. Roughly a 30px
 // size-S icon button + 2 * 8px cell padding + 1px row border.
 const ESTIMATED_ROW_HEIGHT = 47;
+// Module-level so tanstack's store sees the same pinning state on every
+// render; this component is not memoized by the React Compiler.
+const COLUMN_PINNING = {
+  start: ["name"],
+  end: ["actions"],
+} satisfies ColumnPinningState;
 
 type ModelsTableGenerativeModel =
   ModelsTable_generativeModels$data["generativeModels"]["edges"][number]["generativeModel"];
@@ -452,10 +459,7 @@ export function ModelsTable({
         kind: false,
         provider: false,
       },
-      columnPinning: {
-        start: ["name"],
-        end: ["actions"],
-      },
+      columnPinning: COLUMN_PINNING,
       globalFilter: search?.trim(),
       columnFilters,
     },
