@@ -33,11 +33,7 @@ async def _delete_traces(
     rule: Union[MaxDaysRule, MaxCountRule, MaxDaysOrCountRule],
     project_rowids: Union[Iterable[int], InElementRole],
 ) -> None:
-    await session.execute(
-        sa.delete(models.Trace)
-        .where(models.Trace.project_rowid.in_(project_rowids))
-        .where(rule.deletion_filter(project_rowids))
-    )
+    await session.execute(sa.delete(models.Trace).where(rule.deletion_filter(project_rowids)))
 
 
 class TestMaxDaysMixin:

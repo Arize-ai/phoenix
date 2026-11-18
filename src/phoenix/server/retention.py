@@ -103,10 +103,7 @@ class TraceDataSweeper(DaemonTask):
             try:
                 while self._running:
                     candidate_ids = (
-                        sa.select(Trace.id)
-                        .where(Trace.project_rowid.in_(project_rowids))
-                        .where(deletion_filter)
-                        .limit(_TRACE_DELETE_BATCH_SIZE)
+                        sa.select(Trace.id).where(deletion_filter).limit(_TRACE_DELETE_BATCH_SIZE)
                     )
                     if self._db.dialect is SupportedSQLDialect.POSTGRESQL:
                         candidate_ids = candidate_ids.with_for_update(skip_locked=True)

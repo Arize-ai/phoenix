@@ -57,7 +57,9 @@ class MaxDaysRule(_MaxDays, BaseModel):
         self,
         project_rowids: Union[Iterable[int], InElementRole],
     ) -> sa.ColumnElement[bool]:
-        return self.max_days_filter
+        from phoenix.db.models import Trace
+
+        return sa.and_(Trace.project_rowid.in_(project_rowids), self.max_days_filter)
 
 
 class MaxCountRule(_MaxCount, BaseModel):
@@ -83,7 +85,12 @@ class MaxDaysOrCountRule(_MaxDays, _MaxCount, BaseModel):
         self,
         project_rowids: Union[Iterable[int], InElementRole],
     ) -> sa.ColumnElement[bool]:
-        return sa.or_(self.max_days_filter, self.max_count_filter(project_rowids))
+        from phoenix.db.models import Trace
+
+        return sa.and_(
+            Trace.project_rowid.in_(project_rowids),
+            sa.or_(self.max_days_filter, self.max_count_filter(project_rowids)),
+        )
 
 
 class TraceRetentionRule(RootModel[Union[MaxDaysRule, MaxCountRule, MaxDaysOrCountRule]]):
@@ -98,10 +105,9 @@ class TraceRetentionRule(RootModel[Union[MaxDaysRule, MaxCountRule, MaxDaysOrCou
         self,
         project_rowids: Union[Iterable[int], InElementRole],
     ) -> sa.ColumnElement[bool]:
-        """Return a filter on `Trace` matching the traces this rule deletes.
+        """Return a deletion filter restricted to the specified projects.
 
-        The filter does not restrict traces to `project_rowids`; callers add that
-        themselves. A no-op rule (e.g. max_days == 0) matches no trace.
+        A no-op rule (e.g. max_days == 0) matches no trace.
         """
         return self.root.deletion_filter(project_rowids)
 
