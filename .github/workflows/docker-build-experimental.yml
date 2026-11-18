@@ -22,38 +22,29 @@ jobs:
       # One job per platform, not per variant/platform pair: the variants share
       # every stage but the final FROM, so building them together reuses the
       # frontend, backend and WASM stages from the local builder instead of
-      # repeating them on a cold one. Each pushes by digest and nothing is
-      # tagged until the merge job, so a failed build cannot publish a partial
-      # image; letting the other platform finish means a rerun has less to redo.
+      # repeating them on a cold one. OCI artifacts let each registry publish
+      # independently without rebuilding the application.
       fail-fast: false
       matrix:
         platform: [linux/amd64, linux/arm64]
-    env:
-      REGISTRY: arizephoenix
-      IMAGE_NAME: phoenix
     steps:
       - name: Check out the repo
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
-      - name: Build and push every variant by digest
+      - name: Build every variant as an OCI archive
         uses: ./.github/actions/docker-build-image
         with:
           variants: debug
           platform: ${{ matrix.platform }}
-          registry: ${{ env.REGISTRY }}
-          image-name: ${{ env.IMAGE_NAME }}
           dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
           dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
   merge:
-    name: Publish ${{ matrix.variant }} manifest
+    name: Publish ${{ matrix.variant }} to Docker Hub
     needs: build
-    # A matrix job reports failure if any cell fails, so plain `needs` would let
-    # one variant's failed leg withhold every other variant — including ones
-    # whose digests are already on Docker Hub. Publish per variant instead and
-    # let the digest count refuse the variant that is actually incomplete.
+    # Publish complete variants even if a different variant failed to build.
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     strategy:

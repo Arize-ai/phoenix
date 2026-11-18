@@ -59,7 +59,6 @@ jobs:
     name: Build ${{ matrix.platform }}
     permissions:
       contents: read
-      packages: write
     needs: version
     # linux/arm64 builds on a native ARM runner rather than under QEMU
     # emulation on x86, which is both far slower and a source of flakes.
@@ -68,15 +67,11 @@ jobs:
       # One job per platform, not per variant/platform pair: the variants share
       # every stage but the final FROM, so building them together reuses the
       # frontend, backend and WASM stages from the local builder instead of
-      # repeating them on a cold one. Each pushes by digest and nothing is
-      # tagged until the merge job, so a failed build cannot publish a partial
-      # image; letting the other platform finish means a rerun has less to redo.
+      # repeating them on a cold one. OCI artifacts let each registry publish
+      # independently without rebuilding the application.
       fail-fast: false
       matrix:
         platform: [linux/amd64, linux/arm64]
-    env:
-      REGISTRY: arizephoenix
-      IMAGE_NAME: phoenix
     steps:
       - name: Check out the repo
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -84,28 +79,20 @@ jobs:
           persist-credentials: false
           ref: ${{ needs.version.outputs.revision }}
 
-      - name: Build and push every variant by digest
+      - name: Build every variant as an OCI archive
         uses: ./.github/actions/docker-build-image
         with:
-          additional-image: ghcr.io/arize-ai/phoenix
           variants: root nonroot debug
           platform: ${{ matrix.platform }}
-          registry: ${{ env.REGISTRY }}
-          image-name: ${{ env.IMAGE_NAME }}
           dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
           dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
   merge:
-    name: Publish ${{ matrix.variant }} manifest
+    name: Publish ${{ matrix.variant }} to Docker Hub
     permissions:
       contents: read
-      packages: write
     needs: [version, build]
-    # A matrix job reports failure if any cell fails, so plain `needs` would let
-    # one variant's failed leg withhold every other variant — including ones
-    # whose digests are already on Docker Hub. Publish per variant instead and
-    # let the digest count refuse the variant that is actually incomplete. The
-    # version job is a real prerequisite: without it the tags are empty.
+    # Publish complete variants even if a different variant failed to build.
     if: ${{ !cancelled() && needs.version.result == 'success' }}
     runs-on: ubuntu-latest
     strategy:
@@ -140,9 +127,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
         with:
-          images: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-            ghcr.io/arize-ai/phoenix
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           # latest=false because every `latest` variant is listed explicitly
           # below; left on auto it would also add an unsuffixed `latest` to
           # nonroot and debug.
@@ -164,6 +149,68 @@ jobs:
           expected-digests: 2
           dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
           dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+  merge-ghcr:
+    name: Publish ${{ matrix.variant }} to GHCR
+    permissions:
+      contents: read
+      packages: write
+    needs: [version, build]
+    # Publish complete variants even if a different variant failed to build.
+    if: ${{ !cancelled() && needs.version.result == 'success' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [root, nonroot, debug]
+    env:
+      REGISTRY: ghcr.io/arize-ai
+      IMAGE_NAME: phoenix
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          ref: ${{ needs.version.outputs.revision }}
+
+      # Applied to every tag below. root publishes unsuffixed names, so a
+      # suffix bug would silently point `latest` at the wrong variant — hence
+      # an explicit value per tag rather than the metadata-action flavor.
+      - name: Compute tag suffix
+        env:
+          VARIANT: ${{ matrix.variant }}
+        run: |
+          set -euo pipefail
+          if [ "$VARIANT" = "root" ]; then
+            echo "TAG_SUFFIX=" >> "$GITHUB_ENV"
+          else
+            echo "TAG_SUFFIX=-${VARIANT}" >> "$GITHUB_ENV"
+          fi
+
+      - name: Compute tags
+        id: meta
+        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          # latest=false because every `latest` variant is listed explicitly
+          # below; left on auto it would also add an unsuffixed `latest` to
+          # nonroot and debug.
+          flavor: latest=false
+          tags: |
+            type=raw,value=latest${{ env.TAG_SUFFIX }}
+            type=raw,value=${{ needs.version.outputs.version }}${{ env.TAG_SUFFIX }}
+            type=raw,value=${{ needs.version.outputs.major }}.${{ needs.version.outputs.minor }}${{ env.TAG_SUFFIX }}
+            type=raw,value=${{ needs.version.outputs.major }}${{ env.TAG_SUFFIX }}
+            type=raw,value=version-${{ needs.version.outputs.version }}${{ env.TAG_SUFFIX }}
+            type=raw,value=version-${{ needs.version.outputs.major }}.${{ needs.version.outputs.minor }}${{ env.TAG_SUFFIX }}
+            type=raw,value=version-${{ needs.version.outputs.major }}${{ env.TAG_SUFFIX }}
+
+      - name: Merge platform digests and push tags
+        uses: ./.github/actions/docker-merge-manifest
+        with:
+          variant: ${{ matrix.variant }}
+          tags: ${{ steps.meta.outputs.tags }}
+          expected-digests: 2
 
   update-self-deployment:
     name: Update Kustomize Template
@@ -234,7 +281,7 @@ jobs:
 
   slack:
     name: Slack notification
-    needs: [version, build, merge, update-self-deployment]
+    needs: [version, build, merge, merge-ghcr, update-self-deployment]
     if: always() && contains(needs.*.result, 'failure')
     runs-on: ubuntu-latest
     steps:
