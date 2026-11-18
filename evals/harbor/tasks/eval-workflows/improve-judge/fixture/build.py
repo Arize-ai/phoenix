@@ -33,15 +33,17 @@ SYSTEM_PROMPT = (
 
 POLICIES = {
     "return-window": (
-        "Items can be returned within 30 days of delivery for a refund of the item price. "
-        "Requests made more than 30 days after delivery are declined."
+        "Except for gift cards and final-sale items, items can be returned within 30 days "
+        "of delivery for a refund of the item price. Requests made more than 30 days after "
+        "delivery are declined."
     ),
     "final-sale": "Items marked final sale can't be returned or refunded for any reason, including damage.",
     "gift-cards": "Gift cards and e-gift cards are never refundable.",
     "damaged": (
-        "If an item arrives damaged and the customer reports it within 14 days of delivery, "
-        "refund the item price plus the original shipping. Damage reported later is handled "
-        "as a standard return."
+        "The final-sale and gift-card exclusions take precedence over this damage policy. "
+        "For any other item that arrives damaged, if the customer reports it within 14 days "
+        "of delivery, refund the item price plus the original shipping. Damage reported later "
+        "is handled as a standard return."
     ),
     "restocking": (
         "Opened electronics are refunded minus a 15% restocking fee on the item price. The fee "
@@ -514,7 +516,7 @@ def scenario(kind: str, variant: int, rng: random.Random, split: str) -> dict[st
         facts = dict(item=item, final=False, days=rng.randint(1, 14), condition=damaged,
                      opened=False if electronics else rng.random() < 0.5)  # fmt: skip
         if kind == "damaged_refund":
-            reasons = ["damaged"] if variant % 2 == 0 else ["standard", "shipping_too"]
+            reasons = ["damaged"] if variant % 2 == 0 else ["damaged_item_only", "shipping_too"]
             return {**facts, "refund": money(item[2] + item[3]), "reasons": reasons}
         # Same wordings as damaged_late_item_price, but the record shows a report within 14 days.
         reasons = ["damaged_late"] if variant % 2 == 0 else ["damaged_item_only"]

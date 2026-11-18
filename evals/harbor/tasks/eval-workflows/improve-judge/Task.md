@@ -47,6 +47,10 @@ the order record:
 - Every other refund is the item price, minus a 15% restocking fee for opened
   electronics. Plus members don't pay the fee.
 
+The return-window and damage passages explicitly say that the gift-card and final-sale
+exclusions take precedence, so a trace that retrieves both rules does not present the
+judge with conflicting instructions.
+
 A trace is compliant when the agent's refund matches that amount to the cent, where a
 denial is a refund of 0. The review notes quote the same amounts. The Plus rules are in
 one passage, `plus-members`, which `search_policies` returns only for a member's order.
