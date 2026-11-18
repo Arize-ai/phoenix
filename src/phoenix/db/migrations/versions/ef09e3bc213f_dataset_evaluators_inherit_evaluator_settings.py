@@ -69,25 +69,18 @@ def _is_empty_json_array(column: str) -> str:
 
 
 def upgrade() -> None:
-    with op.batch_alter_table("dataset_evaluators") as batch_op:
-        batch_op.alter_column("output_configs", existing_type=JSON_, nullable=True)
+    op.alter_column("dataset_evaluators", "output_configs", existing_type=JSON_, nullable=True)
     op.execute(
         "UPDATE dataset_evaluators SET output_configs = NULL "
-        f"WHERE {_is_json_null('output_configs')}"
-    )
-    op.execute(
-        "UPDATE dataset_evaluators SET output_configs = NULL "
-        f"WHERE {_is_empty_json_array('output_configs')}"
+        f"WHERE ({_is_json_null('output_configs')}) "
+        f"OR ({_is_empty_json_array('output_configs')})"
     )
     op.add_column("llm_evaluators", sa.Column("input_schema", JSON_, nullable=True))
     op.add_column("code_evaluators", sa.Column("input_schema", JSON_, nullable=True))
 
 
 def downgrade() -> None:
-    with op.batch_alter_table("code_evaluators") as batch_op:
-        batch_op.drop_column("input_schema")
-    with op.batch_alter_table("llm_evaluators") as batch_op:
-        batch_op.drop_column("input_schema")
+    op.drop_column("code_evaluators", "input_schema")
+    op.drop_column("llm_evaluators", "input_schema")
     op.execute("UPDATE dataset_evaluators SET output_configs = 'null' WHERE output_configs IS NULL")
-    with op.batch_alter_table("dataset_evaluators") as batch_op:
-        batch_op.alter_column("output_configs", existing_type=JSON_, nullable=False)
+    op.alter_column("dataset_evaluators", "output_configs", existing_type=JSON_, nullable=False)
