@@ -1,4 +1,4 @@
-import { HttpError } from "@arizeai/phoenix-client";
+import { formatApiError, HttpError } from "@arizeai/phoenix-client";
 import {
   addLabelToDataset,
   listLabelsForDataset,
@@ -25,6 +25,29 @@ import { formatDatasetLabelsOutput } from "./formatDatasetLabels";
 import type { CommonOptions } from "./options";
 
 type DatasetLabelOperation = "list" | "add" | "remove" | "replace";
+
+async function formatDatasetLabelsErrorMessage(
+  error: unknown
+): Promise<string> {
+  if (!(error instanceof HttpError)) {
+    return error instanceof Error ? error.message : String(error);
+  }
+  const statusMessage = `Phoenix returned HTTP ${error.status}`;
+  try {
+    const response = error.response.clone();
+    const detail = response.headers.get("content-type")?.includes("text/plain")
+      ? await response.text()
+      : formatApiError(await response.json());
+    return detail ? `${statusMessage}: ${detail}` : statusMessage;
+  } catch (parseError) {
+    if (
+      !(parseError instanceof SyntaxError || parseError instanceof TypeError)
+    ) {
+      throw parseError;
+    }
+    return statusMessage;
+  }
+}
 
 interface DatasetLabelsOptions extends CommonOptions {
   /** `--dataset <name-or-id>`: Dataset whose assignments are managed. */
@@ -163,12 +186,7 @@ async function manageDatasetLabels({
         : error instanceof HttpError && error.status === 422
           ? ExitCode.INVALID_ARGUMENT
           : getExitCodeForError(error);
-    const message =
-      error instanceof HttpError
-        ? `Phoenix returned HTTP ${error.status}`
-        : error instanceof Error
-          ? error.message
-          : String(error);
+    const message = await formatDatasetLabelsErrorMessage(error);
     writeStructuredError({
       format: options.format,
       message: `Error managing dataset labels: ${message}`,
@@ -186,6 +204,13 @@ export function createDatasetLabelsCommand(): Command {
   const command = new Command("dataset-labels").description(
     "Manage dataset label assignments without changing global labels (Phoenix >= 17.16.0)"
   );
+  const labelDiscoveryHelp = `
+Find label GlobalIDs:
+  px api graphql '{ datasetLabels(first: 50) { edges { node { id name } } pageInfo { hasNextPage endCursor } } }'
+  Or use GET /v1/dataset_labels.
+  If hasNextPage is true, repeat the query with after: "<endCursor>".
+`;
+  command.addHelpText("after", labelDiscoveryHelp);
   const operations = [
     ["list", "List the labels assigned to a dataset"],
     ["add", "Apply an existing label to a dataset (idempotent)"],
@@ -237,6 +262,7 @@ export function createDatasetLabelsCommand(): Command {
             : ""
         }`
       )
+      .addHelpText("after", labelDiscoveryHelp)
       .action((options: DatasetLabelsOptions) =>
         manageDatasetLabels({ operation, options })
       );

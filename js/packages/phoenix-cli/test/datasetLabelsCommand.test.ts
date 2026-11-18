@@ -368,7 +368,12 @@ describe("dataset-labels", () => {
         io.stderr.mockClear();
         mock.server.use(
           http[method](path, ({ response }) =>
-            response.untyped(new Response("upstream failure", { status }))
+            response.untyped(
+              Response.json(
+                { detail: `${operation} failed: resource not found` },
+                { status }
+              )
+            )
           )
         );
         const expectedExit =
@@ -392,7 +397,9 @@ describe("dataset-labels", () => {
         expect(exitSpy).toHaveBeenLastCalledWith(expectedExit);
         const error = JSON.parse(String(io.stderr.mock.calls[0]?.[0]));
         expect(error.error).toContain(String(status));
-        expect(error.error).not.toContain("upstream failure");
+        expect(error.error).toContain(
+          `${operation} failed: resource not found`
+        );
         expect(error.code).toBe(
           status === 401 || status === 403
             ? "AUTH_REQUIRED"
@@ -400,6 +407,72 @@ describe("dataset-labels", () => {
               ? "INVALID_ARGUMENT"
               : "FAILURE"
         );
+      }
+      expect(io.stdout).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(["pretty", "json", "raw"] as const)(
+    "preserves actionable HTTP details and falls back for HTML or empty bodies in %s mode",
+    async (format) => {
+      const io = captureCliOutput();
+      mockProcessExit();
+      const responses = [
+        {
+          body: JSON.stringify({
+            detail: 'Dataset with name "typo" not found',
+          }),
+          expected: 'Dataset with name "typo" not found',
+        },
+        {
+          body: JSON.stringify({ detail: "Dataset label not found" }),
+          expected: "Dataset label not found",
+        },
+        {
+          body: JSON.stringify({
+            detail: [
+              {
+                loc: ["path", "label_id"],
+                msg: "Invalid DatasetLabel ID",
+                type: "value_error",
+              },
+            ],
+          }),
+          expected: "Invalid DatasetLabel ID",
+        },
+        {
+          body: "Invalid dataset label ID: invalid",
+          contentType: "text/plain; charset=utf-8",
+          expected: "Invalid dataset label ID: invalid",
+        },
+        {
+          body: "<html>Internal server error</html>",
+          contentType: "text/html",
+          expected: "Phoenix returned HTTP 404",
+        },
+        { body: "", expected: "Phoenix returned HTTP 404" },
+      ];
+      for (const { body, contentType, expected } of responses) {
+        io.stderr.mockClear();
+        mock.server.use(
+          http.get("/v1/datasets/{dataset_identifier}/labels", ({ response }) =>
+            response.untyped(
+              new Response(body, {
+                status: 404,
+                headers: { "Content-Type": contentType ?? "application/json" },
+              })
+            )
+          )
+        );
+        await expect(
+          runCommand({
+            args: ["list", "--dataset", "typo", "--format", format],
+          })
+        ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
+        const output = String(io.stderr.mock.calls[0]?.[0]);
+        const message = format === "pretty" ? output : JSON.parse(output).error;
+        expect(message).toContain(expected);
+        expect(message).not.toContain("<html>");
       }
       expect(io.stdout).not.toHaveBeenCalled();
     }
@@ -529,5 +602,8 @@ describe("dataset-labels", () => {
     expect(help).toContain("--clear");
     expect(help).toContain("px dataset-labels replace");
     expect(help).toContain("global label");
+    expect(help).toContain("GET /v1/dataset_labels");
+    expect(help).toContain("px api graphql");
+    expect(help).toContain("datasetLabels");
   });
 });

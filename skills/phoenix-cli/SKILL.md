@@ -411,10 +411,18 @@ exit nonzero. Use the IDs with `dataset get --version`.
 
 `dataset-labels` manages assignments of existing labels (Phoenix server >= 17.16.0).
 Dataset names and GlobalIDs are accepted directly; labels use GlobalIDs.
+Find label IDs with `GET /v1/dataset_labels`, or use the configured CLI connection:
+
+```bash
+px api graphql '{ datasetLabels(first: 50) { edges { node { id name } } pageInfo { hasNextPage endCursor } } }'
+```
+
+Use `node.id` with `--label`. If `hasNextPage` is true, repeat with `after: "<endCursor>"`.
 Add/remove are idempotent. Remove preserves the global label. Replace sets all
 assignments; `--clear` explicitly removes them all and cannot be combined with `--label`.
 JSON/raw output is a label array for list/replace, a label object for add, and
 `{dataset_identifier, label_id}` for remove (the API returns no body).
+HTTP failures preserve the server's JSON or plain-text detail so agents can distinguish dataset and label errors.
 
 `prompt-versions list` fetches all pages unless `--limit` is set. JSON/raw output is
 an array of full version objects. `created_at` is absent on older servers (blank

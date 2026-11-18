@@ -480,6 +480,14 @@ Manage assignments of existing labels to a dataset. These commands require Phoen
 They accept dataset names or GlobalIDs directly. Label arguments must be label GlobalIDs.
 Removing an assignment preserves the global label and the dataset.
 
+Find label GlobalIDs with `GET /v1/dataset_labels`, or use the CLI's authenticated GraphQL command:
+
+```bash
+px api graphql '{ datasetLabels(first: 50) { edges { node { id name } } pageInfo { hasNextPage endCursor } } }'
+```
+
+Use the returned `node.id` values with `--label`. If `hasNextPage` is true, repeat the query with `after: "<endCursor>"`.
+
 ```bash
 px dataset-labels list --dataset my-dataset
 px dataset-labels add --dataset my-dataset --label RGF0YXNldExhYmVsOjE=
@@ -497,6 +505,7 @@ All four commands support `--format pretty|json|raw`, `--endpoint`, `--api-key`,
 Pretty output shows a label table. JSON/raw output returns a label array for list/replace and one label object for add.
 Remove returns `{ "dataset_identifier": "...", "label_id": "..." }` to acknowledge the request because its API response has no body.
 Errors go to stderr, with structured JSON in json/raw mode and the CLI's semantic exit codes.
+HTTP error messages include the server's JSON or plain-text detail when available, so callers can identify the invalid dataset or label.
 
 ---
 
