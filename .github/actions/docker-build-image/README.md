@@ -22,5 +22,3 @@ public and confirm that `Arize-ai/phoenix` has publishing access under
 **Manage Actions access**. If organization policy blocks public packages, an
 organization owner must allow them first.
 
-Run `make test-docker-publish` to check publishing orchestration. These checks
-stub registry calls; verifying a real push still requires an Actions run.
