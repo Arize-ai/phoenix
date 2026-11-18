@@ -22,7 +22,7 @@ The agent receives `instruction.md` word for word:
 | Where | What |
 | --- | --- |
 | Prompt `support-system` | One version, the launch prompt. It cites a rule only when it turns a request down, sets no length limit, tells the assistant to help with orders for "family members, friends, or coworkers", and encourages goodwill discounts and exceptions. |
-| Dataset `support-questions` | 30 development questions. Each example's input is the signed-in `customer_id` and the `question`, and its output is `notes` on what a good reply must do. 10 questions are about an order or account: 4 about the customer's own and 6 about someone else's. |
+| Dataset `support-questions` | 30 development questions. Each example's input is the signed-in `customer_id` and the `question`, and its output is `notes` on what a good reply must do. 10 questions are graded on `account_privacy`: 4 ask for details of the customer's own order and 6 ask about someone else's. |
 | Experiment `baseline` | The launch prompt's real replies to the 30 questions. Each reply has four evaluations, one per handbook standard: `cites_policy` passes 15 of 30, `under_word_limit` 13 of 30, `no_false_promises` 18 of 30, and `account_privacy` 5 of the 10 account questions, with `not_applicable` on the rest. Each explanation says how the result was decided, such as `95 words; limit 80` or `cited nothing; expected one of ['returns', 'exchanges']`. The evaluators' code isn't on the machine. |
 | `/app/support_app.py` | The app. `answer(question, customer_id, prompt=None)` sends the latest `support-system` version to `gpt-5.4-mini`, then one message with the handbook's rules, the signed-in customer, their orders and any order the question names, and the question. Passing `prompt` tries a version without saving it. |
 | `/app/policies.md` | The handbook: four reply standards and 14 rules. The standards are to tag each rule a reply relies on as `[policy:<id>]`, use 80 words or fewer, promise only what the handbook allows, and discuss orders only with the account holder. The app sends the model the rules but not the standards, so the prompt has to carry them. |
@@ -55,12 +55,13 @@ they give:
   judge reads them.
 - For the 11 account questions, whether the order or account is the customer's own or
   someone else's.
-- For someone else's, the owner and the details a reply must never contain.
+- For someone else's, the owner and, for an order, the details a reply must never
+  contain.
 
 21 of the 32 questions ask for something the handbook doesn't allow. The new questions
 also include situations the dataset doesn't show, such as a cardholder asking about a
-daughter's account, a neighbor's misdelivered package, a question the handbook doesn't
-answer, and Canada as an allowed destination.
+daughter's account, a question the handbook doesn't answer, and Canada as an allowed
+destination.
 
 `build.py` fails if any of these doesn't hold:
 
@@ -88,7 +89,7 @@ The agent's work and the verifier's grading happen in this order:
    workflow the task expects. It's how the team measures the change against the
    baseline, and the `experiment` check grades it.
 3. After the agent finishes, the verifier finds the newest experiment on
-   `support-questions` besides `baseline`. It checks that the experiment carries the
+   `support-questions` besides `baseline` that ran at least 80% of the examples. It checks that the experiment carries the
    four evaluations, and it reruns its own word count and tag check on the experiment's
    replies to catch a wrong `under_word_limit` or `cites_policy` evaluator. The same
    word count and tag check must pass clearly more of the experiment's replies than the
@@ -129,8 +130,8 @@ every standard.
 | `experiment` | Code | `expected.json`, `grading_data.json` | `support-questions` has an experiment besides `baseline` with successful runs on at least 80% of its examples. The newest one carries `cites_policy`, `under_word_limit`, and `no_false_promises` on at least 80% of its runs, and `account_privacy` on at least 80% of the runs for the 10 account questions. On at least 90% of the runs each one scores, `under_word_limit` agrees with the verifier's word count, and `cites_policy` doesn't pass a reply that has no tag or tags a rule the handbook doesn't have. The verifier's word count and tag check each pass a share of the experiment's replies at least 30 points higher than of the baseline's: at least 73% on length, against the baseline's 43%, and at least 80% on tags, against 50%. |
 | `new_questions` | Code and LLM judge | `expected.json`, `grading_data.json` | The latest `support-system` version differs from the launch prompt, and its replies to the 32 new questions pass each of the four standards at least 85% of the time. |
 
-A run carries an evaluation when the evaluation has a score, or a `pass` or `fail`
-label. A score of 0.5 or more passes, as on the baseline.
+A run carries an evaluation when the evaluation has a score, or a pass or fail label
+such as `pass` or `failed`. A score of 0.5 or more passes, as on the baseline.
 
 `reward` is 1 only when both checks pass. `details.json` shows each part of `experiment`
 and each standard's pass rate on the new questions, with every reply and the reason for
@@ -140,9 +141,9 @@ These measures are reported beside `reward` and don't affect it:
 
 - `turn_count`, `tool_count`, and a `loaded_<skill>` flag for each skill.
 - `no_overfit`: 0 if the saved prompt quotes 10 or more words in a row from a
-  development question or its notes, or names one of their order or customer IDs, and 1
-  otherwise. Text that the new questions, the handbook, or the launch prompt also
-  contain doesn't count.
+  development question or its notes, or names one of their order IDs, and 1 otherwise.
+  Text that the new questions, the handbook, or the launch prompt also contain doesn't
+  count. It isn't reported if the verifier finds no saved version.
 
 ## What the task tests
 
@@ -151,12 +152,12 @@ These measures are reported beside `reward` and don't affect it:
 | Fix only the two problems the request names, promises and privacy, and skip the handbook's citation and length standards | `new_questions`, because the prompt still omits two independently graded standards. |
 | Add a word limit to the launch prompt and change nothing else | `new_questions`, because citations, promises, and privacy remain unfixed. |
 | Write rules only for the situations in the dataset | `new_questions`, which includes situations the dataset doesn't show. |
-| Refuse every question about an order, to be safe | `new_questions`. Four new questions ask about the customer's own order. |
+| Refuse every question about an order, to be safe | `new_questions`. 14 new questions name the customer's own order, and 4 of them ask for its details. |
 | Try drafts with `answer(..., prompt=...)` or edit `/app/support_app.py`, and never save a version | `new_questions`. The verifier uses the latest saved version and its own copy of the app. |
 | Skip the experiment, or run it on a few questions | `experiment` |
 | Run the experiment with the launch prompt, or with a draft that doesn't fix length and citations | `experiment` |
 | Score the experiment with new evaluators under other names, such as `word_limit` or `matches_notes`, or score `account_privacy` only on the 5 development questions that name another customer's order | `experiment` |
-| Score `under_word_limit` by counting characters, or pass replies with no tag on `cites_policy` | `experiment` |
+| Score `under_word_limit` by counting characters | `experiment` |
 
 ## Calibration
 
@@ -172,6 +173,8 @@ and 50% and 57% on tags, below the `experiment` bars of 73% and 80%.
 
 - The app's model and the LLM judges vary from run to run, so a prompt near the 85% bar
   can pass one run and fail the next. The reference prompt's lowest share was 97%.
+- `experiment` doesn't check that the experiment ran the saved version. Any prompt that
+  beats the baseline on the code-checked standards passes it.
 - `experiment` compares only the two code-checked standards with the baseline. An
   experiment run with a prompt that fixes length and citations but not promises passes
   it, and `new_questions` fails that prompt.
@@ -179,8 +182,8 @@ and 50% and 57% on tags, below the `experiment` bars of 73% and 80%.
   `account_privacy` results are right, only that they're there. Checking them would add
   about 40 model calls to each run.
 - `experiment` catches a wrong code evaluator only on the replies the experiment has. A
-  good prompt keeps replies far under 80 words, so a word count that includes tags still
-  agrees.
+  good prompt keeps replies far under 80 words and tags nearly every reply, so a word
+  count that includes tags, or a tag check that passes untagged replies, still agrees.
 - Evaluation names must match the baseline's exactly. An agent that makes the
   experiments comparable another way, such as scoring the baseline with its own
   evaluators, fails `experiment`.

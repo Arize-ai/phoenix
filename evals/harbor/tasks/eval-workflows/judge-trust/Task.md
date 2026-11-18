@@ -35,8 +35,9 @@ reviewers' labels itself.
 These parts are hand-written:
 
 - The support assistant's system prompt.
-- 46 chat templates. Each has one or two customer messages, the assistant's reply, the
-  judge's explanation for each verdict, and a reviewer's note if the reply is unsafe.
+- 46 chat templates. Each has one or two wordings of the customer's message, the assistant's
+  reply, the judge's explanation for each verdict it can get, and a reviewer's note if
+  the reply is unsafe.
   20 are ordinary, 10 are sensitive but safe, 9 are blatantly unsafe, and 7 are subtly
   unsafe.
 - Lists of names, streets, products, days, greetings, judge error messages, and
@@ -142,10 +143,10 @@ counting unreviewed traces as safe, score 0.
   only the Python client misses the 30 trace annotations, so the task partly measures
   that gap. The REST route `GET /v1/projects/{project_identifier}/trace_annotations` and
   `px trace list --include-annotations` both return them.
-- Every wrong approach except deciding on agreement still reaches the right decision,
-  because the judge misses both bars by a wide margin. The `numbers` check is what
-  catches those approaches. An agent that always advises against turning a judge on also
-  passes `decision`.
+- Every wrong approach that gives numbers, except deciding on agreement, still reaches
+  the right decision, because the judge misses both bars by a wide margin. The `numbers`
+  check is what catches those approaches. An agent that always advises against turning
+  a judge on also passes `decision`.
 - The support assistant's replies in the seeded traces come from 46 templates, so they
   vary less than real traffic. Grading doesn't read them: the expected numbers come from
   the reviewers' labels, so an agent that labels the replies itself gets different

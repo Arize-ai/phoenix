@@ -97,7 +97,8 @@ def grade_experiment() -> None:
         **parts,
         "beats_baseline": graded is not None
         and all(
-            rates["experiment"][name] >= rates["baseline"][name] + bars["min_gain_over_baseline"]
+            round(rates["experiment"][name] - rates["baseline"][name], 9)
+            >= bars["min_gain_over_baseline"]
             for name in rates["baseline"]
         ),
     }

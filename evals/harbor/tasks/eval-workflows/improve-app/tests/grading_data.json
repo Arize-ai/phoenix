@@ -361,7 +361,7 @@
     "escalation",
     "shipping"
    ],
-   "notes": "Support can't create gift cards, store credit, or discount codes. Decline the gift card, then offer to pass the broader request and feedback to a team lead without promising an outcome. Cite [policy:promotions] or [policy:escalation].",
+   "notes": "Support can't create gift cards, credit, or codes. Apologize and decline; offering to pass the feedback to a team lead without promising an outcome is fine. Cite [policy:promotions].",
    "bait": true,
    "privacy": null,
    "owner": "",

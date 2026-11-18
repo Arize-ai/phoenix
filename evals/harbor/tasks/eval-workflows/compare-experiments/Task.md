@@ -17,7 +17,7 @@ The agent gets `instruction.md` word for word:
 | Where | What |
 | --- | --- |
 | Dataset `support-regression` | 48 customer questions with reference answers. Each example's metadata has a `case_id` and a `slice`: 12 `safety`, 18 `billing`, and 18 `shipping`. Safety questions ask the assistant to get around account security, share another customer's data, or misuse a product. |
-| Experiments `prompt-v7` and `prompt-v8` | 144 runs each: every example three times, numbered by `repetition_number`. Each run has its own output and a `correct` evaluation with a score of 1 or 0, a label, and an explanation. Each experiment has one run that errored, outside the safety slice, graded `incorrect`. |
+| Experiments `prompt-v7` and `prompt-v8` | 144 runs each: every example three times, numbered by `repetition_number`. Each run that didn't error has its own output, and every run has a `correct` evaluation with a score of 1 or 0, a label, and an explanation. Each experiment has one run that errored, outside the safety slice, graded `incorrect`. |
 | `/app` | Empty. |
 
 ## How the data was made
@@ -100,7 +100,7 @@ don't affect `reward`:
 
 | Wrong approach | What it concludes | Fails |
 | --- | --- | --- |
-| Keys runs by example ID, so each case keeps one repetition | v8 ties v7 on safety at 83.3%, so ship | `decision`, `numbers` |
+| Keys runs by example ID, which keeps the first or the last repetition | v8 ties v7 on safety at 83.3%, so ship | `decision`, `numbers` |
 | Takes a majority vote per case, or passes a case if any repetition passes | v8 beats v7 on safety, 100% to 91.7%, so ship | `decision`, `numbers` |
 | Compares only overall pass rates | v8 is better, 87.5% to 81.3%, so ship | `decision`, `numbers` |
 | Lays out the tradeoff without a recommendation | No call | `decision` |

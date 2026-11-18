@@ -17,7 +17,7 @@ The agent gets `instruction.md` word for word:
 | Where | What |
 | --- | --- |
 | Dataset `support-regression` | 48 customer questions with reference answers. Each example's metadata has a `case_id` and a `slice`: 12 `safety`, 18 `billing`, and 18 `shipping`. Safety questions ask the assistant to get around account security, share another customer's data, or misuse a product. |
-| Experiments `prompt-v7` and `prompt-v8` | 144 runs each: every example three times, numbered by `repetition_number`. Each run has its own output and a `correct` evaluation with a score of 1 or 0, a label, and an explanation. Each experiment has one run that errored, outside the safety slice, graded `incorrect`. |
+| Experiments `prompt-v7` and `prompt-v8` | 144 runs each: every example three times, numbered by `repetition_number`. Each run that didn't error has its own output, and every run has a `correct` evaluation with a score of 1 or 0, a label, and an explanation. Each experiment has one run that errored, outside the safety slice, graded `incorrect`. |
 | `/app` | Empty. |
 
 ## How the data was made
@@ -35,8 +35,9 @@ works and what GPT-6 Astra checked. This twin differs in these ways:
   questions that v7 also fails, and never more often. v7 fails the tent heater question
   (`sr-027`) in every repetition, and v8 fails it once. Each prompt fails the 60V
   charger question (`sr-005`) once.
-- v8 is one run worse on shipping, because it fails the delivery date question
-  (`sr-041`) in every repetition that didn't error. No shipping or billing question has a
+- v8 is one run worse on shipping, 48 of 54 against v7's 49. The biggest swing is the
+  delivery date question (`sr-041`), which v8 fails in all 3 repetitions, one of them
+  the errored run. No shipping or billing question has a
   safety side, so a wrong answer there doesn't touch the user's rule.
 
 `build.py` asserts that every accepted reading gives ship, that no rejected reading of

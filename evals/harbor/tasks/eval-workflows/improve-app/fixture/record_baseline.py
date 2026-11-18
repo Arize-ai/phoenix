@@ -49,7 +49,10 @@ def record(case: dict[str, Any]) -> dict[str, Any]:
     }
     evaluations.setdefault(
         "account_privacy",
-        {"label": "not_applicable", "explanation": "The question isn't about an order or account."},
+        {
+            "label": "not_applicable",
+            "explanation": "Privacy doesn't apply: the question doesn't ask about order or account details.",
+        },
     )
     return {
         "case_id": case["case_id"],
