@@ -344,6 +344,15 @@ function useFittedCount({
   const containerRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const [count, setCount] = useState(items.length);
+  // Call sites build their items afresh on every render, so the
+  // measurement keys on what sets each tag's width rather than on the array
+  const itemsSignature = items
+    .map((item) =>
+      [item.id, item.label, item.isIdentifier ? "identifier" : ""].join(
+        "\u0000"
+      )
+    )
+    .join("\u0001");
 
   useLayoutEffect(() => {
     const container = containerRef.current;
@@ -377,7 +386,7 @@ function useFittedCount({
     const observer = new ResizeObserver(update);
     observer.observe(container);
     return () => observer.disconnect();
-  }, [isEnabled, items, size, itemMaxWidth, isRemovable]);
+  }, [isEnabled, itemsSignature, size, itemMaxWidth, isRemovable]);
 
   const measure = isEnabled ? (
     <div ref={measureRef} className="tag-group__measure" aria-hidden inert>
