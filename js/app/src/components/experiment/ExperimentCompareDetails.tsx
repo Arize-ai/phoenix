@@ -29,6 +29,7 @@ import {
   PopoverArrow,
   ProgressBar,
   SelectChevronUpDownIcon,
+  SwatchedName,
   Text,
   Tooltip,
   TooltipTrigger,
@@ -1015,21 +1016,15 @@ export function ExperimentItem({
           onTraceClick={handleTraceClick}
           copyText={copyText}
         >
-          <span
-            css={css`
-              flex: none;
-            `}
-          >
-            <ColorSwatch color={color} shape="circle" />
-          </span>
           <Heading
             weight="heavy"
             level={3}
             css={css`
+              display: flex;
               min-width: 0;
             `}
           >
-            <Truncate maxWidth="100%">{experiment?.name ?? ""}</Truncate>
+            <SwatchedName name={experiment?.name ?? ""} color={color} />
           </Heading>
           {includeRepetitions && (
             <>

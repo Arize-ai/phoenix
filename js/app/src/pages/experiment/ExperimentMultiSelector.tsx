@@ -16,9 +16,9 @@ import {
   ListBoxItem,
   Popover,
   SelectChevronUpDownIcon,
+  SwatchedName,
   Text,
 } from "@phoenix/components";
-import { ColorSwatch } from "@phoenix/components/color/ColorSwatch";
 import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import { selectCSS } from "@phoenix/components/core/select/styles";
 import {
@@ -128,16 +128,16 @@ export function ExperimentMultiSelector(props: {
           <Button size="S" trailingVisual={<SelectChevronUpDownIcon />}>
             {data.baseExperiment != null ? (
               <Flex direction="row" gap="size-100" alignItems="center">
-                <ColorSwatch color={baseExperimentColor} shape="circle" />
                 <Text
                   css={css`
-                    white-space: nowrap;
+                    display: flex;
                     max-width: var(--global-dimension-size-2000);
-                    overflow: hidden;
-                    text-overflow: ellipsis;
                   `}
                 >
-                  {data.baseExperiment.name}
+                  <SwatchedName
+                    name={data.baseExperiment.name ?? ""}
+                    color={baseExperimentColor}
+                  />
                 </Text>
                 {data.baseExperiment.isBaseline ? (
                   <BaselineExperimentBadge />

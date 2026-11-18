@@ -60,3 +60,4 @@ export * from "./timer";
 export * from "./identifier";
 export * from "./markerTrigger";
 export * from "./statusIndicator";
+export * from "./swatchedName";

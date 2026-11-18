@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 
-import { ColorSwatch, Text, truncateSingleCSS } from "@phoenix/components";
+import { SwatchedName, Text } from "@phoenix/components";
 import { BaselineExperimentBadge } from "@phoenix/components/experiment/BaselineExperimentBadge";
 
 const experimentNameWithColorSwatchCSS = css`
@@ -10,20 +10,19 @@ const experimentNameWithColorSwatchCSS = css`
   gap: var(--global-dimension-size-100);
   min-width: 0;
   max-width: 100%;
-  /* Keep the swatch and badge on the name's line; only the name shrinks */
-  & > * {
-    flex: none;
-  }
+  /* Only the name shrinks; the baseline badge keeps its width */
   .experiment-name-with-color-swatch__name {
-    flex: 0 1 auto;
+    display: flex;
     min-width: 0;
-    ${truncateSingleCSS}
+  }
+  & > .badge {
+    flex: none;
   }
 `;
 
 /**
- * An experiment's name on one line, led by its color swatch. The name
- * truncates with an ellipsis when space runs out.
+ * An experiment's name on one line, led by the swatch that keys it to its
+ * series in the comparison, and marked when it is the baseline.
  */
 export function ExperimentNameWithColorSwatch({
   name,
@@ -36,14 +35,12 @@ export function ExperimentNameWithColorSwatch({
 }) {
   return (
     <div css={experimentNameWithColorSwatchCSS}>
-      <ColorSwatch color={color} shape="circle" />
       <Text
         className="experiment-name-with-color-swatch__name"
         weight="heavy"
-        title={name}
         size="S"
       >
-        {name}
+        <SwatchedName name={name} color={color} />
       </Text>
       {isBaseline ? <BaselineExperimentBadge /> : null}
     </div>
