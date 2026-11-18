@@ -1,0 +1,134 @@
+---
+title: "11.18.2026: Python Decision-Model Evaluators and OpenTelemetry JS 3"
+description: "Python classification evaluators run on OpenAI and TypeSafe decision models, @arizeai/phoenix-otel moves to OpenTelemetry JS 3, and px lists prompt and dataset versions and tags prompts."
+---
+
+Python classification evaluators can now use a decision model as the judge, and `@arizeai/phoenix-otel` 3 moves TypeScript tracing to OpenTelemetry JS 3. The `px` CLI lists prompt and dataset versions and tags prompt versions.
+
+# Breaking Change: OpenTelemetry JS 3 in @arizeai/phoenix-otel
+
+November 11 to 16, 2026
+
+**Breaking change in @arizeai/phoenix-otel 3.0.0 and @arizeai/phoenix-client 8.0.0; `sampler` and `spanLimits` in @arizeai/phoenix-otel 3.1.0+**
+
+`@arizeai/phoenix-otel` now runs on OpenTelemetry JS 3, so spans from apps that use OpenTelemetry JS 3 are recorded after `register()`.
+
+- **Node.js 22.15 or newer** and `@opentelemetry/api` 1.10 or newer are required.
+- **Span processors take an options object.** Import `BatchSpanProcessor` and `SimpleSpanProcessor` from `@arizeai/phoenix-otel` and pass `{ exporter }`. These processors throw a `TypeError` for a positional exporter instead of silently dropping every span.
+- **`register()` returns a provider without a `register()` method.** Call `attachGlobalTracerProvider(provider)` instead. A `tracerProvider` passed to `evaluateExperiment()` must also come from OpenTelemetry JS 3.
+- **Set sampling and limits in code.** OpenTelemetry JS 3 ignores `OTEL_TRACES_SAMPLER`, `OTEL_SPAN_*`, `OTEL_ATTRIBUTE_*`, and `OTEL_BSP_*`, so `register()` accepts `sampler` and `spanLimits` and logs a warning for each ignored variable.
+
+```typescript
+import {
+  ParentBasedSampler,
+  TraceIdRatioBasedSampler,
+  register,
+} from "@arizeai/phoenix-otel";
+
+register({
+  projectName: "my-app",
+  sampler: new ParentBasedSampler({ root: new TraceIdRatioBasedSampler(0.1) }),
+  spanLimits: { attributeValueLengthLimit: 4096 },
+});
+```
+
+<CardGroup cols={2}>
+  <Card title="Migration Guide" icon="arrow-up-right-dots" href="https://github.com/Arize-ai/phoenix/blob/main/js/packages/phoenix-otel/MIGRATION.md">
+    Every step for upgrading from v2 to v3
+  </Card>
+  <Card title="@arizeai/phoenix-otel" icon="book" href="/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/overview">
+    Registration options
+  </Card>
+</CardGroup>
+
+# Decision-Model Evaluators in Python
+
+November 10, 2026
+
+**Available in arize-phoenix-evals 3.10.0+**
+
+Python classification evaluators can now use a decision model as the judge. A decision model answers a typed choice question directly, so each score carries a label and per-label probabilities in its metadata, but no explanation.
+
+- **`DecisionModel`** goes wherever an evaluator takes `llm`, including the built-in classification evaluators.
+- **OpenAI Decisions API** with `provider="openai"`, which requires `openai` 3.26.0 or newer.
+- **TypeSafe Jev** with `provider="typesafe"`, which requires `typesafe-sdk`.
+- **Anthropic judges use native structured output** when you run language-model evaluators through the Anthropic adapter.
+
+```python
+from phoenix.evals import ClassificationEvaluator, DecisionModel
+
+evaluator = ClassificationEvaluator(
+    name="sentiment",
+    llm=DecisionModel(provider="openai", model="gpt-6-luna"),
+    prompt_template="Classify the sentiment: {text}",
+    choices={"positive": 1, "negative": 0},
+)
+scores = evaluator.evaluate({"text": "The refund arrived the same day."})
+```
+
+<CardGroup cols={2}>
+  <Card title="Configuring the Decision Model" icon="sliders" href="/docs/phoenix/evaluation/how-to-evals/configuring-the-decision-model">
+    Providers, client options, and requirements
+  </Card>
+  <Card title="Decision Models as a Judge" icon="scale-balanced" href="/docs/phoenix/evaluation/concepts-evals/decision-models-as-a-judge">
+    When to use a decision model instead of an LLM
+  </Card>
+</CardGroup>
+
+# Model Column and Prompt Version Timeline
+
+November 12, 2026
+
+**Available in arize-phoenix 21.1.0+**
+
+- **See the model on the spans table.** A new model column shows each span's `llm.model_name`. Click a model to add an `llm.model_name == "..."` condition to the span filter.
+- **Browse prompt versions as a timeline.** The prompt overview and the Versions tab show each version with its description, author, and tags, and link to it.
+- **Open a new dataset right away.** Phoenix opens a dataset after you create it, and the annotation config table shows each config's optimization direction.
+
+# px: Version Lists and Prompt Tags
+
+November 5 to 17, 2026
+
+**Available in @arizeai/phoenix-cli 1.20.0+ (`prompt-versions list`), 1.21.0+ (`dataset-versions list`), and 1.23.0+ (`prompt tag`)**
+
+- **`px prompt-versions list`** and **`px dataset-versions list`** list versions newest first, with pretty, JSON, and raw output, so you can find IDs for `--version`.
+- **`px prompt tag`** creates a tag on a prompt version or moves an existing tag to it. Omitting `--description` clears the tag's description.
+
+```bash
+px prompt-versions list my-evaluator --limit 10
+px dataset-versions list my-dataset --format json
+px prompt tag UHJvbXB0VmVyc2lvbjox --tag production --description "Current release"
+```
+
+<CardGroup cols={2}>
+  <Card title="Phoenix CLI" icon="terminal" href="/docs/phoenix/integrations/developer-tools/cli">
+    Commands and output formats
+  </Card>
+</CardGroup>
+
+# Harbor: Model Parameters and Agent Settings
+
+November 5, 2026
+
+**Available in arize-phoenix-client 3.7.0+**
+
+Each Harbor experiment's `harbor_agent` metadata now records the model parameters, such as `temperature` and `reasoning_effort`, and the agent settings, so you can tell apart experiments that differ only in one setting. Secret-named keys and URL credentials are removed before Phoenix stores them.
+
+<CardGroup cols={2}>
+  <Card title="Harbor" icon="flask" href="/docs/phoenix/integrations/evaluation-integrations/harbor">
+    Experiment metadata fields
+  </Card>
+</CardGroup>
+
+# Additional Improvements
+
+November 4 to 18, 2026
+
+**Available in arize-phoenix 21.1.0–21.2.0, @arizeai/phoenix-client 7.18.1–7.18.2, and arize-phoenix-otel 0.17.3**
+
+- **LLM evaluators run on newer Claude models** that reject forced tool use, and on Anthropic prompts with extended thinking.
+- **Retention sweeps delete traces in batches** that skip locked rows, so they no longer block ingestion.
+- **The standalone `@arizeai/phoenix-mcp` stdio package is retired** in favor of the [MCP server](/docs/phoenix/integrations/mcp) built into Phoenix at `/mcp`.
+- **GenAI spans keep reasoning and cache-write token counts**, and dataset uploads accept CSV and JSONL files with a byte order mark or blank lines.
+- **The TypeScript client keeps literal `$` sequences** in prompt variables and keeps system instructions when converting prompts to Anthropic.
+- **The Python OTel package keeps IPv6 brackets** in the inferred gRPC collector endpoint.
