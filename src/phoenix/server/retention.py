@@ -78,16 +78,10 @@ class TraceDataSweeper(DaemonTask):
         return True
 
     async def _apply(self, policy: ProjectTraceRetentionPolicy) -> None:
-        """Delete the policy's traces in batches, committing after each batch.
+        """Delete matching traces in independently committed batches.
 
-        Each batch bounds the number of deleted traces and commits independently,
-        so a failed batch does not roll back earlier batches. This does not bound
-        statement duration: candidate selection and cascading deletes can still
-        exceed a server-side ``statement_timeout``. On PostgreSQL, candidates are locked with
-        FOR UPDATE SKIP LOCKED, so replicas sweeping at the same hour take disjoint
-        batches instead of waiting on each other's row locks; a batch that comes
-        back short ends the sweep, leaving any locked traces to the replica that
-        holds them. SQLite serializes writers, so there is no contention to skip.
+        PostgreSQL skips locked candidates. Batching limits deleted rows,
+        not statement duration.
         """
         try:
             project_rowids = (

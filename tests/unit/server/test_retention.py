@@ -663,7 +663,7 @@ class TestRetentionPolicyConcurrentSweep:
 
 
 class TestRetentionPolicyBatchedDelete:
-    """Each retention DELETE is bounded, so a backlog never needs one long statement."""
+    """Verify batch bounds, partial commits, and deletion events."""
 
     @staticmethod
     async def _seed_backlog(
