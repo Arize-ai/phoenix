@@ -10,8 +10,8 @@ import {
   Flex,
   OverflowRow,
   Text,
-  Token,
   View,
+  Tag,
 } from "@phoenix/components";
 
 import { OptionGrid } from "../../utils/OptionGrid";
@@ -56,12 +56,12 @@ export const Default: StoryFn = () => (
 );
 Default.tags = ["!dev"];
 
-const ANNOTATION_TOKENS = (
+const ANNOTATION_TAGS = (
   <OverflowRow>
-    <Token size="S">hallucination</Token>
-    <Token size="S">correctness</Token>
-    <Token size="S">relevance</Token>
-    <Token size="S">toxicity</Token>
+    <Tag size="S">hallucination</Tag>
+    <Tag size="S">correctness</Tag>
+    <Tag size="S">relevance</Tag>
+    <Tag size="S">toxicity</Tag>
   </OverflowRow>
 );
 
@@ -72,14 +72,14 @@ const SLOTS: { label: string; props: Partial<CardProps> }[] = [
     label: "Title extra",
     props: { titleExtra: <Counter variant="quiet" count={4} /> },
   },
-  { label: "Header content", props: { headerContent: ANNOTATION_TOKENS } },
+  { label: "Header content", props: { headerContent: ANNOTATION_TAGS } },
   { label: "Extra", props: { extra: <Button size="S">Edit</Button> } },
   {
     label: "Every slot",
     props: {
       subTitle: "LLM judge",
       titleExtra: <Counter variant="quiet" count={4} />,
-      headerContent: ANNOTATION_TOKENS,
+      headerContent: ANNOTATION_TAGS,
       extra: <Button size="S">Edit</Button>,
     },
   },
@@ -117,7 +117,7 @@ const TITLE_MODES: {
     props: {
       interactiveTitle: true,
       collapseButtonLabel: "Annotations",
-      headerContent: ANNOTATION_TOKENS,
+      headerContent: ANNOTATION_TAGS,
     },
   },
 ];

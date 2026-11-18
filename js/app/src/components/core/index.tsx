@@ -26,7 +26,6 @@ export * from "./toggleButtonGroup";
 export * from "./segmentedControl";
 export * from "./listbox";
 export * from "./gridlist";
-export * from "./token";
 export * from "./slider";
 export * from "./counter";
 export * from "./timeline";

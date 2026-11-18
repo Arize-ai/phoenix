@@ -2,7 +2,7 @@ import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 import type { ComponentProps, ReactNode } from "react";
 import { Group, Panel } from "react-resizable-panels";
 
-import { Button, Flex, Text, Token, View } from "@phoenix/components";
+import { Badge, Button, Flex, Text, View } from "@phoenix/components";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
 
 import { OptionGrid } from "../../utils/OptionGrid";
@@ -93,7 +93,7 @@ const OPTIONS: {
       title: (
         <Flex direction="row" gap="size-100" alignItems="center">
           Inputs
-          <Token color="var(--global-color-seafoam-600)">3 variables</Token>
+          <Badge>3 variables</Badge>
         </Flex>
       ),
     },
