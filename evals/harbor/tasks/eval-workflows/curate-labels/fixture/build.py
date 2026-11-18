@@ -176,10 +176,10 @@ TOPICS: list[dict[str, Any]] = [
             "Will downgrading delete any of our data?",
         ],
         "good": [
-            "A downgrade takes effect at the end of your current billing period. Anything "
-            "over the Starter limits becomes read-only, and nothing gets deleted.",
+            "A downgrade takes effect at the end of your current billing period. Boards and "
+            "data over the new plan's limits become read-only, and nothing gets deleted.",
             "You'll keep Pro until the current billing period ends, then the downgrade "
-            "applies. Boards over the Starter limits turn read-only rather than being "
+            "applies. Boards over the new plan's limits turn read-only rather than being "
             "deleted.",
         ],
         "bad": [
@@ -210,17 +210,17 @@ TOPICS: list[dict[str, Any]] = [
             "of purchase. After 30 days, annual plans aren't refundable. Monthly plans "
             "aren't refundable."
         ),
-        "workspace": {"plan": "Business", "billing_cycle": "annual", "subscription_age_days": 12},
+        "workspace": {"plan": "Business", "billing_cycle": "annual", "days_since_purchase": 12},
         "questions": [
             "We bought the annual plan by mistake. Can we get our money back?",
             "Is the annual subscription refundable?",
             "How do refunds work if we cancel our yearly plan?",
         ],
         "good": [
-            "Annual plans get a pro-rata refund if you cancel within 30 days of purchase. "
-            "Your subscription started 12 days ago, so you're still inside that window.",
+            "Annual plans are eligible for a pro-rata refund if you cancel within 30 days of purchase. "
+            "You purchased the subscription 12 days ago, so you're still inside that window.",
             "You can cancel for a pro-rata refund because you're within 30 days of buying "
-            "the annual plan; your subscription began 12 days ago. After day 30, annual "
+            "the annual plan; you purchased it 12 days ago. After day 30, annual "
             "plans aren't refundable.",
         ],
         "bad": [
@@ -246,9 +246,9 @@ TOPICS: list[dict[str, Any]] = [
         "key": "trash",
         "title": "Restoring deleted boards",
         "article": (
-            "Deleted boards stay in Trash for 30 days. Workspace admins can restore them "
-            "from Settings > Trash. After 30 days, boards are permanently deleted and can't "
-            "be recovered."
+            "Deleted boards stay in Trash for a 30-day retention period after deletion. "
+            "Workspace admins can restore them from Settings > Trash during that period. "
+            "After the retention period ends, boards are permanently deleted and can't be recovered."
         ),
         "workspace": {"plan": "Pro"},
         "questions": [
@@ -260,7 +260,7 @@ TOPICS: list[dict[str, Any]] = [
             "Deleted boards stay in Trash for 30 days. A workspace admin can restore one "
             "from Settings > Trash; after 30 days it's permanently deleted.",
             "A workspace admin can bring it back from Settings > Trash, as long as it's "
-            "been less than 30 days. After that, the board can't be recovered.",
+            "within the 30-day retention period. After that, the board can't be recovered.",
         ],
         "bad": [
             {
@@ -286,7 +286,7 @@ TOPICS: list[dict[str, Any]] = [
         "title": "Calendar sync",
         "article": (
             "Sync due dates to Google Calendar or Outlook from Settings > Integrations. "
-            "Calendar sync is available on the Pro and Business plans. Changes sync every "
+            "Calendar sync is available only on the Pro and Business plans. Changes sync every "
             "15 minutes."
         ),
         "workspace": {"plan": "Starter"},
@@ -362,7 +362,7 @@ TOPICS: list[dict[str, Any]] = [
         "key": "sso",
         "title": "Single sign-on",
         "article": (
-            "SAML single sign-on is available on the Business plan. Tasklane works with "
+            "SAML single sign-on is available only on the Business plan. Tasklane works with "
             "Okta, Microsoft Entra ID, and Google Workspace as identity providers. Admins "
             "configure it under Settings > Security > SSO."
         ),
@@ -376,8 +376,8 @@ TOPICS: list[dict[str, Any]] = [
             "SAML single sign-on, including Okta, is part of the Business plan. You're on "
             "Pro, so you'd need to upgrade before an admin can set it up under Settings > "
             "Security > SSO.",
-            "Single sign-on works with Okta, Microsoft Entra ID, and Google Workspace, but "
-            "it's only on Business. Your workspace is on Pro right now.",
+            "SAML single sign-on works with Okta, Microsoft Entra ID, and Google Workspace, "
+            "but it's only on Business. Your workspace is on Pro right now.",
         ],
         "bad": [
             {
@@ -402,8 +402,8 @@ TOPICS: list[dict[str, Any]] = [
         "key": "api-limits",
         "title": "API rate limits",
         "article": (
-            "The REST API allows 100 requests per minute per token on Pro and 500 per "
-            "minute on Business. Starter workspaces don't have API access. Requests over "
+            "The REST API allows 100 requests per minute per token on Pro and 500 requests "
+            "per minute per token on Business. Starter workspaces don't have API access. Requests over "
             "the limit return HTTP 429."
         ),
         "workspace": {"plan": "Business"},
@@ -415,8 +415,8 @@ TOPICS: list[dict[str, Any]] = [
         "good": [
             "Your Business workspace can make 500 API requests per minute per token. "
             "Requests above that return HTTP 429.",
-            "On Business the limit is 500 requests per minute for each token; going over "
-            "it returns a 429 error.",
+            "On Business the limit is 500 requests per minute for each token. Requests "
+            "above that limit return a 429 error.",
         ],
         "bad": [
             {
@@ -531,8 +531,9 @@ TOPICS: list[dict[str, Any]] = [
             "The iOS and Android apps keep boards you've opened in the last 7 days "
             "available offline. Edits you make offline sync when you reconnect, but "
             "attachments won't open until you're back online.",
-            "You can edit offline, and changes sync when you reconnect. The apps keep the "
-            "boards you've opened in the past 7 days; attachments aren't available "
+            "In the iOS and Android apps, you can edit offline, and changes sync when you reconnect. "
+            "The apps keep the "
+            "boards you've opened in the past 7 days; attachments can't be opened "
             "offline.",
         ],
         "bad": [
@@ -558,7 +559,8 @@ TOPICS: list[dict[str, Any]] = [
         "key": "invoice-details",
         "title": "Updating invoice details",
         "article": (
-            "Billing admins can change the company name, address, and tax ID on invoices "
+            "Only billing admins can change the company name, address, and tax ID, including "
+            "a VAT number, on invoices "
             "under Billing > Invoice details. Changes apply to future invoices only; past "
             "invoices can't be reissued."
         ),
@@ -614,7 +616,7 @@ TOPICS: list[dict[str, Any]] = [
             "rather than a refund.",
             "Adding members partway through the cycle shows up as a pro-rata charge on the "
             "next invoice. Removing members credits the unused days to your balance; "
-            "credits aren't paid out.",
+            "credits aren't paid out as refunds.",
         ],
         "bad": [
             {
@@ -650,7 +652,7 @@ TOPICS: list[dict[str, Any]] = [
             "Where is our workspace data hosted?",
         ],
         "good": [
-            "Business workspaces pick EU or US data residency when they're created. Your "
+            "Business workspaces can pick EU or US data residency when they're created. Your "
             "workspace is in the US region, and existing workspaces can't be moved to "
             "another region.",
             "Your workspace data is hosted in the US. Data residency is chosen when a "
@@ -690,7 +692,7 @@ TOPICS: list[dict[str, Any]] = [
         ],
         "good": [
             "The Pro trial lasts 14 days and doesn't need a credit card. You have 5 days "
-            "left; after that the workspace moves to Starter unless you upgrade.",
+            "left; after that the workspace moves to Starter unless someone upgrades.",
             "No card is needed for the 14-day Pro trial. When it ends, in 5 days for you, "
             "your workspace switches to Starter unless someone upgrades.",
         ],
@@ -723,9 +725,9 @@ TOPICS: list[dict[str, Any]] = [
             "Where do I set up the Slack integration?",
         ],
         "good": [
-            "Connect Slack under Settings > Integrations > Slack, and task updates will "
+            "Connect Slack under Settings > Integrations > Slack, and task updates can "
             "post to a channel. Each board can post to one channel.",
-            "Set it up in Settings > Integrations > Slack; each board posts its task "
+            "Set it up in Settings > Integrations > Slack; each board can post its task "
             "updates to a single Slack channel.",
         ],
         "bad": [
@@ -975,6 +977,7 @@ def build_trace(
     first, last = text["customer"]
     company = text["company"]
     context = context_for(text["topic"], company, rng)
+    context["workspace"]["member_name"] = f"{first} {last}"
     email = f"{first.lower()}.{last.lower()}@{company.split()[0].lower()}.example.com"
     start = BASE + timedelta(hours=index * 1.3 + rng.random())
     trace = Trace(f"curate-labels:{index}", start=start, root_name="support-bot", user_id=email)

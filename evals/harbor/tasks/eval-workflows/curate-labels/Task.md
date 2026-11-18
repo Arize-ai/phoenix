@@ -38,7 +38,8 @@ of it.
   workspace fields it relies on, 3 questions, 2 grounded replies, and 2 replies with one
   mistake each. Each mistaken reply has 2 reviewer notes that name its mistake. Generic
   notes cover `supported` verdicts, `needs_review` flags, and wrong `unsupported`
-  verdicts on grounded replies.
+  verdicts on grounded replies. The workspace record also names the member, so a
+  personalized greeting is grounded rather than inferred from the email address.
 - **Review histories.** Each trace gets one of the review histories in the following
   table, in the counts shown. Within a history, the traces alternate between
   `supported` and `unsupported`. Where a history has two variants, such as a wrong
