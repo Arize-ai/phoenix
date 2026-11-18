@@ -90,6 +90,8 @@ runs:
             echo "invalid image digest in $digest_file" >&2
             exit 1
           fi
+          # Copy OCI archives directly: docker load/push would require the containerd
+          # image store to preserve provenance and SBOM attestations.
           skopeo copy --all --preserve-digests --retry-times 3 \
             "oci-archive:${digest_file%/digest}/image.tar" \
             "docker://${repository}@${digest}"
