@@ -141,7 +141,7 @@ function ProjectEvaluatorsPageContent({
   const { refreshKey: queueRefreshKey, refresh: refreshQueueStats } =
     useQueueStatsRefreshKey();
   // One poll keeps the queue aside and the charts in step.
-  const { fetchKey } = useQueueStatsPoll(queueRefreshKey);
+  const { fetchKey } = useQueueStatsPoll({ refreshKey: queueRefreshKey });
   const content = (
     <div css={panelContentCSS}>
       {isEmptyState ? (

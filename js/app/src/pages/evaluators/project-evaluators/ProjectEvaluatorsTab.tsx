@@ -1,40 +1,54 @@
 import { css } from "@emotion/react";
 import type { SortingState } from "@tanstack/react-table";
 import { Suspense, useState } from "react";
-import { useSearchParams } from "react-router";
 
-import { DebouncedSearch, Flex, View } from "@phoenix/components";
+import { Alert, DebouncedSearch, Flex, View } from "@phoenix/components";
+import {
+  CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS,
+  ChartPanelStripSkeleton,
+} from "@phoenix/components/chart";
 import { Skeleton } from "@phoenix/components/core/loading";
 import {
   ConnectedTimeRangeSelector,
   TimeRangeProvider,
+  useTimeRange,
 } from "@phoenix/components/datetime";
+import { ErrorBoundary } from "@phoenix/components/exception";
 import { TopNavActions } from "@phoenix/components/nav";
 import { TableSkeleton } from "@phoenix/components/table";
+import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { ProjectEvaluatorsTabTable } from "@phoenix/pages/evaluators/project-evaluators/ProjectEvaluatorsTabTable";
 import {
-  ServerEvaluationCharts,
-  ServerEvaluationChartsSkeleton,
+  ServerEvaluationChartsPanelGroup,
+  ServerEvaluationChartsSelector,
 } from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluationCharts";
 import {
   ServerEvaluationQueueStrip,
   ServerEvaluationQueueStripSkeleton,
 } from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluationQueueStrip";
 import { ServerEvaluatorsTimeRangeControls } from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluatorsTimeRangeControls";
-import { normalizePickedProjectIds } from "@phoenix/pages/evaluators/project-evaluators/serverProjectSeries";
-import { ServerProjectsFilterButton } from "@phoenix/pages/evaluators/project-evaluators/ServerProjectsFilterButton";
 import { useServerEvaluatorsRefreshKey } from "@phoenix/pages/evaluators/project-evaluators/useServerEvaluatorsRefreshKey";
 import { SearchBarSkeleton } from "@phoenix/pages/evaluators/SearchBarSkeleton";
 import { useQueueStatsPoll } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
 import { QueueStatsRefreshContext } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueStats";
 
-/** The projects picked to show, repeated once per project. */
-const PROJECT_PARAM = "project";
-
 const pageCSS = css`
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
+  min-height: 0;
+`;
+
+/** The space below the queue strip, shared by the charts and the table. */
+const chartsAndTableCSS = css`
+  flex: 1 1 auto;
+  min-height: 0;
+`;
+
+const tableContentCSS = css`
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   min-height: 0;
 `;
 
@@ -59,27 +73,18 @@ export function ProjectEvaluatorsTab() {
 function ProjectEvaluatorsTabContent() {
   const [filter, setFilter] = useState("");
   const { refreshKey, refresh } = useServerEvaluatorsRefreshKey();
-  // One poll keeps the strip and the charts in step.
-  const { fetchKey } = useQueueStatsPoll(refreshKey);
+  const { timeRangeISOStrings } = useTimeRange();
+  const isLive = usePreferencesContext(
+    (state) => state.serverEvaluatorsStreamingEnabled
+  );
+  // One poll keeps the strip and the charts in step, while the page is live.
+  const { fetchKey } = useQueueStatsPoll({
+    refreshKey,
+    isPolling: isLive,
+  });
   const [sorting, setSorting] = useState<SortingState>([
     { id: "queue", desc: true },
   ]);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const pickedProjectIds = normalizePickedProjectIds(
-    searchParams.getAll(PROJECT_PARAM)
-  );
-  const setPickedProjectIds = (projectIds: string[]) =>
-    setSearchParams(
-      (params) => {
-        const next = new URLSearchParams(params);
-        next.delete(PROJECT_PARAM);
-        for (const projectId of normalizePickedProjectIds(projectIds)) {
-          next.append(PROJECT_PARAM, projectId);
-        }
-        return next;
-      },
-      { replace: true }
-    );
   return (
     <QueueStatsRefreshContext.Provider value={refresh}>
       <TopNavActions>
@@ -93,40 +98,43 @@ function ProjectEvaluatorsTabContent() {
           fetchKey={fetchKey}
           onQueueCleared={refresh}
         />
-        <Suspense fallback={<ServerEvaluationChartsSkeleton />}>
-          <ServerEvaluationCharts
-            fetchKey={fetchKey}
-            pickedProjectIds={pickedProjectIds}
-            onPickedProjectIdsChange={setPickedProjectIds}
-          />
-        </Suspense>
-        <View padding="size-100" flex="none">
-          <Flex direction="row" gap="size-100" alignItems="center">
-            <DebouncedSearch
-              aria-label="Search evaluators or projects"
-              placeholder="Search evaluators or projects"
-              defaultValue={filter}
-              onChange={setFilter}
-            />
-            <Suspense fallback={null}>
-              <ServerProjectsFilterButton
-                pickedProjectIds={pickedProjectIds}
-                onPickedProjectIdsChange={setPickedProjectIds}
-                fetchKey={fetchKey}
-              />
-            </Suspense>
-          </Flex>
-        </View>
-        <div css={tableScrollCSS}>
-          <Suspense fallback={<TableSkeleton rowCount="fill" />}>
-            <ProjectEvaluatorsTabTable
-              filter={filter}
-              projectIds={pickedProjectIds}
-              fetchKey={refreshKey}
-              sorting={sorting}
-              onSortingChange={setSorting}
-            />
-          </Suspense>
+        <div css={chartsAndTableCSS}>
+          <ServerEvaluationChartsPanelGroup fetchKey={fetchKey}>
+            <div css={tableContentCSS}>
+              <View padding="size-100" flex="none">
+                <Flex direction="row" gap="size-100" alignItems="center">
+                  <DebouncedSearch
+                    aria-label="Search evaluators or projects"
+                    placeholder="Search evaluators or projects"
+                    defaultValue={filter}
+                    onChange={setFilter}
+                  />
+                  <ServerEvaluationChartsSelector />
+                </Flex>
+              </View>
+              <div css={tableScrollCSS}>
+                <ErrorBoundary
+                  resetKey={`${refreshKey} ${timeRangeISOStrings.start} ${timeRangeISOStrings.end}`}
+                  fallback={() => (
+                    <View padding="size-200">
+                      <Alert variant="danger">
+                        Couldn't load the evaluators
+                      </Alert>
+                    </View>
+                  )}
+                >
+                  <Suspense fallback={<TableSkeleton rowCount="fill" />}>
+                    <ProjectEvaluatorsTabTable
+                      filter={filter}
+                      fetchKey={refreshKey}
+                      sorting={sorting}
+                      onSortingChange={setSorting}
+                    />
+                  </Suspense>
+                </ErrorBoundary>
+              </div>
+            </div>
+          </ServerEvaluationChartsPanelGroup>
         </div>
       </div>
     </QueueStatsRefreshContext.Provider>
@@ -135,7 +143,7 @@ function ProjectEvaluatorsTabContent() {
 
 /**
  * The tab while the page loads, laid out as the loaded tab is: the queue
- * strip, the charts, the search bar with the projects filter, and the table.
+ * strip, the charts, the search bar with the chart picker, and the table.
  */
 export function ProjectEvaluatorsTabSkeleton() {
   return (
@@ -148,8 +156,16 @@ export function ProjectEvaluatorsTabSkeleton() {
       </TopNavActions>
       <div css={pageCSS}>
         <ServerEvaluationQueueStripSkeleton />
-        <ServerEvaluationChartsSkeleton />
-        <SearchBarSkeleton trailingControlWidth="calc(14 * var(--global-dimension-size-100))" />
+        <View
+          height={CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS}
+          paddingStart="size-200"
+          paddingEnd="size-200"
+          paddingTop="size-100"
+          flex="none"
+        >
+          <ChartPanelStripSkeleton />
+        </View>
+        <SearchBarSkeleton trailingControlWidth="calc(11 * var(--global-dimension-size-100))" />
         <div css={tableScrollCSS}>
           <TableSkeleton rowCount="fill" />
         </div>
