@@ -68,6 +68,7 @@ export function NewModelButton({
       }}
     >
       <Button
+        data-testid="create-model-button"
         variant="primary"
         size="S"
         leadingVisual={<Icon svg={<Icons.Plus />} />}
