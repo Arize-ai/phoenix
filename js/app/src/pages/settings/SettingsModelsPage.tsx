@@ -16,6 +16,7 @@ import {
   SelectItem,
   SelectValue,
   Text,
+  View,
 } from "@phoenix/components";
 import type { GenerativeModelType } from "@phoenix/constants/generativeConstants";
 import { GENERATIVE_MODEL_TYPE_OPTIONS } from "@phoenix/constants/generativeConstants";
@@ -56,95 +57,102 @@ export function SettingsModelsPage() {
   const modelCostManifestDescription = useModelCostManifestDescription(data);
 
   return (
-    <Flex direction="column" gap="size-200" flex="1 1 auto" minHeight={0}>
-      <Flex gap="size-200" alignItems="center" justifyContent="space-between">
-        <DebouncedSearch
-          aria-label="Search models"
-          placeholder="Search models"
-          onChange={(value) => {
-            setSearch(value);
-          }}
-          defaultValue={search}
-        />
-        <Flex gap="size-100" alignItems="center">
-          <Select
-            aria-label="Model type filter"
-            value={typeFilter}
-            onChange={(value) => {
-              startTransition(() => {
-                setTypeFilter(value as typeof typeFilter);
-              });
-            }}
-            selectionMode="single"
-          >
-            <Button>
-              <SelectValue />
-              <SelectChevronUpDownIcon />
-            </Button>
-            <Popover>
-              <ListBox items={ModelTypeFilterOptions}>
-                {(item) => (
-                  <SelectItem id={item.id} textValue={item.label}>
-                    {item.label}
-                  </SelectItem>
-                )}
-              </ListBox>
-            </Popover>
-          </Select>
-          <Select
-            aria-label="Model kind filter"
-            value={kindFilter}
-            onChange={(value) => {
-              startTransition(() => {
-                setKindFilter(value as typeof kindFilter);
-              });
-            }}
-            selectionMode="single"
-          >
-            <Button>
-              <SelectValue />
-              <SelectChevronUpDownIcon />
-            </Button>
-            <Popover>
-              <ListBox items={ModelKindFilterOptions}>
-                {(item) => (
-                  <SelectItem id={item.id} textValue={item.id}>
-                    {item.label}
-                  </SelectItem>
-                )}
-              </ListBox>
-            </Popover>
-          </Select>
+    <Card
+      title="Model Costs"
+      subTitle={modelCostManifestDescription}
+      titleExtra={
+        <DocumentationHelp topic="modelPricing">
+          Manage the model matching rules and token prices Phoenix uses to
+          calculate costs.
+        </DocumentationHelp>
+      }
+      flex="1 1 auto"
+      minHeight={0}
+      extra={
+        <Flex direction="row" gap="size-200" alignItems="center">
+          <Text color="text-500" size="S">
+            All costs shown in USD per 1M tokens
+          </Text>
+          <NewModelButton />
         </Flex>
-      </Flex>
-      <Card
-        title="Models"
-        subTitle={modelCostManifestDescription}
-        titleExtra={
-          <DocumentationHelp topic="modelPricing">
-            Manage the model matching rules and token prices Phoenix uses to
-            calculate costs.
-          </DocumentationHelp>
-        }
-        flex="1 1 auto"
-        minHeight={0}
-        scrollBody
-        extra={
-          <Flex direction="row" gap="size-200" alignItems="center">
-            <Text color="text-500" size="S">
-              All costs shown in USD per 1M tokens
-            </Text>
-            <NewModelButton />
+      }
+    >
+      <Flex direction="column" height="100%">
+        <View
+          paddingX="size-200"
+          paddingY="size-100"
+          borderBottomWidth="thin"
+          borderBottomColor="default"
+          flex="none"
+        >
+          <Flex direction="row" alignItems="center" gap="size-100">
+            <DebouncedSearch
+              aria-label="Search model costs"
+              placeholder="Search model costs"
+              onChange={(value) => {
+                setSearch(value);
+              }}
+              defaultValue={search}
+            />
+            <Select
+              aria-label="Model type filter"
+              value={typeFilter}
+              onChange={(value) => {
+                startTransition(() => {
+                  setTypeFilter(value as typeof typeFilter);
+                });
+              }}
+              selectionMode="single"
+            >
+              <Button>
+                <SelectValue />
+                <SelectChevronUpDownIcon />
+              </Button>
+              <Popover>
+                <ListBox items={ModelTypeFilterOptions}>
+                  {(item) => (
+                    <SelectItem id={item.id} textValue={item.label}>
+                      {item.label}
+                    </SelectItem>
+                  )}
+                </ListBox>
+              </Popover>
+            </Select>
+            <Select
+              aria-label="Filter model costs by source"
+              value={kindFilter}
+              onChange={(value) => {
+                startTransition(() => {
+                  setKindFilter(value as typeof kindFilter);
+                });
+              }}
+              selectionMode="single"
+            >
+              <Button>
+                <SelectValue />
+                <SelectChevronUpDownIcon />
+              </Button>
+              <Popover>
+                <ListBox items={ModelKindFilterOptions}>
+                  {(item) => (
+                    <SelectItem id={item.id} textValue={item.label}>
+                      {item.label}
+                    </SelectItem>
+                  )}
+                </ListBox>
+              </Popover>
+            </Select>
           </Flex>
-        }
-      >
-        <ModelsTable
-          modelsRef={data}
-          kindFilter={kindFilter}
-          typeFilter={typeFilter}
-          search={search}
-        />
-      </Card>
-    </Flex>
+        </View>
+        <View flex="1 1 auto" minHeight={0}>
+          <ModelsTable
+            modelsRef={data}
+            kindFilter={kindFilter}
+            typeFilter={typeFilter}
+            search={search}
+          />
+        </View>
+      </Flex>
+    </Card>
   );
 }

@@ -150,6 +150,7 @@ export function useDecisionRunner(instanceId: number) {
                     connection: buildDecisionConnection({
                       provider: snapshot.model.provider,
                       baseUrl: snapshot.model.baseUrl,
+                      endpoint: snapshot.model.endpoint,
                       customProvider: snapshot.model.customProvider,
                       credentials,
                     }),
