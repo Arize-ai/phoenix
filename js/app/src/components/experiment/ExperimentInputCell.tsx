@@ -75,9 +75,9 @@ export function ExperimentInputCell({
           </TooltipTrigger>
         }
       >
-        <Flex direction="row" gap="size-100" alignItems="center">
+        <Flex direction="row" gap="size-100" alignItems="center" minWidth={0}>
           <Text color="text-500">example</Text>
-          <Text size="S" color="text-500">
+          <Text size="S" color="text-500" minWidth={0}>
             <Identifier value={externalId ?? exampleId} copyNoun="example ID" />
           </Text>
         </Flex>

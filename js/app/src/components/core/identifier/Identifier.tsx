@@ -37,10 +37,20 @@ export interface IdentifierProps {
   maxWidth?: CSSProperties["maxWidth"];
 }
 
+/*
+ * A split value never shrinks past its tail and the ellipsis before it, so
+ * in a tight row the head truncates first and the tail never spills onto
+ * its neighbors. The floor is in `ch`, since the value is monospace.
+ */
+const SPLIT_MIN_WIDTH = `${TAIL_LENGTH + 1}ch`;
+
 const identifierCSS = css`
   display: inline-flex;
   align-items: baseline;
   min-width: 0;
+  &[data-split] {
+    min-width: ${SPLIT_MIN_WIDTH};
+  }
   max-width: var(--identifier-max-width, 100%);
   font-family: var(--global-font-family-mono);
   white-space: nowrap;
@@ -61,7 +71,14 @@ const copyButtonCSS = css`
   display: inline-flex;
   align-items: center;
   gap: var(--global-dimension-size-50);
+  box-sizing: border-box;
   min-width: 0;
+  /* Room for the split floor, the gap, the copy icon and the padding */
+  &[data-split] {
+    min-width: calc(
+      ${SPLIT_MIN_WIDTH} + var(--global-dimension-size-50) * 3 + 12px
+    );
+  }
   /* The negative inline margins let the hover wash bleed past the text
      without shifting it; widen the cap by the same amount so the value is
      not truncated where it fits. */
@@ -73,6 +90,8 @@ const copyButtonCSS = css`
   border-radius: var(--global-rounding-small);
   background: none;
   font: inherit;
+  /* So the split floor's ch matches the value's */
+  font-family: var(--global-font-family-mono);
   color: inherit;
   cursor: pointer;
   outline: none;
@@ -110,6 +129,7 @@ function IdentifierText({
   return (
     <span
       className="identifier"
+      data-split={isSplit || undefined}
       css={identifierCSS}
       title={hasTitle ? value : undefined}
       style={
@@ -175,6 +195,7 @@ export function Identifier({ value, copyNoun, maxWidth }: IdentifierProps) {
     <TooltipTrigger>
       <AriaButton
         className="identifier-copy"
+        data-split={value.length >= SPLIT_MIN_LENGTH || undefined}
         css={copyButtonCSS}
         aria-label={`${copyLabel} ${value}`}
         {...(isCopied && { "data-copied": true })}

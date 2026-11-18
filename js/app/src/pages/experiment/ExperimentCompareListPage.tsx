@@ -548,11 +548,11 @@ export function ExperimentCompareListPage({
     > = {
       header: "example",
       accessorKey: "example",
-      size: 110,
+      size: 150,
       cell: ({ row }) => {
         return (
-          <Flex direction="row" gap="size-100" alignItems="center">
-            <Text size="S" color="text-500">
+          <Flex direction="row" gap="size-100" alignItems="center" minWidth={0}>
+            <Text size="S" color="text-500" minWidth={0}>
               <Identifier
                 value={row.original.externalId ?? row.original.example}
                 copyNoun="example ID"
