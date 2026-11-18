@@ -4,7 +4,7 @@ import { flexRender, useTable } from "@tanstack/react-table";
 import React, { useMemo, useState } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { Icon, Icons, Text, TagGroup } from "@phoenix/components";
+import { Icon, Icons, Text } from "@phoenix/components";
 import { AnnotationLabel } from "@phoenix/components/annotation";
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
@@ -109,18 +109,12 @@ const columns = [
           if (!row.values) {
             return "";
           }
-          return (
-            <TagGroup
-              aria-label="Values"
-              overflow="collapse"
-              items={row.values.map(
-                (value: { label: string }, index: number) => ({
-                  id: String(index),
-                  label: value.label,
-                })
-              )}
-            />
-          );
+          // the values are annotation labels, which are values rather than
+          // attached objects, so they read as text
+          const valueList = row.values
+            .map((value: { label: string }) => value.label)
+            .join(", ");
+          return <Truncate title={valueList}>{valueList}</Truncate>;
         }
         case "CONTINUOUS":
           return `from ${row.lowerBound} to ${row.upperBound}`;
