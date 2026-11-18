@@ -1,15 +1,15 @@
 from collections import Counter
+from typing import Any
 
 from harbor_verifiers import grading, judge_prompts
 
-TRUTH = grading.load_test_json("truth.json")
-PROJECT = TRUTH["project"]
+EXPECTED = grading.load_test_json("expected.json")
+DATA = grading.load_test_json("grading_data.json")
+PROJECT = EXPECTED["project"]
 ANNOTATION = "policy_compliant"
-MIN_RECALL = 0.8
-MIN_COVERAGE = 0.95
 RERUN = "python evals/policy_judge.py"
 
-# Reported beside the reward, never part of it.
+# Context for the `prompt_quality` rubric, which never changes `reward`.
 APP = "A refund-decision agent for an online store. For each refund request it looks up the order record and the refund policies, then approves or denies the refund and states the amount."
 CRITERIA = {
     "policy_compliant": "The agent's decision and refund amount follow the refund policy for this order."
@@ -20,35 +20,34 @@ EVIDENCE = {
 DETERMINISTIC = ()
 
 checks: dict[str, bool] = {}
-details: dict = {}
+details: dict[str, Any] = {}
 
 
-def grade(cohort: str, truth: dict) -> None:
+def grade(check: str) -> None:
     predictions = grading.trace_predictions(PROJECT, ANNOTATION)
-    labels = truth["labels"]
+    labels, kinds = DATA[check]["labels"], DATA[check]["kinds"]
     result = grading.agreement(predictions, labels)
-    misses = Counter(
-        truth["kinds"][trace]
-        for trace, label in labels.items()
-        if getattr(predictions.get(trace), "value", None) is not label
-    )
-    checks[cohort] = result.passes(MIN_RECALL, MIN_COVERAGE)
-    details[cohort] = {**result.as_dict(), "misses_by_kind": dict(misses)}
+    verdicts = {trace: prediction.value for trace, prediction in predictions.items()}
+    misses = Counter(kinds[t] for t, label in labels.items() if verdicts.get(t) is not label)
+    used = Counter(str(predictions[t].label) for t in labels if t in predictions)
+    checks[check] = result.passes(EXPECTED["min_recall"], EXPECTED["min_coverage"])
+    details[check] = {**result.as_dict(), "labels_used": dict(used), "misses_by_kind": dict(misses)}
 
 
-grade("production", TRUTH["hidden"])
+grade("production_traces")
 seen_spans = grading.project_spans(PROJECT)
-grading.inject_spans(PROJECT, TRUTH["unseen"]["spans"])
-# The nightly key can only call this model, so the rerun refuses any other.
+new_spans = DATA["new_traces"]["spans"]
+grading.inject_spans(PROJECT, new_spans)
+# The request keeps the judge on `gpt-5-nano`, so the rerun refuses any other model.
 with judge_prompts.record_llm_calls(allowed_models={judge_prompts.PINNED_MODEL}) as recorder:
     details["rerun"] = grading.run_as_agent(RERUN, timeout=900, env=recorder.env).as_dict()
-grade("new_traces", TRUTH["unseen"])
+grade("new_traces")
 measures, details["judge_prompts"] = judge_prompts.prompt_scores(
     recorder.calls,
     system=APP,
     criteria=CRITERIA,
     evidence=EVIDENCE,
     deterministic=DETERMINISTIC,
-    copied=judge_prompts.seen_only_shingles(seen_spans, TRUTH["unseen"]["spans"]),
+    copied=judge_prompts.seen_only_shingles(seen_spans, new_spans),
 )
 grading.finish(checks, details, measures)

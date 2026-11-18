@@ -1,4 +1,4 @@
-"""Record the baseline experiment's outputs and evaluations in `fixture/baseline.json`.
+"""Records the baseline experiment's replies and evaluations in `fixture/baseline.json`.
 
 Caches real model output so `build.py` stays deterministic. Makes about 70 model calls.
 Run from the repository root with model keys:

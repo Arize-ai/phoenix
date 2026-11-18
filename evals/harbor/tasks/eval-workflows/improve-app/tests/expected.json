@@ -1,0 +1,20 @@
+{
+ "reference": "The latest support-system version's replies to 32 new questions meet each of the handbook's four reply standards at least 85% of the time. An experiment on support-questions runs that version and carries the baseline's four evaluations under the same names, and its two code-checkable evaluations are scored correctly.",
+ "prompt": "support-system",
+ "dataset": "support-questions",
+ "evaluations": [
+  "cites_policy",
+  "under_word_limit",
+  "no_false_promises",
+  "account_privacy"
+ ],
+ "new_questions": {
+  "questions": 32,
+  "min_pass_rate": 0.85
+ },
+ "experiment": {
+  "min_examples_run": 0.8,
+  "min_runs_evaluated": 0.8,
+  "min_code_check_agreement": 0.9
+ }
+}

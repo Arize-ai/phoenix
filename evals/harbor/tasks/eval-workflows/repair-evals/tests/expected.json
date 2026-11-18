@@ -1,0 +1,43 @@
+{
+ "reference": "The shipped script has five bugs that inflate its rate: it scores only the newest 100 spans, compares the judge's `FAIL` with lowercase `fail`, records errors such as the `KeyError` on email messages as `pass`, shows the judge only the message and reply, and attaches verdicts to the wrong traces. Fixed, and judging the 2 tracking-timeout replies on their claims, it finds 38 of 60 replies (63%) grounded, or 37 of 58 (64%) without the timeouts. The reply passes with the rate the agent's own annotations give, within the range that passing annotations allow.",
+ "causes": {
+  "span_limit": "`get_spans` has no `limit`, so it returns the client's default of 100 spans and only the newest traces get scored.",
+  "verdict_case": "The judge answers `PASS` or `FAIL`, but the code compares the verdict with lowercase `fail`, so every judged reply is recorded as `pass`.",
+  "errors_pass": "Any exception is recorded as `pass`, such as the `KeyError` on email messages, which have no `message` field.",
+  "judge_evidence": "The judge sees only the customer's message and the reply, not the order record, tracking data, or help articles the bot looked up.",
+  "wrong_traces": "Verdicts are computed oldest first but matched to root spans newest first, so each one lands on another trace."
+ },
+ "grounded_rate": {
+  "all_traces": {
+   "traces": 60,
+   "grounded": 38,
+   "accepted_grounded": [
+    31,
+    42
+   ]
+  },
+  "without_timeouts": {
+   "traces": 58,
+   "grounded": 37,
+   "accepted_grounded": [
+    30,
+    41
+   ]
+  },
+  "tolerance": 0.011
+ },
+ "production_traces": {
+  "traces": 60,
+  "grounded": 38,
+  "ungrounded": 22,
+  "min_coverage": 0.95,
+  "min_recall": 0.8
+ },
+ "new_traces": {
+  "traces": 36,
+  "grounded": 22,
+  "ungrounded": 14,
+  "min_coverage": 0.95,
+  "min_recall": 0.8
+ }
+}

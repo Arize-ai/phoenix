@@ -8,6 +8,9 @@ description = "Separate retrieval failures from generation failures in a RAG app
 [metadata]
 fixture = "phoenix-seed"
 
+[metadata.arize-phoenix]
+reference_output_path = "tests/expected.json"
+
 [environment]
 os = "linux"
 cpus = 2

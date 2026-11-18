@@ -2,10 +2,9 @@
 
 from harbor_verifiers import grading, judge_prompts
 
-TRUTH = grading.load_test_json("truth.json")
-PROJECT = TRUTH["project"]
-MIN_RECALL = {"valid_format": 0.9, "correct_amount": 0.9, "no_pii_leak": 0.9, "grounded": 0.8}
-MIN_COVERAGE = 0.95
+EXPECTED = grading.load_test_json("expected.json")
+GRADING_DATA = grading.load_test_json("grading_data.json")
+PROJECT = "refund-bot"
 RERUN = "python evals/refund_evals.py"
 
 # Inputs to the reported prompt_quality measure, which never changes the reward.
@@ -28,28 +27,37 @@ checks: dict[str, bool] = {}
 details: dict = {}
 
 
-def grade(cohort: str, labels: dict) -> None:
+def grade(check: str, labels: dict[str, dict[str, bool]]) -> None:
+    """Sets `check` to pass only if each requirement's annotations meet its coverage and recall
+    bars."""
     spans = grading.project_spans(PROJECT)
-    for criterion, min_recall in MIN_RECALL.items():
-        predictions = grading.trace_predictions(PROJECT, criterion, spans)
-        result = grading.agreement(predictions, {t: v[criterion] for t, v in labels.items()})
-        checks[f"{cohort}.{criterion}"] = result.passes(min_recall, MIN_COVERAGE)
-        details[f"{cohort}.{criterion}"] = result.as_dict()
+    requirements = {}
+    for requirement, min_recall in EXPECTED["min_recall"].items():
+        predictions = grading.trace_predictions(PROJECT, requirement, spans)
+        result = grading.agreement(predictions, {t: v[requirement] for t, v in labels.items()})
+        requirements[requirement] = {
+            **result.as_dict(),
+            "min_recall": min_recall,
+            "passes": result.passes(min_recall, EXPECTED["min_coverage"]),
+        }
+    checks[check] = all(result["passes"] for result in requirements.values())
+    details[check] = requirements
 
 
-grade("production", TRUTH["visible"])
+grade("production_traces", GRADING_DATA["production_traces"]["labels"])
 seen_spans = grading.project_spans(PROJECT)
-grading.inject_spans(PROJECT, TRUTH["unseen"]["spans"])
+new_traces = GRADING_DATA["new_traces"]
+grading.inject_spans(PROJECT, new_traces["spans"])
 # The nightly job's key can only call the pinned model, so the rerun refuses any other.
 with judge_prompts.record_llm_calls(allowed_models={judge_prompts.PINNED_MODEL}) as recorder:
     details["rerun"] = grading.run_as_agent(RERUN, timeout=900, env=recorder.env).as_dict()
-grade("new_traces", TRUTH["unseen"]["labels"])
+grade("new_traces", new_traces["labels"])
 measures, details["judge_prompts"] = judge_prompts.prompt_scores(
     recorder.calls,
     system=APP,
     criteria=CRITERIA,
     evidence=EVIDENCE,
     deterministic=DETERMINISTIC,
-    copied=judge_prompts.seen_only_shingles(seen_spans, TRUTH["unseen"]["spans"]),
+    copied=judge_prompts.seen_only_shingles(seen_spans, new_traces["spans"]),
 )
 grading.finish(checks, details, measures)

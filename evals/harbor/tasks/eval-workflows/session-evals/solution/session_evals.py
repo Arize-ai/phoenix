@@ -1,4 +1,4 @@
-"""Score order-agent sessions for task completion and honesty, and log both per session.
+"""Scores order-agent sessions for task completion and honesty, and logs both per session.
 
 The judges read every turn with its tool results, because a final "thanks!" says nothing
 about whether the cancellation went through. Sessions with a turn newer than their

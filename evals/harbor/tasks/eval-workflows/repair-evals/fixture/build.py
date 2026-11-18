@@ -1,4 +1,4 @@
-"""Build the support-bot traces for `repair-evals`.
+"""Builds the `repair-evals` seed file and hidden answers.
 
 Run from the repository root:
 
@@ -8,6 +8,7 @@ Run from the repository root:
 from __future__ import annotations
 
 import json
+import math
 import random
 import sys
 from datetime import date, datetime, timedelta
@@ -31,6 +32,19 @@ SCENARIOS = (
 )
 # The shipped script fetches spans with the client's default limit of 100.
 DEFAULT_SPAN_LIMIT = 100
+
+# The verifier's bars, written to `tests/expected.json`.
+MIN_RECALL = 0.8
+MIN_COVERAGE = 0.95
+# Allows rounding the reported rate to a whole percent.
+RATE_TOLERANCE = 0.011
+CAUSES = {
+    "span_limit": "`get_spans` has no `limit`, so it returns the client's default of 100 spans and only the newest traces get scored.",
+    "verdict_case": "The judge answers `PASS` or `FAIL`, but the code compares the verdict with lowercase `fail`, so every judged reply is recorded as `pass`.",
+    "errors_pass": "Any exception is recorded as `pass`, such as the `KeyError` on email messages, which have no `message` field.",
+    "judge_evidence": "The judge sees only the customer's message and the reply, not the order record, tracking data, or help articles the bot looked up.",
+    "wrong_traces": "Verdicts are computed oldest first but matched to root spans newest first, so each one lands on another trace.",
+}  # fmt: skip
 
 NAMES = [
     "Ana Ruiz", "Ben Carter", "Priya Shah", "Marcus Lee", "Hannah Weiss", "Diego Morales",
@@ -623,7 +637,7 @@ def make_case(
 def build_split(
     split: str, count: int, bad: int, email_bad: int, email_good: int, seed: int
 ) -> list[dict[str, Any]]:
-    """Assigns scenario, channel, and defect to each case so their counts are balanced."""
+    """Builds one split, balancing scenarios and channels across grounded and ungrounded cases."""
     rng = random.Random(seed)
     errored = TIMEOUTS[split]
     graded = [i for i in range(count) if i not in errored]
@@ -662,20 +676,80 @@ def shipped_script_window(cases: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [case for case in cases if case["spans"][0]["context"]["span_id"] in roots]
 
 
+def accepted_grounded(labels: list[bool]) -> list[int]:
+    """Returns the fewest and most replies that annotations meeting `MIN_RECALL` call grounded.
+
+    Mirrors `grading.passing_share_range`, including its 1e-9 guard against float error.
+    """
+    good = sum(labels)
+    bad = len(labels) - good
+    return [math.ceil(MIN_RECALL * good - 1e-9), len(labels) - math.ceil(MIN_RECALL * bad - 1e-9)]
+
+
+def cohort(cases: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "traces": len(cases),
+        "grounded": sum(c["label"] for c in cases),
+        "ungrounded": sum(not c["label"] for c in cases),
+        "min_coverage": MIN_COVERAGE,
+        "min_recall": MIN_RECALL,
+    }
+
+
+def expected_output(visible: list[dict[str, Any]], unseen: list[dict[str, Any]]) -> dict[str, Any]:
+    timed_out = [c for c in visible if c["kind"].startswith("timeout")]
+    calm = [c["label"] for c in visible if c not in timed_out]
+    labels = [c["label"] for c in visible]
+    good, calm_good = sum(labels), sum(calm)
+    reference = (
+        "The shipped script has five bugs that inflate its rate: it scores only the newest "
+        "100 spans, compares the judge's `FAIL` with lowercase `fail`, records errors such as "
+        "the `KeyError` on email messages as `pass`, shows the judge only the message and "
+        "reply, and attaches verdicts to the wrong traces. Fixed, and judging the "
+        f"{len(timed_out)} tracking-timeout replies on their claims, it finds {good} of "
+        f"{len(labels)} replies ({good / len(labels):.0%}) grounded, or {calm_good} of "
+        f"{len(calm)} ({calm_good / len(calm):.0%}) without the timeouts. The reply passes "
+        "with the rate the agent's own annotations give, within the range that passing "
+        "annotations allow."
+    )
+    return {
+        "reference": reference,
+        "causes": CAUSES,
+        "grounded_rate": {
+            "all_traces": {
+                "traces": len(labels),
+                "grounded": good,
+                "accepted_grounded": accepted_grounded(labels),
+            },
+            "without_timeouts": {
+                "traces": len(calm),
+                "grounded": calm_good,
+                "accepted_grounded": accepted_grounded(calm),
+            },
+            "tolerance": RATE_TOLERANCE,
+        },
+        "production_traces": cohort(visible),
+        "new_traces": cohort(unseen),
+    }
+
+
 def main() -> None:
     visible = build_split("visible", 60, bad=21, email_bad=7, email_good=12, seed=41)
     unseen = build_split("unseen", 36, bad=11, email_bad=4, email_good=6, seed=59)
+    expected = expected_output(visible, unseen)
     write_json(
         HERE / "phoenix_seed.json",
         {"projects": {PROJECT: [span for case in visible for span in case["spans"]]}},
     )
+    write_json(HERE.parent / "tests" / "expected.json", expected)
     write_json(
-        HERE.parent / "tests" / "truth.json",
+        HERE.parent / "tests" / "grading_data.json",
         {
-            "project": PROJECT,
-            "visible": {c["trace_id"]: c["label"] for c in visible},
-            "timeouts": [c["trace_id"] for c in visible if c["kind"].startswith("timeout")],
-            "unseen": {
+            "production_traces": {
+                "labels": {c["trace_id"]: c["label"] for c in visible},
+                "timeouts": [c["trace_id"] for c in visible if c["kind"].startswith("timeout")],
+            },
+            "new_traces": {
                 "spans": [span for case in unseen for span in case["spans"]],
                 "labels": {c["trace_id"]: c["label"] for c in unseen},
             },
@@ -701,11 +775,17 @@ def main() -> None:
         )
     window = shipped_script_window(visible)
     errors = sum(c["kind"].startswith("timeout") for c in window)
+    shipped_rate = (len(window) - errors) / len(window)
     print(
-        f"shipped script scores {len(window)} visible replies, {errors} errored: "
-        f"reports {(len(window) - errors) / len(window):.0%} grounded"
+        f"shipped script scores {len(window)} visible replies, {errors} errored: {shipped_rate:.0%}"
     )
-    print(f"shipped script scores {len(shipped_script_window(unseen))} of {len(unseen)} unseen")
+    unseen_window = shipped_script_window(unseen)
+    print(f"shipped script scores {len(unseen_window)} of {len(unseen)} unseen")
+    # The instruction quotes the shipped script's rate, and the span limit has to hide
+    # traces in both splits for that bug to matter.
+    assert f"{shipped_rate:.0%}" == "95%", shipped_rate
+    assert len(window) < len(visible) and len(unseen_window) < len(unseen)
+    assert len(json.dumps(expected, indent=1)) < 2048, "expected.json shows beside every run"
 
 
 if __name__ == "__main__":

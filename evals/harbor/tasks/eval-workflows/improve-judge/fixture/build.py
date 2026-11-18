@@ -1,6 +1,6 @@
-"""Build the refund-decision traces for `improve-judge`.
+"""Generates the seed file and hidden answers for `improve-judge`.
 
-Run from the repository root:
+Run it from the repository root:
 
     uv run python evals/harbor/tasks/eval-workflows/improve-judge/fixture/build.py
 """
@@ -11,7 +11,6 @@ import json
 import random
 import re
 import sys
-from collections import Counter
 from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
@@ -22,6 +21,8 @@ sys.path.insert(0, str(HERE.parents[3] / "environments" / "fixtures"))
 from support_traces import BASE, Trace, write_json  # noqa: E402
 
 PROJECT = "refund-decisions"
+MIN_RECALL = 0.8
+MIN_COVERAGE = 0.95
 JUDGE = "policy_compliant"
 REVIEW = "human_review"
 SYSTEM_PROMPT = (
@@ -138,8 +139,7 @@ NONCOMPLIANT = {
 }
 KINDS = {**COMPLIANT, **NONCOMPLIANT}
 
-# The unseen wordings differ from the visible ones, so the new traces read differently
-# from anything the agent saw.
+# New traces use their own wording, so a judge that matches phrases it saw doesn't carry over.
 SENTENCES: dict[str, dict[str, list[str]]] = {
     "greeting": {
         "visible": [
@@ -444,8 +444,10 @@ def policy_outcome(order: Order) -> float:
 
 
 def starting_judge_label(reply: str) -> bool:
-    """Stands in for the starting judge's prompt, which passes a polite reply that mentions
-    the 30-day window. Every reply is polite."""
+    """Returns the starting prompt's verdict without a model call.
+
+    The prompt passes a polite reply that mentions the 30-day window, and every reply is polite.
+    """
     return bool(WINDOW.search(reply))
 
 
@@ -615,8 +617,11 @@ def scenario(kind: str, variant: int, rng: random.Random, split: str) -> dict[st
 
 
 def plus_scenario(kind: str, variant: int, rng: random.Random, split: str) -> dict[str, Any]:
-    """`plus` is the record's membership. `claims_plus` means the customer says they're a
-    member, which is false on the `_claim_false` kinds."""
+    """Returns order facts for the Acme Plus kinds.
+
+    `plus` is the record's membership. `claims_plus` means the customer says they're a member,
+    which is false on the `_claim_false` kinds.
+    """
     if kind in ("plus_late_refund", "plus_claim_false"):
         electronics = rng.random() < 0.3
         item = pick(rng, split, electronics=electronics)
@@ -814,45 +819,71 @@ def recall(cases: list[dict[str, Any]], predict: Any) -> str:
     return f"compliant recall {good_hit:.2f}, noncompliant recall {bad_hit:.2f}"
 
 
+def summary(cases: list[dict[str, Any]]) -> dict[str, int]:
+    compliant = sum(case["compliant"] for case in cases)
+    return {
+        "traces": len(cases),
+        "compliant": compliant,
+        "noncompliant": len(cases) - compliant,
+        "plus_rules": sum(case["kind"].startswith("plus_") for case in cases),
+    }
+
+
 def main() -> None:
     visible = build_split("visible", seed=31)
     unseen = build_split("unseen", seed=47)
     reviewed = choose_reviewed(visible)
+    reviewed_cases = [case for case in visible if case["trace_id"] in reviewed]
     hidden = [case for case in visible if case["trace_id"] not in reviewed]
+
+    def retrieves_plus(case: dict[str, Any]) -> bool:
+        return POLICIES["plus-members"] in json.dumps(case["spans"])
+
+    assert not any(map(retrieves_plus, reviewed_cases)), "a reviewed trace shows the Plus rules"
+    assert any(map(retrieves_plus, hidden)), "no production trace shows the Plus rules"
+
     write_json(
         HERE / "phoenix_seed.json",
         {
             "projects": {PROJECT: [span for case in visible for span in case["spans"]]},
             "span_annotations": [judge_annotation(case) for case in visible]
-            + [review_annotation(case) for case in visible if case["trace_id"] in reviewed],
+            + [review_annotation(case) for case in reviewed_cases],
         },
     )
     write_json(
-        HERE.parent / "tests" / "truth.json",
+        HERE.parent / "tests" / "expected.json",
         {
+            "reference": (
+                "A trace is compliant when the agent's refund decision and amount match what "
+                "the policy allows for the order, including the Acme Plus rules in the "
+                "plus-members passage. The judge's policy_compliant labels reach at least "
+                f"{MIN_RECALL:.0%} recall on each class, on the {len(hidden)} unreviewed "
+                f"production traces and on the {len(unseen)} new traces its nightly rerun scores."
+            ),
             "project": PROJECT,
-            "hidden": {
+            "min_recall": MIN_RECALL,
+            "min_coverage": MIN_COVERAGE,
+            "production_traces": summary(hidden),
+            "new_traces": summary(unseen),
+        },
+    )
+    write_json(
+        HERE.parent / "tests" / "grading_data.json",
+        {
+            "production_traces": {
                 "labels": {case["trace_id"]: case["compliant"] for case in hidden},
                 "kinds": {case["trace_id"]: case["kind"] for case in hidden},
             },
-            "unseen": {
+            "new_traces": {
                 "spans": [span for case in unseen for span in case["spans"]],
                 "labels": {case["trace_id"]: case["compliant"] for case in unseen},
                 "kinds": {case["trace_id"]: case["kind"] for case in unseen},
             },
         },
     )
-    reviewed_cases = [case for case in visible if case["trace_id"] in reviewed]
     for name, cases in (("reviewed", reviewed_cases), ("hidden", hidden), ("unseen", unseen)):
-        counts = Counter("compliant" if c["compliant"] else "noncompliant" for c in cases)
         denials = sum(c["compliant"] and "denied" in c["kind"] for c in cases)
-        plus = Counter(
-            "compliant" if c["compliant"] else "noncompliant"
-            for c in cases
-            if c["kind"].startswith("plus_")
-        )
-        print(f"{name}: {len(cases)} traces, {dict(counts)}, {denials} compliant denials")
-        print(f"  Plus kinds: {dict(plus)}")
+        print(f"{name}: {summary(cases)}, {denials} compliant denials")
         print(f"  starting judge: {recall(cases, lambda c: starting_judge_label(c['reply']))}")
 
 

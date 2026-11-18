@@ -1,14 +1,12 @@
 # response-evals
 
-The user's refund bot has a written reply spec with four requirements. The agent has to
-build one eval per requirement, run them over the bot's production traces, and leave a
-script the nightly job can run on new traces. The verifier checks the agent's
-annotations on the production traces, then runs the script on new traces and checks
-those too.
+The agent builds one eval for each of the four requirements in a refund bot's reply spec,
+logs the results as annotations on 60 production traces, and leaves a script the nightly
+job can run on new traces. The task tests whether the agent uses code where code is
+enough, gives the grounding judge the evidence it needs, and writes evals that still work
+on traces it never saw.
 
 ## The request
-
-The agent gets `instruction.md` word for word:
 
 > Our refund bot has been live for a week. Its traces are in Phoenix under the `refund-bot` project, and the app code and our reply spec (`SPEC.md`) are in `/app`.
 >
@@ -20,102 +18,99 @@ The agent gets `instruction.md` word for word:
 
 | Where | What |
 | --- | --- |
-| Project `refund-bot` | 60 traces, one per refund request. The root `support-agent` span has the customer's message and the bot's JSON reply. Its children are a `get_order` tool call (the order record, with the approved `refundable_amount` and the customer's email), a `search_policies` retriever with 3 policy passages, a `find_similar_tickets` tool call (2 tickets about the same item, each with the reporting customer's email and phone), and the LLM call. In 24 traces, one of those tickets is the customer's own earlier ticket. |
-| `/app/SPEC.md` | Four requirements: `valid_format`, `correct_amount`, `no_pii_leak`, and `grounded`. |
-| `/app/refund_bot.py`, `/app/tools.py` | The bot's prompt, model call, and tools, for context. |
-| Model access | Real `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` values, so the agent can run LLM evaluators. |
-
-No labels are visible. Each requirement fails on 25% to 35% of traces, chosen
-independently, so one failing requirement doesn't predict another.
+| Project `refund-bot` | 60 traces with no annotations, one per refund request. The root `support-agent` span holds the customer's message and the bot's JSON reply. Its children are a `get_order` tool call that returns the order record, including `refundable_amount` and the customer's email; a `search_policies` retriever span with 3 policy passages; a `find_similar_tickets` tool call that returns 2 tickets about the same item, each with the reporting customer's email and phone; and the LLM call. |
+| `/app/SPEC.md` | The four requirements: `valid_format`, `correct_amount`, `no_pii_leak`, and `grounded`. |
+| `/app/refund_bot.py`, `/app/tools.py` | The bot's system prompt, model call, and tool stubs. |
+| Environment | `OPENAI_API_KEY` and `ANTHROPIC_API_KEY`, so the agent can run LLM judges. |
 
 ## How the data was made
 
-`fixture/build.py` generates the data from hand-written templates with fixed random
-seeds: 11 for the production traces and 23 for the new ones. The policies, items, reply
-sentences, contact wordings, and broken formats are hand-written. The generator picks
-which cases fail each requirement, each case's scenario and requested amount, and the
-IDs and timestamps. No reply comes from a model, and no public or user data is used. The
-store and customers are invented.
+`fixture/build.py` writes the 60 production traces to the seed file and 40 new traces to
+`tests/grading_data.json`. Every reply comes from hand-written parts: 6 policy passages,
+10 items with prices, 12 customers, the greeting and claim sentences, the contact
+sentences, 10 unsupported claims, and 5 ways to break the format. Each message is a
+greeting, 1 to 3 supported claims, and a sentence explaining the refund, in shuffled
+order, followed by any contact sentences. No reply comes from a model.
 
-The generator inserts a requirement's defect only into the cases chosen to fail it: a
-broken format, a wrong amount, another customer's contact, or an unsupported claim.
+The trace's index sets its customer, item, order ID, similar-ticket contacts, and
+timestamps. The random seed, 11 for production traces and 23 for new traces, decides the
+rest:
 
-The data is checked in these ways:
+- Which traces fail each requirement, sampled separately for each requirement, so one
+  failure doesn't predict another.
+- The scenario (unused, damaged, or opened electronics), the days since delivery, and
+  whether the customer asks for the item price or the price plus shipping.
+- Whether one of the 2 similar tickets is the customer's own earlier ticket, and whether
+  the reply repeats the customer's email.
+- Which supported claims, contact wording, and third policy passage the trace gets.
+- For a failing trace, which unsupported claim replaces a supported one, which wrong
+  amount it states, which other customer's contact it leaks, and how its format breaks.
 
-- The generator has no assertions. It prints how many cases fail each requirement.
-- The seeder, `environments/fixtures/seed_phoenix.py`, waits until every span is in
-  Phoenix and fails if any are missing.
-- On November 13, 2026, GPT-6 Astra reviewed the data and labels read-only through
-  Codex. It found three cues that predicted labels: the unsupported claim's position,
-  the phrase "similar ticket" in every leak, and wrong amounts that always matched the
-  customer's request. Commit `c0e12b3407` removed all three.
-- In Docker, the reference solution scores 1 and an agent that does nothing scores 0.
-  The controls in "What the task tests" show what naive approaches score.
+Each label is `pass` unless the generator put that requirement's defect into the reply:
+
+| Requirement | A reply fails when | Production failures | New-trace failures |
+| --- | --- | --- | --- |
+| `valid_format` | The JSON is wrapped in a fence or followed by text, or the amount is a string such as `"$89.00"`. New traces use a preamble or a plain fence instead of the first two. | 15 of 60 | 10 of 40 |
+| `correct_amount` | The amount isn't `refundable_amount`: the item price if unused, the price plus $7.95 shipping if damaged, or 85% of the price if opened. A failing reply states one of the other two amounts. | 18 | 12 |
+| `no_pii_leak` | The message includes another customer's email from the similar tickets. In 3 of the 10 new-trace leaks, it's a phone number instead. | 15 | 10 |
+| `grounded` | One supported claim is swapped for an unsupported one, such as "We've waived the restocking fee as a courtesy." New traces use 5 different unsupported claims. | 21 | 14 |
+
+`build.py` asserts that a code check reproduces each label: a strict JSON parse for
+`valid_format`, the reply's amount against `refundable_amount` for `correct_amount`, an
+email other than the customer's or any phone number for `no_pii_leak`, and exactly one
+sentence from the unsupported-claim list for `grounded`. GPT-6 Astra reviewed the data
+and labels. No person has.
 
 ## How it's graded
 
-`reward` is 1 only if every check passes. Each check reads the latest annotation named
-after a requirement on each trace. It passes when those annotations cover at least 95%
-of the traces, and they catch enough of the passing replies and enough of the failing
-ones. Checking each class separately means a constant label fails. Labels count by
-meaning, so `true` or `grounded` works as well as `pass`.
+| Check | Type | Uses | Passes when |
+| --- | --- | --- | --- |
+| `production_traces` | Code | `expected.json`, `grading_data.json` | For each requirement, the annotations named with its ID cover at least 95% of the 60 production traces, and they agree with the expected label on at least 90% of passing replies and 90% of failing replies. The bar is 80% for `grounded`. |
+| `new_traces` | Code | `expected.json`, `grading_data.json` | After the verifier adds 40 new traces and runs `python evals/refund_evals.py` in `/app` as the agent user, the annotations on the new traces meet the same bars. |
 
-| Check | Which traces | What passes |
-| --- | --- | --- |
-| `production_valid_format`, `production_correct_amount`, `production_no_pii_leak`, `production_grounded` | The 60 production traces. | At least 90% recall on each class, or 80% for `grounded`. |
-| `new_traces_valid_format`, `new_traces_correct_amount`, `new_traces_no_pii_leak`, `new_traces_grounded` | 40 new traces the verifier adds. It then runs `python evals/refund_evals.py` as the agent user. | The same. |
+Each check reads the latest annotation with the requirement's name on the trace or any of
+its spans. Labels count by meaning, so `true` or `grounded` works as well as `pass`, and a
+missing or unclear label counts as wrong. During the rerun, a local proxy records every
+model request and refuses any model except `gpt-5-nano` with a 403 error. `details.json`
+reports each requirement's coverage and recall under each check.
 
-The reply about which requirements fail most isn't graded.
+`reward` is 1 only when both checks pass.
 
-During the rerun, every model request goes through a local recorder. It refuses any
-model except `gpt-5-nano` with a 403, the way the nightly key would. A small model
-like this one gets `grounded` right only when the prompt is clear and carries the right
-evidence. With the reference prompt it reaches at least 95% recall on every check. A naive
-`grounded` prompt that pastes raw span JSON, gives no app context, and doesn't say what
-counts as a claim catches only 3 of the 21 ungrounded production replies.
+These measures are reported beside `reward` and don't affect it:
 
-### Also reported
-
-These don't change `reward`. The [suite README](../README.md#what-a-run-reports)
-explains each one.
-
-- `turns`, `tool_calls`, and a `loaded_<skill>` flag for each skill.
+- `turns`: the number of steps in the agent's trajectory.
+- `tool_calls`: the number of tool calls the agent made.
+- `loaded_<skill>`: 1 if the agent loaded that skill.
 - `uses_phoenix_evals`: the share of the rerun's judge requests that phoenix-evals sent.
-- `prompt_quality`: the share of judge requests whose prompt meets the rubric. For this
-  task, the rubric grader knows what each requirement needs:
-
-| Requirement | Evidence a judge needs | Can code check it? |
-| --- | --- | --- |
-| `valid_format` | The raw reply text. | Yes |
-| `correct_amount` | The reply's refund amount and the order record's `refundable_amount`. | Yes |
-| `no_pii_leak` | The reply and the customer's own email from the order record. | Yes |
-| `grounded` | The reply, plus everything the bot looked up: the order record, the policy passages, and the similar tickets. | No |
+- `prompt_quality`: the share of the rerun's judge requests that meet the suite's rubric.
+  For this task, the rubric counts `valid_format`, `correct_amount`, and `no_pii_leak` as
+  checks code can do, and expects a `grounded` judge to see the order record, the policy
+  passages, and the similar tickets.
 
 ## What the task tests
 
-| Behavior | How the task checks it |
+| Wrong approach | Fails |
 | --- | --- |
-| Using code where code is enough | Three of the four requirements are exact checks. An LLM judge on `gpt-5-nano` is slower and less reliable on them, and `prompt_quality` reports it. |
-| Checking the amount against the order, not the request | Customers ask for the item price or the price plus shipping, whatever they're owed. The request matches `refundable_amount` on only 24 of 60 traces, so only the order record decides `correct_amount`. |
-| Keeping requirements separate | Fenced or prefixed JSON fails `valid_format` but can still pass `correct_amount`. A reply that shares another customer's contact from the similar tickets is grounded but fails `no_pii_leak`. |
-| Knowing what counts as a leak | 48% of replies repeat the customer's own email, which is allowed. Some quote it from the customer's own earlier ticket, in the same words that leaking replies use for another customer's contact. Only whose contact it is decides the label. |
-| Giving the grounding judge the evidence | Every reply cites order facts and policy passages that only the child spans contain. A judge that sees only the reply can't tell supported claims from made-up ones. |
-| Writing a script that generalizes | New traces have unsupported claims, leak formats such as phone numbers, and broken formats that the production traces never show. |
-| Leaving a script the nightly job can run | The rerun fails if the entry point is missing, hard-codes trace IDs, or doesn't log annotations. |
+| Labeling every trace `pass`. | `production_traces` |
+| Comparing the reply's amount with what the customer asked for. The request equals `refundable_amount` on only 24 of 60 traces. | `production_traces` |
+| Flagging any email in the message as a leak. 29 of 60 replies repeat the customer's own email, some quoted from the customer's own earlier ticket in the same words leaks use. | `production_traces` |
+| Stripping Markdown fences before parsing the reply. | `production_traces` |
+| Failing `correct_amount` whenever the JSON doesn't parse strictly, or failing `grounded` when the message shares another customer's contact. The spec says each requirement stands on its own. | `production_traces` |
+| A `grounded` judge that sees only the message, or raw span JSON with no app context. On `gpt-5-nano`, the first marks only 13% of grounded replies as grounded, and the second catches 7 of 21 ungrounded ones. | `production_traces` |
+| Rules fitted to the production traces: email-only leak detection, a list of the production traces' unsupported claims, or a format check that looks only for `json`-tagged fences and trailing text. | `new_traces` |
+| A script that calls a model other than `gpt-5-nano`, hard-codes trace IDs, or doesn't log annotations. | `new_traces` |
+
+## Calibration
+
+The reference solution scores 1 and a do-nothing agent scores 0. Scripted versions of the
+wrong approaches above, such as comparing amounts with the customer's request or a
+reply-only `grounded` judge, each miss a recall bar and score 0.
 
 ## Known limits
 
-- The replies come from templates. The new traces' different wording limits how far
-  pattern matching gets.
-- Each label is correct by construction, because the generator inserts each defect on
-  purpose. Where exactly `grounded` draws the line still depends on how a judge reads
-  "backed by". The reference judge sets the practical bar.
-
-## Files
-
-| Path | What it does |
-| --- | --- |
-| `fixture/build.py` | Generates `fixture/phoenix_seed.json` (the 60 production traces) and `tests/truth.json` (their labels, plus the 40 new traces and their labels). It's deterministic; rerun it after editing. |
-| `workdir/` | Copied to `/app`. |
-| `tests/test.py` | The verifier. |
-| `solution/refund_evals.py` | The reference evals: code checks for three requirements and an LLM judge for `grounded`. `solution/solve.sh` installs it as the nightly entry point and runs it. |
+- Supported claims use the same sentence templates in the production and new traces. A
+  script that allows only the production traces' supported sentences scores `grounded`
+  perfectly on both without a model, so `reward` can't tell it from a working judge.
+- The `grounded` result depends on a `gpt-5-nano` judge, so a script whose recall is near
+  the 80% bar can pass in one run and fail in the next.
+- The reply about which requirements fail most often isn't graded.

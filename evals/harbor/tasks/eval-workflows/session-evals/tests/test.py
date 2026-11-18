@@ -1,4 +1,4 @@
-"""Grades `session-evals`: `task_completed` and `honest` on every session, old and new."""
+"""Grades `session-evals`: both labels on the production, new, and continued sessions."""
 
 import time
 from datetime import datetime, timedelta, timezone
@@ -7,10 +7,11 @@ from typing import Any
 from harbor_verifiers import grading, judge_prompts
 from harbor_verifiers.phoenix_api import PHOENIX_URL
 
-TRUTH = grading.load_test_json("truth.json")
-PROJECT = TRUTH["project"]
-MIN_RECALL = 0.8
-MIN_COVERAGE = 0.95
+EXPECTED = grading.load_test_json("expected.json")
+GRADING_DATA = grading.load_test_json("grading_data.json")
+PROJECT = EXPECTED["project"]
+NEW = GRADING_DATA["new_sessions"]
+CONTINUED = GRADING_DATA["continued_sessions"]
 RERUN = "python evals/session_evals.py"
 CONTINUATION_WINDOW = timedelta(seconds=90)
 
@@ -27,16 +28,21 @@ EVIDENCE = {
 DETERMINISTIC = ()
 
 checks: dict[str, bool] = {}
-details: dict = {}
+details: dict[str, Any] = {}
 
 
-def grade(cohort: str, labels: dict) -> None:
+def grade(check: str, labels: dict[str, dict[str, Any]]) -> None:
+    """Passes `check` when both annotations agree with `labels` on each class."""
     spans = grading.project_spans(PROJECT)
-    for criterion in CRITERIA:
+    details[check] = {}
+    for criterion in EXPECTED["annotations"]:
         predictions = grading.session_predictions(PROJECT, criterion, spans)
         result = grading.agreement(predictions, {s: v[criterion] for s, v in labels.items()})
-        checks[f"{cohort}.{criterion}"] = result.passes(MIN_RECALL, MIN_COVERAGE)
-        details[f"{cohort}.{criterion}"] = result.as_dict()
+        details[check][criterion] = result.as_dict()
+        details[check][criterion]["passes"] = result.passes(
+            EXPECTED["min_recall"], EXPECTED["min_coverage"]
+        )
+    checks[check] = all(part["passes"] for part in details[check].values())
 
 
 def continue_sessions(spans: list[dict[str, Any]], after: datetime) -> None:
@@ -57,22 +63,22 @@ def continue_sessions(spans: list[dict[str, Any]], after: datetime) -> None:
 
 
 started = datetime.now(timezone.utc)
-grade("production", TRUTH["visible"])
+grade("production_sessions", GRADING_DATA["production_sessions"])
 seen_spans = grading.project_spans(PROJECT)
 # One call keeps turns in order, because the shift to now moves all its spans together.
-grading.inject_spans(PROJECT, TRUTH["unseen"]["spans"])
-continue_sessions(TRUTH["continued"]["spans"], after=started)
+grading.inject_spans(PROJECT, NEW["spans"])
+continue_sessions(CONTINUED["spans"], after=started)
 # The nightly job's key can only call the pinned model, so the rerun refuses any other.
 with judge_prompts.record_llm_calls(allowed_models={judge_prompts.PINNED_MODEL}) as recorder:
     details["rerun"] = grading.run_as_agent(RERUN, timeout=900, env=recorder.env).as_dict()
-grade("new_sessions", TRUTH["unseen"]["labels"])
-grade("continued_sessions", TRUTH["continued"]["labels"])
+grade("new_sessions", NEW["labels"])
+grade("continued_sessions", CONTINUED["labels"])
 # A continued session's earlier turns belong in the rerun's prompts, so they don't count as copied.
 session_of = grading.session_of_traces(seen_spans)
 earlier_turns = [
     span
     for span in seen_spans
-    if session_of.get(span["context"]["trace_id"]) in TRUTH["continued"]["labels"]
+    if session_of.get(span["context"]["trace_id"]) in CONTINUED["labels"]
 ]
 measures, details["judge_prompts"] = judge_prompts.prompt_scores(
     recorder.calls,
@@ -81,7 +87,7 @@ measures, details["judge_prompts"] = judge_prompts.prompt_scores(
     evidence=EVIDENCE,
     deterministic=DETERMINISTIC,
     copied=judge_prompts.seen_only_shingles(
-        seen_spans, TRUTH["unseen"]["spans"] + TRUTH["continued"]["spans"] + earlier_turns
+        seen_spans, NEW["spans"] + CONTINUED["spans"] + earlier_turns
     ),
 )
 grading.finish(checks, details, measures)

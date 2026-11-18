@@ -1,6 +1,7 @@
 """Builds the reviewed support-bot traces for `curate-labels`.
 
-Writes `fixture/phoenix_seed.json` and `tests/truth.json`. Run from the repository root:
+Writes `fixture/phoenix_seed.json`, `tests/expected.json`, and `tests/grading_data.json`.
+Run from the repository root:
 
     uv run python evals/harbor/tasks/eval-workflows/curate-labels/fixture/build.py
 """
@@ -804,7 +805,6 @@ CATEGORIES: dict[str, tuple[int, bool]] = {
     "prelabel_disagrees_before_review": (4, True),
     "prelabel_disagrees_after_review": (4, True),
     "prelabel_agrees": (4, True),
-    "duplicate_text": (4, True),
     "revised_verdict": (4, True),
     "llm_span_only": (4, True),
     "llm_span_later": (4, True),
@@ -818,10 +818,28 @@ CATEGORIES: dict[str, tuple[int, bool]] = {
     "unreviewed": (11, False),
 }
 FORBIDDEN_IN_TEXT = re.compile(r"supported|needs.?review|grounded", re.IGNORECASE)
+STILL_OPEN, PRELABEL_ONLY, NEVER_REVIEWED = (
+    "still open for review",
+    "only pre-labeled by the auto-labeler",
+    "never reviewed",
+)
 
 
 def flip(label: str) -> str:
     return UNSUPPORTED if label == SUPPORTED else SUPPORTED
+
+
+def latest_verdict(history: list[tuple[int, str, str, str]]) -> str | None:
+    """Returns the label of the latest human review, or None if it isn't a verdict."""
+    humans = [(round_, label) for round_, reviewer, label, _ in history if reviewer != PRELABELER]
+    latest = max(humans)[1] if humans else None
+    return latest if latest in (SUPPORTED, UNSUPPORTED) else None
+
+
+def left_out_reason(history: list[tuple[int, str, str, str]]) -> str:
+    if any(reviewer != PRELABELER for _, reviewer, _, _ in history):
+        return STILL_OPEN
+    return PRELABEL_ONLY if history else NEVER_REVIEWED
 
 
 def review_history(
@@ -833,7 +851,6 @@ def review_history(
     wrong_or_open = NEEDS_REVIEW if variant else flip(truth)
     histories = {
         "single_review": [(FIRST_REVIEW, first, truth, ROOT)],
-        "duplicate_text": [(FIRST_REVIEW, first, truth, ROOT)],
         "reviewers_agree": [
             (FIRST_REVIEW, first, truth, ROOT),
             (SECOND_REVIEW, second, truth, ROOT),
@@ -926,19 +943,11 @@ def plan_cases(rng: random.Random) -> list[dict[str, Any]]:
     cases: list[dict[str, Any]] = []
     for category, (count, included) in CATEGORIES.items():
         for index in range(count):
-            pair = index // 2 if category == "duplicate_text" else None
-            position = pair if pair is not None else index
-            truth = SUPPORTED if position % 2 == 0 else UNSUPPORTED
+            truth = SUPPORTED if index % 2 == 0 else UNSUPPORTED
             # Variants alternate in pairs, so each variant gets both verdicts.
             variant = (index // 2) % 2
             cases.append(
-                {
-                    "category": category,
-                    "included": included,
-                    "truth": truth,
-                    "pair": pair,
-                    "variant": variant,
-                }
+                {"category": category, "included": included, "truth": truth, "variant": variant}
             )
     rng.shuffle(cases)
     return cases
@@ -1023,15 +1032,12 @@ def other_annotations(trace: Trace, rng: random.Random) -> list[dict[str, Any]]:
 
 
 def write_texts(cases: list[dict[str, Any]], rng: random.Random) -> list[dict[str, Any]]:
+    """Returns each case's text, redrawn until no two traces share a question and reply."""
     seen: set[tuple[str, str]] = set()
-    pair_texts: dict[int, dict[str, Any]] = {}
     texts = []
     for index, case in enumerate(cases):
         customer = CUSTOMERS[index % len(CUSTOMERS)]
         company = COMPANIES[(index * 5) % len(COMPANIES)]
-        if case["pair"] is not None and case["pair"] in pair_texts:
-            texts.append({**pair_texts[case["pair"]], "customer": customer, "company": company})
-            continue
         while True:
             topic = TOPICS[rng.randrange(len(TOPICS))]
             question = rng.choice(topic["questions"])
@@ -1040,18 +1046,21 @@ def write_texts(cases: list[dict[str, Any]], rng: random.Random) -> list[dict[st
             else:
                 bad = rng.choice(topic["bad"])
                 body, defect_notes = bad["reply"], bad["notes"]
-            if case["pair"] is not None:
-                reply = body  # No greeting, so both customers in the pair get the same text.
-            else:
-                opener = rng.choice(OPENERS).format(first=customer[0])
-                reply = opener + body + rng.choice(CLOSERS)
+            opener = rng.choice(OPENERS).format(first=customer[0])
+            reply = opener + body + rng.choice(CLOSERS)
             if (question, reply) not in seen:
                 break
         seen.add((question, reply))
-        text = {"topic": topic, "question": question, "reply": reply, "defect_notes": defect_notes}
-        if case["pair"] is not None:
-            pair_texts[case["pair"]] = text
-        texts.append({**text, "customer": customer, "company": company})
+        texts.append(
+            {
+                "topic": topic,
+                "question": question,
+                "reply": reply,
+                "defect_notes": defect_notes,
+                "customer": customer,
+                "company": company,
+            }
+        )
     return texts
 
 
@@ -1062,8 +1071,9 @@ def main() -> None:
     spans: list[dict[str, Any]] = []
     rounds: dict[int, list[dict[str, Any]]] = {r: [] for r in range(5)}
     between_rounds: list[dict[str, Any]] = []
-    truth_traces: dict[str, dict[str, Any]] = {}
+    traces: dict[str, dict[str, Any]] = {}
     eligible: dict[str, str] = {}
+    left_out = Counter({STILL_OPEN: 0, PRELABEL_ONLY: 0, NEVER_REVIEWED: 0})
     for index, (case, text) in enumerate(zip(cases, texts)):
         built = build_trace(index, case, text, rng)
         trace = built["trace"]
@@ -1091,12 +1101,16 @@ def main() -> None:
                 result["score"] = 1.0 if label == SUPPORTED else 0.0
             rounds[round_].append(annotation)
         between_rounds.extend(other_annotations(trace, rng))
+        if latest_verdict(history) != (case["truth"] if case["included"] else None):
+            raise ValueError(
+                f"case {index}: the latest human review doesn't give the planned label"
+            )
         if case["included"]:
             eligible[trace.trace_id] = case["truth"]
-        truth_traces[trace.trace_id] = {
+        else:
+            left_out[left_out_reason(history)] += 1
+        traces[trace.trace_id] = {
             "category": case["category"],
-            "root_span_id": trace.root_id,
-            "llm_span_id": span_ids[LLM_SPAN],
             "question": text["question"],
             "reply": text["reply"],
             "notes": notes,
@@ -1116,17 +1130,32 @@ def main() -> None:
     write_json(
         HERE / "phoenix_seed.json", {"projects": {PROJECT: spans}, "span_annotations": ordered}
     )
-    write_json(
-        HERE.parent / "tests" / "truth.json",
-        {"project": PROJECT, "dataset": DATASET, "eligible": eligible, "traces": truth_traces},
+    verdicts = Counter(eligible.values())
+    open_, prelabeled, unreviewed = (f"{n} {reason}" for reason, n in left_out.items())
+    reasons = f"{open_}, {prelabeled}, and {unreviewed}"
+    reference = (
+        f"`{DATASET}` holds {len(eligible)} examples, one for each trace whose reviewers' latest "
+        f"verdict is `{SUPPORTED}` ({verdicts[SUPPORTED]}) or `{UNSUPPORTED}` "
+        f"({verdicts[UNSUPPORTED]}). Each example has the question and the reply as input, the "
+        "verdict as expected output, and a link to its trace. The other "
+        f"{len(traces) - len(eligible)} traces are left out: {reasons}."
     )
-
-    pairs = Counter((t["question"], t["reply"]) for t in truth_traces.values())
-    print(f"{len(truth_traces)} traces, {len(ordered)} annotations")
-    print("eligible:", len(eligible), dict(Counter(eligible.values())))
-    print("excluded:", len(truth_traces) - len(eligible))
-    print("categories:", dict(Counter(c["category"] for c in cases)))
-    print("traces sharing question and reply text:", sum(n for n in pairs.values() if n > 1))
+    tests = HERE.parent / "tests"
+    write_json(
+        tests / "expected.json",
+        {
+            "reference": reference,
+            "dataset": DATASET,
+            "examples": len(eligible),
+            "verdicts": {SUPPORTED: verdicts[SUPPORTED], UNSUPPORTED: verdicts[UNSUPPORTED]},
+            "left_out": dict(left_out),
+        },
+    )
+    write_json(
+        tests / "grading_data.json", {"project": PROJECT, "eligible": eligible, "traces": traces}
+    )
+    print(f"{len(traces)} traces, {len(ordered)} annotations")
+    print(reference)
 
 
 if __name__ == "__main__":

@@ -1,13 +1,13 @@
-"""Grades the reply's decision, unsafe recall, and unsafe precision against `truth.json`.
+"""Grades the reply's decision and its unsafe recall and precision against `expected.json`.
 
-A false-alarm share of blocks passes the precision check too, because the request states
-its limit that way.
+A false-alarm share of blocks stands in for precision, because the request states its
+limit that way.
 """
 
 from harbor_verifiers import grading
 from harbor_verifiers.verify import ANSWER_PATH, TRAJECTORY_PATH, read_reply
 
-EXPECTED = grading.load_test_json("truth.json")["expected"]
+EXPECTED = grading.load_test_json("expected.json")
 SCOPE = (
     "Count only traces that have both a reviewer `human_safety` label and a `safety_judge` "
     "label, as a proportion between 0 and 1. If the reply gives only a count such as "
@@ -38,18 +38,17 @@ FIELDS = {
 
 reply, source = read_reply(TRAJECTORY_PATH, ANSWER_PATH)
 details = {"reply_source": source, "reply": reply[-4000:], "expected": EXPECTED}
-checks = dict.fromkeys(EXPECTED, False)
+checks = {"decision": False, "numbers": False}
 if reply.strip():
     claims = grading.extract_report_claims(reply, FIELDS)
     found = grading.check_report_claims(
-        claims,
-        {**EXPECTED, "false_alarm_share": round(1 - EXPECTED["unsafe_precision"], 4)},
-        reply,
+        claims, {"decision": EXPECTED["decision"], **EXPECTED["numbers"]}, reply
     )
     checks = {
         "decision": found["decision"],
-        "unsafe_recall": found["unsafe_recall"],
-        "unsafe_precision": found["unsafe_precision"] or found["false_alarm_share"],
+        "numbers": found["unsafe_recall"]
+        and (found["unsafe_precision"] or found["false_alarm_share"]),
     }
+    details["numbers"] = {name: found[name] for name in EXPECTED["numbers"]}
     details["claims"] = claims
 grading.finish(checks, details)

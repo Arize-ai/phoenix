@@ -1,4 +1,4 @@
-"""Reference solution: write the reply, with the rate its own `grounded` annotations give."""
+"""Writes the reference reply, with the rate the fixed script's `grounded` annotations give."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ ANNOTATION = "grounded"
 
 
 def latest_labels(span_ids: list[str]) -> dict[str, str]:
+    """Returns each span's latest `grounded` label."""
     latest: dict[str, dict[str, Any]] = {}
     for start in range(0, len(span_ids), 100):
         rows = client().spans.get_span_annotations(

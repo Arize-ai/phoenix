@@ -1,8 +1,4 @@
-"""Build the policy-assistant traces for `rag-evals`.
-
-Run from the repository root:
-
-    uv run python evals/harbor/tasks/eval-workflows/rag-evals/fixture/build.py
+"""Builds the `rag-evals` seed file and the verifier's hidden answers.
 
 Faithful answers paraphrase their passage, and visible wrong answers reuse its wording
 with one fact changed, so word overlap with a passage doesn't decide the label.
@@ -22,6 +18,10 @@ sys.path.insert(0, str(HERE.parents[3] / "environments" / "fixtures"))
 from support_traces import BASE, Trace, write_json  # noqa: E402
 
 PROJECT = "policy-rag"
+# Share of the documents or traces that need an annotation, and the recall each class
+# needs, for `production_traces` and `new_traces` to pass.
+MIN_COVERAGE = 0.95
+MIN_RECALL = {"relevant": 0.85, "grounded": 0.8}
 SYSTEM_PROMPT = (HERE.parent / "workdir" / "policy_assistant.py").read_text().split('"""')[3]
 
 
@@ -827,40 +827,71 @@ def labels(cases: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def summarize(name: str, cases: list[dict[str, Any]]) -> dict[str, int]:
+def counts(cases: list[dict[str, Any]]) -> dict[str, int]:
     documents = [v for case in cases for v in case["relevant"].values()]
-    counts = {
+    grounded = sum(case["grounded"] for case in cases)
+    return {
         "traces": len(cases),
         "relevant_documents": sum(documents),
         "irrelevant_documents": len(documents) - sum(documents),
+        "grounded_answers": grounded,
+        "ungrounded_answers": len(cases) - grounded,
         "retrieval_misses": sum(case["case"]["retrieval"] == "miss" for case in cases),
-        "ungrounded": sum(not case["grounded"] for case in cases),
-        "ungrounded_with_relevant": sum(
+        "ungrounded_after_hit": sum(
             not case["grounded"] and case["case"]["retrieval"] != "miss" for case in cases
         ),
     }
-    print(name, counts)
-    return counts
+
+
+def reference(production: dict[str, int], new: dict[str, int]) -> str:
+    documents = production["relevant_documents"] + production["irrelevant_documents"]
+    return (
+        f"Retrieval is the bigger problem. No retrieved passage answers the question in "
+        f"{production['retrieval_misses']} of {production['traces']} traces, and only "
+        f"{production['ungrounded_after_hit']} answers are ungrounded when the right passage "
+        f"was retrieved. Correct `relevant` annotations mark {production['relevant_documents']} "
+        f"of {documents} documents relevant, correct `grounded` annotations mark "
+        f"{production['grounded_answers']} of {production['traces']} answers grounded, and "
+        f"the nightly script labels the {new['traces']} new traces the same way."
+    )
 
 
 def main() -> None:
     check_corpus()
     visible = build_split("visible", seed=31)
     unseen = build_split("unseen", seed=47)
-    counts = summarize("visible", visible)
-    summarize("unseen", unseen)
-    assert counts["retrieval_misses"] > counts["ungrounded"] > counts["ungrounded_with_relevant"]
+    production, new = counts(visible), counts(unseen)
+    print("production_traces", production)
+    print("new_traces", new)
+    assert (
+        production["retrieval_misses"]
+        > production["ungrounded_answers"]
+        > production["ungrounded_after_hit"]
+    )
     write_json(
         HERE / "phoenix_seed.json",
         {"projects": {PROJECT: [span for case in visible for span in case["spans"]]}},
     )
     write_json(
-        HERE.parent / "tests" / "truth.json",
+        HERE.parent / "tests" / "expected.json",
+        {
+            "reference": reference(production, new),
+            "bigger_problem": "retrieval",
+            "min_coverage": MIN_COVERAGE,
+            "min_recall": MIN_RECALL,
+            "production_traces": production,
+            "new_traces": new,
+        },
+    )
+    write_json(
+        HERE.parent / "tests" / "grading_data.json",
         {
             "project": PROJECT,
-            "bigger_problem": "retrieval",
-            "visible": labels(visible),
-            "unseen": {"spans": [s for case in unseen for s in case["spans"]], **labels(unseen)},
+            "production_traces": labels(visible),
+            "new_traces": {
+                "spans": [s for case in unseen for s in case["spans"]],
+                **labels(unseen),
+            },
         },
     )
 

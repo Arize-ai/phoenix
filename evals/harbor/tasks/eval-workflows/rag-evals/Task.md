@@ -1,15 +1,13 @@
 # rag-evals
 
-The user's policy assistant answers customer questions from retrieved policy passages,
-and customers say the answers are wrong. The agent has to build two evals: whether each
-retrieved passage is relevant, and whether each answer sticks to what was retrieved. It
-logs both, leaves a script for the nightly job, and says whether retrieval or generation
-is the bigger problem. The verifier checks the annotations, runs the script on new
-traces, and reads the agent's diagnosis.
+A policy assistant answers customer questions from retrieved policy passages, and
+customers say its answers are wrong. The agent logs a `relevant` annotation on each
+retrieved passage and a `grounded` annotation on each answer, leaves a script that does
+the same for new traffic, and says whether retrieval or generation is the bigger problem. The task tests whether the
+agent can separate retrieval failures from generation failures with judges that work on
+`gpt-5-nano`.
 
 ## The request
-
-The agent gets `instruction.md` word for word:
 
 > Customers keep complaining about wrong answers from our policy assistant. Its traces are in Phoenix under the `policy-rag` project, and the app code is in `/app`.
 >
@@ -21,122 +19,121 @@ The agent gets `instruction.md` word for word:
 
 | Where | What |
 | --- | --- |
-| Project `policy-rag` | 54 traces, one per customer question. The root `rag-query` span has the question and the answer. Its children are a `retrieve_policies` retriever span with 4 documents (`id`, `content`, `score`) and the LLM call, whose prompt lists those 4 passages. |
-| `/app/policy_assistant.py` | The app's retrieval call and system prompt. The prompt tells the model to answer only from the passages and to say it doesn't know otherwise. |
-| Model access | Real `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` values, so the agent can run LLM evaluators. |
-
-The knowledge base has 23 short policy passages, on returns, refunds, billing,
-shipping, orders, warranty, accounts, rewards, promo codes, and gift cards. Each
-question has exactly one passage that answers it. No labels are visible.
-
-Each trace gets a retrieval outcome and an answer type, chosen independently:
-
-| Retrieval outcome | Production traces | Answer types (count) |
-| --- | --- | --- |
-| The answering passage is first | 19 | Restates it (16), contradicts it (2), adds a claim no passage makes (1) |
-| The answering passage is second to fourth | 13 | Restates it (11), contradicts it (1), adds a claim no passage makes (1) |
-| The answering passage isn't retrieved | 22 | Says it can't find the answer (12), makes up a policy (6), states the true policy even though it wasn't retrieved (4) |
-
-Only restating a retrieved passage and saying it can't find the answer are grounded.
-That gives 32 relevant and 184 irrelevant documents, and 39 grounded and 15 ungrounded
-answers. Retrieval misses (22 of 54) outnumber all ungrounded answers (15), and only 5
-answers are ungrounded when the right passage was retrieved. Retrieval is the bigger
-problem by any count.
+| Phoenix project `policy-rag` | 54 traces, one per customer question, with no annotations. The root `rag-query` span holds the question and the answer. Its children are a `retrieve_policies` retriever span with 4 documents (`id`, `content`, `score`) and the LLM call, whose prompt lists those 4 passages. |
+| `/app/policy_assistant.py` | The app's retrieval call and system prompt. The prompt tells the model to answer only from the passages and to say it doesn't know otherwise. The knowledge base module it imports isn't in `/app`. |
+| Environment | `OPENAI_API_KEY` and `ANTHROPIC_API_KEY`, so the agent can run LLM judges. |
 
 ## How the data was made
 
-`fixture/build.py` generates the data from hand-written templates with fixed random
-seeds: 31 for the production traces and 47 for the new ones. The 23 policy passages are
-hand-written, and so are each policy's questions, answers, and distractor list, with
-separate wordings for the new traces. The generator pairs questions with retrieval
-outcomes and answer types, picks the distractors, and sets scores, IDs, and timestamps.
-No answer comes from a model, and no public or user data is used. The store is invented.
+`fixture/build.py` writes the seed file, `tests/expected.json`, and
+`tests/grading_data.json`. These parts are hand-written:
 
-A document is relevant only if it's the passage that answers the question. An answer is
-grounded only if it restates that passage after it was retrieved, or says it can't find
-the answer.
+- 23 short policy passages on returns, refunds, billing, shipping, orders, warranty,
+  accounts, rewards, promo codes, and gift cards. Each question has exactly one passage
+  that answers it.
+- Each policy's questions, faithful answer, wrong answer, and a claim that no passage
+  makes, each with separate wordings for the production and new traces. The
+  production wrong answers reuse the passage's wording with one fact changed, and
+  faithful answers paraphrase it, so word overlap doesn't decide the label.
+- For each policy, 6 distractor passages that share a topic or words with its questions
+  without answering them.
+- The refusal wordings, with a different set for the new traces.
+- The number of traces that get each case, in the table below. The case sets the
+  trace's `grounded` label.
 
-The data is checked in these ways:
+| Answering passage | Answer | `grounded` | Production traces | New traces |
+| --- | --- | --- | --- | --- |
+| Ranked first | Restates it | `pass` | 16 | 6 |
+| Ranked first | Contradicts it | `fail` | 2 | 2 |
+| Ranked first | Adds a claim no passage makes | `fail` | 1 | 1 |
+| Ranked second to fourth | Restates it | `pass` | 11 | 4 |
+| Ranked second to fourth | Contradicts it | `fail` | 1 | 1 |
+| Ranked second to fourth | Adds a claim no passage makes | `fail` | 1 | 1 |
+| Not retrieved | Says it can't find the answer | `pass` | 12 | 3 |
+| Not retrieved | States a made-up policy | `fail` | 6 | 3 |
+| Not retrieved | States the true policy anyway | `fail` | 4 | 3 |
 
-- The generator asserts that each policy has at least 4 distractors, that no distractor
-  restricts or qualifies the policy's answer, that each question gets one case, and that
-  the production traces have more retrieval misses than ungrounded answers.
-- The seeder, `environments/fixtures/seed_phoenix.py`, waits until every span is in
-  Phoenix and fails if any are missing.
-- On November 13, 2026, GPT-6 Astra reviewed the data and labels read-only through
-  Codex. It found label shortcuts: Final Sale and other passages that restrict the
-  answer were labeled irrelevant, and word overlap with the passage predicted
-  groundedness. Commit `8940e2f233` added the distractor check and rewrote the answers
-  so that overlap doesn't decide the label.
-- In Docker, the reference solution scores 1 and an agent that does nothing scores 0.
-  The controls in "What the task tests" show what naive approaches score.
+A document's `relevant` label is `pass` only for the passage that answers the question.
+That gives 32 relevant and 184 irrelevant production documents, and 15 relevant and 81
+irrelevant new ones. The expected diagnosis is retrieval. No retrieved passage answers
+the question in 22 production traces, more than all 15 ungrounded answers, and only 5
+answers are ungrounded when the right passage was retrieved.
+
+The random seed, 31 for production traces and 47 for new traces, decides these things:
+
+- Which question gets which case in the table.
+- Which 3 or 4 of the policy's 6 distractors are retrieved, and their order.
+- The retriever scores. The first document scores between 0.74 and 0.9, and each next
+  one scores 0.015 to 0.06 lower, whether or not the answering passage was retrieved.
+- Which refusal wording a declining answer uses.
+
+When the answering passage ranks second to fourth, its position cycles through 2, 3,
+and 4 in trace order. IDs and timestamps don't depend on the seed.
+
+`build.py` asserts these properties of its output:
+
+- Each policy has at least 4 distinct distractors.
+- No passage that restricts or qualifies a policy's answer is one of that policy's
+  distractors. For example, the Final Sale passage is never a distractor for a question
+  about the return window.
+- Every question gets exactly one case.
+- In the production traces, retrieval misses outnumber ungrounded answers, which
+  outnumber ungrounded answers after a hit.
+
+GPT-6 Astra reviewed the data and labels.
 
 ## How it's graded
 
-`reward` is 1 only if every check passes. Each annotation check reads the latest
-annotation with that name. It passes when those annotations cover at least 95% of the
-documents or traces, and they catch enough of the good ones and enough of the bad ones.
-Checking each class separately means a constant label fails. Labels count by meaning,
-so `relevant` or `grounded` works as well as `pass`.
+| Check | Type | Uses | Passes when |
+| --- | --- | --- | --- |
+| `production_traces` | Code | `grading_data.json`, `expected.json` | On the 54 production traces, `relevant` annotations cover at least 95% of the 216 retrieved documents with at least 85% recall on relevant and on irrelevant documents, and `grounded` annotations cover at least 95% of the traces with at least 80% recall on grounded and on ungrounded answers. |
+| `names_right_stage` | LLM extraction, then code | `expected.json` | An LLM extracts, with a quote, which stage the reply calls the bigger problem. Code passes the check when the quote is in the reply, the stage is retrieval, and the reply doesn't contradict itself. |
+| `new_traces` | Code | `grading_data.json`, `expected.json` | The verifier adds 24 new traces with 96 documents and runs `python evals/rag_evals.py` in `/app` as the agent user. The new annotations meet the same bars as `production_traces`. |
 
-| Check | What it reads | What passes |
-| --- | --- | --- |
-| `production_relevant` | Document annotations on the 216 retrieved documents. An annotation on the retriever span doesn't count, because it can't say which document was relevant. | At least 85% recall on each class. |
-| `production_grounded` | The 54 traces. | At least 80% recall on each class. |
-| `bigger_problem` | The agent's final reply. | An LLM finds a quoted claim that retrieval is the bigger problem, and nothing in the reply contradicts it. |
-| `new_traces_relevant`, `new_traces_grounded` | 24 new traces (96 documents) the verifier adds. It then runs `python evals/rag_evals.py` as the agent user. | The same as the production checks. |
+`reward` is 1 only when every check passes.
 
-During the rerun, every model request goes through a local recorder. It refuses any
-model except `gpt-5-nano` with a 403, the way the nightly key would. A small model
-like this one gets the labels right only when the prompt is clear and carries the right
-evidence. With the reference prompts it reaches at least 85% recall on every check.
+The annotation checks read the latest annotation with each name. A `relevant` label
+counts only as a document annotation, because an annotation on the retriever span can't
+say which document is relevant. Labels count by meaning, so `relevant` and `grounded`
+count the same as `pass`. During the rerun, a local proxy refuses any model except
+`gpt-5-nano` with a 403. `details.json` reports coverage and recall for `relevant` and
+`grounded` separately under each check.
 
-### Also reported
+These measures are reported beside `reward` and don't affect it:
 
-These don't change `reward`. The [suite README](../README.md#what-a-run-reports)
-explains each one.
-
-- `turns`, `tool_calls`, and a `loaded_<skill>` flag for each skill.
-- `uses_phoenix_evals`: the share of the rerun's judge requests that phoenix-evals sent.
-- `prompt_quality`: the share of judge requests whose prompt meets the rubric. For this
-  task, the rubric grader knows that a `relevant` judge needs the question and the
-  document's text, and a `grounded` judge needs the answer and the text of every
-  retrieved passage. Neither can be checked by code alone.
+- `turns`, `tool_calls`, and `loaded_<skill>` show how the agent worked.
+- `uses_phoenix_evals` is the share of the rerun's judge requests that phoenix-evals sent.
+- `prompt_quality` is the share of judge requests whose prompt meets the suite rubric.
+  For this task, the rubric expects a `relevant` judge to see the question and the
+  document's text, and a `grounded` judge to see the answer and every retrieved passage.
 
 ## What the task tests
 
-| Behavior | How the task checks it |
-| --- | --- |
-| Judging relevance by meaning, not keywords | Wrong passages share a topic and words with the question, and questions paraphrase the answering passage. No keyword-overlap rule reaches 85% on both classes. Wrong passages never bear on the answer, so a passage that restricts or qualifies it is never labeled irrelevant. |
-| Not trusting retriever rank or score | The answering passage isn't first in 13 production traces, and misses have top scores as high as hits. Marking only the first passage relevant catches 59% of relevant documents. |
-| Checking answers against what was retrieved | Contradictions and made-up policies read as plausible answers. Wrong answers reuse the passage's wording with one fact changed. A judge that sees only the question and answer catches about 13% of ungrounded answers. |
-| Not checking against the whole knowledge base | 4 production answers state the true policy for a question whose passage wasn't retrieved. They're ungrounded, because the assistant had no source for them. |
-| Treating "I don't know" as correct behavior | 12 production answers decline because nothing relevant came back. They're grounded. |
-| Diagnosing the right stage | 10 of the 15 ungrounded answers follow a retrieval miss. The reply has to name retrieval. |
-| Writing a script that generalizes | New traces use questions, answer wording, refusals, and unsupported claims the production traces never show. |
-| Leaving a script the nightly job can run | The rerun fails if the entry point is missing, hard-codes trace IDs, or doesn't log annotations. |
+| Wrong approach | Fails | Why |
+| --- | --- | --- |
+| Judge relevance by words shared with the question | `production_traces`, `new_traces` | Distractors share a topic and words with the question, and questions paraphrase the answering passage. No word-overlap threshold reaches 85% recall on both classes. |
+| Mark the top-ranked passage relevant | `production_traces`, `new_traces` | The answering passage ranks lower in 13 production traces, so this catches 19 of 32 relevant documents. |
+| Judge groundedness from the question and answer alone | `production_traces`, `new_traces` | Contradictions, added claims, and made-up policies read as plausible answers without the passages. |
+| Check answers against the true policy instead of the retrieved passages | `production_traces`, `new_traces` | 4 production answers state the true policy without retrieving it. They're ungrounded, so ungrounded recall drops to 73%. |
+| Count "I can't find that" as ungrounded | `production_traces`, `new_traces` | 12 of the 39 grounded production answers are refusals, so grounded recall drops to 69%. |
+| Blame generation, hedge, or skip the question | `names_right_stage` | Retrieval is the bigger problem by every count. |
+| Label the production traces by hand or with a one-off script | `new_traces` | The rerun needs `python evals/rag_evals.py` to find and score traces it hasn't seen. |
+| Call a stronger model than `gpt-5-nano` in the script | `new_traces` | The rerun refuses other models. |
+
+## Calibration
+
+The reference solution scores 1 and a do-nothing agent scores 0. Rule-based versions of
+the wrong approaches above, such as marking only the top-ranked passage relevant or
+labeling every refusal ungrounded, fail `production_traces` even when every other label
+is right.
 
 ## Known limits
 
-- The passages and answers come from templates. The new traces' different wording
-  limits how far pattern matching gets.
-- Each label is correct by construction, but "answers the question" and "supported" are
-  still judgment calls. Wrong passages are picked to share a topic without stating the
-  answer. In one local run, the reference judge marked 1 of 32 relevant production documents
-  irrelevant and matched every other label.
-- `gpt-5-nano` tends to call "I can't find that in our policies" an unsupported claim.
-  The reference prompt handles that by making the abstention rule its first step. It
-  matched every production `grounded` label in 3 of 3 runs, and missed at most 1 of 13
-  grounded new answers. Before that step, it missed up to 9 of 39 grounded production
-  answers and could fail the 80% bar.
-- Retrieval is clearly the bigger problem, so `bigger_problem` mainly catches replies
-  that blame generation, hedge, or skip the question. It doesn't grade numbers.
-
-## Files
-
-| Path | What it does |
-| --- | --- |
-| `fixture/build.py` | Generates `fixture/phoenix_seed.json` (the 54 production traces) and `tests/truth.json` (document and answer labels, plus the 24 new traces and their labels). It's deterministic; rerun it after editing. |
-| `workdir/` | Copied to `/app`. |
-| `tests/test.py` | The verifier. |
-| `solution/rag_evals.py` | The reference evals: one LLM judge per retrieved document for relevance, and one per answer for groundedness against the retrieved passages. `solution/solve.sh` installs it as the nightly entry point, runs it, and passes its summary to `solution/rag_reply.py`, which writes the reply. |
+- `new_traces` allows few misses. It has 11 ungrounded answers, 13 grounded answers,
+  and 15 relevant documents, so 3 misses in any of these classes fail the check. `gpt-5-nano`
+  tends to call refusals unsupported claims, so a sound script can fail on judge noise.
+  Rerun a failure before you count it against the agent.
+- The new traces reuse the 23 passages with new questions and answer wordings. The check
+  tests whether a script generalizes to new wording, not to new policies.
+- Retrieval wins by every count, so `names_right_stage` catches replies that blame
+  generation, hedge, or skip the question. It doesn't check the reply's numbers.

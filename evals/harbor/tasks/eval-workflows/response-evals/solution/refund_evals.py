@@ -1,7 +1,7 @@
-"""Score refund-bot replies against SPEC.md and log one annotation per requirement.
+"""Scores refund-bot replies against `SPEC.md` and logs one annotation per requirement.
 
-Scores only traces without a `grounded` annotation, so the nightly job pays only for new
-traffic.
+It skips traces that already have a `grounded` annotation, so the nightly job pays only for
+new traffic.
 """
 
 from __future__ import annotations
@@ -143,8 +143,8 @@ def score(trace: list[dict[str, Any]]) -> tuple[str, dict[str, tuple[bool, str]]
 
 
 def retrying(function: Callable[[Any], Any]) -> Callable[[Any], Any]:
-    """Skips an item after 3 failed attempts, so one stuck API call doesn't lose the
-    whole nightly run."""
+    """Returns `function` wrapped to try 3 times and then return None, so one stuck API call
+    doesn't lose the whole nightly run."""
 
     def call(item: Any) -> Any:
         for attempt in range(3):

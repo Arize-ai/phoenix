@@ -15,7 +15,7 @@ VERDICTS = ("supported", "unsupported")
 
 
 def write_order(annotation: dict[str, Any]) -> tuple[datetime, int]:
-    """Orders annotations by `updated_at`, then by row ID.
+    """Returns a sort key that orders annotations by `updated_at`, then by row ID.
 
     A revision updates a review in place and keeps its `created_at`. Timestamps are stored
     to the second, so the row ID inside the global ID breaks ties in write order.

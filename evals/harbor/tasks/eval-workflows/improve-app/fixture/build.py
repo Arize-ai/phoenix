@@ -1,11 +1,11 @@
-"""Build the support-assistant fixture for `improve-app`.
+"""Builds the seed file, app data, and hidden grading files for `improve-app`.
 
 Run from the repository root:
 
     uv run python evals/harbor/tasks/eval-workflows/improve-app/fixture/build.py
 
 The baseline experiment replays `fixture/baseline.json`, so this script makes no model
-calls. After changing the starting prompt, the app, the development questions, or
+calls. After you change the launch prompt, the app, the development questions, or
 `tests/support_checks.py`, rerun `fixture/record_baseline.py`.
 """
 
@@ -28,6 +28,12 @@ PROMPT_NAME = "support-system"
 DATASET = "support-questions"
 MODEL = "gpt-5.4-mini"
 AS_OF = "2026-11-10T15:00:00"
+# The handbook's four reply standards, which are also the baseline's evaluation names.
+STANDARDS = ("cites_policy", "under_word_limit", "no_false_promises", "account_privacy")
+MIN_PASS_RATE = 0.85
+MIN_EXAMPLES_RUN = 0.8
+MIN_RUNS_EVALUATED = 0.8
+MIN_CODE_CHECK_AGREEMENT = 0.9
 POLICY_IDS = (
     "returns", "refund-timing", "final-sale", "exchanges", "shipping", "expedited",
     "international", "order-changes", "lost-packages", "warranty", "price-adjustment",
@@ -135,7 +141,9 @@ def case(
     owner: str = "",
     leaks: tuple[str, ...] = (),
 ) -> dict[str, Any]:
-    """`bait` marks a request the handbook doesn't allow. `privacy` is `own` for a question
+    """Returns one question with its expectations.
+
+    `bait` marks a request the handbook doesn't allow. `privacy` is `own` for a question
     about the customer's own order and `other` for one about someone else's. `owner`
     names whose account an `other` question touches, and `leaks` lists details of that
     account that a reply must never contain.
@@ -257,7 +265,8 @@ def order_data() -> dict[str, Any]:
 
 def check_cases(cases: list[dict[str, Any]], data: dict[str, Any]) -> None:
     """Fails on a case the checks can't grade fairly, such as a leak token the asking
-    customer can already see."""
+    customer can already see.
+    """
     orders = {o["order_id"]: o for o in data["orders"]}
     for item in cases:
         assert set(item["policies"]) <= set(POLICY_IDS), item["case_id"]
@@ -310,6 +319,7 @@ STARTING_MESSAGES = [{"role": "system", "content": STARTING_PROMPT}]
 
 
 def write_app_files() -> None:
+    """Writes `workdir/orders.json` and the verifier's copy of the app in `tests/app/`."""
     data = order_data()
     check_cases(DEV + HIDDEN, data)
     write_json(WORKDIR / "orders.json", data)
@@ -317,21 +327,44 @@ def write_app_files() -> None:
     frozen.mkdir(parents=True, exist_ok=True)
     for name in ("support_app.py", "policies.md", "orders.json"):
         shutil.copyfile(WORKDIR / name, frozen / name)
+
+
+def write_grading_files() -> None:
     write_json(
-        TESTS / "truth.json",
+        TESTS / "expected.json",
         {
+            "reference": (
+                f"The latest {PROMPT_NAME} version's replies to {len(HIDDEN)} new questions "
+                f"meet each of the handbook's four reply standards at least "
+                f"{MIN_PASS_RATE:.0%} of the time. An experiment on {DATASET} runs that "
+                "version and carries the baseline's four evaluations under the same names, "
+                "and its two code-checkable evaluations are scored correctly."
+            ),
             "prompt": PROMPT_NAME,
             "dataset": DATASET,
-            "starting_messages": STARTING_MESSAGES,
+            "evaluations": list(STANDARDS),
+            "new_questions": {"questions": len(HIDDEN), "min_pass_rate": MIN_PASS_RATE},
+            "experiment": {
+                "min_examples_run": MIN_EXAMPLES_RUN,
+                "min_runs_evaluated": MIN_RUNS_EVALUATED,
+                "min_code_check_agreement": MIN_CODE_CHECK_AGREEMENT,
+            },
+        },
+    )
+    write_json(
+        TESTS / "grading_data.json",
+        {
+            "launch_messages": STARTING_MESSAGES,
             "policy_ids": list(POLICY_IDS),
-            "account_questions": [item["question"] for item in DEV if item["privacy"]],
-            "hidden": HIDDEN,
+            "dev_account_questions": [item["question"] for item in DEV if item["privacy"]],
+            "new_questions": HIDDEN,
         },
     )
 
 
 def main() -> None:
     write_app_files()
+    write_grading_files()
     starting_messages = STARTING_MESSAGES
     runs = baseline_runs()
     spec = {

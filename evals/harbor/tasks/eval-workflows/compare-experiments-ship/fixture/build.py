@@ -1,4 +1,4 @@
-"""Run the generator shared with `compare-experiments`, which builds both tasks.
+"""Runs the generator in `compare-experiments`, which builds both twins.
 
 Run from the repository root:
 

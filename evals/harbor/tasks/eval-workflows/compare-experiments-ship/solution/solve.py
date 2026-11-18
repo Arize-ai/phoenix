@@ -1,4 +1,4 @@
-"""Reference solution: compare the two prompts' pass rates, counting every repetition."""
+"""Compares the two prompts' pass rates over every repetition and writes the ship call."""
 
 from __future__ import annotations
 
@@ -29,6 +29,8 @@ def results(experiment_id: str) -> tuple[dict[str, list[bool]], list[tuple[str, 
 
 
 class Rates:
+    """A prompt's per-run and all-repetitions pass counts on a group of examples."""
+
     def __init__(self, passed: dict[str, list[bool]], ids: list[str]) -> None:
         runs = [ok for i in ids for ok in passed.get(i, [])]
         self.runs_passed, self.runs = sum(runs), len(runs)

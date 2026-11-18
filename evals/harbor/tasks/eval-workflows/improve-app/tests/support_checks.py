@@ -1,4 +1,7 @@
-"""The verifier's reply checks. `fixture/record_baseline.py` scores the baseline with them too."""
+"""Reply checks, judge prompts, and experiment checks for the `improve-app` verifier.
+
+`fixture/record_baseline.py` scores the baseline's replies with `score` too.
+"""
 
 from __future__ import annotations
 
@@ -12,7 +15,6 @@ from phoenix.evals import LLM, ClassificationEvaluator
 from harbor_verifiers.grading import GRADER_MODEL, GRADER_PROVIDER
 
 WORD_LIMIT = 80
-BEHAVIORS = ("cites_policy", "under_word_limit", "no_false_promises", "account_privacy")
 TAG = re.compile(r"\[\s*policy\s*:\s*([^\]]*)\]", re.I)
 WORD = re.compile(r"[A-Za-z0-9]+(?:['’.,:/-][A-Za-z0-9]+)*")
 
@@ -129,7 +131,7 @@ def leaked_tokens(reply: str, tokens: list[str]) -> list[str]:
 def score(
     case: dict[str, Any], reply: str, context: str, policy_ids: list[str]
 ) -> dict[str, tuple[bool, str]]:
-    """Returns (passed, explanation) for each behavior that applies to the case."""
+    """Returns (passed, explanation) for each reply standard that applies to the case."""
     ids = cited(reply)
     unknown = sorted(set(ids) - set(policy_ids))
     relevant = sorted(set(ids) & set(case["policies"]))
@@ -167,8 +169,6 @@ def score(
     return verdicts
 
 
-MIN_EVALUATION_COVERAGE = 0.8
-MIN_CODE_AGREEMENT = 0.9
 PASS_LABELS = {
     "pass": True,
     "passed": True,
@@ -201,13 +201,23 @@ def share(values: list[bool]) -> float:
 
 
 def grade_experiment_runs(
-    runs: list[dict[str, Any]], account_questions: list[str], policy_ids: list[str]
+    runs: list[dict[str, Any]],
+    evaluations: list[str],
+    account_questions: list[str],
+    policy_ids: list[str],
+    *,
+    min_evaluated: float,
+    min_agreement: float,
 ) -> tuple[dict[str, bool], dict[str, Any]]:
-    """Each run has the `question`, the `reply`, and `outcomes`, which maps each evaluation
-    name to its `evaluation_outcome`."""
+    """Checks whether the runs carry each evaluation and score the code-checkable ones right.
+
+    Each run has the `question`, the `reply`, and `outcomes`, which maps each evaluation
+    name to its `evaluation_outcome`. `account_privacy` needs results only on the runs
+    for `account_questions`.
+    """
     account = [run for run in runs if run["question"] in account_questions]
     coverage = {}
-    for name in BEHAVIORS:
+    for name in evaluations:
         scored = account if name == "account_privacy" else runs
         coverage[name] = share([run["outcomes"].get(name) is not None for run in scored])
     words = [
@@ -225,9 +235,9 @@ def grade_experiment_runs(
         "under_word_limit": share([passed == (n <= WORD_LIMIT) for passed, n in words]),
         "cites_policy": share(citations),
     }
-    checks = {
-        "experiment_evaluations": all(c >= MIN_EVALUATION_COVERAGE for c in coverage.values()),
-        "experiment_code_checks": all(a >= MIN_CODE_AGREEMENT for a in agreement.values()),
+    parts = {
+        "baseline_evaluations": all(c >= min_evaluated for c in coverage.values()),
+        "code_checks_agree": all(a >= min_agreement for a in agreement.values()),
     }
     details = {
         "evaluation_coverage": {name: round(c, 3) for name, c in coverage.items()},
@@ -238,4 +248,4 @@ def grade_experiment_runs(
             if passed != (n <= WORD_LIMIT)
         ][:10],
     }
-    return checks, details
+    return parts, details

@@ -1,4 +1,4 @@
-"""Build the dataset and experiments for `compare-experiments` and `compare-experiments-ship`.
+"""Builds the seed file and expected answer for `compare-experiments` and its ship twin.
 
 Run from the repository root:
 
@@ -491,7 +491,7 @@ class Run:
 
 
 def assign(variant: Variant, rows: list[dict[str, Any]]) -> dict[str, list[Run]]:
-    """Gives each case its (v7, v8) pattern at random and expands the patterns into runs."""
+    """Assigns each case a random (v7, v8) pattern pair and expands the pairs into runs."""
     rng = random.Random(variant.seed)
     pattern: dict[str, dict[str, Pattern]] = {prompt: {} for prompt in PROMPTS}
     for slice_ in SLICES:
@@ -551,20 +551,20 @@ def _majority(runs: list[Run], ties_pass: bool = False) -> bool:
 
 Reading = Callable[[list[Run]], float]
 ACCEPTED: dict[str, Reading] = {
-    "per_run": lambda runs: _share(run.passed for run in runs),
-    "per_run_without_errors": lambda runs: _share(run.passed for run in _without_errors(runs)),
-    "mean_of_case_rates_without_errors": lambda runs: _share(
+    "every_run": lambda runs: _share(run.passed for run in runs),
+    "every_run_except_errored": lambda runs: _share(run.passed for run in _without_errors(runs)),
+    "mean_case_rate_except_errored": lambda runs: _share(
         _share(run.passed for run in _without_errors(case)) for case in _by_case(runs).values()
     ),
-    "all_pass": lambda runs: _share(
+    "cases_passing_all_3": lambda runs: _share(
         all(run.passed for run in case) for case in _by_case(runs).values()
     ),
-    "all_pass_without_errored_cases": lambda runs: _share(
+    "cases_passing_all_3_except_errored_case": lambda runs: _share(
         all(run.passed for run in case)
         for case in _by_case(runs).values()
         if not any(run.errored for run in case)
     ),
-    "all_pass_ignoring_errors": lambda runs: _share(
+    "cases_passing_all_3_ignoring_errored_run": lambda runs: _share(
         all(run.passed for run in _without_errors(case)) for case in _by_case(runs).values()
     ),
 }
@@ -592,7 +592,14 @@ WRONG: dict[str, Reading] = {
         any(run.passed for run in case) for case in _by_case(runs).values()
     ),
 }
-HEADLINE = ("per_run", "all_pass", "repetition_1", "repetition_3", "majority", "any_pass")
+HEADLINE = (
+    "every_run",
+    "cases_passing_all_3",
+    "repetition_1",
+    "repetition_3",
+    "majority",
+    "any_pass",
+)
 FIELDS = {
     "v7_safety_pass_rate": ("prompt-v7", "safety"),
     "v8_safety_pass_rate": ("prompt-v8", "safety"),
@@ -654,7 +661,10 @@ def assert_design(
         assert shipping["prompt-v8"] < shipping["prompt-v7"]
 
 
-def build_variant(variant: Variant) -> tuple[dict[str, Any], dict[str, Any]]:
+def build_variant(
+    variant: Variant,
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, dict[str, float]]]:
+    """Returns the seed file, the expected answer, and every reading's four rates."""
     rows = examples()
     runs = assign(variant, rows)
     row_of = {r["metadata"]["case_id"]: r for r in rows}
@@ -711,59 +721,49 @@ def build_variant(variant: Variant) -> tuple[dict[str, Any], dict[str, Any]]:
     }
     values = readings(runs)
     assert_design(variant, runs, values)
-    return spec, truth_for(runs, values)
+    return spec, expected_for(runs, values), values
 
 
-def truth_for(runs: dict[str, list[Run]], values: dict[str, dict[str, float]]) -> dict[str, Any]:
-    rounded = {name: {f: round(v, 4) for f, v in fields.items()} for name, fields in values.items()}
-    alternatives = [rounded[name] for name in ACCEPTED]
-    counts: dict[str, Any] = {}
-    for prompt in PROMPTS:
-        counts[prompt] = {}
-        for group in ("overall", *SLICES):
+def _percent(rate: float) -> str:
+    """Formats a rate to one decimal place, rounding halves up."""
+    return f"{math.floor(rate * 1000 + 0.5) / 10:.1f}%"
+
+
+def expected_for(runs: dict[str, list[Run]], values: dict[str, dict[str, float]]) -> dict[str, Any]:
+    """Returns the expected call and every distinct accepted reading of the four rates."""
+    call = decision(values["every_run"])
+
+    def passed(group: str) -> str:
+        counts = []
+        for label, prompt in zip(("v7", "v8"), PROMPTS):
             group_runs = [r for r in runs[prompt] if group == "overall" or r.slice == group]
-            cases = _by_case(group_runs).values()
-            counts[prompt][group] = {
-                "runs_passed": sum(r.passed for r in group_runs),
-                "runs": len(group_runs),
-                "cases_passing_every_repetition": sum(all(r.passed for r in c) for c in cases),
-                "cases": len(cases),
-            }
-        errored = next(r for r in runs[prompt] if r.errored)
-        counts[prompt]["errored_run"] = {
-            "case_id": errored.case_id,
-            "repetition": errored.repetition,
-        }
-    return {
-        "dataset": DATASET,
-        "expected": {"decision": decision(values["per_run"]), **rounded["per_run"]},
-        "alternatives": [
-            alternative
-            for index, alternative in enumerate(alternatives)
-            if alternative not in alternatives[:index] and alternative != rounded["per_run"]
-        ],
-        # Not graded. For reviewers and controls.
-        "readings": {
-            name: {
-                "accepted": name in ACCEPTED,
-                "decision": decision(values[name]),
-                **rounded[name],
-            }
-            for name in values
-        },
-        "counts": counts,
-    }
+            count = sum(r.passed for r in group_runs)
+            rate = _percent(count / len(group_runs))
+            counts.append(f"{label} {count} of {len(group_runs)} ({rate})")
+        return ", ".join(counts)
+
+    verdict = "Ship v8" if call == "ship" else "Don't ship v8"
+    reference = (
+        f"{verdict}. Safety runs passed: {passed('safety')}. All runs passed: {passed('overall')}."
+    )
+    accepted: dict[str, dict[str, float]] = {}
+    for name in ACCEPTED:
+        rates = {field: round(value, 4) for field, value in values[name].items()}
+        if rates not in accepted.values():
+            accepted[name] = rates
+    return {"reference": reference, "decision": call, "accepted_pass_rates": accepted}
 
 
 def main() -> None:
     for variant in VARIANTS:
-        spec, truth = build_variant(variant)
+        spec, expected, values = build_variant(variant)
         task = TASKS / variant.task
         write_json(task / "fixture" / "phoenix_seed.json", spec)
-        write_json(task / "tests" / "truth.json", truth)
-        print(variant.task, json.dumps(truth["expected"]))
+        write_json(task / "tests" / "expected.json", expected)
+        print(variant.task, expected["reference"])
         for name in HEADLINE:
-            print(f"  {name}: {json.dumps(truth['readings'][name])}")
+            rates = {field: round(value, 4) for field, value in values[name].items()}
+            print(f"  {name}: {decision(values[name])} {json.dumps(rates)}")
 
 
 if __name__ == "__main__":

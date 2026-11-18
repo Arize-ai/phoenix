@@ -1,4 +1,4 @@
-"""Grades `curate-labels`: `grounding-golden` holds exactly the eligible reviewed traces."""
+"""Grades `curate-labels`: `grounding-golden` holds each settled trace with its latest verdict."""
 
 from __future__ import annotations
 
@@ -9,10 +9,11 @@ from typing import Any
 
 from harbor_verifiers import evals_state, grading
 
-TRUTH = grading.load_test_json("truth.json")
-PROJECT, DATASET = TRUTH["project"], TRUTH["dataset"]
-ELIGIBLE: dict[str, str] = TRUTH["eligible"]
-TRACES: dict[str, dict[str, Any]] = TRUTH["traces"]
+DATASET = grading.load_test_json("expected.json")["dataset"]
+GRADING_DATA = grading.load_test_json("grading_data.json")
+PROJECT = GRADING_DATA["project"]
+ELIGIBLE: dict[str, str] = GRADING_DATA["eligible"]
+TRACES: dict[str, dict[str, Any]] = GRADING_DATA["traces"]
 
 VERDICT_WORDS = {
     "supported": "supported",
@@ -118,11 +119,9 @@ leaked = {
     if trace in TRACES and (found := leaks(example.get("input"), TRACES[trace]))
 }
 
-checks["linked_to_traces"] = bool(rows) and unlinked == 0
-checks["correct_traces"] = bool(rows) and not (missing or extra or repeated)
-checks["correct_labels"] = bool(counts) and not wrong_labels
-checks["correct_inputs"] = bool(counts) and not bad_inputs
-checks["no_label_in_input"] = bool(counts) and not leaked
+checks["settled_traces"] = bool(rows) and not (unlinked or missing or extra or repeated)
+checks["latest_verdicts"] = bool(counts) and not wrong_labels
+checks["inputs"] = bool(counts) and not (bad_inputs or leaked)
 
 
 def by_category(traces: list[str] | dict[str, Any]) -> dict[str, int]:
@@ -132,7 +131,7 @@ def by_category(traces: list[str] | dict[str, Any]) -> dict[str, int]:
 details.update(
     dataset_found=dataset is not None,
     examples=len(rows),
-    eligible=len(ELIGIBLE),
+    settled=len(ELIGIBLE),
     unlinked=unlinked,
     missing=by_category(missing),
     extra=by_category(extra),

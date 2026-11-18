@@ -1,6 +1,5 @@
 {
- "project": "refund-decisions",
- "hidden": {
+ "production_traces": {
   "labels": {
    "c2c15e279eaf424d83b00c4ebc81eeec": true,
    "379943fccb5ede44e4d05aa7ba6ab9ea": false,
@@ -86,7 +85,7 @@
    "06cc8824ddac0f8cb031e5e8e748e6ce": "full_refund"
   }
  },
- "unseen": {
+ "new_traces": {
   "spans": [
    {
     "name": "refund-agent",

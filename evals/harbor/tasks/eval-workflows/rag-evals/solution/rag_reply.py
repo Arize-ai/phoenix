@@ -1,4 +1,4 @@
-"""Write the reference reply for `rag-evals` from the summary `rag_evals.py` prints."""
+"""Writes the reference reply from the summary that `rag_evals.py` prints last."""
 
 from __future__ import annotations
 

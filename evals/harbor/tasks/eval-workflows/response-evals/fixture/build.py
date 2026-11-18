@@ -1,4 +1,4 @@
-"""Build the refund-bot traces for `response-evals`.
+"""Builds the refund-bot traces and hidden answers for `response-evals`.
 
 Run from the repository root:
 
@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import random
+import re
 import sys
 from datetime import timedelta
 from pathlib import Path
@@ -20,6 +21,9 @@ from support_traces import BASE, Trace, write_json  # noqa: E402
 
 PROJECT = "refund-bot"
 CRITERIA = ("valid_format", "correct_amount", "no_pii_leak", "grounded")
+FAIL_RATES = {"valid_format": 0.25, "correct_amount": 0.3, "no_pii_leak": 0.25, "grounded": 0.35}
+MIN_RECALL = {"valid_format": 0.9, "correct_amount": 0.9, "no_pii_leak": 0.9, "grounded": 0.8}
+MIN_COVERAGE = 0.95
 SYSTEM_PROMPT = (HERE.parent / "workdir" / "refund_bot.py").read_text().split('"""')[3].strip()
 
 POLICIES = {
@@ -94,6 +98,9 @@ BROKEN_FORMATS = {
     "visible": ["fence", "trailing_text", "string_amount"],
     "unseen": ["preamble", "plain_fence", "string_amount"],
 }
+EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
+PHONE = re.compile(r"\b\d{3}-\d{3}-\d{4}\b")
+UNSUPPORTED = [claim for claims in UNSUPPORTED_CLAIMS.values() for _, claim in claims]
 
 
 def money(value: float) -> float:
@@ -137,8 +144,8 @@ def write_message(
     own_ticket: dict[str, Any] | None,
     other_ticket: dict[str, Any],
 ) -> str:
-    """Swaps one supported claim for an unsupported one in an ungrounded message, so
-    sentence count and position don't reveal the label."""
+    """Returns the reply message, with one supported claim swapped for an unsupported one
+    when `grounded` fails, so sentence count and position don't reveal the label."""
     topics = rng.sample(sorted(claims), rng.choice((1, 2, 3)))
     body = [claims[topic] for topic in topics]
     if "grounded" in defects:
@@ -282,14 +289,38 @@ def make_case(index: int, split: str, rng: random.Random, defects: set[str]) -> 
     )
     trace.finish(customer_message, reply)
     labels = {criterion: criterion not in defects for criterion in CRITERIA}
+    check_labels(labels, reply, message, order)
     return {"trace_id": trace.trace_id, "spans": trace.spans, "labels": labels}
+
+
+def check_labels(labels: dict[str, bool], reply: str, message: str, order: dict[str, Any]) -> None:
+    """Asserts that each label follows from the reply, the order record, and the list of
+    unsupported claims."""
+    try:
+        strict = json.loads(reply)
+    except ValueError:
+        strict = None
+    assert labels["valid_format"] == (
+        isinstance(strict, dict)
+        and type(strict["refund_amount"]) in (int, float)
+        and isinstance(strict["message"], str)
+    )
+    stated = json.loads(reply[reply.index("{") : reply.rindex("}") + 1])["refund_amount"]
+    amount = float(str(stated).lstrip("$"))
+    assert labels["correct_amount"] == (abs(amount - order["refundable_amount"]) < 0.005)
+    others = set(EMAIL.findall(message)) - {order["customer_email"]}
+    assert labels["no_pii_leak"] == (not others and not PHONE.search(message))
+    assert sum(claim in message for claim in UNSUPPORTED) == (0 if labels["grounded"] else 1)
 
 
 def build_split(split: str, count: int, seed: int) -> list[dict[str, Any]]:
     rng = random.Random(seed)
-    rates = {"valid_format": 0.25, "correct_amount": 0.3, "no_pii_leak": 0.25, "grounded": 0.35}
-    bad = {c: set(rng.sample(range(count), round(count * rate))) for c, rate in rates.items()}
+    bad = {c: set(rng.sample(range(count), round(count * r))) for c, r in FAIL_RATES.items()}
     return [make_case(i, split, rng, {c for c in CRITERIA if i in bad[c]}) for i in range(count)]
+
+
+def failing(cases: list[dict[str, Any]]) -> dict[str, int]:
+    return {c: sum(not case["labels"][c] for case in cases) for c in CRITERIA}
 
 
 def main() -> None:
@@ -299,20 +330,37 @@ def main() -> None:
         HERE / "phoenix_seed.json",
         {"projects": {PROJECT: [span for case in visible for span in case["spans"]]}},
     )
+    production, new = failing(visible), failing(unseen)
+    most, *rest = sorted(CRITERIA, key=lambda c: -production[c])
     write_json(
-        HERE.parent / "tests" / "truth.json",
+        HERE.parent / "tests" / "expected.json",
         {
-            "project": PROJECT,
-            "visible": {case["trace_id"]: case["labels"] for case in visible},
-            "unseen": {
+            "reference": (
+                "The pass or fail annotations for the four requirements agree with the hidden "
+                f"labels, within the recall bars below, on the {len(visible)} production traces "
+                f"and on the {len(unseen)} new traces the nightly script scores. On the "
+                f"production traces, {most} fails most often ({production[most]} of "
+                f"{len(visible)}), then "
+                + ", ".join(f"{c} ({production[c]})" for c in rest[:-1])
+                + f", and {rest[-1]} ({production[rest[-1]]})."
+            ),
+            "min_coverage": MIN_COVERAGE,
+            "min_recall": MIN_RECALL,
+            "production_traces": {"traces": len(visible), "failing": production},
+            "new_traces": {"traces": len(unseen), "failing": new},
+        },
+    )
+    write_json(
+        HERE.parent / "tests" / "grading_data.json",
+        {
+            "production_traces": {"labels": {case["trace_id"]: case["labels"] for case in visible}},
+            "new_traces": {
                 "spans": [span for case in unseen for span in case["spans"]],
                 "labels": {case["trace_id"]: case["labels"] for case in unseen},
             },
         },
     )
-    for name, cases in (("visible", visible), ("unseen", unseen)):
-        counts = {c: sum(not case["labels"][c] for case in cases) for c in CRITERIA}
-        print(name, len(cases), "failing per requirement:", counts)
+    print("Failing per requirement:", {"production": production, "new": new})
 
 
 if __name__ == "__main__":

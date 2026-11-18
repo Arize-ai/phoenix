@@ -1,0 +1,27 @@
+{
+ "reference": "Retrieval is the bigger problem. No retrieved passage answers the question in 22 of 54 traces, and only 5 answers are ungrounded when the right passage was retrieved. Correct `relevant` annotations mark 32 of 216 documents relevant, correct `grounded` annotations mark 39 of 54 answers grounded, and the nightly script labels the 24 new traces the same way.",
+ "bigger_problem": "retrieval",
+ "min_coverage": 0.95,
+ "min_recall": {
+  "relevant": 0.85,
+  "grounded": 0.8
+ },
+ "production_traces": {
+  "traces": 54,
+  "relevant_documents": 32,
+  "irrelevant_documents": 184,
+  "grounded_answers": 39,
+  "ungrounded_answers": 15,
+  "retrieval_misses": 22,
+  "ungrounded_after_hit": 5
+ },
+ "new_traces": {
+  "traces": 24,
+  "relevant_documents": 15,
+  "irrelevant_documents": 81,
+  "grounded_answers": 13,
+  "ungrounded_answers": 11,
+  "retrieval_misses": 9,
+  "ungrounded_after_hit": 5
+ }
+}

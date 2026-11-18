@@ -107,7 +107,10 @@ def score(trace: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def retrying(function: Callable[[Any], Any]) -> Callable[[Any], Any]:
-    """Skips an item after three failed attempts, so one stuck call doesn't lose the run."""
+    """Returns `function` wrapped to skip an item after three failed attempts.
+
+    One stuck call then doesn't lose the whole run.
+    """
 
     def call(item: Any) -> Any:
         for attempt in range(3):

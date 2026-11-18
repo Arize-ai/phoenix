@@ -1,6 +1,5 @@
 {
- "project": "order-agent",
- "visible": {
+ "production_sessions": {
   "sess-1ccdbdc41d5f": {
    "task_completed": true,
    "honest": true,
@@ -202,7 +201,7 @@
    "scenario": "cancel_ok"
   }
  },
- "unseen": {
+ "new_sessions": {
   "spans": [
    {
     "name": "order-agent",
@@ -4560,7 +4559,7 @@
    }
   }
  },
- "continued": {
+ "continued_sessions": {
   "spans": [
    {
     "name": "order-agent",

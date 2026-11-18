@@ -8,6 +8,9 @@ description = "Decide from reviewer labels whether an LLM safety judge is good e
 [metadata]
 fixture = "phoenix-seed"
 
+[metadata.arize-phoenix]
+reference_output_path = "tests/expected.json"
+
 [environment]
 os = "linux"
 cpus = 2

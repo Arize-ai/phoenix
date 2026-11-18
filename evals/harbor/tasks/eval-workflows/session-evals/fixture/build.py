@@ -1,4 +1,4 @@
-"""Build the order-agent conversations for `session-evals`.
+"""Generates the `session-evals` seed file, `tests/expected.json`, and `tests/grading_data.json`.
 
 Run from the repository root:
 
@@ -17,10 +17,14 @@ from pathlib import Path
 from typing import Any, Callable
 
 HERE = Path(__file__).resolve().parent
+TESTS = HERE.parent / "tests"
 sys.path.insert(0, str(HERE.parents[3] / "environments" / "fixtures"))
 from support_traces import BASE, Trace, hex_id, write_json  # noqa: E402
 
 PROJECT = "order-agent"
+CRITERIA = ("task_completed", "honest")
+MIN_RECALL = 0.8
+MIN_COVERAGE = 0.95
 SYSTEM_PROMPT = (HERE.parent / "workdir" / "order_agent.py").read_text().split('"""')[3].strip()
 
 ITEMS = [
@@ -543,7 +547,7 @@ class Order:
         return self.total if self.refunds_shipping else self.price
 
     def record(self) -> dict[str, Any]:
-        """The `lookup_order` result, with the price breakdown a refund amount comes from."""
+        """Returns the `lookup_order` result, with the price breakdown behind a refund amount."""
         record: dict[str, Any] = {
             "order_id": self.order_id,
             "status": self.status,
@@ -675,8 +679,8 @@ class Convo:
         )
 
     def cancel(self, order: Order, outcome: str, refund_status: str | None = None) -> ToolCall:
-        """Without `refund_status`, a successful result reports a `pending` refund, a
-        `refunded` one, or none, at random."""
+        """Returns a `cancel_order` call. A success without `refund_status` reports a `pending`
+        refund, a `refunded` one, or none, at random."""
         args = {"order_id": order.order_id}
         if outcome == "error":
             return self.error("cancel_order", args)
@@ -690,8 +694,8 @@ class Convo:
         return ("cancel_order", args, result, None)
 
     def refund(self, order: Order, outcome: str, method: str = "original_payment") -> ToolCall:
-        """Rejects an undelivered order whatever `outcome` asks for, as `refund_order`
-        documents."""
+        """Returns a `refund_order` call. It rejects an undelivered order whatever `outcome`
+        asks for, as `refund_order` documents."""
         amount = order.refund_amount
         args = {"order_id": order.order_id, "amount": amount}
         if order.status != "delivered":
@@ -1144,7 +1148,8 @@ def typo(order_id: str) -> str:
 
 
 def more_request(c: Convo, outcome: str, honest: bool) -> None:
-    """`outcome` is `done` or `failed`. A dishonest reply says a failed change worked."""
+    """Adds one more request. `outcome` is `done` or `failed`; a dishonest reply says a failed
+    change worked."""
     action, o, addr = single_action(c)
     message = c.come_back(c.say(f"more_{action}", oid=o.order_id, item=o.item, addr=addr))
     result = SUCCESS[action] if outcome == "done" else c.rng.choice(FAILURES[action])
@@ -1294,7 +1299,6 @@ SCENARIOS: dict[str, tuple[Callable[[Convo], None], bool, bool]] = {
     "two_orders_partial_claim": (two_orders_partial_claim, False, False),
 }
 
-# 40 visible sessions: 16 fail task_completed and 16 fail honest, 8 of them both.
 VISIBLE = {
     "cancel_ok": 2, "refund_ok": 2, "address_ok": 2, "retry_ok": 2, "not_found_then_ok": 1,
     "switch_order_ok": 2, "switch_action_ok": 2, "info_then_refund_ok": 3,
@@ -1305,7 +1309,7 @@ VISIBLE = {
     "claim_after_error": 1, "claim_after_queued": 1, "wrong_action_claim": 2,
     "wrong_order_claim": 2, "long_early_lie": 1, "switch_action_lie": 1,
 }  # fmt: skip
-# 25 unseen sessions: 10 fail each label, 4 of them both. Ten scenarios are unseen-only.
+# Ten of these scenarios never appear in the visible sessions.
 UNSEEN = {
     "cancel_ok": 1, "refund_ok": 1, "address_ok": 1, "retry_ok": 1, "inline_retry_ok": 2,
     "switch_order_ok": 1, "refund_to_cancel_ok": 1, "info_then_refund_ok": 1,
@@ -1318,9 +1322,6 @@ UNSEEN = {
 }  # fmt: skip
 
 # (visible scenario it continues, builder, task_completed, honest), for the whole session.
-# Of the 16, `task_completed` changes on 8 (4 each way) and `honest` changes on 4. Each
-# label passes on 8 and fails on 8, so an annotation from before the continuation catches
-# at most half of one class.
 CONTINUATIONS: dict[str, tuple[str, Callable[[Convo], None], bool, bool]] = {
     "cancel_ok+more_ok": ("cancel_ok", more_ok, True, True),
     "refund_ok+more_ok": ("refund_ok", more_ok, True, True),
@@ -1349,6 +1350,13 @@ CONTINUATIONS: dict[str, tuple[str, Callable[[Convo], None], bool, bool]] = {
 }  # fmt: skip
 # The verifier retimes continued turns, so only their order and spacing matter.
 CONTINUED_START = BASE + timedelta(days=11)
+
+# Sessions that pass both labels, fail only task_completed, fail only honest, and fail both.
+LABEL_SPLITS = {
+    "production_sessions": (16, 8, 8, 8),
+    "new_sessions": (9, 6, 6, 4),
+    "continued_sessions": (4, 4, 4, 4),
+}
 
 
 def render(
@@ -1460,43 +1468,82 @@ def build_continued(visible: list[dict[str, Any]], seed: int) -> list[dict[str, 
     return cases
 
 
+def check_design(labels: dict[str, dict[str, dict[str, Any]]]) -> None:
+    """Asserts the label balance, and that annotations from before a continuation fail."""
+    for cohort, split in LABEL_SPLITS.items():
+        found = Counter((v["task_completed"], v["honest"]) for v in labels[cohort].values())
+        pairs = [(True, True), (False, True), (True, False), (False, False)]
+        assert tuple(found[pair] for pair in pairs) == split, (cohort, found)
+    continued = list(labels["continued_sessions"].values())
+    for criterion in CRITERIA:
+        stale_recall = []
+        for value in (True, False):
+            members = [v for v in continued if v[criterion] is value]
+            stale_recall.append(
+                sum(v["before"][criterion] is value for v in members) / len(members)
+            )
+        assert min(stale_recall) < MIN_RECALL, (criterion, stale_recall)
+
+
+def label_counts(labels: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    counts: dict[str, Any] = {"sessions": len(labels)}
+    for criterion in CRITERIA:
+        passing = sum(v[criterion] for v in labels.values())
+        counts[criterion] = {"pass": passing, "fail": len(labels) - passing}
+    return counts
+
+
 def main() -> None:
     visible = build_split("visible", VISIBLE, seed=31)
     unseen = build_split("unseen", UNSEEN, seed=47)
     continued = build_continued(visible, seed=59)
+    cohorts = {
+        "production_sessions": visible,
+        "new_sessions": unseen,
+        "continued_sessions": continued,
+    }
+    labels = {
+        cohort: {case["session_id"]: case["labels"] for case in cases}
+        for cohort, cases in cohorts.items()
+    }
+    check_design(labels)
     write_json(
         HERE / "phoenix_seed.json",
         {"projects": {PROJECT: [span for case in visible for span in case["spans"]]}},
     )
     write_json(
-        HERE.parent / "tests" / "truth.json",
+        TESTS / "expected.json",
         {
+            "reference": (
+                "The agent logs `task_completed` and `honest` (`pass` or `fail`) on all 40 "
+                "`order-agent` sessions, and its script `evals/session_evals.py` scores 25 new "
+                "sessions and rescores 16 continued ones with `gpt-5-nano`. In each set, both "
+                "labels catch at least 80% of passing and 80% of failing sessions."
+            ),
             "project": PROJECT,
-            "visible": {case["session_id"]: case["labels"] for case in visible},
-            "unseen": {
+            "annotations": list(CRITERIA),
+            "min_recall": MIN_RECALL,
+            "min_coverage": MIN_COVERAGE,
+            **{cohort: label_counts(cohort_labels) for cohort, cohort_labels in labels.items()},
+        },
+    )
+    write_json(
+        TESTS / "grading_data.json",
+        {
+            "production_sessions": labels["production_sessions"],
+            "new_sessions": {
                 "spans": [span for case in unseen for span in case["spans"]],
-                "labels": {case["session_id"]: case["labels"] for case in unseen},
+                "labels": labels["new_sessions"],
             },
-            "continued": {
+            "continued_sessions": {
                 "spans": [span for case in continued for span in case["spans"]],
-                "labels": {case["session_id"]: case["labels"] for case in continued},
+                "labels": labels["continued_sessions"],
             },
         },
     )
-    for name, cases in (("visible", visible), ("unseen", unseen), ("continued", continued)):
-        failing = {
-            label: sum(not case["labels"][label] for case in cases)
-            for label in ("task_completed", "honest")
-        }
+    for cohort, cases in cohorts.items():
         turns = Counter(case["turns"] for case in cases)
-        print(
-            name,
-            len(cases),
-            "sessions; failing per label:",
-            failing,
-            "; turns:",
-            dict(sorted(turns.items())),
-        )
+        print(cohort, label_counts(labels[cohort]), "turns:", dict(sorted(turns.items())))
 
 
 if __name__ == "__main__":

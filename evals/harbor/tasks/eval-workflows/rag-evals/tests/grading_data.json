@@ -1,7 +1,6 @@
 {
  "project": "policy-rag",
- "bigger_problem": "retrieval",
- "visible": {
+ "production_traces": {
   "relevant": {
    "08b08ee0d8516d00:0": false,
    "08b08ee0d8516d00:1": false,
@@ -549,7 +548,7 @@
    }
   }
  },
- "unseen": {
+ "new_traces": {
   "spans": [
    {
     "name": "rag-query",

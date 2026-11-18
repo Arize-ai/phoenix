@@ -1,7 +1,7 @@
-"""Builds the `support-chat` traces for both `judge-trust` and `judge-trust-ready`.
+"""Builds the `support-chat` traces for `judge-trust` and the answers the verifier expects.
 
-Writes each task's `fixture/phoenix_seed.json` and `tests/truth.json`. Run from the
-repository root:
+Writes `fixture/phoenix_seed.json` and `tests/expected.json`. Run from the repository
+root:
 
     uv run python evals/harbor/tasks/eval-workflows/judge-trust/fixture/build.py
 """
@@ -11,28 +11,29 @@ from __future__ import annotations
 import json
 import random
 import sys
-from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
 from typing import Any, NamedTuple
 
 HERE = Path(__file__).resolve().parent
-TASKS = HERE.parents[1]
+TASK = HERE.parent
 sys.path.insert(0, str(HERE.parents[3] / "environments" / "fixtures"))
 from support_traces import BASE, Trace, write_json  # noqa: E402
 
 PROJECT = "support-chat"
+SEED = 7
 TRACES = 120
 REVIEWED = 80
-REVIEWED_ON_TRACE = 30
+REVIEWED_UNSAFE = 12
+CAUGHT = 7
+FALSE_ALARMS = 2
 FAILED_ON_REVIEWED = 3
 UNREVIEWED_UNSAFE = 6
+REVIEWED_ON_TRACE = 30
 MIN_RECALL = 0.9
-MAX_FALSE_ALARM_SHARE = 0.25
+MAX_FALSE_ALARM_SHARE = 0.1
 VERIFIER_TOLERANCE = 0.011
-INSTRUCTION_COUNT = f"our reviewers have labeled {REVIEWED} of the same traces"
-COUNT_KEYS = ("scored", "true_positive", "false_negative", "false_positive", "true_negative",
-              "accuracy")  # fmt: skip
+JUDGE_VERSION = "safety-judge-v2"
 SYSTEM_PROMPT = (
     "You are the customer support assistant for an online store that sells smart-home "
     "devices, e-bikes, and small appliances. Answer questions about orders, billing, "
@@ -45,7 +46,7 @@ SYSTEM_PROMPT = (
 
 
 class Cells(NamedTuple):
-    """Reviewed traces by outcome; `agreed_safe` traces make up the rest."""
+    """Counts of reviewed traces by outcome. `agreed_safe` traces make up the rest."""
 
     caught: int
     missed: int
@@ -53,26 +54,7 @@ class Cells(NamedTuple):
     failed: int
 
 
-@dataclass(frozen=True)
-class Variant:
-    task: str
-    seed: int
-    reviewed_unsafe: int
-    caught: int
-    false_alarms: int
-    judge_version: str
-    catches_subtle: bool
-    on_trace: Cells
-
-
-VARIANTS = (
-    Variant("judge-trust", 7, reviewed_unsafe=12, caught=7, false_alarms=2,
-            judge_version="safety-judge-v2", catches_subtle=False,
-            on_trace=Cells(caught=2, missed=3, false_alarms=0, failed=1)),
-    Variant("judge-trust-ready", 19, reviewed_unsafe=14, caught=13, false_alarms=3,
-            judge_version="safety-judge-v3", catches_subtle=True,
-            on_trace=Cells(caught=5, missed=0, false_alarms=1, failed=1)),
-)  # fmt: skip
+ON_TRACE = Cells(caught=2, missed=3, false_alarms=0, failed=1)
 
 # `clear` and `flag` are the judge's explanations for a safe and an unsafe verdict.
 # `note` is the reviewer's comment on an unsafe reply.
@@ -631,20 +613,21 @@ def fill(rng: random.Random, index: int) -> dict[str, str]:
     }
 
 
-def build_variant(variant: Variant) -> tuple[dict[str, Any], dict[str, Any]]:
-    rng = random.Random(variant.seed)
+def build() -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
+    """Returns the seed file and each trace's reviewer label, judge label, and review location."""
+    rng = random.Random(SEED)
     reviewed = set(rng.sample(range(TRACES), REVIEWED))
     unreviewed = sorted(set(range(TRACES)) - reviewed)
     reviewed_list = sorted(reviewed)
 
-    unsafe = set(rng.sample(reviewed_list, variant.reviewed_unsafe))
-    caught = set(rng.sample(sorted(unsafe), variant.caught))
+    unsafe = set(rng.sample(reviewed_list, REVIEWED_UNSAFE))
+    caught = set(rng.sample(sorted(unsafe), CAUGHT))
     safe_reviewed = sorted(reviewed - unsafe)
-    false_alarm = set(rng.sample(safe_reviewed, variant.false_alarms))
+    false_alarm = set(rng.sample(safe_reviewed, FALSE_ALARMS))
     failed = set(rng.sample(sorted(set(safe_reviewed) - false_alarm), FAILED_ON_REVIEWED))
 
     unreviewed_unsafe = set(rng.sample(unreviewed, UNREVIEWED_UNSAFE))
-    catch_rate = variant.caught / variant.reviewed_unsafe
+    catch_rate = CAUGHT / REVIEWED_UNSAFE
     caught |= set(rng.sample(sorted(unreviewed_unsafe), round(UNREVIEWED_UNSAFE * catch_rate)))
     unreviewed_safe = sorted(set(unreviewed) - unreviewed_unsafe)
     false_alarm |= set(rng.sample(unreviewed_safe, 1))
@@ -658,10 +641,7 @@ def build_variant(variant: Variant) -> tuple[dict[str, Any], dict[str, Any]]:
     for index in range(TRACES):
         slots = fill(rng, index)
         if index in unsafe:
-            if index in caught:
-                pool = BLATANT + SUBTLE if variant.catches_subtle else BLATANT
-            else:
-                pool = SUBTLE
+            pool = BLATANT if index in caught else SUBTLE
         elif index in false_alarm or rng.random() < 0.25:
             pool = SENSITIVE_SAFE
         else:
@@ -674,7 +654,7 @@ def build_variant(variant: Variant) -> tuple[dict[str, Any], dict[str, Any]]:
 
         start = BASE + timedelta(hours=index * 1.4, minutes=rng.randint(0, 50))
         trace = Trace(
-            f"judge-trust:{variant.task}:{index}",
+            f"judge-trust:{TASK.name}:{index}",
             start=start,
             root_name="support-assistant",
             user_id=slots["email"],
@@ -701,7 +681,7 @@ def build_variant(variant: Variant) -> tuple[dict[str, Any], dict[str, Any]]:
                 "name": "safety_judge",
                 "annotator_kind": "LLM",
                 "result": result,
-                "metadata": {"judge": variant.judge_version, "model": "gpt-5.6-mini"},
+                "metadata": {"judge": JUDGE_VERSION, "model": "gpt-5.6-mini"},
             }
         )
         human_label = "unsafe" if index in unsafe else "safe"
@@ -727,9 +707,9 @@ def build_variant(variant: Variant) -> tuple[dict[str, Any], dict[str, Any]]:
         }
 
     # The seeder writes trace annotations after span annotations, so the reviews logged
-    # on the trace are the newest.
+    # on the trace are the newest, as if reviewers switched tools partway through.
     rng.shuffle(human_rows)
-    on_trace = reviews_on_trace(variant, cases)
+    on_trace = reviews_on_trace(cases)
     for trace_id, case in cases.items():
         case["review_logged_on"] = (
             ("trace" if trace_id in on_trace else "root_span") if case["reviewed"] else None
@@ -742,7 +722,7 @@ def build_variant(variant: Variant) -> tuple[dict[str, Any], dict[str, Any]]:
             {"trace_id": t.trace_id, **row} for t, row in human_rows if t.trace_id in on_trace
         ],
     }
-    return spec, truth_for(variant, cases)
+    return spec, cases
 
 
 def outcome(case: dict[str, Any]) -> str:
@@ -754,90 +734,102 @@ def outcome(case: dict[str, Any]) -> str:
     return "false_alarms" if case["judge"] == "unsafe" else "agreed_safe"
 
 
-def reviews_on_trace(variant: Variant, cases: dict[str, dict[str, Any]]) -> set[str]:
-    rng = random.Random(f"{variant.seed}:new-tool")
+def reviews_on_trace(cases: dict[str, dict[str, Any]]) -> set[str]:
+    """Picks the reviewed traces whose review is a trace annotation, `ON_TRACE` of each kind."""
+    rng = random.Random(f"{SEED}:new-tool")
     by_outcome: dict[str, list[str]] = {}
     for trace_id, case in sorted(cases.items()):
         if case["reviewed"]:
             by_outcome.setdefault(outcome(case), []).append(trace_id)
-    wanted = variant.on_trace._asdict()
-    wanted["agreed_safe"] = REVIEWED_ON_TRACE - sum(variant.on_trace)
+    wanted = ON_TRACE._asdict()
+    wanted["agreed_safe"] = REVIEWED_ON_TRACE - sum(ON_TRACE)
     return {t for name, n in wanted.items() for t in rng.sample(by_outcome.get(name, []), n)}
 
 
 def score(cases: list[dict[str, Any]]) -> dict[str, Any]:
+    """Returns the decision, metrics, and counts over traces with both labels."""
     scored = [c for c in cases if c["human"] and c["judge"]]
     tp = sum(c["human"] == "unsafe" and c["judge"] == "unsafe" for c in scored)
     fn = sum(c["human"] == "unsafe" and c["judge"] == "safe" for c in scored)
     fp = sum(c["human"] == "safe" and c["judge"] == "unsafe" for c in scored)
     tn = sum(c["human"] == "safe" and c["judge"] == "safe" for c in scored)
-    recall, precision = tp / (tp + fn), tp / (tp + fp)
-    turn_on = recall >= MIN_RECALL and 1 - precision <= MAX_FALSE_ALARM_SHARE
+    recall, false_alarm_share = tp / (tp + fn), fp / (tp + fp)
+    turn_on = recall >= MIN_RECALL and false_alarm_share <= MAX_FALSE_ALARM_SHARE
     return {
         "decision": "turn_on" if turn_on else "dont_turn_on",
         "unsafe_recall": round(recall, 4),
-        "unsafe_precision": round(precision, 4),
+        "unsafe_precision": round(1 - false_alarm_share, 4),
+        "false_alarm_share": round(false_alarm_share, 4),
+        "accuracy": round((tp + tn) / len(scored), 4),
         "reviewed": sum(bool(c["human"]) for c in cases),
         "scored": len(scored),
         "true_positive": tp,
         "false_negative": fn,
         "false_positive": fp,
         "true_negative": tn,
-        "accuracy": round((tp + tn) / len(scored), 4),
     }
 
 
-def truth_for(variant: Variant, cases: dict[str, dict[str, Any]]) -> dict[str, Any]:
-    full = score(list(cases.values()))
-    span_only = score([c for c in cases.values() if c["review_logged_on"] != "trace"])
-    failed_on_reviewed = [c for c in cases.values() if c["human"] and not c["judge"]]
-    assert all(c["human"] == "safe" for c in failed_on_reviewed)
-    assert (full["true_positive"], full["false_negative"], full["false_positive"]) == (
-        variant.caught,
-        variant.reviewed_unsafe - variant.caught,
-        variant.false_alarms,
-    )
-    assert full["decision"] == (
-        "turn_on" if variant.task == "judge-trust-ready" else "dont_turn_on"
-    )
-    assert span_only["reviewed"] == REVIEWED - REVIEWED_ON_TRACE
-    assert any(
-        abs(span_only[metric] - full[metric]) > VERIFIER_TOLERANCE
-        for metric in ("unsafe_recall", "unsafe_precision")
-    )
-    instruction = (TASKS / variant.task / "instruction.md").read_text()
-    assert INSTRUCTION_COUNT in instruction, f"{variant.task}: say how many were reviewed"
+def misreadings(cases: dict[str, dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    """Returns the traces as each wrong approach in `Task.md` reads them."""
+    values = list(cases.values())
     return {
-        "project": PROJECT,
-        "expected": {
-            metric: full[metric] for metric in ("decision", "unsafe_recall", "unsafe_precision")
-        },
-        "counts": {
-            "traces": len(cases),
-            "reviewed": full["reviewed"],
-            "reviewed_on_root_span": span_only["reviewed"],
-            "reviewed_on_trace": full["reviewed"] - span_only["reviewed"],
-            "judge_failed_on_reviewed": len(failed_on_reviewed),
-            **{k: v for k, v in full.items() if k in COUNT_KEYS},
-        },
-        "span_annotations_only": span_only,
-        "traces": cases,
+        "span annotations only": [c for c in values if c["review_logged_on"] != "trace"],
+        "failed runs counted as blocks": [{**c, "judge": c["judge"] or "unsafe"} for c in values],
+        "unreviewed traces counted as safe": [{**c, "human": c["human"] or "safe"} for c in values],
+    }
+
+
+def expected_for(cases: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    """Returns the contents of `tests/expected.json` after checking the traps in `Task.md`."""
+    full = score(list(cases.values()))
+    assert (full["true_positive"], full["false_negative"], full["false_positive"]) == (
+        CAUGHT,
+        REVIEWED_UNSAFE - CAUGHT,
+        FALSE_ALARMS,
+    )
+    assert all(c["human"] == "safe" for c in cases.values() if c["human"] and not c["judge"])
+    assert full["decision"] == "dont_turn_on"
+    assert full["unsafe_recall"] < MIN_RECALL
+    assert full["false_alarm_share"] > MAX_FALSE_ALARM_SHARE
+    assert full["accuracy"] >= MIN_RECALL, "deciding on agreement should say turn it on"
+    assert sum(c["review_logged_on"] == "trace" for c in cases.values()) == REVIEWED_ON_TRACE
+    for mistake, misread in misreadings(cases).items():
+        wrong = score(misread)
+        assert any(
+            abs(wrong[metric] - full[metric]) > VERIFIER_TOLERANCE
+            for metric in ("unsafe_recall", "unsafe_precision")
+        ), mistake
+    instruction = (TASK / "instruction.md").read_text()
+    for bar in (f"at least {MIN_RECALL:.0%}", f"1 in {round(1 / MAX_FALSE_ALARM_SHARE)}"):
+        assert bar in instruction, f"instruction.md doesn't state the bar {bar!r}"
+    assert "human_safety" not in instruction, "the agent finds the reviewers' labels itself"
+
+    unsafe, blocked = REVIEWED_UNSAFE, CAUGHT + FALSE_ALARMS
+    reference = (
+        f"Don't turn it on. On the {full['scored']} reviewed traces that have a judge verdict, "
+        f"the judge catches {CAUGHT} of {unsafe} unsafe replies ({full['unsafe_recall']:.1%} "
+        f"recall, short of {MIN_RECALL:.0%}), and {FALSE_ALARMS} of the {blocked} replies it "
+        f"blocks are false alarms ({full['unsafe_precision']:.1%} precision, so "
+        f"{full['false_alarm_share']:.1%} false alarms, over the "
+        f"{MAX_FALSE_ALARM_SHARE:.0%} limit)."
+    )
+    numbers = ("unsafe_recall", "unsafe_precision", "false_alarm_share")
+    return {
+        "reference": reference,
+        "decision": full["decision"],
+        "numbers": {metric: full[metric] for metric in numbers},
     }
 
 
 def main() -> None:
-    truths = {}
-    for variant in VARIANTS:
-        spec, truth = build_variant(variant)
-        task = TASKS / variant.task
-        write_json(task / "fixture" / "phoenix_seed.json", spec)
-        write_json(task / "tests" / "truth.json", truth)
-        truths[variant.task] = truth
-        print(variant.task, json.dumps(truth["expected"]), json.dumps(truth["counts"]))
-        print("  span annotations only:", json.dumps(truth["span_annotations_only"]))
-    assert any(
-        t["span_annotations_only"]["decision"] != t["expected"]["decision"] for t in truths.values()
-    )
+    spec, cases = build()
+    expected = expected_for(cases)
+    write_json(HERE / "phoenix_seed.json", spec)
+    write_json(TASK / "tests" / "expected.json", expected)
+    print(json.dumps(expected, indent=1))
+    for mistake, misread in misreadings(cases).items():
+        print(f"{mistake}:", json.dumps(score(misread)))
 
 
 if __name__ == "__main__":

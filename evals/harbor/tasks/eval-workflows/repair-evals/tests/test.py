@@ -3,12 +3,10 @@
 from harbor_verifiers import grading, judge_prompts
 from harbor_verifiers.verify import ANSWER_PATH, TRAJECTORY_PATH, read_reply
 
-TRUTH = grading.load_test_json("truth.json")
-PROJECT = TRUTH["project"]
+EXPECTED = grading.load_test_json("expected.json")
+DATA = grading.load_test_json("grading_data.json")
+PROJECT = "support-bot"
 ANNOTATION = "grounded"
-MIN_RECALL = 0.8
-MIN_COVERAGE = 0.95
-RATE_TOLERANCE = 0.011
 RERUN = "python evals/nightly_grounding.py"
 
 MECHANISM = (
@@ -58,7 +56,6 @@ FIELDS = {
         "spans, or replies is 'named', with or without the reason. " + MECHANISM
     ),
 }
-BUGS = ("span_limit", "verdict_case", "errors_pass", "judge_evidence", "wrong_traces")
 
 # Reported beside the reward, never part of it.
 APP = "An order-support bot for an online store. It answers customer chat messages and emails about order status, tracking, delivery dates, and address changes, using an order lookup, carrier tracking, and help center articles."
@@ -74,55 +71,67 @@ checks: dict[str, bool] = {}
 details: dict = {}
 
 
-def grade(cohort: str, labels: dict[str, bool]) -> dict:
+def grade_traces(cohort: str) -> dict:
+    """Grades the latest `grounded` annotations against `cohort`'s labels and returns them."""
+    bars = EXPECTED[cohort]
     predictions = grading.trace_predictions(PROJECT, ANNOTATION)
-    result = grading.agreement(predictions, labels)
-    checks[f"{cohort}.{ANNOTATION}"] = result.passes(MIN_RECALL, MIN_COVERAGE)
-    details[f"{cohort}.{ANNOTATION}"] = result.as_dict()
+    result = grading.agreement(predictions, DATA[cohort]["labels"])
+    checks[cohort] = result.passes(bars["min_recall"], bars["min_coverage"])
+    details[cohort] = result.as_dict()
     return predictions
 
 
-def grade_reply(predictions: dict) -> None:
+def grade_reply(production: dict) -> None:
+    """Checks that the reply names every cause and reports the rate `production` gives."""
     reply, source = read_reply(TRAJECTORY_PATH, ANSWER_PATH)
-    details.update(reply_source=source, reply=reply[-4000:])
-    named = dict.fromkeys(BUGS, False)
-    claimed = None
+    causes = dict.fromkeys(EXPECTED["causes"], False)
+    claims, claimed = None, None
     if reply.strip():
         claims = grading.extract_report_claims(reply, FIELDS)
-        named = grading.check_report_claims(claims, dict.fromkeys(BUGS, "named"), reply)
+        causes = grading.check_report_claims(claims, dict.fromkeys(causes, "named"), reply)
         claimed = grading.stated_number(claims.get("grounded_rate"), reply, 0.5)
-        details["claims"] = claims
-    without_timeouts = {t: v for t, v in TRUTH["visible"].items() if t not in TRUTH["timeouts"]}
-    readings = {}
-    for scope, labels in (("all", TRUTH["visible"]), ("without_timeouts", without_timeouts)):
-        share = grading.good_share(predictions, labels)
-        low, high = grading.passing_share_range(labels, MIN_RECALL)
-        readings[scope] = {
+    labels = DATA["production_traces"]["labels"]
+    timeouts = set(DATA["production_traces"]["timeouts"])
+    scopes = {
+        "all_traces": list(labels),
+        "without_timeouts": [trace for trace in labels if trace not in timeouts],
+    }
+    tolerance = EXPECTED["grounded_rate"]["tolerance"]
+    rate: dict = {"claimed": claimed}
+    for scope, traces in scopes.items():
+        share = grading.good_share(production, traces)
+        low, high = (n / len(traces) for n in EXPECTED["grounded_rate"][scope]["accepted_grounded"])
+        rate[scope] = {
             "annotated_share": share,
-            "passing_range": [round(low, 4), round(high, 4)],
+            "accepted_range": [round(low, 4), round(high, 4)],
             "matches": claimed is not None
             and share is not None
-            and abs(claimed - share) <= RATE_TOLERANCE
-            and low - RATE_TOLERANCE <= claimed <= high + RATE_TOLERANCE,
+            and abs(claimed - share) <= tolerance
+            and low - tolerance <= claimed <= high + tolerance,
         }
-    details["reply_rate"] = {"claimed": claimed, **readings}
-    for bug in BUGS:
-        checks[f"reply.{bug}"] = named[bug]
-    checks["reply.grounded_rate"] = any(reading["matches"] for reading in readings.values())
+    checks["reply"] = all(causes.values()) and any(rate[scope]["matches"] for scope in scopes)
+    details["reply"] = {
+        "causes_named": causes,
+        "grounded_rate": rate,
+        "claims": claims,
+        "source": source,
+        "text": reply[-4000:],
+    }
 
 
-grade_reply(grade("production", TRUTH["visible"]))
+production = grade_traces("production_traces")
 seen_spans = grading.project_spans(PROJECT)
-grading.inject_spans(PROJECT, TRUTH["unseen"]["spans"])
+grading.inject_spans(PROJECT, DATA["new_traces"]["spans"])
 with judge_prompts.record_llm_calls(allowed_models={judge_prompts.PINNED_MODEL}) as recorder:
     details["rerun"] = grading.run_as_agent(RERUN, timeout=900, env=recorder.env).as_dict()
-grade("new_traces", TRUTH["unseen"]["labels"])
+grade_traces("new_traces")
+grade_reply(production)
 measures, details["judge_prompts"] = judge_prompts.prompt_scores(
     recorder.calls,
     system=APP,
     criteria=CRITERIA,
     evidence=EVIDENCE,
     deterministic=DETERMINISTIC,
-    copied=judge_prompts.seen_only_shingles(seen_spans, TRUTH["unseen"]["spans"]),
+    copied=judge_prompts.seen_only_shingles(seen_spans, DATA["new_traces"]["spans"]),
 )
 grading.finish(checks, details, measures)

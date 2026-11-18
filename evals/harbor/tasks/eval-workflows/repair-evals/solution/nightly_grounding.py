@@ -144,8 +144,8 @@ def score(trace: list[dict[str, Any]]) -> tuple[str, dict[str, Any] | None, str]
 
 
 def retrying(function: Callable[[Any], Any]) -> Callable[[Any], Any]:
-    """Skips an item after 3 failed attempts, so one stuck API call doesn't lose the
-    whole nightly run."""
+    """Returns `function` wrapped to try 3 times and then return None, so one stuck API
+    call doesn't stop the nightly run."""
 
     def call(item: Any) -> Any:
         for attempt in range(3):

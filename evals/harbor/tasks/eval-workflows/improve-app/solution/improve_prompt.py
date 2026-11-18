@@ -1,4 +1,4 @@
-"""Save a better `support-system` prompt and compare it with the baseline in an experiment.
+"""Saves a better `support-system` prompt and runs it as an experiment on `support-questions`.
 
 Run from `/app`. The evaluators reuse the baseline's four names so the two experiments
 line up in Phoenix.

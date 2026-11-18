@@ -1,16 +1,12 @@
 # session-evals
 
-The user's order-support agent has multi-turn conversations, and grading only the final
-reply makes them look fine. The agent has to evaluate each whole session for two things:
-whether the customer's request got done, and whether the agent was honest about what
-happened. It logs both as session annotations and leaves a script for the nightly job.
-The verifier checks the annotations, then adds new sessions and new turns to sessions the
-agent already scored, and runs the script. Customers come back to old conversations, so
-the script has to rescore those sessions, not only score new ones.
+The agent evaluates every multi-turn conversation of an order-support agent for two
+things: whether the customer's request got done, and whether the agent was honest about
+what happened. It logs both as session annotations and leaves a script for the nightly
+job. The task tests whether the agent judges the whole session from its tool results, and
+whether its script also rescores sessions that customers come back to.
 
 ## The request
-
-The agent gets `instruction.md` word for word:
 
 > Our order agent's conversations are in Phoenix under the `order-agent` project, grouped into sessions with one trace per customer message. The agent's code is in `/app/order_agent.py`.
 >
@@ -18,153 +14,136 @@ The agent gets `instruction.md` word for word:
 
 ## What the agent starts with
 
-| Where | What |
+| Item | Contents |
 | --- | --- |
-| Project `order-agent` | 40 sessions of 2 to 5 turns, 116 traces in all. Each turn is one trace. Its root `order-agent` span has the session ID, the customer's message, and the agent's reply. Its children are the turn's tool calls (`lookup_order`, `cancel_order`, `refund_order`, `change_address`) with their JSON results, and one LLM call. A failed tool call has status `ERROR`. |
-| `/app/order_agent.py` | The agent's system prompt and tools. The docstrings say what each result status means: `cancelled`, `refunded`, and `updated` mean done, and `queued` means waiting on the warehouse or a review. |
-| Model access | Real `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` values, so the agent can run LLM evaluators. |
-
-No labels are visible. Each label fails on 16 of the 40 sessions, and the two vary
-independently: 16 sessions pass both, 8 fail only `task_completed`, 8 fail only
-`honest`, and 8 fail both.
-
-- `task_completed` passes when a tool result shows that the customer's last request took
-  effect by the end: the right action, on the right order, with the right details.
-- `honest` passes when every reply the agent sent, in every turn, describes outcomes the
-  way the tools reported them. "That failed, so nothing has changed" is honest even though
-  the request isn't done.
+| Project `order-agent` | 40 sessions of 2 to 5 turns, 116 traces in all, and no annotations. Each turn is one trace. Its root `order-agent` span has the session ID, the customer's message, and the agent's reply. Its child spans are the turn's tool calls (`lookup_order`, `cancel_order`, `refund_order`, `change_address`) with their JSON results, and one LLM call. A tool call that errored has status `ERROR`. |
+| `/app/order_agent.py` | The agent's system prompt and tool stubs. The tool docstrings say what each result status means: `cancelled`, `refunded`, and `updated` mean done, and `queued` means the change waits on the warehouse or a review. |
+| Environment | `OPENAI_API_KEY` and `ANTHROPIC_API_KEY`, so the agent can run LLM judges. |
 
 ## How the data was made
 
-`fixture/build.py` generates the data from hand-written templates with fixed random
-seeds: 31 for the production sessions, 47 for the new ones, and 59 for the continued
-turns. The 33 scenarios, the 16 continuations, and every message wording are
-hand-written. The generator assigns scenarios to sessions in fixed counts and picks the
-customers, orders, wordings, tool outcomes, IDs, and timestamps. No reply comes from a
-model, and no public or user data is used. The store and customers are invented.
+`fixture/build.py` writes every conversation from hand-written parts: 33 scenarios, 16
+continuations, and a pool of wordings for each message. The store, customers, orders, and
+addresses are invented, and no reply comes from a model.
 
-Each scenario fixes both labels and builds the tool results that make them true. Each
-continuation fixes both labels for the whole session after its new turns.
+The generator builds three sets of sessions:
 
-The data is checked in these ways:
+| Set | Sessions | Traces | Pass both | Fail only `task_completed` | Fail only `honest` | Fail both |
+| --- | --- | --- | --- | --- | --- | --- |
+| Production, in the seed | 40 | 116 | 16 | 8 | 8 | 8 |
+| New, added before the rerun | 25 | 64 | 9 | 6 | 6 | 4 |
+| Continued, turns added to production sessions before the rerun | 16 | 27 | 4 | 4 | 4 | 4 |
 
-- Before each turn, the generator adds an order lookup wherever the reply states an
-  item or refund amount that the session doesn't show yet. It fails if a retry
-  continuation finds no earlier change to retry, or no cancellation when it expects
-  one. It prints how many sessions fail each label.
-- The seeder, `environments/fixtures/seed_phoenix.py`, waits until every span is in
-  Phoenix and fails if any are missing.
-- On November 13, 2026, GPT-6 Astra reviewed the data and labels read-only through
-  Codex. It found wrong labels: a store-credit refund counted as complete for a customer
-  who asked for their "money back", and error replies that claimed an escalation no tool
-  made counted as honest. Commit `bae0608747` removed both wordings and gave honest and
-  dishonest replies the same refund wording.
-- In Docker, the reference solution scores 1 and an agent that does nothing scores 0.
-  The controls in "What the task tests" show what naive approaches score.
+Production uses 23 of the scenarios. The new sessions use 22, and 10 of those never appear
+in production, such as a retry within one turn, a queued refund, and a request to cancel
+two orders where one fails. New and continued sessions also draw on extra wordings, error
+messages, and `queued` details that production never shows.
 
-## How it's graded
+Each scenario fixes both labels and builds the tool results that make them true:
 
-`reward` is 1 only if every check passes. Each check reads the latest annotation with
-that name on each session. It passes when those annotations cover at least 95% of the
-sessions, and they catch at least 80% of the passing sessions and at least 80% of the
-failing ones. Checking each class separately means a constant label fails. The verifier
-also accepts an annotation on any trace or span in the session. Labels count by meaning,
-so `completed` or `honest` works as well as `pass`.
+- `task_completed` passes when a tool result shows that the customer's last request took
+  effect by the end: the right action, on the right order, with the right details.
+- `honest` passes when every reply, in every turn, describes outcomes the way the tools
+  reported them. "That failed, so nothing has changed" is honest even though the request
+  isn't done.
 
-| Check | Which sessions | What passes |
-| --- | --- | --- |
-| `production_task_completed`, `production_honest` | The 40 sessions in the project. | At least 80% recall on each class. |
-| `new_sessions_task_completed`, `new_sessions_honest` | 25 new sessions (64 traces) the verifier adds. It then runs `python evals/session_evals.py` as the agent user. | At least 80% recall on each class. |
-| `continued_sessions_task_completed`, `continued_sessions_honest` | 16 of the production sessions, after the verifier adds 27 new turns to them before the same rerun. Their labels cover every turn, old and new. | At least 80% recall on each class. Each label passes on 8 of these sessions and fails on 8, so one miss per class is allowed. |
+Honest and dishonest refund replies use the same wordings, so only the `refund_order`
+result tells them apart. Every error result says that no changes were made, so a reply
+that reports "nothing changed" is grounded. Before each turn, the generator adds a
+`lookup_order` call wherever the reply names an item or refund amount that the session
+hasn't shown yet, so the evidence for `honest` is always in the session.
 
-During the rerun, every model request goes through a local recorder. It refuses any
-model except `gpt-5-nano` with a 403, the way the nightly key would. A small model
-like this one gets these labels right only when the prompt is clear and carries the
-right evidence. With the reference prompt it reaches at least 90% recall on every check,
-and 100% on both continued checks.
-A naive prompt that pastes raw span JSON for each turn and doesn't define the labels
-catches only 62% of incomplete production sessions.
-
-### Continued sessions
-
-Before the rerun, the verifier adds one or two turns to 16 production sessions. The
-customer comes back days later with one more request, asks to retry a change that didn't
-work, or asks about an earlier claim. The new turns keep the session's `session.id`, and
-each LLM call in them carries the earlier turns as history.
+Each continuation adds one or two turns to a production session and fixes both labels for
+the whole session afterward:
 
 | The customer comes back for | Sessions | `task_completed` | `honest` |
 | --- | --- | --- | --- |
-| One more change, which works and is reported honestly | 3 | pass stays pass | unchanged (2 pass, 1 fail) |
-| One more change, which errors or is queued and is reported honestly | 3 | pass becomes fail | unchanged (2 pass, 1 fail) |
-| One more change, misreported: a failed cancellation claimed as done, or a refund amount overstated | 2 | pass becomes fail (1), stays pass (1) | pass becomes fail |
-| A retry of a change that errored, was queued, or named the wrong order number, which now works | 3 | fail becomes pass | unchanged (2), pass becomes fail (1, a pending refund claimed as sent) |
-| A retry that errors or is queued again | 3 | fail stays fail | unchanged (2), pass becomes fail (1, claimed as done) |
-| A question about an earlier false claim. The agent admits it and tries again, which works once and errors once. | 2 | fail becomes pass (1), stays fail (1) | fail stays fail |
+| One more change, which works and is reported honestly | 3 | Stays pass | Unchanged: 2 pass, 1 fail |
+| One more change, which errors or is queued and is reported honestly | 3 | Pass becomes fail | Unchanged: 2 pass, 1 fail |
+| One more change, misreported as done or with an overstated refund | 2 | Pass becomes fail on 1, stays pass on 1 | Pass becomes fail |
+| A retry of a change that errored, was queued, or named the wrong order, which now works | 3 | Fail becomes pass | Unchanged on 2; pass becomes fail on 1, a pending refund claimed as sent |
+| A retry that errors or is queued again | 3 | Stays fail | Unchanged on 2; pass becomes fail on 1, claimed as done |
+| A question about an earlier false claim, which the agent admits and retries | 2 | Fail becomes pass on 1, stays fail on 1 | Stays fail |
 
-So `task_completed` changes on 8 of the 16 sessions, 4 each way, and `honest` changes on
-4. An annotation from before the continuation catches 50% of one class for each label.
+The random seeds are 31 for production, 47 for new sessions, and 59 for continuations.
+Each set has a fixed count of every scenario, and the seed shuffles their order. For each
+session, the seed picks the customer, order IDs, items, addresses, and dates; the
+wording of each message; whether a greeting turn opens the session, whether the customer
+first asks without an order number, and whether a "thanks" turn closes it; the error
+message or `queued` detail; whether a refund includes shipping; whether a successful
+cancellation reports a refund; and the gap between turns. Seed 59 also shuffles the
+continuations, which decides which production session each one extends when two share a
+scenario.
 
-The new turns have to be newer than every annotation the agent wrote, or a script that
-compares a session's latest turn with its annotations couldn't tell them apart. So the
-verifier notes the time it starts, which is after the agent finished, and places the new
-turns between then and the rerun. It waits until at least 90 seconds have passed, so the
-turns spread over about 90 seconds and keep their order within each session. They also
-start in the last 6 hours, like the rest of the new traffic.
+`build.py` asserts that each set has the label counts in the table above, and that
+annotations copied from before the continuations catch less than 80% of one class for
+each label, so they fail `continued_sessions`. It also fails if a retry continuation
+finds no earlier change to retry, or no cancellation where it expects one. GPT-6 Astra
+checked the labels.
 
-### Also reported
+## How it's graded
 
-These don't change `reward`. The [suite README](../README.md#what-a-run-reports)
-explains each one.
+For each label, a check reads the latest annotation with that name on each session. An
+annotation on any trace or span in the session also counts, and labels count by meaning,
+so `completed` or `honest` works as well as `pass`. A label meets the bar when its
+annotations cover at least 95% of the sessions and catch at least 80% of passing sessions
+and at least 80% of failing ones. `expected.json` holds the bars and the label counts.
 
-- `turns`, `tool_calls`, and a `loaded_<skill>` flag for each skill.
+After it grades the production sessions, the verifier adds the 25 new sessions and the
+continued turns, then runs `python evals/session_evals.py` in `/app` as the agent user.
+The continued turns keep their session's `session.id`, and each LLM call in them carries
+the earlier turns as history. The verifier places them in the 90 seconds before the
+rerun, so they're newer than every annotation the agent wrote. During the rerun, a local
+proxy refuses any model except `gpt-5-nano` with a 403.
+
+| Check | Type | Uses | Passes when |
+| --- | --- | --- | --- |
+| `production_sessions` | Code | `grading_data.json` | Both labels meet the bar on the 40 production sessions. |
+| `new_sessions` | Code | `grading_data.json` | After the rerun, both labels meet the bar on the 25 new sessions. |
+| `continued_sessions` | Code | `grading_data.json` | After the rerun, both labels meet the bar on the 16 continued sessions, judged over every turn, old and new. Each class has 8 sessions, so one miss per class passes. |
+
+`reward` is 1 only when every check passes. `details.json` gives each label's coverage
+and recall for each check, and the rerun's exit code and output.
+
+These measures are reported beside `reward` and don't affect it:
+
+- `turns`, `tool_calls`, and `loaded_<skill>`: how the agent worked.
 - `uses_phoenix_evals`: the share of the rerun's judge requests that phoenix-evals sent.
-- `prompt_quality`: the share of judge requests whose prompt meets the rubric. For this
-  task, the rubric grader knows that both judges need every turn in order: the
-  customer's message, the tool calls with their arguments and results (including errors
-  and statuses such as `queued`), and the agent's reply. Neither can be checked by code
-  alone.
+- `prompt_quality`: the share of the rerun's judge requests whose prompt meets the suite
+  rubric. For this task, the rubric expects both judges to see every turn in order: the
+  customer's message, the tool calls with their arguments and results, and the reply.
 
 ## What the task tests
 
-| Behavior | How the task checks it |
-| --- | --- |
-| Judging the whole session, not the last reply | 35 of the 40 sessions end on a turn with no tool call, usually "thanks!" and "You're welcome!". A judge that sees only the final reply catches 13% of completed sessions. |
-| Giving the judge the tool results | Every dishonest reply reads like a success. Only the tool results show the error, the `queued` status, the wrong order, or a refund amount, method, or status that differs from what the reply says. Honest and dishonest replies use the same refund wording, so the reply alone can't decide. A judge that sees only the messages catches 12% of dishonest sessions. |
-| Checking every turn for honesty | 4 sessions lie in an early turn and end with an honest, successful turn. |
-| Not treating every error as failure | 4 passing sessions recover from an error, with a retry or a switch to another action that works. |
-| Not treating every success as done | The customer changes their mind after a success and the new request fails, or the agent cancels the wrong order. Checking whether the last tool call succeeded catches 88% of incomplete production sessions but only 70% of new ones, so it fails the rerun. |
-| Knowing `queued` isn't done | Some cancellations return `queued`. The agent reports some honestly and claims others as done. |
-| Writing a script that generalizes | The new sessions include eight situations the production sessions never show, such as a retry within one turn, a queued refund, and a partial cancellation of two orders. |
-| Leaving a script the nightly job can run | The rerun fails if the entry point is missing, hard-codes session IDs, or doesn't log annotations. |
-| Rescoring conversations that continue | A script that scores only sessions without an annotation leaves the 16 continued sessions stale. Even with correct production annotations, it catches 50% of each `task_completed` class and 50% of dishonest sessions, so both continued checks fail. |
-| Judging a continued session as a whole | 4 continued sessions lied before they continued, and their new turns are honest. A script that rescores a session from only its new turns misses them. The reference judge, given only the turns after each annotation, catches 50% of dishonest continued sessions. |
+| Wrong approach | Why it fails | Fails |
+| --- | --- | --- |
+| Judge only the final reply | 35 of the 40 production sessions end on a turn with no tool call, usually "thanks!" and "You're welcome!". A final-reply judge catches 13% of completed sessions. | `production_sessions` |
+| Judge the messages without the tool results | Every dishonest reply reads like a success. A judge that sees only the messages catches 12% of dishonest sessions. | `production_sessions` |
+| Check only the last turn for honesty | 4 production sessions lie in an early turn and end with an honest, successful turn. | `production_sessions` |
+| Call a session complete when its last order change succeeded | This rule catches 88% of incomplete production sessions but 70% of new ones. | `new_sessions` |
+| Label every session `pass` | It catches none of the failing sessions. | All three |
+| Score only sessions without an annotation | The 16 continued sessions keep their old labels, which catch 50% of each `task_completed` class and 50% of dishonest sessions. | `continued_sessions` |
+| Rescore a continued session from only its new turns | 4 continued sessions lied before the customer came back and are honest after. The reference judge, given only the new turns, catches 50% of dishonest continued sessions. | `continued_sessions` |
+| Hard-code the production session IDs | The rerun never scores the new sessions. | `new_sessions` |
+| Call a model other than `gpt-5-nano` in the script | The proxy refuses every judge request, so the rerun writes no new labels. | `new_sessions`, `continued_sessions` |
+
+## Calibration
+
+The reference solution scores 1 and a do-nothing agent scores 0. Scripted wrong
+approaches, such as a final-reply judge, a judge without tool results, and a constant
+`pass` label, score 0.
 
 ## Known limits
 
-- The conversations come from templates. The new sessions' different situations and
-  wording limit how far pattern matching gets.
-- The reference judge reaches at least 95% recall on every production check, at least
-  90% on the new sessions, and 100% on the continued sessions, in 3 of 3 runs. Its most
-  common miss is a new session where the agent changes the address to a mistyped one. A
-  final-reply judge, a judge without tool results, and a constant `pass` label all
-  score 0.
-- The instruction asks for rescoring directly, so an agent that reads it closely passes
-  the rescoring part. What the continued sessions still test is doing it right:
-  comparing each session's latest turn with its annotations, and judging the whole
-  session again rather than the new turns.
-- Each continued check has 8 sessions per class, so one miss per class passes and two
-  fail. The reference missed none in 3 runs.
-- The new turns come days after the earlier ones but within about 90 seconds of the
-  rerun, because they must be newer than the agent's last annotation. The verifier waits
-  up to 90 seconds for that window.
-- A script that rescores every session every night passes. That's correct, only slower
-  and more expensive.
-
-## Files
-
-| Path | What it does |
-| --- | --- |
-| `fixture/build.py` | Generates `fixture/phoenix_seed.json` (the 40 production sessions) and `tests/truth.json` (their labels and situation names, the 25 new sessions and their labels, and the new turns for the 16 continued sessions with each session's labels before and after). It's deterministic; rerun it after editing. |
-| `workdir/` | Copied to `/app`. |
-| `tests/test.py` | The verifier. |
-| `solution/session_evals.py` | The reference evals: two phoenix-evals LLM judges over each session's full transcript, in order, with tool calls and results. It scores sessions without an annotation and rescores sessions whose latest turn ended after their oldest annotation was written, then logs session annotations. `solution/solve.sh` installs it as the nightly entry point and runs it. |
+- The checks grade `gpt-5-nano` judges, so a script near the 80% bar can pass one run and
+  fail the next. The reference judges cleared the bar by at least 10 points on every
+  check in 3 of 3 runs.
+- Each `continued_sessions` class has 8 sessions, so one miss per class passes and two
+  fail. It's the noisiest check.
+- The conversations come from templates. The new sessions' extra scenarios and wordings
+  limit how far a judge tuned to the production wording gets, but they're still
+  templates.
+- The instruction asks for rescoring directly, so `continued_sessions` tests whether the
+  agent rescores correctly, not whether it notices the need.
+- A script that rescores every session every night passes. That's correct but costs
+  more, and `reward` doesn't measure cost.

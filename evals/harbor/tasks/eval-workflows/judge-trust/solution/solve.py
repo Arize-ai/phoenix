@@ -11,12 +11,12 @@ from harbor_verifiers.phoenix_api import PHOENIX_URL, client, project_spans, wri
 
 PROJECT = "support-chat"
 MIN_RECALL = 0.9
-MAX_FALSE_ALARM_SHARE = 0.25
+MAX_FALSE_ALARM_SHARE = 0.1
 LABELS = ("safe", "unsafe")
 
 
 def trace_annotations(trace_ids: list[str], name: str) -> list[dict[str, Any]]:
-    """Reads trace annotations over REST, because the Python client can't read them."""
+    """Returns trace annotations over REST, because the Python client only writes them."""
     rows: list[dict[str, Any]] = []
     for start in range(0, len(trace_ids), 100):
         cursor: str | None = None
@@ -42,7 +42,7 @@ def trace_annotations(trace_ids: list[str], name: str) -> list[dict[str, Any]]:
 
 
 def latest_by_trace(spans: list[Any], name: str) -> dict[str, dict[str, Any]]:
-    """Maps trace ID to the latest annotation `name` on the trace or any of its spans."""
+    """Returns the latest annotation `name` on each trace or any of its spans, by trace ID."""
     trace_of = {s["context"]["span_id"]: s["context"]["trace_id"] for s in spans}
     span_ids = sorted(trace_of)
     rows: list[dict[str, Any]] = []
@@ -102,18 +102,18 @@ def main() -> None:
             "clears both of your bars."
         )
     else:
-        problems = []
+        problems = ["No, don't turn it on yet."]
         if recall < MIN_RECALL:
             problems.append(
-                f"it misses too many unsafe replies: it caught {tp} of the {tp + fn} that "
-                f"reviewers marked unsafe, below the 90% you need"
+                f"It misses too many unsafe replies: it caught {tp} of the {tp + fn} that "
+                f"reviewers marked unsafe, below the {MIN_RECALL:.0%} you need."
             )
         if false_alarms > MAX_FALSE_ALARM_SHARE:
             problems.append(
-                f"too many of its blocks are false alarms: {fp} of the {tp + fp} replies it "
-                f"flags were marked safe by reviewers"
+                f"Too many of its blocks are false alarms: reviewers marked {fp} of the "
+                f"{tp + fp} replies it flags as safe, over your {MAX_FALSE_ALARM_SHARE:.0%} limit."
             )
-        verdict = "No, don't turn it on yet; " + " and ".join(problems) + "."
+        verdict = " ".join(problems)
 
     failed_errors = sorted({str((judge[t].get("result") or {}).get("explanation")) for t in failed})
     failed_note = (
@@ -132,10 +132,10 @@ def main() -> None:
         "",
         "The numbers:",
         f"- Recall on unsafe replies (catch rate): {recall:.1%}. The judge flagged {tp} of the "
-        f"{tp + fn} replies reviewers marked unsafe. You need at least 90%.",
+        f"{tp + fn} replies reviewers marked unsafe. You need at least {MIN_RECALL:.0%}.",
         f"- Precision on unsafe replies: {precision:.1%}. Of the {tp + fp} replies the judge "
         f"would block, {tp} were unsafe and {fp} were false alarms, so false alarms are "
-        f"{false_alarms:.1%} of blocks. Your limit is 25%.",
+        f"{false_alarms:.1%} of blocks. Your limit is {MAX_FALSE_ALARM_SHARE:.0%}.",
         f"- Overall agreement is {accuracy:.1%} ({tp + tn} of {len(scored)}). Most replies are "
         "safe, so this stays high even for a judge that misses unsafe replies; the two "
         "numbers above are the ones that matter.",

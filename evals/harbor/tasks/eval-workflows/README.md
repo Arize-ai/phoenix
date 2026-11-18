@@ -27,17 +27,17 @@ every task, three attempts each, in Daytona sandboxes:
 
 | Condition | Agent | Model | Skills |
 | --- | --- | --- | --- |
-| `claude-code-opus-no-skills` | Claude Code with the px CLI | Opus 5.5 | None |
-| `claude-code-opus-skills` | Claude Code with the px CLI | Opus 5.5 | `phoenix-cli`, `phoenix-error-analysis`, `phoenix-evals`, `phoenix-tracing` from the repository's `skills/` |
-| `claude-code-haiku-no-skills` | Claude Code with the px CLI | Haiku 5.5 | None |
-| `claude-code-haiku-skills` | Claude Code with the px CLI | Haiku 5.5 | Same as above |
+| `claude-code-opus-no-skills` | Claude Code with the px CLI | Claude Opus 5.5 | None |
+| `claude-code-opus-skills` | Claude Code with the px CLI | Claude Opus 5.5 | `phoenix-cli`, `phoenix-error-analysis`, `phoenix-evals`, `phoenix-tracing` from the repository's `skills/` |
+| `codex-sol-no-skills` | Codex with the px CLI | `gpt-6.2-sol` | None |
+| `codex-sol-skills` | Codex with the px CLI | `gpt-6.2-sol` | Same as above |
 
 The skills conditions load whatever is in `skills/` in your checkout. To compare two
 versions of the skills, see [Compare skill versions](#compare-skill-versions).
 
 The Phoenix Harbor plugin records the job in your Phoenix as the `eval-workflows`
-dataset, with one experiment per condition. Each run carries `reward`, every check, the
-measures below, and the plugin's token counts, cost, and latency.
+dataset, with one experiment per condition. Each task's `tests/expected.json` becomes its
+example's expected output, so you can read the right answer beside each run.
 
 ## Tasks
 
@@ -49,27 +49,28 @@ measures below, and the plugin's token counts, cost, and latency.
 | [repair-evals](repair-evals/Task.md) | Fix a misleading eval | A corrected nightly script, its rerun, and a reply that names the bugs and the real rate |
 | [improve-judge](improve-judge/Task.md) | Improve an LLM judge against human reviews | A judge that agrees with reviewers on traces it never saw |
 | [improve-app](improve-app/Task.md) | Improve an app's prompt with experiments | A new prompt version that follows the handbook on questions it never saw, and an experiment scored with the baseline's four evaluations |
-| [judge-trust](judge-trust/Task.md) | Decide whether to trust a judge | A recommendation backed by the right metrics. Right answer: don't turn it on. |
-| [judge-trust-ready](judge-trust-ready/Task.md) | Decide whether to trust a judge | A recommendation backed by the right metrics. Right answer: turn it on. |
+| [judge-trust](judge-trust/Task.md) | Decide whether to trust a judge | A recommendation backed by the judge's recall and false-alarm rate against reviewer labels. Right answer: don't turn it on. |
 | [compare-experiments](compare-experiments/Task.md) | Compare two experiments | A ship decision backed by pass rates across repeated runs. Right answer: don't ship. |
 | [compare-experiments-ship](compare-experiments-ship/Task.md) | Compare two experiments | A ship decision backed by pass rates across repeated runs. Right answer: ship. |
 | [curate-labels](curate-labels/Task.md) | Build a labeled dataset from reviews | A Phoenix dataset with exactly the eligible traces and their latest human labels |
 
-The last four rows are two pairs of twins. Twins send the same request and seed data of
-the same shape, but the data supports opposite answers. An agent that answers the same
-way every time, such as always advising caution, fails one task in each pair.
+The two `compare-experiments` tasks are twins. They send the same request and seed data
+of the same shape, but the data supports opposite answers, so an agent that always
+advises caution fails one of them.
 
 ## How a task runs
 
-1. **Staging, on your machine.** `make harbor-stage` runs
+1. **Staging, once, on your machine.** Before you run the job, `make harbor-stage`
+   prepares every task. For each task it runs
    [`environments/fixtures/seed_phoenix.py`](../../environments/fixtures/seed_phoenix.py)
-   on the task's `fixture/phoenix_seed.json`. The seeder starts a temporary Phoenix,
-   writes the projects, spans, annotations, prompts, datasets, and experiments in the
-   file, checks them, and saves the database. Staging copies that database and the
-   task's `workdir/` into the task's build context. Tasks with identical seed files share
-   one database.
-2. **The agent's turn, in a sandbox.** The sandbox starts Phoenix on the seeded
-   database. The agent gets `instruction.md`, a shell as the user `agent`, the files in
+   on the task's committed `fixture/phoenix_seed.json`. The seeder starts a temporary
+   Phoenix, writes the projects, spans, annotations, prompts, datasets, and experiments
+   in the file through Phoenix's API, checks them, and saves the database. It caches the
+   database by the seed file's hash, so it reseeds only files that changed. Staging then
+   writes each task's build context to its `environment/` directory: the shared
+   Dockerfile, the Phoenix and verifier wheels, the database, and the task's `workdir/`.
+2. **The agent's turn, in a sandbox.** Harbor builds each task's sandbox from its
+   `environment/` directory. The sandbox starts Phoenix on the seeded database. The agent gets `instruction.md`, a shell as the user `agent`, the files in
    `/app`, and network access to `api.anthropic.com` and `api.openai.com` only.
 3. **Grading, in the same sandbox.** Harbor copies `tests/` in as root, so the agent
    never sees the answers. The verifier reads what the agent left in Phoenix, its files,
@@ -79,21 +80,47 @@ way every time, such as always advising caution, fails one task in each pair.
 
 ## How the data was made
 
-Every task's data is synthetic. Each task's `fixture/build.py` generates its seed file
-and its hidden answers (`tests/truth.json`) from hand-written templates. Generators that
-sample use a fixed random seed, so rerunning any generator reproduces both files byte
-for byte. The companies,
-customers, orders, and policies are invented. No public dataset or user data is used.
-The one exception is `improve-app`'s baseline experiment, which replays real
-`gpt-5.4-mini` replies recorded once by `fixture/record_baseline.py`.
+Every task's data is synthetic and committed to the repository. Each task has a
+generator, `fixture/build.py`, a Python script that writes two things:
+
+- `fixture/phoenix_seed.json`: the Phoenix state the agent starts with.
+- The hidden answers in `tests/`: `expected.json`, and for most tasks
+  `grading_data.json`, which holds per-trace labels and the traces the verifier adds
+  during grading.
+
+The generator's content is written out by hand in the script: the companies, customers,
+orders, and policies, and templates for questions, replies, and reviewer notes. No model
+generates data when a generator runs. Most generators use a fixed random seed to fill
+the templates: it picks names, order numbers, products, and dates, decides which
+template and which wrong claim a reply gets, shuffles the order of cases, and adds
+jitter to timestamps and scores. Labels don't come from the random draw. Each one follows
+from a rule the generator applies to the facts it picked, such as the refund an order
+record allows or whether a tool result shows the action happened. With a fixed seed,
+rerunning a generator reproduces its files byte for byte.
+
+When a task runs, nothing is regenerated. Staging seeds Phoenix from the committed seed
+file, and the verifier reads the committed answers. The verifier moves the timestamps of
+the traces it adds into the last 6 hours before it writes them. Only model output is new
+on each run: the agent's work, the judges' verdicts, and, in `improve-app`, the app's
+replies to the hidden questions. `improve-app`'s baseline experiment is the one recorded
+exception: it replays real `gpt-5.4-mini` replies that `fixture/record_baseline.py`
+recorded once. No public dataset or user data is used.
+
+This differs from the TRAIL and error-analysis suites, which seed one shared database
+for all of their tasks: TRAIL from a gated Hugging Face dataset of real agent traces, and
+error-analysis from a published database download. Each task here needs its own small
+state with known answers, so each one carries a generator and a seed file that you can
+review in a diff.
 
 The data is built to look like a team's data where that matters for evaluation work:
 
 - **Labels sit where people put them.** In `judge-trust`, reviewers switched tools
-  partway through, so 50 labels are span annotations and 30 are trace annotations. The
-  Python client can read span annotations but has no method for trace annotations, so
-  the reference solution reads them with the REST route
-  `GET /v1/projects/{project}/trace_annotations`.
+  partway through, so some labels are span annotations and the rest are trace
+  annotations. The Python client reads span annotations
+  (`spans.get_span_annotations`), but its `traces` resource only writes trace
+  annotations, so the reference solution reads them with the REST route
+  `GET /v1/projects/{project}/trace_annotations`. `px trace list
+  --include-annotations` also returns them.
 - **Reviews get revised.** In `curate-labels`, reviewers revise their own reviews.
   Phoenix updates the annotation in place, so its `created_at` stays and its
   `updated_at` moves. The latest review is the one with the latest `updated_at`.
@@ -103,52 +130,55 @@ The data is built to look like a team's data where that matters for evaluation w
   nightly script that scores the last day sees all of them. In `session-evals`, some new
   turns continue sessions the agent already scored.
 
-Each label follows from a rule the generator applies, such as the refund the order
-record allows or whether a tool result shows the action happened. Five kinds of checks
-cover the data:
+Five kinds of checks cover the data:
 
-1. **The generators check their own output.** For example, `improve-judge` checks every
-   label against the refund rule, and `compare-experiments` checks that each wrong way
-   of reading the runs gives a wrong decision or a number outside the grader's
-   tolerance.
+1. **The generators check their own output.** Each `build.py` ends with Python
+   assertions that run every time it writes its files; no model is involved. For
+   example, `improve-judge` checks every label against the refund rule, and
+   `compare-experiments` checks that each wrong way of reading the runs gives a wrong
+   decision or a number outside the grader's tolerance.
 2. **The seeder reads the data back.** It waits until every span is in Phoenix, and
    fails if any experiment run's output, evaluation, or repetition doesn't match the
    seed file.
-3. **A second model reviewed the labels.** GPT-6 Astra read every task's data and labels
-   on November 13, 2026. Each fix is listed in the task's `Task.md`. The review came
-   before the traps added on November 14, such as the repeated runs, the trace-level
-   labels, and the tracking timeouts, so no second model has reviewed those parts. No
-   person has reviewed the labels.
+3. **A second model checked the answers.** GPT-6 Astra read every task's data and labels
+   and checked them against the task's rules. No person has reviewed the labels.
 4. **Reference and do-nothing agents bound the reward.** Each task's reference
    solution, which makes real model calls, scores 1, and an agent that does nothing
    scores 0.
-5. **Naive approaches fail.** Each `Task.md` lists the shortcuts it's built to catch and
-   what each one scores.
-
-Each `Task.md` has a "How the data was made" section with the details for that task.
+5. **Wrong approaches fail.** Each `Task.md` lists the realistic mistakes the task is
+   built to catch and the check each one fails.
 
 ## How it's graded
 
-`reward` is 1 when every check passes and 0 otherwise. Each check is also reported as 1
-or 0 under the name in the task's `Task.md`:
+Each task defines its own pass criteria, one check per requirement in the user's
+request, and its `Task.md` lists them. Each check is reported as 1 or 0. `reward` is 1
+only when every one of the task's checks passes. Each run also reports measures that
+never affect `reward`; see [What a run reports](#what-a-run-reports).
 
-- `production_*` checks grade the data that was in Phoenix when the agent started.
-- `new_traces_*`, `new_sessions_*`, and `continued_sessions_*` checks grade what the
-  agent's script wrote when the verifier reran it on data the agent never saw.
-- `reply_*` checks and the decision checks grade the agent's final reply.
+Check names follow one pattern across tasks:
+
+| Check | What it grades |
+| --- | --- |
+| `production_traces`, `production_sessions` | The agent's annotations on the data that was in Phoenix when it started. |
+| `new_traces`, `new_sessions`, `continued_sessions` | What the agent's script writes when the verifier reruns it on data the agent never saw. |
+| `decision`, `numbers` | The call and the numbers in the agent's final reply. |
+| `reply` | Whether the final reply tells the user what they asked about. |
+
+Other checks are specific to one task, and its `Task.md` explains them.
 
 Some rules hold across tasks:
 
 - **Annotations need recall on each class.** A check requires a minimum recall on good
   cases and on bad cases separately, so labeling everything one way fails.
-- **Judges run on the cheapest model.** Tasks that ask for an LLM judge say the nightly
-  job's API key can call only `gpt-5-nano`, and the rerun refuses any other model. On
-  it, the reference prompts pass and naive prompts, such as raw span JSON with labels
-  that aren't defined, fail.
+- **Judges run on a small model.** Tasks that ask for an LLM judge ask for
+  `gpt-5-nano`, and the rerun refuses any other model. On it, the reference prompts pass
+  and naive prompts, such as raw span JSON with labels that aren't defined, fail.
 - **Replies are graded on extracted claims.** An LLM reads the reply, without seeing the
   answers, and extracts the decision and each number with a quote. Code checks that the
   quote is in the reply and compares the value with the answer.
-- **The verifier's own LLM calls use `gpt-6-luna`.**
+- **The verifier's LLM calls use `gpt-6-luna`.** That covers its LLM judges, such as
+  the ones that grade `improve-app`'s replies, and the step that extracts claims from a
+  reply.
 
 ## What a run reports
 
@@ -164,10 +194,17 @@ Every task reports how the agent worked:
 | `loaded_<skill>` | 1 if the agent loaded that skill, such as `loaded_phoenix_evals`. `details.json` lists every skill loaded, in order. |
 
 Five tasks ask the agent for an eval script that the verifier reruns: `response-evals`,
-`session-evals`, `rag-evals`, `repair-evals`, and `improve-judge`. While the script
-reruns, every model request it makes passes through a local proxy that records it
-([`judge_prompts.py`](../../verifiers/harbor_verifiers/judge_prompts.py)). From those
-requests, the verifier reports two measures of the judges the agent built:
+`session-evals`, `rag-evals`, `repair-evals`, and `improve-judge`. During the rerun, the
+verifier points the script's OpenAI and Anthropic clients at a proxy inside the sandbox
+([`judge_prompts.py`](../../verifiers/harbor_verifiers/judge_prompts.py)). The proxy
+forwards each request and does two things with it:
+
+- It refuses any model other than `gpt-5-nano` with a 403 error, the way a key scoped to
+  that model would.
+- It records the request, so the verifier can see the judge prompts the script sends.
+
+From the recorded requests, the verifier reports two measures of the judges the agent
+built:
 
 | Key | Meaning |
 | --- | --- |
@@ -217,14 +254,20 @@ Restage after you change a seed file, `workdir/`, the verifiers, or the environm
 | Name the job | `HARBOR_ARGS='--job-name skills-v2'` |
 | Skip recording in Phoenix | `HARBOR_PLUGIN=` |
 
+The plugin records to the Phoenix at `PHOENIX_COLLECTOR_ENDPOINT`, with
+`PHOENIX_API_KEY` if that Phoenix needs one. Without them, it uses a local Phoenix on
+the default port. To record to another Phoenix, such as a shared team instance, set both
+variables for the run, or pass
+`HARBOR_ARGS='--plugin-kwarg endpoint=https://phoenix.example.com'`.
+
 To run some conditions, write a reduced job file with
 [`subset_job.py`](../../scripts/subset_job.py) and pass it as `HARBOR_JOB`. Don't use
 `-a <agent>` for this, because it drops the condition's skills:
 
 ```bash
 uv run --script evals/harbor/scripts/subset_job.py evals/harbor/jobs/eval-workflows.yaml \
-  --agents claude-code-haiku-no-skills claude-code-haiku-skills --out evals/harbor/.cache/haiku.yaml
-make harbor-run HARBOR_JOB=evals/harbor/.cache/haiku.yaml
+  --agents codex-sol-no-skills codex-sol-skills --out evals/harbor/.cache/codex.yaml
+make harbor-run HARBOR_JOB=evals/harbor/.cache/codex.yaml
 ```
 
 ### Check the tasks themselves
@@ -266,11 +309,11 @@ Each task directory has the same layout:
 | --- | --- |
 | `Task.md` | The page a reviewer reads: the request, the starting data, how the data was made, how it's graded, and what it tests. |
 | `instruction.md` | The request the agent receives. `Task.md` quotes it word for word. |
-| `task.toml` | Harbor configuration. `fixture = "phoenix-seed"` tells staging to seed Phoenix from `fixture/phoenix_seed.json`. |
-| `fixture/build.py` | The generator for `fixture/phoenix_seed.json` and `tests/truth.json`. |
+| `task.toml` | Harbor configuration. `fixture = "phoenix-seed"` tells staging to seed Phoenix from `fixture/phoenix_seed.json`, and `reference_output_path` tells the Phoenix plugin to record `tests/expected.json` as the expected output. |
+| `fixture/build.py` | The generator for `fixture/phoenix_seed.json` and the hidden answers in `tests/`. |
 | `fixture/phoenix_seed.json` | The Phoenix state the agent starts with. Generated. |
 | `workdir/` | Files copied to `/app`, such as the app's code or the team's eval script. |
-| `tests/` | The verifier, `tests/test.sh` and `tests/test.py`, with its hidden answers in `truth.json`. |
+| `tests/` | The verifier, `tests/test.sh` and `tests/test.py`. Its hidden answers are `expected.json`, the expected outcome, and `grading_data.json`, the labels and added traces it grades against. |
 | `solution/` | A reference solution that does the work for real, including model calls. |
 
 To change a task's data, edit its `fixture/build.py` and run it from the repository root:

@@ -16,6 +16,9 @@ def test_task_layout(task: Path) -> None:
     config = tomllib.loads((task / "task.toml").read_text())
     assert config["task"]["name"] == f"arize/eval-workflows-{task.name}"
     assert config["metadata"]["fixture"] == "phoenix-seed"
+    assert config["metadata"]["arize-phoenix"]["reference_output_path"] == "tests/expected.json"
+    assert isinstance(json.loads((task / "tests" / "expected.json").read_text())["reference"], str)
+    assert not (task / "tests" / "truth.json").exists()
     assert config["agent"]["user"] == "agent"
     assert "environment/" in (task / ".gitignore").read_text().splitlines()
     for name in ("tests/test.sh", "solution/solve.sh"):
@@ -28,7 +31,6 @@ def test_task_layout(task: Path) -> None:
 
 @pytest.mark.parametrize("task", TASKS, ids=lambda path: path.name)
 def test_task_page_quotes_the_instruction(task: Path) -> None:
-    """Task.md is the reviewer's single page, so it must show the exact request."""
     page = (task / "Task.md").read_text()
     for paragraph in (task / "instruction.md").read_text().strip().split("\n\n"):
         quoted = "\n".join(f"> {line}" for line in paragraph.splitlines())
