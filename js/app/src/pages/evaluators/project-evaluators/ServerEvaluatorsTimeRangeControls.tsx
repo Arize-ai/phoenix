@@ -17,8 +17,8 @@ import type { ServerEvaluatorsTimeRangeControlsQuery } from "./__generated__/Ser
  * The Evaluators page's time range control strip: pan/zoom buttons around the
  * same live toggle the project page shows. While live, checks every few
  * seconds whether any project received new spans or evaluation results, and
- * calls `onNewData` when one did. Shares the project page's live preference,
- * so pausing one pauses the other.
+ * calls `onNewData` when one did. Has its own streaming preference, off by
+ * default.
  */
 export function ServerEvaluatorsTimeRangeControls({
   onNewData,
@@ -48,9 +48,11 @@ function ServerEvaluatorsTimeRangeControlsContent({
 }: {
   onNewData: () => void;
 }) {
-  const isLive = usePreferencesContext((state) => state.traceStreamingEnabled);
+  const isLive = usePreferencesContext(
+    (state) => state.serverEvaluatorsStreamingEnabled
+  );
   const setIsLive = usePreferencesContext(
-    (state) => state.setTraceStreamingEnabled
+    (state) => state.setServerEvaluatorsStreamingEnabled
   );
   const { refreshLiveTimeRange } = useTimeRange();
   const [pollCount, setPollCount] = useState(0);

@@ -6,7 +6,16 @@ import {
   useRelayEnvironment,
 } from "react-relay";
 
-import { Button, Icon, Icons, Text } from "@phoenix/components";
+import {
+  Button,
+  Icon,
+  Icons,
+  Menu,
+  MenuItem,
+  MenuTrigger,
+  Popover,
+  Text,
+} from "@phoenix/components";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { useNotifySuccess, useViewerCanModify } from "@phoenix/contexts";
 import type { ClearQueuedEvaluationsButtonAllCountsQuery } from "@phoenix/pages/project/evaluators/__generated__/ClearQueuedEvaluationsButtonAllCountsQuery.graphql";
@@ -53,10 +62,11 @@ export function ClearQueuedEvaluationsButton({
 }
 
 /**
- * Clears every project's queued evaluations. Lives on the server-wide project
- * evaluators view only: a project's page clears only its own.
+ * A "more" menu holding the action that clears every project's queued
+ * evaluations, kept out of reach of a stray click. Lives on the server-wide
+ * project evaluators view only: a project's page clears only its own.
  */
-export function ClearAllQueuedEvaluationsButton({
+export function ClearAllQueuedEvaluationsMenu({
   isQueueEmpty = false,
   onCleared,
 }: {
@@ -64,13 +74,59 @@ export function ClearAllQueuedEvaluationsButton({
   isQueueEmpty?: boolean;
   onCleared?: () => void;
 }) {
+  const canModify = useViewerCanModify();
+  const dialog = useClearQueueDialog();
+  if (!canModify) {
+    return null;
+  }
   return (
-    <ClearQueueButton
-      scope={{ type: "ALL" }}
-      isDisabled={isQueueEmpty}
-      onCleared={onCleared}
-    />
+    <>
+      <MenuTrigger>
+        <Button
+          size="S"
+          variant="quiet"
+          aria-label="Queue actions"
+          leadingVisual={<Icon svg={<Icons.MoreHorizontal />} />}
+        />
+        <Popover placement="bottom end">
+          <Menu
+            disabledKeys={isQueueEmpty ? ["clear"] : []}
+            onAction={(key) => {
+              if (key === "clear") {
+                dialog.open();
+              }
+            }}
+          >
+            <MenuItem
+              id="clear"
+              leadingContent={<Icon svg={<Icons.Trash />} />}
+            >
+              Clear queue…
+            </MenuItem>
+          </Menu>
+        </Popover>
+      </MenuTrigger>
+      <ClearQueuedEvaluationsDialog
+        key={dialog.openCount}
+        scope={{ type: "ALL" }}
+        isOpen={dialog.isOpen}
+        onOpenChange={dialog.setIsOpen}
+        onCleared={onCleared}
+      />
+    </>
   );
+}
+
+/** The confirm dialog's open state, keyed so each opening starts fresh. */
+function useClearQueueDialog() {
+  const [isOpen, setIsOpen] = useState(false);
+  // Keys the dialog, so each opening starts with fresh counts and no error.
+  const [openCount, setOpenCount] = useState(0);
+  const open = () => {
+    setOpenCount((count) => count + 1);
+    setIsOpen(true);
+  };
+  return { isOpen, setIsOpen, openCount, open };
 }
 
 function ClearQueueButton({
@@ -83,9 +139,7 @@ function ClearQueueButton({
   onCleared?: () => void;
 }) {
   const canModify = useViewerCanModify();
-  const [isOpen, setIsOpen] = useState(false);
-  // Keys the dialog, so each opening starts with fresh counts and no error.
-  const [openCount, setOpenCount] = useState(0);
+  const { isOpen, setIsOpen, openCount, open } = useClearQueueDialog();
   if (!canModify) {
     return null;
   }
@@ -95,10 +149,7 @@ function ClearQueueButton({
         size="S"
         leadingVisual={<Icon svg={<Icons.Trash />} />}
         isDisabled={isDisabled}
-        onPress={() => {
-          setOpenCount((count) => count + 1);
-          setIsOpen(true);
-        }}
+        onPress={open}
       >
         Clear queue
       </Button>
