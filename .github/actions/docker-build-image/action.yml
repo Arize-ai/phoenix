@@ -129,9 +129,14 @@ runs:
           echo "::group::build ${variant} (${PLATFORM})"
           variant_dir="${out}/${variant}/${platform_slug}"
           mkdir -p "$variant_dir"
+          allow_args=(--allow "fs.write=${variant_dir}")
+          if [ -n "$STARTUP_AND_DATA_DIR" ]; then
+            allow_args+=(--allow "fs.read=${STARTUP_AND_DATA_DIR}")
+          fi
           meta="${RUNNER_TEMP}/metadata-${variant}.json"
           if BASE_IMAGE="$base" ARCHIVE_PATH="${variant_dir}/image.tar" docker buildx bake \
                --file "$BAKE_FILE" \
+               "${allow_args[@]}" \
                --provenance mode=max \
                --sbom true \
                "${label_args[@]}" \
