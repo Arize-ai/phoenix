@@ -94,6 +94,36 @@ describe("BuiltInProviderDetailsDrawer", () => {
     expect(decisionModels?.textContent).toContain("Not installed");
   });
 
+  it("shows only that no credentials are needed when there are none", async () => {
+    await renderDrawer("/settings/providers/built-in/OLLAMA");
+    await act(async () => {
+      environment.mock.resolveMostRecentOperation((operation) =>
+        MockPayloadGenerator.generate(operation, {
+          Query: () => ({
+            modelProviders: [
+              {
+                key: "OLLAMA",
+                name: "Ollama",
+                modelTypes: ["CHAT"],
+                credentialsSet: true,
+                credentialRequirements: [],
+                chatDependencies: ["openai"],
+                chatDependenciesInstalled: true,
+                decisionDependencies: [],
+                decisionDependenciesInstalled: true,
+              },
+            ],
+            chatModels: [{ name: "llama3.3" }],
+            decisionModels: [],
+          }),
+        })
+      );
+    });
+    expect(readSection("Credentials")?.textContent).toBe(
+      "CredentialsThis provider needs no credentials."
+    );
+  });
+
   it("explains an unknown provider key without querying", async () => {
     await renderDrawer("/settings/providers/built-in/NOT_A_PROVIDER");
     expect(document.body.textContent).toContain("Provider not found");

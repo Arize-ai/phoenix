@@ -213,14 +213,18 @@ function BuiltInProviderDetailsContent({
             <ProviderListSection
               title="Credentials"
               status={
-                <StatusIndicator
-                  category={provider.credentialsSet ? "succeeded" : "unset"}
-                  label={
-                    provider.credentialsSet
-                      ? "Set on the server"
-                      : "Not set on the server"
-                  }
-                />
+                // A provider with nothing to set reports its credentials as
+                // set, which would read as a contradiction above the empty list.
+                envVarItems.length > 0 ? (
+                  <StatusIndicator
+                    category={provider.credentialsSet ? "succeeded" : "unset"}
+                    label={
+                      provider.credentialsSet
+                        ? "Set on the server"
+                        : "Not set on the server"
+                    }
+                  />
+                ) : null
               }
               items={envVarItems}
               emptyText="This provider needs no credentials."
