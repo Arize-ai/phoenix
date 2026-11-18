@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons, Token } from "@phoenix/components";
+import { Button, Flex, Icon, Icons } from "@phoenix/components";
 
 import {
   type AnnotationFilterDefinition,
@@ -64,13 +64,14 @@ export function AnnotationTooltipFilterActions(
       >
         {filters.map((filter) => (
           <li key={filter.filterName}>
-            <Token
+            <Button
+              size="S"
               onPress={() => {
                 onAppendFilterCondition(filter.filterCondition);
               }}
             >
               {filter.filterName}
-            </Token>
+            </Button>
           </li>
         ))}
       </ul>

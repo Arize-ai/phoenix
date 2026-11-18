@@ -1,6 +1,6 @@
 import { DocumentAttributePostfixes } from "@arizeai/openinference-semantic-conventions";
 
-import type { TokenProps, ViewProps } from "@phoenix/components";
+import type { ViewProps } from "@phoenix/components";
 import {
   Card,
   CopyToClipboardButton,
@@ -9,8 +9,8 @@ import {
   Heading,
   Icon,
   Icons,
-  Token,
   View,
+  Text,
 } from "@phoenix/components";
 import { ConnectedMarkdownBlock } from "@phoenix/components/markdown";
 import type { AttributeDocument } from "@phoenix/openInference/tracing/types";
@@ -25,7 +25,6 @@ export function DocumentItem({
   documentAnnotations,
   backgroundColor,
   borderColor = "default",
-  tokenColor,
   spanNodeId,
   documentPosition,
 }: {
@@ -33,7 +32,6 @@ export function DocumentItem({
   documentAnnotations?: DocumentAnnotation[] | null;
   backgroundColor?: ViewProps["backgroundColor"];
   borderColor?: ViewProps["borderColor"];
-  tokenColor?: TokenProps["color"];
   spanNodeId?: string;
   documentPosition?: number;
 }) {
@@ -57,11 +55,11 @@ export function DocumentItem({
       extra={
         <Flex direction="row" gap="size-100" alignItems="center">
           {typeof document[DocumentAttributePostfixes.score] === "number" && (
-            <Token color={tokenColor}>
+            <Text size="S" color="text-700">
               {`score ${numberFormatter(
                 document[DocumentAttributePostfixes.score]
               )}`}
-            </Token>
+            </Text>
           )}
           {/* the content is what a reader reaches for; the whole document is
               the fallback for a document that recorded none */}
@@ -103,7 +101,6 @@ export function DocumentItem({
               documentPosition={documentPosition ?? 0}
               documentAnnotations={documentAnnotations ?? []}
               borderColor={borderColor}
-              tokenColor={tokenColor}
               canAnnotate={canAnnotate}
             />
           </ErrorBoundary>
