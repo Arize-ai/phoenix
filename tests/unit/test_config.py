@@ -2507,6 +2507,65 @@ class TestGetEnvAllowedOrigins:
         assert get_env_allowed_origins() == expected
 
 
+class TestGetEnvCsrfTrustedOrigins:
+    def test_unset_returns_empty_list(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_CSRF_TRUSTED_ORIGINS", raising=False)
+        from phoenix.config import get_env_csrf_trusted_origins
+
+        assert get_env_csrf_trusted_origins() == []
+
+    def test_basic_parsing(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv(
+            "PHOENIX_CSRF_TRUSTED_ORIGINS",
+            "https://phoenix.example.com,https://app.example.com",
+        )
+        from phoenix.config import get_env_csrf_trusted_origins
+
+        assert get_env_csrf_trusted_origins() == [
+            "https://app.example.com",
+            "https://phoenix.example.com",
+        ]
+
+    def test_whitespace_around_entries_is_stripped(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv(
+            "PHOENIX_CSRF_TRUSTED_ORIGINS",
+            " https://phoenix.example.com , https://app.example.com \n",
+        )
+        from phoenix.config import get_env_csrf_trusted_origins
+
+        assert get_env_csrf_trusted_origins() == [
+            "https://app.example.com",
+            "https://phoenix.example.com",
+        ]
+
+    @pytest.mark.parametrize(
+        "value, expected",
+        [
+            pytest.param("", [], id="empty"),
+            pytest.param(" , \t ", [], id="only-separators"),
+            pytest.param(
+                "https://phoenix.example.com,,",
+                ["https://phoenix.example.com"],
+                id="trailing-commas",
+            ),
+        ],
+    )
+    def test_empty_entries_are_ignored(
+        self, monkeypatch: MonkeyPatch, value: str, expected: list[str]
+    ) -> None:
+        monkeypatch.setenv("PHOENIX_CSRF_TRUSTED_ORIGINS", value)
+        from phoenix.config import get_env_csrf_trusted_origins
+
+        assert get_env_csrf_trusted_origins() == expected
+
+    def test_missing_hostname_raises(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_CSRF_TRUSTED_ORIGINS", "not-a-url")
+        from phoenix.config import get_env_csrf_trusted_origins
+
+        with pytest.raises(ValueError, match="missing hostname"):
+            get_env_csrf_trusted_origins()
+
+
 class TestGetEnvAllowedSandboxProviders:
     def test_unset_returns_all_known_kinds(self, monkeypatch: MonkeyPatch) -> None:
         monkeypatch.delenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", raising=False)
