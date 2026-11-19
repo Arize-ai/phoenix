@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ff61233fa8c0d40c2cbf1fe498d38e19>>
+ * @generated SignedSource<<721eb4316132d80bf859d1c6c620a2b1>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
+export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI" | "ZAI";
 export type AgentModelCredentialFormQuery$variables = Record<PropertyKey, never>;
 export type AgentModelCredentialFormQuery$data = {
   readonly modelProviders: ReadonlyArray<{

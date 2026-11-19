@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 from typing import Optional
 from unittest.mock import patch
@@ -336,7 +337,7 @@ class TestEnvFileDiscovery:
     def test_file_owned_by_another_user_is_ignored(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        if not hasattr(os, "getuid"):
+        if sys.platform == "win32" or not hasattr(os, "getuid"):
             pytest.skip("file ownership is not available on this platform")
         env_file = tmp_path / ".env.phoenix"
         env_file.write_text("PHOENIX_API_KEY=untrusted\n")
@@ -346,7 +347,7 @@ class TestEnvFileDiscovery:
             stat = real_stat(path, follow_symlinks=follow_symlinks)
             if path == env_file:
                 values = list(stat)
-                values[4] = os.getuid() + 1
+                values[4] = stat.st_uid + 1
                 return os.stat_result(values)
             return stat
 
@@ -373,6 +374,13 @@ class TestEnvFileDiscovery:
         ("PHOENIX_CLIENT_HEADERS=x=1,y=2", {"PHOENIX_CLIENT_HEADERS": "x=1,y=2"}),
         # Non-PHOENIX keys are ignored (allowlist)
         ("OTHER_KEY=abc\nPHOENIX_API_KEY=def", {"PHOENIX_API_KEY": "def"}),
+        # A leading byte order mark is stripped
+        ("\ufeffPHOENIX_API_KEY=abc", {"PHOENIX_API_KEY": "abc"}),
+        # Old Mac line endings are handled
+        (
+            "PHOENIX_API_KEY=abc\rPHOENIX_PROJECT=proj\r",
+            {"PHOENIX_API_KEY": "abc", "PHOENIX_PROJECT": "proj"},
+        ),
         # Empty values are ignored
         ("PHOENIX_API_KEY=", {}),
         ("PHOENIX_API_KEY=''", {}),

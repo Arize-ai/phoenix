@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+from functools import partial
 from pathlib import Path
 from urllib.parse import quote
 
@@ -18,6 +20,7 @@ _env = Environment(
     lstrip_blocks=True,
 )
 _env.filters["sanitize"] = sanitize_untrusted_value
+_env.filters["json"] = partial(json.dumps, indent=2)
 
 
 def urlencode(value: object) -> str:

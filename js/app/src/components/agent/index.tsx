@@ -1,10 +1,14 @@
-export { AgentSettingsForm } from "./AgentSettingsForm";
-export { AgentObservabilitySettings } from "./AgentObservabilitySettings";
 export {
-  AgentExperimentalSettings,
+  AgentObservabilitySettings,
+  AgentTraceAttributionSettingRow,
+  AgentTraceExportSettingRow,
+  AgentTraceSavingSettingRow,
+} from "./AgentObservabilitySettings";
+export {
   AgentSubagentsSettings,
   AgentWebAccessSettings,
 } from "./AgentExperimentalSettings";
+export { AgentGitHubSettings } from "./AgentGitHubSettings";
 export { SystemSettingsWarning } from "./SystemSettingsWarning";
 export { AgentChatPanel, FloatingAgentChatPanel } from "./AgentChatPanel";
 export { ASSISTANT_RAIL_PANEL_ID } from "./AgentChatPanelView";
@@ -20,9 +24,9 @@ export type {
 export { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
 export { AssistantMessage, UserMessage } from "./ChatMessage";
 export {
-  AGENT_MODEL_LOCAL_STORAGE_KEY,
   DEFAULT_MODEL_MENU_VALUE,
   getAgentModelConfigFromLocalStorage,
+  resolveAgentModelStorageKey,
   toAgentModelConfig,
   toModelMenuValue,
 } from "./agentModelConfig";

@@ -17,6 +17,9 @@ from phoenix.server.agents.vercel_ui_message_stream import (
 _FIXTURES_PATH = Path(__file__).parent / "fixtures" / "ui_message_stream" / "fixtures.json"
 
 UNSUPPORTED_BY_PYDANTIC_AI = {
+    (
+        "processUIMessageStream > should apply output chunk tool metadata to static and dynamic tool parts"
+    ): "pydantic-ai tool chunks do not model toolMetadata",
     "processUIMessageStream > file parts with providerMetadata": (
         "pydantic-ai FileChunk does not model providerMetadata"
     ),
@@ -44,6 +47,20 @@ UNSUPPORTED_BY_PYDANTIC_AI = {
     "processUIMessageStream > custom": (
         "pydantic-ai does not model AI SDK v7 custom chunks or parts"
     ),
+    # pydantic-ai models the reasoning id on ``ReasoningStartChunk`` but not on the
+    # ``ReasoningUIPart`` it materializes, so Phoenix reads the id to correlate the block's
+    # deltas and then has nowhere upstream-compatible to persist it. Carrying it locally
+    # would fork the vendored part from upstream; these two fixtures are skipped instead.
+    "processUIMessageStream > reasoning": "pydantic-ai ReasoningUIPart does not model id",
+    "processUIMessageStream > server-side tool roundtrip with multiple assistant reasoning": (
+        "pydantic-ai ReasoningUIPart does not model id"
+    ),
+    # ``reset-step`` arrived with ai@7.0.77. pydantic-ai models ``start-step`` and
+    # ``finish-step`` but has no chunk for it, so Phoenix cannot parse the fixture at all.
+    (
+        "processUIMessageStream > reset-step > "
+        "removes parts from the current step and accepts retried parts"
+    ): "pydantic-ai does not model reset-step chunks",
 }
 
 UNSUPPORTED_APPROVAL_CHUNKS = {
@@ -59,6 +76,14 @@ UNSUPPORTED_APPROVAL_CHUNKS = {
     "processUIMessageStream > automatic tool approval with execution (dynamic tool)": (
         "pydantic-ai does not model automatic approval fields or response chunks"
     ),
+    (
+        "processUIMessageStream > preserves approval descriptors through "
+        "request and response states"
+    ): "pydantic-ai approval chunks do not model approvalDescriptor",
+    (
+        "processUIMessageStream > preserves an approval descriptor restored from "
+        "a persisted message"
+    ): "pydantic-ai approval parts do not model descriptor",
 }
 
 _FIXTURES: list[dict[str, Any]] = json.loads(_FIXTURES_PATH.read_text())
@@ -132,8 +157,8 @@ def test_unsupported_case_list_is_explicit_and_current() -> None:
     fixture_names = {fixture["name"] for fixture in _FIXTURES}
     unsupported_names = set(UNSUPPORTED_BY_PYDANTIC_AI) | set(UNSUPPORTED_APPROVAL_CHUNKS)
 
-    assert len(UNSUPPORTED_BY_PYDANTIC_AI) == 8
-    assert len(UNSUPPORTED_APPROVAL_CHUNKS) == 4
+    assert len(UNSUPPORTED_BY_PYDANTIC_AI) == 12
+    assert len(UNSUPPORTED_APPROVAL_CHUNKS) == 6
     assert unsupported_names <= fixture_names
 
 

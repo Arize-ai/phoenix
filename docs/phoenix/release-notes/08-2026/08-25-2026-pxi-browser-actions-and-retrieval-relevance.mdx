@@ -1,0 +1,173 @@
+---
+title: "08.25.2026: Smarter PXI Workflows and Retrieval Evaluation"
+description: "PXI completes multi-step UI workflows with approval-gated changes, a new evaluator scores retrievals from any source, and new trace and REST tools speed up analysis and administration."
+---
+
+This release helps you move from question to action faster. PXI can complete multi-step workflows
+across the Phoenix UI, a new evaluator measures whether retrieved information is useful, and new
+trace and REST tools reduce repetitive work.
+
+# Complete Multi-Step Workflows with PXI
+
+August 25, 2026
+
+**Available in arize-phoenix 20.4.0+**
+
+PXI can now discover the actions available on the current page and combine them into a single
+workflow. For example, it can select a model, run the playground, and inspect the output in one
+turn.
+
+- **Work across the UI in fewer turns** — PXI can read page state, make decisions, and perform
+  several actions as one workflow.
+- **Stay in control of GraphQL changes** — in manual edit-permission mode, Phoenix shows each
+  proposed mutation with Accept and Reject controls before applying it. Approval requests remain
+  available after a page reload.
+- **Navigate with approval** — PXI asks before moving to another page and stops if you reject the
+  request.
+- **Query Phoenix data directly** — PXI can use Phoenix's read-only REST and analytics SQL tools
+  without a network round trip or separate MCP configuration.
+- **Recover from unavailable actions** — when an action is not available on the current page, PXI
+  receives guidance about where it can run.
+
+<CardGroup cols={2}>
+  <Card title="PXI" icon="robot" href="/docs/phoenix/pxi">
+    Learn about the AI engineering agent built into Phoenix
+  </Card>
+</CardGroup>
+
+# Evaluate Retrieval Relevance Across Any Source
+
+August 21, 2026
+
+**Available in arize-phoenix-evals 3.5.0+ (Python) and @arizeai/phoenix-evals 2.3.0+ (TypeScript)**
+
+Use the new Retrieval Relevance evaluator to measure whether retrieved information helps answer
+the request it was meant to serve. It evaluates the combined result of each retrieval step,
+whether the content came from vector search, a tool or MCP call, web search, or a SQL query.
+
+The evaluator returns a `relevant` or `irrelevant` label, a numeric score, and the judge's
+explanation.
+
+```python
+from phoenix.evals import LLM
+from phoenix.evals.metrics import RetrievalRelevanceEvaluator
+
+llm = LLM(provider="openai", model="gpt-4o")
+evaluator = RetrievalRelevanceEvaluator(llm=llm)
+
+scores = evaluator.evaluate(
+    {
+        "input": "What is the return policy?",
+        "context": "Customers can return purchases within 30 days.",
+    }
+)
+print(scores[0])
+```
+
+```typescript
+import { openai } from "@ai-sdk/openai";
+import { createRetrievalRelevanceEvaluator } from "@arizeai/phoenix-evals";
+
+const evaluator = createRetrievalRelevanceEvaluator({
+  model: openai("gpt-4o"),
+});
+
+const result = await evaluator.evaluate({
+  input: "What is the return policy?",
+  context: "Customers can return purchases within 30 days.",
+});
+console.log(result.label);
+```
+
+<CardGroup cols={2}>
+  <Card title="Retrieval Relevance" icon="magnifying-glass" href="/docs/phoenix/evaluation/pre-built-metrics/retrieval-relevance">
+    Choose spans to score, format inputs, and customize the evaluation prompt
+  </Card>
+</CardGroup>
+
+# Build Focused Trace Views Faster
+
+August 25, 2026
+
+**Available in arize-phoenix 20.4.0+**
+
+New filtering and table controls make it easier to move from a broad project view to the traces
+that need attention.
+
+- **Write trace filters in plain English** — toggle AI query in the trace filter field, describe
+  the traces you want, and press Enter to generate a validated filter expression. Press Escape to
+  restore the previous expression.
+- **Zoom into a chart interval with one click** — click a project metric chart bin to apply its
+  exact time range to the page, or drag across the chart to select a wider interval.
+- **Compare annotations in dedicated columns** — show, hide, and reorder individual annotation
+  columns on the spans, traces, and sessions tables. Hover for details or add a matching filter
+  from the cell popover.
+
+<CardGroup cols={2}>
+  <Card title="Filter Expressions" icon="filter" href="/docs/phoenix/tracing/how-to-tracing/filter-expressions">
+    Learn how to filter spans, traces, and sessions
+  </Card>
+  <Card title="Annotations" icon="pen" href="/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations">
+    Record and review feedback on spans, traces, and sessions
+  </Card>
+</CardGroup>
+
+# Manage Retention and Model Providers over REST
+
+August 25, 2026
+
+**Available in arize-phoenix 20.4.0+**
+
+The v1 REST API now supports project retention assignments and model-provider discovery.
+
+- **`PATCH /v1/projects/{project_identifier}/retention`** — assign an existing trace retention
+  policy to a project or reset the project to the default policy. This admin-only endpoint changes
+  the assignment; it does not create or modify policies.
+- **`GET /v1/model_providers`** — list the built-in provider families enabled for the deployment.
+- **`GET /v1/custom_model_providers`** — list user-defined providers with cursor pagination.
+  Phoenix never returns encrypted provider credentials.
+
+Assign a retention policy:
+
+```bash
+curl -X PATCH "$PHOENIX_ENDPOINT/v1/projects/my-project/retention" \
+  -H "Authorization: Bearer $PHOENIX_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"policy_id": "UHJvamVjdFRyYWNlUmV0ZW50aW9uUG9saWN5OjI="}'
+```
+
+Reset a project to the default policy by sending `{"policy_id": null}`.
+
+List the built-in model providers:
+
+```bash
+curl "$PHOENIX_ENDPOINT/v1/model_providers" \
+  -H "Authorization: Bearer $PHOENIX_API_KEY"
+```
+
+<CardGroup cols={2}>
+  <Card title="Data Retention" icon="clock-rotate-left" href="/docs/phoenix/settings/data-retention">
+    Define and assign trace retention policies
+  </Card>
+  <Card title="Custom AI Providers" icon="plug" href="/docs/phoenix/settings/custom-ai-providers">
+    Configure providers beyond the built-in families
+  </Card>
+</CardGroup>
+
+# Additional Improvements
+
+August 20–25, 2026
+
+**Available in arize-phoenix 20.4.0+ and arize-phoenix-evals 3.5.1+**
+
+- **Use native scrollbars** — enable your browser and operating system's scrollbar style from
+  Profile → Accessibility.
+- **Get clearer not-found pages** — missing resources and unmatched URLs now show a useful 404
+  page instead of a blank page or generic error.
+- **Submit login forms with Enter** without navigating to the forgot-password page.
+- **Read long filters and share tooltips more easily** without content overflowing clipped
+  layouts.
+- **Track current model costs** with refreshed built-in token prices and preserved prompt-cache
+  usage from the OpenAI-compatible `/v1/chat/completions` proxy.
+- **Use Anthropic SDK v1 with Phoenix Evals** by upgrading `anthropic` alongside
+  `arize-phoenix-evals` 3.5.1+.

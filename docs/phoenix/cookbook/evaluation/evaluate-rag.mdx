@@ -26,7 +26,7 @@ In RAG, your data is loaded and prepared for queries. This process is called ind
 RAG is a critical component for building applications such a chatbots or agents and you will want to know RAG techniques on how to get data into your application.
 
 <Frame>
-    <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/RAG_Pipeline.png" />
+    <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/RAG_Pipeline.png" alt="Retrieval pipeline combining document sources, an index, a user query, and an LLM response" />
 </Frame>
 
 ### Stages within RAG
@@ -399,11 +399,17 @@ retrieved_documents_df
 Let's now use Phoenix's LLM Evals to evaluate the relevance of the retrieved documents with regards to the query. Note, we've turned on `explanations` which prompts the LLM to explain it's reasoning. This can be useful for debugging and for figuring out potential corrective actions.
 
 ```python
-from phoenix.evals import LLM, async_evaluate_dataframe
-from phoenix.evals.metrics import DocumentRelevanceEvaluator
+from phoenix.evals import LLM, async_evaluate_dataframe, bind_evaluator
+from phoenix.evals.metrics import RetrievalRelevanceEvaluator
 
 llm = LLM(provider="openai", model="gpt-4-turbo-preview")
-relevance_evaluator = DocumentRelevanceEvaluator(llm=llm)
+# You can also use a decision model: DecisionModel(provider="openai", model="gpt-6-luna").
+# Note: a decision model returns a label with per-label probabilities but no explanation,
+# so the explanations enabled above would not be available with it.
+relevance_evaluator = RetrievalRelevanceEvaluator(llm=llm)
+# Score each retrieved document on its own by mapping the evaluator's `context`
+# field to the dataframe's `reference` column (one document per row).
+relevance_evaluator = bind_evaluator(evaluator=relevance_evaluator, input_mapping={"context": "reference"})
 
 retrieved_documents_relevance_df = await async_evaluate_dataframe(
     dataframe=retrieved_documents_df,
@@ -568,13 +574,15 @@ qa_with_reference_df = pd.concat([root_spans_df, retriever_df], axis=1, join="in
 qa_with_reference_df
 ```
 
-Now that we have a dataset of the question, context, and response (input, reference, and output), we now can measure how well the LLM is responding to the queries. For details on the QA correctness evaluation, see the [LLM Evals documentation](/docs/phoenix/evaluation/running-pre-tested-evals/q-and-a-on-retrieved-data).
+Now that we have a dataset of the question, context, and response (input, reference, and output), we now can measure how well the LLM is responding to the queries. For details on the correctness evaluation, see the [Correctness evaluator documentation](/docs/phoenix/evaluation/pre-built-metrics/correctness).
 
 ```python
 from phoenix.evals import LLM, async_evaluate_dataframe
 from phoenix.evals.metrics import CorrectnessEvaluator, FaithfulnessEvaluator
 
 llm = LLM(provider="openai", model="gpt-4-turbo-preview")
+# These evaluators also accept a decision model: DecisionModel(provider="openai", model="gpt-6-luna").
+# A decision model returns a label with per-label probabilities but no explanation.
 qa_evaluator = CorrectnessEvaluator(llm=llm)
 hallucination_evaluator = FaithfulnessEvaluator(llm=llm)
 

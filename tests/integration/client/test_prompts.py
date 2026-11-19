@@ -881,8 +881,6 @@ class TestClient:
                 MessageCreateParamsBase(
                     model=token_hex(8),
                     max_tokens=1024,
-                    temperature=random(),
-                    top_p=random(),
                     stop_sequences=[token_hex(8), token_hex(8)],
                     system="You are {role}.",
                     messages=[
@@ -897,8 +895,6 @@ class TestClient:
                 MessageCreateParamsBase(
                     model=token_hex(8),
                     max_tokens=1025,
-                    temperature=random(),
-                    top_p=random(),
                     stop_sequences=[token_hex(8), token_hex(8)],
                     thinking={
                         "type": "enabled",
@@ -917,8 +913,6 @@ class TestClient:
                 MessageCreateParamsBase(
                     model=token_hex(8),
                     max_tokens=1024,
-                    temperature=random(),
-                    top_p=random(),
                     stop_sequences=[token_hex(8), token_hex(8)],
                     thinking={"type": "disabled"},
                     system="You are {role}.",
@@ -934,8 +928,6 @@ class TestClient:
                 MessageCreateParamsBase(
                     model=token_hex(8),
                     max_tokens=1024,
-                    temperature=random(),
-                    top_p=random(),
                     stop_sequences=[token_hex(8), token_hex(8)],
                     system=[
                         {"type": "text", "text": "You are {role}."},
@@ -959,8 +951,6 @@ class TestClient:
                 MessageCreateParamsBase(
                     model=token_hex(8),
                     max_tokens=1024,
-                    temperature=random(),
-                    top_p=random(),
                     stop_sequences=[token_hex(8), token_hex(8)],
                     messages=[
                         {
@@ -979,8 +969,6 @@ class TestClient:
                 MessageCreateParamsBase(
                     model=token_hex(8),
                     max_tokens=1024,
-                    temperature=random(),
-                    top_p=random(),
                     stop_sequences=[token_hex(8), token_hex(8)],
                     messages=[
                         {
@@ -1007,8 +995,6 @@ class TestClient:
                 MessageCreateParamsBase(
                     model=token_hex(8),
                     max_tokens=1024,
-                    temperature=random(),
-                    top_p=random(),
                     stop_sequences=[token_hex(8), token_hex(8)],
                     messages=[
                         MessageParam(
@@ -1048,8 +1034,6 @@ class TestClient:
                 MessageCreateParamsBase(
                     model=token_hex(8),
                     max_tokens=1024,
-                    temperature=random(),
-                    top_p=random(),
                     stop_sequences=[token_hex(8), token_hex(8)],
                     messages=[
                         MessageParam(
@@ -1108,8 +1092,6 @@ class TestClient:
                 MessageCreateParamsBase(
                     model=token_hex(8),
                     max_tokens=1024,
-                    temperature=random(),
-                    top_p=random(),
                     stop_sequences=[token_hex(8), token_hex(8)],
                     messages=[
                         MessageParam(

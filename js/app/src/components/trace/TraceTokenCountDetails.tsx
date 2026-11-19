@@ -2,7 +2,10 @@ import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import type { TraceTokenCountDetailsQuery } from "./__generated__/TraceTokenCountDetailsQuery.graphql";
-import { TokenCountDetails } from "./TokenCountDetails";
+import {
+  getTokenCountDetailsFromCostDetails,
+  TokenCountDetails,
+} from "./TokenCountDetails";
 
 export function TraceTokenCountDetails(props: { traceNodeId: string }) {
   const data = useLazyLoadQuery<TraceTokenCountDetailsQuery>(
@@ -14,6 +17,13 @@ export function TraceTokenCountDetails(props: { traceNodeId: string }) {
             rootSpan {
               cumulativeTokenCountPrompt
               cumulativeTokenCountCompletion
+            }
+            costDetailSummaryEntries {
+              tokenType
+              isPrompt
+              value {
+                tokens
+              }
             }
           }
         }
@@ -27,10 +37,16 @@ export function TraceTokenCountDetails(props: { traceNodeId: string }) {
       const tracePrompt = data.node.rootSpan?.cumulativeTokenCountPrompt ?? 0;
       const traceCompletion =
         data.node.rootSpan?.cumulativeTokenCountCompletion ?? 0;
+
+      const { promptDetails, completionDetails } =
+        getTokenCountDetailsFromCostDetails(data.node.costDetailSummaryEntries);
+
       return {
         total: tracePrompt + traceCompletion,
         prompt: tracePrompt,
         completion: traceCompletion,
+        promptDetails,
+        completionDetails,
       };
     }
 

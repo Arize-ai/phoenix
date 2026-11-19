@@ -12,11 +12,17 @@ import {
 import { DialogTrigger } from "react-aria-components";
 import { Link as RouterLink } from "react-router";
 import {
+  CodeBlock,
+  CodeBlockContainer,
+  CodeBlockCopyButton,
+  CodeBlockDownloadButton,
+  CodeBlockHeader,
   extractTableDataFromElement,
   tableDataToCSV,
   tableDataToMarkdown,
   type Components,
   type ExtraProps,
+  useIsCodeFenceIncomplete,
 } from "streamdown";
 
 import { IconButton } from "../core/button";
@@ -203,6 +209,71 @@ const inlineCodeCSS = css`
   font-size: 0.9em;
   line-height: 1.4;
 `;
+
+const codeLanguagePattern = /language-([^\s]+)/;
+const codeStartLinePattern = /startLine=(\d+)/;
+const codeWithoutLineNumbersPattern = /\bnoLineNumbers\b/;
+
+function getCodeText(children: ReactNode): string {
+  if (typeof children === "string") {
+    return children;
+  }
+  if (
+    isValidElement<{ children?: unknown }>(children) &&
+    typeof children.props.children === "string"
+  ) {
+    return children.props.children;
+  }
+  return "";
+}
+
+function MarkdownCodeBlock({
+  children,
+  className,
+  node,
+}: ComponentPropsWithoutRef<"code"> & ExtraProps) {
+  const isIncomplete = useIsCodeFenceIncomplete();
+  const code = getCodeText(children).replace(/\n+$/, "");
+  const language = className?.match(codeLanguagePattern)?.[1] ?? "";
+  const metaString =
+    typeof node?.properties.metastring === "string"
+      ? node.properties.metastring
+      : "";
+  const startLineMatch = metaString.match(codeStartLinePattern)?.[1];
+  const startLine = startLineMatch
+    ? Number.parseInt(startLineMatch, 10)
+    : undefined;
+  const lineNumbers = !codeWithoutLineNumbersPattern.test(metaString);
+
+  if (isIncomplete) {
+    // Streamdown exposes incomplete-fence state so consumers can skip costly
+    // Shiki work on every token. Keep its optimized shell, but render the hot
+    // block as plain code until the closing fence arrives.
+    return (
+      <CodeBlockContainer dir="ltr" isIncomplete language={language}>
+        <CodeBlockHeader language={language} />
+        <div data-language={language} data-streamdown="code-block-body">
+          <pre>
+            <code className={className}>{code}</code>
+          </pre>
+        </div>
+      </CodeBlockContainer>
+    );
+  }
+
+  return (
+    <CodeBlock
+      className={className}
+      code={code}
+      language={language}
+      lineNumbers={lineNumbers}
+      startLine={startLine}
+    >
+      <CodeBlockDownloadButton code={code} language={language} />
+      <CodeBlockCopyButton code={code} />
+    </CodeBlock>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Shared action button style
@@ -477,6 +548,7 @@ function MarkdownTable(
 // ---------------------------------------------------------------------------
 
 export const streamdownComponents: Components = {
+  code: MarkdownCodeBlock,
   h1: ({ children, className }) => (
     <h1 css={headingCSS(1)} className={className}>
       {children}

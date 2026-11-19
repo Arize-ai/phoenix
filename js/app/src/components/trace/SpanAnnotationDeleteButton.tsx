@@ -30,11 +30,7 @@ type SpanAnnotationDeleteButtonProps = {
   spanNodeId: string;
   /** Names the annotation in the confirmation. Omit where every row shares a name. */
   annotationName?: string;
-  /**
-   * What to call the annotation in the confirmation and the notification.
-   * @default "annotation"
-   */
-  noun?: string;
+  annotationKind?: "annotation" | "note";
   onDeleteSuccess: (notifyProps: NotificationHookParams) => void;
   onDeleteError: (error: Error) => void;
 };
@@ -44,7 +40,7 @@ export function SpanAnnotationDeleteButton({
   annotationId,
   spanNodeId,
   annotationName,
-  noun = "annotation",
+  annotationKind: noun = "annotation",
   onDeleteSuccess,
   onDeleteError,
 }: SpanAnnotationDeleteButtonProps) {
@@ -65,8 +61,23 @@ export function SpanAnnotationDeleteButton({
         $annotationId: ID!
         $spanId: ID!
         $filterUserIds: [ID]
+        $isNote: Boolean!
       ) {
-        deleteSpanAnnotations(input: { annotationIds: [$annotationId] }) {
+        deleteSpanAnnotations(input: { annotationIds: [$annotationId] })
+          @skip(if: $isNote) {
+          query {
+            node(id: $spanId) {
+              ... on Span {
+                ...AnnotationSummaryGroup
+                ...SpanAnnotationsEditor_spanAnnotations
+                  @arguments(filterUserIds: $filterUserIds)
+                ...SpanAnnotationsTable_annotations
+              }
+            }
+          }
+        }
+        deleteSpanNotes(input: { annotationIds: [$annotationId] })
+          @include(if: $isNote) {
           query {
             node(id: $spanId) {
               ... on Span {
@@ -92,6 +103,7 @@ export function SpanAnnotationDeleteButton({
           annotationId,
           spanId: spanNodeId,
           filterUserIds: userFilter,
+          isNote: noun === "note",
         },
         onCompleted: () => {
           onDeleteSuccess({

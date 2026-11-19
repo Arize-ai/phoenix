@@ -1,17 +1,12 @@
-import { Suspense, useCallback } from "react";
-import type { PressEvent } from "react-aria";
-import { Pressable } from "react-aria";
+import { Suspense } from "react";
+import { Focusable } from "react-aria";
 
 import type { TextProps } from "@phoenix/components";
-import {
-  Loading,
-  RichTooltip,
-  TooltipArrow,
-  TooltipTrigger,
-} from "@phoenix/components";
+import { RichTooltip, TooltipArrow, TooltipTrigger } from "@phoenix/components";
 
 import { SpanTokenCountDetails } from "./SpanTokenCountDetails";
 import { TokenCount } from "./TokenCount";
+import { TokenDetailsBreakdownSkeleton } from "./TokenDetailsBreakdown";
 
 type SpanTokenCountProps = {
   /**
@@ -37,13 +32,9 @@ type SpanTokenCountProps = {
  * Displays the number of tokens in the prompt and completion
  */
 export function SpanTokenCount(props: SpanTokenCountProps) {
-  const handlePress = useCallback((e: PressEvent) => {
-    e.continuePropagation(); // allow click to propagate to parent
-  }, []);
-
   return (
     <TooltipTrigger>
-      <Pressable onPress={handlePress}>
+      <Focusable>
         <TokenCount
           size={props.size}
           color={props.color}
@@ -52,10 +43,16 @@ export function SpanTokenCount(props: SpanTokenCountProps) {
         >
           {props.tokenCountTotal}
         </TokenCount>
-      </Pressable>
-      <RichTooltip>
+      </Focusable>
+      <RichTooltip placement="end">
         <TooltipArrow />
-        <Suspense fallback={<Loading />}>
+        <Suspense
+          fallback={
+            <TokenDetailsBreakdownSkeleton
+              tokens={{ total: props.tokenCountTotal }}
+            />
+          }
+        >
           <SpanTokenCountDetails spanNodeId={props.nodeId} />
         </Suspense>
       </RichTooltip>

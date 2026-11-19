@@ -6,7 +6,7 @@ from secrets import token_hex
 from threading import Barrier
 from urllib.parse import parse_qs, urlparse
 
-import httpx
+import httpx2
 import pytest
 
 from phoenix.db.facilitator import PHOENIX_CLI_OAUTH2_CLIENT_ID
@@ -326,7 +326,7 @@ class TestAuthorizationCodeFlow:
         }
         barrier = Barrier(2)
 
-        def redeem() -> httpx.Response:
+        def redeem() -> httpx2.Response:
             barrier.wait()
             return _httpx_client(_app).post("oauth2/token", data=form)
 
@@ -439,7 +439,7 @@ class TestTokenLifecycle:
         }
         barrier = Barrier(2)
 
-        def rotate() -> httpx.Response:
+        def rotate() -> httpx2.Response:
             barrier.wait()
             return _httpx_client(_app).post("oauth2/token", data=form)
 
@@ -1089,7 +1089,7 @@ def _register_response(
     *,
     redirect_uri: str,
     token_endpoint_auth_method: str = "none",
-) -> httpx.Response:
+) -> httpx2.Response:
     return _httpx_client(app).post(
         "oauth2/register",
         json={

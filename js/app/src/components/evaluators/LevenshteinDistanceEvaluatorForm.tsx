@@ -68,12 +68,6 @@ export const LevenshteinDistanceEvaluatorForm = () => {
     return unregister;
   }, [store, triggerValidation]);
 
-  // Determine initial mode based on existing values
-  const expectedDefaultMode =
-    getValues("literalMapping.expected") != null ? "literal" : "path";
-  const actualDefaultMode =
-    getValues("literalMapping.actual") != null ? "literal" : "path";
-
   return (
     <Flex direction="column" gap="size-200">
       <Flex direction="column" gap="size-100">
@@ -81,8 +75,8 @@ export const LevenshteinDistanceEvaluatorForm = () => {
           fieldName="expected"
           label="Expected"
           description="The expected text."
-          defaultMode={expectedDefaultMode}
           control={control}
+          getValues={getValues}
           setValue={setValue}
           pathOptions={allExampleKeys}
           pathPlaceholder="Map an example field to Expected"
@@ -95,8 +89,8 @@ export const LevenshteinDistanceEvaluatorForm = () => {
           fieldName="actual"
           label="Actual"
           description="The actual text to compare."
-          defaultMode={actualDefaultMode}
           control={control}
+          getValues={getValues}
           setValue={setValue}
           pathOptions={allExampleKeys}
           pathPlaceholder="Map an example field to Actual"

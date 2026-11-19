@@ -13,7 +13,7 @@ import { Text } from "@phoenix/components";
 import {
   AnnotationScoreText,
   type AnnotationOptimizationConfig,
-  getPositiveOptimizationFromConfig,
+  getOptimizationValueFromConfig,
 } from "@phoenix/components/annotation";
 import {
   ChartEmptyStateOverlay,
@@ -73,7 +73,7 @@ function TooltipContent({
               name={annotationName}
               value={
                 <AnnotationScoreText
-                  positiveOptimization={getPositiveOptimizationFromConfig({
+                  optimizationValue={getOptimizationValueFromConfig({
                     config: annotationConfigsByName.get(annotationName),
                     score,
                   })}
@@ -151,7 +151,10 @@ export function AnnotationScoreTimeSeriesChart({
     useInteractiveLegend();
 
   return (
-    <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
+    <TimeRangeChartBrush
+      onTimeRangeSelected={onTimeRangeSelected}
+      scale={scale}
+    >
       {({ chartProps }) => (
         <ChartEmptyStateOverlay
           isEmpty={!hasData}

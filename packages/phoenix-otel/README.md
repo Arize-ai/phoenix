@@ -16,7 +16,7 @@
     <a href="https://pypi.org/project/arize-phoenix-otel/">
         <img src="https://img.shields.io/pypi/v/arize-phoenix-otel" alt="PyPI Version">
     </a>
-    <a href="https://arize-phoenix.readthedocs.io/projects/otel/en/latest/index.html">
+    <a href="https://arize-phoenix.readthedocs.io/projects/otel/">
         <img src="https://img.shields.io/badge/docs-blue?logo=readthedocs&logoColor=white" alt="Documentation">
     </a>
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=packages/phoenix-otel/README.md" />
@@ -107,13 +107,19 @@ export PHOENIX_COLLECTOR_ENDPOINT="https://your-phoenix-instance.com"
 export PHOENIX_PROJECT_NAME="my-project"
 ```
 
+`register()` picks the transport from the endpoint. A URL with no path, like the one above, uses gRPC to the same host on port `4317` (`PHOENIX_GRPC_PORT`). A URL with a path, or a Phoenix Cloud URL, uses HTTP. If the gRPC port is not reachable, for example behind a reverse proxy or an ingress, pass `protocol="http/protobuf"`.
+
 **Direct Configuration**:
 
 ```python
-tracer_provider = register(
-    endpoint="http://localhost:6006/v1/traces",  # HTTP endpoint
-    protocol="grpc",  # Or force gRPC protocol
-)
+# A URL with a path uses HTTP, sent to the URL as given
+tracer_provider = register(endpoint="http://localhost:6006/v1/traces")
+
+# A URL with no path uses gRPC, sent to host:port as given
+tracer_provider = register(endpoint="http://localhost:4317")
+
+# Pass protocol to choose the transport yourself
+tracer_provider = register(protocol="http/protobuf")
 ```
 
 ## Usage Examples
@@ -135,7 +141,7 @@ tracer_provider = register(
     auto_instrument=True,  # Auto-trace AI/ML libraries
     batch=True,  # Background batching for performance
     api_key="your-api-key",  # Authentication
-    endpoint="https://your-phoenix-instance.com",
+    endpoint="https://your-phoenix-instance.com/v1/traces",
 )
 ```
 
@@ -181,7 +187,7 @@ def weather(location):
 | `PHOENIX_PROJECT_NAME`       | Project name         | `my-llm-app`                                 |
 | `PHOENIX_API_KEY`            | Authentication key   | `your-api-key`                               |
 | `PHOENIX_CLIENT_HEADERS`     | Custom headers       | `Authorization=Bearer token`                 |
-| `PHOENIX_GRPC_PORT`          | gRPC port override   | `4317`                                       |
+| `PHOENIX_GRPC_PORT`          | gRPC port, used when `PHOENIX_COLLECTOR_ENDPOINT` has no path | `4317` |
 | `PHOENIX_DISCOVER_CONFIG`    | Set to `false` to disable `.env.phoenix` discovery | `false`        |
 
 ### Credential File Discovery (`.env.phoenix`)
@@ -217,7 +223,7 @@ file.
 
 ## Coding Agent Skill
 
-The Phoenix repo includes a [phoenix-tracing skill](https://github.com/Arize-ai/phoenix/tree/main/.agents/skills/phoenix-tracing) that teaches coding agents (Claude Code, Cursor, etc.) how to instrument LLM applications with OpenInference tracing. Install it with:
+The Phoenix repo includes a [phoenix-tracing skill](https://github.com/Arize-ai/phoenix/tree/main/skills/phoenix-tracing) that teaches coding agents (Claude Code, Cursor, etc.) how to instrument LLM applications with OpenInference tracing. Install it with:
 
 ```bash
 npx skills add Arize-ai/phoenix --skill phoenix-tracing
@@ -225,7 +231,7 @@ npx skills add Arize-ai/phoenix --skill phoenix-tracing
 
 ## Documentation
 
-- **[Full Documentation](https://arize-phoenix.readthedocs.io/projects/otel/en/latest/index.html)** - Complete API reference and guides
+- **[Full Documentation](https://arize-phoenix.readthedocs.io/projects/otel/)** - Complete API reference and guides
 - **[Phoenix Docs](https://arize.com/docs/phoenix)** - Detailed tracing examples and patterns
 - **[OpenInference](https://github.com/Arize-ai/openinference)** - Auto-instrumentation libraries for frameworks
 

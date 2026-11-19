@@ -197,12 +197,30 @@ examples:
         - role: assistant
           tool_calls:
             - id: r1
-              name: run_playground
-              args: {}
+              name: execute_browser_action
+              args:
+                summary: Run the prompt over the dataset as a recorded experiment.
+                script: |
+                  const run = await ui.playground.run({});
+                  return run;
         - role: tool
           tool_call_id: r1
-          name: run_playground
-          content: '{"status":"completed","datasetRun":true,"instances":[{"instanceId":101,"experimentId":"RXhwZXJpbWVudDoxMA=="}]}'
+          name: execute_browser_action
+          content: |
+            Script completed after 1 ui call.
+
+            Calls:
+            1. playground.run ok 41892ms 112ch
+
+            Return value:
+            {
+              "ok": true,
+              "output": {
+                "status": "completed",
+                "datasetRun": true,
+                "experimentIds": ["RXhwZXJpbWVudDoxMA=="]
+              }
+            }
         - role: user
           content: Nice — how did it do? Did anything regress compared to the baseline?
     expected:
@@ -265,7 +283,13 @@ examples:
   # tool-agnostic. Variants cover both summary-level and per-run reads.
 
   - id: footprint-three-axis-read
-    splits: [regression]
+    # Quarantined regression -> dev (2026-08-25). The original failures ran
+    # without bash after the session-persistence migration; attributing them
+    # to production-agent behavior was unsupported. The harness now exposes
+    # both bash and MCP reads. Keep dev-only until the three-axis contract
+    # is verified across supported reads; these bash substrings alone cannot
+    # assess MCP reads or query execution beyond the deferred-action boundary.
+    splits: [dev]
     input:
       contexts:
         - type: dataset
@@ -348,7 +372,7 @@ examples:
         agreement: high
         n_opinions: 3
         notes: >-
-          Cross-trace failure diagnosis routes to debug-trace, not experiments,
+          Cross-trace failure diagnosis routes to phoenix-error-analysis, not experiments,
           even with a dataset mounted. Dataset presence must not pull the
           experiments skill onto a trace-diagnosis ask.
 
@@ -387,22 +411,23 @@ examples:
         - role: user
           content: What's the average relevance score on my last experiment?
     expected:
-      forbidden_tool_call_args:
+      tools:
+        required: [load_skill]
+      tool_call_args:
         load_skill:
           skill_name: experiments
     metadata:
-      negative: true
-      category: negative_closed_form_read
+      category: experiment_result_read
       difficulty: tricky
-      polarity: negative
+      polarity: positive
       annotation:
         agreement: medium
         n_opinions: 3
         notes: >-
-          Single closed-form statistic answerable with a direct phoenix-gql
-          read; does not need the experiments authoring/iteration methodology.
-          Medium because it mentions an experiment, which sits near the trigger
-          boundary.
+          Reading an experiment score triggers the shipped experiments skill,
+          even for one aggregate. Keep the historical example ID for continuity.
+          DATASET_CONTEXT_INSTRUCTIONS requires the methodology before reading
+          experiment results; this case previously contradicted that policy.
 
   - id: negative-tell-me-about-dataset
     splits: [regression]

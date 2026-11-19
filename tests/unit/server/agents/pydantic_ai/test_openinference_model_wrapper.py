@@ -20,7 +20,7 @@ from openinference.semconv.trace import (
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.trace import StatusCode, Tracer
+from opentelemetry.trace import StatusCode
 from pydantic_ai.messages import (
     InstructionPart,
     ModelMessage,
@@ -61,13 +61,13 @@ def tracer_provider(in_memory_span_exporter: InMemorySpanExporter) -> TracerProv
 
 
 @pytest.fixture
-def tracer(tracer_provider: TracerProvider) -> Tracer:
+def tracer(tracer_provider: TracerProvider) -> OITracer:
     return OITracer(tracer_provider.get_tracer("test"), config=TraceConfig())
 
 
 @pytest.fixture
 def wrapped_model(
-    tracer: Tracer,
+    tracer: OITracer,
     anthropic_api_key: str,
 ) -> OpenInferenceModelWrapper:
     inner = AnthropicModel(MODEL_NAME, provider=AnthropicProvider())
@@ -75,7 +75,7 @@ def wrapped_model(
 
 
 @pytest.fixture
-def raising_model(tracer: Tracer) -> OpenInferenceModelWrapper:
+def raising_model(tracer: OITracer) -> OpenInferenceModelWrapper:
     """An OpenInferenceModelWrapper whose underlying model raises on request,
     used to exercise the wrapper's exception-handling path without hitting the
     network."""
@@ -104,7 +104,7 @@ def raising_model(tracer: Tracer) -> OpenInferenceModelWrapper:
 
 
 @pytest.fixture
-def native_tool_model(tracer: Tracer) -> OpenInferenceModelWrapper:
+def native_tool_model(tracer: OITracer) -> OpenInferenceModelWrapper:
     class _NativeToolModel(WrapperModel):
         async def request(
             self,
@@ -164,7 +164,7 @@ async def test_request_emits_llm_span_for_text_response(
     span = spans[0]
     assert span.name == MODEL_NAME
     assert span.status.status_code == StatusCode.OK
-    attributes = dict(span.attributes or {})
+    attributes: dict[str, Any] = dict(span.attributes or {})
 
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
     assert attributes.pop(LLM_PROVIDER) == PROVIDER_ANTHROPIC
@@ -280,7 +280,7 @@ async def test_request_emits_llm_span_for_tool_call_response(
 
     spans = in_memory_span_exporter.get_finished_spans()
     assert len(spans) == 1
-    attributes = dict(spans[0].attributes or {})
+    attributes: dict[str, Any] = dict(spans[0].attributes or {})
 
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
     assert attributes.pop(LLM_PROVIDER) == PROVIDER_ANTHROPIC
@@ -290,12 +290,14 @@ async def test_request_emits_llm_span_for_tool_call_response(
     assert isinstance(inv_params, str)
     assert json.loads(inv_params) == dict(settings)
 
+    assert attributes.pop(f"{LLM_TOOLS}.0.{TOOL_NAME}") == "get_weather"
+    assert (
+        attributes.pop(f"{LLM_TOOLS}.0.{TOOL_DESCRIPTION}")
+        == "Look up the current weather for a city."
+    )
     tool_schema_attr = attributes.pop(f"{LLM_TOOLS}.0.{TOOL_JSON_SCHEMA}")
     assert isinstance(tool_schema_attr, str)
-    tool_schema = json.loads(tool_schema_attr)
-    assert tool_schema["title"] == "get_weather"
-    assert tool_schema["description"] == "Look up the current weather for a city."
-    assert tool_schema["required"] == ["city"]
+    assert json.loads(tool_schema_attr) == weather_tool.parameters_json_schema
 
     assert attributes.pop(f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_ROLE}") == "system"
     assert isinstance(attributes.pop(f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_CONTENT}"), str)
@@ -355,7 +357,7 @@ async def test_request_emits_llm_span_for_native_tool_call_response(
     span = spans[0]
     assert span.name == "test"
     assert span.status.status_code == StatusCode.OK
-    attributes = dict(span.attributes or {})
+    attributes: dict[str, Any] = dict(span.attributes or {})
 
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
     assert attributes.pop(LLM_PROVIDER) == "test"
@@ -448,7 +450,7 @@ async def test_request_stream_emits_llm_span(
     span = spans[0]
     assert span.name == MODEL_NAME
     assert span.status.status_code == StatusCode.OK
-    attributes = dict(span.attributes or {})
+    attributes: dict[str, Any] = dict(span.attributes or {})
 
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
     assert attributes.pop(LLM_PROVIDER) == PROVIDER_ANTHROPIC
@@ -568,7 +570,7 @@ async def test_request_emits_tool_return_message_in_history(
     span = spans[0]
     assert span.name == MODEL_NAME
     assert span.status.status_code == StatusCode.OK
-    attributes = dict(span.attributes or {})
+    attributes: dict[str, Any] = dict(span.attributes or {})
 
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
     assert attributes.pop(LLM_PROVIDER) == PROVIDER_ANTHROPIC
@@ -578,12 +580,14 @@ async def test_request_emits_tool_return_message_in_history(
     assert isinstance(inv_params, str)
     assert json.loads(inv_params) == dict(settings)
 
+    assert attributes.pop(f"{LLM_TOOLS}.0.{TOOL_NAME}") == "get_weather"
+    assert (
+        attributes.pop(f"{LLM_TOOLS}.0.{TOOL_DESCRIPTION}")
+        == "Look up the current weather for a city."
+    )
     tool_schema_attr = attributes.pop(f"{LLM_TOOLS}.0.{TOOL_JSON_SCHEMA}")
     assert isinstance(tool_schema_attr, str)
-    tool_schema = json.loads(tool_schema_attr)
-    assert tool_schema["title"] == "get_weather"
-    assert tool_schema["description"] == "Look up the current weather for a city."
-    assert tool_schema["required"] == ["city"]
+    assert json.loads(tool_schema_attr) == weather_tool.parameters_json_schema
 
     # Message 0: system prompt.
     assert attributes.pop(f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_ROLE}") == "system"
@@ -649,7 +653,7 @@ async def test_request_emits_tool_return_message_in_history(
 
 
 async def test_request_emits_system_message_from_instructions(
-    tracer: Tracer,
+    tracer: OITracer,
     in_memory_span_exporter: InMemorySpanExporter,
 ) -> None:
     wrapped = OpenInferenceModelWrapper(TestModel(), tracer=tracer)
@@ -679,7 +683,7 @@ async def test_request_emits_system_message_from_instructions(
 
     spans = in_memory_span_exporter.get_finished_spans()
     assert len(spans) == 1
-    attributes = dict(spans[0].attributes or {})
+    attributes: dict[str, Any] = dict(spans[0].attributes or {})
     assert attributes[f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_ROLE}"] == "system"
     assert attributes[f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_CONTENT}"] == joined
     assert attributes[f"{LLM_INPUT_MESSAGES}.1.{MESSAGE_ROLE}"] == "user"
@@ -709,14 +713,14 @@ async def test_request_raises_expected_exception_events(
     assert len(span.events) == 1
     (exception_event,) = span.events
     assert exception_event.name == "exception"
-    exception_attributes = dict(exception_event.attributes or {})
+    exception_attributes: dict[str, Any] = dict(exception_event.attributes or {})
     assert exception_attributes.pop("exception.type") == "RuntimeError"
     assert exception_attributes.pop("exception.message") == "boom from raising model"
     assert isinstance(exception_attributes.pop("exception.stacktrace"), str)
     assert exception_attributes.pop("exception.escaped") == "False"
     assert not exception_attributes
 
-    attributes = dict(span.attributes or {})
+    attributes: dict[str, Any] = dict(span.attributes or {})
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
     assert attributes.pop(LLM_PROVIDER) == "test"
     assert attributes.pop(LLM_SYSTEM) == "test"
@@ -757,6 +761,8 @@ LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
 LLM_TOOLS = SpanAttributes.LLM_TOOLS
 TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
+TOOL_NAME = ToolAttributes.TOOL_NAME
+TOOL_DESCRIPTION = ToolAttributes.TOOL_DESCRIPTION
 MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
 MESSAGE_CONTENT = MessageAttributes.MESSAGE_CONTENT
 MESSAGE_TOOL_CALLS = MessageAttributes.MESSAGE_TOOL_CALLS

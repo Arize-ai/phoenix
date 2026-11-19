@@ -13,7 +13,7 @@ export function createSetPlaygroundRepetitionsClientAction({
     if (!parsed) {
       return {
         ok: false,
-        error: "Invalid set_playground_repetitions input.",
+        error: "Invalid playground.repetitions.set input.",
       };
     }
 
@@ -34,16 +34,12 @@ export function createSetPlaygroundRepetitionsClientAction({
 
     return {
       ok: true,
-      output: JSON.stringify(
-        {
-          status: "updated",
-          previousRepetitions,
-          repetitions: parsed.repetitions,
-          message: `Set playground repetitions to ${parsed.repetitions}.`,
-        },
-        null,
-        2
-      ),
+      output: {
+        status: "updated",
+        previousRepetitions,
+        repetitions: parsed.repetitions,
+        message: `Set playground repetitions to ${parsed.repetitions}.`,
+      },
     };
   };
 }

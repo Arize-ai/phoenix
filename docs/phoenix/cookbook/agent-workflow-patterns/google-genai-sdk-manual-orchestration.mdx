@@ -25,16 +25,16 @@ response = client.models.generate_content(
 print(response.text)
 ```
 
-Content objections can also be composed together in a list:
+Content objects can also be composed together in a list:
 
 ```python
 [
   types.UserContent(
     parts=[
-      types.Part.from_text('What is this image about?'),
+      types.Part.from_text(text='What is this image about?'),
       types.Part.from_uri(
-        file_uri: 'gs://generativeai-downloads/images/scones.jpg',
-        mime_type: 'image/jpeg',
+        file_uri='gs://generativeai-downloads/images/scones.jpg',
+        mime_type='image/jpeg',
       )
     ]
   )
@@ -49,7 +49,7 @@ Google GenAI does not include built in orchestration patterns.
 
 GenAI has no concept of handoffs natively.
 
-State is handled by maintaining a list of previous messages and other data in a list of content objections. This is similar to how other model SDKs like OpenAI and Anthropic handle the concept of state. This stands in contrast to the more sophisticated measurements of state present in agent orchestration frameworks.
+State is handled by maintaining a list of previous messages and other data in a list of content objects. This is similar to how other model SDKs like OpenAI and Anthropic handle the concept of state. This stands in contrast to the more sophisticated measurements of state present in agent orchestration frameworks.
 
 #### Tools
 

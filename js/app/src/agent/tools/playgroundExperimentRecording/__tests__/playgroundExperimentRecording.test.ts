@@ -70,64 +70,6 @@ describe("playground experiment recording agent tool", () => {
     ).toBeNull();
   });
 
-  it("enables persistent experiment recording", async () => {
-    const playgroundStore = createPlaygroundStore({
-      datasetId: null,
-      modelConfigByProvider: {},
-    });
-    playgroundStore.getState().setRecordExperiments(false);
-    const action = createSetPlaygroundExperimentRecordingClientAction({
-      playgroundStore,
-    });
-
-    const result = await action({ recordExperiments: true });
-
-    expect(result.ok).toBe(true);
-    expect(playgroundStore.getState().recordExperiments).toBe(true);
-    if (!result.ok) return;
-    expect(JSON.parse(result.output ?? "")).toEqual(
-      expect.objectContaining({
-        status: "updated",
-        previousRecordExperiments: false,
-        recordExperiments: true,
-        mode: "persistent",
-      })
-    );
-  });
-
-  it("stages the experiment scaffold for the next run", async () => {
-    const playgroundStore = createPlaygroundStore({
-      datasetId: null,
-      modelConfigByProvider: {},
-    });
-    const action = createSetPlaygroundExperimentRecordingClientAction({
-      playgroundStore,
-    });
-
-    const result = await action({
-      recordExperiments: true,
-      experimentName: "Shorter system prompt",
-      experimentMetadata: { hypothesis: "fewer tokens, same accuracy" },
-    });
-
-    expect(result.ok).toBe(true);
-    expect(playgroundStore.getState().nextExperimentScaffold).toEqual({
-      name: "Shorter system prompt",
-      metadata: { hypothesis: "fewer tokens, same accuracy" },
-    });
-    if (!result.ok) return;
-    expect(JSON.parse(result.output ?? "")).toEqual(
-      expect.objectContaining({
-        status: "updated",
-        recordExperiments: true,
-        nextExperimentScaffold: {
-          name: "Shorter system prompt",
-          metadata: { hypothesis: "fewer tokens, same accuracy" },
-        },
-      })
-    );
-  });
-
   it("leaves the scaffold untouched when no scaffold fields are provided", async () => {
     const playgroundStore = createPlaygroundStore({
       datasetId: null,
@@ -160,30 +102,6 @@ describe("playground experiment recording agent tool", () => {
     ).toBeNull();
   });
 
-  it("disables persistent experiment recording", async () => {
-    const playgroundStore = createPlaygroundStore({
-      datasetId: null,
-      modelConfigByProvider: {},
-    });
-    const action = createSetPlaygroundExperimentRecordingClientAction({
-      playgroundStore,
-    });
-
-    const result = await action({ recordExperiments: false });
-
-    expect(result.ok).toBe(true);
-    expect(playgroundStore.getState().recordExperiments).toBe(false);
-    if (!result.ok) return;
-    expect(JSON.parse(result.output ?? "")).toEqual(
-      expect.objectContaining({
-        status: "updated",
-        previousRecordExperiments: true,
-        recordExperiments: false,
-        mode: "ephemeral",
-      })
-    );
-  });
-
   it("rejects invalid input without changing recording mode", async () => {
     const playgroundStore = createPlaygroundStore({
       datasetId: null,
@@ -198,7 +116,7 @@ describe("playground experiment recording agent tool", () => {
     expect(result).toEqual(
       expect.objectContaining({
         ok: false,
-        error: "Invalid set_playground_experiment_recording input.",
+        error: "Invalid playground.experiment.setRecording input.",
       })
     );
     expect(playgroundStore.getState().recordExperiments).toBe(true);

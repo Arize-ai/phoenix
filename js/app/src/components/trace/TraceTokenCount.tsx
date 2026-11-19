@@ -1,15 +1,11 @@
 import { Suspense } from "react";
-import { Pressable } from "react-aria";
+import { Focusable } from "react-aria";
 
 import type { TextProps } from "@phoenix/components";
-import {
-  Loading,
-  RichTooltip,
-  TooltipArrow,
-  TooltipTrigger,
-} from "@phoenix/components";
+import { RichTooltip, TooltipArrow, TooltipTrigger } from "@phoenix/components";
 
 import { TokenCount } from "./TokenCount";
+import { TokenDetailsBreakdownSkeleton } from "./TokenDetailsBreakdown";
 import { TraceTokenCountDetails } from "./TraceTokenCountDetails";
 
 type TraceTokenCountProps = {
@@ -33,14 +29,20 @@ type TraceTokenCountProps = {
 export function TraceTokenCount(props: TraceTokenCountProps) {
   return (
     <TooltipTrigger>
-      <Pressable>
+      <Focusable>
         <TokenCount size={props.size} role="button" tabIndex={0}>
           {props.tokenCountTotal}
         </TokenCount>
-      </Pressable>
-      <RichTooltip>
+      </Focusable>
+      <RichTooltip placement="end">
         <TooltipArrow />
-        <Suspense fallback={<Loading />}>
+        <Suspense
+          fallback={
+            <TokenDetailsBreakdownSkeleton
+              tokens={{ total: props.tokenCountTotal }}
+            />
+          }
+        >
           <TraceTokenCountDetails traceNodeId={props.nodeId} />
         </Suspense>
       </RichTooltip>

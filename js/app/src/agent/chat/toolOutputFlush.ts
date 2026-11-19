@@ -32,7 +32,7 @@ export function flushToolOutputs({
   toolTimings?: ClientToolTimingRecorder | null;
   /** Tool calls this client resolved as interrupted; suppresses the flush. */
   locallyInterruptedToolCallIds?: LocallyInterruptedToolCallIds;
-}): void {
+}): Promise<unknown> {
   const enrichedMessage = enrichMessageWithClientToolMetadata({
     message,
     toolTimings,
@@ -43,13 +43,13 @@ export function flushToolOutputs({
     locallyInterruptedToolCallIds,
   });
   if (toolOutputs.length === 0) {
-    return;
+    return Promise.resolve();
   }
   const body: SubmitToolOutputsRequestBody = {
     toolOutputs,
     lastMessageId: message.id,
   };
-  void fetchFn(flushUrl, {
+  return fetchFn(flushUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

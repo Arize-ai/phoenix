@@ -16,6 +16,7 @@ import pytest
 from phoenix.server.sandbox._download import (
     WASMBinaryUnavailable,
     ensure_wasm_binary,
+    external_resources_disallowed_message,
     no_local_storage_message,
     prefetch_wasm_binary_if_needed,
     resolve_wasm_binary_if_present,
@@ -211,6 +212,126 @@ class TestEnsureWasmBinaryEnvVarUnset:
 
         assert not cached.exists(), "tampered cached binary must be unlinked on verify failure"
 
+    def test_file_vanishing_during_verification_falls_through_to_download(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The cache is shared across processes: another one can remove or
+        replace the file between the existence check and the hash read. The
+        vanished file means absent, not broken -- the caller must get a fresh
+        download, not a FileNotFoundError.
+        """
+        import hashlib
+
+        from phoenix.server.sandbox import _download as download_module
+
+        monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
+        cache_dir = tmp_path / "cache"
+        cache_dir.mkdir()
+        cached = cache_dir / _FILENAME
+        cached.write_bytes(b"about to vanish")
+
+        payload = b"fresh download"
+        expected_sha = hashlib.sha256(payload).hexdigest()
+        real_verify = download_module._verify_sha256
+
+        def concurrently_unlinked(path: Path, expected: str) -> None:
+            if path == cached and path.read_bytes() == b"about to vanish":
+                cached.unlink()
+                raise FileNotFoundError(2, "No such file or directory")
+            real_verify(path, expected)
+
+        monkeypatch.setattr(download_module, "_verify_sha256", concurrently_unlinked)
+
+        with patch(_URLOPEN, return_value=io.BytesIO(payload)) as mock_urlopen:
+            result = ensure_wasm_binary(
+                wasm_dir=cache_dir,
+                filename=_FILENAME,
+                expected_sha256=expected_sha,
+            )
+
+        mock_urlopen.assert_called_once()
+        assert result == cached
+        assert cached.read_bytes() == payload
+
+    def test_failed_download_leaves_no_temp_file_and_no_destination(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The download writes to a private temp file moved into place only
+        after verification, so neither a network failure nor a hash mismatch
+        may leave a partial or unverified file where a concurrent reader of
+        the shared cache would find it.
+        """
+        import hashlib
+
+        monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
+        cache_dir = tmp_path / "cache"
+
+        with patch(_URLOPEN, side_effect=OSError("connection reset")):
+            with pytest.raises(RuntimeError, match="Failed to download"):
+                ensure_wasm_binary(
+                    wasm_dir=cache_dir,
+                    filename=_FILENAME,
+                    expected_sha256="",
+                )
+        assert list(cache_dir.iterdir()) == []
+
+        expected_sha = hashlib.sha256(b"real upstream").hexdigest()
+        with patch(_URLOPEN, return_value=io.BytesIO(b"tampered payload")):
+            with pytest.raises(ValueError, match="SHA-256 mismatch"):
+                ensure_wasm_binary(
+                    wasm_dir=cache_dir,
+                    filename=_FILENAME,
+                    expected_sha256=expected_sha,
+                )
+        assert list(cache_dir.iterdir()) == []
+
+    def test_losing_the_install_race_uses_the_winners_file(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Windows cannot replace a file another process holds open, so the
+        loser of a concurrent download surfaces at the rename rather than as
+        a vanished file. The winner's installed file is authoritative when it
+        verifies; with no such file the loser reports a RuntimeError, which
+        the pre-fetch treats as fail-soft.
+        """
+        import hashlib
+
+        monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
+        cache_dir = tmp_path / "cache"
+        dest = cache_dir / _FILENAME
+        payload = b"identical upstream payload"
+        expected_sha = hashlib.sha256(payload).hexdigest()
+
+        def sharing_violation(src: object, dst: object) -> None:
+            dest.write_bytes(payload)  # the winner's completed install
+            raise PermissionError(13, "The process cannot access the file")
+
+        monkeypatch.setattr("phoenix.server.sandbox._download.os.replace", sharing_violation)
+        with patch(_URLOPEN, return_value=io.BytesIO(payload)):
+            result = ensure_wasm_binary(
+                wasm_dir=cache_dir,
+                filename=_FILENAME,
+                expected_sha256=expected_sha,
+            )
+        assert result == dest
+        assert result.read_bytes() == payload
+        assert list(cache_dir.glob("*.tmp")) == []
+
+        dest.unlink()
+
+        def bare_violation(src: object, dst: object) -> None:
+            raise PermissionError(13, "The process cannot access the file")
+
+        monkeypatch.setattr("phoenix.server.sandbox._download.os.replace", bare_violation)
+        with patch(_URLOPEN, return_value=io.BytesIO(payload)):
+            with pytest.raises(RuntimeError, match="Failed to install"):
+                ensure_wasm_binary(
+                    wasm_dir=cache_dir,
+                    filename=_FILENAME,
+                    expected_sha256=expected_sha,
+                )
+        assert list(cache_dir.glob("*.tmp")) == []
+
     def test_no_local_storage_raises_unavailable(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -231,8 +352,53 @@ class TestEnsureWasmBinaryEnvVarUnset:
         mock_urlopen.assert_not_called()
         assert not wasm_dir.exists()
 
+    def test_external_resources_disallowed_raises_without_download(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
+        monkeypatch.setenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "false")
+        wasm_dir = tmp_path / "wasm"
+
+        with patch(_URLOPEN, side_effect=AssertionError("network used")):
+            with pytest.raises(WASMBinaryUnavailable) as exc_info:
+                ensure_wasm_binary(
+                    wasm_dir=wasm_dir,
+                    filename=_FILENAME,
+                    expected_sha256="",
+                )
+
+        assert str(exc_info.value) == external_resources_disallowed_message()
+        assert not wasm_dir.exists()
+
 
 class TestPrefetchWasmBinaryIfNeeded:
+    @pytest.mark.parametrize(
+        "env_var, value",
+        [
+            ("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "DENO"),
+            ("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "false"),
+        ],
+    )
+    async def test_prefetch_skips_when_wasm_disallowed_or_external_resources_off(
+        self,
+        env_var: str,
+        value: str,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
+        monkeypatch.setenv(env_var, value)
+        wasm_dir = tmp_path / "wasm"
+        monkeypatch.setattr("phoenix.server.sandbox._download._default_wasm_dir", lambda: wasm_dir)
+
+        with patch(_URLOPEN, side_effect=AssertionError("network used")):
+            with caplog.at_level("WARNING", logger="phoenix.server.sandbox._download"):
+                await prefetch_wasm_binary_if_needed()
+
+        assert not wasm_dir.exists()
+        assert not caplog.records
+
     async def test_prefetch_downloads_when_missing(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:

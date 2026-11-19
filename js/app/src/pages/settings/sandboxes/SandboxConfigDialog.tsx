@@ -35,6 +35,7 @@ import {
   Text,
   TextArea,
   TextField,
+  transformInputValue,
   View,
 } from "@phoenix/components";
 import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
@@ -191,6 +192,7 @@ export function configToFormValues(config: SandboxConfig["config"]): {
   };
 }
 
+// oxlint-disable-next-line complexity -- Form orchestration is split across provider capabilities and create/edit mutations.
 function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
   const { mode, onClose } = props;
   const providers = mode === "create" ? props.providers : [];
@@ -547,7 +549,12 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                   <TextField
                     {...field}
                     onChange={(value) =>
-                      field.onChange(transformIdentifierInput(value))
+                      field.onChange(
+                        transformInputValue({
+                          value,
+                          transform: transformIdentifierInput,
+                        })
+                      )
                     }
                     isInvalid={fieldState.invalid}
                   >

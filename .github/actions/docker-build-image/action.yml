@@ -1,12 +1,8 @@
 name: Build every Phoenix variant for one platform
 description: >-
-  Build each requested variant for a single platform on one runner, push each
-  by digest, and upload the digests as one artifact. The variants differ only
-  in the final FROM, so the frontend, backend and WASM stages are built once
-  and reused from the local builder — running them as separate jobs would
-  repeat that work on a cold builder every time. A downstream job collects the
-  digests for every platform of a variant and assembles them into one manifest
-  list, so each platform builds natively instead of under QEMU.
+  Build each requested variant once for a single platform and upload OCI image
+  archives. Independent publishing jobs consume the same archives, so a registry
+  outage cannot block another registry's uploads.
 
 inputs:
   variants:
@@ -15,17 +11,11 @@ inputs:
   platform:
     description: Target platform in Docker form, e.g. linux/amd64.
     required: true
-  registry:
-    description: Docker Hub namespace.
-    required: true
-  image-name:
-    description: Repository name within the namespace.
-    required: true
   dockerhub-username:
-    description: Docker Hub user to push as.
+    description: Docker Hub user for authenticated base-image pulls.
     required: true
   dockerhub-password:
-    description: Docker Hub access token for that user.
+    description: Docker Hub token for authenticated base-image pulls.
     required: true
 
 runs:
@@ -52,6 +42,7 @@ runs:
       uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
 
     - name: Log in to Docker Hub
+      continue-on-error: true
       uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
       with:
         username: ${{ inputs.dockerhub-username }}
@@ -60,8 +51,6 @@ runs:
     - name: Extract image labels
       id: meta
       uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
-      with:
-        images: ${{ inputs.registry }}/${{ inputs.image-name }}
 
     # The WASM fetch is the only download here with no registry-protocol
     # retry beneath it, and the release asset drops connections. Building
@@ -94,13 +83,12 @@ runs:
     # the final FROM and its COPYs. Never exits non-zero — a variant that fails
     # must not withhold the digests of the ones that succeeded, so failures are
     # recorded and reported after the upload.
-    - name: Build and push each variant by digest
+    - name: Build each variant as an OCI archive
       id: build
       shell: bash
       env:
         VARIANTS: ${{ inputs.variants }}
         PLATFORM: ${{ inputs.platform }}
-        IMAGE: ${{ inputs.registry }}/${{ inputs.image-name }}
         LABELS: ${{ steps.meta.outputs.labels }}
       run: |
         set -uo pipefail
@@ -110,7 +98,8 @@ runs:
           [ -n "$label" ] && label_args+=(--label "$label")
         done <<< "$LABELS"
 
-        out="${RUNNER_TEMP}/digests"
+        out="${RUNNER_TEMP}/images"
+        platform_slug="${PLATFORM//\//-}"
         failed=""
         for variant in $VARIANTS; do
           case "$variant" in
@@ -120,6 +109,8 @@ runs:
           esac
 
           echo "::group::build ${variant} (${PLATFORM})"
+          variant_dir="${out}/${variant}/${platform_slug}"
+          mkdir -p "$variant_dir"
           meta="${RUNNER_TEMP}/metadata-${variant}.json"
           if docker buildx build \
                --platform "$PLATFORM" \
@@ -129,7 +120,7 @@ runs:
                --sbom true \
                "${label_args[@]}" \
                --metadata-file "$meta" \
-               --output "type=image,name=${IMAGE},push-by-digest=true,name-canonical=true,push=true" \
+               --output "type=oci,dest=${variant_dir}/image.tar" \
                .
           then
             digest=$(jq -r '."containerimage.digest"' "$meta")
@@ -137,27 +128,49 @@ runs:
               echo "::error::${variant}: build reported success but no digest"
               failed="${failed} ${variant}"
             else
-              mkdir -p "${out}/${variant}"
-              touch "${out}/${variant}/${digest#sha256:}"
+              printf '%s\n' "$digest" > "${variant_dir}/digest"
               echo "${variant}: ${digest}"
             fi
           else
             echo "::error::${variant}: build failed on ${PLATFORM}"
             failed="${failed} ${variant}"
           fi
+          if [ ! -f "${variant_dir}/digest" ]; then
+            rm -f "${variant_dir}/image.tar"
+          fi
           echo "::endgroup::"
         done
 
         echo "failed=${failed# }" >> "$GITHUB_OUTPUT"
 
-    - name: Upload digests
-      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+    - name: Upload root image
+      if: contains(format(' {0} ', inputs.variants), ' root ')
+      uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
       with:
-        name: digests-${{ steps.resolve.outputs.platform-slug }}
-        path: ${{ runner.temp }}/digests/*
-        # warn, not error: every variant failing is reported by the next step,
-        # which is where that failure belongs.
+        name: image-root-${{ steps.resolve.outputs.platform-slug }}
+        path: ${{ runner.temp }}/images/root/
         if-no-files-found: warn
+        compression-level: 0
+        retention-days: 1
+
+    - name: Upload nonroot image
+      if: contains(format(' {0} ', inputs.variants), ' nonroot ')
+      uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+      with:
+        name: image-nonroot-${{ steps.resolve.outputs.platform-slug }}
+        path: ${{ runner.temp }}/images/nonroot/
+        if-no-files-found: warn
+        compression-level: 0
+        retention-days: 1
+
+    - name: Upload debug image
+      if: contains(format(' {0} ', inputs.variants), ' debug ')
+      uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+      with:
+        name: image-debug-${{ steps.resolve.outputs.platform-slug }}
+        path: ${{ runner.temp }}/images/debug/
+        if-no-files-found: warn
+        compression-level: 0
         retention-days: 1
 
     - name: Report failed variants

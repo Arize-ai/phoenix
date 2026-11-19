@@ -18,6 +18,7 @@ import type { PendingBatchSpanAnnotate } from "@phoenix/agent/tools/batchSpanAnn
 import type { PendingCodeEvaluatorEdit } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
 import type { PendingLlmEvaluatorEdit } from "@phoenix/agent/tools/llmEvaluatorDraft";
+import type { PendingNavigation } from "@phoenix/agent/tools/navigation/types";
 import type { PendingPatchExperiment } from "@phoenix/agent/tools/patchExperiment";
 import type { PendingLoadDataset } from "@phoenix/agent/tools/playgroundLoadDataset";
 import type {
@@ -26,7 +27,16 @@ import type {
 } from "@phoenix/agent/tools/playgroundPrompt";
 import type { PendingPromptToolWrite } from "@phoenix/agent/tools/playgroundPromptTools";
 import type { PendingSavePrompt } from "@phoenix/agent/tools/playgroundSavePrompt";
+import type { PendingScriptApproval } from "@phoenix/agent/uiOperations/pendingScriptApproval";
+import {
+  addRecentAgentModel,
+  DEFAULT_MODEL_MENU_VALUE,
+  normalizeRecentAgentModels,
+} from "@phoenix/components/agent/agentModelConfig";
+import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
+import { ASSISTANT_STORAGE_BASE_KEY } from "@phoenix/constants/storageConstants";
 import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
+import { scopeStorageKeyToBasename } from "@phoenix/utils/storageUtils";
 
 import type { ModelConfig } from "./playground/types";
 
@@ -52,6 +62,14 @@ export type AgentFabPlacement =
  */
 export type AgentFabMode = "pinned" | "floating";
 
+/**
+ * Secret-key name for the user's personal GitHub token in
+ * {@link AgentProps.integrationCredentials} and on the chat request wire.
+ * Matches the server's workspace secret / environment variable name.
+ */
+export const GITHUB_PAT_CREDENTIAL_KEY =
+  "GITHUB_PERSONAL_ACCESS_TOKEN" as const;
+
 /** Server-provided PXI configuration exposed to the frontend. */
 export type AgentServerConfig = {
   /** Remote collector used for optional agent trace export. */
@@ -63,6 +81,12 @@ export type AgentServerConfig = {
   /** Whether this Phoenix instance allows PXI web search/fetch. */
   webAccessEnabled: boolean;
   assistantEnabled: boolean;
+  /** Deploy-time ceiling for the PXI GitHub tools (env configuration). */
+  githubServerEnabled: boolean;
+  /** Whether the PXI GitHub tools are effectively enabled (env and admin setting). */
+  githubEnabled: boolean;
+  /** Whether a workspace-wide GitHub token is configured server-side. */
+  githubWorkspaceTokenConfigured: boolean;
   allowLocalTraces: boolean;
   allowRemoteExport: boolean;
   /**
@@ -203,9 +227,11 @@ export function selectIsSessionOccupied(
 export const DRAFT_SESSION_ID = "pxi:draft-session";
 
 const DEFAULT_MODEL_CONFIG: ModelConfig = {
-  provider: "ANTHROPIC",
-  modelName: "claude-opus-4-6",
-  invocationParameters: getDefaultInvocationConfig("ANTHROPIC"),
+  provider: DEFAULT_MODEL_MENU_VALUE.provider,
+  modelName: DEFAULT_MODEL_MENU_VALUE.modelName,
+  invocationParameters: getDefaultInvocationConfig(
+    DEFAULT_MODEL_MENU_VALUE.provider
+  ),
 };
 
 const DEFAULT_AGENT_SERVER_CONFIG: AgentServerConfig = {
@@ -214,6 +240,9 @@ const DEFAULT_AGENT_SERVER_CONFIG: AgentServerConfig = {
   forceTracing: false,
   webAccessEnabled: false,
   assistantEnabled: false,
+  githubServerEnabled: false,
+  githubEnabled: false,
+  githubWorkspaceTokenConfigured: false,
   allowLocalTraces: false,
   allowRemoteExport: false,
   sessionRetentionMaxIdleDays: null,
@@ -326,6 +355,12 @@ export interface AgentProps {
   defaultTemporaryChat: boolean;
   /** Default model configuration applied to newly created sessions. */
   defaultModelConfig: ModelConfig;
+  /**
+   * Models the user recently picked in the PXI model picker, newest first,
+   * deduped and capped at 5 (see {@link addRecentAgentModel}). Typed names
+   * outside the catalog are kept too. Persisted.
+   */
+  recentModels: ModelMenuValue[];
   /** Server-provided PXI config used to describe trace destinations in the UI. */
   agentsConfig: AgentServerConfig;
   /** Per-user PXI observability preferences and consent acknowledgement state. */
@@ -334,6 +369,13 @@ export interface AgentProps {
   permissions: AgentPermissions;
   /** Typed runtime capabilities that influence tool and session behavior. */
   capabilities: AgentCapabilities;
+  /**
+   * Client-held credentials for optional integrations, keyed by secret-key
+   * name (e.g. {@link GITHUB_PAT_CREDENTIAL_KEY}). Persisted only in this
+   * browser's local storage and sent ephemerally with each chat request —
+   * never stored server-side. Cleared credentials are removed from the map.
+   */
+  integrationCredentials: Record<string, string>;
 }
 
 /**
@@ -356,6 +398,8 @@ export interface AgentState extends AgentProps {
    */
   clearSessionEphemeralState: (sessionId: string) => void;
   setDefaultModelConfig: (config: ModelConfig) => void;
+  /** Records a model pick at the front of {@link AgentProps.recentModels}. */
+  recordRecentModel: (model: ModelMenuValue) => void;
   setObservability: (patch: Partial<AgentObservabilitySettings>) => void;
   setPermissions: (patch: Partial<AgentPermissions>) => void;
   setAgentsConfig: (
@@ -363,6 +407,8 @@ export interface AgentState extends AgentProps {
       Pick<
         AgentServerConfig,
         | "assistantEnabled"
+        | "githubEnabled"
+        | "githubWorkspaceTokenConfigured"
         | "allowLocalTraces"
         | "allowRemoteExport"
         | "sessionRetentionMaxIdleDays"
@@ -375,6 +421,18 @@ export interface AgentState extends AgentProps {
     key: AgentCapabilityKey;
     enabled: boolean;
   }) => void;
+  /** Set or clear (null) a client-held integration credential. */
+  setIntegrationCredential: (params: {
+    key: string;
+    value: string | null;
+  }) => void;
+  /**
+   * Drops every client-held integration credential. Called on logout so a
+   * later user of the same browser cannot inherit (and silently send) the
+   * previous user's tokens — the persisted store is scoped per deployment,
+   * not per user.
+   */
+  clearIntegrationCredentials: () => void;
 
   // -- Elicitation (ephemeral, not persisted) --
 
@@ -462,6 +520,20 @@ export interface AgentState extends AgentProps {
   registerClientAction: (name: string, action: AgentClientAction) => void;
   unregisterClientAction: (name: string) => void;
 
+  // -- Chat tool-part open requests --
+  //
+  // Reference counts of open requests per tool-call id. This is the only
+  // programmatic auto-open signal: UI-operation dispatch increments at the
+  // moment a script stages a user-facing approval card — so Accept/Reject
+  // controls are never hidden behind a collapsed disclosure — and decrements
+  // when the user decides, so the card collapses again once nothing awaits
+  // them. Counted (not boolean) because one script can stage several
+  // approvals concurrently. ToolPart layers the user's manual toggle on top,
+  // so a card the user toggled stays as they left it.
+  toolPartOpenRequests: Record<string, number>;
+  requestToolPartOpen: (toolCallId: string) => void;
+  releaseToolPartOpen: (toolCallId: string) => void;
+
   // -- Approval-gated tool proposals advertised by agent tool calls --
   // TODO(pending-tool-rehydration): Replace these tool-specific slices with a
   // generic pending tool state map keyed by toolCallId. The tool registry
@@ -491,6 +563,21 @@ export interface AgentState extends AgentProps {
   setPendingDatasetWrite: (
     toolCallId: string,
     pending: PendingDatasetWrite | null
+  ) => void;
+  pendingNavigationsByToolCallId: Partial<Record<string, PendingNavigation>>;
+  setPendingNavigation: (
+    toolCallId: string,
+    pending: PendingNavigation | null
+  ) => void;
+  // Whole-script approvals staged by `execute_browser_action` before a
+  // state-changing script runs, keyed by the host tool-call id (no
+  // `:<sequence>` suffix — the approval covers the entire script).
+  pendingScriptApprovalsByToolCallId: Partial<
+    Record<string, PendingScriptApproval>
+  >;
+  setPendingScriptApproval: (
+    toolCallId: string,
+    pending: PendingScriptApproval | null
   ) => void;
   pendingAnnotationConfigWritesByToolCallId: Partial<
     Record<string, PendingAnnotationConfigWrite>
@@ -609,6 +696,12 @@ function mergeAgentPersistedState(
       capabilities: persisted.capabilities,
       defaultCapabilities: currentState.capabilities,
     }),
+    // Blobs written before recent models existed lack the key; malformed
+    // entries are dropped rather than breaking the picker.
+    recentModels:
+      persisted.recentModels === undefined
+        ? currentState.recentModels
+        : normalizeRecentAgentModels({ value: persisted.recentModels }),
   };
 }
 
@@ -619,8 +712,12 @@ function mergeAgentPersistedState(
  * surfaces back to the model as either tool output or a tool error.
  */
 export type AgentClientActionResult =
-  | { ok: true; output?: string }
-  | { ok: false; error: string };
+  // `output` is JSON-serializable: UI-operation results cross a worker
+  // postMessage boundary and are embedded in `execute_browser_action` tool output.
+  // `code` is a stable machine-readable failure category (see
+  // `UIOperationErrorCode` in uiOperations/types.ts for the canonical set)
+  // so scripts can branch on failures without string-matching English.
+  { ok: true; output?: unknown } | { ok: false; error: string; code?: string };
 
 export type AgentClientAction = (
   input: unknown,
@@ -637,32 +734,11 @@ function removeToolCallRecordForSession<T extends { sessionId: string }>(
 }
 
 /**
- * Base local-storage key for the persisted assistant state. Used verbatim for
- * single-tenant deployments and as a prefix when scoping by root path.
- */
-const BASE_ASSISTANT_STORAGE_KEY = "arize-phoenix-assistant";
-
-/**
  * Resolves the local-storage key for the persisted assistant state, scoped to
- * the deployment's root path.
- *
- * `localStorage` is origin-scoped and path-blind. In multi-tenant deployments
- * (e.g. Phoenix Cloud) many workspaces are served from distinct root paths on
- * the SAME browser origin, so a single shared key would let one workspace's
- * chat history load in another. Scoping by the root-path basename aligns this
- * with the per-deployment isolation boundary already enforced server-side by
- * PHOENIX_COOKIES_PATH (which is set to the same root path).
- *
- * Deployments without a root path (the common single-tenant case, e.g. OSS)
- * use the base key unchanged so existing history is preserved on upgrade.
- * Under a root path the new scoped key simply leaves the old unscoped blob
- * untouched; nothing reads it once the key changes.
+ * the deployment's root path (see {@link scopeStorageKeyToBasename} for why).
  */
 export function resolveAssistantStorageKey(): string {
-  const basename = (window.Config?.basename ?? "").replace(/\/+$/, "");
-  return basename
-    ? `${BASE_ASSISTANT_STORAGE_KEY}:${basename}`
-    : BASE_ASSISTANT_STORAGE_KEY;
+  return scopeStorageKeyToBasename(ASSISTANT_STORAGE_BASE_KEY);
 }
 
 /**
@@ -688,16 +764,20 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     isDraftSessionTemporary: false,
     defaultTemporaryChat: false,
     defaultModelConfig: { ...DEFAULT_MODEL_CONFIG },
+    recentModels: [],
     agentsConfig: DEFAULT_AGENT_SERVER_CONFIG,
     observability: DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
     permissions: DEFAULT_AGENT_PERMISSIONS,
     capabilities: createDefaultAgentCapabilities(),
+    integrationCredentials: {},
     routeContexts: [],
     mountedContexts: {},
     pendingPromptEditsByToolCallId: {},
     pendingPromptInstanceRemovalsByToolCallId: {},
     pendingBatchSpanAnnotatesByToolCallId: {},
     pendingDatasetWritesByToolCallId: {},
+    pendingNavigationsByToolCallId: {},
+    pendingScriptApprovalsByToolCallId: {},
     pendingAnnotationConfigWritesByToolCallId: {},
     pendingPatchExperimentsByToolCallId: {},
     pendingPromptToolWritesByToolCallId: {},
@@ -794,6 +874,18 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         type: "setDefaultModelConfig",
       });
     },
+    recordRecentModel: (model) => {
+      set(
+        (state) => ({
+          recentModels: addRecentAgentModel({
+            recentModels: state.recentModels,
+            model,
+          }),
+        }),
+        false,
+        { type: "recordRecentModel" }
+      );
+    },
     setObservability: (patch) => {
       set(
         (state) => ({
@@ -843,6 +935,26 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         false,
         { type: "setCapability" }
       );
+    },
+    setIntegrationCredential: ({ key, value }) => {
+      set(
+        (state) => {
+          const integrationCredentials = { ...state.integrationCredentials };
+          if (value) {
+            integrationCredentials[key] = value;
+          } else {
+            delete integrationCredentials[key];
+          }
+          return { integrationCredentials };
+        },
+        false,
+        { type: "setIntegrationCredential" }
+      );
+    },
+    clearIntegrationCredentials: () => {
+      set({ integrationCredentials: {} }, false, {
+        type: "clearIntegrationCredentials",
+      });
     },
 
     // -- Elicitation (ephemeral) --
@@ -1044,6 +1156,39 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
       );
     },
 
+    toolPartOpenRequests: {},
+    requestToolPartOpen: (toolCallId) => {
+      set(
+        (state) => ({
+          toolPartOpenRequests: {
+            ...state.toolPartOpenRequests,
+            [toolCallId]: (state.toolPartOpenRequests[toolCallId] ?? 0) + 1,
+          },
+        }),
+        false,
+        { type: "requestToolPartOpen" }
+      );
+    },
+    releaseToolPartOpen: (toolCallId) => {
+      set(
+        (state) => {
+          const count = state.toolPartOpenRequests[toolCallId];
+          if (count == null) {
+            return state;
+          }
+          const next = { ...state.toolPartOpenRequests };
+          if (count <= 1) {
+            delete next[toolCallId];
+          } else {
+            next[toolCallId] = count - 1;
+          }
+          return { toolPartOpenRequests: next };
+        },
+        false,
+        { type: "releaseToolPartOpen" }
+      );
+    },
+
     // -- Server-advertised, client-executed tool actions --
     registeredClientActions: {},
     registerClientAction: (name, action) => {
@@ -1134,6 +1279,36 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         },
         false,
         { type: "setPendingDatasetWrite" }
+      );
+    },
+    setPendingNavigation: (toolCallId, pending) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingNavigationsByToolCallId };
+          if (pending) {
+            next[toolCallId] = pending;
+          } else {
+            delete next[toolCallId];
+          }
+          return { pendingNavigationsByToolCallId: next };
+        },
+        false,
+        { type: "setPendingNavigation" }
+      );
+    },
+    setPendingScriptApproval: (toolCallId, pending) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingScriptApprovalsByToolCallId };
+          if (pending) {
+            next[toolCallId] = pending;
+          } else {
+            delete next[toolCallId];
+          }
+          return { pendingScriptApprovalsByToolCallId: next };
+        },
+        false,
+        { type: "setPendingScriptApproval" }
       );
     },
     setPendingAnnotationConfigWrite: (toolCallId, pending) => {
@@ -1278,9 +1453,11 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         fabPlacement: state.fabPlacement,
         defaultTemporaryChat: state.defaultTemporaryChat,
         defaultModelConfig: state.defaultModelConfig,
+        recentModels: state.recentModels,
         observability: state.observability,
         permissions: state.permissions,
         capabilities: state.capabilities,
+        integrationCredentials: state.integrationCredentials,
       }),
       merge: mergeAgentPersistedState,
     })

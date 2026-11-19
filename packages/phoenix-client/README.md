@@ -15,7 +15,7 @@
     <a href="https://pypi.org/project/arize-phoenix-client/">
         <img src="https://img.shields.io/pypi/v/arize-phoenix-client" alt="PyPI Version">
     </a>
-    <a href="https://arize-phoenix.readthedocs.io/projects/client/en/latest/index.html">
+    <a href="https://arize-phoenix.readthedocs.io/projects/client/">
         <img src="https://img.shields.io/badge/docs-blue?logo=readthedocs&logoColor=white" alt="Documentation">
     </a>
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=packages/phoenix-client/README.md" />
@@ -31,11 +31,12 @@ Phoenix Client provides an interface for interacting with the Phoenix platform v
 - **Eval CI (pytest)** - Run LLM evals as ordinary pytest tests and record them as Phoenix experiments (`pip install "arize-phoenix-client[pytest]"`)
 - **Spans** - Query and analyze traces with powerful filtering
 - **Annotations** - Add human feedback and automated evaluations
+- **Secrets** - Create, rotate, and delete encrypted provider credentials
 - **Evaluation Helpers** - Extract span data in formats optimized for RAG evaluation workflows
 
 ## Installation
 
-Install the Phoenix Client using pip:
+Install the Phoenix Client with pip:
 
 ```bash
 pip install arize-phoenix-client
@@ -63,7 +64,7 @@ export PHOENIX_CLIENT_HEADERS="Authorization=Bearer your-api-key,custom-header=v
 your app also exports traces, set `PHOENIX_COLLECTOR_ENDPOINT` for the OTel SDK
 — usually to the same value. When only `PHOENIX_COLLECTOR_ENDPOINT` is set, the
 client infers its base URL from it. See
-[Environments](https://arize.com/docs/phoenix/environments) for the full list.
+[Environment Variables](https://arize.com/docs/phoenix/sdk-api-reference#environment-variables) for the full list.
 
 ### Credential File Discovery (`.env.phoenix`)
 
@@ -274,6 +275,12 @@ traces = client.traces.get_traces(
     project_identifier="my-llm-app",
     session_id="my-session-id",
 )
+
+# Filter with an expression (requires Phoenix server >= 20.12.0)
+traces = client.traces.get_traces(
+    project_identifier="my-llm-app",
+    filter="error_count > 0 and latency_ms >= 1000",
+)
 ```
 
 **Async usage:**
@@ -298,10 +305,16 @@ traces = await async_client.traces.get_traces(
 | `order`                | `"asc" \| "desc" \| None`              | `None`  | Sort direction (server defaults to `"desc"`)         |
 | `include_spans`        | `bool`                                  | `False` | Include full span details for each trace             |
 | `session_id`           | `str \| Sequence[str] \| None`          | `None`  | Filter by session ID(s) or GlobalID(s)               |
+| `filter`               | `str \| None`                           | `None`  | [Trace filter expression](https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions) |
+| `error`                | `bool \| None`                          | `None`  | Deprecated: only traces with (`True`) or without (`False`) errored spans |
+| `min_latency_ms`       | `float \| None`                         | `None`  | Deprecated: inclusive lower bound on trace latency (ms) |
+| `max_latency_ms`       | `float \| None`                         | `None`  | Deprecated: inclusive upper bound on trace latency (ms) |
 | `limit`                | `int`                                   | `100`   | Maximum number of traces to return                   |
 | `timeout`              | `int \| None`                           | `60`    | Request timeout in seconds                           |
 
-> **Note:** Requires Phoenix server >= 13.15.0.
+> **Note:** Requires Phoenix server >= 13.15.0. `filter` requires >= 20.12.0, and `error`, `min_latency_ms`, and `max_latency_ms` require >= 20.8.0.
+
+`error`, `min_latency_ms`, and `max_latency_ms` are deprecated. Use `error_count > 0` / `error_count == 0`, `latency_ms >= N`, and `latency_ms <= N` in `filter` instead. Deprecated parameters are combined with `filter` using AND, and an empty `filter` does not filter.
 
 ### Spans
 
@@ -328,6 +341,15 @@ annotations_df = client.spans.get_span_annotations_dataframe(
     project_identifier="my-llm-app",
     include_annotation_names=["relevance", "accuracy"],  # Only specific annotations
     exclude_annotation_names=["note"],  # Exclude UI notes
+)
+
+# Get the 100 spans that started most recently (requires Phoenix server >= 20.16.0).
+# Without sort="start_time", spans are ordered by insertion, not by start time.
+recent_spans = client.spans.get_spans(
+    project_identifier="my-llm-app",
+    sort="start_time",
+    order="desc",
+    limit=100,
 )
 ```
 
@@ -381,6 +403,12 @@ client = Client()
 sessions = client.sessions.list(project_name="my-llm-app")
 for session in sessions:
     print(f"Session: {session['session_id']}")
+
+# Filter sessions with an expression (requires Phoenix server >= 20.12.0)
+sessions = client.sessions.list(
+    project_name="my-llm-app",
+    filter="num_traces > 5 and total_cost > 0.50",
+)
 
 # Get conversation turns for a session
 turns = client.sessions.get_session_turns(session_id="my-session-id")
@@ -513,9 +541,54 @@ new_project = client.projects.create(
 print(f"Created project with ID: {new_project['id']}")
 ```
 
+### Secrets
+
+Create, rotate, and delete the encrypted provider credentials (such as LLM API keys) that Phoenix stores for the playground and custom AI providers. Each call is a single atomic `PUT /v1/secrets` request. Managing secrets requires an admin API key when authentication is enabled, and Phoenix server 13.21.0 or later.
+
+```python
+import os
+
+from phoenix.client import Client
+
+client = Client()
+
+# Create secrets: a string value creates the key, or replaces its value if it exists
+result = client.secrets.upsert_or_delete(
+    secrets={
+        "OPENAI_API_KEY": os.environ["OPENAI_API_KEY"],
+        "ANTHROPIC_API_KEY": os.environ["ANTHROPIC_API_KEY"],
+    }
+)
+print(result["upserted_keys"])  # ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY']
+
+# Rotate a secret: upsert the existing key with its new value
+client.secrets.upsert_or_delete(secrets={"OPENAI_API_KEY": os.environ["NEW_OPENAI_API_KEY"]})
+
+# Delete a secret: map the key to None (deleting a missing key succeeds)
+result = client.secrets.upsert_or_delete(secrets={"ANTHROPIC_API_KEY": None})
+print(result["deleted_keys"])  # ['ANTHROPIC_API_KEY']
+
+# Rotate one key and retire another in the same atomic request
+client.secrets.upsert_or_delete(
+    secrets={
+        "OPENAI_API_KEY": os.environ["NEW_OPENAI_API_KEY"],
+        "OLD_PROVIDER_API_KEY": None,
+    }
+)
+```
+
+The result lists only the keys that were upserted and deleted. Secret values are never returned, and they are left out of the method's error messages: an `httpx.HTTPStatusError` raised for a rejected batch carries the status code and validation messages, but not the request body or the server's response body. An empty batch raises `ValueError` before any request is sent. `AsyncClient` provides the same method as a coroutine:
+
+```python
+from phoenix.client import AsyncClient
+
+async_client = AsyncClient()
+await async_client.secrets.upsert_or_delete(secrets={"OPENAI_API_KEY": None})
+```
+
 ## Documentation
 
-- **[Full Documentation](https://arize-phoenix.readthedocs.io/projects/client/en/latest/index.html)** - Complete API reference and guides
+- **[Full Documentation](https://arize-phoenix.readthedocs.io/projects/client/)** - Complete API reference and guides
 - **[Phoenix Docs](https://arize.com/docs/phoenix)** - Main Phoenix documentation
 - **[GitHub Repository](https://github.com/Arize-ai/phoenix)** - Source code and examples
 

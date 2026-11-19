@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime
 from typing import Annotated, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
@@ -16,7 +15,7 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.db.session_aggregates import SESSION_ROWID, token_counts_by_session
 from phoenix.server.api.helpers.annotations import get_note_identifier
-from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
+from phoenix.server.api.routers.v1.models import IsoDatetime, V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
     ResponseBody,
@@ -37,6 +36,7 @@ from phoenix.server.authorization import (
 )
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import ProjectSessionAnnotationInsertEvent, SpanDeleteEvent
+from phoenix.server.session_filters import SessionFilterConditionError, apply_session_filter_to_page
 
 from .annotations import SessionAnnotationData
 from .utils import RequestBody
@@ -100,16 +100,16 @@ class CreateSessionNoteResponseBody(ResponseBody[InsertedSessionAnnotation]):
 class SessionTraceData(V1RoutesBaseModel):
     id: str
     trace_id: str
-    start_time: datetime
-    end_time: datetime
+    start_time: IsoDatetime
+    end_time: IsoDatetime
 
 
 class SessionData(V1RoutesBaseModel):
     id: str
     session_id: str
     project_id: str
-    start_time: datetime
-    end_time: datetime
+    start_time: IsoDatetime
+    end_time: IsoDatetime
     traces: list[SessionTraceData]
     token_count_prompt: int = Field(
         default=0,
@@ -339,7 +339,7 @@ async def delete_sessions(
     "/projects/{project_identifier}/sessions",
     operation_id="listProjectSessions",
     summary="List sessions for a project",
-    responses=add_errors_to_responses([404, 422]),
+    responses=add_errors_to_responses([400, 404, 422]),
 )
 async def list_project_sessions(
     request: Request,
@@ -359,6 +359,14 @@ async def list_project_sessions(
         default="asc",
         description="Sort order by ID: 'asc' (ascending) or 'desc' (descending).",
     ),
+    filter: Optional[str] = Query(
+        default=None,
+        description=(
+            "Session filter expression, as documented at "
+            "https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. "
+            "Empty expressions do not filter. Invalid expressions return 400."
+        ),
+    ),
 ) -> GetSessionsResponseBody:
     async with request.app.state.db.read() as db_session:
         project = await get_project_by_identifier(db_session, project_identifier)
@@ -371,6 +379,14 @@ async def list_project_sessions(
         sessions_stmt = (
             select(models.ProjectSession).filter_by(project_id=project.id).order_by(order_clause)
         )
+
+        if filter:
+            try:
+                sessions_stmt = apply_session_filter_to_page(
+                    sessions_stmt, filter, project_rowids=[project.id]
+                )
+            except SessionFilterConditionError as error:
+                raise HTTPException(status_code=400, detail=str(error)) from error
 
         if cursor:
             try:
@@ -478,7 +494,7 @@ async def annotate_sessions(
 
     async with request.app.state.db() as session:
         inserted_ids = []
-        dialect = SupportedSQLDialect(session.bind.dialect.name)
+        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
         for p in precursors:
             values = dict(as_kv(p.as_insertable(existing_sessions[p.session_id]).row))
             session_annotation_id = await session.scalar(
@@ -561,7 +577,7 @@ async def create_session_note(
         }
 
         if note_data.identifier:
-            dialect = SupportedSQLDialect(session.bind.dialect.name)
+            dialect = SupportedSQLDialect(session.get_bind().dialect.name)
             result = await session.execute(
                 insert_on_conflict(
                     values,

@@ -54,14 +54,14 @@ export function SessionViewTabs({
           <span css={tabLabelCSS}>
             <Icon svg={<Icons.MessagesSquare />} />
             Turns
-            <Counter variant="quiet">{traceCount}</Counter>
+            <Counter variant="quiet" count={traceCount} />
           </span>
         </Tab>
         <Tab id="traces">
           <span css={tabLabelCSS}>
             <Icon svg={<Icons.Trace />} />
             Traces
-            <Counter variant="quiet">{traceCount}</Counter>
+            <Counter variant="quiet" count={traceCount} />
           </span>
         </Tab>
         <Tab id="annotations">

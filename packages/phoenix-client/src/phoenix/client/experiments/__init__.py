@@ -731,7 +731,6 @@ def evaluate_experiment(
             Defaults to True.
         timeout (Optional[int]): The timeout for the evaluation execution in seconds.
             Defaults to 60.
-        concurrency (int): Specifies the concurrency for evaluation execution. Defaults to 3.
         rate_limit_errors (Optional[RateLimitErrors]): An exception or sequence of exceptions
             to adaptively throttle on.
             Defaults to None.

@@ -1,5 +1,7 @@
 import {
   EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
+  llmEvaluatorDraftFileName,
+  llmEvaluatorDraftSnapshotToText,
   type LLMEvaluatorDraftSnapshot,
   parseEditLlmEvaluatorDraftInput,
   type PendingLlmEvaluatorEdit,
@@ -7,7 +9,7 @@ import {
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import { LazyDiffAcceptRejectToolDetails } from "./LazyDiffAcceptRejectToolDetails";
-import type { ToolInvocationPart } from "./toolPartTypes";
+import type { ToolInvocationPart, ToolStatus } from "./toolPartTypes";
 import { formatToolState } from "./toolPartTypes";
 
 export function getEditLlmEvaluatorDraftToolPreview(
@@ -18,19 +20,23 @@ export function getEditLlmEvaluatorDraftToolPreview(
   return `${input.operations.length} proposed edit${input.operations.length === 1 ? "" : "s"}`;
 }
 
-export function formatEditLlmEvaluatorDraftState(
+export function getEditLlmEvaluatorDraftStatus(
   part: ToolInvocationPart
-): string {
+): ToolStatus {
   switch (part.state) {
     case "input-available":
-      return "Awaiting approval";
+      return { stateLabel: "Awaiting approval", statusCategory: "needs-input" };
     case "output-available": {
       const status = getOutputStatus(part.output);
-      if (status === "rejected") return "Rejected";
-      return isAutoAccepted(part.output) ? "Auto-approved" : "Accepted";
+      if (status === "rejected") {
+        return { stateLabel: "Rejected", statusCategory: "denied" };
+      }
+      return {
+        stateLabel: isAutoAccepted(part.output) ? "Auto-approved" : "Accepted",
+      };
     }
     default:
-      return formatToolState(part.state);
+      return { stateLabel: formatToolState(part.state) };
   }
 }
 
@@ -50,9 +56,11 @@ export function EditLLMEvaluatorDraftToolDetails({
     >
       part={part}
       pending={pending}
-      snapshotToText={draftSnapshotToText}
+      snapshotToText={llmEvaluatorDraftSnapshotToText}
       fileName={
-        pending ? draftFileName(pending.before) : "llm-evaluator-draft.txt"
+        pending
+          ? llmEvaluatorDraftFileName(pending.before)
+          : "llm-evaluator-draft.txt"
       }
       renderHeader={renderLlmEvaluatorDiffHeader}
       preparingLabel={EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME}
@@ -69,24 +77,6 @@ function renderLlmEvaluatorDiffHeader(pending: PendingLlmEvaluatorEdit) {
       Proposed diff for LLM-evaluator draft ({pending.before.mode} mode)
     </span>
   );
-}
-
-function draftFileName(snapshot: LLMEvaluatorDraftSnapshot): string {
-  return snapshot.mode === "edit"
-    ? `llm-evaluator-${snapshot.evaluatorNodeId ?? "draft"}.txt`
-    : "llm-evaluator-draft.txt";
-}
-
-function draftSnapshotToText(snapshot: LLMEvaluatorDraftSnapshot): string {
-  return [
-    `name: ${snapshot.name}`,
-    `description: ${snapshot.description}`,
-    `includeExplanation: ${snapshot.includeExplanation}`,
-    `inputMapping: ${JSON.stringify(snapshot.inputMapping, null, 2)}`,
-    `testPayload: ${JSON.stringify(snapshot.testPayload, null, 2)}`,
-    `outputConfigs: ${JSON.stringify(snapshot.outputConfigs, null, 2)}`,
-    `judge: ${JSON.stringify(snapshot.judge, null, 2)}`,
-  ].join("\n\n");
 }
 
 function getOutputStatus(output: unknown): string | null {

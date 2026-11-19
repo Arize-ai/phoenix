@@ -13,7 +13,7 @@ import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { SpanAnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 
 import type { AnnotationOptimizationConfig } from "./optimizationUtils";
-import type { Annotation } from "./types";
+import type { Annotation, AnnotationTargetType } from "./types";
 
 const annotationSummaryTriggerCSS = css`
   all: unset;
@@ -39,6 +39,7 @@ const annotationSummaryPopoverCSS = css`
 
 export function AnnotationSummaryPopover({
   annotations,
+  annotationTargetType,
   children,
   annotationConfig,
   meanScore,
@@ -47,6 +48,7 @@ export function AnnotationSummaryPopover({
 }: {
   /** Annotations of the same name, newest first. */
   annotations: Annotation[] | readonly Annotation[];
+  annotationTargetType: AnnotationTargetType;
   children: ReactNode;
   annotationConfig?: AnnotationOptimizationConfig;
   meanScore?: number | null;
@@ -79,6 +81,7 @@ export function AnnotationSummaryPopover({
           <PopoverArrow />
           <AnnotationDetailsList
             annotations={annotations}
+            annotationTargetType={annotationTargetType}
             annotationConfig={annotationConfig}
             meanScore={meanScore}
             renderFilterActions={

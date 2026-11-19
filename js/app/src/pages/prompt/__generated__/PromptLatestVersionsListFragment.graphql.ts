@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3057f120ec7f6b06bf98194c94f56357>>
+ * @generated SignedSource<<5fa495c673fb98dc6f14e3fec5b23115>>
  * @lightSyntaxTransform
  */
 
@@ -13,13 +13,13 @@ export type PromptLatestVersionsListFragment$data = {
   readonly latestVersions: {
     readonly edges: ReadonlyArray<{
       readonly version: {
-        readonly createdAt: string;
-        readonly description: string | null;
         readonly id: string;
-        readonly sequenceNumber: number;
         readonly " $fragmentSpreads": FragmentRefs<"PromptVersionSummaryFragment">;
       };
     }>;
+    readonly pageInfo: {
+      readonly hasNextPage: boolean;
+    };
   };
   readonly " $fragmentType": "PromptLatestVersionsListFragment";
 };
@@ -51,6 +51,24 @@ const node: ReaderFragment = {
         {
           "alias": null,
           "args": null,
+          "concreteType": "PageInfo",
+          "kind": "LinkedField",
+          "name": "pageInfo",
+          "plural": false,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "hasNextPage",
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
           "concreteType": "PromptVersionEdge",
           "kind": "LinkedField",
           "name": "edges",
@@ -72,27 +90,6 @@ const node: ReaderFragment = {
                   "storageKey": null
                 },
                 {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "description",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "createdAt",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "sequenceNumber",
-                  "storageKey": null
-                },
-                {
                   "args": null,
                   "kind": "FragmentSpread",
                   "name": "PromptVersionSummaryFragment"
@@ -111,6 +108,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "a473a6f0d927379542694312449a4c63";
+(node as any).hash = "2683ea732d7e8bd5710c8a535fa0ba96";
 
 export default node;

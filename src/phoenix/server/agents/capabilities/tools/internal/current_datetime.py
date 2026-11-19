@@ -6,9 +6,9 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 from pydantic_ai import RunContext, Tool
+from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.toolsets import AgentToolset, FunctionToolset
 
-from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.agents.types import AgentDependencies
 
 GET_CURRENT_DATETIME_TOOL_NAME = "get_current_datetime"
@@ -18,8 +18,13 @@ _GET_CURRENT_DATETIME_DESCRIPTION = (
     "user sent their most recent message (local time with offset, plus IANA "
     "timezone), falling back to the server's UTC clock when no browser clock is "
     "available. Call this before resolving any relative date or time phrase such "
-    "as 'today', 'yesterday', or 'last hour'; never guess the current date from "
-    "prior knowledge."
+    "as 'today', 'yesterday', 'last hour', or 'since 9am' into concrete "
+    "timestamps, before setting a `custom` time-range window (via an `execute_browser_action` "
+    "script) derived from relative language, and whenever an answer depends on knowing what time "
+    "it is now. Never guess the current date or time from prior knowledge; your "
+    'training data is stale. Treat a `browser` result as "now" for the user\'s '
+    "most recent message and interpret it in the returned timezone. Reuse the "
+    "returned value for the rest of the turn instead of calling repeatedly."
 )
 
 
@@ -67,13 +72,8 @@ class GetCurrentDatetimeToolset(FunctionToolset[AgentDependencies]):
 
 
 @dataclass
-class GetCurrentDatetimeCapability(AbstractStaticCapability[AgentDependencies]):
+class GetCurrentDatetimeCapability(AbstractCapability[AgentDependencies]):
     """Capability that adds the current-datetime reader."""
-
-    instructions: str
 
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return GetCurrentDatetimeToolset()
-
-    def get_static_instructions(self) -> str:
-        return self.instructions

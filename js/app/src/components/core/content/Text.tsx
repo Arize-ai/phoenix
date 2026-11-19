@@ -16,7 +16,15 @@ import { textBaseCSS } from "./styles";
 import { getTextColor } from "./textUtils";
 import type { TextElementType, Weight } from "./types";
 
-export interface TextProps extends AriaTextProps, DOMProps, StyleProps {
+export interface TextProps
+  extends Omit<AriaTextProps, "slot">, DOMProps, StyleProps {
+  /**
+   * A slot name for the component, or `null` to opt out of a parent's slotted
+   * TextContext (e.g. inside a RadioGroup, which only offers "description"
+   * and "errorMessage" and rejects an unslotted Text at render). React Aria
+   * honors `null` at runtime; its Text prop types just predate the contract.
+   */
+  slot?: string | null;
   /**
    * Sets text size
    * @default 'S'
@@ -68,7 +76,7 @@ const textCSS = (color: TextColorValue) =>
 /**
  * Text is used to create various sizes of typographic hierarchies.
  */
-function Text({ ref, ...props }: TextProps & { ref?: Ref<HTMLElement> }) {
+function Text({ ref, slot, ...props }: TextProps & { ref?: Ref<HTMLElement> }) {
   const { isDisabled = false } = props;
   const {
     children,
@@ -85,6 +93,9 @@ function Text({ ref, ...props }: TextProps & { ref?: Ref<HTMLElement> }) {
   return (
     <AriaText
       className={classNames("text", `font-${fontFamily}`, className)}
+      // Cast only: React Aria's Text handles slot={null} at runtime but its
+      // prop types inherit slot?: string from HTMLAttributes.
+      slot={slot as string | undefined}
       {...restProps}
       {...styleProps}
       css={css`

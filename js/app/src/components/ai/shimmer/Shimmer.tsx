@@ -56,6 +56,7 @@ export function Shimmer({
         },
       };
 
+  /* eslint-disable react/static-components */
   return (
     <MotionComponent
       ref={ref as React.Ref<never>}
@@ -79,6 +80,7 @@ export function Shimmer({
       {children}
     </MotionComponent>
   );
+  /* eslint-enable react/static-components */
 }
 
 Shimmer.displayName = "Shimmer";

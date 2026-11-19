@@ -1,15 +1,14 @@
 import type { z } from "zod";
 
 import type { ApprovalSource } from "@phoenix/agent/tools/approval";
+import type { UIOperationResultEmitter } from "@phoenix/agent/uiOperations/types";
 
 import type {
   patchExperimentActionContextSchema,
   patchExperimentInputSchema,
-  PatchExperimentToolOutputSender,
 } from "./schemas";
 
 export type { ApprovalSource };
-export type { PatchExperimentToolOutputSender } from "./schemas";
 
 export type PatchExperimentInput = z.output<typeof patchExperimentInputSchema>;
 
@@ -61,13 +60,13 @@ export type FetchExperimentSnapshot = (
   experimentId: string
 ) => Promise<ExperimentSnapshot>;
 
-export type BindPendingPatchExperimentOptions = {
+export type BindPendingPatchExperimentOperationOptions = {
   pendingPatch: PendingPatchExperiment;
   fetchExperimentSnapshot: FetchExperimentSnapshot;
   commitPatchExperiment: CommitPatchExperiment;
-  addToolOutput: PatchExperimentToolOutputSender;
   setPendingPatchExperiment: (
     toolCallId: string,
     patch: PendingPatchExperiment | null
   ) => void;
+  emitResult: UIOperationResultEmitter;
 };

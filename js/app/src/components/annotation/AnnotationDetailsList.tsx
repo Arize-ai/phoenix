@@ -3,6 +3,7 @@ import { type ReactNode, useId } from "react";
 
 import { Flex, Text, View } from "@phoenix/components";
 import { AnnotationScoreText } from "@phoenix/components/annotation/AnnotationScoreText";
+import { AnnotationTargetTypeToken } from "@phoenix/components/annotation/AnnotationTargetTypeToken";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { AnnotatorKindToken } from "@phoenix/components/trace/AnnotatorKindToken";
@@ -12,10 +13,10 @@ import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { hasAnnotationValue } from "./annotationUtils";
 import {
-  getPositiveOptimizationFromConfig,
+  getOptimizationValueFromConfig,
   type AnnotationOptimizationConfig,
 } from "./optimizationUtils";
-import type { Annotation } from "./types";
+import type { Annotation, AnnotationTargetType } from "./types";
 
 const annotationListCSS = css`
   list-style: none;
@@ -45,11 +46,13 @@ const annotationValueCSS = css`
 
 export function AnnotationDetailsList({
   annotations,
+  annotationTargetType,
   annotationConfig,
   meanScore,
   renderFilterActions,
 }: {
   annotations: readonly Annotation[];
+  annotationTargetType: AnnotationTargetType;
   annotationConfig?: AnnotationOptimizationConfig;
   meanScore?: number | null;
   renderFilterActions?: (annotation: Annotation) => ReactNode;
@@ -59,7 +62,7 @@ export function AnnotationDetailsList({
   if (annotationName == null) {
     return null;
   }
-  const meanPositiveOptimization = getPositiveOptimizationFromConfig({
+  const meanOptimizationValue = getOptimizationValueFromConfig({
     config: annotationConfig,
     score: meanScore,
   });
@@ -80,25 +83,36 @@ export function AnnotationDetailsList({
           justifyContent="space-between"
           gap="size-100"
         >
-          <View minWidth={0} flex="1 1 auto">
-            <Truncate maxWidth="100%" title={annotationName}>
-              <Text
-                id={headingId}
-                weight="heavy"
-                color="inherit"
-                size="S"
-                elementType="h3"
-              >
-                {annotationName}
-              </Text>
-            </Truncate>
-          </View>
+          <Flex
+            direction="row"
+            alignItems="center"
+            gap="size-100"
+            minWidth={0}
+            flex="1 1 auto"
+          >
+            <View minWidth={0} flex="0 1 auto">
+              <Truncate maxWidth="100%" title={annotationName}>
+                <Text
+                  id={headingId}
+                  weight="heavy"
+                  color="inherit"
+                  size="S"
+                  elementType="h3"
+                >
+                  {annotationName}
+                </Text>
+              </Truncate>
+            </View>
+            <View flex="none">
+              <AnnotationTargetTypeToken targetType={annotationTargetType} />
+            </View>
+          </Flex>
           {meanScore != null ? (
             <View flex="none">
               <MeanScore
                 value={meanScore}
                 size="S"
-                positiveOptimization={meanPositiveOptimization}
+                optimizationValue={meanOptimizationValue}
               />
             </View>
           ) : null}
@@ -128,7 +142,7 @@ function AnnotationDetailsListItem({
   renderFilterActions?: (annotation: Annotation) => ReactNode;
 }) {
   // Detail rows color their own score rather than the group's mean.
-  const positiveOptimization = getPositiveOptimizationFromConfig({
+  const optimizationValue = getOptimizationValueFromConfig({
     config: annotationConfig,
     score: annotation.score,
   });
@@ -159,7 +173,7 @@ function AnnotationDetailsListItem({
                 <AnnotationScoreText
                   elementType="span"
                   fontFamily="mono"
-                  positiveOptimization={positiveOptimization}
+                  optimizationValue={optimizationValue}
                 >
                   {floatFormatter(annotation.score)}
                 </AnnotationScoreText>

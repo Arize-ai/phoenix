@@ -38,7 +38,7 @@ This repository is managed as a monorepo using [pnpm workspaces](https://pnpm.io
 ### 1. Install pnpm (if you don't have it)
 
 ```sh
-npm install -g pnpm
+npm install -g pnpm@12.0.0
 ```
 
 ### 2. Install all dependencies for all packages

@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from "react";
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { useZustand } from "use-zustand";
 
 import type {
@@ -18,6 +18,20 @@ export function PreferencesProvider({
   const [store] = useState<PreferencesStore>(() =>
     createPreferencesStore(props)
   );
+  const isNativeScrollbarStylingEnabled = useZustand(
+    store,
+    (state) => state.isNativeScrollbarStylingEnabled
+  );
+
+  useEffect(() => {
+    document.documentElement.toggleAttribute(
+      "data-native-scrollbars",
+      isNativeScrollbarStylingEnabled
+    );
+    return () => {
+      document.documentElement.removeAttribute("data-native-scrollbars");
+    };
+  }, [isNativeScrollbarStylingEnabled]);
 
   return (
     <PreferencesContext.Provider value={store}>

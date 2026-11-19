@@ -1,10 +1,11 @@
 import { createEvaluatorSubmitClientAction } from "@phoenix/agent/tools/approval";
 import { parseEmptyToolInput } from "@phoenix/agent/tools/emptyToolInput";
+import { isOperationCallApprovalGranted } from "@phoenix/agent/uiOperations/scriptApprovalGrant";
+import { parseUIOperationCallContext } from "@phoenix/agent/uiOperations/types";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
 import { SUBMIT_LLM_EVALUATOR_DRAFT_TOOL_NAME } from "./constants";
 import {
-  parseEditLlmEvaluatorDraftActionContext,
   parseEditLlmEvaluatorDraftInput,
   parseReadLlmEvaluatorDraftInput,
   parseTestLlmEvaluatorDraftInput,
@@ -26,7 +27,7 @@ export function createReadLlmEvaluatorDraftClientAction({
     if (!parsed) {
       return {
         ok: false,
-        error: "Invalid read_llm_evaluator_draft input.",
+        error: "Invalid evaluators.llm.read input.",
       };
     }
     const host = getDraftHost();
@@ -36,7 +37,7 @@ export function createReadLlmEvaluatorDraftClientAction({
         error: "The LLM-evaluator form is not mounted; cannot read the draft.",
       };
     }
-    return { ok: true, output: JSON.stringify(host.getSnapshot(), null, 2) };
+    return { ok: true, output: host.getSnapshot() };
   };
 }
 
@@ -56,19 +57,19 @@ export function createEditLlmEvaluatorDraftClientAction({
     input: unknown,
     context?: unknown
   ): Promise<AgentClientActionResult> => {
-    const editContext = parseEditLlmEvaluatorDraftActionContext(context);
-    if (!editContext) {
+    const callContext = parseUIOperationCallContext(context);
+    if (!callContext) {
       return {
         ok: false,
         error:
-          "Cannot propose LLM-evaluator draft edit without tool call context.",
+          "Cannot propose LLM-evaluator draft edit without an operation call context.",
       };
     }
     const parsed = parseEditLlmEvaluatorDraftInput(input);
     if (!parsed) {
       return {
         ok: false,
-        error: "Invalid edit_llm_evaluator_draft input.",
+        error: "Invalid evaluators.llm.edit input.",
       };
     }
     const host = getDraftHost();
@@ -82,26 +83,32 @@ export function createEditLlmEvaluatorDraftClientAction({
     const proposed = host.previewOperations(before, parsed.operations);
     if (!proposed.ok) return proposed;
 
-    const pendingEdit = bindPendingLlmEvaluatorEditActions({
-      pendingEdit: {
-        toolCallId: editContext.toolCallId,
-        sessionId: editContext.sessionId,
-        before,
-        after: proposed.output,
-        operations: parsed.operations,
-      },
-      draftHost: host,
-      addToolOutput: editContext.addToolOutput,
-      setPendingLlmEvaluatorEdit,
+    // The returned promise resolves when the user (or bypass mode) decides;
+    // the awaiting execute_browser_action script sits parked on it until then.
+    return new Promise((resolve) => {
+      const pendingEdit = bindPendingLlmEvaluatorEditActions({
+        pendingEdit: {
+          toolCallId: callContext.callId,
+          sessionId: callContext.sessionId ?? "",
+          before,
+          after: proposed.output,
+          operations: parsed.operations,
+        },
+        draftHost: host,
+        emitResult: resolve,
+        setPendingLlmEvaluatorEdit,
+      });
+
+      if (
+        shouldAutoAccept() ||
+        isOperationCallApprovalGranted(callContext.callId)
+      ) {
+        void pendingEdit.accept?.({ approvalSource: "auto" });
+        return;
+      }
+
+      setPendingLlmEvaluatorEdit(callContext.callId, pendingEdit);
     });
-
-    if (shouldAutoAccept()) {
-      await pendingEdit.accept?.({ approvalSource: "auto" });
-      return { ok: true };
-    }
-
-    setPendingLlmEvaluatorEdit(editContext.toolCallId, pendingEdit);
-    return { ok: true };
   };
 }
 
@@ -134,7 +141,7 @@ export function createTestLlmEvaluatorDraftClientAction({
     if (!parsed) {
       return {
         ok: false,
-        error: "Invalid test_llm_evaluator_draft input.",
+        error: "Invalid evaluators.llm.test input.",
       };
     }
     if (!isDraftMounted()) {
@@ -143,10 +150,6 @@ export function createTestLlmEvaluatorDraftClientAction({
         error: "The LLM-evaluator form is not mounted; cannot test the draft.",
       };
     }
-    const result = await runEvaluatorPreview();
-    if (!result.ok) {
-      return result;
-    }
-    return { ok: true, output: JSON.stringify(result.output, null, 2) };
+    return runEvaluatorPreview();
   };
 }

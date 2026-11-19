@@ -1,0 +1,17 @@
+{
+  "name": "arize-phoenix",
+  "description": "Arize Phoenix plugins for Claude Code",
+  "owner": {
+    "name": "Arize AI",
+    "email": "oss@arize.com",
+    "url": "https://arize.com"
+  },
+  "plugins": [
+    {
+      "name": "arize-phoenix",
+      "source": "./plugins/claude/arize-phoenix",
+      "description": "Connect to your Phoenix instance to debug, evaluate, and improve LLM applications.",
+      "category": "developer-tools"
+    }
+  ]
+}

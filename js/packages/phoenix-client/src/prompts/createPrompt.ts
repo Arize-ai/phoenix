@@ -85,6 +85,11 @@ interface PromptVersionInputBase {
    */
   description?: string;
   /**
+   * Optional metadata for the prompt version as a JSON object.
+   * @example { "agent": "support", "dependencies": ["retriever"] }
+   */
+  metadata?: PromptVersionData["metadata"];
+  /**
    * The name of the model to use for the prompt version.
    */
   modelName: PromptVersionData["model_name"];
@@ -165,142 +170,51 @@ export type PromptVersionInput =
 export function promptVersion(params: PromptVersionInput): PromptVersionData {
   const {
     description = "",
+    metadata,
     modelProvider: model_provider,
     modelName: model_name,
     template: templateMessages,
     templateFormat: template_format = "MUSTACHE",
-    invocationParameters: invocation_parameters,
   } = params;
-  switch (model_provider) {
+  return {
+    description,
+    ...(metadata ? { metadata } : {}),
+    model_provider,
+    model_name,
+    template_type: "CHAT",
+    template_format,
+    template: {
+      type: "chat",
+      messages: templateMessages,
+    },
+    invocation_parameters: toInvocationParameters(params),
+  };
+}
+
+function toInvocationParameters(
+  params: PromptVersionInput
+): PromptVersionData["invocation_parameters"] {
+  switch (params.modelProvider) {
     case "OPENAI":
-      return {
-        description,
-        model_provider,
-        model_name,
-        template_type: "CHAT",
-        template_format,
-        template: {
-          type: "chat",
-          messages: templateMessages,
-        },
-        invocation_parameters: {
-          type: "openai",
-          openai: invocation_parameters ?? {},
-        },
-      };
+      return { type: "openai", openai: params.invocationParameters ?? {} };
     case "AZURE_OPENAI":
       return {
-        description,
-        model_provider,
-        model_name,
-        template_type: "CHAT",
-        template_format,
-        template: {
-          type: "chat",
-          messages: templateMessages,
-        },
-        invocation_parameters: {
-          type: "azure_openai",
-          azure_openai: invocation_parameters ?? {},
-        },
+        type: "azure_openai",
+        azure_openai: params.invocationParameters ?? {},
       };
     case "ANTHROPIC":
-      return {
-        description,
-        model_provider,
-        model_name,
-        template_type: "CHAT",
-        template_format,
-        template: {
-          type: "chat",
-          messages: templateMessages,
-        },
-        invocation_parameters: {
-          type: "anthropic",
-          anthropic: invocation_parameters,
-        },
-      };
+      return { type: "anthropic", anthropic: params.invocationParameters };
     case "GOOGLE":
-      return {
-        description,
-        model_provider,
-        model_name,
-        template_type: "CHAT",
-        template_format,
-        template: {
-          type: "chat",
-          messages: templateMessages,
-        },
-        invocation_parameters: {
-          type: "google",
-          google: invocation_parameters ?? {},
-        },
-      };
+      return { type: "google", google: params.invocationParameters ?? {} };
     case "DEEPSEEK":
-      return {
-        description,
-        model_provider,
-        model_name,
-        template_type: "CHAT",
-        template_format,
-        template: {
-          type: "chat",
-          messages: templateMessages,
-        },
-        invocation_parameters: {
-          type: "deepseek",
-          deepseek: invocation_parameters ?? {},
-        },
-      };
+      return { type: "deepseek", deepseek: params.invocationParameters ?? {} };
     case "XAI":
-      return {
-        description,
-        model_provider,
-        model_name,
-        template_type: "CHAT",
-        template_format,
-        template: {
-          type: "chat",
-          messages: templateMessages,
-        },
-        invocation_parameters: {
-          type: "xai",
-          xai: invocation_parameters ?? {},
-        },
-      };
+      return { type: "xai", xai: params.invocationParameters ?? {} };
     case "OLLAMA":
-      return {
-        description,
-        model_provider,
-        model_name,
-        template_type: "CHAT",
-        template_format,
-        template: {
-          type: "chat",
-          messages: templateMessages,
-        },
-        invocation_parameters: {
-          type: "ollama",
-          ollama: invocation_parameters ?? {},
-        },
-      };
+      return { type: "ollama", ollama: params.invocationParameters ?? {} };
     case "AWS":
-      return {
-        description,
-        model_provider,
-        model_name,
-        template_type: "CHAT",
-        template_format,
-        template: {
-          type: "chat",
-          messages: templateMessages,
-        },
-        invocation_parameters: {
-          type: "aws",
-          aws: invocation_parameters ?? {},
-        },
-      };
+      return { type: "aws", aws: params.invocationParameters ?? {} };
     default:
-      return assertUnreachable(model_provider);
+      return assertUnreachable(params);
   }
 }

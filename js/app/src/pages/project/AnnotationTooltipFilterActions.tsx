@@ -5,6 +5,7 @@ import { Flex, Icon, Icons, Token } from "@phoenix/components";
 import {
   type AnnotationFilterDefinition,
   getAnnotationTooltipFilters,
+  getTraceAnnotationTooltipFilters,
   getTraceSpanAnnotationTooltipFilters,
 } from "./annotationFilterUtils";
 import { useSpanFilterActions } from "./SpanFiltersContext";
@@ -84,6 +85,22 @@ export function SpanAnnotationTooltipFilterActions(
   return (
     <AnnotationTooltipFilterActions
       {...props}
+      onAppendFilterCondition={appendFilterCondition}
+    />
+  );
+}
+
+export function SpanTraceAnnotationTooltipFilterActions(
+  props: Omit<
+    AnnotationTooltipFilterActionsProps,
+    "getFilters" | "onAppendFilterCondition"
+  >
+) {
+  const { appendFilterCondition } = useSpanFilterActions();
+  return (
+    <AnnotationTooltipFilterActions
+      {...props}
+      getFilters={getTraceAnnotationTooltipFilters}
       onAppendFilterCondition={appendFilterCondition}
     />
   );

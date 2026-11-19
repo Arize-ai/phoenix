@@ -10,6 +10,7 @@ loguru==0.7.2
 pandas==2.2.3
 python-dotenv==1.2.2
 tqdm==4.66.6
+# langchain-anthropic requires anthropic<1, which caps this example at 0.x.
 anthropic
 gradio
 openinference-instrumentation-anthropic

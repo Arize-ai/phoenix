@@ -33,7 +33,7 @@ class SessionIODataLoader(DataLoader[Key, Result]):
         self._kind = kind
 
     @cached_property
-    def _subq(self) -> Select[tuple[Optional[int], int, str, str, int]]:
+    def _subq(self) -> Select[Optional[int], int, str, str, int]:
         stmt = (
             select(
                 models.Trace.project_session_rowid.label("id_"),
@@ -76,9 +76,9 @@ class SessionIODataLoader(DataLoader[Key, Result]):
             )
         else:
             assert_never(self._kind)
-        return cast(Select[tuple[Optional[int], int, str, str, int]], stmt)
+        return cast(Select[Optional[int], int, str, str, int], stmt)
 
-    def _stmt(self, *keys: Key) -> Select[tuple[int, int, str, str]]:
+    def _stmt(self, *keys: Key) -> Select[int, int, str, str]:
         subq = self._subq.where(models.Trace.project_session_rowid.in_(keys)).subquery()
         return (
             select(

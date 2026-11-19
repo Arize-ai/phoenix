@@ -1,16 +1,12 @@
 import { Suspense } from "react";
-import { Pressable } from "react-aria";
+import { Focusable } from "react-aria";
 
 import type { TextProps } from "@phoenix/components";
-import {
-  Loading,
-  RichTooltip,
-  TooltipArrow,
-  TooltipTrigger,
-} from "@phoenix/components";
+import { RichTooltip, TooltipArrow, TooltipTrigger } from "@phoenix/components";
 
 import { SpanTokenCostsDetails } from "./SpanTokenCostsDetails";
 import { TokenCosts } from "./TokenCosts";
+import { TokenDetailsBreakdownSkeleton } from "./TokenDetailsBreakdown";
 
 type SpanTokenCostsProps = {
   /**
@@ -37,7 +33,7 @@ type SpanTokenCostsProps = {
 export function SpanTokenCosts(props: SpanTokenCostsProps) {
   return (
     <TooltipTrigger>
-      <Pressable>
+      <Focusable>
         <TokenCosts
           size={props.size}
           color={props.color}
@@ -46,10 +42,14 @@ export function SpanTokenCosts(props: SpanTokenCostsProps) {
         >
           {props.totalCost}
         </TokenCosts>
-      </Pressable>
-      <RichTooltip>
+      </Focusable>
+      <RichTooltip placement="end">
         <TooltipArrow />
-        <Suspense fallback={<Loading />}>
+        <Suspense
+          fallback={
+            <TokenDetailsBreakdownSkeleton costs={{ total: props.totalCost }} />
+          }
+        >
           <SpanTokenCostsDetails spanNodeId={props.spanNodeId} />
         </Suspense>
       </RichTooltip>

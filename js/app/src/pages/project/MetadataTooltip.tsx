@@ -12,8 +12,6 @@ import {
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { toPythonPrimitiveStr } from "@phoenix/utils/pythonUtils";
 
-import { useSpanFilterActions } from "./SpanFiltersContext";
-
 export const makeMetadataTooltipFilterCondition = (
   key: string,
   /**
@@ -34,14 +32,18 @@ type MetadataTooltipProps = {
   children: ReactNode;
   metadata: Record<string, string | number | boolean>;
   width?: CSSProperties["width"];
+  /**
+   * Called with a filter DSL condition when the user presses a "Match" button
+   */
+  onFilterConditionPressed: (condition: string) => void;
 };
 
 export function MetadataTooltip({
   children,
   metadata,
   width,
+  onFilterConditionPressed,
 }: MetadataTooltipProps) {
-  const { appendFilterCondition } = useSpanFilterActions();
   const entries = Object.entries(metadata).map(([key, value]) => ({
     key,
     value: String(value),
@@ -122,7 +124,7 @@ export function MetadataTooltip({
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        appendFilterCondition(filterCondition);
+                        onFilterConditionPressed(filterCondition);
                       }}
                       css={css`
                         all: unset;

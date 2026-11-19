@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<df6c98fcdbd689ad35874c7373806592>>
+ * @generated SignedSource<<c7ea7151ed7d10e350b8134296185af3>>
  * @lightSyntaxTransform
  */
 
@@ -10,9 +10,9 @@
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type AnnotationSource = "API" | "APP";
-export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
+export type AnnotatorKind = "AGENT" | "CODE" | "DECISION" | "HUMAN" | "LLM";
 export type CreateProjectSessionAnnotationInput = {
-  annotatorKind?: AnnotatorKind;
+  annotatorKind: AnnotatorKind;
   explanation?: string | null;
   identifier?: string | null;
   label?: string | null;
@@ -20,7 +20,7 @@ export type CreateProjectSessionAnnotationInput = {
   name: string;
   projectSessionId: string;
   score?: number | null;
-  source?: AnnotationSource;
+  source: AnnotationSource;
 };
 export type SessionAnnotationsEditorCreateAnnotationMutation$variables = {
   input: CreateProjectSessionAnnotationInput;

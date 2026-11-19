@@ -138,7 +138,7 @@ Create a PR with:
 After modifying any files under `prompts/`, run:
 
 ```bash
-tox -e compile_prompts
+make codegen-prompts
 ```
 
 Then commit the generated files in the same commit or a follow-up `chore:` commit.

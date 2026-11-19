@@ -63,6 +63,7 @@ describe("LegacyTraceFilterParamNotice", () => {
 
 let currentSearch = "";
 function SearchProbe() {
+  // eslint-disable-next-line react/globals
   currentSearch = useLocation().search;
   return null;
 }

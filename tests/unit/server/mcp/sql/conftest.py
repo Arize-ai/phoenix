@@ -1,16 +1,19 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import AsyncIterator, cast
+from uuid import uuid4
 
 import pytest
-from sqlalchemy import URL, Table
-from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
+from sqlalchemy import URL, Table, text
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession
 
 from phoenix.db import models
 from phoenix.db.engines import aio_sqlite_engine
 from phoenix.server.app import _db
+from phoenix.server.mcp.sql.catalog import resolve_pg_schema
 from phoenix.server.types import DbSessionFactory
 
 
@@ -176,3 +179,31 @@ async def analytics_postgres_db(db: DbSessionFactory) -> AsyncIterator[DbSession
     async with db() as session:
         await _seed_analytics_rows(await session.connection())
     yield db
+
+
+@pytest.fixture
+async def analytics_postgres_read_only_db(
+    analytics_postgres_db: DbSessionFactory,
+) -> AsyncIterator[DbSessionFactory]:
+    """Seeded analytics data accessed by a non-superuser with SELECT privileges."""
+    db = analytics_postgres_db
+    role = f"analytics_reader_{uuid4().hex}"
+    schema = (await resolve_pg_schema(db)).replace('"', '""')
+    async with db() as session:
+        await session.execute(text(f'CREATE ROLE "{role}" NOSUPERUSER'))
+    try:
+        async with db() as session:
+            await session.execute(text(f'GRANT USAGE ON SCHEMA "{schema}" TO "{role}"'))
+            await session.execute(text(f'GRANT SELECT ON "{schema}".projects TO "{role}"'))
+
+        @asynccontextmanager
+        async def read_as_role() -> AsyncIterator[AsyncSession]:
+            async with db.read() as session:
+                await session.execute(text(f'SET LOCAL ROLE "{role}"'))
+                yield session
+
+        yield DbSessionFactory(db=read_as_role, dialect="postgresql")
+    finally:
+        async with db() as session:
+            await session.execute(text(f'DROP OWNED BY "{role}"'))
+            await session.execute(text(f'DROP ROLE "{role}"'))

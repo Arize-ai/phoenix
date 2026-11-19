@@ -2,20 +2,15 @@ from __future__ import annotations
 
 from secrets import token_hex
 
-import httpx
+import httpx2
 import pytest
 import sqlalchemy as sa
-from pydantic import SecretStr
 
 from phoenix.db import models
 from phoenix.server.api.openapi.schema import get_openapi_schema
 from phoenix.server.redaction import Redactor
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
-
-# The in-process test app is constructed with no PHOENIX_SECRET, so the
-# server-side Redactor is keyed off SecretStr("").
-_REDACTOR = Redactor(secret=SecretStr(""))
 
 SECRETS_QUERY = """
 query SecretsQuery($keys: [String!]) {
@@ -38,8 +33,9 @@ class TestUpsertOrDeleteSecrets:
 
     async def test_rest_upsert_is_readable_via_graphql(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         gql_client: AsyncGraphQLClient,
+        redactor: Redactor,
     ) -> None:
         """Secrets created via REST PUT can be fetched and decrypted via GraphQL."""
         key = f"REST_GQL_ROUNDTRIP_{token_hex(4)}"
@@ -61,11 +57,11 @@ class TestUpsertOrDeleteSecrets:
         edges = result.data["secrets"]["edges"]
         assert len(edges) == 1
         assert edges[0]["node"]["key"] == key
-        assert _REDACTOR.unredact(edges[0]["node"]["value"]["value"]) == value
+        assert redactor.unredact(edges[0]["node"]["value"]["value"]) == value
 
     async def test_missing_value_field_returns_422_without_deleting_existing_secret(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         """Omitting value is rejected and leaves an existing secret untouched."""
@@ -89,7 +85,7 @@ class TestUpsertOrDeleteSecrets:
 
     async def test_empty_secrets_list_returns_422(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         """An empty secrets list is rejected with 422."""
         response = await httpx_client.put(
@@ -100,7 +96,7 @@ class TestUpsertOrDeleteSecrets:
 
     async def test_empty_key_returns_422(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         """An empty (or whitespace-only) key is rejected with 422."""
         response = await httpx_client.put(
@@ -111,7 +107,7 @@ class TestUpsertOrDeleteSecrets:
 
     async def test_non_ascii_key_returns_422(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         """A non-ASCII key is rejected with 422."""
         response = await httpx_client.put(
@@ -122,7 +118,7 @@ class TestUpsertOrDeleteSecrets:
 
     async def test_key_with_invalid_characters_returns_422(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         """A key outside the shared regex is rejected with 422."""
         response = await httpx_client.put(
@@ -133,7 +129,7 @@ class TestUpsertOrDeleteSecrets:
 
     async def test_empty_value_returns_422(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         """A whitespace-only value is rejected with 422."""
         response = await httpx_client.put(
@@ -151,7 +147,7 @@ class TestUpsertOrDeleteSecrets:
     )
     async def test_invalid_request_body_returns_422(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         payload: dict[str, object],
     ) -> None:
         """Malformed request bodies are rejected with 422."""

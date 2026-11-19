@@ -3,6 +3,7 @@ import type { HTMLAttributes, Ref } from "react";
 
 import type { TextProps } from "@phoenix/components/core/content";
 import { Text } from "@phoenix/components/core/content";
+import { textSizeCSS } from "@phoenix/components/core/content/styles";
 import { getTextColor } from "@phoenix/components/core/content/textUtils";
 import { Icon, Icons } from "@phoenix/components/core/icon";
 import { quietHoverCSS } from "@phoenix/components/core/styles";
@@ -14,12 +15,8 @@ const tokenCountItemCSS = css`
   gap: var(--global-dimension-size-50);
   align-items: center;
 
-  &[data-size="S"] {
-    font-size: var(--global-font-size-s);
-  }
-  &[data-size="M"] {
-    font-size: var(--global-font-size-m);
-  }
+  /* The icon is sized in em, so the wrapper carries the text scale */
+  ${textSizeCSS}
   &[role="button"] {
     ${quietHoverCSS}
   }

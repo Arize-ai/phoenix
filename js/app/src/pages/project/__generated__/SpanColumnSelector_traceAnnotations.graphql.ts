@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c5b5bd24a7f2f781c5f09e7e599fce3e>>
+ * @generated SignedSource<<5901879242335ed7286a4c9b6b5f5f65>>
  * @lightSyntaxTransform
  */
 
@@ -10,7 +10,7 @@
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type SpanColumnSelector_traceAnnotations$data = {
-  readonly traceAnnotationsNames: ReadonlyArray<string>;
+  readonly traceAnnotationNames: ReadonlyArray<string>;
   readonly " $fragmentType": "SpanColumnSelector_traceAnnotations";
 };
 export type SpanColumnSelector_traceAnnotations$key = {
@@ -28,7 +28,7 @@ const node: ReaderFragment = {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "traceAnnotationsNames",
+      "name": "traceAnnotationNames",
       "storageKey": null
     }
   ],
@@ -36,6 +36,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "a117170f08dccc92d4dfd1180d8dbb62";
+(node as any).hash = "dc497803ac9cee98e605851ab1a8a004";
 
 export default node;

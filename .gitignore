@@ -11,6 +11,8 @@ sdist
 **/.ipynb_checkpoints/
 **/.DS_Store
 **/.playwright-mcp/
+# Vitest 5 centralizes run reports, attachments, and screenshots here.
+**/.vitest/
 
 # Server static files
 /src/phoenix/server/static/*
@@ -35,7 +37,6 @@ phoenix.db*
 
 # Testing
 coverage.xml
-.tox
 
 # devtools
 pyrightconfig.json
@@ -99,14 +100,17 @@ helm/charts/*.tgz
 
 # Build-context artifacts copied into each task's environment
 /evals/harbor/**/*.whl
-/evals/harbor/tasks/**/environment/run_server_agent.py
-/evals/harbor/tasks/**/environment/fetch_fixtures.py
+/evals/harbor/tasks/**/environment/container_assets/
+/evals/harbor/tasks/**/environment/data/
 
 # WebAssembly binaries
-wasm/*.wasm
+**/wasm/*.wasm
 
 # Harbor run artifacts
 /jobs/
 
 # pi extensions
 .pi/extensions/
+
+# Claude plugin eval run output (claude plugin eval)
+/plugins/claude/arize-phoenix/evals/results/

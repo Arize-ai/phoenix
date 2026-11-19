@@ -1,8 +1,10 @@
 from urllib.parse import parse_qs, urlparse
 
 import httpx
+import pandas as pd
 import pytest
 
+from phoenix.client import AsyncClient, Client
 from phoenix.client.__generated__ import v1
 from phoenix.client.resources.traces import AsyncTraces, Traces
 
@@ -112,6 +114,96 @@ class TestGetTraces:
         )
         assert len(traces) == 1
 
+    def test_error_true_param(self) -> None:
+        transport = _make_handler(expected_params={"error": ["true"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        traces = Traces(client).get_traces(
+            project_identifier="my-project",
+            error=True,
+        )
+        assert len(traces) == 1
+
+    def test_error_false_is_sent(self) -> None:
+        # `error=False` selects traces with no errored spans, so it must reach the
+        # server rather than being dropped as a falsy value.
+        transport = _make_handler(expected_params={"error": ["false"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        traces = Traces(client).get_traces(
+            project_identifier="my-project",
+            error=False,
+        )
+        assert len(traces) == 1
+
+    def test_error_omitted_by_default(self) -> None:
+        received: dict[str, list[str]] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            received.update(parse_qs(urlparse(str(request.url)).query))
+            return httpx.Response(200, json={"data": [_make_trace()], "next_cursor": None})
+
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+        Traces(client).get_traces(project_identifier="my-project")
+        assert "error" not in received
+        assert "min_latency_ms" not in received
+        assert "max_latency_ms" not in received
+
+    def test_latency_params(self) -> None:
+        transport = _make_handler(
+            expected_params={"min_latency_ms": ["100.0"], "max_latency_ms": ["5000.0"]}
+        )
+        client = httpx.Client(transport=transport, base_url="http://test")
+        traces = Traces(client).get_traces(
+            project_identifier="my-project",
+            min_latency_ms=100.0,
+            max_latency_ms=5000.0,
+        )
+        assert len(traces) == 1
+
+    def test_zero_min_latency_is_sent(self) -> None:
+        transport = _make_handler(expected_params={"min_latency_ms": ["0.0"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        traces = Traces(client).get_traces(
+            project_identifier="my-project",
+            min_latency_ms=0.0,
+        )
+        assert len(traces) == 1
+
+    @pytest.mark.parametrize(
+        "min_latency_ms,max_latency_ms",
+        [
+            pytest.param(-1.0, None, id="negative-min"),
+            pytest.param(None, -1.0, id="negative-max"),
+            pytest.param(500.0, 100.0, id="min-exceeds-max"),
+        ],
+    )
+    def test_invalid_latency_bounds_rejected(
+        self,
+        min_latency_ms: float | None,
+        max_latency_ms: float | None,
+    ) -> None:
+        transport = _make_handler()
+        client = httpx.Client(transport=transport, base_url="http://test")
+        with pytest.raises(ValueError):
+            Traces(client).get_traces(
+                project_identifier="my-project",
+                min_latency_ms=min_latency_ms,
+                max_latency_ms=max_latency_ms,
+            )
+
+    def test_filters_persist_across_pages(self) -> None:
+        transport = _make_handler(
+            expected_params={"error": ["true"], "min_latency_ms": ["100.0"]},
+            pages=3,
+        )
+        client = httpx.Client(transport=transport, base_url="http://test")
+        traces = Traces(client).get_traces(
+            project_identifier="my-project",
+            error=True,
+            min_latency_ms=100.0,
+            limit=300,
+        )
+        assert len(traces) == 3
+
     def test_pagination(self) -> None:
         transport = _make_handler(pages=3)
         client = httpx.Client(transport=transport, base_url="http://test")
@@ -149,3 +241,86 @@ class TestAsyncGetTraces:
             limit=300,
         )
         assert len(traces) == 3
+
+    @pytest.mark.anyio
+    async def test_error_and_latency_params(self) -> None:
+        transport = _make_handler(
+            expected_params={
+                "error": ["false"],
+                "min_latency_ms": ["100.0"],
+                "max_latency_ms": ["5000.0"],
+            }
+        )
+        client = httpx.AsyncClient(transport=transport, base_url="http://test")
+        traces = await AsyncTraces(client).get_traces(
+            project_identifier="my-project",
+            error=False,
+            min_latency_ms=100.0,
+            max_latency_ms=5000.0,
+        )
+        assert len(traces) == 1
+
+    @pytest.mark.anyio
+    async def test_invalid_latency_bounds_rejected(self) -> None:
+        transport = _make_handler()
+        client = httpx.AsyncClient(transport=transport, base_url="http://test")
+        with pytest.raises(ValueError):
+            await AsyncTraces(client).get_traces(
+                project_identifier="my-project",
+                min_latency_ms=500.0,
+                max_latency_ms=100.0,
+            )
+
+
+@pytest.mark.parametrize(
+    ("columns", "expected_message"),
+    [
+        pytest.param(
+            {"name": ["quality"]},
+            r"DataFrame must contain columns: \{'annotator_kind'\}",
+            id="missing-annotator-kind",
+        ),
+        pytest.param(
+            {"annotator_kind": ["HUMAN"]},
+            "DataFrame must contain either 'name' or 'annotation_name' column",
+            id="missing-name",
+        ),
+    ],
+)
+def test_log_trace_annotations_dataframe_requires_name_and_annotator_kind(
+    columns: dict[str, list[str]],
+    expected_message: str,
+) -> None:
+    dataframe = pd.DataFrame({"trace_id": ["trace1"], "label": ["good"], **columns})
+    transport = httpx.MockTransport(lambda request: pytest.fail("request must not be sent"))
+    with httpx.Client(transport=transport, base_url="http://test") as http_client:
+        client = Client(http_client=http_client)
+        with pytest.raises(ValueError, match=expected_message):
+            client.traces.log_trace_annotations_dataframe(dataframe=dataframe)
+
+
+@pytest.mark.parametrize(
+    ("columns", "expected_message"),
+    [
+        pytest.param(
+            {"name": ["quality"]},
+            r"DataFrame must contain columns: \{'annotator_kind'\}",
+            id="missing-annotator-kind",
+        ),
+        pytest.param(
+            {"annotator_kind": ["HUMAN"]},
+            "DataFrame must contain either 'name' or 'annotation_name' column",
+            id="missing-name",
+        ),
+    ],
+)
+async def test_async_log_trace_annotations_dataframe_requires_name_and_annotator_kind(
+    columns: dict[str, list[str]],
+    expected_message: str,
+) -> None:
+    dataframe = pd.DataFrame({"trace_id": ["trace1"], "label": ["good"], **columns})
+    transport = httpx.MockTransport(lambda request: pytest.fail("request must not be sent"))
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as http_client:
+        client = AsyncClient(http_client=http_client)
+        with pytest.raises(ValueError, match=expected_message):
+            await client.traces.log_trace_annotations_dataframe(dataframe=dataframe)

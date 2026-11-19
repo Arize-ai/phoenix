@@ -270,6 +270,7 @@ describe("SpansTable seed loading integration", () => {
 let probedSearch = "";
 /** Records the router's current search so tests can observe param writes. */
 function SearchProbe() {
+  // eslint-disable-next-line react/globals
   probedSearch = useLocation().search;
   return null;
 }

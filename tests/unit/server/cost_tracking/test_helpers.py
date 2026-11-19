@@ -437,3 +437,38 @@ class TestGetAggregatedTokens:
             20,
             30,
         )  # completion defaults to 0, then calculated as total - prompt (30 - 10 = 20)
+
+    def test_get_aggregated_tokens_non_finite_values(self) -> None:
+        """Test that non-finite floats (NaN, inf, -inf) do not zero valid counts."""
+        # Non-finite prompt with valid completion and total
+        assert get_aggregated_tokens(
+            {"llm": {"token_count": {"prompt": float("nan"), "completion": 7, "total": 11}}}
+        ) == (4, 7, 11)
+
+        # Non-finite completion with valid prompt and total
+        assert get_aggregated_tokens(
+            {"llm": {"token_count": {"prompt": 4, "completion": float("inf"), "total": 11}}}
+        ) == (4, 7, 11)
+
+        # Non-finite total with valid prompt and completion
+        assert get_aggregated_tokens(
+            {"llm": {"token_count": {"prompt": 4, "completion": 7, "total": float("nan")}}}
+        ) == (4, 7, 11)
+
+        # Negative infinity
+        assert get_aggregated_tokens(
+            {"llm": {"token_count": {"prompt": float("-inf"), "completion": 7, "total": 11}}}
+        ) == (4, 7, 11)
+
+        # All non-finite
+        assert get_aggregated_tokens(
+            {
+                "llm": {
+                    "token_count": {
+                        "prompt": float("nan"),
+                        "completion": float("inf"),
+                        "total": float("-inf"),
+                    }
+                }
+            }
+        ) == (0, 0, 0)

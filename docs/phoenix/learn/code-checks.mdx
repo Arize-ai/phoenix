@@ -1,0 +1,229 @@
+---
+title: "Write checks for actions and outcomes"
+description: "Check that Wonder Toys saved the requested order, and test that your evaluator catches mistakes."
+---
+
+{/* video: TODO */}
+
+So far, we've reviewed whether an agent's answers meet the user's requirements. Now let's check the result of an action, such as placing an order or updating a record. Did the application save the change the user asked for?
+
+In [Choose what to evaluate](/docs/phoenix/learn/choose-evals), we introduced **code evaluators**: functions that check results against rules you define. For example, you can check whether:
+
+- An answer is valid JSON.
+- A tool call includes required fields.
+- All item quantities are positive.
+- A saved order matches the cart sent to the purchase tool.
+
+The first 3 checks don't need a separate expected answer. The last compares the saved result with the tool's input.
+
+We'll build a purchase check: **did the purchase tool save the products and quantities it received?** You'll test whether the evaluator catches mistakes, then inspect its result in Phoenix.
+
+<Frame>
+  <img className="block dark:hidden" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-order-check-light-95a1e44635e4.svg" alt="Expected and actual outcomes feed into a code check, which returns a pass or fail with a reason." />
+  <img className="hidden dark:block" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-order-check-dark-2895e0364c52.svg" alt="Expected and actual outcomes feed into a code check, which returns a pass or fail with a reason." />
+</Frame>
+
+## Before you start
+
+Continue with your Wonder Toys checkout from the previous lessons. You'll need:
+
+- **Exercise files:** [`academy/evaluations/`](https://github.com/Arize-ai/project-rosetta-stone/tree/main/academy/evaluations) at the repository root.
+- **Python:** Version 3.11 and `uv` installed.
+- **Phoenix:** Keep it running for Step 4.
+
+## Step 1: Define the result you're checking
+
+Before writing an evaluator, decide what counts as a correct result for your agent's action.
+
+For our Wonder Toys example, assume a shopper confirms 1 Dinosaur Explorer Kit (`toy-051`). The purchase tool receives that cart and should save the same product and quantity.
+
+To check this, we'll compare:
+
+- **What should be saved (`expected`):** The confirmed cart sent to the purchase tool.
+- **What was saved (`output`):** The order read back after the purchase.
+
+The script will place the order in Step 4. For now, here's an example where the saved order is correct:
+
+```python
+confirmed_cart = [{"productId": "toy-051", "quantity": 1}]
+expected = {"items": confirmed_cart}
+output = {"order": {"items": [{"productId": "toy-051", "quantity": 1}]}}
+```
+
+The saved items are nested inside `order`. We'll compare `expected["items"]` with `output["order"]["items"]`: both contain 1 `toy-051`, so this example passes.
+
+Here, `expected` comes from the purchase request. The `order` and `items` fields belong to this exercise; use your own application's fields for other agents.
+
+Our rule should also catch these mistakes:
+
+| Saved result | Expected label | Reason |
+| --- | --- | --- |
+| 1 `toy-051` | `pass` | Product and quantity match the confirmed cart. |
+| 2 `toy-051` | `fail` | The product matches, but the quantity is wrong. |
+| A different or extra product | `fail` | The saved items differ from the confirmed cart. |
+| No order | `fail` | The requested outcome wasn't saved. |
+
+## Step 2: Write the comparison
+
+Let's turn the rule from Step 1 into a comparison: **do the saved products and quantities match the cart sent to the tool?**
+
+First, represent each cart as product IDs and total quantities. If the shopper confirmed 1 kit but the order saved 2, we'd compare:
+
+```python wrap
+wanted = {"toy-051": 1}
+actual = {"toy-051": 2}
+passed = actual == wanted  # False
+```
+
+`actual == wanted` returns `False` because the quantities differ. Matching products and quantities return `True`.
+
+Open [`academy/evaluations/order_checks.py`](https://github.com/Arize-ai/project-rosetta-stone/blob/main/academy/evaluations/order_checks.py) and find `ordered_items_match`. The file already includes this working evaluator, shown below so we can walk through its comparison. You don't need to paste it again.
+
+The helper adds up each product's quantity. In the function, `wanted` holds the confirmed totals and `actual` holds the saved totals. The comparison checks whether they match.
+
+```python wrap
+@create_evaluator(name="ordered_items_match", kind="code", direction="maximize")
+def ordered_items_match(output: dict, expected: dict) -> Score:
+    # A broken reference is an evaluation error, not a failed application run.
+    wanted = item_quantities(expected["items"])
+    order = output.get("order")
+    if not isinstance(order, dict):
+        passed, explanation = False, "No stored order was found."
+    else:
+        try:
+            actual = item_quantities(order.get("items"))
+            passed = actual == wanted
+            explanation = (
+                "The stored product IDs and quantities match the confirmed cart."
+                if passed else f"Expected {dict(wanted)}; stored {dict(actual)}."
+            )
+        except ValueError as error:
+            passed, explanation = False, f"Invalid stored order: {error}."
+    return Score(
+        name="ordered_items_match", label="pass" if passed else "fail",
+        score=int(passed), explanation=explanation, kind="code", direction="maximize",
+    )
+```
+
+The function returns a Phoenix [`Score`](/docs/phoenix/evaluation/how-to-evals/code-evaluators):
+
+- **Match:** `pass` with a score of `1`.
+- **Mismatch:** `fail` with a score of `0`.
+- **Explanation:** Why the order passed or failed.
+
+In Step 3, you'll add a test to check whether this evaluator catches an order with too few items.
+
+## Step 3: Test your evaluator
+
+A useful evaluator needs to accept correct results and reject mistakes. Before calling the purchase tool, check your implementation against known examples.
+
+The provided tests already check that saving 2 kits when the shopper requested 1 fails. Let's test the opposite: the shopper requests 2 kits, but only 1 is saved. This should also fail.
+
+Open [`academy/evaluations/tests/test_order_checks.py`](https://github.com/Arize-ai/project-rosetta-stone/blob/main/academy/evaluations/tests/test_order_checks.py). It includes tests for the exercise. Add this test below the existing ones:
+
+```python wrap
+def test_too_few_items_is_rejected():
+    expected = {"items": [{"productId": "toy-051", "quantity": 2}]}
+    output = {"order": {"items": [{"productId": "toy-051", "quantity": 1}]}}
+
+    result = ordered_items_match.evaluate({"output": output, "expected": expected})[0]
+
+    assert result.label == "fail"
+    assert result.score == 0
+```
+
+The test supplies a known mistake, calls your evaluator, and checks its decision. The `assert` lines make the test fail if the evaluator accepts the incorrect order.
+
+Open another terminal at the Wonder Toys repository root and run your new test alongside the provided tests:
+
+```bash
+uv run --python 3.11 \
+  --with-requirements phoenix/langchain-py/backend/requirements.txt \
+  --with pytest python -m pytest academy/evaluations/tests/test_order_checks.py -q
+```
+
+The provided tests cover more cases:
+
+- **Incorrect orders should fail:** Wrong products, extra items, invalid quantities, and missing orders must be rejected.
+- **Equivalent carts should pass:** An order listing 2 kits on 1 line should match an order listing 1 kit on each of 2 lines.
+- **Invalid expectations should raise an error:** An empty expected cart means the evaluation setup is invalid. The evaluator shouldn't record that as a failed purchase.
+
+With your new test, you should see `12 passed`. If a test fails, compare its expected and actual results with your rule.
+
+If the confirmed cart requests 1 kit, checking only product IDs would incorrectly pass a saved order containing 2 kits. The quantity test catches that mistake in the evaluator before you rely on its scores.
+
+For your own evaluator, use the same pattern: supply a result you know is correct or incorrect, then assert the decision you expect.
+
+## Step 4: Run the check against a saved order
+
+Once your evaluator passes the tests, let's check the purchase tool's saved result. The provided [`academy/evaluations/check_orders.py`](https://github.com/Arize-ai/project-rosetta-stone/blob/main/academy/evaluations/check_orders.py) script supplies a fixed cart for practice: 1 `toy-051`. It will:
+
+- **Place the order:** Send the cart to the purchase tool, keeping that cart as `expected`.
+- **Read the result:** Use the returned order ID to retrieve the saved order as `output`.
+- **Run the evaluator:** Compare the requested products and quantities with the saved ones.
+
+Keep Phoenix running, then run the script from the repository root:
+
+```bash
+uv run --python 3.11 \
+  --with-requirements phoenix/langchain-py/backend/requirements.txt \
+  python -m academy.evaluations.check_orders --phoenix-url http://localhost:6006
+```
+
+Use your Phoenix address for `--phoenix-url` if it differs from the example.
+
+This command evaluates the exercise's cases. For other purchases, call the evaluator with each purchase's cart and saved order.
+
+The script also checks 2 deliberately altered examples, so you'll see these 3 results:
+
+| Case | What your evaluator receives | Expected label |
+| --- | --- | --- |
+| `actual_order` | The order saved by the purchase tool. | `pass` |
+| `changed_quantity` | A copy changed to contain 2 kits. | `fail` |
+| `missing_order` | No saved order. | `fail` |
+
+The last 2 cases are deliberately altered test examples and appear only in the terminal output.
+
+The explanation for `changed_quantity` should identify the mismatch:
+
+```text wrap
+Expected {'toy-051': 1}; stored {'toy-051': 2}.
+```
+
+## Step 5: Inspect the result in Phoenix
+
+The script records the actual order check in Phoenix. Open **wonder-toys → Traces** and select **Purchase check**. In the root span:
+
+- **Input** shows the shopper's confirmed items.
+- **Output** shows the saved order.
+- Under **Annotations**, select **Table** to read the `ordered_items_match` label, score, and explanation.
+
+<Frame caption="The CODE annotation records whether the saved cart matches the request, with an explanation of the result.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-order-check-60517ad40057.png" alt="Phoenix purchase-check trace with confirmed items, a stored order, and an ordered_items_match code annotation." />
+</Frame>
+
+Your actual order should have a `pass` annotation, as the recorded example does.
+
+This check covers products and quantities. A complete purchase review would also need the shopper's consent, shipping address, and final response.
+
+<Accordion title="Ask PXI to review your code evaluator (optional)">
+  Open [PXI](/docs/phoenix/pxi#get-started) and paste the contents of `order_checks.py`, including the helper function. Then ask:
+
+  ```text wrap
+  Review this evaluator for missing checks. Suggest test cases for incorrect orders, equivalent carts, and invalid inputs. Explain what each case checks. Keep the review brief. Only review the pasted code; don't create or change data.
+  ```
+
+  <Frame caption="PXI summarizes suggested test cases after reviewing the pasted evaluator.">
+    <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-code-check-pxi-f1b2f8b5be71.png" alt="PXI suggests tests for incorrect orders, equivalent carts, and invalid inputs, distinguishing an invalid saved order from a broken reference." />
+  </Frame>
+
+  Compare PXI's suggestions with your existing tests. Add any useful cases locally, then rerun the tests in Step 3.
+</Accordion>
+
+For an action in your own app, write down:
+
+- **Expected result:** The requested change, captured from the action's input.
+- **Actual result:** Where you'd read the saved result.
+- **Failure case:** An incorrect result your evaluator should reject.
+
+The purchase check compares product IDs and quantities directly. For our original budget check, we also need to interpret how a toy is described: is it recommended, or mentioned only to rule it out? In [Write and validate an LLM judge](/docs/phoenix/learn/llm-judge), we'll build that check and compare the judge's decisions with your reviews.

@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import re
 from collections import defaultdict
 from datetime import datetime
@@ -32,6 +33,7 @@ from phoenix.db.models import LatencyMs
 from phoenix.db.types.annotation_configs import OptimizationDirection
 from phoenix.db.types.prompts import PromptMessageRole
 from phoenix.server.agents.config import AgentsEnvConfig
+from phoenix.server.agents.github import GITHUB_PAT_SECRET_KEY, decrypt_workspace_secret
 from phoenix.server.api.agent_helpers import get_agent_session_owner_filter
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
@@ -55,7 +57,6 @@ from phoenix.server.api.helpers.playground_clients import (
 )
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
-from phoenix.server.api.input_types.AvailableAgentSkillsInput import AvailableAgentSkillsInput
 from phoenix.server.api.input_types.DatasetFilter import DatasetFilter
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
 from phoenix.server.api.input_types.EvaluatorFilter import EvaluatorFilter
@@ -99,6 +100,10 @@ from phoenix.server.api.types.GenerativeModelCustomProvider import (
     GenerativeModelCustomProvider,
 )
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
+from phoenix.server.api.types.ModelCostManifest import (
+    ModelCostManifest,
+    to_gql_model_cost_manifest,
+)
 from phoenix.server.api.types.node import (
     from_global_id_with_expected_type,
     is_composite_global_id,
@@ -152,6 +157,8 @@ from phoenix.server.api.types.User import User
 from phoenix.server.api.types.UserApiKey import UserApiKey
 from phoenix.server.api.types.UserRole import UserRole
 from phoenix.server.api.types.ValidationResult import ValidationResult
+from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.cost_tracking.apply_manifest import get_applied_manifest_version
 from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
 from phoenix.utilities.template_formatters import TemplateFormatterError
 
@@ -226,10 +233,9 @@ class ExperimentRunMetricComparisons:
 class Query:
     @strawberry.field
     async def model_providers(self, info: Info[Context, None]) -> list[GenerativeProvider]:
-        available_providers = PLAYGROUND_CLIENT_REGISTRY.list_all_providers()
-        allowed = info.context.allowed_provider_names
-        if allowed is not None:
-            available_providers = [p for p in available_providers if p.name in allowed]
+        available_providers = PLAYGROUND_CLIENT_REGISTRY.list_allowed_providers(
+            info.context.allowed_provider_names
+        )
         return [
             GenerativeProvider(
                 name=provider_key.value,
@@ -352,6 +358,19 @@ class Query:
             )
             data = [GenerativeModel(id=model.id, db_record=model) for model in result.unique()]
         return connection_from_list(data=data, args=args)
+
+    @strawberry.field(
+        description=(
+            "The model cost manifest that the built-in models and token prices were last "
+            "synced from, or null if none has been applied."
+        ),
+    )  # type: ignore
+    async def model_cost_manifest(self, info: Info[Context, None]) -> Optional[ModelCostManifest]:
+        async with info.context.db.read() as session:
+            marker = await get_applied_manifest_version(session)
+        if marker is None:
+            return None
+        return to_gql_model_cost_manifest(marker)
 
     @strawberry.field
     async def playground_models(self, input: Optional[ModelsInput] = None) -> list[PlaygroundModel]:
@@ -742,11 +761,17 @@ class Query:
             except ValueError:
                 raise BadRequest(f"Invalid compare experiment ID: {compare_experiment_id}")
 
-        base_experiment_runs = (
+        # Each run's tokens and cost are the sum over the spans of its trace. Both sides are then
+        # reduced to their best run per example in the same way, so identical experiments compare
+        # as equal however many spans a trace has and however many repetitions were run.
+        run_metrics = (
             select(
-                models.ExperimentRun.dataset_example_id,
-                func.min(models.ExperimentRun.start_time).label("start_time"),
-                func.min(models.ExperimentRun.end_time).label("end_time"),
+                models.ExperimentRun.id.label("run_id"),
+                models.ExperimentRun.experiment_id.label("experiment_id"),
+                models.ExperimentRun.dataset_example_id.label("dataset_example_id"),
+                LatencyMs(models.ExperimentRun.start_time, models.ExperimentRun.end_time).label(
+                    "latency_ms"
+                ),
                 func.sum(models.SpanCost.total_tokens).label("total_tokens"),
                 func.sum(models.SpanCost.prompt_tokens).label("prompt_tokens"),
                 func.sum(models.SpanCost.completion_tokens).label("completion_tokens"),
@@ -765,46 +790,42 @@ class Query:
                 onclause=models.Trace.id == models.SpanCost.trace_rowid,
                 isouter=True,
             )
-            .where(models.ExperimentRun.experiment_id == base_experiment_rowid)
-            .group_by(models.ExperimentRun.dataset_example_id)
-            .subquery()
-            .alias("base_experiment_runs")
-        )
-        compare_experiment_runs = (
-            select(
-                models.ExperimentRun.dataset_example_id,
-                func.min(
-                    LatencyMs(models.ExperimentRun.start_time, models.ExperimentRun.end_time)
-                ).label("min_latency_ms"),
-                func.min(models.SpanCost.total_tokens).label("min_total_tokens"),
-                func.min(models.SpanCost.prompt_tokens).label("min_prompt_tokens"),
-                func.min(models.SpanCost.completion_tokens).label("min_completion_tokens"),
-                func.min(models.SpanCost.total_cost).label("min_total_cost"),
-                func.min(models.SpanCost.prompt_cost).label("min_prompt_cost"),
-                func.min(models.SpanCost.completion_cost).label("min_completion_cost"),
-            )
-            .select_from(models.ExperimentRun)
-            .join(
-                models.Trace,
-                onclause=models.ExperimentRun.trace_id == models.Trace.trace_id,
-                isouter=True,
-            )
-            .join(
-                models.SpanCost,
-                onclause=models.Trace.id == models.SpanCost.trace_rowid,
-                isouter=True,
-            )
             .where(
-                models.ExperimentRun.experiment_id.in_(compare_experiment_rowids),
+                models.ExperimentRun.experiment_id.in_(
+                    [base_experiment_rowid, *compare_experiment_rowids]
+                )
             )
-            .group_by(models.ExperimentRun.dataset_example_id)
+            .group_by(models.ExperimentRun.id)
             .subquery()
-            .alias("comp_exp_run_mins")
+            .alias("run_metrics")
         )
 
-        base_experiment_run_latency = LatencyMs(
-            base_experiment_runs.c.start_time, base_experiment_runs.c.end_time
-        ).label("base_experiment_run_latency_ms")
+        def best_run_per_example(*, compare: bool, alias: str) -> Any:
+            experiment_filter = (
+                run_metrics.c.experiment_id.in_(compare_experiment_rowids)
+                if compare
+                else run_metrics.c.experiment_id == base_experiment_rowid
+            )
+            return (
+                select(
+                    run_metrics.c.dataset_example_id,
+                    func.min(run_metrics.c.latency_ms).label("min_latency_ms"),
+                    func.min(run_metrics.c.total_tokens).label("min_total_tokens"),
+                    func.min(run_metrics.c.prompt_tokens).label("min_prompt_tokens"),
+                    func.min(run_metrics.c.completion_tokens).label("min_completion_tokens"),
+                    func.min(run_metrics.c.total_cost).label("min_total_cost"),
+                    func.min(run_metrics.c.prompt_cost).label("min_prompt_cost"),
+                    func.min(run_metrics.c.completion_cost).label("min_completion_cost"),
+                )
+                .where(experiment_filter)
+                .group_by(run_metrics.c.dataset_example_id)
+                .subquery()
+                .alias(alias)
+            )
+
+        base_experiment_runs = best_run_per_example(compare=False, alias="base_experiment_runs")
+        compare_experiment_runs = best_run_per_example(compare=True, alias="comp_exp_run_mins")
+        base_experiment_run_latency = base_experiment_runs.c.min_latency_ms
 
         comparisons_query = (
             select(
@@ -828,109 +849,109 @@ class Query:
                     comparison_type="equality",
                 ).label("num_latency_is_equal"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.total_tokens,
+                    base_column=base_experiment_runs.c.min_total_tokens,
                     compare_column=compare_experiment_runs.c.min_total_tokens,
                     optimization_direction="minimize",
                     comparison_type="improvement",
                 ).label("num_total_token_count_improved"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.total_tokens,
+                    base_column=base_experiment_runs.c.min_total_tokens,
                     compare_column=compare_experiment_runs.c.min_total_tokens,
                     optimization_direction="minimize",
                     comparison_type="regression",
                 ).label("num_total_token_count_regressed"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.total_tokens,
+                    base_column=base_experiment_runs.c.min_total_tokens,
                     compare_column=compare_experiment_runs.c.min_total_tokens,
                     optimization_direction="minimize",
                     comparison_type="equality",
                 ).label("num_total_token_count_is_equal"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.prompt_tokens,
+                    base_column=base_experiment_runs.c.min_prompt_tokens,
                     compare_column=compare_experiment_runs.c.min_prompt_tokens,
                     optimization_direction="minimize",
                     comparison_type="improvement",
                 ).label("num_prompt_token_count_improved"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.prompt_tokens,
+                    base_column=base_experiment_runs.c.min_prompt_tokens,
                     compare_column=compare_experiment_runs.c.min_prompt_tokens,
                     optimization_direction="minimize",
                     comparison_type="regression",
                 ).label("num_prompt_token_count_regressed"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.prompt_tokens,
+                    base_column=base_experiment_runs.c.min_prompt_tokens,
                     compare_column=compare_experiment_runs.c.min_prompt_tokens,
                     optimization_direction="minimize",
                     comparison_type="equality",
                 ).label("num_prompt_token_count_is_equal"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.completion_tokens,
+                    base_column=base_experiment_runs.c.min_completion_tokens,
                     compare_column=compare_experiment_runs.c.min_completion_tokens,
                     optimization_direction="minimize",
                     comparison_type="improvement",
                 ).label("num_completion_token_count_improved"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.completion_tokens,
+                    base_column=base_experiment_runs.c.min_completion_tokens,
                     compare_column=compare_experiment_runs.c.min_completion_tokens,
                     optimization_direction="minimize",
                     comparison_type="regression",
                 ).label("num_completion_token_count_regressed"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.completion_tokens,
+                    base_column=base_experiment_runs.c.min_completion_tokens,
                     compare_column=compare_experiment_runs.c.min_completion_tokens,
                     optimization_direction="minimize",
                     comparison_type="equality",
                 ).label("num_completion_token_count_is_equal"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.total_cost,
+                    base_column=base_experiment_runs.c.min_total_cost,
                     compare_column=compare_experiment_runs.c.min_total_cost,
                     optimization_direction="minimize",
                     comparison_type="improvement",
                 ).label("num_total_cost_improved"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.total_cost,
+                    base_column=base_experiment_runs.c.min_total_cost,
                     compare_column=compare_experiment_runs.c.min_total_cost,
                     optimization_direction="minimize",
                     comparison_type="regression",
                 ).label("num_total_cost_regressed"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.total_cost,
+                    base_column=base_experiment_runs.c.min_total_cost,
                     compare_column=compare_experiment_runs.c.min_total_cost,
                     optimization_direction="minimize",
                     comparison_type="equality",
                 ).label("num_total_cost_is_equal"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.prompt_cost,
+                    base_column=base_experiment_runs.c.min_prompt_cost,
                     compare_column=compare_experiment_runs.c.min_prompt_cost,
                     optimization_direction="minimize",
                     comparison_type="improvement",
                 ).label("num_prompt_cost_improved"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.prompt_cost,
+                    base_column=base_experiment_runs.c.min_prompt_cost,
                     compare_column=compare_experiment_runs.c.min_prompt_cost,
                     optimization_direction="minimize",
                     comparison_type="regression",
                 ).label("num_prompt_cost_regressed"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.prompt_cost,
+                    base_column=base_experiment_runs.c.min_prompt_cost,
                     compare_column=compare_experiment_runs.c.min_prompt_cost,
                     optimization_direction="minimize",
                     comparison_type="equality",
                 ).label("num_prompt_cost_is_equal"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.completion_cost,
+                    base_column=base_experiment_runs.c.min_completion_cost,
                     compare_column=compare_experiment_runs.c.min_completion_cost,
                     optimization_direction="minimize",
                     comparison_type="improvement",
                 ).label("num_completion_cost_improved"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.completion_cost,
+                    base_column=base_experiment_runs.c.min_completion_cost,
                     compare_column=compare_experiment_runs.c.min_completion_cost,
                     optimization_direction="minimize",
                     comparison_type="regression",
                 ).label("num_completion_cost_regressed"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.completion_cost,
+                    base_column=base_experiment_runs.c.min_completion_cost,
                     compare_column=compare_experiment_runs.c.min_completion_cost,
                     optimization_direction="minimize",
                     comparison_type="equality",
@@ -1038,7 +1059,10 @@ class Query:
             raise NotFound(f"Unknown node: {id}") from None
         type_name = global_id.type_name
         if type_name == Secret.__name__:
-            return Secret(id=global_id.node_id)
+            secret = await info.context.data_loaders.secrets.load(global_id.node_id)
+            if secret is None:
+                raise NotFound(f"Unknown node: {id}")
+            return Secret(id=secret.key, db_record=secret)
         if type_name == SandboxProvider.__name__:
             backend_type = global_id.node_id
             if backend_type not in SANDBOX_BACKEND_TYPES:
@@ -1635,8 +1659,15 @@ class Query:
         self,
         info: Info[Context, None],
     ) -> ServerStatus:
+        if info.context.auth_enabled and not (
+            isinstance((user := info.context.user), PhoenixUser) and user.is_admin
+        ):
+            database_encryption_key_is_public = None
+        else:
+            database_encryption_key_is_public = not info.context.secret
         return ServerStatus(
             insufficient_storage=info.context.db.should_not_insert_or_update,
+            database_encryption_key_is_public=database_encryption_key_is_public,
         )
 
     @strawberry.field(
@@ -1693,42 +1724,47 @@ class Query:
         )
 
     @strawberry.field
-    def agents_config(self, info: Info[Context, None]) -> AgentsConfig:
+    async def agents_config(self, info: Info[Context, None]) -> AgentsConfig:
         agent_assistant_enabled = info.context.settings.agent_assistant_enabled
         trace_recording = info.context.settings.agent_trace_recording
         env = AgentsEnvConfig.from_env()
         session_retention = info.context.settings.agent_session_retention
+        github_enabled = env.allows_github(info.context.settings.agent_github)
+        github_workspace_token_configured = False
+        # Computed under the env ceiling (not the admin toggle) so the value is
+        # already correct when an admin flips the runtime setting on without a
+        # reload. Existence only — the token value is never exposed — and a
+        # stored secret counts only when it is actually usable
+        # (`decrypt_workspace_secret` mirrors `resolve_github_token`).
+        if env.github_enabled:
+            github_workspace_token_configured = bool(os.getenv(GITHUB_PAT_SECRET_KEY))
+            if not github_workspace_token_configured:
+                secret = await info.context.data_loaders.secrets.load(GITHUB_PAT_SECRET_KEY)
+                github_workspace_token_configured = (
+                    secret is not None
+                    and decrypt_workspace_secret(secret.value, info.context.decrypt) is not None
+                )
         return AgentsConfig(
             collector_endpoint=env.collector_endpoint,
             assistant_project_name=env.assistant_project_name,
             force_tracing=env.force_tracing,
             web_access_enabled=env.web_access_enabled,
             assistant_enabled=agent_assistant_enabled.enabled,
+            github_server_enabled=env.github_enabled,
+            github_enabled=github_enabled,
+            github_workspace_token_configured=github_workspace_token_configured,
             allow_local_traces=env.allows_local_traces(trace_recording),
             allow_remote_export=env.allows_remote_export(trace_recording),
             session_retention_max_idle_days=session_retention.max_idle_days or None,
             session_retention_max_count_per_user=session_retention.max_count_per_user or None,
         )
 
-    @strawberry.field(description="The assistant skills available given the supplied UI context.")  # type: ignore
+    @strawberry.field
     def available_agent_skills(
         self,
         info: Info[Context, None],
-        input: Optional[AvailableAgentSkillsInput] = UNSET,
     ) -> list[AgentSkill]:
-        from phoenix.server.agents.skills import get_skills
-
-        resolved_input = input if input is not UNSET and input is not None else None
-        skills = get_skills(
-            has_playground_context=bool(resolved_input and resolved_input.has_playground_context),
-            has_dataset_context=bool(resolved_input and resolved_input.has_dataset_context),
-            has_llm_evaluator_context=bool(
-                resolved_input and resolved_input.has_llm_evaluator_context
-            ),
-            has_code_evaluator_context=bool(
-                resolved_input and resolved_input.has_code_evaluator_context
-            ),
-        )
+        skills = info.context.get_request().app.state.agent_skills
         return [
             AgentSkill(
                 name=skill.name,

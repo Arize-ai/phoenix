@@ -1,5 +1,7 @@
+import gc
 import json
 import re
+import weakref
 from datetime import datetime, timezone
 from typing import Sequence
 
@@ -19,8 +21,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 from phoenix.db import models
+from phoenix.server.cost_tracking.span_cost_calculator import SpanCostCalculator
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
-from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import (
     Tracer,
@@ -97,10 +99,9 @@ class TestTracer:
     @pytest.fixture
     def span_cost_calculator(
         self,
-        db: DbSessionFactory,
         generative_model_store: GenerativeModelStore,
     ) -> SpanCostCalculator:
-        return SpanCostCalculator(db=db, model_store=generative_model_store)
+        return SpanCostCalculator(model_store=generative_model_store)
 
     @pytest.fixture
     def tracer(self, span_cost_calculator: SpanCostCalculator) -> Tracer:
@@ -446,6 +447,59 @@ class TestTracer:
         tracer.clear()
 
         assert len(tracer._self_exporter.get_finished_spans()) == 0
+
+    def test_dropped_tracer_and_its_spans_are_freed_without_shutdown(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        span_cost_calculator: SpanCostCalculator,
+    ) -> None:
+        monkeypatch.setenv("PHOENIX_AGENTS_COLLECTOR_ENDPOINT", "https://env-collector.example")
+        tracer = Tracer(span_cost_calculator=span_cost_calculator)
+        with tracer.start_as_current_span("evaluator"):
+            pass
+        provider = weakref.ref(tracer.tracer_provider)
+        span = weakref.ref(tracer._self_exporter.get_finished_spans()[0])
+
+        del tracer
+        gc.collect()
+
+        assert provider() is None
+        assert span() is None
+
+    def test_dropped_remote_tracer_and_its_spans_are_freed_once_flushed(
+        self, span_cost_calculator: SpanCostCalculator
+    ) -> None:
+        class FakeRemoteExporter(SpanExporter):
+            def export(self, spans: Sequence[object]) -> SpanExportResult:
+                return SpanExportResult.SUCCESS
+
+            def shutdown(self) -> None:
+                return None
+
+            def force_flush(self, timeout_millis: int = 30_000) -> bool:
+                return True
+
+        tracer = Tracer(
+            span_cost_calculator=span_cost_calculator,
+            enable_remote_export=True,
+            remote_collector_endpoint="https://collector.example",
+            remote_span_exporter_factory=lambda _: FakeRemoteExporter(),
+        )
+        with tracer.start_as_current_span("turn"):
+            pass
+        tracer.force_flush()
+        remote_processor = tracer._self_span_processors[-1]
+        provider = weakref.ref(tracer.tracer_provider)
+        span = weakref.ref(tracer._self_exporter.get_finished_spans()[0])
+
+        del tracer
+        gc.collect()
+
+        try:
+            assert provider() is None
+            assert span() is None
+        finally:
+            remote_processor.shutdown()
 
     def test_remote_exporter_uses_env_endpoint_only_when_enabled(
         self,

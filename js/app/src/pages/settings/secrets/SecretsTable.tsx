@@ -1,13 +1,6 @@
-import type { ColumnDef, SortingState } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import type { SortingState } from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
-import { Focusable } from "react-aria";
 
 import {
   Card,
@@ -15,16 +8,15 @@ import {
   Flex,
   Icon,
   Icons,
+  MarkerTrigger,
+  StatusIndicator,
   Text,
 } from "@phoenix/components";
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
-import {
-  Tooltip,
-  TooltipArrow,
-  TooltipTrigger,
-} from "@phoenix/components/core/tooltip";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
+import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 
@@ -67,21 +59,9 @@ export function SecretsTable({
             <Flex direction="row" gap="size-100" alignItems="center">
               <span>{key}</span>
               {parseError && (
-                <TooltipTrigger delay={200}>
-                  <Focusable>
-                    <span
-                      role="img"
-                      tabIndex={0}
-                      aria-label="Secret could not be decrypted"
-                    >
-                      <Icon svg={<Icons.AlertTriangle />} color="warning" />
-                    </span>
-                  </Focusable>
-                  <Tooltip>
-                    <TooltipArrow />
-                    {parseError}
-                  </Tooltip>
-                </TooltipTrigger>
+                <MarkerTrigger explanation={parseError}>
+                  <StatusIndicator category="failed" label="Can't decrypt" />
+                </MarkerTrigger>
               )}
             </Flex>
           );
@@ -143,8 +123,8 @@ export function SecretsTable({
     return cols;
   }, [authenticationEnabled, connectionId]);
 
-  // eslint-disable-next-line react-hooks-js/incompatible-library
-  const table = useReactTable<SecretRow>({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data,
     state: {
@@ -160,9 +140,6 @@ export function SecretsTable({
         (value) => value.toLowerCase().includes(query)
       );
     },
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel(),
     onSortingChange: setSorting,
   });
 

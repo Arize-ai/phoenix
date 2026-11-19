@@ -3,7 +3,7 @@ title: "@arizeai/phoenix-cli"
 description: Command-line interface for retrieving trace data from Arize Phoenix projects.
 ---
 
-<a href="https://www.npmjs.com/package/@arizeai/phoenix-cli"><img src="https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli" className='inline'/></a>
+<a href="https://www.npmjs.com/package/@arizeai/phoenix-cli"><img src="https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli" className='inline' alt="Phoenix CLI npm package version"/></a>
 
 <Card
   horizontal
@@ -14,7 +14,7 @@ description: Command-line interface for retrieving trace data from Arize Phoenix
   GitHub
 </Card>
 
-Phoenix CLI is a command-line interface for your Phoenix projects. Fetch traces, list datasets, export experiment results, and access prompts directly from your terminal—or pipe them into AI coding agents like Claude Code, Cursor, Codex, and Gemini CLI.
+Phoenix CLI is a command-line interface for your Phoenix projects. Fetch traces, list datasets, export experiment results, and access prompts directly from your terminal—or pipe them into AI coding agents like Claude Code, Codex, Cursor, and OpenCode.
 
 You can use Phoenix CLI for:
 
@@ -231,7 +231,7 @@ px setup mcp --agent claude         # Register the Phoenix MCP server with an ag
 
 ### `px setup mcp`
 
-Register the Phoenix **remote MCP server** (`<endpoint>/mcp`) with a coding agent, so it can search, query, and operate on your Phoenix data. The endpoint is inferred from `--endpoint`, the active profile, or `PHOENIX_ENDPOINT` — you never re-type it. See [Remote MCP Server](/docs/phoenix/integrations/remote-mcp) for what the server exposes.
+Register the Phoenix **remote MCP server** (`<endpoint>/mcp`) with a coding agent, so it can search, query, and operate on your Phoenix data. The endpoint is inferred from `--endpoint`, the active profile, or `PHOENIX_ENDPOINT` — you never re-type it. See [Remote MCP Server](/docs/phoenix/integrations/mcp#remote-mcp-server) for what the server exposes.
 
 ```bash
 px setup mcp                        # Pick scope + agent interactively
@@ -257,6 +257,35 @@ px setup mcp --agent claude --header 'Authorization: Bearer ${PHOENIX_API_KEY}'
 | `--header <header>` | `Name: value` header for the API-key fallback (repeatable) | OAuth (none) |
 | `--no-input` | Headless mode; requires `--agent` and defaults scope to global | — |
 | `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+
+### `pxi`
+
+Launch **PXI** (Phoenix Intelligence), the AI engineering agent, as an interactive terminal chat against a running Phoenix server. It is the same server-side agent that powers the in-browser assistant, so models, skills, and permissions are configured on the server. Inside the chat, tool calls render with a per-tool icon, a status glyph, and a short command excerpt, and slash commands (`/help`, `/new`, `/temporary`, `/sessions`, `/model`, `/compact`, `/exit`) are handled locally. See [PXI](/docs/phoenix/pxi) for the full guide.
+
+```bash
+pxi                                                # uses PHOENIX_ENDPOINT / PHOENIX_API_KEY
+pxi --endpoint http://localhost:6006 --provider OPENAI --model gpt-5.4
+npx -y @arizeai/phoenix-cli pxi                    # run without installing
+```
+
+`pxi` requires a Phoenix server on **20.0.0 or newer** and runs a preflight check against the server's model catalog and credentials before the chat opens.
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--endpoint <url>` | Phoenix base URL | `PHOENIX_ENDPOINT` |
+| `--api-key <key>` | Phoenix API key | `PHOENIX_API_KEY` |
+| `--profile <name>` | Saved Phoenix CLI profile to read connection settings from | Active profile |
+| `--provider <provider>` | Built-in model provider (e.g. `ANTHROPIC`, `OPENAI`, `GOOGLE`) | `ANTHROPIC` |
+| `--model <model>` | Model name | `claude-opus-5` |
+| `--custom-provider-id <id>` | Custom provider from **Settings → Models** (requires `--model`) | — |
+| `--bypass-edits` | Apply edits without manual approval | Manual approval |
+| `--enable-web-access` | Allow PXI to consult the web for grounding | Off |
+| `--enable-subagents` | Allow the server to attach subagents (including server-side bash) | Off |
+| `--enable-graphql-mutations` | Allow PXI to run state-changing GraphQL mutations | Off |
+| `--ingest-traces` | Persist this session's PXI traces locally in Phoenix | Off |
+| `--export-remote-traces` | Export this session's PXI traces to a configured remote collector | Off |
+| `--attach-user-id` | Attach the authenticated Phoenix user to PXI traces | Off |
+| `--skip-model-preflight` | Skip the model catalog and credential checks before launch | — |
 
 ### `px project list`
 
@@ -436,7 +465,7 @@ px span list --format raw --no-progress | jq               # Pipe to jq
 | `-n, --limit <number>` | Maximum spans to fetch (newest first) | 100 |
 | `--last-n-minutes <number>` | Only fetch spans from the last N minutes | — |
 | `--since <timestamp>` | Fetch spans since ISO timestamp | — |
-| `--span-kind <kinds...>` | Filter by span kind (`LLM`, `CHAIN`, `TOOL`, `RETRIEVER`, `EMBEDDING`, `AGENT`, `RERANKER`, `GUARDRAIL`, `EVALUATOR`, `UNKNOWN`) | — |
+| `--span-kind <kinds...>` | Filter by span kind (`LLM`, `CHAIN`, `TOOL`, `RETRIEVER`, `EMBEDDING`, `AGENT`, `RERANKER`, `GUARDRAIL`, `EVALUATOR`, `DECISION`, `UNKNOWN`) | — |
 | `--status-code <codes...>` | Filter by status code (`OK`, `ERROR`, `UNSET`) | — |
 | `--name <names...>` | Filter by span name(s) | — |
 | `--trace-id <ids...>` | Filter by trace ID(s) | — |
@@ -1231,7 +1260,7 @@ $ px api graphql '{ viewer { username email } }'
 
 ## Use with AI Coding Assistants
 
-Phoenix CLI is designed to work seamlessly with AI coding assistants like Claude Code, Cursor, and Windsurf.
+The Phoenix CLI pairs well with AI coding assistants like Claude Code, Cursor, and Windsurf. For hands-off access, connect an agent to Phoenix once with [`px setup mcp`](#px-setup-mcp) or install [Phoenix skills](/docs/phoenix/integrations/developer-tools/coding-agents); the examples below drive the CLI directly instead.
 
 ### Claude Code
 

@@ -34,18 +34,21 @@ function fetchLatestVersion(): Promise<string | null> {
 
 /**
  * Fetches the latest published version of arize-phoenix from PyPI.
- * @returns the latest version string, or null while loading or when the fetch fails
+ * @returns the latest version string, or null while loading, when the fetch
+ * fails, or when the server disallows external resources
  */
 export function useLatestPhoenixVersion(): string | null {
   const [latestVersion, setLatestVersion] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
-    fetchLatestVersion().then((version) => {
-      if (isMounted) {
-        setLatestVersion(version);
-      }
-    });
+    if (window.Config.allowExternalResources) {
+      fetchLatestVersion().then((version) => {
+        if (isMounted) {
+          setLatestVersion(version);
+        }
+      });
+    }
     return () => {
       isMounted = false;
     };

@@ -1,12 +1,14 @@
 import type { Completion, CompletionSection } from "@codemirror/autocomplete";
 import { snippetCompletion } from "@codemirror/autocomplete";
-import { useCallback, useMemo } from "react";
+import { Suspense, useCallback, useMemo } from "react";
+import { graphql, useLazyLoadQuery } from "react-relay";
 
 import {
   AIQueryDSLFilterField,
   type DSLFilterCompletionRequest,
   type DSLFilterComprehensionCall,
   type DSLFilterAIQueryProps,
+  type DSLFilterValidationFailureReason,
   detectDSLFilterComprehensionCall,
   detectDSLFilterComprehensionScope,
   detectDSLFilterForClauseTarget,
@@ -15,22 +17,17 @@ import {
 } from "@phoenix/components/filter";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
+import type { SessionFilterConditionFieldVocabularyQuery } from "./__generated__/SessionFilterConditionFieldVocabularyQuery.graphql";
 import {
+  createSessionFilterAIQueryDSL,
   getSessionFilterLoopVariable,
-  sessionFilterAIQueryDSL,
   sessionFilterSnippets,
   type SessionFilterVocabularyTerm,
 } from "./sessionFilterDSL";
 import { useSessionFilters } from "./SessionFiltersContext";
 import { validateSessionFilterCondition } from "./sessionFilterValidation";
 
-/**
- * Ranks continue past the field's own built-in sections — Recent searches (0),
- * Suggestions (1), loaded (2), Fields (3) — see `DSLFilterConditionField`.
- * Collections rank ahead of Attributes and Annotations: they are core language
- * surface, while the latter two grow with data-derived names and are the right
- * sections to lose to the browse-view cap.
- */
+/** Ranks continue after `DSLFilterConditionField`'s built-in sections (0–3). */
 const vocabularyCategorySections: Record<string, CompletionSection> = {
   session: { name: "Session", rank: 4 },
   aggregate: { name: "Aggregates", rank: 5 },
@@ -39,20 +36,9 @@ const vocabularyCategorySections: Record<string, CompletionSection> = {
   annotation: { name: "Annotations", rank: 8 },
 };
 
-/**
- * Element fields replace the whole dropdown inside a comprehension, so they
- * need only one group of their own.
- */
 const elementFieldsSection: CompletionSection = { name: "Fields", rank: 1 };
 
-/**
- * The example predicate a collection's inserted comprehension starts with, as
- * a selected tab-through placeholder. It must be *valid* — an inserted
- * condition that errors until a blank is filled reads as broken, not as an
- * invitation to edit — and each references its collection's loop variable
- * from `getSessionFilterLoopVariable`. A collection the map doesn't know
- * falls back to a bare `condition` placeholder.
- */
+/** Tab-through placeholders for inserted comprehensions; each must be a valid predicate over its collection's loop variable. */
 const examplePredicates: Partial<Record<string, string>> = {
   spans: "span.latency_ms > 1_000",
   traces: "trace.latency_ms > 10_000",
@@ -77,14 +63,7 @@ function getCompletionOption(term: SessionFilterVocabularyTerm): Completion {
   };
 }
 
-/**
- * A collection completed at the top level of a condition: the bare name would
- * never validate (collections are looped over, not compared), so accepting it
- * inserts a whole `any(… for s in spans)` comprehension with a valid example
- * predicate selected as a tab-through placeholder — overtyping it hands off
- * to element-field completion. The `detail` previews that shape, which is
- * also what tells a browsing user what a collection *is* for.
- */
+/** Bare collection names never validate, so accepting one inserts a full comprehension with an editable example predicate. */
 function getIterableScaffoldCompletion(
   term: SessionFilterVocabularyTerm
 ): Completion {
@@ -102,12 +81,7 @@ function getIterableScaffoldCompletion(
   );
 }
 
-/**
- * A collection completed inside a hand-typed `any(`/`sum(`/… call that has no
- * `for` clause yet: accepting inserts the comprehension body. `len` takes a
- * list comprehension rather than a generator, so its body is bracketed unless
- * the user already opened `len([` themselves.
- */
+/** Inserts a comprehension body into a hand-typed call; `len` takes a list comprehension, so its body is bracketed unless the user already opened `len([`. */
 function getIterableBodyCompletion(
   term: SessionFilterVocabularyTerm,
   call: DSLFilterComprehensionCall
@@ -170,14 +144,18 @@ function compareBySectionRank(a: Completion, b: Completion): number {
   return getSectionRank(a) - getSectionRank(b);
 }
 
-type SessionFilterConditionFieldProps = {
-  onValidCondition: (condition: string) => void;
-  vocabulary: readonly SessionFilterVocabularyTerm[];
-  placeholder?: string;
+export type SessionFilterValidConditionArgs = {
+  condition: string;
+  /** True when settling the value the field mounted with, not one applied on screen */
+  isInitialSettlement: boolean;
 };
 
-const sessionFilterAIQuery: DSLFilterAIQueryProps = {
-  dsl: sessionFilterAIQueryDSL,
+type SessionFilterConditionFieldProps = {
+  onValidCondition: (args: SessionFilterValidConditionArgs) => void;
+  onValidationFailed?: (reason: DSLFilterValidationFailureReason) => void;
+  validationRetryKey?: number;
+  vocabulary: readonly SessionFilterVocabularyTerm[];
+  placeholder?: string;
 };
 
 export function SessionFilterConditionField(
@@ -185,11 +163,23 @@ export function SessionFilterConditionField(
 ) {
   const {
     onValidCondition,
+    onValidationFailed,
+    validationRetryKey,
     vocabulary,
     placeholder = "filter condition (e.g. num_traces >= 5)",
   } = props;
   const { filterCondition, setFilterCondition } = useSessionFilters();
   const projectId = useTracingContext((state) => state.projectId);
+  // An empty vocabulary means the project's terms haven't arrived (the field
+  // renders ahead of them, see the Suspense fallback in SessionsTable), so AI
+  // query waits rather than prompting the model with no field names.
+  const sessionFilterAIQuery = useMemo<DSLFilterAIQueryProps>(
+    () => ({
+      dsl: createSessionFilterAIQueryDSL(vocabulary),
+      isDisabled: vocabulary.length === 0,
+    }),
+    [vocabulary]
+  );
 
   // Element fields are split out of the top-level vocabulary: offering
   // `latency_ms` bare would complete a condition the compiler rejects, since
@@ -289,7 +279,7 @@ export function SessionFilterConditionField(
         // it would turn "no filter chosen" into a history entry.
         recordValidCondition(condition);
       }
-      onValidCondition(condition);
+      onValidCondition({ condition, isInitialSettlement });
     },
     [recordValidCondition, onValidCondition]
   );
@@ -308,7 +298,69 @@ export function SessionFilterConditionField(
       getErrorRange={findDSLFilterComprehensionRange}
       validateCondition={validateCondition}
       onValidCondition={handleValidCondition}
+      onValidationFailed={onValidationFailed}
+      validationRetryKey={validationRetryKey}
       aiQuery={sessionFilterAIQuery}
+    />
+  );
+}
+
+const EMPTY_SESSION_FILTER_VOCABULARY = [] as const;
+
+type SessionFilterConditionFieldWithVocabularyProps = Omit<
+  SessionFilterConditionFieldProps,
+  "vocabulary"
+>;
+
+/**
+ * The field with the project's autocomplete vocabulary, which is slow to
+ * resolve, so the field renders and validates without it until it arrives.
+ */
+export function SessionFilterConditionFieldWithVocabulary(
+  props: SessionFilterConditionFieldWithVocabularyProps
+) {
+  return (
+    <Suspense
+      fallback={
+        <SessionFilterConditionField
+          vocabulary={EMPTY_SESSION_FILTER_VOCABULARY}
+          {...props}
+        />
+      }
+    >
+      <LoadedSessionFilterConditionField {...props} />
+    </Suspense>
+  );
+}
+
+function LoadedSessionFilterConditionField(
+  props: SessionFilterConditionFieldWithVocabularyProps
+) {
+  const projectId = useTracingContext((state) => state.projectId);
+  const data = useLazyLoadQuery<SessionFilterConditionFieldVocabularyQuery>(
+    graphql`
+      query SessionFilterConditionFieldVocabularyQuery($id: ID!) {
+        project: node(id: $id) {
+          ... on Project {
+            sessionFilterVocabulary {
+              name
+              type
+              description
+              category
+              iterableName
+            }
+          }
+        }
+      }
+    `,
+    { id: projectId }
+  );
+  return (
+    <SessionFilterConditionField
+      vocabulary={
+        data.project?.sessionFilterVocabulary ?? EMPTY_SESSION_FILTER_VOCABULARY
+      }
+      {...props}
     />
   );
 }

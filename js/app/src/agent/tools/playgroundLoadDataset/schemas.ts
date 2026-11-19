@@ -1,9 +1,6 @@
 import { z } from "zod";
 
-import type { AddToolOutput } from "@phoenix/agent/extensions/registry/defineTool";
 import { normalizeAliases } from "@phoenix/agent/tools/playgroundPrompt";
-
-export type LoadDatasetToolOutputSender = AddToolOutput;
 
 // Must agree with the server-owned PARAMETERS: datasetName required, splitName optional.
 export const loadDatasetInputSchema = z
@@ -24,11 +21,3 @@ export const loadDatasetInputSchema = z
     datasetName,
     ...(splitName != null ? { splitName } : {}),
   }));
-
-export const loadDatasetActionContextSchema = z.object({
-  toolCallId: z.string(),
-  sessionId: z.string(),
-  addToolOutput: z.custom<LoadDatasetToolOutputSender>(
-    (value) => typeof value === "function"
-  ),
-});

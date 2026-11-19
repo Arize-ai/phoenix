@@ -1,10 +1,12 @@
-from typing import Any
+import warnings
+from typing import Any, Union
 
 from pydantic import BaseModel, Field
 
 from ..__generated__.classification_evaluator_configs import (
     DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG,
 )
+from ..decision import DecisionModel
 from ..evaluators import ClassificationEvaluator
 from ..llm import LLM
 from ..llm.prompts import PromptTemplate
@@ -15,36 +17,41 @@ class DocumentRelevanceEvaluator(ClassificationEvaluator):
     A specialized evaluator for determining document relevance to a given
     question.
 
+    .. deprecated:: 3.7.0
+        Use :class:`~phoenix.evals.metrics.RetrievalRelevanceEvaluator` instead.
+        Pass one document as ``context`` to preserve per-document evaluation.
+        The input field ``document_text`` becomes ``context``, and the negative
+        label ``unrelated`` becomes ``irrelevant``. This class will be removed
+        in the next major release.
+
     Args:
-        llm (LLM): The LLM instance to use for the evaluation.
-        **kwargs: Additional invocation parameters forwarded to the LLM client
-            (e.g., ``temperature=0.0``, ``max_tokens=256``).
+        llm (Union[LLM, DecisionModel]): The LLM or decision model to use for the evaluation.
+        **kwargs: Additional invocation parameters forwarded to the judge. What is accepted
+            depends on the judge: an ``LLM`` accepts generation parameters (e.g.
+            ``temperature``, ``max_tokens``); a decision model accepts request options (e.g.
+            ``timeout``).
 
     Notes:
         - Evaluates whether a document contains information relevant to
           answering a specific question.
         - Returns one `Score` with `label` (relevant or unrelated), `score` (1.0
-          if relevant, 0.0 if unrelated), and an `explanation` from the LLM
-          judge.
-        - Requires an LLM that supports tool calling or structured output.
+          if relevant, 0.0 if unrelated), and, when an `LLM` judge is used, an
+          `explanation` (decision models return a label and probabilities, not an
+          explanation).
+        - When backed by an `LLM`, requires one that supports tool calling or structured
+          output; decision models answer through a typed choices API, so this does not apply.
 
-    Examples::
+    Migration example::
 
-        from phoenix.evals.metrics.document_relevance import DocumentRelevanceEvaluator
-        from phoenix.evals import LLM
-        llm = LLM(provider="openai", model="gpt-4o-mini")
+        from phoenix.evals import DecisionModel
+        from phoenix.evals.metrics import RetrievalRelevanceEvaluator
 
-        # Default usage
-        relevance_eval = DocumentRelevanceEvaluator(llm=llm)
-
-        # With custom invocation parameters
-        relevance_eval = DocumentRelevanceEvaluator(llm=llm, temperature=0.0)
-
-        eval_input = {
+        llm = DecisionModel(provider="openai", model="gpt-6-luna")
+        relevance_eval = RetrievalRelevanceEvaluator(llm=llm)
+        scores = relevance_eval.evaluate({
             "input": "What is the capital of France?",
-            "document_text": "Paris is the capital and largest city of France"
-            }
-        scores = relevance_eval.evaluate(eval_input)
+            "context": "Paris is the capital and largest city of France.",
+        })
         print(scores)
     """
 
@@ -63,9 +70,18 @@ class DocumentRelevanceEvaluator(ClassificationEvaluator):
 
     def __init__(
         self,
-        llm: LLM,
+        llm: Union[LLM, DecisionModel],
         **kwargs: Any,
     ):
+        warnings.warn(
+            "DocumentRelevanceEvaluator is deprecated and will be removed in the "
+            "next major release. Use RetrievalRelevanceEvaluator instead. "
+            "Rename the 'document_text' input field to 'context', and update code that "
+            "checks for the 'unrelated' label to check for 'irrelevant'. Pass one "
+            "document as 'context' to preserve per-document evaluation.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         super().__init__(
             name=self.NAME,
             llm=llm,

@@ -7,7 +7,7 @@ import { ExpandableContent } from "@phoenix/components/core/content/ExpandableCo
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { selectIsSessionOccupied } from "@phoenix/store/agentStore";
 
-import { useScrollAnchor } from "./scrollAnchor";
+import { useChatScrollContext } from "./ChatScrollContext";
 
 export const TOOL_PART_ENTRY_KEYFRAMES = keyframes`
   from {
@@ -52,6 +52,18 @@ export function ToolPartLabel({
 }
 
 /**
+ * A plain sans-serif text line for tool part sections — human-readable
+ * status sentences rather than code or payloads.
+ */
+export function ToolPartText({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="tool-part__line">
+      <span className="tool-part__text">{children}</span>
+    </div>
+  );
+}
+
+/**
  * A preformatted code block for tool part content with optional copy button.
  */
 export function ToolPartCodeBlock({
@@ -77,23 +89,6 @@ export function ToolPartCodeBlock({
         />
       ) : null}
     </div>
-  );
-}
-
-/**
- * Status indicator for the tool part summary bar (e.g., "Running", "Error").
- */
-export function ToolPartStatus({
-  children,
-  variant,
-}: {
-  children: React.ReactNode;
-  variant?: "danger" | "warning" | "success";
-}) {
-  return (
-    <span className="tool-part__status" data-variant={variant}>
-      {children}
-    </span>
   );
 }
 
@@ -152,7 +147,16 @@ export function ToolPartApprovalActions({
   const isPaused = useAgentContext((state) =>
     selectIsSessionOccupied(state, state.activeSessionId)
   );
+  const chatScrollContext = useChatScrollContext();
   const isActionDisabled = isDisabled || isPaused;
+  // Deciding — either way — ends the review checkpoint that paused automatic
+  // scrolling when the approval opened. The turn resumes below the card, so
+  // re-engage the transcript's smooth follower. Null context
+  // (read-only surfaces) degrades to just resolving the approval.
+  const decide = (respond: () => void) => {
+    respond();
+    chatScrollContext?.resumeFollowing();
+  };
   return (
     <>
       <div css={approvalActionsRowCSS}>
@@ -161,11 +165,15 @@ export function ToolPartApprovalActions({
             size="S"
             variant="primary"
             isDisabled={isActionDisabled}
-            onPress={onAccept}
+            onPress={() => decide(onAccept)}
           >
             Accept
           </Button>
-          <Button size="S" isDisabled={isActionDisabled} onPress={onReject}>
+          <Button
+            size="S"
+            isDisabled={isActionDisabled}
+            onPress={() => decide(onReject)}
+          >
             Reject
           </Button>
         </Flex>
@@ -201,15 +209,17 @@ export function ToolPartExpandableSection({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isExpanded, setIsExpanded] = useState(false);
-  const scrollAnchor = useScrollAnchor();
+  const chatScrollContext = useChatScrollContext();
 
   const handleExpandedChange = useCallback(
     (nextIsExpanded: boolean) => {
-      scrollAnchor.capture(containerRef.current);
+      chatScrollContext?.captureAnchor(containerRef.current);
       setIsExpanded(nextIsExpanded);
-      requestAnimationFrame(() => scrollAnchor.restore(containerRef.current));
+      requestAnimationFrame(() =>
+        chatScrollContext?.restoreAnchor(containerRef.current)
+      );
     },
-    [scrollAnchor]
+    [chatScrollContext]
   );
 
   return (

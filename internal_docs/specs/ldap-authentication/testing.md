@@ -29,17 +29,17 @@ flowchart TB
 
 ```bash
 # LDAP config tests
-tox -e unit -- -k ldap
+cd tests && uv run pytest unit/ -k ldap
 ```
 
 ### Integration Tests
 
 ```bash
 # All LDAP tests
-tox -e integration -- -k ldap
+cd tests/integration && uv run pytest . -k ldap
 
 # Specific test class
-tox -e integration -- -k TestLDAPAuthentication
+cd tests/integration && uv run pytest . -k TestLDAPAuthentication
 ```
 
 ### Docker Tests

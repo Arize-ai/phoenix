@@ -6,12 +6,18 @@ import type { components } from "@phoenix/api/__generated__/v1";
 import {
   getEffectiveAttachUserId,
   getEffectiveTraceRecordingSettings,
+  GITHUB_PAT_CREDENTIAL_KEY,
   type AgentObservabilitySettings,
   type AgentPermissions,
   type AgentServerConfig,
 } from "@phoenix/store/agentStore";
 
-import { isResolvedClientToolOutputPart } from "./chatUtils";
+import {
+  isAnsweredToolApprovalPart,
+  isResolvedClientToolOutputPart,
+  toSubmittedToolApproval,
+  type SubmittedToolApproval,
+} from "./chatUtils";
 import type { ClientToolTimingRecorder } from "./clientToolTimings";
 import { toServerSafeUIMessages } from "./serverSafeMessages";
 import type { LocallyInterruptedToolCallIds } from "./shouldSendAutomatically";
@@ -43,6 +49,12 @@ type BuildAgentChatRequestBodyOptions = {
   contexts: AgentContext[];
   /** Provider + model selection for this turn. */
   modelSelection: AgentModelSelection;
+  /**
+   * Client-held integration credentials keyed by secret-key name. Matching
+   * credentials ride the request ephemerally when the integration is enabled;
+   * the server never persists them.
+   */
+  integrationCredentials?: Record<string, string>;
   /** Browser execution timings added to completed client-tool parts. */
   toolTimings?: ClientToolTimingRecorder | null;
   /** Tool calls this client resolved as interrupted. */
@@ -79,23 +91,21 @@ function getClientToolOutputs(message: AgentUIMessage): ChatToolOutput[] {
   return message.parts.filter((part) => isResolvedClientToolOutputPart(part));
 }
 
+/**
+ * Extract the assistant message's answered tool approvals. Shares its
+ * projection with the tool-approvals flush so answers the flush already
+ * persisted resend verbatim here, where the server skips them.
+ */
+function getToolApprovals(message: AgentUIMessage): SubmittedToolApproval[] {
+  return message.parts
+    .filter((part) => isAnsweredToolApprovalPart(part))
+    .map((part) => toSubmittedToolApproval(part));
+}
+
 export type AgentChatRequestBodyPatch = Pick<
   BuildAgentChatRequestBodyResult,
   "requestedSkills"
 >;
-
-/**
- * Build GraphQL context from the current capability snapshot.
- *
- * Forwards the user's mutations toggle to the backend as a typed context so
- * the agent's server-side instructions can render the matching guidance.
- */
-function buildGraphQLContext(capabilities: AgentCapabilities): AgentContext {
-  return {
-    type: "graphql",
-    mutationsEnabled: capabilities["graphql.mutations"] ?? false,
-  };
-}
 
 /**
  * Build web access context from the current capability snapshot.
@@ -135,6 +145,7 @@ export function buildAgentChatRequestBody({
   permissions,
   contexts,
   modelSelection,
+  integrationCredentials = {},
   toolTimings = null,
   locallyInterruptedToolCallIds = {},
 }: BuildAgentChatRequestBodyOptions): BuildAgentChatRequestBodyResult {
@@ -143,15 +154,25 @@ export function buildAgentChatRequestBody({
     observability,
   });
   const requestContexts = [
-    buildGraphQLContext(capabilities),
     buildWebAccessContext(capabilities),
     buildSubagentsContext(capabilities),
     ...contexts,
   ];
+  // The user's personal GitHub token rides the request ephemerally while the
+  // GitHub tools are enabled; it takes precedence server-side over the
+  // workspace token, so issues are filed as the user.
+  const githubToken = agentsConfig.githubEnabled
+    ? integrationCredentials[GITHUB_PAT_CREDENTIAL_KEY]
+    : undefined;
   const base = {
     ...body,
     id,
     headless: false,
+    ...(githubToken
+      ? {
+          credentials: [{ key: GITHUB_PAT_CREDENTIAL_KEY, value: githubToken }],
+        }
+      : {}),
     recordLocalTraces: traceRecording.ingestTraces,
     exportRemoteTraces: traceRecording.exportRemoteTraces,
     instrumentUserId: getEffectiveAttachUserId({ agentsConfig, observability }),
@@ -165,22 +186,25 @@ export function buildAgentChatRequestBody({
   }
   if (trailingMessage.role === "assistant") {
     // Client-tool continuation: the server owns the assistant message, so
-    // only the resolved client tool outputs are sent, not the message itself.
+    // only the resolved client tool outputs and responded approvals are
+    // sent, not the message itself.
     const enrichedAssistant = enrichMessageWithClientToolMetadata({
       message: trailingMessage,
       toolTimings,
       locallyInterruptedToolCallIds,
     });
     const toolOutputs = getClientToolOutputs(enrichedAssistant);
-    if (toolOutputs.length === 0) {
+    const toolApprovals = getToolApprovals(enrichedAssistant);
+    if (toolOutputs.length === 0 && toolApprovals.length === 0) {
       throw new Error(
-        "A chat continuation requires resolved client tool outputs to send"
+        "A chat continuation requires resolved client tool outputs or approvals to send"
       );
     }
     return {
       ...base,
       trigger: "submit-message",
-      toolOutputs,
+      ...(toolOutputs.length > 0 ? { toolOutputs } : {}),
+      ...(toolApprovals.length > 0 ? { toolApprovals } : {}),
       lastMessageId: getLastPersistedMessageId(messages),
     };
   }

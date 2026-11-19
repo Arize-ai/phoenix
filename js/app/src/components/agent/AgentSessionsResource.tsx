@@ -418,6 +418,7 @@ function AgentSessionTranscript({
       Array.isArray(agentSession?.messages)
         ? (agentSession.messages as AgentUIMessage[])
         : [],
+    // eslint-disable-next-line react/preserve-manual-memoization
     [agentSession?.messages]
   );
   const sessionModelConfig = useAgentSessionModelConfig(agentSession);

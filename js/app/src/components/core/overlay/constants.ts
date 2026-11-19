@@ -2,11 +2,13 @@ import type { SizeValue } from "./sizing";
 
 /**
  * Default initial size for resizable drawers when no persisted size or
- * caller-provided `defaultSize` is available. Callers may override via
- * the `defaultSize` prop on `<Drawer>`. Expressed as a percentage of the
- * application viewport width.
+ * caller-provided `defaultSize` is available. Detail drawers (traces,
+ * sessions, users) are dense, so they open wide and leave a sliver of the
+ * page visible for context. Callers may override via the `defaultSize`
+ * prop on `<Drawer>`. Expressed as a percentage of the application
+ * viewport width, and still capped by the max size / visible gutter.
  */
-export const DRAWER_DEFAULT_SIZE: SizeValue = "35%";
+export const DRAWER_DEFAULT_SIZE: SizeValue = "75%";
 
 /**
  * Default minimum size for resizable drawers (e.g. trace, session,
@@ -50,3 +52,13 @@ export const DRAWER_SIDE_NAV_GAP_PX = 28;
  * exactly 80; the values drift independently on purpose).
  */
 export const DRAWER_VISIBLE_GUTTER_PX = 80;
+
+/** How long a popover or modal takes to enter or exit. */
+export const OVERLAY_ANIMATION_DURATION_MS = 200;
+
+/**
+ * How long the modal backdrop takes to enter or exit. Longer than
+ * {@link OVERLAY_ANIMATION_DURATION_MS} so the backdrop outlasts the modal
+ * it hosts.
+ */
+export const MODAL_BACKDROP_ANIMATION_DURATION_MS = 300;

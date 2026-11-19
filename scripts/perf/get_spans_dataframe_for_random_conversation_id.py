@@ -16,12 +16,12 @@ with engine.connect() as conn:
 
 print(f"Sampled Conversation ID: {conversation_id}")
 
-condition = f"metadata['conversation_id'] == '{conversation_id}'"
+# Root spans (including orphans) of the sampled conversation.
+condition = f"parent_span is None and metadata['conversation_id'] == '{conversation_id}'"
 
 start_time = time.time_ns()
 df = Client().spans.get_spans_dataframe(
     query=SpanQuery().where(condition),
-    root_spans_only=True,
     timeout=300,
 )
 end_time = time.time_ns()

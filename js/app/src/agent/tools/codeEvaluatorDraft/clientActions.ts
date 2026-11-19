@@ -1,10 +1,11 @@
 import { createEvaluatorSubmitClientAction } from "@phoenix/agent/tools/approval";
 import { parseEmptyToolInput } from "@phoenix/agent/tools/emptyToolInput";
+import { isOperationCallApprovalGranted } from "@phoenix/agent/uiOperations/scriptApprovalGrant";
+import { parseUIOperationCallContext } from "@phoenix/agent/uiOperations/types";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
 import { SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "./constants";
 import {
-  parseEditCodeEvaluatorDraftActionContext,
   parseEditCodeEvaluatorDraftInput,
   parseReadCodeEvaluatorDraftInput,
   parseTestCodeEvaluatorDraftInput,
@@ -26,7 +27,7 @@ export function createReadCodeEvaluatorDraftClientAction({
     if (!parsed) {
       return {
         ok: false,
-        error: "Invalid read_code_evaluator_draft input.",
+        error: "Invalid evaluators.code.read input.",
       };
     }
     const host = getDraftHost();
@@ -36,7 +37,7 @@ export function createReadCodeEvaluatorDraftClientAction({
         error: "The code-evaluator form is not mounted; cannot read the draft.",
       };
     }
-    return { ok: true, output: JSON.stringify(host.getSnapshot(), null, 2) };
+    return { ok: true, output: host.getSnapshot() };
   };
 }
 
@@ -56,19 +57,19 @@ export function createEditCodeEvaluatorDraftClientAction({
     input: unknown,
     context?: unknown
   ): Promise<AgentClientActionResult> => {
-    const editContext = parseEditCodeEvaluatorDraftActionContext(context);
-    if (!editContext) {
+    const callContext = parseUIOperationCallContext(context);
+    if (!callContext) {
       return {
         ok: false,
         error:
-          "Cannot propose code-evaluator draft edit without tool call context.",
+          "Cannot propose code-evaluator draft edit without an operation call context.",
       };
     }
     const parsed = parseEditCodeEvaluatorDraftInput(input);
     if (!parsed) {
       return {
         ok: false,
-        error: "Invalid edit_code_evaluator_draft input.",
+        error: "Invalid evaluators.code.edit input.",
       };
     }
     const host = getDraftHost();
@@ -82,26 +83,32 @@ export function createEditCodeEvaluatorDraftClientAction({
     const proposed = host.previewOperations(before, parsed.operations);
     if (!proposed.ok) return proposed;
 
-    const pendingEdit = bindPendingCodeEvaluatorEditActions({
-      pendingEdit: {
-        toolCallId: editContext.toolCallId,
-        sessionId: editContext.sessionId,
-        before,
-        after: proposed.output,
-        operations: parsed.operations,
-      },
-      draftHost: host,
-      addToolOutput: editContext.addToolOutput,
-      setPendingCodeEvaluatorEdit,
+    // The returned promise resolves when the user (or bypass mode) decides;
+    // the awaiting execute_browser_action script sits parked on it until then.
+    return new Promise((resolve) => {
+      const pendingEdit = bindPendingCodeEvaluatorEditActions({
+        pendingEdit: {
+          toolCallId: callContext.callId,
+          sessionId: callContext.sessionId ?? "",
+          before,
+          after: proposed.output,
+          operations: parsed.operations,
+        },
+        draftHost: host,
+        emitResult: resolve,
+        setPendingCodeEvaluatorEdit,
+      });
+
+      if (
+        shouldAutoAccept() ||
+        isOperationCallApprovalGranted(callContext.callId)
+      ) {
+        void pendingEdit.accept?.({ approvalSource: "auto" });
+        return;
+      }
+
+      setPendingCodeEvaluatorEdit(callContext.callId, pendingEdit);
     });
-
-    if (shouldAutoAccept()) {
-      await pendingEdit.accept?.({ approvalSource: "auto" });
-      return { ok: true };
-    }
-
-    setPendingCodeEvaluatorEdit(editContext.toolCallId, pendingEdit);
-    return { ok: true };
   };
 }
 
@@ -134,7 +141,7 @@ export function createTestCodeEvaluatorDraftClientAction({
     if (!parsed) {
       return {
         ok: false,
-        error: "Invalid test_code_evaluator_draft input.",
+        error: "Invalid evaluators.code.test input.",
       };
     }
     if (!isDraftMounted()) {
@@ -143,10 +150,6 @@ export function createTestCodeEvaluatorDraftClientAction({
         error: "The code-evaluator form is not mounted; cannot test the draft.",
       };
     }
-    const result = await runEvaluatorPreview();
-    if (!result.ok) {
-      return result;
-    }
-    return { ok: true, output: JSON.stringify(result.output, null, 2) };
+    return runEvaluatorPreview();
   };
 }

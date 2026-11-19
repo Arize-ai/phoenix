@@ -80,10 +80,6 @@ export const RegexEvaluatorForm = () => {
   );
   const allExampleKeys = useFlattenedEvaluatorInputKeys(evaluatorMappingSource);
 
-  // Determine initial mode based on existing values
-  const textDefaultMode =
-    getValues("literalMapping.text") != null ? "literal" : "path";
-
   return (
     <Flex direction="column" gap="size-200">
       <Flex direction="column" gap="size-100">
@@ -111,8 +107,8 @@ export const RegexEvaluatorForm = () => {
           fieldName="text"
           label="Text"
           description="The text to search."
-          defaultMode={textDefaultMode}
           control={control}
+          getValues={getValues}
           setValue={setValue}
           pathOptions={allExampleKeys}
           pathPlaceholder="Map an example field to Text"

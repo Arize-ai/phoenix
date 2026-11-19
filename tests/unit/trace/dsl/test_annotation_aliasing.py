@@ -167,6 +167,20 @@ def test_explanation_is_accepted_and_suggested(
     assert "explanation" in str(exc_info.value)
 
 
+@pytest.mark.parametrize("grain,accessor,prefix,text_name", _GRAINS)
+def test_identifier_is_accepted_and_suggested(
+    grain: Grain,
+    accessor: str,
+    prefix: str,
+    text_name: str,
+) -> None:
+    compiled = _compile(grain, f'{accessor}["q"].identifier == "x"')
+    assert [relation.name for relation in compiled._aliased_annotation_relations] == ["q"]
+    with pytest.raises(SyntaxError) as exc_info:
+        _compile(grain, f'{accessor}["q"].identifer == "x"')
+    assert "identifier" in str(exc_info.value)
+
+
 def test_annotation_inside_a_comprehension_points_at_session_annotations() -> None:
     # The annotation join is built at session scope, so it has nothing to bind to one
     # element down; the error names the collection that does read annotations element-wise.
@@ -301,3 +315,68 @@ async def test_span_filter_annotation_conditions_return_the_same_rows(
         assert await matched(r'annotations["escaped \"name\""].score > 0') == {faithful.id}
         assert await matched("evals['Hallucination'].score > 2") == set()
         assert unannotated.id not in await matched("annotations['Hallucination']")
+
+
+async def test_span_filter_selects_annotation_rows_by_identifier(
+    db: DbSessionFactory,
+) -> None:
+    """`.identifier` picks the right row when several rows share one name."""
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        twice_annotated = await _add_span(session, trace)
+        once_annotated = await _add_span(session, trace)
+        unannotated = await _add_span(session, trace)
+        session.add_all(
+            [
+                models.SpanAnnotation(
+                    span_rowid=twice_annotated.id,
+                    name="note",
+                    label="good",
+                    annotator_kind="CODE",
+                    source="API",
+                    identifier="coding-run:1",
+                    metadata_={},
+                ),
+                models.SpanAnnotation(
+                    span_rowid=twice_annotated.id,
+                    name="note",
+                    label="bad",
+                    annotator_kind="CODE",
+                    source="API",
+                    identifier="coding-run:2",
+                    metadata_={},
+                ),
+                models.SpanAnnotation(
+                    span_rowid=once_annotated.id,
+                    name="note",
+                    label="bad",
+                    annotator_kind="CODE",
+                    source="API",
+                    identifier="coding-run:1",
+                    metadata_={},
+                ),
+            ]
+        )
+        await session.flush()
+
+        async def matched(condition: str) -> list[int]:
+            span_filter = SpanFilter(condition)
+            stmt = span_filter(select(models.Span.id).join(models.Trace))
+            rows = await session.scalars(stmt.where(models.Trace.project_rowid == project.id))
+            return sorted(rows)
+
+        assert await matched("annotations['note'].identifier == 'coding-run:1'") == [
+            twice_annotated.id,
+            once_annotated.id,
+        ]
+        assert await matched("annotations['note'].identifier == 'coding-run:3'") == []
+        assert await matched(
+            "annotations['note'].identifier == 'coding-run:2' "
+            "and annotations['note'].label == 'bad'"
+        ) == [twice_annotated.id]
+        assert await matched(
+            "annotations['note'].identifier == 'coding-run:1' "
+            "and annotations['note'].label == 'bad'"
+        ) == [once_annotated.id]
+        assert unannotated.id not in await matched("annotations['note'].identifier != ''")

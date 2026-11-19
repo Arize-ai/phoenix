@@ -21,6 +21,7 @@ const ATTRIBUTES = JSON.stringify({
 let view: JSONViewContextValue | null = null;
 
 function Probe() {
+  // eslint-disable-next-line react/globals
   view = useJSONView();
   return null;
 }

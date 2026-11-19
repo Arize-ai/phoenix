@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
   AskUserToolDetails,
-  formatAskUserState,
+  getAskUserStatus,
   getAskUserToolPreview,
 } from "../AskUserToolDetails";
 import {
@@ -77,7 +77,35 @@ describe("AskUserToolDetails", () => {
     });
 
     expect(getAskUserToolPreview(part)).toBe("Question pending");
-    expect(formatAskUserState(part.state, part)).toBe("Preparing questions");
+    expect(getAskUserStatus(part)).toEqual({
+      stateLabel: "Preparing questions",
+    });
+  });
+
+  it("keeps the question count visible while later questions stream", () => {
+    const firstQuestion = {
+      id: "question-1",
+      prompt: "Which option should we use?",
+      type: "freeform",
+    };
+    const firstSnapshot = createAskUserPart({
+      state: "input-streaming",
+      input: { questions: [firstQuestion] },
+    });
+    const secondSnapshot = createAskUserPart({
+      state: "input-streaming",
+      input: {
+        questions: [
+          firstQuestion,
+          {
+            id: "question-2",
+          },
+        ],
+      },
+    });
+
+    expect(getAskUserToolPreview(firstSnapshot)).toBe("1 question");
+    expect(getAskUserToolPreview(secondSnapshot)).toBe("2 questions");
   });
 
   it("treats a completed ask_user call without output as awaiting a response", () => {
@@ -95,7 +123,10 @@ describe("AskUserToolDetails", () => {
     });
 
     expect(getAskUserToolPreview(part)).toBe("1 question");
-    expect(formatAskUserState(part.state, part)).toBe("Awaiting response");
+    expect(getAskUserStatus(part)).toEqual({
+      stateLabel: "Awaiting response",
+      statusCategory: "needs-input",
+    });
   });
 
   it("only reports an error for missing questions on the error path", () => {
@@ -106,7 +137,7 @@ describe("AskUserToolDetails", () => {
     });
 
     expect(getAskUserToolPreview(part)).toBe("");
-    expect(formatAskUserState(part.state, part)).toBe("Error");
+    expect(getAskUserStatus(part)).toEqual({ stateLabel: "Error" });
   });
 
   it("renders in-progress draft answers in the expanded view", () => {

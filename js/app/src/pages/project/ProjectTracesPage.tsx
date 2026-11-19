@@ -3,51 +3,110 @@ import type { PreloadedQuery } from "react-relay";
 import { usePreloadedQuery } from "react-relay";
 import { Outlet } from "react-router";
 
-import { Loading } from "@phoenix/components/core/loading/Loading";
-import { TraceFiltersProvider } from "@phoenix/pages/project/TraceFiltersContext";
+import { ErrorBoundary } from "@phoenix/components/exception";
+import type { ErrorBoundaryFallbackProps } from "@phoenix/components/exception/types";
+import { TableSkeleton } from "@phoenix/components/table";
+import { TableMetricsChartsPanelGroup } from "@phoenix/pages/project/TableMetricsCharts";
 import { TracesTable } from "@phoenix/pages/project/TracesTable";
 import { TracePaginationProvider } from "@phoenix/pages/trace/TracePaginationContext";
 import { TracingRoot } from "@phoenix/pages/TracingRoot";
 
 import type { ProjectPageQueriesTracesQuery as ProjectPageTracesQueryType } from "./__generated__/ProjectPageQueriesTracesQuery.graphql";
-import { ProjectOnboarding } from "./ProjectOnboarding";
+import { DSLFilterErrorFallback } from "./DSLFilterErrorFallback";
+import { PendingDSLFilter } from "./PendingDSLFilter";
 import {
   ProjectPageQueriesTracesQuery,
   useProjectPageQueryReferenceContext,
 } from "./ProjectPageQueries";
+import { TraceFilterConditionFieldWithVocabulary } from "./TraceFilterConditionField";
+import { TraceFiltersProvider } from "./TraceFiltersContext";
 
-const TracesTabContent = ({
+// Module-level: an inline component would remount the field on every render.
+function TracesFilterErrorFallback({ error }: ErrorBoundaryFallbackProps) {
+  const { resolveTracesSeed } = useProjectPageQueryReferenceContext();
+  return (
+    <DSLFilterErrorFallback error={error}>
+      <TraceFilterConditionFieldWithVocabulary
+        onValidCondition={({ condition, isInitialSettlement }) => {
+          // The mounted condition just failed; only an edit should reload.
+          if (isInitialSettlement) {
+            return;
+          }
+          resolveTracesSeed(condition);
+        }}
+      />
+    </DSLFilterErrorFallback>
+  );
+}
+
+function TracesTabContent({
   tracesQueryReference,
+  seed,
 }: {
   tracesQueryReference: PreloadedQuery<ProjectPageTracesQueryType>;
-}) => {
+  seed: string;
+}) {
   const data = usePreloadedQuery<ProjectPageTracesQueryType>(
     ProjectPageQueriesTracesQuery,
     tracesQueryReference
   );
 
-  if (!data.project.hasTraces) {
-    return (
-      <ProjectOnboarding projectName={data.project.name ?? "my-project"} />
-    );
-  }
-
-  return <TracesTable project={data.project} />;
-};
+  return <TracesTable project={data.project} seed={seed} />;
+}
 
 export const ProjectTracesPage = () => {
-  const { tracesQueryReference } = useProjectPageQueryReferenceContext();
-  if (!tracesQueryReference) {
-    return null;
-  }
-
+  const { tracesQueryReference, tracesFilterSeed, resolveTracesSeed } =
+    useProjectPageQueryReferenceContext();
+  const hasTracesQuery =
+    tracesQueryReference !== null && tracesFilterSeed !== null;
+  // Keyed on the condition so re-resolving the same filter does not remount the
+  // editor and table; a new condition does, which resets the editor.
+  const seedKey =
+    tracesFilterSeed === null ? "seed-pending" : `seed-${tracesFilterSeed}`;
   return (
     <TracingRoot>
       <TracePaginationProvider>
-        <TraceFiltersProvider>
-          <Suspense fallback={<Loading />}>
-            <TracesTabContent tracesQueryReference={tracesQueryReference} />
-          </Suspense>
+        <TraceFiltersProvider key={seedKey}>
+          {/* Inside the provider so a resolved seed -- a new `key` -- remounts it. */}
+          <ErrorBoundary fallback={TracesFilterErrorFallback}>
+            <Suspense
+              fallback={
+                <TableMetricsChartsPanelGroup view="traces" isSkeleton>
+                  <TableSkeleton hasToolbar isSelectable rowCount="fill" />
+                </TableMetricsChartsPanelGroup>
+              }
+            >
+              {hasTracesQuery ? (
+                <TracesTabContent
+                  tracesQueryReference={tracesQueryReference}
+                  seed={tracesFilterSeed}
+                />
+              ) : tracesFilterSeed === null ? (
+                // A rejected condition falls back to no filter; the URL keeps
+                // the rejected text.
+                <TableMetricsChartsPanelGroup view="traces" isSkeleton>
+                  <PendingDSLFilter
+                    isSelectable={true}
+                    onValidCondition={({ condition }: { condition: string }) =>
+                      resolveTracesSeed(condition)
+                    }
+                    onRejected={() => resolveTracesSeed("", false)}
+                    renderField={(fieldProps) => (
+                      <TraceFilterConditionFieldWithVocabulary
+                        {...fieldProps}
+                      />
+                    )}
+                  />
+                </TableMetricsChartsPanelGroup>
+              ) : (
+                // Showing the field here would mount it twice: once now and
+                // again inside the table.
+                <TableMetricsChartsPanelGroup view="traces" isSkeleton>
+                  <TableSkeleton hasToolbar isSelectable rowCount="fill" />
+                </TableMetricsChartsPanelGroup>
+              )}
+            </Suspense>
+          </ErrorBoundary>
           <Suspense>
             <Outlet />
           </Suspense>

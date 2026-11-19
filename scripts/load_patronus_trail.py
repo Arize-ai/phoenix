@@ -27,7 +27,7 @@ Pipeline (per row):
      LLM token counts are cast from TRAIL's strings to ints, and swe_bench's
      ``anthropic/claude-3-7-sonnet-latest`` alias is mapped to the dated model
      name, so Phoenix computes span costs — it records none otherwise.
-  3. Emit annotations (batched per trace, can be disabled with
+  3. Once Phoenix has ingested every span, emit annotations (disable with
      ``--no-annotations``):
        - ``labels.errors`` → span annotations on the offending spans
          (``name="trail_error"``, ``label=<category>``, score from impact).
@@ -67,6 +67,7 @@ import logging
 import re
 import secrets
 import sys
+import time
 from collections.abc import Iterable, Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -161,6 +162,16 @@ def _loads_tolerant(s: str) -> Any:
         return json.loads(_TRAILING_COMMA_RE.sub(r"\1", s))
 
 
+def _pg_text(value: str | None) -> str | None:
+    """Replace U+0000 with a space. Postgres rejects NULs in text/varchar;
+    TRAIL explanations contain them (``frame\\x00by\\x00frame``), and the
+    insert then 500s. A space keeps word boundaries (``frame by frame``).
+    """
+    if value is None:
+        return None
+    return str(value).replace("\x00", " ")
+
+
 def _parse_iso8601_duration(s: str) -> timedelta:
     if not (m := _ISO_DUR_RE.match(s)) or not any(m.groupdict().values()):
         raise ValueError(f"unparseable duration: {s!r}")
@@ -228,14 +239,14 @@ def _to_phoenix_span(raw: dict[str, Any], mapper: IdMapper) -> dict[str, Any]:
         if ts := (ev.get("timestamp") or ev.get("time")):
             events.append(
                 {
-                    "name": str(ev.get("name", "")),
+                    "name": _pg_text(str(ev.get("name", ""))) or "",
                     "timestamp": _parse_timestamp(ts).isoformat(),
                     "attributes": dict(ev.get("attributes") or {}),
                 }
             )
 
     span: dict[str, Any] = {
-        "name": str(raw.get("span_name") or "span"),
+        "name": _pg_text(str(raw.get("span_name") or "span")) or "span",
         "context": {
             "trace_id": mapper.map_trace(str(raw["trace_id"])),
             "span_id": mapper.map_span(str(raw["span_id"])),
@@ -250,7 +261,7 @@ def _to_phoenix_span(raw: dict[str, Any], mapper: IdMapper) -> dict[str, Any]:
     if parent := raw.get("parent_span_id"):
         span["parent_id"] = mapper.map_span(str(parent))
     if msg := raw.get("status_message"):
-        span["status_message"] = str(msg)
+        span["status_message"] = _pg_text(str(msg)) or ""
     return span
 
 
@@ -265,10 +276,10 @@ def _to_span_annotations(errors: list[dict[str, Any]], mapper: IdMapper) -> list
         if not (original := err.get("location")):
             continue
         span_id = mapper.map_span(str(original))
-        category = str(err.get("category") or "unknown")
+        category = _pg_text(str(err.get("category") or "unknown")) or "unknown"
         impact = str(err.get("impact") or "MEDIUM").lower()
-        description = str(err.get("description") or "")
-        evidence = str(err.get("evidence") or "")
+        description = _pg_text(str(err.get("description") or "")) or ""
+        evidence = _pg_text(str(err.get("evidence") or "")) or ""
         explanation = description if not evidence else f"{description}\n\nEvidence: {evidence}"
         out.append(
             {
@@ -296,7 +307,7 @@ def _extract_scores(
     out: list[tuple[str, float, str | None]] = []
     for metric in TRAIL_SCORE_METRICS:
         if (val := scores.get(f"{metric}_score")) is not None:
-            out.append((metric, float(val), scores.get(f"{metric}_reasoning")))
+            out.append((metric, float(val), _pg_text(scores.get(f"{metric}_reasoning"))))
     if (overall := scores.get("overall")) is not None:
         out.append(("overall", float(overall), None))
     return out
@@ -384,6 +395,36 @@ def _iter_rows(source: str, input_path: Path | None) -> Iterator[dict[str, str]]
         yield {"trace": row["trace"], "labels": row["labels"]}
 
 
+def _wait_for_spans(
+    client: Client,
+    project: str,
+    span_ids: set[str],
+    trace_ids: set[str],
+    timeout: float = 600,
+) -> None:
+    deadline = time.monotonic() + timeout
+    traces = sorted(trace_ids)
+    missing = span_ids.copy()
+    while missing:
+        for start in range(0, len(traces), 50):
+            spans = client.spans.get_spans(
+                project_identifier=project,
+                trace_ids=traces[start : start + 50],
+                limit=sys.maxsize,
+            )
+            missing.difference_update(span["context"]["span_id"] for span in spans)
+        if not missing:
+            return
+        if time.monotonic() >= deadline:
+            raise TimeoutError(f"{len(missing)} spans were not ingested into {project!r}")
+        time.sleep(2)
+
+
+def _batches(items: list[dict[str, Any]], size: int = 100) -> Iterator[list[dict[str, Any]]]:
+    for start in range(0, len(items), size):
+        yield items[start : start + size]
+
+
 def _load_source(
     client: Client,
     source: str,
@@ -394,11 +435,16 @@ def _load_source(
     annotations: bool,
     scores_on_trace: bool,
     mapper: IdMapper,
+    project: str | None = None,
 ) -> None:
-    _, project = SOURCES[source]
+    project = project or SOURCES[source][1]
     _ensure_project(client, project)
 
     n_traces = n_spans = n_span_annos = n_trace_annos = 0
+    pending_span_annos: list[dict[str, Any]] = []
+    pending_trace_annos: list[dict[str, Any]] = []
+    span_ids: set[str] = set()
+    trace_ids: set[str] = set()
     for i, row in enumerate(_iter_rows(source, input_path)):
         if limit is not None and i >= limit:
             break
@@ -431,15 +477,24 @@ def _load_source(
                     )
 
         client.spans.log_spans(project_identifier=project, spans=spans)
-        if span_annos:
-            client.spans.log_span_annotations(span_annotations=span_annos)
-        if trace_annos:
-            client.traces.log_trace_annotations(trace_annotations=trace_annos)
+        pending_span_annos.extend(span_annos)
+        pending_trace_annos.extend(trace_annos)
+        span_ids.update(span["context"]["span_id"] for span in spans)
+        trace_ids.update(span["context"]["trace_id"] for span in spans)
 
         n_traces += 1
         n_spans += len(spans)
         n_span_annos += len(span_annos)
         n_trace_annos += len(trace_annos)
+
+    # Phoenix inserts spans asynchronously and drops annotations whose span or trace it
+    # has not inserted yet, so post annotations only after every span is queryable.
+    if pending_span_annos or pending_trace_annos:
+        _wait_for_spans(client, project, span_ids, trace_ids)
+    for batch in _batches(pending_span_annos):
+        client.spans.log_span_annotations(span_annotations=batch, sync=True)
+    for batch in _batches(pending_trace_annos):
+        client.traces.log_trace_annotations(trace_annotations=batch, sync=True)
 
     logger.info(
         "%s: %d traces / %d spans / %d span annotations / %d trace annotations → %r",
@@ -497,6 +552,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="post trace-level TRAIL scores as TRACE annotations instead of "
         "annotations on the root span (the default).",
     )
+    p.add_argument(
+        "--project",
+        default=None,
+        help="Phoenix project to load into (default: trail-gaia / trail-swebench per source)",
+    )
     p.add_argument("--verbose", "-v", action="store_true")
     return p
 
@@ -522,6 +582,7 @@ def main(argv: list[str] | None = None) -> int:
             shift_to_now=args.shift_to_now,
             annotations=args.annotations,
             scores_on_trace=args.scores_on_trace,
+            project=args.project,
             mapper=mapper,
         )
     return 0

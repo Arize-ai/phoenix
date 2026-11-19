@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<65e855f2c7f9fb6a636ddde722a64c32>>
+ * @generated SignedSource<<66580eace49956dfb9817634ef01bfb3>>
  * @lightSyntaxTransform
  */
 
@@ -13,7 +13,7 @@ export type ProjectAnnotationMetricNamesTraceQuery$variables = {
 };
 export type ProjectAnnotationMetricNamesTraceQuery$data = {
   readonly project: {
-    readonly traceAnnotationsNames?: ReadonlyArray<string>;
+    readonly traceAnnotationNames?: ReadonlyArray<string>;
   };
 };
 export type ProjectAnnotationMetricNamesTraceQuery = {
@@ -43,7 +43,7 @@ v2 = {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "traceAnnotationsNames",
+      "name": "traceAnnotationNames",
       "storageKey": null
     }
   ],
@@ -108,16 +108,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "aeb107f2f2c93a271f903af923c4f6b9",
+    "cacheID": "54f8556c177ad6793bcde706a743d3bc",
     "id": null,
     "metadata": {},
     "name": "ProjectAnnotationMetricNamesTraceQuery",
     "operationKind": "query",
-    "text": "query ProjectAnnotationMetricNamesTraceQuery(\n  $projectId: ID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      traceAnnotationsNames\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectAnnotationMetricNamesTraceQuery(\n  $projectId: ID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      traceAnnotationNames\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3dbe620de07feed8341c704346135bf2";
+(node as any).hash = "b2e59a01c9a8acf82d1048fc39078309";
 
 export default node;

@@ -5,6 +5,7 @@ import { redirect } from "react-router";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
 import type { sessionRedirectLoaderQuery } from "./__generated__/sessionRedirectLoaderQuery.graphql";
+import { notFound } from "./notFound";
 
 export async function sessionRedirectLoader({ params }: LoaderFunctionArgs) {
   const { session_id: sessionId } = params;
@@ -34,6 +35,10 @@ export async function sessionRedirectLoader({ params }: LoaderFunctionArgs) {
     const { project, id } = response.session;
     return redirect(`/projects/${project.id}/sessions/${id}`);
   } else {
-    throw new Error(`Session with id "${sessionId}" not found`);
+    throw notFound({
+      kind: "entity",
+      entityType: "session",
+      identifier: sessionId,
+    });
   }
 }

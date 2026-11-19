@@ -18,7 +18,7 @@ Read the relevant reference(s) based on the task:
 
 | Task | Reference |
 |------|-----------|
-| Layout stability, scroll behavior, interaction patterns | `references/layout.md` |
+| Layout stability, scroll behavior, interaction patterns, tooltip placement in tables | `references/layout.md` |
 | Alert and form dialog usage, footer button styling, content writing | `references/dialogs.md` |
 | Error scoping, inline alerts, input validation | `references/error-display.md` |
 | Naming CSS classes | `references/bem.md` |
@@ -26,3 +26,4 @@ Read the relevant reference(s) based on the task:
 | Picking an icon for a noun (project, trace, span, file, etc.) | `references/icons.md` |
 | Displaying counts in tabs, headings, or filter buttons | `references/counters.md` |
 | Choosing or adding an `EmptyStateGraphic` variant (the per-region/topic empty-state graphics) | `references/empty-states.md` |
+| Writing or reviewing Storybook stories for design-system components | the `phoenix-storybook` skill |

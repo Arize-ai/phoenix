@@ -153,7 +153,10 @@ const planeCSS = css`
   position: relative;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
+  /* \`clip\` (not \`hidden\`) so an autofocus scroll-reveal inside an entering
+     overlay can never scroll the plane and permanently offset a transform
+     slide-in. */
+  overflow: clip;
   pointer-events: none;
 `;
 

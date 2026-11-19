@@ -9,7 +9,7 @@ export const listLabelsInputSchema = z.object({
   after: z.string().min(1).nullable().optional(),
 });
 
-// create_dataset_label: name required; optional description/color; attaches to
+// `dataset.label.create`: name required; optional description/color; attaches to
 // the in-context dataset by default.
 export const createDatasetLabelInputSchema = z.object({
   name: z.string().trim().min(1),
@@ -18,12 +18,12 @@ export const createDatasetLabelInputSchema = z.object({
   attachToDataset: z.boolean().optional(),
 });
 
-// set_dataset_labels: set the dataset's labels to these existing label names.
+// `dataset.label.set`: set the dataset's labels to these existing label names.
 export const setDatasetLabelsInputSchema = z.object({
   labelNames: z.array(z.string().trim().min(1)).min(1),
 });
 
-// delete_dataset_labels: delete labels by name (instance-wide).
+// `dataset.label.delete`: delete labels by name (instance-wide).
 export const deleteDatasetLabelsInputSchema = z.object({
   labelNames: z.array(z.string().trim().min(1)).min(1),
 });

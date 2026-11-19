@@ -3,7 +3,11 @@ import { graphql, useFragment } from "react-relay";
 
 import type { TraceAnnotationSummaryGroup$key } from "@phoenix/components/annotation/__generated__/TraceAnnotationSummaryGroup.graphql";
 import { AnnotationSummaryGroupStacksRow } from "@phoenix/components/annotation/AnnotationSummaryGroup";
-import { AnnotationSummaryTokens } from "@phoenix/components/annotation/AnnotationSummaryTokens";
+import {
+  AnnotationSummaryTokens,
+  AnnotationSummaryValueToken,
+} from "@phoenix/components/annotation/AnnotationSummaryTokens";
+import { getTraceAnnotationTooltipFilters } from "@phoenix/pages/project/annotationFilterUtils";
 import {
   Summary,
   SummaryValue,
@@ -13,6 +17,7 @@ import { useTraceFilters } from "@phoenix/pages/project/TraceFiltersContext";
 
 import { groupAnnotationsByName, hasAnnotationValue } from "./annotationUtils";
 import type { AnnotationOptimizationConfig } from "./optimizationUtils";
+import type { Annotation } from "./types";
 
 const useTraceAnnotationSummaryGroup = (
   trace: TraceAnnotationSummaryGroup$key
@@ -70,7 +75,15 @@ type TraceAnnotationSummaryGroupProps = {
   trace: TraceAnnotationSummaryGroup$key;
   annotationConfigsByName: ReadonlyMap<string, AnnotationOptimizationConfig>;
   showFilterActions?: boolean;
+  renderFilterActions?: (annotation: Annotation) => React.ReactNode;
   renderEmptyState?: () => React.ReactNode;
+};
+
+type TraceAnnotationSummaryGroupTokenProps = Omit<
+  TraceAnnotationSummaryGroupProps,
+  "renderEmptyState"
+> & {
+  annotationName: string;
 };
 
 function TraceAnnotationTooltipFilterActions({
@@ -86,15 +99,21 @@ function TraceAnnotationTooltipFilterActions({
   return (
     <AnnotationTooltipFilterActions
       annotation={annotation}
+      getFilters={getTraceAnnotationTooltipFilters}
       onAppendFilterCondition={appendFilterCondition}
     />
   );
 }
 
+const defaultRenderFilterActions = (annotation: Annotation) => (
+  <TraceAnnotationTooltipFilterActions annotation={annotation} />
+);
+
 export const TraceAnnotationSummaryGroupTokens = ({
   trace,
   annotationConfigsByName,
   showFilterActions = false,
+  renderFilterActions,
   renderEmptyState,
 }: TraceAnnotationSummaryGroupProps) => {
   const { sortedSummariesByName, annotationsByName } =
@@ -112,12 +131,33 @@ export const TraceAnnotationSummaryGroupTokens = ({
   return (
     <AnnotationSummaryTokens
       summaries={summariesWithTokens}
+      annotationTargetType="trace"
       annotationsByName={annotationsByName}
       annotationConfigsByName={annotationConfigsByName}
       showFilterActions={showFilterActions}
-      renderFilterActions={(annotation) => (
-        <TraceAnnotationTooltipFilterActions annotation={annotation} />
-      )}
+      renderFilterActions={renderFilterActions ?? defaultRenderFilterActions}
+    />
+  );
+};
+
+export const TraceAnnotationSummaryGroupToken = ({
+  trace,
+  annotationName,
+  annotationConfigsByName,
+  showFilterActions = false,
+  renderFilterActions,
+}: TraceAnnotationSummaryGroupTokenProps) => {
+  const { sortedSummariesByName, annotationsByName } =
+    useTraceAnnotationSummaryGroup(trace);
+  return (
+    <AnnotationSummaryValueToken
+      annotationName={annotationName}
+      annotationTargetType="trace"
+      sortedSummariesByName={sortedSummariesByName}
+      annotationsByName={annotationsByName}
+      annotationConfigsByName={annotationConfigsByName}
+      showFilterActions={showFilterActions}
+      renderFilterActions={renderFilterActions ?? defaultRenderFilterActions}
     />
   );
 };

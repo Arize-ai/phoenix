@@ -25,7 +25,7 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 import { FloatingToolbarContainer } from "@phoenix/components/core/toolbar/FloatingToolbarContainer";
-import { useNotifySuccess } from "@phoenix/contexts";
+import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import { AssignExamplesToSplitMenu } from "@phoenix/pages/examples/AssignExamplesToSplitMenu";
 import type { ExamplesCache } from "@phoenix/pages/examples/ExamplesFilterContext";
@@ -51,6 +51,7 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
   const refreshLatestVersion = useDatasetContext(
     (state) => state.refreshLatestVersion
   );
+  const notifyError = useNotifyError();
   const {
     selectedExamples,
     examplesCache,
@@ -90,8 +91,14 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
         onExamplesDeleted();
         onClearSelection();
         setIsDeleteConfirmationDialogOpen(false);
-        // Notify the dataset store to refresh the latest version
-        refreshLatestVersion();
+        // The examples are already deleted; a failed refresh only leaves the
+        // table on the previous version.
+        refreshLatestVersion().catch(() => {
+          notifyError({
+            title: "Examples deleted, but the table could not refresh",
+            message: "Reload the page to see the dataset without them.",
+          });
+        });
       },
       onError: (error) => {
         const formattedError = getErrorMessagesFromRelayMutationError(error);
@@ -108,6 +115,7 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
     onExamplesDeleted,
     onClearSelection,
     refreshLatestVersion,
+    notifyError,
   ]);
 
   const selectedExampleIds = selectedExamples.map((example) => example.id);

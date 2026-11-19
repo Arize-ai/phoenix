@@ -26,10 +26,20 @@ import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
 import type { Instrumentation } from "@opentelemetry/instrumentation";
 import { registerInstrumentations } from "@opentelemetry/instrumentation";
 import { resourceFromAttributes } from "@opentelemetry/resources";
-import type { SpanProcessor } from "@opentelemetry/sdk-trace-node";
-import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
+import type {
+  Sampler,
+  SpanLimits,
+  SpanProcessor,
+} from "@opentelemetry/sdk-trace";
+import { TracerProvider as SdkTracerProvider } from "@opentelemetry/sdk-trace";
 
 import { getEnvConfig, getEnvProjectName } from "./config";
+import {
+  IGNORED_BSP_ENV_VARS,
+  IGNORED_SAMPLER_ENV_VARS,
+  IGNORED_SPAN_LIMIT_ENV_VARS,
+  warnAboutIgnoredOtelEnvVars,
+} from "./ignoredOtelEnvVars";
 import { LazyOpenInferenceSpanProcessor } from "./lazyOpenInferenceSpanProcessor";
 
 /**
@@ -141,15 +151,43 @@ export type RegisterParams = {
    *
    * @example
    * ```typescript
-   * import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
+   * import { BatchSpanProcessor } from '@arizeai/phoenix-otel';
    *
    * const customProcessors = [
-   *   new BatchSpanProcessor(exporter),
+   *   new BatchSpanProcessor({ exporter }),
    *   new MyCustomSpanProcessor()
    * ];
    * ```
    */
   spanProcessors?: SpanProcessor[];
+
+  /**
+   * The sampler that decides which spans are recorded and exported.
+   *
+   * OpenTelemetry JS 3 does not read `OTEL_TRACES_SAMPLER` or
+   * `OTEL_TRACES_SAMPLER_ARG`, so set sampling here.
+   *
+   * @default ParentBasedSampler({ root: AlwaysOnSampler })
+   * @example
+   * ```typescript
+   * import { ParentBasedSampler, TraceIdRatioBasedSampler, register } from "@arizeai/phoenix-otel";
+   *
+   * register({
+   *   sampler: new ParentBasedSampler({ root: new TraceIdRatioBasedSampler(0.1) }),
+   * });
+   * ```
+   */
+  sampler?: Sampler;
+
+  /**
+   * Limits on span attributes, events and links.
+   *
+   * OpenTelemetry JS 3 does not read the `OTEL_SPAN_*` or `OTEL_ATTRIBUTE_*`
+   * limit variables, so set limits here.
+   *
+   * @example { attributeValueLengthLimit: 4096, attributeCountLimit: 256 }
+   */
+  spanLimits?: SpanLimits;
 
   /**
    * Whether to register the tracer provider as the global provider.
@@ -200,7 +238,7 @@ type OpenTelemetryGlobalState = {
 
 type GlobalTracerProviderMount = {
   id: number;
-  provider: NodeTracerProvider;
+  provider: TracerProvider;
 };
 
 let nextGlobalTracerProviderMountId = 0;
@@ -259,13 +297,12 @@ function restoreGlobalTelemetrySnapshot(
  * Sets the given provider as the global OpenTelemetry provider using this
  * module's own imports of `trace`, `context`, and `propagation`.
  *
- * We deliberately avoid calling `provider.register()` because the SDK's
- * internal import of `@opentelemetry/api` may resolve to a different module
- * instance in pnpm workspaces (different symlink paths → different module
- * identity). By routing all global-state mutations through **our** copy of
+ * The SDK's internal import of `@opentelemetry/api` may resolve to a
+ * different module instance in pnpm workspaces (different symlink paths →
+ * different module identity). By routing all global-state mutations through **our** copy of
  * the OTEL API, snapshot/restore stays consistent.
  */
-function setGlobalProvider(provider: NodeTracerProvider): void {
+function setGlobalProvider(provider: TracerProvider): void {
   trace.setGlobalTracerProvider(provider);
 
   const contextManager = new AsyncLocalStorageContextManager();
@@ -341,7 +378,7 @@ export function detachGlobalTracerProvider(): void {
  * be attached in the same process.
  */
 export function attachGlobalTracerProvider(
-  provider: NodeTracerProvider
+  provider: TracerProvider
 ): GlobalTracerProviderRegistration {
   if (managedGlobalTracerProviderMounts.length === 0) {
     managedGlobalBaseSnapshot = getGlobalTelemetrySnapshot();
@@ -367,7 +404,7 @@ function bindGlobalTracerProviderRegistrationToShutdown({
   provider,
   registration,
 }: {
-  provider: NodeTracerProvider;
+  provider: SdkTracerProvider;
   registration: GlobalTracerProviderRegistration;
 }): void {
   const shutdown = provider.shutdown.bind(provider);
@@ -384,14 +421,43 @@ function bindGlobalTracerProviderRegistrationToShutdown({
 }
 
 /**
+ * Warns once per variable about `OTEL_*` variables that OpenTelemetry JS 2.x
+ * applied to this call's provider and JS 3 ignores. A variable is skipped
+ * when the call configures the same setting in code.
+ */
+function warnAboutIgnoredOtelEnvVarsForRegister(params: RegisterParams): void {
+  if (params.sampler === undefined) {
+    warnAboutIgnoredOtelEnvVars(
+      IGNORED_SAMPLER_ENV_VARS,
+      "the `sampler` option of register()"
+    );
+  }
+  warnAboutIgnoredOtelEnvVars(
+    IGNORED_SPAN_LIMIT_ENV_VARS.filter(
+      ([, field]) => params.spanLimits?.[field] === undefined
+    ).map(([key]) => key),
+    "the `spanLimits` option of register()"
+  );
+  // Custom span processors are covered by the BatchSpanProcessor subclass,
+  // which knows which batch options were left out. The default simple
+  // processor (batch: false) never read OTEL_BSP_*.
+  if (params.spanProcessors === undefined && params.batch !== false) {
+    warnAboutIgnoredOtelEnvVars(
+      IGNORED_BSP_ENV_VARS.map(([key]) => key),
+      "a `BatchSpanProcessor` with options in the `spanProcessors` option of register()"
+    );
+  }
+}
+
+/**
  * Registers Phoenix OpenTelemetry tracing with the specified configuration.
  *
  * This function sets up a complete OpenTelemetry tracing pipeline configured
- * to send traces to a Phoenix instance. It creates a NodeTracerProvider with
+ * to send traces to a Phoenix instance. It creates an OpenTelemetry tracer provider with
  * appropriate span processors, resource attributes, and optional instrumentations.
  *
  * The function handles:
- * - Creating and configuring a NodeTracerProvider
+ * - Creating and configuring an OpenTelemetry tracer provider
  * - Setting up OTLP trace export to Phoenix
  * - Configuring span processors (batch or simple)
  * - Registering instrumentations (if provided)
@@ -399,7 +465,7 @@ function bindGlobalTracerProviderRegistrationToShutdown({
  * - Optional global provider registration
  *
  * @param params - Configuration parameters for Phoenix tracing
- * @returns The configured NodeTracerProvider instance that can be used to create traces
+ * @returns The configured tracer provider instance that can be used to create traces
  *
  * @example
  * Basic usage with minimal configuration:
@@ -436,18 +502,20 @@ function bindGlobalTracerProviderRegistrationToShutdown({
  * @example
  * Custom span processors:
  * ```typescript
- * import { register } from '@arizeai/phoenix-otel';
- * import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
- * import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
+ * import {
+ *   BatchSpanProcessor,
+ *   OTLPTraceExporter,
+ *   register,
+ * } from '@arizeai/phoenix-otel';
  *
  * const exporter = new OTLPTraceExporter({
- *   url: 'https://app.phoenix.arize.com/v1/traces',
+ *   url: 'https://phoenix.example.com/v1/traces',
  *   headers: { 'Authorization': 'Bearer your-api-key' }
  * });
  *
  * const provider = register({
  *   projectName: 'my-app',
- *   spanProcessors: [new BatchSpanProcessor(exporter)],
+ *   spanProcessors: [new BatchSpanProcessor({ exporter })],
  *   global: false // Manual provider management
  * });
  * ```
@@ -465,23 +533,29 @@ function bindGlobalTracerProviderRegistrationToShutdown({
  * });
  * ```
  */
-export function register(params: RegisterParams): NodeTracerProvider {
+export function register(params: RegisterParams): SdkTracerProvider {
   const {
     projectName = getEnvProjectName() ?? "default",
     instrumentations,
     global = true,
     diagLogLevel,
     spanProcessors,
+    sampler,
+    spanLimits,
   } = params;
 
   if (diagLogLevel) {
     diag.setLogger(new DiagConsoleLogger(), diagLogLevel);
   }
 
-  const provider = new NodeTracerProvider({
+  warnAboutIgnoredOtelEnvVarsForRegister(params);
+
+  const provider = new SdkTracerProvider({
     resource: resourceFromAttributes({
       [SEMRESATTRS_PROJECT_NAME]: projectName,
     }),
+    sampler,
+    spanLimits,
     spanProcessors: spanProcessors || [getDefaultSpanProcessor(params)],
   });
 
@@ -518,7 +592,7 @@ export function register(params: RegisterParams): NodeTracerProvider {
  * @param params.apiKey - The API key for authenticating with the Phoenix instance
  * @param params.headers - Additional headers to include in OTLP requests
  * @param params.batch - Whether to use batching for span processing (recommended for production)
- * @returns A configured SpanProcessor instance ready for use with a NodeTracerProvider
+ * @returns A configured SpanProcessor instance ready for use with an OpenTelemetry tracer provider
  *
  * @example
  * Basic usage with environment variables:
@@ -611,6 +685,68 @@ export function resetTraceExportSourceLogForTesting(): void {
   loggedTraceExportSources.clear();
 }
 
+type EnvironmentConfig = ReturnType<typeof getEnvConfig>;
+
+function resolveSpanProcessorUrl({
+  paramsUrl,
+  envConfig,
+}: {
+  paramsUrl: string | undefined;
+  envConfig: EnvironmentConfig;
+}): { url: string; usesEnvEndpoint: boolean } {
+  const usesEnvEndpoint = !paramsUrl && envConfig.endpoint.value !== undefined;
+  try {
+    const url = paramsUrl
+      ? ensureCollectorEndpoint(paramsUrl)
+      : toTraceExportUrl(envConfig.endpoint);
+    return { url, usesEnvEndpoint };
+  } catch (error) {
+    if (!usesEnvEndpoint || envConfig.endpoint.source?.kind !== "env-file") {
+      throw error;
+    }
+    // eslint-disable-next-line no-console
+    console.warn(
+      `Ignoring invalid ${envConfig.endpoint.envKey} value from ${envConfig.endpoint.source.filePath}: ${error instanceof Error ? error.message : "invalid URL"}.`
+    );
+    return {
+      url: ensureCollectorEndpoint(DEFAULT_TRACE_EXPORT_URL),
+      usesEnvEndpoint,
+    };
+  }
+}
+
+function mergeHeaders({
+  inheritedHeaders,
+  paramsHeaders,
+  paramsApiKey,
+}: {
+  inheritedHeaders: Headers;
+  paramsHeaders: RegisterParams["headers"];
+  paramsApiKey: string | undefined;
+}): Headers {
+  const explicitHeaders: Headers = Array.isArray(paramsHeaders)
+    ? Object.fromEntries(paramsHeaders)
+    : { ...paramsHeaders };
+  const headers = { ...inheritedHeaders };
+  for (const [key, value] of Object.entries(explicitHeaders)) {
+    const existingKey = Object.keys(headers).find(
+      (header) => header.toLowerCase() === key.toLowerCase()
+    );
+    if (existingKey) delete headers[existingKey];
+    headers[key] = value;
+  }
+
+  const hasExplicitAuthorization = Object.keys(explicitHeaders).some(
+    (key) => key.toLowerCase() === "authorization"
+  );
+  if (typeof paramsApiKey === "string" && !hasExplicitAuthorization) {
+    for (const key of Object.keys(headers)) {
+      if (key.toLowerCase() === "authorization") delete headers[key];
+    }
+  }
+  return headers;
+}
+
 export function getDefaultSpanProcessor({
   url: paramsUrl,
   apiKey: paramsApiKey,
@@ -621,52 +757,21 @@ export function getDefaultSpanProcessor({
   "url" | "apiKey" | "batch" | "headers"
 >): SpanProcessor {
   const envConfig = getEnvConfig();
-  const usesEnvEndpoint = !paramsUrl && envConfig.endpoint.value !== undefined;
-  let url: string;
-  try {
-    url = paramsUrl
-      ? ensureCollectorEndpoint(paramsUrl)
-      : toTraceExportUrl(envConfig.endpoint);
-  } catch (error) {
-    if (usesEnvEndpoint && envConfig.endpoint.source?.kind === "env-file") {
-      // eslint-disable-next-line no-console
-      console.warn(
-        `Ignoring invalid ${envConfig.endpoint.envKey} value from ${envConfig.endpoint.source.filePath}: ${error instanceof Error ? error.message : "invalid URL"}.`
-      );
-      url = ensureCollectorEndpoint(DEFAULT_TRACE_EXPORT_URL);
-    } else {
-      throw error;
-    }
-  }
+  const { url, usesEnvEndpoint } = resolveSpanProcessorUrl({
+    paramsUrl,
+    envConfig,
+  });
   if (usesEnvEndpoint && envConfig.endpoint.rank !== "canonical") {
     logTraceExportSource({ envKey: envConfig.endpoint.envKey, url });
   }
   const apiKey = paramsApiKey || envConfig.credentials.apiKey;
-  const explicitHeaders: Headers = Array.isArray(paramsHeaders)
-    ? Object.fromEntries(paramsHeaders)
-    : { ...paramsHeaders };
-  const headers: Headers = { ...envConfig.credentials.headers };
-  for (const [key, value] of Object.entries(explicitHeaders)) {
-    const existingKey = Object.keys(headers).find(
-      (header) => header.toLowerCase() === key.toLowerCase()
-    );
-    if (existingKey) {
-      delete headers[existingKey];
-    }
-    headers[key] = value;
-  }
-  const hasExplicitAuthorization = Object.keys(explicitHeaders).some(
-    (key) => key.toLowerCase() === "authorization"
-  );
-  if (typeof paramsApiKey === "string" && !hasExplicitAuthorization) {
-    for (const key of Object.keys(headers)) {
-      if (key.toLowerCase() === "authorization") {
-        delete headers[key];
-      }
-    }
-  }
+  const headers = mergeHeaders({
+    inheritedHeaders: envConfig.credentials.headers ?? {},
+    paramsHeaders,
+    paramsApiKey,
+  });
   const hasExplicitCredentials =
-    typeof paramsApiKey === "string" || Object.keys(explicitHeaders).length > 0;
+    typeof paramsApiKey === "string" || Object.keys(paramsHeaders).length > 0;
   const credentialSource = hasExplicitCredentials
     ? "explicit arguments"
     : envConfig.credentials.source?.kind === "process"

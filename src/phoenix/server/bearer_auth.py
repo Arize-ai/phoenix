@@ -1,5 +1,7 @@
 from abc import ABC
-from collections.abc import Awaitable, Callable, Collection
+from collections.abc import Awaitable, Callable, Collection, Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
 from functools import cached_property
 from typing import Any, Optional, cast
@@ -39,6 +41,32 @@ from phoenix.server.types import (
 #: headers but never its scope keys — so the presence of this key proves the
 #: request was constructed inside this process.
 INTERNAL_PRINCIPAL_SCOPE_KEY = "phoenix.internal.principal"
+
+#: Principal for in-process dispatch, which has no HTTP request to read one from.
+_BOUND_PRINCIPAL: ContextVar[Optional["PhoenixUser"]] = ContextVar(
+    "phoenix_bound_principal", default=None
+)
+
+
+@contextmanager
+def bind_principal(principal: Optional["PhoenixUser"]) -> Iterator[None]:
+    """Run the enclosed block as ``principal`` for in-process dispatch.
+
+    Enter before opening the connection that carries the calls. A context
+    variable is captured when the serving task is created, and transports differ
+    in whether that is at connect time or per call; binding before connect is
+    visible to the tool either way.
+    """
+    token = _BOUND_PRINCIPAL.set(principal)
+    try:
+        yield
+    finally:
+        _BOUND_PRINCIPAL.reset(token)
+
+
+def get_bound_principal() -> Optional["PhoenixUser"]:
+    """The principal bound by :func:`bind_principal`, if any."""
+    return _BOUND_PRINCIPAL.get()
 
 
 class HasTokenStore(ABC):

@@ -5,7 +5,7 @@ export type AnnotationDeleteTarget = "trace" | "span" | "session";
 export interface AnnotationDeleteFilter {
   identifier?: string;
   name?: string;
-  annotator_kind?: "HUMAN" | "LLM" | "CODE";
+  annotator_kind?: "HUMAN" | "LLM" | "CODE" | "DECISION" | "AGENT";
   start_time?: string;
   end_time?: string;
   all?: boolean;
@@ -15,6 +15,33 @@ export interface AnnotationDeleteResult {
   deleted: true;
   target: AnnotationDeleteTarget;
   filter: AnnotationDeleteFilter;
+}
+
+interface BuildAnnotationDeleteFilterOptions {
+  identifier?: string;
+  name?: string;
+  annotatorKind?: "HUMAN" | "LLM" | "CODE" | "DECISION" | "AGENT";
+  startTime?: string;
+  endTime?: string;
+  all?: boolean;
+}
+
+export function buildAnnotationDeleteFilter({
+  identifier,
+  name,
+  annotatorKind,
+  startTime,
+  endTime,
+  all,
+}: BuildAnnotationDeleteFilterOptions): AnnotationDeleteFilter {
+  return {
+    ...(identifier !== undefined && { identifier }),
+    ...(name !== undefined && { name }),
+    ...(annotatorKind !== undefined && { annotator_kind: annotatorKind }),
+    ...(startTime !== undefined && { start_time: startTime }),
+    ...(endTime !== undefined && { end_time: endTime }),
+    ...(all === true && { all: true }),
+  };
 }
 
 export interface FormatAnnotationDeleteOutputOptions {

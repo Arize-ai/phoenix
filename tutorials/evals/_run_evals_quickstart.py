@@ -15,12 +15,12 @@ from urllib.request import urlopen
 
 from phoenix.client import AsyncClient, Client
 from phoenix.client.helpers.spans import get_input_output_context, get_retrieved_documents
-from phoenix.evals import async_evaluate_dataframe
+from phoenix.evals import async_evaluate_dataframe, bind_evaluator
 from phoenix.evals.llm import LLM
 from phoenix.evals.metrics import (  # type: ignore[attr-defined]
     CorrectnessEvaluator,
-    DocumentRelevanceEvaluator,
     FaithfulnessEvaluator,
+    RetrievalRelevanceEvaluator,
 )
 from phoenix.evals.utils import to_annotation_dataframe
 
@@ -51,7 +51,7 @@ print(f"Queries shape: {queries_df.shape}")  # type: ignore[union-attr]
 print("=== Cell 9: Instantiating eval model ===")
 
 api_key = None  # uses OPENAI_API_KEY env var
-eval_model = LLM(provider="openai", model="gpt-4o-mini", api_key=api_key)
+eval_model = LLM(provider="openai", model="gpt-6-luna", api_key=api_key)
 print("Eval model created")
 
 # ── Cell 11: Define evaluators ──
@@ -59,7 +59,10 @@ print("=== Cell 11: Defining evaluators ===")
 
 faithfulness_evaluator = FaithfulnessEvaluator(eval_model)
 qa_correctness_evaluator = CorrectnessEvaluator(eval_model)
-relevance_evaluator = DocumentRelevanceEvaluator(eval_model)
+relevance_evaluator = bind_evaluator(
+    evaluator=RetrievalRelevanceEvaluator(eval_model),
+    input_mapping={"context": "document"},
+)
 print("Evaluators created")
 
 # ── Cell 13: Run evaluations ──

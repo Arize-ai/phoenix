@@ -711,6 +711,31 @@ class TestCreateEvaluatorDecorator:
         assert score.label == "excellent"
         assert score.explanation == "This is a detailed explanation"
 
+    def test_create_evaluator_with_dictionary_return_preserves_metadata(self):
+        """Dictionary results keep their metadata, like a returned Score does."""
+        metadata = {"probabilities": {"correct": 0, "incorrect": 1}}
+
+        @create_evaluator(name="dict_evaluator", kind="code")
+        def test_func(input_text: str) -> dict:
+            return {"score": 0, "label": "incorrect", "metadata": metadata}
+
+        score = test_func.evaluate({"input_text": "test"})[0]
+
+        assert score.metadata["probabilities"] == metadata["probabilities"]
+
+    @pytest.mark.asyncio
+    async def test_async_create_evaluator_with_dictionary_return_preserves_metadata(self):
+        """Async evaluators keep the metadata of dictionary results too."""
+        metadata = {"probabilities": {"correct": 0, "incorrect": 1}}
+
+        @create_evaluator(name="dict_evaluator", kind="code")
+        async def test_func(input_text: str) -> dict:
+            return {"score": 0, "label": "incorrect", "metadata": metadata}
+
+        score = (await test_func.async_evaluate({"input_text": "test"}))[0]
+
+        assert score.metadata["probabilities"] == metadata["probabilities"]
+
     def test_create_evaluator_with_tuple_return(self):
         """Test create_evaluator with tuple return."""
 

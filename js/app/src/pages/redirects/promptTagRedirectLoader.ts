@@ -3,9 +3,11 @@ import type { LoaderFunctionArgs } from "react-router";
 import { redirect } from "react-router";
 import invariant from "tiny-invariant";
 
+import { ServerResponseError } from "@phoenix/components/exception/serverConnectionError";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
 import type { promptTagRedirectLoaderQuery } from "./__generated__/promptTagRedirectLoaderQuery.graphql";
+import { notFound } from "./notFound";
 
 /**
  * Loads a prompt version by tag name and redirects to the prompt version details page
@@ -39,14 +41,26 @@ export async function promptTagRedirectLoader(args: LoaderFunctionArgs) {
     }
   )
     .toPromise()
-    .catch(() => {
-      throw new Error("Prompt version not found");
+    .catch((error: unknown) => {
+      // A tagged response means Phoenix's GraphQL endpoint did not answer, so
+      // it cannot establish whether the prompt or tag exists.
+      if (
+        error instanceof Error &&
+        (error.message === "Failed to fetch" ||
+          error instanceof ServerResponseError)
+      ) {
+        throw error;
+      }
+      return null;
     });
 
-  invariant(
-    response?.prompt && response.prompt.__typename === "Prompt",
-    "Prompt not found"
-  );
+  if (!response?.prompt || response.prompt.__typename !== "Prompt") {
+    throw notFound({
+      kind: "entity",
+      entityType: "prompt version",
+      identifier: tagName,
+    });
+  }
 
   return redirect(
     `/prompts/${promptId}/versions/${response.prompt.version.id}`

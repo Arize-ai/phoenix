@@ -21,10 +21,12 @@ pip install openinference-instrumentation-claude-agent-sdk claude-agent-sdk ariz
 Use the `register` function to connect your application to Phoenix:
 
 ```python
+import os
+
 from phoenix.otel import register
 
 tracer_provider = register(
-  project_name="claude-agent-sdk",
+  project_name=os.environ.get("PHOENIX_PROJECT_NAME", "claude-agent-sdk"),
   auto_instrument=True,
 )
 ```

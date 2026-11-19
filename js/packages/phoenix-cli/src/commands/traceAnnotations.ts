@@ -11,8 +11,8 @@ import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import { writeStructuredError } from "../structuredError";
 import {
+  buildAnnotationDeleteFilter,
   formatAnnotationDeleteOutput,
-  type AnnotationDeleteFilter,
 } from "./formatAnnotationDelete";
 import type { AnnotationsDeleteOptions } from "./options";
 
@@ -69,7 +69,13 @@ async function traceAnnotationsDeleteHandler(
     process.exit(ExitCode.INVALID_ARGUMENT);
   }
 
-  let annotatorKind: "HUMAN" | "LLM" | "CODE" | undefined;
+  let annotatorKind:
+    | "HUMAN"
+    | "LLM"
+    | "CODE"
+    | "DECISION"
+    | "AGENT"
+    | undefined;
   try {
     annotatorKind = normalizeAnnotatorKind(options.annotatorKind);
   } catch (error) {
@@ -119,16 +125,14 @@ async function traceAnnotationsDeleteHandler(
       throw new Error(`Failed to delete trace annotations: ${response.error}`);
     }
 
-    const filter: AnnotationDeleteFilter = {
-      ...(options.identifier !== undefined && {
-        identifier: options.identifier,
-      }),
-      ...(options.name !== undefined && { name: options.name }),
-      ...(annotatorKind !== undefined && { annotator_kind: annotatorKind }),
-      ...(options.startTime !== undefined && { start_time: options.startTime }),
-      ...(options.endTime !== undefined && { end_time: options.endTime }),
-      ...(options.all === true && { all: true }),
-    };
+    const filter = buildAnnotationDeleteFilter({
+      identifier: options.identifier,
+      name: options.name,
+      annotatorKind,
+      startTime: options.startTime,
+      endTime: options.endTime,
+      all: options.all,
+    });
 
     writeOutput({
       message: formatAnnotationDeleteOutput({
@@ -146,14 +150,20 @@ async function traceAnnotationsDeleteHandler(
 
 function normalizeAnnotatorKind(
   raw: string | undefined
-): "HUMAN" | "LLM" | "CODE" | undefined {
+): "HUMAN" | "LLM" | "CODE" | "DECISION" | "AGENT" | undefined {
   if (raw === undefined) return undefined;
   const value = raw.toUpperCase();
-  if (value === "HUMAN" || value === "LLM" || value === "CODE") {
+  if (
+    value === "HUMAN" ||
+    value === "LLM" ||
+    value === "CODE" ||
+    value === "DECISION" ||
+    value === "AGENT"
+  ) {
     return value;
   }
   throw new Error(
-    `Invalid --annotator-kind: ${raw}. Expected one of HUMAN, LLM, CODE.`
+    `Invalid --annotator-kind: ${raw}. Expected one of HUMAN, LLM, CODE, DECISION, AGENT.`
   );
 }
 
@@ -188,7 +198,7 @@ export function createTraceAnnotationsDeleteCommand(): Command {
     )
     .option(
       "--annotator-kind <kind>",
-      "Narrowing filter — annotator kind (HUMAN, LLM, or CODE)"
+      "Narrowing filter — annotator kind (HUMAN, LLM, CODE, DECISION, or AGENT)"
     )
     .option(
       "--start-time <iso>",

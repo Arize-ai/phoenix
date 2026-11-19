@@ -19,6 +19,7 @@ installTestStorage();
 let agentStore: AgentStore | null = null;
 
 function AgentStoreCapture() {
+  // eslint-disable-next-line react/globals
   agentStore = useAgentStore();
   return null;
 }
@@ -146,6 +147,9 @@ describe("AgentChatWidget", () => {
                 forceTracing: false,
                 webAccessEnabled: false,
                 assistantEnabled: true,
+                githubServerEnabled: false,
+                githubEnabled: false,
+                githubWorkspaceTokenConfigured: false,
                 allowLocalTraces: true,
                 allowRemoteExport: false,
                 sessionRetentionMaxIdleDays: 30,
@@ -340,6 +344,9 @@ describe("AgentChatWidget", () => {
                 forceTracing: false,
                 webAccessEnabled: false,
                 assistantEnabled: true,
+                githubServerEnabled: false,
+                githubEnabled: false,
+                githubWorkspaceTokenConfigured: false,
                 allowLocalTraces: true,
                 allowRemoteExport: false,
                 sessionRetentionMaxIdleDays: 30,

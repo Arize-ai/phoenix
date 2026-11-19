@@ -305,6 +305,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     if (!runInProgress) {
       return undefined;
     }
+    // eslint-disable-next-line react/set-state-in-effect
     setApiError(null);
     const input = getChatCompletionInput({
       playgroundStore,

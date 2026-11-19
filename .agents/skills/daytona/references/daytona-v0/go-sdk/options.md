@@ -1,0 +1,1348 @@
+
+
+# options
+
+
+## Contents
+
+- Index
+- func Apply
+- func WithAllowEmpty
+- func WithAuthHost
+- func WithAuthProtocol
+- func WithBare
+- func WithBranch
+- func WithCloneDepth
+- func WithCodeRunLanguage
+- func WithCodeRunParams
+- func WithCodeRunTimeout
+- func WithCommandEnv
+- func WithCommitId
+- func WithConfigPath
+- func WithConfigScope
+- func WithCreatePtyEnv
+- func WithCreatePtySize
+- func WithCustomContext
+- func WithCwd
+- func WithDepth
+- func WithEnv
+- func WithExecuteTimeout
+- func WithExtraIndexURLs
+- func WithExtraOptions
+- func WithFindLinks
+- func WithForce
+- func WithGroup
+- func WithIndexURL
+- func WithInitialBranch
+- func WithInsecureSkipTLS
+- func WithInterpreterTimeout
+- func WithLogChannel
+- func WithMode
+- func WithOwner
+- func WithPassword
+- func WithPermissionMode
+- func WithPre
+- func WithPtyEnv
+- func WithPtySize
+- func WithPullBranch
+- func WithPullPassword
+- func WithPullRemote
+- func WithPullUsername
+- func WithPushBranch
+- func WithPushPassword
+- func WithPushRemote
+- func WithPushUsername
+- func WithRemoteFetch
+- func WithRemoteOverwrite
+- func WithResetFiles
+- func WithResetMode
+- func WithResetTarget
+- func WithRestoreSource
+- func WithRestoreStaged
+- func WithRestoreWorktree
+- func WithSetUpstream
+- func WithTimeout
+- func WithUsername
+- func WithWaitForStart
+- type CodeRun
+- type CreateFolder
+- type CreatePty
+- type CreateSandbox
+- type ExecuteCommand
+- type GitAuthenticate
+- type GitClone
+- type GitCommit
+- type GitConfig
+- type GitDeleteBranch
+- type GitInit
+- type GitPull
+- type GitPush
+- type GitRemoteAdd
+- type GitReset
+- type GitRestore
+- type ListFiles
+- type PipInstall
+- type PtySession
+- type RunCode
+- type SetFilePermissions
+
+```go
+import "github.com/daytona/clients/sdk-go/pkg/options"
+```
+
+Package options provides functional option types for configuring SDK operations.
+
+This package uses the functional options pattern to provide a clean, extensible API for configuring optional parameters. Each option function returns a closure that modifies the corresponding options struct.
+
+### Usage
+
+Options are passed as variadic arguments to SDK methods:
+
+```
+err := sandbox.Git.Clone(ctx, url, path,
+    options.WithBranch("develop"),
+    options.WithUsername("user"),
+    options.WithPassword("token"),
+)
+```
+
+### Generic Apply Function
+
+The [Apply](https://www.daytona.io/docs/en<#Apply>) function creates a new options struct and applies all provided option functions to it:
+
+```
+opts := options.Apply(
+    options.WithBranch("main"),
+    options.WithUsername("user"),
+)
+// opts.Branch == "main", opts.Username == "user"
+```
+
+## Index
+
+- [func Apply\[T any\]\(opts ...func\(\*T\)\) \*T](<#Apply>)
+- [func WithAllowEmpty\(allowEmpty bool\) func\(\*GitCommit\)](https://www.daytona.io/docs/en<#WithAllowEmpty>)
+- [func WithAuthHost\(host string\) func\(\*GitAuthenticate\)](https://www.daytona.io/docs/en<#WithAuthHost>)
+- [func WithAuthProtocol\(protocol string\) func\(\*GitAuthenticate\)](https://www.daytona.io/docs/en<#WithAuthProtocol>)
+- [func WithBare\(bare bool\) func\(\*GitInit\)](https://www.daytona.io/docs/en<#WithBare>)
+- [func WithBranch\(branch string\) func\(\*GitClone\)](https://www.daytona.io/docs/en<#WithBranch>)
+- [func WithCloneDepth\(depth int32\) func\(\*GitClone\)](https://www.daytona.io/docs/en<#WithCloneDepth>)
+- [func WithCodeRunLanguage\(language types.CodeLanguage\) func\(\*CodeRun\)](https://www.daytona.io/docs/en<#WithCodeRunLanguage>)
+- [func WithCodeRunParams\(params types.CodeRunParams\) func\(\*CodeRun\)](https://www.daytona.io/docs/en<#WithCodeRunParams>)
+- [func WithCodeRunTimeout\(timeout time.Duration\) func\(\*CodeRun\)](https://www.daytona.io/docs/en<#WithCodeRunTimeout>)
+- [func WithCommandEnv\(env map\[string\]string\) func\(\*ExecuteCommand\)](<#WithCommandEnv>)
+- [func WithCommitId\(commitID string\) func\(\*GitClone\)](https://www.daytona.io/docs/en<#WithCommitId>)
+- [func WithConfigPath\(path string\) func\(\*GitConfig\)](https://www.daytona.io/docs/en<#WithConfigPath>)
+- [func WithConfigScope\(scope string\) func\(\*GitConfig\)](https://www.daytona.io/docs/en<#WithConfigScope>)
+- [func WithCreatePtyEnv\(env map\[string\]string\) func\(\*CreatePty\)](<#WithCreatePtyEnv>)
+- [func WithCreatePtySize\(ptySize types.PtySize\) func\(\*CreatePty\)](https://www.daytona.io/docs/en<#WithCreatePtySize>)
+- [func WithCustomContext\(contextID string\) func\(\*RunCode\)](https://www.daytona.io/docs/en<#WithCustomContext>)
+- [func WithCwd\(cwd string\) func\(\*ExecuteCommand\)](https://www.daytona.io/docs/en<#WithCwd>)
+- [func WithDepth\(depth int32\) func\(\*ListFiles\)](https://www.daytona.io/docs/en<#WithDepth>)
+- [func WithEnv\(env map\[string\]string\) func\(\*RunCode\)](<#WithEnv>)
+- [func WithExecuteTimeout\(timeout time.Duration\) func\(\*ExecuteCommand\)](https://www.daytona.io/docs/en<#WithExecuteTimeout>)
+- [func WithExtraIndexURLs\(urls ...string\) func\(\*PipInstall\)](https://www.daytona.io/docs/en<#WithExtraIndexURLs>)
+- [func WithExtraOptions\(options string\) func\(\*PipInstall\)](https://www.daytona.io/docs/en<#WithExtraOptions>)
+- [func WithFindLinks\(links ...string\) func\(\*PipInstall\)](https://www.daytona.io/docs/en<#WithFindLinks>)
+- [func WithForce\(force bool\) func\(\*GitDeleteBranch\)](https://www.daytona.io/docs/en<#WithForce>)
+- [func WithGroup\(group string\) func\(\*SetFilePermissions\)](https://www.daytona.io/docs/en<#WithGroup>)
+- [func WithIndexURL\(url string\) func\(\*PipInstall\)](https://www.daytona.io/docs/en<#WithIndexURL>)
+- [func WithInitialBranch\(initialBranch string\) func\(\*GitInit\)](https://www.daytona.io/docs/en<#WithInitialBranch>)
+- [func WithInsecureSkipTLS\(insecureSkipTLS bool\) func\(\*GitClone\)](https://www.daytona.io/docs/en<#WithInsecureSkipTLS>)
+- [func WithInterpreterTimeout\(timeout time.Duration\) func\(\*RunCode\)](https://www.daytona.io/docs/en<#WithInterpreterTimeout>)
+- [func WithLogChannel\(logChannel chan string\) func\(\*CreateSandbox\)](https://www.daytona.io/docs/en<#WithLogChannel>)
+- [func WithMode\(mode string\) func\(\*CreateFolder\)](https://www.daytona.io/docs/en<#WithMode>)
+- [func WithOwner\(owner string\) func\(\*SetFilePermissions\)](https://www.daytona.io/docs/en<#WithOwner>)
+- [func WithPassword\(password string\) func\(\*GitClone\)](https://www.daytona.io/docs/en<#WithPassword>)
+- [func WithPermissionMode\(mode string\) func\(\*SetFilePermissions\)](https://www.daytona.io/docs/en<#WithPermissionMode>)
+- [func WithPre\(\) func\(\*PipInstall\)](https://www.daytona.io/docs/en<#WithPre>)
+- [func WithPtyEnv\(env map\[string\]string\) func\(\*PtySession\)](<#WithPtyEnv>)
+- [func WithPtySize\(size types.PtySize\) func\(\*PtySession\)](https://www.daytona.io/docs/en<#WithPtySize>)
+- [func WithPullBranch\(branch string\) func\(\*GitPull\)](https://www.daytona.io/docs/en<#WithPullBranch>)
+- [func WithPullPassword\(password string\) func\(\*GitPull\)](https://www.daytona.io/docs/en<#WithPullPassword>)
+- [func WithPullRemote\(remote string\) func\(\*GitPull\)](https://www.daytona.io/docs/en<#WithPullRemote>)
+- [func WithPullUsername\(username string\) func\(\*GitPull\)](https://www.daytona.io/docs/en<#WithPullUsername>)
+- [func WithPushBranch\(branch string\) func\(\*GitPush\)](https://www.daytona.io/docs/en<#WithPushBranch>)
+- [func WithPushPassword\(password string\) func\(\*GitPush\)](https://www.daytona.io/docs/en<#WithPushPassword>)
+- [func WithPushRemote\(remote string\) func\(\*GitPush\)](https://www.daytona.io/docs/en<#WithPushRemote>)
+- [func WithPushUsername\(username string\) func\(\*GitPush\)](https://www.daytona.io/docs/en<#WithPushUsername>)
+- [func WithRemoteFetch\(fetch bool\) func\(\*GitRemoteAdd\)](https://www.daytona.io/docs/en<#WithRemoteFetch>)
+- [func WithRemoteOverwrite\(overwrite bool\) func\(\*GitRemoteAdd\)](https://www.daytona.io/docs/en<#WithRemoteOverwrite>)
+- [func WithResetFiles\(files \[\]string\) func\(\*GitReset\)](<#WithResetFiles>)
+- [func WithResetMode\(mode string\) func\(\*GitReset\)](https://www.daytona.io/docs/en<#WithResetMode>)
+- [func WithResetTarget\(target string\) func\(\*GitReset\)](https://www.daytona.io/docs/en<#WithResetTarget>)
+- [func WithRestoreSource\(source string\) func\(\*GitRestore\)](https://www.daytona.io/docs/en<#WithRestoreSource>)
+- [func WithRestoreStaged\(staged bool\) func\(\*GitRestore\)](https://www.daytona.io/docs/en<#WithRestoreStaged>)
+- [func WithRestoreWorktree\(worktree bool\) func\(\*GitRestore\)](https://www.daytona.io/docs/en<#WithRestoreWorktree>)
+- [func WithSetUpstream\(setUpstream bool\) func\(\*GitPush\)](https://www.daytona.io/docs/en<#WithSetUpstream>)
+- [func WithTimeout\(timeout time.Duration\) func\(\*CreateSandbox\)](https://www.daytona.io/docs/en<#WithTimeout>)
+- [func WithUsername\(username string\) func\(\*GitClone\)](https://www.daytona.io/docs/en<#WithUsername>)
+- [func WithWaitForStart\(waitForStart bool\) func\(\*CreateSandbox\)](https://www.daytona.io/docs/en<#WithWaitForStart>)
+- [type CodeRun](https://www.daytona.io/docs/en<#CodeRun>)
+- [type CreateFolder](https://www.daytona.io/docs/en<#CreateFolder>)
+- [type CreatePty](https://www.daytona.io/docs/en<#CreatePty>)
+- [type CreateSandbox](https://www.daytona.io/docs/en<#CreateSandbox>)
+- [type ExecuteCommand](https://www.daytona.io/docs/en<#ExecuteCommand>)
+- [type GitAuthenticate](https://www.daytona.io/docs/en<#GitAuthenticate>)
+- [type GitClone](https://www.daytona.io/docs/en<#GitClone>)
+- [type GitCommit](https://www.daytona.io/docs/en<#GitCommit>)
+- [type GitConfig](https://www.daytona.io/docs/en<#GitConfig>)
+- [type GitDeleteBranch](https://www.daytona.io/docs/en<#GitDeleteBranch>)
+- [type GitInit](https://www.daytona.io/docs/en<#GitInit>)
+- [type GitPull](https://www.daytona.io/docs/en<#GitPull>)
+- [type GitPush](https://www.daytona.io/docs/en<#GitPush>)
+- [type GitRemoteAdd](https://www.daytona.io/docs/en<#GitRemoteAdd>)
+- [type GitReset](https://www.daytona.io/docs/en<#GitReset>)
+- [type GitRestore](https://www.daytona.io/docs/en<#GitRestore>)
+- [type ListFiles](https://www.daytona.io/docs/en<#ListFiles>)
+- [type PipInstall](https://www.daytona.io/docs/en<#PipInstall>)
+- [type PtySession](https://www.daytona.io/docs/en<#PtySession>)
+- [type RunCode](https://www.daytona.io/docs/en<#RunCode>)
+- [type SetFilePermissions](https://www.daytona.io/docs/en<#SetFilePermissions>)
+
+
+<a name="Apply"></a>
+## func Apply
+
+```go
+func Apply[T any](https://www.daytona.io/docs/enopts ...func(*T)) *T
+```
+
+Apply creates a new instance of type T and applies all provided option functions.
+
+This generic function enables a consistent pattern for applying functional options across different option types. It allocates a zero\-value instance of T, then applies each option function in order.
+
+Example:
+
+```
+opts := options.Apply(
+    options.WithBranch("main"),
+    options.WithUsername("user"),
+)
+```
+
+<a name="WithAllowEmpty"></a>
+## func WithAllowEmpty
+
+```go
+func WithAllowEmpty(allowEmpty bool) func(*GitCommit)
+```
+
+WithAllowEmpty allows creating a commit even when there are no staged changes.
+
+This is useful for triggering CI/CD pipelines or marking points in history without actual code changes.
+
+Example:
+
+```
+resp, err := sandbox.Git.Commit(ctx, path, "Trigger rebuild", author, email,
+    options.WithAllowEmpty(true),
+)
+```
+
+<a name="WithAuthHost"></a>
+## func WithAuthHost
+
+```go
+func WithAuthHost(host string) func(*GitAuthenticate)
+```
+
+WithAuthHost sets the host to authenticate against.
+
+<a name="WithAuthProtocol"></a>
+## func WithAuthProtocol
+
+```go
+func WithAuthProtocol(protocol string) func(*GitAuthenticate)
+```
+
+WithAuthProtocol sets the protocol to authenticate against.
+
+<a name="WithBare"></a>
+## func WithBare
+
+```go
+func WithBare(bare bool) func(*GitInit)
+```
+
+WithBare creates a bare repository without a working tree.
+
+<a name="WithBranch"></a>
+## func WithBranch
+
+```go
+func WithBranch(branch string) func(*GitClone)
+```
+
+WithBranch sets the branch to clone instead of the repository's default branch.
+
+Example:
+
+```
+err := sandbox.Git.Clone(ctx, url, path, options.WithBranch("develop"))
+```
+
+<a name="WithCloneDepth"></a>
+## func WithCloneDepth
+
+```go
+func WithCloneDepth(depth int32) func(*GitClone)
+```
+
+WithCloneDepth creates a shallow clone truncated to the given number of commits.
+
+Example:
+
+```
+err := sandbox.Git.Clone(ctx, url, path, options.WithCloneDepth(1))
+```
+
+<a name="WithCodeRunLanguage"></a>
+## func WithCodeRunLanguage
+
+```go
+func WithCodeRunLanguage(language types.CodeLanguage) func(*CodeRun)
+```
+
+
+<a name="WithCodeRunParams"></a>
+## func WithCodeRunParams
+
+```go
+func WithCodeRunParams(params types.CodeRunParams) func(*CodeRun)
+```
+
+WithCodeRunParams sets the code execution parameters.
+
+Example:
+
+```
+result, err := sandbox.Process.CodeRun(ctx, code,
+    options.WithCodeRunParams(types.CodeRunParams{Language: "python"}),
+)
+```
+
+<a name="WithCodeRunTimeout"></a>
+## func WithCodeRunTimeout
+
+```go
+func WithCodeRunTimeout(timeout time.Duration) func(*CodeRun)
+```
+
+WithCodeRunTimeout sets the timeout for code execution.
+
+If the code doesn't complete within the timeout, it will be terminated. The HTTP request waits for the full timeout, even beyond the client\-wide HTTP timeout. A zero value disables the server\-side limit \(the wait is bounded only by ctx\); negative values are rejected by the API. Values are rounded up to whole seconds \(the API granularity\).
+
+<a name="WithCommandEnv"></a>
+## func WithCommandEnv
+
+```go
+func WithCommandEnv(env map[string]string) func(*ExecuteCommand)
+```
+
+WithCommandEnv sets environment variables for the command.
+
+These variables are added to the command's environment in addition to the sandbox's default environment.
+
+Example:
+
+```
+result, err := sandbox.Process.ExecuteCommand(ctx, "echo $MY_VAR",
+    options.WithCommandEnv(map[string]string{"MY_VAR": "hello"}),
+)
+```
+
+<a name="WithCommitId"></a>
+## func WithCommitId
+
+```go
+func WithCommitId(commitID string) func(*GitClone)
+```
+
+WithCommitId sets a specific commit SHA to checkout after cloning.
+
+The repository is first cloned, then the specified commit is checked out, resulting in a detached HEAD state.
+
+Example:
+
+```
+err := sandbox.Git.Clone(ctx, url, path, options.WithCommitId("abc123def"))
+```
+
+<a name="WithConfigPath"></a>
+## func WithConfigPath
+
+```go
+func WithConfigPath(path string) func(*GitConfig)
+```
+
+WithConfigPath sets the repository path \(required for the "local" scope\).
+
+<a name="WithConfigScope"></a>
+## func WithConfigScope
+
+```go
+func WithConfigScope(scope string) func(*GitConfig)
+```
+
+WithConfigScope sets the config scope \("global", "local" or "system"\).
+
+<a name="WithCreatePtyEnv"></a>
+## func WithCreatePtyEnv
+
+```go
+func WithCreatePtyEnv(env map[string]string) func(*CreatePty)
+```
+
+WithCreatePtyEnv sets environment variables for CreatePty.
+
+Example:
+
+```
+handle, err := sandbox.Process.CreatePty(ctx, "my-pty",
+    options.WithCreatePtyEnv(map[string]string{"TERM": "xterm-256color"}),
+)
+```
+
+<a name="WithCreatePtySize"></a>
+## func WithCreatePtySize
+
+```go
+func WithCreatePtySize(ptySize types.PtySize) func(*CreatePty)
+```
+
+WithCreatePtySize sets the PTY terminal dimensions for CreatePty.
+
+Example:
+
+```
+handle, err := sandbox.Process.CreatePty(ctx, "my-pty",
+    options.WithCreatePtySize(types.PtySize{Rows: 24, Cols: 80}),
+)
+```
+
+<a name="WithCustomContext"></a>
+## func WithCustomContext
+
+```go
+func WithCustomContext(contextID string) func(*RunCode)
+```
+
+WithCustomContext sets the interpreter context ID for code execution.
+
+Using a context allows you to maintain state \(variables, imports, etc.\) across multiple code executions. Create a context with CreateContext first.
+
+Example:
+
+```
+ctx, _ := sandbox.CodeInterpreter.CreateContext(ctx, nil)
+channels, err := sandbox.CodeInterpreter.RunCode(ctx, "x = 42",
+    options.WithCustomContext(ctx["id"].(string)),
+)
+```
+
+<a name="WithCwd"></a>
+## func WithCwd
+
+```go
+func WithCwd(cwd string) func(*ExecuteCommand)
+```
+
+WithCwd sets the working directory for command execution.
+
+Example:
+
+```
+result, err := sandbox.Process.ExecuteCommand(ctx, "ls -la",
+    options.WithCwd("/home/user/project"),
+)
+```
+
+<a name="WithDepth"></a>
+## func WithDepth
+
+```go
+func WithDepth(depth int32) func(*ListFiles)
+```
+
+WithDepth sets how many levels deep to list. Depth 1 \(the default\) lists the directory's entries, depth 2 also includes their children, and so on.
+
+Example:
+
+```
+files, err := sandbox.FileSystem.ListFiles(ctx, "/home/user",
+    options.WithDepth(3),
+)
+```
+
+<a name="WithEnv"></a>
+## func WithEnv
+
+```go
+func WithEnv(env map[string]string) func(*RunCode)
+```
+
+WithEnv sets environment variables for code execution.
+
+These variables are available to the code during execution.
+
+Example:
+
+```
+channels, err := sandbox.CodeInterpreter.RunCode(ctx, "import os; print(os.environ['API_KEY'])",
+    options.WithEnv(map[string]string{"API_KEY": "secret"}),
+)
+```
+
+<a name="WithExecuteTimeout"></a>
+## func WithExecuteTimeout
+
+```go
+func WithExecuteTimeout(timeout time.Duration) func(*ExecuteCommand)
+```
+
+WithExecuteTimeout sets the timeout for command execution.
+
+If the command doesn't complete within the timeout, it will be terminated. The HTTP request waits for the full timeout, even beyond the client\-wide HTTP timeout. A zero value disables the server\-side limit \(the wait is bounded only by ctx\); negative values are rejected by the API. Values are rounded up to whole seconds \(the API granularity\).
+
+Example:
+
+```
+result, err := sandbox.Process.ExecuteCommand(ctx, "sleep 60",
+    options.WithExecuteTimeout(5*time.Minute),
+)
+```
+
+<a name="WithExtraIndexURLs"></a>
+## func WithExtraIndexURLs
+
+```go
+func WithExtraIndexURLs(urls ...string) func(*PipInstall)
+```
+
+WithExtraIndexURLs adds extra index URLs for pip install.
+
+Extra indexes are checked in addition to the main index URL. Useful for installing packages from both PyPI and a private index.
+
+Example:
+
+```
+image := daytona.Base("python:3.11").PipInstall(
+    []string{"mypackage"},
+    options.WithExtraIndexURLs("https://private.example.com/simple/"),
+)
+```
+
+<a name="WithExtraOptions"></a>
+## func WithExtraOptions
+
+```go
+func WithExtraOptions(options string) func(*PipInstall)
+```
+
+WithExtraOptions adds extra command\-line options for pip install.
+
+Use this for pip options not covered by other With\* functions.
+
+Example:
+
+```
+image := daytona.Base("python:3.11").PipInstall(
+    []string{"mypackage"},
+    options.WithExtraOptions("--no-cache-dir --upgrade"),
+)
+```
+
+<a name="WithFindLinks"></a>
+## func WithFindLinks
+
+```go
+func WithFindLinks(links ...string) func(*PipInstall)
+```
+
+WithFindLinks adds find\-links URLs for pip install.
+
+Find\-links URLs are searched for packages before the package index. Useful for installing packages from local directories or custom URLs.
+
+Example:
+
+```
+image := daytona.Base("python:3.11").PipInstall(
+    []string{"mypackage"},
+    options.WithFindLinks("/path/to/wheels", "https://example.com/wheels/"),
+)
+```
+
+<a name="WithForce"></a>
+## func WithForce
+
+```go
+func WithForce(force bool) func(*GitDeleteBranch)
+```
+
+WithForce enables force deletion of a branch even if it's not fully merged.
+
+Use with caution as this can result in lost commits if the branch contains work that hasn't been merged elsewhere.
+
+Example:
+
+```
+err := sandbox.Git.DeleteBranch(ctx, path, "feature/abandoned",
+    options.WithForce(true),
+)
+```
+
+<a name="WithGroup"></a>
+## func WithGroup
+
+```go
+func WithGroup(group string) func(*SetFilePermissions)
+```
+
+WithGroup sets the file group.
+
+The group should be a valid group name on the sandbox system.
+
+Example:
+
+```
+err := sandbox.FileSystem.SetFilePermissions(ctx, "/home/user/file.txt",
+    options.WithGroup("users"),
+)
+```
+
+<a name="WithIndexURL"></a>
+## func WithIndexURL
+
+```go
+func WithIndexURL(url string) func(*PipInstall)
+```
+
+WithIndexURL sets the base URL of the Python Package Index.
+
+Replaces the default PyPI \(https://pypi.org/simple\) with a custom index.
+
+Example:
+
+```
+image := daytona.Base("python:3.11").PipInstall(
+    []string{"mypackage"},
+    options.WithIndexURL("https://my-pypi.example.com/simple/"),
+)
+```
+
+<a name="WithInitialBranch"></a>
+## func WithInitialBranch
+
+```go
+func WithInitialBranch(initialBranch string) func(*GitInit)
+```
+
+WithInitialBranch sets the name of the initial branch.
+
+<a name="WithInsecureSkipTLS"></a>
+## func WithInsecureSkipTLS
+
+```go
+func WithInsecureSkipTLS(insecureSkipTLS bool) func(*GitClone)
+```
+
+WithInsecureSkipTLS opts into skipping TLS certificate verification for the clone. Use ONLY when cloning from a trusted internal Git server with a self\-signed or private\-CA certificate. Credentials, if supplied, will be transmitted over an unverified TLS connection and are exposed to any MITM on the route.
+
+Example:
+
+```
+err := sandbox.Git.Clone(ctx, url, path,
+    options.WithInsecureSkipTLS(true),
+)
+```
+
+<a name="WithInterpreterTimeout"></a>
+## func WithInterpreterTimeout
+
+```go
+func WithInterpreterTimeout(timeout time.Duration) func(*RunCode)
+```
+
+WithInterpreterTimeout sets the execution timeout for code.
+
+If the code doesn't complete within the timeout, execution is terminated.
+
+Example:
+
+```
+channels, err := sandbox.CodeInterpreter.RunCode(ctx, "import time; time.sleep(60)",
+    options.WithInterpreterTimeout(5*time.Second),
+)
+```
+
+<a name="WithLogChannel"></a>
+## func WithLogChannel
+
+```go
+func WithLogChannel(logChannel chan string) func(*CreateSandbox)
+```
+
+WithLogChannel provides a channel for receiving build logs during sandbox creation.
+
+When creating a sandbox from a custom image that requires building, build logs are streamed to the provided channel. The channel is closed when streaming completes. If no build is required, no logs are sent and the channel remains unused.
+
+Example:
+
+```
+logChan := make(chan string)
+go func() {
+    for log := range logChan {
+        fmt.Println(log)
+    }
+}()
+sandbox, err := client.Create(ctx, params,
+    options.WithLogChannel(logChan),
+)
+```
+
+<a name="WithMode"></a>
+## func WithMode
+
+```go
+func WithMode(mode string) func(*CreateFolder)
+```
+
+WithMode sets the Unix file permissions for the created folder.
+
+The mode should be specified as an octal string \(e.g., "0755", "0700"\). If not specified, defaults to "0755".
+
+Example:
+
+```
+err := sandbox.FileSystem.CreateFolder(ctx, "/home/user/mydir",
+    options.WithMode("0700"),
+)
+```
+
+<a name="WithOwner"></a>
+## func WithOwner
+
+```go
+func WithOwner(owner string) func(*SetFilePermissions)
+```
+
+WithOwner sets the file owner.
+
+The owner should be a valid username on the sandbox system.
+
+Example:
+
+```
+err := sandbox.FileSystem.SetFilePermissions(ctx, "/home/user/file.txt",
+    options.WithOwner("root"),
+)
+```
+
+<a name="WithPassword"></a>
+## func WithPassword
+
+```go
+func WithPassword(password string) func(*GitClone)
+```
+
+WithPassword sets the password or access token for HTTPS authentication when cloning.
+
+For GitHub, use a Personal Access Token \(PAT\). For GitLab, use a Project Access Token or Personal Access Token. For Bitbucket, use an App Password.
+
+Example:
+
+```
+err := sandbox.Git.Clone(ctx, url, path,
+    options.WithUsername("username"),
+    options.WithPassword("ghp_xxxxxxxxxxxx"),
+)
+```
+
+<a name="WithPermissionMode"></a>
+## func WithPermissionMode
+
+```go
+func WithPermissionMode(mode string) func(*SetFilePermissions)
+```
+
+WithPermissionMode sets the Unix file permissions.
+
+The mode should be specified as an octal string \(e.g., "0644", "0755"\).
+
+Example:
+
+```
+err := sandbox.FileSystem.SetFilePermissions(ctx, "/home/user/file.txt",
+    options.WithPermissionMode("0644"),
+)
+```
+
+<a name="WithPre"></a>
+## func WithPre
+
+```go
+func WithPre() func(*PipInstall)
+```
+
+WithPre enables installation of pre\-release and development versions.
+
+Example:
+
+```
+image := daytona.Base("python:3.11").PipInstall(
+    []string{"mypackage"},
+    options.WithPre(),
+)
+```
+
+<a name="WithPtyEnv"></a>
+## func WithPtyEnv
+
+```go
+func WithPtyEnv(env map[string]string) func(*PtySession)
+```
+
+WithPtyEnv sets environment variables for the PTY session.
+
+Example:
+
+```
+session, err := sandbox.Process.CreatePtySession(ctx, "my-session",
+    options.WithPtyEnv(map[string]string{"TERM": "xterm-256color"}),
+)
+```
+
+<a name="WithPtySize"></a>
+## func WithPtySize
+
+```go
+func WithPtySize(size types.PtySize) func(*PtySession)
+```
+
+WithPtySize sets the PTY terminal dimensions.
+
+Example:
+
+```
+session, err := sandbox.Process.CreatePtySession(ctx, "my-session",
+    options.WithPtySize(types.PtySize{Rows: 24, Cols: 80}),
+)
+```
+
+<a name="WithPullBranch"></a>
+## func WithPullBranch
+
+```go
+func WithPullBranch(branch string) func(*GitPull)
+```
+
+WithPullBranch sets the branch to pull instead of the current branch's upstream.
+
+<a name="WithPullPassword"></a>
+## func WithPullPassword
+
+```go
+func WithPullPassword(password string) func(*GitPull)
+```
+
+WithPullPassword sets the password or access token for HTTPS authentication when pulling.
+
+Example:
+
+```
+err := sandbox.Git.Pull(ctx, path,
+    options.WithPullUsername("username"),
+    options.WithPullPassword("ghp_xxxxxxxxxxxx"),
+)
+```
+
+<a name="WithPullRemote"></a>
+## func WithPullRemote
+
+```go
+func WithPullRemote(remote string) func(*GitPull)
+```
+
+WithPullRemote sets the remote to pull from instead of "origin".
+
+<a name="WithPullUsername"></a>
+## func WithPullUsername
+
+```go
+func WithPullUsername(username string) func(*GitPull)
+```
+
+WithPullUsername sets the username for HTTPS authentication when pulling.
+
+Example:
+
+```
+err := sandbox.Git.Pull(ctx, path,
+    options.WithPullUsername("username"),
+    options.WithPullPassword("github_token"),
+)
+```
+
+<a name="WithPushBranch"></a>
+## func WithPushBranch
+
+```go
+func WithPushBranch(branch string) func(*GitPush)
+```
+
+WithPushBranch sets the branch to push instead of the current branch.
+
+<a name="WithPushPassword"></a>
+## func WithPushPassword
+
+```go
+func WithPushPassword(password string) func(*GitPush)
+```
+
+WithPushPassword sets the password or access token for HTTPS authentication when pushing.
+
+Example:
+
+```
+err := sandbox.Git.Push(ctx, path,
+    options.WithPushUsername("username"),
+    options.WithPushPassword("ghp_xxxxxxxxxxxx"),
+)
+```
+
+<a name="WithPushRemote"></a>
+## func WithPushRemote
+
+```go
+func WithPushRemote(remote string) func(*GitPush)
+```
+
+WithPushRemote sets the remote to push to instead of "origin".
+
+<a name="WithPushUsername"></a>
+## func WithPushUsername
+
+```go
+func WithPushUsername(username string) func(*GitPush)
+```
+
+WithPushUsername sets the username for HTTPS authentication when pushing.
+
+Example:
+
+```
+err := sandbox.Git.Push(ctx, path,
+    options.WithPushUsername("username"),
+    options.WithPushPassword("github_token"),
+)
+```
+
+<a name="WithRemoteFetch"></a>
+## func WithRemoteFetch
+
+```go
+func WithRemoteFetch(fetch bool) func(*GitRemoteAdd)
+```
+
+WithRemoteFetch fetches from the remote immediately after adding it.
+
+<a name="WithRemoteOverwrite"></a>
+## func WithRemoteOverwrite
+
+```go
+func WithRemoteOverwrite(overwrite bool) func(*GitRemoteAdd)
+```
+
+WithRemoteOverwrite replaces an existing remote with the same name.
+
+<a name="WithResetFiles"></a>
+## func WithResetFiles
+
+```go
+func WithResetFiles(files []string) func(*GitReset)
+```
+
+WithResetFiles constrains the reset to the given paths.
+
+<a name="WithResetMode"></a>
+## func WithResetMode
+
+```go
+func WithResetMode(mode string) func(*GitReset)
+```
+
+WithResetMode sets the reset mode \("soft", "mixed", "hard", "merge" or "keep"\).
+
+<a name="WithResetTarget"></a>
+## func WithResetTarget
+
+```go
+func WithResetTarget(target string) func(*GitReset)
+```
+
+WithResetTarget sets the revision to reset to.
+
+<a name="WithRestoreSource"></a>
+## func WithRestoreSource
+
+```go
+func WithRestoreSource(source string) func(*GitRestore)
+```
+
+WithRestoreSource restores file contents from the given revision instead of the index.
+
+<a name="WithRestoreStaged"></a>
+## func WithRestoreStaged
+
+```go
+func WithRestoreStaged(staged bool) func(*GitRestore)
+```
+
+WithRestoreStaged restores the staging index for the given files.
+
+<a name="WithRestoreWorktree"></a>
+## func WithRestoreWorktree
+
+```go
+func WithRestoreWorktree(worktree bool) func(*GitRestore)
+```
+
+WithRestoreWorktree restores the working tree for the given files.
+
+<a name="WithSetUpstream"></a>
+## func WithSetUpstream
+
+```go
+func WithSetUpstream(setUpstream bool) func(*GitPush)
+```
+
+WithSetUpstream records the pushed branch as the upstream tracking branch \(git push \-\-set\-upstream\).
+
+<a name="WithTimeout"></a>
+## func WithTimeout
+
+```go
+func WithTimeout(timeout time.Duration) func(*CreateSandbox)
+```
+
+WithTimeout sets the maximum duration to wait for sandbox creation to complete.
+
+If the timeout is exceeded before the sandbox is ready, Create returns an error. The default timeout is 60 seconds.
+
+Example:
+
+```
+sandbox, err := client.Create(ctx, params,
+    options.WithTimeout(5*time.Minute),
+)
+```
+
+<a name="WithUsername"></a>
+## func WithUsername
+
+```go
+func WithUsername(username string) func(*GitClone)
+```
+
+WithUsername sets the username for HTTPS authentication when cloning.
+
+For GitHub, GitLab, and similar services, the username is typically your account username or a placeholder like "git" when using tokens.
+
+Example:
+
+```
+err := sandbox.Git.Clone(ctx, url, path,
+    options.WithUsername("username"),
+    options.WithPassword("github_token"),
+)
+```
+
+<a name="WithWaitForStart"></a>
+## func WithWaitForStart
+
+```go
+func WithWaitForStart(waitForStart bool) func(*CreateSandbox)
+```
+
+WithWaitForStart controls whether \[daytona.Client.Create\] waits for the sandbox to reach the started state before returning.
+
+When true \(the default\), Create blocks until the sandbox is fully started and ready for use. When false, Create returns immediately after the sandbox is created, which may be in a pending or building state.
+
+Example:
+
+```
+// Return immediately without waiting for the sandbox to start
+sandbox, err := client.Create(ctx, params,
+    options.WithWaitForStart(false),
+)
+```
+
+<a name="CodeRun"></a>
+## type CodeRun
+
+CodeRun holds optional parameters for \[daytona.ProcessService.CodeRun\].
+
+```go
+type CodeRun struct {
+    Params   *types.CodeRunParams // Code execution parameters
+    Timeout  *time.Duration       // Execution timeout
+    Language types.CodeLanguage   // Override the default language
+}
+```
+
+<a name="CreateFolder"></a>
+## type CreateFolder
+
+CreateFolder holds optional parameters for \[daytona.FileSystemService.CreateFolder\].
+
+```go
+type CreateFolder struct {
+    Mode *string // Unix file permissions (e.g., "0755")
+}
+```
+
+<a name="CreatePty"></a>
+## type CreatePty
+
+CreatePty holds optional parameters for \[daytona.ProcessService.CreatePty\].
+
+```go
+type CreatePty struct {
+    PtySize *types.PtySize    // Terminal dimensions (rows and columns)
+    Env     map[string]string // Environment variables for the PTY session
+}
+```
+
+<a name="CreateSandbox"></a>
+## type CreateSandbox
+
+CreateSandbox holds optional parameters for \[daytona.Client.Create\].
+
+```go
+type CreateSandbox struct {
+    Timeout      *time.Duration // Maximum time to wait for sandbox creation
+    WaitForStart bool           // Whether to wait for the sandbox to reach started state
+    LogChannel   chan string    // Channel for receiving build logs during image builds
+}
+```
+
+<a name="ExecuteCommand"></a>
+## type ExecuteCommand
+
+ExecuteCommand holds optional parameters for \[daytona.ProcessService.ExecuteCommand\].
+
+```go
+type ExecuteCommand struct {
+    Cwd     *string           // Working directory for command execution
+    Env     map[string]string // Environment variables
+    Timeout *time.Duration    // Command execution timeout
+}
+```
+
+<a name="GitAuthenticate"></a>
+## type GitAuthenticate
+
+GitAuthenticate holds optional parameters for \[daytona.GitService.DangerouslyAuthenticate\].
+
+```go
+type GitAuthenticate struct {
+    Host     *string // Host to authenticate against (defaults to "github.com")
+    Protocol *string // Protocol to authenticate against (defaults to "https")
+}
+```
+
+<a name="GitClone"></a>
+## type GitClone
+
+GitClone holds optional parameters for \[daytona.GitService.Clone\].
+
+Fields are pointers to distinguish between unset values and zero values. Use the corresponding With\* functions to set these options.
+
+```go
+type GitClone struct {
+    Branch          *string // Branch to clone (defaults to repository's default branch)
+    CommitId        *string // Specific commit SHA to checkout after cloning
+    Username        *string // Username for HTTPS authentication
+    Password        *string // Password or token for HTTPS authentication
+    InsecureSkipTLS *bool   // Skip TLS certificate verification (insecure). Use only for trusted internal Git servers with self-signed or private-CA certs.
+    Depth           *int32  // Create a shallow clone truncated to the given number of commits
+}
+```
+
+<a name="GitCommit"></a>
+## type GitCommit
+
+GitCommit holds optional parameters for \[daytona.GitService.Commit\].
+
+```go
+type GitCommit struct {
+    AllowEmpty *bool // Allow creating commits with no staged changes
+}
+```
+
+<a name="GitConfig"></a>
+## type GitConfig
+
+GitConfig holds optional parameters for the git config operations \(\[daytona.GitService.SetConfig\], \[daytona.GitService.GetConfig\] and \[daytona.GitService.ConfigureUser\]\).
+
+```go
+type GitConfig struct {
+    Scope *string // Config scope: "global" (default), "local" or "system"
+    Path  *string // Repository path, required when scope is "local"
+}
+```
+
+<a name="GitDeleteBranch"></a>
+## type GitDeleteBranch
+
+GitDeleteBranch holds optional parameters for \[daytona.GitService.DeleteBranch\].
+
+```go
+type GitDeleteBranch struct {
+    Force *bool // Force delete even if branch is not fully merged
+}
+```
+
+<a name="GitInit"></a>
+## type GitInit
+
+GitInit holds optional parameters for \[daytona.GitService.Init\].
+
+```go
+type GitInit struct {
+    Bare          *bool   // Create a bare repository without a working tree
+    InitialBranch *string // Name of the initial branch (defaults to the Git default)
+}
+```
+
+<a name="GitPull"></a>
+## type GitPull
+
+GitPull holds optional parameters for \[daytona.GitService.Pull\].
+
+```go
+type GitPull struct {
+    Username *string // Username for HTTPS authentication
+    Password *string // Password or token for HTTPS authentication
+    Branch   *string // Branch to pull (defaults to the current branch's upstream)
+    Remote   *string // Remote to pull from (defaults to "origin")
+}
+```
+
+<a name="GitPush"></a>
+## type GitPush
+
+GitPush holds optional parameters for \[daytona.GitService.Push\].
+
+```go
+type GitPush struct {
+    Username    *string // Username for HTTPS authentication
+    Password    *string // Password or token for HTTPS authentication
+    Branch      *string // Branch to push (defaults to the current branch)
+    Remote      *string // Remote to push to (defaults to "origin")
+    SetUpstream *bool   // Record the pushed branch as the upstream tracking branch
+}
+```
+
+<a name="GitRemoteAdd"></a>
+## type GitRemoteAdd
+
+GitRemoteAdd holds optional parameters for \[daytona.GitService.RemoteAdd\].
+
+```go
+type GitRemoteAdd struct {
+    Fetch     *bool // Fetch from the remote immediately after adding it
+    Overwrite *bool // Replace an existing remote with the same name
+}
+```
+
+<a name="GitReset"></a>
+## type GitReset
+
+GitReset holds optional parameters for \[daytona.GitService.Reset\].
+
+```go
+type GitReset struct {
+    Mode   *string  // Reset mode: "soft", "mixed" (default), "hard", "merge" or "keep"
+    Target *string  // Revision to reset to (defaults to HEAD)
+    Files  []string // Constrain the reset to the given paths
+}
+```
+
+<a name="GitRestore"></a>
+## type GitRestore
+
+GitRestore holds optional parameters for \[daytona.GitService.Restore\].
+
+```go
+type GitRestore struct {
+    Staged   *bool   // Restore the staging index for the given files
+    Worktree *bool   // Restore the working tree for the given files (default when neither is set)
+    Source   *string // Restore file contents from the given revision instead of the index
+}
+```
+
+<a name="ListFiles"></a>
+## type ListFiles
+
+ListFiles holds optional parameters for \[daytona.FileSystemService.ListFiles\].
+
+```go
+type ListFiles struct {
+    Depth *int32 // How many levels deep to list (default: 1, must be >= 1)
+}
+```
+
+<a name="PipInstall"></a>
+## type PipInstall
+
+PipInstall holds optional parameters for \[daytona.Image.PipInstall\].
+
+```go
+type PipInstall struct {
+    FindLinks      []string // URLs to search for packages
+    IndexURL       string   // Base URL of the Python Package Index
+    ExtraIndexURLs []string // Extra index URLs for package lookup
+    Pre            bool     // Allow pre-release and development versions
+    ExtraOptions   string   // Additional pip command-line options
+}
+```
+
+<a name="PtySession"></a>
+## type PtySession
+
+PtySession holds optional parameters for \[daytona.ProcessService.CreatePtySession\].
+
+```go
+type PtySession struct {
+    PtySize *types.PtySize    // Terminal dimensions (rows and columns)
+    Env     map[string]string // Environment variables for the PTY session
+}
+```
+
+<a name="RunCode"></a>
+## type RunCode
+
+RunCode holds optional parameters for \[daytona.CodeInterpreterService.RunCode\].
+
+```go
+type RunCode struct {
+    ContextID string            // Interpreter context ID for persistent state
+    Env       map[string]string // Environment variables for code execution
+    Timeout   *time.Duration    // Execution timeout
+}
+```
+
+<a name="SetFilePermissions"></a>
+## type SetFilePermissions
+
+SetFilePermissions holds optional parameters for \[daytona.FileSystemService.SetFilePermissions\].
+
+```go
+type SetFilePermissions struct {
+    Mode  *string // Unix file permissions (e.g., "0644")
+    Owner *string // File owner username
+    Group *string // File group name
+}
+```

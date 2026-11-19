@@ -1,5 +1,151 @@
 # @arizeai/phoenix-client
 
+## 8.0.1
+
+### Patch Changes
+
+- Updated dependencies [f35755b]
+  - @arizeai/phoenix-otel@3.1.0
+
+## 8.0.0
+
+### Major Changes
+
+- 80bac51: Move `@arizeai/phoenix-otel` to OpenTelemetry JS 3 (`@opentelemetry/sdk-trace` 3.x, `@opentelemetry/api` 1.10) so spans created by apps on OpenTelemetry JS 3 are recorded after `register()`. `register()` now returns the `@opentelemetry/sdk-trace` `TracerProvider` (still exported as the `NodeTracerProvider` type), which no longer has a `register()` method. Custom `spanProcessors` must come from `@opentelemetry/sdk-trace` and take an options object, e.g. `new BatchSpanProcessor({ exporter })`; `BatchSpanProcessor` and `SimpleSpanProcessor` are now re-exported from `@arizeai/phoenix-otel`. See the package's `MIGRATION.md`. A `tracerProvider` passed to `@arizeai/phoenix-client` `evaluateExperiment()` must now be an `@opentelemetry/sdk-trace` 3.x `TracerProvider`. `register()` no longer applies the `OTEL_TRACES_SAMPLER`, `OTEL_SPAN_*`, `OTEL_ATTRIBUTE_*`, or `OTEL_BSP_*` environment variables. Node.js 22.15 or newer is now required.
+
+### Patch Changes
+
+- Updated dependencies [80bac51]
+  - @arizeai/phoenix-otel@3.0.0
+
+## 7.18.2
+
+### Patch Changes
+
+- 6e6e101: fix(phoenix-client): preserve literal dollar sequences in prompt variables
+
+## 7.18.1
+
+### Patch Changes
+
+- 6a60c71: fix(phoenix-client): preserve the error status of failed experiment task spans
+- 491ae7a: fix(phoenix-client): preserve system and developer instructions when converting prompts to Anthropic, omitting empty text blocks from the system array
+
+## 7.18.0
+
+### Minor Changes
+
+- ead7dd8: Add typed dataset-label resource and assignment helpers to the existing `@arizeai/phoenix-client/datasets` scope. Callers can manage reusable global labels, list them with cursor pagination, and assign or replace labels on datasets selected by name or GlobalID.
+
+## 7.17.0
+
+### Minor Changes
+
+- 9e7a797: Accept `DECISION` and `AGENT` as annotator kinds for span, document, trace, session and experiment run annotations. In `px`, `--annotator-kind` on `annotate` and the `*-annotations delete` commands accepts both. Phoenix servers that predate these kinds reject them.
+
+## 7.16.3
+
+### Patch Changes
+
+- 86ab99c: fix(client): keep `description`, `default` and other keywords next to `anyOf` when converting prompt tool and response-format schemas with `toSDK`
+
+## 7.16.2
+
+### Patch Changes
+
+- Updated dependencies [67cc379]
+- Updated dependencies [188ce28]
+  - @arizeai/phoenix-config@0.5.1
+  - @arizeai/phoenix-otel@2.3.0
+
+## 7.16.1
+
+### Patch Changes
+
+- 7b9f900: Move evaluator metadata to top level of experiment evaluation request body
+
+## 7.16.0
+
+### Minor Changes
+
+- f8ae2fc: Add `listProjectAnnotationConfigs`, `assignProjectAnnotationConfig`, `unassignProjectAnnotationConfig`, and `setProjectAnnotationConfigs` helpers to the `projects` subpath for managing which annotation configs a project uses.
+
+## 7.15.0
+
+### Minor Changes
+
+- 5b37f12: Add `upsertPromptVersionTag` and `deletePromptVersionTag` helpers to the `prompts` subpath for creating, moving, and deleting prompt-scoped version tags.
+
+## 7.14.0
+
+### Minor Changes
+
+- aab229f: Add `createDatasetSplit`, `updateDatasetSplit`, and `deleteDatasetSplit` helpers to the `datasets` subpath. The helpers select datasets by name or GlobalID, create splits on existing datasets, partially update split fields, add or remove example memberships idempotently, and delete splits without deleting their examples. They require Phoenix server 19.20.0 or newer.
+  
+  Also export the generated `DatasetSplit` response type and a `DatasetIdentifier` selector type from the datasets subpath.
+
+## 7.13.0
+
+### Minor Changes
+
+- c282563: Add an `upsertOrDeleteSecrets` helper to the new `secrets` subpath. It atomically creates, updates, or deletes ordered key/value-or-null batches through `PUT /v1/secrets`, returns only the affected key names, and keeps submitted values out of helper output and error messages.
+
+## 7.12.0
+
+### Minor Changes
+
+- dab09f1: Add `filter` expressions to `getTraces` and `listSessions` (requires Phoenix server >= 20.12.0). Deprecate the individual trace error and latency parameters while retaining their behavior and support for server >= 20.8.0.
+
+## 7.11.0
+
+### Minor Changes
+
+- 2b73847: Accept `metadata` in `promptVersion()` so prompt versions can carry arbitrary JSON metadata.
+
+## 7.10.0
+
+### Minor Changes
+
+- c839254: Add `error`, `minLatencyMs`, and `maxLatencyMs` filters to `getTraces`, matching the query parameters on `GET /v1/projects/{id}/traces` (requires Phoenix server >= 20.8.0).
+
+## 7.9.0
+
+### Minor Changes
+
+- bf047af: Add Meta (Muse Spark models) as a built-in OpenAI-compatible model provider (`META`).
+
+## 7.8.0
+
+### Minor Changes
+
+- 58b7017: Add Z.ai (GLM models) as a built-in OpenAI-compatible model provider (`ZAI`).
+
+## 7.7.1
+
+### Patch Changes
+
+- 1cdff14: Expose cumulative prompt, completion, and total token counts on the high-level `Session` objects returned by `getSession` and `listSessions`.
+
+## 7.7.0
+
+### Minor Changes
+
+- 37916d7: Add `setProjectRetentionPolicy` to the projects entry point for assigning an existing retention policy by GlobalID or resetting a project to the default policy.
+- c48e50e: Add `transferTraces` to the traces subpath for moving traces between Phoenix projects.
+- 773c5e5: Add a typed `getCurrentUser` helper through the `@arizeai/phoenix-client/users` entrypoint.
+
+### Patch Changes
+
+- b27561d: Widen the optional `openai` peer dependency range to `^6.10.0 || ^7.0.0` so apps already on the OpenAI SDK v7 can install the client without a peer conflict.
+
+## 7.6.0
+
+### Minor Changes
+
+- d328c3e: Add a `deletePrompt` helper to the `prompts` subpath. It takes a `prompt` selector — `{ name }` or `{ promptId }` — matching the selector style `getPrompt` already uses, and calls `DELETE /v1/prompts/{prompt_identifier}` (Phoenix server >= 13.20.0). Version-level selectors (`{ versionId }`, `{ name, tag }`) are rejected rather than widened to the whole prompt. Deletion cascades to every version of the prompt along with its version tags and labels.
+  
+  Also exports a `PromptIdentifier` type from `types/prompts` for the prompt-level selector union.
+
 ## 7.5.0
 
 ### Minor Changes

@@ -31,6 +31,7 @@ from .request_types import (
     ToolUIPart,
     UIMessage,
 )
+from .ui_state_types import EditPermission, UIContexts
 
 _PHOENIX_PROVIDER_METADATA_KEY = "phoenix"
 _PYDANTIC_AI_PROVIDER_METADATA_KEY = "pydantic_ai"
@@ -125,6 +126,8 @@ class PhoenixUserMessageMetadata(CamelBaseModel):
     current_date_time: Annotated[str, StringConstraints(strip_whitespace=True, max_length=128)]
     time_zone: Annotated[str, StringConstraints(strip_whitespace=True, max_length=128)]
     is_compaction_message: bool = False
+    ui_contexts: UIContexts | None = None
+    edit_permission: EditPermission = "manual"
 
 
 PhoenixMessageMetadata = Annotated[

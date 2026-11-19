@@ -15,6 +15,7 @@ export * from "./experiment";
 export * from "./settings";
 export * from "./apis";
 export * from "./auth";
+export * from "./chat";
 export * from "./profile";
 export * from "./playground";
 export * from "./prompts";

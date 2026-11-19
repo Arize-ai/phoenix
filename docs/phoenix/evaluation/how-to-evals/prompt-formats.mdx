@@ -28,7 +28,7 @@ Simple string templates with variable placeholders.
     import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
     import { openai } from "@ai-sdk/openai";
 
-    const model = openai("gpt-4o-mini");
+    const model = openai("gpt-6-luna");
 
     const evaluator = createClassificationEvaluator({
       name: "sentiment",
@@ -60,9 +60,11 @@ Arrays of message objects with `role` and `content` fields.
 
     **Supported roles:**
 
-    * `"system"` - Instructions for the model.
-    * `"user"` - User messages and input context.
-    * `"assistant"` - Assistant/model responses (for multi-turn conversations or few-shot examples)
+    * `"system"` (alias `"developer"`) - Instructions for the model.
+    * `"user"` (alias `"human"`) - User messages and input context.
+    * `"assistant"` (aliases `"ai"`, `"model"`) - Assistant/model responses (for multi-turn conversations or few-shot examples)
+
+    Role names are case-insensitive, so you can reuse message lists written for LangChain (`"human"`, `"ai"`) or Google (`"model"`) as-is.
   </Tab>
 
   <Tab title="TypeScript" icon="js">
@@ -70,7 +72,7 @@ Arrays of message objects with `role` and `content` fields.
     import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
     import { openai } from "@ai-sdk/openai";
 
-    const model = openai("gpt-4o-mini");
+    const model = openai("gpt-6-luna");
 
     const evaluator = createClassificationEvaluator({
       name: "helpfulness",
@@ -203,7 +205,7 @@ prompt_template = phoenix_prompt_to_prompt_template(prompt_version)
 
 evaluator = ClassificationEvaluator(
     name="recipe_quality",
-    llm=LLM(provider="openai", model="gpt-4o-mini"),
+    llm=LLM(provider="openai", model="gpt-6-luna"),
     prompt_template=prompt_template,
     choices={"good": 1.0, "bad": 0.0},
 )
@@ -263,7 +265,7 @@ A complete example showing evaluator setup and usage:
     ```python
     from phoenix.evals import ClassificationEvaluator, LLM
 
-    llm = LLM(provider="openai", model="gpt-4o-mini")
+    llm = LLM(provider="openai", model="gpt-6-luna")
 
     evaluator = ClassificationEvaluator(
         name="helpfulness",
@@ -289,7 +291,7 @@ A complete example showing evaluator setup and usage:
     import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
     import { openai } from "@ai-sdk/openai";
 
-    const model = openai("gpt-4o-mini");
+    const model = openai("gpt-6-luna");
 
     const evaluator = createClassificationEvaluator({
       name: "helpfulness",

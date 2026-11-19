@@ -14,7 +14,6 @@ from phoenix.db import models
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
-from phoenix.server.api.helpers.playground_users import get_user
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetSplit import DatasetSplit
@@ -107,7 +106,6 @@ class DatasetSplitMutationMixin:
     async def create_dataset_split(
         self, info: Info[Context, None], input: CreateDatasetSplitInput
     ) -> DatasetSplitMutationPayload:
-        user_id = get_user(info)
         validated_name = _validated_name(input.name)
         async with info.context.db() as session:
             dataset_split_orm = models.DatasetSplit(
@@ -115,7 +113,7 @@ class DatasetSplitMutationMixin:
                 description=input.description,
                 color=input.color,
                 metadata_=input.metadata or {},
-                user_id=user_id,
+                user_id=info.context.user_id,
             )
             session.add(dataset_split_orm)
             try:
@@ -408,7 +406,6 @@ class DatasetSplitMutationMixin:
     async def create_dataset_split_with_examples(
         self, info: Info[Context, None], input: CreateDatasetSplitWithExamplesInput
     ) -> DatasetSplitMutationPayloadWithExamples:
-        user_id = get_user(info)
         validated_name = _validated_name(input.name)
         unique_example_rowids: set[int] = set()
         for example_gid in input.example_ids:
@@ -435,7 +432,7 @@ class DatasetSplitMutationMixin:
                 description=input.description or None,
                 color=input.color,
                 metadata_=input.metadata or {},
-                user_id=user_id,
+                user_id=info.context.user_id,
             )
             session.add(dataset_split_orm)
             try:

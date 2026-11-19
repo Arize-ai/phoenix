@@ -1,4 +1,5 @@
 import {
+  blankJSONValue,
   clearJSONValues,
   createEmptyJSONStructure,
   expandStringifiedJSON,
@@ -9,6 +10,7 @@ import {
   hasStringifiedJSON,
   isJSONObjectString,
   isPlainObject,
+  isWhitespaceOnlyReformat,
   jsonStringToFlatObject,
   safelyJSONStringify,
   safelyParseJSONObjectString,
@@ -1168,6 +1170,37 @@ describe("clearJSONValues", () => {
   });
 });
 
+describe("blankJSONValue", () => {
+  it("keeps keys and clears leaf values", () => {
+    expect(
+      blankJSONValue({
+        question: "What is Phoenix?",
+        attempts: 3,
+        graded: true,
+        note: null,
+      })
+    ).toEqual({ question: "", attempts: 0, graded: false, note: null });
+  });
+
+  it("keeps a single blanked element as an array sample", () => {
+    expect(
+      blankJSONValue({
+        messages: [
+          { role: "user", content: "hi" },
+          { role: "assistant", content: "hello" },
+        ],
+        tags: [],
+      })
+    ).toEqual({ messages: [{ role: "", content: "" }], tags: [] });
+  });
+
+  it("recurses through nested objects", () => {
+    expect(
+      blankJSONValue({ tools: { required: ["get_route_info"], count: 1 } })
+    ).toEqual({ tools: { required: [""], count: 0 } });
+  });
+});
+
 describe("createEmptyJSONStructure", () => {
   describe("valid JSON strings", () => {
     it("creates empty structure from simple object", () => {
@@ -1566,5 +1599,33 @@ describe("filterFlatJSONEntries", () => {
 
   it("returns nothing when nothing matches", () => {
     expect(filterFlatJSONEntries({ entries, query: "nope" })).toEqual([]);
+  });
+});
+
+describe("isWhitespaceOnlyReformat", () => {
+  it.each([
+    '{"text":"a  b","items":[null,false,0]}',
+    String.raw`{"quote":"a\" b","slash":"\\","newline":"a\nb"}`,
+    '  {"a": 1, "b": 2}  ',
+  ])("accepts whitespace-only formatting: %s", (original) => {
+    expect(
+      isWhitespaceOnlyReformat(
+        original,
+        JSON.stringify(JSON.parse(original), null, 2)
+      )
+    ).toBe(true);
+  });
+
+  it.each([
+    ['{"text":"a  b"}', '{"text":"a b"}'],
+    ['{"id":12345678901234567890}', '{"id":12345678901234567000}'],
+    ["1e999", "null"],
+    ['{"a":1,"a":2}', '{"a":2}'],
+    ["-0", "0"],
+    ["1.0", "1"],
+    [String.raw`{"text":"\u0061"}`, '{"text":"a"}'],
+    ['{"2":"second","1":"first"}', '{"1":"first","2":"second"}'],
+  ])("rejects content changes from %s to %s", (original, formatted) => {
+    expect(isWhitespaceOnlyReformat(original, formatted)).toBe(false);
   });
 });

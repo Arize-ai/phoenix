@@ -1,5 +1,6 @@
 import {
   isToolUIPart,
+  lastAssistantMessageIsCompleteWithApprovalResponses,
   lastAssistantMessageIsCompleteWithToolCalls,
   type UIMessage,
 } from "ai";
@@ -27,7 +28,12 @@ export function shouldSendAutomaticallyAfterToolOutput({
   if (hasInterruptedToolCall({ messages, locallyInterruptedToolCallIds })) {
     return false;
   }
-  return lastAssistantMessageIsCompleteWithToolCalls({ messages });
+  // A turn is ready to continue when the last step's tool calls all have
+  // outputs, or when the user has answered every requested approval.
+  return (
+    lastAssistantMessageIsCompleteWithToolCalls({ messages }) ||
+    lastAssistantMessageIsCompleteWithApprovalResponses({ messages })
+  );
 }
 
 /**

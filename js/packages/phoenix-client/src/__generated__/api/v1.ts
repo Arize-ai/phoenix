@@ -430,7 +430,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** List dataset splits */
+        get: operations["listDatasetSplits"];
         put?: never;
         /** Create a dataset split */
         post: operations["createDatasetSplit"];
@@ -761,7 +762,11 @@ export interface paths {
         get: operations["listProjectTraces"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete traces from a project
+         * @description Delete traces from a project without deleting the project or its configuration. Only traces whose start time is within the required `[start_time, end_time)` interval are deleted. Associated spans are cascade deleted, and project sessions left with no remaining traces are also deleted. Naive datetimes are interpreted as UTC.
+         */
+        delete: operations["deleteProjectTraces"];
         options?: never;
         head?: never;
         patch?: never;
@@ -998,7 +1003,11 @@ export interface paths {
          */
         get: operations["listPromptVersions"];
         put?: never;
-        post?: never;
+        /**
+         * Create prompt version
+         * @description Create a new version for an existing prompt by identifier.
+         */
+        post: operations["createPromptVersion"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1180,6 +1189,66 @@ export interface paths {
          * @description Delete an existing project and all its associated data. The project identifier is either project ID or project name. The default project cannot be deleted. Note: When using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.
          */
         delete: operations["deleteProject"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{project_identifier}/retention": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Set a project's trace retention policy
+         * @description Assign an existing trace retention policy to a project, or reset the project to the default policy with a null `policy_id`. Retention policies are standalone, reusable entities: this endpoint only changes which policy the project points at, and never creates, edits, or deletes a policy.
+         */
+        patch: operations["setProjectRetentionPolicy"];
+        trace?: never;
+    };
+    "/v1/model_providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List built-in model provider families
+         * @description Retrieve the built-in model provider families available to this deployment. Built-in families are a fixed enum rather than stored records, so this list is not paginated; it is narrowed by the PHOENIX_ALLOWED_PROVIDERS environment variable when that is set. User-defined providers are listed separately by `GET /v1/custom_model_providers`.
+         */
+        get: operations["getModelProviders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/custom_model_providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List custom model providers
+         * @description Retrieve a paginated list of user-defined custom model providers. Encrypted provider credentials are never returned. Built-in provider families are listed separately by `GET /v1/model_providers`.
+         */
+        get: operations["getCustomModelProviders"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1504,7 +1573,7 @@ export interface paths {
         put?: never;
         /**
          * OpenAI-compatible chat completions
-         * @description Creates a chat completion using the OpenAI wire format, proxying to the selected provider with credentials resolved on the server (secret store first, environment second) — callers never handle provider API keys. Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, moonshot, ollama, openai, perplexity, together, xai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'. Set `stream: true` for server-sent events of `chat.completion.chunk` payloads terminated by `data: [DONE]`. Tool calling is not supported.
+         * @description Creates a chat completion using the OpenAI wire format, proxying to the selected provider with credentials resolved on the server (secret store first, environment second) — callers never handle provider API keys. Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, meta, minimax, moonshot, ollama, openai, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'. Set `stream: true` for server-sent events of `chat.completion.chunk` payloads terminated by `data: [DONE]`. Tool calling is not supported.
          *
          *     **Phoenix is not an AI gateway.** The same server also takes on trace ingestion traffic, so routing production LLM calls through it competes with ingestion. Use this endpoint only to quickly try out different models in non-production environments.
          */
@@ -1544,7 +1613,7 @@ export interface paths {
         };
         /**
          * Logout
-         * @description Log out user by revoking tokens and clearing cookies.
+         * @description Log out of every browser session by revoking its tokens, and clear the cookies.
          */
         get: operations["_logout_auth_logout_get"];
         put?: never;
@@ -1680,7 +1749,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Run Server Agent
+         * Run Headless Agent
          * @deprecated
          */
         post: operations["legacyServerAgentChat"];
@@ -1795,6 +1864,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/agent_sessions/{session_id}/tool_approvals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Agent Session Tool Approvals
+         * @description Persist answered tool approvals for the session's open turn.
+         */
+        post: operations["submitAgentSessionToolApprovals"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/agent_sessions/{session_id}/chat": {
         parameters: {
             query?: never;
@@ -1888,6 +1977,12 @@ export interface components {
          *       mismatch). Unlike ``agent_session_messages_stale`` this is not a
          *       concurrent-writer race but an inconsistent request; fix the client
          *       rather than retrying.
+         *     - ``agent_session_tool_approvals_conflict``: the submitted ``toolApprovals``
+         *       do not match the transcript's trailing assistant message (no trailing
+         *       assistant message to answer, an unknown ``toolCallId``, a call that is
+         *       not awaiting approval, or a reversal of an already-persisted answer).
+         *       Like the tool-output conflict this is an inconsistent request rather than
+         *       a concurrent-writer race; fix the client rather than retrying.
          *     - ``agent_session_already_compact``: there are no complete turns to
          *       compact — either nothing new has finished since the transcript's latest
          *       checkpoint, or a concurrent request's checkpoint already covers them.
@@ -1901,7 +1996,7 @@ export interface components {
              * @description Machine-readable reason the request conflicted.
              * @enum {string}
              */
-            code: "agent_session_busy" | "agent_session_model_stale" | "agent_session_messages_stale" | "agent_session_tool_outputs_conflict" | "agent_session_already_compact" | "agent_session_compaction_conflict";
+            code: "agent_session_busy" | "agent_session_model_stale" | "agent_session_messages_stale" | "agent_session_tool_outputs_conflict" | "agent_session_tool_approvals_conflict" | "agent_session_already_compact" | "agent_session_compaction_conflict";
             /**
              * Message
              * @description Optional human-readable elaboration on the conflict.
@@ -1956,27 +2051,6 @@ export interface components {
             updated_at: string;
             /** Is Ephemeral */
             is_ephemeral: boolean;
-        };
-        /**
-         * AgentSpanContext
-         * @description Span the user has selected.
-         *
-         *     Exactly one of ``span_node_id`` (relay) or ``otel_span_id`` (OpenTelemetry
-         *     hex) must be set. ``project_node_id`` is optional because a span can be
-         *     selected from views outside a project route.
-         */
-        AgentSpanContext: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "span";
-            /** Projectnodeid */
-            projectNodeId?: string | null;
-            /** Spannodeid */
-            spanNodeId?: string | null;
-            /** Otelspanid */
-            otelSpanId?: string | null;
         };
         /** AnnotateSessionsRequestBody */
         AnnotateSessionsRequestBody: {
@@ -2135,6 +2209,16 @@ export interface components {
             /** Total */
             total: number;
         };
+        /** BuiltInModelProvider */
+        BuiltInModelProvider: {
+            /** @description The provider family identifier, accepted wherever a built-in model provider is specified (e.g. 'OPENAI'). */
+            provider: components["schemas"]["ModelProvider"];
+            /**
+             * Name
+             * @description The human-readable name of the provider family (e.g. 'OpenAI').
+             */
+            name: string;
+        };
         /**
          * BuiltInProviderModelSelection
          * @description Chat against a Phoenix built-in provider.
@@ -2283,12 +2367,18 @@ export interface components {
             completion_tokens: number;
             /** Total Tokens */
             total_tokens: number;
+            prompt_tokens_details?: components["schemas"]["ChatCompletionUsagePromptTokensDetails"] | null;
+        };
+        /** ChatCompletionUsagePromptTokensDetails */
+        ChatCompletionUsagePromptTokensDetails: {
+            /** Cached Tokens */
+            cached_tokens: number;
         };
         /**
          * ChatContext
          * @description Discriminated union of every UI-state context the agent understands.
          */
-        ChatContext: components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["SessionContext"] | components["schemas"]["PromptContext"] | components["schemas"]["PromptVersionContext"] | components["schemas"]["AgentSpanContext"] | components["schemas"]["PlaygroundContext"] | components["schemas"]["CodeEvaluatorContext"] | components["schemas"]["LlmEvaluatorContext"] | components["schemas"]["DatasetContext"] | components["schemas"]["GraphQLContext"] | components["schemas"]["WebAccessContext"] | components["schemas"]["SubagentsContext"];
+        ChatContext: components["schemas"]["AppContext"] | components["schemas"]["ProjectUIContext"] | components["schemas"]["TraceUIContext"] | components["schemas"]["SessionUIContext"] | components["schemas"]["PromptUIContext"] | components["schemas"]["PromptVersionUIContext"] | components["schemas"]["SpanUIContext"] | components["schemas"]["PlaygroundUIContext"] | components["schemas"]["CodeEvaluatorUIContext"] | components["schemas"]["LlmEvaluatorUIContext"] | components["schemas"]["DatasetUIContext"] | components["schemas"]["GraphQLContext"] | components["schemas"]["WebAccessContext"] | components["schemas"]["SubagentsContext"];
         /**
          * ChatRequestBody
          * @description Assistant chat submit request payload.
@@ -2330,10 +2420,20 @@ export interface components {
              */
             toolOutputs?: (components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart"])[];
             /**
+             * Toolapprovals
+             * @description Responses to tool calls awaiting approval on the trailing assistant message, matched by ``toolCallId``. Cannot be combined with ``message``.
+             */
+            toolApprovals?: components["schemas"]["ToolApproval"][];
+            /**
              * Lastmessageid
              * @description The id of the last transcript message the client has rendered, used for optimistic concurrency. Omit when the session has no messages; required (and validated against the persisted transcript) once it does. On mismatch the server rejects the send with HTTP 409 and code ``agent_session_messages_stale`` — the client should refetch the session before retrying.
              */
             lastMessageId?: string | null;
+            /**
+             * Credentials
+             * @description Client-held credentials for optional integrations (e.g. the user's own GitHub personal access token under the key ``GITHUB_PERSONAL_ACCESS_TOKEN``), used only for the duration of the turn and never persisted. Unknown keys are rejected.
+             */
+            credentials?: components["schemas"]["ChatRequestCredential"][];
             /**
              * Recordlocaltraces
              * @default false
@@ -2352,10 +2452,29 @@ export interface components {
             instrumentUserId?: boolean;
         };
         /**
-         * CodeEvaluatorContext
-         * @description Code-evaluator create/edit form mounted in the current browser route.
+         * ChatRequestCredential
+         * @description One client-held credential riding the request for the duration of a turn.
+         *
+         *     The value is ephemeral: it is injected server-side as transport auth for
+         *     the matching integration and is never persisted, traced, or echoed. It is
+         *     top-level on the request body — never part of the message — so it cannot
+         *     reach the session transcript.
          */
-        CodeEvaluatorContext: {
+        ChatRequestCredential: {
+            /**
+             * Key
+             * @description The credential's secret-key name.
+             * @constant
+             */
+            key: "GITHUB_PERSONAL_ACCESS_TOKEN";
+            /**
+             * Value
+             * Format: password
+             */
+            value: string;
+        };
+        /** CodeEvaluatorUIContext */
+        CodeEvaluatorUIContext: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -2474,7 +2593,7 @@ export interface components {
         CreateChatCompletionRequestBody: {
             /**
              * Model
-             * @description Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, moonshot, ollama, openai, perplexity, together, xai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'.
+             * @description Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, meta, minimax, moonshot, ollama, openai, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'.
              */
             model: string;
             /** Messages */
@@ -2560,7 +2679,7 @@ export interface components {
             };
             /**
              * Example Ids
-             * @description Optional dataset example IDs (GlobalIDs) to seed the split with. Each example must belong to this dataset. Omit to create an empty split.
+             * @description Optional dataset example identifiers (GlobalIDs or user-provided IDs) to seed the split with. Each example must belong to this dataset. Omit to create an empty split.
              */
             example_ids?: string[];
         };
@@ -2683,6 +2802,16 @@ export interface components {
         CreatePromptResponseBody: {
             data: components["schemas"]["PromptVersion"];
         };
+        /** CreatePromptVersionRequestBody */
+        CreatePromptVersionRequestBody: {
+            version: components["schemas"]["PromptVersionData"];
+            /** Tags */
+            tags?: components["schemas"]["PromptVersionTagData"][] | null;
+        };
+        /** CreatePromptVersionResponseBody */
+        CreatePromptVersionResponseBody: {
+            data: components["schemas"]["PromptVersion"];
+        };
         /** CreateSessionNoteRequestBody */
         CreateSessionNoteRequestBody: {
             data: components["schemas"]["SessionNoteData"];
@@ -2769,6 +2898,47 @@ export interface components {
              */
             key: string;
         };
+        /** CustomModelProvider */
+        CustomModelProvider: {
+            /**
+             * Id
+             * @description The ID of the custom provider.
+             */
+            id: string;
+            /**
+             * Name
+             * @description The unique name of the custom provider.
+             */
+            name: string;
+            /**
+             * Description
+             * @description An optional description of the custom provider.
+             */
+            description?: string | null;
+            /**
+             * Provider
+             * @description The free-form provider label recorded on the custom provider. Unlike the `provider` of a built-in family, this is not drawn from a fixed set.
+             */
+            provider: string;
+            /**
+             * Sdk
+             * @description The SDK used to communicate with the custom provider.
+             * @enum {string}
+             */
+            sdk: "openai" | "azure_openai" | "anthropic" | "google_genai" | "aws_bedrock";
+            /**
+             * Created At
+             * Format: date-time
+             * @description The time the custom provider was created.
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description The time the custom provider was last updated.
+             */
+            updated_at: string;
+        };
         /**
          * CustomProviderModelSelection
          * @description Chat against a stored custom provider record.
@@ -2820,26 +2990,6 @@ export interface components {
             updated_at: string;
             /** Example Count */
             example_count: number;
-        };
-        /**
-         * DatasetContext
-         * @description Dataset the user is currently viewing or has bound to a workflow.
-         *
-         *     Carries the dataset's relay node id and, when known, the active version
-         *     node id. These IDs scope the create-form handoff link and the sampling of
-         *     active dataset examples used as prompt context; the dataset schema itself
-         *     is open.
-         */
-        DatasetContext: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "dataset";
-            /** Datasetnodeid */
-            datasetNodeId: string;
-            /** Datasetversionnodeid */
-            datasetVersionNodeId?: string | null;
         };
         /** DatasetExample */
         DatasetExample: {
@@ -2910,6 +3060,18 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** DatasetUIContext */
+        DatasetUIContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "dataset";
+            /** Datasetnodeid */
+            datasetNodeId: string;
+            /** Datasetversionnodeid */
+            datasetVersionNodeId?: string | null;
         };
         /** DatasetVersion */
         DatasetVersion: {
@@ -3062,42 +3224,6 @@ export interface components {
             state?: "input-available";
             /** Input */
             input: unknown;
-            /** Providerexecuted */
-            providerExecuted?: boolean | null;
-            /** Callprovidermetadata */
-            callProviderMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
-            /** Approval */
-            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
-        };
-        /**
-         * DynamicToolInputStreamingPart
-         * @description Dynamic tool part in input-streaming state.
-         */
-        DynamicToolInputStreamingPart: {
-            /**
-             * Type
-             * @default dynamic-tool
-             * @constant
-             */
-            type?: "dynamic-tool";
-            /** Toolname */
-            toolName: string;
-            /** Toolcallid */
-            toolCallId: string;
-            /** Title */
-            title?: string | null;
-            /**
-             * State
-             * @default input-streaming
-             * @constant
-             */
-            state?: "input-streaming";
-            /** Input */
-            input?: unknown | null;
             /** Providerexecuted */
             providerExecuted?: boolean | null;
             /** Callprovidermetadata */
@@ -3400,6 +3526,13 @@ export interface components {
             /** Data */
             data: components["schemas"]["ApiKey"][];
         };
+        /** GetCustomModelProvidersResponseBody */
+        GetCustomModelProvidersResponseBody: {
+            /** Data */
+            data: components["schemas"]["CustomModelProvider"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
         /** GetDatasetLabelResponseBody */
         GetDatasetLabelResponseBody: {
             data: components["schemas"]["DatasetLabel"];
@@ -3432,6 +3565,11 @@ export interface components {
             data: components["schemas"]["IncompleteExperimentRun"][];
             /** Next Cursor */
             next_cursor: string | null;
+        };
+        /** GetModelProvidersResponseBody */
+        GetModelProvidersResponseBody: {
+            /** Data */
+            data: components["schemas"]["BuiltInModelProvider"][];
         };
         /** GetProjectAnnotationConfigsResponseBody */
         GetProjectAnnotationConfigsResponseBody: {
@@ -3508,7 +3646,8 @@ export interface components {
         };
         /**
          * GraphQLContext
-         * @description GraphQL runtime state.
+         * @deprecated
+         * @description Deprecated GraphQL mutations opt-in.
          */
         GraphQLContext: {
             /**
@@ -3669,7 +3808,7 @@ export interface components {
             role: "system" | "user" | "assistant";
             metadata?: components["schemas"]["LegacyAssistantMessageMetadata"] | null;
             /** Parts */
-            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__ToolOutputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
+            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__ToolOutputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
         };
         /**
          * LegacyChatRegenerateMessage
@@ -3806,6 +3945,13 @@ export interface components {
             /** Data */
             data: components["schemas"]["DatasetLabel"][];
         };
+        /** ListDatasetSplitsResponseBody */
+        ListDatasetSplitsResponseBody: {
+            /** Data */
+            data: components["schemas"]["DatasetSplit"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
         /** ListDatasetVersionsResponseBody */
         ListDatasetVersionsResponseBody: {
             /** Data */
@@ -3839,11 +3985,8 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
-        /**
-         * LlmEvaluatorContext
-         * @description LLM-evaluator create/edit form mounted in the current browser route.
-         */
-        LlmEvaluatorContext: {
+        /** LlmEvaluatorUIContext */
+        LlmEvaluatorUIContext: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -3917,7 +4060,7 @@ export interface components {
          * ModelProvider
          * @enum {string}
          */
-        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE" | "DEEPSEEK" | "XAI" | "OLLAMA" | "AWS" | "CEREBRAS" | "FIREWORKS" | "GROQ" | "MOONSHOT" | "PERPLEXITY" | "TOGETHER";
+        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE" | "DEEPSEEK" | "XAI" | "OLLAMA" | "AWS" | "CEREBRAS" | "FIREWORKS" | "GROQ" | "MOONSHOT" | "MINIMAX" | "PERPLEXITY" | "TOGETHER" | "ZAI" | "META";
         /** OAuth2User */
         OAuth2User: {
             /** Id */
@@ -4255,7 +4398,7 @@ export interface components {
             role: "system" | "user" | "assistant";
             metadata?: components["schemas"]["MessageMetadata"] | null;
             /** Parts */
-            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
+            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
         };
         /**
          * PhoenixUserMessageMetadata
@@ -4277,12 +4420,16 @@ export interface components {
              * @default false
              */
             isCompactionMessage?: boolean;
+            uiContexts?: components["schemas"]["UIContexts"] | null;
+            /**
+             * Editpermission
+             * @default manual
+             * @enum {string}
+             */
+            editPermission?: "manual" | "bypass";
         };
-        /**
-         * PlaygroundBuiltinModelContext
-         * @description Built-in playground model selection.
-         */
-        PlaygroundBuiltinModelContext: {
+        /** PlaygroundBuiltinModelUIContext */
+        PlaygroundBuiltinModelUIContext: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -4293,11 +4440,61 @@ export interface components {
             /** Modelname */
             modelName: string;
         };
-        /**
-         * PlaygroundContext
-         * @description Playground prompt editor state mounted in the current browser route.
-         */
-        PlaygroundContext: {
+        /** PlaygroundCustomProviderModelUIContext */
+        PlaygroundCustomProviderModelUIContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "custom";
+            /** Customproviderid */
+            customProviderId: string;
+            /** Customprovidername */
+            customProviderName: string;
+            /** Provider */
+            provider: string;
+            /** Modelname */
+            modelName: string;
+        };
+        /** PlaygroundEvaluatorUIContext */
+        PlaygroundEvaluatorUIContext: {
+            /** Datasetevaluatorid */
+            datasetEvaluatorId: string;
+            /** Name */
+            name: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "LLM" | "CODE" | "BUILTIN";
+            /** Isbuiltin */
+            isBuiltin: boolean;
+            /** Isapplied */
+            isApplied: boolean;
+        };
+        /** PlaygroundExperimentScaffoldUIContext */
+        PlaygroundExperimentScaffoldUIContext: {
+            /** Name */
+            name?: string | null;
+            /** Description */
+            description?: string | null;
+            /**
+             * Hasmetadata
+             * @default false
+             */
+            hasMetadata?: boolean;
+        };
+        /** PlaygroundInstanceUIContext */
+        PlaygroundInstanceUIContext: {
+            /** Instanceid */
+            instanceId: number;
+            /** Model */
+            model?: (components["schemas"]["PlaygroundBuiltinModelUIContext"] | components["schemas"]["PlaygroundCustomProviderModelUIContext"]) | null;
+            /** Experimentid */
+            experimentId?: string | null;
+        };
+        /** PlaygroundUIContext */
+        PlaygroundUIContext: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -4313,98 +4510,11 @@ export interface components {
              * @default 1
              */
             repetitions?: number;
-            nextExperimentScaffold?: components["schemas"]["PlaygroundExperimentScaffoldContext"] | null;
+            nextExperimentScaffold?: components["schemas"]["PlaygroundExperimentScaffoldUIContext"] | null;
             /** Instances */
-            instances?: components["schemas"]["PlaygroundInstanceContext"][];
+            instances?: components["schemas"]["PlaygroundInstanceUIContext"][];
             /** Evaluators */
-            evaluators?: components["schemas"]["PlaygroundEvaluatorContext"][];
-        };
-        /**
-         * PlaygroundCustomProviderModelContext
-         * @description Custom-provider playground model selection.
-         */
-        PlaygroundCustomProviderModelContext: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "custom";
-            /** Customproviderid */
-            customProviderId: string;
-            /** Customprovidername */
-            customProviderName: string;
-            /** Provider */
-            provider: string;
-            /** Modelname */
-            modelName: string;
-        };
-        /**
-         * PlaygroundEvaluatorContext
-         * @description One dataset evaluator on the mounted playground's roster. ``name`` is
-         *     user-controlled; sanitize at every model-visible boundary.
-         */
-        PlaygroundEvaluatorContext: {
-            /** Datasetevaluatorid */
-            datasetEvaluatorId: string;
-            /** Name */
-            name: string;
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "LLM" | "CODE" | "BUILTIN";
-            /** Isbuiltin */
-            isBuiltin: boolean;
-            /** Isapplied */
-            isApplied: boolean;
-        };
-        /**
-         * PlaygroundExperimentScaffoldContext
-         * @description Experiment name/description/metadata the user has staged for the playground's
-         *     *next* dataset-backed run, before that run has started.
-         *
-         *     The playground UI lets the user pre-set how the next recorded run's experiment
-         *     will be named, described, and tagged (via the ``set_playground_experiment_recording``
-         *     tool or the recording form). That staged state is surfaced here so the agent can
-         *     see what is already set and avoid re-staging it.
-         *
-         *     Field semantics:
-         *     - ``name`` / ``description``: the staged values, surfaced to the model verbatim,
-         *       or ``None`` when the user has not staged them.
-         *     - ``has_metadata``: a presence flag, not the value. Only *whether* metadata has
-         *       been staged is model-relevant (so the agent knows not to re-attach it); the
-         *       metadata object itself is deliberately kept out of the prompt.
-         *
-         *     A field left unstaged (``None`` / ``False``) falls back to the server default when
-         *     the run starts. The scaffold is consumed once that next run begins.
-         */
-        PlaygroundExperimentScaffoldContext: {
-            /** Name */
-            name?: string | null;
-            /** Description */
-            description?: string | null;
-            /**
-             * Hasmetadata
-             * @default false
-             */
-            hasMetadata?: boolean;
-        };
-        /**
-         * PlaygroundInstanceContext
-         * @description One mounted playground instance and its current model selection.
-         *
-         *     ``experiment_id`` carries the relay node id of the experiment produced by
-         *     this instance's last dataset-backed run, or ``None`` when the instance has
-         *     not produced one. Ephemeral experiments are included: they remain queryable
-         *     until the server sweeps them ~24h after their last update.
-         */
-        PlaygroundInstanceContext: {
-            /** Instanceid */
-            instanceId: number;
-            /** Model */
-            model?: (components["schemas"]["PlaygroundBuiltinModelContext"] | components["schemas"]["PlaygroundCustomProviderModelContext"]) | null;
-            /** Experimentid */
-            experimentId?: string | null;
+            evaluators?: components["schemas"]["PlaygroundEvaluatorUIContext"][];
         };
         /** Project */
         Project: {
@@ -4415,17 +4525,18 @@ export interface components {
             /** Id */
             id: string;
         };
-        /**
-         * ProjectContext
-         * @description Project the user is currently viewing.
-         *
-         *     ``span_filter`` carries the project-scoped span filter expression when the
-         *     span filter field is mounted — empty string when the field is mounted with
-         *     no condition applied, ``None`` when the field is not present at all. It
-         *     describes the view in full, root-span scoping included (which is expressed
-         *     within the filter DSL as ``parent_id is None``).
-         */
-        ProjectContext: {
+        /** ProjectRetentionPolicyData */
+        ProjectRetentionPolicyData: {
+            /** Project Id */
+            project_id: string;
+            /**
+             * Policy Id
+             * @description The retention policy the project now uses, or null when the project falls back to the default policy.
+             */
+            policy_id: string | null;
+        };
+        /** ProjectUIContext */
+        ProjectUIContext: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -4625,19 +4736,6 @@ export interface components {
             /** Messages */
             messages: components["schemas"]["PromptMessage"][];
         };
-        /**
-         * PromptContext
-         * @description Prompt the user is currently viewing.
-         */
-        PromptContext: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "prompt";
-            /** Promptnodeid */
-            promptNodeId: string;
-        };
         /** PromptData */
         PromptData: {
             name: components["schemas"]["Identifier"];
@@ -4809,6 +4907,43 @@ export interface components {
             role: "user" | "assistant" | "model" | "ai" | "tool" | "system" | "developer";
             /** Content */
             content: string | (components["schemas"]["TextContentPart"] | components["schemas"]["ToolCallContentPart"] | components["schemas"]["ToolResultContentPart"])[];
+        };
+        /** PromptMetaInvocationParameters */
+        PromptMetaInvocationParameters: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "meta";
+            meta: components["schemas"]["PromptMetaInvocationParametersContent"];
+        };
+        /** PromptMetaInvocationParametersContent */
+        PromptMetaInvocationParametersContent: {
+            /** Temperature */
+            temperature?: number;
+            /** Max Tokens */
+            max_tokens?: number;
+            /** Max Completion Tokens */
+            max_completion_tokens?: number;
+            /** Frequency Penalty */
+            frequency_penalty?: number;
+            /** Presence Penalty */
+            presence_penalty?: number;
+            /** Top P */
+            top_p?: number;
+            /** Seed */
+            seed?: number;
+            /** Stop */
+            stop?: string[];
+            /**
+             * Reasoning Effort
+             * @enum {string}
+             */
+            reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+            /** Extra Body */
+            extra_body?: {
+                [key: string]: unknown;
+            };
         };
         /** PromptMoonshotInvocationParameters */
         PromptMoonshotInvocationParameters: {
@@ -5119,10 +5254,27 @@ export interface components {
             /** Disable Parallel Tool Calls */
             disable_parallel_tool_calls?: boolean;
         };
+        /** PromptUIContext */
+        PromptUIContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "prompt";
+            /** Promptnodeid */
+            promptNodeId: string;
+        };
         /** PromptVersion */
         PromptVersion: {
             /** Description */
             description?: string | null;
+            /**
+             * Metadata
+             * @description Arbitrary JSON metadata for the prompt version.
+             */
+            metadata?: {
+                [key: string]: unknown;
+            };
             model_provider: components["schemas"]["ModelProvider"];
             /** Model Name */
             model_name: string;
@@ -5131,32 +5283,30 @@ export interface components {
             template_type: components["schemas"]["PromptTemplateType"];
             template_format: components["schemas"]["PromptTemplateFormat"];
             /** Invocation Parameters */
-            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptAwsInvocationParameters"] | components["schemas"]["PromptCerebrasInvocationParameters"] | components["schemas"]["PromptFireworksInvocationParameters"] | components["schemas"]["PromptGroqInvocationParameters"] | components["schemas"]["PromptMoonshotInvocationParameters"] | components["schemas"]["PromptPerplexityInvocationParameters"] | components["schemas"]["PromptTogetherInvocationParameters"];
+            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptAwsInvocationParameters"] | components["schemas"]["PromptCerebrasInvocationParameters"] | components["schemas"]["PromptFireworksInvocationParameters"] | components["schemas"]["PromptGroqInvocationParameters"] | components["schemas"]["PromptMoonshotInvocationParameters"] | components["schemas"]["PromptPerplexityInvocationParameters"] | components["schemas"]["PromptTogetherInvocationParameters"] | components["schemas"]["PromptZAIInvocationParameters"] | components["schemas"]["PromptMetaInvocationParameters"];
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
             /** Id */
             id: string;
-        };
-        /**
-         * PromptVersionContext
-         * @description Prompt version the user is currently viewing.
-         */
-        PromptVersionContext: {
             /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
+             * Created At
+             * Format: date-time
+             * @description The creation timestamp of the prompt version.
              */
-            type: "prompt_version";
-            /** Promptnodeid */
-            promptNodeId: string;
-            /** Promptversionnodeid */
-            promptVersionNodeId: string;
+            created_at: string;
         };
         /** PromptVersionData */
         PromptVersionData: {
             /** Description */
             description?: string | null;
+            /**
+             * Metadata
+             * @description Arbitrary JSON metadata for the prompt version.
+             */
+            metadata?: {
+                [key: string]: unknown;
+            };
             model_provider: components["schemas"]["ModelProvider"];
             /** Model Name */
             model_name: string;
@@ -5165,7 +5315,7 @@ export interface components {
             template_type: components["schemas"]["PromptTemplateType"];
             template_format: components["schemas"]["PromptTemplateFormat"];
             /** Invocation Parameters */
-            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptAwsInvocationParameters"] | components["schemas"]["PromptCerebrasInvocationParameters"] | components["schemas"]["PromptFireworksInvocationParameters"] | components["schemas"]["PromptGroqInvocationParameters"] | components["schemas"]["PromptMoonshotInvocationParameters"] | components["schemas"]["PromptPerplexityInvocationParameters"] | components["schemas"]["PromptTogetherInvocationParameters"];
+            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptAwsInvocationParameters"] | components["schemas"]["PromptCerebrasInvocationParameters"] | components["schemas"]["PromptFireworksInvocationParameters"] | components["schemas"]["PromptGroqInvocationParameters"] | components["schemas"]["PromptMoonshotInvocationParameters"] | components["schemas"]["PromptPerplexityInvocationParameters"] | components["schemas"]["PromptTogetherInvocationParameters"] | components["schemas"]["PromptZAIInvocationParameters"] | components["schemas"]["PromptMetaInvocationParameters"];
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
@@ -5184,6 +5334,18 @@ export interface components {
             /** Description */
             description?: string | null;
         };
+        /** PromptVersionUIContext */
+        PromptVersionUIContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "prompt_version";
+            /** Promptnodeid */
+            promptNodeId: string;
+            /** Promptversionnodeid */
+            promptVersionNodeId: string;
+        };
         /** PromptXAIInvocationParameters */
         PromptXAIInvocationParameters: {
             /**
@@ -5195,6 +5357,43 @@ export interface components {
         };
         /** PromptXAIInvocationParametersContent */
         PromptXAIInvocationParametersContent: {
+            /** Temperature */
+            temperature?: number;
+            /** Max Tokens */
+            max_tokens?: number;
+            /** Max Completion Tokens */
+            max_completion_tokens?: number;
+            /** Frequency Penalty */
+            frequency_penalty?: number;
+            /** Presence Penalty */
+            presence_penalty?: number;
+            /** Top P */
+            top_p?: number;
+            /** Seed */
+            seed?: number;
+            /** Stop */
+            stop?: string[];
+            /**
+             * Reasoning Effort
+             * @enum {string}
+             */
+            reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+            /** Extra Body */
+            extra_body?: {
+                [key: string]: unknown;
+            };
+        };
+        /** PromptZAIInvocationParameters */
+        PromptZAIInvocationParameters: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "zai";
+            zai: components["schemas"]["PromptZAIInvocationParametersContent"];
+        };
+        /** PromptZAIInvocationParametersContent */
+        PromptZAIInvocationParametersContent: {
             /** Temperature */
             temperature?: number;
             /** Max Tokens */
@@ -5242,6 +5441,8 @@ export interface components {
              * @constant
              */
             type?: "reasoning";
+            /** Id */
+            id?: string | null;
             /** Text */
             text: string;
             /** State */
@@ -5301,7 +5502,7 @@ export interface components {
              * @description The kind of annotator used for the annotation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -5335,7 +5536,7 @@ export interface components {
              * @description The kind of annotator used for the annotation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -5363,21 +5564,6 @@ export interface components {
             data: components["schemas"]["SessionAnnotation"][];
             /** Next Cursor */
             next_cursor: string | null;
-        };
-        /**
-         * SessionContext
-         * @description Session the user is currently viewing.
-         */
-        SessionContext: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "session";
-            /** Projectnodeid */
-            projectNodeId: string;
-            /** Sessionnodeid */
-            sessionNodeId: string;
         };
         /** SessionData */
         SessionData: {
@@ -5454,6 +5640,18 @@ export interface components {
              */
             end_time: string;
         };
+        /** SessionUIContext */
+        SessionUIContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "session";
+            /** Projectnodeid */
+            projectNodeId: string;
+            /** Sessionnodeid */
+            sessionNodeId: string;
+        };
         /** SetDatasetLabelsForDatasetResponseBody */
         SetDatasetLabelsForDatasetResponseBody: {
             /** Data */
@@ -5495,6 +5693,18 @@ export interface components {
             data: (components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"])[];
             /** Next Cursor */
             next_cursor: string | null;
+        };
+        /** SetProjectRetentionPolicyRequestBody */
+        SetProjectRetentionPolicyRequestBody: {
+            /**
+             * Policy Id
+             * @description The ID (GlobalID) of an existing trace retention policy to assign, or null to reset the project to the default policy.
+             */
+            policy_id: string | null;
+        };
+        /** SetProjectRetentionPolicyResponseBody */
+        SetProjectRetentionPolicyResponseBody: {
+            data: components["schemas"]["ProjectRetentionPolicyData"];
         };
         /**
          * SourceDocumentUIPart
@@ -5658,7 +5868,7 @@ export interface components {
              * @description The kind of annotator used for the annotation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -5692,7 +5902,7 @@ export interface components {
              * @description The kind of annotator used for the annotation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -5752,7 +5962,7 @@ export interface components {
              * @description The kind of annotator used for the annotation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -5828,6 +6038,20 @@ export interface components {
              */
             identifier?: string;
         };
+        /** SpanUIContext */
+        SpanUIContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "span";
+            /** Projectnodeid */
+            projectNodeId?: string | null;
+            /** Spannodeid */
+            spanNodeId?: string | null;
+            /** Otelspanid */
+            otelSpanId?: string | null;
+        };
         /** SpansResponseBody */
         SpansResponseBody: {
             /** Data */
@@ -5859,6 +6083,29 @@ export interface components {
             type: "subagents";
             /** Enabled */
             enabled: boolean;
+        };
+        /**
+         * SubmitAgentSessionToolApprovalsRequestBody
+         * @description Persist answered tool approvals without continuing the turn.
+         */
+        SubmitAgentSessionToolApprovalsRequestBody: {
+            /**
+             * Toolapprovals
+             * @description Answers to tool calls awaiting approval on the trailing assistant message, matched by ``toolCallId``. Resending a persisted answer is a no-op; an answer that reverses one, or that matches no call awaiting approval, is rejected with HTTP 409 and code ``agent_session_tool_approvals_conflict``.
+             */
+            toolApprovals: components["schemas"]["ToolApproval"][];
+            /**
+             * Lastmessageid
+             * @description The trailing assistant message's id. On mismatch the submission is rejected with HTTP 409 and code ``agent_session_messages_stale``.
+             */
+            lastMessageId: string;
+        };
+        /**
+         * SubmitAgentSessionToolApprovalsResponseBody
+         * @description The trailing assistant message with the submitted approvals applied.
+         */
+        SubmitAgentSessionToolApprovalsResponseBody: {
+            data: components["schemas"]["PhoenixUIMessage"];
         };
         /**
          * SubmitAgentSessionToolOutputsRequestBody
@@ -5914,6 +6161,19 @@ export interface components {
                     [key: string]: unknown;
                 };
             } | null;
+        };
+        /**
+         * ToolApproval
+         * @description A user's response to a tool call awaiting approval.
+         */
+        ToolApproval: {
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * Approved
+             * @description Whether the user approved the tool call.
+             */
+            approved: boolean;
         };
         /**
          * ToolApprovalRequested
@@ -6050,36 +6310,6 @@ export interface components {
             approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
         };
         /**
-         * ToolInputStreamingPart
-         * @description Tool part in input-streaming state.
-         */
-        ToolInputStreamingPart: {
-            /** Type */
-            type: string;
-            /** Toolcallid */
-            toolCallId: string;
-            /** Title */
-            title?: string | null;
-            /**
-             * State
-             * @default input-streaming
-             * @constant
-             */
-            state?: "input-streaming";
-            /** Input */
-            input?: unknown | null;
-            /** Providerexecuted */
-            providerExecuted?: boolean | null;
-            /** Callprovidermetadata */
-            callProviderMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
-            /** Approval */
-            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
-        };
-        /**
          * ToolOutputDeniedPart
          * @description Tool part in output-denied state (tool was denied, terminal state).
          */
@@ -6154,7 +6384,7 @@ export interface components {
              * @description The kind of annotator used for the annotation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -6188,7 +6418,7 @@ export interface components {
              * @description The kind of annotator used for the annotation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -6216,18 +6446,6 @@ export interface components {
             data: components["schemas"]["TraceAnnotation"][];
             /** Next Cursor */
             next_cursor: string | null;
-        };
-        /** TraceContext */
-        TraceContext: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "trace";
-            /** Projectnodeid */
-            projectNodeId: string;
-            /** Oteltraceid */
-            otelTraceId: string;
         };
         /** TraceData */
         TraceData: {
@@ -6312,6 +6530,18 @@ export interface components {
              */
             end_time: string;
         };
+        /** TraceUIContext */
+        TraceUIContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "trace";
+            /** Projectnodeid */
+            projectNodeId: string;
+            /** Oteltraceid */
+            otelTraceId: string;
+        };
         /** TransferTracesData */
         TransferTracesData: {
             /**
@@ -6356,6 +6586,19 @@ export interface components {
              * Format: date-time
              */
             startedAt: string;
+        };
+        /** UIContexts */
+        UIContexts: {
+            project?: components["schemas"]["ProjectUIContext"] | null;
+            trace?: components["schemas"]["TraceUIContext"] | null;
+            session?: components["schemas"]["SessionUIContext"] | null;
+            span?: components["schemas"]["SpanUIContext"] | null;
+            prompt?: components["schemas"]["PromptUIContext"] | null;
+            promptVersion?: components["schemas"]["PromptVersionUIContext"] | null;
+            dataset?: components["schemas"]["DatasetUIContext"] | null;
+            playground?: components["schemas"]["PlaygroundUIContext"] | null;
+            codeEvaluator?: components["schemas"]["CodeEvaluatorUIContext"] | null;
+            llmEvaluator?: components["schemas"]["LlmEvaluatorUIContext"] | null;
         };
         /** UpdateAnnotationConfigResponseBody */
         UpdateAnnotationConfigResponseBody: {
@@ -6413,12 +6656,12 @@ export interface components {
             } | null;
             /**
              * Add Example Ids
-             * @description Dataset example IDs (GlobalIDs) to add to the split. Each example must belong to this dataset. Adding an example already in the split is a no-op.
+             * @description Dataset example identifiers (GlobalIDs or user-provided IDs) to add to the split. Each example must belong to this dataset. Adding an example already in the split is a no-op.
              */
             add_example_ids?: string[];
             /**
              * Remove Example Ids
-             * @description Dataset example IDs (GlobalIDs) to remove from the split.
+             * @description Dataset example identifiers (GlobalIDs or user-provided IDs) to remove from the split.
              */
             remove_example_ids?: string[];
         };
@@ -6496,7 +6739,7 @@ export interface components {
              * @description The kind of annotator used for the evaluation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /**
              * Start Time
              * Format: date-time
@@ -6603,6 +6846,44 @@ export interface components {
             enabled: boolean;
         };
         /**
+         * DynamicToolInputStreamingPart
+         * @description Dynamic tool part in input-streaming state.
+         */
+        phoenix__db__types__data_stream_protocol__request_types__DynamicToolInputStreamingPart: {
+            /**
+             * Type
+             * @default dynamic-tool
+             * @constant
+             */
+            type?: "dynamic-tool";
+            /** Toolname */
+            toolName: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /** Title */
+            title?: string | null;
+            /**
+             * State
+             * @default input-streaming
+             * @constant
+             */
+            state?: "input-streaming";
+            /** Input */
+            input?: unknown | null;
+            /** Rawinput */
+            rawInput?: string | null;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
          * DynamicToolOutputAvailablePart
          * @description Dynamic tool part in output-available state.
          */
@@ -6693,6 +6974,38 @@ export interface components {
             approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
         };
         /**
+         * ToolInputStreamingPart
+         * @description Tool part in input-streaming state.
+         */
+        phoenix__db__types__data_stream_protocol__request_types__ToolInputStreamingPart: {
+            /** Type */
+            type: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /** Title */
+            title?: string | null;
+            /**
+             * State
+             * @default input-streaming
+             * @constant
+             */
+            state?: "input-streaming";
+            /** Input */
+            input?: unknown | null;
+            /** Rawinput */
+            rawInput?: string | null;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
          * ToolOutputAvailablePart
          * @description Tool part in output-available state.
          */
@@ -6773,6 +7086,42 @@ export interface components {
             approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
         };
         /**
+         * DynamicToolInputStreamingPart
+         * @description Dynamic tool part in input-streaming state.
+         */
+        pydantic_ai__ui__vercel_ai__request_types__DynamicToolInputStreamingPart: {
+            /**
+             * Type
+             * @default dynamic-tool
+             * @constant
+             */
+            type?: "dynamic-tool";
+            /** Toolname */
+            toolName: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /** Title */
+            title?: string | null;
+            /**
+             * State
+             * @default input-streaming
+             * @constant
+             */
+            state?: "input-streaming";
+            /** Input */
+            input?: unknown | null;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
          * DynamicToolOutputAvailablePart
          * @description Dynamic tool part in output-available state.
          */
@@ -6839,6 +7188,36 @@ export interface components {
             input: unknown;
             /** Errortext */
             errorText: string;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * ToolInputStreamingPart
+         * @description Tool part in input-streaming state.
+         */
+        pydantic_ai__ui__vercel_ai__request_types__ToolInputStreamingPart: {
+            /** Type */
+            type: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /** Title */
+            title?: string | null;
+            /**
+             * State
+             * @default input-streaming
+             * @constant
+             */
+            state?: "input-streaming";
+            /** Input */
+            input?: unknown | null;
             /** Providerexecuted */
             providerExecuted?: boolean | null;
             /** Callprovidermetadata */
@@ -7569,7 +7948,7 @@ export interface operations {
                 /** @description Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier. */
                 identifier?: string | null;
                 /** @description Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind. */
-                annotator_kind?: ("LLM" | "CODE" | "HUMAN") | null;
+                annotator_kind?: ("LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT") | null;
                 /** @description Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC. */
                 start_time?: string | null;
                 /** @description Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC. */
@@ -7693,7 +8072,7 @@ export interface operations {
                 /** @description Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier. */
                 identifier?: string | null;
                 /** @description Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind. */
-                annotator_kind?: ("LLM" | "CODE" | "HUMAN") | null;
+                annotator_kind?: ("LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT") | null;
                 /** @description Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC. */
                 start_time?: string | null;
                 /** @description Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC. */
@@ -7817,7 +8196,7 @@ export interface operations {
                 /** @description Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier. */
                 identifier?: string | null;
                 /** @description Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind. */
-                annotator_kind?: ("LLM" | "CODE" | "HUMAN") | null;
+                annotator_kind?: ("LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT") | null;
                 /** @description Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC. */
                 start_time?: string | null;
                 /** @description Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC. */
@@ -8660,6 +9039,61 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listDatasetSplits: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination */
+                cursor?: string | null;
+                /** @description The max number of dataset splits to return at a time. */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The dataset identifier: either dataset ID or dataset name. */
+                dataset_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListDatasetSplitsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
         };
@@ -9811,12 +10245,29 @@ export interface operations {
                 order?: "asc" | "desc";
                 /** @description Maximum number of traces to return */
                 limit?: number;
-                /** @description Pagination cursor (Trace GlobalID) */
+                /** @description Pagination cursor returned by a previous request */
                 cursor?: string | null;
                 /** @description If true, include full span details for each trace. This significantly increases response size and query latency, especially with large page sizes. Prefer fetching spans lazily for individual traces when possible. */
                 include_spans?: boolean;
                 /** @description List of session identifiers to filter traces by. Each value can be either a session_id string or a session GlobalID. Only traces belonging to the specified sessions will be returned. */
                 session_identifier?: string[] | null;
+                /**
+                 * @deprecated
+                 * @description Deprecated: use `filter=error_count > 0` or `filter=error_count == 0`. Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status.
+                 */
+                error?: boolean | null;
+                /**
+                 * @deprecated
+                 * @description Inclusive lower bound on trace latency in milliseconds. Deprecated: use `filter=latency_ms >= N`.
+                 */
+                min_latency_ms?: number | null;
+                /**
+                 * @deprecated
+                 * @description Inclusive upper bound on trace latency in milliseconds. Deprecated: use `filter=latency_ms <= N`.
+                 */
+                max_latency_ms?: number | null;
+                /** @description Trace filter expression, as documented at https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. Combined with other filters using AND. Empty expressions do not filter. Invalid expressions return 400. */
+                filter?: string | null;
             };
             header?: never;
             path: {
@@ -9835,6 +10286,68 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["GetTracesResponseBody"];
                 };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    deleteProjectTraces: {
+        parameters: {
+            query: {
+                /** @description Required inclusive lower bound on trace start time (ISO 8601). */
+                start_time: string;
+                /** @description Required exclusive upper bound on trace start time (ISO 8601). */
+                end_time: string;
+            };
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content returned after the matching traces are deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Forbidden */
             403: {
@@ -10143,10 +10656,14 @@ export interface operations {
     getSpans: {
         parameters: {
             query?: {
-                /** @description Pagination cursor (Span Global ID) */
+                /** @description Pagination cursor: the next_cursor of a previous response with the same sort */
                 cursor?: string | null;
                 /** @description Maximum number of spans to return */
                 limit?: number;
+                /** @description Sort field. 'id' orders by insertion; 'start_time' orders by when the span started, breaking ties by id. */
+                sort?: "id" | "start_time";
+                /** @description Sort direction */
+                order?: "asc" | "desc";
                 /** @description Inclusive lower bound time */
                 start_time?: string | null;
                 /** @description Exclusive upper bound time */
@@ -10159,7 +10676,7 @@ export interface operations {
                 parent_id?: string | null;
                 /** @description Filter by span name(s) */
                 name?: string[] | null;
-                /** @description Filter by span kind(s). Values: LLM, CHAIN, TOOL, RETRIEVER, EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, UNKNOWN */
+                /** @description Filter by span kind(s). Values: LLM, CHAIN, TOOL, RETRIEVER, EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, DECISION, UNKNOWN */
                 span_kind?: string[] | null;
                 /** @description Filter by status code(s). Values: OK, ERROR, UNSET */
                 status_code?: string[] | null;
@@ -10272,6 +10789,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Span ingestion queue is at capacity */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
         };
@@ -10538,6 +11064,60 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GetPromptVersionsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    createPromptVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The identifier of the prompt, i.e. name or ID. */
+                prompt_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePromptVersionRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The created prompt version */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatePromptVersionResponseBody"];
                 };
             };
             /** @description Forbidden */
@@ -11223,6 +11803,132 @@ export interface operations {
             };
         };
     };
+    setProjectRetentionPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetProjectRetentionPolicyRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The project's retention policy assignment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetProjectRetentionPolicyResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getModelProviders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A list of built-in model provider families */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetModelProvidersResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getCustomModelProviders: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination (custom provider ID) */
+                cursor?: string | null;
+                /** @description The max number of custom providers to return at a time (at most 1000). */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A list of custom model providers with pagination information */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetCustomModelProvidersResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
     getSession: {
         parameters: {
             query?: never;
@@ -11370,6 +12076,8 @@ export interface operations {
                 limit?: number;
                 /** @description Sort order by ID: 'asc' (ascending) or 'desc' (descending). */
                 order?: "asc" | "desc";
+                /** @description Session filter expression, as documented at https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. Empty expressions do not filter. Invalid expressions return 400. */
+                filter?: string | null;
             };
             header?: never;
             path: {
@@ -11387,6 +12095,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GetSessionsResponseBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
             /** @description Forbidden */
@@ -12439,6 +13156,7 @@ export interface operations {
             };
             cookie: {
                 "phoenix-oauth2-state": string;
+                "phoenix-oauth2-login-context"?: string | null;
                 "phoenix-oauth2-nonce": string;
                 "phoenix-oauth2-code-verifier"?: string | null;
             };
@@ -13012,6 +13730,95 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SubmitAgentSessionToolOutputsResponseBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description The request conflicts with the session's current state; the body's ``code`` field says how. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentSessionConflictError"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    submitAgentSessionToolApprovals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmitAgentSessionToolApprovalsRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmitAgentSessionToolApprovalsResponseBody"];
                 };
             };
             /** @description Bad Request */

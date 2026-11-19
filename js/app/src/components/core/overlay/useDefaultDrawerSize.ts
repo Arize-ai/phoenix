@@ -1,8 +1,9 @@
 import { useRef, useState } from "react";
 
+import { DRAWER_SIZE_STORAGE_KEY_PREFIX } from "@phoenix/constants/storageConstants";
+
 import type { SizeValue } from "./sizing";
 
-const STORAGE_KEY_PREFIX = "arize-phoenix-drawer";
 // v2 stores application-viewport percentages. v1 (unsuffixed keys) stored
 // browser-viewport percentages, so reusing those values would change their
 // coordinate system.
@@ -73,7 +74,7 @@ export function useDefaultDrawerSize({
   id,
   storage,
 }: UseDefaultDrawerSizeOptions): UseDefaultDrawerSizeResult {
-  const key = `${STORAGE_KEY_PREFIX}-${id}-size-${STORAGE_KEY_VERSION_SUFFIX}`;
+  const key = `${DRAWER_SIZE_STORAGE_KEY_PREFIX}${id}-size-${STORAGE_KEY_VERSION_SUFFIX}`;
   const resolvedStorage = resolveStorage(storage);
 
   // Lazy init — read the persisted size exactly once on first render and

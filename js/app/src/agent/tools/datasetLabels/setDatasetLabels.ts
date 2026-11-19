@@ -10,11 +10,21 @@ import type { setDatasetLabelsToolMutation } from "./__generated__/setDatasetLab
 import { fetchLabelsByNames } from "./listLabels";
 import type { SetDatasetLabelsInput } from "./types";
 
+/**
+ * Returns the dataset's full `labels` list (as `DatasetLabelConfigButton`
+ * does) so the dataset page header, the datasets table row, and the pickers
+ * show the new set from the normalized store.
+ */
 const mutation = graphql`
   mutation setDatasetLabelsToolMutation($input: SetDatasetLabelsInput!) {
     setDatasetLabels(input: $input) {
       dataset {
         id
+        labels {
+          id
+          name
+          color
+        }
       }
     }
   }
@@ -45,7 +55,7 @@ export async function commitSetDatasetLabels({
       ok: false,
       error: `Unknown label(s): ${unknown.join(
         ", "
-      )}. Use list_labels to see existing labels, or create_dataset_label to create one.`,
+      )}. Read the existing labels via a GraphQL query with the bash tool, or create one with the ui.dataset.label.create operation.`,
     };
   }
 

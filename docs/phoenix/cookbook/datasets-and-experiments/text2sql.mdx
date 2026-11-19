@@ -4,14 +4,14 @@ description: "Building effective text-to-SQL systems requires rigorous evaluatio
 ---
 
 
-[![Open In Colab](/images/open-in-colab.svg)](https://colab.research.google.com/github/arize-ai/phoenix/blob/main/tutorials/experiments/txt2sql.ipynb)
+[![Open In Colab](https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/213b0a4a-v1.svg)](https://colab.research.google.com/github/arize-ai/phoenix/blob/main/tutorials/experiments/txt2sql.ipynb)
 
 
 
 We'll use a movie database containing recent titles, ratings, box office performance, and metadata to demonstrate how to build, evaluate, and systematically improve a text-to-SQL system using Phoenix's experimentation framework. Think of Phoenix as your scientific laboratory, meticulously recording every experiment to help you build better AI systems.
 
 ```sh
-!pip install "arize-phoenix>=11.0.0" openai 'httpx<0.28' duckdb datasets pyarrow "pydantic>=2.0.0" nest_asyncio openinference-instrumentation-openai --quiet
+!pip install "arize-phoenix>=11.0.0" openai duckdb datasets pyarrow "pydantic>=2.0.0" nest_asyncio openinference-instrumentation-openai --quiet
 ```
 
 Let's first start a phoenix server to act as our evaluation dashboard and experiment tracker. This will be our central hub for observing, measuring, and improving our text-to-SQL system.

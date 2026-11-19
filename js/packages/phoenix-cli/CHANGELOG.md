@@ -1,5 +1,203 @@
 # @arizeai/phoenix-cli
 
+## 1.23.0
+
+### Minor Changes
+
+- 5160fd5: Add `px prompt tag <prompt-version-id> --tag <name> [--description <text>]` to create a prompt version tag or move an existing one. Omitting `--description` clears the tag's existing description.
+
+## 1.22.1
+
+### Patch Changes
+
+- @arizeai/phoenix-client@8.0.1
+
+## 1.22.0
+
+### Minor Changes
+
+- 80bac51: Move `@arizeai/phoenix-otel` to OpenTelemetry JS 3 (`@opentelemetry/sdk-trace` 3.x, `@opentelemetry/api` 1.10) so spans created by apps on OpenTelemetry JS 3 are recorded after `register()`. `register()` now returns the `@opentelemetry/sdk-trace` `TracerProvider` (still exported as the `NodeTracerProvider` type), which no longer has a `register()` method. Custom `spanProcessors` must come from `@opentelemetry/sdk-trace` and take an options object, e.g. `new BatchSpanProcessor({ exporter })`; `BatchSpanProcessor` and `SimpleSpanProcessor` are now re-exported from `@arizeai/phoenix-otel`. See the package's `MIGRATION.md`. A `tracerProvider` passed to `@arizeai/phoenix-client` `evaluateExperiment()` must now be an `@opentelemetry/sdk-trace` 3.x `TracerProvider`. `register()` no longer applies the `OTEL_TRACES_SAMPLER`, `OTEL_SPAN_*`, `OTEL_ATTRIBUTE_*`, or `OTEL_BSP_*` environment variables. Node.js 22.15 or newer is now required.
+
+### Patch Changes
+
+- Updated dependencies [80bac51]
+  - @arizeai/phoenix-client@8.0.0
+
+## 1.21.0
+
+### Minor Changes
+
+- 1e47750: Add `px dataset-versions list <dataset-identifier>` with cursor pagination, optional limits, and pretty, JSON, and raw output.
+
+## 1.20.1
+
+### Patch Changes
+
+- Updated dependencies [6e6e101]
+  - @arizeai/phoenix-client@7.18.2
+
+## 1.20.0
+
+### Minor Changes
+
+- 974be43: Add `px prompt-versions list <prompt-identifier>` with cursor pagination, optional limits, and pretty, JSON, and raw output. Show creation dates when supported by the server.
+
+## 1.19.2
+
+### Patch Changes
+
+- Updated dependencies [6a60c71]
+- Updated dependencies [491ae7a]
+  - @arizeai/phoenix-client@7.18.1
+
+## 1.19.1
+
+### Patch Changes
+
+- Updated dependencies [ead7dd8]
+  - @arizeai/phoenix-client@7.18.0
+
+## 1.19.0
+
+### Minor Changes
+
+- 9e7a797: Accept `DECISION` and `AGENT` as annotator kinds for span, document, trace, session and experiment run annotations. In `px`, `--annotator-kind` on `annotate` and the `*-annotations delete` commands accepts both. Phoenix servers that predate these kinds reject them.
+
+### Patch Changes
+
+- Updated dependencies [9e7a797]
+  - @arizeai/phoenix-client@7.17.0
+
+## 1.18.10
+
+### Patch Changes
+
+- Updated dependencies [86ab99c]
+  - @arizeai/phoenix-client@7.16.3
+
+## 1.18.9
+
+### Patch Changes
+
+- Updated dependencies [67cc379]
+  - @arizeai/phoenix-config@0.5.1
+  - @arizeai/phoenix-client@7.16.2
+
+## 1.18.8
+
+### Patch Changes
+
+- Updated dependencies [7b9f900]
+  - @arizeai/phoenix-client@7.16.1
+
+## 1.18.7
+
+### Patch Changes
+
+- Updated dependencies [f8ae2fc]
+  - @arizeai/phoenix-client@7.16.0
+
+## 1.18.6
+
+### Patch Changes
+
+- c72f77b: PXI slash-command hints now have a highlighted row: arrow keys move it (wrapping at either end), Tab completes it, and Enter runs it, so `/he` runs `/help`. A bare `/` lists every command, and `/help` is listed first so `/` + Enter is harmless.
+- Updated dependencies [5b37f12]
+  - @arizeai/phoenix-client@7.15.0
+
+## 1.18.5
+
+### Patch Changes
+
+- Updated dependencies [aab229f]
+  - @arizeai/phoenix-client@7.14.0
+
+## 1.18.4
+
+### Patch Changes
+
+- Updated dependencies [c282563]
+  - @arizeai/phoenix-client@7.13.0
+
+## 1.18.3
+
+### Patch Changes
+
+- Updated dependencies [dab09f1]
+  - @arizeai/phoenix-client@7.12.0
+
+## 1.18.2
+
+### Patch Changes
+
+- Updated dependencies [2b73847]
+  - @arizeai/phoenix-client@7.11.0
+
+## 1.18.1
+
+### Patch Changes
+
+- Updated dependencies [c839254]
+  - @arizeai/phoenix-client@7.10.0
+
+## 1.18.0
+
+### Minor Changes
+
+- bf047af: Add Meta (Muse Spark models) as a built-in OpenAI-compatible model provider (`META`).
+
+### Patch Changes
+
+- Updated dependencies [bf047af]
+  - @arizeai/phoenix-client@7.9.0
+
+## 1.17.0
+
+### Minor Changes
+
+- 58b7017: Add Z.ai (GLM models) as a built-in OpenAI-compatible model provider (`ZAI`).
+
+### Patch Changes
+
+- Updated dependencies [58b7017]
+  - @arizeai/phoenix-client@7.8.0
+
+## 1.16.5
+
+### Patch Changes
+
+- 3a836f7: recommend claude-fable-5-1 for PXI sessions
+
+## 1.16.4
+
+### Patch Changes
+
+- Updated dependencies [1cdff14]
+  - @arizeai/phoenix-client@7.7.1
+
+## 1.16.3
+
+### Patch Changes
+
+- Updated dependencies [37916d7]
+- Updated dependencies [c48e50e]
+- Updated dependencies [773c5e5]
+- Updated dependencies [b27561d]
+  - @arizeai/phoenix-client@7.7.0
+
+## 1.16.2
+
+### Patch Changes
+
+- Updated dependencies [d328c3e]
+  - @arizeai/phoenix-client@7.6.0
+
+## 1.16.1
+
+### Patch Changes
+
+- 2435eba: recommend gemini-3.7-flash for PXI sessions, drop the superseded gemini-3.5-flash from the recommended list, and add the missing claude-opus-5 entry
+
 ## 1.16.0
 
 ### Minor Changes

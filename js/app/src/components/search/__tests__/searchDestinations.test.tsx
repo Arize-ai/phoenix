@@ -28,7 +28,14 @@ describe("search destinations", () => {
     expect(sections[0]?.title).toBe("Profile");
     expect(
       sections[0]?.destinations.map((destination) => destination.metadata.label)
-    ).toEqual(["Account", "API Keys", "Apps", "Preferences", "Generative AI"]);
+    ).toEqual([
+      "Account",
+      "API Keys",
+      "Apps",
+      "Preferences",
+      "Accessibility",
+      "Generative AI",
+    ]);
   });
 
   it("does not match sections on non-prefix substrings of their title", () => {
@@ -72,7 +79,7 @@ describe("search destinations", () => {
     expect(sections).toHaveLength(1);
     expect(
       sections[0]?.destinations.map((destination) => destination.metadata.label)
-    ).toEqual(["Preferences", "Generative AI"]);
+    ).toEqual(["Preferences", "Accessibility", "Generative AI"]);
   });
 
   it("provides a direct destination and icon for every profile section", () => {
@@ -113,8 +120,15 @@ describe("search destinations", () => {
       {
         path: "/profile/preferences",
         label: "Preferences",
-        description: "Theme, timezone, and code defaults",
+        description: "Theme, timezone, code defaults, and local storage",
         icon: "Options",
+        requiresViewer: false,
+      },
+      {
+        path: "/profile/accessibility",
+        label: "Accessibility",
+        description: "Native scrollbar and accessibility options",
+        icon: "Eye",
         requiresViewer: false,
       },
       {
@@ -137,6 +151,7 @@ describe("search destinations", () => {
       ["/dashboards", "Dashboards"],
       ["/datasets", "Datasets & Experiments"],
       ["/playground", "Playground"],
+      ["/chat", "Chat"],
       ["/evaluators", "Evaluators"],
       ["/prompts", "Prompts"],
       ["/apis/rest", "REST API"],

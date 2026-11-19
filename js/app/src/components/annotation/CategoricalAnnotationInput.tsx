@@ -35,10 +35,6 @@ export function CategoricalAnnotationInput({
 }: CategoricalAnnotationInputProps & { ref?: Ref<HTMLButtonElement> }) {
   return (
     <Flex gap="size-50" alignItems="center" position="relative">
-      <AnnotationInputExplanation
-        annotation={annotation}
-        onSubmit={onSubmitExplanation}
-      />
       <Select
         id={annotationConfig.id}
         name={annotationConfig.name}
@@ -65,6 +61,10 @@ export function CategoricalAnnotationInput({
           </ListBox>
         </Popover>
       </Select>
+      <AnnotationInputExplanation
+        annotation={annotation}
+        onSubmit={onSubmitExplanation}
+      />
     </Flex>
   );
 }

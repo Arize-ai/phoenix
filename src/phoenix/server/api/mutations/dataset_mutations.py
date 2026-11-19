@@ -1,4 +1,6 @@
 import asyncio
+from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Optional, cast
 
@@ -10,8 +12,9 @@ from openinference.semconv.trace import (
     ToolAttributes,
     ToolCallAttributes,
 )
-from sqlalchemy import and_, delete, distinct, func, insert, select, update
+from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import contains_eager
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
@@ -33,7 +36,8 @@ from phoenix.server.api.input_types.CreateDatasetInput import CreateDatasetInput
 from phoenix.server.api.input_types.DeleteDatasetExamplesInput import DeleteDatasetExamplesInput
 from phoenix.server.api.input_types.DeleteDatasetInput import DeleteDatasetInput
 from phoenix.server.api.input_types.PatchDatasetExamplesInput import (
-    DatasetExamplePatch,
+    DatasetExampleOperation,
+    DatasetExampleValueInput,
     PatchDatasetExamplesInput,
 )
 from phoenix.server.api.input_types.PatchDatasetInput import PatchDatasetInput
@@ -45,6 +49,108 @@ from phoenix.server.api.utils import delete_projects, delete_traces
 from phoenix.server.dml_event import DatasetDeleteEvent, DatasetInsertEvent
 
 _MAX_REPORTED_EXTERNAL_ID_CONFLICTS = 10
+_MAX_REPORTED_EXAMPLE_IDS = 10
+
+
+async def _find_conflicting_external_ids(
+    session: AsyncSession,
+    *,
+    dataset_id: int,
+    external_ids: Sequence[str],
+) -> list[str]:
+    """
+    The custom IDs that already belong to an example in this dataset, capped so a
+    bad bulk write reports a readable sample rather than thousands of IDs.
+
+    Deleting an example only writes a DELETE revision — the example row, and with
+    it the custom ID, survives. So an ID belonging to a deleted example still
+    counts as taken, which the conflict message spells out.
+    """
+    return [
+        external_id
+        for external_id in (
+            await session.scalars(
+                select(models.DatasetExample.external_id)
+                .where(models.DatasetExample.dataset_id == dataset_id)
+                .where(models.DatasetExample.external_id.in_(external_ids))
+                .limit(_MAX_REPORTED_EXTERNAL_ID_CONFLICTS)
+            )
+        ).all()
+        if external_id is not None
+    ]
+
+
+def _external_id_conflict_message(conflicting_external_ids: Sequence[str]) -> str:
+    return (
+        f"Custom IDs {list(conflicting_external_ids)!r} are already taken in this dataset. "
+        "A custom ID stays taken even after its example is deleted."
+    )
+
+
+def _to_global_ids(type_name: str, rowids: Sequence[int]) -> str:
+    """
+    Renders row IDs as the global IDs the caller sent us, capped so that a bad
+    bulk write reports a readable sample rather than thousands of IDs.
+    """
+    reported = [
+        str(GlobalID(type_name, str(rowid))) for rowid in rowids[:_MAX_REPORTED_EXAMPLE_IDS]
+    ]
+    remaining = len(rowids) - len(reported)
+    listed = ", ".join(reported)
+    return f"{listed} (and {remaining} more)" if remaining > 0 else listed
+
+
+def _examples_message(rowids: Sequence[int], suffix: str) -> str:
+    """A sentence about the given examples, e.g. "Examples <ids> have no revision."."""
+    return f"Examples {_to_global_ids(DatasetExample.__name__, rowids)} {suffix}"
+
+
+def _blank_to_none(value: object) -> Optional[str]:
+    """A missing, empty, or whitespace-only string means "not provided"."""
+    return (value.strip() or None) if isinstance(value, str) else None
+
+
+def _reject_duplicate_external_ids(external_ids: Sequence[str]) -> None:
+    """
+    A custom ID repeated within one request is a malformed request, not a
+    collision with what is already stored.
+    """
+    seen_external_ids: set[str] = set()
+    for external_id in external_ids:
+        if external_id in seen_external_ids:
+            raise BadRequest(f"Custom ID {external_id!r} appears more than once in the input.")
+        seen_external_ids.add(external_id)
+
+
+async def _insert_dataset_examples(
+    session: AsyncSession,
+    *,
+    dataset_id: int,
+    examples: Sequence[models.DatasetExample],
+) -> None:
+    """
+    Inserts the example rows, reporting a (dataset_id, external_id) unique
+    constraint violation as a Conflict that names the custom IDs already taken.
+
+    Any conflict check before this call is check-then-insert, so a concurrent add
+    can still trip the constraint. The savepoint rolls the insert back, which
+    leaves the session usable for the lookup that names the colliding IDs.
+    """
+    external_ids = [example.external_id for example in examples if example.external_id]
+    try:
+        async with session.begin_nested():
+            session.add_all(examples)
+            await session.flush()
+    except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+        error_message = str(error)
+        has_external_id_conflict = "dataset_id" in error_message and "external_id" in error_message
+        if has_external_id_conflict and external_ids:
+            conflicting_external_ids = await _find_conflicting_external_ids(
+                session, dataset_id=dataset_id, external_ids=external_ids
+            )
+            if conflicting_external_ids:
+                raise Conflict(_external_id_conflict_message(conflicting_external_ids))
+        raise
 
 
 @strawberry.type
@@ -243,9 +349,7 @@ class DatasetMutationMixin:
             from_global_id_with_expected_type(global_id=span_id, expected_type_name=Span.__name__)
             for span_id in set(span_ids)
         }
-        dataset_version_description = (
-            input.dataset_version_description if input.dataset_version_description else None
-        )
+        dataset_version_description = _blank_to_none(input.dataset_version_description)
         dataset_version_metadata = input.dataset_version_metadata
         dataset_rowid = from_global_id_with_expected_type(
             global_id=dataset_id, expected_type_name=Dataset.__name__
@@ -310,16 +414,13 @@ class DatasetMutationMixin:
 
             DatasetExample = models.DatasetExample
 
-            input_external_ids = [
-                example.external_id for example in input.examples if example.external_id
-            ]
-            seen_external_ids: set[str] = set()
-            for external_id in input_external_ids:
-                if external_id in seen_external_ids:
-                    raise Conflict(
-                        f"Custom ID {external_id!r} appears more than once in the input."
-                    )
-                seen_external_ids.add(external_id)
+            _reject_duplicate_external_ids(
+                [
+                    external_id
+                    for example in input.examples
+                    if (external_id := _blank_to_none(example.external_id)) is not None
+                ]
+            )
 
             dataset_examples = [
                 DatasetExample(
@@ -330,38 +431,13 @@ class DatasetMutationMixin:
                     )
                     if example.span_id
                     else None,
-                    external_id=example.external_id if example.external_id else None,
+                    external_id=_blank_to_none(example.external_id),
                 )
                 for example in input.examples
             ]
-            try:
-                async with session.begin_nested():
-                    session.add_all(dataset_examples)
-                    await session.flush()
-            except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
-                error_message = str(error)
-                has_external_id_conflict = (
-                    "dataset_id" in error_message and "external_id" in error_message
-                )
-                if has_external_id_conflict and input_external_ids:
-                    existing_external_ids = [
-                        external_id
-                        for external_id in (
-                            await session.scalars(
-                                select(models.DatasetExample.external_id)
-                                .where(models.DatasetExample.dataset_id == dataset_rowid)
-                                .where(models.DatasetExample.external_id.in_(input_external_ids))
-                                .limit(_MAX_REPORTED_EXTERNAL_ID_CONFLICTS)
-                            )
-                        ).all()
-                        if external_id is not None
-                    ]
-                    if existing_external_ids:
-                        raise Conflict(
-                            f"Examples with custom IDs {existing_external_ids!r} "
-                            f"already exist in this dataset."
-                        )
-                raise
+            await _insert_dataset_examples(
+                session, dataset_id=dataset_rowid, examples=dataset_examples
+            )
             dataset_example_rowids = [example.id for example in dataset_examples]
             assert len(dataset_example_rowids) == len(input.examples)
             assert all(map(lambda id: isinstance(id, int), dataset_example_rowids))
@@ -433,91 +509,183 @@ class DatasetMutationMixin:
         info: Info[Context, None],
         input: PatchDatasetExamplesInput,
     ) -> DatasetMutationPayload:
-        if not (patches := input.patches):
-            raise BadRequest("Must provide examples to patch.")
-        by_numeric_id = [
-            (
-                from_global_id_with_expected_type(patch.example_id, DatasetExample.__name__),
-                index,
-                patch,
+        """
+        Applies add, replace, and remove operations to a dataset's examples in
+        order and commits them as one new dataset version, or not at all.
+        """
+        if not input.operations:
+            raise BadRequest("Must provide at least one operation.")
+        try:
+            dataset_id = from_global_id_with_expected_type(
+                global_id=input.dataset_id,
+                expected_type_name=Dataset.__name__,
             )
-            for index, patch in enumerate(patches)
-        ]
-        example_ids, _, patches = map(list, zip(*sorted(by_numeric_id)))
-        if len(set(example_ids)) < len(example_ids):
-            raise BadRequest("Cannot patch the same example more than once per mutation.")
-        if any(patch.is_empty() for patch in patches):
-            raise BadRequest("Received one or more empty patches that contain no fields to update.")
-        version_description = input.version_description or None
-        version_metadata = input.version_metadata
-        async with info.context.db() as session:
-            datasets = (
-                await session.scalars(
-                    select(models.Dataset)
-                    .where(
-                        models.Dataset.id.in_(
-                            select(distinct(models.DatasetExample.dataset_id))
-                            .where(models.DatasetExample.id.in_(example_ids))
-                            .scalar_subquery()
-                        )
-                    )
-                    .limit(2)
-                )
-            ).all()
-            if not datasets:
-                raise NotFound("No examples found.")
-            if len(set(ds.id for ds in datasets)) > 1:
-                raise BadRequest("Examples must come from the same dataset.")
-            dataset = datasets[0]
-            _check_dataset_scope(dataset, input.dataset_id)
+        except ValueError:
+            raise BadRequest(f"Invalid dataset ID: {input.dataset_id}")
+        change_set = _resolve_example_operations(input.operations)
+        additions = change_set.additions
+        replacements = change_set.replacements
+        removals = change_set.removals
 
-            revision_ids = (
-                select(func.max(models.DatasetExampleRevision.id))
-                .where(models.DatasetExampleRevision.dataset_example_id.in_(example_ids))
-                .group_by(models.DatasetExampleRevision.dataset_example_id)
-                .scalar_subquery()
+        # Normalized once so the conflict check and the insert below agree.
+        external_id_by_addition = [_blank_to_none(addition.external_id) for addition in additions]
+        external_ids = [
+            external_id for external_id in external_id_by_addition if external_id is not None
+        ]
+        _reject_duplicate_external_ids(external_ids)
+
+        version_description = _blank_to_none(input.version_description)
+        # `versionMetadata` is a JSON scalar, so anything type-checks at the GraphQL
+        # layer. Reject a non-object rather than quietly storing {} in its place.
+        if (
+            input.version_metadata is not UNSET
+            and input.version_metadata is not None
+            and not isinstance(input.version_metadata, dict)
+        ):
+            raise BadRequest("Version metadata must be a JSON object.")
+        version_metadata: dict[str, Any] = (
+            input.version_metadata if isinstance(input.version_metadata, dict) else {}
+        )
+        existing_example_ids = [*replacements, *removals]
+
+        async with info.context.db() as session:
+            dataset = await session.scalar(
+                select(models.Dataset).where(models.Dataset.id == dataset_id)
             )
-            revisions = (
-                await session.scalars(
-                    select(models.DatasetExampleRevision)
-                    .where(
-                        and_(
-                            models.DatasetExampleRevision.id.in_(revision_ids),
-                            models.DatasetExampleRevision.revision_kind != "DELETE",
+            if dataset is None:
+                raise NotFound(f"Unknown dataset: {input.dataset_id}")
+
+            latest_revisions_by_example_id: dict[int, models.DatasetExampleRevision] = {}
+            if existing_example_ids:
+                dataset_examples = (
+                    await session.scalars(
+                        select(models.DatasetExample).where(
+                            models.DatasetExample.id.in_(existing_example_ids)
                         )
                     )
-                    .order_by(
-                        models.DatasetExampleRevision.dataset_example_id
-                    )  # ensure the order of the revisions matches the order of the input patches
+                ).all()
+                examples_by_id = {example.id: example for example in dataset_examples}
+                # An example in another dataset is not addressable by a caller who
+                # scoped the write to this one, so it reads as missing rather than
+                # as a malformed request.
+                unreachable_example_ids = [
+                    example_id
+                    for example_id in existing_example_ids
+                    if (example := examples_by_id.get(example_id)) is None
+                    or example.dataset_id != dataset_id
+                ]
+                if unreachable_example_ids:
+                    raise NotFound(
+                        _examples_message(
+                            unreachable_example_ids, "could not be found in this dataset."
+                        )
+                    )
+
+                latest_revision_ids = (
+                    select(func.max(models.DatasetExampleRevision.id))
+                    .where(
+                        models.DatasetExampleRevision.dataset_example_id.in_(existing_example_ids)
+                    )
+                    .group_by(models.DatasetExampleRevision.dataset_example_id)
+                    .scalar_subquery()
                 )
-            ).all()
-            if (num_missing_examples := len(example_ids) - len(revisions)) > 0:
-                raise NotFound(f"{num_missing_examples} example(s) could not be found.")
+                latest_revisions = (
+                    await session.scalars(
+                        select(models.DatasetExampleRevision).where(
+                            models.DatasetExampleRevision.id.in_(latest_revision_ids)
+                        )
+                    )
+                ).all()
+                latest_revisions_by_example_id = {
+                    revision.dataset_example_id: revision for revision in latest_revisions
+                }
+                if unrevised_example_ids := [
+                    example_id
+                    for example_id in existing_example_ids
+                    if example_id not in latest_revisions_by_example_id
+                ]:
+                    raise NotFound(_examples_message(unrevised_example_ids, "have no revision."))
+                if deleted_example_ids := [
+                    example_id
+                    for example_id in existing_example_ids
+                    if latest_revisions_by_example_id[example_id].revision_kind == "DELETE"
+                ]:
+                    raise Conflict(
+                        _examples_message(deleted_example_ids, "have already been deleted.")
+                    )
+
+            if external_ids:
+                conflicting_external_ids = await _find_conflicting_external_ids(
+                    session, dataset_id=dataset_id, external_ids=external_ids
+                )
+                if conflicting_external_ids:
+                    raise Conflict(_external_id_conflict_message(conflicting_external_ids))
 
             version_id = await session.scalar(
                 insert(models.DatasetVersion)
-                .returning(models.DatasetVersion.id)
                 .values(
-                    dataset_id=dataset.id,
+                    dataset_id=dataset_id,
                     description=version_description,
                     metadata_=version_metadata,
                     user_id=info.context.user_id,
                 )
+                .returning(models.DatasetVersion.id)
             )
             assert version_id is not None
 
-            await session.execute(
-                insert(models.DatasetExampleRevision),
-                [
-                    _to_orm_revision(
-                        existing_revision=revision,
-                        patch=patch,
-                        example_id=example_id,
-                        version_id=version_id,
-                    )
-                    for revision, patch, example_id in zip(revisions, patches, example_ids)
-                ],
-            )
+            if additions:
+                added_examples = [
+                    models.DatasetExample(dataset_id=dataset_id, external_id=external_id)
+                    for external_id in external_id_by_addition
+                ]
+                await _insert_dataset_examples(
+                    session, dataset_id=dataset_id, examples=added_examples
+                )
+                await session.execute(
+                    insert(models.DatasetExampleRevision),
+                    [
+                        {
+                            models.DatasetExampleRevision.dataset_example_id.key: added_example.id,
+                            models.DatasetExampleRevision.dataset_version_id.key: version_id,
+                            models.DatasetExampleRevision.input.key: addition.input,
+                            models.DatasetExampleRevision.output.key: addition.output,
+                            models.DatasetExampleRevision.metadata_.key: addition.metadata,
+                            models.DatasetExampleRevision.revision_kind.key: "CREATE",
+                        }
+                        for added_example, addition in zip(added_examples, additions)
+                    ],
+                )
+
+            if replacements:
+                await session.execute(
+                    insert(models.DatasetExampleRevision),
+                    [
+                        _to_orm_revision(
+                            existing_revision=latest_revisions_by_example_id[example_id],
+                            replaced_fields=replaced_fields,
+                            example_id=example_id,
+                            version_id=version_id,
+                        )
+                        for example_id, replaced_fields in replacements.items()
+                    ],
+                )
+
+            if removals:
+                await session.execute(
+                    insert(models.DatasetExampleRevision),
+                    [
+                        {
+                            models.DatasetExampleRevision.dataset_example_id.key: example_id,
+                            models.DatasetExampleRevision.dataset_version_id.key: version_id,
+                            models.DatasetExampleRevision.input.key: {},
+                            models.DatasetExampleRevision.output.key: {},
+                            models.DatasetExampleRevision.metadata_.key: {},
+                            models.DatasetExampleRevision.revision_kind.key: "DELETE",
+                        }
+                        for example_id in removals
+                    ],
+                )
+
         info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=Dataset(id=dataset.id, db_record=dataset))
 
@@ -641,20 +809,22 @@ def _span_attribute(semconv: str) -> Any:
 def _to_orm_revision(
     *,
     existing_revision: models.DatasetExampleRevision,
-    patch: DatasetExamplePatch,
+    replaced_fields: dict[str, Any],
     example_id: int,
     version_id: int,
 ) -> dict[str, Any]:
     """
-    Creates a new revision from an existing revision and a patch. The output is a
-    dictionary suitable for insertion into the database using the sqlalchemy
-    bulk insertion API.
+    Creates a new revision from an existing revision and the fields the operations
+    replaced. The output is a dictionary suitable for insertion into the database
+    using the sqlalchemy bulk insertion API.
     """
 
     db_rev = models.DatasetExampleRevision
-    input = patch.input if isinstance(patch.input, dict) else existing_revision.input
-    output = patch.output if isinstance(patch.output, dict) else existing_revision.output
-    metadata = patch.metadata if isinstance(patch.metadata, dict) else existing_revision.metadata_
+    # A field the operations never replaced carries over from the existing revision.
+    # Replaced values were validated up front, so anything present is a JSON object.
+    input = replaced_fields.get("input", existing_revision.input)
+    output = replaced_fields.get("output", existing_revision.output)
+    metadata = replaced_fields.get("metadata", existing_revision.metadata_)
     return {
         str(db_column.key): patch_value
         for db_column, patch_value in (
@@ -666,6 +836,84 @@ def _to_orm_revision(
             (db_rev.revision_kind, "PATCH"),
         )
     }
+
+
+@dataclass(frozen=True)
+class _ExampleChangeSet:
+    """The net effect of an operation list, in the shape the revision writes want."""
+
+    additions: list[DatasetExampleValueInput]
+    """Values to create examples from, in operation order."""
+    replacements: dict[int, dict[str, Any]]
+    """Example row ID to the fields replaced on it, keyed by revision column."""
+    removals: list[int]
+    """Example row IDs to delete, in operation order."""
+
+
+def _parse_example_id(global_id: GlobalID, location: str) -> int:
+    try:
+        return from_global_id_with_expected_type(
+            global_id=global_id,
+            expected_type_name=DatasetExample.__name__,
+        )
+    except ValueError:
+        raise BadRequest(f"{location} is not a dataset example ID.")
+
+
+def _resolve_example_operations(
+    operations: Sequence[DatasetExampleOperation],
+) -> _ExampleChangeSet:
+    """
+    Folds an ordered operation list into additions, per-example field
+    replacements, and removals. Later operations see the effect of earlier
+    ones: replacing a field twice keeps the last value, removing an example
+    discards its replacements, and targeting an example after it was removed is
+    an error, as in JSON Patch. Every error names the operation by its index.
+    """
+    additions: list[DatasetExampleValueInput] = []
+    replacements: dict[int, dict[str, Any]] = {}
+    removals: list[int] = []
+    for index, operation in enumerate(operations):
+        if operation.add is not UNSET and operation.add is not None:
+            value = operation.add.value
+            if not all(
+                isinstance(field, dict) for field in (value.input, value.output, value.metadata)
+            ):
+                raise BadRequest(
+                    f"operations[{index}].add.value: input, output, and metadata must be "
+                    "JSON objects."
+                )
+            additions.append(value)
+        elif operation.replace is not UNSET and operation.replace is not None:
+            replace = operation.replace
+            example_id = _parse_example_id(
+                replace.example_id, f"operations[{index}].replace.exampleId"
+            )
+            if example_id in removals:
+                raise BadRequest(
+                    f"operations[{index}] replaces example {replace.example_id}, which an "
+                    "earlier operation removed."
+                )
+            if not isinstance(replace.value, dict):
+                raise BadRequest(f"operations[{index}].replace.value must be a JSON object.")
+            replacements.setdefault(example_id, {})[replace.field.value] = replace.value
+        elif operation.remove is not UNSET and operation.remove is not None:
+            remove = operation.remove
+            example_id = _parse_example_id(
+                remove.example_id, f"operations[{index}].remove.exampleId"
+            )
+            if example_id in removals:
+                raise BadRequest(
+                    f"operations[{index}] removes example {remove.example_id}, which an "
+                    "earlier operation already removed."
+                )
+            removals.append(example_id)
+            replacements.pop(example_id, None)
+        else:
+            raise BadRequest(
+                f"operations[{index}] must set exactly one of add, replace, or remove."
+            )
+    return _ExampleChangeSet(additions=additions, replacements=replacements, removals=removals)
 
 
 def _gather_span_annotations_by_name(

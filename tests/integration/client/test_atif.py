@@ -1,7 +1,7 @@
 """End-to-end coverage for uploading ATIF trajectories as spans.
 
 Conversion is unit-tested in ``packages/phoenix-client/tests``; what needs a
-live server is whether the resulting span batch survives a round trip — that
+live server is whether the resulting span batch survives a round trip. That
 Phoenix accepts every span, resolves the parent links, and stores the batch as
 one connected trace.
 
@@ -65,7 +65,7 @@ def _project(_app: _AppInfo) -> Iterator[str]:
 def _trial_span(trace_id: str, span_id: str) -> v1.Span:
     """The caller-owned span standing in for an enclosing operation."""
     return {
-        "name": "harbor.trial",
+        "name": "harbor.trial task-a",
         "context": {"trace_id": trace_id, "span_id": span_id},
         "span_kind": "CHAIN",
         "start_time": "2026-03-26T10:00:00+00:00",
@@ -107,17 +107,20 @@ class TestAtifTrajectoryUpload:
         ]
         assert not unresolvable, f"spans persisted with unresolvable parents: {unresolvable}"
 
-        # Each trajectory root hangs off the trial span. The summarization step
-        # declares subagent refs without a tool call, so its sub-trajectories
-        # have no in-batch parent and are adopted by the trial rather than
-        # dangling. See https://github.com/Arize-ai/phoenix/issues/15417.
         roots = {s["name"] for s in fetched if s.get("parent_id") == parent_span_id}
-        assert roots == {
-            "terminus-2",
+        assert roots == {"terminus-2"}
+
+        handoff_step_id = next(
+            s["context"]["span_id"] for s in fetched if s["name"] == "system event 1"
+        )
+        subagent_root_names = {
             "terminus-2-summarization-questions",
             "terminus-2-summarization-answers",
             "terminus-2-summarization-summary",
         }
+        assert {
+            s["name"]: s.get("parent_id") for s in fetched if s["name"] in subagent_root_names
+        } == {name: handoff_step_id for name in subagent_root_names}
 
     async def test_separate_trials_with_distinct_trajectory_ids_do_not_collide(
         self,

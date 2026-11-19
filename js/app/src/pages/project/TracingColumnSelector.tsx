@@ -1,5 +1,7 @@
-import type { Column } from "@tanstack/react-table";
+import type { RowData } from "@tanstack/react-table";
 
+import { AnnotationTargetTypeToken } from "@phoenix/components/annotation/AnnotationTargetTypeToken";
+import type { AnnotationTargetType } from "@phoenix/components/annotation/types";
 import type { ColumnSelectorColumn } from "@phoenix/components/table";
 import {
   applySubsetColumnOrder,
@@ -7,7 +9,10 @@ import {
   ColumnSelector,
   mergeColumnOrder,
 } from "@phoenix/components/table";
+import type { Column } from "@phoenix/components/table/tableFeatures";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
+
+import { normalizeAnnotationColumnOrder } from "./tableUtils";
 
 /**
  * A set of dynamic annotation columns backed by its own visibility map in the
@@ -19,17 +24,22 @@ export interface AnnotationColumnKind {
   names: string[];
   visibility: Record<string, boolean>;
   onVisibilityChange: (visibility: Record<string, boolean>) => void;
-  /** Distinguishes an annotation from a same-named one of another kind. */
-  getLabel?: (name: string) => string;
+  /**
+   * What this kind's annotations annotate. Shown as a token beside each
+   * annotation column so same-named annotations of different kinds can be
+   * told apart.
+   */
+  targetType: AnnotationTargetType;
+  /** Returns the TanStack id for this annotation's visible flat column. */
+  getColumnId: (name: string) => string;
 }
 
-export interface TracingColumnSelectorProps {
+export interface TracingColumnSelectorProps<TData extends RowData> {
   /**
-   * All of the top-level columns of the table, including group columns (which
-   * represent the visible dynamic annotation columns).
+   * All of the top-level columns of the table, including visible dynamic
+   * annotation columns.
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  columns: Column<any>[];
+  columns: Column<TData>[];
   /** Columns that are always visible. They remain reorderable. */
   unHidableColumnIds: string[];
   annotationKinds: AnnotationColumnKind[];
@@ -37,7 +47,7 @@ export interface TracingColumnSelectorProps {
   columnLabels?: Record<string, string>;
 }
 
-function getColumnLabel(column: Column<unknown>): string {
+function getColumnLabel<TData extends RowData>(column: Column<TData>): string {
   const header = column.columnDef.header;
   return typeof header === "string" ? header : column.id;
 }
@@ -48,12 +58,12 @@ function getColumnLabel(column: Column<unknown>): string {
  * as one flat, reorderable list, and writes visibility back to the map that
  * owns each column.
  */
-export function TracingColumnSelector({
+export function TracingColumnSelector<TData extends RowData>({
   columns,
   unHidableColumnIds,
   annotationKinds,
   columnLabels = {},
-}: TracingColumnSelectorProps) {
+}: TracingColumnSelectorProps<TData>) {
   const columnVisibility = useTracingContext((state) => state.columnVisibility);
   const setColumnVisibility = useTracingContext(
     (state) => state.setColumnVisibility
@@ -66,34 +76,49 @@ export function TracingColumnSelector({
     .map((column) => column.id)
     .filter((id) => id !== CHECKBOX_COLUMN_ID);
 
-  // An annotation whose name collides with one of an earlier kind cannot be
-  // addressed separately (the table derives the same column id for both), so
-  // the earlier kind wins
-  const claimedNames = new Set<string>();
-  const kindByAnnotationName = new Map<string, AnnotationColumnKind>();
+  const annotationByColumnId = new Map<
+    string,
+    { kind: AnnotationColumnKind; name: string }
+  >();
   for (const kind of annotationKinds) {
     for (const name of kind.names) {
-      if (claimedNames.has(name)) {
-        continue;
-      }
-      claimedNames.add(name);
-      kindByAnnotationName.set(name, kind);
+      annotationByColumnId.set(kind.getColumnId(name), { kind, name });
     }
   }
-
-  // One flat order over everything: table columns (visible annotation columns
-  // are already among them as group columns) plus hidden annotation columns,
-  // which keep their persisted position even while not rendered in the table
-  const fullColumnOrder = mergeColumnOrder({
+  const normalizedColumnOrder = normalizeAnnotationColumnOrder({
     columnOrder,
+    annotationKinds,
+  });
+
+  // One flat order over everything: table columns (including visible
+  // annotation columns) plus hidden annotation columns, which keep their
+  // persisted position even while not rendered in the table.
+  const fullColumnOrder = mergeColumnOrder({
+    columnOrder: normalizedColumnOrder,
     columnIds: [
       ...tableColumnIds,
-      ...[...claimedNames].filter((name) => !columnsById.has(name)),
+      ...[...annotationByColumnId.keys()].filter(
+        (columnId) => !columnsById.has(columnId)
+      ),
     ],
   });
 
   const selectorColumns = fullColumnOrder.flatMap<ColumnSelectorColumn>(
     (id) => {
+      const annotation = annotationByColumnId.get(id);
+      if (annotation != null) {
+        return [
+          {
+            id,
+            label: annotation.name,
+            trailingVisual: (
+              <AnnotationTargetTypeToken
+                targetType={annotation.kind.targetType}
+              />
+            ),
+          },
+        ];
+      }
       const column = columnsById.get(id);
       if (column != null && column.columns.length === 0) {
         return [
@@ -104,10 +129,6 @@ export function TracingColumnSelector({
           },
         ];
       }
-      const kind = kindByAnnotationName.get(id);
-      if (kind != null) {
-        return [{ id, label: kind.getLabel?.(id) ?? id }];
-      }
       return [];
     }
   );
@@ -117,8 +138,8 @@ export function TracingColumnSelector({
   const mergedColumnVisibility: Record<string, boolean> = {
     ...columnVisibility,
   };
-  for (const [name, kind] of kindByAnnotationName) {
-    mergedColumnVisibility[name] = kind.visibility[name] ?? false;
+  for (const [columnId, { kind, name }] of annotationByColumnId) {
+    mergedColumnVisibility[columnId] = kind.visibility[name] ?? false;
   }
 
   const onColumnVisibilityChange = (
@@ -129,9 +150,9 @@ export function TracingColumnSelector({
       annotationKinds.map((kind) => [kind, { ...kind.visibility }])
     );
     for (const [id, isVisible] of Object.entries(newColumnVisibility)) {
-      const kind = kindByAnnotationName.get(id);
-      if (kind != null) {
-        updatesByKind.get(kind)![id] = isVisible;
+      const annotation = annotationByColumnId.get(id);
+      if (annotation != null) {
+        updatesByKind.get(annotation.kind)![annotation.name] = isVisible;
       } else {
         columnUpdates[id] = isVisible;
       }

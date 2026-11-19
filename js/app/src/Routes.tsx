@@ -9,6 +9,10 @@ import { RouterProvider } from "react-router/dom";
 
 import { buildRouteInfoCatalog } from "@phoenix/agent/tools/getRouteInfo/catalog";
 import { registerRouteInfoCatalog } from "@phoenix/agent/tools/getRouteInfo/routeCatalogRegistry";
+import {
+  createDataRouterNavigationStateSource,
+  registerRouterNavigationStateSource,
+} from "@phoenix/agent/tools/navigation/routerStateRegistry";
 import type { DatasetEvaluatorDetailsLoaderData } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { datasetEvaluatorDetailsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { DatasetEvaluatorDetailsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorDetailsPage";
@@ -25,7 +29,7 @@ import { settingsPromptsPageLoader } from "@phoenix/pages/settings/prompts/setti
 import { RetentionPolicyDetailsDrawer } from "@phoenix/pages/settings/RetentionPolicyDetailsDrawer";
 import { SettingsSecretsPage } from "@phoenix/pages/settings/secrets/SettingsSecretsPage";
 import { settingsSecretsPageLoader } from "@phoenix/pages/settings/secrets/settingsSecretsPageLoader";
-import { settingsAgentsPageLoader } from "@phoenix/pages/settings/settingsAgentsPageLoader";
+import { settingsAgentsChatsLoader } from "@phoenix/pages/settings/settingsAgentsChatsLoader";
 import { SettingsAIProvidersPage } from "@phoenix/pages/settings/SettingsAIProvidersPage";
 import { settingsAIProvidersPageLoader } from "@phoenix/pages/settings/settingsAIProvidersPageLoader";
 import { SettingsAnnotationsPage } from "@phoenix/pages/settings/SettingsAnnotationsPage";
@@ -67,6 +71,8 @@ import {
   ExamplePage,
   examplesLoader,
   ExamplesPage,
+  ChatPage,
+  CompareTracesPage,
   ExperimentComparePage,
   ExperimentDetailPage,
   ExperimentsPage,
@@ -78,6 +84,7 @@ import {
   PlaygroundPage,
   playgroundPageLoader,
   ProfileAccountPage,
+  ProfileAccessibilityPage,
   ProfileAPIKeysPage,
   ProfileAuthorizedApplicationsPage,
   ProfileGenerativeAIPage,
@@ -104,7 +111,12 @@ import {
   settingsGeneralPageLoader,
   SettingsPage,
   SettingsPromptsPage,
+  SettingsAgentsChatsTab,
+  SettingsAgentsGeneralTab,
   SettingsAgentsPage,
+  SettingsAgentsPermissionsTab,
+  SettingsAgentsToolsTab,
+  SettingsAgentsTracingTab,
   SpanPlaygroundPage,
   spanPlaygroundPageLoader,
   SupportPage,
@@ -114,6 +126,7 @@ import { GraphQLPage } from "./pages/apis/GraphQLPage";
 import { RestAPIPage } from "./pages/apis/RestAPIPage";
 import { Layout } from "./pages/Layout";
 import { layoutLoader } from "./pages/layoutLoader";
+import { NotFoundPage } from "./pages/NotFound";
 import { ProjectConfigPage } from "./pages/project/ProjectConfigPage";
 import { ProjectRoot } from "./pages/project/ProjectRoot";
 import { promptConfigLoader } from "./pages/prompt/promptConfigLoader";
@@ -157,6 +170,32 @@ export const revalidateOnProjectChange: ShouldRevalidateFunction = ({
 }) => {
   if (currentUrl.href === nextUrl.href) return defaultShouldRevalidate;
   return currentParams.projectId !== nextParams.projectId;
+};
+
+// :promptId's loader always revalidates so versions saved elsewhere show up,
+// except when opening or switching versions of the same prompt: its query
+// holds only the first page of the paginated versions list, so re-running it
+// would drop the pages already scrolled in, including the version just clicked.
+const revalidatePromptUnlessOpeningVersion: ShouldRevalidateFunction = ({
+  currentUrl,
+  nextUrl,
+  currentParams,
+  nextParams,
+}) => {
+  if (currentUrl.href === nextUrl.href) return true;
+  const isOpeningVersion =
+    currentParams.promptId === nextParams.promptId &&
+    nextParams.versionId != null;
+  return !isOpeningVersion;
+};
+
+// Shared by the traces and spans tabs, which both host the compare drawer
+const compareTracesRouteHandle = {
+  agentRoute: {
+    label: "Compare Traces",
+    description:
+      "Compare two traces side by side, each with its own span tree and span details, to diff their trajectories. The compared traces are the repeated traceId search param (the GraphQL Trace.traceId OpenTelemetry trace ID, not Trace.id) in left-to-right order; each one's selected span is the repeated selectedSpanNodeId search param at the same position.",
+  },
 };
 
 export const appRouteObjects = createRoutesFromElements(
@@ -207,7 +246,7 @@ export const appRouteObjects = createRoutesFromElements(
             agentRoute: {
               label: "Profile",
               description:
-                "Open personal account settings, API keys, connected applications, and display preferences.",
+                "Open personal account settings, API keys, connected applications, display preferences, accessibility options, and local storage.",
             },
           }}
           element={<ProfilePage />}
@@ -277,13 +316,32 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Profile Preferences",
                 description:
-                  "Choose your theme, timezone, code language, and package manager defaults.",
+                  "Choose your theme, timezone, code language, and package manager defaults, and see or clear what Phoenix keeps in this browser's local storage.",
               },
               navigation: {
                 section: "Profile",
                 label: "Preferences",
-                description: "Theme, timezone, and code defaults",
+                description:
+                  "Theme, timezone, code defaults, and local storage",
                 icon: "Options",
+              },
+            }}
+          />
+          <Route
+            path="accessibility"
+            element={<ProfileAccessibilityPage />}
+            handle={{
+              crumb: () => "Accessibility",
+              agentRoute: {
+                label: "Profile Accessibility",
+                description:
+                  "Configure accessibility options and use native scrollbars from your browser and operating system.",
+              },
+              navigation: {
+                section: "Profile",
+                label: "Accessibility",
+                description: "Native scrollbar and accessibility options",
+                icon: "Eye",
               },
             }}
           />
@@ -367,6 +425,11 @@ export const appRouteObjects = createRoutesFromElements(
                 }}
               >
                 <Route
+                  path="compare"
+                  element={<CompareTracesPage />}
+                  handle={compareTracesRouteHandle}
+                />
+                <Route
                   path=":traceId"
                   element={<TracePage />}
                   handle={{
@@ -389,6 +452,11 @@ export const appRouteObjects = createRoutesFromElements(
                   },
                 }}
               >
+                <Route
+                  path="compare"
+                  element={<CompareTracesPage />}
+                  handle={compareTracesRouteHandle}
+                />
                 <Route
                   path=":traceId"
                   element={<TracePage />}
@@ -433,7 +501,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Project Configuration",
                     description:
-                      "Configure project settings including display details, default tab, and data retention policy assignment.",
+                      "Configure project settings including display details, default tab, data retention policy assignment, and the annotation configs associated with this project alongside its annotations. Prefer this over the instance-wide annotation settings page when the annotation configs belong to a specific project.",
                   },
                 }}
               />
@@ -569,7 +637,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Dataset Examples",
                     description:
-                      "Browse dataset examples, rows, and example records.",
+                      "Browse and edit dataset examples, add or delete rows, and save changes as a new dataset version.",
                   },
                 }}
               >
@@ -714,6 +782,24 @@ export const appRouteObjects = createRoutesFromElements(
           />
         </Route>
         <Route
+          path="/chat"
+          element={<ChatPage />}
+          handle={{
+            crumb: () => "Chat",
+            navigation: {
+              section: "Pages",
+              label: "Chat",
+              description: "Chat directly with the configured models",
+              icon: "MessageCircle",
+            },
+            agentRoute: {
+              label: "Chat",
+              description:
+                "Chat directly with the configured models. Set a system prompt and tune temperature, top P, and max output tokens.",
+            },
+          }}
+        />
+        <Route
           path="/evaluators"
           handle={{
             crumb: () => "Evaluators",
@@ -775,9 +861,7 @@ export const appRouteObjects = createRoutesFromElements(
           <Route
             path=":promptId"
             loader={promptLoader}
-            // force this route to always revalidate, preventing stale versions from being
-            // displayed when navigating back to the prompt page after gql mutation
-            shouldRevalidate={() => true}
+            shouldRevalidate={revalidatePromptUnlessOpeningVersion}
             handle={{
               crumb: (data: PromptLoaderData) => {
                 if (data?.prompt?.__typename === "Prompt") {
@@ -831,7 +915,7 @@ export const appRouteObjects = createRoutesFromElements(
                     agentRoute: {
                       label: "Prompt Version Details",
                       description:
-                        "Inspect a specific prompt version, revision, and prompt history entry.",
+                        "Inspect a specific prompt version, revision, and prompt history entry, including its model configuration and version metadata.",
                     },
                   }}
                 />
@@ -977,7 +1061,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Secrets",
                 description:
-                  "Manage write-only secrets used by Phoenix integrations, custom providers, sandboxes, and tools.",
+                  "Manage write-only secrets used by Phoenix integrations, custom providers, sandboxes, and tools, and review saved credential encryption status.",
               },
             }}
           />
@@ -1041,7 +1125,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Annotations",
                 description:
-                  "Configure annotation configs including categorical, continuous, and freeform annotation settings.",
+                  "Configure the instance-wide catalog of annotation configs including categorical, continuous, and freeform annotation settings. For the annotation configs and annotations of one project, prefer that project's configuration page.",
               },
             }}
           />
@@ -1079,16 +1163,28 @@ export const appRouteObjects = createRoutesFromElements(
           <Route
             path="agents"
             element={<SettingsAgentsPage />}
-            loader={settingsAgentsPageLoader}
             handle={{
               crumb: () => "Agents",
               agentRoute: {
                 label: "Agent Settings",
                 description:
-                  "Configure the assistant, PXI enablement, agent model, edit approvals, experiment flags, trace collection, and manage saved assistant sessions.",
+                  "Configure the assistant across topical tabs, each a nested route: General (enable assistant, model, floating button, temporary chats), tools (web search, subagents, GitHub token), permissions (assistant access, edit approvals), tracing (trace saving, export, attribution), and chats (retention rules, saved assistant sessions).",
               },
             }}
-          />
+          >
+            <Route index element={<SettingsAgentsGeneralTab />} />
+            <Route path="tools" element={<SettingsAgentsToolsTab />} />
+            <Route
+              path="permissions"
+              element={<SettingsAgentsPermissionsTab />}
+            />
+            <Route path="tracing" element={<SettingsAgentsTracingTab />} />
+            <Route
+              path="chats"
+              element={<SettingsAgentsChatsTab />}
+              loader={settingsAgentsChatsLoader}
+            />
+          </Route>
         </Route>
         <Route
           path="/redirects/spans/:span_otel_id"
@@ -1120,6 +1216,8 @@ export const appRouteObjects = createRoutesFromElements(
           loader={exampleRedirectLoader}
           errorElement={<ErrorElement />}
         />
+        {/* Catch-all: render a 404 page for any unmatched URL. */}
+        <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Route>
   </Route>
@@ -1134,6 +1232,16 @@ registerRouteNavigationCatalog({
 
 const router = createBrowserRouter(appRouteObjects, {
   basename: window.Config.basename,
+});
+
+// The navigation.goTo operation judges whether a navigation settled from the
+// router's own state — the rendered pathname lags it whenever the destination
+// page suspends inside the navigation transition.
+registerRouterNavigationStateSource({
+  source: createDataRouterNavigationStateSource({
+    router,
+    basename: window.Config.basename,
+  }),
 });
 
 export function AppRoutes() {

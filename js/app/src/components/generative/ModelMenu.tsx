@@ -35,6 +35,7 @@ import {
 import {
   type CustomProviderInfo,
   type GenerativeProviderKey,
+  type ModelCredentialSource,
   type ModelProviderInfo,
   useModelMenuData,
 } from "@phoenix/components/generative/useModelMenuData";
@@ -189,6 +190,14 @@ export type ModelMenuProps = Pick<PopoverProps, "placement" | "shouldFlip"> &
      * @default "default"
      */
     variant?: "default" | "quiet";
+    /**
+     * Which credential store the surface's execution path can use when
+     * judging provider readiness. Surfaces that send through the server
+     * proxy should pass `"server"` so browser-local keys don't surface
+     * providers the proxy cannot authenticate.
+     * @default "any"
+     */
+    credentialSource?: ModelCredentialSource;
   };
 
 export function ModelMenu({
@@ -201,6 +210,7 @@ export function ModelMenu({
   leadingItems,
   selectedLeadingItemId,
   onLeadingItemSelect,
+  credentialSource,
 }: ModelMenuProps) {
   const { contains } = useFilter({ sensitivity: "base" });
   const [searchValue, setSearchValue] = useState("");
@@ -229,7 +239,7 @@ export function ModelMenu({
     modelsByProvider,
     providerInfoMap,
     visibleProviders,
-  } = useModelMenuData();
+  } = useModelMenuData({ credentialSource });
 
   // Providers whose models are searchable: visible in the menu and with
   // server dependencies installed, so search never surfaces a model that

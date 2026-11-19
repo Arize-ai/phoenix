@@ -1,9 +1,12 @@
+import { css } from "@emotion/react";
+
 import {
   getBashToolCommandDisplayResult,
   getBashToolInput,
   getBashToolSummary,
 } from "@phoenix/agent/tools/bash";
 
+import { ToolApprovalRequest } from "./ToolApprovalRequest";
 import {
   ToolPartCodeBlock,
   ToolPartExpandableSection,
@@ -23,6 +26,38 @@ export function getBashToolPreview(part: ToolInvocationPart): string {
   }
   const command = getBashToolInput(part.input)?.command;
   return command ? command.split("\n")[0] : "";
+}
+
+const bashMutationApprovalCSS = css`
+  .bash-mutation-approval__description {
+    margin: 0;
+    padding: var(--global-dimension-size-50) var(--global-dimension-size-250)
+      var(--global-dimension-size-125);
+    font-family: var(--global-font-family-sans);
+    color: var(--global-text-color-900);
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+`;
+
+/**
+ * Approval card for a bash command that invokes a GraphQL mutation.
+ */
+function BashMutationApproval({ part }: { part: ToolInvocationPart }) {
+  const mutationDescription = getBashToolInput(
+    part.input
+  )?.mutation_description;
+  return (
+    <div css={bashMutationApprovalCSS}>
+      <ToolApprovalRequest part={part} label="Approval required to change data">
+        {mutationDescription ? (
+          <p className="bash-mutation-approval__description">
+            {mutationDescription}
+          </p>
+        ) : null}
+      </ToolApprovalRequest>
+    </div>
+  );
 }
 
 /**
@@ -48,6 +83,9 @@ export function BashToolDetails({ part }: { part: ToolInvocationPart }) {
       <ToolPartExpandableSection>
         <ToolPartCodeBlock>{command}</ToolPartCodeBlock>
       </ToolPartExpandableSection>
+      {part.state === "approval-requested" ? (
+        <BashMutationApproval part={part} />
+      ) : null}
       {part.state === "output-available" ? (
         <>
           {stdout ? (

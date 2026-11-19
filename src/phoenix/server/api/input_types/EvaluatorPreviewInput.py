@@ -11,6 +11,7 @@ from phoenix.server.api.input_types.AnnotationConfigInput import (
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionInput
+from phoenix.server.api.redaction import Redacted
 from phoenix.server.api.types.SandboxConfig import Language
 
 
@@ -30,7 +31,7 @@ class InlineCodeEvaluatorInput:
 
     name: str
     language: Language
-    source_code: str
+    source_code: Redacted[str]
     output_configs: list[AnnotationConfigInput]
     sandbox_config_id: Optional[GlobalID] = None
     description: Optional[str] = None
@@ -62,5 +63,5 @@ class EvaluatorPreviewItemInput:
     """A single evaluator preview request with one or more contexts."""
 
     evaluator: EvaluatorPreviewInput
-    context: JSON
+    context: Redacted[JSON]
     input_mapping: EvaluatorInputMappingInput

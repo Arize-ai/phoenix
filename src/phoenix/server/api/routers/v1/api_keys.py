@@ -38,7 +38,7 @@ from phoenix.server.api.helpers.api_key_policy import (
     get_user_role,
     get_user_role_and_api_keys,
 )
-from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
+from phoenix.server.api.routers.v1.models import IsoDatetime, V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
     RequestBody,
@@ -74,7 +74,7 @@ class ApiKeyData(V1RoutesBaseModel):
         default=None,
         description="An optional description of what the API key is for.",
     )
-    expires_at: Optional[datetime] = Field(
+    expires_at: Optional[IsoDatetime] = Field(
         default=None,
         description="When the API key expires. The key never expires when omitted.",
     )
@@ -103,8 +103,8 @@ class ApiKey(V1RoutesBaseModel):
     id: str
     name: str
     description: Optional[str] = UNDEFINED
-    created_at: datetime
-    expires_at: Optional[datetime] = UNDEFINED
+    created_at: IsoDatetime
+    expires_at: Optional[IsoDatetime] = UNDEFINED
 
 
 class CreatedApiKey(ApiKey):

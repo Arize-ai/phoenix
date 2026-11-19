@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<81e50a969c32cccf2c400dabe596fa10>>
+ * @generated SignedSource<<8f2f1e47fb0ed807b8a51a2ca7d2418f>>
  * @lightSyntaxTransform
  */
 
@@ -19,6 +19,11 @@ export type setDatasetExampleSplitsToolBatchMutation$variables = {
 export type setDatasetExampleSplitsToolBatchMutation$data = {
   readonly setDatasetExamplesSplits: {
     readonly examples: ReadonlyArray<{
+      readonly datasetSplits: ReadonlyArray<{
+        readonly color: string;
+        readonly id: string;
+        readonly name: string;
+      }>;
       readonly id: string;
     }>;
   };
@@ -36,7 +41,14 @@ var v0 = [
     "name": "input"
   }
 ],
-v1 = [
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v2 = [
   {
     "alias": null,
     "args": [
@@ -59,11 +71,31 @@ v1 = [
         "name": "examples",
         "plural": true,
         "selections": [
+          (v1/*:: as any*/),
           {
             "alias": null,
             "args": null,
-            "kind": "ScalarField",
-            "name": "id",
+            "concreteType": "DatasetSplit",
+            "kind": "LinkedField",
+            "name": "datasetSplits",
+            "plural": true,
+            "selections": [
+              (v1/*:: as any*/),
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "name",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "color",
+                "storageKey": null
+              }
+            ],
             "storageKey": null
           }
         ],
@@ -79,7 +111,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "setDatasetExampleSplitsToolBatchMutation",
-    "selections": (v1/*:: as any*/),
+    "selections": (v2/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
@@ -88,19 +120,19 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "setDatasetExampleSplitsToolBatchMutation",
-    "selections": (v1/*:: as any*/)
+    "selections": (v2/*:: as any*/)
   },
   "params": {
-    "cacheID": "806d9cc072a89701b34c31b14e9b9a5b",
+    "cacheID": "a971fea6dd654568e67dab7982dd4f6f",
     "id": null,
     "metadata": {},
     "name": "setDatasetExampleSplitsToolBatchMutation",
     "operationKind": "mutation",
-    "text": "mutation setDatasetExampleSplitsToolBatchMutation(\n  $input: SetDatasetExamplesSplitsInput!\n) {\n  setDatasetExamplesSplits(input: $input) {\n    examples {\n      id\n    }\n  }\n}\n"
+    "text": "mutation setDatasetExampleSplitsToolBatchMutation(\n  $input: SetDatasetExamplesSplitsInput!\n) {\n  setDatasetExamplesSplits(input: $input) {\n    examples {\n      id\n      datasetSplits {\n        id\n        name\n        color\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7bb4c01088227966315047ce0260d78e";
+(node as any).hash = "98ffab15757d1e4c3ab6c2b3875dccc3";
 
 export default node;

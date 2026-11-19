@@ -17,7 +17,7 @@ export interface SpanAnnotation extends Annotation {
   spanId: string;
   /**
    * The kind of annotator used for the annotation
-   * Can be "HUMAN", "LLM", or "CODE"
+   * Can be "HUMAN", "LLM", "CODE", "DECISION", or "AGENT"
    * @default "HUMAN"
    */
   annotatorKind?: SpanAnnotationData["annotator_kind"];
@@ -33,7 +33,7 @@ export interface DocumentAnnotation extends SpanAnnotation {
   documentPosition: number;
   /**
    * The kind of annotator used for the annotation
-   * Can be "HUMAN", "LLM", or "CODE"
+   * Can be "HUMAN", "LLM", "CODE", "DECISION", or "AGENT"
    * @default "HUMAN"
    */
   annotatorKind?: SpanDocumentAnnotationData["annotator_kind"];

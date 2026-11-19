@@ -107,8 +107,8 @@ class SpanCostDetailsCalculator:
         Note:
             - Token counts are validated and converted to non-negative integers
             - All token types receive cost calculations via fallback mechanism
-            - Cost-per-token is calculated only when both cost and token count are positive
-            - If cost is 0.0, cost-per-token will be None (not 0.0) due to falsy evaluation
+            - Cost-per-token is cost / tokens when a price applies and tokens > 0 (0.0 for a
+              $0 rate), and None when no price applies or tokens is 0
         """
         prompt_details: dict[_TokenType, models.SpanCostDetail] = {}
         completion_details: dict[_TokenType, models.SpanCostDetail] = {}
@@ -141,7 +141,7 @@ class SpanCostDetailsCalculator:
 
                     cost = None
                     cost_per_token = None
-                    if calculator:
+                    if calculator is not None:
                         cost = calculator.calculate_cost(attributes, tokens)
                         cost_per_token = cost / tokens if tokens else None
 

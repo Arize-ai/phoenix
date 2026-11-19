@@ -14,6 +14,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.settings.registry import (
     AgentAssistantEnabledSetting,
+    AgentGitHubSetting,
     AgentSessionRetentionSetting,
     AgentTraceRecordingSetting,
 )
@@ -31,6 +32,11 @@ class AgentAssistantEnabled:
 
 
 @strawberry.type
+class AgentGithubEnabled:
+    enabled: bool
+
+
+@strawberry.type
 class AgentSessionRetention:
     max_idle_days: int | None
     max_count_per_user: int | None
@@ -38,6 +44,11 @@ class AgentSessionRetention:
 
 @strawberry.input
 class SetAgentAssistantEnabledInput:
+    enabled: bool
+
+
+@strawberry.input
+class SetAgentGithubEnabledInput:
     enabled: bool
 
 
@@ -81,6 +92,21 @@ class SystemSettingsMutationMixin:
         )
         setting = info.context.settings.agent_assistant_enabled
         return AgentAssistantEnabled(enabled=setting.enabled)
+
+    @strawberry.mutation(
+        permission_classes=[IsAdminIfAuthEnabled, IsNotReadOnly, IsNotViewer, IsLocked]
+    )  # type: ignore
+    async def set_agent_github_enabled(
+        self,
+        info: Info[Context, None],
+        input: SetAgentGithubEnabledInput,
+    ) -> AgentGithubEnabled:
+        await info.context.settings.update_agent_github(
+            AgentGitHubSetting(enabled=input.enabled),
+            user_id=info.context.user_id,
+        )
+        setting = info.context.settings.agent_github
+        return AgentGithubEnabled(enabled=setting.enabled)
 
     @strawberry.mutation(
         permission_classes=[IsAdminIfAuthEnabled, IsNotReadOnly, IsNotViewer, IsLocked]

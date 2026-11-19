@@ -22,23 +22,43 @@ import type { LastNTimeRangeKey, OpenTimeRangeWithKey } from "../types";
 
 function TimeRangeReader({
   onRender,
+  onRenderNow,
   onRenderISOStrings,
   onSetTimeRange,
+  onSetCustomTimeRange,
+  onRefreshLiveTimeRange,
   onLocation,
   onNavigate,
 }: {
   onRender: (timeRange: OpenTimeRangeWithKey) => void;
+  onRenderNow?: (timeRangeNow: number) => void;
   onRenderISOStrings?: (timeRangeISOStrings: TimeRangeISOStrings) => void;
   onSetTimeRange?: (setTimeRange: TimeRangeContextType["setTimeRange"]) => void;
+  onSetCustomTimeRange?: (
+    setCustomTimeRange: TimeRangeContextType["setCustomTimeRange"]
+  ) => void;
+  onRefreshLiveTimeRange?: (
+    refreshLiveTimeRange: TimeRangeContextType["refreshLiveTimeRange"]
+  ) => void;
   onLocation?: (search: string) => void;
   onNavigate?: (navigate: NavigateFunction) => void;
 }) {
-  const { timeRange, timeRangeISOStrings, setTimeRange } = useTimeRange();
+  const {
+    timeRange,
+    timeRangeNow,
+    timeRangeISOStrings,
+    setTimeRange,
+    setCustomTimeRange,
+    refreshLiveTimeRange,
+  } = useTimeRange();
   const location = useLocation();
   const navigate = useNavigate();
   onRender(timeRange);
+  onRenderNow?.(timeRangeNow);
   onRenderISOStrings?.(timeRangeISOStrings);
   onSetTimeRange?.(setTimeRange);
+  onSetCustomTimeRange?.(setCustomTimeRange);
+  onRefreshLiveTimeRange?.(refreshLiveTimeRange);
   onLocation?.(location.search);
   onNavigate?.(navigate);
   return null;
@@ -49,8 +69,11 @@ function renderTimeRangeProvider({
   initialEntry = "/projects/project-1/traces",
   lastNTimeRangeKey = "15m",
   onRender,
+  onRenderNow,
   onRenderISOStrings,
   onSetTimeRange,
+  onSetCustomTimeRange,
+  onRefreshLiveTimeRange,
   onLocation,
   onNavigate,
 }: {
@@ -58,8 +81,15 @@ function renderTimeRangeProvider({
   initialEntry?: string;
   lastNTimeRangeKey?: LastNTimeRangeKey;
   onRender: (timeRange: OpenTimeRangeWithKey) => void;
+  onRenderNow?: (timeRangeNow: number) => void;
   onRenderISOStrings?: (timeRangeISOStrings: TimeRangeISOStrings) => void;
   onSetTimeRange?: (setTimeRange: TimeRangeContextType["setTimeRange"]) => void;
+  onSetCustomTimeRange?: (
+    setCustomTimeRange: TimeRangeContextType["setCustomTimeRange"]
+  ) => void;
+  onRefreshLiveTimeRange?: (
+    refreshLiveTimeRange: TimeRangeContextType["refreshLiveTimeRange"]
+  ) => void;
   onLocation?: (search: string) => void;
   onNavigate?: (navigate: NavigateFunction) => void;
 }) {
@@ -71,8 +101,11 @@ function renderTimeRangeProvider({
             <TimeRangeProvider>
               <TimeRangeReader
                 onRender={onRender}
+                onRenderNow={onRenderNow}
                 onRenderISOStrings={onRenderISOStrings}
                 onSetTimeRange={onSetTimeRange}
+                onSetCustomTimeRange={onSetCustomTimeRange}
+                onRefreshLiveTimeRange={onRefreshLiveTimeRange}
                 onLocation={onLocation}
                 onNavigate={onNavigate}
               />
@@ -131,6 +164,60 @@ describe("TimeRangeProvider", () => {
       "2026-06-09T09:46:00.000Z"
     );
     expect(renderedTimeRanges.at(-1)?.end).toBeNull();
+  });
+
+  it("advances the provider-owned anchor only for live ranges", () => {
+    const renderedNow: number[] = [];
+    let setTimeRange: TimeRangeContextType["setTimeRange"] | null = null;
+    let refreshLiveTimeRange:
+      | TimeRangeContextType["refreshLiveTimeRange"]
+      | null = null;
+
+    renderTimeRangeProvider({
+      root,
+      initialEntry: "/projects/project-1/traces?timeRangeKey=12h",
+      onRender: () => null,
+      onRenderNow: (timeRangeNow) => {
+        renderedNow.push(timeRangeNow);
+      },
+      onSetTimeRange: (nextSetTimeRange) => {
+        setTimeRange = nextSetTimeRange;
+      },
+      onRefreshLiveTimeRange: (nextRefreshLiveTimeRange) => {
+        refreshLiveTimeRange = nextRefreshLiveTimeRange;
+      },
+    });
+
+    expect(renderedNow.at(-1)).toBe(
+      new Date("2026-06-09T10:00:30.000Z").getTime()
+    );
+
+    act(() => {
+      vi.setSystemTime(new Date("2026-06-09T10:01:00.000Z"));
+      refreshLiveTimeRange?.();
+    });
+    expect(renderedNow.at(-1)).toBe(
+      new Date("2026-06-09T10:01:00.000Z").getTime()
+    );
+
+    act(() => {
+      setTimeRange?.({
+        timeRangeKey: "custom",
+        start: new Date("2026-06-09T09:00:00.000Z"),
+        end: null,
+      });
+    });
+    expect(renderedNow.at(-1)).toBe(
+      new Date("2026-06-09T10:01:00.000Z").getTime()
+    );
+
+    act(() => {
+      vi.setSystemTime(new Date("2026-06-09T10:02:00.000Z"));
+      refreshLiveTimeRange?.();
+    });
+    expect(renderedNow.at(-1)).toBe(
+      new Date("2026-06-09T10:01:00.000Z").getTime()
+    );
   });
 
   it("exposes a referentially stable ISO string representation", () => {
@@ -351,5 +438,95 @@ describe("TimeRangeProvider", () => {
     expect(latestSearchParams.get("timeRangeEnd")).toBe(
       "2026-06-09T11:00:00.000Z"
     );
+  });
+
+  it("pushes chart-selected custom ranges so Back restores the prior range", () => {
+    const renderedTimeRanges: OpenTimeRangeWithKey[] = [];
+    const renderedLocations: string[] = [];
+    let setCustomTimeRange: TimeRangeContextType["setCustomTimeRange"] | null =
+      null;
+    let navigate: NavigateFunction | null = null;
+    const start = new Date("2026-06-09T09:00:00.000Z");
+    const end = new Date("2026-06-09T10:00:00.000Z");
+
+    renderTimeRangeProvider({
+      root,
+      initialEntry: "/projects/project-1/traces?timeRangeKey=15m",
+      onRender: (timeRange) => {
+        renderedTimeRanges.push(timeRange);
+      },
+      onSetCustomTimeRange: (nextSetCustomTimeRange) => {
+        setCustomTimeRange = nextSetCustomTimeRange;
+      },
+      onLocation: (search) => {
+        renderedLocations.push(search);
+      },
+      onNavigate: (nextNavigate) => {
+        navigate = nextNavigate;
+      },
+    });
+
+    act(() => {
+      setCustomTimeRange?.({ start, end });
+    });
+
+    expect(renderedTimeRanges.at(-1)).toMatchObject({
+      timeRangeKey: "custom",
+      start,
+      end,
+    });
+
+    act(() => {
+      navigate?.(-1);
+    });
+
+    expect(renderedTimeRanges.at(-1)?.timeRangeKey).toBe("15m");
+    expect(renderedTimeRanges.at(-1)?.start?.toISOString()).toBe(
+      "2026-06-09T09:45:00.000Z"
+    );
+    expect(renderedTimeRanges.at(-1)?.end).toBeNull();
+    expect(renderedLocations.at(-1)).toBe("?timeRangeKey=15m");
+  });
+
+  it("replaces history for ordinary setTimeRange writes", () => {
+    const renderedTimeRanges: OpenTimeRangeWithKey[] = [];
+    const renderedLocations: string[] = [];
+    let setTimeRange: TimeRangeContextType["setTimeRange"] | null = null;
+    let navigate: NavigateFunction | null = null;
+    const start = new Date("2026-06-09T09:00:00.000Z");
+    const end = new Date("2026-06-09T10:00:00.000Z");
+
+    renderTimeRangeProvider({
+      root,
+      initialEntry: "/projects/project-1/traces?timeRangeKey=15m",
+      onRender: (timeRange) => {
+        renderedTimeRanges.push(timeRange);
+      },
+      onSetTimeRange: (nextSetTimeRange) => {
+        setTimeRange = nextSetTimeRange;
+      },
+      onLocation: (search) => {
+        renderedLocations.push(search);
+      },
+      onNavigate: (nextNavigate) => {
+        navigate = nextNavigate;
+      },
+    });
+
+    act(() => {
+      setTimeRange?.({ timeRangeKey: "custom", start, end });
+    });
+
+    const customLocation = renderedLocations.at(-1);
+    act(() => {
+      navigate?.(-1);
+    });
+
+    expect(renderedTimeRanges.at(-1)).toMatchObject({
+      timeRangeKey: "custom",
+      start,
+      end,
+    });
+    expect(renderedLocations.at(-1)).toBe(customLocation);
   });
 });

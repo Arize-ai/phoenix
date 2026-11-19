@@ -11,7 +11,7 @@ import { parseElicitToolInput } from "@phoenix/agent/tools/elicit";
 
 import { useElicitationDraft } from "./ElicitationDraftContext";
 import { ToolPartCodeBlock, ToolPartLabel } from "./ToolPartPrimitives";
-import type { ToolInvocationPart, ToolUIPartState } from "./toolPartTypes";
+import type { ToolInvocationPart, ToolStatus } from "./toolPartTypes";
 import { formatToolState } from "./toolPartTypes";
 
 const FREEFORM_OPTION_ID = "__freeform__";
@@ -78,32 +78,54 @@ type AskUserListEntry = {
  */
 export function getAskUserToolPreview(part: ToolInvocationPart): string {
   const input = parseElicitToolInput(part.input);
-  if (!input) {
+  const questionCount =
+    input?.questions.length ??
+    (part.state === "input-streaming"
+      ? getStreamingQuestionCount(part.input)
+      : null);
+  if (questionCount === null) {
     return part.state === "output-error" ? "" : "Question pending";
   }
-  const count = input.questions.length;
-  return `${count} question${count === 1 ? "" : "s"}`;
+  return `${questionCount} question${questionCount === 1 ? "" : "s"}`;
 }
 
 /**
- * Formats an ask_user tool state into a human-readable label.
+ * Returns the number of questions visible in a partial tool input.
+ *
+ * A streaming question is temporarily invalid until all of its required
+ * fields arrive. Counting the array without parsing its entries keeps the
+ * collapsed preview stable while later questions stream in.
  */
-export function formatAskUserState(
-  state: ToolUIPartState,
-  part: ToolInvocationPart
-): string {
+function getStreamingQuestionCount(input: unknown): number | null {
+  if (!input || typeof input !== "object") {
+    return null;
+  }
+  const { questions } = input as { questions?: unknown };
+  return Array.isArray(questions) && questions.length > 0
+    ? questions.length
+    : null;
+}
+
+const AWAITING_RESPONSE: ToolStatus = {
+  stateLabel: "Awaiting response",
+  statusCategory: "needs-input",
+};
+
+export function getAskUserStatus(part: ToolInvocationPart): ToolStatus {
   const input = parseElicitToolInput(part.input);
-  switch (state) {
+  switch (part.state) {
     case "input-streaming":
-      return "Preparing questions";
+      return { stateLabel: "Preparing questions" };
     case "input-available":
-      return input ? "Awaiting response" : "Preparing questions";
+      return input ? AWAITING_RESPONSE : { stateLabel: "Preparing questions" };
     case "output-available":
-      return part.output ? "Answered" : "Awaiting response";
+      return part.output ? { stateLabel: "Answered" } : AWAITING_RESPONSE;
     case "output-error":
-      return isAskUserCancellation(part) ? "Canceled" : "Error";
+      return isAskUserCancellation(part)
+        ? { stateLabel: "Canceled", statusCategory: "stopped" }
+        : { stateLabel: "Error" };
     default:
-      return formatToolState(state);
+      return { stateLabel: formatToolState(part.state) };
   }
 }
 

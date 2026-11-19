@@ -9,13 +9,6 @@
 
   "plugins": ["react", "typescript", "import"],
 
-  "jsPlugins": [
-    {
-      "name": "react-hooks-js",
-      "specifier": "eslint-plugin-react-hooks"
-    }
-  ],
-
   "env": {
     "browser": true
   },
@@ -40,10 +33,23 @@
       }
     ],
     "import/no-cycle": "error",
+    // Existing React Compiler bailouts are suppressed at their callsites so
+    // every newly introduced compiler diagnostic blocks local and CI linting.
+    "react/error-boundaries": "error",
     "react/exhaustive-deps": "error",
+    "react/globals": "error",
+    "react/immutability": "error",
+    "react/incompatible-library": "error",
+    "react/preserve-manual-memoization": "error",
+    "react/purity": "error",
+    "react/refs": "error",
     "react/rules-of-hooks": "error",
-    "react-hooks-js/set-state-in-effect": "error",
-    "react-hooks-js/incompatible-library": "error",
+    "react/set-state-in-effect": "error",
+    "react/set-state-in-render": "error",
+    "react/static-components": "error",
+    "react/unsupported-syntax": "error",
+    "react/use-memo": "error",
+    "react/void-use-memo": "error",
     "react/no-unknown-property": ["error", { "ignore": ["css"] }],
     "react/react-in-jsx-scope": "off",
     "typescript/no-empty-object-type": [

@@ -2,6 +2,8 @@
  *
  * Copyright (C) 2004-2010 Gerhard Häring <gh@ghaering.de>
  *
+ * Modified by the Arize Phoenix team, 2026.
+ *
  * This file is part of pysqlite.
  *
  * This software is provided 'as-is', without any express or implied
@@ -95,6 +97,40 @@ typedef struct
     /* a dictionary of registered collation name => collation callable mappings */
     PyObject* collations;
 
+    /* Non-zero while a sqlite3_* call that may invoke a Python
+       callback is on the C stack. close(), rollback(), re-init, and
+       cursor close or re-init refuse to tear down handles in that
+       window: re-entering finalize/reset/close crashes when the native
+       call resumes. backup() refuses to start there as well, on either
+       end: its retry loop can only spin against the connection's own
+       in-progress statement. Registering functions or collations is
+       left to SQLite, which refuses to replace one while a statement is
+       active and can safely add a new one. */
+    int in_sqlite;
+
+    /* Non-zero while sqlite3_reset/finalize is on the C stack. commit()
+       is refused here because SQLite will accept COMMIT while statements
+       are mid-reset, turning rollback into a commit. Backup progress
+       still commits: that path increments in_sqlite only. */
+    int in_stmt_teardown;
+
+    /* Non-zero while sqlite3_prepare_v2 is on the C stack. A callback
+       fired during compilation (the authorizer, or a busy handler while
+       the schema loads) that compiles another statement on the same
+       connection recurses without bound, and the C stack goes before
+       Python's recursion limit trips on a thread with a small stack.
+       SQLite documents that such callbacks must not use the invoking
+       connection, so a nested compile is refused. */
+    int in_prepare;
+
+    /* Non-zero while this connection is the destination of an
+       in-progress backup(). SQLite forbids any use of the destination
+       until the backup finishes: even a read from the progress
+       callback left every later backup_step returning SQLITE_BUSY, and
+       the retry loop never exits. check_connection refuses every
+       method while it is set. */
+    int backup_target;
+
     /* Exception objects */
     PyObject* Warning;
     PyObject* Error;
@@ -114,6 +150,7 @@ PyObject* pysqlite_connection_alloc(PyTypeObject* type, int aware);
 void pysqlite_connection_dealloc(pysqlite_Connection* self);
 PyObject* pysqlite_connection_cursor(pysqlite_Connection* self, PyObject* args, PyObject* kwargs);
 PyObject* pysqlite_connection_close(pysqlite_Connection* self, PyObject* args);
+PyObject* pysqlite_connection_call(pysqlite_Connection* self, PyObject* args, PyObject* kwargs);
 PyObject* _pysqlite_connection_begin(pysqlite_Connection* self);
 PyObject* pysqlite_connection_commit(pysqlite_Connection* self, PyObject* args);
 PyObject* pysqlite_connection_rollback(pysqlite_Connection* self, PyObject* args);
@@ -123,6 +160,44 @@ int pysqlite_connection_init(pysqlite_Connection* self, PyObject* args, PyObject
 int pysqlite_connection_register_cursor(pysqlite_Connection* connection, PyObject* cursor);
 int pysqlite_check_thread(pysqlite_Connection* self);
 int pysqlite_check_connection(pysqlite_Connection* con);
+int pysqlite_refuse_txn_sql(pysqlite_Connection *self, PyObject *sql);
+int pysqlite_refuse_nested_prepare(pysqlite_Connection *self);
+
+static inline void
+pysqlite_enter_sqlite(pysqlite_Connection *self)
+{
+    self->in_sqlite++;
+}
+
+static inline void
+pysqlite_leave_sqlite(pysqlite_Connection *self)
+{
+    self->in_sqlite--;
+}
+
+static inline void
+pysqlite_enter_prepare(pysqlite_Connection *self)
+{
+    self->in_prepare++;
+}
+
+static inline void
+pysqlite_leave_prepare(pysqlite_Connection *self)
+{
+    self->in_prepare--;
+}
+
+static inline void
+pysqlite_enter_stmt_teardown(pysqlite_Connection *self)
+{
+    self->in_stmt_teardown++;
+}
+
+static inline void
+pysqlite_leave_stmt_teardown(pysqlite_Connection *self)
+{
+    self->in_stmt_teardown--;
+}
 
 int pysqlite_connection_setup_types(void);
 

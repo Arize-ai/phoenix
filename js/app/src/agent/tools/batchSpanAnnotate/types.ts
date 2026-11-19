@@ -1,11 +1,11 @@
 import type { z } from "zod";
 
 import type { ApprovalSource } from "@phoenix/agent/tools/approval";
+import type { UIOperationResultEmitter } from "@phoenix/agent/uiOperations/types";
 
 import type {
   annotateSpanInputSchema,
   batchSpanAnnotateActionContextSchema,
-  BatchSpanAnnotateToolOutputSender,
   batchSpanAnnotateInputSchema,
 } from "./schemas";
 
@@ -34,12 +34,12 @@ export type PendingBatchSpanAnnotate = {
   cancel?: () => Promise<void>;
 };
 
-export type BindPendingBatchSpanAnnotateOptions = {
+export type BindPendingBatchSpanAnnotateOperationOptions = {
   pendingAnnotation: PendingBatchSpanAnnotate;
   applyAnnotations: (annotations: AnnotateSpanInput[]) => Promise<void>;
-  addToolOutput: BatchSpanAnnotateToolOutputSender;
   setPendingBatchSpanAnnotate: (
     toolCallId: string,
     annotation: PendingBatchSpanAnnotate | null
   ) => void;
+  emitResult: UIOperationResultEmitter;
 };

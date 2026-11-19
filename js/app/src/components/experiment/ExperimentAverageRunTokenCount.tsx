@@ -1,15 +1,11 @@
 import { Suspense } from "react";
-import { Pressable } from "react-aria";
+import { Focusable } from "react-aria";
 
 import type { TextProps } from "@phoenix/components";
-import {
-  Loading,
-  RichTooltip,
-  TooltipArrow,
-  TooltipTrigger,
-} from "@phoenix/components";
+import { RichTooltip, TooltipArrow, TooltipTrigger } from "@phoenix/components";
 
 import { TokenCount } from "../trace/TokenCount";
+import { TokenDetailsBreakdownSkeleton } from "../trace/TokenDetailsBreakdown";
 import { ExperimentAverageRunTokenCountDetails } from "./ExperimentAverageRunTokenCountDetails";
 
 type ExperimentAverageRunTokenCountProps = {
@@ -39,14 +35,21 @@ export function ExperimentAverageRunTokenCount(
 
   return (
     <TooltipTrigger>
-      <Pressable>
+      <Focusable>
         <TokenCount size={props.size} role="button" tabIndex={0}>
           {props.averageRunTokenCountTotal}
         </TokenCount>
-      </Pressable>
-      <RichTooltip>
+      </Focusable>
+      <RichTooltip placement="end">
         <TooltipArrow />
-        <Suspense fallback={<Loading />}>
+        <Suspense
+          fallback={
+            <TokenDetailsBreakdownSkeleton
+              tokens={{ total: props.averageRunTokenCountTotal }}
+              totalLabel="Average"
+            />
+          }
+        >
           <ExperimentAverageRunTokenCountDetails
             experimentId={props.experimentId}
           />

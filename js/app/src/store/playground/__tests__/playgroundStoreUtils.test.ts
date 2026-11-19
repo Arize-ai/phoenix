@@ -227,6 +227,14 @@ describe("convertMessageToolCallsToProvider", () => {
         [{ test: "test" }],
       ],
     ],
+    MINIMAX: [
+      [
+        "return tools as they are for MiniMax",
+        "MINIMAX",
+        [{ test: "test" }],
+        [{ test: "test" }],
+      ],
+    ],
     PERPLEXITY: [
       [
         "return tools as they are for perplexity",
@@ -239,6 +247,22 @@ describe("convertMessageToolCallsToProvider", () => {
       [
         "return tools as they are for together",
         "TOGETHER",
+        [{ test: "test" }],
+        [{ test: "test" }],
+      ],
+    ],
+    ZAI: [
+      [
+        "return tools as they are for zai",
+        "ZAI",
+        [{ test: "test" }],
+        [{ test: "test" }],
+      ],
+    ],
+    META: [
+      [
+        "return tools as they are for meta",
+        "META",
         [{ test: "test" }],
         [{ test: "test" }],
       ],

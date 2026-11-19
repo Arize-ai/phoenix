@@ -23,6 +23,8 @@ import { ColumnOrderingProvider, orderColumns } from "../columnOrdering";
 export interface ColumnSelectorColumn {
   id: string;
   label: string;
+  /** Rendered after the label, e.g. a badge qualifying same-named columns. */
+  trailingVisual?: ReactNode;
   /** When true, the column is always visible and its checkbox is disabled. Still reorderable. */
   isVisibilityToggleDisabled?: boolean;
 }
@@ -138,6 +140,7 @@ function SortableColumnRow({
         onChange={onVisibilityChange}
       >
         {column.label}
+        {column.trailingVisual}
       </Checkbox>
       {isReorderingDisabled ? null : (
         <button

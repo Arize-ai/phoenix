@@ -93,7 +93,7 @@ def get_serializable_spans_dataframe(dataframe: DataFrame) -> DataFrame:
     dataframe = dataframe.copy(deep=False)  # copy, don't mutate
     # Check if the dataframe has any document columns
     is_documents_column = dataframe.columns.isin(DOCUMENT_COLUMNS)
-    for name, column in dataframe.loc[:, is_documents_column].items():  # type: ignore
+    for name, column in dataframe.loc[:, is_documents_column].items():
         dataframe[name] = column.apply(_delete_empty_document_metadata)
     return dataframe
 
@@ -141,7 +141,19 @@ class TraceDataset:
                 evaluations for the spans in the dataset. If provided, the evaluations
                 can be materialized into a unified dataframe as annotations.
         """
-        # Validate the the dataframe has required fields
+        # A dataframe with no rows is valid — e.g. a fixture download that found no
+        # traces, or from_spans([]). Add any missing required columns (keeping the
+        # existing ones) so it passes validation and flows through normalization
+        # like a populated one. Check the row count rather than `.empty`, which is
+        # also True for a frame with rows but no columns.
+        if len(dataframe) == 0:
+            dataframe = dataframe.reindex(
+                columns=[
+                    *dataframe.columns,
+                    *(column for column in REQUIRED_COLUMNS if column not in dataframe.columns),
+                ]
+            )
+        # Validate that the dataframe has required fields
         if missing_columns := set(REQUIRED_COLUMNS) - set(dataframe.columns):
             raise ValueError(
                 f"The dataframe is missing some required columns: {', '.join(missing_columns)}"
@@ -164,7 +176,7 @@ class TraceDataset:
         """
         return cls(
             pd.json_normalize(
-                (json.loads(span_to_json(span)) for span in spans),  # type: ignore
+                [json.loads(span_to_json(span)) for span in spans],
                 max_level=1,
             )
         )
@@ -265,7 +277,7 @@ class TraceDataset:
             allow_truncated_timestamps=True,
             coerce_timestamps="ms",
         )
-        table = Table.from_pandas(self.dataframe)
+        table = Table.from_pandas(dataframe)
         table = table.replace_schema_metadata(
             {
                 **(table.schema.metadata or {}),

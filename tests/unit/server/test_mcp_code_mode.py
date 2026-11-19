@@ -7,6 +7,7 @@ containment.
 from __future__ import annotations
 
 import asyncio
+import logging
 import textwrap
 from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator
@@ -78,6 +79,21 @@ async def test_returns_trailing_expression(provider: MontyPoolSandboxProvider) -
     assert await provider.run("40 + 2") == 42
 
 
+async def test_debug_log_records_submitted_program(
+    provider: MontyPoolSandboxProvider, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Failures from a host callback need the guest source for diagnosis."""
+    code = "return 40 + 2"
+    with caplog.at_level(logging.DEBUG, logger="phoenix.server.mcp_code_mode"):
+        assert await provider.run(code) == 42
+
+    assert any(
+        record.name == "phoenix.server.mcp_code_mode"
+        and record.message == f"MCP code-mode execute submitted (consumer=mcp, code={code!r})"
+        for record in caplog.records
+    )
+
+
 async def test_calls_async_external_function(provider: MontyPoolSandboxProvider) -> None:
     """``call_tool`` reaches the host and its result flows back into the guest."""
 
@@ -90,6 +106,36 @@ async def test_calls_async_external_function(provider: MontyPoolSandboxProvider)
         external_functions={"call_tool": call_tool},
     )
     assert result == 42
+
+
+async def test_debug_log_records_host_callback_arguments(
+    provider: MontyPoolSandboxProvider, caplog: pytest.LogCaptureFixture
+) -> None:
+    async def call_tool(tool_name: str, params: dict[str, Any]) -> dict[str, str]:
+        assert tool_name == "describeSqlSchema"
+        assert params["secret"] == "do-not-log"
+        return {"ok": "yes"}
+
+    with caplog.at_level(logging.DEBUG, logger="phoenix.server.mcp_code_mode"):
+        assert (
+            await provider.run(
+                "return await call_tool('describeSqlSchema', "
+                "{'detail': 'brief', 'secret': 'do-not-log'})",
+                external_functions={"call_tool": call_tool},
+            )
+        ) == {"ok": "yes"}
+
+    messages = [record.getMessage() for record in caplog.records]
+    assert any(
+        "host callback submitted" in message
+        and "tool='describeSqlSchema'" in message
+        and "params={'detail': 'brief', 'secret': 'do-not-log'}" in message
+        for message in messages
+    )
+    assert any(
+        "host callback completed" in message and "result_type=dict" in message
+        for message in messages
+    )
 
 
 async def test_external_function_timeout_is_not_misclassified_as_capacity(
@@ -110,11 +156,76 @@ async def test_inputs_are_bound_as_globals(provider: MontyPoolSandboxProvider) -
     assert await provider.run("return x + y", inputs={"x": 1, "y": 2}) == 3
 
 
-async def test_guest_exception_reaches_the_caller(provider: MontyPoolSandboxProvider) -> None:
+async def test_guest_exception_reaches_the_caller(
+    provider: MontyPoolSandboxProvider, caplog: pytest.LogCaptureFixture
+) -> None:
     """Guest errors reach the model with detail, not rewritten into ``ToolError``."""
-    with pytest.raises(MontyRuntimeError) as exc_info:
-        await provider.run("raise ValueError('boom')")
+    code = "raise ValueError('boom')"
+    with caplog.at_level(logging.DEBUG, logger="phoenix.server.mcp_code_mode"):
+        with pytest.raises(MontyRuntimeError) as exc_info:
+            await provider.run(code)
     assert "boom" in str(exc_info.value)
+    assert any(
+        "MCP code-mode execute failed" in record.getMessage()
+        and "error=MontyRuntimeError: ValueError: boom" in record.getMessage()
+        for record in caplog.records
+    )
+
+
+async def test_a_guest_failure_says_nothing_at_warning(
+    provider: MontyPoolSandboxProvider, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A guest error is a step in the loop, and its text is the guest's own."""
+    code = "raise ValueError('telemetry-that-should-not-be-logged')"
+    with caplog.at_level(logging.DEBUG, logger="phoenix.server.mcp_code_mode"):
+        with pytest.raises(MontyRuntimeError) as exc_info:
+            await provider.run(code)
+
+    assert "telemetry-that-should-not-be-logged" in str(exc_info.value)
+    assert not [record for record in caplog.records if record.levelno >= logging.WARNING]
+
+
+async def test_a_guest_error_is_bounded_even_at_debug(
+    provider: MontyPoolSandboxProvider, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Guest code can raise holding a query result, which no log record should be."""
+    code = "raise ValueError('z' * 200_000)"
+    with caplog.at_level(logging.DEBUG, logger="phoenix.server.mcp_code_mode"):
+        with pytest.raises(MontyRuntimeError):
+            await provider.run(code)
+
+    message = next(
+        record.getMessage()
+        for record in caplog.records
+        if record.levelno == logging.DEBUG and "execute failed" in record.getMessage()
+    )
+    assert "truncated from" in message
+    assert len(message) < 5_000
+
+
+async def test_a_host_callback_error_is_bounded_in_the_log(
+    provider: MontyPoolSandboxProvider, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A callback failure restates the request, whose size the caller chooses."""
+
+    async def call_tool(tool_name: str, params: dict[str, Any]) -> None:
+        del tool_name, params
+        raise RuntimeError("y" * 50_000)
+
+    with caplog.at_level(logging.WARNING, logger="phoenix.server.mcp_code_mode"):
+        with pytest.raises(MontyRuntimeError):
+            await provider.run(
+                "await call_tool('anything', {})",
+                external_functions={"call_tool": call_tool},
+            )
+
+    message = next(
+        record.getMessage()
+        for record in caplog.records
+        if "host callback failed" in record.getMessage()
+    )
+    assert "truncated from" in message
+    assert len(message) < 5_000
 
 
 async def test_syntax_error_reaches_the_caller(provider: MontyPoolSandboxProvider) -> None:
@@ -154,7 +265,7 @@ async def test_guest_memory_limit_is_enforced(provider: MontyPoolSandboxProvider
 
 async def test_guest_duration_limit_is_enforced() -> None:
     """A compute-bound block is stopped by the guest duration limit."""
-    async with _standalone_provider(limits={"max_duration_secs": 1.0}) as provider:
+    async with _standalone_provider(limits={"max_feed_duration_secs": 1.0}) as provider:
         with pytest.raises(MontyRuntimeError) as exc_info:
             await provider.run("while True:\n    pass")
         assert "time limit" in str(exc_info.value).lower()
@@ -163,7 +274,7 @@ async def test_guest_duration_limit_is_enforced() -> None:
 async def test_turn_timeout_reports_a_tool_error() -> None:
     """``request_timeout`` reclaims a worker before its longer guest limit."""
     async with _standalone_provider(
-        limits={"max_duration_secs": 60.0}, request_timeout=2.0
+        limits={"max_feed_duration_secs": 60.0}, request_timeout=2.0
     ) as provider:
         with pytest.raises(ToolError, match="stopped responding"):
             await provider.run("while True:\n    pass")
@@ -188,7 +299,7 @@ async def test_total_timeout_bounds_a_block_dominated_by_tool_calls() -> None:
 
     code = "i = 0\nwhile i < 30:\n    r = await call_tool('t', {})\n    i = i + 1\nreturn i"
     async with _standalone_provider(
-        limits={"max_duration_secs": 60.0},
+        limits={"max_feed_duration_secs": 60.0},
         request_timeout=60.0,
         total_timeout=3.0,
     ) as provider:
@@ -354,7 +465,7 @@ async def test_concurrent_runs_all_complete(provider: MontyPoolSandboxProvider) 
 async def test_saturated_pool_reports_a_tool_error() -> None:
     """Overload is reported as a busy sandbox instead of queueing without bound."""
     async with _standalone_provider(
-        limits={"max_duration_secs": 3.0},
+        limits={"max_feed_duration_secs": 3.0},
         max_processes=1,
         checkout_timeout=0.5,
     ) as provider:
@@ -376,7 +487,7 @@ async def test_cancelled_run_releases_its_worker_within_the_guest_limit() -> Non
     """
     limit = 2.0
     async with _standalone_provider(
-        limits={"max_duration_secs": limit},
+        limits={"max_feed_duration_secs": limit},
         max_processes=1,
         checkout_timeout=10.0,
     ) as provider:
@@ -436,7 +547,7 @@ async def test_runtime_close_forces_pool_close_after_grace_period(
 ) -> None:
     monkeypatch.setattr("phoenix.server.monty_runtime.SHUTDOWN_GRACE_TIMEOUT", 0.1)
     runtime = MontyRuntime()
-    provider = MontyPoolSandboxProvider(runtime=runtime, limits={"max_duration_secs": 3.0})
+    provider = MontyPoolSandboxProvider(runtime=runtime, limits={"max_feed_duration_secs": 3.0})
     running = asyncio.create_task(provider.run("while True:\n    pass"))
     try:
         await asyncio.sleep(0.5)
@@ -477,7 +588,7 @@ async def test_default_limits_are_not_shared_between_providers() -> None:
 def test_partial_consumer_limits_merge_with_defaults() -> None:
     runtime = MontyRuntime(consumer_limits={"mcp": 1})
 
-    assert set(runtime._consumer_slots) == {"mcp", "evaluator", "validation"}
+    assert set(runtime._consumer_slots) == {"mcp", "agent", "evaluator", "validation"}
     assert runtime._consumer_slots["mcp"]._value == 1
 
 

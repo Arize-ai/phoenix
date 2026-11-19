@@ -1,7 +1,8 @@
 import { css } from "@emotion/react";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Group, Panel, Separator } from "react-resizable-panels";
+import invariant from "tiny-invariant";
 
 import type { CardProps } from "@phoenix/components";
 import {
@@ -15,6 +16,8 @@ import {
   DialogTitleExtra,
   Flex,
   Heading,
+  Icon,
+  Icons,
   LinkButton,
   TitleWithID,
   ListBox,
@@ -36,7 +39,7 @@ import { AssignExamplesToSplitMenu } from "@phoenix/pages/examples/AssignExample
 import type { Mutable } from "@phoenix/typeUtils";
 
 import type { ExampleDetailsDialogQuery } from "./__generated__/ExampleDetailsDialogQuery.graphql";
-import { EditExampleButton } from "./EditExampleButton";
+import { EditExampleForm } from "./EditExampleForm";
 import { ExampleExperimentRunsTable } from "./ExampleExperimentRunsTable";
 
 type ViewMode = "json" | "pretty";
@@ -99,57 +102,29 @@ function ViewModeSelect({
 /**
  * Skeleton fallback for the dialog content while data is loading.
  */
-function ExampleDetailsDialogSkeleton() {
+export function ExampleDetailsDialogSkeleton() {
   return (
-    <Group orientation="vertical">
-      <Panel defaultSize="65%">
-        <div
-          css={css`
-            overflow-y: auto;
-            height: 100%;
-          `}
-        >
-          <Flex direction="row" justifyContent="center">
-            <View width="900px" padding="size-200">
-              <Flex direction="column" gap="size-200">
-                <Card title="Input" {...defaultCardProps}>
-                  <Skeleton height={100} animation="wave" />
-                </Card>
-                <Card title="Output" {...defaultCardProps}>
-                  <Skeleton height={100} animation="wave" />
-                </Card>
-                <Card title="Metadata" {...defaultCardProps}>
-                  <Skeleton height={60} animation="wave" />
-                </Card>
-              </Flex>
-            </View>
-          </Flex>
-        </div>
-      </Panel>
-      <Separator css={resizeHandleCSS} />
-      <Panel defaultSize="35%">
-        <Flex direction="column" height="100%">
-          <View
-            paddingStart="size-200"
-            paddingEnd="size-200"
-            paddingTop="size-100"
-            paddingBottom="size-100"
-            borderBottomColor="default"
-            borderBottomWidth="thin"
-            flex="none"
-          >
-            <Heading level={3}>Experiment Runs</Heading>
-          </View>
-          <View padding="size-200" flex="1 1 auto">
-            <Flex direction="column" gap="size-100">
-              <Skeleton height={40} animation="wave" />
-              <Skeleton height={40} animation="wave" />
-              <Skeleton height={40} animation="wave" />
+    <Flex direction="column" height="100%">
+      <View flex="65 1 0" overflow="hidden">
+        <Flex direction="row" justifyContent="center">
+          <View width="900px" padding="size-200">
+            <Flex direction="column" gap="size-200">
+              <Skeleton height={148} borderRadius="medium" />
+              <Skeleton height={148} borderRadius="medium" />
+              <Skeleton height={108} borderRadius="medium" />
             </Flex>
           </View>
         </Flex>
-      </Panel>
-    </Group>
+      </View>
+      <View flex="35 1 0" overflow="hidden" padding="size-200">
+        <Flex direction="column" gap="size-100">
+          <Skeleton width={160} height={24} />
+          <Skeleton height={40} />
+          <Skeleton height={40} />
+          <Skeleton height={40} />
+        </Flex>
+      </View>
+    </Flex>
   );
 }
 
@@ -164,6 +139,7 @@ function ExampleDetailsDialogContent({
   datasetVersionId?: string;
 }) {
   const [fetchKey, setFetchKey] = useState(0);
+  const [isEditing, setIsEditing] = useState(false);
   const [inputViewMode, setInputViewMode] = useState<ViewMode>("pretty");
   const [outputViewMode, setOutputViewMode] = useState<ViewMode>("pretty");
   const data = useLazyLoadQuery<ExampleDetailsDialogQuery>(
@@ -173,6 +149,9 @@ function ExampleDetailsDialogContent({
           ... on DatasetExample {
             id
             externalId
+            dataset {
+              id
+            }
             revision(datasetVersionId: $datasetVersionId) {
               input
               output
@@ -201,45 +180,60 @@ function ExampleDetailsDialogContent({
     { exampleId: exampleId as string, datasetVersionId: datasetVersionId },
     { fetchKey, fetchPolicy: "store-and-network" }
   );
-  const revision = useMemo(() => {
-    const rev = data.example.revision;
-    return {
-      input: JSON.stringify(rev?.input, null, 2),
-      output: JSON.stringify(rev?.output, null, 2),
-      metadata: JSON.stringify(rev?.metadata, null, 2),
-      // Raw values for DynamicContent
-      inputRaw: rev?.input,
-      outputRaw: rev?.output,
-    };
-  }, [data]);
-  const sourceSpanInfo = useMemo(() => {
-    const sourceSpan = data.example.span;
-    if (!sourceSpan) {
-      return null;
-    }
-    return {
-      id: sourceSpan.id,
-      traceId: sourceSpan.trace.traceId,
-      projectId: sourceSpan.trace.project.id,
-    };
-  }, [data]);
+  // Optional only because `dataset` is selected through an inline fragment; every
+  // dataset example belongs to a dataset.
+  const datasetId = data.example.dataset?.id;
+  invariant(datasetId, "a dataset example must belong to a dataset");
+  const currentRevision = data.example.revision;
+  const revision = {
+    input: JSON.stringify(currentRevision?.input, null, 2),
+    output: JSON.stringify(currentRevision?.output, null, 2),
+    metadata: JSON.stringify(currentRevision?.metadata, null, 2),
+    // Raw values for DynamicContent
+    inputRaw: currentRevision?.input,
+    outputRaw: currentRevision?.output,
+  };
+  const sourceSpan = data.example.span;
+  const sourceSpanInfo = sourceSpan
+    ? {
+        id: sourceSpan.id,
+        traceId: sourceSpan.trace.traceId,
+        projectId: sourceSpan.trace.project.id,
+      }
+    : null;
   const { input, output, metadata } = revision;
   const datasetSplits = data.example.datasetSplits ?? [];
-  const examplesCache = useMemo(() => {
-    const example = data.example;
-    if (example && example.id) {
-      return {
+  const example = data.example;
+  const examplesCache = example?.id
+    ? {
         [example.id]: {
           id: example.id,
           datasetSplits: (example.datasetSplits ?? []) as Mutable<
             NonNullable<typeof example.datasetSplits>
           >,
         },
-      };
-    }
-    return {};
-  }, [data]);
+      }
+    : {};
   const notifySuccess = useNotifySuccess();
+
+  if (isEditing) {
+    return (
+      <EditExampleForm
+        exampleId={exampleId}
+        datasetId={datasetId}
+        currentRevision={revision}
+        onCancel={() => setIsEditing(false)}
+        onCompleted={() => {
+          notifySuccess({
+            title: "Example updated",
+            message: `Example ${exampleId} has been updated.`,
+          });
+          setIsEditing(false);
+          setFetchKey((key) => key + 1);
+        }}
+      />
+    );
+  }
 
   return (
     <>
@@ -266,17 +260,13 @@ function ExampleDetailsDialogContent({
             examplesCache={examplesCache}
             size="S"
           />
-          <EditExampleButton
-            exampleId={exampleId as string}
-            currentRevision={revision}
-            onCompleted={() => {
-              notifySuccess({
-                title: "Example updated",
-                message: `Example ${exampleId} has been updated.`,
-              });
-              setFetchKey((key) => key + 1);
-            }}
-          />
+          <Button
+            size="S"
+            leadingVisual={<Icon svg={<Icons.Edit />} />}
+            onPress={() => setIsEditing(true)}
+          >
+            Edit
+          </Button>
         </DialogTitleExtra>
       </DialogHeader>
       <Group orientation="vertical">
@@ -382,7 +372,7 @@ function ExampleDetailsHeaderSkeleton({ exampleId }: { exampleId: string }) {
           <TitleWithID title="Example" id={exampleId} />
         </Flex>
         <DialogTitleExtra>
-          <Skeleton width={60} height={24} animation="wave" />
+          <Skeleton width={60} height={24} />
         </DialogTitleExtra>
       </DialogHeader>
       <ExampleDetailsDialogSkeleton />
@@ -407,6 +397,9 @@ export function ExampleDetailsDialog({
           fallback={<ExampleDetailsHeaderSkeleton exampleId={exampleId} />}
         >
           <ExampleDetailsDialogContent
+            // Keyed so one example's state — an open edit form and its typed
+            // values — never carries over to another example.
+            key={exampleId}
             exampleId={exampleId}
             datasetVersionId={datasetVersionId}
           />

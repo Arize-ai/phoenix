@@ -3,20 +3,21 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from jinja2 import Template
+from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import AgentToolset
 from pydantic_ai.toolsets.external import ExternalToolset
 
-from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.agents.types import AgentDependencies
 
 NAME = "ask_user"
 
-DESCRIPTION = (
-    "Ask the user one or more questions to gather preferences, clarify requirements, "
-    "or get decisions. Use this when you need user input before proceeding with a task."
-)
+DESCRIPTION = """\
+Ask the user one or more structured questions to gather preferences, clarify requirements, or get decisions. Use this when you need user input before proceeding with a task.
+Keep the number of questions small (1-5 per call); prefer fewer, focused questions.
+Write clear, concise prompts. Avoid jargon unless the user has used it first.
+Use the `freeform` question type only when the answer space is truly open-ended; otherwise offer `single`/`multi` options and set `allow_freeform` when the user might want a value outside your list. Set `allow_skip` for optional questions.
+After receiving answers, summarize what you understood and proceed. Do not re-ask the same questions."""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",
@@ -107,11 +108,6 @@ TOOL_DEFINITION = ToolDefinition(
 
 
 @dataclass
-class AskUserCapability(AbstractStaticCapability[AgentDependencies]):
-    instructions: Template
-
+class AskUserCapability(AbstractCapability[AgentDependencies]):
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return ExternalToolset[AgentDependencies]([TOOL_DEFINITION])
-
-    def get_static_instructions(self) -> str:
-        return self.instructions.render()

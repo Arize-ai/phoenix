@@ -3,10 +3,10 @@ import type { ReactNode } from "react";
 import { Suspense, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { Loading, Text } from "@phoenix/components";
+import { Text } from "@phoenix/components";
 import {
   type AnnotationOptimizationConfig,
-  getPositiveOptimizationFromConfig,
+  getOptimizationValueFromConfig,
 } from "@phoenix/components/annotation";
 import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import {
@@ -14,6 +14,7 @@ import {
   type AnnotationMetricsSeries,
   AnnotationMetricsViewMenu,
   ChartPanel,
+  ChartPanelSkeleton,
   ChartSkeleton,
   DeferredChartPanel,
   TimeRangeChartBrush,
@@ -123,6 +124,7 @@ function ProjectAnnotationMetricsPanel({
   timeTickFormatter,
   fullTimeFormatter,
   onTimeRangeSelected,
+  scale,
   fillHeight = false,
 }: {
   series: AnnotationMetricsSeries;
@@ -131,6 +133,7 @@ function ProjectAnnotationMetricsPanel({
   timeTickFormatter: (date: Date) => string;
   fullTimeFormatter: (date: Date) => string;
   onTimeRangeSelected?: (timeRange: TimeRange) => void;
+  scale: TimeBinScale;
   fillHeight?: boolean;
 }) {
   const [view, setView] = useState(() =>
@@ -152,7 +155,10 @@ function ProjectAnnotationMetricsPanel({
         ) : undefined
       }
     >
-      <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
+      <TimeRangeChartBrush
+        onTimeRangeSelected={onTimeRangeSelected}
+        scale={scale}
+      >
         {({ chartProps }) => (
           <AnnotationMetricsChart
             series={series}
@@ -167,8 +173,8 @@ function ProjectAnnotationMetricsPanel({
             yAxisProps={compactYAxisProps}
             syncId={PROJECT_METRICS_CHART_SYNC_ID}
             chartProps={chartProps}
-            getMeanScoreOptimization={(meanScore) =>
-              getPositiveOptimizationFromConfig({
+            getMeanScoreOptimizationValue={(meanScore) =>
+              getOptimizationValueFromConfig({
                 config: annotationConfig,
                 score: meanScore,
               })
@@ -281,6 +287,7 @@ function ProjectAnnotationMetricPanelContent({
       {...props}
       series={series}
       annotationConfig={annotationConfigsByName.get(series.name)}
+      scale={scale}
       timeTickFormatter={timeTickFormatter}
       fullTimeFormatter={fullTimeFormatter}
       fillHeight={fillHeight}
@@ -294,7 +301,7 @@ export function ProjectAnnotationMetricsGrid({
 }: ProjectMetricViewProps & { annotationLevel: MetricChartTableView }) {
   return (
     <ErrorBoundary>
-      <Suspense fallback={<Loading />}>
+      <Suspense fallback={<ProjectAnnotationMetricsGridSkeleton />}>
         <ProjectAnnotationMetricNamesLoader
           {...props}
           annotationLevel={annotationLevel}
@@ -309,6 +316,19 @@ export function ProjectAnnotationMetricsGrid({
         </ProjectAnnotationMetricNamesLoader>
       </Suspense>
     </ErrorBoundary>
+  );
+}
+
+/**
+ * One row of panel skeletons while the annotation names load; how many panels
+ * follow is not known until they arrive.
+ */
+function ProjectAnnotationMetricsGridSkeleton() {
+  return (
+    <div css={annotationGridCSS}>
+      <ChartPanelSkeleton />
+      <ChartPanelSkeleton />
+    </div>
   );
 }
 
@@ -347,7 +367,7 @@ export function useTraceAnnotationMetricNames(
       query ProjectAnnotationMetricNamesTraceQuery($projectId: ID!) {
         project: node(id: $projectId) {
           ... on Project {
-            traceAnnotationsNames
+            traceAnnotationNames
           }
         }
       }
@@ -356,7 +376,7 @@ export function useTraceAnnotationMetricNames(
     useMetricQueryFetchOptions()
   );
   return getSortedAnnotationNames(
-    getNonNoteAnnotationNames(data.project.traceAnnotationsNames ?? [])
+    getNonNoteAnnotationNames(data.project.traceAnnotationNames ?? [])
   );
 }
 

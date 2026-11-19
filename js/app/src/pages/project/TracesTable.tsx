@@ -1,23 +1,10 @@
 import { css } from "@emotion/react";
-import type {
-  CellContext,
-  ColumnDef,
-  ExpandedState,
-  SortingState,
-  Table,
-} from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  getExpandedRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import type { ExpandedState, SortingState } from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 /* eslint-disable react/prop-types */
 import type { ComponentProps } from "react";
 import React, {
   Fragment,
-  Suspense,
   startTransition,
   useCallback,
   useEffect,
@@ -25,8 +12,8 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { graphql, useLazyLoadQuery, usePaginationFragment } from "react-relay";
-import { useNavigate, useParams, useSearchParams } from "react-router";
+import { graphql, usePaginationFragment } from "react-relay";
+import { useNavigate, useResolvedPath, useSearchParams } from "react-router";
 
 import {
   Flex,
@@ -38,9 +25,15 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
-import { MeanScore } from "@phoenix/components/annotation/MeanScore";
-import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
+import {
+  AnnotationSummaryGroupToken,
+  AnnotationSummaryGroupTokens,
+} from "@phoenix/components/annotation/AnnotationSummaryGroup";
+import {
+  TraceAnnotationSummaryGroupToken,
+  TraceAnnotationSummaryGroupTokens,
+} from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
+import type { Annotation } from "@phoenix/components/annotation/types";
 import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
@@ -64,19 +57,25 @@ import {
   getCommonPinningStyles,
 } from "@phoenix/components/table/styles";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
+import type {
+  CellContext,
+  ColumnDef,
+  Table,
+} from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
-import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
+import { SpanStatusIndicator } from "@phoenix/components/trace/SpanStatusIndicator";
 import { TraceTokenCosts } from "@phoenix/components/trace/TraceTokenCosts";
 import { TraceTokenCount } from "@phoenix/components/trace/TraceTokenCount";
 import type { ISpanItem } from "@phoenix/components/trace/types";
 import type { SpanTreeNode } from "@phoenix/components/trace/utils";
 import { createSpanTree } from "@phoenix/components/trace/utils";
+import { TRACE_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
-import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { TraceSpanAnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
@@ -88,8 +87,8 @@ import type {
   TracesTable_spans$key,
 } from "./__generated__/TracesTable_spans.graphql";
 import type { TracesTableQuery } from "./__generated__/TracesTableQuery.graphql";
-import type { TracesTableTraceFilterVocabularyQuery } from "./__generated__/TracesTableTraceFilterVocabularyQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
+import { withFilterConditionParam } from "./filterConditionParam";
 import {
   SpanInputValueTooltipCell,
   SpanOutputValueTooltipCell,
@@ -105,64 +104,35 @@ import {
   ANNOTATION_COLUMN_SIZING,
   DEFAULT_SORT,
   getGqlSort,
-  makeAnnotationColumnId,
+  makeFlatAnnotationColumnId,
+  normalizeAnnotationColumnOrder,
   TRACE_ANNOTATIONS_COLUMN_ID,
 } from "./tableUtils";
-import { TraceFilterConditionField } from "./TraceFilterConditionField";
+import type { TraceFilterValidConditionArgs } from "./TraceFilterConditionField";
+import { TraceFilterConditionFieldWithVocabulary } from "./TraceFilterConditionField";
+import { useTraceFilters } from "./TraceFiltersContext";
+import { useSelectedTraceSlots } from "./useSelectedTraceSlots";
 
 type TracesTableProps = {
   project: TracesTable_spans$key;
+  /**
+   * The settled condition `project` was loaded with; the rows on hand already
+   * match it.
+   */
+  seed: string;
 };
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
+
+const renderTraceSpanAnnotationFilterActions = (annotation: Annotation) => (
+  <TraceSpanAnnotationTooltipFilterActions annotation={annotation} />
+);
 const NUM_DESCENDANTS = 50;
 
 const toolbarFilterFieldCSS = css`
   flex: 2 1 420px;
   min-width: min(100%, 320px);
 `;
-
-const EMPTY_TRACE_FILTER_VOCABULARY = [] as const;
-
-function TraceFilterConditionFieldWithVocabulary({
-  projectId,
-  timeRange,
-  onValidCondition,
-}: {
-  projectId: string;
-  timeRange: { start?: string; end?: string };
-  onValidCondition: (condition: string) => void;
-}) {
-  const data = useLazyLoadQuery<TracesTableTraceFilterVocabularyQuery>(
-    graphql`
-      query TracesTableTraceFilterVocabularyQuery(
-        $id: ID!
-        $timeRange: TimeRange!
-      ) {
-        project: node(id: $id) {
-          ... on Project {
-            traceFilterVocabulary(timeRange: $timeRange) {
-              name
-              type
-              description
-              category
-              iterableName
-            }
-          }
-        }
-      }
-    `,
-    { id: projectId, timeRange }
-  );
-  return (
-    <TraceFilterConditionField
-      vocabulary={
-        data.project?.traceFilterVocabulary ?? EMPTY_TRACE_FILTER_VOCABULARY
-      }
-      onValidCondition={onValidCondition}
-    />
-  );
-}
 
 interface IAdditionalSpansIndicator {
   /**
@@ -191,20 +161,24 @@ const TableBody = <
 }: {
   table: Table<T>;
 }) => {
-  "use no memo";
   const navigate = useNavigate();
-  const { traceId } = useParams();
   const [searchParams] = useSearchParams();
+  const basePath = useResolvedPath(".").pathname;
+  const selectedTraceSlots = useSelectedTraceSlots();
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
-        const isSelected = row.original.trace.traceId === traceId;
+        // every row of a viewed trace is highlighted, whichever span is shown
+        const isSelected = selectedTraceSlots.some(
+          (slot) => slot.traceId === row.original.trace.traceId
+        );
         return (
           <tr
             key={row.id}
             onClick={() =>
               navigate(
                 getTraceDetailsPath({
+                  basePath,
                   traceId: row.original.trace.traceId,
                   searchParams,
                 })
@@ -250,10 +224,16 @@ export const MemoizedTableBody = React.memo(
 const MetadataCell = <TData extends ISpanItem, TValue>({
   row,
 }: CellContext<TData, TValue>) => {
+  const { appendFilterCondition } = useTraceFilters();
   if (row.original.__additionalRow) {
     return null;
   }
-  return <MetadataTableCell metadata={row.original.metadata} />;
+  return (
+    <MetadataTableCell
+      metadata={row.original.metadata}
+      onFilterConditionPressed={appendFilterCondition}
+    />
+  );
 };
 
 const trCSS = css`
@@ -284,14 +264,41 @@ function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(params: {
 }
 
 export function TracesTable(props: TracesTableProps) {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const basePath = useResolvedPath(".").pathname;
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef(true);
   const [rowSelection, setRowSelection] = useState({});
   const [sorting, setSorting] = useState<SortingState>([]);
   const [validTraceFilterCondition, setValidTraceFilterCondition] =
-    useState<string>("");
+    useState<string>(props.seed);
+  // React Router 8.2 recreates this setter whenever location.search changes; a
+  // stable ref keeps unrelated param changes out of the field's validation.
+  const setSearchParamsRef = useRef(setSearchParams);
+  useEffect(() => {
+    setSearchParamsRef.current = setSearchParams;
+  }, [setSearchParams]);
+  const handleValidTraceFilterCondition = useCallback(
+    ({ condition, isInitialSettlement }: TraceFilterValidConditionArgs) => {
+      setValidTraceFilterCondition(condition);
+      // The mount settlement echoes the URL's own condition; writing it back
+      // would touch the URL on every visit to the tab.
+      if (isInitialSettlement) {
+        return;
+      }
+      setSearchParamsRef.current(
+        (prev) =>
+          withFilterConditionParam(
+            prev,
+            TRACE_FILTER_CONDITION_PARAM,
+            condition
+          ),
+        { replace: true }
+      );
+    },
+    []
+  );
   const { fetchKey } = useStreamState();
   // Source the time range directly here (rather than only via the preloaded
   // parent query) so a live window sliding forward refetches with the filter
@@ -327,7 +334,7 @@ export function TracesTable(props: TracesTableProps) {
             first: $first
             after: $after
             sort: $sort
-            rootSpansOnly: true
+            filterCondition: "parent_span is None"
             traceFilterCondition: $traceFilterCondition
             timeRange: $timeRange
           ) @connection(key: "TracesTable_rootSpans") {
@@ -361,14 +368,6 @@ export function TracesTable(props: TracesTableProps) {
                       cost
                     }
                   }
-                  traceAnnotationSummaries {
-                    labelFractions {
-                      fraction
-                      label
-                    }
-                    meanScore
-                    name
-                  }
                   ...TraceAnnotationSummaryGroup
                 }
                 spanAnnotations {
@@ -378,14 +377,6 @@ export function TracesTable(props: TracesTableProps) {
                   score
                   annotatorKind
                   createdAt
-                }
-                spanAnnotationSummaries {
-                  labelFractions {
-                    fraction
-                    label
-                  }
-                  meanScore
-                  name
                 }
                 ...AnnotationSummaryGroup
                 documentRetrievalMetrics {
@@ -513,46 +504,24 @@ export function TracesTable(props: TracesTableProps) {
       visibleAnnotationColumnNames.map((name) => {
         return {
           header: name,
-          columns: [
-            {
-              header: `labels`,
-              accessorKey: makeAnnotationColumnId(name, "label"),
-              cell: ({ row }) => {
-                const annotation = (
-                  row.original
-                    .spanAnnotationSummaries as TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"]["spanAnnotationSummaries"]
-                )?.find((annotation) => annotation.name === name);
-                if (!annotation) {
-                  return null;
-                }
-                return (
-                  <SummaryValueLabels
-                    name={name}
-                    labelFractions={annotation.labelFractions}
-                  />
-                );
-              },
-            } as ColumnDef<TableRow>,
-            {
-              header: `mean score`,
-              accessorKey: makeAnnotationColumnId(name, "score"),
-              cell: ({ row }) => {
-                const annotation = (
-                  row.original
-                    .spanAnnotationSummaries as TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"]["spanAnnotationSummaries"]
-                )?.find((annotation) => annotation.name === name);
-                if (!annotation) {
-                  return null;
-                }
-                return (
-                  <MeanScore value={annotation.meanScore} fallback={null} />
-                );
-              },
-            } as ColumnDef<TableRow>,
-          ],
+          accessorKey: makeFlatAnnotationColumnId(name),
+          cell: ({ row }) => {
+            if (row.original.__additionalRow) {
+              return null;
+            }
+            return (
+              <AnnotationSummaryGroupToken
+                span={row.original}
+                annotationName={name}
+                annotationConfigsByName={annotationConfigsByName}
+                showFilterActions
+                renderFilterActions={renderTraceSpanAnnotationFilterActions}
+              />
+            );
+          },
         };
       }),
-    [visibleAnnotationColumnNames]
+    [annotationConfigsByName, visibleAnnotationColumnNames]
   );
 
   const dynamicTraceAnnotationColumns: ColumnDef<TableRow>[] = useMemo(
@@ -560,58 +529,24 @@ export function TracesTable(props: TracesTableProps) {
       visibleTraceAnnotationColumnNames.map((name) => {
         return {
           header: name,
-          columns: [
-            {
-              header: `labels`,
-              accessorKey: makeAnnotationColumnId(name, "label", "trace"),
-              enableSorting: false,
-              cell: ({ row }) => {
-                if (row.depth !== 0 || row.original.__additionalRow) {
-                  return null;
-                }
-                const annotation = (
-                  row.original
-                    .trace as TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"]["trace"]
-                )?.traceAnnotationSummaries?.find(
-                  (annotation) => annotation.name === name
-                );
-                if (!annotation) {
-                  return null;
-                }
-                return (
-                  <SummaryValueLabels
-                    name={name}
-                    labelFractions={annotation.labelFractions}
-                  />
-                );
-              },
-            } as ColumnDef<TableRow>,
-            {
-              header: `mean score`,
-              accessorKey: makeAnnotationColumnId(name, "score", "trace"),
-              enableSorting: false,
-              cell: ({ row }) => {
-                if (row.depth !== 0 || row.original.__additionalRow) {
-                  return null;
-                }
-                const annotation = (
-                  row.original
-                    .trace as TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"]["trace"]
-                )?.traceAnnotationSummaries?.find(
-                  (annotation) => annotation.name === name
-                );
-                if (!annotation) {
-                  return null;
-                }
-                return (
-                  <MeanScore value={annotation.meanScore} fallback={null} />
-                );
-              },
-            } as ColumnDef<TableRow>,
-          ],
+          accessorKey: makeFlatAnnotationColumnId(name, "trace"),
+          enableSorting: false,
+          cell: ({ row }) => {
+            if (row.depth !== 0 || row.original.__additionalRow) {
+              return null;
+            }
+            return (
+              <TraceAnnotationSummaryGroupToken
+                trace={row.original.trace as RootSpanTrace}
+                annotationName={name}
+                annotationConfigsByName={annotationConfigsByName}
+                showFilterActions
+              />
+            );
+          },
         };
       }),
-    [visibleTraceAnnotationColumnNames]
+    [annotationConfigsByName, visibleTraceAnnotationColumnNames]
   );
 
   const annotationColumns: ColumnDef<TableRow>[] = useMemo(
@@ -619,14 +554,14 @@ export function TracesTable(props: TracesTableProps) {
       {
         header: () => (
           <Flex direction="row" gap="size-50" alignItems="center">
-            <span>Annotations</span>
+            <span>span annotations</span>
             <ContextualHelp>
               <Heading level={3} weight="heavy">
-                Annotations
+                Span annotations
               </Heading>
               <Text>
-                Evaluations and human annotations logged via the API or set via
-                the UI.
+                Evaluations and human annotations attached to each span. Expand
+                a trace to see the annotations on its child spans.
               </Text>
             </ContextualHelp>
           </Flex>
@@ -648,11 +583,7 @@ export function TracesTable(props: TracesTableProps) {
                 span={row.original}
                 annotationConfigsByName={annotationConfigsByName}
                 showFilterActions
-                renderFilterActions={(annotation) => (
-                  <TraceSpanAnnotationTooltipFilterActions
-                    annotation={annotation}
-                  />
-                )}
+                renderFilterActions={renderTraceSpanAnnotationFilterActions}
               />
               {row.original.documentRetrievalMetrics.map((retrievalMetric) => {
                 return (
@@ -686,13 +617,13 @@ export function TracesTable(props: TracesTableProps) {
       {
         header: () => (
           <Flex direction="row" gap="size-50" alignItems="center">
-            <span>Trace annotations</span>
+            <span>trace annotations</span>
             <ContextualHelp>
               <Heading level={3} weight="heavy">
                 Trace annotations
               </Heading>
               <Text>
-                Annotations attached to the parent trace of this span.
+                Evaluations and annotations applied directly to the trace.
               </Text>
             </ContextualHelp>
           </Flex>
@@ -739,14 +670,14 @@ export function TracesTable(props: TracesTableProps) {
         header: "status",
         accessorKey: "statusCode",
         enableSorting: false,
-        minSize: 50,
-        maxSize: 50,
+        minSize: 80,
+        maxSize: 80,
         cell: ({ getValue, row }) => {
           if (row.original.__additionalRow) {
             return null;
           }
           const statusCode = getValue() as SpanStatusCode;
-          return <SpanStatusCodeIcon statusCode={statusCode} />;
+          return <SpanStatusIndicator statusCode={statusCode} isLabelHidden />;
         },
       },
       {
@@ -816,6 +747,7 @@ export function TracesTable(props: TracesTableProps) {
           return (
             <Link
               to={getTraceDetailsPath({
+                basePath,
                 traceId,
                 spanNodeId: spanId,
                 searchParams,
@@ -847,7 +779,10 @@ export function TracesTable(props: TracesTableProps) {
       },
       {
         header: "input",
-        accessorKey: "input.value",
+        // keep the id accessorKey "input.value" derived, which saved column
+        // preferences refer to; a span without an input has no `input`
+        id: "input_value",
+        accessorFn: (row) => row.input?.value,
         enableSorting: false,
         cell: ({ getValue, row }) => (
           <SpanInputValueTooltipCell
@@ -858,7 +793,10 @@ export function TracesTable(props: TracesTableProps) {
       },
       {
         header: "output",
-        accessorKey: "output.value",
+        // keep the id accessorKey "output.value" derived, which saved column
+        // preferences refer to; a span without an output has no `output`
+        id: "output_value",
+        accessorFn: (row) => row.output?.value,
         enableSorting: false,
         cell: ({ getValue, row }) => (
           <SpanOutputValueTooltipCell
@@ -964,7 +902,11 @@ export function TracesTable(props: TracesTableProps) {
       {
         header: "total cost",
         minSize: 80,
-        accessorKey: "trace.costSummary.total.cost",
+        // only root spans are fetched with their trace's cost summary
+        accessorFn: (row) =>
+          "costSummary" in row.trace
+            ? (row.trace as RootSpanTrace).costSummary.total.cost
+            : undefined,
         id: "cumulativeTokenCostTotal",
         meta: { textAlign: "right" },
         cell: ({ row, getValue }) => {
@@ -983,12 +925,12 @@ export function TracesTable(props: TracesTableProps) {
         },
       },
     ],
-    [annotationColumns, searchParams, selectRow]
+    [annotationColumns, basePath, searchParams, selectRow]
   );
 
   useEffect(() => {
-    // The parent query preloads these initial variables, so refetch only after
-    // sorting, filtering, streaming, or the live time window changes.
+    // The parent's query already carries the seed, so the first render needs
+    // no refetch.
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
@@ -1060,6 +1002,19 @@ export function TracesTable(props: TracesTableProps) {
   const setStoredColumnOrder = useTracingContext(
     (state) => state.setColumnOrder
   );
+  const normalizedStoredColumnOrder = normalizeAnnotationColumnOrder({
+    columnOrder: storedColumnOrder,
+    annotationKinds: [
+      {
+        names: visibleAnnotationColumnNames,
+        getColumnId: (name) => makeFlatAnnotationColumnId(name),
+      },
+      {
+        names: visibleTraceAnnotationColumnNames,
+        getColumnId: (name) => makeFlatAnnotationColumnId(name, "trace"),
+      },
+    ],
+  });
   const {
     leafColumnOrder,
     visibleColumnOrder,
@@ -1067,15 +1022,18 @@ export function TracesTable(props: TracesTableProps) {
     getColumnOrderIndex,
   } = useColumnOrder({
     columns,
-    columnOrder: storedColumnOrder,
+    columnOrder: normalizedStoredColumnOrder,
     onColumnOrderChange: setStoredColumnOrder,
     columnVisibility,
     nonOrderableColumnIds: [CHECKBOX_COLUMN_ID],
   });
-  const table = useReactTable<TableRow>({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data: tableData,
     onExpandedChange: setExpanded,
+    // v9 resets expansion whenever `data` changes (load-more, sort, refetch)
+    autoResetExpanded: false,
     manualSorting: true,
     getSubRows: (row) => row.children,
     state: {
@@ -1093,9 +1051,6 @@ export function TracesTable(props: TracesTableProps) {
     enableSubRowSelection: false,
     onSortingChange: setSorting,
     onColumnSizingChange: setColumnSizing,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getExpandedRowModel: getExpandedRowModel(),
   });
   const rows = table.getRowModel().rows;
   const selectedRows = table.getSelectedRowModel().flatRows;
@@ -1111,34 +1066,19 @@ export function TracesTable(props: TracesTableProps) {
     setRowSelection({});
   }, [setRowSelection]);
   const isEmpty = rows.length === 0;
-  const computedColumns = table.getAllColumns().filter((column) => {
-    // Filter out columns that are eval groupings
-    return column.columns.length === 0;
-  });
-  const { columnSizingInfo, columnSizing: columnSizingState } =
-    table.getState();
-  const getFlatHeaders = table.getFlatHeaders;
-  const colLength = computedColumns.length;
+  const { columnResizing } = table.state;
   /**
    * Instead of calling `column.getSize()` on every render for every header
    * and especially every data cell (very expensive),
-   * we will calculate all column sizes at once at the root table level in a useMemo
+   * we calculate all column sizes at once at the root table level
    * and pass the column sizes down as CSS variables to the <table> element.
-   * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
+   * @see https://tanstack.com/table/latest/docs/framework/react/examples/column-resizing-performant
    */
-  const columnSizeVars = React.useMemo(() => {
-    const headers = getFlatHeaders();
-    const colSizes: { [key: string]: number } = {};
-    for (let i = 0; i < headers.length; i++) {
-      const header = headers[i]!;
-      colSizes[`--header-${header.id}-size`] = header.getSize();
-      colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
-    }
-    return colSizes;
-    // Disabled lint as per tanstack docs linked above
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getFlatHeaders, columnSizingInfo, columnSizingState, colLength]);
+  const columnSizeVars: { [key: string]: number } = {};
+  for (const header of table.getFlatHeaders()) {
+    columnSizeVars[`--header-${header.id}-size`] = header.getSize();
+    columnSizeVars[`--col-${header.column.id}-size`] = header.column.getSize();
+  }
 
   return (
     <TableMetricsChartsPanelGroup view="traces">
@@ -1160,20 +1100,9 @@ export function TracesTable(props: TracesTableProps) {
             wrap="wrap"
           >
             <div css={toolbarFilterFieldCSS}>
-              <Suspense
-                fallback={
-                  <TraceFilterConditionField
-                    vocabulary={EMPTY_TRACE_FILTER_VOCABULARY}
-                    onValidCondition={setValidTraceFilterCondition}
-                  />
-                }
-              >
-                <TraceFilterConditionFieldWithVocabulary
-                  projectId={data.id}
-                  timeRange={timeRangeISOStrings}
-                  onValidCondition={setValidTraceFilterCondition}
-                />
-              </Suspense>
+              <TraceFilterConditionFieldWithVocabulary
+                onValidCondition={handleValidTraceFilterCondition}
+              />
             </div>
             <TableMetricsChartSelector view="traces" />
             <SpanColumnSelector columns={table.getAllColumns()} query={data} />
@@ -1286,7 +1215,7 @@ export function TracesTable(props: TracesTableProps) {
               </thead>
               {isEmpty ? (
                 <ProjectTableEmpty />
-              ) : columnSizingInfo.isResizingColumn ? (
+              ) : columnResizing.isResizingColumn ? (
                 <MemoizedTableBody
                   table={
                     // We can't access the internal TableRowType in the TableBody component

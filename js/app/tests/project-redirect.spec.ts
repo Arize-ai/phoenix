@@ -15,8 +15,15 @@ test.describe("Project redirect", () => {
     ).toBeVisible();
   });
 
-  test("shows error for nonexistent project name", async ({ page }) => {
+  test("shows onboarding empty state for nonexistent project name", async ({
+    page,
+  }) => {
     await page.goto("/redirects/projects/nonexistent-project-name");
-    await expect(page.getByText("not found")).toBeVisible();
+    // A missing project is the expected pre-first-trace state, so we surface an
+    // onboarding empty state pointing at exporter setup rather than a 404 error.
+    await expect(page.getByText("No traces yet")).toBeVisible();
+    await expect(
+      page.getByText(/couldn't find a project named "nonexistent-project-name"/)
+    ).toBeVisible();
   });
 });

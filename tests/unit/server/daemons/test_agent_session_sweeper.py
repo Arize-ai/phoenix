@@ -1,5 +1,7 @@
+import asyncio
 from datetime import datetime, timedelta, timezone
 
+import pytest
 from sqlalchemy import select
 
 from phoenix.config import EPHEMERAL_AGENT_SESSION_TIME_TO_LIVE_HOURS
@@ -13,7 +15,7 @@ from phoenix.server.settings.registry import (
     AgentSessionRetentionSetting,
 )
 from phoenix.server.types import DbSessionFactory
-from tests.unit._helpers import _agent_session_model_kwargs, _message_uuid
+from tests.unit._helpers import _agent_session_model_kwargs, _message_uuid, _user_role_id
 
 
 async def _make_settings(
@@ -57,11 +59,8 @@ async def _add_user(
     role_name: models.UserRoleName,
 ) -> int:
     async with db() as session:
-        user_role = models.UserRole(name=role_name)
-        session.add(user_role)
-        await session.flush()
         user = models.User(
-            user_role_id=user_role.id,
+            user_role_id=await _user_role_id(session, role_name),
             username=username,
             email=f"{username}@example.com",
             password_hash=b"hash",
@@ -347,3 +346,45 @@ async def test_default_settings_enforce_both_rules_without_admin_configuration(
     # the 30 most recently active of the user's remaining sessions.
     assert idle_session_id not in remaining_ids
     assert remaining_ids == set(recent_session_ids[:DEFAULT_AGENT_SESSION_MAX_COUNT_PER_USER])
+
+
+def _past_ephemeral_ttl() -> datetime:
+    return datetime.now(timezone.utc) - timedelta(
+        hours=EPHEMERAL_AGENT_SESSION_TIME_TO_LIVE_HOURS + 1
+    )
+
+
+async def test_sweeper_loop_is_idle_in_unit_test_apps(db: DbSessionFactory) -> None:
+    """The suite-wide fixture leaves the loop inert: a started sweeper's task
+    finishes at once and a session past its retention survives it."""
+    expired_id = await _add_agent_session(
+        db, title="expired", updated_at=_past_ephemeral_ttl(), is_ephemeral=True
+    )
+    settings = await _make_settings(db)
+    sweeper = AgentSessionSweeper(db, settings=settings)
+    async with sweeper:
+        await asyncio.wait_for(asyncio.gather(*sweeper._tasks), timeout=1)
+    assert expired_id in await _remaining_session_ids(db)
+
+
+@pytest.mark.real_agent_session_sweeper
+async def test_sweeper_loop_sweeps_on_start_when_opted_in(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """With the marker the real loop runs, and its first pass reaps a session
+    past its retention before the loop first sleeps."""
+    expired_id = await _add_agent_session(
+        db, title="expired", updated_at=_past_ephemeral_ttl(), is_ephemeral=True
+    )
+    first_pass_done = asyncio.Event()
+
+    async def park(_: float) -> None:
+        first_pass_done.set()
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr("phoenix.server.daemons.agent_session_sweeper.sleep", park)
+    settings = await _make_settings(db)
+    async with AgentSessionSweeper(db, settings=settings):
+        await asyncio.wait_for(first_pass_done.wait(), timeout=10)
+    assert expired_id not in await _remaining_session_ids(db)

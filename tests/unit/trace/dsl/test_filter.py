@@ -19,10 +19,13 @@ from phoenix.trace.dsl.filter import (
     Projector,
     RootSpanScope,
     SpanFilter,
+    SpanFilterError,
     _apply_eval_aliasing,
     _get_attribute_keys_list,
     root_span_scope,
 )
+from phoenix.trace.dsl.session_filter import SessionFilter
+from phoenix.trace.dsl.trace_filter import TraceFilter
 
 
 @pytest.mark.parametrize(
@@ -243,7 +246,7 @@ async def test_filter_translated(
     "condition",
     [
         pytest.param("name and status_code", id="named-columns"),
-        pytest.param('"" in input.value and span.k', id="issue-5802"),
+        pytest.param('"" in input.value and svc.k', id="issue-5802"),
         pytest.param("revenueio.language_code == 'en-US' and r", id="issue-10306"),
         pytest.param("name == 'n' and r", id="bare-name-operand"),
         pytest.param("name == 'n' and input.value", id="attribute-operand"),
@@ -1246,6 +1249,109 @@ class TestProjectorValidationGap:
         )
 
 
+class TestFilterDslDefects:
+    """
+    Regression pins for three defects reported in a security review of
+    ``phoenix/trace/dsl/filter.py`` (the review's conclusion was that the
+    sandbox around ``eval()`` is sound; these are ordinary bugs found along
+    the way, none exploitable).
+    """
+
+    def test_lone_cr_in_condition_does_not_raise_index_error(self) -> None:
+        # A bare "\r" (no matching "\n") is a line terminator to the
+        # tokenizer that produced the AST's lineno/col_offset, but was not to
+        # `_AnnotationExpressionAliaser`'s old `source.split("\n")` line-offset
+        # table. Two lone CRs put a node on a line beyond the table's range
+        # and raised an unhandled IndexError -- a 500 instead of a validation
+        # error. This condition previously reproduced that crash.
+        condition = "(1 > 0\ror 1 > 0\ror evals['x'].score > 1)"
+        # Must not raise IndexError; a malformed-filter SpanFilterError would
+        # also be an acceptable outcome, but the condition here is valid.
+        span_filter = SpanFilter(condition)
+        assert span_filter.condition
+
+    @pytest.mark.parametrize(
+        "filter_class,expected_error",
+        [
+            pytest.param(SpanFilter, SpanFilterError, id="span"),
+            pytest.param(SessionFilter, SyntaxError, id="session"),
+            pytest.param(TraceFilter, SyntaxError, id="trace"),
+        ],
+    )
+    def test_index_error_in_shared_compile_is_a_validation_error_for_every_grain(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        filter_class: Any,
+        expected_error: type[SyntaxError],
+    ) -> None:
+        # The lone-CR fix above removed the only known source of IndexError,
+        # but the defensive conversion behind it has to cover every grain:
+        # all three compile through the same `_compile_condition`, so an
+        # IndexError from any future change there must read as a malformed
+        # condition rather than escape raw. A failing semantic check stands in
+        # for that future change.
+        def raise_index_error(*args: Any, **kwargs: Any) -> None:
+            raise IndexError("list index out of range")
+
+        monkeypatch.setattr("phoenix.trace.dsl.filter._validate_semantics", raise_index_error)
+        with pytest.raises(expected_error) as exc_info:
+            filter_class("name == 'x'")
+        assert str(exc_info.value) == "invalid filter condition"
+        # The original IndexError stays reachable on the cause chain for
+        # debugging, however many conversions sit in between.
+        causes = []
+        cause: typing.Optional[BaseException] = exc_info.value
+        while cause is not None:
+            causes.append(cause)
+            cause = cause.__cause__
+        assert any(isinstance(cause, IndexError) for cause in causes)
+
+    def test_lone_cr_aliases_at_the_correct_byte_offset(self) -> None:
+        # Beyond not crashing, the alias must land in the right place. A
+        # single lone "\r" desyncs the old table without going out of range,
+        # producing a confusing SyntaxError instead of a correct splice.
+        # Wrapped in parens, as a lone "\r" is a line break to the parser: an
+        # un-parenthesized boolean expression split across it is a
+        # SyntaxError unrelated to the bug under test.
+        condition = "(evals['x'].score > 1\rand True)"
+        aliased_source, relations = _apply_eval_aliasing(condition)
+        assert len(relations) == 1
+        # The unaliased `evals[...]` reference must not survive translation --
+        # if it did, `_validate_expression` would reject it downstream, but
+        # this checks the aliasing step directly rather than only its net
+        # effect.
+        assert "evals[" not in aliased_source
+        assert relations[0].attribute_alias("score") in aliased_source
+        # And the rest of the expression, on the far side of the lone CR,
+        # must be untouched.
+        assert aliased_source.endswith("\rand True)")
+
+    def test_single_character_projection_name_is_not_treated_as_reserved(self) -> None:
+        # `Projector` passed its own source string where `_ProjectionTranslator`
+        # expects an iterable of reserved keywords. `frozenset(chain("n", ...))`
+        # turned the string into a set of its individual characters, so a
+        # single-character projection name like "n" was (mis)treated as a
+        # reserved binding and emitted as a bare global reference -- which
+        # raised NameError inside eval() rather than resolving to
+        # `attributes['n']` like any other unbound name.
+        projector = Projector("n")
+        translated = unparse(projector.translated)
+        assert translated == "attributes[['n']]"
+
+    def test_translator_rejects_unknown_node_types(self) -> None:
+        # `_ProjectionTranslator.visit_generic` was never called: the
+        # `ast.NodeVisitor`/`NodeTransformer` hook is named `generic_visit`,
+        # so this "reject unknown node type" backstop was dead code -- any
+        # node type without an explicit `visit_*` method passed through
+        # unchanged into `compile()` instead of being rejected. `ast.Starred`
+        # is one such type; it is already rejected upstream by the structural
+        # allowlist, so this exercises the translator's own backstop by
+        # invoking it directly on a tree the allowlist never sees.
+        root = ast.parse("[*a]", mode="eval")
+        with pytest.raises(SyntaxError, match="invalid expression"):
+            phoenix.trace.dsl.filter._ProjectionTranslator().visit(root)
+
+
 _PARENT_PREDICATE_TS = datetime.fromisoformat("2021-01-01T00:00:00.000+00:00")
 
 
@@ -1317,6 +1423,60 @@ async def test_parent_root_predicate_selects_expected_spans(
     condition: str,
     expected: list[str],
 ) -> None:
+    f = SpanFilter(condition)
+    async with db() as session:
+        span_ids = list(
+            await session.scalars(f(select(models.Span.span_id)).order_by(models.Span.span_id))
+        )
+    assert span_ids == expected
+
+
+@pytest.fixture
+async def annotated_parent_predicate_project(
+    db: DbSessionFactory, parent_predicate_project: None
+) -> None:
+    """Every span in the parent fixture annotated alike, so only the parent half selects."""
+    async with db() as session:
+        result = await session.execute(select(models.Span.span_id, models.Span.id))
+        rowids: dict[str, int] = dict(result.tuples().all())
+        for span_id in ("A", "B", "C", "D"):
+            await session.execute(
+                insert(models.SpanAnnotation).values(
+                    span_rowid=rowids[span_id],
+                    name="q",
+                    label="ok",
+                    score=1.0,
+                    explanation="",
+                    metadata_={},
+                    annotator_kind="HUMAN",
+                    identifier="",
+                    source="APP",
+                )
+            )
+
+
+@pytest.mark.parametrize(
+    "condition,expected",
+    [
+        ("parent_span is None and annotations['q'].score > 0.5", ["A", "C"]),
+        ("parent_span is not None and annotations['q'].score > 0.5", ["B", "D"]),
+    ],
+)
+async def test_parent_root_predicate_reads_this_span_beside_an_annotation(
+    db: DbSessionFactory,
+    annotated_parent_predicate_project: None,
+    condition: str,
+    expected: list[str],
+) -> None:
+    """The parent test has to keep meaning *this* span when an annotation is also read.
+
+    An annotation predicate is evaluated inside a correlated `EXISTS`, and the whole
+    compiled predicate rides along inside it, so the parent subquery ends up nested one
+    level deeper than the query it correlates to. Left to auto-correlation it re-rendered
+    `spans` in its own FROM as a cross join, and the test collapsed to "no span anywhere
+    has a parent": the `is None` form matched nothing and the `is not None` form matched
+    everything. Valid SQL either way, which is why this is asserted on rows.
+    """
     f = SpanFilter(condition)
     async with db() as session:
         span_ids = list(

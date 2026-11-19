@@ -99,6 +99,7 @@ export const TemplateEditor = ({
 
   useEffect(() => {
     if (readOnly) {
+      // eslint-disable-next-line react/set-state-in-effect
       setValue(defaultValue);
     }
   }, [readOnly, defaultValue]);

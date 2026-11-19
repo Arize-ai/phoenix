@@ -17,6 +17,7 @@ import {
   Token,
 } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { useAgentDataChangeFetchKey } from "@phoenix/hooks";
 
 import type { DatasetSelect_dataset$key } from "./__generated__/DatasetSelect_dataset.graphql";
 import type { DatasetSelectQuery } from "./__generated__/DatasetSelectQuery.graphql";
@@ -46,7 +47,10 @@ const DATASET_SELECT_FRAGMENT = graphql`
   }
 `;
 
+const REFRESH_ON = ["datasets", "datasetLabels"] as const;
+
 export function DatasetSelect(props: DatasetSelectProps) {
+  const fetchKey = useAgentDataChangeFetchKey(REFRESH_ON);
   const data = useLazyLoadQuery<DatasetSelectQuery>(
     graphql`
       query DatasetSelectQuery {
@@ -61,7 +65,7 @@ export function DatasetSelect(props: DatasetSelectProps) {
       }
     `,
     {},
-    { fetchPolicy: "store-and-network" }
+    { fetchKey, fetchPolicy: "store-and-network" }
   );
 
   const datasets = useMemo(

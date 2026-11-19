@@ -41,6 +41,41 @@ export type LastSyncedSessionState = AgentSessionSyncState & {
  * messages. Refetching through Relay normalizes session metadata into every
  * mounted view as well as refreshing this chat runtime.
  */
+function isSameSessionTail({
+  lastSynced,
+  sessionId,
+  syncState,
+}: {
+  lastSynced: LastSyncedSessionState | null;
+  sessionId: string;
+  syncState: AgentSessionSyncState;
+}): boolean {
+  return (
+    lastSynced != null &&
+    lastSynced.sessionId === sessionId &&
+    lastSynced.updatedAt === syncState.updatedAt &&
+    lastSynced.lastMessageId === syncState.lastMessageId
+  );
+}
+
+function canSkipFullSessionFetch({
+  isTranscriptUnchanged,
+  wasBusyElsewhere,
+}: {
+  isTranscriptUnchanged: boolean;
+  wasBusyElsewhere: boolean;
+}): boolean {
+  return isTranscriptUnchanged && !wasBusyElsewhere;
+}
+
+function getFetchedAgentSession(
+  data: Awaited<ReturnType<typeof refetchAgentSession>>
+) {
+  return data?.agentSession.__typename === "AgentSession"
+    ? data.agentSession
+    : null;
+}
+
 export function useAgentSessionSync({
   persistedSessionId,
   chatInstance,
@@ -126,22 +161,21 @@ export function useAgentSessionSync({
         store.getState().isBusyElsewhereBySessionId[persistedSessionId] ??
         false;
       const lastSynced = lastSyncedSessionStateRef.current;
-      const isTranscriptUnchanged =
-        lastSynced != null &&
-        lastSynced.sessionId === persistedSessionId &&
-        lastSynced.updatedAt === syncState.updatedAt &&
-        lastSynced.lastMessageId === syncState.lastMessageId;
-      if (isTranscriptUnchanged && !wasBusyElsewhere) {
+      const isTranscriptUnchanged = isSameSessionTail({
+        lastSynced,
+        sessionId: persistedSessionId,
+        syncState,
+      });
+      if (
+        canSkipFullSessionFetch({ isTranscriptUnchanged, wasBusyElsewhere })
+      ) {
         return;
       }
       const data = await refetchAgentSession({
         environment: relayEnvironment,
         sessionId: persistedSessionId,
       });
-      const agentSession =
-        data?.agentSession.__typename === "AgentSession"
-          ? data.agentSession
-          : null;
+      const agentSession = getFetchedAgentSession(data);
       if (!agentSession) {
         return;
       }
@@ -160,6 +194,12 @@ export function useAgentSessionSync({
       ) {
         return;
       }
+      // A flush of this client's outputs or answers is still in flight, so
+      // the fetched transcript predates it. Applying it would reset answers
+      // the user gave, and an approval cannot be re-derived.
+      if (getTurnClientState(chatInstance)?.hasPendingFlush() ?? false) {
+        return;
+      }
       // Clear a lingering conflict error only after the other client's turn
       // has completed; the SDK can assign error state after onError runs.
       if (wasBusyElsewhere) {
@@ -168,6 +208,7 @@ export function useAgentSessionSync({
       const syncedMessages = Array.isArray(agentSession.messages)
         ? (agentSession.messages as AgentUIMessage[])
         : [];
+      // eslint-disable-next-line react/immutability
       chatInstance.messages = syncedMessages;
       // Another client may have resolved — or interrupted — tool calls this
       // client still shows Accept/Reject affordances for; drop any pending

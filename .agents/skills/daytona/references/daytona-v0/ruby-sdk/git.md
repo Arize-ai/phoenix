@@ -1,0 +1,763 @@
+
+## Git
+
+Main class for a new Git handler instance.
+
+### Constructors
+
+#### new Git()
+
+```ruby
+def initialize(sandbox_id:, toolbox_api:, otel_state: nil)
+
+```
+
+Initializes a new Git handler instance.
+
+**Parameters**:
+
+- `sandbox_id` _String_ - The Sandbox ID.
+- `toolbox_api` _DaytonaToolboxApiClient:GitApi_ - API client for Sandbox operations.
+- `otel_state` _Daytona:OtelState, nil_ -
+
+**Returns**:
+
+- `Git` - a new instance of Git
+
+### Methods
+
+#### sandbox_id()
+
+```ruby
+def sandbox_id()
+
+```
+
+**Returns**:
+
+- `String` - The Sandbox ID
+
+#### toolbox_api()
+
+```ruby
+def toolbox_api()
+
+```
+
+**Returns**:
+
+- `DaytonaToolboxApiClient:GitApi` - API client for Sandbox operations
+
+#### add()
+
+```ruby
+def add(path, files)
+
+```
+
+Stages the specified files for the next commit, similar to
+running 'git add' on the command line.
+
+**Parameters**:
+
+- `path` _String_ - Path to the Git repository root. Relative paths are resolved based on
+the sandbox working directory.
+- `files` _Array\<String\>_ - List of file paths or directories to stage, relative to the repository root.
+
+**Returns**:
+
+- `void`
+
+**Raises**:
+
+- `Daytona:Sdk:Error` - if adding files fails
+
+**Examples:**
+
+```ruby
+# Stage a single file
+sandbox.git.add("workspace/repo", ["file.txt"])
+
+# Stage multiple files
+sandbox.git.add("workspace/repo", [
+  "src/main.rb",
+  "spec/main_spec.rb",
+  "README.md"
+])
+
+```
+
+#### branches()
+
+```ruby
+def branches(path)
+
+```
+
+Lists branches in the repository.
+
+**Parameters**:
+
+- `path` _String_ - Path to the Git repository root. Relative paths are resolved based on
+the sandbox working directory.
+
+**Returns**:
+
+- `DaytonaApiClient:ListBranchResponse` - List of branches in the repository.
+
+**Raises**:
+
+- `Daytona:Sdk:Error` - if listing branches fails
+
+**Examples:**
+
+```ruby
+response = sandbox.git.branches("workspace/repo")
+puts "Branches: #{response.branches}"
+
+```
+
+#### clone()
+
+```ruby
+def clone(url:, path:, branch: nil, commit_id: nil, username: nil, password: nil, insecure_skip_tls: nil, depth: nil)
+
+```
+
+Clones a Git repository into the specified path. It supports
+cloning specific branches or commits, and can authenticate with the remote
+repository if credentials are provided.
+
+**Parameters**:
+
+- `url` _String_ - Repository URL to clone from.
+- `path` _String_ - Path where the repository should be cloned. Relative paths are resolved
+based on the sandbox working directory.
+- `branch` _String, nil_ - Specific branch to clone. If not specified,
+clones the default branch.
+- `commit_id` _String, nil_ - Specific commit to clone. If specified,
+the repository will be left in a detached HEAD state at this commit.
+- `username` _String, nil_ - Git username for authentication.
+- `password` _String, nil_ - Git password or token for authentication.
+- `insecure_skip_tls` _Boolean, nil_ - Skip TLS certificate verification (insecure).
+Use only for trusted internal Git servers with self-signed or private-CA certs;
+credentials, if supplied, are transmitted over an unverified TLS connection.
+- `depth` _Integer, nil_ - Create a shallow clone truncated to the given number of commits.
+
+**Returns**:
+
+- `void`
+
+**Raises**:
+
+- `Daytona:Sdk:Error` - if cloning repository fails
+
+**Examples:**
+
+```ruby
+# Clone the default branch
+sandbox.git.clone(
+  url: "https://github.com/user/repo.git",
+  path: "workspace/repo"
+)
+
+# Clone a specific branch with authentication
+sandbox.git.clone(
+  url: "https://github.com/user/private-repo.git",
+  path: "workspace/private",
+  branch: "develop",
+  username: "user",
+  password: "token"
+)
+
+# Clone a specific commit
+sandbox.git.clone(
+  url: "https://github.com/user/repo.git",
+  path: "workspace/repo-old",
+  commit_id: "abc123"
+)
+
+```
+
+#### commit()
+
+```ruby
+def commit(path:, message:, author:, email:, allow_empty: false)
+
+```
+
+Creates a new commit with the staged changes. Make sure to stage
+changes using the add() method before committing.
+
+**Parameters**:
+
+- `path` _String_ - Path to the Git repository root. Relative paths are resolved based on
+the sandbox working directory.
+- `message` _String_ - Commit message describing the changes.
+- `author` _String_ - Name of the commit author.
+- `email` _String_ - Email address of the commit author.
+- `allow_empty` _Boolean_ - Allow creating an empty commit when no changes are staged. Defaults to false.
+
+**Returns**:
+
+- `GitCommitResponse` - Response containing the commit SHA.
+
+**Raises**:
+
+- `Daytona:Sdk:Error` - if committing changes fails
+
+**Examples:**
+
+```ruby
+# Stage and commit changes
+sandbox.git.add("workspace/repo", ["README.md"])
+commit_response = sandbox.git.commit(
+  path: "workspace/repo",
+  message: "Update documentation",
+  author: "John Doe",
+  email: "john@example.com",
+  allow_empty: true
+)
+puts "Commit SHA: #{commit_response.sha}"
+
+```
+
+#### push()
+
+```ruby
+def push(path:, username: nil, password: nil, branch: nil, remote: nil, set_upstream: false)
+
+```
+
+Pushes all local commits on the current branch to the remote
+repository. If the remote repository requires authentication, provide
+username and password/token.
+
+**Parameters**:
+
+- `path` _String_ - Path to the Git repository root. Relative paths are resolved based on
+the sandbox working directory.
+- `username` _String, nil_ - Git username for authentication.
+- `password` _String, nil_ - Git password or token for authentication.
+- `branch` _String, nil_ - Branch to push. Defaults to the current branch.
+- `remote` _String, nil_ - Remote to push to. Defaults to "origin".
+- `set_upstream` _Boolean_ - Record the pushed branch as the upstream tracking branch. Defaults to false.
+
+**Returns**:
+
+- `void`
+
+**Raises**:
+
+- `Daytona:Sdk:Error` - if pushing changes fails
+
+**Examples:**
+
+```ruby
+# Push without authentication (for public repos or SSH)
+sandbox.git.push("workspace/repo")
+
+# Push with authentication
+sandbox.git.push(
+  path: "workspace/repo",
+  username: "user",
+  password: "github_token"
+)
+
+# Push a new branch and set its upstream
+sandbox.git.push(path: "workspace/repo", branch: "feature", set_upstream: true)
+
+```
+
+#### pull()
+
+```ruby
+def pull(path:, username: nil, password: nil, branch: nil, remote: nil)
+
+```
+
+Pulls changes from the remote repository. If the remote repository requires authentication,
+provide username and password/token.
+
+**Parameters**:
+
+- `path` _String_ - Path to the Git repository root. Relative paths are resolved based on
+the sandbox working directory.
+- `username` _String, nil_ - Git username for authentication.
+- `password` _String, nil_ - Git password or token for authentication.
+- `branch` _String, nil_ - Branch to pull. Defaults to the current branch's upstream.
+- `remote` _String, nil_ - Remote to pull from. Defaults to "origin".
+
+**Returns**:
+
+- `void`
+
+**Raises**:
+
+- `Daytona:Sdk:Error` - if pulling changes fails
+
+**Examples:**
+
+```ruby
+# Pull without authentication
+sandbox.git.pull("workspace/repo")
+
+# Pull with authentication
+sandbox.git.pull(
+  path: "workspace/repo",
+  username: "user",
+  password: "github_token"
+)
+
+# Pull a specific branch from a specific remote
+sandbox.git.pull(path: "workspace/repo", remote: "upstream", branch: "main")
+
+```
+
+#### status()
+
+```ruby
+def status(path)
+
+```
+
+Gets the current Git repository status.
+
+**Parameters**:
+
+- `path` _String_ - Path to the Git repository root. Relative paths are resolved based on
+the sandbox working directory.
+
+**Returns**:
+
+- `DaytonaToolboxApiClient:GitStatus` - Repository status information including:
+
+**Raises**:
+
+- `Daytona:Sdk:Error` - if getting status fails
+
+**Examples:**
+
+```ruby
+status = sandbox.git.status("workspace/repo")
+puts "On branch: #{status.current_branch}"
+puts "Commits ahead: #{status.ahead}"
+puts "Commits behind: #{status.behind}"
+
+```
+
+#### checkout_branch()
+
+```ruby
+def checkout_branch(path, branch)
+
+```
+
+Checkout branch in the repository.
+
+**Parameters**:
+
+- `path` _String_ - Path to the Git repository root. Relative paths are resolved based on
+the sandbox working directory.
+- `branch` _String_ - Name of the branch to checkout
+
+**Returns**:
+
+- `void`
+
+**Raises**:
+
+- `Daytona:Sdk:Error` - if checking out branch fails
+
+**Examples:**
+
+```ruby
+# Checkout a branch
+sandbox.git.checkout_branch("workspace/repo", "feature-branch")
+
+```
+
+#### create_branch()
+
+```ruby
+def create_branch(path, name)
+
+```
+
+Create branch in the repository.
+
+**Parameters**:
+
+- `path` _String_ - Path to the Git repository root. Relative paths are resolved based on
+the sandbox working directory.
+- `name` _String_ - Name of the new branch to create
+
+**Returns**:
+
+- `void`
+
+**Raises**:
+
+- `Daytona:Sdk:Error` - if creating branch fails
+
+**Examples:**
+
+```ruby
+# Create a new branch
+sandbox.git.create_branch("workspace/repo", "new-feature")
+
+```
+
+#### delete_branch()
+
+```ruby
+def delete_branch(path, name)
+
+```
+
+Delete branch in the repository.
+
+**Parameters**:
+
+- `path` _String_ - Path to the Git repository root. Relative paths are resolved based on
+the sandbox working directory.
+- `name` _String_ - Name of the branch to delete
+
+**Returns**:
+
+- `void`
+
+**Raises**:
+
+- `Daytona:Sdk:Error` - if deleting branch fails
+
+**Examples:**
+
+```ruby
+# Delete a branch
+sandbox.git.delete_branch("workspace/repo", "old-feature")
+
+```
+
+#### init()
+
+```ruby
+def init(path, bare: false, initial_branch: nil)
+
+```
+
+Initializes a new Git repository at the specified path.
+
+**Parameters**:
+
+- `path` _String_ - Path where the repository should be initialized.
+- `bare` _Boolean_ - Create a bare repository without a working tree. Defaults to false.
+- `initial_branch` _String, nil_ - Name of the initial branch. If not specified, uses the Git default.
+
+**Returns**:
+
+- `void`
+
+**Raises**:
+
+- `Daytona:Sdk:Error` - if initializing repository fails
+
+**Examples:**
+
+```ruby
+sandbox.git.init("workspace/repo", initial_branch: "main")
+
+```
+
+#### reset()
+
+```ruby
+def reset(path, mode: nil, target: nil, files: nil)
+
+```
+
+Resets the current HEAD to the specified state.
+
+**Parameters**:
+
+- `path` _String_ - Path to the Git repository root.
+- `mode` _String, nil_ - Reset mode, one of "soft", "mixed" (default), "hard", "merge" or "keep".
+- `target` _String, nil_ - Revision to reset to. Defaults to HEAD.
+- `files` _Array\<String\>, nil_ - Constrain the reset to the given paths.
+
+**Returns**:
+
+- `void`
+
+**Raises**:
+
+- `Daytona:Sdk:Error` - if resetting fails
+
+**Examples:**
+
+```ruby
+# Unstage all changes (mixed reset to HEAD)
+sandbox.git.reset("workspace/repo")
+
+# Hard reset to a previous commit
+sandbox.git.reset("workspace/repo", mode: "hard", target: "HEAD~1")
+
+```
+
+#### restore()
+
+```ruby
+def restore(path, files, staged: nil, worktree: nil, source: nil)
+
+```
+
+Restores working tree files or unstages changes.
+
+**Parameters**:
+
+- `path` _String_ - Path to the Git repository root.
+- `files` _Array\<String\>_ - File paths to restore.
+- `staged` _Boolean, nil_ - Restore the staging index for the given files.
+- `worktree` _Boolean, nil_ - Restore the working tree for the given files. Defaults to true
+when neither staged nor worktree is provided.
+- `source` _String, nil_ - Restore file contents from the given revision instead of the index.
+
+**Returns**:
+
+- `void`
+
+**Raises**:
+
+- `Daytona:Sdk:Error` - if restoring fails
+
+**Examples:**
+
+```ruby
+# Discard working tree changes
+sandbox.git.restore("workspace/repo", ["file.txt"])
+
+# Unstage changes
+sandbox.git.restore("workspace/repo", ["file.txt"], staged: true)
+
+```
+
+#### remote_add()
+
+```ruby
+def remote_add(path, name, url, fetch: false, overwrite: false)
+
+```
+
+Adds (or overwrites) a remote in the repository.
+
+**Parameters**:
+
+- `path` _String_ - Path to the Git repository root.
+- `name` _String_ - Name of the remote.
+- `url` _String_ - URL of the remote.
+- `fetch` _Boolean_ - Fetch from the remote immediately after adding it. Defaults to false.
+- `overwrite` _Boolean_ - Replace an existing remote with the same name. Defaults to false.
+
+**Returns**:
+
+- `void`
+
+**Raises**:
+
+- `Daytona:Sdk:Error` - if adding the remote fails
+
+**Examples:**
+
+```ruby
+sandbox.git.remote_add("workspace/repo", "origin", "https://github.com/user/repo.git")
+
+```
+
+#### remotes()
+
+```ruby
+def remotes(path)
+
+```
+
+Lists the remotes configured in the repository.
+
+**Parameters**:
+
+- `path` _String_ - Path to the Git repository root.
+
+**Returns**:
+
+- `DaytonaToolboxApiClient:ListRemotesResponse` - The configured remotes (name + URL).
+
+**Raises**:
+
+- `Daytona:Sdk:Error` - if listing remotes fails
+
+**Examples:**
+
+```ruby
+response = sandbox.git.remotes("workspace/repo")
+response.remotes.each { |r| puts "#{r.name}: #{r.url}" }
+
+```
+
+#### remote_get()
+
+```ruby
+def remote_get(path, name)
+
+```
+
+Gets the URL of a remote, or nil when it does not exist.
+
+**Parameters**:
+
+- `path` _String_ - Path to the Git repository root.
+- `name` _String_ - Name of the remote.
+
+**Returns**:
+
+- `String, nil` - The remote URL, or nil when the remote does not exist.
+
+**Raises**:
+
+- `Daytona:Sdk:Error` - if getting the remote fails
+
+**Examples:**
+
+```ruby
+url = sandbox.git.remote_get("workspace/repo", "origin")
+
+```
+
+#### set_config()
+
+```ruby
+def set_config(key, value, scope: 'global', path: nil)
+
+```
+
+Sets a Git config value at the given scope.
+
+**Parameters**:
+
+- `key` _String_ - Config key in dotted form (e.g. "user.name").
+- `value` _String_ - Config value.
+- `scope` _String_ - Config scope, one of "global" (default), "local" or "system".
+- `path` _String, nil_ - Repository path, required when scope is "local".
+
+**Returns**:
+
+- `void`
+
+**Raises**:
+
+- `Daytona:Sdk:Error` - if setting config fails
+
+**Examples:**
+
+```ruby
+sandbox.git.set_config("user.name", "John Doe")
+
+```
+
+#### get_config()
+
+```ruby
+def get_config(key, scope: 'global', path: nil)
+
+```
+
+Gets a Git config value at the given scope, or nil when unset.
+
+**Parameters**:
+
+- `key` _String_ - Config key in dotted form (e.g. "user.name").
+- `scope` _String_ - Config scope, one of "global" (default), "local" or "system".
+- `path` _String, nil_ - Repository path, required when scope is "local".
+
+**Returns**:
+
+- `String, nil` - The config value, or nil when the key is not set.
+
+**Raises**:
+
+- `Daytona:Sdk:Error` - if getting config fails
+
+**Examples:**
+
+```ruby
+name = sandbox.git.get_config("user.name")
+
+```
+
+#### configure_user()
+
+```ruby
+def configure_user(name, email, scope: 'global', path: nil)
+
+```
+
+Configures the Git user name and email at the given scope.
+
+**Parameters**:
+
+- `name` _String_ - User name (user.name).
+- `email` _String_ - User email (user.email).
+- `scope` _String_ - Config scope, one of "global" (default), "local" or "system".
+- `path` _String, nil_ - Repository path, required when scope is "local".
+
+**Returns**:
+
+- `void`
+
+**Raises**:
+
+- `Daytona:Sdk:Error` - if configuring user fails
+
+**Examples:**
+
+```ruby
+sandbox.git.configure_user("John Doe", "john@example.com")
+
+```
+
+#### dangerously_authenticate()
+
+```ruby
+def dangerously_authenticate(username, password, host: nil, protocol: nil)
+
+```
+
+Persists Git credentials globally so that subsequent operations against the
+given host authenticate automatically.
+
+WARNING: This stores the password in plaintext on disk via the Git credential store.
+
+**Parameters**:
+
+- `username` _String_ - Git username.
+- `password` _String_ - Git password or token.
+- `host` _String, nil_ - Host to authenticate against. Defaults to "github.com".
+- `protocol` _String, nil_ - Protocol to authenticate against. Defaults to "https".
+
+**Returns**:
+
+- `void`
+
+**Raises**:
+
+- `Daytona:Sdk:Error` - if authenticating fails
+
+**Examples:**
+
+```ruby
+sandbox.git.dangerously_authenticate("user", "github_token")
+
+```
+
+## See Also
+- [Python SDK - git](../python-sdk/sync/git.md)
+- [TypeScript SDK - git](../typescript-sdk/git.md)
+- [Java SDK - git](../java-sdk/git.md)

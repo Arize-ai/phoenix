@@ -7,6 +7,8 @@ const COMPACT_PATH_TEMPLATE =
   "/v1/agent_sessions/{session_id}/compact" satisfies keyof paths;
 const TOOL_OUTPUTS_PATH_TEMPLATE =
   "/v1/agent_sessions/{session_id}/tool_outputs" satisfies keyof paths;
+const TOOL_APPROVALS_PATH_TEMPLATE =
+  "/v1/agent_sessions/{session_id}/tool_approvals" satisfies keyof paths;
 
 /**
  * The `code` discriminator of every HTTP 409 the agent session routes return,
@@ -47,6 +49,7 @@ const AGENT_SESSION_CONFLICT_CODES = [
   "agent_session_model_stale",
   "agent_session_messages_stale",
   "agent_session_tool_outputs_conflict",
+  "agent_session_tool_approvals_conflict",
   "agent_session_already_compact",
   "agent_session_compaction_conflict",
 ] as const satisfies readonly AgentSessionConflictCode[];
@@ -88,6 +91,15 @@ export function buildAgentCompactApiUrl(sessionId: string): string {
 export function buildAgentToolOutputsApiUrl(sessionId: string): string {
   return prependBasename(
     TOOL_OUTPUTS_PATH_TEMPLATE.replace(
+      "{session_id}",
+      encodeURIComponent(sessionId)
+    )
+  );
+}
+
+export function buildAgentToolApprovalsApiUrl(sessionId: string): string {
+  return prependBasename(
+    TOOL_APPROVALS_PATH_TEMPLATE.replace(
       "{session_id}",
       encodeURIComponent(sessionId)
     )

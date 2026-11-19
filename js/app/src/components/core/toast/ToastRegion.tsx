@@ -1,7 +1,7 @@
 import { UNSTABLE_ToastRegion as AriaToastRegion } from "react-aria-components";
 
 import { toastRegionCSS } from "@phoenix/components/core/toast/styles";
-import { toastQueue } from "@phoenix/contexts/NotificationContext";
+import { useToastQueue } from "@phoenix/contexts/NotificationContext";
 
 import { Toast } from "./Toast";
 
@@ -57,10 +57,11 @@ function attachToastRegion(region: HTMLElement | null) {
 }
 
 export const ToastRegion = () => {
+  const queue = useToastQueue();
   return (
     <AriaToastRegion
       ref={attachToastRegion}
-      queue={toastQueue}
+      queue={queue}
       css={toastRegionCSS}
       className="react-aria-ToastRegion"
     >

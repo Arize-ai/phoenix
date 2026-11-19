@@ -1,15 +1,11 @@
 import { Suspense } from "react";
-import { Pressable } from "react-aria";
+import { Focusable } from "react-aria";
 
 import type { TextProps } from "@phoenix/components";
-import {
-  Loading,
-  RichTooltip,
-  TooltipArrow,
-  TooltipTrigger,
-} from "@phoenix/components";
+import { RichTooltip, TooltipArrow, TooltipTrigger } from "@phoenix/components";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 
+import { TokenDetailsBreakdownSkeleton } from "../trace/TokenDetailsBreakdown";
 import { ExperimentTokenCostsDetails } from "./ExperimentTokenCostsDetails";
 
 type ExperimentTokenCostsProps = {
@@ -33,14 +29,18 @@ type ExperimentTokenCostsProps = {
 export function ExperimentTokenCosts(props: ExperimentTokenCostsProps) {
   return (
     <TooltipTrigger>
-      <Pressable>
+      <Focusable>
         <TokenCosts size={props.size} role="button" tabIndex={0}>
           {props.totalCost}
         </TokenCosts>
-      </Pressable>
-      <RichTooltip>
+      </Focusable>
+      <RichTooltip placement="end">
         <TooltipArrow />
-        <Suspense fallback={<Loading />}>
+        <Suspense
+          fallback={
+            <TokenDetailsBreakdownSkeleton costs={{ total: props.totalCost }} />
+          }
+        >
           <ExperimentTokenCostsDetails experimentId={props.experimentId} />
         </Suspense>
       </RichTooltip>

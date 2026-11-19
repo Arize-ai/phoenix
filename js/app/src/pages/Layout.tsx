@@ -28,6 +28,7 @@ import {
   GitHubLink,
   NavBreadcrumb,
   NavLink,
+  NavSeparator,
   NavTitle,
   SideNavbar,
   SideNavToggleButton,
@@ -306,7 +307,7 @@ function SideNavContent({
               leadingVisual={<Icon svg={<Icons.Trace />} />}
               trailingVisual={
                 counts?.projectCount != null ? (
-                  <Counter variant="quiet">{counts.projectCount}</Counter>
+                  <Counter variant="quiet" count={counts.projectCount} />
                 ) : undefined
               }
               isExpanded={isExpanded}
@@ -327,7 +328,36 @@ function SideNavContent({
               leadingVisual={<Icon svg={<Icons.Database />} />}
               trailingVisual={
                 counts?.datasetCount != null ? (
-                  <Counter variant="quiet">{counts.datasetCount}</Counter>
+                  <Counter variant="quiet" count={counts.datasetCount} />
+                ) : undefined
+              }
+              isExpanded={isExpanded}
+            />
+          </li>
+          <li key="evaluators">
+            <NavLink
+              to="/evaluators"
+              text="Evaluators"
+              leadingVisual={<Icon svg={<Icons.Scale />} />}
+              trailingVisual={
+                counts?.evaluatorCount != null ? (
+                  <Counter variant="quiet" count={counts.evaluatorCount} />
+                ) : undefined
+              }
+              isExpanded={isExpanded}
+            />
+          </li>
+          {/* The generative workbench: destinations for talking to models
+              directly rather than observing an application. */}
+          <NavSeparator key="generative-start" isExpanded={isExpanded} />
+          <li key="prompts">
+            <NavLink
+              to="/prompts"
+              text="Prompts"
+              leadingVisual={<Icon svg={<Icons.MessageSquare />} />}
+              trailingVisual={
+                counts?.promptCount != null ? (
+                  <Counter variant="quiet" count={counts.promptCount} />
                 ) : undefined
               }
               isExpanded={isExpanded}
@@ -341,32 +371,15 @@ function SideNavContent({
               isExpanded={isExpanded}
             />
           </li>
-          <li key="evaluators">
+          <li key="chat">
             <NavLink
-              to="/evaluators"
-              text="Evaluators"
-              leadingVisual={<Icon svg={<Icons.Scale />} />}
-              trailingVisual={
-                counts?.evaluatorCount != null ? (
-                  <Counter variant="quiet">{counts.evaluatorCount}</Counter>
-                ) : undefined
-              }
+              to="/chat"
+              text="Chat"
+              leadingVisual={<Icon svg={<Icons.MessageCircle />} />}
               isExpanded={isExpanded}
             />
           </li>
-          <li key="prompts">
-            <NavLink
-              to="/prompts"
-              text="Prompts"
-              leadingVisual={<Icon svg={<Icons.MessageSquare />} />}
-              trailingVisual={
-                counts?.promptCount != null ? (
-                  <Counter variant="quiet">{counts.promptCount}</Counter>
-                ) : undefined
-              }
-              isExpanded={isExpanded}
-            />
-          </li>
+          <NavSeparator key="generative-end" isExpanded={isExpanded} />
           <li key="rest-api">
             <NavLink
               to="/apis/rest"

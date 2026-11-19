@@ -1,17 +1,49 @@
 import { commitMutation, graphql } from "react-relay";
 
+import { emitAgentDataChange } from "@phoenix/agent/shared/agentDataChanges";
 import { commitAddDatasetExamples } from "@phoenix/agent/tools/datasetExamples";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
 import type { createDatasetToolMutation } from "./__generated__/createDatasetToolMutation.graphql";
 import type { CreateDatasetInput, CreateDatasetResult } from "./types";
 
+/**
+ * Returns every field a mounted surface renders for a dataset so the new
+ * record is complete in the Relay store. Mounted dataset lists refetch through
+ * the agent data-change bridge after creation.
+ */
 const mutation = graphql`
   mutation createDatasetToolMutation($input: CreateDatasetInput!) {
     createDataset(input: $input) {
       dataset {
         id
         name
+        description
+        metadata
+        createdAt
+        updatedAt
+        createdBy {
+          username
+          profilePictureUrl
+        }
+        updatedBy {
+          username
+          profilePictureUrl
+        }
+        exampleCount
+        experimentCount
+        evaluatorCount
+        labels {
+          id
+          name
+          color
+        }
+        splits {
+          id
+          name
+          color
+        }
+        ...DatasetSelect_dataset
       }
     }
   }
@@ -26,7 +58,9 @@ function commitCreate(
   return new Promise((resolve) => {
     commitMutation<createDatasetToolMutation>(RelayEnvironment, {
       mutation,
-      variables: { input: { name, description, metadata: {} } },
+      variables: {
+        input: { name, description, metadata: {} },
+      },
       onCompleted: (response, errors) => {
         const message = errors?.find((error) => error.message)?.message;
         if (message) {
@@ -34,6 +68,7 @@ function commitCreate(
           return;
         }
         const dataset = response.createDataset.dataset;
+        emitAgentDataChange({ entity: "datasets" });
         resolve({ datasetId: dataset.id, name: dataset.name });
       },
       onError: (error) => resolve({ error: error.message }),
@@ -64,11 +99,11 @@ export async function commitCreateDataset({
     });
     if (!added.ok) {
       // The dataset was created; only seeding failed. Report success with a
-      // caveat so the model does not retry create_dataset with the same (now
-      // taken) name — it should add the rows via add_dataset_examples instead.
+      // caveat so the model does not retry the create with the same (now
+      // taken) name — it should add the rows via dataset.examples.add instead.
       return {
         ok: true,
-        output: `Created dataset "${created.name}" (it now exists), but adding the starting rows failed: ${added.error}. Add the rows with add_dataset_examples rather than creating the dataset again.`,
+        output: `Created dataset "${created.name}" (it now exists), but adding the starting rows failed: ${added.error}. Add the rows with the ui.dataset.examples.add operation rather than creating the dataset again.`,
       };
     }
     return {

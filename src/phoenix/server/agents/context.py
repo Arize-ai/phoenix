@@ -1,10 +1,29 @@
+"""The chat contexts a client sends with a turn, and their resolution."""
+
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel, model_validator
+from pydantic import ConfigDict, Field, RootModel
 from typing_extensions import assert_never
+
+from phoenix.db.types.data_stream_protocol.ui_state_types import (
+    BaseUIContext,
+    CodeEvaluatorUIContext,
+    DatasetUIContext,
+    LlmEvaluatorUIContext,
+    PlaygroundUIContext,
+    ProjectUIContext,
+    PromptUIContext,
+    PromptVersionUIContext,
+    SessionUIContext,
+    SpanUIContext,
+    TraceUIContext,
+)
+
+logger = logging.getLogger(__name__)
 
 
 def sanitize_untrusted_value(
@@ -38,214 +57,31 @@ def sanitize_untrusted_value(
     return cleaned
 
 
-class _ChatContextBase(BaseModel):
-    model_config = ConfigDict(populate_by_name=True, extra="ignore")
-
-
-class ProjectContext(_ChatContextBase):
-    """Project the user is currently viewing.
-
-    ``span_filter`` carries the project-scoped span filter expression when the
-    span filter field is mounted — empty string when the field is mounted with
-    no condition applied, ``None`` when the field is not present at all. It
-    describes the view in full, root-span scoping included (which is expressed
-    within the filter DSL as ``parent_id is None``).
-    """
-
-    type: Literal["project"]
-    project_node_id: str = Field(alias="projectNodeId")
-    span_filter: str | None = Field(default=None, alias="spanFilter")
-
-
-class TraceContext(_ChatContextBase):
-    type: Literal["trace"]
-    project_node_id: str = Field(alias="projectNodeId")
-    otel_trace_id: str = Field(alias="otelTraceId")
-
-
-class SessionContext(_ChatContextBase):
-    """Session the user is currently viewing."""
-
-    type: Literal["session"]
-    project_node_id: str = Field(alias="projectNodeId")
-    session_node_id: str = Field(alias="sessionNodeId")
-
-
-class PromptContext(_ChatContextBase):
-    """Prompt the user is currently viewing."""
-
-    type: Literal["prompt"]
-    prompt_node_id: str = Field(alias="promptNodeId")
-
-
-class PromptVersionContext(_ChatContextBase):
-    """Prompt version the user is currently viewing."""
-
-    type: Literal["prompt_version"]
-    prompt_node_id: str = Field(alias="promptNodeId")
-    prompt_version_node_id: str = Field(alias="promptVersionNodeId")
-
-
-class AgentSpanContext(_ChatContextBase):
-    """Span the user has selected.
-
-    Exactly one of ``span_node_id`` (relay) or ``otel_span_id`` (OpenTelemetry
-    hex) must be set. ``project_node_id`` is optional because a span can be
-    selected from views outside a project route.
-    """
-
-    type: Literal["span"]
-    project_node_id: str | None = Field(default=None, alias="projectNodeId")
-    span_node_id: str | None = Field(default=None, alias="spanNodeId")
-    otel_span_id: str | None = Field(default=None, alias="otelSpanId")
-
-    @model_validator(mode="after")
-    def _exactly_one_span_id(self) -> "AgentSpanContext":
-        has_node = self.span_node_id is not None
-        has_otel = self.otel_span_id is not None
-        if has_node == has_otel:
-            raise ValueError("AgentSpanContext requires exactly one of spanNodeId or otelSpanId")
-        return self
-
-
-class AppContext(_ChatContextBase):
+class AppContext(BaseUIContext):
     """Per-turn browser clock context for resolving relative time requests."""
 
     type: Literal["app"]
-    current_date_time: str = Field(alias="currentDateTime")
-    time_zone: str = Field(alias="timeZone")
+    current_date_time: str
+    time_zone: str
 
 
-class PlaygroundBuiltinModelContext(_ChatContextBase):
-    """Built-in playground model selection."""
+class GraphQLContext(BaseUIContext):
+    """Deprecated GraphQL mutations opt-in."""
 
-    type: Literal["builtin"] = "builtin"
-    provider: str
-    model_name: str = Field(alias="modelName")
-
-
-class PlaygroundCustomProviderModelContext(_ChatContextBase):
-    """Custom-provider playground model selection."""
-
-    type: Literal["custom"] = "custom"
-    custom_provider_id: str = Field(alias="customProviderId")
-    custom_provider_name: str = Field(alias="customProviderName")
-    provider: str
-    model_name: str = Field(alias="modelName")
-
-
-PlaygroundModelContext = Annotated[
-    PlaygroundBuiltinModelContext | PlaygroundCustomProviderModelContext,
-    Field(discriminator="type"),
-]
-
-
-class PlaygroundInstanceContext(_ChatContextBase):
-    """One mounted playground instance and its current model selection.
-
-    ``experiment_id`` carries the relay node id of the experiment produced by
-    this instance's last dataset-backed run, or ``None`` when the instance has
-    not produced one. Ephemeral experiments are included: they remain queryable
-    until the server sweeps them ~24h after their last update.
-    """
-
-    instance_id: int = Field(alias="instanceId")
-    model: PlaygroundModelContext | None = None
-    experiment_id: str | None = Field(default=None, alias="experimentId")
-
-
-class PlaygroundEvaluatorContext(_ChatContextBase):
-    """One dataset evaluator on the mounted playground's roster. ``name`` is
-    user-controlled; sanitize at every model-visible boundary."""
-
-    dataset_evaluator_id: str = Field(alias="datasetEvaluatorId")
-    name: str
-    kind: Literal["LLM", "CODE", "BUILTIN"]
-    is_builtin: bool = Field(alias="isBuiltin")
-    is_applied: bool = Field(alias="isApplied")
-
-
-class PlaygroundExperimentScaffoldContext(_ChatContextBase):
-    """Experiment name/description/metadata the user has staged for the playground's
-    *next* dataset-backed run, before that run has started.
-
-    The playground UI lets the user pre-set how the next recorded run's experiment
-    will be named, described, and tagged (via the ``set_playground_experiment_recording``
-    tool or the recording form). That staged state is surfaced here so the agent can
-    see what is already set and avoid re-staging it.
-
-    Field semantics:
-    - ``name`` / ``description``: the staged values, surfaced to the model verbatim,
-      or ``None`` when the user has not staged them.
-    - ``has_metadata``: a presence flag, not the value. Only *whether* metadata has
-      been staged is model-relevant (so the agent knows not to re-attach it); the
-      metadata object itself is deliberately kept out of the prompt.
-
-    A field left unstaged (``None`` / ``False``) falls back to the server default when
-    the run starts. The scaffold is consumed once that next run begins.
-    """
-
-    name: str | None = None
-    description: str | None = None
-    has_metadata: bool = Field(default=False, alias="hasMetadata")
-
-
-class PlaygroundContext(_ChatContextBase):
-    """Playground prompt editor state mounted in the current browser route."""
-
-    type: Literal["playground"]
-    record_experiments: bool = Field(default=True, alias="recordExperiments")
-    repetitions: int = 1
-    next_experiment_scaffold: PlaygroundExperimentScaffoldContext | None = Field(
-        default=None, alias="nextExperimentScaffold"
-    )
-    instances: list[PlaygroundInstanceContext] = Field(default_factory=list)
-    evaluators: list[PlaygroundEvaluatorContext] = Field(default_factory=list)
-
-
-class CodeEvaluatorContext(_ChatContextBase):
-    """Code-evaluator create/edit form mounted in the current browser route."""
-
-    type: Literal["code_evaluator"]
-    evaluator_node_id: str | None = Field(default=None, alias="evaluatorNodeId")
-
-
-class LlmEvaluatorContext(_ChatContextBase):
-    """LLM-evaluator create/edit form mounted in the current browser route."""
-
-    type: Literal["llm_evaluator"]
-    evaluator_node_id: str | None = Field(default=None, alias="evaluatorNodeId")
-
-
-class DatasetContext(_ChatContextBase):
-    """Dataset the user is currently viewing or has bound to a workflow.
-
-    Carries the dataset's relay node id and, when known, the active version
-    node id. These IDs scope the create-form handoff link and the sampling of
-    active dataset examples used as prompt context; the dataset schema itself
-    is open.
-    """
-
-    type: Literal["dataset"]
-    dataset_node_id: str = Field(alias="datasetNodeId")
-    dataset_version_node_id: str | None = Field(default=None, alias="datasetVersionNodeId")
-
-
-class GraphQLContext(_ChatContextBase):
-    """GraphQL runtime state."""
+    model_config = ConfigDict(json_schema_extra={"deprecated": True})
 
     type: Literal["graphql"]
-    mutations_enabled: bool = Field(alias="mutationsEnabled")
+    mutations_enabled: bool
 
 
-class WebAccessContext(_ChatContextBase):
+class WebAccessContext(BaseUIContext):
     """User's per-turn request to expose web search / fetch tools."""
 
     type: Literal["web_access"]
     enabled: bool
 
 
-class SubagentsContext(_ChatContextBase):
+class SubagentsContext(BaseUIContext):
     """User's per-turn request to expose the subagent-spawning tool."""
 
     type: Literal["subagents"]
@@ -256,16 +92,16 @@ class ChatContext(
     RootModel[
         Annotated[
             AppContext
-            | ProjectContext
-            | TraceContext
-            | SessionContext
-            | PromptContext
-            | PromptVersionContext
-            | AgentSpanContext
-            | PlaygroundContext
-            | CodeEvaluatorContext
-            | LlmEvaluatorContext
-            | DatasetContext
+            | ProjectUIContext
+            | TraceUIContext
+            | SessionUIContext
+            | PromptUIContext
+            | PromptVersionUIContext
+            | SpanUIContext
+            | PlaygroundUIContext
+            | CodeEvaluatorUIContext
+            | LlmEvaluatorUIContext
+            | DatasetUIContext
             | GraphQLContext
             | WebAccessContext
             | SubagentsContext,
@@ -279,19 +115,24 @@ class ChatContext(
 @dataclass
 class ResolvedContexts:
     app: AppContext | None = None
-    project: ProjectContext | None = None
-    trace: TraceContext | None = None
-    session: SessionContext | None = None
-    prompt: PromptContext | None = None
-    prompt_version: PromptVersionContext | None = None
-    span: AgentSpanContext | None = None
-    playground: PlaygroundContext | None = None
-    code_evaluator: CodeEvaluatorContext | None = None
-    llm_evaluator: LlmEvaluatorContext | None = None
-    dataset: DatasetContext | None = None
+    project: ProjectUIContext | None = None
+    trace: TraceUIContext | None = None
+    session: SessionUIContext | None = None
+    prompt: PromptUIContext | None = None
+    prompt_version: PromptVersionUIContext | None = None
+    span: SpanUIContext | None = None
+    playground: PlaygroundUIContext | None = None
+    code_evaluator: CodeEvaluatorUIContext | None = None
+    llm_evaluator: LlmEvaluatorUIContext | None = None
+    dataset: DatasetUIContext | None = None
     graphql: GraphQLContext | None = None
     web_access: WebAccessContext | None = None
     subagents: SubagentsContext | None = None
+
+    @property
+    def graphql_mutations_enabled(self) -> bool:
+        """Whether the client allows GraphQL mutations."""
+        return self.graphql is None or self.graphql.mutations_enabled
 
 
 def resolve_contexts(contexts: list[ChatContext]) -> ResolvedContexts:
@@ -300,27 +141,32 @@ def resolve_contexts(contexts: list[ChatContext]) -> ResolvedContexts:
         context_value = context.root
         if isinstance(context_value, AppContext):
             resolved.app = context_value
-        elif isinstance(context_value, PlaygroundContext):
+        elif isinstance(context_value, PlaygroundUIContext):
             resolved.playground = context_value
-        elif isinstance(context_value, CodeEvaluatorContext):
+        elif isinstance(context_value, CodeEvaluatorUIContext):
             resolved.code_evaluator = context_value
-        elif isinstance(context_value, LlmEvaluatorContext):
+        elif isinstance(context_value, LlmEvaluatorUIContext):
             resolved.llm_evaluator = context_value
-        elif isinstance(context_value, DatasetContext):
+        elif isinstance(context_value, DatasetUIContext):
             resolved.dataset = context_value
-        elif isinstance(context_value, ProjectContext):
+        elif isinstance(context_value, ProjectUIContext):
             resolved.project = context_value
-        elif isinstance(context_value, TraceContext):
+        elif isinstance(context_value, TraceUIContext):
             resolved.trace = context_value
-        elif isinstance(context_value, SessionContext):
+        elif isinstance(context_value, SessionUIContext):
             resolved.session = context_value
-        elif isinstance(context_value, PromptContext):
+        elif isinstance(context_value, PromptUIContext):
             resolved.prompt = context_value
-        elif isinstance(context_value, PromptVersionContext):
+        elif isinstance(context_value, PromptVersionUIContext):
             resolved.prompt_version = context_value
-        elif isinstance(context_value, AgentSpanContext):
+        elif isinstance(context_value, SpanUIContext):
             resolved.span = context_value
         elif isinstance(context_value, GraphQLContext):
+            logger.warning(
+                "The 'graphql' chat context is deprecated: GraphQL mutations are "
+                "enabled by default and the field will be removed in a future "
+                "release. Stop sending it, or upgrade the client."
+            )
             resolved.graphql = context_value
         elif isinstance(context_value, WebAccessContext):
             resolved.web_access = context_value

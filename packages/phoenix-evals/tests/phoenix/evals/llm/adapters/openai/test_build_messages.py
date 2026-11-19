@@ -268,6 +268,26 @@ def test_system_role_routing_on_typed_messages(model: str, expected_system_role:
         ("o3-mini", "developer"),
     ],
 )
+def test_system_role_routing_on_typed_developer_messages(
+    model: str, expected_system_role: str
+) -> None:
+    """A typed ``MessageRole.DEVELOPER`` message defers to the same
+    model-aware ``_system_role()`` heuristic as ``MessageRole.SYSTEM`` — the
+    caller's exact spelling doesn't override what the target model accepts,
+    matching the existing dict-path behavior for "developer" input."""
+    adapter = _make_adapter(model)
+    result = adapter._build_messages([Message(role=MessageRole.DEVELOPER, content="be concise")])
+    assert result == [{"role": expected_system_role, "content": "be concise"}]
+
+
+@pytest.mark.parametrize(
+    "model,expected_system_role",
+    [
+        ("gpt-4o", "system"),
+        ("o1-mini", "user"),
+        ("o3-mini", "developer"),
+    ],
+)
 def test_system_role_routing_on_dict_messages(model: str, expected_system_role: str) -> None:
     adapter = _make_adapter(model)
     result = adapter._build_messages([{"role": "system", "content": "be concise"}])

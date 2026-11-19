@@ -806,7 +806,7 @@ class Datasets:
         Create a new dataset by uploading examples to the Phoenix server.
 
         Args:
-            dataset_name: Name of the dataset.
+            name: Name of the dataset.
             examples: Either a single dictionary with required 'input' and 'output' keys
                 and an optional 'metadata' key, or an iterable of such dictionaries.
                 When provided, inputs/outputs/metadata are extracted automatically.
@@ -1732,7 +1732,7 @@ class AsyncDatasets:
         Create a new dataset by uploading examples to the Phoenix server.
 
         Args:
-            dataset_name: Name of the dataset.
+            name: Name of the dataset.
             examples: Either a single dictionary with required 'input' and 'output' keys
                 and an optional 'metadata' key, or an iterable of such dictionaries.
                 to add. When provided, inputs/outputs/metadata are extracted automatically.

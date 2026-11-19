@@ -1,5 +1,6 @@
 export * from "./constants";
 export * from "./EmbeddingInput";
+export * from "./DecisionSpanInfo";
 export * from "./EmbeddingSpanInfo";
 export * from "./LLMInput";
 export * from "./LLMMessage";

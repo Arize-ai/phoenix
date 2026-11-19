@@ -72,6 +72,7 @@ describe("useDSLFilterConditionHistory", () => {
   let history: DSLFilterConditionHistory;
 
   function Harness(props: UseDSLFilterConditionHistoryProps) {
+    // eslint-disable-next-line react/globals
     history = useDSLFilterConditionHistory(props);
     return null;
   }

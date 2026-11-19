@@ -1,5 +1,6 @@
 import { graphql, readInlineData } from "relay-runtime";
 
+import { getOptimizationValue } from "@phoenix/components/annotation/optimizationUtils";
 import type {
   AnnotationConfigInput,
   CreateDatasetLLMEvaluatorInput,
@@ -17,6 +18,26 @@ import type {
   FreeformEvaluatorAnnotationConfig,
 } from "@phoenix/types";
 import { isObject } from "@phoenix/typeUtils";
+
+/** Returns whether a mapping value survives persistence. */
+export function hasMappingValue(value: unknown): boolean {
+  return value != null && value !== "";
+}
+
+/** Removes paths shadowed by literal mappings, matching server precedence. */
+export function normalizeInputMapping(
+  mapping: EvaluatorInputMapping
+): EvaluatorInputMapping {
+  const pathMapping = { ...mapping.pathMapping };
+
+  for (const [name, value] of Object.entries(mapping.literalMapping)) {
+    if (hasMappingValue(value)) {
+      delete pathMapping[name];
+    }
+  }
+
+  return { ...mapping, pathMapping };
+}
 
 // Single source of judge tools, shared by Save and preview so the two can't diverge.
 export const buildJudgeToolFunctions = ({
@@ -161,7 +182,7 @@ export const updateLLMEvaluatorPayload = ({
     description,
     datasetEvaluatorId,
     datasetId,
-    inputMapping: inputMapping,
+    inputMapping: inputMapping && normalizeInputMapping(inputMapping),
     promptVersion,
     outputConfigs: buildOutputConfigsInput(outputConfigs),
     promptVersionId: promptVersionId ?? null,
@@ -230,7 +251,7 @@ export const createLLMEvaluatorPayload = ({
     name,
     description,
     datasetId,
-    inputMapping: inputMapping,
+    inputMapping: inputMapping && normalizeInputMapping(inputMapping),
     promptVersion,
     outputConfigs: buildOutputConfigsInput(outputConfigs),
     promptVersionId: promptVersionId ?? null,
@@ -425,3 +446,74 @@ export const getOutputConfigValidationErrors = (
 
   return errors;
 };
+
+/**
+ * Maps an evaluator preview's annotation score onto the optimization value of
+ * the output config it came from. Multi-output evaluators name annotations
+ * `evaluatorName.configName`.
+ */
+export function getOutputConfigOptimizationValue({
+  annotationName,
+  score,
+  evaluatorName,
+  outputConfigs,
+}: {
+  annotationName: string;
+  score: number | null | undefined;
+  evaluatorName: string;
+  outputConfigs: AnnotationConfig[];
+}): number | null {
+  if (outputConfigs.length === 0) {
+    return null;
+  }
+
+  let matchedConfig: AnnotationConfig | undefined;
+  if (outputConfigs.length === 1) {
+    matchedConfig = outputConfigs[0];
+  } else {
+    const prefix = evaluatorName + ".";
+    if (annotationName.startsWith(prefix)) {
+      const configName = annotationName.slice(prefix.length);
+      matchedConfig = outputConfigs.find((c) => c.name === configName);
+    }
+  }
+
+  if (matchedConfig == null) {
+    return null;
+  }
+
+  const optimizationDirection =
+    matchedConfig.optimizationDirection === "MAXIMIZE" ||
+    matchedConfig.optimizationDirection === "MINIMIZE"
+      ? matchedConfig.optimizationDirection
+      : undefined;
+
+  let lowerBound: number | undefined;
+  let upperBound: number | undefined;
+  let threshold: number | undefined;
+
+  if ("values" in matchedConfig) {
+    const scores = matchedConfig.values
+      .map((v) => v.score)
+      .filter((s): s is number => s != null);
+    if (scores.length > 0) {
+      lowerBound = Math.min(...scores);
+      upperBound = Math.max(...scores);
+    }
+  } else if ("threshold" in matchedConfig) {
+    threshold = matchedConfig.threshold ?? undefined;
+    lowerBound = matchedConfig.lowerBound ?? undefined;
+    upperBound = matchedConfig.upperBound ?? undefined;
+  } else if ("lowerBound" in matchedConfig) {
+    lowerBound = matchedConfig.lowerBound ?? undefined;
+    upperBound = matchedConfig.upperBound ?? undefined;
+  }
+
+  return getOptimizationValue({
+    score,
+    lowerBound,
+    upperBound,
+    threshold,
+    optimizationDirection,
+  });
+}

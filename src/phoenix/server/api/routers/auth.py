@@ -7,17 +7,20 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlencode, urlparse, urlunparse
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi.responses import JSONResponse
 from pydantic import SecretStr
 from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
 
 from phoenix.auth import (
+    DEFAULT_ADMIN_PASSWORD,
     DEFAULT_SECRET_LENGTH,
     PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
     PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
     Token,
     compute_password_hash,
     delete_access_token_cookie,
+    delete_oauth2_login_context_cookie,
     delete_oauth2_nonce_cookie,
     delete_oauth2_state_cookie,
     delete_refresh_token_cookie,
@@ -46,8 +49,8 @@ from phoenix.server.rate_limiters import (
 )
 from phoenix.server.types import (
     AccessTokenClaims,
+    PasswordResetToken,
     PasswordResetTokenClaims,
-    PasswordResetTokenId,
     RefreshTokenClaims,
     TokenStore,
     UserId,
@@ -183,11 +186,20 @@ async def _login(request: Request) -> Response:
         raise HTTPException(status_code=401, detail=LOGIN_FAILED_MESSAGE)
 
     _record_brute_force_success(email)
+    if user.auth_method == "LOCAL" and user.reset_password and password == DEFAULT_ADMIN_PASSWORD:
+        token = await _issue_password_reset_token(request, user)
+        return JSONResponse(
+            status_code=403,
+            content={
+                "detail": _DEFAULT_PASSWORD_MUST_BE_CHANGED,
+                "password_reset_token": token,
+            },
+        )
     return await _create_auth_response(request, user)
 
 
 async def _logout(request: Request) -> Response:
-    """Log out user by revoking tokens and clearing cookies."""
+    """Log out of every browser session by revoking its tokens, and clear the cookies."""
     token_store: TokenStore = request.app.state.get_token_store()
     user_id = None
     if isinstance(user := request.user, PhoenixUser):
@@ -201,13 +213,15 @@ async def _logout(request: Request) -> Response:
     ):
         user_id = subject
     if user_id:
-        await token_store.log_out(user_id)
+        # Signing out of the browser leaves OAuth2 clients, such as the CLI, signed in.
+        await token_store.log_out_of_browsers(user_id)
     redirect_path = "/logout" if get_env_disable_basic_auth() else "/login"
     redirect_url = prepend_root_path(request.scope, redirect_path)
     response = Response(status_code=302, headers={"Location": redirect_url})
     response = delete_access_token_cookie(response)
     response = delete_refresh_token_cookie(response)
     response = delete_oauth2_state_cookie(response)
+    response = delete_oauth2_login_context_cookie(response)
     response = delete_oauth2_nonce_cookie(response)
     return response
 
@@ -250,6 +264,19 @@ async def _refresh_tokens(request: Request) -> Response:
     return await _create_auth_response(request, user)
 
 
+async def _issue_password_reset_token(request: Request, user: models.User) -> PasswordResetToken:
+    """Replace any existing reset token for the user and issue a new one."""
+    assert isinstance(token_expiry := request.app.state.password_reset_token_expiry, timedelta)
+    token_store: TokenStore = request.app.state.get_token_store()
+    password_reset_token_claims = PasswordResetTokenClaims(
+        subject=UserId(user.id),
+        issued_at=datetime.now(timezone.utc),
+        expiration_time=datetime.now(timezone.utc) + token_expiry,
+    )
+    token, _ = await token_store.create_password_reset_token(password_reset_token_claims)
+    return token
+
+
 async def _initiate_password_reset(request: Request) -> Response:
     """Send password reset email to user."""
     if get_env_disable_basic_auth():
@@ -264,27 +291,14 @@ async def _initiate_password_reset(request: Request) -> Response:
     sender: EmailSender = request.app.state.email_sender
     if sender is None:
         raise SMTP_UNAVAILABLE
-    assert isinstance(token_expiry := request.app.state.password_reset_token_expiry, timedelta)
     async with request.app.state.db() as session:
         user = await session.scalar(
-            select(models.User)
-            .where(func.lower(models.User.email) == email)
-            .options(
-                joinedload(models.User.password_reset_token).load_only(models.PasswordResetToken.id)
-            )
+            select(models.User).where(func.lower(models.User.email) == email)
         )
     if user is None or user.auth_method != "LOCAL":
         # Withold privileged information
         return Response(status_code=204)
-    token_store: TokenStore = request.app.state.get_token_store()
-    if user.password_reset_token:
-        await token_store.revoke(PasswordResetTokenId(user.password_reset_token.id))
-    password_reset_token_claims = PasswordResetTokenClaims(
-        subject=UserId(user.id),
-        issued_at=datetime.now(timezone.utc),
-        expiration_time=datetime.now(timezone.utc) + token_expiry,
-    )
-    token, _ = await token_store.create_password_reset_token(password_reset_token_claims)
+    token = await _issue_password_reset_token(request, user)
     url = urlparse(request.headers.get("referer") or get_base_url())
     path = prepend_root_path(request.scope, "/reset-password-with-token")
     query_string = urlencode(dict(token=token))
@@ -315,6 +329,8 @@ async def _reset_password(request: Request) -> Response:
     if user is None or user.auth_method != "LOCAL":
         # Withold privileged information
         return Response(status_code=204)
+    if user.reset_password and password == DEFAULT_ADMIN_PASSWORD:
+        raise HTTPException(status_code=422, detail=_DEFAULT_PASSWORD_MUST_BE_CHANGED)
     validate_password_format(password)
     user.password_salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
     loop = asyncio.get_running_loop()
@@ -395,6 +411,7 @@ async def _create_auth_response(request: Request, user: models.User) -> Response
 
 
 LOGIN_FAILED_MESSAGE = "Invalid email and/or password"
+_DEFAULT_PASSWORD_MUST_BE_CHANGED = "The default password must be changed before signing in"
 
 MISSING_EMAIL = HTTPException(
     status_code=422,

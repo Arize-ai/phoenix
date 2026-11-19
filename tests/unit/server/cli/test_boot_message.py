@@ -33,6 +33,7 @@ def _boot_message() -> BootMessage:
         agent_assistant_enabled=True,
         docs_mcp_url=None,
         prometheus_enabled=False,
+        otlp_log_export_enabled=False,
         smtp_hostname="",
         telemetry_enabled=True,
     )
@@ -67,6 +68,7 @@ def test_render_displays_effective_assistant_configuration() -> None:
             force_tracing=False,
             web_access_enabled=True,
             server_bash_enabled=False,
+            github_enabled=False,
         ),
     )
 
@@ -95,6 +97,25 @@ def test_render_uses_uniform_dividers_and_places_tracing_section_last() -> None:
     assert len({len(header) for header in headers}) == 1
     assert "Server" in headers[-2]
     assert "Tracing" in headers[-1]
+
+
+def test_render_marks_external_skills_not_configured_by_default() -> None:
+    lines = _boot_message().render(unicode_ok=False).splitlines()
+
+    assert "  External skills     Not configured" in lines
+
+
+def test_render_lists_every_external_skills_path_under_server() -> None:
+    message = replace(
+        _boot_message(),
+        skills_paths=["/opt/skills/team", "/home/me/.agents/skills"],
+    )
+
+    lines = message.render(unicode_ok=True).splitlines()
+
+    server_header = next(i for i, line in enumerate(lines) if "Server" in line)
+    assert lines.index("  External skills     /opt/skills/team") > server_header
+    assert "                      /home/me/.agents/skills" in lines
 
 
 def test_render_omits_development_section_by_default() -> None:

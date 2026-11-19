@@ -1,6 +1,8 @@
+import { parseToRgb } from "polished";
 import { useMemo } from "react";
 
 import { useTheme } from "@phoenix/contexts";
+import { clampNumber } from "@phoenix/utils/numberUtils";
 
 export type SequentialChartColors = {
   readonly blue100: string;
@@ -284,3 +286,125 @@ export const useGrayscaleCategoricalColors = (): Record<
 export const GRAYSCALE_CATEGORICAL_COLORS = Object.keys(
   GrayscaleCategoricalLightColors
 ) as GrayscaleCategoricalColor[];
+
+/**
+ * A d3-scale-chromatic style interpolator: maps a normalized value
+ * t ∈ [0, 1] to a CSS color (e.g. `interpolateViridis`, `interpolateBlues`).
+ */
+export type SequentialColorInterpolator = (t: number) => string;
+
+/**
+ * Sequential ramps for density-encoded charts (heatmaps, confusion matrices).
+ * Interpolators are applied as-is: the densest value gets
+ * `colorInterpolator(1)`, so a scale's 1-end is its most colorful. These
+ * defaults run "more → more color" against each theme's page background.
+ *
+ * The stops mirror the `--global-color-blue-*` ramps in `GlobalStyles.tsx`
+ * (dark blue-100…1000, light blue-200…1200). CSS variables can't be
+ * interpolated in JS, so the values are inlined — keep them in sync with the
+ * ramps if those ever change.
+ */
+const DARK_THEME_SEQUENTIAL_BLUES = [
+  "#002651",
+  "#00326a",
+  "#004087",
+  "#004ea6",
+  "#005cc8",
+  "#066ce7",
+  "#1d80f5",
+  "#4096f3",
+  "#5eaaf7",
+  "#7cbdfa",
+] as const;
+
+const LIGHT_THEME_SEQUENTIAL_BLUES = [
+  "#cae8ff",
+  "#b5deff",
+  "#96cefd",
+  "#78bbfa",
+  "#59a7f6",
+  "#3892f3",
+  "#147af3",
+  "#0265dc",
+  "#0054b6",
+  "#004491",
+  "#003571",
+] as const;
+
+const clamp01 = (t: number) => clampNumber({ value: t, min: 0, max: 1 });
+
+/**
+ * Builds a d3-scale-chromatic style interpolator from an ordered list of
+ * color stops (piecewise-linear in RGB). Order the stops fewer → more:
+ * `colorInterpolator(1)` colors the densest value, so the last stop should
+ * be the most colorful. Use it to run a brand ramp, a custom gradient, or
+ * any palette as a sequential scale.
+ */
+export function createSequentialColorInterpolator(
+  colors: readonly [string, string, ...string[]]
+): SequentialColorInterpolator {
+  const stops = colors.map((color) => parseToRgb(color));
+  return (t: number) => {
+    const clamped = clamp01(t);
+    const segments = stops.length - 1;
+    const segmentIndex = Math.min(Math.floor(clamped * segments), segments - 1);
+    const fraction = clamped * segments - segmentIndex;
+    const start = stops[segmentIndex];
+    const end = stops[segmentIndex + 1];
+    const red = Math.round(start.red + (end.red - start.red) * fraction);
+    const green = Math.round(
+      start.green + (end.green - start.green) * fraction
+    );
+    const blue = Math.round(start.blue + (end.blue - start.blue) * fraction);
+    return `rgb(${red}, ${green}, ${blue})`;
+  };
+}
+
+/**
+ * Flips a sequential interpolator's direction — for scales whose colorful
+ * end sits at 0 (e.g. `interpolateBlues` on a dark background).
+ */
+export function reverseColorInterpolator(
+  colorInterpolator: SequentialColorInterpolator
+): SequentialColorInterpolator {
+  return (t: number) => colorInterpolator(1 - clamp01(t));
+}
+
+const GRADIENT_STOP_COUNT = 12;
+
+/**
+ * Samples an interpolator into a CSS linear-gradient for legend bars.
+ */
+export function getSequentialGradientCSS({
+  colorInterpolator,
+}: {
+  colorInterpolator: SequentialColorInterpolator;
+}): string {
+  const stops: string[] = [];
+  for (let stopIndex = 0; stopIndex < GRADIENT_STOP_COUNT; stopIndex++) {
+    stops.push(colorInterpolator(stopIndex / (GRADIENT_STOP_COUNT - 1)));
+  }
+  return `linear-gradient(90deg, ${stops.join(", ")})`;
+}
+
+const darkThemeBlueInterpolator = createSequentialColorInterpolator(
+  DARK_THEME_SEQUENTIAL_BLUES
+);
+const lightThemeBlueInterpolator = createSequentialColorInterpolator(
+  LIGHT_THEME_SEQUENTIAL_BLUES
+);
+
+/**
+ * The theme-aware sequential blue scale, gaining color with density — dim
+ * navy → vivid blue on dark, pale sky → deep blue on light. Pass an
+ * interpolator to override the default; the override is returned as-is, so
+ * callers can hold one prop and let this hook fill in the theme default.
+ */
+export function useSequentialBlueColorInterpolator(
+  colorInterpolator?: SequentialColorInterpolator
+): SequentialColorInterpolator {
+  const { theme } = useTheme();
+  const themeDefault =
+    theme === "dark" ? darkThemeBlueInterpolator : lightThemeBlueInterpolator;
+  return colorInterpolator ?? themeDefault;
+}

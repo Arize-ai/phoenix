@@ -59,6 +59,7 @@ export const EditLLMEvaluatorDialogContent = ({
   };
 
   const handleSubmitRef = useRef(handleSubmit);
+  // eslint-disable-next-line react/refs
   handleSubmitRef.current = handleSubmit;
 
   useLlmEvaluatorDraftRegistration({

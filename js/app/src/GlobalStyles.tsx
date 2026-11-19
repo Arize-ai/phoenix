@@ -823,6 +823,7 @@ export const lightThemeCSS = css`
     --global-color-info-700: rgba(20, 122, 243, 0.7);
     --global-color-info-500: rgba(20, 122, 243, 0.5);
     // red-800: #ea3829
+    --global-color-danger-rgb: 234, 56, 41;
     --global-color-danger: var(--global-color-red-800);
     --global-color-danger-900: rgba(234, 56, 41, 0.9);
     --global-color-danger-700: rgba(234, 56, 41, 0.7);
@@ -834,6 +835,7 @@ export const lightThemeCSS = css`
     --global-color-success-500: rgba(0, 143, 93, 0.5);
     --global-color-success-100: rgba(0, 143, 93, 0.1);
     // orange-700: #e46f00
+    --global-color-warning-rgb: 228, 111, 0;
     --global-color-warning: var(--global-color-orange-700);
     --global-color-warning-900: rgba(228, 111, 0, 0.9);
     --global-color-warning-700: rgba(228, 111, 0, 0.7);
@@ -858,11 +860,13 @@ export const lightThemeCSS = css`
     --floating-toolbar-border-color: var(--global-color-gray-200);
 
     // Optimization Direction Colors
-    --global-color-optimization-direction-positive: var(--global-color-success);
+    --global-color-optimization-direction-positive: var(
+      --global-color-green-900
+    );
     --global-color-background-optimization-direction-positive: var(
       --global-color-success-100
     );
-    --global-color-optimization-direction-negative: var(--global-color-danger);
+    --global-color-optimization-direction-negative: var(--global-color-red-900);
     --global-color-background-optimization-direction-negative: var(
       --global-color-danger-100
     );
@@ -1155,6 +1159,10 @@ const disclosureCSS = (theme: Theme) => css`
     --global-disclosure-background-color-active: ${theme === "dark"
       ? "rgba(255, 255, 255, 0.07)"
       : "rgba(0, 0, 0, 0.03)"};
+    /* the rule a disclosure draws under its trigger and between its items. A
+       container with a border of its own (a tinted card) re-points this at
+       that border so the rules inside it match its edge */
+    --global-disclosure-border-color: var(--global-border-color-default);
   }
 `;
 
@@ -1266,6 +1274,19 @@ const tableCSS = (theme: Theme) => css`
     );
     --global-table-bordered-cell-border-color: var(--global-color-gray-100);
     --global-table-pagination-border-color: var(--global-color-gray-300);
+    /* editable tables: a cell with a pending change, and a row marked for deletion */
+    --global-table-cell-dirty-background-color: rgba(
+      var(--global-color-warning-rgb),
+      0.16
+    );
+    --global-table-cell-dirty-hover-background-color: rgba(
+      var(--global-color-warning-rgb),
+      0.24
+    );
+    --global-table-row-deleted-background-color: rgba(
+      var(--global-color-danger-rgb),
+      0.06
+    );
 
     --global-table-cell-padding-y: var(--global-dimension-size-100);
     --global-table-cell-padding-x: var(--global-dimension-size-200);
@@ -1396,6 +1417,25 @@ const messageTokensCSS = (theme: Theme) => css`
   }
 `;
 
+const skeletonCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
+    --global-skeleton-background-color: ${theme === "dark"
+      ? "var(--global-color-gray-100)"
+      : "var(--global-color-gray-200)"};
+    --global-skeleton-opacity: ${theme === "dark" ? 0.3 : 0.4};
+    --global-skeleton-wave-highlight-color: ${theme === "dark"
+      ? "var(--global-color-gray-200)"
+      : "var(--global-color-gray-300)"};
+    --global-skeleton-wave-highlight-opacity: ${theme === "dark" ? 0.2 : 0.75};
+    /* Opaque, for 1px lines drawn beside skeletons: the fill's translucent
+       color all but disappears at that width */
+    --global-skeleton-line-color: ${theme === "dark"
+      ? "var(--global-color-gray-100)"
+      : "var(--global-color-gray-200)"};
+  }
+`;
+
 export const derivedCSS = (theme: Theme) =>
   css(
     baseTokensCSS(theme),
@@ -1419,7 +1459,8 @@ export const derivedCSS = (theme: Theme) =>
     resizeHandleCSS(theme),
     badgeSizingCSS(theme),
     promptInputCSS(theme),
-    messageTokensCSS(theme)
+    messageTokensCSS(theme),
+    skeletonCSS(theme)
   );
 
 const appGlobalStylesCSS = css`
@@ -1483,27 +1524,41 @@ const appGlobalStylesCSS = css`
     border: none;
     padding: 0;
   }
-  /* this css class is added to html via modernizr @see modernizr.js */
-  .no-hiddenscroll {
-    /* Works on Firefox */
-    * {
+  /* Firefox recognizes ::-webkit-scrollbar for compatibility, but does not
+     support the complete pseudo-element family. Probe the thumb so Firefox
+     uses the standard properties instead of partially applying this style. */
+  @supports not selector(::-webkit-scrollbar-thumb) {
+    html:not([data-native-scrollbars]),
+    html:not([data-native-scrollbars]) * {
       scrollbar-width: thin;
-      scrollbar-color: var(--global-color-gray-300) var(--global-color-gray-400);
+      scrollbar-color: rgba(var(--global-color-gray-900-rgb), 0.18) transparent;
+    }
+  }
+
+  @supports selector(::-webkit-scrollbar-thumb) {
+    html:not([data-native-scrollbars]) ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
     }
 
-    /* Works on Chrome, Edge, and Safari */
-    *::-webkit-scrollbar {
-      width: 14px;
+    html:not([data-native-scrollbars]) ::-webkit-scrollbar-track,
+    html:not([data-native-scrollbars]) ::-webkit-scrollbar-corner {
+      background: transparent;
     }
 
-    *::-webkit-scrollbar-track {
-      background: var(--global-color-gray-100);
+    html:not([data-native-scrollbars]) ::-webkit-scrollbar-thumb {
+      background-color: rgba(var(--global-color-gray-900-rgb), 0.18);
+      border: 3px solid transparent;
+      border-radius: var(--global-rounding-full);
+      background-clip: padding-box;
     }
 
-    *::-webkit-scrollbar-thumb {
-      background-color: var(--global-color-gray-75);
-      border-radius: 8px;
-      border: 1px solid var(--global-color-gray-300);
+    html:not([data-native-scrollbars]) ::-webkit-scrollbar-thumb:hover {
+      background-color: rgba(var(--global-color-gray-900-rgb), 0.3);
+    }
+
+    html:not([data-native-scrollbars]) ::-webkit-scrollbar-button {
+      display: none;
     }
   }
 

@@ -11,7 +11,7 @@ import contextlib
 from contextlib import AsyncExitStack
 from typing import TYPE_CHECKING, Any, AsyncIterator
 
-import httpx
+import httpx2
 import pytest
 from asgi_lifespan import LifespanManager
 from fastapi import FastAPI
@@ -19,6 +19,12 @@ from pydantic import SecretStr
 
 from phoenix.server.app import create_app
 from phoenix.server.bearer_auth import INTERNAL_PRINCIPAL_SCOPE_KEY, PhoenixUser
+from phoenix.server.mcp.skills import (
+    MCP_SKILLS_ROOT,
+    PXI_PUBLIC_SKILLS_ROOT,
+    PXI_SKILLS_ROOT,
+    load_skills,
+)
 from phoenix.server.mcp_server import (
     MCP_MOUNT_PATH,
     MountPathNormalizer,
@@ -35,7 +41,7 @@ from phoenix.server.types import (
 from phoenix.version import __version__ as phoenix_version
 from tests.unit.conftest import (
     TestBulkInserter,
-    patch_batched_caller,
+    patch_dml_event_handler,
     patch_grpc_server,
 )
 
@@ -73,7 +79,7 @@ async def test_base_mcp_app_does_not_require_a_monty_runtime(
 async def test_mcp_server_advertises_the_phoenix_version(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The handshake identifies the Phoenix build, not the FastMCP library.
+    """The advertised server identity is the Phoenix build, not the FastMCP library.
 
     FastMCP defaults an unset version to its own, which tells a client nothing
     about the server it reached.
@@ -86,13 +92,13 @@ async def test_mcp_server_advertises_the_phoenix_version(
 
     def _factory(
         headers: dict[str, str] | None = None,
-        timeout: httpx.Timeout | None = None,
-        auth: httpx.Auth | None = None,
+        timeout: httpx2.Timeout | None = None,
+        auth: httpx2.Auth | None = None,
         # fastmcp passes this beyond the McpHttpClientFactory protocol.
         follow_redirects: bool = True,
-    ) -> httpx.AsyncClient:
-        return httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=mcp_app),
+    ) -> httpx2.AsyncClient:
+        return httpx2.AsyncClient(
+            transport=httpx2.ASGITransport(app=mcp_app),
             base_url="http://testserver",
             headers=headers,
             follow_redirects=follow_redirects,
@@ -104,8 +110,75 @@ async def test_mcp_server_advertises_the_phoenix_version(
         httpx_client_factory=_factory,
     )
     async with LifespanManager(mcp_app), Client(transport) as client:
-        assert client.initialize_result is not None
-        assert client.initialize_result.serverInfo.version == phoenix_version
+        assert client.server_info is not None
+        assert client.server_info.version == phoenix_version
+
+
+async def test_the_mount_serves_the_mcp_skills_and_not_the_agents_own(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: False)
+    from fastmcp import Client
+    from fastmcp.client.transports import StreamableHttpTransport
+
+    mcp_app, _ = create_phoenix_mcp_app(FastAPI(), db=_unused_db())
+
+    def _factory(
+        headers: dict[str, str] | None = None,
+        timeout: httpx2.Timeout | None = None,
+        auth: httpx2.Auth | None = None,
+        follow_redirects: bool = True,
+    ) -> httpx2.AsyncClient:
+        return httpx2.AsyncClient(
+            transport=httpx2.ASGITransport(app=mcp_app),
+            base_url="http://testserver",
+            headers=headers,
+            follow_redirects=follow_redirects,
+        )
+
+    transport = StreamableHttpTransport(url="http://testserver/", httpx_client_factory=_factory)
+    async with LifespanManager(mcp_app), Client(transport) as client:
+        instructions = client.instructions
+        tool_names = {tool.name for tool in await client.list_tools()}
+
+    assert instructions is not None
+    for skill in load_skills((MCP_SKILLS_ROOT,)):
+        assert f"<name>{skill.name}</name>" in instructions
+    for skill in load_skills((PXI_SKILLS_ROOT,)):
+        assert f"<name>{skill.name}</name>" not in instructions
+    assert {"load_skill", "load_skill_reference"} <= tool_names
+
+
+@pytest.mark.real_agent_mcp_server
+async def test_the_agents_own_server_adds_the_pxi_skills(
+    db: DbSessionFactory,
+) -> None:
+    async with AsyncExitStack() as stack:
+        await stack.enter_async_context(patch_dml_event_handler())
+        await stack.enter_async_context(patch_grpc_server())
+        app = create_app(
+            db=db,
+            authentication_enabled=False,
+            serve_ui=False,
+            bulk_inserter_factory=TestBulkInserter,
+        )
+
+    instructions = app.state.pxi_mcp_server.instructions
+    assert "<name>phoenix-graphql</name>" in instructions
+    public = {skill.name for skill in load_skills((PXI_PUBLIC_SKILLS_ROOT,))}
+    for name in public:
+        assert f"<name>{name}</name>" in instructions
+    for skill in load_skills((MCP_SKILLS_ROOT,)):
+        if skill.name not in public:
+            assert f"<name>{skill.name}</name>" not in instructions
+
+
+async def test_fixture_app_does_not_generate_the_openapi_document(app: FastAPI) -> None:
+    """Generating the document costs about half a second per app; the suite-wide
+    stubs keep it off every fixture app, so the derived servers are absent."""
+    assert app.openapi_schema is None
+    assert app.state.mcp_http_app is None
+    assert app.state.pxi_mcp_server is None
 
 
 def test_code_mode_requires_a_monty_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -130,7 +203,7 @@ async def test_shared_monty_runtime_is_torn_down_after_the_mcp_server_drains(
     order: list[str] = []
 
     async with AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_dml_event_handler())
         await stack.enter_async_context(patch_grpc_server())
         app = create_app(
             db=db,
@@ -182,7 +255,7 @@ async def test_app_starts_up_when_monty_runtime_probe_raises(
     monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: True)
 
     async with AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_dml_event_handler())
         await stack.enter_async_context(patch_grpc_server())
         app = create_app(
             db=db,
@@ -212,7 +285,7 @@ async def test_monty_runtime_is_probed_for_evaluators_when_code_mode_is_disabled
     )
 
     async with AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_dml_event_handler())
         await stack.enter_async_context(patch_grpc_server())
         app = create_app(
             db=db,
@@ -241,7 +314,7 @@ async def test_mcp_server_not_mounted_by_default(
     """Without the env flag, no MCP app is built or mounted."""
     monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: False)
     async with AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_dml_event_handler())
         await stack.enter_async_context(patch_grpc_server())
         app = create_app(
             db=db,
@@ -253,17 +326,103 @@ async def test_mcp_server_not_mounted_by_default(
         assert not any(getattr(r, "path", None) == MCP_MOUNT_PATH for r in app.routes)
 
 
+@pytest.mark.real_agent_mcp_server
+class TestAgentMCPServerIsIndependentOfTheMount:
+    """The agent's server shares the mount's derivation but not its lifetime or
+    configuration."""
+
+    @staticmethod
+    async def _create_app(db: DbSessionFactory) -> FastAPI:
+        async with AsyncExitStack() as stack:
+            await stack.enter_async_context(patch_dml_event_handler())
+            await stack.enter_async_context(patch_grpc_server())
+            return create_app(
+                db=db,
+                authentication_enabled=False,
+                serve_ui=False,
+                bulk_inserter_factory=TestBulkInserter,
+            )
+        raise AssertionError("unreachable")
+
+    async def test_built_even_when_the_mount_is_disabled(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: False)
+
+        app = await self._create_app(db)
+
+        assert app.state.mcp_http_app is None
+        assert app.state.pxi_mcp_server is not None
+
+    async def test_absent_when_the_assistant_is_disabled(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The tools follow the assistant, not the mount."""
+        monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: True)
+        monkeypatch.setattr("phoenix.server.app.get_env_disable_agent_assistant", lambda: True)
+
+        app = await self._create_app(db)
+
+        assert app.state.pxi_mcp_server is None
+
+    @pytest.mark.parametrize("agent_code_mode", [True, False])
+    async def test_code_mode_follows_its_own_setting(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch, agent_code_mode: bool
+    ) -> None:
+        """PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE decides; the mount's setting does not."""
+        monkeypatch.setenv(
+            "PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE", "true" if agent_code_mode else "false"
+        )
+        monkeypatch.setenv("PHOENIX_ENABLE_MCP_CODE_MODE", "false" if agent_code_mode else "true")
+        monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: False)
+
+        app = await self._create_app(db)
+
+        assert app.state.pxi_mcp_server is not None
+        assert (app.state.pxi_mcp_sandbox is not None) is agent_code_mode
+
+    async def test_surface_is_read_only_except_note_creation(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Through the server ``create_app`` wires, so the read-only derivation is
+        the one sessions get. Code mode hides the derived tools behind
+        ``execute``; the ``list_tools`` discovery tool is the view of that catalog,
+        checked against every operation in the OpenAPI document.
+        """
+        import json
+
+        from fastmcp import Client
+
+        monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: False)
+
+        app = await self._create_app(db)
+        assert app.state.pxi_mcp_server is not None
+        async with Client(app.state.pxi_mcp_server) as client:
+            result = await client.call_tool("list_tools", {"detail": "full"})
+        catalog = {tool["name"] for tool in json.loads(result.structured_content["result"])}
+
+        note_creates = {"createSpanNote", "createTraceNote", "createSessionNote"}
+        reads: set[str] = set()
+        writes: set[str] = set()
+        for operations in app.openapi()["paths"].values():
+            for method, operation in operations.items():
+                (reads if method == "get" else writes).add(operation["operationId"])
+        assert note_creates <= writes
+        assert reads | note_creates <= catalog
+        assert catalog.isdisjoint(writes - note_creates), catalog & writes
+
+
 async def test_mcp_code_mode_replaces_tool_surface(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """With PHOENIX_ENABLE_MCP_CODE_MODE on, clients see only the discovery meta-tools and
     ``execute``; the generated /v1 tools are reachable through the sandbox's
-    ``call_tool`` rather than tools/list, and group gating is not installed."""
+    ``call_tool`` rather than tools/list."""
     monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: True)
     monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: True)
     async with AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_dml_event_handler())
         await stack.enter_async_context(patch_grpc_server())
         app = create_app(
             db=db,
@@ -273,19 +432,19 @@ async def test_mcp_code_mode_replaces_tool_surface(
         )
         await stack.enter_async_context(LifespanManager(app))
 
-        import httpx
+        import httpx2
         from fastmcp import Client
         from fastmcp.client.transports import StreamableHttpTransport
 
         def _factory(
             headers: dict[str, str] | None = None,
-            timeout: httpx.Timeout | None = None,
-            auth: httpx.Auth | None = None,
+            timeout: httpx2.Timeout | None = None,
+            auth: httpx2.Auth | None = None,
             # fastmcp passes this beyond the McpHttpClientFactory protocol.
             follow_redirects: bool = True,
-        ) -> httpx.AsyncClient:
-            return httpx.AsyncClient(
-                transport=httpx.ASGITransport(app=app),
+        ) -> httpx2.AsyncClient:
+            return httpx2.AsyncClient(
+                transport=httpx2.ASGITransport(app=app),
                 base_url="http://testserver",
                 headers=headers,
                 follow_redirects=follow_redirects,
@@ -297,16 +456,24 @@ async def test_mcp_code_mode_replaces_tool_surface(
         )
         async with Client(transport) as client:
             tools = {t.name: t for t in await client.list_tools()}
-            assert set(tools) == {"search", "get_schema", "tags", "list_tools", "execute"}
+            assert set(tools) == {
+                "search",
+                "get_schema",
+                "tags",
+                "list_tools",
+                "execute",
+                "load_skill",
+                "load_skill_reference",
+            }
 
             # Discovery tools are reads and say so; execute can invoke mutating
             # tools, so it stays unannotated (treated as possibly destructive).
             for name in ("search", "get_schema", "tags", "list_tools"):
                 assert tools[name].annotations is not None, f"{name} is missing annotations"
-                assert tools[name].annotations.readOnlyHint is True
+                assert tools[name].annotations.read_only_hint is True
             assert tools["execute"].annotations is None
 
-            # Discovery browses the same REST router tags the gated surface uses.
+            # Discovery browses the REST router tags.
             tags_result = await client.call_tool("tags", {})
             assert "projects" in tags_result.content[0].text
 
@@ -347,11 +514,11 @@ async def test_mcp_server_mounts_and_lifespan_starts(
     """With the flag on, the MCP app is mounted, its lifespan starts, and its
     tools are generated from the /v1 REST routes."""
     monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: True)
-    # This test asserts the group-gated progressive-disclosure surface, which is
-    # not the default (code mode is); pin it off so the assertions hold.
+    # Code mode is the default and replaces the per-endpoint surface; pin it off
+    # so the generated tools are the ones under test.
     monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: False)
     async with AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_dml_event_handler())
         await stack.enter_async_context(patch_grpc_server())
         app = create_app(
             db=db,
@@ -359,27 +526,22 @@ async def test_mcp_server_mounts_and_lifespan_starts(
             serve_ui=False,
             bulk_inserter_factory=TestBulkInserter,
         )
-        assert app.state.mcp_http_app is not None
-        assert any(getattr(r, "path", None) == MCP_MOUNT_PATH for r in app.routes)
-
         # Startup must enter the MCP session-manager lifespan without error.
         await stack.enter_async_context(LifespanManager(app))
 
-        # Tools are generated from the /v1 schema. Drive the mounted endpoint
-        # in-process over the real protocol via an ASGITransport-backed client.
-        import httpx
+        import httpx2
         from fastmcp import Client
         from fastmcp.client.transports import StreamableHttpTransport
 
         def _factory(
             headers: dict[str, str] | None = None,
-            timeout: httpx.Timeout | None = None,
-            auth: httpx.Auth | None = None,
+            timeout: httpx2.Timeout | None = None,
+            auth: httpx2.Auth | None = None,
             # fastmcp passes this beyond the McpHttpClientFactory protocol.
             follow_redirects: bool = True,
-        ) -> httpx.AsyncClient:
-            return httpx.AsyncClient(
-                transport=httpx.ASGITransport(app=app),
+        ) -> httpx2.AsyncClient:
+            return httpx2.AsyncClient(
+                transport=httpx2.ASGITransport(app=app),
                 base_url="http://testserver",
                 headers=headers,
                 follow_redirects=follow_redirects,
@@ -390,39 +552,25 @@ async def test_mcp_server_mounts_and_lifespan_starts(
             httpx_client_factory=_factory,
         )
         async with Client(transport) as client:
-            visible = {t.name for t in await client.list_tools()}
-            assert visible, "expected MCP tools generated from the /v1 REST API"
+            assert app.state.mcp_http_app is not None
+            assert any(getattr(r, "path", None) == MCP_MOUNT_PATH for r in app.routes)
 
-            # Progressive disclosure: only the default group + meta tools show up;
-            # gated groups (e.g. spans) are hidden until revealed.
-            assert "enable_tool_group" in visible
-            assert "list_tool_groups" in visible
-            assert not any("span" in name.lower() for name in visible), (
-                "gated groups must be hidden by default"
-            )
+            tools = {t.name: t for t in await client.list_tools()}
+            assert tools, "expected MCP tools generated from the /v1 REST API"
 
             # Every tool advertises its read/write nature so a client can gate calls.
-            tools = {t.name: t for t in await client.list_tools()}
             for name, tool in tools.items():
                 assert tool.annotations is not None, f"{name} is missing tool annotations"
-                assert tool.annotations.readOnlyHint is not None, (
+                assert tool.annotations.read_only_hint is not None, (
                     f"{name} does not declare whether it is read-only"
                 )
-            # The meta tools never touch Phoenix data, so they are read-only.
-            assert tools["list_tool_groups"].annotations.readOnlyHint is True
-            assert tools["enable_tool_group"].annotations.readOnlyHint is True
-
-            # Revealing a group exposes its tools for this session only.
-            await client.call_tool("enable_tool_group", {"group": "spans"})
-            after_tools = {t.name: t for t in await client.list_tools()}
-            assert set(after_tools) > visible, "enabling a group must reveal additional tools"
             # Read endpoints (GET) are marked read-only; mutating ones are not.
             span_reads = [
                 t
-                for n, t in after_tools.items()
-                if "span" in n.lower() and t.annotations and t.annotations.readOnlyHint
+                for n, t in tools.items()
+                if "span" in n.lower() and t.annotations and t.annotations.read_only_hint
             ]
-            assert span_reads, "expected at least one read-only span tool after revealing the group"
+            assert span_reads, "expected at least one read-only span tool"
 
 
 class TestMountPathNormalizer:
@@ -504,7 +652,7 @@ class TestMcpCors:
     ) -> AsyncIterator[ASGIApp]:
         monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: True)
         async with AsyncExitStack() as stack:
-            await stack.enter_async_context(patch_batched_caller())
+            await stack.enter_async_context(patch_dml_event_handler())
             await stack.enter_async_context(patch_grpc_server())
             app = create_app(
                 db=db,
@@ -517,8 +665,8 @@ class TestMcpCors:
             yield manager.app
 
     async def test_preflight_allows_any_origin(self, app_with_auth: ASGIApp) -> None:
-        client = httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app_with_auth), base_url="http://test"
+        client = httpx2.AsyncClient(
+            transport=httpx2.ASGITransport(app=app_with_auth), base_url="http://test"
         )
         resp = await client.options(
             MCP_MOUNT_PATH,
@@ -539,8 +687,8 @@ class TestMcpCors:
     async def test_unauthenticated_challenge_is_readable_cross_origin(
         self, app_with_auth: ASGIApp
     ) -> None:
-        client = httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app_with_auth), base_url="http://test"
+        client = httpx2.AsyncClient(
+            transport=httpx2.ASGITransport(app=app_with_auth), base_url="http://test"
         )
         resp = await client.post(
             f"{MCP_MOUNT_PATH}/",

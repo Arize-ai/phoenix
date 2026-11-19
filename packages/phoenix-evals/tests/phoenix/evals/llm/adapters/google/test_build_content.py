@@ -70,6 +70,22 @@ def test_typed_message_list_converts_to_google() -> None:
     ]
 
 
+def test_typed_message_list_extracts_developer_as_system_instruction() -> None:
+    """A typed ``MessageRole.DEVELOPER`` message must fold into
+    ``system_instruction`` exactly like ``MessageRole.SYSTEM`` — Google has
+    no separate wire role for it, and this is also the path
+    ``PromptTemplate.render()`` produces for a "developer" role in a
+    message-list template."""
+    adapter = _make_adapter()
+    prompt = [
+        Message(role=MessageRole.DEVELOPER, content="be strict"),
+        Message(role=MessageRole.USER, content="q"),
+    ]
+    content, system = adapter._build_content(prompt)
+    assert system == "be strict"
+    assert content == [{"role": "user", "parts": [{"text": "q"}]}]
+
+
 def test_message_role_ai_maps_to_model_string() -> None:
     adapter = _make_adapter()
     prompt = [Message(role=MessageRole.AI, content="a")]

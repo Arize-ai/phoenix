@@ -4,7 +4,16 @@ import {
   ONE_SECOND_MS,
 } from "@phoenix/constants/timeConstants";
 
-import { formatFloat, formatInt, formatLatencyMs } from "../numberFormatUtils";
+import {
+  errorRateFormatter,
+  formatFloat,
+  formatInt,
+  formatIntCompact,
+  formatIntGrouped,
+  formatCostPrecise,
+  formatLatencyMs,
+  formatPercentShort,
+} from "../numberFormatUtils";
 
 describe("formatInt", () => {
   it("formats integers cleanly", () => {
@@ -13,6 +22,24 @@ describe("formatInt", () => {
     expect(formatInt(12379)).toEqual("12,379");
     expect(formatInt(-12379)).toEqual("−12,379");
     expect(formatInt(123)).toEqual("123");
+  });
+});
+
+describe("formatIntGrouped", () => {
+  it("formats integers in full with separators", () => {
+    expect(formatIntGrouped(1234567)).toEqual("1,234,567");
+    expect(formatIntGrouped(12)).toEqual("12");
+  });
+});
+
+describe("formatIntCompact", () => {
+  it("abbreviates to three significant digits with app suffixes", () => {
+    expect(formatIntCompact(42)).toEqual("42");
+    expect(formatIntCompact(999)).toEqual("999");
+    expect(formatIntCompact(1000)).toEqual("1K");
+    expect(formatIntCompact(1234)).toEqual("1.23K");
+    expect(formatIntCompact(12345678)).toEqual("12.3M");
+    expect(formatIntCompact(1_200_000_000)).toEqual("1.2B");
   });
 });
 
@@ -49,5 +76,38 @@ describe("formatLatencyMs", () => {
     expect(
       formatLatencyMs(ONE_HOUR_MS + 15 * ONE_MINUTE_MS + 27 * ONE_SECOND_MS)
     ).toEqual("1h 15m 27s");
+  });
+});
+
+describe("formatPercentShort", () => {
+  it("spends decimals only where they tell shares apart", () => {
+    expect(formatPercentShort(0)).toEqual("0%");
+    expect(formatPercentShort(0.04)).toEqual("<0.1%");
+    expect(formatPercentShort(2.56)).toEqual("2.6%");
+    expect(formatPercentShort(9.94)).toEqual("9.9%");
+    // Rounds up past the one-decimal range and is shown like 10 is
+    expect(formatPercentShort(9.99)).toEqual("10%");
+    expect(formatPercentShort(23.4)).toEqual("23%");
+    expect(formatPercentShort(100)).toEqual("100%");
+  });
+});
+
+describe("formatCostPrecise", () => {
+  it("keeps the parts of a cent under a dollar", () => {
+    expect(formatCostPrecise(0)).toEqual("$0");
+    expect(formatCostPrecise(0.00004)).toEqual("<$0.0001");
+    expect(formatCostPrecise(0.0539)).toEqual("$0.0539");
+    expect(formatCostPrecise(0.5)).toEqual("$0.5000");
+    // Rounds up to a dollar and is shown like a dollar is
+    expect(formatCostPrecise(0.99996)).toEqual("$1.00");
+    expect(formatCostPrecise(27.09)).toEqual("$27.09");
+  });
+});
+
+describe("errorRateFormatter", () => {
+  it("formats a fraction as a percentage and tolerates missing values", () => {
+    expect(errorRateFormatter(0.125)).toEqual("12.50%");
+    expect(errorRateFormatter(0)).toEqual("0.00%");
+    expect(errorRateFormatter(null)).toEqual("--");
   });
 });

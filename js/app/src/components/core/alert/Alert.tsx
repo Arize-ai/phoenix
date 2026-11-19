@@ -4,10 +4,9 @@ import type { ReactNode, SyntheticEvent } from "react";
 import { useTheme } from "@phoenix/contexts/ThemeContext";
 
 import { Text } from "../content";
-import { Icon } from "../icon";
+import { getSeverityIcon, Icon } from "../icon";
 import { Close } from "../icon/Icons";
 import type { SeverityLevel } from "../types";
-import { getSeverityIcon } from "./getSeverityIcon";
 
 export interface AlertProps {
   variant: SeverityLevel;

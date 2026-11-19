@@ -17,6 +17,8 @@ const containerCSS = css`
   bottom: var(--global-dimension-size-450);
   left: 50%;
   transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 2 * var(--global-dimension-size-200));
   z-index: 10;
   box-shadow:
     0px 10px 20px 0px rgba(0, 0, 0, 0.1),

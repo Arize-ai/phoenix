@@ -25,7 +25,6 @@ async function createDataset(page: Page, datasetName: string) {
     .fill("Compiler playground table dataset");
   await page.getByRole("button", { name: "Create Dataset" }).click();
   await expect(page.getByTestId("dialog")).not.toBeVisible();
-  await page.getByRole("link", { name: datasetName }).click();
   await page.waitForURL("**/datasets/**/examples");
 }
 

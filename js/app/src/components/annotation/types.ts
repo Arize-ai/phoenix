@@ -23,6 +23,15 @@ export interface Annotation {
   } | null;
 }
 
+export type AnnotationTargetType = "span" | "trace" | "session";
+
+export type AnnotationSummary = {
+  name: string;
+  meanScore?: number | null;
+  labelFractions: readonly { label: string; fraction: number }[];
+  count?: number | null;
+};
+
 export type AnnotationInputPropsBase<T extends AnnotationConfig> = {
   annotation?: Annotation;
   annotationConfig: T;

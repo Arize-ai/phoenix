@@ -1,11 +1,6 @@
 import { css } from "@emotion/react";
-import type { ColumnDef, SortingState, Table } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import type { RowData, SortingState } from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import React, {
   startTransition,
   useCallback,
@@ -16,7 +11,7 @@ import React, {
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { Group, Panel } from "react-resizable-panels";
-import { useNavigate, useParams, useSearchParams } from "react-router";
+import { useNavigate, useResolvedPath, useSearchParams } from "react-router";
 
 import {
   Flex,
@@ -28,9 +23,15 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
-import { MeanScore } from "@phoenix/components/annotation/MeanScore";
-import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
+import {
+  AnnotationSummaryGroupToken,
+  AnnotationSummaryGroupTokens,
+} from "@phoenix/components/annotation/AnnotationSummaryGroup";
+import {
+  TraceAnnotationSummaryGroupToken,
+  TraceAnnotationSummaryGroupTokens,
+} from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
+import type { Annotation } from "@phoenix/components/annotation/types";
 import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
@@ -54,24 +55,30 @@ import {
   TABLE_DATA_CELL_CLASS,
   getCommonPinningStyles,
 } from "@phoenix/components/table/styles";
+import type {
+  CellContext,
+  ColumnDef,
+  Table,
+} from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
 import { TraceTokenCosts } from "@phoenix/components/trace";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
-import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
+import { SpanStatusIndicator } from "@phoenix/components/trace/SpanStatusIndicator";
 import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
-import {
-  SELECTED_SPAN_NODE_ID_PARAM,
-  SPAN_FILTER_CONDITION_PARAM,
-} from "@phoenix/constants/searchParams";
+import { SPAN_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
-import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
+import { SpanTraceAnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
+import { ModelNameTableCell } from "@phoenix/pages/project/ModelNameTableCell";
+import { useSpanFilterActions } from "@phoenix/pages/project/SpanFiltersContext";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
+import { isSpanRowSelected } from "@phoenix/utils/traceSelectionUtils";
 import { getTraceDetailsPath } from "@phoenix/utils/urlUtils";
 
 import type {
@@ -104,10 +111,12 @@ import {
   ANNOTATION_COLUMN_SIZING,
   DEFAULT_SORT,
   getGqlSort,
-  makeAnnotationColumnId,
+  makeFlatAnnotationColumnId,
+  normalizeAnnotationColumnOrder,
   TRACE_ANNOTATIONS_COLUMN_ID,
 } from "./tableUtils";
 import { TraceNotesTableCell } from "./TraceNotesTableCell";
+import { useSelectedTraceSlots } from "./useSelectedTraceSlots";
 
 type SpansTableProps = {
   project: SpansTable_spans$key;
@@ -120,9 +129,13 @@ type SpansTableProps = {
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
+const renderSpanTraceAnnotationFilterActions = (annotation: Annotation) => (
+  <SpanTraceAnnotationTooltipFilterActions annotation={annotation} />
+);
+
 const defaultColumnSettings = {
   minSize: 100,
-} satisfies Partial<ColumnDef<unknown>>;
+} satisfies Partial<ColumnDef<RowData>>;
 
 const TableBody = <T extends { trace: { traceId: string }; id: string }>({
   table,
@@ -135,17 +148,14 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
   onLoadNext: () => void;
   isLoadingNext: boolean;
 }) => {
-  "use no memo";
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { traceId } = useParams();
-  const selectedSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
+  const basePath = useResolvedPath(".").pathname;
+  const selectedTraceSlots = useSelectedTraceSlots();
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
-        const isSelected =
-          selectedSpanNodeId === row.original.id ||
-          (!selectedSpanNodeId && row.original.trace.traceId === traceId);
+        const isSelected = isSpanRowSelected(selectedTraceSlots, row.original);
         return (
           <tr
             key={row.id}
@@ -153,6 +163,7 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
             onClick={() =>
               navigate(
                 getTraceDetailsPath({
+                  basePath,
                   traceId: row.original.trace.traceId,
                   spanNodeId: row.original.id,
                   searchParams,
@@ -200,9 +211,32 @@ export const MemoizedTableBody = React.memo(
   TableBody,
   (prev, next) => prev.table.options.data === next.table.options.data
 ) as typeof TableBody;
+const ModelNameCell = <TData extends { modelName?: string | null }, TValue>({
+  row,
+}: CellContext<TData, TValue>) => {
+  const { appendFilterCondition } = useSpanFilterActions();
+  return (
+    <ModelNameTableCell
+      modelName={row.original.modelName}
+      onFilterConditionPressed={appendFilterCondition}
+    />
+  );
+};
+const MetadataCell = <TData extends { metadata: unknown }, TValue>({
+  row,
+}: CellContext<TData, TValue>) => {
+  const { appendFilterCondition } = useSpanFilterActions();
+  return (
+    <MetadataTableCell
+      metadata={row.original.metadata}
+      onFilterConditionPressed={appendFilterCondition}
+    />
+  );
+};
 
 export function SpansTable(props: SpansTableProps) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const basePath = useResolvedPath(".").pathname;
   const { fetchKey } = useStreamState();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -288,11 +322,9 @@ export function SpansTable(props: SpansTableProps) {
     setIsExpanded: setAreRowsExpanded,
     tableProps: rowsExpandedTableProps,
   } = useTableRowsExpanded();
-  // Root-span scoping is expressed inside `filterCondition`, so the query below
-  // deliberately passes neither `rootSpansOnly` nor `orphanSpanAsRootSpan`:
-  // sending both would AND two independent root filters together, and the
-  // stricter one would silently win. `rootSpansOnly` survives only as a
-  // presentation flag selecting cumulative versus per-span metric fields.
+  // Root-span scoping is a clause of `filterCondition`; the server has no
+  // root-span argument. `rootSpansOnly` here is a presentation flag only,
+  // selecting cumulative versus per-span metric fields.
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<SpansTableSpansQuery, SpansTable_spans$key>(
       graphql`
@@ -327,6 +359,7 @@ export function SpansTable(props: SpansTableProps) {
                 name
                 metadata
                 userId
+                modelName
                 statusCode
                 statusMessage
                 startTime
@@ -343,12 +376,7 @@ export function SpansTable(props: SpansTableProps) {
                     }
                   }
                   traceAnnotationSummaries {
-                    labelFractions {
-                      fraction
-                      label
-                    }
                     count
-                    meanScore
                     name
                   }
                   ...TraceAnnotationSummaryGroup
@@ -366,14 +394,6 @@ export function SpansTable(props: SpansTableProps) {
                   score
                   annotatorKind
                   createdAt
-                }
-                spanAnnotationSummaries {
-                  labelFractions {
-                    fraction
-                    label
-                  }
-                  meanScore
-                  name
                 }
                 documentRetrievalMetrics {
                   evaluationName
@@ -445,39 +465,17 @@ export function SpansTable(props: SpansTableProps) {
     visibleAnnotationColumnNames.map((name) => {
       return {
         header: name,
-        columns: [
-          {
-            header: `labels`,
-            accessorKey: makeAnnotationColumnId(name, "label"),
-            cell: ({ row }) => {
-              const annotation = row.original.spanAnnotationSummaries.find(
-                (annotation) => annotation.name === name
-              );
-              if (!annotation) {
-                return null;
-              }
-              return (
-                <SummaryValueLabels
-                  name={name}
-                  labelFractions={annotation.labelFractions}
-                />
-              );
-            },
-          } as ColumnDef<TableRow>,
-          {
-            header: `mean score`,
-            accessorKey: makeAnnotationColumnId(name, "score"),
-            cell: ({ row }) => {
-              const annotation = row.original.spanAnnotationSummaries.find(
-                (annotation) => annotation.name === name
-              );
-              if (!annotation) {
-                return null;
-              }
-              return <MeanScore value={annotation.meanScore} fallback={null} />;
-            },
-          } as ColumnDef<TableRow>,
-        ],
+        accessorKey: makeFlatAnnotationColumnId(name),
+        cell: ({ row }) => {
+          return (
+            <AnnotationSummaryGroupToken
+              span={row.original}
+              annotationName={name}
+              annotationConfigsByName={annotationConfigsByName}
+              showFilterActions
+            />
+          );
+        },
       };
     });
 
@@ -485,43 +483,19 @@ export function SpansTable(props: SpansTableProps) {
     visibleTraceAnnotationColumnNames.map((name) => {
       return {
         header: name,
-        columns: [
-          {
-            header: `labels`,
-            accessorKey: makeAnnotationColumnId(name, "label", "trace"),
-            enableSorting: false,
-            cell: ({ row }) => {
-              const annotation =
-                row.original.trace.traceAnnotationSummaries.find(
-                  (annotation) => annotation.name === name
-                );
-              if (!annotation) {
-                return null;
-              }
-              return (
-                <SummaryValueLabels
-                  name={name}
-                  labelFractions={annotation.labelFractions}
-                />
-              );
-            },
-          } as ColumnDef<TableRow>,
-          {
-            header: `mean score`,
-            accessorKey: makeAnnotationColumnId(name, "score", "trace"),
-            enableSorting: false,
-            cell: ({ row }) => {
-              const annotation =
-                row.original.trace.traceAnnotationSummaries.find(
-                  (annotation) => annotation.name === name
-                );
-              if (!annotation) {
-                return null;
-              }
-              return <MeanScore value={annotation.meanScore} fallback={null} />;
-            },
-          } as ColumnDef<TableRow>,
-        ],
+        accessorKey: makeFlatAnnotationColumnId(name, "trace"),
+        enableSorting: false,
+        cell: ({ row }) => {
+          return (
+            <TraceAnnotationSummaryGroupToken
+              trace={row.original.trace}
+              annotationName={name}
+              annotationConfigsByName={annotationConfigsByName}
+              showFilterActions
+              renderFilterActions={renderSpanTraceAnnotationFilterActions}
+            />
+          );
+        },
       };
     });
 
@@ -602,6 +576,8 @@ export function SpansTable(props: SpansTableProps) {
             <TraceAnnotationSummaryGroupTokens
               trace={row.original.trace}
               annotationConfigsByName={annotationConfigsByName}
+              showFilterActions
+              renderFilterActions={renderSpanTraceAnnotationFilterActions}
             />
           </OverflowRow>
         );
@@ -621,11 +597,11 @@ export function SpansTable(props: SpansTableProps) {
       header: "status",
       accessorKey: "statusCode",
       enableSorting: false,
-      minSize: 50,
-      maxSize: 50,
+      minSize: 80,
+      maxSize: 80,
       cell: ({ getValue }) => {
         const statusCode = getValue() as SpanStatusCode;
-        return <SpanStatusCodeIcon statusCode={statusCode} />;
+        return <SpanStatusIndicator statusCode={statusCode} isLabelHidden />;
       },
     },
     {
@@ -647,6 +623,7 @@ export function SpansTable(props: SpansTableProps) {
         return (
           <Link
             to={getTraceDetailsPath({
+              basePath,
               traceId,
               spanNodeId: span.id,
               searchParams,
@@ -676,7 +653,10 @@ export function SpansTable(props: SpansTableProps) {
     },
     {
       header: "input",
-      accessorKey: "input.value",
+      // keep the id accessorKey "input.value" derived, which saved column
+      // preferences refer to; a span without an input has no `input`
+      id: "input_value",
+      accessorFn: (row) => row.input?.value,
       cell: ({ getValue, row }) => (
         <SpanInputValueTooltipCell
           nodeId={row.original.id}
@@ -687,7 +667,10 @@ export function SpansTable(props: SpansTableProps) {
     },
     {
       header: "output",
-      accessorKey: "output.value",
+      // keep the id accessorKey "output.value" derived, which saved column
+      // preferences refer to; a span without an output has no `output`
+      id: "output_value",
+      accessorFn: (row) => row.output?.value,
       cell: ({ getValue, row }) => (
         <SpanOutputValueTooltipCell
           nodeId={row.original.id}
@@ -695,6 +678,12 @@ export function SpansTable(props: SpansTableProps) {
         />
       ),
       enableSorting: false,
+    },
+    {
+      header: "model",
+      accessorKey: "modelName",
+      enableSorting: false,
+      cell: ModelNameCell,
     },
     {
       header: () => (
@@ -760,7 +749,7 @@ export function SpansTable(props: SpansTableProps) {
     {
       header: "metadata",
       accessorKey: "metadata",
-      cell: ({ row }) => <MetadataTableCell metadata={row.original.metadata} />,
+      cell: MetadataCell,
       enableSorting: false,
     },
     {
@@ -826,9 +815,10 @@ export function SpansTable(props: SpansTableProps) {
     },
     {
       header: rootSpansOnly ? "cumulative cost" : "total cost",
-      accessorKey: rootSpansOnly
-        ? "trace.costSummary.total.cost"
-        : "costSummary.total.cost",
+      accessorFn: (row) =>
+        rootSpansOnly
+          ? row.trace?.costSummary?.total?.cost
+          : row.costSummary?.total?.cost,
       id: rootSpansOnly ? "cumulativeTokenCostTotal" : "tokenCostTotal",
       meta: { textAlign: "right" },
       cell: ({ row, getValue }) => {
@@ -899,6 +889,19 @@ export function SpansTable(props: SpansTableProps) {
   const setStoredColumnOrder = useTracingContext(
     (state) => state.setColumnOrder
   );
+  const normalizedStoredColumnOrder = normalizeAnnotationColumnOrder({
+    columnOrder: storedColumnOrder,
+    annotationKinds: [
+      {
+        names: visibleAnnotationColumnNames,
+        getColumnId: (name) => makeFlatAnnotationColumnId(name),
+      },
+      {
+        names: visibleTraceAnnotationColumnNames,
+        getColumnId: (name) => makeFlatAnnotationColumnId(name, "trace"),
+      },
+    ],
+  });
   const {
     leafColumnOrder,
     visibleColumnOrder,
@@ -906,12 +909,13 @@ export function SpansTable(props: SpansTableProps) {
     getColumnOrderIndex,
   } = useColumnOrder({
     columns,
-    columnOrder: storedColumnOrder,
+    columnOrder: normalizedStoredColumnOrder,
     onColumnOrderChange: setStoredColumnOrder,
     columnVisibility,
     nonOrderableColumnIds: [CHECKBOX_COLUMN_ID],
   });
-  const table = useReactTable<TableRow>({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data: tableData,
     state: {
@@ -929,8 +933,6 @@ export function SpansTable(props: SpansTableProps) {
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
     onColumnSizingChange: setColumnSizing,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
   });
   const rows = table.getRowModel().rows;
   const selectedRows = table.getSelectedRowModel().rows;
@@ -946,35 +948,20 @@ export function SpansTable(props: SpansTableProps) {
     setRowSelection({});
   }, [setRowSelection]);
   const isEmpty = rows.length === 0;
-  const computedColumns = table.getAllColumns().filter((column) => {
-    // Filter out columns that are eval groupings
-    return column.columns.length === 0;
-  });
 
-  const { columnSizingInfo, columnSizing: columnSizingState } =
-    table.getState();
-  const getFlatHeaders = table.getFlatHeaders;
-  const colLength = computedColumns.length;
+  const { columnResizing } = table.state;
   /**
    * Instead of calling `column.getSize()` on every render for every header
    * and especially every data cell (very expensive),
-   * we will calculate all column sizes at once at the root table level in a useMemo
+   * we calculate all column sizes at once at the root table level
    * and pass the column sizes down as CSS variables to the <table> element.
-   * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
+   * @see https://tanstack.com/table/latest/docs/framework/react/examples/column-resizing-performant
    */
-  const [columnSizeVars] = useMemo(() => {
-    const headers = getFlatHeaders();
-    const colSizes: { [key: string]: number } = {};
-    for (let i = 0; i < headers.length; i++) {
-      const header = headers[i]!;
-      colSizes[`--header-${header.id}-size`] = header.getSize();
-      colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
-    }
-    return [colSizes];
-    // Disabled lint as per tanstack docs linked above
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getFlatHeaders, columnSizingInfo, columnSizingState, colLength]);
+  const columnSizeVars: { [key: string]: number } = {};
+  for (const header of table.getFlatHeaders()) {
+    columnSizeVars[`--header-${header.id}-size`] = header.getSize();
+    columnSizeVars[`--col-${header.column.id}-size`] = header.column.getSize();
+  }
 
   return (
     <TableMetricsChartsPanelGroup view="spans">
@@ -1127,7 +1114,7 @@ export function SpansTable(props: SpansTableProps) {
                     // spans. This is an undesirable edge case. The optimization is a stopgap solution that
                     // will be replaced to eliminate this condition.
                     <ProjectTableEmpty />
-                  ) : columnSizingInfo.isResizingColumn ? (
+                  ) : columnResizing.isResizingColumn ? (
                     <MemoizedTableBody
                       table={table}
                       hasNext={hasNext}

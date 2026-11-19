@@ -147,7 +147,7 @@ def test_transcript_ignores_later_subagent_llm_span() -> None:
     """A subagent's LLM span starting after the main agent's final call must not
     hijack transcript reconstruction (regression: trace 6e6a106d in pxi_dev)."""
     root, spans = _two_turn_trace("no, I asked for this week")
-    subagent = _span("subagent", name="ServerAgent.iter", kind="AGENT", parent_id="root", start=5)
+    subagent = _span("subagent", name="PXISubagent.iter", kind="AGENT", parent_id="root", start=5)
     nested_llm = _span(
         "nested-llm",
         name="model",

@@ -72,17 +72,19 @@ export function ExperimentAverageRunTokenCostsDetails({
           ? null
           : costCompletion / runCount;
 
+      // The entries are experiment-wide totals, like the summary; each is
+      // averaged over the runs so the details add up to the averages above
       const promptDetails: Record<string, number> = {};
       promptEntries.forEach((detail) => {
-        if (detail.value.cost != null) {
-          promptDetails[detail.tokenType] = detail.value.cost;
+        if (detail.value.cost != null && runCount > 0) {
+          promptDetails[detail.tokenType] = detail.value.cost / runCount;
         }
       });
 
       const completionDetails: Record<string, number> = {};
       completionEntries.forEach((detail) => {
-        if (detail.value.cost != null) {
-          completionDetails[detail.tokenType] = detail.value.cost;
+        if (detail.value.cost != null && runCount > 0) {
+          completionDetails[detail.tokenType] = detail.value.cost / runCount;
         }
       });
 

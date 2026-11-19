@@ -17,3 +17,54 @@ export function calculateAnnotationScorePercentile(
   const range = correctedMax - correctedMin || 1;
   return ((value - correctedMin) / range) * 100;
 }
+
+type AnnotationSummary = {
+  readonly annotationName: string;
+  readonly meanScore: number | null;
+};
+
+type AnnotatedExperiment = {
+  readonly id: string;
+  readonly annotationSummaries: ReadonlyArray<AnnotationSummary>;
+};
+
+export type AnnotationMeanScoreComparison = {
+  annotationName: string;
+  baseExperimentMeanScore: number;
+  compareExperimentMeanScores: {
+    experimentId: string;
+    meanScore: number | null;
+  }[];
+};
+
+/**
+ * Pairs each annotation scored on the base experiment with every compare
+ * experiment's mean score for it, null where that experiment lacks the
+ * annotation. With no compare experiments each comparison list is empty.
+ */
+export function compareAnnotationMeanScores(
+  baseExperiment: Pick<AnnotatedExperiment, "annotationSummaries">,
+  compareExperiments: ReadonlyArray<AnnotatedExperiment>
+): AnnotationMeanScoreComparison[] {
+  const comparisons: AnnotationMeanScoreComparison[] = [];
+  for (const {
+    annotationName,
+    meanScore,
+  } of baseExperiment.annotationSummaries) {
+    if (meanScore == null) {
+      continue;
+    }
+    comparisons.push({
+      annotationName,
+      baseExperimentMeanScore: meanScore,
+      compareExperimentMeanScores: compareExperiments.map((experiment) => ({
+        experimentId: experiment.id,
+        meanScore:
+          experiment.annotationSummaries.find(
+            (summary) => summary.annotationName === annotationName
+          )?.meanScore ?? null,
+      })),
+    });
+  }
+  return comparisons;
+}

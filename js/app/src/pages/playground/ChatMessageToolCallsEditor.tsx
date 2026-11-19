@@ -67,7 +67,7 @@ export function ChatMessageToolCallsEditor({
     const newToolCalls = message.toolCalls;
     const newEditorValue = JSON.stringify(newToolCalls, null, 2);
     if (isJSONString({ str: newEditorValue, excludeNull: true })) {
-      // eslint-disable-next-line react-hooks-js/set-state-in-effect
+      // eslint-disable-next-line react/set-state-in-effect
       setInitialEditorValue(newEditorValue);
     }
   }, [instanceProvider, store, playgroundInstanceId, messageId]);
@@ -98,8 +98,11 @@ export function ChatMessageToolCallsEditor({
       case "FIREWORKS":
       case "GROQ":
       case "MOONSHOT":
+      case "MINIMAX":
       case "PERPLEXITY":
       case "TOGETHER":
+      case "ZAI":
+      case "META":
         return openAIToolCallsJSONSchema as JSONSchema7;
       case "ANTHROPIC":
         return anthropicToolCallsJSONSchema as JSONSchema7;

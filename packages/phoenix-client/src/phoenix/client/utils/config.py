@@ -2,6 +2,7 @@ import logging
 import os
 import re
 import stat as stat_module
+import sys
 from pathlib import Path
 from typing import Iterable, Literal, NamedTuple, Optional, overload
 
@@ -16,7 +17,6 @@ from phoenix.client.constants import (
     ENV_PHOENIX_DISCOVER_CONFIG,
     ENV_PHOENIX_ENDPOINT,
     ENV_PHOENIX_HOST,
-    ENV_PHOENIX_HOST_ROOT_PATH,
     ENV_PHOENIX_PORT,
     ENV_PHOENIX_PROJECT,
     ENV_PHOENIX_PROJECT_NAME,
@@ -29,6 +29,15 @@ from phoenix.client.utils.parse_env_headers import parse_env_headers
 logger = logging.getLogger(__name__)
 
 _ENV_FILE_KEY_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+# Matches envFileParser.ts in @arizeai/phoenix-config: its line breaks and JavaScript's trim().
+_ENV_FILE_LINE_BREAK = re.compile(r"\r\n|\r|\n")
+_ENV_FILE_TRIM_CHARS = "".join(
+    map(
+        chr,
+        [0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x20, 0xA0, 0x1680, *range(0x2000, 0x200B)]
+        + [0x2028, 0x2029, 0x202F, 0x205F, 0x3000, 0xFEFF],
+    )
+)
 _warned_env_file_permissions: set[str] = set()
 _warned_skipped_env_files: set[str] = set()
 _warned_cross_tier_endpoints: set[tuple[str, str]] = set()
@@ -102,8 +111,12 @@ def _is_env_file_discovery_enabled() -> bool:
 
 def _is_trusted_env_file_stat(stat: os.stat_result) -> bool:
     """Whether the stat describes a regular file owned by the current user."""
-    is_owned_by_current_user = not hasattr(os, "getuid") or stat.st_uid == os.getuid()
-    return stat_module.S_ISREG(stat.st_mode) and is_owned_by_current_user
+    if not stat_module.S_ISREG(stat.st_mode):
+        return False
+    if sys.platform == "win32" or not hasattr(os, "getuid"):
+        # Without POSIX file ownership ``st_uid`` carries no information.
+        return True
+    return stat.st_uid == os.getuid()
 
 
 def _find_env_file(start_dir: Path) -> Optional[Path]:
@@ -151,19 +164,19 @@ def _warn_if_env_file_permissive(path: Path, mode: int) -> None:
 def _parse_env_file(text: str) -> dict[str, str]:
     """Parse dotenv-formatted text, keeping only non-empty ``PHOENIX_``-prefixed keys."""
     values: dict[str, str] = {}
-    for raw_line in text.splitlines():
-        line = raw_line.strip()
+    for raw_line in _ENV_FILE_LINE_BREAK.split(text):
+        line = raw_line.strip(_ENV_FILE_TRIM_CHARS)
         if not line or line.startswith("#"):
             continue
         if line.startswith("export "):
-            line = line[len("export ") :].lstrip()
+            line = line[len("export ") :].lstrip(_ENV_FILE_TRIM_CHARS)
         key, sep, value = line.partition("=")
         if not sep:
             continue
-        key = key.strip()
+        key = key.strip(_ENV_FILE_TRIM_CHARS)
         if not key.startswith("PHOENIX_") or not _ENV_FILE_KEY_PATTERN.match(key):
             continue
-        value = value.strip()
+        value = value.strip(_ENV_FILE_TRIM_CHARS)
         if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
             value = value[1:-1]
         if value:
@@ -393,22 +406,6 @@ def get_env_host() -> str:
     return _resolve_server_location_values()[0].get(ENV_PHOENIX_HOST) or HOST
 
 
-def get_env_host_root_path() -> str:
-    if (host_root_path := getenv(ENV_PHOENIX_HOST_ROOT_PATH)) is None:
-        return ""
-    if not host_root_path.startswith("/"):
-        _reject_invalid_env_value(
-            ENV_PHOENIX_HOST_ROOT_PATH, host_root_path, "Value must start with '/'"
-        )
-        return ""
-    if host_root_path.endswith("/"):
-        _reject_invalid_env_value(
-            ENV_PHOENIX_HOST_ROOT_PATH, host_root_path, "Value cannot end with '/'"
-        )
-        return ""
-    return host_root_path
-
-
 def get_env_client_headers() -> dict[str, str]:
     values = _resolve_env_tier(_CREDENTIAL_ENV_KEYS)
     headers = parse_env_headers(values.get(ENV_PHOENIX_CLIENT_HEADERS))
@@ -453,8 +450,16 @@ def _normalize_base_url_candidate(env_key: str, value: str, port: Optional[str])
     if env_key == ENV_PHOENIX_HOST and not _URL_SCHEME_PATTERN.match(value):
         # PHOENIX_HOST is the server's bind host, so a bare host becomes a URL
         # on PHOENIX_PORT; a value that already carries a port is taken as-is.
-        host = "127.0.0.1" if value == "0.0.0.0" else value
-        return f"http://{host}" if ":" in host else f"http://{host}:{_coerce_port(port)}"
+        host = "127.0.0.1" if value in ("0.0.0.0", "::", "[::]") else value
+        if host.startswith("["):
+            return f"http://{host}:{_coerce_port(port)}" if host.endswith("]") else f"http://{host}"
+        colon_count = host.count(":")
+        if colon_count == 0:
+            return f"http://{host}:{_coerce_port(port)}"
+        # One colon is host:port; two or more is an unbracketed IPv6 literal.
+        if colon_count == 1:
+            return f"http://{host}"
+        return f"http://[{host}]:{_coerce_port(port)}"
     return value
 
 

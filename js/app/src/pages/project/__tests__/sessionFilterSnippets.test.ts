@@ -2,30 +2,61 @@ import { describe, expect, it } from "vitest";
 
 import { MAX_BROWSE_SUGGESTIONS } from "@phoenix/components/filter";
 
-import { sessionFilterCoreVocabulary } from "../sessionFilterCoreVocabulary.generated";
 import {
-  sessionFilterAIQueryDSL,
-  sessionFilterLoopVariables,
+  createSessionFilterAIQueryDSL,
   sessionFilterSnippets,
+  type SessionFilterVocabularyTerm,
 } from "../sessionFilterDSL";
 
-describe("session filter loop variables", () => {
-  it("qualifies every generated collection field with its named loop variable", () => {
-    const fieldNames = new Set(
-      sessionFilterAIQueryDSL.fields.map(({ name }) => name)
-    );
+const vocabulary: SessionFilterVocabularyTerm[] = [
+  {
+    name: "latency_ms",
+    type: "number",
+    description: "Span latency.",
+    category: "element",
+    iterableName: "spans",
+  },
+  {
+    name: "start_time",
+    type: "datetime",
+    description: "Trace start time.",
+    category: "element",
+    iterableName: "traces",
+  },
+  {
+    name: "score",
+    type: "number",
+    description: "Session annotation score.",
+    category: "element",
+    iterableName: "session_annotations",
+  },
+  {
+    name: "label",
+    type: "string",
+    description: "Span annotation label.",
+    category: "element",
+    iterableName: "span_annotations",
+  },
+  {
+    name: "cost",
+    type: "number",
+    description: "Span cost detail.",
+    category: "element",
+    iterableName: "span_cost_details",
+  },
+];
 
+describe("session filter loop variables", () => {
+  it("qualifies runtime collection fields with the matching loop variable", () => {
     expect(
-      sessionFilterCoreVocabulary
-        .filter((term): term is typeof term & { iterableName: string } =>
-          Boolean(term.iterableName)
-        )
-        .map(
-          ({ iterableName, name }) =>
-            `${sessionFilterLoopVariables[iterableName]}.${name}`
-        )
-        .filter((qualified) => !fieldNames.has(qualified))
-    ).toEqual([]);
+      createSessionFilterAIQueryDSL(vocabulary).fields.map(({ name }) => name)
+    ).toEqual([
+      "span.latency_ms",
+      "trace.start_time",
+      "annotation.score",
+      "annotation.label",
+      "cost_detail.cost",
+    ]);
   });
 });
 

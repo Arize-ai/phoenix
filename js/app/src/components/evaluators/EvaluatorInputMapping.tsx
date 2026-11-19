@@ -69,10 +69,12 @@ const useEvaluatorInputMappingControlsForm = () => {
   const { pathMapping, literalMapping } = initialInputMappingRef.current;
   // Escape keys for react-hook-form to prevent dots from being interpreted as nested paths
   const escapedPathMapping = useMemo(
+    // eslint-disable-next-line react/refs
     () => escapeMapping(pathMapping),
     [pathMapping]
   );
   const escapedLiteralMapping = useMemo(
+    // eslint-disable-next-line react/refs
     () => escapeMapping(literalMapping),
     [literalMapping]
   );
@@ -102,7 +104,8 @@ const useEvaluatorInputMappingControlsForm = () => {
 };
 
 const EvaluatorInputMappingControls = () => {
-  const { control, setValue } = useEvaluatorInputMappingControlsForm();
+  const { control, getValues, setValue } =
+    useEvaluatorInputMappingControlsForm();
   const variables = useEvaluatorInputVariables();
   const evaluatorMappingSource = useEvaluatorStore(
     (state) => state.evaluatorMappingSource
@@ -122,8 +125,8 @@ const EvaluatorInputMappingControls = () => {
             fieldName={escapedVariable}
             label={variable}
             size="M"
-            defaultMode="path"
             control={control}
+            getValues={getValues}
             setValue={setValue}
             pathOptions={allExampleKeys}
             pathPlaceholder={variable}

@@ -43,9 +43,11 @@ export function TopNavActionsSlot() {
       "TopNavActionsSlot must be rendered inside a TopNavActionsProvider"
     );
   }
+  /* eslint-disable react/refs */
   return (
     <div ref={ctx.setTarget} css={slotCSS} data-testid="top-nav-actions" />
   );
+  /* eslint-enable react/refs */
 }
 
 /**

@@ -4,6 +4,7 @@ import { devtools, persist } from "zustand/middleware";
 
 import type { LastNTimeRangeKey } from "@phoenix/components/datetime/types";
 import type { AIQueryModelConfig } from "@phoenix/components/filter/ai/types";
+import { PREFERENCES_STORAGE_KEY } from "@phoenix/constants/storageConstants";
 import type { PackageManager, ProgrammingLanguage } from "@phoenix/types/code";
 import {
   pythonPackageManagers,
@@ -145,6 +146,11 @@ export interface PreferencesProps {
    */
   displayTimezone?: DisplayTimezone;
   /**
+   * Whether to use the browser and operating system's native scrollbar styling
+   * @default false
+   */
+  isNativeScrollbarStylingEnabled: boolean;
+  /**
    * The preferred programming language for code snippets
    * @default "Python"
    */
@@ -255,6 +261,12 @@ export interface PreferencesState extends PreferencesProps {
    * Setter for the display timezone
    */
   setDisplayTimezone: (displayTimezone: DisplayTimezone | undefined) => void;
+  /**
+   * Setter for using native scrollbar styling
+   */
+  setIsNativeScrollbarStylingEnabled: (
+    isNativeScrollbarStylingEnabled: boolean
+  ) => void;
   /**
    * Setter for the preferred programming language
    */
@@ -401,6 +413,12 @@ export const createPreferencesStore = (
       }
       set({ displayTimezone }, false, { type: "setDisplayTimezone" });
     },
+    isNativeScrollbarStylingEnabled: false,
+    setIsNativeScrollbarStylingEnabled: (isNativeScrollbarStylingEnabled) => {
+      set({ isNativeScrollbarStylingEnabled }, false, {
+        type: "setIsNativeScrollbarStylingEnabled",
+      });
+    },
     programmingLanguage: "Python",
     setProgrammingLanguage: (programmingLanguage) => {
       set({ programmingLanguage }, false, { type: "setProgrammingLanguage" });
@@ -453,7 +471,7 @@ export const createPreferencesStore = (
   });
   return create<PreferencesState>()(
     persist(devtools(preferencesStore, { name: "preferencesStore" }), {
-      name: "arize-phoenix-preferences",
+      name: PREFERENCES_STORAGE_KEY,
     })
   );
 };

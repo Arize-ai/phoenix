@@ -4,6 +4,7 @@ import { RelayEnvironmentProvider } from "react-relay";
 import { Environment, Network, RecordSource, Store } from "relay-runtime";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { RECENT_EXPERIMENT_SELECTION } from "../types";
 import { useExperimentAnnotationMetricData } from "../useExperimentAnnotationMetricData";
 
 describe("useExperimentAnnotationMetricData", () => {
@@ -106,6 +107,7 @@ function AnnotationMetricsConsumer({ datasetId }: { datasetId: string }) {
     {
       datasetId,
       annotationName: "quality",
+      experimentSelection: RECENT_EXPERIMENT_SELECTION,
     }
   );
   return (

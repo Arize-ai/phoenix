@@ -1,5 +1,7 @@
 import {
   type CodeEvaluatorDraftSnapshot,
+  codeEvaluatorDraftFileName,
+  codeEvaluatorDraftSnapshotToText,
   EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
   parseEditCodeEvaluatorDraftInput,
   type PendingCodeEvaluatorEdit,
@@ -7,7 +9,7 @@ import {
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import { LazyDiffAcceptRejectToolDetails } from "./LazyDiffAcceptRejectToolDetails";
-import type { ToolInvocationPart } from "./toolPartTypes";
+import type { ToolInvocationPart, ToolStatus } from "./toolPartTypes";
 import { formatToolState } from "./toolPartTypes";
 
 export function getEditCodeEvaluatorDraftToolPreview(
@@ -18,19 +20,23 @@ export function getEditCodeEvaluatorDraftToolPreview(
   return `${input.operations.length} proposed edit${input.operations.length === 1 ? "" : "s"}`;
 }
 
-export function formatEditCodeEvaluatorDraftState(
+export function getEditCodeEvaluatorDraftStatus(
   part: ToolInvocationPart
-): string {
+): ToolStatus {
   switch (part.state) {
     case "input-available":
-      return "Awaiting approval";
+      return { stateLabel: "Awaiting approval", statusCategory: "needs-input" };
     case "output-available": {
       const status = getOutputStatus(part.output);
-      if (status === "rejected") return "Rejected";
-      return isAutoAccepted(part.output) ? "Auto-approved" : "Accepted";
+      if (status === "rejected") {
+        return { stateLabel: "Rejected", statusCategory: "denied" };
+      }
+      return {
+        stateLabel: isAutoAccepted(part.output) ? "Auto-approved" : "Accepted",
+      };
     }
     default:
-      return formatToolState(part.state);
+      return { stateLabel: formatToolState(part.state) };
   }
 }
 
@@ -50,9 +56,11 @@ export function EditCodeEvaluatorDraftToolDetails({
     >
       part={part}
       pending={pending}
-      snapshotToText={draftSnapshotToText}
+      snapshotToText={codeEvaluatorDraftSnapshotToText}
       fileName={
-        pending ? draftFileName(pending.before) : "code-evaluator-draft.txt"
+        pending
+          ? codeEvaluatorDraftFileName(pending.before)
+          : "code-evaluator-draft.txt"
       }
       renderHeader={renderCodeEvaluatorDiffHeader}
       preparingLabel={EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME}
@@ -69,25 +77,6 @@ function renderCodeEvaluatorDiffHeader(pending: PendingCodeEvaluatorEdit) {
       Proposed diff for code-evaluator draft ({pending.before.mode} mode)
     </span>
   );
-}
-
-function draftFileName(snapshot: CodeEvaluatorDraftSnapshot): string {
-  return snapshot.mode === "edit"
-    ? `code-evaluator-${snapshot.evaluatorNodeId ?? "draft"}.txt`
-    : "code-evaluator-draft.txt";
-}
-
-function draftSnapshotToText(snapshot: CodeEvaluatorDraftSnapshot): string {
-  return [
-    `name: ${snapshot.name}`,
-    `description: ${snapshot.description}`,
-    `language: ${snapshot.language}`,
-    `sandboxConfigId: ${snapshot.sandboxConfigId ?? "null"}`,
-    `inputMapping: ${JSON.stringify(snapshot.inputMapping, null, 2)}`,
-    `testPayload: ${JSON.stringify(snapshot.testPayload, null, 2)}`,
-    `outputConfigs: ${JSON.stringify(snapshot.outputConfigs, null, 2)}`,
-    `sourceCode:\n${snapshot.sourceCode}`,
-  ].join("\n\n");
 }
 
 function getOutputStatus(output: unknown): string | null {

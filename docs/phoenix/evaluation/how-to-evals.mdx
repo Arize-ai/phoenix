@@ -16,14 +16,14 @@ An evaluator is anything that takes inputs and returns a **Score**. The `Score` 
 | `direction` | ✓ | Whether a higher score is better or worse |
 | `score` | optional | Numeric result |
 | `label` | optional | Categorical outcome (e.g. `"correct"`, `"hallucinated"`) |
-| `explanation` | optional | Reasoning behind the result |
+| `explanation` | optional | Reasoning behind the result (present only with a language-model judge) |
 | `metadata` | optional | Arbitrary extra context |
 
 Every evaluator exposes `evaluate` and `async_evaluate` methods for running on a single record, and an `input_schema` that describes what fields it needs.
 
 ## Evaluator Types
 
-**LLM-based evaluators** use a judge model to assess qualitative criteria — things like faithfulness, toxicity, or relevance — where "correct" is subjective. The judge reads a prompt template and produces a labeled score with an explanation. See [Custom LLM Evaluators](/docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators) and [Configuring the LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm).
+**LLM-based evaluators** use a judge model to assess qualitative criteria — things like faithfulness, toxicity, or relevance — where "correct" is subjective. The judge reads a prompt template and produces a labeled score. The judge can be a language model (`LLM`), which also returns an explanation, or a decision model (`DecisionModel`), which returns per-label probabilities instead. See [Custom LLM Evaluators](/docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators) and [Configuring the LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm).
 
 **Code evaluators** use deterministic logic or heuristics — exact match, regex, Levenshtein distance — where "correct" is objective. They run without any LLM call and are fast and cheap. See [Code Evaluators](/docs/phoenix/evaluation/how-to-evals/code-evaluators).
 

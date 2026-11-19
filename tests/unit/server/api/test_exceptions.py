@@ -43,6 +43,31 @@ def schema() -> strawberry.Schema:
 
 
 class TestPhoenixErrorMasker:
+    def test_initial_incremental_execution_errors_are_masked(
+        self, schema: strawberry.Schema, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from graphql import GraphQLError, InitialIncrementalExecutionResult
+        from strawberry.types.execution import ExecutionContext
+
+        monkeypatch.setenv(ENV_PHOENIX_MASK_INTERNAL_SERVER_ERRORS, "true")
+        result = InitialIncrementalExecutionResult(
+            data={"boom": None},
+            errors=[
+                GraphQLError(
+                    "super secret internal detail",
+                    cause=RuntimeError("super secret internal detail"),
+                    path=["boom"],
+                )
+            ],
+        )
+        context = ExecutionContext(query=None, schema=schema, allowed_operations=(), result=result)
+        extension = PhoenixErrorMasker()
+        extension.execution_context = context
+        list(extension.on_operation())
+        assert result.errors is not None
+        assert result.errors[0].message == _GENERIC_MASK_MESSAGE
+        assert result.errors[0].path == ["boom"]
+
     def test_uncaught_resolver_exception_is_masked_when_enabled(
         self, schema: strawberry.Schema, monkeypatch: pytest.MonkeyPatch
     ) -> None:

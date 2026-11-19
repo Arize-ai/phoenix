@@ -33,6 +33,8 @@ export type AttributeObject = {
   [SemanticAttributePrefixes.tool]?: AttributeTool;
   [SemanticAttributePrefixes.reranker]?: AttributeReranker;
   [SemanticAttributePrefixes.llm]?: AttributeLlm;
+  /** Narrowed where read, since decision spans are still experimental */
+  [SemanticAttributePrefixes.decision]?: unknown;
 };
 
 /**

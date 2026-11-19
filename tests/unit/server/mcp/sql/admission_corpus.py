@@ -285,6 +285,24 @@ CASES: tuple[AdmissionCase, ...] = (
         dialect="sqlite",
     ),
     AdmissionCase(
+        sql="SELECT time_fmt_datetime(time_trunc(time_parse(start_time), 'day')) AS bucket FROM spans GROUP BY bucket",
+        expect=AdmissionOutcome.ADMIT,
+        note="time_trunc is SQLite's date_trunc, from the bundled sqlean time extension",
+        dialect="sqlite",
+    ),
+    AdmissionCase(
+        sql="SELECT time_sub(time_parse(end_time), time_parse(start_time)) / 1e6 AS ms FROM spans",
+        expect=AdmissionOutcome.ADMIT,
+        note="time_sub parses to a node class of its own, so it is admitted by class rather than by name",
+        dialect="sqlite",
+    ),
+    AdmissionCase(
+        sql="SELECT time_sub(end_time, start_time) FROM spans",
+        expect=AdmissionOutcome.FUNCTION_NOT_ALLOWED,
+        note="time_sub is a SQLite extension function; PostgreSQL subtracts timestamps directly",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
         sql="SELECT to_char(start_time, 'YYYY-MM') FROM spans",
         expect=AdmissionOutcome.ADMIT,
         note="to_char is PostgreSQL's format spelling and parses to the same TimeToStr class as SQLite strftime",
@@ -385,20 +403,56 @@ CASES: tuple[AdmissionCase, ...] = (
     ),
     AdmissionCase(
         sql="SELECT count(*) FROM spans WHERE (attributes #>> '{session,id}'::text[]) IS NOT NULL",
-        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
-        note="a cast written bare after #>> parses as a cast of the whole extraction, which is also what a deliberate CAST(a #>> b AS text[]) produces; the two readings are indistinguishable after parsing so neither is chosen for the caller",
+        expect=AdmissionOutcome.ADMIT,
+        note="a cast written bare after #>> binds to the path, the way PostgreSQL reads it, and is the form pg_get_indexdef publishes",
         dialect="postgresql",
     ),
     AdmissionCase(
         sql="SELECT CAST(attributes #>> '{session,id}' AS text[]) AS v FROM spans",
-        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
-        note="the deliberate spelling of the same ambiguous tree, refused for the same reason; (attributes #>> '{session,id}')::text[] says it unambiguously and is admitted",
+        expect=AdmissionOutcome.ADMIT,
+        note="casting the extraction parses the extracted string as an array literal, a distinct operation and a distinct tree from casting the path",
         dialect="postgresql",
     ),
     AdmissionCase(
         sql="SELECT (attributes #>> '{session,id}')::text[] AS v FROM spans",
         expect=AdmissionOutcome.ADMIT,
         note="casting the extracted value is unambiguous once parenthesised, and is a real operation: PostgreSQL parses the extracted string as an array literal",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
+        sql="SELECT * FROM projects JOIN traces ON traces.project_rowid = projects.id RIGHT JOIN spans USING (start_time)",
+        expect=AdmissionOutcome.ADMIT,
+        note="a USING key on a join with more than one relation to its left; star expansion merges the key across the relations that provide it, and projects is not one of them",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
+        sql="SELECT user FROM spans, (SELECT 1) q",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="a foreign source in the FROM clause opens the unqualified-name hatch, and `user` binds to the session rather than to that source; the same identity is refused under its current_user spelling",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
+        sql="SELECT ctid FROM spans, (SELECT 1) q",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="a system column binds to the base table through the same hatch, exposing physical tuple location; qualified spans.ctid is refused by the manifest check",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
+        sql="SELECT id FROM spans, (SELECT 1) q WHERE ctid IS NOT NULL",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="the hatch is per column reference, not per projection, so a predicate reaches it too",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
+        sql="SELECT rowid FROM spans, (SELECT 1) q",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="SQLite binds rowid to the base table through the same hatch",
+        dialect="sqlite",
+    ),
+    AdmissionCase(
+        sql="SELECT key FROM spans, jsonb_each(attributes) j",
+        expect=AdmissionOutcome.ADMIT,
+        note="the shape the unqualified-name hatch exists for: a table-valued function projects a name the manifest has never heard of",
         dialect="postgresql",
     ),
     AdmissionCase(
@@ -420,7 +474,7 @@ CASES: tuple[AdmissionCase, ...] = (
     AdmissionCase(
         sql="SELECT attributes ? 'session' AS v FROM spans",
         expect=AdmissionOutcome.ADMIT,
-        note="key existence, the first question anyone asks of a JSONB column; the operator form of a key-existence test; its refusal names the parser class jsonb_contains, which is not PostgreSQL's function for it",
+        note="key existence, the first question anyone asks of a JSONB column; the operator form of a key-existence test",
         dialect="postgresql",
     ),
     AdmissionCase(
@@ -474,7 +528,7 @@ CASES: tuple[AdmissionCase, ...] = (
     AdmissionCase(
         sql="SELECT attributes ? 'session' AS v FROM spans",
         expect=AdmissionOutcome.FUNCTION_NOT_ALLOWED,
-        note="declared asymmetry: SQLite has no key-existence operator, so the question is asked with json_extract(...) IS NOT NULL or json_each; the refusal names the parser class jsonb_contains rather than the operator written",
+        note="declared asymmetry: SQLite has no key-existence operator, so the question is asked with json_extract(...) IS NOT NULL or json_each",
         dialect="sqlite",
     ),
     AdmissionCase(
@@ -666,7 +720,7 @@ CASES: tuple[AdmissionCase, ...] = (
     AdmissionCase(
         sql="SELECT attributes #> ARRAY['session', 'id'] FROM spans",
         expect=AdmissionOutcome.ADMIT,
-        note="#> ARRAY['a','b'] is equivalent to #> '{a,b}' and must not be refused as Bracket",
+        note="#> ARRAY['a','b'] is the array-constructor spelling of the #> '{a,b}' path and reaches the same value, so it is admitted on the same terms",
         dialect="postgresql",
     ),
     AdmissionCase(
@@ -681,7 +735,7 @@ CASES: tuple[AdmissionCase, ...] = (
             "GROUP BY GROUPING SETS ((status_code), (span_kind), ()) LIMIT 20"
         ),
         expect=AdmissionOutcome.ADMIT,
-        note="SQLGlot cannot parse GROUPING SETS with LIMIT attached; peel the clause, parse, and put it back so the engine still sees the caller's limit",
+        note="GROUPING SETS with LIMIT attached parses as written and the engine sees the caller's limit",
         dialect="postgresql",
     ),
     AdmissionCase(
@@ -795,7 +849,7 @@ CASES: tuple[AdmissionCase, ...] = (
     AdmissionCase(
         sql="SELECT name, COUNT(*) FROM spans GROUP BY ROLLUP(name) LIMIT 5",
         expect=AdmissionOutcome.ADMIT,
-        note="GROUPING SETS LIMIT recovery must also match ROLLUP( without a space before the parenthesis",
+        note="ROLLUP( without a space before the parenthesis, followed by LIMIT, parses as written",
         dialect="postgresql",
     ),
     AdmissionCase(
@@ -836,8 +890,8 @@ CASES: tuple[AdmissionCase, ...] = (
     ),
     AdmissionCase(
         sql='SELECT CAST(65 AS "char")',
-        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
-        note='parser folds quoted `"char"` to CHAR (bpchar); PostgreSQL\'s `"char"` is a 1-byte type',
+        expect=AdmissionOutcome.ADMIT,
+        note='quoted `"char"` is PostgreSQL\'s 1-byte type, distinct from CHAR (bpchar); the parser keeps the quotes',
         dialect="postgresql",
     ),
     AdmissionCase(

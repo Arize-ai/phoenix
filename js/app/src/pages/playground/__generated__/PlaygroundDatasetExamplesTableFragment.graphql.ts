@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e9b8766608b5f7c825d23053489d2031>>
+ * @generated SignedSource<<ea11385b04ad2558d0255f7e7f77245b>>
  * @lightSyntaxTransform
  */
 
@@ -13,6 +13,7 @@ export type PlaygroundDatasetExamplesTableFragment$data = {
   readonly examples: {
     readonly edges: ReadonlyArray<{
       readonly example: {
+        readonly externalId: string | null;
         readonly id: string;
         readonly revision: {
           readonly input: any;
@@ -136,6 +137,13 @@ return {
                 {
                   "alias": null,
                   "args": null,
+                  "kind": "ScalarField",
+                  "name": "externalId",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
                   "concreteType": "DatasetExampleRevision",
                   "kind": "LinkedField",
                   "name": "revision",
@@ -231,6 +239,6 @@ return {
 };
 })();
 
-(node as any).hash = "3bf2d20abbb5a73422290b8eb1d22a6e";
+(node as any).hash = "3450a92fbd4052c269ea6281ce624b03";
 
 export default node;

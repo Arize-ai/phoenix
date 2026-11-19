@@ -25,7 +25,7 @@ async function openAssistant(page: Page) {
   const rail = page.getByRole("complementary", { name: "Assistant" });
   await expect(rail).toBeVisible();
   const acknowledgeButton = rail.getByRole("button", { name: "Acknowledge" });
-  const input = rail.getByPlaceholder("Send a message...");
+  const input = rail.getByLabel("Message input");
   await expect(acknowledgeButton.or(input)).toBeVisible();
   if (await acknowledgeButton.isVisible()) {
     await acknowledgeButton.click();
@@ -52,6 +52,8 @@ async function createDataset(page: Page, name: string) {
   await dialog.getByLabel("Dataset Name").fill(name);
   await dialog.getByRole("button", { name: "Create Dataset" }).click();
   await expect(dialog).not.toBeVisible();
+  await page.waitForURL("**/datasets/**/examples");
+  await page.goto("/datasets");
   await expect(page.getByRole("link", { name, exact: true })).toBeVisible();
 }
 
@@ -203,7 +205,7 @@ test.describe("overlay audit", () => {
     }) => {
       await page.goto("/settings/users");
       const rail = await openAssistant(page);
-      const railInput = rail.getByPlaceholder("Send a message...");
+      const railInput = rail.getByLabel("Message input");
       await railInput.fill("audit draft");
 
       await page.getByRole("button", { name: "Add User" }).click();
@@ -247,6 +249,9 @@ test.describe("overlay audit", () => {
       await page.keyboard.press("Escape");
       await expect(listbox).not.toBeVisible();
       await expect(dialog).toBeVisible();
+      // Focus returns to the trigger asynchronously; wait for it so the next
+      // Escape lands inside the dialog rather than on <body>.
+      await expect(dialog.getByRole("button", { name: /Role/ })).toBeFocused();
 
       // Second Escape dismisses the dialog.
       await page.keyboard.press("Escape");

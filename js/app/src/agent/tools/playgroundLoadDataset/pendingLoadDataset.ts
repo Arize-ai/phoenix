@@ -1,9 +1,6 @@
 import { approvalOutcome } from "@phoenix/agent/shared/pendingApproval";
 
-import {
-  LOAD_DATASET_NAVIGATION_CANCEL_ERROR,
-  LOAD_DATASET_TOOL_NAME,
-} from "./constants";
+import { LOAD_DATASET_NAVIGATION_CANCEL_ERROR } from "./constants";
 import type {
   BindPendingLoadDatasetOptions,
   PendingLoadDataset,
@@ -14,7 +11,7 @@ export function bindPendingLoadDatasetActions({
   resolveDatasetTarget,
   readSelectionRevision,
   applyDatasetSelection,
-  addToolOutput,
+  emitResult,
   setPendingLoadDataset,
 }: BindPendingLoadDatasetOptions): PendingLoadDataset {
   return {
@@ -23,11 +20,9 @@ export function bindPendingLoadDatasetActions({
       setPendingLoadDataset(pendingLoad.toolCallId, null);
 
       if (readSelectionRevision() !== pendingLoad.expectedRevision) {
-        await addToolOutput({
-          state: "output-error",
-          tool: LOAD_DATASET_TOOL_NAME,
-          toolCallId: pendingLoad.toolCallId,
-          errorText:
+        emitResult({
+          ok: false,
+          error:
             "The playground dataset selection changed after this load was proposed, so it can no longer be applied.",
         });
         return;
@@ -36,12 +31,7 @@ export function bindPendingLoadDatasetActions({
       // Dataset or split may have been deleted since the proposal — re-resolve before writing ids.
       const resolution = await resolveDatasetTarget(pendingLoad.input);
       if (!resolution.ok) {
-        await addToolOutput({
-          state: "output-error",
-          tool: LOAD_DATASET_TOOL_NAME,
-          toolCallId: pendingLoad.toolCallId,
-          errorText: resolution.error,
-        });
+        emitResult({ ok: false, error: resolution.error });
         return;
       }
       const resolvedSplitId = resolution.output.splitId;
@@ -50,11 +40,9 @@ export function bindPendingLoadDatasetActions({
         resolution.output.datasetId !== pendingLoad.snapshot.datasetId ||
         resolvedSplitId !== proposedSplitId
       ) {
-        await addToolOutput({
-          state: "output-error",
-          tool: LOAD_DATASET_TOOL_NAME,
-          toolCallId: pendingLoad.toolCallId,
-          errorText:
+        emitResult({
+          ok: false,
+          error:
             "The proposed dataset or split changed after this load was proposed, so it can no longer be applied.",
         });
         return;
@@ -62,10 +50,8 @@ export function bindPendingLoadDatasetActions({
 
       applyDatasetSelection(pendingLoad.snapshot);
 
-      await addToolOutput({
-        state: "output-available",
-        tool: LOAD_DATASET_TOOL_NAME,
-        toolCallId: pendingLoad.toolCallId,
+      emitResult({
+        ok: true,
         output: {
           status: "loaded",
           acceptedBy: approvalSource,
@@ -83,10 +69,8 @@ export function bindPendingLoadDatasetActions({
     },
     reject: async () => {
       setPendingLoadDataset(pendingLoad.toolCallId, null);
-      await addToolOutput({
-        state: "output-available",
-        tool: LOAD_DATASET_TOOL_NAME,
-        toolCallId: pendingLoad.toolCallId,
+      emitResult({
+        ok: true,
         output: {
           status: "rejected",
           message: "User rejected the proposed dataset load.",
@@ -96,13 +80,7 @@ export function bindPendingLoadDatasetActions({
     },
     cancel: async () => {
       setPendingLoadDataset(pendingLoad.toolCallId, null);
-      await addToolOutput({
-        state: "output-error",
-        tool: LOAD_DATASET_TOOL_NAME,
-        toolCallId: pendingLoad.toolCallId,
-        errorText: LOAD_DATASET_NAVIGATION_CANCEL_ERROR,
-        outcome: "interrupted",
-      });
+      emitResult({ ok: false, error: LOAD_DATASET_NAVIGATION_CANCEL_ERROR });
     },
   };
 }

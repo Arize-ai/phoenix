@@ -1,28 +1,26 @@
 import { css } from "@emotion/react";
 import type {
-  ColumnDef,
   ExpandedState,
+  RowData,
   SortingState,
-  Table,
 } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  getExpandedRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import React, {
   startTransition,
-  Suspense,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
-import { graphql, useLazyLoadQuery, usePaginationFragment } from "react-relay";
+import { graphql, usePaginationFragment } from "react-relay";
 import { Group, Panel } from "react-resizable-panels";
-import { useNavigate, useParams, useSearchParams } from "react-router";
+import {
+  useNavigate,
+  useParams,
+  useResolvedPath,
+  useSearchParams,
+} from "react-router";
 
 import {
   ContextualHelp,
@@ -34,8 +32,10 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { MeanScore } from "@phoenix/components/annotation/MeanScore";
-import { SessionAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/SessionAnnotationSummaryGroup";
+import {
+  SessionAnnotationSummaryGroupToken,
+  SessionAnnotationSummaryGroupTokens,
+} from "@phoenix/components/annotation/SessionAnnotationSummaryGroup";
 import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeRange } from "@phoenix/components/datetime";
@@ -43,13 +43,15 @@ import {
   expandableSelectableTableCSS,
   TABLE_DATA_CELL_CLASS,
 } from "@phoenix/components/table/styles";
+import type { ColumnDef, Table } from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SessionTokenCosts } from "@phoenix/components/trace/SessionTokenCosts";
 import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
+import { SESSION_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
-import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { useSessionPagination } from "@phoenix/pages/trace/SessionPaginationContext";
 import { getSessionDetailsPath } from "@phoenix/utils/urlUtils";
 
@@ -64,14 +66,15 @@ import {
 } from "../../components/table";
 import type { SessionsTable_sessions$key } from "./__generated__/SessionsTable_sessions.graphql";
 import type { SessionsTableQuery } from "./__generated__/SessionsTableQuery.graphql";
-import type { SessionsTableSessionFilterVocabularyQuery } from "./__generated__/SessionsTableSessionFilterVocabularyQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
+import { withFilterConditionParam } from "./filterConditionParam";
 import {
   SessionInputValueTooltipCell,
   SessionOutputValueTooltipCell,
 } from "./IOValueTooltipCell";
 import { SessionColumnSelector } from "./SessionColumnSelector";
-import { SessionFilterConditionField } from "./SessionFilterConditionField";
+import type { SessionFilterValidConditionArgs } from "./SessionFilterConditionField";
+import { SessionFilterConditionFieldWithVocabulary } from "./SessionFilterConditionField";
 import { SessionsTableAside } from "./SessionsTableAside";
 import { SessionsTableEmpty } from "./SessionsTableEmpty";
 import { spansTableCSS } from "./styles";
@@ -82,74 +85,38 @@ import {
   ANNOTATION_COLUMN_SIZING,
   DEFAULT_SESSION_SORT,
   getGqlSessionSort,
-  makeAnnotationColumnId,
+  makeFlatAnnotationColumnId,
+  normalizeAnnotationColumnOrder,
 } from "./tableUtils";
 type SessionsTableProps = {
   project: SessionsTable_sessions$key;
+  /**
+   * The settled condition `project` was loaded with; the rows on hand already
+   * match it.
+   */
+  seed: string;
 };
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
 const defaultColumnSettings = {
   minSize: 100,
-} satisfies Partial<ColumnDef<unknown>>;
+} satisfies Partial<ColumnDef<RowData>>;
 
 const toolbarFilterFieldCSS = css`
   flex: 2 1 420px;
   min-width: min(100%, 320px);
 `;
 
-const EMPTY_SESSION_FILTER_VOCABULARY = [] as const;
-
-/**
- * The filter field, once its per-project autocomplete vocabulary has loaded.
- * The vocabulary resolver scans annotation names and root-span attributes, so
- * it is suspended separately from the table it sits above.
- */
-function SessionFilterConditionFieldWithVocabulary({
-  projectId,
-  onValidCondition,
-}: {
-  projectId: string;
-  onValidCondition: (condition: string) => void;
-}) {
-  const data = useLazyLoadQuery<SessionsTableSessionFilterVocabularyQuery>(
-    graphql`
-      query SessionsTableSessionFilterVocabularyQuery($id: ID!) {
-        project: node(id: $id) {
-          ... on Project {
-            sessionFilterVocabulary {
-              name
-              type
-              description
-              category
-              iterableName
-            }
-          }
-        }
-      }
-    `,
-    { id: projectId }
-  );
-  return (
-    <SessionFilterConditionField
-      vocabulary={
-        data.project?.sessionFilterVocabulary ?? EMPTY_SESSION_FILTER_VOCABULARY
-      }
-      onValidCondition={onValidCondition}
-    />
-  );
-}
-
 const TableBody = <T extends { id: string }>({
   table,
 }: {
   table: Table<T>;
 }) => {
-  "use no memo";
   const navigate = useNavigate();
   const { sessionId } = useParams();
   const [searchParams] = useSearchParams();
+  const basePath = useResolvedPath(".").pathname;
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
@@ -161,6 +128,7 @@ const TableBody = <T extends { id: string }>({
             onClick={() =>
               navigate(
                 getSessionDetailsPath({
+                  basePath,
                   sessionId: row.original.id,
                   searchParams,
                 })
@@ -197,9 +165,37 @@ export const MemoizedTableBody = React.memo(
 export function SessionsTable(props: SessionsTableProps) {
   // we need a reference to the scrolling element for pagination logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  const isFirstRender = useRef(true);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [validSessionFilterCondition, setValidSessionFilterCondition] =
-    useState<string>("");
+    useState<string>(props.seed);
+  // React Router 8.2 recreates this setter whenever location.search changes; a
+  // stable ref keeps unrelated param changes out of the field's validation.
+  const [, setSearchParams] = useSearchParams();
+  const setSearchParamsRef = useRef(setSearchParams);
+  useEffect(() => {
+    setSearchParamsRef.current = setSearchParams;
+  }, [setSearchParams]);
+  const handleValidSessionFilterCondition = useCallback(
+    ({ condition, isInitialSettlement }: SessionFilterValidConditionArgs) => {
+      setValidSessionFilterCondition(condition);
+      // The mount settlement echoes the URL's own condition; writing it back
+      // would touch the URL on every visit to the tab.
+      if (isInitialSettlement) {
+        return;
+      }
+      setSearchParamsRef.current(
+        (prev) =>
+          withFilterConditionParam(
+            prev,
+            SESSION_FILTER_CONDITION_PARAM,
+            condition
+          ),
+        { replace: true }
+      );
+    },
+    []
+  );
   const { fetchKey } = useStreamState();
   // Source the time range directly here (rather than only via the preloaded
   // parent query) so a live window sliding forward refetches with the current
@@ -260,14 +256,6 @@ export function SessionsTable(props: SessionsTableProps) {
                     cost
                   }
                 }
-                sessionAnnotationSummaries {
-                  labelFractions {
-                    fraction
-                    label
-                  }
-                  meanScore
-                  name
-                }
                 ...SessionAnnotationSummaryGroup
               }
             }
@@ -314,39 +302,17 @@ export function SessionsTable(props: SessionsTableProps) {
     visibleAnnotationColumnNames.map((name) => {
       return {
         header: name,
-        columns: [
-          {
-            header: `labels`,
-            accessorKey: makeAnnotationColumnId(name, "label"),
-            cell: ({ row }) => {
-              const annotation = row.original.sessionAnnotationSummaries.find(
-                (annotation) => annotation.name === name
-              );
-              if (!annotation) {
-                return null;
-              }
-              return (
-                <SummaryValueLabels
-                  name={name}
-                  labelFractions={annotation.labelFractions}
-                />
-              );
-            },
-          } as ColumnDef<TableRow>,
-          {
-            header: `mean score`,
-            accessorKey: makeAnnotationColumnId(name, "score"),
-            cell: ({ row }) => {
-              const annotation = row.original.sessionAnnotationSummaries.find(
-                (annotation) => annotation.name === name
-              );
-              if (!annotation) {
-                return null;
-              }
-              return <MeanScore value={annotation.meanScore} fallback={null} />;
-            },
-          } as ColumnDef<TableRow>,
-        ],
+        accessorKey: makeFlatAnnotationColumnId(name),
+        cell: ({ row }) => {
+          return (
+            <SessionAnnotationSummaryGroupToken
+              session={row.original}
+              annotationName={name}
+              annotationConfigsByName={annotationConfigsByName}
+              showFilterActions
+            />
+          );
+        },
       };
     });
 
@@ -509,6 +475,12 @@ export function SessionsTable(props: SessionsTableProps) {
     },
   ];
   useEffect(() => {
+    // The parent's query already carries the seed, so the first render needs
+    // no refetch.
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     const sort = sorting[0];
     startTransition(() => {
       refetch(
@@ -553,6 +525,15 @@ export function SessionsTable(props: SessionsTableProps) {
   const setStoredColumnOrder = useTracingContext(
     (state) => state.setColumnOrder
   );
+  const normalizedStoredColumnOrder = normalizeAnnotationColumnOrder({
+    columnOrder: storedColumnOrder,
+    annotationKinds: [
+      {
+        names: visibleAnnotationColumnNames,
+        getColumnId: (name) => makeFlatAnnotationColumnId(name),
+      },
+    ],
+  });
   const {
     leafColumnOrder,
     visibleColumnOrder,
@@ -560,11 +541,12 @@ export function SessionsTable(props: SessionsTableProps) {
     getColumnOrderIndex,
   } = useColumnOrder({
     columns,
-    columnOrder: storedColumnOrder,
+    columnOrder: normalizedStoredColumnOrder,
     onColumnOrderChange: setStoredColumnOrder,
     columnVisibility,
   });
-  const table = useReactTable<TableRow>({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data: tableData,
     onExpandedChange: setExpanded,
@@ -581,36 +563,22 @@ export function SessionsTable(props: SessionsTableProps) {
     onColumnSizingChange: setColumnSizing,
     enableSubRowSelection: false,
     onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getExpandedRowModel: getExpandedRowModel(),
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
-  const { columnSizingInfo, columnSizing: columnSizingState } =
-    table.getState();
-  const getFlatHeaders = table.getFlatHeaders;
-  const colLength = columns.length;
+  const { columnResizing } = table.state;
   /**
    * Instead of calling `column.getSize()` on every render for every header
    * and especially every data cell (very expensive),
-   * we will calculate all column sizes at once at the root table level in a useMemo
+   * we calculate all column sizes at once at the root table level
    * and pass the column sizes down as CSS variables to the <table> element.
-   * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
+   * @see https://tanstack.com/table/latest/docs/framework/react/examples/column-resizing-performant
    */
-  const columnSizeVars = React.useMemo(() => {
-    const headers = getFlatHeaders();
-    const colSizes: { [key: string]: number } = {};
-    for (let i = 0; i < headers.length; i++) {
-      const header = headers[i]!;
-      colSizes[`--header-${header.id}-size`] = header.getSize();
-      colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
-    }
-    return colSizes;
-    // Disabled lint as per tanstack docs linked above
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getFlatHeaders, columnSizingInfo, columnSizingState, colLength]);
+  const columnSizeVars: { [key: string]: number } = {};
+  for (const header of table.getFlatHeaders()) {
+    columnSizeVars[`--header-${header.id}-size`] = header.getSize();
+    columnSizeVars[`--col-${header.column.id}-size`] = header.column.getSize();
+  }
   return (
     <TableMetricsChartsPanelGroup view="sessions">
       <div css={spansTableCSS}>
@@ -631,21 +599,9 @@ export function SessionsTable(props: SessionsTableProps) {
             wrap="wrap"
           >
             <div css={toolbarFilterFieldCSS}>
-              {/* Autocomplete data must not gate the table's first paint, so
-                  the field renders — and filters — before it arrives. */}
-              <Suspense
-                fallback={
-                  <SessionFilterConditionField
-                    vocabulary={EMPTY_SESSION_FILTER_VOCABULARY}
-                    onValidCondition={setValidSessionFilterCondition}
-                  />
-                }
-              >
-                <SessionFilterConditionFieldWithVocabulary
-                  projectId={data.id}
-                  onValidCondition={setValidSessionFilterCondition}
-                />
-              </Suspense>
+              <SessionFilterConditionFieldWithVocabulary
+                onValidCondition={handleValidSessionFilterCondition}
+              />
             </div>
             <TableMetricsChartSelector view="sessions" />
             <SessionColumnSelector
@@ -774,7 +730,7 @@ export function SessionsTable(props: SessionsTableProps) {
                   </thead>
                   {isEmpty ? (
                     <SessionsTableEmpty />
-                  ) : columnSizingInfo.isResizingColumn ? (
+                  ) : columnResizing.isResizingColumn ? (
                     <MemoizedTableBody table={table} />
                   ) : (
                     <TableBody table={table} />

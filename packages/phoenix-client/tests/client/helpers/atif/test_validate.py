@@ -246,10 +246,10 @@ class TestV17Validation:
                 },
             ],
         }
-        with pytest.raises(ValueError, match="trajectory_id is required"):
+        with pytest.raises(ValueError, match="trajectory_id or trajectory_path is required"):
             _validate_atif_trajectory(trajectory)
 
-    def test_path_only_subagent_ref_rejected(self) -> None:
+    def test_path_only_subagent_ref_is_valid(self) -> None:
         trajectory: Dict[str, Any] = {
             "schema_version": "ATIF-v1.7",
             "session_id": "run-v17-path-only",
@@ -282,8 +282,7 @@ class TestV17Validation:
                 },
             ],
         }
-        with pytest.raises(ValueError, match="trajectory_path-only.*not supported"):
-            _validate_atif_trajectory(trajectory)
+        _validate_atif_trajectory(trajectory)
 
     def test_unembedded_trajectory_id_ref_rejected(self) -> None:
         trajectory: Dict[str, Any] = {
@@ -339,7 +338,7 @@ class TestV17Validation:
         with pytest.raises(ValueError, match="must be absent when llm_call_count is 0"):
             _validate_atif_trajectory(trajectory)
 
-    def test_llm_call_count_zero_requires_tool_calls(self) -> None:
+    def test_llm_call_count_zero_allows_a_control_step_without_tools(self) -> None:
         trajectory: Dict[str, Any] = {
             "schema_version": "ATIF-v1.7",
             "session_id": "run-v17-missing-tool-calls",
@@ -355,8 +354,7 @@ class TestV17Validation:
                 },
             ],
         }
-        with pytest.raises(ValueError, match="tool_calls are required"):
-            _validate_atif_trajectory(trajectory)
+        _validate_atif_trajectory(trajectory)
 
     def test_v17_agent_step_missing_message_error_is_version_scoped(self) -> None:
         trajectory: Dict[str, Any] = {

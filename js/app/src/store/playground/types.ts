@@ -403,6 +403,15 @@ export const PlaygroundStateByDatasetIdSchema = z.record(
      */
     maxConcurrency: z.number().int().min(1).max(100).default(10),
     /**
+     * Optional name for experiments created by the next dataset-backed run.
+     * Empty/null falls back to the server-generated playground experiment name.
+     */
+    experimentName: z.string().nullish(),
+    /**
+     * Optional description for experiments created by the next dataset-backed run.
+     */
+    experimentDescription: z.string().nullish(),
+    /**
      * Dot-notation path prefix for template variables when running over a dataset.
      * Default 'input' means {{query}} resolves to input.query of the dataset example.
      * Empty string or null means full paths like {{input.query}} or {{reference.answer}} are required.
@@ -483,7 +492,7 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
 
   /**
    * Per-tool revision bumped only by external programmatic edits (e.g. PXI's
-   * write_prompt_tools) that need to reset the uncontrolled tool editor. Normal
+   * playground.prompt.tools.write) that need to reset the uncontrolled tool editor. Normal
    * typing in the editor does not update it.
    */
   externallyUpdatedToolRevisionById: Record<number, number>;
@@ -687,6 +696,26 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
     datasetId,
   }: {
     maxConcurrency: number;
+    datasetId: string;
+  }) => void;
+  /**
+   * Set the name applied to experiments created by the next dataset-backed run.
+   */
+  setExperimentName: ({
+    experimentName,
+    datasetId,
+  }: {
+    experimentName: string | null;
+    datasetId: string;
+  }) => void;
+  /**
+   * Set the description applied to experiments created by the next dataset-backed run.
+   */
+  setExperimentDescription: ({
+    experimentDescription,
+    datasetId,
+  }: {
+    experimentDescription: string | null;
     datasetId: string;
   }) => void;
   /**

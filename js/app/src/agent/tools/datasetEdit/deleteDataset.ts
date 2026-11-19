@@ -1,5 +1,6 @@
 import { fetchQuery, graphql } from "react-relay";
 
+import { emitAgentDataChange } from "@phoenix/agent/shared/agentDataChanges";
 import {
   runDatasetMutation,
   type DatasetWriteApplyResult,
@@ -20,6 +21,13 @@ const nameQuery = graphql`
   }
 `;
 
+/**
+ * The deleted record is deliberately left in the store rather than removed
+ * with `@deleteRecord`: the datasets table and pickers hold edges to it, and
+ * a deleted node would read back as `null` inside their non-null lists. The
+ * UI's own delete dialog refetches the table instead, and the agent
+ * data-change bridge does the same here.
+ */
 const mutation = graphql`
   mutation deleteDatasetToolMutation($input: DeleteDatasetInput!) {
     deleteDataset(input: $input) {
@@ -60,7 +68,9 @@ export function commitDeleteDataset({
   return runDatasetMutation<deleteDatasetToolMutation>({
     mutation,
     variables: { input: { datasetId } },
-    onSuccess: (response) =>
-      `Deleted dataset "${response.deleteDataset.dataset.name}".`,
+    onSuccess: (response) => {
+      emitAgentDataChange({ entity: "datasets" });
+      return `Deleted dataset "${response.deleteDataset.dataset.name}".`;
+    },
   });
 }

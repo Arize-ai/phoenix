@@ -340,6 +340,7 @@ function SortableMessageItem({
     [playgroundInstanceId, messageId, updateMessage]
   );
 
+  /* eslint-disable react/refs */
   return (
     <li ref={sortable.ref} style={dragAndDropLiStyles}>
       <Card
@@ -470,4 +471,5 @@ function SortableMessageItem({
       </Card>
     </li>
   );
+  /* eslint-enable react/refs */
 }

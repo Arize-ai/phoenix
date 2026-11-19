@@ -13,7 +13,12 @@ export function useProjectAnnotationConfigsByName(
         annotationConfigNames: { type: "[String!]" }
         first: { type: "Int", defaultValue: 100 }
       ) {
-        annotationConfigs(first: $first, names: $annotationConfigNames) {
+        # Aliased: Relay rejects the same field with different arguments on
+        # one parent, and config mutations also select the unfiltered list
+        configsByName: annotationConfigs(
+          first: $first
+          names: $annotationConfigNames
+        ) {
           edges {
             config: node {
               ... on AnnotationConfigBase {
@@ -46,7 +51,7 @@ export function useProjectAnnotationConfigsByName(
     project
   );
   const configsByName = new Map<string, AnnotationOptimizationConfig>();
-  data?.annotationConfigs.edges.forEach(({ config }) => {
+  data?.configsByName.edges.forEach(({ config }) => {
     if (config.name == null || config.annotationType == null) {
       return;
     }

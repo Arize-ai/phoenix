@@ -1,0 +1,72 @@
+---
+title: "DeepSeek Tracing"
+description: "Phoenix provides auto-instrumentation for DeepSeek through the OpenAI Python library, since DeepSeek exposes an OpenAI-compatible API endpoint."
+---
+
+import RegisterTracerPython from "../../../../snippets/register-tracer-python.mdx";
+
+[DeepSeek](https://www.deepseek.com/) provides reasoning and chat models through an API format compatible with OpenAI. Set the OpenAI client's `base_url` to `https://api.deepseek.com` and Phoenix captures each call through [`openinference-instrumentation-openai`](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai).
+
+<Note>
+This page instruments your application's OpenAI SDK calls to DeepSeek. It does not require a separate DeepSeek-specific OpenInference instrumentor.
+</Note>
+
+## Install
+
+```bash
+pip install arize-phoenix-otel openinference-instrumentation-openai openai
+```
+
+## Setup
+
+Add your DeepSeek API key from the [DeepSeek platform](https://platform.deepseek.com/), along with your Phoenix connection details, as environment variables:
+
+```bash
+export DEEPSEEK_API_KEY="<your-deepseek-api-key>"
+export PHOENIX_COLLECTOR_ENDPOINT="<your-phoenix-collector-endpoint>"  # use http://localhost:6006 for local Phoenix
+export PHOENIX_API_KEY="<your-phoenix-api-key>"  # required for Phoenix Cloud or authenticated Phoenix
+```
+
+<RegisterTracerPython projectName="my-llm-app" />
+
+## Run DeepSeek
+
+```python
+import os
+import openai
+
+client = openai.OpenAI(
+    base_url="https://api.deepseek.com",
+    api_key=os.environ["DEEPSEEK_API_KEY"],
+)
+
+response = client.chat.completions.create(
+    model="deepseek-v4-pro",
+    messages=[
+        {
+            "role": "user",
+            "content": "Explain how tracing helps evaluate an AI agent.",
+        },
+    ],
+)
+print(response.choices[0].message.content)
+```
+
+## Observe
+
+Now that you have tracing set up, all invocations of the OpenAI client pointed at DeepSeek will be streamed to your running Phoenix for observability and evaluation. Each request appears as a `ChatCompletion` LLM span with the prompt, response, model name, token usage, and latency.
+
+## Common Issues
+
+* **No traces in Phoenix**: Confirm `PHOENIX_COLLECTOR_ENDPOINT` (and `PHOENIX_API_KEY` if your Phoenix requires one) is set in the same shell that runs your app
+* **DeepSeek spans missing**: Call `register()` before you create the OpenAI client, and make sure `openinference-instrumentation-openai` is installed so `auto_instrument=True` picks it up
+* **`401` from DeepSeek**: Use your DeepSeek API key, not your OpenAI key
+* **Model not found**: Confirm the model name is available in your DeepSeek account and replace `deepseek-v4-pro` if needed
+* **Base URL**: Ensure you're using `https://api.deepseek.com` as the base URL
+
+## Resources
+
+<Columns cols={2}>
+  <Card title="DeepSeek API Documentation" href="https://api-docs.deepseek.com/" icon="book" horizontal description="DeepSeek API reference"/>
+  <Card title="OpenInference OpenAI Instrumentation" href="https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai" icon="puzzle-piece" horizontal description="OpenAI instrumentation package"/>
+</Columns>

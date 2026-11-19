@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
-import type { CellContext } from "@tanstack/react-table";
+
+import type { CellContext } from "./tableFeatures";
 
 const MAX_LENGTH = 100;
 

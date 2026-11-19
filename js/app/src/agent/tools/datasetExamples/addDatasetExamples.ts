@@ -1,5 +1,6 @@
 import { graphql } from "react-relay";
 
+import { emitAgentDataChange } from "@phoenix/agent/shared/agentDataChanges";
 import { runDatasetMutation } from "@phoenix/agent/shared/pendingDatasetWrite";
 
 import type { addDatasetExamplesToolMutation } from "./__generated__/addDatasetExamplesToolMutation.graphql";
@@ -8,6 +9,12 @@ import type {
   AddDatasetExamplesResult,
 } from "./types";
 
+/**
+ * Returns the dataset's row count and audit fields so the dataset page header
+ * and the datasets table row update from the normalized store. The examples
+ * table itself refetches on the version change signalled through the agent
+ * data-change bridge, exactly as the UI's add-example form triggers it.
+ */
 const mutation = graphql`
   mutation addDatasetExamplesToolMutation($input: AddExamplesToDatasetInput!) {
     addExamplesToDataset(input: $input) {
@@ -15,6 +22,7 @@ const mutation = graphql`
         id
         name
         exampleCount
+        updatedAt
       }
     }
   }
@@ -50,6 +58,7 @@ export function commitAddDatasetExamples({
     },
     onSuccess: (response) => {
       const dataset = response.addExamplesToDataset.dataset;
+      emitAgentDataChange({ entity: "datasetExamples", datasetId: dataset.id });
       return `Added ${preparedExamples.length} example(s) to "${dataset.name}". The dataset now has ${dataset.exampleCount} example(s).`;
     },
   });

@@ -38,6 +38,7 @@ export function MessageBranch({
     setActiveBranch(Math.max(0, Math.min(index, branchCountRef.current - 1)));
   };
 
+  /* eslint-disable react/refs */
   return (
     <MessageBranchContext.Provider
       value={{
@@ -52,4 +53,5 @@ export function MessageBranch({
       {children}
     </MessageBranchContext.Provider>
   );
+  /* eslint-enable react/refs */
 }

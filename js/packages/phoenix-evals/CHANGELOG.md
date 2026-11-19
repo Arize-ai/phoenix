@@ -1,5 +1,58 @@
 # @arizeai/phoenix-evals
 
+## 2.8.0
+
+### Minor Changes
+
+- d03cfdc: Support the Gemini Decisions API (`gemini-decision-1`) in classification evaluators. Pass `google.decisionModel("gemini-decision-1")` as the `model` to `createClassificationEvaluator` or any built-in. Requires `@ai-sdk/google` >= 4.0.118.
+
+## 2.7.1
+
+### Patch Changes
+
+- 0128562: fix(phoenix-evals): keep `metadata` returned by custom evaluator functions wrapped with `createEvaluator`
+
+## 2.7.0
+
+### Minor Changes
+
+- b00c105: Classification evaluators, including every built-in, can now run on AI SDK decision models such as `openai.decisionModel("gpt-6-luna")`. The label comes from `experimental_decide`, with label probabilities (and the provider's confidence, when reported) in `metadata`. The rendered prompt is sent as plain text, and refusals throw the AI SDK's `Experimental_DecisionRefusalError`. Decide spans now record the decision state, question and answer. New exports: `isDecisionModel` and the `DecisionModel` type.
+  
+  This replaces the evaluation model support from the previous release, and changes what evaluation models such as TypeSafe's Jev are sent. They now go through `experimental_decide` too. Message prompts are joined into plain text instead of being serialized as JSON state.
+  
+  `ai` is pinned to `7.0.137` and `@ai-sdk/otel` to `1.0.137`, because the decision API is experimental and has changed in patch releases, and `@ai-sdk/otel` depends on one exact `ai` version. Use `@ai-sdk/openai` 4.0.89 or later with OpenAI decision models. Earlier versions receive the state as JSON-encoded text instead of plain text.
+
+## 2.6.0
+
+### Minor Changes
+
+- b7b7dfb: Classification evaluators now accept AI SDK evaluation models such as TypeSafe's Jev. When an evaluation model is passed as `model`, the classification is routed through `experimental_evaluate` as a single choice question instead of `generateObject`. Results carry a `label` and `score` but no `explanation`, since evaluation models do not generate text.
+
+## 2.5.0
+
+### Minor Changes
+
+- 63805d0: Add `createCompletenessEvaluator` to judge whether every active user request in a conversation was actually completed.
+
+### Patch Changes
+
+- d67ea3f: Deprecate `createDocumentRelevanceEvaluator` in favor of
+  `createRetrievalRelevanceEvaluator`. Rename `documentText` to `context` and the
+  `unrelated` label to `irrelevant`. The deprecated factory and its types will be
+  removed in the next major release.
+
+## 2.4.0
+
+### Minor Changes
+
+- 0e3b2c2: Add a built-in PII detection evaluator (`createPiiDetectionEvaluator`) that screens a conversation record for personally identifiable information, including system instructions, tool calls and results, and retrieved content the end user may never have seen.
+
+## 2.3.0
+
+### Minor Changes
+
+- 7efa7b2: Add a built-in retrieval relevance evaluator (createRetrievalRelevanceEvaluator) that checks whether the external information retrieved during a step is relevant to the request it was serving. Unlike document relevance, it is source-agnostic and scores the retrieved information holistically, whether it came from a vector search, a tool or MCP call, a web search, or content embedded in an LLM turn.
+
 ## 2.2.0
 
 ### Minor Changes
