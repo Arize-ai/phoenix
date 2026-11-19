@@ -63,7 +63,7 @@ dependencies = [
   # Code-mode sandbox. Direct, not via fastmcp's `code-mode` extra, whose exact `pydantic-monty` pin conflicts and would ship in wheel metadata.
   "pydantic-monty==1.5.0",
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
-  "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.53.0,<3",
+  "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.71.0,<3",
   # Arrives via pydantic-ai-slim[anthropic], which sets no upper bound. Pinned
   # here so the major version is chosen deliberately rather than by resolution.
   "anthropic>=1,<2",
@@ -469,7 +469,8 @@ exclude-newer = "3 days"
 # this to be installable at all on the day it publishes. The openinference
 # packages are ours too (Arize-ai/openinference), and phoenix regularly needs a
 # semantic convention or instrumentation helper the day it is released.
-exclude-newer-package = { arize-phoenix-client = "2099-12-31T00:00:00Z", arize-phoenix-evals = "2099-12-31T00:00:00Z", arize-phoenix-otel = "2099-12-31T00:00:00Z", arize-phoenix-sqlean = "2099-12-31T00:00:00Z", openinference-instrumentation = "2099-12-31T00:00:00Z", openinference-semantic-conventions = "2099-12-31T00:00:00Z" }
+# Admit Pydantic AI 2.71.0 and its matching pydantic-graph release for Gemini 4 Neon support.
+exclude-newer-package = { arize-phoenix-client = "2099-12-31T00:00:00Z", arize-phoenix-evals = "2099-12-31T00:00:00Z", arize-phoenix-otel = "2099-12-31T00:00:00Z", arize-phoenix-sqlean = "2099-12-31T00:00:00Z", openinference-instrumentation = "2099-12-31T00:00:00Z", openinference-semantic-conventions = "2099-12-31T00:00:00Z", pydantic-ai-slim = "2026-11-20T00:00:00Z", pydantic-graph = "2026-11-20T00:00:00Z" }
 # litellm bounds shared dependencies below what the rest of the tree needs: it
 # caps `openai<3` while phoenix and pydantic-ai require openai 3, and it has
 # capped `python-dotenv` below the `>=1.1.0` fastmcp requires. Overriding is safe

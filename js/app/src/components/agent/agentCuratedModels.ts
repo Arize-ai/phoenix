@@ -27,8 +27,8 @@ export const AGENT_CURATED_BUILT_IN_MODELS: readonly AgentCuratedBuiltInModel[] 
   [
     {
       provider: "ANTHROPIC",
-      modelName: "claude-fable-5-1",
-      displayName: "Claude Fable 5.1",
+      modelName: "claude-fable-5-2",
+      displayName: "Claude Fable 5.2",
     },
     {
       provider: "ANTHROPIC",
@@ -36,25 +36,24 @@ export const AGENT_CURATED_BUILT_IN_MODELS: readonly AgentCuratedBuiltInModel[] 
       displayName: "Claude Opus 5.5",
     },
     {
-      provider: "ANTHROPIC",
-      modelName: "claude-sonnet-5-5",
-      displayName: "Claude Sonnet 5.5",
-    },
-    { provider: "OPENAI", modelName: "gpt-6-sol", displayName: "GPT-6 Sol" },
-    {
-      provider: "GOOGLE",
-      modelName: "gemini-4-neon",
-      displayName: "Gemini 4 Neon",
+      provider: "OPENAI",
+      modelName: "gpt-6.2-sol",
+      displayName: "GPT-6.2 Sol",
     },
     {
-      provider: "GOOGLE",
-      modelName: "gemini-4-hydrogen",
-      displayName: "Gemini 4 Hydrogen",
+      provider: "OPENAI",
+      modelName: "gpt-6.1-terra",
+      displayName: "GPT-6.1 Terra",
     },
     {
       provider: "GOOGLE",
       modelName: "gemini-4-carbon",
       displayName: "Gemini 4 Carbon",
+    },
+    {
+      provider: "GOOGLE",
+      modelName: "gemini-4-neon",
+      displayName: "Gemini 4 Neon",
     },
   ];
 

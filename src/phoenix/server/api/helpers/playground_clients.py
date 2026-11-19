@@ -2024,6 +2024,8 @@ OPENAI_REASONING_MODELS = [
     provider_key=GenerativeProviderKey.OPENAI,
     model_names=[
         PROVIDER_DEFAULT,
+        "gpt-6.2-sol",
+        "gpt-6.1-terra",
         *OPENAI_REASONING_MODELS,
     ],
 )
@@ -2153,6 +2155,7 @@ _ANTHROPIC_SAMPLING_PARAM_KEYS = frozenset(("temperature", "top_p"))
 # (`thinking: {"type": "enabled", "budget_tokens": N}`) from their request
 # surface; sending any of them returns a 400.
 ANTHROPIC_ADAPTIVE_THINKING_MODELS = [
+    "claude-fable-5-2",
     "claude-fable-5-1",
     "claude-fable-5",
     "claude-opus-5-5",

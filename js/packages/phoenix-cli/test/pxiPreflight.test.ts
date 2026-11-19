@@ -336,7 +336,13 @@ describe("PXI model preflight", () => {
           { providerKey: "GOOGLE", name: "gemini-3.5-flash" },
           { providerKey: "OPENAI", name: "unrecommended-model" },
           { providerKey: "OPENAI", name: "gpt-5.4" },
+          { providerKey: "OPENAI", name: "gpt-5.6-sol" },
+          { providerKey: "OPENAI", name: "gpt-6.1-terra" },
+          { providerKey: "OPENAI", name: "gpt-6.2-sol" },
+          { providerKey: "ANTHROPIC", name: "claude-fable-5" },
           { providerKey: "ANTHROPIC", name: "claude-fable-5-1" },
+          { providerKey: "ANTHROPIC", name: "claude-fable-5-2" },
+          { providerKey: "ANTHROPIC", name: "claude-opus-5-5" },
           { providerKey: "ANTHROPIC", name: "claude-opus-4-8" },
         ],
       }),
@@ -346,32 +352,32 @@ describe("PXI model preflight", () => {
       {
         providerType: "builtin",
         provider: "ANTHROPIC",
-        modelName: "claude-fable-5-1",
+        modelName: "claude-fable-5-2",
       },
       {
         providerType: "builtin",
         provider: "ANTHROPIC",
-        modelName: "claude-opus-4-8",
+        modelName: "claude-opus-5-5",
       },
       {
         providerType: "builtin",
         provider: "OPENAI",
-        modelName: "gpt-5.4",
+        modelName: "gpt-6.2-sol",
       },
       {
         providerType: "builtin",
-        provider: "GOOGLE",
-        modelName: "gemini-4-neon",
-      },
-      {
-        providerType: "builtin",
-        provider: "GOOGLE",
-        modelName: "gemini-4-hydrogen",
+        provider: "OPENAI",
+        modelName: "gpt-6.1-terra",
       },
       {
         providerType: "builtin",
         provider: "GOOGLE",
         modelName: "gemini-4-carbon",
+      },
+      {
+        providerType: "builtin",
+        provider: "GOOGLE",
+        modelName: "gemini-4-neon",
       },
     ]);
   });

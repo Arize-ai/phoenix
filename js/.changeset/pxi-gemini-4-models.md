@@ -2,4 +2,4 @@
 "@arizeai/phoenix-cli": patch
 ---
 
-Recommend Gemini 4 Neon, Hydrogen, and Carbon for PXI sessions in place of older Gemini recommendations.
+Limit PXI to two recommended models per provider: Claude Fable 5.2 and Opus 5.5, GPT-6.2 Sol and GPT-6.1 Terra, and Gemini 4 Carbon and Neon.
