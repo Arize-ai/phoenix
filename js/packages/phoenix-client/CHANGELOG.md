@@ -1,5 +1,14 @@
 # @arizeai/phoenix-client
 
+## 8.0.2
+
+### Patch Changes
+
+- 02ed180: Remove Slack community links from the package README
+- Updated dependencies [02ed180]
+  - @arizeai/phoenix-config@0.5.2
+  - @arizeai/phoenix-otel@3.1.1
+
 ## 8.0.1
 
 ### Patch Changes
