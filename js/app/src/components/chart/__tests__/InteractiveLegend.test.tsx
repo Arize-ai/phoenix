@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   InteractiveLegend,
   type InteractiveLegendProps,
+  compactLegendProps,
   defaultLegendProps,
   useInteractiveLegend,
 } from "@phoenix/components/chart";
@@ -148,6 +149,20 @@ describe("InteractiveLegend", () => {
     expect(row?.classList.contains("overflow-row--collapsed")).toBe(true);
     expect(row?.querySelectorAll(".recharts-legend-item")).toHaveLength(2);
     expect(legend?.querySelector("li")).toBeNull();
+  });
+
+  it("gives each horizontal legend item the wrapper's font size, so the overflow popover's copies match the row", () => {
+    act(() => {
+      root.render(<TestChart legendProps={compactLegendProps} />);
+    });
+
+    const items = container.querySelectorAll<HTMLElement>(
+      ".recharts-legend-item"
+    );
+    expect(items).toHaveLength(2);
+    items.forEach((item) => {
+      expect(item.style.fontSize).toBe("var(--global-font-size-xs)");
+    });
   });
 
   it("lists a vertical legend's items without an overflow row", () => {

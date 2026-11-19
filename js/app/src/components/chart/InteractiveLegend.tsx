@@ -44,6 +44,9 @@ type RechartsSymbolType = SymbolsProps["type"];
  */
 type RechartsLegendContentProps = DefaultLegendContentProps & {
   content?: LegendProps["content"];
+  // Recharts passes every Legend prop through to its content, not only the
+  // ones DefaultLegendContentProps declares.
+  wrapperStyle?: LegendProps["wrapperStyle"];
 };
 
 type InteractiveLegendContentProps = RechartsLegendContentProps & {
@@ -379,6 +382,7 @@ function DefaultInteractiveLegendContent({
   onMouseEnter,
   onMouseLeave,
   payload,
+  wrapperStyle,
 }: RechartsLegendContentProps) {
   if (payload == null || payload.length === 0) {
     return null;
@@ -387,6 +391,9 @@ function DefaultInteractiveLegendContent({
   const isHorizontal = layout !== "vertical";
   // Horizontal items sit inside OverflowRow's div, where an <li> is invalid.
   const ItemElement = isHorizontal ? "div" : "li";
+  // Items that don't fit render again in the "+N" popover, which mounts in a
+  // portal outside the legend wrapper, so they carry its font size themselves.
+  const itemStyle = { fontSize: wrapperStyle?.fontSize };
   const items = payload.map((entry, index) => {
     if (entry.type === "none") {
       return null;
@@ -413,6 +420,7 @@ function DefaultInteractiveLegendContent({
         className={itemClassName}
         css={legendItemCSS}
         key={`${label}-${index}`}
+        style={itemStyle}
       >
         {dataKey == null ? (
           <span
