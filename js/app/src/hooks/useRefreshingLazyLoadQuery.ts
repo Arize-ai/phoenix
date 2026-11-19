@@ -27,6 +27,9 @@ type LoadedQueryInput<TQuery extends OperationType> = {
  * @param params.query - the query to read
  * @param params.variables - the query's variables
  * @param params.fetchKey - refetches whenever it changes
+ * @returns the data, and the variables it was loaded with: while newer
+ * variables load these are the previous ones, so a caller can tell that the
+ * data is for an earlier input (e.g. another time range) and say so.
  */
 export function useRefreshingLazyLoadQuery<TQuery extends OperationType>({
   query,
@@ -36,7 +39,7 @@ export function useRefreshingLazyLoadQuery<TQuery extends OperationType>({
   query: GraphQLTaggedNode;
   variables: TQuery["variables"];
   fetchKey?: string;
-}): TQuery["response"] {
+}): { data: TQuery["response"]; variables: TQuery["variables"] } {
   const environment = useRelayEnvironment();
   const requestedKey = `${JSON.stringify(variables)}|${fetchKey ?? ""}`;
   const [loaded, setLoaded] = useState<LoadedQueryInput<TQuery>>(() => ({
@@ -67,11 +70,12 @@ export function useRefreshingLazyLoadQuery<TQuery extends OperationType>({
     };
   });
   useEffect(() => loadRequested(requestedKey), [requestedKey]);
-  return useLazyLoadQuery<TQuery>(query, loaded.variables, {
+  const data = useLazyLoadQuery<TQuery>(query, loaded.variables, {
     fetchKey: loaded.fetchKey,
     fetchPolicy:
       loaded.isRefresh || loaded.fetchKey == null
         ? "store-or-network"
         : "store-and-network",
   });
+  return { data, variables: loaded.variables };
 }

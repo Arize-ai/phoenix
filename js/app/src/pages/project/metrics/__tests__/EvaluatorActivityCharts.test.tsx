@@ -28,6 +28,10 @@ const LATER_RANGE = {
   start: FIRST_RANGE.start,
   end: new Date("2026-01-01T06:00:20.000Z"),
 };
+const LONGER_RANGE = {
+  start: new Date("2025-12-25T06:00:00.000Z"),
+  end: FIRST_RANGE.end,
+};
 
 type ChartsState = {
   timeRange: TimeRange;
@@ -161,5 +165,24 @@ describe("evaluator activity charts", () => {
       "refreshed rows"
     );
     expect(container.textContent).not.toContain("loading");
+  });
+
+  it("keep showing a chart while a stream advance loads", async () => {
+    await update({ timeRange: LATER_RANGE, fetchKey: "stream-2" });
+
+    expect(container.querySelectorAll(".chart-skeleton")).toHaveLength(0);
+  });
+
+  it("show a skeleton, not the previous range's data, while a range of another length loads", async () => {
+    await update({ timeRange: LONGER_RANGE, tableText: "refreshed rows" });
+
+    expect(container.querySelector('[data-testid="table"]')?.textContent).toBe(
+      "refreshed rows"
+    );
+    expect(container.querySelectorAll(".chart-skeleton")).toHaveLength(2);
+
+    await resolvePendingRequests();
+
+    expect(container.querySelectorAll(".chart-skeleton")).toHaveLength(0);
   });
 });
