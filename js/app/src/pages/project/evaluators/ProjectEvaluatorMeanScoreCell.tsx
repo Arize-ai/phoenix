@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import type { ComponentProps, ReactNode } from "react";
 import { createContext, useContext, useState } from "react";
-import { graphql, useFragment } from "react-relay";
+import { graphql, readInlineData, useFragment } from "react-relay";
 import invariant from "tiny-invariant";
 
 import {
@@ -32,6 +32,10 @@ import {
 import { TextErrorBoundaryFallback } from "@phoenix/components/exception";
 import type { ProjectEvaluatorResultAnnotation } from "@phoenix/hooks/useProjectEvaluatorResultAnnotations";
 import { SummaryValueBreakdown } from "@phoenix/pages/project/AnnotationSummary";
+import type {
+  ProjectEvaluatorMeanScoreCell_previousSummary$data,
+  ProjectEvaluatorMeanScoreCell_previousSummary$key,
+} from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorMeanScoreCell_previousSummary.graphql";
 import type {
   ProjectEvaluatorMeanScoreCell_scores$data,
   ProjectEvaluatorMeanScoreCell_scores$key,
@@ -248,13 +252,7 @@ export function ProjectEvaluatorResultsCell({
               fraction
             }
           }
-          previousSummary {
-            meanScore
-            labelFractions {
-              label
-              fraction
-            }
-          }
+          ...ProjectEvaluatorMeanScoreCell_previousSummary @defer
           series {
             timestamp
             meanScore
@@ -349,6 +347,40 @@ export function ProjectEvaluatorMeanScoreCell({
   );
 }
 
+/**
+ * The previous window's aggregates, which load after the current window's;
+ * undefined until they arrive, and still undefined if they failed.
+ */
+function readPreviousSummary(
+  metrics: EvaluatorAnnotationScoreMetricsData | undefined
+) {
+  if (metrics == null) {
+    return undefined;
+  }
+  const {
+    previousSummary,
+  }: {
+    previousSummary:
+      | ProjectEvaluatorMeanScoreCell_previousSummary$data["previousSummary"]
+      | undefined;
+  } = readInlineData<ProjectEvaluatorMeanScoreCell_previousSummary$key>(
+    graphql`
+      fragment ProjectEvaluatorMeanScoreCell_previousSummary on EvaluatorAnnotationScoreMetrics
+      @inline {
+        previousSummary {
+          meanScore
+          labelFractions {
+            label
+            fraction
+          }
+        }
+      }
+    `,
+    metrics
+  );
+  return previousSummary;
+}
+
 // oxlint-disable-next-line complexity
 function AnnotationMeanScoreView({
   annotation,
@@ -372,7 +404,11 @@ function AnnotationMeanScoreView({
     (bin) => Date.parse(bin.timestamp) <= now
   );
   const summary = metrics?.summary;
-  const previousMeanScore = metrics?.previousSummary?.meanScore;
+  const previousSummary = readPreviousSummary(metrics);
+  const deferredError = useEvaluatorDeferredError();
+  const hasPreviousWindowFailed =
+    previousSummary === undefined && deferredError != null;
+  const previousMeanScore = previousSummary?.meanScore;
   const meanScore = summary?.meanScore;
   const hasScore = typeof meanScore === "number";
   const hasLabels = (summary?.labelFractions.length ?? 0) > 0;
@@ -385,7 +421,8 @@ function AnnotationMeanScoreView({
         annotation={annotation}
         windowKey={windowKey}
         summary={summary}
-        previousLabelFractions={metrics?.previousSummary?.labelFractions}
+        previousLabelFractions={previousSummary?.labelFractions}
+        hasPreviousWindowFailed={hasPreviousWindowFailed}
         series={series}
         formatBinTime={binTimeFormatter}
       />
@@ -439,22 +476,11 @@ function AnnotationMeanScoreView({
                   score: meanScore,
                 })}
               />
-              {deltaText != null ? (
-                <Text
-                  size="XS"
-                  fontFamily="mono"
-                  flex="none"
-                  color={
-                    isImprovement == null
-                      ? "text-500"
-                      : isImprovement
-                        ? "success"
-                        : "danger"
-                  }
-                >
-                  {deltaText}
-                </Text>
-              ) : null}
+              <PreviousWindowChange
+                deltaText={deltaText}
+                isImprovement={isImprovement}
+                hasPreviousWindowFailed={hasPreviousWindowFailed}
+              />
             </Flex>
           </TriggerWrap>
           <RichTooltip placement="bottom">
@@ -468,7 +494,9 @@ function AnnotationMeanScoreView({
                 scoreCount={summary?.scoreCount}
                 labelCount={summary?.labelCount}
               />
-              {deltaText != null ? (
+              {hasPreviousWindowFailed ? (
+                <PreviousWindowFailedNote windowKey={windowKey} />
+              ) : deltaText != null ? (
                 <Text size="S" color="text-700">
                   {deltaText} vs. the previous {windowKey}
                 </Text>
@@ -518,6 +546,55 @@ function AnnotationMeanScoreView({
         />
       </div>
     </Flex>
+  );
+}
+
+/**
+ * The change since the previous window, beside the score or leading label:
+ * its arrow and magnitude, or a note when the previous window failed to load.
+ */
+function PreviousWindowChange({
+  deltaText,
+  isImprovement,
+  hasPreviousWindowFailed,
+}: {
+  deltaText: string | null;
+  isImprovement: boolean | null;
+  hasPreviousWindowFailed: boolean;
+}) {
+  if (hasPreviousWindowFailed) {
+    return (
+      <Text size="XS" color="text-500" flex="none">
+        change failed to load
+      </Text>
+    );
+  }
+  if (deltaText == null) {
+    return null;
+  }
+  return (
+    <Text
+      size="XS"
+      fontFamily="mono"
+      flex="none"
+      color={
+        isImprovement == null
+          ? "text-500"
+          : isImprovement
+            ? "success"
+            : "danger"
+      }
+    >
+      {deltaText}
+    </Text>
+  );
+}
+
+function PreviousWindowFailedNote({ windowKey }: { windowKey: string }) {
+  return (
+    <Text size="S" color="text-700">
+      The previous {windowKey} failed to load.
+    </Text>
   );
 }
 
@@ -582,6 +659,7 @@ function AnnotationLabelDistributionView({
   windowKey,
   summary,
   previousLabelFractions,
+  hasPreviousWindowFailed,
   series,
   formatBinTime,
 }: {
@@ -589,6 +667,7 @@ function AnnotationLabelDistributionView({
   windowKey: string;
   summary: NonNullable<EvaluatorAnnotationScoreMetricsData["summary"]>;
   previousLabelFractions: ReadonlyArray<LabelFraction> | null | undefined;
+  hasPreviousWindowFailed: boolean;
   /** The window's time bins, up to now. */
   series: EvaluatorAnnotationScoreMetricsData["series"];
   formatBinTime: (date: Date) => string;
@@ -669,22 +748,11 @@ function AnnotationLabelDistributionView({
                   </AnnotationScoreText>
                 </Text>
               </AlignedScore>
-              {deltaText != null ? (
-                <Text
-                  size="XS"
-                  fontFamily="mono"
-                  flex="none"
-                  color={
-                    isImprovement == null
-                      ? "text-500"
-                      : isImprovement
-                        ? "success"
-                        : "danger"
-                  }
-                >
-                  {deltaText}
-                </Text>
-              ) : null}
+              <PreviousWindowChange
+                deltaText={deltaText}
+                isImprovement={isImprovement}
+                hasPreviousWindowFailed={hasPreviousWindowFailed}
+              />
             </Flex>
           </TriggerWrap>
           <RichTooltip placement="bottom">
@@ -698,7 +766,9 @@ function AnnotationLabelDistributionView({
                 scoreCount={summary.scoreCount}
                 labelCount={labelCount}
               />
-              {deltaText != null ? (
+              {hasPreviousWindowFailed ? (
+                <PreviousWindowFailedNote windowKey={windowKey} />
+              ) : deltaText != null ? (
                 <Text size="S" color="text-700">
                   {deltaText} in {leading.label}&apos;s share vs. the previous{" "}
                   {windowKey}

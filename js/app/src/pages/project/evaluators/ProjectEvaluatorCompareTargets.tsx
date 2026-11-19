@@ -525,7 +525,13 @@ function CompareTraceTargetsTable(props: TargetsTableProps) {
       ) {
         project: node(id: $id) {
           ... on Project {
-            ...TracesTable_spans @arguments(traceFilterCondition: $condition)
+            # Not deferred: without this query's request, the table cannot
+            # tell a failed child spans part from one still loading.
+            ...TracesTable_spans
+              @arguments(
+                traceFilterCondition: $condition
+                deferChildSpans: false
+              )
           }
         }
       }

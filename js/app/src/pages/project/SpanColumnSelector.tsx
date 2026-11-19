@@ -1,10 +1,8 @@
 import type { RowData } from "@tanstack/react-table";
-import { graphql, useFragment } from "react-relay";
 
 import type { Column } from "@phoenix/components/table/tableFeatures";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
-import type { SpanColumnSelector_traceAnnotations$key } from "./__generated__/SpanColumnSelector_traceAnnotations.graphql";
 import { getNonNoteAnnotationNames } from "./spanAnnotationUtils";
 import {
   TRACE_ANNOTATIONS_COLUMN_ID,
@@ -21,29 +19,19 @@ type SpanColumnSelectorProps<TData extends RowData> = {
    * annotation columns.
    */
   columns: Column<TData>[];
-  query: SpanColumnSelector_traceAnnotations$key;
   spanAnnotationNames: ReadonlyArray<string>;
-  /** Whether the span annotation names failed to load. */
-  hasSpanAnnotationNamesError: boolean;
+  traceAnnotationNames: ReadonlyArray<string>;
+  /** Whether the annotation names failed to load. */
+  hasAnnotationNamesError: boolean;
 };
 
 /** The column selector for the span and trace tables. */
 export function SpanColumnSelector<TData extends RowData>({
   columns,
-  query,
   spanAnnotationNames,
-  hasSpanAnnotationNamesError,
+  traceAnnotationNames,
+  hasAnnotationNamesError,
 }: SpanColumnSelectorProps<TData>) {
-  const traceAnnotationsData =
-    useFragment<SpanColumnSelector_traceAnnotations$key>(
-      graphql`
-        fragment SpanColumnSelector_traceAnnotations on Project {
-          traceAnnotationNames
-        }
-      `,
-      query
-    );
-
   const annotationColumnVisibility = useTracingContext(
     (state) => state.annotationColumnVisibility
   );
@@ -67,7 +55,7 @@ export function SpanColumnSelector<TData extends RowData>({
       annotationKinds={[
         {
           names: getNonNoteAnnotationNames(spanAnnotationNames),
-          namesError: hasSpanAnnotationNamesError
+          namesError: hasAnnotationNamesError
             ? "Span annotation names failed to load."
             : null,
           visibility: annotationColumnVisibility,
@@ -76,10 +64,10 @@ export function SpanColumnSelector<TData extends RowData>({
           getColumnId: (name) => makeFlatAnnotationColumnId(name),
         },
         {
-          names: getNonNoteAnnotationNames(
-            traceAnnotationsData.traceAnnotationNames
-          ),
-          namesError: null,
+          names: getNonNoteAnnotationNames(traceAnnotationNames),
+          namesError: hasAnnotationNamesError
+            ? "Trace annotation names failed to load."
+            : null,
           visibility: traceAnnotationColumnVisibility,
           onVisibilityChange: setTraceAnnotationColumnVisibility,
           targetType: "trace",

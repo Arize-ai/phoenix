@@ -48,6 +48,15 @@ function makeMetrics({
   previousMeanScore?: number | null;
 }): EvaluatorAnnotationScoreMetricsData {
   return {
+    // the shape readInlineData reads the deferred previous window from
+    __fragments: {
+      ProjectEvaluatorMeanScoreCell_previousSummary: {
+        previousSummary: {
+          meanScore: previousMeanScore,
+          labelFractions: previousLabelFractions,
+        },
+      },
+    },
     annotationName,
     summary: {
       meanScore,
@@ -55,10 +64,6 @@ function makeMetrics({
       scoreCount: meanScore == null ? 0 : 100,
       labelCount: 100,
       labelFractions,
-    },
-    previousSummary: {
-      meanScore: previousMeanScore,
-      labelFractions: previousLabelFractions,
     },
     series: SERIES.map((bin, index) => {
       const resultCount =
@@ -71,7 +76,7 @@ function makeMetrics({
         resultCount,
       };
     }),
-  };
+  } as unknown as EvaluatorAnnotationScoreMetricsData;
 }
 
 let container: HTMLDivElement;

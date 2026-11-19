@@ -18,11 +18,11 @@ import type {
 } from "@phoenix/components/evaluators/__generated__/EvaluatorPromptPreviewQuery.graphql";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import type { ErrorBoundaryFallbackProps } from "@phoenix/components/exception/types";
+import { chatMessageRoleToPromptMessageRole } from "@phoenix/components/playground/fetchPlaygroundPrompt";
+import { denormalizePlaygroundInstance } from "@phoenix/components/playground/playgroundInstanceUtils";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
-import { chatMessageRoleToPromptMessageRole } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
-import { denormalizePlaygroundInstance } from "@phoenix/pages/playground/playgroundUtils";
 import {
   findToolCallArguments,
   findToolCallId,

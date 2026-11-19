@@ -4,11 +4,11 @@ import { FormProvider, useForm } from "react-hook-form";
 import { Group, Panel } from "react-resizable-panels";
 
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
+import type { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/components/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
 import {
   GRIP_RESIZE_TARGET_MINIMUM_SIZE,
   GripResizeHandle,
 } from "@phoenix/components/resize";
-import type { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
 import { DEFAULT_STORE_VALUES } from "@phoenix/store/evaluatorStore";
 import type {
   ClassificationEvaluatorAnnotationConfig,

@@ -1,6 +1,6 @@
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import type { PromptData } from "@phoenix/pages/playground/PromptMenu";
+import type { PromptData } from "@phoenix/components/playground/PromptMenu";
 
 import type { useTaskMenuOptionsDecisionsQuery } from "./__generated__/useTaskMenuOptionsDecisionsQuery.graphql";
 import type { useTaskMenuOptionsEvaluatorsQuery } from "./__generated__/useTaskMenuOptionsEvaluatorsQuery.graphql";

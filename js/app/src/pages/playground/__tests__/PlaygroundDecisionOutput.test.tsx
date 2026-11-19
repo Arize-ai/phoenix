@@ -5,17 +5,17 @@ import type * as ReactRelay from "react-relay";
 import type * as RelayRuntime from "relay-runtime";
 
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
+import type { DecisionRunResult } from "@phoenix/components/playground/decisionUtils";
+import {
+  createDecisionDraft,
+  createDecisionQuestion,
+  createScaleLevel,
+} from "@phoenix/components/playground/decisionUtils";
 import { PlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { ThemeContext } from "@phoenix/contexts/ThemeContext";
 import { createPlaygroundStore } from "@phoenix/store/playground";
 
 import type { PlaygroundDecisionOutputMutation } from "../__generated__/PlaygroundDecisionOutputMutation.graphql";
-import type { DecisionRunResult } from "../decisionUtils";
-import {
-  createDecisionDraft,
-  createDecisionQuestion,
-  createScaleLevel,
-} from "../decisionUtils";
 import { PlaygroundDecisionOutput } from "../PlaygroundDecisionOutput";
 
 const mocks = vi.hoisted(() => {

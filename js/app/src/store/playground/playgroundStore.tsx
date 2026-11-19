@@ -3,6 +3,12 @@ import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
 import { SPAN_EVALUATOR_TEMPLATE } from "@phoenix/components/evaluators/templates/spanEvaluatorTemplate";
+import { createDecisionDraft } from "@phoenix/components/playground/decisionUtils";
+import {
+  getDefaultInvocationConfig,
+  parseInvocationConfig,
+  writeInvocationConfigField,
+} from "@phoenix/components/playground/providerAdapters";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import {
@@ -11,13 +17,7 @@ import {
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
 import { PLAYGROUND_STORAGE_KEY } from "@phoenix/constants/storageConstants";
-import { createDecisionDraft } from "@phoenix/pages/playground/decisionUtils";
 import type { PartialOutputToolCall } from "@phoenix/pages/playground/PlaygroundToolCall";
-import {
-  getDefaultInvocationConfig,
-  parseInvocationConfig,
-  writeInvocationConfigField,
-} from "@phoenix/pages/playground/providerAdapters";
 
 import { convertMessageToolCallsToProvider } from "./playgroundStoreUtils";
 import { createPlaygroundEvaluatorTask } from "./playgroundTask";

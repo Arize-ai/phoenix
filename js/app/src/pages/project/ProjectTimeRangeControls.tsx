@@ -1,4 +1,10 @@
-import { startTransition, useTransition } from "react";
+import {
+  startTransition,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useTransition,
+} from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
 import { useParams } from "react-router";
 
@@ -35,7 +41,8 @@ const REFRESH_INTERVAL_MS_BY_TAB: ReadonlyMap<string, number> = new Map([
  * streaming is playing on a streamable tab, polls the project's
  * last-updated timestamp and bumps the shared fetch key when new data lands.
  * Streaming pauses while a trace or session drawer is open so the tables
- * behind it don't refetch.
+ * behind it don't refetch, and while the page is hidden: new data seen then
+ * refreshes the page once it is visible again.
  */
 export function ProjectTimeRangeControls(props: {
   project: ProjectTimeRangeControls_data$key;
@@ -76,15 +83,35 @@ export function ProjectTimeRangeControls(props: {
 
   // New data landed: slide a live time range forward and refetch the tables
   // below, keeping the current rows up while they load
+  function refreshForNewData(currentLastUpdatedAt: string) {
+    startRefreshTransition(() => {
+      refreshLiveTimeRange();
+      setFetchKey(`fetch-traces-${currentLastUpdatedAt}`);
+    });
+  }
+  const heldLastUpdatedAtRef = useRef<string | null>(null);
   useOnTimestampAdvance(
     lastUpdatedAt.streamingLastUpdatedAt,
     (currentLastUpdatedAt) => {
-      startRefreshTransition(() => {
-        refreshLiveTimeRange();
-        setFetchKey(`fetch-traces-${currentLastUpdatedAt}`);
-      });
+      if (document.visibilityState === "hidden") {
+        heldLastUpdatedAtRef.current = currentLastUpdatedAt;
+      } else {
+        refreshForNewData(currentLastUpdatedAt);
+      }
     }
   );
+  const refreshForHeldData = useEffectEvent(() => {
+    const heldLastUpdatedAt = heldLastUpdatedAtRef.current;
+    if (heldLastUpdatedAt != null && document.visibilityState !== "hidden") {
+      heldLastUpdatedAtRef.current = null;
+      refreshForNewData(heldLastUpdatedAt);
+    }
+  });
+  useEffect(() => {
+    document.addEventListener("visibilitychange", refreshForHeldData);
+    return () =>
+      document.removeEventListener("visibilitychange", refreshForHeldData);
+  }, []);
 
   return (
     <ConnectedTimeRangeControls

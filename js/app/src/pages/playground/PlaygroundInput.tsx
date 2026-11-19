@@ -1,11 +1,11 @@
 import { Flex, Text, View } from "@phoenix/components";
+import { readDecisionVariable } from "@phoenix/components/playground/decisionUtils";
+import { useDerivedPlaygroundVariables } from "@phoenix/components/playground/useDerivedPlaygroundVariables";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { isDecisionInstance } from "@phoenix/store/playground";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
-import { readDecisionVariable } from "./decisionUtils";
-import { useDerivedPlaygroundVariables } from "./useDerivedPlaygroundVariables";
 import { type VariableDecisionReading, VariableEditor } from "./VariableEditor";
 
 /** How decisions read a typed value, for its badge and read-as-text switch. */

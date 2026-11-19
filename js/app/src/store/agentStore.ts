@@ -34,8 +34,8 @@ import {
   normalizeRecentAgentModels,
 } from "@phoenix/components/agent/agentModelConfig";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
+import { getDefaultInvocationConfig } from "@phoenix/components/playground/providerAdapters";
 import { ASSISTANT_STORAGE_BASE_KEY } from "@phoenix/constants/storageConstants";
-import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
 import { scopeStorageKeyToBasename } from "@phoenix/utils/storageUtils";
 
 import type { ModelConfig } from "./playground/types";

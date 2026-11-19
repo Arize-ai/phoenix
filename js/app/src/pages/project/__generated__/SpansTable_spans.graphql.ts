@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a6beee92f4a41bc1fc41fdb497868b05>>
+ * @generated SignedSource<<8e65b37b4e60653a3b03b090c81d9726>>
  * @lightSyntaxTransform
  */
 
@@ -74,7 +74,7 @@ export type SpansTable_spans$data = {
       };
     }>;
   };
-  readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment" | "SpanColumnSelector_traceAnnotations" | "useSpanAnnotationNames_project">;
+  readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment" | "useSpanAnnotationNames_project">;
   readonly " $fragmentType": "SpansTable_spans";
 };
 export type SpansTable_spans$key = {
@@ -158,6 +158,11 @@ return {
       "name": "first"
     },
     {
+      "defaultValue": true,
+      "kind": "LocalArgument",
+      "name": "includeAnnotationNames"
+    },
+    {
       "defaultValue": null,
       "kind": "LocalArgument",
       "name": "projectEvaluatorId"
@@ -213,22 +218,36 @@ return {
   "selections": [
     (v1/*:: as any*/),
     {
-      "kind": "Defer",
+      "condition": "includeAnnotationNames",
+      "kind": "Condition",
+      "passingValue": true,
       "selections": [
         {
-          "kind": "InlineDataFragmentSpread",
-          "name": "useSpanAnnotationNames_project",
+          "kind": "Defer",
           "selections": [
             {
-              "alias": null,
+              "kind": "InlineDataFragmentSpread",
+              "name": "useSpanAnnotationNames_project",
+              "selections": [
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "spanAnnotationNames",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "traceAnnotationNames",
+                  "storageKey": null
+                }
+              ],
               "args": null,
-              "kind": "ScalarField",
-              "name": "spanAnnotationNames",
-              "storageKey": null
+              "argumentDefinitions": []
             }
-          ],
-          "args": null,
-          "argumentDefinitions": []
+          ]
         }
       ]
     },
@@ -236,11 +255,6 @@ return {
       "args": null,
       "kind": "FragmentSpread",
       "name": "ProjectAnnotationConfigsByNameFragment"
-    },
-    {
-      "args": null,
-      "kind": "FragmentSpread",
-      "name": "SpanColumnSelector_traceAnnotations"
     },
     {
       "alias": "spans",
@@ -603,6 +617,6 @@ return {
 };
 })();
 
-(node as any).hash = "8b12d5d04d2a0374a5036e0b4d34109e";
+(node as any).hash = "8b4a81765db757e8ebed9eb3b24e1e27";
 
 export default node;

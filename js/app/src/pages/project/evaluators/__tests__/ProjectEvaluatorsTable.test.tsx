@@ -91,6 +91,9 @@ const SCORES_DEFER_LABEL = getDeferLabel(
   "ProjectEvaluatorMeanScoreCell_scores"
 );
 const COST_DEFER_LABEL = getDeferLabel("ProjectEvaluatorCost_cost");
+const PREVIOUS_WINDOW_DEFER_LABEL = getDeferLabel(
+  "ProjectEvaluatorMeanScoreCell_previousSummary"
+);
 
 /** Every column but the name and the results stays hidden. */
 const HIDDEN_COLUMN_IDS = [
@@ -300,6 +303,71 @@ function makeScoresPart({
       },
     })),
     completed: indexes.map((index) => ({ id: String(index) })),
+  };
+}
+
+/**
+ * A scores part for the route query's rows that carries the current window
+ * and announces the previous window's part.
+ */
+function makeCurrentScoresPart({
+  indexes,
+  meanScore,
+}: {
+  indexes: number[];
+  meanScore: number;
+}) {
+  return {
+    hasNext: true,
+    incremental: indexes.map((index) => ({
+      id: String(index),
+      data: {
+        annotationScoreMetrics: [
+          {
+            annotationName: `evaluator-${index}`,
+            summary: {
+              meanScore,
+              count: 10,
+              scoreCount: 10,
+              labelCount: 0,
+              labelFractions: [],
+            },
+            series: [],
+          },
+        ],
+      },
+    })),
+    pending: indexes.map((index, position) => ({
+      id: `previous-${index}`,
+      path: [
+        "project",
+        "evaluators",
+        "edges",
+        position,
+        "node",
+        "annotationScoreMetrics",
+        0,
+      ],
+      label: PREVIOUS_WINDOW_DEFER_LABEL,
+    })),
+    completed: indexes.map((index) => ({ id: String(index) })),
+  };
+}
+
+function makePreviousWindowPart({
+  indexes,
+  meanScore,
+}: {
+  indexes: number[];
+  meanScore: number;
+}) {
+  return {
+    hasNext: false,
+    incremental: indexes.map((index) => ({
+      id: `previous-${index}`,
+      data: { previousSummary: { meanScore, labelFractions: [] } },
+    })),
+    completed: indexes.map((index) => ({ id: `previous-${index}` })),
   };
 }
 
@@ -529,6 +597,78 @@ describe("ProjectEvaluatorsTable results column", () => {
       "evaluator-2": expect.stringContaining("0.75"),
     });
   });
+
+  it("keeps the current scores while the previous window loads", async () => {
+    const stream = createStreamingMultipartResponse();
+    authFetchMock.mockResolvedValueOnce(stream.response);
+    await renderTable();
+    stream.sendPart(makeInitialPart({ root: "project", indexes: [1, 2] }));
+    stream.sendPart(
+      makeCurrentScoresPart({ indexes: [1, 2], meanScore: 0.75 })
+    );
+    await settle();
+    const currentScoreOnly = expect.stringMatching(/0\.75$/);
+    expect(readResultsCells()).toEqual({
+      "evaluator-1": currentScoreOnly,
+      "evaluator-2": currentScoreOnly,
+    });
+
+    stream.sendPart(
+      makePreviousWindowPart({ indexes: [1, 2], meanScore: 0.5 })
+    );
+    stream.end();
+    await settle();
+
+    const scoreWithChange = expect.stringMatching(/0\.75▲ 0\.25$/);
+    expect(readResultsCells()).toEqual({
+      "evaluator-1": scoreWithChange,
+      "evaluator-2": scoreWithChange,
+    });
+  });
+
+  it.each([
+    {
+      failure: "a previous window part that reports errors",
+      fail: (stream: ReturnType<typeof createStreamingMultipartResponse>) => {
+        stream.sendPart({
+          hasNext: false,
+          completed: [1, 2].map((index) => ({
+            id: `previous-${index}`,
+            errors: [{ message: "an unexpected error occurred" }],
+          })),
+        });
+        stream.end();
+      },
+    },
+    {
+      failure: "a response that ends before the previous window",
+      fail: (stream: ReturnType<typeof createStreamingMultipartResponse>) =>
+        stream.cutOff(),
+    },
+  ])(
+    "keeps the current scores and says the change failed to load after $failure",
+    async ({ fail }) => {
+      const stream = createStreamingMultipartResponse();
+      authFetchMock.mockResolvedValueOnce(stream.response);
+      await renderTable();
+      stream.sendPart(makeInitialPart({ root: "project", indexes: [1, 2] }));
+      stream.sendPart(
+        makeCurrentScoresPart({ indexes: [1, 2], meanScore: 0.75 })
+      );
+      await settle();
+
+      fail(stream);
+      await settle();
+
+      const scoreWithFailedChange = expect.stringMatching(
+        /0\.75change failed to load$/
+      );
+      expect(readResultsCells()).toEqual({
+        "evaluator-1": scoreWithFailedChange,
+        "evaluator-2": scoreWithFailedChange,
+      });
+    }
+  );
 
   it.each([
     {

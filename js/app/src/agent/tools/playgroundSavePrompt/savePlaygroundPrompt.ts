@@ -6,7 +6,7 @@ import { getPromptSnapshot } from "@phoenix/agent/tools/playgroundPrompt/promptS
 import {
   getInstancePromptParamsFromStore,
   toPromptVersionTagInputs,
-} from "@phoenix/pages/playground/playgroundPromptUtils";
+} from "@phoenix/components/playground/playgroundPromptUtils";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import { getIdentifier } from "@phoenix/utils/identifierUtils";
 

@@ -1,6 +1,6 @@
+import { parseInvocationConfig } from "@phoenix/components/playground/providerAdapters";
+import { chatMessageRolesSchema } from "@phoenix/components/playground/schemas";
 import { isTemplateFormat } from "@phoenix/components/templateEditor/types";
-import { parseInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
-import { chatMessageRolesSchema } from "@phoenix/pages/playground/schemas";
 import {
   type ChatMessage,
   type PlaygroundNormalizedInstance,

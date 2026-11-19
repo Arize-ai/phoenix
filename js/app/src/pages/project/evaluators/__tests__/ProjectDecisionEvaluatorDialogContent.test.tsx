@@ -51,9 +51,12 @@ vi.mock("@phoenix/pages/project/evaluators/refetchProjectEvaluators", () => ({
 vi.mock("@phoenix/contexts/NotificationContext", () => ({
   useNotifySuccess: () => vi.fn(),
 }));
-vi.mock("@phoenix/pages/playground/PlaygroundInstanceControls", () => ({
-  PlaygroundInstanceModelControls: () => null,
-}));
+vi.mock(
+  "@phoenix/components/playground/model/PlaygroundInstanceModelControls",
+  () => ({
+    PlaygroundInstanceModelControls: () => null,
+  })
+);
 vi.mock(
   "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields",
   () => ({ EvaluatorNameAndDescriptionFields: () => null })
@@ -78,7 +81,7 @@ vi.mock(
   "@phoenix/components/evaluators/decision/DecisionVersionPicker",
   () => ({ DecisionVersionPicker: () => null })
 );
-vi.mock("@phoenix/pages/playground/DecisionPromptEditor", () => ({
+vi.mock("@phoenix/components/decision/DecisionPromptEditor", () => ({
   DecisionPromptEditor: () => null,
 }));
 

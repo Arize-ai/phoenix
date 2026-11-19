@@ -249,19 +249,35 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
   // `timeRangeNow` for when its window next rolls over (the start of the next
   // minute or hour) so the displayed window keeps tracking "now". The bump is
   // a transition, so data already on screen stays up while the new window's
-  // data loads instead of falling back to a loading state.
+  // data loads instead of falling back to a loading state. A bump that falls
+  // due while the page is hidden waits until it is visible again.
   useEffect(() => {
     if (!isLastNTimeRangeKey(timeRange.timeRangeKey)) {
       return undefined;
     }
     const timeRangeKey = timeRange.timeRangeKey;
-    const timeoutId = window.setTimeout(() => {
-      startTransition(() => {
-        refreshLiveTimeRange();
-      });
-    }, getMillisecondsUntilNextLastNTimeRangeRefresh(timeRangeKey));
+    let isRefreshDue = false;
+    const refreshWhileVisible = () => {
+      isRefreshDue = document.visibilityState === "hidden";
+      if (!isRefreshDue) {
+        startTransition(() => {
+          refreshLiveTimeRange();
+        });
+      }
+    };
+    const timeoutId = window.setTimeout(
+      refreshWhileVisible,
+      getMillisecondsUntilNextLastNTimeRangeRefresh(timeRangeKey)
+    );
+    const onVisibilityChange = () => {
+      if (isRefreshDue) {
+        refreshWhileVisible();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
       window.clearTimeout(timeoutId);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [timeRange.timeRangeKey, timeRangeStartMs, refreshLiveTimeRange]);
 
