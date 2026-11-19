@@ -10,7 +10,8 @@ The canonical Arize Phoenix logo. Use these files instead of copying the logo in
 | `arize-phoenix-banner-dark.svg` | The README banner in dark mode |
 
 The mark is `#009DD2` in both versions. The wordmark is `#454554` on light backgrounds and
-`#E6E6EB` on dark ones.
+`#E6E6EB` on dark ones. The wordmark is set in Geist Medium (weight 500), the product's typeface,
+and converted to outlines so it renders the same without the font installed.
 
 - Keep clear space of at least half the mark's height on every side.
 - Do not recolor, stretch, outline, or add effects to the logo.
