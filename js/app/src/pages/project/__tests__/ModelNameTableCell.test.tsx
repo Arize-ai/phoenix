@@ -54,15 +54,22 @@ describe("ModelNameTableCell", () => {
     expect(container.textContent).toBe("--");
   });
 
-  it("appends a model filter when pressed without triggering the row click", () => {
-    const onFilterConditionPressed = vi.fn();
-    const onRowClick = vi.fn();
+  function renderCell({
+    modelProvider,
+    onFilterConditionPressed = vi.fn(),
+    onRowClick = vi.fn(),
+  }: {
+    modelProvider?: string | null;
+    onFilterConditionPressed?: (condition: string) => void;
+    onRowClick?: () => void;
+  }) {
     act(() =>
       root.render(
         <ThemeProvider themeMode="dark" disableBodyTheme>
           <div onClick={onRowClick}>
             <ModelNameTableCell
               modelName="gpt-4o"
+              modelProvider={modelProvider}
               onFilterConditionPressed={onFilterConditionPressed}
             />
           </div>
@@ -70,10 +77,44 @@ describe("ModelNameTableCell", () => {
       )
     );
     const button = container.querySelector("button");
-    expect(button?.textContent).toContain("gpt-4o");
-    // A model is shown as a Tag, like other objects a row points to
-    expect(button?.classList.contains("tag")).toBe(true);
-    act(() => button?.click());
+    if (!button) {
+      throw new Error("expected the model name to be pressable");
+    }
+    return button;
+  }
+
+  it("shows the model name as text led by its provider's icon", () => {
+    const button = renderCell({ modelProvider: "openai" });
+    // A model name is a value of the span, so it is text, not a Tag
+    expect(button.classList.contains("tag")).toBe(false);
+    expect(container.querySelector(".tag")).toBeNull();
+    expect(button.querySelector(".model-name__text")?.textContent).toBe(
+      "gpt-4o"
+    );
+    expect(button.querySelector("svg title")?.textContent).toBe("OpenAI");
+    expect(button.getAttribute("aria-label")).toBe(
+      "Filter spans by model gpt-4o"
+    );
+  });
+
+  it("shows no icon when the provider is missing or unknown", () => {
+    expect(renderCell({ modelProvider: null }).querySelector("svg")).toBeNull();
+    expect(
+      renderCell({ modelProvider: "some-unknown-provider" }).querySelector(
+        "svg"
+      )
+    ).toBeNull();
+  });
+
+  it("appends a model filter when pressed without triggering the row click", () => {
+    const onFilterConditionPressed = vi.fn();
+    const onRowClick = vi.fn();
+    const button = renderCell({
+      modelProvider: "openai",
+      onFilterConditionPressed,
+      onRowClick,
+    });
+    act(() => button.click());
     expect(onFilterConditionPressed).toHaveBeenCalledWith(
       'llm.model_name == "gpt-4o"'
     );

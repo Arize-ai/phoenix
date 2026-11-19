@@ -347,6 +347,25 @@ class Span(Node):
             return value
         return json.dumps(value)
 
+    @strawberry.field(
+        description='The "llm.provider" attribute of the span, identifying the hosting '
+        'provider of the model invoked, such as "openai" or "anthropic". Typically '
+        "populated on LLM spans.",
+    )  # type: ignore
+    async def model_provider(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[str]:
+        if self.db_record:
+            value = self.db_record.llm_provider
+        else:
+            value = await info.context.data_loaders.span_fields.load(
+                (self.id, models.Span.llm_provider),
+            )
+        if value is None or isinstance(value, str):
+            return value
+        return json.dumps(value)
+
     @strawberry.field
     async def num_documents(
         self,

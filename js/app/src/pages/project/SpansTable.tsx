@@ -211,13 +211,17 @@ export const MemoizedTableBody = React.memo(
   TableBody,
   (prev, next) => prev.table.options.data === next.table.options.data
 ) as typeof TableBody;
-const ModelNameCell = <TData extends { modelName?: string | null }, TValue>({
+const ModelNameCell = <
+  TData extends { modelName?: string | null; modelProvider?: string | null },
+  TValue,
+>({
   row,
 }: CellContext<TData, TValue>) => {
   const { appendFilterCondition } = useSpanFilterActions();
   return (
     <ModelNameTableCell
       modelName={row.original.modelName}
+      modelProvider={row.original.modelProvider}
       onFilterConditionPressed={appendFilterCondition}
     />
   );
@@ -360,6 +364,7 @@ export function SpansTable(props: SpansTableProps) {
                 metadata
                 userId
                 modelName
+                modelProvider
                 statusCode
                 statusMessage
                 startTime

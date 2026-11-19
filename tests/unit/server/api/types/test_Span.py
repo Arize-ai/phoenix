@@ -200,6 +200,7 @@ async def test_span_fields(
         metadata
         userId
         modelName
+        modelProvider
         numDocuments
         numChildSpans
         descendants(maxDepth: 3) {
@@ -306,6 +307,7 @@ async def test_span_fields(
             assert not span["metadata"]
         assert span["userId"] == db_span.user_id
         assert span["modelName"] == db_span.attributes.get("llm", {}).get("model_name")
+        assert span["modelProvider"] == db_span.attributes.get("llm", {}).get("provider")
         assert span["numDocuments"] == db_span.num_documents
         if num_child_spans := db_num_child_spans.get(span_rowid):
             assert span["numChildSpans"] == num_child_spans
@@ -398,6 +400,8 @@ async def _span_data(
                         attributes["llm"]["model_name"] = choice(
                             ["gpt-4o", "claude-sonnet-4-5", "gemini-2.5-pro"]
                         )
+                    if random() < 0.5:
+                        attributes["llm"]["provider"] = choice(["openai", "anthropic", "google"])
                 if random() < 0.5:
                     attributes["input"] = {
                         "value": json.dumps(fake.pydict(allowed_types=(str, int, float, bool))),

@@ -4404,6 +4404,11 @@ type Span implements Node {
   The "llm.model_name" attribute of the span, identifying the model invoked. Typically populated on LLM spans.
   """
   modelName: String
+
+  """
+  The "llm.provider" attribute of the span, identifying the hosting provider of the model invoked, such as "openai" or "anthropic". Typically populated on LLM spans.
+  """
+  modelProvider: String
   numDocuments: Int
 
   """
