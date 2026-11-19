@@ -1,20 +1,15 @@
-import { z } from "zod";
+import { LogLevel, SlackError, WebClient } from "@slack/web-api";
 
-const slackResultSchema = z.object({ ok: z.boolean() });
-const slackThreadSchema = slackResultSchema.extend({
-  messages: z
-    .array(
-      z.object({
-        user: z.string().optional(),
-        text: z.string().optional(),
-        ts: z.string(),
-      })
-    )
-    .optional(),
-  response_metadata: z
-    .object({ next_cursor: z.string().optional() })
-    .optional(),
-});
+function getSlackClient(): WebClient {
+  const token = process.env.SLACK_BOT_TOKEN;
+  if (!token) throw new Error("SLACK_BOT_TOKEN is required.");
+  return new WebClient(token, {
+    timeout: 15_000,
+    retryConfig: { retries: 0 },
+    rejectRateLimitedCalls: true,
+    logLevel: LogLevel.ERROR,
+  });
+}
 
 export async function readSlackThread({
   channelId,
@@ -27,43 +22,39 @@ export async function readSlackThread({
 }): Promise<
   { user_id: string | undefined; text: string; message_timestamp: string }[]
 > {
-  const token = process.env.SLACK_BOT_TOKEN;
-  if (!token) throw new Error("SLACK_BOT_TOKEN is required.");
+  const client = getSlackClient();
   const messages: {
     user_id: string | undefined;
     text: string;
     message_timestamp: string;
   }[] = [];
-  let cursor = "";
-  do {
-    const query = new URLSearchParams({
-      channel: channelId,
-      ts: threadTimestamp,
-      latest: latestTimestamp,
-      inclusive: "true",
-      limit: "100",
-    });
-    if (cursor) query.set("cursor", cursor);
-    const response = await fetch(
-      `https://slack.com/api/conversations.replies?${query}`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        signal: AbortSignal.timeout(15_000),
+  let cursor: string | undefined;
+  try {
+    do {
+      const result = await client.conversations.replies({
+        channel: channelId,
+        ts: threadTimestamp,
+        latest: latestTimestamp,
+        inclusive: true,
+        limit: 100,
+        cursor,
+      });
+      if (!result.messages) throw new Error("Slack rejected thread lookup.");
+      for (const message of result.messages) {
+        if (!message.ts) throw new Error("Slack rejected thread lookup.");
+        messages.push({
+          user_id: message.user,
+          text: message.text ?? "",
+          message_timestamp: message.ts,
+        });
       }
-    );
-    if (!response.ok) throw new Error("Slack thread lookup failed.");
-    const result = slackThreadSchema.parse(await response.json());
-    if (!result.ok || !result.messages)
-      throw new Error("Slack rejected thread lookup.");
-    messages.push(
-      ...result.messages.map((message) => ({
-        user_id: message.user,
-        text: message.text ?? "",
-        message_timestamp: message.ts,
-      }))
-    );
-    cursor = result.response_metadata?.next_cursor ?? "";
-  } while (cursor);
+      cursor = result.response_metadata?.next_cursor;
+    } while (cursor);
+  } catch (error) {
+    if (error instanceof SlackError)
+      throw new Error("Slack thread lookup failed.");
+    throw error;
+  }
   return messages;
 }
 
@@ -76,22 +67,16 @@ export async function postThreadReply({
   threadTimestamp: string;
   text: string;
 }): Promise<void> {
-  const token = process.env.SLACK_BOT_TOKEN;
-  if (!token) throw new Error("SLACK_BOT_TOKEN is required.");
-  const response = await fetch("https://slack.com/api/chat.postMessage", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
+  const client = getSlackClient();
+  try {
+    await client.chat.postMessage({
       channel: channelId,
       thread_ts: threadTimestamp,
       text,
-    }),
-    signal: AbortSignal.timeout(15_000),
-  });
-  if (!response.ok) throw new Error("Slack message delivery failed.");
-  const result = slackResultSchema.parse(await response.json());
-  if (!result.ok) throw new Error("Slack rejected message delivery.");
+    });
+  } catch (error) {
+    if (error instanceof SlackError)
+      throw new Error("Slack message delivery failed.");
+    throw error;
+  }
 }
