@@ -10,7 +10,10 @@ import {
 } from "@phoenix/components/evaluators/EvaluatorCost";
 import { evaluatorKindHasCost } from "@phoenix/components/evaluators/evaluatorCostUtils";
 import { TextErrorBoundaryFallback } from "@phoenix/components/exception";
-import type { ProjectEvaluatorCost_cost$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorCost_cost.graphql";
+import type {
+  ProjectEvaluatorCost_cost$data,
+  ProjectEvaluatorCost_cost$key,
+} from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorCost_cost.graphql";
 import { useEvaluatorDeferredError } from "@phoenix/pages/project/evaluators/ProjectEvaluatorMeanScoreCell";
 import { ProjectEvaluatorTracingOffValue } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTracingOffValue";
 import type { EvaluatorKind } from "@phoenix/types";
@@ -86,12 +89,27 @@ export function ProjectEvaluatorCostCell(props: ProjectEvaluatorCostCellProps) {
   );
 }
 
+/**
+ * The cost fragment as a cell reads it. Relay types its fields as present,
+ * but a refetch reads the deferred cost as undefined, without suspending,
+ * until its part arrives; a cost that is not measured is null. Read through
+ * this object type, rather than annotated in a destructuring, the fields
+ * keep `undefined`: TypeScript would narrow the bindings to the generated
+ * types.
+ */
+type DeferredCost = {
+  costSummary: ProjectEvaluatorCost_cost$data["costSummary"] | undefined;
+  tracedEvaluationCount:
+    | ProjectEvaluatorCost_cost$data["tracedEvaluationCount"]
+    | undefined;
+};
+
 function MeasuredProjectEvaluatorCostCell({
   measure,
   evaluatorKind,
   projectEvaluator,
 }: ProjectEvaluatorCostCellProps) {
-  const { costSummary, tracedEvaluationCount } = useFragment(
+  const cost: DeferredCost = useFragment(
     graphql`
       fragment ProjectEvaluatorCost_cost on ProjectEvaluator
       @argumentDefinitions(timeRange: { type: "TimeRange!" }) {
@@ -111,9 +129,8 @@ function MeasuredProjectEvaluatorCostCell({
     `,
     projectEvaluator
   );
+  const { costSummary, tracedEvaluationCount } = cost;
   const deferredError = useEvaluatorDeferredError();
-  // A refetch reads the deferred cost as undefined, without suspending, until
-  // its part arrives; a cost that is not measured is null.
   if (costSummary === undefined) {
     return deferredError != null ? (
       <TextErrorBoundaryFallback error="Cost failed to load." />
