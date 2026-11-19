@@ -1,70 +1,91 @@
 import { act, startTransition, Suspense, useEffect, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { RelayEnvironmentProvider } from "react-relay";
+import { MemoryRouter } from "react-router";
 import type { OperationDescriptor } from "relay-runtime";
 import { createMockEnvironment, MockPayloadGenerator } from "relay-test-utils";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
+import {
+  TimeRangeProvider,
+  type TimeRangeContextType,
+  useTimeRange,
+} from "@phoenix/components/datetime";
 import { PreferencesProvider, ThemeProvider } from "@phoenix/contexts";
+import { AgentProvider } from "@phoenix/contexts/AgentContext";
 
 import {
   EvaluationQueueSizeTimeSeries,
   EvaluationsByEvaluatorTimeSeries,
 } from "../EvaluatorActivityCharts";
 import { MetricFetchKeyProvider } from "../types";
+import { useClosedTimeRange } from "../useClosedTimeRange";
 
 installTestMatchMedia();
 installTestStorage();
 
+const PROJECT_ID = "UHJvamVjdDox";
 const ACTIVITY_QUERY = "EvaluatorActivityChartsQuery";
+/** Five seconds past the hour, so a few refreshes cross a minute. */
+const START_TIME = new Date("2026-01-01T12:00:05.000Z").getTime();
+/** How often the project page refreshes while it streams. */
+const TICK_MS = 10_000;
 
-const FIRST_RANGE = {
-  start: new Date("2026-01-01T00:00:00.000Z"),
-  end: new Date("2026-01-01T06:00:00.000Z"),
-};
-const LATER_RANGE = {
-  start: FIRST_RANGE.start,
-  end: new Date("2026-01-01T06:00:20.000Z"),
-};
-const LONGER_RANGE = {
-  start: new Date("2025-12-25T06:00:00.000Z"),
-  end: FIRST_RANGE.end,
-};
-
-type ChartsState = {
+type StripControls = {
+  /** A stream refresh: the live range moves to now and the fetch key changes. */
+  tick: () => void;
+  setTimeRange: TimeRangeContextType["setTimeRange"];
+  setCustomTimeRange: TimeRangeContextType["setCustomTimeRange"];
+  setTableText: (text: string) => void;
+  setProjectId: (projectId: string) => void;
   timeRange: TimeRange;
-  fetchKey: string;
-  tableText: string;
 };
 
-let setChartsState: (update: (state: ChartsState) => ChartsState) => void;
+let controls: StripControls;
 
 /**
- * The evaluator charts as the evaluators tab strip renders them, beside a
- * stand-in for the table that updates in the same transition.
+ * The evaluator charts as the evaluators tab strip renders them: on the page's
+ * closed time range, refetching on the stream's fetch key, beside a stand-in
+ * for the table that updates in the same transition as a stream refresh.
  */
 function EvaluatorCharts() {
-  const [state, setState] = useState<ChartsState>({
-    timeRange: FIRST_RANGE,
-    fetchKey: "stream-1",
-    tableText: "first rows",
-  });
+  const timeRange = useClosedTimeRange();
+  const { refreshLiveTimeRange, setTimeRange, setCustomTimeRange } =
+    useTimeRange();
+  const [stream, setStream] = useState({ count: 0, tableText: "first rows" });
+  const [projectId, setProjectId] = useState(PROJECT_ID);
   useEffect(() => {
-    setChartsState = setState;
-  }, []);
+    controls = {
+      tick: () =>
+        startTransition(() => {
+          refreshLiveTimeRange();
+          setStream((state) => ({ ...state, count: state.count + 1 }));
+        }),
+      setTimeRange,
+      setCustomTimeRange,
+      setTableText: (tableText) =>
+        startTransition(() => {
+          refreshLiveTimeRange();
+          setStream((state) => ({ count: state.count + 1, tableText }));
+        }),
+      setProjectId: (nextProjectId) =>
+        startTransition(() => setProjectId(nextProjectId)),
+      timeRange,
+    };
+  });
   return (
     <Suspense fallback={<div>loading</div>}>
-      <div data-testid="table">{state.tableText}</div>
-      <MetricFetchKeyProvider value={state.fetchKey}>
+      <div data-testid="table">{stream.tableText}</div>
+      <MetricFetchKeyProvider value={`stream-${stream.count}`}>
         <EvaluationsByEvaluatorTimeSeries
-          projectId="UHJvamVjdDox"
-          timeRange={state.timeRange}
+          projectId={projectId}
+          timeRange={timeRange}
         />
         <EvaluationQueueSizeTimeSeries
-          projectId="UHJvamVjdDox"
-          timeRange={state.timeRange}
+          projectId={projectId}
+          timeRange={timeRange}
         />
       </MetricFetchKeyProvider>
     </Suspense>
@@ -80,63 +101,140 @@ function getOperationName(operation: OperationDescriptor) {
   return operation.request.node.params.name;
 }
 
-/** Answers every pending request, and any it leads to, recording each one. */
-async function resolvePendingRequests() {
-  for (;;) {
-    const pending = environment.mock.getAllOperations();
-    if (pending.length === 0) {
-      return;
-    }
-    await act(async () => {
-      for (const operation of pending) {
-        sentOperations.push(operation);
-        environment.mock.resolve(
-          operation,
-          MockPayloadGenerator.generate(operation, {
-            Node: () => ({ __typename: "Project" }),
-            EvaluationActivity: () => ({ groups: [], series: [] }),
-          })
-        );
-      }
-    });
-  }
+function getPendingOperations(name?: string) {
+  return environment.mock
+    .getAllOperations()
+    .filter(
+      (operation) => name == null || getOperationName(operation) === name
+    );
 }
 
-async function update(change: Partial<ChartsState>) {
-  await act(async () => {
-    startTransition(() => setChartsState((state) => ({ ...state, ...change })));
+/** The activity and queue size the server reports, empty or with one evaluator. */
+function makeResponse(operation: OperationDescriptor, isEmpty: boolean) {
+  const end = String(operation.request.variables.timeRange.end);
+  return MockPayloadGenerator.generate(operation, {
+    Node: () => ({
+      __typename: "Project",
+      id: String(operation.request.variables.projectId),
+    }),
+    EvaluationActivity: () =>
+      isEmpty
+        ? { groups: [], series: [] }
+        : {
+            groups: [
+              {
+                projectEvaluator: { id: "evaluator-1", name: "correctness" },
+                evaluatedCount: 3,
+                failedCount: 0,
+                cost: 0,
+              },
+            ],
+            series: [
+              {
+                timestamp: end,
+                queueSize: 2,
+                groups: [
+                  {
+                    projectEvaluator: { id: "evaluator-1" },
+                    evaluatedCount: 3,
+                    failedCount: 0,
+                    lagP95Seconds: 1,
+                    cost: 0,
+                  },
+                ],
+              },
+            ],
+          },
   });
 }
 
-beforeEach(async () => {
+/** Answers the given requests, recording each one. */
+async function resolveOperations(
+  operations: OperationDescriptor[],
+  { isEmpty = false }: { isEmpty?: boolean } = {}
+) {
+  await act(async () => {
+    for (const operation of operations) {
+      sentOperations.push(operation);
+      environment.mock.resolve(operation, makeResponse(operation, isEmpty));
+    }
+  });
+}
+
+/** Answers every pending request, and any it leads to. */
+async function resolvePendingRequests(options?: { isEmpty?: boolean }) {
+  for (;;) {
+    const pending = getPendingOperations();
+    if (pending.length === 0) {
+      return;
+    }
+    await resolveOperations(pending, options);
+  }
+}
+
+async function tick() {
+  vi.setSystemTime(Date.now() + TICK_MS);
+  await act(async () => controls.tick());
+}
+
+function countSkeletons() {
+  return container.querySelectorAll(".chart-skeleton").length;
+}
+
+/** How many of the two charts draw data rather than their empty state. */
+function countChartsWithData() {
+  return [...container.querySelectorAll(".chart-empty-state-overlay")].filter(
+    (overlay) => overlay.getAttribute("data-empty") !== "true"
+  ).length;
+}
+
+async function renderCharts(
+  search: string,
+  options: { isFirstResponseEmpty?: boolean } = {}
+) {
+  await act(async () => {
+    root.render(
+      <MemoryRouter
+        initialEntries={[`/projects/${PROJECT_ID}/evaluators?${search}`]}
+      >
+        <PreferencesProvider>
+          <AgentProvider>
+            <TimeRangeProvider>
+              <RelayEnvironmentProvider environment={environment}>
+                <ThemeProvider>
+                  <EvaluatorCharts />
+                </ThemeProvider>
+              </RelayEnvironmentProvider>
+            </TimeRangeProvider>
+          </AgentProvider>
+        </PreferencesProvider>
+      </MemoryRouter>
+    );
+  });
+  await resolvePendingRequests({ isEmpty: options.isFirstResponseEmpty });
+  sentOperations = [];
+}
+
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(START_TIME);
   environment = createMockEnvironment();
   sentOperations = [];
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
-  await act(async () => {
-    root.render(
-      <RelayEnvironmentProvider environment={environment}>
-        <PreferencesProvider>
-          <ThemeProvider>
-            <EvaluatorCharts />
-          </ThemeProvider>
-        </PreferencesProvider>
-      </RelayEnvironmentProvider>
-    );
-  });
-  await resolvePendingRequests();
-  sentOperations = [];
 });
 
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
+  vi.useRealTimers();
 });
 
 describe("evaluator activity charts", () => {
   it("request the activity once when a stream advance moves the live range", async () => {
-    await update({ timeRange: LATER_RANGE, fetchKey: "stream-2" });
+    await renderCharts("timeRangeKey=1h");
+    await tick();
     await resolvePendingRequests();
 
     const activityRequests = sentOperations.filter(
@@ -144,45 +242,75 @@ describe("evaluator activity charts", () => {
     );
     expect(activityRequests).toHaveLength(1);
     expect(activityRequests[0]?.request.variables.timeRange).toEqual({
-      start: LATER_RANGE.start.toISOString(),
-      end: LATER_RANGE.end.toISOString(),
+      start: controls.timeRange.start.toISOString(),
+      end: controls.timeRange.end.toISOString(),
     });
   });
 
   it("let the table's refresh commit while the activity request is pending", async () => {
-    await update({
-      timeRange: LATER_RANGE,
-      fetchKey: "stream-2",
-      tableText: "refreshed rows",
-    });
+    await renderCharts("timeRangeKey=1h");
+    vi.setSystemTime(Date.now() + TICK_MS);
+    await act(async () => controls.setTableText("refreshed rows"));
 
-    expect(
-      environment.mock
-        .getAllOperations()
-        .some((operation) => getOperationName(operation) === ACTIVITY_QUERY)
-    ).toBe(true);
+    expect(getPendingOperations(ACTIVITY_QUERY)).toHaveLength(1);
     expect(container.querySelector('[data-testid="table"]')?.textContent).toBe(
       "refreshed rows"
     );
     expect(container.textContent).not.toContain("loading");
   });
 
-  it("keep showing a chart while a stream advance loads", async () => {
-    await update({ timeRange: LATER_RANGE, fetchKey: "stream-2" });
+  it.each([
+    ["Last 15 Min", "timeRangeKey=15m"],
+    ["Last Hour", "timeRangeKey=1h"],
+    [
+      "a custom range",
+      "timeRangeStart=2026-01-01T09:00:00.000Z&timeRangeEnd=2026-01-01T11:30:00.000Z",
+    ],
+  ])(
+    "keep showing the charts on every stream refresh of %s",
+    async (_name, search) => {
+      await renderCharts(search);
+      expect(countChartsWithData()).toBe(2);
 
-    expect(container.querySelectorAll(".chart-skeleton")).toHaveLength(0);
-  });
+      // Nine refreshes, across a minute
+      for (let refresh = 0; refresh < 9; refresh++) {
+        await tick();
+        expect(getPendingOperations()).toHaveLength(2);
+        expect(countSkeletons()).toBe(0);
+        expect(countChartsWithData()).toBe(2);
+        await resolvePendingRequests();
+        expect(countSkeletons()).toBe(0);
+      }
+    }
+  );
 
-  it("show a skeleton, not the previous range's data, while a range of another length loads", async () => {
-    await update({ timeRange: LONGER_RANGE, tableText: "refreshed rows" });
+  it.each([
+    [
+      "another preset",
+      () =>
+        controls.setTimeRange({ timeRangeKey: "1h", start: null, end: null }),
+    ],
+    [
+      "a range of the same length, earlier",
+      () =>
+        controls.setCustomTimeRange({
+          start: new Date(controls.timeRange.start.getTime() - 15 * 60_000),
+          end: new Date(controls.timeRange.end.getTime() - 15 * 60_000),
+        }),
+    ],
+    ["another project", () => controls.setProjectId("UHJvamVjdDoy")],
+  ])(
+    "show a skeleton, not the previous range's data, while %s loads",
+    async (_name, changeRange) => {
+      await renderCharts("timeRangeKey=15m");
+      await act(async () => changeRange());
 
-    expect(container.querySelector('[data-testid="table"]')?.textContent).toBe(
-      "refreshed rows"
-    );
-    expect(container.querySelectorAll(".chart-skeleton")).toHaveLength(2);
+      expect(countSkeletons()).toBe(2);
 
-    await resolvePendingRequests();
+      await resolvePendingRequests();
 
-    expect(container.querySelectorAll(".chart-skeleton")).toHaveLength(0);
-  });
+      expect(countSkeletons()).toBe(0);
+      expect(countChartsWithData()).toBe(2);
+    }
+  );
 });

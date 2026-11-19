@@ -15,7 +15,7 @@ import {
   YAxis,
 } from "recharts";
 
-import { Text } from "@phoenix/components";
+import { Text, useNullableTimeRangeContext } from "@phoenix/components";
 import type { ColorPreviewShape } from "@phoenix/components/chart";
 import {
   CATEGORICAL_CHART_COLORS,
@@ -44,6 +44,10 @@ import {
   useSemanticChartColors,
   useSequentialChartColors,
 } from "@phoenix/components/chart";
+import {
+  getTimeRangeFromLastNTimeRangeKey,
+  isLastNTimeRangeKey,
+} from "@phoenix/components/datetime/utils";
 import { useRefreshingLazyLoadQuery } from "@phoenix/hooks/useRefreshingLazyLoadQuery";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
@@ -95,11 +99,44 @@ const evaluatorLegendProps = {
 } satisfies typeof compactLegendProps;
 
 /**
+ * What a chart's time range is, apart from where "now" falls: a live range
+ * is its preset, so each refresh that moves it forward is the same range,
+ * whatever its length; any other range is its bounds.
+ */
+function useTimeRangeIdentity(timeRange: TimeRange): string {
+  const timeRangeKey = useNullableTimeRangeContext()?.timeRange.timeRangeKey;
+  const isLiveRange =
+    isLastNTimeRangeKey(timeRangeKey) &&
+    getTimeRangeFromLastNTimeRangeKey(
+      timeRangeKey,
+      timeRange.end.getTime()
+    ).start?.getTime() === timeRange.start.getTime();
+  return isLiveRange
+    ? timeRangeKey
+    : `${timeRange.start.toISOString()}/${timeRange.end.toISOString()}`;
+}
+
+/**
+ * The subject of a chart query, for `useRefreshingLazyLoadQuery`: its
+ * variables, with the time range named by {@link useTimeRangeIdentity}. A live
+ * refresh keeps it, so the chart keeps its data up while the next loads; a
+ * change of preset, range, bin scale or project does not, so the chart shows
+ * a skeleton rather than the previous range's data.
+ */
+function useChartSubjectKey({
+  variables,
+  timeRange,
+}: {
+  variables: EvaluatorActivityChartsQuery$variables;
+  timeRange: TimeRange;
+}): string {
+  const timeRangeIdentity = useTimeRangeIdentity(timeRange);
+  return JSON.stringify({ ...variables, timeRange: timeRangeIdentity });
+}
+
+/**
  * The time range and bin scale that loaded chart data covers, which differ
- * from the requested ones while a newer range loads. A range of another
- * length (a different preset or a zoom) is loading when its length or scale
- * differs; a live refresh that only moves the range forward is not, so it
- * keeps showing the current data while the next loads.
+ * from the requested ones while a newer range loads.
  */
 function getLoadedChartRange({
   variables,
@@ -111,37 +148,24 @@ function getLoadedChartRange({
   timeRange: TimeRange;
   scale: TimeBinScale;
 }) {
-  const loadedTimeRange = {
-    start: variables.timeRange.start
-      ? new Date(variables.timeRange.start)
-      : timeRange.start,
-    end: variables.timeRange.end
-      ? new Date(variables.timeRange.end)
-      : timeRange.end,
-  };
-  const loadedLength =
-    loadedTimeRange.end.getTime() - loadedTimeRange.start.getTime();
-  const requestedLength = timeRange.end.getTime() - timeRange.start.getTime();
-  const loadedScale = variables.timeBinConfig.scale ?? scale;
-  const isOtherRangeLoading =
-    loadedScale !== scale ||
-    Math.abs(loadedLength - requestedLength) >
-      RANGE_LENGTH_TOLERANCE * requestedLength;
   return {
-    timeRange: loadedTimeRange,
-    scale: loadedScale,
-    isOtherRangeLoading,
+    timeRange: {
+      start: variables.timeRange.start
+        ? new Date(variables.timeRange.start)
+        : timeRange.start,
+      end: variables.timeRange.end
+        ? new Date(variables.timeRange.end)
+        : timeRange.end,
+    },
+    scale: variables.timeBinConfig.scale ?? scale,
   };
 }
 
-/** A live range's length drifts by the time between refreshes, not more. */
-const RANGE_LENGTH_TOLERANCE = 0.01;
-
 /**
  * Every evaluator chart reads the same query, so the charts in a strip share
- * one request and one copy of the data. While a range of another length
- * loads, `isOtherRangeLoading` is set so the charts show a skeleton rather
- * than the previous range's data under the new range.
+ * one request and one copy of the data. While another range loads,
+ * `isOtherRangeLoading` is set so the charts show a skeleton rather than the
+ * previous range's data under the new range.
  */
 function useEvaluatorActivity({
   projectId,
@@ -149,7 +173,15 @@ function useEvaluatorActivity({
 }: Pick<ProjectMetricViewProps, "projectId" | "timeRange">) {
   const requestedScale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
-  const { data, variables } =
+  const requestedVariables = {
+    projectId,
+    timeRange: {
+      start: timeRange.start?.toISOString(),
+      end: timeRange.end?.toISOString(),
+    },
+    timeBinConfig: { scale: requestedScale, utcOffsetMinutes },
+  };
+  const { data, variables, isOtherSubjectLoading } =
     useRefreshingLazyLoadQuery<EvaluatorActivityChartsQuery>({
       query: graphql`
         query EvaluatorActivityChartsQuery(
@@ -189,15 +221,12 @@ function useEvaluatorActivity({
           }
         }
       `,
-      variables: {
-        projectId,
-        timeRange: {
-          start: timeRange.start?.toISOString(),
-          end: timeRange.end?.toISOString(),
-        },
-        timeBinConfig: { scale: requestedScale, utcOffsetMinutes },
-      },
+      variables: requestedVariables,
       fetchKey: useMetricQueryFetchKey(),
+      subjectKey: useChartSubjectKey({
+        variables: requestedVariables,
+        timeRange,
+      }),
     });
   const loaded = getLoadedChartRange({
     variables,
@@ -213,7 +242,7 @@ function useEvaluatorActivity({
   return {
     scale: loaded.scale,
     timeRange: loaded.timeRange,
-    isOtherRangeLoading: loaded.isOtherRangeLoading,
+    isOtherRangeLoading: isOtherSubjectLoading,
     groups,
     bins,
     series,
@@ -591,7 +620,15 @@ export function EvaluationQueueSizeTimeSeries({
 }: ProjectMetricViewProps) {
   const requestedScale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
-  const { data, variables } =
+  const requestedVariables = {
+    projectId,
+    timeRange: {
+      start: timeRange.start?.toISOString(),
+      end: timeRange.end?.toISOString(),
+    },
+    timeBinConfig: { scale: requestedScale, utcOffsetMinutes },
+  };
+  const { data, variables, isOtherSubjectLoading } =
     useRefreshingLazyLoadQuery<EvaluatorQueueSizeChartQuery>({
       query: graphql`
         query EvaluatorQueueSizeChartQuery(
@@ -614,28 +651,25 @@ export function EvaluationQueueSizeTimeSeries({
           }
         }
       `,
-      variables: {
-        projectId,
-        timeRange: {
-          start: timeRange.start?.toISOString(),
-          end: timeRange.end?.toISOString(),
-        },
-        timeBinConfig: { scale: requestedScale, utcOffsetMinutes },
-      },
+      variables: requestedVariables,
       fetchKey: useMetricQueryFetchKey(),
+      subjectKey: useChartSubjectKey({
+        variables: requestedVariables,
+        timeRange,
+      }),
     });
-  const {
-    scale,
-    timeRange: loadedTimeRange,
-    isOtherRangeLoading,
-  } = getLoadedChartRange({ variables, timeRange, scale: requestedScale });
+  const { scale, timeRange: loadedTimeRange } = getLoadedChartRange({
+    variables,
+    timeRange,
+    scale: requestedScale,
+  });
   const chartData = getQueueSizeRows(
     data.project.evaluationActivity?.series ?? []
   );
   const hasData = chartData.some(({ queueSize }) => queueSize > 0);
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
   const colors = useSequentialChartColors();
-  if (isOtherRangeLoading) {
+  if (isOtherSubjectLoading) {
     return <ChartSkeleton />;
   }
   return (
