@@ -1,5 +1,5 @@
 ---
-name: Factory Message Coordinator
+name: Factory Message Foreman
 description: Shared Slack-thread conversation for the Phoenix factory message service.
 model: { id: claude-opus-5-5, effort: medium }
 tools:

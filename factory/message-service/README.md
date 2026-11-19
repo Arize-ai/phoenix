@@ -15,6 +15,10 @@ make dev-factory-message-service
 
 The service runs at `http://localhost:3109`. Use an HTTPS tunnel for webhook access.
 
+Existing setups: rename `FACTORY_COORDINATOR_AGENT_ID` and
+`FACTORY_COORDINATOR_ENVIRONMENT_ID` to `FACTORY_FOREMAN_AGENT_ID` and
+`FACTORY_FOREMAN_ENVIRONMENT_ID`, keeping their values, then run the migration.
+
 ## Commands
 
 ```sh

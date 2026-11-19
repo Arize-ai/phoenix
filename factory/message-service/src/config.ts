@@ -18,8 +18,8 @@ const configSchema = z.object({
             .filter(Boolean)
         )
     ),
-  FACTORY_COORDINATOR_AGENT_ID: z.string().min(1),
-  FACTORY_COORDINATOR_ENVIRONMENT_ID: z.string().min(1),
+  FACTORY_FOREMAN_AGENT_ID: z.string().min(1),
+  FACTORY_FOREMAN_ENVIRONMENT_ID: z.string().min(1),
   ANTHROPIC_API_KEY: z.string().min(1),
   ANTHROPIC_WEBHOOK_SIGNING_KEY: z.string().min(1),
   DATABASE_URL: z.string().min(1),

@@ -41,8 +41,8 @@ export async function deliverThreadMessage({
       latestTimestamp: message.messageTimestamp,
     });
     const session = await client.beta.sessions.create({
-      agent: config.FACTORY_COORDINATOR_AGENT_ID,
-      environment_id: config.FACTORY_COORDINATOR_ENVIRONMENT_ID,
+      agent: config.FACTORY_FOREMAN_AGENT_ID,
+      environment_id: config.FACTORY_FOREMAN_ENVIRONMENT_ID,
       metadata: {
         slack_workspace: message.workspaceId,
         slack_channel: message.channelId,
@@ -51,7 +51,7 @@ export async function deliverThreadMessage({
     });
     await transaction
       .insertInto("sessions")
-      .values({ id: session.id, kind: "coordinator" })
+      .values({ id: session.id, kind: "foreman" })
       .execute();
     await transaction
       .insertInto("slack_threads")
@@ -86,8 +86,8 @@ export async function deliverThreadMessage({
   });
 }
 
-/** Post the latest coordinator reply to its linked Slack thread. */
-export async function relayCoordinatorReply(sessionId: string): Promise<void> {
+/** Post the latest foreman reply to its linked Slack thread. */
+export async function relayForemanReply(sessionId: string): Promise<void> {
   const thread = await getDatabase()
     .selectFrom("slack_threads")
     .select(["channel_id", "thread_timestamp"])

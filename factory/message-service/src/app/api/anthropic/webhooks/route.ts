@@ -1,5 +1,5 @@
 import { getAnthropicClient } from "@/anthropic/client";
-import { relayCoordinatorReply } from "@/messages/coordinator";
+import { relayForemanReply } from "@/messages/foreman";
 import { messageDispatcher } from "@/messages/runtime";
 import { after } from "next/server";
 import { WebhookVerificationError } from "standardwebhooks";
@@ -34,7 +34,7 @@ export async function POST(request: Request): Promise<Response> {
       messageDispatcher.dispatch({
         threadKey: `reply:${sessionId}`,
         messageKey: `anthropic:${event.id}`,
-        deliver: () => relayCoordinatorReply(sessionId),
+        deliver: () => relayForemanReply(sessionId),
       })
     );
   }

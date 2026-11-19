@@ -705,7 +705,7 @@
             },
             {
               "type": "c",
-              "definition": "CHECK ((kind = ANY (ARRAY['coordinator'::text, 'worker'::text])))",
+              "definition": "CHECK ((kind = ANY (ARRAY['foreman'::text, 'worker'::text])))",
               "columns": ["kind"],
               "target": null,
               "targetColumns": []
@@ -744,7 +744,7 @@
               "name": "session_kind",
               "type": "text",
               "nullable": false,
-              "default": "'coordinator'::text"
+              "default": "'foreman'::text"
             }
           ],
           "constraints": [
@@ -778,7 +778,7 @@
             },
             {
               "type": "c",
-              "definition": "CHECK ((session_kind = 'coordinator'::text))",
+              "definition": "CHECK ((session_kind = 'foreman'::text))",
               "columns": ["session_kind"],
               "target": null,
               "targetColumns": []

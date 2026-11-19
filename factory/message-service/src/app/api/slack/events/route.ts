@@ -1,5 +1,5 @@
 import { getServiceConfig } from "@/config";
-import { deliverThreadMessage } from "@/messages/coordinator";
+import { deliverThreadMessage } from "@/messages/foreman";
 import { messageDispatcher } from "@/messages/runtime";
 import {
   parseThreadMessage,

@@ -1,4 +1,4 @@
-name: Factory Message Coordinator
+name: Factory Message Foreman
 description: Conversation-only environment for locally testing the factory message service.
 config:
   type: cloud
