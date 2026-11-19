@@ -246,7 +246,7 @@ export const spanFilterSnippets: DSLFilterSnippet[] = [
     snippet: "trace_id == '${trace id}'",
   },
   {
-    label: "filter by token count",
+    label: "filter LLM spans by token count",
     snippet: "llm.token_count.total > ${1_000}",
   },
   {
