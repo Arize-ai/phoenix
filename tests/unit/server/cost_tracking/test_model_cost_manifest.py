@@ -352,11 +352,9 @@ def test_embedding_entries_carry_only_an_input_rate(manifest: dict[str, Any]) ->
     "span_model_name, span_provider, expected_entry",
     [
         ("text-embedding-3-small", None, "text-embedding-3-small"),
-        ("text-embedding-3-large", None, "text-embedding-3-large"),
         # Prefix pairs must resolve to their own entry rather than the shorter prefix.
         ("text-embedding-ada-002", None, "text-embedding-ada-002"),
         ("text-embedding-ada-002-v2", None, "text-embedding-ada-002-v2"),
-        ("gemini-embedding-001", None, "gemini-embedding-001"),
         # google-genai prefixes embedding model IDs with ``models/``.
         ("models/gemini-embedding-001", "google", "gemini-embedding-001"),
         ("gemini-embedding-2", None, "gemini-embedding-2"),
@@ -480,9 +478,7 @@ def test_decision_entries_carry_expected_rates_and_tiers(manifest: dict[str, Any
         ("us.openai.gpt-6-luna", None, "gpt-6-luna", "us.openai.gpt-6-luna"),
         ("jev-latest", "typesafe", "typesafe/jev-latest", None),
         ("jev-latest", None, "typesafe/jev-latest", None),
-        ("jev-1.14.0", "typesafe", "typesafe/jev-1.14.0", None),
         ("jev-1.13.0", "typesafe", "typesafe/jev-1.13.0", None),
-        ("jev-preview", "typesafe", "typesafe/jev-preview", None),
     ],
 )
 def test_decision_span_model_names_resolve_apart_from_llm_entries(

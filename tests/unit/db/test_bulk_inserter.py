@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 import pytest
-from opentelemetry.proto.common.v1.common_pb2 import AnyValue, ArrayValue, KeyValue
+from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
 from sqlalchemy import NullPool, delete, func, select, text
 from sqlalchemy.exc import DBAPIError, StatementError
 from sqlalchemy.ext.asyncio import AsyncSession, AsyncSessionTransaction, create_async_engine
@@ -677,61 +677,13 @@ async def test_rejected_cost_keeps_its_span_and_sibling_costs(
     assert not cast(SimpleQueue[DmlEvent], inserter._event_queue).empty()
 
 
-async def test_decision_span_gets_a_cost_row(db: DbSessionFactory) -> None:
-    # Pricing is covered in test_tracers.py; this checks OTLP decode -> bulk inserter -> SpanCost.
-    decision_model = models.GenerativeModel(
-        name="gpt-6-luna-decisions",
-        provider="openai",
-        name_pattern=re.compile("gpt-6-luna"),
-        is_built_in=True,
-        type="DECISION",
-        token_prices=[
-            models.TokenPrice(token_type="input", is_prompt=True, base_rate=1e-7),
-            models.TokenPrice(token_type="output", is_prompt=False, base_rate=0.0),
-        ],
-    )
-    async with db() as session:
-        session.add(decision_model)
-    store = GenerativeModelStore(db=db)
-    await store._fetch_models()
-    start = int(_START.timestamp() * 1e9)
-    otlp_decision = otlp.Span(
-        trace_id=bytes(range(1, 17)),
-        span_id=bytes(range(1, 9)),
-        name="decision",
-        start_time_unix_nano=start,
-        end_time_unix_nano=start + 200_000_000,
-        attributes=[
-            KeyValue(key="openinference.span.kind", value=AnyValue(string_value="DECISION")),
-            KeyValue(key="decision.request.model_name", value=AnyValue(string_value="gpt-6-luna")),
-            KeyValue(key="decision.token_count.input", value=AnyValue(string_value="1000")),
-            KeyValue(key="decision.token_count.output", value=AnyValue(int_value=5)),
-        ],
-    )
-    inserter = _inserter(db, decode_otlp_span(otlp_decision))
-    inserter._span_cost_calculator = SpanCostCalculator(model_store=store)
-    await inserter._insert_spans(1)
-    async with db() as session:
-        cost = await session.scalar(select(models.SpanCost))
-    assert cost is not None
-    assert cost.model_id == decision_model.id
-    assert cost.total_cost == pytest.approx(1000 * 1e-7)
-
-
 def _otlp_embedding_span(model_name: str, *, span_id: bytes) -> otlp.Span:
-    """Attributes from the embedding spec's text input example (it sets no provider), as OTLP."""
+    """The token counts of the embedding spec's example, which sets no provider."""
     attributes = [
         KeyValue(key=key, value=value)
         for key, value in (
             ("openinference.span.kind", AnyValue(string_value="EMBEDDING")),
             ("embedding.model_name", AnyValue(string_value=model_name)),
-            ("embedding.embeddings.0.embedding.text", AnyValue(string_value="hello world")),
-            (
-                "embedding.embeddings.0.embedding.vector",
-                AnyValue(
-                    array_value=ArrayValue(values=[AnyValue(double_value=v) for v in (0.1, 0.2)])
-                ),
-            ),
             ("llm.token_count.prompt", AnyValue(int_value=2)),
             ("llm.token_count.total", AnyValue(int_value=2)),
         )

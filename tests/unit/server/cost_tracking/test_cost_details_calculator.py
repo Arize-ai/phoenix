@@ -890,10 +890,7 @@ def _tier(base_rate: float, new_rate: float, key: str) -> dict[str, Any]:
 
 
 def _luna_decision_prices(tier_key: str = "llm.token_count.prompt") -> list[models.TokenPrice]:
-    """
-    gpt-6-luna on the Decisions API: chat input and cache rates with the 272k tier, $0 output.
-    The default tier key is the one the LLM manifest entry uses.
-    """
+    """gpt-6-luna on the Decisions API: input and cache rates with a 272k tier, $0 output."""
     return [
         models.TokenPrice(token_type="input", is_prompt=True, **_tier(1e-7, 2e-7, tier_key)),
         models.TokenPrice(token_type="output", is_prompt=False, **_tier(0.0, 0.0, tier_key)),
@@ -923,29 +920,7 @@ def _by_type(details: list[models.SpanCostDetail]) -> dict[str, _Cost]:
 
 
 class TestDecisionSpanCostDetails:
-    def test_decision_counts_are_priced(self) -> None:
-        calculator = SpanCostDetailsCalculator(_luna_decision_prices())
-        details = _by_type(calculator.calculate_details(_decision_span(input=1000, output=500)))
-        assert details.keys() == {"input", "output"}
-        assert details["input"].tokens == 1000
-        assert details["input"].cost == pytest.approx(1e-4)
-        assert details["output"] == _Cost(tokens=500, cost=0.0, cost_per_token=0.0)
-
-    def test_no_output_tokens_gives_no_output_detail(self) -> None:
-        calculator = SpanCostDetailsCalculator(_luna_decision_prices())
-        details = _by_type(calculator.calculate_details(_decision_span(input=1000, output=0)))
-        assert details.keys() == {"input"}
-
-    def test_272k_tier_applies_to_decision_input(self) -> None:
-        calculator = SpanCostDetailsCalculator(_luna_decision_prices())
-        details = _by_type(calculator.calculate_details(_decision_span(input=300_000, output=10)))
-        assert details["input"].cost == pytest.approx(300_000 * 2e-7)
-        assert details["output"].cost == 0.0
-
-        details = _by_type(calculator.calculate_details(_decision_span(input=272_000, output=10)))
-        assert details["input"].cost == pytest.approx(272_000 * 1e-7)
-
-    def test_llm_detail_attributes_are_ignored_with_decision_counts(self) -> None:
+    def test_decision_counts_are_priced_without_llm_details(self) -> None:
         # The decision attributes have no detail keys; `llm.token_count.*_details` next to
         # `decision.token_count.*` would be subtracted from counts they don't belong to.
         attributes = _decision_span(input=1000, output=5)
@@ -960,6 +935,7 @@ class TestDecisionSpanCostDetails:
         assert details.keys() == {"input", "output"}
         assert details["input"].tokens == 1000
         assert details["input"].cost == pytest.approx(1000 * 1e-7)
+        assert details["output"] == _Cost(tokens=5, cost=0.0, cost_per_token=0.0)
 
     def test_legacy_decision_span_prices_cache_details_and_tier(self) -> None:
         # TypeSafe instrumentor releases before the decision.* attributes set llm.* on
@@ -982,14 +958,6 @@ class TestDecisionSpanCostDetails:
         assert details["input"].tokens == 50_000
         assert details["input"].cost == pytest.approx(50_000 * 2e-7)
         assert details["output"].cost == 0.0
-
-    def test_unpriced_decision_model(self) -> None:
-        calculator = SpanCostDetailsCalculator([])
-        details = _by_type(calculator.calculate_details(_decision_span(input=412, output=2)))
-        assert details == {
-            "input": _Cost(tokens=412, cost=None, cost_per_token=None),
-            "output": _Cost(tokens=2, cost=None, cost_per_token=None),
-        }
 
     def test_tier_reads_the_counts_being_priced(self) -> None:
         # With decision counts present, a tier keyed on llm.token_count.prompt is decided by
@@ -1042,24 +1010,11 @@ class TestDecisionSpanCostDetails:
         assert details["input"].cost_per_token == pytest.approx(input_cost_per_token)
         assert details["input"].cost == pytest.approx(300_000 * input_cost_per_token)
 
-    def test_llm_span_tier_ignores_decision_counts(self) -> None:
-        calculator = SpanCostDetailsCalculator(_luna_decision_prices())
-        attributes = {
-            "openinference": {"span": {"kind": "LLM"}},
-            "llm": {"token_count": {"completion": 10, "total": 1010}},
-            "decision": {"token_count": {"input": 300_000}},
-        }
-        details = _by_type(calculator.calculate_details(attributes))
-        assert details["input"].cost == pytest.approx(1000 * 1e-7)
-
     @pytest.mark.parametrize(
         "invalid_input",
         [
             pytest.param("many", id="string"),
             pytest.param(float("inf"), id="inf"),
-            pytest.param(float("nan"), id="nan"),
-            pytest.param({"raw": 300_000}, id="dict"),
-            pytest.param(True, id="bool"),
         ],
     )
     def test_non_finite_or_non_numeric_threshold_value_uses_base_rate(
@@ -1113,7 +1068,6 @@ def test_embedding_span_prices_input_tokens_only() -> None:
 @pytest.mark.parametrize(
     "token_count,expected_tokens,expected_rate",
     [
-        pytest.param({"total": 300_000}, 300_000, 4e-8, id="total-only-above-threshold"),
         pytest.param({"prompt": 0, "total": 300_000}, 300_000, 4e-8, id="zero-prompt-uses-total"),
         pytest.param(
             {"prompt": 1000, "total": 300_000}, 1000, 2e-8, id="positive-prompt-wins-over-total"

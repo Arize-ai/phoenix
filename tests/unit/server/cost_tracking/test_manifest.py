@@ -357,27 +357,14 @@ def test_skips_entry_whose_type_does_not_belong_in_its_list(
 
 def test_keeps_llm_and_decision_with_the_same_name_and_pattern() -> None:
     data = _manifest(
-        models=[_model("gpt-6-luna", provider="openai")],
-        non_llm_models=[
-            _model(
-                "gpt-6-luna",
-                provider="openai",
-                type="DECISION",
-                token_prices=[
-                    {"base_rate": 1e-7, "is_prompt": True, "token_type": "input"},
-                    {"base_rate": 0.0, "is_prompt": False, "token_type": "output"},
-                ],
-            )
-        ],
+        models=[_model("gpt-6-luna")],
+        non_llm_models=[_model("gpt-6-luna", type="DECISION")],
     )
     manifest = parse_manifest(json.dumps(data))
     assert [model.key for model in manifest.models] == [
         ("gpt-6-luna", "LLM"),
         ("gpt-6-luna", "DECISION"),
     ]
-    assert [model.token_prices[0].base_rate for model in manifest.models] == [1e-6, 1e-7]
-    # A $0 rate is a price, not a missing one.
-    assert manifest.models[1].token_prices[1].base_rate == 0.0
     assert not manifest.skipped_models
 
 

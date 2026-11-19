@@ -112,14 +112,13 @@ async def _active_built_in_prices(db: DbSessionFactory) -> dict[str, float]:
     }
 
 
-async def _built_in_updated_at(
-    db: DbSessionFactory, model_type: str = "LLM"
-) -> dict[str, datetime]:
+async def _built_in_updated_at(db: DbSessionFactory) -> dict[str, datetime]:
+    """Maps each built-in LLM's name to its updated_at."""
     async with db() as session:
         result = await session.execute(
             select(models.GenerativeModel.name, models.GenerativeModel.updated_at)
             .where(models.GenerativeModel.is_built_in.is_(True))
-            .where(models.GenerativeModel.type == model_type)
+            .where(models.GenerativeModel.type == "LLM")
         )
         return {name: updated_at for name, updated_at in result}
 
@@ -875,6 +874,19 @@ async def _built_in_rows(db: DbSessionFactory) -> dict[tuple[str, str, bool], in
         return {(name, type_, bool(deleted)): id_ for name, type_, deleted, id_ in result}
 
 
+async def _built_in_patterns(db: DbSessionFactory) -> dict[tuple[str, str], str]:
+    """Maps each built-in model's name and type to its name_pattern."""
+    async with db() as session:
+        result = await session.execute(
+            select(
+                models.GenerativeModel.name,
+                models.GenerativeModel.type,
+                models.GenerativeModel.name_pattern,
+            ).where(models.GenerativeModel.is_built_in.is_(True))
+        )
+        return {(name, type_): pattern.pattern for name, type_, pattern in result}
+
+
 class TestApplyManifestModelTypes:
     async def test_llm_and_decision_with_the_same_name_are_kept_apart(
         self,
@@ -893,18 +905,9 @@ class TestApplyManifestModelTypes:
             ("gpt-6-luna", "DECISION"): 1e-7,
         }
         rows = await _built_in_rows(db)
-        llm_id = rows[("gpt-6-luna", "LLM", False)]
-
-        async def _llm_updated_at() -> Any:
-            async with db() as session:
-                return await session.scalar(
-                    select(models.GenerativeModel.updated_at).where(
-                        models.GenerativeModel.id == llm_id
-                    )
-                )
+        llm_updated_at = await _built_in_updated_at(db)
 
         # Changing only the decision prices leaves the LLM row untouched.
-        llm_updated_at = await _llm_updated_at()
         manifest = _manifest_of(
             [_manifest_model("gpt-6-luna", input_rate=1e-6)],
             non_llm_models=[_decision_model("gpt-6-luna", input_rate=3e-7)],
@@ -916,13 +919,13 @@ class TestApplyManifestModelTypes:
             ("gpt-6-luna", "DECISION"): 3e-7,
         }
         assert await _built_in_rows(db) == rows
-        assert await _llm_updated_at() == llm_updated_at
+        assert await _built_in_updated_at(db) == llm_updated_at
 
         # Dropping the decision entry soft-deletes only the decision row.
         assert await _apply(db, _manifest("gpt-6-luna", day=3))
         assert await _active_built_in_prices_by_type(db) == {("gpt-6-luna", "LLM"): 1e-6}
         assert await _built_in_rows(db) == {
-            ("gpt-6-luna", "LLM", False): llm_id,
+            ("gpt-6-luna", "LLM", False): rows[("gpt-6-luna", "LLM", False)],
             ("gpt-6-luna", "DECISION", True): rows[("gpt-6-luna", "DECISION", False)],
         }
 
@@ -985,22 +988,40 @@ class TestApplyManifestModelTypes:
         assert (applied.num_added, applied.num_updated, applied.num_removed) == (0, 2, 0)
         assert await _built_in_rows(db) == rows
         assert (await _built_in_updated_at(db))["model-a"] == updated_at["model-a"]
-        async with db() as session:
-            patterns = {
-                (name, type_): pattern.pattern
-                for name, type_, pattern in await session.execute(
-                    select(
-                        models.GenerativeModel.name,
-                        models.GenerativeModel.type,
-                        models.GenerativeModel.name_pattern,
-                    ).where(models.GenerativeModel.is_built_in.is_(True))
-                )
-            }
-        assert patterns == {
+        assert await _built_in_patterns(db) == {
             ("model-a", "LLM"): r"(?i)^(model-a)$",
             ("model-b", "LLM"): r"(?i)^(decision-a)$",
             ("decision-a", "DECISION"): r"(?i)^(model-a)$",
         }
+
+    async def test_pattern_swap_between_active_decision_models(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        await _ensure_enums(db)
+        manifest = _manifest_of(
+            [_manifest_model("model-a")],
+            non_llm_models=[_decision_model("decision-a"), _decision_model("decision-b")],
+            day=1,
+        )
+        assert await _apply(db, manifest)
+        rows = await _built_in_rows(db)
+
+        swapped_a = {**_decision_model("decision-a"), "name_pattern": r"(?i)^(decision-b)$"}
+        swapped_b = {**_decision_model("decision-b"), "name_pattern": r"(?i)^(decision-a)$"}
+        manifest = _manifest_of(
+            [_manifest_model("model-a", input_rate=3e-6)],
+            non_llm_models=[swapped_a, swapped_b],
+            day=2,
+        )
+        assert await _apply(db, manifest)
+        assert await _built_in_rows(db) == rows
+        assert await _built_in_patterns(db) == {
+            ("model-a", "LLM"): r"(?i)^(model-a)$",
+            ("decision-a", "DECISION"): r"(?i)^(decision-b)$",
+            ("decision-b", "DECISION"): r"(?i)^(decision-a)$",
+        }
+        assert (await _active_built_in_prices_by_type(db))[("model-a", "LLM")] == 3e-6
 
     async def test_upgrade_adds_typed_models_next_to_existing_llm(
         self, db: DbSessionFactory

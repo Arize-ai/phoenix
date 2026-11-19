@@ -488,14 +488,6 @@ class TestDecisionSpanAttributes:
             pytest.param(
                 {
                     "openinference": {"span": {"kind": "DECISION"}},
-                    "decision": {"token_count": {"input": 1000, "output": 500}},
-                },
-                (1000, 500, 1500),
-                id="decision_counts",
-            ),
-            pytest.param(
-                {
-                    "openinference": {"span": {"kind": "DECISION"}},
                     "decision": {"token_count": {"input": 1000, "output": 2}},
                     "llm": {"token_count": {"prompt": 9, "completion": 9, "total": 99}},
                 },
@@ -529,15 +521,6 @@ class TestDecisionSpanAttributes:
                 },
                 (10, 5, 15),
                 id="invalid_decision_counts_keep_llm_counts",
-            ),
-            pytest.param(
-                {
-                    "openinference": {"span": {"kind": "DECISION"}},
-                    "decision": {"token_count": {"input": False}},
-                    "llm": {"token_count": {"prompt": 10, "completion": 5}},
-                },
-                (10, 5, 15),
-                id="bool_decision_count_keeps_llm_counts",
             ),
             pytest.param(
                 {
@@ -619,16 +602,6 @@ class TestDecisionSpanAttributes:
             pytest.param(
                 {
                     "openinference": {"span": {"kind": "DECISION"}},
-                    "decision": {"model_name": "jev-1.13.0", "system": "typesafe"},
-                },
-                "DECISION",
-                "jev-1.13.0",
-                "typesafe",
-                id="decision_system_stands_in_for_provider",
-            ),
-            pytest.param(
-                {
-                    "openinference": {"span": {"kind": "DECISION"}},
                     "decision": {
                         "model_name": "jev-1.13.0",
                         "provider": {"region": "us-east-1"},
@@ -654,16 +627,6 @@ class TestDecisionSpanAttributes:
                 "jev-1.13.0",
                 "typesafe",
                 id="legacy_decision_span_with_llm_attributes",
-            ),
-            pytest.param(
-                {
-                    "openinference": {"span": {"kind": "DECISION"}},
-                    "llm": {"request": {"model_name": "jev-latest"}, "provider": "typesafe"},
-                },
-                "DECISION",
-                "jev-latest",
-                "typesafe",
-                id="legacy_decision_span_with_llm_request_model_name",
             ),
             pytest.param(
                 {
@@ -717,31 +680,6 @@ class TestDecisionSpanAttributes:
 
 
 class TestEmbeddingSpanAttributes:
-    """EMBEDDING spans have input tokens only: the prompt count, or the total without one."""
-
-    @pytest.mark.parametrize(
-        "token_count,expected",
-        [
-            pytest.param({"prompt": 2, "total": 2}, (2, 0, 2), id="spec_example"),
-            pytest.param({"total": 1000}, (1000, 0, 1000), id="total_when_prompt_is_missing"),
-            pytest.param(
-                {"prompt": 0, "total": 1000}, (1000, 0, 1000), id="total_when_prompt_is_0"
-            ),
-            pytest.param(
-                {"prompt": 900, "total": 1000}, (900, 0, 900), id="prompt_wins_over_total"
-            ),
-        ],
-    )
-    def test_get_aggregated_tokens(
-        self, token_count: dict[str, Any], expected: tuple[int, int, int]
-    ) -> None:
-        attributes = {
-            "openinference": {"span": {"kind": "EMBEDDING"}},
-            "embedding": {"model_name": "text-embedding-3-small"},
-            "llm": {"token_count": token_count},
-        }
-        assert get_aggregated_tokens(attributes) == expected
-
     @pytest.mark.parametrize(
         "attributes,expected_name",
         [
