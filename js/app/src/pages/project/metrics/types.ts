@@ -29,18 +29,23 @@ const MetricFetchKeyContext = createContext<string | undefined>(undefined);
 export const MetricFetchKeyProvider = MetricFetchKeyContext.Provider;
 
 /**
+ * The fetchKey a metric chart query refetches on, frozen while the chart is
+ * out of view so stream refreshes only refetch visible charts (see
+ * {@link useFrozenWhileHidden}).
+ */
+export function useMetricQueryFetchKey(): string | undefined {
+  return useFrozenWhileHidden(useContext(MetricFetchKeyContext));
+}
+
+/**
  * Relay query options that make a metric chart query refetch whenever the
  * provided fetchKey changes (e.g. when new data is streamed in) while
  * continuing to render cached data. Every chart in the chart catalog must
- * pass this to its query so it stays live when shown above the spans table.
- *
- * The fetchKey is frozen while the chart is out of view, so stream refreshes
- * only refetch visible charts (see {@link useFrozenWhileHidden}).
+ * refetch on this fetchKey, through these options or
+ * {@link useMetricQueryFetchKey}, so it stays live when shown above a table.
  */
 export function useMetricQueryFetchOptions() {
-  const visibleFetchKey = useFrozenWhileHidden(
-    useContext(MetricFetchKeyContext)
-  );
+  const visibleFetchKey = useMetricQueryFetchKey();
   return visibleFetchKey != null
     ? ({ fetchKey: visibleFetchKey, fetchPolicy: "store-and-network" } as const)
     : undefined;

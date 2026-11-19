@@ -20,5 +20,5 @@ export function useFrozenWhileHidden<T>(value: T): T {
   if (isVisible && frozenValue !== value) {
     setFrozenValue(value);
   }
-  return frozenValue;
+  return isVisible ? value : frozenValue;
 }
