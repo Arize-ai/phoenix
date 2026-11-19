@@ -4,6 +4,7 @@ import {
   loadQuery,
   type PreloadedQuery,
   RelayEnvironmentProvider,
+  useLazyLoadQuery,
   usePreloadedQuery,
 } from "react-relay";
 import { MemoryRouter } from "react-router";
@@ -18,6 +19,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
 import { createStreamingMultipartResponse } from "@phoenix/__tests__/multipartResponse";
+import { ErrorBoundary } from "@phoenix/components";
 import type * as DateTimeModule from "@phoenix/components/datetime";
 import { PreferencesProvider, ThemeProvider } from "@phoenix/contexts";
 
@@ -27,6 +29,8 @@ const authFetchMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@phoenix/authFetch", () => ({
   authFetch: authFetchMock,
+  isRedirectingToLoginError: () => false,
+  isRedirectingToLogin: () => false,
 }));
 
 const TIME_RANGE = {
@@ -130,6 +134,9 @@ vi.mock("../TableMetricsChartSelector", () => ({
 import { fetchRelay } from "@phoenix/RelayEnvironment";
 
 import type { ProjectPageQueriesTracesQuery as ProjectPageTracesQueryType } from "../__generated__/ProjectPageQueriesTracesQuery.graphql";
+import compareTraceTargetsQuery, {
+  type ProjectEvaluatorCompareTargetsTracesQuery,
+} from "../evaluators/__generated__/ProjectEvaluatorCompareTargetsTracesQuery.graphql";
 import { ProjectPageQueriesTracesQuery } from "../ProjectPageQueries";
 import { TraceFiltersProvider } from "../TraceFiltersContext";
 import { TracesTable } from "../TracesTable";
@@ -138,7 +145,7 @@ const PROJECT_ID = tracingState.projectId;
 const QUERY_TEXT = getRequest(ProjectPageQueriesTracesQuery).params.text ?? "";
 /** The label the traces query gives each row's deferred child spans. */
 const DESCENDANTS_DEFER_LABEL =
-  /@defer\(label: "([^"]+_descendants[^"]*)"\)/.exec(QUERY_TEXT)?.[1];
+  /@defer\(label: "([^"]+_descendants[^"]*)"/.exec(QUERY_TEXT)?.[1];
 /** The label the traces query gives the deferred annotation names. */
 const NAMES_DEFER_LABEL = /@defer\(label: "([^"]+AnnotationNames[^"]*)"\)/.exec(
   QUERY_TEXT
@@ -470,5 +477,69 @@ describe("TracesTable child span failures", () => {
 
     expect(authFetchMock).toHaveBeenCalledTimes(3);
     expect(await readFailedTraces()).toEqual(["trace-2"]);
+  });
+});
+
+/** The compare-targets traces table's owner: its query, with no request to hand on. */
+function CompareTargetsOwner() {
+  const data = useLazyLoadQuery<ProjectEvaluatorCompareTargetsTracesQuery>(
+    compareTraceTargetsQuery,
+    { id: PROJECT_ID, timeRange: TIME_RANGE, condition: "" },
+    { fetchPolicy: "store-and-network" }
+  );
+  return <TracesTable project={data.project} initialRequest={null} />;
+}
+
+describe("TracesTable child span failures without the owner's request", () => {
+  it("shows the failure when the child spans fail on the compare-targets table", async () => {
+    // As the server answers: a deferred part fails on its own, anything else
+    // fails the whole response.
+    authFetchMock.mockImplementationOnce(async (_input, init) => {
+      const { query } = JSON.parse(String(init?.body));
+      if (/\$defer\$TracesTable_descendants/.test(query)) {
+        const stream = createStreamingMultipartResponse();
+        stream.sendPart(makeRowsPart({ root: "project", indexes: [1, 2] }));
+        stream.sendPart(NAMES_PART);
+        stream.sendPart(makeFailedChildSpansPart([1, 2]));
+        stream.end();
+        return stream.response;
+      }
+      return new Response(
+        JSON.stringify({
+          data: null,
+          errors: [{ message: "an unexpected error occurred" }],
+        }),
+        { headers: { "Content-Type": "application/json" } }
+      );
+    });
+    const environment = new Environment({
+      network: Network.create(fetchRelay),
+      store: new Store(new RecordSource()),
+    });
+    await act(async () => {
+      root.render(
+        <ThemeProvider themeMode="light" disableBodyTheme>
+          <PreferencesProvider>
+            <RelayEnvironmentProvider environment={environment}>
+              <MemoryRouter initialEntries={[`/projects/${PROJECT_ID}/traces`]}>
+                <TraceFiltersProvider>
+                  <ErrorBoundary fallback={() => <p>table failed to load</p>}>
+                    <Suspense fallback="loading">
+                      <CompareTargetsOwner />
+                    </Suspense>
+                  </ErrorBoundary>
+                </TraceFiltersProvider>
+              </MemoryRouter>
+            </RelayEnvironmentProvider>
+          </PreferencesProvider>
+        </ThemeProvider>
+      );
+    });
+    await settle();
+
+    // The rows either say their child spans failed, or the table says it failed.
+    const failedTraces = await readFailedTraces();
+    const tableFailed = container.textContent?.includes("table failed to load");
+    expect(failedTraces.length === 2 || tableFailed).toBe(true);
   });
 });

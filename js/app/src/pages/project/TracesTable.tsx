@@ -430,6 +430,7 @@ export function TracesTable(props: TracesTableProps) {
           traceFilterCondition: { type: "String", defaultValue: null }
           numDescendants: { type: "Int", defaultValue: 50 }
           includeAnnotationNames: { type: "Boolean", defaultValue: true }
+          deferChildSpans: { type: "Boolean", defaultValue: true }
         ) {
           id
           name
@@ -493,7 +494,7 @@ export function TracesTable(props: TracesTableProps) {
                   hit
                 }
                 ...TracesTable_descendants
-                  @defer
+                  @defer(if: $deferChildSpans)
                   @arguments(numDescendants: $numDescendants)
               }
             }

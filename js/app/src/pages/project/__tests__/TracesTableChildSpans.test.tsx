@@ -111,7 +111,7 @@ const PROJECT_ID = tracingState.projectId;
 const QUERY_TEXT = getRequest(ProjectPageQueriesTracesQuery).params.text ?? "";
 /** The label the traces query gives each row's deferred child spans. */
 const DESCENDANTS_DEFER_LABEL =
-  /@defer\(label: "([^"]+_descendants[^"]*)"\)/.exec(QUERY_TEXT)?.[1];
+  /@defer\(label: "([^"]+_descendants[^"]*)"/.exec(QUERY_TEXT)?.[1];
 /** The label the traces query gives the deferred annotation names. */
 const NAMES_DEFER_LABEL = /@defer\(label: "([^"]+AnnotationNames[^"]*)"\)/.exec(
   QUERY_TEXT

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1462fc0d7c7ed4bacb1d0c78ff58a026>>
+ * @generated SignedSource<<765472cd48f0a8d489ea122ac18fe698>>
  * @lightSyntaxTransform
  */
 
@@ -275,6 +275,11 @@ return {
       "defaultValue": null,
       "kind": "LocalArgument",
       "name": "after"
+    },
+    {
+      "defaultValue": true,
+      "kind": "LocalArgument",
+      "name": "deferChildSpans"
     },
     {
       "defaultValue": 30,
@@ -684,6 +689,6 @@ return {
 };
 })();
 
-(node as any).hash = "a1d2b0d6a7dffc9c103298aa2f961b0c";
+(node as any).hash = "856131ee740b3db055c5b00c12a41f3e";
 
 export default node;
