@@ -16,6 +16,7 @@ from phoenix.evals.metrics.correctness import CorrectnessEvaluator
 from phoenix.evals.metrics.document_relevance import DocumentRelevanceEvaluator
 from phoenix.evals.metrics.faithfulness import FaithfulnessEvaluator
 from phoenix.evals.metrics.hallucination import HallucinationEvaluator
+from phoenix.evals.metrics.language_detection import LanguageDetectionEvaluator
 from phoenix.evals.metrics.pii_detection import PiiDetectionEvaluator
 from phoenix.evals.metrics.refusal import RefusalEvaluator
 from phoenix.evals.metrics.retrieval_relevance import RetrievalRelevanceEvaluator
@@ -111,6 +112,11 @@ ALL_EVALUATORS = [
         id="UserFrictionEvaluator",
     ),
     pytest.param(
+        LanguageDetectionEvaluator,
+        {"session": "User: Hello.\nAssistant: Hi, how can I help?"},
+        id="LanguageDetectionEvaluator",
+    ),
+    pytest.param(
         PiiDetectionEvaluator,
         {"conversation": "User: Reset my account. My email is jane.doe@acme.com"},
         id="PiiDetectionEvaluator",
@@ -175,6 +181,35 @@ class TestKwargsForwarding:
         llm = MockLLM()
         ev = EvaluatorClass(llm=llm, temperature=0.5)
         assert ev.invocation_parameters.get("temperature") == 0.5
+
+
+def test_language_detection_returns_label_with_no_score() -> None:
+    """Language detection exposes its label list and yields a label, no score, neutral direction.
+
+    Its choices are a bare label list rather than a score map, so the evaluator must
+    set no ``label_score_map`` and every ``Score`` must have ``score=None`` with the
+    result carried by ``label`` and ``direction == "neutral"``.
+    """
+    evaluator = LanguageDetectionEvaluator(llm=MockLLM())
+
+    assert evaluator.labels == [
+        "english",
+        "mandarin_chinese",
+        "hindi",
+        "spanish",
+        "french",
+        "other",
+    ]
+    assert evaluator.label_score_map is None
+
+    # MockLLM returns the first label ("english").
+    scores = evaluator.evaluate({"session": "User: Hello."})
+
+    assert len(scores) == 1
+    score = scores[0]
+    assert score.label == "english"
+    assert score.score is None
+    assert score.direction == "neutral"
 
 
 def test_document_relevance_evaluator_warns_with_migration_guidance() -> None:
