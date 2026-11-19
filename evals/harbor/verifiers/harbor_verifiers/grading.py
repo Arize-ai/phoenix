@@ -639,7 +639,14 @@ def stated_number(claim: Mapping[str, Any] | None, reply: str, want: float) -> f
     return _as_number(claim.get("value"), want)
 
 
-PHOENIX_SKILLS = ("phoenix-cli", "phoenix-error-analysis", "phoenix-evals", "phoenix-tracing")
+PHOENIX_SKILLS = (
+    "phoenix-cli",
+    "phoenix-error-analysis",
+    "phoenix-evals",
+    "phoenix-experiments",
+    "phoenix-judge-alignment",
+    "phoenix-tracing",
+)
 """Always reported as `loaded_<skill>`, so every trial has the same keys."""
 
 

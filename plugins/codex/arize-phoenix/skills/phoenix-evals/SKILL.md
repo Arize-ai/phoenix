@@ -1,84 +1,99 @@
 ---
 name: phoenix-evals
-description: Build, run, and validate evaluators for AI/LLM applications with Phoenix, in Python or TypeScript (including Vercel AI SDK apps) — code-based checks and LLM-as-a-judge, run over exported traces or dataframes or as Phoenix experiments, gate them in CI, and validate judges against human-labeled data.
+description: Write and run evaluators with the Phoenix evals library (arize-phoenix-evals in Python, @arizeai/phoenix-evals in TypeScript), code checks and LLM-as-a-judge classifiers, pre-built metrics such as faithfulness, correctness, and retrieval relevance, and score existing traces, spans, sessions, or retrieved documents and log the results back to Phoenix as annotations. Use for "write an eval for", "score these traces", "add an LLM judge", "check groundedness or relevance", "evaluate my RAG app", "annotate spans with eval results", "a script that scores new traces", "our eval numbers look wrong, fix the eval", "rescore after changing the judge", or code that uses llm_classify, run_evals, or OpenAIModel. For datasets and experiments use phoenix-experiments; for checking a judge against human labels use phoenix-judge-alignment; for finding failure modes first use phoenix-error-analysis.
 license: Apache-2.0
-compatibility: Requires Phoenix server. Python skills need phoenix and openai packages; TypeScript skills need @arizeai/phoenix-client.
+compatibility: Requires a Phoenix server. Python needs arize-phoenix-evals and arize-phoenix-client plus your LLM provider's SDK. TypeScript needs @arizeai/phoenix-evals and @arizeai/phoenix-client, Node.js 22.12 or later, and an AI SDK v7 provider.
 metadata:
   targets: "agents mcp"
   author: oss@arize.com
-  version: "1.0.0"
+  version: "2.0.0"
   languages: "Python, TypeScript"
 ---
 
-# Phoenix Evals
+# Phoenix evals
 
-Build evaluators for AI/LLM applications. Code first, LLM for nuance, validate against humans.
+An evaluator takes one record (an input, an output, and whatever else the check
+needs) and returns a score, a label, and an explanation. This skill covers how to
+write evaluators with the Phoenix evals library and how to run them over data that's
+already in Phoenix.
 
-## Quick Reference
+Related skills:
 
-| Task | Files |
-| ---- | ----- |
-| Setup | [setup-python](references/setup-python.md), [setup-typescript](references/setup-typescript.md) |
-| Decide what to evaluate | [evaluators-overview](references/evaluators-overview.md) |
-| Choose a judge model | [fundamentals-model-selection](references/fundamentals-model-selection.md) |
-| Use pre-built evaluators | [evaluators-pre-built](references/evaluators-pre-built.md) |
-| Build code evaluator | [evaluators-code-python](references/evaluators-code-python.md), [evaluators-code-typescript](references/evaluators-code-typescript.md) |
-| Build LLM evaluator | [evaluators-llm-python](references/evaluators-llm-python.md), [evaluators-llm-typescript](references/evaluators-llm-typescript.md), [evaluators-custom-templates](references/evaluators-custom-templates.md) |
-| Batch evaluate DataFrame | [evaluate-dataframe-python](references/evaluate-dataframe-python.md) |
-| Run experiment | [experiments-running-python](references/experiments-running-python.md), [experiments-running-typescript](references/experiments-running-typescript.md) |
-| Run evals in a test runner (CI gate) | [integrations-pytest](references/integrations-pytest.md), [integrations-vitest-jest](references/integrations-vitest-jest.md) |
-| Create dataset | [experiments-datasets-python](references/experiments-datasets-python.md), [experiments-datasets-typescript](references/experiments-datasets-typescript.md) |
-| Generate synthetic data | [experiments-synthetic-python](references/experiments-synthetic-python.md), [experiments-synthetic-typescript](references/experiments-synthetic-typescript.md) |
-| Validate evaluator accuracy | [validation](references/validation.md), [validation-evaluators-python](references/validation-evaluators-python.md), [validation-evaluators-typescript](references/validation-evaluators-typescript.md) |
-| Export spans | [observe-tracing-setup](references/observe-tracing-setup.md) |
-| Write a span filter (`SpanQuery().where`) | [filter-expressions](references/filter-expressions.md) |
-| Sample traces for review | [observe-sampling-python](references/observe-sampling-python.md), [observe-sampling-typescript](references/observe-sampling-typescript.md) |
-| Analyze errors | [error-analysis](references/error-analysis.md), [error-analysis-multi-turn](references/error-analysis-multi-turn.md), [axial-coding](references/axial-coding.md) |
-| RAG evals | [evaluators-rag](references/evaluators-rag.md) |
-| Avoid common mistakes | [common-mistakes-python](references/common-mistakes-python.md), [fundamentals-anti-patterns](references/fundamentals-anti-patterns.md) |
-| Production | [production-overview](references/production-overview.md), [production-guardrails](references/production-guardrails.md), [production-continuous](references/production-continuous.md) |
+- **phoenix-experiments** runs evaluators against a dataset as an experiment, compares
+  experiments, and gates CI.
+- **phoenix-judge-alignment** measures whether an LLM judge agrees with human labels and
+  improves it until it does.
+- **phoenix-error-analysis** finds what's failing before you write any evaluator.
+- **phoenix-cli** reads traces, spans, annotations, datasets, and experiments from the
+  terminal.
 
-## Workflows
+## Choose the check
 
-**Starting Fresh:**
-[observe-tracing-setup](references/observe-tracing-setup.md) → [error-analysis](references/error-analysis.md) → [axial-coding](references/axial-coding.md) → [evaluators-overview](references/evaluators-overview.md)
+1. **Name one failure per evaluator.** "Cites a source that's in the retrieved
+   documents" is checkable; "good answer" isn't. If you don't know the failures yet,
+   do error analysis first.
+2. **Use code when code can decide.** Format, JSON validity, a required field, a
+   regex, an exact or set match against a reference, a tool that must or must not be
+   called, a number within tolerance. Code is free, fast, and deterministic.
+3. **Use an LLM judge only for judgment calls.** Groundedness, relevance, tone,
+   whether a requirement in a spec was followed. Give the judge a binary label set
+   (`pass`/`fail`, `grounded`/`ungrounded`), not a 1 to 10 scale.
+4. **Start from a pre-built evaluator** when one matches the failure exactly. Read its
+   inputs and direction in [pre-built](references/pre-built.md) first, because some
+   score the bad outcome as 1.
+5. **Check every LLM judge against human labels** before anyone acts on its numbers.
+   See phoenix-judge-alignment.
 
-**Building Evaluator:**
-[fundamentals](references/fundamentals.md) → [common-mistakes-python](references/common-mistakes-python.md) → evaluators-{code|llm}-{python|typescript} → validation-evaluators-{python|typescript}
+## Score data in Phoenix
 
-**RAG Systems:**
-[evaluators-rag](references/evaluators-rag.md) → evaluators-code-* (retrieval) → evaluators-llm-* (faithfulness)
+The usual job is "score what's in this project and write the results back":
 
-**Running Experiments:**
-Read experiments-datasets-{python|typescript} and experiments-running-{python|typescript} together. Map local rows to dataset input/output fields, then match the task and evaluator parameter names to those fields. For small datasets with LLM tasks or judges, use repetitions to compare runs with less sampling noise.
+1. Read the records at the level the check applies to: a span (one LLM call or one
+   retrieval), a trace (one request, usually its root span), a session (a whole
+   conversation), or a document (one retrieved chunk).
+2. Build the evaluator's inputs from those records, with the evidence a reviewer
+   would check: tool calls and results, retrieved documents, and earlier turns often
+   live on child spans of the same trace. Read the real attribute values; don't
+   assume `output.value` is plain text.
+3. Run the evaluators.
+4. Log one annotation per record, with the name and labels the user asked for, on
+   the same level you read: span, trace, session, or document annotations. Leave out
+   records the evaluator failed on, and count them.
+5. Read a few results with their explanations before reporting a rate.
 
-**Gating CI:**
-evaluators-{code|llm}-{python|typescript} → integrations-{pytest|vitest-jest} → [production-continuous](references/production-continuous.md)
+When the user wants this to keep running, write a script that skips a record only
+when its annotation came from the current evaluator version and is newer than the
+record's last activity (a session that got new turns needs rescoring). After you
+change an evaluator, rescore everything it covers.
 
-**Production:**
-[production-overview](references/production-overview.md) → [production-guardrails](references/production-guardrails.md) → [production-continuous](references/production-continuous.md)
+| Task | Python | TypeScript |
+| ---- | ------ | ---------- |
+| Install and configure a judge model | [setup](references/setup.md) | [setup](references/setup.md) |
+| Write code and LLM evaluators | [evaluators-python](references/evaluators-python.md) | [evaluators-typescript](references/evaluators-typescript.md) |
+| Use a pre-built evaluator | [pre-built](references/pre-built.md) | [pre-built](references/pre-built.md) |
+| Write a judge prompt | [judge-prompts](references/judge-prompts.md) | [judge-prompts](references/judge-prompts.md) |
+| Score spans, traces, or sessions and log annotations | [score-traces-python](references/score-traces-python.md) | [score-traces-typescript](references/score-traces-typescript.md) |
+| Evaluate retrieval and generation separately | [rag](references/rag.md) | [rag](references/rag.md) |
+| Replace `llm_classify`, `run_evals`, `OpenAIModel` | [legacy-python](references/legacy-python.md) | none |
+| Avoid known mistakes | [common-mistakes](references/common-mistakes.md) | [common-mistakes](references/common-mistakes.md) |
 
-## Reference Categories
+## Rules
 
-| Prefix | Description |
-| ------ | ----------- |
-| `fundamentals-*` | Types, scores, anti-patterns |
-| `observe-*` | Tracing, sampling |
-| `error-analysis-*` | Finding failures |
-| `axial-coding-*` | Categorizing failures |
-| `evaluators-*` | Code, LLM, RAG evaluators |
-| `experiments-*` | Datasets, running experiments |
-| `integrations-*` | Run evals from test runners (pytest, Vitest, Jest) as a CI gate |
-| `validation-*` | Validating evaluator accuracy against human labels |
-| `production-*` | CI/CD, monitoring |
-
-## Key Principles
-
-| Principle | Action |
-| --------- | ------ |
-| Error analysis first | Can't automate what you haven't observed |
-| Custom > generic | Build from your failures |
-| Code first | Deterministic before LLM |
-| Validate judges | >80% accuracy, >70% TPR/TNR |
-| Binary > Likert | Pass/fail, not 1-5 |
-| Invariants gate, signals trend | `assert`/`expect` hard invariants (CI red); log LLM-judge quality signals and gate the aggregate (acceptance criteria), not every case |
+- **One evaluator, one name, one annotation.** The annotation name is how people find
+  the result in Phoenix. Reuse the name on every rerun so results line up.
+- **Keep the score direction honest.** A higher score must mean better unless the
+  evaluator says `direction="minimize"`. Read the `direction` before thresholding.
+- **Report what the judge saw.** If a judge gets truncated text or the wrong field,
+  its rate measures nothing. Print one rendered input before running a batch.
+- **An app error isn't an eval error.** A trace whose app errored still produced
+  something to judge. Score it on its evidence; don't skip it or fail it
+  automatically.
+- **Debug a misleading eval like code.** When an eval's numbers look wrong, check
+  that it reads every record (paging and limits), the right field and level, label
+  names and case, how errors count, and how IDs join, before you touch the judge
+  prompt.
+- **Count failures, not just averages.** Report the number of records scored, the
+  number that failed, and the number the evaluator couldn't score (errors, missing
+  fields). An eval that silently skips records overstates quality.
+- **Don't let a judge grade itself.** Give it its own prompt; a different model from
+  the app is optional.
