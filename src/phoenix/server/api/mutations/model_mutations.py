@@ -346,8 +346,8 @@ def _normalized_token_prices(
         seen.add(key)
     if (True, INPUT_TOKEN_TYPE) not in seen:
         raise BadRequest("input cost is required")
-    # EMBEDDING models are priced on input tokens alone, unless completion rates are supplied
-    # (in which case SpanCostDetailsCalculator still requires an 'output' fallback rate).
+    # EMBEDDING models need only an input rate. Any completion rate still needs an 'output'
+    # fallback rate, which SpanCostDetailsCalculator requires.
     requires_output_price = model_type != "EMBEDDING" or any(not is_prompt for is_prompt, _ in seen)
     if requires_output_price and (False, OUTPUT_TOKEN_TYPE) not in seen:
         raise BadRequest("output cost is required")

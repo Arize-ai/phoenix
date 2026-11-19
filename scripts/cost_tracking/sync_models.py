@@ -28,7 +28,7 @@ PROMPT_TOKEN_ATTRIBUTES: dict[GenerativeModelType, str] = {
 }
 
 # LiteLLM's ``mode`` values that aren't priced as LLMs. Every other mode (chat, responses,
-# completion, realtime, image_generation, ...) is synced as an LLM, as before types existed.
+# completion, realtime, image_generation, ...) is synced as an LLM.
 MODEL_TYPES_BY_MODE: dict[str, GenerativeModelType] = {
     "decisions": "DECISION",
     # TypeSafe's Jev, which is called through the Decisions API.
@@ -78,7 +78,7 @@ class ModelConfig(BaseModel):
     name_pattern: Annotated[str, AfterValidator(validate_regular_expression)]
     source: ModelSource
     provider: str | None = None
-    # Left out for LLMs, which is what every entry in ``models`` is.
+    # None for LLMs, so entries in ``models`` carry no ``type``.
     type: Optional[GenerativeModelType] = None
     token_prices: list[TokenPrice]
 
@@ -93,8 +93,8 @@ class ModelCostManifest(BaseModel):
     # Digest of the models as of generated_at; see compute_models_sha256().
     models_sha256: Optional[str] = None
     models: list[ModelConfig]
-    # Models of every other type. They are kept out of ``models`` because servers released
-    # before types existed read every entry there as an LLM (see manifest.py).
+    # Models of every other type. Servers without model types read every entry in ``models``
+    # as an LLM (see manifest.py).
     non_llm_models: list[ModelConfig] = Field(default_factory=list)
 
     def section(self, model_type: GenerativeModelType) -> list[ModelConfig]:
@@ -345,8 +345,8 @@ def next_generated_at(
 def move_to_their_lists(manifest: ModelCostManifest) -> None:
     """
     Moves entries edited by hand into the list for their type, and sorts both lists. Servers
-    that predate types read every entry in ``models`` as an LLM, and newer ones skip an entry
-    in the wrong list.
+    without model types read every entry in ``models`` as an LLM, and other servers skip an
+    entry in the wrong list.
     """
     entries = [*manifest.models, *manifest.non_llm_models]
     for model in entries:
@@ -383,8 +383,8 @@ def serialize_manifest(manifest: ModelCostManifest) -> str:
 
 def _has_pricing(model_info: dict[str, Any], model_type: GenerativeModelType) -> bool:
     """
-    Both an input and an output rate are required for pricing, except for embedding models,
-    which are priced on input tokens alone.
+    Whether the model has the rates needed to price it: input and output, or input alone for
+    embedding models.
     """
     if model_type == "EMBEDDING":
         return _embedding_input_rate(model_info) is not None
@@ -403,11 +403,11 @@ MODALITY_INPUT_TOKEN_PRICE_FIELDS: tuple[str, ...] = (
 
 def _embedding_input_rate(model_info: dict[str, Any]) -> Optional[float]:
     """
-    An embedding model's price per input token. Embedding spans report no output tokens or
-    modality breakdown, so LiteLLM's output rate (0 when published at all) isn't used and
-    multimodal models (such as ``gemini-embedding-2``) are priced at their text input rate,
-    like chat models with unmodeled video rates. As with ``output``, a 0 text rate means free
-    unless the model publishes a positive non-token or modality-token price.
+    An embedding model's price per input token, or None if it can't be priced. Embedding spans
+    report no output tokens or modality breakdown, so LiteLLM's output rate is ignored and
+    multimodal models (such as ``gemini-embedding-2``) are priced at their text input rate. As
+    with ``output``, a 0 text rate means free unless the model publishes a positive non-token
+    or modality-token price.
     """
     rate = _to_finite_float(model_info.get("input_cost_per_token"))
     if rate is None or rate < 0:

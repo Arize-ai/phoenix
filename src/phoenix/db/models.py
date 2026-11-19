@@ -181,8 +181,7 @@ SandboxBackendType: TypeAlias = Literal[
     "WASM", "E2B", "DAYTONA", "VERCEL", "DENO", "MODAL", "MONTY", "DOCKER"
 ]
 LanguageName: TypeAlias = Literal["PYTHON", "TYPESCRIPT"]
-# The kind of span a generative model prices, named after the OpenInference span kinds so a
-# span's kind can be compared to it directly.
+# The kind of span a generative model prices, named after the OpenInference span kinds.
 GenerativeModelType: TypeAlias = Literal["LLM", "DECISION", "EMBEDDING"]
 _GENERATIVE_MODEL_TYPES_SQL = ", ".join(f"'{t}'" for t in get_args(GenerativeModelType))
 GenerativeModelSDK: TypeAlias = Literal[
@@ -2703,8 +2702,8 @@ class GenerativeModel(HasId):
 
 @event.listens_for(GenerativeModel, "init")
 def _default_generative_model_type(_: Any, __: Any, kwargs: dict[str, Any]) -> None:
-    """Default the type when the model is constructed, not only when it is inserted, so
-    unsaved models (e.g. in a `CostModelLookup`) have one too."""
+    """Column defaults apply only on insert; unsaved models (e.g. in a `CostModelLookup`)
+    need a type too."""
     kwargs.setdefault("type", "LLM")
 
 
