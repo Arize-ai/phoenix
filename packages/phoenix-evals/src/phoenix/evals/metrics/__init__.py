@@ -10,6 +10,7 @@ from .pii_detection import PiiDetectionEvaluator
 from .precision_recall import PrecisionRecallFScore
 from .refusal import RefusalEvaluator
 from .retrieval_relevance import RetrievalRelevanceEvaluator
+from .sentiment import SentimentEvaluator
 from .tool_invocation import ToolInvocationEvaluator
 from .tool_response_handling import ToolResponseHandlingEvaluator
 from .tool_selection import ToolSelectionEvaluator
@@ -29,6 +30,7 @@ __all__ = [
     "PrecisionRecallFScore",
     "RefusalEvaluator",
     "RetrievalRelevanceEvaluator",
+    "SentimentEvaluator",
     "ToolInvocationEvaluator",
     "ToolResponseHandlingEvaluator",
     "ToolSelectionEvaluator",

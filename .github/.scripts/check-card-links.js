@@ -226,9 +226,13 @@ async function checkExternal(href, timeoutMs, maxRetries = 5, backoffBaseMs = 50
       if (res.status >= 200 && res.status < 400) {
         return [true, `HTTP ${res.status}`];
       }
-      if (res.status !== 405) {
+      // 405 means HEAD isn't allowed; 429/503 are transient rate-limit/unavailable
+      // responses. In both cases fall through to the GET attempt and the retry
+      // loop instead of failing immediately.
+      if (res.status !== 405 && res.status !== 429 && res.status !== 503) {
         return [false, `HTTP ${res.status}`];
       }
+      lastReason = `HTTP ${res.status}`;
     } catch (err) {
       lastReason = `HEAD failed: ${err?.message || String(err)}`;
     }
