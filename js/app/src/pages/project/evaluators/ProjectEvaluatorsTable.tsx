@@ -60,18 +60,15 @@ import { getProjectEvaluatorResultAnnotations } from "@phoenix/hooks/useProjectE
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import { DecisionCell } from "@phoenix/pages/evaluators/DecisionCell";
 import { PromptCell } from "@phoenix/pages/evaluators/PromptCell";
+import type { ProjectEvaluatorCost_cost$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorCost_cost.graphql";
 import type { ProjectEvaluatorMeanScoreCell_scores$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorMeanScoreCell_scores.graphql";
-import type { ProjectEvaluatorsTable_costs$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_costs.graphql";
 import type { ProjectEvaluatorsTable_failures$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_failures.graphql";
 import type { ProjectEvaluatorsTable_lag$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_lag.graphql";
 import type { ProjectEvaluatorsTable_project$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_project.graphql";
 import type { ProjectEvaluatorsTable_row$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_row.graphql";
 import { getClearableCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
 import { ProjectEvaluatorActionMenu } from "@phoenix/pages/project/evaluators/ProjectEvaluatorActionMenu";
-import {
-  ProjectEvaluatorAverageCost,
-  ProjectEvaluatorCost,
-} from "@phoenix/pages/project/evaluators/ProjectEvaluatorCost";
+import { ProjectEvaluatorCostCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorCost";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
 import { ProjectEvaluatorFailuresCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFailuresCell";
 import {
@@ -127,7 +124,7 @@ const scrollableAreaCSS = css`
 
 const readRow = (
   row: ProjectEvaluatorsTable_row$key &
-    ProjectEvaluatorsTable_costs$key &
+    ProjectEvaluatorCost_cost$key &
     ProjectEvaluatorsTable_failures$key &
     ProjectEvaluatorsTable_lag$key &
     ProjectEvaluatorMeanScoreCell_scores$key
@@ -231,32 +228,6 @@ const readRow = (
     `,
     row
   );
-  const costData = readInlineData<ProjectEvaluatorsTable_costs$key>(
-    graphql`
-      fragment ProjectEvaluatorsTable_costs on ProjectEvaluator
-      @inline
-      @argumentDefinitions(timeRange: { type: "TimeRange!" }) {
-        # TODO: These aggregate scans may become expensive as evaluator projects grow.
-        # Move them onto ProjectEvaluator so CODE evaluators can skip them, and consider @defer.
-        traceProject {
-          id
-          traceCount(timeRange: $timeRange)
-          costSummary(timeRange: $timeRange) {
-            total {
-              cost
-            }
-            prompt {
-              cost
-            }
-            completion {
-              cost
-            }
-          }
-        }
-      }
-    `,
-    row
-  );
   const failuresData = readInlineData<ProjectEvaluatorsTable_failures$key>(
     graphql`
       fragment ProjectEvaluatorsTable_failures on ProjectEvaluator
@@ -289,10 +260,10 @@ const readRow = (
   );
   return {
     ...rowData,
-    ...costData,
     ...failuresData,
     ...lagData,
     scores: row,
+    cost: row,
   };
 };
 
@@ -356,7 +327,6 @@ export function ProjectEvaluatorsTable({
           edges {
             node {
               ...ProjectEvaluatorsTable_row
-              ...ProjectEvaluatorsTable_costs @arguments(timeRange: $timeRange)
               ...ProjectEvaluatorsTable_failures
                 @arguments(timeRange: $timeRange)
               ...ProjectEvaluatorsTable_lag @arguments(timeRange: $timeRange)
@@ -368,6 +338,9 @@ export function ProjectEvaluatorsTable({
                   scoreTimeBinConfig: $scoreTimeBinConfig
                   includeMeanScore: $includeMeanScore
                 )
+              ...ProjectEvaluatorCost_cost
+                @defer
+                @arguments(timeRange: $timeRange)
             }
           }
         }
@@ -397,10 +370,18 @@ export function ProjectEvaluatorsTable({
   if (isMeanScoreColumnVisible && !includeMeanScore) {
     setIncludeMeanScore(true);
   }
-  const [scoresError, setScoresError] = useState<string | null>(null);
+  const [deferredError, setDeferredError] = useState<string | null>(null);
+  // Counts the refetches started, so that the owner request's failure counts
+  // only until a refetch replaces the rows it delivered.
+  const refetchCountRef = useRef(0);
   useEffect(() => {
+    const refetchCount = refetchCountRef.current;
     const subscription = initialRequest?.subscribe({
-      error: (error: Error) => setScoresError(error.message),
+      error: (error: Error) => {
+        if (refetchCountRef.current === refetchCount) {
+          setDeferredError(error.message);
+        }
+      },
     });
     return () => subscription?.unsubscribe();
   }, [initialRequest]);
@@ -442,6 +423,11 @@ export function ProjectEvaluatorsTable({
         return;
       }
     }
+    // A refetch starts over: the rows on screen are about to be replaced and
+    // the refetch's own are still loading. Cleared outside the transition,
+    // which keeps the current rows on screen until the refetch's can show.
+    refetchCountRef.current += 1;
+    setDeferredError(null);
     startTransition(() => {
       refetch(
         {
@@ -456,7 +442,7 @@ export function ProjectEvaluatorsTable({
         },
         {
           fetchPolicy: "store-and-network",
-          onComplete: (error) => setScoresError(error?.message ?? null),
+          onComplete: (error) => setDeferredError(error?.message ?? null),
         }
       );
     });
@@ -481,7 +467,7 @@ export function ProjectEvaluatorsTable({
       },
       onComplete: (error) => {
         if (error != null) {
-          setScoresError(error.message);
+          setDeferredError(error.message);
         }
       },
     });
@@ -706,10 +692,11 @@ export function ProjectEvaluatorsTable({
         size: 120,
         meta: { textAlign: "right" },
         cell: ({ row }) => (
-          <ProjectEvaluatorCost
+          <ProjectEvaluatorCostCell
+            measure="total"
             evaluatorKind={row.original.evaluator.kind}
-            costSummary={row.original.traceProject.costSummary}
             isTracingEnabled={row.original.tracingEnabled}
+            projectEvaluator={row.original.cost}
           />
         ),
       },
@@ -719,11 +706,11 @@ export function ProjectEvaluatorsTable({
         size: 200,
         meta: { textAlign: "right" },
         cell: ({ row }) => (
-          <ProjectEvaluatorAverageCost
+          <ProjectEvaluatorCostCell
+            measure="average"
             evaluatorKind={row.original.evaluator.kind}
-            costSummary={row.original.traceProject.costSummary}
-            runCount={row.original.traceProject.traceCount}
             isTracingEnabled={row.original.tracingEnabled}
+            projectEvaluator={row.original.cost}
           />
         ),
       },
@@ -923,7 +910,7 @@ export function ProjectEvaluatorsTable({
     <div css={scrollableAreaCSS}>
       <EvaluatorResultsProvider
         scoreWindow={scoreWindow}
-        scoresError={scoresError}
+        deferredError={deferredError}
       >
         <ColumnOrderingProvider
           columnOrder={visibleColumnOrder}
