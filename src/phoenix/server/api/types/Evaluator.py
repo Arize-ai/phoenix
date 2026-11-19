@@ -25,6 +25,7 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.decision_evaluators import adapt_scoring_policy
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.context import Context
+from phoenix.server.api.dataloaders.annotation_summaries import Key as AnnotationSummaryKey
 from phoenix.server.api.dataloaders.project_evaluator_latest_outcomes import (
     ProjectEvaluatorLatestOutcomes,
 )
@@ -1484,13 +1485,6 @@ class EvaluatorAnnotationScoreMetrics:
     summary: Optional[AnnotationSummary] = strawberry.field(
         description="Aggregates over the requested time range, or null when the range holds none."
     )
-    previous_summary: Optional[AnnotationSummary] = strawberry.field(
-        description=(
-            "Aggregates over the previous window, for change-over-time comparisons: "
-            "previousTimeRange when given, otherwise the equal-length window immediately "
-            "before the requested time range."
-        )
-    )
     series: list[EvaluatorScoreSeriesBin] = strawberry.field(
         description=(
             "Mean score per time bin across the requested time range. Bins follow the "
@@ -1498,6 +1492,17 @@ class EvaluatorAnnotationScoreMetrics:
             "time, sessions by their own."
         )
     )
+    previous_summary_key: strawberry.Private[AnnotationSummaryKey]
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Aggregates over the previous window, for change-over-time comparisons: "
+            "previousTimeRange when given, otherwise the equal-length window immediately "
+            "before the requested time range."
+        )
+    )
+    async def previous_summary(self, info: Info[Context, None]) -> Optional[AnnotationSummary]:
+        return await info.context.data_loaders.annotation_summaries.load(self.previous_summary_key)
 
 
 _ANNOTATION_KIND_BY_TARGET: dict[str, Literal["span", "trace", "session"]] = {
@@ -1715,22 +1720,8 @@ class ProjectEvaluator(Node):
         project_rowid = record.project_id
 
         async def load_metrics(annotation_name: str) -> EvaluatorAnnotationScoreMetrics:
-            summary, previous_summary, bins_by_bucket = await asyncio.gather(
-                loaders.annotation_summaries.load(
-                    (kind, project_rowid, time_range, None, None, annotation_name)
-                ),
-                loaders.annotation_summaries.load(
-                    (kind, project_rowid, previous_window, None, None, annotation_name)
-                ),
-                loaders.annotation_mean_score_time_series.load(
-                    (
-                        kind,
-                        project_rowid,
-                        (window_start, window_end),
-                        time_bins,
-                        annotation_name,
-                    )
-                ),
+            summary, bins_by_bucket = await loaders.annotation_score_metrics.load(
+                (kind, project_rowid, (window_start, window_end), time_bins, annotation_name)
             )
             series = [
                 EvaluatorScoreSeriesBin(
@@ -1756,8 +1747,15 @@ class ProjectEvaluator(Node):
             return EvaluatorAnnotationScoreMetrics(
                 annotation_name=annotation_name,
                 summary=summary,
-                previous_summary=previous_summary,
                 series=series,
+                previous_summary_key=(
+                    kind,
+                    project_rowid,
+                    previous_window,
+                    None,
+                    None,
+                    annotation_name,
+                ),
             )
 
         return list(await asyncio.gather(*map(load_metrics, annotation_names)))
