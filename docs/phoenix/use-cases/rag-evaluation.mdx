@@ -44,17 +44,10 @@ There are five key stages within RAG, which will in turn be a part of any larger
 Now that we have understood the stages of RAG, let's build a pipeline. We will use [LlamaIndex](https://www.llamaindex.ai/) for RAG and [Phoenix Evals](/docs/phoenix/evaluation/llm-evals) for evaluation.
 
 ```python
-!pip install -qq "arize-phoenix" "openinference-instrumentation-llama-index" "llama-index" "llama-index-llms-openai" "openai>=1" gcsfs nest_asyncio scikit-learn 'httpx<0.28'
+!pip install -qq arize-phoenix openinference-instrumentation-llama-index llama-index llama-index-llms-openai scikit-learn
 ```
 
 ```python expandable
-# The nest_asyncio module enables the nesting of asynchronous functions within an already running async loop.
-# This is necessary because Jupyter notebooks inherently operate in an asynchronous loop.
-# By applying nest_asyncio, we can run additional async functions within this existing loop without conflicts.
-import nest_asyncio
-
-nest_asyncio.apply()
-
 import os
 from getpass import getpass
 
@@ -376,7 +369,7 @@ retrieved_documents_df = client.spans.get_spans_dataframe(
         "input.value",
     ).explode(
         "retrieval.documents",
-        reference="document.content",
+        context="document.content",
         document_score="document.score",
     )
 )
@@ -384,7 +377,7 @@ retrieved_documents_df = retrieved_documents_df.rename(columns={"input.value": "
 retrieved_documents_df
 ```
 
-|                                      |                                      | context.trace\_id                                 | input                                             | reference                                         | document\_score |
+|                                      |                                      | context.trace\_id                                 | input                                             | context                                           | document\_score |
 | :----------------------------------- | :----------------------------------- | :------------------------------------------------- | :------------------------------------------------ | :------------------------------------------------ | :-------------- |
 | context.span\_id                     | document\_position                   |                                                   |                                                   |                                                   |                 |
 | b375be95-8e5e-4817-a29f-e18f7aaa3e98 | 0                                    | 20e0f915-e089-4e8e-8314-b68ffdffd7d1              | How does leaving YC affect the author's relati... | On one of them I realized I was ready to hand ... | 0.820411        |
@@ -404,14 +397,12 @@ retrieved_documents_df
 Let's now use Phoenix's LLM Evals to evaluate the relevance of the retrieved documents with regards to the query. Note, we've turned on `explanations` which prompts the LLM to explain its reasoning. This can be useful for debugging and for figuring out potential corrective actions.
 
 ```python
-from phoenix.evals import LLM, async_evaluate_dataframe, bind_evaluator
+from phoenix.evals import LLM, async_evaluate_dataframe
 from phoenix.evals.metrics import RetrievalRelevanceEvaluator
 
 llm = LLM(provider="openai", model="gpt-4o")
+# Each row holds one retrieved document in its `context` column, so each document is scored on its own.
 relevance_evaluator = RetrievalRelevanceEvaluator(llm=llm)
-# Score each retrieved document on its own by mapping the evaluator's `context`
-# field to the dataframe's `reference` column (one document per row).
-relevance_evaluator = bind_evaluator(evaluator=relevance_evaluator, input_mapping={"context": "reference"})
 
 retrieved_documents_relevance_df = await async_evaluate_dataframe(
     evaluators=[relevance_evaluator],
@@ -424,7 +415,7 @@ retrieved_documents_relevance_df = await async_evaluate_dataframe(
 retrieved_documents_relevance_df.head()
 ```
 
-`async_evaluate_dataframe` returns the original columns alongside the evaluation results. Each `retrieval_relevance_score` is a structured score, so we pull out its numeric value into an `eval_score` column to compute retrieval metrics.
+`async_evaluate_dataframe` returns the original columns alongside the evaluation results. Each `retrieval_relevance_score` is a dict whose `score` key holds the numeric value, so we copy that value into an `eval_score` column to compute retrieval metrics.
 
 ```python
 documents_with_relevance_df = retrieved_documents_relevance_df.copy()
@@ -434,7 +425,7 @@ documents_with_relevance_df["eval_score"] = documents_with_relevance_df[
 documents_with_relevance_df
 ```
 
-348 rows × 7 columns
+348 rows × 6 columns
 
 Let's compute Normalized Discounted Cumulative Gain [NDCG](https://en.wikipedia.org/wiki/Discounted\_cumulative\_gain) at 2 for all our retrieval steps. In information retrieval, this metric is often used to measure effectiveness of search engine algorithms and related applications.
 
@@ -570,10 +561,10 @@ from phoenix.client.types.spans import SpanQuery
 
 client = Client()
 
-# The query engine's top-level span holds the question (input) and the answer (output).
+# The root span of each trace holds the question (input) and the answer (output).
 root_df = client.spans.get_spans_dataframe(
     query=SpanQuery()
-    .where("name == 'RetrieverQueryEngine.query'")
+    .where("parent_id is None")
     .select("input.value", "output.value", "trace_id")
 ).rename(columns={"input.value": "input", "output.value": "output"})
 
@@ -581,21 +572,21 @@ root_df = client.spans.get_spans_dataframe(
 # single string per span so we can evaluate each response against the context it was given.
 docs_df = client.spans.get_spans_dataframe(
     query=SpanQuery()
-    .where("name == 'VectorIndexRetriever.retrieve'")
+    .where("span_kind == 'RETRIEVER'")
     .select("trace_id")
     .concat("retrieval.documents", context="document.content")
 )
 
 # Join each answer to the context retrieved in the same trace.
-qa_with_reference_df = (
+qa_with_context_df = (
     root_df.reset_index()
     .merge(docs_df.reset_index()[["context.trace_id", "context"]], on="context.trace_id")
     .set_index("context.span_id")
 )
-qa_with_reference_df
+qa_with_context_df
 ```
 
-Now that we have a dataset of the question, context, and response (`input`, `context`, and `output`), we can now measure how well the LLM is responding to the queries. For details on the correctness evaluation, see the [Correctness evaluator documentation](/docs/phoenix/evaluation/pre-built-metrics/correctness).
+Now that we have a dataset of the question, context and response (`input`, `context` and `output`), we can measure how well the LLM answers the queries. For details on the correctness evaluation, see the [Correctness evaluator documentation](/docs/phoenix/evaluation/pre-built-metrics/correctness).
 
 ```python
 from phoenix.evals import LLM, async_evaluate_dataframe
@@ -607,12 +598,12 @@ faithfulness_evaluator = FaithfulnessEvaluator(llm=llm)
 
 results_df = await async_evaluate_dataframe(
     evaluators=[correctness_evaluator, faithfulness_evaluator],
-    dataframe=qa_with_reference_df,
+    dataframe=qa_with_context_df,
     concurrency=10,
 )
 ```
 
-The combined `results_df` contains a structured `correctness_score` and `faithfulness_score` for each response. Let's pull out the numeric scores. Faithfulness measures whether the answer is grounded in the retrieved context, so we derive a hallucination score as `1 - faithfulness`.
+`results_df` contains the `correctness_score` and `faithfulness_score` columns. Each value is a dict whose `score` key holds the numeric score, so let's pull those out. [Faithfulness](/docs/phoenix/evaluation/pre-built-metrics/faithfulness) measures whether the answer is grounded in the retrieved context, so we derive a hallucination score as `1 - faithfulness`.
 
 ```python
 def extract_score(value):
