@@ -225,6 +225,20 @@ const ROWS_PART = {
   pending: [{ id: "0", path: ["project"], label: DEFER_LABEL }],
 };
 
+const NAMES_PART = {
+  hasNext: false,
+  incremental: [
+    {
+      id: "0",
+      data: {
+        spanAnnotationNames: ["correctness", "note"],
+        traceAnnotationNames: ["trace-check"],
+      },
+    },
+  ],
+  completed: [{ id: "0" }],
+};
+
 function TableOwner({
   queryRef,
 }: {
@@ -359,5 +373,63 @@ describe("SpansTable annotation names on a refresh", () => {
 
     expect(authFetchMock).toHaveBeenCalledTimes(2);
     expect(await readColumnSelectorFailures()).toEqual([]);
+  });
+});
+
+/** Whether the load-more sentinel is in view; observers report it on observe. */
+const sentinel = { isVisible: false };
+class VisibleSentinelObserver {
+  constructor(private callback: IntersectionObserverCallback) {}
+  observe() {
+    queueMicrotask(() =>
+      this.callback(
+        [{ isIntersecting: sentinel.isVisible } as IntersectionObserverEntry],
+        this as unknown as IntersectionObserver
+      )
+    );
+  }
+  disconnect() {}
+}
+
+describe("SpansTable next page while the names load", () => {
+  beforeEach(() => {
+    vi.stubGlobal("IntersectionObserver", VisibleSentinelObserver);
+    streamState.setFetchKey(0);
+    sentinel.isVisible = true;
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("loads the next page once the names arrive when the sentinel is in view", async () => {
+    const load = createStreamingMultipartResponse();
+    const nextPage = createStreamingMultipartResponse();
+    authFetchMock
+      .mockResolvedValueOnce(load.response)
+      .mockResolvedValueOnce(nextPage.response);
+    await renderTable();
+    load.sendPart({
+      ...ROWS_PART,
+      data: {
+        project: {
+          ...ROWS_PART.data.project,
+          spans: {
+            ...ROWS_PART.data.project.spans,
+            pageInfo: { endCursor: "cursor-2", hasNextPage: true },
+          },
+        },
+      },
+    });
+    await settle();
+    // Relay does not load a next page while the names are pending.
+    expect(authFetchMock).toHaveBeenCalledTimes(1);
+
+    load.sendPart(NAMES_PART);
+    load.end();
+    await settle();
+
+    expect(authFetchMock).toHaveBeenCalledTimes(2);
+    const { variables } = JSON.parse(authFetchMock.mock.calls[1][1].body);
+    expect(variables).toMatchObject({ after: "cursor-2" });
   });
 });

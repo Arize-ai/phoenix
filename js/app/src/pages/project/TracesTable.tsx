@@ -504,6 +504,7 @@ export function TracesTable(props: TracesTableProps) {
     );
   const {
     hasRequestFailed,
+    isRequestPending,
     onRefetchStart,
     onRefetchComplete,
     onLoadMoreComplete,
@@ -1060,6 +1061,7 @@ export function TracesTable(props: TracesTableProps) {
     hasNext,
     isLoadingNext,
     loadNext: loadNextPage,
+    isParentRequestPending: isRequestPending,
     pageSize: PAGE_SIZE,
     rows: data.rootSpans.edges,
   });

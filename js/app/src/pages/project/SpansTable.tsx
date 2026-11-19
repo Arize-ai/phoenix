@@ -460,6 +460,7 @@ export function SpansTable(props: SpansTableProps) {
     );
   const {
     hasRequestFailed,
+    isRequestPending,
     onRefetchStart,
     onRefetchComplete,
     onLoadMoreComplete,
@@ -929,6 +930,7 @@ export function SpansTable(props: SpansTableProps) {
     hasNext,
     isLoadingNext,
     loadNext: loadNextPage,
+    isParentRequestPending: isRequestPending,
     pageSize: PAGE_SIZE,
     rows: data.spans.edges,
   });

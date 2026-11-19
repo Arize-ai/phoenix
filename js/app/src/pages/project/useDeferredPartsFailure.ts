@@ -8,7 +8,18 @@ type Failure = {
   hasFailed: boolean;
   /** A refetch has started, so the owner query's rows are no longer shown. */
   isSuperseded: boolean;
+  /** The owner query's request or the latest refetch has not ended. */
+  isPending: boolean;
 };
+
+function getInitialFailure(request: Request): Failure {
+  return {
+    request,
+    hasFailed: false,
+    isSuperseded: false,
+    isPending: request != null,
+  };
+}
 
 /**
  * Whether a request that was to deliver a component's deferred parts failed.
@@ -33,26 +44,22 @@ export function useDeferredPartsFailure({
 }: {
   initialRequest: Request;
 }) {
-  const [failure, setFailure] = useState<Failure>({
-    request: initialRequest,
-    hasFailed: false,
-    isSuperseded: false,
-  });
+  const [failure, setFailure] = useState<Failure>(() =>
+    getInitialFailure(initialRequest)
+  );
   if (failure.request !== initialRequest) {
-    setFailure({
-      request: initialRequest,
-      hasFailed: false,
-      isSuperseded: false,
-    });
+    setFailure(getInitialFailure(initialRequest));
   }
   useEffect(() => {
+    const end = (hasFailed: boolean) =>
+      setFailure((current) =>
+        current.request !== initialRequest || current.isSuperseded
+          ? current
+          : { ...current, hasFailed, isPending: false }
+      );
     const subscription = initialRequest?.subscribe({
-      error: () =>
-        setFailure((current) =>
-          current.request !== initialRequest || current.isSuperseded
-            ? current
-            : { ...current, hasFailed: true }
-        ),
+      complete: () => end(false),
+      error: () => end(true),
     });
     return () => subscription?.unsubscribe();
   }, [initialRequest]);
@@ -62,6 +69,7 @@ export function useDeferredPartsFailure({
         ...current,
         hasFailed: false,
         isSuperseded: true,
+        isPending: true,
       })),
     []
   );
@@ -71,6 +79,7 @@ export function useDeferredPartsFailure({
         ...current,
         hasFailed: error != null,
         isSuperseded: true,
+        isPending: false,
       })),
     []
   );
@@ -81,6 +90,11 @@ export function useDeferredPartsFailure({
   }, []);
   return {
     hasRequestFailed: failure.request === initialRequest && failure.hasFailed,
+    /**
+     * The owner query's request or the latest refetch is still delivering
+     * parts. Relay ignores a next page until it ends, so a load waits for it.
+     */
+    isRequestPending: failure.request === initialRequest && failure.isPending,
     onRefetchStart,
     onRefetchComplete,
     onLoadMoreComplete,
