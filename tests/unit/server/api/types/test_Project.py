@@ -5881,14 +5881,17 @@ async def test_first_page_of_newest_root_spans_reads_few_spans_when_other_projec
     gql_client: AsyncGraphQLClient,
     request: pytest.FixtureRequest,
 ) -> None:
-    """The first page of a project's newest root spans reads the spans of the traces on the
-    page, however many newer spans other projects have and however many older traces the
-    project has."""
-    if db.dialect is not SupportedSQLDialect.POSTGRESQL:
-        pytest.skip("counts the rows PostgreSQL reads")
-    engine: AsyncEngine = request.getfixturevalue("postgresql_engine")
+    """The first page of a project's newest root spans is found though none of the project's
+    spans is among the newest spans across all projects, where a list of spans otherwise
+    looks first. On PostgreSQL it reads the spans of the traces on the page, however many
+    newer spans other projects have and however many older traces the project has."""
+    from phoenix.server.api.types import Project as project_module
+
     base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
     first = 2
+    # Two spans a trace: the other project has more newer spans than the widest look at the
+    # newest spans across all projects takes in.
+    newer_traces = max(project_module._NEWEST_SPANS_LOOKS) // 2 + 1
     async with db() as session:
         projects = {name: models.Project(name=name) for name in ("busy", "stale")}
         session.add_all(projects.values())
@@ -5900,17 +5903,25 @@ async def test_first_page_of_newest_root_spans_reads_few_spans_when_other_projec
                 start_time=base_time + timedelta(seconds=i),
                 end_time=base_time + timedelta(seconds=i + 1),
             )
-            for i in range(-100, 200)
+            for i in range(-100, newer_traces)
         ]
         session.add_all(traces)
         await session.flush()
-        for trace in traces:
-            root = _span(trace, trace.start_time)
-            session.add_all([root, _span(trace, trace.start_time, parent_id=root.span_id)])
+        roots = [_span(trace, trace.start_time) for trace in traces]
+        session.add_all(roots)
+        session.add_all(
+            _span(trace, trace.start_time, parent_id=root.span_id)
+            for trace, root in zip(traces, roots)
+        )
         await session.flush()
         project_rowid = projects["stale"].id
-    async with engine.begin() as conn:
-        await conn.exec_driver_sql("ANALYZE traces, spans")
+        # The stale project's traces are the first hundred, oldest first.
+        expected = [root.id for root in roots[99 : 99 - first : -1]]
+    engine: Optional[AsyncEngine] = None
+    if db.dialect is SupportedSQLDialect.POSTGRESQL:
+        engine = request.getfixturevalue("postgresql_engine")
+        async with engine.begin() as conn:
+            await conn.exec_driver_sql("ANALYZE traces, spans")
     statements: list[tuple[str, Any]] = []
 
     def capture(
@@ -5924,7 +5935,8 @@ async def test_first_page_of_newest_root_spans_reads_few_spans_when_other_projec
         if "FROM spans" in statement:
             statements.append((statement, parameters))
 
-    event.listen(engine.sync_engine, "before_cursor_execute", capture)
+    if engine is not None:
+        event.listen(engine.sync_engine, "before_cursor_execute", capture)
     try:
         response = await gql_client.execute(
             query=_SPANS_BY_START_TIME_QUERY,
@@ -5937,10 +5949,17 @@ async def test_first_page_of_newest_root_spans_reads_few_spans_when_other_projec
             },
         )
     finally:
-        event.remove(engine.sync_engine, "before_cursor_execute", capture)
+        if engine is not None:
+            event.remove(engine.sync_engine, "before_cursor_execute", capture)
     assert not response.errors
     assert response.data is not None
-    assert len(response.data["node"]["spans"]["edges"]) == first
+    assert [
+        int(GlobalID.from_id(edge["node"]["id"]).node_id)
+        for edge in response.data["node"]["spans"]["edges"]
+    ] == expected
+    if engine is None:
+        # The rows read are counted on PostgreSQL.
+        return
     assert len(statements) == 1
     async with engine.connect() as conn:
         # The tables are small enough that reading them whole is the cheapest plan, which
@@ -6206,6 +6225,13 @@ async def test_newest_root_spans_are_listed_by_trace_then_by_span(
             ["S4", "T4", "P3"],
             id="a-range-shorter-than-two-hours-stays-in-span-order",
         ),
+        pytest.param(
+            "parent_id is None",
+            2.5,
+            4.5,
+            ["T4", "S4", "P3"],
+            id="a-range-of-exactly-two-hours-is-in-trace-order",
+        ),
     ],
 )
 async def test_newest_root_spans_in_a_time_range_are_those_that_start_in_it(
@@ -6220,7 +6246,8 @@ async def test_newest_root_spans_in_a_time_range_are_those_that_start_in_it(
     """A time range keeps the root spans that start in it, as it does for any list of spans.
     One whose trace started before the range comes after those whose trace started in it, and
     one that starts after the range is left out though its trace started in it. A range
-    shorter than two hours is listed in span order, as any other list of spans is."""
+    shorter than two hours is listed in span order, as any other list of spans is, and one of
+    two hours or more in trace order."""
     async with db() as session:
         project_rowid, rowids = await _add_traces_whose_root_spans_do_not_start_them(session)
     time_range = {"start": (_ROOT_SPANS_BASE_TIME + timedelta(hours=start)).isoformat()}
@@ -6413,16 +6440,21 @@ async def test_newest_root_spans_of_a_trace_with_more_than_a_page_of_them_are_al
         assert actual == expected, first
 
 
-@pytest.mark.parametrize("arrives", ["newer-traces", "an-earlier-span-of-a-trace-already-read"])
+@pytest.mark.parametrize(
+    "arrives",
+    ["newer-traces", "newer-root-spans", "an-earlier-span-of-a-trace-already-read"],
+)
 async def test_a_page_of_newest_root_spans_never_holds_a_span_twice(
     arrives: str,
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A page that its first statement does not fill is completed by a second. Whatever is
-    committed between the two, newer traces or a span that moves the start of a trace already
-    read back past the others, no span is on the page twice and none is left out."""
+    """A page that its first statement does not fill is completed by a second, which goes on
+    from the last span the first found. Whatever is committed between the two, newer traces,
+    with or without root spans, or a span that moves the start of a trace already read back
+    past the others, no span is on the page twice, none is left out and none comes after a
+    span it is newer than."""
     if db.dialect is not SupportedSQLDialect.POSTGRESQL:
         pytest.skip("commits on a second connection, which the SQLite fixture does not have")
     monkeypatch.setattr("phoenix.server.api.types.Project._NEWEST_TRACES_WALK", 3)
@@ -6462,9 +6494,9 @@ async def test_a_page_of_newest_root_spans_never_holds_a_span_twice(
         result = await execute(self, statement, *args, **kwargs)
         if "spans" in str(statement) and "traces" in str(statement):
             statements += 1
-            if statements == 1 and arrives == "newer-traces":
-                await add_trace(200, root=False)
-                await add_trace(201, root=False)
+            if statements == 1 and arrives in ("newer-traces", "newer-root-spans"):
+                await add_trace(200, root=arrives == "newer-root-spans")
+                await add_trace(201, root=arrives == "newer-root-spans")
             elif statements == 1:
                 async with db() as session:
                     await session.execute(

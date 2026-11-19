@@ -1641,6 +1641,7 @@ def test_parent_predicate_sentinels_unreachable_from_user_input(sentinel: str) -
         ("parent_id == None", True),
         ("(parent_id is None)", True),
         ("parent_id is None and span_kind == 'LLM'", False),
+        ("parent_id is None and latency_ms >= 5000", False),
         ("parent_id is None or parent_span is None", False),
         ("not (parent_id is not None)", False),
         ("parent_id is not None", False),
