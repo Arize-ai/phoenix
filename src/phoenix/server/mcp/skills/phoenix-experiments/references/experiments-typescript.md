@@ -77,7 +77,7 @@ import { generateText } from "ai";
 
 const tracedTask: ExperimentTask = async (example) => {
   const { text } = await generateText({
-    model: openai("gpt-4o-mini"),
+    model: openai("gpt-6-luna"),
     prompt: String(example.input.question),
     telemetry: { integrations: [new OpenTelemetry()] },
   });

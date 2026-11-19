@@ -331,7 +331,7 @@ export function DatasetPreviewTable({
       columnHelper.accessor("input", {
         header: () => (
           <>
-            Input <Counter>{inputColumns.length}</Counter>
+            Input <Counter count={inputColumns.length} />
           </>
         ),
         cell: (row) => <PreviewCell {...row} />,
@@ -339,7 +339,7 @@ export function DatasetPreviewTable({
       columnHelper.accessor("output", {
         header: () => (
           <>
-            Output <Counter>{outputColumns.length}</Counter>
+            Output <Counter count={outputColumns.length} />
           </>
         ),
         cell: (row) => <PreviewCell {...row} />,
@@ -347,7 +347,7 @@ export function DatasetPreviewTable({
       columnHelper.accessor("metadata", {
         header: () => (
           <>
-            Metadata <Counter>{metadataColumns.length}</Counter>
+            Metadata <Counter count={metadataColumns.length} />
           </>
         ),
         cell: (row) => <PreviewCell {...row} />,

@@ -19,7 +19,7 @@ import {
   ToolPartCodeBlock,
   ToolPartLabel,
 } from "./ToolPartPrimitives";
-import type { ToolInvocationPart } from "./toolPartTypes";
+import type { ToolInvocationPart, ToolStatus } from "./toolPartTypes";
 import { formatToolState, stringifyToolValue } from "./toolPartTypes";
 
 const MAX_VISIBLE_SPAN_ANNOTATIONS = 4;
@@ -38,17 +38,23 @@ export function getBatchSpanAnnotateToolPreview(
   return `Propose ${annotations.length} annotations`;
 }
 
-export function formatBatchSpanAnnotateState(part: ToolInvocationPart): string {
+export function getBatchSpanAnnotateStatus(
+  part: ToolInvocationPart
+): ToolStatus {
   switch (part.state) {
     case "input-available":
-      return "Awaiting approval";
+      return { stateLabel: "Awaiting approval", statusCategory: "needs-input" };
     case "output-available": {
       const status = getOutputStatus(part.output);
-      if (status === "rejected") return "Rejected";
-      return isAutoAccepted(part.output) ? "Auto-approved" : "Accepted";
+      if (status === "rejected") {
+        return { stateLabel: "Rejected", statusCategory: "denied" };
+      }
+      return {
+        stateLabel: isAutoAccepted(part.output) ? "Auto-approved" : "Accepted",
+      };
     }
     default:
-      return formatToolState(part.state);
+      return { stateLabel: formatToolState(part.state) };
   }
 }
 

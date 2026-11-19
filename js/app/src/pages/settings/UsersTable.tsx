@@ -185,7 +185,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
           textAlign: "right",
         },
         cell: ({ row }) => (
-          <Counter variant="quiet">{row.original.apiKeyCount}</Counter>
+          <Counter variant="quiet" count={row.original.apiKeyCount} />
         ),
       },
       {
@@ -196,7 +196,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
           textAlign: "right",
         },
         cell: ({ row }) => (
-          <Counter variant="quiet">{row.original.oauth2GrantCount}</Counter>
+          <Counter variant="quiet" count={row.original.oauth2GrantCount} />
         ),
       },
       {

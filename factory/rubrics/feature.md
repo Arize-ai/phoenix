@@ -16,8 +16,9 @@ The session ends in exactly one of two states. Grade the criteria for the state 
 10. User-visible behavior is documented under `docs/phoenix/`; changed `js/packages/` packages have a changeset.
 11. No file under `.github/`, `.cursor/`, `.claude/`, `.agents/`, `factory/` or `plugins/`, nor any `AGENTS.md` or `CLAUDE.md`, is modified.
 12. The PR is a draft against `main` from branch `factory/issue-<number>`, with a conventional-commit `feat` title.
-13. The PR body starts with `resolves #<number>`, its Acceptance test section matches the acceptance test runs in the transcript, its Verified line names the commands that ran, and its Not verified line names what the sandbox couldn't run.
-14. Exactly one assessment comment on the PR follows `factory/assessment.md`, matches the PR's final state, and takes its risk ratings from the reviewers' risk lines.
+13. The PR body's Preview seed section holds one self-contained ```python block that sends data showing the feature to the server at `PHOENIX_BASE_URL` and prints where to look, using only the standard library and the packages the server image ships, and the transcript shows it ran to exit 0 against a server on the implemented tree.
+14. The PR body starts with `resolves #<number>`, its Acceptance test section matches the acceptance test runs in the transcript, its Verified line names the commands that ran, and its Not verified line names what the sandbox couldn't run.
+15. Exactly one assessment comment on the PR follows `factory/assessment.md`, matches the PR's final state, and takes its risk ratings from the reviewers' risk lines.
 
 ## State B: needs a decision
 

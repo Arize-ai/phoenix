@@ -19,7 +19,7 @@ const combinations: Array<{ dish: string; constraint: string; skill: string }> =
 const examples = await Promise.all(
   combinations.map(async (combo) => {
     const { text } = await generateText({
-      model: openai("gpt-4o-mini"),
+      model: openai("gpt-6-luna"),
       prompt: `Write one realistic message a ${combo.skill} cook might send a recipe assistant about ${combo.dish} with this constraint: ${combo.constraint}. Write it the way a person types, not as a template.`,
     });
     return { input: { question: text }, metadata: combo };

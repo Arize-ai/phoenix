@@ -70,6 +70,9 @@ class _BasePydanticAIProviderMetadata(BaseModel):
     """Producing provider; Anthropic replays thinking blocks only when this
     matches the requesting model."""
 
+    canonical_system: str | None = None
+    """The response's provider system, used to route signed or encrypted content on replay."""
+
     provider_details: dict[str, JsonValue] | None = None
     """Opaque provider details restored verbatim."""
 

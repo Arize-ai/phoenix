@@ -1,6 +1,9 @@
 <p align="center">
     <a target="_blank" href="https://phoenix.arize.com" style="background:none">
-        <img alt="phoenix banner" src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/socal/github-large-banner-phoenix-v2.jpg?raw=true" width="auto" height="auto"></img>
+        <picture>
+            <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Arize-ai/phoenix/main/assets/brand/arize-phoenix-banner-dark.svg">
+            <img alt="Arize Phoenix" src="https://raw.githubusercontent.com/Arize-ai/phoenix/main/assets/brand/arize-phoenix-banner-light.svg" width="100%">
+        </picture>
     </a>
     <br/>
     <br/>

@@ -664,10 +664,10 @@ describe("resolveAgentModelRow", () => {
 
   it("keeps a curated display name for a model missing from the catalog", () => {
     expect(
-      resolve({ provider: "ANTHROPIC", modelName: "claude-sonnet-5-5" })
+      resolve({ provider: "ANTHROPIC", modelName: "claude-fable-5-2" })
     ).toMatchObject({
       isCurated: true,
-      displayName: "Claude Sonnet 5.5",
+      displayName: "Claude Fable 5.2",
       credentialState: "ready",
     });
   });

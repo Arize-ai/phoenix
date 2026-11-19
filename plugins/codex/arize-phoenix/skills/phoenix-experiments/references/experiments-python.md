@@ -15,7 +15,7 @@ dataset = client.datasets.get_dataset(dataset="recipe-faq")
 
 def answer(input):
     response = openai_client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-6-luna",
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": input["question"]},
@@ -46,7 +46,7 @@ experiment = client.experiments.run_experiment(
     evaluators=[under_100_words, matches_reference],
     experiment_name="system-prompt-v2",
     experiment_description="Asks for shorter answers in the system prompt",
-    experiment_metadata={"prompt_version": "v2", "model": "gpt-4o-mini"},
+    experiment_metadata={"prompt_version": "v2", "model": "gpt-6-luna"},
     repetitions=3,
 )
 ```
@@ -101,7 +101,7 @@ candidate = client.prompts.create(
     name="recipe-answer",
     version=PromptVersion(
         [{"role": "system", "content": NEW_SYSTEM_PROMPT}, {"role": "user", "content": "{{question}}"}],
-        model_name="gpt-4o-mini",
+        model_name="gpt-6-luna",
         model_provider="OPENAI",
     ),
 )

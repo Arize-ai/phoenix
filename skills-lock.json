@@ -1,48 +1,54 @@
 {
-  "version": 1,
+  "version": 2,
   "skills": {
     "create-task": {
       "source": "harbor-framework/harbor",
       "sourceType": "github",
       "skillPath": "skills/create-task/SKILL.md",
-      "computedHash": "431d3c060b697a7e2112729c7278758026be1c77768b7eaa8785aeeb3c37a29c"
+      "computedHash": "e80a865b0f17943e5bad6f783a745d32094114392eba75c4b837b6f936acb4e3",
+      "commit": "ec6aeab7fe0eb51df52b4e72c524daf5ea9cc5f4"
     },
     "daytona": {
       "source": "daytona/skills",
       "sourceType": "github",
       "skillPath": "skills/daytona/SKILL.md",
-      "computedHash": "2d869388d88e3ed7241ea1e0fe274f2efbb809eb90412e73a2b50ab5c8422448"
+      "computedHash": "46b990d56c64a04a81f901849fb7befb6d3626d342256785ef17add2c78abe7b",
+      "commit": "f156aec458db94a9df9fa267abab06eaf4b301ac"
     },
     "gh-stack": {
       "source": "github/gh-stack",
       "sourceType": "github",
       "skillPath": "skills/gh-stack/SKILL.md",
-      "computedHash": "e54bf50370987f13ca2803b3be829f36350b68a79dc36ffd3b27350bc6d2fde1"
+      "computedHash": "4ff26e30a0103af77552e5eebbabfbf80734fd23b1485f0c513a0b35a3126613",
+      "commit": "b1bfce9e51d0cd92fc23efd6ecb37ff68139e7db"
     },
     "harbor-exec": {
       "source": "harbor-framework/harbor",
       "sourceType": "github",
       "skillPath": "skills/harbor-exec/SKILL.md",
-      "computedHash": "be02912ed459ea5d13af0c7edca969000f78aeeec4f3930ea1a2172617568e1c"
+      "computedHash": "e2155ef6d4aeb2e7c4e23039ad22f6442e7ba3067933a34905706e994b812c20",
+      "commit": "ec6aeab7fe0eb51df52b4e72c524daf5ea9cc5f4"
     },
     "mintlify": {
       "source": "mintlify.com",
       "sourceUrl": "https://mintlify.com/docs",
       "sourceType": "well-known",
-      "computedHash": "f01ca5c02dc1df33102beca4712af6268f41d2cd43087306b97d3dc48435bf37",
-      "wellKnownDigest": "sha256:164861da050fadf645478f42543fa811884b037ead9404181128487907e63fe5"
+      "computedHash": "179fcd351ba0f5522a8816b710d5ec69dcc0366574113034379e37d76a4d00b4",
+      "wellKnownDigest": "sha256:a78c1aea5269bfee7aafe6dfba101bfba07e821a15e5eaad21cb2ba2fa45d286"
     },
     "rewardkit": {
       "source": "harbor-framework/harbor",
       "sourceType": "github",
       "skillPath": "skills/rewardkit/SKILL.md",
-      "computedHash": "b51a29fdbc029f55c684126a9dca340f0963133c75aad43eda9152bc84a5b42a"
+      "computedHash": "d9b9086ab710f4abbd8e563b6204a8d3daa067a6ea660fdcb3960fb7b1d5a040",
+      "commit": "ec6aeab7fe0eb51df52b4e72c524daf5ea9cc5f4"
     },
     "vercel-react-best-practices": {
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/react-best-practices/SKILL.md",
-      "computedHash": "3219a1944e404ffc14d1d9d6aef6dd2e3855b81387ee0a044ccbfe14d34c2357"
+      "computedHash": "7991ed4fbecdac23f47c1a40c243e00a212a9e7f3604db93959b3ae11dffe299",
+      "commit": "1a2c79d4e6c4a2283dc2c614b6538cbe1ed5ca62"
     }
   }
 }

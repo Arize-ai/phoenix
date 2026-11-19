@@ -13,6 +13,18 @@ GitHub
 **We want to hear from you!** The DevRel team wants to hear from the Phoenix community. If you're building with Phoenix and want to tell us what's working, what's painful, or what you wish existed, [grab 25 minutes with us](https://cal.com/team/arize/user-interview).
 </Info>
 
+<ReleaseUpdate label="11.18.2026" href="/docs/phoenix/release-notes/11-2026/11-18-2026-python-decision-model-evaluators-and-opentelemetry-js-3" title="Python Decision-Model Evaluators and OpenTelemetry JS 3">
+**Available in arize-phoenix 21.1.0–21.2.0, arize-phoenix-evals 3.10.0+, arize-phoenix-client 3.7.0+ (Python), @arizeai/phoenix-otel 3.0.0–3.1.0, @arizeai/phoenix-client 8.0.0+, and @arizeai/phoenix-cli 1.20.0–1.23.0 (TypeScript)**
+
+Python classification evaluators run on decision models, and `@arizeai/phoenix-otel` moves to OpenTelemetry JS 3.
+
+- **Breaking: OpenTelemetry JS 3** in `@arizeai/phoenix-otel`, with `sampler` and `spanLimits` options on `register()`
+- **Decision-model evaluators in Python** on the OpenAI Decisions API and TypeSafe Jev
+- **Model column on the spans table** and a linked prompt version timeline
+- **px commands** to list prompt and dataset versions and to tag prompt versions
+- **Harbor experiment metadata** records model parameters and agent settings
+</ReleaseUpdate>
+
 <ReleaseUpdate label="11.02.2026" href="/docs/phoenix/release-notes/11-2026/11-02-2026-authentication-by-default-and-decision-annotations" title="Breaking Change: Authentication by Default">
 **Available in arize-phoenix 20.27.0–21.0.0, arize-phoenix-client 3.6.0+ (Python), @arizeai/phoenix-client 7.17.0–7.18.0, and @arizeai/phoenix-cli 1.19.0+ (TypeScript)**
 

@@ -111,7 +111,6 @@ def filter_models(model_ids: list[str]) -> list[str]:
     exclude_patterns = [
         r"/",
         r"ft",
-        r"anthropic\.",
         r"mistral\.",
         r"claude-2.*",
         r"embedding",

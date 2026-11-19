@@ -30,7 +30,7 @@ combinations = random.sample(list(itertools.product(*dimensions.values())), k=12
 
 def to_request(dish: str, constraint: str, skill: str) -> str:
     response = openai_client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-6-luna",
         messages=[
             {
                 "role": "user",

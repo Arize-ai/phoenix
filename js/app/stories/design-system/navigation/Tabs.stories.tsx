@@ -103,7 +103,7 @@ function SpanTabList({ extra }: { extra?: ReactNode }) {
           {tab.count != null ? (
             <>
               {" "}
-              <Counter>{tab.count}</Counter>
+              <Counter variant="quiet" count={tab.count} />
             </>
           ) : null}
         </Tab>

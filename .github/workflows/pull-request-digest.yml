@@ -1,0 +1,53 @@
+name: Pull request digest
+permissions: {}
+
+on:
+  schedule:
+    - cron: "0 12 * * MON-FRI"
+  workflow_dispatch:
+    inputs:
+      post_to_slack:
+        description: Post the digest to Slack (otherwise it is only written to the job summary)
+        type: boolean
+        default: false
+
+jobs:
+  pull-request-digest:
+    name: Open pull requests by person
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    env:
+      AGING_THRESHOLD_IN_DAYS: 7
+      STALENESS_THRESHOLD_IN_DAYS: 14
+      MAX_STALE_PRS: 15
+      MAX_UNOWNED_PRS: 10
+      IGNORED_PR_LABELS: "autorelease: pending"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .github/
+      - name: Build the digest
+        id: build-digest
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        with:
+          script: |
+            const script = require(".github/.scripts/collect-pull-requests.js");
+            await script({github, context, core});
+      - name: Send message to Slack
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
+        if: steps.build-digest.outputs.has_prs == 'true' && (github.event_name == 'schedule' || inputs.post_to_slack)
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            {
+              "channel": "${{ vars.SLACK_PR_DIGEST_CHANNEL_ID || vars.SLACK_CHANNEL_ID }}",
+              "text": ${{ toJSON(steps.build-digest.outputs.slack_message) }},
+              "unfurl_links": false,
+              "unfurl_media": false
+            }

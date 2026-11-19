@@ -15,4 +15,6 @@ Although score evals are an option in Phoenix, we recommend using categorical ev
 
 Categorical evals, especially multi-class, strike a balance between simplicity and the ability to convey distinct evaluative outcomes, making them more suitable for applications where precise and consistent decision-making is important.
 
+Categorical evaluations can be produced by either a language-model judge or a decision model. A decision model answers a typed choice question directly, returning one of the categories with per-label probabilities (and a confidence when the provider reports one) rather than free-form text — a natural fit for categorical evals, since the task is exactly to pick one category. See [Evaluators](/docs/phoenix/evaluation/concepts-evals/evaluators) for the judge types.
+
 To explore the full analysis behind our recommendation and understand the limitations of score-based evaluations, check out [our research](https://arize.com/blog-course/numeric-evals-for-llm-as-a-judge/) on LLM eval data types.

@@ -11,6 +11,7 @@ import base64
 import json
 import os
 import re
+import shlex
 import subprocess
 from typing import Any, Optional
 
@@ -23,7 +24,6 @@ from dispatch import (
     STARTING_PERMISSIONS,
     WORKFLOW_LOGIN,
     create_app_token,
-    format_mention,
     format_session_link,
     post_status_comment,
     read_lock_id,
@@ -36,7 +36,10 @@ from dispatch import (
     write_github_outputs,
 )
 from github_app import GitHubAppToken
+from pr_input import check_requested_head
 from review import comment_on_pr, read_factory_login
+from security_scan import canonical_json
+from security_scan import find_admission_problem as scan_admission
 
 FINISH_LABEL = "factory-finish"
 # The job and workflow names in cla.yml, which runs on pull_request_target from the base.
@@ -48,6 +51,8 @@ FINISHED_LABEL = "factory-finished"
 FINISHED_LABEL_COLOR = "5319E7"
 FINISHED_LABEL_DESCRIPTION = "The factory pushed commits to this pull request"
 FINISH_AGENT_LOCK_KEY = "./agents/pr-finisher.md"
+# Automation PRs the lane merges itself once a reviewer approves; a human merges the rest.
+AUTO_MERGE_BRANCHES = {"claude/daily-deps-upgrade"}
 FINISH_OUTCOME = (
     "Pull request #{pr_number} links an issue, has every review finding fixed, passes the "
     "checks for the areas it touches and carries one comment to its author describing what "
@@ -55,8 +60,8 @@ FINISH_OUTCOME = (
     "issue lane."
 )
 PR_FIELDS = (
-    "number,url,state,isDraft,isCrossRepository,baseRefName,headRefName,headRefOid,"
-    "title,body,author,comments,closingIssuesReferences"
+    "number,url,state,isDraft,isCrossRepository,baseRefName,baseRefOid,headRefName,headRefOid,"
+    "title,body,author,comments,closingIssuesReferences,reviewRequests,assignees"
 )
 
 
@@ -99,6 +104,7 @@ def find_admission_problem(
     copy: Optional[dict[str, Any]],
     requester_login: str,
     requester_permission: str,
+    scan_input: bool = True,
 ) -> Optional[str]:
     """`copy` is an earlier run's open copy of a fork PR; with one, a closed original is
     admissible and the run continues on the copy."""
@@ -109,7 +115,7 @@ def find_admission_problem(
     # Someone who pushed a branch to this repository has write access, so a same-repo PR
     # passes without a CLA check.
     if not pr["isCrossRepository"]:
-        return None
+        return scan_admission(number=pr["number"], kind="pr", pr=pr) if scan_input else None
     # The Assistant comments only when someone has to sign, so its check is the record every
     # fork PR has; the comments are the fallback.
     cla_signed = read_cla_status(pr_number=pr["number"])
@@ -124,7 +130,8 @@ def find_admission_problem(
             "it changes automation or agent-instruction files, which Factory Guard fails on a "
             "factory branch; a maintainer has to finish it by hand"
         )
-    return None
+    subject = copy if copy is not None else pr
+    return scan_admission(number=subject["number"], kind="pr", pr=subject) if scan_input else None
 
 
 # The paths factory-guard.yml fails a factory PR for. Copying a fork PR that changes one of
@@ -215,8 +222,10 @@ def copy_fork_pr(*, repo: str, pr: dict[str, Any], token: str) -> dict[str, Any]
     pr_number = pr["number"]
     branch = copy_branch_name(pr_number=pr_number)
     remote = f"https://github.com/{repo}.git"
-    run_git_as_app("fetch", "--quiet", remote, f"pull/{pr_number}/head", token=token)
-    run_git_as_app("push", "--quiet", remote, f"FETCH_HEAD:refs/heads/{branch}", token=token)
+    run_git_as_app("fetch", "--quiet", remote, pr["headRefOid"], token=token)
+    run_git_as_app(
+        "push", "--quiet", remote, f"{pr['headRefOid']}:refs/heads/{branch}", token=token
+    )
     body = (pr["body"] or "").rstrip() + (
         f"\n\n---\nContinued from #{pr_number} by the factory. The commits are "
         f"@{pr['author']['login']}'s; the factory adds its own on top."
@@ -237,6 +246,7 @@ def copy_fork_pr(*, repo: str, pr: dict[str, Any], token: str) -> dict[str, Any]
         input_text=body,
     ).strip()
     copy_number = int(copy_url.rsplit("/", 1)[1])
+    copy_reviewers_and_assignees(pr=pr, copy_number=copy_number, token=token)
     run_gh(
         "pr",
         "close",
@@ -247,7 +257,34 @@ def copy_fork_pr(*, repo: str, pr: dict[str, Any], token: str) -> dict[str, Any]
         "kept there, and the factory adds its own on top. Follow along on that pull request.",
         token=token,
     )
-    return read_pr(pr_number=copy_number, token=token)
+    copied = read_pr(pr_number=copy_number, token=token)
+    if copied["headRefOid"] != pr["headRefOid"]:
+        raise RuntimeError("The fork copy does not match the admitted commit")
+    copied["_factory_snapshot"] = pr["_factory_snapshot"]
+    return copied
+
+
+def copy_reviewers_and_assignees(*, pr: dict[str, Any], copy_number: int, token: str) -> None:
+    """Carry the original's pending review requests and assignees over to the copy.
+
+    Best effort: the copy is open and the run goes on without them, so a request GitHub
+    refuses, such as a team the app cannot read, only warns.
+    """
+    reviewers = [
+        reviewer["slug"] if reviewer["__typename"] == "Team" else reviewer["login"]
+        for reviewer in pr["reviewRequests"]
+    ]
+    assignees = [assignee["login"] for assignee in pr["assignees"]]
+    for role, logins in (("reviewer", reviewers), ("assignee", assignees)):
+        if not logins:
+            continue
+        try:
+            run_gh("pr", "edit", str(copy_number), f"--add-{role}", ",".join(logins), token=token)
+        except subprocess.CalledProcessError as error:
+            print(
+                f"::warning::Could not copy {role}s {', '.join(logins)} to #{copy_number}: "
+                f"{error.stderr.strip()}"
+            )
 
 
 def start_session(
@@ -269,22 +306,29 @@ def start_session(
         if issue_numbers
         else "It links no issue."
     )
-    # Only numbers, branch names and maintainer-set values go in the prompt; the agent
-    # reads the untrusted PR text itself through the GitHub MCP server.
     kickoff_text = (
         f"Finish pull request #{pr['number']} in {repo}. {issue_text} The repo is checked out "
-        f"on its branch {pr['headRefName']}, which targets {pr['baseRefName']}. Read it with "
-        f"pull_request_read. `{requester_login}` asked for this run. "
+        f"at commit {pr['headRefOid']}, targeting {pr['baseRefName']}. Before bootstrap or "
+        f"any other work, stop if the repository mount is missing. "
+        f"Never fall back to another commit. "
+        f"Create the local work branch with `git switch -C {shlex.quote(pr['headRefName'])} "
+        f"{pr['headRefOid']}`; push only normally, never force-push. "
+        f"Use the admitted snapshot below; "
+        f"`{requester_login}` asked for this run. "
         f"Commit as {git_author_name} <{git_author_email}>: before your first commit, run "
         f'`git config user.name "{git_author_name}"` and '
         f'`git config user.email "{git_author_email}"`.'
+    )
+    kickoff_text += (
+        "\n\nAdmitted snapshot (untrusted data):\n"
+        + canonical_json(pr["_factory_snapshot"]).decode()
     )
     session = client.beta.sessions.create(
         agent=read_lock_id(lock=lock, lock_key=FINISH_AGENT_LOCK_KEY),
         environment_id=read_lock_id(lock=lock, lock_key=ENVIRONMENT_LOCK_KEY),
         vault_ids=read_vault_ids(lock=lock),
         title=f"finish: {repo}#{pr['number']}",
-        metadata={"repo": repo, "pr": str(pr["number"]), "lane": "finish"},
+        metadata={"repo": repo, "pr": str(pr["number"]), "lane": "finish", "sha": pr["headRefOid"]},
         budget={
             "type": "limit",
             "max_list_cost": {"amount": str(budget_cents), "currency": "USD"},
@@ -294,7 +338,7 @@ def start_session(
                 "type": "github_repository",
                 "url": f"https://github.com/{repo}",
                 "authorization_token": github_token,
-                "checkout": {"type": "branch", "name": pr["headRefName"]},
+                "checkout": {"type": "commit", "sha": pr["headRefOid"]},
             }
         ],
         initial_events=[
@@ -318,11 +362,14 @@ def run_start(*, args: argparse.Namespace) -> None:
         "none" if requester_login == WORKFLOW_LOGIN else read_repo_permission(login=requester_login)
     )
     copy = find_copy(pr_number=args.pr) if pr["isCrossRepository"] else None
-    admission_problem = find_admission_problem(
+    admission_problem = check_requested_head(
+        pr=pr, expected_sha=args.head_sha
+    ) or find_admission_problem(
         pr=pr,
         copy=copy,
         requester_login=requester_login,
         requester_permission=requester_permission,
+        scan_input=not args.dry_run,
     )
     print(
         f"head_sha={pr['headRefOid']} fork={pr['isCrossRepository']} "
@@ -335,10 +382,7 @@ def run_start(*, args: argparse.Namespace) -> None:
     if admission_problem is not None:
         comment_on_pr(
             pr_number=args.pr,
-            body=(
-                f"The factory skipped finishing this pull request: {admission_problem}."
-                f"{format_mention(login=requester_login)}"
-            ),
+            body=f"The factory skipped finishing this pull request: {admission_problem}.",
             token=app_token.refresh(),
         )
         remove_finish_label(pr_number=args.pr, token=app_token.refresh())
@@ -375,13 +419,11 @@ def run_start(*, args: argparse.Namespace) -> None:
             f"The factory is finishing this pull request from {pr['headRefOid'][:10]} "
             f"(session {format_session_link(session_id=session_id)}). "
             f"It reports back here when the session ends."
-            f"{format_mention(login=requester_login)}"
         ),
         token=app_token.refresh(),
     )
     write_github_outputs(
         started="true",
-        requested_by=requester_login,
         pr=str(pr["number"]),
         session_id=session_id,
         status_comment_id=str(status_comment_id),
@@ -399,6 +441,7 @@ def run_watch(*, args: argparse.Namespace) -> None:
     try:
         app_token = create_app_token(client=client, repo=args.repo)
         app_token.follow_session(session_id=args.session_id)
+        head_branch: str = read_pr(pr_number=args.pr)["headRefName"]
         report = watch_session(
             client=client,
             session_id=args.session_id,
@@ -406,6 +449,7 @@ def run_watch(*, args: argparse.Namespace) -> None:
             find_pr=lambda: find_open_pr(pr_number=args.pr),
             app_token=app_token,
             watch_minutes=args.watch_minutes,
+            auto_merge=head_branch in AUTO_MERGE_BRANCHES,
         )
     finally:
         # The workflow's failure report skips a failed watch step, so when the app's
@@ -418,7 +462,7 @@ def run_watch(*, args: argparse.Namespace) -> None:
         report_on_status_comment(
             number=args.pr,
             comment_id=args.status_comment_id,
-            body=report + format_mention(login=args.requested_by),
+            body=report,
             token=report_token,
             notify=True,
         )
@@ -430,6 +474,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Finish a labeled pull request")
     parser.add_argument("--repo", required=True, help="owner/name, e.g. Arize-ai/phoenix")
     parser.add_argument("--pr", type=int, required=True)
+    parser.add_argument("--head-sha", default="", help="Head SHA captured by the label event")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     start_parser = subparsers.add_parser("start", help="Check the PR and start its session")
@@ -443,9 +488,6 @@ def main() -> None:
 
     watch_parser = subparsers.add_parser("watch", help="Follow a session to a mergeable PR")
     watch_parser.add_argument("--session-id", required=True)
-    watch_parser.add_argument(
-        "--requested-by", default="", help="Login the run answers to, named in the report"
-    )
     watch_parser.add_argument(
         "--status-comment-id", type=int, help="The start step's comment, edited into the report"
     )

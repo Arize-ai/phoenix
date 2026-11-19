@@ -5,7 +5,6 @@ import {
   Button,
   Card,
   ContextualHelp,
-  DialogTrigger,
   DocumentationHelp,
   Flex,
   Icon,
@@ -22,7 +21,7 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
 import type { SandboxProvidersCardProviderEnabledSwitchMutation } from "./__generated__/SandboxProvidersCardProviderEnabledSwitchMutation.graphql";
 import { SandboxProviderCredentialsDialog } from "./SandboxProviderCredentialsDialog";
 import { sandboxesTableCSS } from "./styles";
-import type { BackendInfo, ProviderRow, SandboxProvider } from "./types";
+import type { ProviderRow, SandboxProvider } from "./types";
 import {
   getBackendDescription,
   LanguageWithIcon,
@@ -64,101 +63,109 @@ export function SandboxProvidersCard({
           </tr>
         </thead>
         <tbody>
-          {providers.map(({ backend, provider }) => {
-            const canEnable = backend.status === "AVAILABLE";
-            return (
-              <tr key={provider.id}>
-                <td>
-                  <Flex direction="row" gap="size-100" alignItems="center">
-                    <SandboxProviderIcon
-                      backendType={backend.backendType}
-                      height={18}
-                    />
-                    <span>{backend.displayName}</span>
-                    <SandboxHostingTypeBadge
-                      hostingType={backend.hostingType}
-                    />
-                    <SandboxLanguageDialectBadge
-                      languageDialect={backend.languageDialect}
-                      runtimeNotes={backend.runtimeNotes}
-                    />
-                    <ContextualHelp variant="info">
-                      {getBackendDescription(backend.backendType)}
-                    </ContextualHelp>
-                  </Flex>
-                </td>
-                <td>
-                  <Flex direction="row" gap="size-300">
-                    {[...provider.supportedLanguages].map((lang) => (
-                      <LanguageWithIcon key={lang} language={lang} />
-                    ))}
-                  </Flex>
-                </td>
-                <td>
-                  {canEnable ? (
-                    <ProviderEnabledSwitch
-                      provider={provider}
-                      canEnable={canEnable}
-                      isReadOnly={!canManage}
-                    />
-                  ) : (
-                    <StatusText
-                      status={backend.status}
-                      detail={backend.statusDetail}
-                      dependencyHints={backend.dependencyHints}
-                    />
-                  )}
-                </td>
-                <td>
-                  {canManage ? (
-                    <Flex justifyContent="end">
-                      <ConfigureCredentialsButton
-                        backend={backend}
-                        onRefresh={onRefresh}
-                      />
-                    </Flex>
-                  ) : null}
-                </td>
-              </tr>
-            );
-          })}
+          {providers.map(({ backend, provider }) => (
+            <SandboxProviderTableRow
+              key={provider.id}
+              backend={backend}
+              provider={provider}
+              onRefresh={onRefresh}
+              canManage={canManage}
+            />
+          ))}
         </tbody>
       </table>
     </Card>
   );
 }
 
-function ConfigureCredentialsButton({
+function SandboxProviderTableRow({
   backend,
+  provider,
   onRefresh,
-}: {
-  backend: BackendInfo;
-  onRefresh: () => void;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const hasCredentialSpecs = backend.credentialSpecs.length > 0;
+  canManage,
+}: ProviderRow & { onRefresh: () => void; canManage: boolean }) {
+  const [isCredentialsOpen, setIsCredentialsOpen] = useState(false);
+  const canEnable = backend.status === "AVAILABLE";
+  const canConfigureCredentials =
+    canManage && backend.credentialSpecs.length > 0;
+  const configureCredentialsLabel = `Configure ${backend.displayName} credentials`;
+  const openCredentials = () => setIsCredentialsOpen(true);
   return (
-    <DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
-      <Button
-        size="S"
-        aria-label={
-          hasCredentialSpecs
-            ? `Configure ${backend.displayName} credentials`
-            : `${backend.displayName} requires no credentials`
-        }
-        isDisabled={!hasCredentialSpecs}
-        leadingVisual={<Icon svg={<Icons.Settings />} />}
-      />
-      <ViewportModalOverlay>
-        <ViewportModal size="M">
-          <SandboxProviderCredentialsDialog
-            backend={backend}
-            onClose={() => setIsOpen(false)}
-            onRefresh={onRefresh}
+    <tr>
+      <td>
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <SandboxProviderIcon backendType={backend.backendType} height={18} />
+          <span>{backend.displayName}</span>
+          <SandboxHostingTypeBadge hostingType={backend.hostingType} />
+          <SandboxLanguageDialectBadge
+            languageDialect={backend.languageDialect}
+            runtimeNotes={backend.runtimeNotes}
           />
-        </ViewportModal>
-      </ViewportModalOverlay>
-    </DialogTrigger>
+          <ContextualHelp variant="info">
+            {getBackendDescription(backend.backendType)}
+          </ContextualHelp>
+        </Flex>
+      </td>
+      <td>
+        <Flex direction="row" gap="size-300">
+          {[...provider.supportedLanguages].map((lang) => (
+            <LanguageWithIcon key={lang} language={lang} />
+          ))}
+        </Flex>
+      </td>
+      <td>
+        {canEnable ? (
+          <ProviderEnabledSwitch
+            provider={provider}
+            canEnable={canEnable}
+            isReadOnly={!canManage}
+          />
+        ) : (
+          <StatusText
+            status={backend.status}
+            detail={backend.statusDetail}
+            dependencyHints={backend.dependencyHints}
+            configureCredentials={
+              canConfigureCredentials
+                ? {
+                    action: `configure ${backend.displayName} credentials`,
+                    onPress: openCredentials,
+                  }
+                : undefined
+            }
+          />
+        )}
+      </td>
+      <td>
+        {canManage ? (
+          <Flex justifyContent="end">
+            <Button
+              size="S"
+              aria-label={
+                canConfigureCredentials
+                  ? configureCredentialsLabel
+                  : `${backend.displayName} requires no credentials`
+              }
+              isDisabled={!canConfigureCredentials}
+              leadingVisual={<Icon svg={<Icons.Settings />} />}
+              onPress={openCredentials}
+            />
+          </Flex>
+        ) : null}
+        <ViewportModalOverlay
+          isOpen={isCredentialsOpen}
+          onOpenChange={setIsCredentialsOpen}
+        >
+          <ViewportModal size="M">
+            <SandboxProviderCredentialsDialog
+              backend={backend}
+              onClose={() => setIsCredentialsOpen(false)}
+              onRefresh={onRefresh}
+            />
+          </ViewportModal>
+        </ViewportModalOverlay>
+      </td>
+    </tr>
   );
 }
 

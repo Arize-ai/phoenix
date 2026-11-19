@@ -1,5 +1,11 @@
 # @arizeai/phoenix-evals
 
+## 2.8.0
+
+### Minor Changes
+
+- d03cfdc: Support the Gemini Decisions API (`gemini-decision-1`) in classification evaluators. Pass `google.decisionModel("gemini-decision-1")` as the `model` to `createClassificationEvaluator` or any built-in. Requires `@ai-sdk/google` >= 4.0.118.
+
 ## 2.7.1
 
 ### Patch Changes

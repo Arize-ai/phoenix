@@ -58,7 +58,7 @@ export type ToolResponseHandlingEvaluationRecord = {
  *
  * @example
  * ```ts
- * const evaluator = createToolResponseHandlingEvaluator({ model: openai("gpt-4o-mini") });
+ * const evaluator = createToolResponseHandlingEvaluator({ model: openai.decisionModel("gpt-6-luna") });
  *
  * // Example: Correct extraction from tool result
  * const result = await evaluator.evaluate({

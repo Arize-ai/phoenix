@@ -248,7 +248,11 @@ Wrap the run in `suppress_tracing()` so the judges' own LLM calls don't get trac
 from phoenix.trace import suppress_tracing
 from phoenix.evals import LLM, ClassificationEvaluator, async_evaluate_dataframe
 
-llm = LLM(provider="openai", model="gpt-4o-mini")
+llm = LLM(provider="openai", model="gpt-6-luna")
+# These evaluators also accept a decision model in place of the LLM:
+#   from phoenix.evals import DecisionModel
+#   llm = DecisionModel(provider="openai", model="gpt-6-luna")
+# A decision model returns a label with per-label probabilities but no explanation.
 
 relevance_evaluator = ClassificationEvaluator(
     name="relevance", llm=llm, prompt_template=RECOMMENDATION_RELEVANCE,

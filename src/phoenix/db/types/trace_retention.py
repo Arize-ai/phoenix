@@ -6,7 +6,6 @@ from typing import Annotated, Iterable, Literal, Optional, Union
 import sqlalchemy as sa
 from pydantic import AfterValidator, BaseModel, Field, RootModel
 from sqlalchemy import func
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.roles import InElementRole
 
 from phoenix.utilities import hour_of_week
@@ -54,26 +53,13 @@ class MaxDaysRule(_MaxDays, BaseModel):
     def __bool__(self) -> bool:
         return self.max_days > 0
 
-    async def delete_traces(
+    def deletion_filter(
         self,
-        session: AsyncSession,
         project_rowids: Union[Iterable[int], InElementRole],
-    ) -> set[int]:
-        if self.max_days <= 0:
-            return set()
+    ) -> sa.ColumnElement[bool]:
         from phoenix.db.models import Trace
 
-        await session.execute(
-            sa.delete(Trace)
-            .where(Trace.project_rowid.in_(project_rowids))
-            .where(self.max_days_filter)
-        )
-        # Intentionally returns an empty set: the affected project ids only feed
-        # CacheForDataLoaders invalidation, which is None on every backend except SQLite.
-        # Collecting them via RETURNING buffered the full result set in memory (OOM on large
-        # PostgreSQL deletes, see #13906). On SQLite the unfiltered summary caches may read
-        # stale until their 1h TTL expires, which is acceptable for that single-node path.
-        return set()
+        return sa.and_(Trace.project_rowid.in_(project_rowids), self.max_days_filter)
 
 
 class MaxCountRule(_MaxCount, BaseModel):
@@ -82,22 +68,11 @@ class MaxCountRule(_MaxCount, BaseModel):
     def __bool__(self) -> bool:
         return self.max_count > 0
 
-    async def delete_traces(
+    def deletion_filter(
         self,
-        session: AsyncSession,
         project_rowids: Union[Iterable[int], InElementRole],
-    ) -> set[int]:
-        if self.max_count <= 0:
-            return set()
-        from phoenix.db.models import Trace
-
-        await session.execute(
-            sa.delete(Trace)
-            .where(Trace.project_rowid.in_(project_rowids))
-            .where(self.max_count_filter(project_rowids))
-        )
-        # Empty set by design; see MaxDaysRule.delete_traces for why (avoids #13906 OOM).
-        return set()
+    ) -> sa.ColumnElement[bool]:
+        return self.max_count_filter(project_rowids)
 
 
 class MaxDaysOrCountRule(_MaxDays, _MaxCount, BaseModel):
@@ -106,22 +81,16 @@ class MaxDaysOrCountRule(_MaxDays, _MaxCount, BaseModel):
     def __bool__(self) -> bool:
         return self.max_days > 0 or self.max_count > 0
 
-    async def delete_traces(
+    def deletion_filter(
         self,
-        session: AsyncSession,
         project_rowids: Union[Iterable[int], InElementRole],
-    ) -> set[int]:
-        if self.max_days <= 0 and self.max_count <= 0:
-            return set()
+    ) -> sa.ColumnElement[bool]:
         from phoenix.db.models import Trace
 
-        await session.execute(
-            sa.delete(Trace)
-            .where(Trace.project_rowid.in_(project_rowids))
-            .where(sa.or_(self.max_days_filter, self.max_count_filter(project_rowids)))
+        return sa.and_(
+            Trace.project_rowid.in_(project_rowids),
+            sa.or_(self.max_days_filter, self.max_count_filter(project_rowids)),
         )
-        # Empty set by design; see MaxDaysRule.delete_traces for why (avoids #13906 OOM).
-        return set()
 
 
 class TraceRetentionRule(RootModel[Union[MaxDaysRule, MaxCountRule, MaxDaysOrCountRule]]):
@@ -132,12 +101,15 @@ class TraceRetentionRule(RootModel[Union[MaxDaysRule, MaxCountRule, MaxDaysOrCou
     def __bool__(self) -> bool:
         return bool(self.root)
 
-    async def delete_traces(
+    def deletion_filter(
         self,
-        session: AsyncSession,
         project_rowids: Union[Iterable[int], InElementRole],
-    ) -> set[int]:
-        return await self.root.delete_traces(session, project_rowids)
+    ) -> sa.ColumnElement[bool]:
+        """Return a deletion filter restricted to the specified projects.
+
+        A no-op rule (e.g. max_days == 0) matches no trace.
+        """
+        return self.root.deletion_filter(project_rowids)
 
 
 def _time_of_next_run(
