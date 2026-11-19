@@ -186,10 +186,18 @@ async function settle() {
 
 /** Each stat's label and value, or the panel's message in their place. */
 function readTotals() {
-  const stats = [...container.querySelectorAll("h3")].map((label) => [
-    label.textContent,
-    label.nextElementSibling?.textContent,
-  ]);
+  const stats = [...container.querySelectorAll("h3")].map((label) => {
+    // The stat is the nearest ancestor holding more than its label, which may
+    // share a row with a help icon.
+    let stat = label.parentElement;
+    while (stat != null && stat.textContent === label.textContent) {
+      stat = stat.parentElement;
+    }
+    return [
+      label.textContent,
+      stat?.textContent?.slice(label.textContent?.length ?? 0),
+    ];
+  });
   const failure = [...container.querySelectorAll("span")].find((element) =>
     element.textContent?.endsWith("failed to load.")
   )?.textContent;
