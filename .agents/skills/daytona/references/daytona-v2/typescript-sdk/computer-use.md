@@ -179,7 +179,7 @@ console.log(xvfbStatus.processName, xvfbStatus.running);
 
 > **Notes:**
 >
-> - A desktop must exist.
+> - **Prerequisites:** A desktop must exist.
 
 ## Get all process statuses
 
@@ -238,7 +238,7 @@ console.log(result.message, result.processName);
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ## Get process logs
 
@@ -265,7 +265,7 @@ console.log('x11vnc logs:', logs.logs);
 
 > **Notes:**
 >
-> - A desktop must exist.
+> - **Prerequisites:** A desktop must exist.
 
 ## Get process errors
 
@@ -292,7 +292,7 @@ console.log('x11vnc errors:', errors.errors);
 
 > **Notes:**
 >
-> - A desktop must exist.
+> - **Prerequisites:** A desktop must exist.
 
 ## Mouse operations
 
@@ -329,7 +329,7 @@ await sandbox.computerUse.mouse.click({ x: 100, y: 200 });
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ### Move
 
@@ -357,7 +357,7 @@ console.log(`Mouse moved to: ${result.x}, ${result.y}`);
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ### Drag
 
@@ -394,7 +394,7 @@ console.log(`Drag ended at ${result.x}, ${result.y}`);
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ### Scroll
 
@@ -424,7 +424,7 @@ console.log(result.success);
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ### Get position
 
@@ -447,7 +447,7 @@ console.log(`Mouse is at: ${position.x}, ${position.y}`);
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ## Keyboard operations
 
@@ -482,8 +482,8 @@ await sandbox.computerUse.keyboard.type({ text: 'Hello, World!' });
 
 > **Notes:**
 >
-> - The desktop must be ready.
-> - The number of characters multiplied by the delay must not exceed 25 seconds.
+> - **Prerequisites:** The desktop must be ready.
+> - **Limits:** The number of characters multiplied by the delay must not exceed 25 seconds.
 
 ### Press
 
@@ -510,7 +510,7 @@ await sandbox.computerUse.keyboard.key({ key: 'enter' });
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ### Press a hotkey
 
@@ -536,7 +536,7 @@ await sandbox.computerUse.keyboard.hotkey({ keys: 'ctrl+c' });
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ### Supported keys
 
@@ -608,7 +608,7 @@ console.log(tree.root.role, tree.root.name, tree.truncated);
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ### Find nodes
 
@@ -649,7 +649,7 @@ for (const node of buttons.matches) {
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ### Focus node
 
@@ -676,7 +676,7 @@ await sandbox.computerUse.a11y.focus({ id: node.id });
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ### Invoke node
 
@@ -704,7 +704,7 @@ await sandbox.computerUse.a11y.invoke({ id: node.id });
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ### Set node value
 
@@ -732,7 +732,7 @@ await sandbox.computerUse.a11y.setValue({ id: node.id, value: 'hello' });
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ## Screenshot operations
 
@@ -765,7 +765,7 @@ await writeFile('screen.png', Buffer.from(screenshot.screenshot, 'base64'));
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ### Take region
 
@@ -794,7 +794,7 @@ console.log(`Captured region: ${screenshot.sizeBytes} bytes`);
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ### Take compressed
 
@@ -824,7 +824,7 @@ console.log(`Compressed size: ${screenshot.sizeBytes} bytes`);
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ### Take compressed region
 
@@ -857,7 +857,7 @@ console.log(`Compressed size: ${screenshot.sizeBytes} bytes`);
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ## Screen recording
 
@@ -913,7 +913,7 @@ console.log(`Recording started: ${recording.id}`);
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ### Stop recording
 
@@ -1073,7 +1073,7 @@ for (const display of info.displays) {
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ### Get windows
 
@@ -1099,7 +1099,7 @@ for (const window of windows.windows) {
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ## Permissions
 

@@ -113,8 +113,8 @@ connection.write('echo "Hello from the SDK"\n')
 
 > **Notes:**
 >
-> - `{sandboxId}` is the ID of the sandbox whose web terminal is open in the dashboard.
-> - `attach()` opens a WebSocket and needs a global `WebSocket` in the runtime.
+> - **Prerequisites:** `attach()` opens a WebSocket and needs a global `WebSocket` in the runtime.
+> - **Placeholders:** `{sandboxId}` is the ID of the sandbox whose web terminal is open in the dashboard.
 
 ## Permissions
 

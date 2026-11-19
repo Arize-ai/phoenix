@@ -84,8 +84,8 @@ const sandbox = await daytonaWithConfig.v2.create({ region: 'earth' })
 
 > **Notes:**
 >
-> - The request requires the `write:sandboxes` permission.
-> - The client takes either an API key or a JWT with a project ID, not both.
+> - **Permissions:** The request requires the `write:sandboxes` permission.
+> - **Compatibility:** The client takes either an API key or a JWT with a project ID, not both.
 
 ### Close the client
 
@@ -103,7 +103,7 @@ await daytona.close()
 
 > **Notes:**
 >
-> - Declare the client with await using to close it when the scope exits.
+> - **Clients:** Declare the client with await using to close it when the scope exits.
 
 ## Authenticate the CLI
 
@@ -147,6 +147,11 @@ daytona sandbox create --api-key YOUR_API_KEY --api-url https://api.daytona.com
 | `--api-url` | Sets the API base URL.<br />**Default:** the DAYTONA_V2_API_URL environment variable, then the URL saved in the profile, then `https://api.daytona.com` |
 | `--profile` | Selects a saved profile other than the active one.<br />**Default:** the DAYTONA_PROFILE environment variable, then the active profile, then the profile named default<br />**Format:** 1 to 64 ASCII letters, digits, periods, underscores, and hyphens, other than a single or double period<br />**Example:** `work` |
 
+> **Notes:**
+>
+> - **Effects:** Logging out revokes only the API keys that the CLI created for the session, not a credential stored with --token.
+> - **Clients:** Without a terminal, daytona login signs in with a device code.
+
 ### Profiles
 
 A profile is a named connection: an API URL, a credential, and the selected organization and project. One machine can keep several profiles, for example one per organization or deployment, and switch between them without signing in again. A command uses the profile it names, then the profile in the environment, then the active profile, then the profile named default. Signing in to a new profile creates it, and makes it active only when no profile is active yet. Deleting the active profile makes the default profile active when it exists, otherwise no profile is active.
@@ -176,8 +181,9 @@ daytona profile delete work
 
 > **Notes:**
 >
-> - A profile named by --profile or DAYTONA_PROFILE must exist, unless daytona login creates it.
-> - Deleting a profile tries to revoke the CLI's API keys for it, which otherwise expire after 24 hours.
+> - **Prerequisites:** A profile named by --profile or DAYTONA_PROFILE must exist, unless daytona login creates it.
+> - **Effects:** Deleting a profile tries to revoke the CLI's API keys for it, which otherwise expire after 24 hours.
+> - **Confirmation:** daytona profile delete asks for confirmation at a terminal and requires --yes otherwise.
 
 ### Confirmation prompts
 
@@ -202,8 +208,8 @@ daytona config path
 
 > **Notes:**
 >
-> - Pass --yes or set DAYTONA_YES to `1` to confirm without a prompt, for example in scripts and CI.
-> - The config directory is DAYTONA_CONFIG_DIR when set, else the daytona directory in XDG_CONFIG_HOME, else `~/.config/daytona`.
+> - **Clients:** The config directory is DAYTONA_CONFIG_DIR when set, else the daytona directory in XDG_CONFIG_HOME, else `~/.config/daytona`.
+> - **Confirmation:** Pass --yes or set DAYTONA_YES to `1` to confirm without a prompt, for example in scripts and CI.
 
 ## Authenticate API requests
 

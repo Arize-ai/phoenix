@@ -41,10 +41,9 @@ response = sandbox.process.run(
 
 > **Notes:**
 >
-> - The program must use an OpenTelemetry SDK or another OTLP exporter.
-> - Set OTEL_EXPORTER_OTLP_ENDPOINT to `$DAYTONA_OTEL_ENDPOINT` and OTEL_EXPORTER_OTLP_PROTOCOL to `http/protobuf` in the program's start command.
-> - The endpoint accepts only uncompressed OTLP/HTTP with protobuf bodies.
-> - A sandbox started before Daytona stopped setting the standard exporter variables passes them to new processes until you [unset them](./process-execution.md#update-the-environment) or stop and start the sandbox.
+> - **Prerequisites:** The program must use an OpenTelemetry SDK or another OTLP exporter. Set OTEL_EXPORTER_OTLP_ENDPOINT to `$DAYTONA_OTEL_ENDPOINT` and OTEL_EXPORTER_OTLP_PROTOCOL to `http/protobuf` in the program's start command.
+> - **Compatibility:** The endpoint accepts only uncompressed OTLP/HTTP with protobuf bodies.
+> - **Behaviour:** A sandbox started before Daytona stopped setting the standard exporter variables passes them to new processes until you [unset them](./process-execution.md#update-the-environment) or stop and start the sandbox.
 
 ## Forward sandbox telemetry
 
@@ -76,7 +75,7 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/otel-config' \
 
 > **Notes:**
 >
-> - The request requires a signed-in user token, not an API key.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 ### Set the configuration
 
@@ -103,9 +102,8 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/otel-config' \
 
 > **Notes:**
 >
-> - The request requires a signed-in user token, not an API key.
-> - The request requires the Enterprise [plan](../platform/billing.md#get-the-plan).
-> - Daytona appends /v1/logs, /v1/traces, or /v1/metrics to the endpoint for each signal.
+> - **Prerequisites:** The request requires the Enterprise [plan](../platform/billing.md#get-the-plan). The request requires a signed-in user token, not an API key.
+> - **Behaviour:** Daytona appends /v1/logs, /v1/traces, or /v1/metrics to the endpoint for each signal.
 
 ### Delete the configuration
 
@@ -125,7 +123,7 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/otel-config' \
 
 > **Notes:**
 >
-> - The request requires a signed-in user token, not an API key.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 ## Trace SDK requests
 
@@ -157,7 +155,7 @@ with Daytona(DaytonaConfig(otel_enabled=True)) as daytona:
 
 > **Notes:**
 >
-> - The otel extra installs only opentelemetry-api, so add the OpenTelemetry SDK and an exporter.
+> - **Prerequisites:** The otel extra installs only opentelemetry-api, so add the OpenTelemetry SDK and an exporter.
 
 Each span has the following attributes:
 

@@ -345,7 +345,6 @@ Class and method reference, one file per module, in `./<lang>-sdk/reference/`:
 | `file-system.md` | File system operations |
 | `git.md` | Git operations |
 | `computer-use.md` | Desktop automation |
-| `lsp.md` | Language servers |
 | `ports.md` | Exposed ports and preview links |
 | `docker.md` | Docker Engine status |
 | `image.md` | Images and `ImageBuilder` |
@@ -355,6 +354,7 @@ Class and method reference, one file per module, in `./<lang>-sdk/reference/`:
 | `reservations.md` | Mac reservations for macOS sandboxes |
 | `mac-models.md` | Mac model catalog |
 | `errors.md`, `shared-errors.md` | Error classes |
+| `types.md` | Shared types, such as storage limits and API key context |
 
 Python: [python-sdk/README.md](./python-sdk/README.md). TypeScript: [typescript-sdk/README.md](./typescript-sdk/README.md).
 
@@ -362,6 +362,7 @@ Python: [python-sdk/README.md](./python-sdk/README.md). TypeScript: [typescript-
 
 | File | Description |
 |---|---|
+| [agent-skills.md](./platform/agent-skills.md) | Installing this agent skill |
 | [architecture.md](./platform/architecture.md) | Platform architecture overview |
 | [billing.md](./platform/billing.md) | Billing, wallet, and usage |
 | [gpu-sandboxes.md](./platform/gpu-sandboxes.md) | GPU sandboxes and checkpoints |

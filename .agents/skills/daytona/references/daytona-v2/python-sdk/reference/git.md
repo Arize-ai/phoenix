@@ -4,8 +4,12 @@
 
 - [GitService](#gitservice)
 - [AsyncGitService](#asyncgitservice)
-- [GitCommitResponse](#gitcommitresponse)
+- [GitFileStatus](#gitfilestatus)
 - [GitStatus](#gitstatus)
+- [GitCommitResponse](#gitcommitresponse)
+- [GitCommit](#gitcommit)
+- [GitRemote](#gitremote)
+- [GitConfigScope](#gitconfigscope)
 
 ## GitService
 
@@ -18,27 +22,27 @@ Sandbox git namespace.
 #### GitService.\_\_init\_\_
 
 ```python
-def __init__(impl: AsyncGitService, bridge: SyncBridge) -> None
+def __init__() -> None
 ```
 
 #### GitService.add
 
 ```python
-def add(path: str, files: Sequence[str]) -> None
+def add(path: str, files: Sequence[str], /) -> None
 ```
 
-Stage files.
+Stage a sequence of string pathspecs (not a bare string).
 
 #### GitService.add\_remote
 
 ```python
-def add_remote(path: str, name: str, url: str) -> None
+def add_remote(path: str, name: str, url: str, /) -> None
 ```
 
 #### GitService.checkout\_branch
 
 ```python
-def checkout_branch(path: str, branch: str) -> None
+def checkout_branch(path: str, branch: str, /) -> None
 ```
 
 Checkout a branch.
@@ -48,6 +52,7 @@ Checkout a branch.
 ```python
 def clone(url: str,
           path: str,
+          /,
           *,
           branch: Optional[str] = None,
           commit_id: Optional[str] = None,
@@ -65,6 +70,7 @@ Clone a repository, optionally shallow and with per-call TLS relaxation.
 ```python
 def commit(path: str,
            message: str,
+           /,
            *,
            author: str,
            email: str,
@@ -76,7 +82,7 @@ Commit staged changes, optionally allowing an empty commit.
 #### GitService.create\_branch
 
 ```python
-def create_branch(path: str, name: str) -> None
+def create_branch(path: str, name: str, /) -> None
 ```
 
 Create a branch.
@@ -84,24 +90,32 @@ Create a branch.
 #### GitService.delete\_branch
 
 ```python
-def delete_branch(path: str, name: str) -> None
+def delete_branch(path: str, name: str, /, *, force: bool = False) -> None
 ```
 
 Delete a branch.
+
+The default is a safe deletion (`git branch -d`): a branch that is
+not merged raises `daytona.v2.errors.ConflictError`
+(`CONFLICT`). `force=True` deletes it anyway (`git branch -D`).
+The checked-out branch is never deleted, even with `force=True`
+(`ConflictError`); a branch that does not exist raises
+`daytona.v2.errors.GitBranchNotFoundError`.
 
 #### GitService.get\_config
 
 ```python
 def get_config(key: str,
+               /,
                *,
                path: Optional[str] = None,
-               scope: str = 'global') -> Optional[str]
+               scope: GitConfigScope = 'global') -> Optional[str]
 ```
 
 #### GitService.history
 
 ```python
-def history(path: str) -> ListResult
+def history(path: str, /) -> ListResult[GitCommit]
 ```
 
 List commits, newest first.
@@ -109,13 +123,17 @@ List commits, newest first.
 #### GitService.init
 
 ```python
-def init(path: str, *, bare: bool = False, initial_branch: Optional[str] = None) -> None
+def init(path: str,
+         /,
+         *,
+         bare: bool = False,
+         initial_branch: Optional[str] = None) -> None
 ```
 
 #### GitService.list\_branches
 
 ```python
-def list_branches(path: str) -> ListResult
+def list_branches(path: str, /) -> ListResult[str]
 ```
 
 List branch names as \{items, next_cursor\}.
@@ -123,13 +141,16 @@ List branch names as \{items, next_cursor\}.
 #### GitService.list\_remotes
 
 ```python
-def list_remotes(path: str) -> ListResult[JsonObject]
+def list_remotes(path: str, /) -> ListResult[GitRemote]
 ```
+
+List the configured remotes; URLs come back with any credentials removed.
 
 #### GitService.pull
 
 ```python
 def pull(path: str,
+         /,
          *,
          username: Optional[str] = None,
          password: Optional[str] = None,
@@ -144,6 +165,7 @@ Pull from the configured or named remote.
 
 ```python
 def push(path: str,
+         /,
          *,
          username: Optional[str] = None,
          password: Optional[str] = None,
@@ -159,6 +181,7 @@ Push to the configured or named remote.
 
 ```python
 def reset(path: str,
+          /,
           *,
           mode: Optional[str] = None,
           target: Optional[str] = None,
@@ -170,6 +193,7 @@ def reset(path: str,
 ```python
 def restore(path: str,
             files: Sequence[str],
+            /,
             *,
             staged: Optional[bool] = None,
             worktree: Optional[bool] = None,
@@ -181,15 +205,23 @@ def restore(path: str,
 ```python
 def set_config(key: str,
                value: str,
+               /,
                *,
                path: Optional[str] = None,
-               scope: str = 'global') -> None
+               scope: GitConfigScope = 'global') -> None
 ```
+
+Set a git config value.
+
+A sandbox access token needs `toolbox:exec` as well as
+`toolbox:git` for this (`toolbox` covers both): without
+`toolbox:exec` it raises `ForbiddenError` (403), while
+`get_config` still works.
 
 #### GitService.status
 
 ```python
-def status(path: str) -> GitStatus
+def status(path: str, /) -> GitStatus
 ```
 
 Return git status.
@@ -205,7 +237,7 @@ Sandbox git namespace.
 #### AsyncGitService.\_\_init\_\_
 
 ```python
-def __init__(transport: AsyncTransport) -> None
+def __init__() -> None
 ```
 
 #### AsyncGitService.clone
@@ -213,6 +245,7 @@ def __init__(transport: AsyncTransport) -> None
 ```python
 async def clone(url: str,
                 path: str,
+                /,
                 *,
                 branch: Optional[str] = None,
                 commit_id: Optional[str] = None,
@@ -229,6 +262,7 @@ Clone a repository, optionally shallow and with per-call TLS relaxation.
 
 ```python
 async def init(path: str,
+               /,
                *,
                bare: bool = False,
                initial_branch: Optional[str] = None) -> None
@@ -237,7 +271,7 @@ async def init(path: str,
 #### AsyncGitService.status
 
 ```python
-async def status(path: str) -> GitStatus
+async def status(path: str, /) -> GitStatus
 ```
 
 Return git status.
@@ -245,7 +279,7 @@ Return git status.
 #### AsyncGitService.list\_branches
 
 ```python
-async def list_branches(path: str) -> ListResult
+async def list_branches(path: str, /) -> ListResult[str]
 ```
 
 List branch names as \{items, next_cursor\}.
@@ -253,13 +287,15 @@ List branch names as \{items, next_cursor\}.
 #### AsyncGitService.list\_remotes
 
 ```python
-async def list_remotes(path: str) -> ListResult[JsonObject]
+async def list_remotes(path: str, /) -> ListResult[GitRemote]
 ```
+
+List the configured remotes; URLs come back with any credentials removed.
 
 #### AsyncGitService.history
 
 ```python
-async def history(path: str) -> ListResult
+async def history(path: str, /) -> ListResult[GitCommit]
 ```
 
 List commits, newest first.
@@ -267,7 +303,7 @@ List commits, newest first.
 #### AsyncGitService.create\_branch
 
 ```python
-async def create_branch(path: str, name: str) -> None
+async def create_branch(path: str, name: str, /) -> None
 ```
 
 Create a branch.
@@ -275,21 +311,28 @@ Create a branch.
 #### AsyncGitService.add\_remote
 
 ```python
-async def add_remote(path: str, name: str, url: str) -> None
+async def add_remote(path: str, name: str, url: str, /) -> None
 ```
 
 #### AsyncGitService.delete\_branch
 
 ```python
-async def delete_branch(path: str, name: str) -> None
+async def delete_branch(path: str, name: str, /, *, force: bool = False) -> None
 ```
 
 Delete a branch.
 
+The default is a safe deletion (`git branch -d`): a branch that is
+not merged raises `daytona.v2.errors.ConflictError`
+(`CONFLICT`). `force=True` deletes it anyway (`git branch -D`).
+The checked-out branch is never deleted, even with `force=True`
+(`ConflictError`); a branch that does not exist raises
+`daytona.v2.errors.GitBranchNotFoundError`.
+
 #### AsyncGitService.checkout\_branch
 
 ```python
-async def checkout_branch(path: str, branch: str) -> None
+async def checkout_branch(path: str, branch: str, /) -> None
 ```
 
 Checkout a branch.
@@ -297,15 +340,16 @@ Checkout a branch.
 #### AsyncGitService.add
 
 ```python
-async def add(path: str, files: Sequence[str]) -> None
+async def add(path: str, files: Sequence[str], /) -> None
 ```
 
-Stage files.
+Stage a sequence of string pathspecs (not a bare string).
 
 #### AsyncGitService.reset
 
 ```python
 async def reset(path: str,
+                /,
                 *,
                 mode: Optional[str] = None,
                 target: Optional[str] = None,
@@ -317,6 +361,7 @@ async def reset(path: str,
 ```python
 async def restore(path: str,
                   files: Sequence[str],
+                  /,
                   *,
                   staged: Optional[bool] = None,
                   worktree: Optional[bool] = None,
@@ -328,6 +373,7 @@ async def restore(path: str,
 ```python
 async def commit(path: str,
                  message: str,
+                 /,
                  *,
                  author: str,
                  email: str,
@@ -340,6 +386,7 @@ Commit staged changes, optionally allowing an empty commit.
 
 ```python
 async def pull(path: str,
+               /,
                *,
                username: Optional[str] = None,
                password: Optional[str] = None,
@@ -354,6 +401,7 @@ Pull from the configured or named remote.
 
 ```python
 async def push(path: str,
+               /,
                *,
                username: Optional[str] = None,
                password: Optional[str] = None,
@@ -369,9 +417,10 @@ Push to the configured or named remote.
 
 ```python
 async def get_config(key: str,
+                     /,
                      *,
                      path: Optional[str] = None,
-                     scope: str = 'global') -> Optional[str]
+                     scope: GitConfigScope = 'global') -> Optional[str]
 ```
 
 #### AsyncGitService.set\_config
@@ -379,19 +428,96 @@ async def get_config(key: str,
 ```python
 async def set_config(key: str,
                      value: str,
+                     /,
                      *,
                      path: Optional[str] = None,
-                     scope: str = 'global') -> None
+                     scope: GitConfigScope = 'global') -> None
 ```
 
-## GitCommitResponse
+Set a git config value.
+
+A sandbox access token needs `toolbox:exec` as well as
+`toolbox:git` for this (`toolbox` covers both): without
+`toolbox:exec` it raises `ForbiddenError` (403), while
+`get_config` still works.
+
+## GitFileStatus
 
 ```python
-GitCommitResponse = _gen.toolbox.CommitResponse
+@dataclass(frozen=True, kw_only=True)
+class GitFileStatus()
 ```
+
+One entry of `GitStatus.file_status`.
+
+**Attributes**:
+
+- `name` _str_
+- `staging` _str_
+- `worktree` _str_
+- `extra` _str_ - For a rename, the original path; otherwise empty.
 
 ## GitStatus
 
 ```python
-GitStatus = _gen.toolbox.StatusResponse
+@dataclass(frozen=True, kw_only=True)
+class GitStatus()
 ```
+
+**Attributes**:
+
+- `current_branch` _str_
+- `ahead` _int_
+- `behind` _int_
+- `branch_published` _bool_
+- `file_status` _tuple\[GitFileStatus, ...\]_
+
+## GitCommitResponse
+
+```python
+@dataclass(frozen=True, kw_only=True)
+class GitCommitResponse()
+```
+
+**Attributes**:
+
+- `hash` _str_
+
+## GitCommit
+
+```python
+@dataclass(frozen=True, kw_only=True)
+class GitCommit()
+```
+
+One commit from `git.history()`.
+
+**Attributes**:
+
+- `hash` _str_
+- `message` _str_
+- `author` _str_
+- `email` _str_
+- `timestamp` _datetime_
+
+## GitRemote
+
+```python
+@dataclass(frozen=True, kw_only=True)
+class GitRemote()
+```
+
+**Attributes**:
+
+- `name` _str_
+- `url` _str_
+
+## GitConfigScope
+
+```python
+GitConfigScope = Literal['global', 'local']
+```
+
+Which git configuration `get_config` / `set_config` read or write:
+`"global"` (the default) or `"local"` (a repository's, which needs
+`path`).

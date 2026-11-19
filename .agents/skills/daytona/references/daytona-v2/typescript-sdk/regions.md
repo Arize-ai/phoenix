@@ -8,15 +8,14 @@ Daytona runs every sandbox in a **region** and places it on available capacity w
 
 Use a region to place sandboxes close to their users and data, and to set the price multiplier that a sandbox is billed at. Set the region when you create a sandbox. A create request that names a region covering other regions places the sandbox in a region inside it, and is refused when no region inside it is available. A create refused because placement passed its deadline or met database contention can be retried with the same idempotency key.
 
-| **Concept**          | **Description**                                                                                             |
-| -------------------- | ----------------------------------------------------------------------------------------------------------- |
-| **Region**           | A geographic or logical area in which sandboxes run.                                                        |
-| **Earth**            | The region that covers every other region.                                                                  |
-| **Parent region**    | A region that contains narrower regions.                                                                    |
-| **Placement**        | The choice of the region and the host that run a sandbox.                                                   |
-| **Default region**   | The region that a sandbox runs in when its create request names none.                                       |
-| **Price multiplier** | The factor by which the prices in a region differ from the base price.                                      |
-| **Idempotency key**  | A unique value that makes a retried request return the result of the first attempt instead of repeating it. |
+| **Region** | **ID** | **Multiplier** |
+| --- | --- | --- |
+| **Earth** | `earth` | 1.0× |
+| <span className="font-mono whitespace-pre">└─ </span>**United States** | `us` | 1.15× |
+| <span className="font-mono whitespace-pre">   └─ </span>**US East** | `us-east` | 1.75× |
+| <span className="font-mono whitespace-pre">      ├─ </span>**Ashburn** | `us-east-ash-1` | 2.0× |
+| <span className="font-mono whitespace-pre">      ├─ </span>**Boston** | `us-east-bos-1` | 2.0× |
+| <span className="font-mono whitespace-pre">      └─ </span>**N. Virginia** | `us-east-iad-1` | 2.0× |
 
 ```typescript
 import { Daytona } from '@daytona/sdk'
@@ -29,12 +28,13 @@ const sandbox = await daytona.v2.create({ region: 'earth' })
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `region` | Sets the region.<br />**Default:** the project's default region, then the organization's, then `earth`<br />**Value:** a region ID from [List regions](#list-regions), such as `earth`, `us`, `us-east`, `us-east-ash-1`, or `us-east-bos-1`<br />**Example:** `'earth'` |
+| `region` | Sets the region.<br />**Default:** the project's default region, then the organization's, then `earth`<br />**Value:** a region ID from [List regions](#list-regions), such as `earth`, `us`, `us-east`, `us-east-ash-1`, `us-east-bos-1`, or `us-east-iad-1`<br />**Example:** `'earth'` |
 
 > **Notes:**
 >
-> - The request requires the `write:sandboxes` permission.
-> - The SDKs and the CLI send an idempotency key with every create.
+> - **Permissions:** The request requires the `write:sandboxes` permission.
+> - **Results:** The region of the returned sandbox is the region that the create named, such as `earth`, until the sandbox is read again.
+> - **Behaviour:** The SDKs and the CLI send an idempotency key with every create.
 
 ## Operations
 
@@ -64,7 +64,7 @@ daytona region list --output json
 
 > **Notes:**
 >
-> - The PRICE MULTIPLIER column requires `read:billing` permission in the selected organization.
+> - **Permissions:** The PRICE MULTIPLIER column requires `read:billing` permission in the selected organization.
 
 **API:**
 
@@ -91,7 +91,7 @@ daytona region list
 
 > **Notes:**
 >
-> - The PRICE MULTIPLIER column requires `read:billing` permission in the selected organization.
+> - **Permissions:** The PRICE MULTIPLIER column requires `read:billing` permission in the selected organization.
 
 **API:**
 
@@ -106,5 +106,5 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/billing/region-multipliers' \
 
 > **Notes:**
 >
-> - The request requires the `read:billing` permission.
-> - The request requires a signed-in user token or an [organization API key](./api-keys.md#organization-api-keys).
+> - **Permissions:** The request requires the `read:billing` permission.
+> - **Prerequisites:** The request requires a signed-in user token or an [organization API key](./api-keys.md#organization-api-keys).

@@ -3,11 +3,6 @@
 ## Contents
 
 - [ReservationsService](#reservationsservice)
-- [MacReservation](#macreservation)
-- [MacReservationBatch](#macreservationbatch)
-- [MacReservationEndReason](#macreservationendreason)
-- [MacReservationOrigin](#macreservationorigin)
-- [MacReservationStatus](#macreservationstatus)
 - [CreateReservationOptions](#createreservationoptions)
 - [CreateReservationsBulkOptions](#createreservationsbulkoptions)
 - [ListReservationsOptions](#listreservationsoptions)
@@ -29,12 +24,15 @@ turning auto-renew on need macOS access enabled for the organization
 #### Constructor
 
 ```ts
-new ReservationsService(http: AxiosInstance): ReservationsService;
+new ReservationsService(token: Internal, init: never): ReservationsService;
 ```
+
+Built by the SDK: get it from the client or a sandbox.
 
 **Parameters**:
 
-- `http` _AxiosInstance_
+- `token` _Internal_
+- `init` _never_
 
 **Returns**:
 
@@ -54,7 +52,7 @@ The request always carries an `Idempotency-Key`:
 this call. Pass your own key if you may retry, so a retry after a lost
 response returns the same reservation instead of reserving a second Mac.
 Fails with `ConflictError` `code === 'NO_MAC_AVAILABLE'` when no Mac of
-that model is free in the region.
+that model is free in the region, and throws `LimitExceededError` (a `RateLimitError`) with `limit === 'max_mac_reservations'` when the organization holds its Mac reservation limit.
 
 **Parameters**:
 
@@ -70,7 +68,7 @@ that model is free in the region.
 createBulk(options: CreateReservationsBulkOptions): Promise<MacReservationBatch>;
 ```
 
-Reserve count Macs of one model in region in one request. minCount (default count) is the fewest to accept: with fewer Macs free, the request reserves as many as are free, or none, failing with ConflictError code === 'NO_MAC_AVAILABLE' when fewer than minCount are free. The request always carries an Idempotency-Key: idempotencyKey when given, otherwise a random key the SDK generates for this call. Pass your own key if you may retry, so a retry after a lost response returns the same reservations instead of reserving more Macs.
+Reserve count Macs of one model in region in one request. minCount (default count) is the fewest to accept: with fewer Macs free or fewer left under the organization's Mac reservation limit, the request reserves as many as are free and fit, or none, throwing LimitExceededError (a RateLimitError) limit === 'max_mac_reservations' when fewer than minCount fit under the limit (checked first), or ConflictError code === 'NO_MAC_AVAILABLE' when fewer than minCount are free. The request always carries an Idempotency-Key: idempotencyKey when given, otherwise a random key the SDK generates for this call. Pass your own key if you may retry, so a retry after a lost response returns the same reservations instead of reserving more Macs.
 
 **Parameters**:
 
@@ -130,7 +128,7 @@ One page of the organization's reservations.
 renew(id: string, options: RenewReservationOptions = {}): Promise<MacReservation>;
 ```
 
-Renew the reservation for its next period, which the server charges. The request always carries an Idempotency-Key: idempotencyKey when given, otherwise a random key the SDK generates for this call. Pass your own key if you may retry, so a retry after a lost response does not pay for a second period.
+Renew the reservation for its next period, which the server charges. The request always carries an Idempotency-Key: idempotencyKey when given, otherwise a random key the SDK generates for this call. Pass your own key if you may retry, so a retry after a lost response does not pay for a second period. Throws LimitExceededError (a RateLimitError) with limit === 'max_mac_reservations' when the renewal would keep the organization over its Mac reservation limit.
 
 **Parameters**:
 
@@ -163,122 +161,14 @@ without that access, so an organization can stop a reservation renewing. Fails w
 
 ***
 
-## MacReservation
-
-```ts
-type MacReservation = {
-  id: string
-  orgId: string
-  projectId: string
-  region: string
-  autoRenew: boolean
-  sandboxesPerMac: number
-  slotsUsed: number
-  model?: string | null
-  capacity?: MacReservationResources | null
-  resourcesUsed: MacReservationResources
-  periodN: number
-  periodSeconds: number
-  createdAt: string
-  activatedAt?: string | null
-  pendingMacStartedAt?: string | null
-  periodStartedAt?: string | null
-  periodEnd?: string | null
-  reissuedAt?: string | null
-  endedAt?: string | null
-  renewalPending: boolean
-  renewalError?: string | null
-  status: MacReservationStatus
-  rawStatus: string
-  endReason?: MacReservationEndReason | null
-  rawEndReason?: string | null
-  origin: MacReservationOrigin
-  rawOrigin: string
-}
-```
-
-A dedicated-Mac reservation. Timestamps are RFC 3339 strings.
-
-**Properties**:
-
-- `id` _string_
-- `orgId` _string_
-- `projectId` _string_
-- `region` _string_
-- `autoRenew` _boolean_
-- `sandboxesPerMac` _number_
-- `slotsUsed` _number_
-- `model?` _string \| null_
-- `capacity?` _MacReservationResources \| null_
-- `resourcesUsed` _MacReservationResources_
-- `periodN` _number_
-- `periodSeconds` _number_
-- `createdAt` _string_
-- `activatedAt?` _string \| null_
-- `pendingMacStartedAt?` _string \| null_
-- `periodStartedAt?` _string \| null_
-- `periodEnd?` _string \| null_
-- `reissuedAt?` _string \| null_
-- `endedAt?` _string \| null_
-- `renewalPending` _boolean_
-- `renewalError?` _string \| null_
-- `status` _MacReservationStatus_
-- `rawStatus` _string_
-- `endReason?` _MacReservationEndReason \| null_
-- `rawEndReason?` _string \| null_
-- `origin` _MacReservationOrigin_
-- `rawOrigin` _string_
-
-***
-
-## MacReservationBatch
-
-```ts
-type MacReservationBatch = Omit<api.MacReservationBatch, 'reservations'> & {
-  reservations: MacReservation[]
-}
-```
-
-`POST /reservations/bulk`: `requested` (the request's count), `reserved`, and one reservation per reserved Mac.
-
-***
-
-## MacReservationEndReason
-
-```ts
-type MacReservationEndReason = (typeof API_MAC_RESERVATION_END_REASONS)[number] | 'unknown'
-```
-
-***
-
-## MacReservationOrigin
-
-```ts
-type MacReservationOrigin = (typeof API_MAC_RESERVATION_ORIGINS)[number] | 'unknown'
-```
-
-`explicit`: bought by `reservations.create()` or a macOS create with `reservation: 'new'`; `auto`: bought by the organization's auto-reserve.
-
-***
-
-## MacReservationStatus
-
-```ts
-type MacReservationStatus = (typeof API_MAC_RESERVATION_STATUSES)[number] | 'unknown'
-```
-
-***
-
 ## CreateReservationOptions
 
 **Properties**:
 
 - `region` _string_ - Region slug to reserve a Mac in.
-- `model?` _string_ - Mac model slug from GET /mac-models. Omitted uses the region's default model. An unavailable model is never upgraded.
-- `idempotencyKey?` _string_ - A retry with the same key returns the first request's reservation instead of reserving (and
-  charging for) a second Mac. Omitted: a random key per call, so pass your own if you may retry.
-- `autoRenew?` _boolean_ - Whether the reservation renews itself each period. The server defaults it to
-  the organization's auto-reserve setting at purchase time.
+- `model?` _string_ - Omitted uses the region's default model; unavailable models are not upgraded.
+- `idempotencyKey?` _string_ - Reuse this key on retries to avoid reserving and charging for a second Mac.
+- `autoRenew?` _boolean_ - Omitted uses the organization's auto-reserve setting at purchase time.
 
 ***
 
@@ -286,14 +176,12 @@ type MacReservationStatus = (typeof API_MAC_RESERVATION_STATUSES)[number] | 'unk
 
 **Properties**:
 
-- `region` _string_ - Region slug to reserve the Macs in.
+- `region` _string_ - Region slug to reserve a Mac in.
+- `model?` _string_ - Omitted uses the region's default model; unavailable models are not upgraded.
+- `idempotencyKey?` _string_ - Reuse this key on retries to avoid reserving and charging for a second Mac.
+- `autoRenew?` _boolean_ - Omitted uses the organization's auto-reserve setting at purchase time.
 - `count` _number_ - How many Macs to reserve, 1 to 100.
-- `minCount?` _number_ - The fewest Macs to accept, 1 to count. Omitted means count: all or nothing.
-- `model?` _string_ - Mac model slug from GET /mac-models. Omitted uses the region's default model. An unavailable model is never upgraded.
-- `autoRenew?` _boolean_ - Whether each reservation renews itself each period. The server defaults it to
-  the organization's auto-reserve setting at purchase time.
-- `idempotencyKey?` _string_ - A retry with the same key returns the first request's reservations instead of reserving
-  more Macs. Omitted: a random key per call, so pass your own if you may retry.
+- `minCount?` _number_ - The fewest Macs to accept, 1 to count. Omitted means all or nothing.
 
 ***
 
@@ -310,8 +198,7 @@ type MacReservationStatus = (typeof API_MAC_RESERVATION_STATUSES)[number] | 'unk
 
 **Properties**:
 
-- `idempotencyKey?` _string_ - A retry with the same key returns the reservation without charging another period.
-  Omitted: a random key per call, so pass your own if you may retry.
+- `idempotencyKey?` _string_ - Reuse this key on retries to avoid charging for another period.
 
 ***
 
@@ -319,4 +206,4 @@ type MacReservationStatus = (typeof API_MAC_RESERVATION_STATUSES)[number] | 'unk
 
 **Properties**:
 
-- `autoRenew` _boolean_ - Whether the reservation renews itself each period.
+- `autoRenew` _boolean_

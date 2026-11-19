@@ -64,11 +64,9 @@ print(snapshot.id, snapshot.kind, snapshot.status)
 
 > **Notes:**
 >
-> - The sandbox must be running.
-> - The sandbox must be persistent, served from a warm template, or restored from a memory snapshot.
-> - A sandbox created from a filesystem snapshot, or an ephemeral sandbox with volumes attached, cannot be captured.
-> - Windows and macOS sandboxes cannot be captured.
-> - Repeat daytona.v2.snapshots.get() with wait set to `"ready"` until the status is `ready` or `failed`.
+> - **Prerequisites:** The sandbox must be running. The sandbox must be persistent, served from a warm template, or restored from a memory snapshot.
+> - **Compatibility:** A sandbox created from a filesystem snapshot, or an ephemeral sandbox with volumes attached, cannot be captured. Windows and macOS sandboxes cannot be captured.
+> - **Polling:** Repeat daytona.v2.snapshots.get() with wait set to `"ready"` until the status is `ready` or `failed`.
 
 | **Kind**         | **Captures**                                         | **Restore behavior**                                                                                                                                                  |
 | ---------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -112,7 +110,7 @@ sandbox = daytona.v2.create_from_snapshot("my-snapshot")
 
 > **Notes:**
 >
-> - The snapshot must be ready.
+> - **Prerequisites:** The snapshot must be ready.
 
 ## Operations
 
@@ -142,8 +140,8 @@ Use a list to find the name or ID of a snapshot to [restore](#restore-snapshots)
 | `sandbox_id`   | The ID of the source sandbox. It stays after the source sandbox is deleted, and becomes `null` once Daytona purges the record of the deleted sandbox. |
 | `region_id`    | Home region. The SDKs name it `region`.                                                                                                    |
 | `region_ids`   | The home region, followed by every other region that holds a copy of the snapshot. The SDKs name it `available_in` in Python and `availableIn` in TypeScript. |
-| `bytes`        | Size of the captured disk in bytes. `null` for `full` snapshots.                                                                           |
-| `memory_bytes` | Size of the captured memory, `full` only.                                                                                                  |
+| `bytes`        | Always `null`, because the size of the captured disk is not returned.                                                                      |
+| `memory_bytes` | Size of the captured memory in bytes, set when a `full` snapshot is `ready` and `null` for a `checkpoint` snapshot. The SDKs name it `memoryBytes` in TypeScript. |
 | `error`        | Failure reason when `status` is `failed`.                                                                                                  |
 | `created_at`   | Time the snapshot was created.                                                                                                             |
 | `updated_at`   | Time of the last change to the snapshot.                                                                                                   |
@@ -168,16 +166,15 @@ for snapshot in page.items:
 
 > **Notes:**
 >
-> - A snapshot captured moments before can be missing from the list until the search index has it.
-> - Each snapshot uses the API field names, except where the description of a field says otherwise.
+> - **Results:** A snapshot captured moments before can be missing from the list until the search index has it. Each snapshot uses the API field names, except where the description of a field says otherwise.
 
-#### Iterate over all snapshots
+##### Iterate over all snapshots
 
 Iterate over all snapshots to read every page of the list in one pass. Iteration over a paginated list reads one page after another until no page remains.
 
 Iteration over the snapshots of a project yields the snapshots of every page in turn. Each page continues where the previous one ended, and the iteration ends after the last page.
 
-Use iteration when a script needs every snapshot of the project rather than one page. The SDK iterators and the CLI `--all` flag follow each cursor until the server returns no cursor. The API returns one page for each request, together with the next_cursor that continues the list: repeat the request with each next_cursor until next_cursor is `null`.
+Use iteration when a script needs every snapshot of the project rather than one page. The SDKs and the CLI follow every page for you, and the API returns one page for each request.
 
 ```python
 from daytona import Daytona
@@ -192,9 +189,9 @@ for snapshot in daytona.v2.snapshots.iter():
 
 Get a snapshot to read its kind, status, size, and regions, naming it by ID or by name. A get reads one resource by its identifier and changes nothing on the server.
 
-A get of a snapshot returns the same details as a list, for one snapshot. The status in those details shows whether the snapshot can be restored yet or whether its capture is still in progress.
+A get of a snapshot returns the same details as a list, for one snapshot. The status in those details shows whether the snapshot can be restored yet or whether its capture is still in progress. The size in those details covers the memory that a full snapshot captured, not its disk.
 
-Use a get to follow a capture: repeat it with wait set to `ready` until the status is `ready` or `failed`. The name search cannot get a snapshot, and a value that matches the ID of one snapshot and the name of another is refused. A `ready` snapshot can be restored, and a `failed` one holds the reason in `error`. The API `id_only` field disables the name fallback.
+Use a get to follow a capture: repeat it with wait set to ready until the status is ready or failed. The name search cannot get a snapshot, and a value that matches the ID of one snapshot and the name of another is refused. A ready snapshot can be restored, and a failed one holds the reason in its error.
 
 ```python
 from daytona import Daytona
@@ -202,7 +199,7 @@ from daytona import Daytona
 daytona = Daytona()
 
 snapshot = daytona.v2.snapshots.get("{snapshotId}")
-print(snapshot.kind, snapshot.status)
+print(snapshot.kind, snapshot.status, snapshot.memory_bytes)
 ```
 
 | **Parameter** | **Description** |
@@ -235,7 +232,7 @@ daytona.v2.snapshots.delete("{snapshotId}")
 
 > **Notes:**
 >
-> - Every sandbox restored from the snapshot must be fully deleted.
+> - **Prerequisites:** Every sandbox restored from the snapshot must be fully deleted.
 
 ## Permissions
 

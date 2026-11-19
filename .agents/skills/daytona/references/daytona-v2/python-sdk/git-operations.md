@@ -279,7 +279,7 @@ Push changes to send local commits to a remote branch. A push adds them to the r
 
 A push from a sandbox repository sends a local branch to the same-named branch on the remote. A new local branch does not need an upstream configured first.
 
-Push after a [commit](#commit-changes) to share the work, for example as a branch for review. Push fails on a detached HEAD or when the remote branch has commits the local branch lacks. Git hosts such as GitHub require credentials for every push, even to a public repository, so the examples pass a username and a personal access token. See [authenticate credentials](#authenticate-credentials).
+Push after a [commit](#commit-changes) to share the work, for example as a branch for review. Push fails on a detached HEAD or when the remote branch has commits the local branch lacks. Git hosts such as GitHub require credentials for every push, even to a public repository, so the examples authenticate with a username and a personal access token. See [authenticate credentials](#authenticate-credentials).
 
 ```python
 from daytona import Daytona
@@ -369,7 +369,7 @@ Reset changes to move the current branch to a commit. A reset moves the branch p
 
 A reset in a sandbox repository acts on the current branch. Its mode decides whether the index and the working tree follow the branch to the target commit.
 
-Reset to a known commit to discard a failed attempt, or reset files to unstage them. The target defaults to the current commit, so resetting only files unstages them. To discard changes in single files without moving the branch, [restore files](#restore-files).
+Reset to a known commit to discard a failed attempt, or reset files to unstage them. Resetting only files, without a target commit, unstages them. To discard changes in single files without moving the branch, [restore files](#restore-files).
 
 ```python
 from daytona import Daytona
@@ -503,7 +503,7 @@ editor = sandbox.git.get_config("core.editor")
 
 > **Notes:**
 >
-> - Setting a value with a [sandbox access token](./sandboxes.md#create-an-access-token) also requires the `toolbox:exec` operation.
+> - **Prerequisites:** Setting a value with a [sandbox access token](./sandboxes.md#create-an-access-token) also requires the `toolbox:exec` operation.
 
 ## Configure user
 
@@ -533,7 +533,7 @@ sandbox.git.set_config("user.email", "john@example.com")
 
 > **Notes:**
 >
-> - Setting a value with a [sandbox access token](./sandboxes.md#create-an-access-token) also requires the `toolbox:exec` operation.
+> - **Prerequisites:** Setting a value with a [sandbox access token](./sandboxes.md#create-an-access-token) also requires the `toolbox:exec` operation.
 
 ## Authenticate credentials
 

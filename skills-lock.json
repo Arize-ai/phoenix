@@ -12,8 +12,8 @@
       "source": "daytona/skills",
       "sourceType": "github",
       "skillPath": "skills/daytona/SKILL.md",
-      "computedHash": "acd76ed68f11e7e9d8f5e53ea880f0d50c846cde3ae44d208f2f7ad9dde207d8",
-      "commit": "ee273cd79456eea631cb013b1282594fb8c6f00e"
+      "computedHash": "46b990d56c64a04a81f901849fb7befb6d3626d342256785ef17add2c78abe7b",
+      "commit": "f156aec458db94a9df9fa267abab06eaf4b301ac"
     },
     "gh-stack": {
       "source": "github/gh-stack",

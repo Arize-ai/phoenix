@@ -67,7 +67,7 @@ Set the user and shell to control which account runs a command and which program
 
 A command in a sandbox runs as a user of its image, under a shell from that image.
 
-Set the user to run a command as a specific account, and set the shell when the command needs the syntax of a specific shell. The user must exist in the image, and the shell must be installed in it. Without a shell setting, the command runs in bash, or in sh if bash is not installed. The CLI has no shell setting, so pass the shell as the program to run.
+Set the user to run a command as a specific account, and set the shell when the command needs the syntax of a specific shell. The user must exist in the image, and the shell must be installed in it. The CLI has no shell setting, so run the shell as the program instead.
 
 ```typescript
 import { Daytona } from '@daytona/sdk'
@@ -86,7 +86,7 @@ console.log(response.output)
 
 > **Notes:**
 >
-> - The user must exist in the image, and the shell must be installed in it.
+> - **Prerequisites:** The user must exist in the image, and the shell must be installed in it.
 
 ### Update the environment
 
@@ -111,13 +111,12 @@ console.log(response.stdout)
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `env` | Adds or replaces environment variables.<br />**Maximum:** under 128 KiB per KEY=VALUE entry, 1 MiB for all variables added to the sandbox, and for the whole environment 32,767 UTF-16 characters on Windows or 512 KiB on macOS<br />**Format:** non-empty names without =, NUL, or line breaks, not starting with RLP_ or DAYTONA_, and values without NUL<br />**Example:** `{ LOG_LEVEL: 'debug' }` |
-| `unset` | Removes environment variables set by an earlier update or when the sandbox was created.<br />**Format:** names in the same format as in env<br />**Example:** `['HTTP_PROXY']` |
+| `env` | Adds or replaces environment variables.<br />**Maximum:** under 128 KiB per KEY=VALUE entry, 1 MiB for all variables added to the sandbox, and for the whole environment 32,767 UTF-16 characters on Windows or 512 KiB on macOS<br />**Format:** non-empty names without =, NUL, or line breaks, not starting with RLP_ or DAYTONA_, and values without NUL<br />**Rules:** no name that is also in unset<br />**Example:** `{ LOG_LEVEL: 'debug' }` |
+| `unset` | Removes environment variables set by an earlier update or when the sandbox was created.<br />**Format:** names in the same format as in env<br />**Rules:** no name that is also in env<br />**Example:** `['HTTP_PROXY']` |
 
 > **Notes:**
 >
-> - The names starting with DAYTONA_ that an update accepts are DAYTONA_SANDBOX_TOKEN, DAYTONA_API_URL, DAYTONA_OTEL_ENDPOINT, DAYTONA_DOCKER_START, DAYTONA_FN_PORT, and DAYTONA_FN_HANDLER.
-> - A name cannot be in both env and unset.
+> - **Compatibility:** The names starting with DAYTONA_ that an update accepts are DAYTONA_SANDBOX_TOKEN, DAYTONA_API_URL, DAYTONA_OTEL_ENDPOINT, DAYTONA_DOCKER_START, DAYTONA_FN_PORT, and DAYTONA_FN_HANDLER.
 
 ### Execute interactive commands
 
@@ -155,7 +154,7 @@ console.log(wait.exitCode)
 
 > **Notes:**
 >
-> - Write the input and close stdin while the command runs; an exited process accepts no input.
+> - **Order:** Write the input and close stdin while the command runs; an exited process accepts no input.
 
 ## Process control
 
@@ -351,8 +350,8 @@ console.log(stopped)
 
 > **Notes:**
 >
-> - The sandbox must be a Linux sandbox with process containment.
-> - The call is safe to repeat when processes under the tag are still running at the timeout, or when another start or stop under that tag is still in progress.
+> - **Prerequisites:** The sandbox must be a Linux sandbox with process containment.
+> - **Recovery:** The call is safe to repeat when processes under the tag are still running at the timeout, or when another start or stop under that tag is still in progress.
 
 ### Reconnect to a process
 
@@ -383,8 +382,8 @@ const result = await reconnected.wait()
 
 > **Notes:**
 >
-> - `connect()` sends no request.
-> - A process name resolves only while the process runs, so reconnect by ID after it exits.
+> - **Lifetime:** A process name resolves only while the process runs, so reconnect by ID after it exits.
+> - **Clients:** `connect()` sends no request.
 
 ### Entrypoint process
 
@@ -451,7 +450,7 @@ console.log(session.id)
 
 > **Notes:**
 >
-> - The shell must be installed in the image.
+> - **Prerequisites:** The shell must be installed in the image.
 
 ### Execute session commands
 
@@ -515,7 +514,7 @@ const result = await reconnected.run('pwd')
 
 > **Notes:**
 >
-> - Reconnect through the process module of the sandbox that the session belongs to.
+> - **Clients:** Reconnect through the process module of the sandbox that the session belongs to.
 
 ### Get session status
 
@@ -620,7 +619,7 @@ Resource management is the release of what a program holds once the program no l
 
 A process in a sandbox that is kept until cleanup holds its record and logs until it is deleted. Deleting the process removes both, and stops the process first if it still runs.
 
-Delete a process kept until cleanup when you no longer need its record and logs. The API applies this policy to sessions and to named processes. The SDKs apply it to PTYs and sessions, and to other processes only when you pass it. The entrypoint process cannot be deleted.
+Delete a process kept until cleanup when you no longer need its record and logs. The API applies this policy to sessions and to named processes. The SDKs apply it to PTYs and sessions, and to other processes only when the request sets it. The entrypoint process cannot be deleted.
 
 ```typescript
 import { Daytona } from '@daytona/sdk';

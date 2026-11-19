@@ -21,21 +21,35 @@
 - [ProcessKeepLogs](#processkeeplogs)
 - [ProcessStdinMode](#processstdinmode)
 - [TerminalSize](#terminalsize)
-- [ProcessDto](#processdto)
+- [ProcessInfo](#processinfo)
 - [WaitResult](#waitresult)
+- [StdinMode](#stdinmode)
 - [ProcessStartOptions](#processstartoptions)
 - [ProcessCommand](#processcommand)
+- [PtyStartOptions](#ptystartoptions)
+- [RunKeepLogs](#runkeeplogs)
 - [RunOptions](#runoptions)
-- [RunResult](#runresult)
+- [ProcessResult](#processresult)
 - [LogFrame](#logframe)
-- [LogsPage](#logspage)
+- [LogPage](#logpage)
 - [StreamLogEvent](#streamlogevent)
+- [StreamLogEofEvent](#streamlogeofevent)
+- [StreamLogFrameEvent](#streamlogframeevent)
+- [StreamLogStateEvent](#streamlogstateevent)
+- [StreamLogWarningEvent](#streamlogwarningevent)
 - [LogsOptions](#logsoptions)
 - [StreamLogsOptions](#streamlogsoptions)
+- [WaitProcessOptions](#waitprocessoptions)
 - [KillOptions](#killoptions)
 - [ProcessListOptions](#processlistoptions)
+- [KillAllOptions](#killalloptions)
 
 ## ProcessHandle
+
+Handle for one sandbox process. Returned by `process.start()` /
+`process.connect()` and the PTY and session namespaces, never constructed
+directly. `toJSON()` gives an identity `sandbox.process.connect()` accepts
+on any worker.
 
 **Properties**:
 
@@ -48,19 +62,15 @@
 #### Constructor
 
 ```ts
-new ProcessHandle(
-   transport: HttpTransport,
-   sandboxId: string,
-   processId: string,
-   kind?: ProcessKind): ProcessHandle;
+new ProcessHandle(token: Internal, ...init: never[]): ProcessHandle;
 ```
+
+Built by the SDK: get it from `sandbox.process.start()` or `connect()`.
 
 **Parameters**:
 
-- `transport` _HttpTransport_
-- `sandboxId` _string_
-- `processId` _string_
-- `kind?` _ProcessKind_
+- `token` _Internal_
+- `...init: never[]`
 
 **Returns**:
 
@@ -73,6 +83,8 @@ new ProcessHandle(
 ```ts
 attach(): Promise<PtyDuplex>;
 ```
+
+Connect to a PTY's terminal.
 
 **Returns**:
 
@@ -107,18 +119,22 @@ session command that has not stopped within 5 s: delete its session.
 #### get()
 
 ```ts
-get(): Promise<ProcessDto>;
+get(): Promise<ProcessInfo>;
 ```
+
+Fetch current process metadata.
 
 **Returns**:
 
-- `Promise<ProcessDto>`
+- `Promise<ProcessInfo>`
 
 #### kill()
 
 ```ts
 kill(options: KillOptions = {}): Promise<void>;
 ```
+
+Send a signal (default `TERM`), optionally escalating to `escalateTo` after `escalateAfterSeconds`.
 
 **Parameters**:
 
@@ -131,8 +147,10 @@ kill(options: KillOptions = {}): Promise<void>;
 #### logs()
 
 ```ts
-logs(options: LogsOptions = {}): Promise<LogsPage>;
+logs(options: LogsOptions = {}): Promise<LogPage>;
 ```
+
+Read one page of the process log, from `cursor`.
 
 **Parameters**:
 
@@ -140,13 +158,17 @@ logs(options: LogsOptions = {}): Promise<LogsPage>;
 
 **Returns**:
 
-- `Promise<LogsPage>`
+- `Promise<LogPage>`
 
 #### resize()
 
 ```ts
 resize(cols: number, rows: number): Promise<void>;
 ```
+
+Resize a PTY. `cols` and `rows` are each an integer from 1 to 65535; a
+Windows sandbox takes at most 32767 and refuses a larger value with
+`BadRequestError`.
 
 **Parameters**:
 
@@ -163,6 +185,15 @@ resize(cols: number, rows: number): Promise<void>;
 streamLogs(options: StreamLogsOptions = {}): AsyncIterable<StreamLogEvent>;
 ```
 
+Follow the process log as it is written, replaying from `cursor`. Yields
+one `StreamLogEvent` per server event: `log` (a frame), `state`
+(the process became terminal), `warning` (frames before
+`firstAvailableCursor` were evicted) and `eof`. A stream error throws the
+typed error for its code. The server ends the stream with `eof`, so an
+iteration that ends normally has the whole log; a stream cut short, or one
+that ends without `eof`, throws `ConnectionError`: resume with
+`streamLogs({ cursor })` from the last event's cursor.
+
 **Parameters**:
 
 - `options` _StreamLogsOptions = \{\}_
@@ -177,6 +208,8 @@ streamLogs(options: StreamLogsOptions = {}): AsyncIterable<StreamLogEvent>;
 toJSON(): ProcessHandleJSON;
 ```
 
+The handle's JSON-safe identity, for `sandbox.process.connect()`.
+
 **Returns**:
 
 - `ProcessHandleJSON`
@@ -186,6 +219,10 @@ toJSON(): ProcessHandleJSON;
 ```ts
 wait(options: WaitProcessOptions = {}): Promise<WaitResult>;
 ```
+
+Wait until the process ends. `timeoutSeconds` is the caller's wait budget
+(omitted or `0` waits until it ends); on expiry the result is
+`{ reason: 'timed_out' }` and the process keeps running.
 
 **Parameters**:
 
@@ -215,18 +252,26 @@ Write to the stdin of an exec or pty process created with stdin='open'.
 
 ## ProcessService
 
+Sandbox process namespace (`sandbox.process`).
+
+**Properties**:
+
+- `sandboxId` _string_
+
 ### Constructors
 
 #### Constructor
 
 ```ts
-new ProcessService(transport: HttpTransport, sandboxId: string): ProcessService;
+new ProcessService(token: Internal, ...init: never[]): ProcessService;
 ```
+
+Built by the SDK: get it from `sandbox.process`.
 
 **Parameters**:
 
-- `transport` _HttpTransport_
-- `sandboxId` _string_
+- `token` _Internal_
+- `...init: never[]`
 
 **Returns**:
 
@@ -237,12 +282,14 @@ new ProcessService(transport: HttpTransport, sandboxId: string): ProcessService;
 #### connect()
 
 ```ts
-connect(idOrHandle: string | ProcessHandleJSON): ProcessHandle;
+connect(process: string | ProcessHandleJSON): ProcessHandle;
 ```
+
+Reconnect a process by id or by `handle.toJSON()`, without a request.
 
 **Parameters**:
 
-- `idOrHandle` _string \| ProcessHandleJSON_
+- `process` _string \| ProcessHandleJSON_
 
 **Returns**:
 
@@ -251,14 +298,14 @@ connect(idOrHandle: string | ProcessHandleJSON): ProcessHandle;
 #### connectSession()
 
 ```ts
-connectSession(sessionIdOrJSON: string | SessionJSON): Session;
+connectSession(session: string | SessionJSON): Session;
 ```
 
-Rebind a shell session by id or serialized identity, without a request.
+Reconnect a shell session by id or by `session.toJSON()`, without a request.
 
 **Parameters**:
 
-- `sessionIdOrJSON` _string \| SessionJSON_
+- `session` _string \| SessionJSON_
 
 **Returns**:
 
@@ -270,7 +317,9 @@ Rebind a shell session by id or serialized identity, without a request.
 createSession(options: CreateSessionOptions = {}): Promise<Session>;
 ```
 
-Create one persistent shell. Set its cwd/env here, not on its commands.
+Create one persistent shell; cwd and env apply to all its commands.
+`shell` must be a POSIX shell (bash, sh, dash, zsh, ksh) on Linux and
+macOS; another shell is refused when the session is created.
 
 **Parameters**:
 
@@ -283,8 +332,10 @@ Create one persistent shell. Set its cwd/env here, not on its commands.
 #### get()
 
 ```ts
-get(id: string): Promise<ProcessDto>;
+get(id: string): Promise<ProcessInfo>;
 ```
+
+Fetch current process metadata by id or live name alias.
 
 **Parameters**:
 
@@ -292,13 +343,47 @@ get(id: string): Promise<ProcessDto>;
 
 **Returns**:
 
-- `Promise<ProcessDto>`
+- `Promise<ProcessInfo>`
+
+#### killAll()
+
+```ts
+killAll(options: KillAllOptions): Promise<readonly string[]>;
+```
+
+Kill every process created with `tag` and everything those processes
+started, including detached descendants and the survivors of tagged
+processes that already exited, keeping their records and logs. Returns
+the ids of the tagged processes it stopped once none of them is running;
+the tag can be used again right away. Processes whose records were
+deleted or expired are stopped too but not listed.
+
+**Parameters**:
+
+- `options` _KillAllOptions_
+
+**Returns**:
+
+- `Promise<readonly string[]>`
+
+**Throws**:
+
+ProcessKillIncompleteError when some were still running at the
+timeout, or another start or kill under the tag was in progress; calling
+again is safe.
+
+**Throws**:
+
+UnsupportedOperationError on macOS and on sandboxes without
+process containment.
 
 #### list()
 
 ```ts
-list(options: ProcessListOptions = {}): Promise<ListResult<ProcessDto>>;
+list(options: ProcessListOptions = {}): Promise<ListResult<ProcessInfo>>;
 ```
+
+List processes; `tag` keeps only the processes created with that tag.
 
 **Parameters**:
 
@@ -306,12 +391,12 @@ list(options: ProcessListOptions = {}): Promise<ListResult<ProcessDto>>;
 
 **Returns**:
 
-- `Promise<ListResult<ProcessDto>>`
+- `Promise<ListResult<ProcessInfo>>`
 
 #### run()
 
 ```ts
-run(command: ProcessCommand, options: RunOptions = {}): Promise<RunResult>;
+run(command: ProcessCommand, options: RunOptions = {}): Promise<ProcessResult>;
 ```
 
 Run a command, wait for its shell to exit, and collect its output.
@@ -338,7 +423,7 @@ Prefer `start` for long-running servers, or redirect their output
 
 **Returns**:
 
-- `Promise<RunResult>` - Output, stdout, stderr, logs and the exit result.
+- `Promise<ProcessResult>` - Output, stdout, stderr, logs and the exit result.
 
 #### start()
 
@@ -373,17 +458,22 @@ for untrusted arguments. Plain commands do not share shell state; use
 
 ## PtyService
 
+PTY namespace (`sandbox.pty`): interactive terminals.
+
 ### Constructors
 
 #### Constructor
 
 ```ts
-new PtyService(process: ProcessService): PtyService;
+new PtyService(token: Internal, ...init: never[]): PtyService;
 ```
+
+Built by the SDK: get it from `sandbox.pty`.
 
 **Parameters**:
 
-- `process` _ProcessService_
+- `token` _Internal_
+- `...init: never[]`
 
 **Returns**:
 
@@ -396,27 +486,31 @@ new PtyService(process: ProcessService): PtyService;
 ```ts
 attach(
    command?: string,
-   options: Omit<ProcessStartOptions, 'cmd'> & { terminal?: TerminalSize } = {}): Promise<{ handle: ProcessHandle; connection: PtyDuplex }>;
+   options: PtyStartOptions = {}): Promise<Readonly<{ handle: ProcessHandle; connection: PtyDuplex }>>;
 ```
+
+Start a PTY and connect to its terminal; if the connection fails, the SDK attempts to delete the PTY (best effort).
 
 **Parameters**:
 
 - `command?` _string_
-- `options` _Omit\<ProcessStartOptions, 'cmd'\> & \{ terminal?: TerminalSize \} = \{\}_
+- `options` _PtyStartOptions = \{\}_
 
 **Returns**:
 
-- `Promise<{ handle: ProcessHandle; connection: PtyDuplex }>`
+- `Promise<Readonly<{ handle: ProcessHandle; connection: PtyDuplex }>>`
 
 #### connect()
 
 ```ts
-connect(idOrHandle: string | ProcessHandleJSON): ProcessHandle;
+connect(process: string | ProcessHandleJSON): ProcessHandle;
 ```
+
+Reconnect a PTY by id or by `handle.toJSON()`, without a request.
 
 **Parameters**:
 
-- `idOrHandle` _string \| ProcessHandleJSON_
+- `process` _string \| ProcessHandleJSON_
 
 **Returns**:
 
@@ -425,12 +519,14 @@ connect(idOrHandle: string | ProcessHandleJSON): ProcessHandle;
 #### delete()
 
 ```ts
-delete(idOrHandle: string | ProcessHandleJSON): Promise<void>;
+delete(process: string | ProcessHandleJSON): Promise<void>;
 ```
+
+Stop a PTY and delete it and its log.
 
 **Parameters**:
 
-- `idOrHandle` _string \| ProcessHandleJSON_
+- `process` _string \| ProcessHandleJSON_
 
 **Returns**:
 
@@ -439,25 +535,27 @@ delete(idOrHandle: string | ProcessHandleJSON): Promise<void>;
 #### list()
 
 ```ts
-list(): Promise<ListResult<ProcessDto>>;
+list(): Promise<ListResult<ProcessInfo>>;
 ```
 
 **Returns**:
 
-- `Promise<ListResult<ProcessDto>>`
+- `Promise<ListResult<ProcessInfo>>`
 
 #### start()
 
 ```ts
-start(
-   command?: string,
-   options: Omit<ProcessStartOptions, 'cmd'> & { terminal?: TerminalSize } = {}): Promise<ProcessHandle>;
+start(command?: string, options: PtyStartOptions = {}): Promise<ProcessHandle>;
 ```
+
+Start a detached PTY process; without `command` it runs the sandbox shell.
+The terminal defaults to 80×24, and `TERM` is `xterm-256color` unless
+`env` sets it.
 
 **Parameters**:
 
 - `command?` _string_
-- `options` _Omit\<ProcessStartOptions, 'cmd'\> & \{ terminal?: TerminalSize \} = \{\}_
+- `options` _PtyStartOptions = \{\}_
 
 **Returns**:
 
@@ -472,7 +570,9 @@ and functions carry over. Set cwd/env with `process.createSession()`.
 Interrupt a command with `handle.kill({ signal: 'INT' })`: the session
 survives. Sessions survive pause/resume, but not a sandbox stop/start.
 After `set -x` or `set -v` in a session, later commands' stderr also includes
-the shell wrapper used to run each command.
+the shell wrapper used to run each command. Returned by
+`process.createSession()` / `process.connectSession()`, never constructed
+directly.
 
 **Properties**:
 
@@ -484,13 +584,15 @@ the shell wrapper used to run each command.
 #### Constructor
 
 ```ts
-new Session(binding: ProcessBinding, id: string): Session;
+new Session(token: Internal, ...init: never[]): Session;
 ```
+
+Built by the SDK: get it from `sandbox.process.createSession()` or `connectSession()`.
 
 **Parameters**:
 
-- `binding` _ProcessBinding_
-- `id` _string_
+- `token` _Internal_
+- `...init: never[]`
 
 **Returns**:
 
@@ -525,19 +627,19 @@ End the shell and delete it and all its command records.
 #### get()
 
 ```ts
-get(): Promise<ProcessDto>;
+get(): Promise<ProcessInfo>;
 ```
 
 Read the shell process, including its current working directory.
 
 **Returns**:
 
-- `Promise<ProcessDto>`
+- `Promise<ProcessInfo>`
 
 #### run()
 
 ```ts
-run(command: string, options: SessionRunOptions = {}): Promise<RunResult>;
+run(command: string, options: SessionRunOptions = {}): Promise<ProcessResult>;
 ```
 
 Run in this shell, wait, and collect output using the process run path.
@@ -549,7 +651,7 @@ Run in this shell, wait, and collect output using the process run path.
 
 **Returns**:
 
-- `Promise<RunResult>`
+- `Promise<ProcessResult>`
 
 #### start()
 
@@ -574,6 +676,8 @@ Queue a command and return its handle without waiting for completion.
 toJSON(): SessionJSON;
 ```
 
+The session's JSON-safe identity, for `sandbox.process.connectSession()`.
+
 **Returns**:
 
 - `SessionJSON`
@@ -581,6 +685,8 @@ toJSON(): SessionJSON;
 ***
 
 ## PtyDuplex
+
+A live connection to a PTY's terminal (`handle.attach()`). `close()` disconnects; it does not stop the process.
 
 **Properties**:
 
@@ -620,6 +726,7 @@ Settings for the persistent shell, inherited by every command.
 
 **Properties**:
 
+- `tag?` _string_ - Immutable tag inherited by every command run in this shell.
 - `cwd?` _string_
 - `env?` _Readonly\<Record\<string, string\>\>_
 - `shell?` _string_ - A POSIX shell (bash, sh, dash, zsh, ksh) on Linux and macOS; another
@@ -631,19 +738,13 @@ Settings for the persistent shell, inherited by every command.
 
 ## SessionRunOptions
 
+**Extends**: `Omit<SessionStartOptions, 'keepLogs' | 'stdin'>`
+
 **Properties**:
 
-- `stdin?` _'closed' \| 'open'_
-- `executionTimeout?` _number_ - Server-side command deadline in milliseconds. The clock starts when the
-  command starts, after any queued commands ahead of it.
-  The command is stopped and the session survives; a command that has not
-  stopped 5 s after its timeout ends the session instead of blocking it.
-  In dash, BusyBox `sh` and mksh an interrupt leaves only the innermost shell
-  function or sourced file, as it does in bash older than 4.4 (macOS's
-  `/bin/bash`) when a DEBUG trap is set.
-- `name?` _string_
-- `keepLogs?` _KeepLogs_
-- `timeout?` _number_ - Caller wait budget in milliseconds; omitted or 0 waits unbounded.
+- `stdin?` _'closed'_ - Only `'closed'` (default): `run()` returns no handle to write to; use `start()` for open stdin.
+- `keepLogs?` _RunKeepLogs_ - How long the sandbox keeps the command's log (default `'on_exit_ttl'`).
+- `timeoutSeconds?` _number_ - Caller wait budget in seconds; omitted or 0 waits unbounded. Expiry does not stop the command.
 
 ***
 
@@ -651,20 +752,22 @@ Settings for the persistent shell, inherited by every command.
 
 **Properties**:
 
-- `stdin?` _'closed' \| 'open'_
-- `executionTimeout?` _number_ - Server-side command deadline in milliseconds. The clock starts when the
-  command starts, after any queued commands ahead of it.
+- `stdin?` _StdinMode_
+- `executionTimeoutSeconds?` _number_ - Server-side command deadline in seconds (omitted or `0`: none). The clock
+  starts when the command starts, after any queued commands ahead of it.
   The command is stopped and the session survives; a command that has not
   stopped 5 s after its timeout ends the session instead of blocking it.
   In dash, BusyBox `sh` and mksh an interrupt leaves only the innermost shell
   function or sourced file, as it does in bash older than 4.4 (macOS's
   `/bin/bash`) when a DEBUG trap is set.
 - `name?` _string_
-- `keepLogs?` _KeepLogs_
+- `keepLogs?` _KeepLogs_ - How long the sandbox keeps the command's record and log (default `'on_exit_ttl'`).
 
 ***
 
 ## SessionJSON
+
+A shell session's serialized identity (`session.toJSON()`), the same shape the Python SDK writes.
 
 **Properties**:
 
@@ -674,6 +777,8 @@ Settings for the persistent shell, inherited by every command.
 ***
 
 ## ProcessHandleJSON
+
+A process handle's serialized identity (`handle.toJSON()`), the same shape the Python SDK writes. Reconnect with `sandbox.process.connect(value)`.
 
 **Properties**:
 
@@ -749,48 +854,62 @@ type ProcessStdinMode = 'closed' | 'open' | 'unknown'
 
 ## TerminalSize
 
-```ts
-type TerminalSize = toolbox.TerminalSize
-```
+PTY terminal dimensions, in character cells. A size you pass has `cols` and
+`rows` each an integer from 1 to 65535 (checked before the request); a
+Windows sandbox takes at most 32767 and refuses a larger one with
+`BadRequestError`. A size the sandbox reports (a process's `terminal`) may be
+any positive 32-bit integer.
+
+**Properties**:
+
+- `cols` _number_
+- `rows` _number_
 
 ***
 
-## ProcessDto
+## ProcessInfo
+
+Process metadata, as `process.get()` / `process.list()` report it.
+Enum-backed fields are normalized to the values this release knows plus
+`'unknown'`; the wire value is kept on the `raw*` sibling. `signal` is a
+bare name (`'TERM'`), like `WaitResult.signal`. Timestamps are
+RFC 3339 strings.
 
 **Properties**:
 
 - `id` _string_
-- `name?` _string_
-- `pid?` _number_
 - `kind` _ProcessReportedKind_
 - `rawKind` _string_
 - `state` _ProcessState_
 - `rawState` _string_
+- `cwd` _string_
+- `stdin` _ProcessStdinMode_
+- `rawStdin` _string_
+- `keepLogs` _ProcessKeepLogs_
+- `rawKeepLogs` _string_
+- `createdAt` _string_
 - `system` _boolean_
+- `name?` _string_
+- `tag?` _string_ - The tag the process was created with; a session command carries its session's tag. Never changes.
+- `pid?` _number_
 - `sessionId?` _string_
-- `argv?` _string\[\]_
+- `argv?` _readonly string\[\]_
 - `shellCommand?` _string_
 - `code?` _string_
 - `language?` _string_
 - `shell?` _string_
 - `resolvedShell?` _string_
 - `login?` _boolean_
-- `cwd?` _string_
 - `user?` _string_
-- `stdin?` _ProcessStdinMode_
-- `rawStdin?` _string_
-- `executionTimeout?` _number_ - Server-managed process deadline in milliseconds.
+- `executionTimeoutSeconds?` _number_ - Server-side deadline in seconds.
 - `terminal?` _TerminalSize_
-- `keepLogs?` _ProcessKeepLogs_
-- `rawKeepLogs?` _string_
 - `exitCode?` _number_
 - `signal?` _string_
 - `reason?` _ProcessReason_
 - `rawReason?` _string_
-- `createdAt?` _string_
 - `startedAt?` _string_
 - `exitedAt?` _string_
-- `truncatedHead?` _boolean_
+- `truncatedHead` _boolean_
 - `firstAvailableCursor?` _string_
 - `lastCursor?` _string_
 
@@ -798,13 +917,24 @@ type TerminalSize = toolbox.TerminalSize
 
 ## WaitResult
 
+How a process ended, or `reason: 'timed_out'` when the wait expired first.
+`exitCode` and `signal` are set only when the sandbox reported them; the
+SDK never fills them in. `reason` is normalized (`'unknown'` for a value
+this release does not know, kept on `rawReason`).
+
+**Properties**:
+
+- `reason` _ProcessReason_
+- `exitCode?` _number_
+- `signal?` _string_
+- `rawReason?` _string_
+
+***
+
+## StdinMode
+
 ```ts
-type WaitResult =
-  | { reason: 'exited'; exitCode: number; signal?: undefined; rawReason?: string }
-  | { reason: 'signaled'; signal: string; exitCode?: undefined; rawReason?: string }
-  | { reason: 'timed_out'; exitCode?: undefined; signal?: undefined; rawReason?: string }
-  | { reason: 'lost' | 'failed'; exitCode?: number; signal?: string; rawReason?: string }
-  | { reason: 'unknown'; exitCode?: number; signal?: string; rawReason: string }
+type StdinMode = 'closed' | 'open'
 ```
 
 ***
@@ -813,25 +943,23 @@ type WaitResult =
 
 **Properties**:
 
-- `cmd?` _string_
-- `argv?` _string\[\]_
 - `name?` _string_
+- `tag?` _string_ - Groups this process for `list({ tag })` and `killAll({ tag })`: a safe identifier (`[A-Za-z0-9._-]`, 1-128 characters, not `.` or `..`).
 - `cwd?` _string_
-- `env?` _Record\<string, string\>_
+- `env?` _Readonly\<Record\<string, string\>\>_
 - `user?` _string_
 - `shell?` _string_
 - `login?` _boolean_
-- `stdin?` _'closed' \| 'open'_
-- `executionTimeout?` _number_ - Server-managed process deadline in milliseconds.
-- `terminal?` _TerminalSize_
-- `keepLogs?` _KeepLogs_
+- `stdin?` _StdinMode_ - `'open'` keeps stdin open for `handle.writeStdin()`; default `'closed'`.
+- `executionTimeoutSeconds?` _number_ - Server-side deadline in seconds; the sandbox kills the process tree when it expires. Omitted or `0` means no deadline.
+- `keepLogs?` _KeepLogs_ - How long the sandbox keeps the process record and log (default `'on_exit_ttl'`).
 
 ***
 
 ## ProcessCommand
 
 ```ts
-type ProcessCommand = string | { cmd: string; argv?: never } | { argv: readonly string[]; cmd?: never }
+type ProcessCommand = string | { readonly cmd: string; readonly argv?: never } | { readonly argv: readonly string[]; readonly cmd?: never }
 ```
 
 What to execute, as the first argument of `process.start()` / `process.run()` /
@@ -841,66 +969,146 @@ arguments). Mirrors Python's `command=` / `argv=` keywords.
 
 ***
 
-## RunOptions
+## PtyStartOptions
 
-```ts
-type RunOptions = Omit<ProcessStartOptions, 'kind'> & {
-  /** Caller wait budget in milliseconds; `0` waits unbounded. */
-  timeout?: number
-  /** `run()` only creates exec processes; PTYs come from `sandbox.pty.start()` / `attach()`. */
-  kind?: 'exec'
-}
-```
+Options of `pty.start()` / `pty.attach()`.
+
+**Properties**:
+
+- `terminal?` _TerminalSize_ - Terminal size; 80 columns by 24 rows when omitted (see `TerminalSize` for the limits).
+- `cwd?` _string_
+- `env?` _Readonly\<Record\<string, string\>\>_ - Extra environment; `TERM` defaults to `xterm-256color` unless set here.
+- `name?` _string_
+- `user?` _string_
+- `shell?` _string_
+- `login?` _boolean_
+- `stdin?` _StdinMode_ - Default `'open'`.
+- `executionTimeoutSeconds?` _number_ - Server-side deadline in seconds; omitted or `0` means no deadline.
+- `keepLogs?` _KeepLogs_ - Default `'until_cleanup'`.
+- `tag?` _string_ - Groups the PTY for `list({ tag })` and `killAll({ tag })` (a safe identifier, as for `tag` on start).
 
 ***
 
-## RunResult
+## RunKeepLogs
 
 ```ts
-type RunResult = WaitResult & {
-  processId: string
-  output: string
-  stdout: string
-  stderr: string
-  logs: LogFrame[]
-}
+type RunKeepLogs = Exclude<KeepLogs, 'none'>
 ```
+
+Retention for `run()` / `session.run()` / `sandbox.exec()`: the output is read back from the log, so `'none'` is not accepted.
+
+***
+
+## RunOptions
+
+**Extends**: `Omit<ProcessStartOptions, 'keepLogs' | 'stdin'>`
+
+**Properties**:
+
+- `stdin?` _'closed'_ - Only `'closed'` (default): `run()` returns no handle to write to; use `start()` for open stdin.
+- `keepLogs?` _RunKeepLogs_ - How long the sandbox keeps the process log (default `'on_exit_ttl'`).
+- `timeoutSeconds?` _number_ - Caller wait budget in seconds; omitted or `0` waits until the process ends. Expiry does not kill the process.
+
+***
+
+## ProcessResult
+
+`process.run()` result: how the process ended plus its collected output.
+
+**Properties**:
+
+- `reason` _ProcessReason_
+- `exitCode?` _number_
+- `signal?` _string_
+- `rawReason?` _string_
+- `processId` _string_
+- `output` _string_
+- `stdout` _string_
+- `stderr` _string_
+- `logs` _readonly LogFrame\[\]_ - The log frames the output was collected from.
 
 ***
 
 ## LogFrame
 
+One replayable process log frame.
+
 **Properties**:
 
 - `cursor` _string_
-- `channel` _'stdout' \| 'stderr' \| 'pty' \| 'setup' \| string_
+- `channel` _'stdout' \| 'stderr' \| 'pty' \| 'setup' \| (string & \{\})_
 - `data` _string_
-- `encoding?` _'text' \| 'base64' \| string_
-- `timestamp?` _number_
+- `timestampMs` _number_ - When the frame was written, in Unix milliseconds.
 
 ***
 
-## LogsPage
+## LogPage
 
-**Extends**: `ListResult<LogFrame>`
+One page of a process log (`logs()`).
 
 **Properties**:
 
-- `truncatedHead?` _boolean_
-- `firstAvailableCursor?` _string_
+- `items` _readonly LogFrame\[\]_ - The frames in this page.
+- `nextCursor` _string_ - The cursor to pass to the next `logs()` call to continue after this page.
+- `truncatedHead` _boolean_ - Whether retention removed frames older than this page.
+- `eof` _boolean_ - Whether the process has ended and no frame follows this page.
+- `firstAvailableCursor?` _string_ - The cursor of the oldest frame still kept, when older ones were removed.
 
 ***
 
 ## StreamLogEvent
 
 ```ts
-type StreamLogEvent =
-  | { type: 'log'; cursor?: string; frame: LogFrame }
-  | { type: 'state'; cursor?: string; result: WaitResult }
-  | { type: 'warning'; cursor?: string; message: string; firstAvailableCursor?: string }
-  | { type: 'eof'; cursor?: string }
-  | { type: 'error'; cursor?: string; error: Error }
+type StreamLogEvent = StreamLogFrameEvent | StreamLogStateEvent | StreamLogWarningEvent | StreamLogEofEvent
 ```
+
+***
+
+## StreamLogEofEvent
+
+`streamLogs()`: the log is complete; the stream ends after this event.
+
+**Properties**:
+
+- `type` _'eof'_
+- `cursor` _string_
+
+***
+
+## StreamLogFrameEvent
+
+`streamLogs()`: one log frame.
+
+**Properties**:
+
+- `type` _'log'_
+- `cursor` _string_
+- `frame` _LogFrame_
+
+***
+
+## StreamLogStateEvent
+
+`streamLogs()`: the process became terminal.
+
+**Properties**:
+
+- `type` _'state'_
+- `cursor` _string_
+- `result` _WaitResult_
+
+***
+
+## StreamLogWarningEvent
+
+`streamLogs()`: frames before `firstAvailableCursor` were evicted.
+
+**Properties**:
+
+- `type` _'warning'_
+- `cursor` _string_
+- `message` _string_
+- `firstAvailableCursor` _string_
 
 ***
 
@@ -910,7 +1118,9 @@ type StreamLogEvent =
 
 - `cursor?` _string_
 - `limit?` _number_
-- `encoding?` _'text' \| 'base64'_
+- `encoding?` _'text' \| 'base64'_ - `'text'` (default) or `'base64'`: each frame's `data` is then standard
+  padded base64 (RFC 4648 section 4, `+/` alphabet with `=` padding), which
+  `Buffer.from(data, 'base64')` (Node.js) or `atob(data)` decodes.
 
 ***
 
@@ -920,8 +1130,18 @@ type StreamLogEvent =
 
 - `cursor?` _string_
 - `limit?` _number_
-- `encoding?` _'text' \| 'base64'_
+- `encoding?` _'text' \| 'base64'_ - `'text'` (default) or `'base64'`: each frame's `data` is then standard
+  padded base64 (RFC 4648 section 4, `+/` alphabet with `=` padding), which
+  `Buffer.from(data, 'base64')` (Node.js) or `atob(data)` decodes.
 - `signal?` _AbortSignal_
+
+***
+
+## WaitProcessOptions
+
+**Properties**:
+
+- `timeoutSeconds?` _number_ - Caller wait budget in seconds; omitted or `0` waits until the process ends.
 
 ***
 
@@ -929,9 +1149,9 @@ type StreamLogEvent =
 
 **Properties**:
 
-- `signal?` _ProcessSignal_
-- `escalateAfter?` _number_
-- `escalateTo?` _ProcessSignal_
+- `signal?` _ProcessSignal_ - Default `'TERM'`.
+- `escalateAfterSeconds?` _number_ - Send `escalateTo` if the process is still running this many seconds later.
+- `escalateTo?` _ProcessSignal_ - Default `'KILL'`.
 
 ***
 
@@ -939,8 +1159,20 @@ type StreamLogEvent =
 
 **Properties**:
 
+- `tag?` _string_ - Only processes created with this tag (a safe identifier, as for `tag` on start).
 - `state?` _'running' \| 'terminal' \| 'all'_
 - `kind?` _ProcessKind_
 - `sessionId?` _string_
 - `name?` _string_
 - `pid?` _number_
+
+***
+
+## KillAllOptions
+
+Options of `process.killAll()`.
+
+**Properties**:
+
+- `tag` _string_ - The tag whose processes to kill: a safe identifier (`[A-Za-z0-9._-]`, 1-128 characters, not `.` or `..`).
+- `timeoutSeconds?` _number_ - How long to wait for them to exit, in seconds: more than 0 and at most 60 (default 10).

@@ -4,8 +4,8 @@
 
 - [SandboxVolumesService](#sandboxvolumesservice)
 - [AsyncSandboxVolumesService](#asyncsandboxvolumesservice)
-- [VolumeService](#volumeservice)
-- [AsyncVolumeService](#asyncvolumeservice)
+- [VolumesService](#volumesservice)
+- [AsyncVolumesService](#asyncvolumesservice)
 - [PullVolumeResult](#pullvolumeresult)
 - [VolumeMount](#volumemount)
 - [Volume](#volume)
@@ -24,19 +24,26 @@ Pull attached volumes, separate from the root platform volume service.
 #### SandboxVolumesService.\_\_init\_\_
 
 ```python
-def __init__(impl: AsyncSandboxVolumesService, bridge: SyncBridge) -> None
+def __init__() -> None
 ```
 
 #### SandboxVolumesService.pull
 
 ```python
 def pull(volume_id: str,
+         /,
          *,
          request_id: str,
          timeout: Optional[float] = None) -> PullVolumeResult
 ```
 
 Submit/check once; timeout is a server wait in seconds (0–30, default 30).
+
+`volume_id` is the attached volume's `vol_` ID or its UUID. Zero
+does not wait: it submits a new request_id, or returns a known one's
+last outcome without retrying it; a timeout above zero retries pending,
+unavailable or rate-limited work. Expiry does not cancel work. Neither
+retries nor identities are automatic.
 
 ## AsyncSandboxVolumesService
 
@@ -49,13 +56,14 @@ Pull attached volumes, separate from the root platform volume service.
 #### AsyncSandboxVolumesService.\_\_init\_\_
 
 ```python
-def __init__(transport: AsyncTransport) -> None
+def __init__() -> None
 ```
 
 #### AsyncSandboxVolumesService.pull
 
 ```python
 async def pull(volume_id: str,
+               /,
                *,
                request_id: str,
                timeout: Optional[float] = None) -> PullVolumeResult
@@ -63,50 +71,57 @@ async def pull(volume_id: str,
 
 Submit/check once; timeout is a server wait in seconds (0–30, default 30).
 
-Zero does not wait: it submits a new request_id, or returns a known one's
+`volume_id` is the attached volume's `vol_` ID or its UUID. Zero
+does not wait: it submits a new request_id, or returns a known one's
 last outcome without retrying it; a timeout above zero retries pending,
 unavailable or rate-limited work. Expiry does not cancel work. Neither
 retries nor identities are automatic.
 
-## VolumeService
+## VolumesService
 
 ```python
-class VolumeService()
+class VolumesService()
 ```
 
 Volume management namespace.
 
-#### VolumeService.\_\_init\_\_
+#### VolumesService.\_\_init\_\_
 
 ```python
-def __init__(impl: AsyncVolumeService, bridge: SyncBridge) -> None
+def __init__() -> None
 ```
 
-#### VolumeService.create
+#### VolumesService.create
 
 ```python
-def create(*, name: str, size_gib: Optional[int] = None) -> Volume
+def create(*,
+           name: str,
+           size_gib: Optional[int] = None,
+           type: Optional[Literal['disk', 'bucket']] = None) -> Volume
 ```
 
 Create a volume.
 
-#### VolumeService.delete
+`type` omitted lets the server choose the volume's type; `size_gib`
+(disk volumes only) omitted uses the server default.
+
+#### VolumesService.delete
 
 ```python
-def delete(volume_id: str, *, id_only: bool = False) -> None
+def delete(name_or_id: str, /, *, id_only: bool = False) -> None
 ```
 
-Request deletion and return once the API accepts it.
+Request deletion by id or name and return once the API accepts it; `id_only` disables name lookup.
 
-#### VolumeService.get
+#### VolumesService.get
 
 ```python
-def get(name_or_id: str, *, create: bool = False, id_only: bool = False) -> Volume
+def get(name_or_id: str, /, *, create: bool = False, id_only: bool = False) -> Volume
 ```
 
 Fetch by id or name; `id_only` disables name fallback.
 
-#### VolumeService.iter
+#### VolumesService.iter
 
 ```python
 def iter(*,
@@ -114,7 +129,7 @@ def iter(*,
          limit: Optional[int] = None) -> Iterator[Volume]
 ```
 
-#### VolumeService.list
+#### VolumesService.list
 
 ```python
 def list(*,
@@ -124,21 +139,21 @@ def list(*,
 
 List volumes.
 
-## AsyncVolumeService
+## AsyncVolumesService
 
 ```python
-class AsyncVolumeService()
+class AsyncVolumesService()
 ```
 
 Volume management namespace.
 
-#### AsyncVolumeService.\_\_init\_\_
+#### AsyncVolumesService.\_\_init\_\_
 
 ```python
-def __init__(transport: AsyncTransport) -> None
+def __init__() -> None
 ```
 
-#### AsyncVolumeService.list
+#### AsyncVolumesService.list
 
 ```python
 async def list(*,
@@ -148,7 +163,7 @@ async def list(*,
 
 List volumes.
 
-#### AsyncVolumeService.iter
+#### AsyncVolumesService.iter
 
 ```python
 async def iter(*,
@@ -156,34 +171,44 @@ async def iter(*,
                limit: Optional[int] = None) -> AsyncIterator[Volume]
 ```
 
-#### AsyncVolumeService.get
+#### AsyncVolumesService.get
 
 ```python
-async def get(name_or_id: str, *, create: bool = False, id_only: bool = False) -> Volume
+async def get(name_or_id: str,
+              /,
+              *,
+              create: bool = False,
+              id_only: bool = False) -> Volume
 ```
 
 Fetch by id or name; `id_only` disables name fallback.
 
-#### AsyncVolumeService.create
+#### AsyncVolumesService.create
 
 ```python
-async def create(*, name: str, size_gib: Optional[int] = None) -> Volume
+async def create(*,
+                 name: str,
+                 size_gib: Optional[int] = None,
+                 type: Optional[Literal['disk', 'bucket']] = None) -> Volume
 ```
 
 Create a volume.
 
-#### AsyncVolumeService.delete
+`type` omitted lets the server choose the volume's type; `size_gib`
+(disk volumes only) omitted uses the server default.
+
+#### AsyncVolumesService.delete
 
 ```python
-async def delete(volume_id: str, *, id_only: bool = False) -> None
+async def delete(name_or_id: str, /, *, id_only: bool = False) -> None
 ```
 
-Request deletion and return once the API accepts it.
+Request deletion by id or name and return once the API accepts it; `id_only` disables name lookup.
 
 ## PullVolumeResult
 
 ```python
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class PullVolumeResult()
 ```
 
@@ -191,17 +216,25 @@ class PullVolumeResult()
 
 - `request_id` _str_
 - `status` _PullVolumeStatus_
-- `manifest_id` _Optional\[str\]_
-- `raw_status` _Optional\[str\] = None_
+- `raw_status` _str_
+- `manifest_id` _Optional\[str\] = None_
 
 ## VolumeMount
 
 ```python
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class VolumeMount()
 ```
 
 Attach a volume to a sandbox.
+
+`mount_path` is an absolute path with no `..` component. The API
+normalizes it (repeated slashes, `.` components and a trailing slash are
+removed) and refuses `/` and any path on or beneath `/bin`, `/boot`,
+`/dev`, `/etc`, `/lib`, `/lib32`, `/lib64`, `/mnt/scratch`,
+`/overlay`, `/proc`, `/sbin`, `/sys` or `/usr`, or one with a
+control character: the create raises
+`daytona.v2.errors.BadRequestError` (400).
 
 **Attributes**:
 
@@ -213,7 +246,7 @@ Attach a volume to a sandbox.
 ## Volume
 
 ```python
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class Volume()
 ```
 
@@ -230,7 +263,7 @@ class Volume()
 - `size_gib` _Optional\[int\] = None_
 - `error` _Optional\[str\] = None_
 - `last_used_at` _Optional\[datetime\] = None_
-- `options` _Optional\[JsonObject\] = None_
+- `options` _Optional\[Mapping\[str, JsonValue\]\] = None_
 - `used_bytes` _Optional\[int\] = None_
 - `used_bytes_at` _Optional\[datetime\] = None_
 

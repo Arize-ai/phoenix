@@ -69,13 +69,13 @@ console.log(limits.sandboxes.concurrent.usage, limits.sandboxes.concurrent.limit
 
 > **Notes:**
 >
-> - A request with an API key reads the organization of the key and leaves out the member counts.
+> - **Results:** A request with an API key reads the organization of the key and leaves out the member counts.
 
 ## Rate limits
 
 Rate limits control how many API requests you can make within a fixed 60 second window. Requests authenticated with an [API key](./api-keys.md) are counted per project: every API key in a project draws on the same budget, so adding keys does not raise the limit.
 
-Requests are counted per organization with an [organization API key](./api-keys.md#organization-api-keys), per user from the Daytona Dashboard, and per sandbox with a sandbox-scoped token.
+Other credentials have budgets of their own. Requests with an [organization API key](./api-keys.md#organization-api-keys) are counted per organization, shared by every key in it, and requests with a sandbox-scoped token per sandbox. Dashboard requests that manage organizations, projects, members, and keys are counted per signed-in user, and dashboard requests on project resources per project.
 
 Daytona also blocks a client IP address for a window after repeated requests with invalid credentials. Requests that carry a valid API key are not affected by this block.
 
@@ -146,8 +146,7 @@ try {
 
 > **Notes:**
 >
-> - The SDK does not retry a rate limited request.
-> - Wait for the seconds in retryAfterSeconds before retrying a rate limited or overloaded request.
+> - **Recovery:** The SDK does not retry a rate limited request. Wait for the seconds in retryAfterSeconds before retrying a rate limited or overloaded request.
 
 ## Best practices
 

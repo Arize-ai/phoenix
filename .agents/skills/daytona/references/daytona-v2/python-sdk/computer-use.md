@@ -177,7 +177,7 @@ print(xvfb_status.process_name, xvfb_status.running)
 
 > **Notes:**
 >
-> - A desktop must exist.
+> - **Prerequisites:** A desktop must exist.
 
 ## Get all process statuses
 
@@ -234,7 +234,7 @@ print(result.message, result.process_name)
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ## Get process logs
 
@@ -261,7 +261,7 @@ print("x11vnc logs:", logs.logs)
 
 > **Notes:**
 >
-> - A desktop must exist.
+> - **Prerequisites:** A desktop must exist.
 
 ## Get process errors
 
@@ -288,7 +288,7 @@ print("x11vnc errors:", errors.errors)
 
 > **Notes:**
 >
-> - A desktop must exist.
+> - **Prerequisites:** A desktop must exist.
 
 ## Mouse operations
 
@@ -325,7 +325,7 @@ sandbox.computer_use.mouse.click(x=100, y=200)
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ### Move
 
@@ -353,7 +353,7 @@ print(f"Mouse moved to: {result.x}, {result.y}")
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ### Drag
 
@@ -386,7 +386,7 @@ print(f"Drag ended at {result.x}, {result.y}")
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ### Scroll
 
@@ -416,7 +416,7 @@ print(result.success)
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ### Get position
 
@@ -439,7 +439,7 @@ print(f"Mouse is at: {position.x}, {position.y}")
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ## Keyboard operations
 
@@ -474,8 +474,8 @@ sandbox.computer_use.keyboard.type(text="Hello, World!")
 
 > **Notes:**
 >
-> - The desktop must be ready.
-> - The number of characters multiplied by the delay must not exceed 25 seconds.
+> - **Prerequisites:** The desktop must be ready.
+> - **Limits:** The number of characters multiplied by the delay must not exceed 25 seconds.
 
 ### Press
 
@@ -502,7 +502,7 @@ sandbox.computer_use.keyboard.key(key="enter")
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ### Press a hotkey
 
@@ -528,7 +528,7 @@ sandbox.computer_use.keyboard.hotkey(keys="ctrl+c")
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ### Supported keys
 
@@ -600,7 +600,7 @@ print(tree.root.role, tree.root.name, tree.truncated)
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ### Find nodes
 
@@ -640,7 +640,7 @@ for node in buttons.matches:
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ### Focus node
 
@@ -667,7 +667,7 @@ sandbox.computer_use.a11y.focus(id=node.id)
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ### Invoke node
 
@@ -695,7 +695,7 @@ sandbox.computer_use.a11y.invoke(id=node.id)
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ### Set node value
 
@@ -723,7 +723,7 @@ sandbox.computer_use.a11y.set_value(id=node.id, value="hello")
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ## Screenshot operations
 
@@ -758,7 +758,7 @@ with open("screen.png", "wb") as f:
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ### Take region
 
@@ -788,7 +788,7 @@ print(f"Captured region: {screenshot.size_bytes} bytes")
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ### Take compressed
 
@@ -818,7 +818,7 @@ print(f"Compressed size: {screenshot.size_bytes} bytes")
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ### Take compressed region
 
@@ -850,7 +850,7 @@ print(f"Compressed size: {screenshot.size_bytes} bytes")
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ## Screen recording
 
@@ -906,7 +906,7 @@ print(f"Recording started: {recording.id}")
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ### Stop recording
 
@@ -1064,7 +1064,7 @@ for display in info.displays:
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ### Get windows
 
@@ -1089,7 +1089,7 @@ for window in windows.windows:
 
 > **Notes:**
 >
-> - The desktop must be ready.
+> - **Prerequisites:** The desktop must be ready.
 
 ## Permissions
 

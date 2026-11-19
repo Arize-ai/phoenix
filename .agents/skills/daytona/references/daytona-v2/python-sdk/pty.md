@@ -63,7 +63,7 @@ print(handle.id)
 
 > **Notes:**
 >
-> - The SDKs keep the record and output of an exited session until it is [deleted](#kill-pty-session).
+> - **Lifetime:** The SDKs keep the record and output of an exited session until it is [deleted](#kill-pty-session).
 
 ```python
 from daytona import Daytona
@@ -86,7 +86,7 @@ handle = sandbox.pty.start("python3 -i", terminal=TerminalSize(cols=100, rows=40
 
 > **Notes:**
 >
-> - The TERM variable is `xterm-256color` unless env sets it.
+> - **Behaviour:** The TERM variable is `xterm-256color` unless env sets it.
 
 ## Name PTY session
 
@@ -114,7 +114,7 @@ info = sandbox.process.get("dev-shell")
 
 > **Notes:**
 >
-> - The name resolves only while the session runs.
+> - **Lifetime:** The name resolves only while the session runs.
 
 ## Configure shell, user, and timeout
 
@@ -145,8 +145,8 @@ handle = sandbox.pty.start(
 
 > **Notes:**
 >
-> - The user must exist in /etc/passwd of the sandbox.
-> - On Linux and macOS, a session without a shell runs through the login shell of the user, so a user whose login shell is nologin cannot run commands.
+> - **Prerequisites:** The user must exist in /etc/passwd of the sandbox.
+> - **Compatibility:** On Linux and macOS, a session without a shell runs through the login shell of the user, so a user whose login shell is nologin cannot run commands.
 
 ## Connect to PTY session
 
@@ -176,7 +176,7 @@ handle.write_stdin('echo "Reconnected"\n')
 
 > **Notes:**
 >
-> - process_id is the ID of the session, from the handle that started it or from [listing PTY sessions](#list-pty-sessions).
+> - **Placeholders:** process_id is the ID of the session, from the handle that started it or from [listing PTY sessions](#list-pty-sessions).
 
 ## List PTY sessions
 
@@ -304,7 +304,7 @@ handle.resize(150, 40)
 
 > **Notes:**
 >
-> - You can resize only PTY sessions.
+> - **Compatibility:** You can resize only PTY sessions.
 
 ## Send input
 
@@ -355,14 +355,13 @@ for frame in page.items:
 
 > **Notes:**
 >
-> - In text encoding, bytes that are not valid UTF-8 are replaced, and in base64 encoding, the raw bytes are returned unchanged as standard padded base64.
-> - A read without a cursor starts at the first frame that the session wrote, so once retention has evicted that frame, read from first_available_cursor instead.
+> - **Results:** In text encoding, bytes that are not valid UTF-8 are replaced, and in base64 encoding, the raw bytes are returned unchanged as standard padded base64. A read without a cursor starts at the first frame that the session wrote, so once retention has evicted that frame, read from first_available_cursor instead.
 
 ## Replay output from a cursor
 
 Replay output from a cursor to continue reading where an earlier read stopped. A cursor marks a position in a stream, so a reader that stores it resumes there instead of from the start.
 
-Every output frame of a PTY session carries a cursor, and a read with a cursor returns the frames after it. Retention can evict old output from the session.
+An output frame of a PTY session carries a cursor, and a read with a cursor returns the frames after it. Retention can evict old output from the session.
 
 Replay from the last cursor a client processed to resume without gaps or duplicates, such as after a reconnect. A cursor that points into evicted output fails, and the error carries the oldest cursor still available. For how long output is kept, see [log retention](./log-streaming.md#log-retention).
 
@@ -416,7 +415,7 @@ print(result.reason, result.exit_code)
 
 > **Notes:**
 >
-> - If the wait time elapses first, the reason is `timed_out` with no signal; the session keeps running.
+> - **Timeouts:** If the wait time elapses first, the reason is `timed_out` with no signal; the session keeps running.
 
 ## Interactive commands
 

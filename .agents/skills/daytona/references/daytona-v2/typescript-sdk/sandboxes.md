@@ -67,7 +67,7 @@ const sandbox = await daytona.v2.create()
 
 ## Resources
 
-[Resources](./linux-sandboxes.md#resources) are the CPU, memory, and disk of a sandbox. Linux sandboxes have **0.5 cores**, **1024MiB memory**, and **512MiB disk** by default. A Linux sandbox guarantees at most **16 cores**, **32GiB memory**, and **256GiB disk**. A macOS sandbox takes its [size](./macos-sandboxes.md#sizes) from its Mac reservation.
+[Resources](./linux-sandboxes.md#resources) are the CPU, memory, and disk of a sandbox. Linux sandboxes have **0.5 cores**, **1024MiB memory**, and **512MiB disk** by default. A Linux sandbox guarantees at most **16 cores**, **32GiB memory**, and **256GiB disk**. A macOS sandbox takes its [resources](./macos-sandboxes.md#resources) from its Mac reservation.
 
 CPU is measured and billed in cores, from fractions of a core up to many. One core is **2 vCPUs**, or **1 vCPU** on macOS. Each resource has a guarantee and a limit. A sandbox can always use its guarantee and takes more as needed, up to the limit, with no manual resize.
 

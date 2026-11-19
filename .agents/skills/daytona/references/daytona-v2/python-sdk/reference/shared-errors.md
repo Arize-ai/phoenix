@@ -15,8 +15,6 @@
 - [DaytonaInternalServerError](#daytonainternalservererror)
 - [DaytonaServiceUnavailableError](#daytonaserviceunavailableerror)
 - [DaytonaConnectionError](#daytonaconnectionerror)
-- [DaytonaValidationError](#daytonavalidationerror)
-- [DaytonaAuthorizationError](#daytonaauthorizationerror)
 
 ## DaytonaError
 
@@ -132,15 +130,3 @@ class DaytonaConnectionError(DaytonaError)
 ```
 
 The API could not be reached.
-
-## DaytonaValidationError
-
-```python
-DaytonaValidationError = DaytonaBadRequestError
-```
-
-## DaytonaAuthorizationError
-
-```python
-DaytonaAuthorizationError = DaytonaForbiddenError
-```

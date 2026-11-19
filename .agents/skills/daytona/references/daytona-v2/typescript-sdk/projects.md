@@ -57,6 +57,10 @@ daytona project create my-project --org ORG_ID
 | --- | --- |
 | `<name>` | Sets the project name.<br />**Required**<br />**Format:** 1 to 64 characters after trimming, with no control characters, other than default<br />**Example:** `my-project` |
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+
 **API:**
 
 ```bash
@@ -83,6 +87,10 @@ curl 'https://api.daytona.com/orgs/ORG_ID/projects' \
 | --- | --- |
 | `name` | Sets the project name.<br />**Required**<br />**Format:** 1 to 64 characters after trimming, with no control characters, other than default<br />**Example:** `"my-project"` |
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+
 ## Operations
 
 Operations on projects act on projects that already exist in an organization. They read what the organization holds, rename projects, and remove the ones no longer needed.
@@ -104,6 +112,10 @@ List the projects you can access to find the ID of the project to select or mana
 ```bash
 daytona project list --org ORG_ID
 ```
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 **API:**
 
@@ -142,6 +154,10 @@ curl 'https://api.daytona.com/orgs/ORG_ID/projects' \
 | `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `cursor` | Continues from a previous page. |
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+
 ### Select project
 
 Select a project to make it the target of the commands that follow. A selection is a default that a client keeps between commands, so each command does not have to name its target.
@@ -170,12 +186,20 @@ Get a project to check it before you rename or delete it. The CLI also accepts a
 daytona project get PROJECT_ID
 ```
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+
 **API:**
 
 ```bash
 curl 'https://api.daytona.com/projects/PROJECT_ID' \
   --header 'Authorization: Bearer YOUR_OIDC_TOKEN'
 ```
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 ### Rename projects
 
@@ -202,7 +226,7 @@ daytona project update PROJECT_ID --name my-renamed-project --org ORG_ID
 
 > **Notes:**
 >
-> - The project must not be the default project.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. The project must not be the default project.
 
 **API:**
 
@@ -220,7 +244,7 @@ curl 'https://api.daytona.com/projects/PROJECT_ID' \
 
 > **Notes:**
 >
-> - The project must not be the default project.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. The project must not be the default project.
 
 ### Delete projects
 
@@ -243,9 +267,8 @@ daytona project delete PROJECT_ID --org ORG_ID
 
 > **Notes:**
 >
-> - The project must not be the default project.
-> - The project must own no sandboxes, volumes, images, snapshots, or functions.
-> - The command asks for confirmation at a terminal and requires --yes otherwise.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. The project must not be the default project. The project must own no sandboxes, volumes, images, snapshots, or functions.
+> - **Confirmation:** The command asks for confirmation at a terminal and requires --yes otherwise.
 
 **API:**
 
@@ -257,8 +280,7 @@ curl 'https://api.daytona.com/projects/PROJECT_ID' \
 
 > **Notes:**
 >
-> - The project must not be the default project.
-> - The project must own no sandboxes, volumes, images, snapshots, or functions.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. The project must not be the default project. The project must own no sandboxes, volumes, images, snapshots, or functions.
 
 ## Project budgets
 
@@ -322,7 +344,7 @@ daytona project budget set PROJECT_ID --monthly-usd 500
 
 > **Notes:**
 >
-> - The request requires the Team or Enterprise [plan](../platform/billing.md#get-the-plan).
+> - **Prerequisites:** The request requires the Team or Enterprise [plan](../platform/billing.md#get-the-plan). The request requires a signed-in user token, not an API key.
 
 **API:**
 
@@ -340,7 +362,7 @@ curl 'https://api.daytona.com/projects/PROJECT_ID/budget' \
 
 > **Notes:**
 >
-> - The request requires the Team or Enterprise [plan](../platform/billing.md#get-the-plan).
+> - **Prerequisites:** The request requires the Team or Enterprise [plan](../platform/billing.md#get-the-plan). The request requires a signed-in user token, not an API key.
 
 ### Remove a project budget
 
@@ -364,7 +386,8 @@ daytona project budget remove PROJECT_ID
 
 > **Notes:**
 >
-> - The command asks for confirmation at a terminal and requires --yes otherwise.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+> - **Confirmation:** The command asks for confirmation at a terminal and requires --yes otherwise.
 
 **API:**
 
@@ -373,6 +396,10 @@ curl 'https://api.daytona.com/projects/PROJECT_ID/budget' \
   --request DELETE \
   --header 'Authorization: Bearer YOUR_OIDC_TOKEN'
 ```
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 ## Lifecycle defaults
 
@@ -401,7 +428,7 @@ curl 'https://api.daytona.com/projects/PROJECT_ID/lifecycle-policy' \
   --header 'Authorization: Bearer YOUR_OIDC_TOKEN'
 ```
 
-The following response is abridged to the effective defaults of ephemeral Linux sandboxes. The full response also has the effective defaults of Windows, GPU, and macOS sandboxes.
+The following response is abridged to the effective defaults of ephemeral Linux sandboxes and the platform defaults of macOS sandboxes. The full response also has the effective defaults of Windows and GPU sandboxes.
 
 ```json
 {
@@ -411,10 +438,18 @@ The following response is abridged to the effective defaults of ephemeral Linux 
   "effective": {
     "linux": {
       "ephemeral": { "timeout_seconds": 1800, "on_timeout": "delete", "timeout_source": "project", "timeout_capped": false, "idle_timeout_seconds": 600, "on_idle_timeout": "delete" }
+    },
+    "macos": {
+      "ephemeral": { "timeout_seconds": null, "on_timeout": null, "timeout_source": "none", "timeout_capped": false, "idle_timeout_seconds": null, "on_idle_timeout": null },
+      "persistent": { "timeout_seconds": null, "on_timeout": null, "timeout_source": "none", "timeout_capped": false, "idle_timeout_seconds": null, "on_idle_timeout": null }
     }
   }
 }
 ```
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 ### Update lifecycle defaults
 
@@ -448,13 +483,17 @@ curl 'https://api.daytona.com/projects/PROJECT_ID/lifecycle-policy' \
 | `ephemeral.timeout_seconds` | Sets how many seconds a sandbox runs before it is deleted.<br />**Minimum:** `1`<br />**Maximum:** the organization's [timeout cap](./organizations.md#set-the-timeout-cap)<br />**Value:** `null` for the platform default<br />**Example:** `1800` |
 | `ephemeral.idle_timeout_seconds` | Sets how many idle seconds pass before a sandbox is deleted.<br />**Minimum:** `60`<br />**Maximum:** `2147483647`<br />**Value:** `null` for no idle timeout<br />**Example:** `600` |
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+
 ## Sandbox limits
 
 Sandbox limits cap the number of sandboxes that a group of users can hold at one time. Each limit is a ceiling, not a reservation: reaching it refuses new sandboxes, but nothing is set aside.
 
 The sandbox limits of a project count the sandboxes of that project alone, and apply together with the [organization limits](./limits.md#organization-limits): a sandbox is created only when it fits under both. A project without a limit of its own is bound only by the organization limit.
 
-Set sandbox limits to keep one project from using the whole allowance of the organization. Manage them from the project settings in the dashboard, or with the API. A project limit above the organization limit is stored but never binds. A stored limit takes effect only while limit enforcement is on, and a request over it then fails with the code LIMIT_EXCEEDED, which names project_max_concurrent_vms, project_max_total_vms, or project_max_persistent_vms.
+Set sandbox limits to keep one project from using the whole allowance of the organization. Manage them from the project settings in the dashboard, or with the API. A project limit above the organization limit is stored but never binds. A stored limit takes effect only while limit enforcement is on, and a request over it then fails with an error that names the limit.
 
 ### Get sandbox limits
 
@@ -484,6 +523,10 @@ curl 'https://api.daytona.com/projects/PROJECT_ID/limits' \
   }
 }
 ```
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 ### Update sandbox limits
 
@@ -515,6 +558,10 @@ curl 'https://api.daytona.com/projects/PROJECT_ID/limits' \
 | `max_total_vms` | Sets the number of sandboxes that the project may have, stopped and paused ones included.<br />**Minimum:** `0`<br />**Maximum:** `2147483647`<br />**Value:** `null` for no project limit<br />**Example:** `50` |
 | `max_persistent_vms` | Sets the number of persistent sandboxes that the project may have.<br />**Minimum:** `0`<br />**Maximum:** `2147483647`<br />**Value:** `null` for no project limit<br />**Example:** `5` |
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+
 ## Project members
 
 Project members are the organization members who have been added to a project. A membership list names the users who belong to a group, and access checks read it to decide which users may reach the resources of the group.
@@ -536,6 +583,10 @@ List the members of a project before you add or remove one. The implicit flag is
 ```bash
 daytona project member list --project PROJECT_ID
 ```
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 **API:**
 
@@ -563,6 +614,10 @@ curl 'https://api.daytona.com/projects/PROJECT_ID/members' \
 | `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `cursor` | Continues from a previous page. |
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+
 ### Add project members
 
 Add project members to give organization members access to a project. Membership in a group grants a user the access that the group holds, until the user is removed from it.
@@ -586,8 +641,7 @@ daytona project member add --bulk USER_ID_1,USER_ID_2 --project PROJECT_ID --org
 
 > **Notes:**
 >
-> - The project must not be the default project.
-> - Each user must be a member of the organization.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. The project must not be the default project. Each user must be a member of the organization.
 
 **API:**
 
@@ -609,8 +663,7 @@ curl 'https://api.daytona.com/projects/PROJECT_ID/members' \
 
 > **Notes:**
 >
-> - The project must not be the default project.
-> - Each user must be a member of the organization.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. The project must not be the default project. Each user must be a member of the organization.
 
 ### Remove project members
 
@@ -628,8 +681,8 @@ daytona project member remove USER_ID --project PROJECT_ID --org ORG_ID
 
 > **Notes:**
 >
-> - The project must not be the default project.
-> - The command asks for confirmation at a terminal and requires --yes otherwise.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. The project must not be the default project.
+> - **Confirmation:** The command asks for confirmation at a terminal and requires --yes otherwise.
 
 **API:**
 
@@ -641,7 +694,7 @@ curl 'https://api.daytona.com/projects/PROJECT_ID/members/USER_ID' \
 
 > **Notes:**
 >
-> - The project must not be the default project.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. The project must not be the default project.
 
 ## Project service accounts
 
@@ -665,6 +718,10 @@ List the service accounts of a project to check which programs can work in it. T
 daytona project service-account list --project PROJECT_ID
 ```
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+
 **API:**
 
 ```bash
@@ -676,6 +733,10 @@ curl 'https://api.daytona.com/projects/PROJECT_ID/service-accounts' \
 | --- | --- |
 | `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `cursor` | Continues from a previous page. |
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 ### Add project service accounts
 
@@ -697,8 +758,7 @@ daytona project service-account add SERVICE_ACCOUNT_ID --project PROJECT_ID --or
 
 > **Notes:**
 >
-> - The project must not be the default project.
-> - The service account must not be archived.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. The project must not be the default project. The service account must not be archived.
 
 **API:**
 
@@ -716,8 +776,7 @@ curl 'https://api.daytona.com/projects/PROJECT_ID/service-accounts' \
 
 > **Notes:**
 >
-> - The project must not be the default project.
-> - The service account must not be archived.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. The project must not be the default project. The service account must not be archived.
 
 ### Remove project service accounts
 
@@ -735,8 +794,8 @@ daytona project service-account remove SERVICE_ACCOUNT_ID --project PROJECT_ID -
 
 > **Notes:**
 >
-> - The project must not be the default project.
-> - The command asks for confirmation at a terminal and requires --yes otherwise.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. The project must not be the default project.
+> - **Confirmation:** The command asks for confirmation at a terminal and requires --yes otherwise.
 
 **API:**
 
@@ -748,7 +807,7 @@ curl 'https://api.daytona.com/projects/PROJECT_ID/service-accounts/SERVICE_ACCOU
 
 > **Notes:**
 >
-> - The project must not be the default project.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. The project must not be the default project.
 
 ## Project secrets and registries
 

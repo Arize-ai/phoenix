@@ -27,7 +27,7 @@ Audit logs are used when you must know who did what, when, and with which creden
 
 - **Compliance reviews.** Actions across the organization stay on record for 365 days. Management-plane actions, such as changes to members and credentials, are always recorded and cannot be turned off. Earlier entries stay readable until retention ends, even after workload-plane capture is turned off.
 
-- **Access reviews.** Member role changes and removals, invitations, and the creation and role updates of service accounts are recorded with the previous and the new roles. A review shows who granted which access and when. Role changes that were only validated carry a dry run flag in their metadata.
+- **Access reviews.** Member role changes and removals, invitations, and the creation and role updates of service accounts are recorded with the previous and the new roles. A review shows who granted which access and when. Previewing a role change does not create an entry.
 
 - **Scripted reviews.** The CLI and the API filter entries by action, target, actor, status code, and time range. A script pages through the results to collect the entries for a review. Each request accepts at most 10 filters and returns up to 200 entries per page.
 
@@ -64,8 +64,7 @@ daytona audit list --org {organizationId}
 
 > **Notes:**
 >
-> - The request requires the Enterprise [plan](../platform/billing.md#get-the-plan).
-> - The request requires a signed-in user token or an [organization API key](./api-keys.md#organization-api-keys).
+> - **Prerequisites:** The request requires the Enterprise [plan](../platform/billing.md#get-the-plan). The request requires a signed-in user token or an [organization API key](./api-keys.md#organization-api-keys).
 
 **API:**
 
@@ -107,8 +106,7 @@ curl 'https://api.daytona.com/orgs/{organizationId}/audit-logs' \
 
 > **Notes:**
 >
-> - The request requires the Enterprise [plan](../platform/billing.md#get-the-plan).
-> - The request requires a signed-in user token or an [organization API key](./api-keys.md#organization-api-keys).
+> - **Prerequisites:** The request requires the Enterprise [plan](../platform/billing.md#get-the-plan). The request requires a signed-in user token or an [organization API key](./api-keys.md#organization-api-keys).
 
 ### Filter audit logs
 
@@ -144,8 +142,7 @@ daytona audit list --org {organizationId} --limit 100 --action create --target-t
 
 > **Notes:**
 >
-> - The request requires the Enterprise [plan](../platform/billing.md#get-the-plan).
-> - The request requires a signed-in user token or an [organization API key](./api-keys.md#organization-api-keys).
+> - **Prerequisites:** The request requires the Enterprise [plan](../platform/billing.md#get-the-plan). The request requires a signed-in user token or an [organization API key](./api-keys.md#organization-api-keys).
 
 **API:**
 
@@ -168,11 +165,9 @@ curl 'https://api.daytona.com/orgs/{organizationId}/audit-logs?limit=100&action=
 
 > **Notes:**
 >
-> - The request requires the Enterprise [plan](../platform/billing.md#get-the-plan).
-> - The request requires a signed-in user token or an [organization API key](./api-keys.md#organization-api-keys).
-> - A filter field[op]=value applies one operator: `eq`, `not`, `in`, `not_in`, `gt`, `gte`, `lt`, or `lte`.
-> - `in` and `not_in` take up to 100 comma-separated values; range operators apply only to status.
-> - Each request accepts at most 10 filters.
+> - **Prerequisites:** The request requires the Enterprise [plan](../platform/billing.md#get-the-plan). The request requires a signed-in user token or an [organization API key](./api-keys.md#organization-api-keys).
+> - **Compatibility:** A filter field[op]=value applies one operator: `eq`, `not`, `in`, `not_in`, `gt`, `gte`, `lt`, or `lte`. The range operators `gt`, `gte`, `lt`, and `lte` apply only to status.
+> - **Limits:** `in` and `not_in` take up to 100 comma-separated values. Each request accepts at most 10 filters.
 
 ### Refresh audit logs
 
@@ -180,11 +175,11 @@ Refresh audit logs to keep the list current as new events occur in the organizat
 
 Auto-refresh in the dashboard repeats the refresh at an interval, so new entries appear in the audit log list without a manual refresh of the page.
 
-Refresh the list once before you read it, or turn on auto-refresh to watch activity as it happens. Auto-refresh is **Off** by default. When you turn it on, it repeats the fetch every **10s**, **30s**, **1m**, or **5m**, or every 30 seconds when you set it to **Auto**.
+Refresh the list once before you read it, or turn on auto-refresh to watch activity as it happens. Auto-refresh stays off until you choose an interval.
 
 1. Go to [Daytona Audit Logs ↗](https://app.daytona.com/dashboard/audit-logs)
 2. Click the refresh icon in the top-right corner of the page to fetch the current page
-3. Select an interval in the refresh control to refresh the list automatically
+3. Select **10s**, **30s**, **1m**, **5m**, or **Auto**, which refreshes every 30 seconds, in the refresh control to refresh the list automatically
 
 ## List audit actions
 
@@ -253,7 +248,7 @@ for (const target of actions.targets) {
 
 An audit log entry is the record of one action in an organization. Its fields name who performed the action, with which credential, on which resource, and with what result.
 
-Every audit log entry has the same set of fields, and a field that does not apply to an action is null, such as the project of an organization-level action.
+An audit log entry has the same set of fields as every other entry, and a field that does not apply to an action is null, such as the project of an organization-level action.
 
 Read the fields to trace an action to its actor, credential, and request origin. An action by a signed-in user carries the user ID, and an action by an API key carries the key ID and prefix.
 
@@ -299,20 +294,20 @@ Read the metadata to see the details of a change, such as the roles before and a
 | **`project_service_account`** | `delete`  | `revoked_keys`: number of API keys revoked with the membership                                                             |
 | **`organization`**            | `update`  | `audit_logs_disabled` (boolean) when the entry records the audit logging toggle. Other updates have no metadata            |
 | **`organization`**            | `delete`  | `revoked_keys`: number of API keys revoked, `revoked_org_keys`: number of organization API keys revoked, `projects`: number of projects deleted with the organization |
-| **`organization_user`**       | `update`  | `previous_roles`, `roles`, and `dry_run: true` when the change was only validated                                          |
-| **`organization_user`**       | `delete`  | `previous_roles`, `roles` (empty), `self_removal` (boolean)                                                                |
+| **`organization_user`**       | `update`  | `previous_roles`, `roles`                                                                                                  |
+| **`organization_user`**       | `delete`  | `previous_roles`, `roles` (empty), `self_removal` (boolean), `revoked_keys`: number of API keys revoked with the membership |
 | **`organization_invitation`** | `create`  | `email`, `previous_roles`, `roles`                                                                                         |
 | **`organization_invitation`** | `delete`  | `email`, `previous_roles`, `roles` (empty)                                                                                 |
 | **`organization_invitation`** | `decline` | `previous_roles`, `roles` (empty)                                                                                          |
 | **`service_account`**         | `create`  | `previous_roles` (empty), `roles`                                                                                          |
-| **`service_account`**         | `update`  | `previous_roles`, `roles`, and `dry_run: true` when the change was only validated                                          |
-| **`service_account`**         | `delete`  | `already_archived` (boolean)                                                                                               |
+| **`service_account`**         | `update`  | `previous_roles`, `roles`                                                                                                  |
+| **`service_account`**         | `delete`  | `already_archived` (boolean), `revoked_keys`: number of API keys revoked with the account                                  |
 
 ### Outcomes
 
 An outcome is the class of result that an action ended with, such as success or error. One class covers many specific results, which makes the results of different actions comparable.
 
-The dashboard groups the HTTP status code of each entry into one outcome. An entry with no recorded status code has the unknown outcome.
+The outcome of an audit log entry is the group that the dashboard puts its HTTP status code in. An entry with no recorded status code has the unknown outcome.
 
 Use outcomes to spot failed actions in the dashboard without reading the status code of each entry. Entries for a failed action show the Error outcome.
 
@@ -360,7 +355,7 @@ curl 'https://api.daytona.com/orgs/{organizationId}/audit-logs/config' \
 
 > **Notes:**
 >
-> - The requests require a signed-in user token, not an API key.
+> - **Prerequisites:** The requests require a signed-in user token, not an API key.
 
 ## Permissions
 
