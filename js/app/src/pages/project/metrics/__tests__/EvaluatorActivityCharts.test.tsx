@@ -28,6 +28,7 @@ installTestStorage();
 
 const PROJECT_ID = "UHJvamVjdDox";
 const ACTIVITY_QUERY = "EvaluatorActivityChartsQuery";
+const QUEUE_SIZE_QUERY = "EvaluatorQueueSizeChartQuery";
 /** Five seconds past the hour, so a few refreshes cross a minute. */
 const START_TIME = new Date("2026-01-01T12:00:05.000Z").getTime();
 /** How often the project page refreshes while it streams. */
@@ -313,4 +314,117 @@ describe("evaluator activity charts", () => {
       expect(countChartsWithData()).toBe(2);
     }
   );
+});
+
+/**
+ * Streams for `forMs`, a refresh every `TICK_MS`, answering each chart request
+ * `durationMs` after it was sent, as a server whose chart queries are slower
+ * than the stream.
+ */
+async function streamWithSlowCharts({
+  durationMs,
+  forMs,
+}: {
+  durationMs: number;
+  forMs: number;
+}) {
+  const sentAt = new Map<OperationDescriptor, number>();
+  const requests: OperationDescriptor[] = [];
+  const maxPending = { [ACTIVITY_QUERY]: 0, [QUEUE_SIZE_QUERY]: 0 };
+  const recordPending = () => {
+    for (const operation of getPendingOperations()) {
+      if (!sentAt.has(operation)) {
+        sentAt.set(operation, Date.now());
+        requests.push(operation);
+      }
+    }
+    for (const name of [ACTIVITY_QUERY, QUEUE_SIZE_QUERY] as const) {
+      maxPending[name] = Math.max(
+        maxPending[name],
+        getPendingOperations(name).length
+      );
+    }
+  };
+  for (let elapsedMs = 1_000; elapsedMs <= forMs; elapsedMs += 1_000) {
+    vi.setSystemTime(START_TIME + elapsedMs);
+    if (elapsedMs % TICK_MS === 0) {
+      await act(async () => controls.tick());
+    }
+    recordPending();
+    await resolveOperations(
+      getPendingOperations().filter(
+        (operation) => Date.now() - (sentAt.get(operation) ?? 0) >= durationMs
+      )
+    );
+    recordPending();
+  }
+  const getRequestedEnds = (name: string) =>
+    requests
+      .filter((operation) => getOperationName(operation) === name)
+      .map((operation) => String(operation.request.variables.timeRange.end));
+  return { maxPending, getRequestedEnds };
+}
+
+describe("evaluator activity charts slower than the stream", () => {
+  it("show each refresh that takes longer than the time between refreshes", async () => {
+    await renderCharts("timeRangeKey=15m", { isFirstResponseEmpty: true });
+    expect(countChartsWithData()).toBe(0);
+
+    const { maxPending, getRequestedEnds } = await streamWithSlowCharts({
+      durationMs: 15_000,
+      forMs: 60_000,
+    });
+
+    expect(countChartsWithData()).toBe(2);
+    expect(countSkeletons()).toBe(0);
+    expect(maxPending).toEqual({ [ACTIVITY_QUERY]: 1, [QUEUE_SIZE_QUERY]: 1 });
+    // Each one that finished was followed by the refresh that came meanwhile
+    const answeredEnds = sentOperations
+      .filter((operation) => getOperationName(operation) === ACTIVITY_QUERY)
+      .map((operation) => String(operation.request.variables.timeRange.end));
+    expect(answeredEnds.length).toBeGreaterThanOrEqual(3);
+    expect(answeredEnds).toEqual(
+      getRequestedEnds(ACTIVITY_QUERY).slice(0, answeredEnds.length)
+    );
+    expect([...answeredEnds].sort()).toEqual(answeredEnds);
+  });
+
+  it("follow a refresh that is loading with only the latest one that came meanwhile", async () => {
+    await renderCharts("timeRangeKey=15m");
+
+    // Refreshes at 10 s, 20 s and 30 s; the first takes until 35 s
+    const { getRequestedEnds } = await streamWithSlowCharts({
+      durationMs: 25_000,
+      forMs: 36_000,
+    });
+
+    expect(getRequestedEnds(ACTIVITY_QUERY)).toEqual([
+      new Date(START_TIME + 10_000).toISOString(),
+      new Date(START_TIME + 30_000).toISOString(),
+    ]);
+  });
+
+  it("replace a refresh that is loading when another range is chosen", async () => {
+    await renderCharts("timeRangeKey=15m");
+    await tick();
+    const [refresh] = getPendingOperations(ACTIVITY_QUERY);
+
+    await act(async () =>
+      controls.setTimeRange({ timeRangeKey: "1h", start: null, end: null })
+    );
+
+    const pending = getPendingOperations(ACTIVITY_QUERY);
+    expect(pending).toHaveLength(1);
+    expect(pending[0]).not.toBe(refresh);
+    expect(pending[0]?.request.variables.timeRange).toEqual({
+      start: controls.timeRange.start.toISOString(),
+      end: controls.timeRange.end.toISOString(),
+    });
+    expect(countSkeletons()).toBe(2);
+
+    await resolvePendingRequests();
+
+    expect(countSkeletons()).toBe(0);
+    expect(countChartsWithData()).toBe(2);
+  });
 });

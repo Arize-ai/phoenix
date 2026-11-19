@@ -1,17 +1,32 @@
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { fetchQuery, useLazyLoadQuery, useRelayEnvironment } from "react-relay";
-import type { GraphQLTaggedNode, OperationType } from "relay-runtime";
+import type {
+  Disposable,
+  GraphQLTaggedNode,
+  OperationType,
+  Subscription,
+} from "relay-runtime";
 import { createOperationDescriptor, getRequest } from "relay-runtime";
 
-type LoadedQueryInput<TQuery extends OperationType> = {
+type QueryInput<TQuery extends OperationType> = {
   variables: TQuery["variables"];
   fetchKey: string | undefined;
   /** The variables and fetch key as one string, to compare with the requested ones. */
   key: string;
   /** What the data is about; see `subjectKey`. */
   subjectKey: string;
+};
+
+type LoadedQueryInput<TQuery extends OperationType> = QueryInput<TQuery> & {
   /** Whether a refresh loaded it, so its data is already in the store. */
   isRefresh: boolean;
+};
+
+/** A request this hook made, and the retain that holds its data. */
+type QueryLoad<TQuery extends OperationType> = {
+  input: QueryInput<TQuery>;
+  subscription: Subscription | null;
+  retained: Disposable;
 };
 
 /**
@@ -21,6 +36,11 @@ type LoadedQueryInput<TQuery extends OperationType> = {
  * therefore neither blanks the component nor holds up the transition that
  * changed its variables, so other content updated in that transition commits
  * without waiting for this query. The first load suspends as usual.
+ *
+ * One request at a time: a refresh asked for while another is loading waits
+ * for it to finish and show, and only the latest refresh that waited is then
+ * made, so data slower to load than the refreshes come still advances. A
+ * request for another subject replaces the one loading.
  *
  * With a fetch key the first load is store-and-network, as for live charts;
  * without one it reads the store first and fetches once.
@@ -64,33 +84,77 @@ export function useRefreshingLazyLoadQuery<TQuery extends OperationType>({
     subjectKey: requestedSubjectKey,
     isRefresh: false,
   }));
-  const loadRequested = useEffectEvent((key: string) => {
-    if (key === loaded.key) {
-      return undefined;
-    }
-    const requested = {
-      variables,
-      fetchKey,
-      key,
-      subjectKey: requestedSubjectKey,
+  // The request loading, the latest refresh waiting for it, and the retains
+  // of finished requests until a render shows their data.
+  const loadRef = useRef<QueryLoad<TQuery> | null>(null);
+  const nextRef = useRef<QueryInput<TQuery> | null>(null);
+  const finishedRef = useRef<Disposable[]>([]);
+  const startLoad = useEffectEvent((input: QueryInput<TQuery>) => {
+    const load: QueryLoad<TQuery> = {
+      input,
+      subscription: null,
+      // Held until the switched-to render retains the data itself, so a
+      // garbage collection in between cannot drop it and make that render
+      // suspend.
+      retained: environment.retain(
+        createOperationDescriptor(getRequest(query), input.variables)
+      ),
     };
-    // Held until the switched-to render retains the data itself, so a garbage
-    // collection in between cannot drop it and make that render suspend.
-    const retained = environment.retain(
-      createOperationDescriptor(getRequest(query), variables)
-    );
-    const subscription = fetchQuery<TQuery>(environment, query, variables, {
-      fetchPolicy: "network-only",
-    }).subscribe({
-      complete: () => setLoaded({ ...requested, isRefresh: true }),
-      error: () => setLoaded({ ...requested, isRefresh: false }),
+    loadRef.current = load;
+    const finish = (isRefresh: boolean) => {
+      if (loadRef.current !== load) {
+        return;
+      }
+      loadRef.current = null;
+      finishedRef.current.push(load.retained);
+      if (!isRefresh) {
+        // The switched-to render loads the data itself and reports the error.
+        nextRef.current = null;
+      }
+      setLoaded({ ...input, isRefresh });
+    };
+    load.subscription = fetchQuery<TQuery>(
+      environment,
+      query,
+      input.variables,
+      { fetchPolicy: "network-only" }
+    ).subscribe({
+      complete: () => finish(true),
+      error: () => finish(false),
     });
-    return () => {
-      subscription.unsubscribe();
-      retained.dispose();
-    };
   });
-  useEffect(() => loadRequested(requestedKey), [requestedKey]);
+  const cancelLoad = useEffectEvent(() => {
+    const load = loadRef.current;
+    loadRef.current = null;
+    nextRef.current = null;
+    load?.subscription?.unsubscribe();
+    load?.retained.dispose();
+  });
+  const loadRequested = useEffectEvent((key: string) => {
+    const input = { variables, fetchKey, key, subjectKey: requestedSubjectKey };
+    const load = loadRef.current;
+    if (load != null && load.input.subjectKey !== input.subjectKey) {
+      cancelLoad();
+    } else if (load != null) {
+      nextRef.current = key === load.input.key ? null : input;
+      return;
+    }
+    nextRef.current = null;
+    if (key !== loaded.key) {
+      startLoad(input);
+    }
+  });
+  useEffect(
+    () => loadRequested(requestedKey),
+    [requestedKey, requestedSubjectKey]
+  );
+  useEffect(
+    () => () => {
+      cancelLoad();
+      finishedRef.current.splice(0).forEach((retained) => retained.dispose());
+    },
+    []
+  );
   const data = useLazyLoadQuery<TQuery>(query, loaded.variables, {
     fetchKey: loaded.fetchKey,
     fetchPolicy:
@@ -98,6 +162,18 @@ export function useRefreshingLazyLoadQuery<TQuery extends OperationType>({
         ? "store-or-network"
         : "store-and-network",
   });
+  // Once a finished request's data shows, this render retains it, and the
+  // refresh that waited for it can load.
+  useEffect(() => {
+    finishedRef.current.splice(0).forEach((retained) => retained.dispose());
+    const next = nextRef.current;
+    if (loadRef.current == null && next != null) {
+      nextRef.current = null;
+      if (next.key !== loaded.key) {
+        startLoad(next);
+      }
+    }
+  }, [loaded]);
   return {
     data,
     variables: loaded.variables,
