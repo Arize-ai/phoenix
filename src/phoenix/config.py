@@ -1656,8 +1656,8 @@ def get_env_csrf_trusted_origins() -> list[str]:
     origins: list[str] = []
     if not (csrf_trusted_origins := getenv(ENV_PHOENIX_CSRF_TRUSTED_ORIGINS)):
         return origins
-    for origin in csrf_trusted_origins.split(","):
-        if not origin:
+    for entry in csrf_trusted_origins.split(","):
+        if not (origin := entry.strip()):
             continue
         if not urlparse(origin).hostname:
             raise ValueError(
