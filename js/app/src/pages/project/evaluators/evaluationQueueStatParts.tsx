@@ -131,6 +131,27 @@ export function getNetPerHour({
   };
 }
 
+/**
+ * What each queue stat measures, for the info tip beside its label. The
+ * server-wide strip and the project aside share them so a stat reads the same
+ * in both.
+ */
+export const QUEUE_STAT_HELP = {
+  status:
+    "The queue is Healthy when no evaluation waits more than 10 minutes to start. If not, it is Degraded.",
+  inQueue: `The number of evaluations that wait to start, are in progress, or wait to retry. This number is for all projects. The count stops at ${MAX_QUEUE_COUNT.toLocaleString("en-US")}.`,
+  addedPerHour:
+    "The number of evaluations added to the queue in the last hour.",
+  completedPerHour:
+    "The number of evaluations completed in the last hour. This number includes evaluations that failed.",
+  netPerHour:
+    "The number of evaluations added in the last hour, minus the number completed. If the number is more than 0, the queue gets longer. If the number is 0 or less, the queue does not get longer.",
+  oldestWait:
+    "The longest time that an evaluation in the queue has waited to start. This time does not include evaluations that wait to retry. If this time is more than 10 minutes, the queue is Degraded.",
+  evaluationCost:
+    "The model cost of the evaluations that ran in the selected time range. Phoenix gets this cost from the evaluator traces. If tracing is off for an evaluator, its cost is not included.",
+} as const;
+
 /** How long an evaluation may wait before its queue counts as Degraded. */
 export const DEGRADED_WAIT_MS = 10 * 60_000;
 

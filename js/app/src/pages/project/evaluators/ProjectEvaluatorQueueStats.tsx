@@ -35,6 +35,7 @@ import {
   HoverDetail,
   QUEUE_METER_COLOR_BY_TARGET,
   OldestWaitStat,
+  QUEUE_STAT_HELP,
   QueueStatusBadge,
   StatValue,
 } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
@@ -203,7 +204,7 @@ function ProjectEvaluatorQueueStatsContent({
           label="Added per hour"
           rates={projectQueue}
           formatRate={(rates) => formatAddedPerHour(rates.addedPerMinute)}
-          description="This project's evaluations added in the last hour"
+          description="The number of this project's evaluations added to the queue in the last hour."
         />
         <QueueRateStat
           label="Completed per hour"
@@ -211,10 +212,13 @@ function ProjectEvaluatorQueueStatsContent({
           formatRate={(rates) =>
             formatCompletedPerHour(rates.completedPerMinute)
           }
-          description="This project's evaluations completed in the last hour"
+          description="The number of this project's evaluations completed in the last hour. This number includes evaluations that failed."
         />
       </Flex>
-      <OldestWaitStat oldestWaitingAt={projectQueue?.oldestWaitingAt ?? null} />
+      <OldestWaitStat
+        oldestWaitingAt={projectQueue?.oldestWaitingAt ?? null}
+        help="The longest time that one of this project's evaluations in the queue has waited to start. This time does not include evaluations that wait to retry. If this time is more than 10 minutes, the server queue is Degraded."
+      />
     </>
   );
 }
@@ -247,7 +251,7 @@ function QueueStatsPlaceholder() {
 function ServerQueueStatusStat({ queue }: { queue: EvaluationQueue }) {
   const detail = getQueueStatusDetail(queue);
   return (
-    <StatItem label="Server queue">
+    <StatItem label="Server queue" help={QUEUE_STAT_HELP.status}>
       {/* The queue-wide figures live here: the other stats are this project's. */}
       <HoverDetail
         detail={
@@ -337,7 +341,10 @@ function ProjectQueuedStat({
     },
   ];
   return (
-    <StatItem label="In queue">
+    <StatItem
+      label="In queue"
+      help="The number of this project's evaluations that wait to start, are in progress, or wait to retry. The bar shows this project's part of the server queue. All projects use the same server queue."
+    >
       <Flex direction="column" gap="size-100" width="100%">
         <HoverDetail
           detail={
@@ -409,16 +416,8 @@ function QueueRateStat({
   description: string;
 }) {
   return (
-    <StatItem label={label}>
-      <HoverDetail
-        detail={
-          <Text size="S" color="text-700">
-            {description}
-          </Text>
-        }
-      >
-        <StatValue>{rates != null ? formatRate(rates) : "--"}</StatValue>
-      </HoverDetail>
+    <StatItem label={label} help={description}>
+      <StatValue>{rates != null ? formatRate(rates) : "--"}</StatValue>
     </StatItem>
   );
 }
