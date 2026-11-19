@@ -369,8 +369,7 @@ export function ModelForm({
                   </ListBox>
                 </Popover>
                 <Text slot="description">
-                  The kind of span this model prices. Embedding models are
-                  priced on input tokens only.
+                  Costs apply only to spans of this kind.
                 </Text>
               </Select>
             )}
@@ -393,7 +392,7 @@ export function ModelForm({
                 error={error?.message}
                 size="S"
                 placeholder="e.g. ^gpt-4$, ^claude-3-sonnet$"
-                description="Regular expression to match model names during trace ingestion."
+                description="Regex matched against span model names."
                 label="Name pattern*"
               />
             )}
@@ -412,7 +411,7 @@ export function ModelForm({
                   onBlur={onBlur}
                   error={error?.message}
                   invalid={invalid}
-                  description="Only models with this provider will be matched by the name pattern."
+                  description="Only match spans from this provider."
                 />
               );
             }}
@@ -444,8 +443,7 @@ export function ModelForm({
                   <FieldError>{error.message}</FieldError>
                 ) : (
                   <Text slot="description">
-                    Optional start date. If provided, traces ingested on or
-                    after this date will have this model&apos;s cost applied.
+                    Optional. Applies to traces ingested from this date.
                   </Text>
                 )}
               </DateField>
@@ -453,7 +451,7 @@ export function ModelForm({
           />
 
           <ModelTokenCostControlTable
-            title="Prompt tokens"
+            title="Input tokens"
             namePrefix="promptCosts"
             fields={promptCostFields}
             control={control}
@@ -466,16 +464,14 @@ export function ModelForm({
           />
           {unusedPromptTokenTypes.length > 0 && (
             <Alert variant="warning">
-              Embedding spans are priced on input tokens only, so the{" "}
-              {unusedPromptTokenTypes.join(", ")}{" "}
-              {unusedPromptTokenTypes.length === 1 ? "price" : "prices"} will
-              not be used.
+              Embedding models use input prices only;{" "}
+              {unusedPromptTokenTypes.join(", ")} will not be used.
             </Alert>
           )}
 
           {selectedModelType !== "EMBEDDING" && (
             <ModelTokenCostControlTable
-              title="Completion tokens"
+              title="Output tokens"
               namePrefix="completionCosts"
               fields={completionCostFields}
               control={control}

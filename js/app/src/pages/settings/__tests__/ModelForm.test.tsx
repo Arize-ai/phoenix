@@ -219,7 +219,7 @@ describe("ModelForm", () => {
   });
 
   it("creates an LLM model with prompt and completion prices by default", async () => {
-    expect(costTableTitles()).toEqual(["Prompt tokens", "Completion tokens"]);
+    expect(costTableTitles()).toEqual(["Input tokens", "Output tokens"]);
     await submit();
 
     const [params] = onSubmit.mock.calls[0];
@@ -232,7 +232,7 @@ describe("ModelForm", () => {
   it("submits an embedding model without completion prices", async () => {
     await selectModelType("LLM", "Embedding");
 
-    expect(costTableTitles()).toEqual(["Prompt tokens"]);
+    expect(costTableTitles()).toEqual(["Input tokens"]);
     await submit();
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
@@ -262,7 +262,7 @@ describe("ModelForm", () => {
     await selectModelType("LLM", "Embedding");
 
     expect(container.textContent).toMatch(unusedHint);
-    expect(container.textContent).toContain("so the cache_read price will");
+    expect(container.textContent).toContain("cache_read will not be used");
     expect(promptRows()).toHaveLength(2);
 
     await selectModelType("Embedding", "LLM");
@@ -302,11 +302,11 @@ describe("ModelForm", () => {
         { kind: "PROMPT", tokenType: "input", costPerMillionTokens: 0.02 },
       ],
     });
-    expect(costTableTitles()).toEqual(["Prompt tokens"]);
+    expect(costTableTitles()).toEqual(["Input tokens"]);
 
     await selectModelType("Embedding", "Decision");
 
-    expect(costTableTitles()).toEqual(["Prompt tokens", "Completion tokens"]);
+    expect(costTableTitles()).toEqual(["Input tokens", "Output tokens"]);
     await submit();
     const [params] = onSubmit.mock.calls[0];
     expect(params.modelType).toBe("DECISION");

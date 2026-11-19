@@ -208,12 +208,12 @@ test.describe("Settings Models", () => {
     await fillModelBasics(dialog, { name });
     await expect(modelTypeSelect(dialog)).toHaveAccessibleName("LLM Type");
     await expect(
-      dialog.getByRole("heading", { name: "Completion tokens" })
+      dialog.getByRole("heading", { name: "Output tokens" })
     ).toBeVisible();
 
     await selectModelType(page, dialog, "Embedding");
     await expect(
-      dialog.getByRole("heading", { name: "Completion tokens" })
+      dialog.getByRole("heading", { name: "Output tokens" })
     ).toHaveCount(0);
     await submitCreate(page);
     await expect(dialog).not.toBeVisible();
