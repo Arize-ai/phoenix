@@ -1,5 +1,11 @@
 # @arizeai/phoenix-evals
 
+## 2.8.1
+
+### Patch Changes
+
+- 02ed180: Remove Slack community links from the package README
+
 ## 2.8.0
 
 ### Minor Changes

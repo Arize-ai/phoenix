@@ -1,5 +1,13 @@
 # @arizeai/phoenix-otel
 
+## 3.1.1
+
+### Patch Changes
+
+- 02ed180: Remove Slack community links from the package README
+- Updated dependencies [02ed180]
+  - @arizeai/phoenix-config@0.5.2
+
 ## 3.1.0
 
 ### Minor Changes
