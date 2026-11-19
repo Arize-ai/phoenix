@@ -24,6 +24,7 @@ import {
   CostOverTimeByEvaluatorTimeSeries,
   EvaluationLagByEvaluatorTimeSeries,
   EvaluationQueueSizeTimeSeries,
+  EvaluationQueueThroughputTimeSeries,
   EvaluationsByEvaluatorTimeSeries,
   FailuresByEvaluatorTimeSeries,
 } from "./EvaluatorActivityCharts";
@@ -84,6 +85,8 @@ type ProjectMetricChartDefinition = Omit<
   "key" | "Panel"
 > & {
   Component: ComponentType<ProjectMetricViewProps>;
+  /** What the chart shows, behind an info icon beside its title. */
+  help?: string;
 };
 
 /**
@@ -192,16 +195,32 @@ const CHART_DEFINITIONS: Record<
     chartType: "line",
     Component: SessionAnnotationScoreTimeSeries,
   },
+  evaluation_queue_throughput: {
+    name: "Added vs completed",
+    description: "Evaluations added to and completed from the queue",
+    chartType: "bar",
+    help: "This project's evaluations queued (above) and finished (below) over time. When the top bar is taller, the queue grew.",
+    Component: EvaluationQueueThroughputTimeSeries,
+  },
+  evaluation_queue_size: {
+    name: "Queue size",
+    description: "Evaluations in queue, and how many were processed",
+    chartType: "line",
+    help: "This project's evaluations in the queue over time.",
+    Component: EvaluationQueueSizeTimeSeries,
+  },
   evaluations_by_evaluator: {
     name: "Evaluations by evaluator",
     description: "Completed evaluations",
     chartType: "bar",
+    help: "Evaluations each evaluator finished over time, not counting failures.",
     Component: EvaluationsByEvaluatorTimeSeries,
   },
   evaluation_lag_by_evaluator: {
     name: "Lag p95 by evaluator",
     description: "Time from added to completed",
     chartType: "line",
+    help: "How long evaluations took from queued to finished, for 95% of each evaluator's evaluations.",
     Component: EvaluationLagByEvaluatorTimeSeries,
   },
   cost_by_evaluator: {
@@ -209,12 +228,14 @@ const CHART_DEFINITIONS: Record<
     description:
       "Estimated cost and share of total; evaluators with tracing off add none",
     chartType: "barHorizontal",
+    help: "Evaluation cost per evaluator. Evaluators with tracing off add no cost.",
     Component: CostByEvaluator,
   },
   failures_by_evaluator: {
     name: "Failures by evaluator",
     description: "Failed evaluations",
     chartType: "line",
+    help: "Evaluations each evaluator gave up on over time.",
     Component: FailuresByEvaluatorTimeSeries,
   },
   cost_over_time_by_evaluator: {
@@ -222,19 +243,15 @@ const CHART_DEFINITIONS: Record<
     description:
       "Estimated cost per interval; evaluators with tracing off add none",
     chartType: "bar",
+    help: "Evaluation cost per evaluator over time. Evaluators with tracing off add no cost.",
     Component: CostOverTimeByEvaluatorTimeSeries,
-  },
-  evaluation_queue_size: {
-    name: "Queue size",
-    description: "Evaluations in queue",
-    chartType: "line",
-    Component: EvaluationQueueSizeTimeSeries,
   },
 };
 
 function createProjectMetricPanel({
   name,
   description,
+  help,
   Component,
 }: ProjectMetricChartDefinition): ComponentType<ProjectMetricPanelProps> {
   return function ProjectMetricPanel({
@@ -247,6 +264,7 @@ function createProjectMetricPanel({
       <ChartPanel
         title={title ?? name}
         subtitle={subtitle ?? description}
+        help={help}
         fillHeight={fillHeight}
       >
         <Component {...props} />

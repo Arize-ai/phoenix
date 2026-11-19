@@ -3,8 +3,8 @@ import { useState } from "react";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 
 /**
- * The refresh key for the project evaluators tab's queue aside. Pass it to
- * the aside so its stats refetch at once rather than on their next poll.
+ * The refresh key for the project evaluators tab's queue strip. Pass it to
+ * the strip so its stats refetch at once rather than on their next poll.
  *
  * `refreshKey` changes when:
  * - `refresh` is called, because something on this page changed the queue,

@@ -22,14 +22,12 @@ import {
   ServerEvaluationChartsPanelGroup,
   ServerEvaluationChartsSelector,
 } from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluationCharts";
-import {
-  ServerEvaluationQueueStrip,
-  ServerEvaluationQueueStripSkeleton,
-} from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluationQueueStrip";
+import { ServerEvaluationQueueStrip } from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluationQueueStrip";
 import { ServerEvaluatorsTimeRangeControls } from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluatorsTimeRangeControls";
 import { useServerEvaluatorsRefreshKey } from "@phoenix/pages/evaluators/project-evaluators/useServerEvaluatorsRefreshKey";
 import { SearchBarSkeleton } from "@phoenix/pages/evaluators/SearchBarSkeleton";
 import { useQueueStatsPoll } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
+import { EvaluationQueueStripSkeleton } from "@phoenix/pages/project/evaluators/EvaluationQueueStrip";
 import { QueueStatsRefreshContext } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueStats";
 
 const pageCSS = css`
@@ -155,7 +153,7 @@ export function ProjectEvaluatorsTabSkeleton() {
         />
       </TopNavActions>
       <div css={pageCSS}>
-        <ServerEvaluationQueueStripSkeleton />
+        <EvaluationQueueStripSkeleton />
         <View
           height={CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS}
           paddingStart="size-200"

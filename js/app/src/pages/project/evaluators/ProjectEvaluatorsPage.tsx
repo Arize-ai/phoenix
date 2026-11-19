@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import { Suspense, useCallback, useState } from "react";
-import { Group, Panel } from "react-resizable-panels";
+import { useRelayEnvironment } from "react-relay";
 import { Outlet, useLoaderData, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -12,10 +12,11 @@ import { ProjectEvaluatorsTableProvider } from "@phoenix/contexts/ProjectEvaluat
 import { useFilterSearchParam, useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { projectEvaluatorsLoaderQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorsLoaderQuery.graphql";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
-import { ClearQueuedEvaluationsButton } from "@phoenix/pages/project/evaluators/ClearQueuedEvaluationsButton";
+import { ClearQueuedEvaluationsMenu } from "@phoenix/pages/project/evaluators/ClearQueuedEvaluationsMenu";
 import { useQueueStatsPoll } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
+import { EvaluationQueueStripSkeleton } from "@phoenix/pages/project/evaluators/EvaluationQueueStrip";
 import {
-  ProjectQueueAside,
+  ProjectEvaluationQueueStrip,
   QueueStatsRefreshContext,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueStats";
 import type { ProjectEvaluatorSelection } from "@phoenix/pages/project/evaluators/projectEvaluatorSelection";
@@ -23,23 +24,9 @@ import type { ProjectEvaluatorsLoaderData } from "@phoenix/pages/project/evaluat
 import { projectEvaluatorsLoaderGQL } from "@phoenix/pages/project/evaluators/projectEvaluatorsLoader";
 import { ProjectEvaluatorsTable } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsTable";
 import { ProjectEvaluatorsToolbar } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsToolbar";
+import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
 import { useQueueStatsRefreshKey } from "@phoenix/pages/project/evaluators/useQueueStatsRefreshKey";
-import {
-  TableAsidePanel,
-  TableAsideToggleButton,
-} from "@phoenix/pages/project/TableAside";
 import { TableMetricsChartsPanelGroup } from "@phoenix/pages/project/TableMetricsCharts";
-
-const QUEUE_ASIDE_DEFAULT_SIZE_PIXELS = 280;
-const QUEUE_ASIDE_MIN_SIZE_PIXELS = 240;
-const QUEUE_ASIDE_MAX_SIZE_PIXELS = 480;
-
-/** Fills the rest of the tab below the toolbar, so the group can size its panels. */
-const tableGroupCSS = css`
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-`;
 
 /** The content scrolls inside its panel rather than growing the panel. */
 const panelContentCSS = css`
@@ -82,9 +69,12 @@ export function ProjectEvaluatorsPage() {
     >
       <Suspense
         fallback={
-          <TableMetricsChartsPanelGroup view="evaluators" isSkeleton>
-            <TableSkeleton hasToolbar isSelectable rowCount="fill" />
-          </TableMetricsChartsPanelGroup>
+          <>
+            <EvaluationQueueStripSkeleton />
+            <TableMetricsChartsPanelGroup view="evaluators" isSkeleton>
+              <TableSkeleton hasToolbar isSelectable rowCount="fill" />
+            </TableMetricsChartsPanelGroup>
+          </>
         }
       >
         <ProjectEvaluatorsTableProvider>
@@ -122,6 +112,7 @@ function ProjectEvaluatorsPageContent({
   onSelectionChange: (selection: ProjectEvaluatorSelection) => void;
 }) {
   const { timeRangeISOStrings } = useTimeRange();
+  const environment = useRelayEnvironment();
   // The route loader preloads the owner query (with the filter and time
   // range resolved from the URL). Subsequent toolbar, live, or user-selected
   // changes refetch the pagination fragment in ProjectEvaluatorsTable without
@@ -140,7 +131,7 @@ function ProjectEvaluatorsPageContent({
     (data.project.evaluatorCount ?? 0) === 0 && filter.trim().length === 0;
   const { refreshKey: queueRefreshKey, refresh: refreshQueueStats } =
     useQueueStatsRefreshKey();
-  // One poll keeps the queue aside and the charts in step.
+  // One poll keeps the queue strip and the charts in step.
   const { fetchKey } = useQueueStatsPoll({ refreshKey: queueRefreshKey });
   const content = (
     <div css={panelContentCSS}>
@@ -162,15 +153,7 @@ function ProjectEvaluatorsPageContent({
               tool calls, then return labels or scores you can filter, chart,
               and alert on.
             </Text>
-            <Flex
-              direction="row"
-              alignItems="center"
-              gap="size-100"
-              flex="none"
-            >
-              <AddProjectEvaluatorMenu size="M" />
-              <TableAsideToggleButton />
-            </Flex>
+            <AddProjectEvaluatorMenu size="M" />
           </Flex>
         </View>
       ) : (
@@ -179,58 +162,51 @@ function ProjectEvaluatorsPageContent({
           onFilterChange={onFilterChange}
         />
       )}
-      {/* The table and its queue aside share the rest of the tab, like the
-          spans, traces and sessions tables and theirs. */}
-      <div css={tableGroupCSS}>
-        <Group orientation="horizontal">
-          <Panel id="evaluators-table" minSize="30%">
-            <div css={panelContentCSS}>
-              <ProjectEvaluatorsTable
-                project={data.project}
-                projectId={projectId}
-                filter={filter}
-                timeRange={timeRangeISOStrings}
-                initialFilter={loaderData.filter}
-                initialTimeRange={initialTimeRange}
-                initialScoreWindow={loaderData.scoreWindow}
-                initialIncludeMeanScore={loaderData.includeMeanScore}
-                initialRequest={initialRequest}
-                selection={selection}
-                onSelectionChange={onSelectionChange}
-              />
-            </div>
-          </Panel>
-          {/* Narrower than the spans and sessions asides: a few counts and a
-              bar, no copyable fields or annotation summaries. */}
-          <TableAsidePanel
-            defaultSize={QUEUE_ASIDE_DEFAULT_SIZE_PIXELS}
-            minSize={QUEUE_ASIDE_MIN_SIZE_PIXELS}
-            maxSize={QUEUE_ASIDE_MAX_SIZE_PIXELS}
-          >
-            <ProjectQueueAside
-              projectId={projectId}
-              fetchKey={fetchKey}
-              action={(clearableCount) => (
-                <ClearQueuedEvaluationsButton
-                  projectId={projectId}
-                  isProjectQueueEmpty={clearableCount === 0}
-                />
-              )}
-            />
-          </TableAsidePanel>
-        </Group>
+      <div css={panelContentCSS}>
+        <ProjectEvaluatorsTable
+          project={data.project}
+          projectId={projectId}
+          filter={filter}
+          timeRange={timeRangeISOStrings}
+          initialFilter={loaderData.filter}
+          initialTimeRange={initialTimeRange}
+          initialScoreWindow={loaderData.scoreWindow}
+          initialIncludeMeanScore={loaderData.includeMeanScore}
+          initialRequest={initialRequest}
+          selection={selection}
+          onSelectionChange={onSelectionChange}
+        />
       </div>
     </div>
   );
   return (
     <QueueStatsRefreshContext.Provider value={refreshQueueStats}>
-      {/* Nothing to chart before the first evaluator. */}
+      {/* No queue to show or chart before the first evaluator. */}
       {isEmptyState ? (
         content
       ) : (
-        <TableMetricsChartsPanelGroup view="evaluators" fetchKey={fetchKey}>
-          {content}
-        </TableMetricsChartsPanelGroup>
+        <>
+          <ProjectEvaluationQueueStrip
+            projectId={projectId}
+            fetchKey={fetchKey}
+            renderActions={(clearableCount) => (
+              <ClearQueuedEvaluationsMenu
+                scope={{ type: "PROJECT", projectId }}
+                isQueueEmpty={clearableCount === 0}
+                onCleared={() => {
+                  void refetchProjectEvaluators({
+                    environment,
+                    projectId,
+                    timeRange: timeRangeISOStrings,
+                  });
+                }}
+              />
+            )}
+          />
+          <TableMetricsChartsPanelGroup view="evaluators" fetchKey={fetchKey}>
+            {content}
+          </TableMetricsChartsPanelGroup>
+        </>
       )}
     </QueueStatsRefreshContext.Provider>
   );
