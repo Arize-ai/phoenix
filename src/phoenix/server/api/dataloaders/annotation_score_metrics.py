@@ -2,13 +2,13 @@
 annotation name, the summary over the window and the binned mean-score series over it,
 from one scan.
 
-The values are those of `AnnotationSummaryDataLoader` and
-`AnnotationMeanScoreTimeSeriesDataLoader`, which read the same rows in two statements:
-the aggregates below are theirs, over the same per-entity rows, in the same order.
+The values are those of `AnnotationSummaryDataLoader` and of the series loader this one
+replaced, which read the same rows in two statements: the aggregates below are theirs,
+over the same per-entity rows, in the same order.
 """
 
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Literal, NamedTuple, Optional, Type, Union
 
 import pandas as pd
@@ -32,13 +32,9 @@ from sqlalchemy import (
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias, assert_never
 
+from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.server.api.dataloaders.annotation_mean_score_time_series import (
-    SeriesBin,
-    SeriesBinsByBucket,
-    _as_datetime,
-)
 from phoenix.server.api.dataloaders.cache import TwoTierCache
 from phoenix.server.api.input_types.TimeBinConfig import TimeBucketSpec
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
@@ -51,6 +47,22 @@ AnnotationName: TypeAlias = str
 
 Segment: TypeAlias = tuple[Kind, ProjectRowId, OpenInterval, TimeBucketSpec]
 Key: TypeAlias = tuple[Kind, ProjectRowId, OpenInterval, TimeBucketSpec, AnnotationName]
+
+
+class SeriesBin(NamedTuple):
+    """One bucket's entity-weighted aggregates, with the weights that let
+    adjacent buckets be merged: the mean score over the `scored_entity_count`
+    entities that carry a score (None when none does), and each label's
+    entity-weighted share of the `result_entity_count` entities that carry
+    any result, in label order."""
+
+    mean_score: Optional[float]
+    scored_entity_count: int
+    result_entity_count: int
+    label_fractions: tuple[tuple[str, float], ...] = ()
+
+
+SeriesBinsByBucket: TypeAlias = dict[datetime, SeriesBin]
 
 
 class AnnotationScoreMetrics(NamedTuple):
@@ -406,3 +418,15 @@ def _assemble(rows: list[Any]) -> dict[AnnotationName, AnnotationScoreMetrics]:
         )
         for name in set(summaries) | set(bins)
     }
+
+
+def _as_datetime(value: Any) -> datetime:
+    # Mirrors the project metrics time series: SQLite returns buckets as naive
+    # ISO strings, which normalize to UTC.
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        normalized = normalize_datetime(datetime.fromisoformat(value), timezone.utc)
+        assert normalized is not None
+        return normalized
+    raise ValueError(f"Cannot convert {value} to datetime")

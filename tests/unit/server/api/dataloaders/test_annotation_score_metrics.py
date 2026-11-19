@@ -4,23 +4,31 @@ from secrets import token_hex
 from typing import Any, Optional
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 
 from phoenix.db import models
-from phoenix.server.api.dataloaders.annotation_mean_score_time_series import (
-    AnnotationMeanScoreTimeSeriesDataLoader,
-    SeriesBin,
-)
+from phoenix.server.api.dataloaders import CacheForDataLoaders, build_data_loaders
 from phoenix.server.api.dataloaders.annotation_score_metrics import (
     AnnotationScoreMetricsCache,
     AnnotationScoreMetricsDataLoader,
     Key,
     Kind,
+    SeriesBin,
 )
 from phoenix.server.api.dataloaders.annotation_summaries import AnnotationSummaryDataLoader
 from phoenix.server.api.input_types.TimeBinConfig import TimeBucketSpec
 from phoenix.server.api.input_types.TimeRange import TimeRange
-from phoenix.server.types import DbSessionFactory
+from phoenix.server.dml_event import (
+    DmlEvent,
+    SpanAnnotationDeleteEvent,
+    SpanAnnotationInsertEvent,
+    SpanDeleteEvent,
+)
+from phoenix.server.dml_event_handler import DmlEventHandler
+from phoenix.server.types import DbSessionFactory, LastUpdatedAt
+
+from ...._helpers import _add_project, _add_span, _add_trace
+from .annotation_mean_score_time_series import AnnotationMeanScoreTimeSeriesDataLoader
 
 _DAY0 = datetime(2026, 3, 1, tzinfo=timezone.utc)
 _NAMES = ("quality", "verdict", "tone")
@@ -316,3 +324,83 @@ def test_cache_sections_match_the_annotation_summary_cache() -> None:
     assert cache.get(other) is not None
     cache.invalidate_project(1)
     assert cache.get(other) is None
+
+
+def _span_annotation(
+    span_rowid: int, label: Optional[str], score: Optional[float]
+) -> models.SpanAnnotation:
+    return models.SpanAnnotation(
+        span_rowid=span_rowid,
+        name="quality",
+        label=label,
+        score=score,
+        explanation=None,
+        metadata_={},
+        annotator_kind="CODE",
+        source="API",
+        identifier=token_hex(4),
+    )
+
+
+async def test_annotation_events_refresh_the_cached_series(db: DbSessionFactory) -> None:
+    """The cache that `build_data_loaders` wires in serves repeat loads, and the DML events
+    for annotation writes, annotation deletes and span deletes clear it."""
+    async with db() as session:
+        project = await _add_project(session)
+        span_rowids = []
+        for hour in (1, 2):
+            trace = await _add_trace(session, project, start_time=_DAY0 + timedelta(hours=hour))
+            span = await _add_span(session, trace, start_time=_DAY0 + timedelta(hours=hour))
+            span_rowids.append(span.id)
+        session.add(_span_annotation(span_rowids[0], None, 1.0))
+        await session.flush()
+    key: Key = ("span", project.id, (_DAY0, None), TimeBucketSpec(unit="day"), "quality")
+    cache = CacheForDataLoaders()
+
+    async def load() -> Any:
+        # A new set of loaders per call, as each request gets, so only the shared
+        # cache can carry a result from one load to the next.
+        return (await build_data_loaders(db, cache).annotation_score_metrics.load(key)).series
+
+    handler = DmlEventHandler(db=db, last_updated_at=LastUpdatedAt(), cache_for_dataloaders=cache)
+
+    async def handle(event: DmlEvent) -> None:
+        # One pass of each handler's daemon loop, run inline
+        handler.put(event)
+        for batched in handler._all_handlers:
+            if not batched._batch.empty:
+                await batched()
+                batched._batch.clear()
+
+    assert await load() == {_DAY0: SeriesBin(1.0, 1, 1)}
+    async with db() as session:
+        written = _span_annotation(span_rowids[1], None, 0.0)
+        session.add(written)
+        await session.flush()
+    # Served from the cache until an event says the annotations changed.
+    assert await load() == {_DAY0: SeriesBin(1.0, 1, 1)}
+
+    await handle(SpanAnnotationInsertEvent((written.id,)))
+    assert await load() == {_DAY0: SeriesBin(0.5, 2, 2)}
+
+    async with db() as session:
+        await session.execute(
+            delete(models.SpanAnnotation).where(models.SpanAnnotation.id == written.id)
+        )
+    # Still the cached series until the delete event arrives
+    assert await load() == {_DAY0: SeriesBin(0.5, 2, 2)}
+    await handle(SpanAnnotationDeleteEvent((written.id,)))
+    assert await load() == {_DAY0: SeriesBin(1.0, 1, 1)}
+
+    # A label write lands in the cached fractions the same way.
+    async with db() as session:
+        labeled = _span_annotation(span_rowids[1], "good", None)
+        session.add(labeled)
+        await session.flush()
+    assert await load() == {_DAY0: SeriesBin(1.0, 1, 1)}
+    await handle(SpanAnnotationInsertEvent((labeled.id,)))
+    assert await load() == {_DAY0: SeriesBin(1.0, 1, 2, (("good", 0.5),))}
+
+    assert cache.annotation_score_metrics.get(key) is not None
+    await handle(SpanDeleteEvent((project.id,)))
+    assert cache.annotation_score_metrics.get(key) is None

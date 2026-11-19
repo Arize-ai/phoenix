@@ -1,23 +1,22 @@
-"""Batched per-name, per-bin mean annotation scores and label fractions for
-sparkline and stacked-column series.
-
-One SQL statement serves every annotation name requested for the same
-(kind, project, window, binning) segment, so a page of evaluator rows loads
-its score series in a single query.
+"""The per-name, per-bin mean annotation scores and label fractions that the evaluators
+table read in its own statement before `AnnotationScoreMetricsDataLoader` read them in one
+scan with the summaries. Kept as the reference that loader's series are compared against.
 """
 
 from collections import defaultdict
-from datetime import datetime, timezone
-from typing import Any, Literal, NamedTuple, Optional, Type, Union
+from datetime import datetime
+from typing import Any, Literal, Optional, Type, Union
 
-from cachetools import LRUCache, TTLCache
 from sqlalchemy import Select, and_, case, func, or_, select
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias, assert_never
 
-from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
-from phoenix.server.api.dataloaders.cache import TwoTierCache
+from phoenix.server.api.dataloaders.annotation_score_metrics import (
+    SeriesBin,
+    SeriesBinsByBucket,
+    _as_datetime,
+)
 from phoenix.server.api.input_types.TimeBinConfig import TimeBucketSpec
 from phoenix.server.types import DbSessionFactory
 
@@ -30,20 +29,6 @@ Segment: TypeAlias = tuple[Kind, ProjectRowId, TimeInterval, TimeBucketSpec]
 Key: TypeAlias = tuple[Kind, ProjectRowId, TimeInterval, TimeBucketSpec, AnnotationName]
 
 
-class SeriesBin(NamedTuple):
-    """One bucket's entity-weighted aggregates, with the weights that let
-    adjacent buckets be merged: the mean score over the `scored_entity_count`
-    entities that carry a score (None when none does), and each label's
-    entity-weighted share of the `result_entity_count` entities that carry
-    any result, in label order."""
-
-    mean_score: Optional[float]
-    scored_entity_count: int
-    result_entity_count: int
-    label_fractions: tuple[tuple[str, float], ...] = ()
-
-
-SeriesBinsByBucket: TypeAlias = dict[datetime, SeriesBin]
 Result: TypeAlias = SeriesBinsByBucket
 ResultPosition: TypeAlias = int
 
@@ -51,45 +36,6 @@ ResultPosition: TypeAlias = int
 def _segment(key: Key) -> tuple[Segment, AnnotationName]:
     kind, project_rowid, interval, time_bins, annotation_name = key
     return (kind, project_rowid, interval, time_bins), annotation_name
-
-
-_Section: TypeAlias = tuple[ProjectRowId, AnnotationName, Kind]
-_SubKey: TypeAlias = tuple[TimeInterval, TimeBucketSpec]
-
-
-class AnnotationMeanScoreTimeSeriesCache(
-    TwoTierCache[Key, Result, _Section, _SubKey],
-):
-    """Sections match AnnotationSummaryCache's `(project, name, kind)`, so the
-    same annotation-write events invalidate both caches. Live windows are sent
-    open-ended with snapped starts (to the hour for day-scale keys, finer for
-    shorter ones), so sub-keys hold still between snap boundaries and
-    day-scale entries stay useful for the whole main-cache TTL.
-    """
-
-    def __init__(self) -> None:
-        super().__init__(
-            # TTL=3600 (1-hour): day-scale window starts snap to the hour, so
-            # an entry older than that no longer matches any live window;
-            # shorter windows snap finer and churn their sub-keys sooner.
-            main_cache=TTLCache(maxsize=64 * 32 * 2, ttl=3600),
-            # LRU, not LFU: a user hops between a handful of windows, and
-            # under LFU a fresh window's key enters at frequency 1 — the
-            # immediate eviction victim while stale high-frequency windows
-            # squat, so new windows never cache. LRU keeps the recently
-            # viewed windows, which is the actual access pattern.
-            # Each viewed window costs one sub-key per bin scale, so eight
-            # entries retain the four most recently viewed windows even when
-            # each was shown at two bin scales.
-            sub_cache_factory=lambda: LRUCache(maxsize=2 * 4),
-        )
-
-    def invalidate_project(self, project_rowid: ProjectRowId) -> None:
-        self.invalidate_matching(lambda section: section[0] == project_rowid)
-
-    def _cache_key(self, key: Key) -> tuple[_Section, _SubKey]:
-        (kind, project_rowid, interval, time_bins), annotation_name = _segment(key)
-        return (project_rowid, annotation_name, kind), (interval, time_bins)
 
 
 class AnnotationMeanScoreTimeSeriesDataLoader(DataLoader[Key, Result]):
@@ -356,15 +302,3 @@ class AnnotationMeanScoreTimeSeriesDataLoader(DataLoader[Key, Result]):
             # the cache key stable while writes invalidate stale entries.
             stmt = stmt.where(bucket_time_column < end_time)
         return stmt
-
-
-def _as_datetime(value: Any) -> datetime:
-    # Mirrors the project metrics time series: SQLite returns buckets as naive
-    # ISO strings, which normalize to UTC.
-    if isinstance(value, datetime):
-        return value
-    if isinstance(value, str):
-        normalized = normalize_datetime(datetime.fromisoformat(value), timezone.utc)
-        assert normalized is not None
-        return normalized
-    raise ValueError(f"Cannot convert {value} to datetime")
