@@ -136,7 +136,43 @@ describe("TimeRangeProvider", () => {
     });
     container.remove();
     window.localStorage.clear();
+    setPageVisibility("visible");
     vi.useRealTimers();
+  });
+
+  function setPageVisibility(visibilityState: DocumentVisibilityState) {
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => visibilityState,
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  }
+
+  it("holds a live range's rollover while the page is hidden and rolls it over once when the page is shown", () => {
+    const renderedStarts: Array<string | undefined> = [];
+    renderTimeRangeProvider({
+      root,
+      onRender: () => {},
+      onRenderISOStrings: (timeRangeISOStrings) => {
+        if (renderedStarts.at(-1) !== timeRangeISOStrings.start) {
+          renderedStarts.push(timeRangeISOStrings.start);
+        }
+      },
+    });
+    act(() => setPageVisibility("hidden"));
+
+    act(() => {
+      vi.advanceTimersByTime(90_000);
+    });
+
+    expect(renderedStarts).toEqual(["2026-06-09T09:45:00.000Z"]);
+
+    act(() => setPageVisibility("visible"));
+
+    expect(renderedStarts).toEqual([
+      "2026-06-09T09:45:00.000Z",
+      "2026-06-09T09:47:00.000Z",
+    ]);
   });
 
   it("keeps last-N ranges open-ended and advances them at refresh boundaries", () => {
