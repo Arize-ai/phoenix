@@ -1,8 +1,4 @@
-import { css } from "@emotion/react";
-import { Button as AriaButton } from "react-aria-components";
-
-import { quietHoverCSS } from "@phoenix/components/core/styles";
-import { truncateSingleCSS } from "@phoenix/components/core/utility/Truncate";
+import { Tag, Tooltip, TooltipTrigger } from "@phoenix/components";
 import { toPythonPrimitiveStr } from "@phoenix/utils/pythonUtils";
 
 /**
@@ -10,25 +6,6 @@ import { toPythonPrimitiveStr } from "@phoenix/utils/pythonUtils";
  */
 export const makeModelNameFilterCondition = (modelName: string) =>
   `llm.model_name == ${toPythonPrimitiveStr(modelName)}`;
-
-/**
- * The model name is a value of the span, so it reads as text; the cell owns
- * the filter, as a quiet press on that text.
- */
-const modelNameButtonCSS = css`
-  ${quietHoverCSS};
-  appearance: none;
-  display: flex;
-  max-width: 100%;
-  border: none;
-  background: none;
-  font: inherit;
-  color: inherit;
-  outline: none;
-  &[data-focus-visible] {
-    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
-  }
-`;
 
 type ModelNameTableCellProps = {
   modelName: string | null | undefined;
@@ -38,6 +15,10 @@ type ModelNameTableCellProps = {
   onFilterConditionPressed: (condition: string) => void;
 };
 
+/**
+ * The model is an object the span calls, so it is a Tag, and its one action
+ * filters the spans to those that call it.
+ */
 export const ModelNameTableCell = ({
   modelName,
   onFilterConditionPressed,
@@ -51,17 +32,17 @@ export const ModelNameTableCell = ({
       style={{ width: "fit-content", maxWidth: "100%" }}
       onClick={(e) => e.stopPropagation()}
     >
-      <AriaButton
-        css={modelNameButtonCSS}
-        aria-label={`Filter spans by model ${modelName}`}
-        onPress={() =>
-          onFilterConditionPressed(makeModelNameFilterCondition(modelName))
-        }
-      >
-        <span css={truncateSingleCSS} title={modelName}>
+      <TooltipTrigger delay={500}>
+        <Tag
+          maxWidth="100%"
+          onPress={() =>
+            onFilterConditionPressed(makeModelNameFilterCondition(modelName))
+          }
+        >
           {modelName}
-        </span>
-      </AriaButton>
+        </Tag>
+        <Tooltip>{`Filter spans by model ${modelName}`}</Tooltip>
+      </TooltipTrigger>
     </div>
   );
 };

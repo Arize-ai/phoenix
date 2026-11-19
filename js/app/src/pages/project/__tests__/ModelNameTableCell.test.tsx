@@ -71,6 +71,8 @@ describe("ModelNameTableCell", () => {
     );
     const button = container.querySelector("button");
     expect(button?.textContent).toContain("gpt-4o");
+    // A model is shown as a Tag, like other objects a row points to
+    expect(button?.classList.contains("tag")).toBe(true);
     act(() => button?.click());
     expect(onFilterConditionPressed).toHaveBeenCalledWith(
       'llm.model_name == "gpt-4o"'
