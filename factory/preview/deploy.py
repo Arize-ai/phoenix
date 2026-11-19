@@ -17,6 +17,7 @@ from typing import Any, Optional
 import seed_log
 from gh import run_gh
 
+DOCKERHUB_API_URL = "https://hub.docker.com/v2"
 RAILWAY_API_URL = "https://backboard.railway.com/graphql/v2"
 PREVIEW_LABEL = "factory-preview"
 PR_SERVICE_PATTERN = re.compile(r"^pr-(\d+)$")
@@ -276,52 +277,55 @@ def delete_service(service_id: str) -> None:
     railway("mutation($id: String!) { serviceDelete(id: $id) }", id=service_id)
 
 
-def ghcr_package(image: str) -> tuple[str, str]:
-    owner, _, package = image.removeprefix("ghcr.io/").partition("/")
-    return owner, package.partition(":")[0]
+def dockerhub_repository(image: str) -> str:
+    return image.removeprefix("docker.io/").partition(":")[0]
 
 
-def packages_api_root(owner: str) -> str:
-    try:
-        owner_type = run_gh("api", f"users/{owner}", "--jq", ".type").strip()
-    except subprocess.CalledProcessError:
-        owner_type = "Organization"
-    return f"{'orgs' if owner_type == 'Organization' else 'users'}/{owner}/packages/container"
-
-
-def list_image_versions(*, image: str) -> dict[str, list[str]]:
-    owner, package = ghcr_package(image)
-    root = packages_api_root(owner)
-    try:
-        lines = run_gh(
-            "api",
-            "--paginate",
-            f"{root}/{package}/versions?per_page=100",
-            "--jq",
-            ".[] | {id: .id, tags: (.metadata.container.tags // [])}",
-        ).splitlines()
-    except subprocess.CalledProcessError as error:
-        print(f"::warning::Could not list image versions: {error.stderr}")
-        return {}
-    versions = (json.loads(line) for line in lines if line.strip())
-    return {str(version["id"]): [str(tag) for tag in version["tags"]] for version in versions}
-
-
-def delete_image_version(*, image: str, version_id: str) -> bool:
-    """GitHub refuses to delete a package's last tagged version."""
-    owner, package = ghcr_package(image)
-    try:
-        run_gh(
-            "api",
-            "--method",
-            "DELETE",
-            f"{packages_api_root(owner)}/{package}/versions/{version_id}",
-            "--silent",
+def list_image_tags(*, image: str) -> list[str]:
+    namespace, _, repository = dockerhub_repository(image).partition("/")
+    tags: list[str] = []
+    page = 1
+    while True:
+        url = (
+            f"{DOCKERHUB_API_URL}/namespaces/{namespace}/repositories/{repository}/tags"
+            f"?page_size=100&name=pr-&page={page}"
         )
-    except subprocess.CalledProcessError as error:
-        print(f"::warning::Could not delete image version {version_id}: {error.stderr}")
-        return False
-    return True
+        with urllib.request.urlopen(url, timeout=60) as response:
+            payload = json.load(response)
+        tags.extend(
+            tag["name"] for tag in payload["results"] if PR_TAG_PATTERN.fullmatch(tag["name"])
+        )
+        if not payload.get("next"):
+            return tags
+        page += 1
+
+
+def delete_image_tag(*, image: str, tag: str, token: str) -> None:
+    if not PR_TAG_PATTERN.fullmatch(tag):
+        raise ValueError(f"Refusing to delete a non-preview tag: {tag}")
+    namespace, _, repository = dockerhub_repository(image).partition("/")
+    request = urllib.request.Request(
+        f"{DOCKERHUB_API_URL}/namespaces/{namespace}/repositories/{repository}/tags/{tag}",
+        method="DELETE",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    with urllib.request.urlopen(request, timeout=60):
+        pass
+
+
+def get_dockerhub_token() -> str:
+    request = urllib.request.Request(
+        f"{DOCKERHUB_API_URL}/auth/token",
+        data=json.dumps(
+            {
+                "identifier": os.environ["DOCKERHUB_USERNAME"],
+                "secret": os.environ["DOCKERHUB_PASSWORD"],
+            }
+        ).encode(),
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(request, timeout=60) as response:
+        return str(json.load(response)["access_token"])
 
 
 def preview_wanted(pr_number: int) -> bool:
@@ -330,15 +334,12 @@ def preview_wanted(pr_number: int) -> bool:
 
 
 def image_visibility(*, image: str) -> str:
-    owner, package = ghcr_package(image)
-    root = packages_api_root(owner)
-    for attempt in range(3):
-        try:
-            return run_gh("api", f"{root}/{package}", "--jq", ".visibility").strip()
-        except subprocess.CalledProcessError as error:
-            print(f"::warning::Reading the package's visibility: {error.stderr}")
-            time.sleep(5 * (attempt + 1))
-    return "unknown"
+    namespace, _, repository = dockerhub_repository(image).partition("/")
+    with urllib.request.urlopen(
+        f"{DOCKERHUB_API_URL}/namespaces/{namespace}/repositories/{repository}", timeout=60
+    ) as response:
+        payload = json.load(response)
+    return "private" if payload["is_private"] else "public"
 
 
 def find_comment(*, pr_number: int) -> Optional[str]:
@@ -456,19 +457,14 @@ def format_deploy_comment(
 def run_deploy(args: argparse.Namespace) -> int:
     visibility = image_visibility(image=args.image)
     if visibility != "public":
-        org, package = ghcr_package(args.image)
-        problem = (
-            f"GitHub would not say whether `{org}/{package}` is public, so the deploy did not"
-            " start. Re-add the label to try again"
-            if visibility == "unknown"
-            else f"its package is {visibility}, so Railway can't pull it. A maintainer needs to"
-            f" make `{org}/{package}` public once (see Bootstrap in factory/README.md), then"
-            " re-add the label"
-        )
         upsert_comment(
-            pr_number=args.pr, body=f"The image for this preview was pushed, but {problem}."
+            pr_number=args.pr,
+            body=(
+                f"The image for this preview was pushed, but `{args.image}` is private on"
+                " Docker Hub, so Railway can't pull it."
+            ),
         )
-        print(f"::error::The preview image's package is {visibility}; see the PR comment.")
+        print("::error::The preview image's Docker Hub repository is private; see the PR comment.")
         return 1
     try:
         project_id, environment_id = read_token_scope()
@@ -538,38 +534,28 @@ def run_deploy(args: argparse.Namespace) -> int:
     return 0 if status == "SUCCESS" and seed_outcome.startswith(seed_log.SUCCESS_LINES) else 1
 
 
-def preview_numbers(*, services: dict[str, str], versions: dict[str, list[str]]) -> set[int]:
-    numbers = {int(m.group(1)) for name in services if (m := PR_SERVICE_PATTERN.match(name))}
-    for tags in versions.values():
-        numbers |= {int(m.group(1)) for tag in tags if (m := PR_TAG_PATTERN.match(tag))}
+def preview_numbers(*, services: dict[str, str], tags: list[str]) -> set[int]:
+    numbers = {
+        int(match.group(1)) for name in services if (match := PR_SERVICE_PATTERN.match(name))
+    }
+    numbers |= {int(match.group(1)) for tag in tags if (match := PR_TAG_PATTERN.fullmatch(tag))}
     return numbers
 
 
-def pr_version_ids(*, versions: dict[str, list[str]], pr_number: int) -> set[str]:
-    return {
-        version_id
-        for version_id, tags in versions.items()
-        if tags
-        and all(
-            (match := PR_TAG_PATTERN.fullmatch(tag)) and int(match.group(1)) == pr_number
-            for tag in tags
-        )
-    }
-
-
 def sweep_preview(
-    *, pr_number: int, image: str, services: dict[str, str], versions: dict[str, list[str]]
+    *, pr_number: int, image: str, services: dict[str, str], tags: list[str], token: str
 ) -> None:
-    """Keep image tags if service deletion fails so the next sweep can retry."""
     if (service_id := services.get(f"pr-{pr_number}")) is not None:
         delete_service(service_id)
         print(f"deleted service pr-{pr_number}")
-    deleted = sum(
-        delete_image_version(image=image, version_id=version_id)
-        for version_id in pr_version_ids(versions=versions, pr_number=pr_number)
-    )
-    print(f"deleted {deleted} image versions of PR #{pr_number}")
-    if service_id is not None or deleted:
+    num_deleted = 0
+    for tag in tags:
+        match = PR_TAG_PATTERN.fullmatch(tag)
+        if match and int(match.group(1)) == pr_number:
+            delete_image_tag(image=image, tag=tag, token=token)
+            num_deleted += 1
+    print(f"deleted {num_deleted} image tags of PR #{pr_number}")
+    if service_id is not None or num_deleted:
         upsert_comment(
             pr_number=pr_number, body="The preview for this PR has been torn down.", create=False
         )
@@ -578,20 +564,24 @@ def sweep_preview(
 def run_sweep(args: argparse.Namespace) -> int:
     project_id, _ = read_token_scope()
     services = list_services(project_id=project_id)
-    versions = list_image_versions(image=args.image)
+    tags = list_image_tags(image=args.image)
+    token = get_dockerhub_token()
     failures = 0
-    for pr_number in sorted(preview_numbers(services=services, versions=versions)):
+    for pr_number in sorted(preview_numbers(services=services, tags=tags)):
         try:
             if preview_wanted(pr_number):
                 continue
             sweep_preview(
-                pr_number=pr_number, image=args.image, services=services, versions=versions
+                pr_number=pr_number, image=args.image, services=services, tags=tags, token=token
             )
         except subprocess.CalledProcessError as error:
             print(f"::warning::PR #{pr_number}: {error.stderr}")
             failures += 1
         except RailwayError as error:
             print(f"::error::PR #{pr_number}: Railway API: {error}", file=sys.stderr)
+            failures += 1
+        except (urllib.error.URLError, TimeoutError) as error:
+            print(f"::error::PR #{pr_number}: Docker Hub request failed: {error}", file=sys.stderr)
             failures += 1
     return 1 if failures else 0
 
@@ -609,13 +599,16 @@ def main() -> int:
     deploy_parser.add_argument("--run-url", required=True)
     deploy_parser.set_defaults(run=run_deploy)
     sweep_parser = subparsers.add_parser("sweep")
-    sweep_parser.add_argument("--image", required=True, help="GHCR image, without a tag")
+    sweep_parser.add_argument("--image", required=True, help="Docker Hub image, without a tag")
     sweep_parser.set_defaults(run=run_sweep)
     args = parser.parse_args()
     try:
         return int(args.run(args))
     except RailwayError as error:
         print(f"::error::Railway API: {error}", file=sys.stderr)
+        return 1
+    except (urllib.error.URLError, TimeoutError) as error:
+        print(f"::error::Docker Hub request failed: {error}", file=sys.stderr)
         return 1
 
 
