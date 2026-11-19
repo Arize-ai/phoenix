@@ -1179,6 +1179,11 @@ type Dataset implements Node {
     """
     sequenceNumbers: [Int!]
     sort: ExperimentSort
+
+    """
+    When provided, return only the experiments that match this filter expression, e.g. `metadata["model"] == "gpt-5" and repetitions > 1`.
+    """
+    experimentFilterCondition: String
   ): ExperimentConnection!
 
   """The experiment tagged as this dataset's baseline, if one is set."""
@@ -1191,6 +1196,9 @@ type Dataset implements Node {
   evaluatorCount: Int!
   datasetEvaluator(datasetEvaluatorId: ID!): DatasetEvaluator!
   datasetEvaluators(first: Int = 50, last: Int, after: String, before: String, sort: DatasetEvaluatorSort, filter: DatasetEvaluatorFilter): DatasetEvaluatorConnection!
+
+  """Validate an experiment filter condition for SQLite and PostgreSQL."""
+  validateExperimentFilterCondition(condition: String!): ValidationResult!
   lastUpdatedAt: DateTime
 }
 
