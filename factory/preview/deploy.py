@@ -549,7 +549,11 @@ def pr_version_ids(*, versions: dict[str, list[str]], pr_number: int) -> set[str
     return {
         version_id
         for version_id, tags in versions.items()
-        if any((m := PR_TAG_PATTERN.match(tag)) and int(m.group(1)) == pr_number for tag in tags)
+        if tags
+        and all(
+            (match := PR_TAG_PATTERN.fullmatch(tag)) and int(match.group(1)) == pr_number
+            for tag in tags
+        )
     }
 
 

@@ -1,7 +1,7 @@
 name: Factory Preview
 
 # This job holds write tokens: PR code must run only inside the Docker build.
-# Keep scripts and the preview Dockerfile on the base branch; do not restore caches.
+# Keep scripts, shared actions and the preview Dockerfile on the base branch.
 on:
   # zizmor: ignore[dangerous-triggers] See above: the PR's checkout is a build context only.
   pull_request_target:
@@ -57,6 +57,7 @@ jobs:
 
   deploy:
     name: Build and deploy
+    cache-mode: write
     needs: authorize
     if: needs.authorize.outputs.allowed == 'true'
     concurrency:
@@ -93,55 +94,38 @@ jobs:
           python-version: "3.12"
           enable-cache: false
 
-      - name: Decide what to build
+      - name: Prepare startup files, sample data, and tags
         id: plan
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          image="ghcr.io/$(echo "$GH_REPO" | tr '[:upper:]' '[:lower:]' | cut -d/ -f1)/phoenix-preview"
+          image="ghcr.io/$(echo "$GH_REPO" | tr '[:upper:]' '[:lower:]' | cut -d/ -f1)/phoenix"
           echo "image=$image" >> "$GITHUB_OUTPUT"
-          uv run --script base/factory/preview/plan.py --pr "$PR_NUMBER" --head-sha "$HEAD_SHA" --seed-dir "$GITHUB_WORKSPACE/seed" > "$RUNNER_TEMP/plan.out"
+          mkdir -p "$RUNNER_TEMP/preview-startup"
+          cp base/factory/preview/{Dockerfile,launch.py,seed_log.py} "$RUNNER_TEMP/preview-startup/"
+          uv run --script base/factory/preview/plan.py --pr "$PR_NUMBER" --head-sha "$HEAD_SHA" --seed-dir "$RUNNER_TEMP/preview-startup" > "$RUNNER_TEMP/plan.out"
           cat "$RUNNER_TEMP/plan.out" >> "$GITHUB_OUTPUT"
-          base_image=$(sed -n 's/^base-image=//p' "$RUNNER_TEMP/plan.out")
-          if [ -n "$base_image" ]; then
-            echo "base-context=docker-image://$base_image" >> "$GITHUB_OUTPUT"
-          else
-            echo "base-context=target:base" >> "$GITHUB_OUTPUT"
-          fi
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
-      - name: Log in to GHCR
-        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+      - name: Build image
+        uses: ./base/.github/actions/docker-build-image
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ github.token }}
-      # Shared runner IPs exhaust Docker Hub's anonymous pull limit.
-      - name: Log in to Docker Hub
-        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          variants: root
+          revision: ${{ github.event.pull_request.head.sha }}
+          platform: linux/amd64
+          source-dir: ${{ github.workspace }}/head
+          startup-and-data-dir: ${{ runner.temp }}/preview-startup
+          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-      - name: Build and push the preview image
-        uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
-        env:
-          HEAD_DIR: ${{ github.workspace }}/head
-          PREVIEW_DIR: ${{ github.workspace }}/base/factory/preview
-          SEED_DIR: ${{ github.workspace }}/seed
-          BASE_CONTEXT: ${{ steps.plan.outputs.base-context }}
-          FRONTEND_CONTEXT: ${{ steps.plan.outputs.frontend == 'true' && 'target:frontend' || steps.plan.outputs.base-context }}
-          STATIC_SOURCE: ${{ steps.plan.outputs.frontend == 'true' && 'frontend' || 'base' }}
-          TAGS: ${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }},${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }}-${{ steps.plan.outputs.short-sha }}
-          SOURCE_URL: ${{ github.server_url }}/${{ github.repository }}
-          REVISION: ${{ github.event.pull_request.head.sha }}
+      - name: Upload image and publish GHCR tags
+        uses: ./base/.github/actions/docker-publish-image
         with:
-          source: .
-          files: base/factory/preview/docker-bake.hcl
-          targets: preview
-          push: true
+          variant: root
+          tags: |
+            ${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }}
+            ${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }}-${{ steps.plan.outputs.short-sha }}
+          expected-digests: 1
 
       - name: Deploy to Railway
         env:
