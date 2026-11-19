@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<68e2169072b52bfbbdd97089a2bc0c57>>
+ * @generated SignedSource<<755cdc4300f09a0673cfe3e223e00381>>
  * @lightSyntaxTransform
  */
 
@@ -11,6 +11,7 @@ import { ReaderInlineDataFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type useSpanAnnotationNames_project$data = {
   readonly spanAnnotationNames: ReadonlyArray<string>;
+  readonly traceAnnotationNames: ReadonlyArray<string>;
   readonly " $fragmentType": "useSpanAnnotationNames_project";
 };
 export type useSpanAnnotationNames_project$key = {
@@ -23,6 +24,6 @@ const node: ReaderInlineDataFragment = {
   "name": "useSpanAnnotationNames_project"
 };
 
-(node as any).hash = "7f6113df9d5244e29fb2f109bc4bff66";
+(node as any).hash = "78b6c1c3363a3ad82ac39d0f2aec775c";
 
 export default node;
