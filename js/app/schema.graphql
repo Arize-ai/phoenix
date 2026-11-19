@@ -5073,6 +5073,16 @@ type ProjectEvaluator implements Node {
   The project holding the traces this evaluator produces when it runs. Each evaluator traces into its own dedicated project, created with the evaluator. Evaluations that run while tracing is off write no trace here.
   """
   traceProject: Project!
+
+  """
+  Model cost of this evaluator's traced evaluations in the time range, read from its trace project. Null when the cost is not measured: the evaluator makes no model calls (code and built-in evaluators), or tracing is off.
+  """
+  costSummary(timeRange: TimeRange): SpanCostSummary
+
+  """
+  Number of this evaluator's evaluations in the time range that wrote a trace, the denominator of its average cost. Null whenever costSummary is null.
+  """
+  tracedEvaluationCount(timeRange: TimeRange): Int
   evaluator: Evaluator!
   name: Identifier!
   filterCondition: String!
