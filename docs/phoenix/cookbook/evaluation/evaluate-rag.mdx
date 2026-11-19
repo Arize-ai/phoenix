@@ -3,13 +3,9 @@ title: "Evaluate RAG"
 description: Building a RAG pipeline and evaluating it with Phoenix Evals.
 ---
 
-<Card title="Google Colab" href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_rag.ipynb" icon="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/gc.ico" horizontal>
-colab.research.google.com
-</Card>
-
 In this tutorial we will look into building a RAG pipeline and evaluating it with Phoenix Evals.
 
-It has the the following sections:
+It has the following sections:
 
 1. Understanding Retrieval Augmented Generation (RAG).
 
@@ -47,7 +43,7 @@ There are five key stages within RAG, which will in turn be a part of any larger
 
 Now that we have understood the stages of RAG, let's build a pipeline. We will use [LlamaIndex](https://www.llamaindex.ai/) for RAG and [Phoenix Evals](/docs/phoenix/evaluation/llm-evals) for evaluation.
 
-```sh
+```python
 !pip install -qq arize-phoenix openinference-instrumentation-llama-index llama-index llama-index-llms-openai scikit-learn
 ```
 
@@ -57,20 +53,20 @@ from getpass import getpass
 
 import pandas as pd
 from phoenix.client import Client
-from llama_index.core import SimpleDirectoryReader, VectorStoreIndex
+from llama_index.core import Settings, SimpleDirectoryReader, VectorStoreIndex
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.llms.openai import OpenAI
 ```
 
 During this tutorial, we will capture all the data we need to evaluate our RAG pipeline using Phoenix Tracing. To enable this, simply start the phoenix application and instrument LlamaIndex.
 
-```py
+```python
 import phoenix as px
 client = Client()
 px.launch_app()
 ```
 
-```py
+```python
 from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.trace import TracerProvider
@@ -93,7 +89,7 @@ os.environ["OPENAI_API_KEY"] = openai_api_key
 
 Let's use an [essay by Paul Graham](https://www.paulgraham.com/worked.html) to build our RAG pipeline.
 
-```bash
+```python
 !mkdir -p 'data/paul_graham/'
 !curl 'https://raw.githubusercontent.com/Arize-ai/phoenix-assets/main/data/paul_graham/paul_graham_essay.txt' -o 'data/paul_graham/paul_graham_essay.txt'
 ```
@@ -103,8 +99,8 @@ Let's use an [essay by Paul Graham](https://www.paulgraham.com/worked.html) to b
 ```python
 documents = SimpleDirectoryReader("./data/paul_graham/").load_data()
 
-# Define an LLM
-llm = OpenAI(model="gpt-4")
+# Define the LLM that the query engine uses to answer
+Settings.llm = OpenAI(model="gpt-5.6-sol")
 
 # Build index with a chunk_size of 512
 node_parser = SentenceSplitter.from_defaults(chunk_size=512)
@@ -114,21 +110,21 @@ vector_index = VectorStoreIndex(nodes)
 
 Build a QueryEngine and start querying.
 
-```py
+```python
 query_engine = vector_index.as_query_engine()
 ```
 
-```py
+```python
 response_vector = query_engine.query("What did the author do growing up?")
 ```
 
 Check the response that you get from the query.
 
-```py
+```python
 response_vector.response
 ```
 
-```py
+```text
 'The author wrote short stories and worked on programming, specifically on an IBM 1401 computer in 9th grade.'
 ```
 
@@ -141,7 +137,7 @@ Let's check the text in each of these retrieved nodes.
 response_vector.source_nodes[0].get_text()
 ```
 
-```bash
+```text expandable
 'What I Worked On\n\nFebruary 2021\n\nBefore college the two main things I worked on, outside of school, were writing and programming. I didn\'t write essays. I wrote what beginning writers were supposed to write then, and probably still are: short stories. My stories were awful. They had hardly any plot, just characters with strong feelings, which I imagined made them deep.\n\nThe first programs I tried writing were on the IBM 1401 that our school district used for what was then called "data processing." This was in 9th grade, so I was 13 or 14. The school district\'s 1401 happened to be in the basement of our junior high school, and my friend Rich Draves and I got permission to use it. It was like a mini Bond villain\'s lair down there, with all these alien-looking machines — CPU, disk drives, printer, card reader — sitting up on a raised floor under bright fluorescent lights.\n\nThe language we used was an early version of Fortran. You had to type programs on punch cards, then stack them in the card reader and press a button to load the program into memory and run it. The result would ordinarily be to print something on the spectacularly loud printer.\n\nI was puzzled by the 1401. I couldn\'t figure out what to do with it. And in retrospect there\'s not much I could have done with it. The only form of input to programs was data stored on punched cards, and I didn\'t have any data stored on punched cards. The only other option was to do things that didn\'t rely on any input, like calculate approximations of pi, but I didn\'t know enough math to do anything interesting of that type. So I\'m not surprised I can\'t remember any programs I wrote, because they can\'t have done much. My clearest memory is of the moment I learned it was possible for programs not to terminate, when one of mine didn\'t. On a machine without time-sharing, this was a social as well as a technical error, as the data center manager\'s expression made clear.\n\nWith microcomputers, everything changed.'
 ```
 
@@ -150,7 +146,7 @@ response_vector.source_nodes[0].get_text()
 response_vector.source_nodes[1].get_text()
 ```
 
-```sh
+```text expandable
 "It felt like I was doing life right. I remember that because I was slightly dismayed at how novel it felt. The good news is that I had more moments like this over the next few years.\n\nIn the summer of 2016 we moved to England. We wanted our kids to see what it was like living in another country, and since I was a British citizen by birth, that seemed the obvious choice. We only meant to stay for a year, but we liked it so much that we still live there. So most of Bel was written in England.\n\nIn the fall of 2019, Bel was finally finished. Like McCarthy's original Lisp, it's a spec rather than an implementation, although like McCarthy's Lisp it's a spec expressed as code.\n\nNow that I could write essays again, I wrote a bunch about topics I'd had stacked up. I kept writing essays through 2020, but I also started to think about other things I could work on. How should I choose what to do? Well, how had I chosen what to work on in the past? I wrote an essay for myself to answer that question, and I was surprised how long and messy the answer turned out to be. If this surprised me, who'd lived it, then I thought perhaps it would be interesting to other people, and encouraging to those with similarly messy lives. So I wrote a more detailed version for others to read, and this is the last sentence of it.\n\n\n\n\n\n\n\n\n\nNotes\n\n[1] My experience skipped a step in the evolution of computers: time-sharing machines with interactive OSes. I went straight from batch processing to microcomputers, which made microcomputers seem all the more exciting.\n\n[2] Italian words for abstract concepts can nearly always be predicted from their English cognates (except for occasional traps like polluzione). It's the everyday words that differ. So if you string together a lot of abstract concepts with a few simple verbs, you can make a little Italian go a long way.\n\n[3] I lived at Piazza San Felice 4, so my walk to the Accademia went straight down the spine of old Florence: past the Pitti, across the bridge, past Orsanmichele, between the Duomo and the Baptistery, and then up Via Ricasoli to Piazza San Marco."
 ```
 
@@ -162,40 +158,38 @@ print("phoenix URL", px.active_session().url)
 
 We can access the traces by directly pulling the spans using the Phoenix client.
 
-```py
+```python
 from phoenix.client import Client
 
 client = Client()
 spans_df = client.spans.get_spans_dataframe()
 ```
 
-```bash
+```python
 spans_df[["name", "span_kind", "attributes.input.value", "attributes.retrieval.documents"]].head()
 ```
 
-| context.span\_id                     | name       | span\_kind | attributes.input.value             | attributes.retrieval.documents                    |
-| :----------------------------------- | :--------- | :--------- | :--------------------------------- | :------------------------------------------------ |
-| 6aba9eee-91c9-4ee2-81e9-1bdae2eb435d | llm        | LLM        | NaN                                | NaN                                               |
-| cc9feb6a-30ba-4f32-af8d-8c62dd1b1b23 | synthesize | CHAIN      | What did the author do growing up? | NaN                                               |
-| 8202dbe5-d17e-4939-abd8-153cad08bdca | embedding  | EMBEDDING  | NaN                                | NaN                                               |
-| aeadad73-485f-400b-bd9d-842abfaa460b | retrieve   | RETRIEVER  | What did the author do growing up? | \[\{'document.content': 'What I Worked OnFebru... |
-| 9e25c528-5e2f-4719-899a-8248bab290ec | query      | CHAIN      | What did the author do growing up? | NaN                                               |
+| context.span\_id  | name                                | span\_kind | attributes.input.value             | attributes.retrieval.documents                    |
+| :---------------- | :---------------------------------- | :--------- | :--------------------------------- | :------------------------------------------------ |
+| 6aba9eee91c94ee2  | OpenAI.chat                         | LLM        | NaN                                | NaN                                               |
+| cc9feb6a30ba4f32  | CompactAndRefine.get_response       | CHAIN      | What did the author do growing up? | NaN                                               |
+| 8202dbe5d17e4939  | OpenAIEmbedding.get_query_embedding | EMBEDDING  | NaN                                | NaN                                               |
+| aeadad73485f400b  | VectorIndexRetriever.retrieve       | RETRIEVER  | What did the author do growing up? | \[\{'document.content': 'What I Worked OnFebru... |
+| 9e25c52830f5419e  | RetrieverQueryEngine.query          | CHAIN      | What did the author do growing up? | NaN                                               |
 
 Note that the traces have captured the documents that were retrieved by the query engine. This is nice because it means we can introspect the documents without having to keep track of them ourselves.
 
-```py
+```python
 spans_with_docs_df = spans_df[spans_df["attributes.retrieval.documents"].notnull()]
 ```
 
-```py
+```python
 spans_with_docs_df[["attributes.input.value", "attributes.retrieval.documents"]].head()
 ```
 
-| context.span\_id                     | attributes.input.value             | attributes.retrieval.documents                    |
-| :----------------------------------- | :--------------------------------- | :------------------------------------------------ |
-| aeadad73-485f-400b-bd9d-842abfaa460b | What did the author do growing up? | \[\{'document.content': 'What I Worked OnFebru... |
-|                                      |                                    |                                                   |
-|                                      |                                    |                                                   |
+| context.span\_id  | attributes.input.value             | attributes.retrieval.documents                    |
+| :---------------- | :--------------------------------- | :------------------------------------------------ |
+| aeadad73485f400b  | What did the author do growing up? | \[\{'document.content': 'What I Worked OnFebru... |
 
 We have built a RAG pipeline and also have instrumented it using Phoenix Tracing. We now need to evaluate it's performance. We can assess our RAG system/query engine using Phoenix's LLM Evals. Let's examine how to leverage these tools to quantify the quality of our retrieval-augmented generation system.
 
@@ -299,7 +293,7 @@ for i, parsed in enumerate(results):
             questions_df.at[i, col] = parsed.get(col)
 ```
 
-```py
+```python
 questions_df.head()
 ```
 
@@ -324,7 +318,7 @@ questions_with_document_chunk_df = questions_with_document_chunk_df[
 
 The LLM has generated three questions per chunk. Let's take a quick look.
 
-```py
+```python
 questions_with_document_chunk_df.head(10)
 ```
 
@@ -361,7 +355,7 @@ for _, row in questions_with_document_chunk_df.iterrows():
 
 Now that we have executed the queries, we can start validating whether or not the RAG system was able to retrieve the correct context. Let's extract all the retrieved documents from the traces logged to phoenix. (For an in-depth explanation of how to export trace data from the phoenix runtime, consult the [docs](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans)).
 
-```py
+```python
 from phoenix.client import Client
 from phoenix.client.types.spans import SpanQuery
 
@@ -376,31 +370,30 @@ retrieved_documents_df = retrieved_documents_df.rename(columns={"input.value": "
 retrieved_documents_df
 ```
 
-|                                      |                                      | context.trace\_id                                 | input                                             | context                                           | document\_score |
-| :----------------------------------- | :----------------------------------- | :------------------------------------------------- | :------------------------------------------------- | :------------------------------------------------ | :-------------- |
-| context.span\_id                     | document\_position                   |                                                   |                                                   |                                                   |                 |
-| b375be95-8e5e-4817-a29f-e18f7aaa3e98 | 0                                    | 20e0f915-e089-4e8e-8314-b68ffdffd7d1              | How does leaving YC affect the author's relati... | On one of them I realized I was ready to hand ... | 0.820411        |
-| 1                                    | 20e0f915-e089-4e8e-8314-b68ffdffd7d1 | How does leaving YC affect the author's relati... | That was what it took for Rtm to offer unsolic... | 0.815969                                          |                 |
-| e4e68b51-dbc9-4154-85a4-5cc69382050d | 0                                    | 4ad14fd2-0950-4b3f-9613-e1be5e51b5a4              | Why did YC become a fund for a couple of years... | For example, one thing Julian had done for us ... | 0.860981        |
-| 1                                    | 4ad14fd2-0950-4b3f-9613-e1be5e51b5a4 | Why did YC become a fund for a couple of years... | They were an impressive group. That first batc... | 0.849695                                          |                 |
-| 27ba6b6f-828b-4732-bfcc-3262775cd71f | 0                                    | d62fb8e8-4247-40ac-8808-818861bfb059              | Why did the author choose the name 'Y Combinat... | Screw the VCs who were taking so long to make ... | 0.868981        |
-| ...                                  | ...                                  | ...                                               | ...                                               | ...                                               | ...             |
-| 353f152c-44ce-4f3e-a323-0caa90f4c078 | 1                                    | 6b7bebf6-bed3-45fd-828a-0730d8f358ba              | What was the author's first experience with co... | What I Worked On\n\nFebruary 2021\n\nBefore co... | 0.877719        |
-| 16de2060-dd9b-4622-92a1-9be080564a40 | 0                                    | 6ce5800d-7186-414e-a1cf-1efb8d39c8d4              | What were the limitations of the 1401 computer... | I was puzzled by the 1401. I couldn't figure o... | 0.847688        |
-| 1                                    | 6ce5800d-7186-414e-a1cf-1efb8d39c8d4 | What were the limitations of the 1401 computer... | I remember vividly how impressed and envious I... | 0.836979                                          |                 |
-| e996c90f-4ea9-4f7c-b145-cf461de7d09b | 0                                    | a328a85a-aadd-44f5-b49a-2748d0bd4d2f              | What were the two main things the author worked... | What I Worked On\n\nFebruary 2021\n\nBefore co... | 0.843280        |
-| 1                                    | a328a85a-aadd-44f5-b49a-2748d0bd4d2f | What were the two main things the author worked... | Then one day in April 1990 a crack appeared in... | 0.822055                                          |                 |
+| context.span\_id  | document\_position | input                                             | context                                           | document\_score |
+| :---------------- | :----------------- | :------------------------------------------------ | :------------------------------------------------ | :-------------- |
+| b375be958e5e4817  | 0                  | How does leaving YC affect the author's relati... | On one of them I realized I was ready to hand ... | 0.820411        |
+| b375be958e5e4817  | 1                  | How does leaving YC affect the author's relati... | That was what it took for Rtm to offer unsolic... | 0.815969        |
+| e4e68b510dbc9415  | 0                  | Why did YC become a fund for a couple of years... | For example, one thing Julian had done for us ... | 0.860981        |
+| e4e68b510dbc9415  | 1                  | Why did YC become a fund for a couple of years... | They were an impressive group. That first batc... | 0.849695        |
+| 27ba6b6f828b4732  | 0                  | Why did the author choose the name 'Y Combinat... | Screw the VCs who were taking so long to make ... | 0.868981        |
+| ...               | ...                | ...                                               | ...                                               | ...             |
+| 353f152c44ce4f3e  | 1                  | What was the author's first experience with co... | What I Worked On\n\nFebruary 2021\n\nBefore co... | 0.877719        |
+| 16de20604dd94ea2  | 0                  | What were the limitations of the 1401 computer... | I was puzzled by the 1401. I couldn't figure o... | 0.847688        |
+| 16de20604dd94ea2  | 1                  | What were the limitations of the 1401 computer... | I remember vividly how impressed and envious I... | 0.836979        |
+| e996c90f4ea94f7c  | 0                  | What were the two main things the author worked... | What I Worked On\n\nFebruary 2021\n\nBefore co... | 0.843280        |
+| e996c90f4ea94f7c  | 1                  | What were the two main things the author worked... | Then one day in April 1990 a crack appeared in... | 0.822055        |
 
-Let's now use Phoenix's LLM Evals to evaluate the relevance of the retrieved documents with regards to the query. Note, we've turned on `explanations` which prompts the LLM to explain it's reasoning. This can be useful for debugging and for figuring out potential corrective actions.
+Let's now use Phoenix's LLM Evals to evaluate the relevance of the retrieved documents with regards to the query. With an LLM judge, the evaluator also returns an explanation of its reasoning for each document. This can be useful for debugging and for figuring out potential corrective actions.
 
 ```python
 from phoenix.evals import LLM, async_evaluate_dataframe
 from phoenix.evals.metrics import RetrievalRelevanceEvaluator
 
-llm = LLM(provider="openai", model="gpt-4-turbo-preview")
+llm = LLM(provider="openai", model="gpt-4o")
 # You can also use a decision model: DecisionModel(provider="openai", model="gpt-6-luna").
 # Note: a decision model returns a label with per-label probabilities but no explanation,
-# so the explanations enabled above would not be available with it.
+# so the explanations described above would not be available with it.
 
 # Each row holds one retrieved document in its `context` column, so each document is scored on its own.
 relevance_evaluator = RetrievalRelevanceEvaluator(llm=llm)
@@ -412,13 +405,13 @@ retrieved_documents_relevance_df = await async_evaluate_dataframe(
 )
 ```
 
-```py
+```python
 retrieved_documents_relevance_df.head()
 ```
 
 `async_evaluate_dataframe` returns the original columns alongside the evaluation results. Each `retrieval_relevance_score` is a dict whose `score` key holds the numeric value, so we copy that value into an `eval_score` column to compute retrieval metrics.
 
-```py
+```python
 documents_with_relevance_df = retrieved_documents_relevance_df.copy()
 documents_with_relevance_df["eval_score"] = documents_with_relevance_df[
     "retrieval_relevance_score"
@@ -451,7 +444,7 @@ ndcg_at_2 = pd.DataFrame(
 )
 ```
 
-```py
+```python
 ndcg_at_2
 ```
 
@@ -467,7 +460,7 @@ precision_at_2 = pd.DataFrame(
 )
 ```
 
-```py
+```python
 precision_at_2
 ```
 
@@ -485,7 +478,7 @@ hit = pd.DataFrame(
 
 Let's now view the results in a combined dataframe.
 
-```py
+```python
 retrievals_df = client.spans.get_spans_dataframe(
     query=SpanQuery().where("span_kind == 'RETRIEVER'").select("input.value")
 )
@@ -523,7 +516,7 @@ As we can see from the above numbers, our RAG system is not perfect, there are t
 
 We have now evaluated our RAG system's retrieval performance. Let's send these evaluations to Phoenix for visualization. By sending the evaluations to Phoenix, you will be able to view the evaluations alongside the traces that were captured earlier.
 
-```py
+```python
 from phoenix.client import Client
 
 px_client = Client()
@@ -548,7 +541,7 @@ px_client.spans.log_document_annotations_dataframe(
 
 The retrieval evaluations demonstrates that our RAG system is not perfect. However, it's possible that the LLM is able to generate the correct response even when the context is incorrect. Let's evaluate the responses generated by the LLM.
 
-```py
+```python
 import pandas as pd
 from phoenix.client import Client
 from phoenix.client.types.spans import SpanQuery
@@ -586,7 +579,7 @@ Now that we have a dataset of the question, context and response (`input`, `cont
 from phoenix.evals import LLM, async_evaluate_dataframe
 from phoenix.evals.metrics import CorrectnessEvaluator, FaithfulnessEvaluator
 
-llm = LLM(provider="openai", model="gpt-4-turbo-preview")
+llm = LLM(provider="openai", model="gpt-4o")
 # These evaluators also accept a decision model: DecisionModel(provider="openai", model="gpt-6-luna").
 # A decision model returns a label with per-label probabilities but no explanation.
 qa_evaluator = CorrectnessEvaluator(llm=llm)
@@ -601,7 +594,7 @@ evals_df = await async_evaluate_dataframe(
 
 `evals_df` contains the `correctness_score` and `faithfulness_score` columns. Each value is a dict whose `score` key holds the numeric score, so let's pull those out. [Faithfulness](/docs/phoenix/evaluation/pre-built-metrics/faithfulness) measures whether the answer is grounded in the retrieved context, so we derive a hallucination score as `1 - faithfulness`.
 
-```py
+```python
 def extract_score(value):
     return value.get("score") if isinstance(value, dict) else value
 
@@ -612,11 +605,11 @@ hallucination_eval_df = pd.DataFrame(
 )
 ```
 
-```py
+```python
 qa_correctness_eval_df.head()
 ```
 
-```py
+```python
 hallucination_eval_df.head()
 ```
 
@@ -628,7 +621,7 @@ Let's now take our results and aggregate them to get a sense of how well the LLM
 qa_correctness_eval_df.mean(numeric_only=True)
 ```
 
-```sh
+```text
 score    0.931034
 dtype: float64
 ```
@@ -637,16 +630,16 @@ dtype: float64
 hallucination_eval_df.mean(numeric_only=True)
 ```
 
-```sh
+```text
 score    0.051724
 dtype: float64
 ```
 
-Our QA Correctness score of `0.91` and a Hallucinations score `0.05` signifies that the generated answers are correct \~91% of the time and that the responses contain hallucinations 5% of the time - there is room for improvement. This could be due to the retrieval strategy or the LLM itself. We will need to investigate further to determine the root cause.
+Our QA Correctness score of `0.93` and a Hallucinations score `0.05` signifies that the generated answers are correct \~93% of the time and that the responses contain hallucinations 5% of the time - there is room for improvement. This could be due to the retrieval strategy or the LLM itself. We will need to investigate further to determine the root cause.
 
 Since we have evaluated our RAG system's QA performance and Hallucinations performance, let's send these evaluations to Phoenix for visualization.
 
-```py
+```python
 client.spans.log_span_annotations_dataframe(
     dataframe=qa_correctness_eval_df,
     annotation_name="Q&A Correctness",
@@ -665,7 +658,7 @@ We now have sent all our evaluations to Phoenix. Let's go to the Phoenix applica
 print("phoenix URL", px.active_session().url)
 ```
 
-```sh
+```text
 phoenix URL http://localhost:6006/
 ```
 
