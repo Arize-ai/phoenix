@@ -70,7 +70,10 @@ Tail sampling lives at the Collector layer, not in the SDK — see [OTel Collect
 
 # Configuring Sampling via Environment Variables
 
-The OTel SDK reads sampler configuration from environment variables — useful for tuning sampling at deploy time without changing code.
+The OTel Python SDK reads sampler configuration from environment variables — useful for tuning sampling at deploy time without changing code.
+
+> [!NOTE]
+> **TypeScript:** `@arizeai/phoenix-otel` 3.x uses OpenTelemetry JS 3, which does not read `OTEL_TRACES_SAMPLER` or `OTEL_TRACES_SAMPLER_ARG`. Pass `sampler` to `register()` instead. If one of these variables is set and `sampler` is not, `register()` logs a warning once.
 
 | Variable | Values |
 | :--- | :--- |
