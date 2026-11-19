@@ -342,9 +342,10 @@ questions_with_document_chunk_df.head(10)
 We are now prepared to perform our retrieval evaluations. We will execute the queries we generated in the previous step and verify whether or not that the correct context is retrieved.
 
 ```python
-# First things first, let's reset Phoenix and delete the traces captured so far
-px.close_app(delete_data=True)
-px.launch_app()
+from datetime import datetime, timezone
+
+# Record when the evaluation queries start, so that the cells below read only their spans
+evaluation_start_time = datetime.now(timezone.utc)
 ```
 
 ```python
@@ -366,7 +367,8 @@ retrieved_documents_df = client.spans.get_spans_dataframe(
     query=SpanQuery()
     .where("span_kind == 'RETRIEVER'")
     .select("input.value")
-    .explode("retrieval.documents", context="document.content", document_score="document.score")
+    .explode("retrieval.documents", context="document.content", document_score="document.score"),
+    start_time=evaluation_start_time,
 )
 retrieved_documents_df = retrieved_documents_df.rename(columns={"input.value": "input"})
 retrieved_documents_df
@@ -482,7 +484,8 @@ Let's now view the results in a combined dataframe.
 
 ```python
 retrievals_df = client.spans.get_spans_dataframe(
-    query=SpanQuery().where("span_kind == 'RETRIEVER'").select("input.value")
+    query=SpanQuery().where("span_kind == 'RETRIEVER'").select("input.value"),
+    start_time=evaluation_start_time,
 )
 retrievals_df = retrievals_df.rename(columns={"input.value": "input"})
 rag_evaluation_dataframe = pd.concat(
@@ -554,7 +557,8 @@ client = Client()
 root_spans_df = client.spans.get_spans_dataframe(
     query=SpanQuery()
     .where("parent_id is None")
-    .select("input.value", "output.value", "trace_id")
+    .select("input.value", "output.value", "trace_id"),
+    start_time=evaluation_start_time,
 ).rename(columns={"input.value": "input", "output.value": "output"})
 
 # The retriever span holds the documents that were used as context. We concatenate them into a
@@ -563,7 +567,8 @@ retriever_df = client.spans.get_spans_dataframe(
     query=SpanQuery()
     .where("span_kind == 'RETRIEVER'")
     .select("trace_id")
-    .concat("retrieval.documents", context="document.content")
+    .concat("retrieval.documents", context="document.content"),
+    start_time=evaluation_start_time,
 )
 
 # Join each answer to the context retrieved in the same trace.
