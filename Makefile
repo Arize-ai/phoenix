@@ -300,6 +300,10 @@ test-python: ## Run Python tests (unit + integration)
 	@echo -e "$(CYAN)Running Python integration tests...$(NC)"
 	@$(UV) run pytest -q tests/integration
 
+.PHONY: test-factory
+test-factory: ## Test Factory session metadata and artifact observation
+	@$(UV) run --no-project --with 'pytest>=8,<10' --with anthropic==1.12.1 --with 'PyJWT[crypto]==2.15.1' python -m pytest -q -o addopts='' -p no:phoenix factory/tests
+
 # Run doctests across all modules under src/ by default; override on the command
 # line, e.g. `make doctest MODULES="src/phoenix/foo.py src/phoenix/bar.py"`.
 DOCTEST_MODULES ?= src/phoenix

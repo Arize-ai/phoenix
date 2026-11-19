@@ -30,6 +30,12 @@ from github_app import GitHubAppToken
 from pr_input import raise_on_checkout_error
 from security_scan import canonical_json
 from security_scan import find_admission_problem as scan_admission
+from session_metadata import (
+    ArtifactKind,
+    SessionArtifactObserver,
+    merge_references,
+    read_linked_issue_numbers,
+)
 
 FACTORY_DIR = Path(__file__).resolve().parent
 LOCK_FILE_PATH = FACTORY_DIR / "claude-lock.json"
@@ -344,7 +350,7 @@ def start_session(
         environment_id=read_lock_id(lock=lock, lock_key=ENVIRONMENT_LOCK_KEY),
         vault_ids=read_vault_ids(lock=lock),
         title=f"{lane}: {repo}#{issue_number}",
-        metadata={"repo": repo, "issue": str(issue_number), "lane": lane},
+        metadata=merge_references(metadata={"repo": repo, "lane": lane}, issues=[issue_number]),
         budget={
             "type": "limit",
             "max_list_cost": {"amount": str(budget_cents), "currency": "USD"},
@@ -391,9 +397,33 @@ def wait_for_session(
     Keeps the session's GitHub token current while it works. Returns the session and its
     latest idle event, or (None, None) at the deadline.
     """
+    observer = SessionArtifactObserver()
+
+    def resolve_artifact(number: int) -> tuple[ArtifactKind, list[int]]:
+        artifact = json.loads(
+            run_gh("api", f"repos/{repo}/issues/{number}", token=app_token.refresh())
+        )
+        if "pull_request" not in artifact:
+            return "issue", []
+        linked = json.loads(
+            run_gh(
+                "pr",
+                "view",
+                str(number),
+                "--repo",
+                repo,
+                "--json",
+                "closingIssuesReferences",
+                token=app_token.refresh(),
+            )
+        )
+        return "pr", read_linked_issue_numbers(pr=linked, repo=repo)
+
     while time.monotonic() < deadline:
         app_token.refresh()
         session = client.beta.sessions.retrieve(session_id)
+        repo = session.metadata.get("repo", "")
+        session = observer.sync(client=client, session=session, resolve_artifact=resolve_artifact)
         if session.metadata.get("sha"):
             raise_on_checkout_error(client=client, session_id=session_id)
         if session.status == "terminated":

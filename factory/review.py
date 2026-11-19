@@ -48,6 +48,7 @@ from github_app import GitHubAppToken
 from pr_input import check_requested_head
 from security_scan import canonical_json
 from security_scan import find_admission_problem as scan_admission
+from session_metadata import merge_references, read_linked_issue_numbers
 
 REVIEW_LABEL = "factory-review"
 REVIEW_AGENT_LOCK_KEY = "./agents/pr-reviewer.md"
@@ -121,7 +122,7 @@ def read_pr(*, pr_number: int) -> dict[str, Any]:
             str(pr_number),
             "--json",
             "number,state,isCrossRepository,baseRefName,baseRefOid,headRefName,headRefOid,"
-            "headRepository,headRepositoryOwner",
+            "headRepository,headRepositoryOwner,closingIssuesReferences",
         )
     )
 
@@ -238,7 +239,11 @@ def start_session(
         environment_id=read_lock_id(lock=lock, lock_key=ENVIRONMENT_LOCK_KEY),
         vault_ids=read_vault_ids(lock=lock),
         title=f"review: {repo}#{pr['number']}",
-        metadata={"repo": repo, "pr": str(pr["number"]), "lane": "review", "sha": head_sha},
+        metadata=merge_references(
+            metadata={"repo": repo, "lane": "review", "sha": head_sha},
+            prs=[pr["number"]],
+            issues=read_linked_issue_numbers(pr=pr, repo=repo),
+        ),
         budget={
             "type": "limit",
             "max_list_cost": {"amount": str(budget_cents), "currency": "USD"},

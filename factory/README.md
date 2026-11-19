@@ -4,6 +4,24 @@ Claude Managed Agents that take a triaged Phoenix issue to a PR that is ready fo
 
 ## Architecture
 
+Session metadata is the authoritative issue/PR association record. `repo` scopes
+the compact JSON arrays in `issues` and `prs` (for example, `"[123,456]"`); `lane`
+and the admitted `sha` retain their existing meanings. Session creation seeds the
+known references. While a Factory watcher runs, it observes successful GitHub MCP
+mutations across the primary and child threads and merges every issue/PR reference,
+including a PR's linked issues. It does not depend on the first open PR lookup or
+triage's label/time-window search. Repeated observations and restarts are idempotent;
+legacy `issue`/`pr` fields are merged before being removed. One watcher owns metadata
+updates for a session; other writers must not race read/merge/write updates.
+
+The watcher fails explicitly if a reference array exceeds Anthropic's 512-character
+value limit or metadata exceeds 16 pairs, retaining the previously stored links.
+Artifact creation and updates must use the configured GitHub MCP tools; arbitrary
+shell or direct HTTP calls are outside this observation contract. Observation ends
+when the watcher exits, including a timeout. Any future follow-up/resumption API
+must restart observation for that session. No historical backfill or database index
+is included. Run `make test-factory` for the metadata and watcher tests.
+
 The factory spans three systems. GitHub holds the work: issues, PRs, CI and the Claude Code Review. GitHub Actions is the control plane: `dispatch.py` admits an issue, starts its session, and follows it until the PR is ready for review. Claude Managed Agents is where the work happens: one session per issue, with a lane coordinator and its subagents sharing a sandbox that mounts the repo.
 
 ```mermaid
