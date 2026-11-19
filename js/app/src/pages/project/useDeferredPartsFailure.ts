@@ -6,7 +6,8 @@ type Request = Observable<GraphQLResponse> | null | undefined;
 type Failure = {
   request: Request;
   hasFailed: boolean;
-  hasRefetchCompleted: boolean;
+  /** A refetch has started, so the owner query's rows are no longer shown. */
+  isSuperseded: boolean;
 };
 
 /**
@@ -14,10 +15,11 @@ type Failure = {
  *
  * Relay does not report a failure that arrives after a response's first part,
  * so the failure is read from the requests themselves: the owner query's,
- * each refetch through `onRefetchComplete`, which replaces what an earlier
- * request delivered, and each next page through `onLoadMoreComplete`, which
- * adds to it. Once a refetch has completed, a late failure of the owner
- * query's request no longer counts. A new owner request starts over.
+ * each refetch, which replaces what an earlier request delivered, and each
+ * next page through `onLoadMoreComplete`, which adds to it. A refetch starts
+ * over when it starts (`onRefetchStart`): the rows it brings have not failed,
+ * and a late failure of the owner query's request no longer counts. A new
+ * owner request starts over.
  *
  * A deferred part reads as undefined while it is pending and after it fails;
  * the part has failed when it is undefined and this returns true.
@@ -34,32 +36,41 @@ export function useDeferredPartsFailure({
   const [failure, setFailure] = useState<Failure>({
     request: initialRequest,
     hasFailed: false,
-    hasRefetchCompleted: false,
+    isSuperseded: false,
   });
   if (failure.request !== initialRequest) {
     setFailure({
       request: initialRequest,
       hasFailed: false,
-      hasRefetchCompleted: false,
+      isSuperseded: false,
     });
   }
   useEffect(() => {
     const subscription = initialRequest?.subscribe({
       error: () =>
         setFailure((current) =>
-          current.request !== initialRequest || current.hasRefetchCompleted
+          current.request !== initialRequest || current.isSuperseded
             ? current
             : { ...current, hasFailed: true }
         ),
     });
     return () => subscription?.unsubscribe();
   }, [initialRequest]);
+  const onRefetchStart = useCallback(
+    () =>
+      setFailure((current) => ({
+        ...current,
+        hasFailed: false,
+        isSuperseded: true,
+      })),
+    []
+  );
   const onRefetchComplete = useCallback(
     (error: Error | null) =>
       setFailure((current) => ({
         ...current,
         hasFailed: error != null,
-        hasRefetchCompleted: true,
+        isSuperseded: true,
       })),
     []
   );
@@ -70,6 +81,7 @@ export function useDeferredPartsFailure({
   }, []);
   return {
     hasRequestFailed: failure.request === initialRequest && failure.hasFailed,
+    onRefetchStart,
     onRefetchComplete,
     onLoadMoreComplete,
   };

@@ -458,8 +458,12 @@ export function SpansTable(props: SpansTableProps) {
       `,
       props.project
     );
-  const { hasRequestFailed, onRefetchComplete, onLoadMoreComplete } =
-    useDeferredPartsFailure({ initialRequest: props.initialRequest });
+  const {
+    hasRequestFailed,
+    onRefetchStart,
+    onRefetchComplete,
+    onLoadMoreComplete,
+  } = useDeferredPartsFailure({ initialRequest: props.initialRequest });
   const loadNextPage = useLoadNextPage({ loadNext, onLoadMoreComplete });
   const annotationConfigsByName = useProjectAnnotationConfigsByName(data);
   const { spanAnnotationNames, traceAnnotationNames, hasAnnotationNamesError } =
@@ -895,6 +899,7 @@ export function SpansTable(props: SpansTableProps) {
     }
     //if the sorting changes, we need to reset the pagination
     startTransition(() => {
+      onRefetchStart();
       const sort = sorting[0];
       refetch(
         {
@@ -917,6 +922,7 @@ export function SpansTable(props: SpansTableProps) {
     rootSpansOnly,
     projectEvaluatorId,
     timeRangeISOStrings,
+    onRefetchStart,
     onRefetchComplete,
   ]);
   const loadMoreSentinelRef = useLoadMoreSentinel<HTMLDivElement>({

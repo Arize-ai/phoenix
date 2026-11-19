@@ -502,8 +502,12 @@ export function TracesTable(props: TracesTableProps) {
       `,
       props.project
     );
-  const { hasRequestFailed, onRefetchComplete, onLoadMoreComplete } =
-    useDeferredPartsFailure({ initialRequest: props.initialRequest });
+  const {
+    hasRequestFailed,
+    onRefetchStart,
+    onRefetchComplete,
+    onLoadMoreComplete,
+  } = useDeferredPartsFailure({ initialRequest: props.initialRequest });
   const loadNextPage = useLoadNextPage({ loadNext, onLoadMoreComplete });
   const annotationConfigsByName = useProjectAnnotationConfigsByName(data);
   const { spanAnnotationNames, traceAnnotationNames, hasAnnotationNamesError } =
@@ -1026,6 +1030,7 @@ export function TracesTable(props: TracesTableProps) {
     //if the sorting changes, we need to reset the pagination
     const sort = sorting[0];
     startTransition(() => {
+      onRefetchStart();
       refetch(
         {
           sort: sort ? getGqlSort(sort) : DEFAULT_SORT,
@@ -1047,6 +1052,7 @@ export function TracesTable(props: TracesTableProps) {
     validTraceFilterCondition,
     fetchKey,
     timeRangeISOStrings,
+    onRefetchStart,
     onRefetchComplete,
   ]);
 
