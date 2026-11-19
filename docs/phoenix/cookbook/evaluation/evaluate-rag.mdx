@@ -13,6 +13,8 @@ It has the following sections:
 
 3. Evaluating RAG with Phoenix Evals.
 
+Run the code in a Jupyter notebook: it uses `!` shell commands and top-level `await`. The outputs shown on this page come from an earlier run, so your answers and scores will differ.
+
 ## Retrieval Augmented Generation (RAG)
 
 LLMs are trained on vast amounts of data, but these will not include your specific data (things like company knowledge bases and documentation). Retrieval-Augmented Generation (RAG) addresses this by dynamically incorporating your data as context during the generation process. This is done not by altering the training data of the LLMs but by allowing the model to access and utilize your data in real-time to provide more tailored and contextually relevant responses.
@@ -58,7 +60,7 @@ from llama_index.core.node_parser import SentenceSplitter
 from llama_index.llms.openai import OpenAI
 ```
 
-During this tutorial, we will capture all the data we need to evaluate our RAG pipeline using Phoenix Tracing. To enable this, simply start the phoenix application and instrument LlamaIndex.
+During this tutorial, we will capture all the data we need to evaluate our RAG pipeline using Phoenix Tracing. To enable this, start the Phoenix application and instrument LlamaIndex.
 
 ```python
 import phoenix as px
@@ -100,7 +102,7 @@ Let's use an [essay by Paul Graham](https://www.paulgraham.com/worked.html) to b
 documents = SimpleDirectoryReader("./data/paul_graham/").load_data()
 
 # Define the LLM that the query engine uses to answer
-Settings.llm = OpenAI(model="gpt-5.6-sol")
+Settings.llm = OpenAI(model="gpt-6-luna")
 
 # Build index with a chunk_size of 512
 node_parser = SentenceSplitter.from_defaults(chunk_size=512)
@@ -258,12 +260,11 @@ from phoenix.evals.executors import AsyncExecutor
 from phoenix.evals.utils import default_tqdm_progress_bar_formatter
 
 
-llm = LLM(provider="openai", model="gpt-4o")
+llm = LLM(provider="openai", model="gpt-6-luna")
 
 
 def output_parser(response: str):
-    # Models often wrap JSON in a Markdown code fence, so strip any backticks and a
-    # leading "json" language tag before parsing.
+    # Strip a Markdown code fence and `json` tag, if present.
     cleaned = response.strip().strip("`").removeprefix("json").strip()
     try:
         return json.loads(cleaned)
@@ -306,7 +307,8 @@ questions_df.head()
 | 4 | What was the author's undergraduate thesis about? | Which three grad schools did the author apply to? | What realization did the author have during th... |
 
 ```python
-# questions_df already holds each document chunk next to its questions, so reshape it to one question per row
+# questions_df already holds each document chunk next to its questions.
+# Reshape it to one question per row.
 questions_with_document_chunk_df = questions_df.melt(
     id_vars=["text"], value_name="question"
 ).drop("variable", axis=1)
@@ -340,8 +342,8 @@ questions_with_document_chunk_df.head(10)
 We are now prepared to perform our retrieval evaluations. We will execute the queries we generated in the previous step and verify whether or not that the correct context is retrieved.
 
 ```python
-# First things first, let's reset phoenix
-px.close_app()
+# First things first, let's reset Phoenix and delete the traces captured so far
+px.close_app(delete_data=True)
 px.launch_app()
 ```
 
@@ -390,7 +392,7 @@ Let's now use Phoenix's LLM Evals to evaluate the relevance of the retrieved doc
 from phoenix.evals import LLM, async_evaluate_dataframe
 from phoenix.evals.metrics import RetrievalRelevanceEvaluator
 
-llm = LLM(provider="openai", model="gpt-4o")
+llm = LLM(provider="openai", model="gpt-6-luna")
 # You can also use a decision model: DecisionModel(provider="openai", model="gpt-6-luna").
 # Note: a decision model returns a label with per-label probabilities but no explanation,
 # so the explanations described above would not be available with it.
@@ -409,7 +411,7 @@ retrieved_documents_relevance_df = await async_evaluate_dataframe(
 retrieved_documents_relevance_df.head()
 ```
 
-`async_evaluate_dataframe` returns the original columns alongside the evaluation results. Each `retrieval_relevance_score` is a dict whose `score` key holds the numeric value, so we copy that value into an `eval_score` column to compute retrieval metrics.
+`async_evaluate_dataframe` returns the original columns and the evaluation results. Each `retrieval_relevance_score` is a dict. To compute retrieval metrics, copy its `score` value into an `eval_score` column.
 
 ```python
 documents_with_relevance_df = retrieved_documents_relevance_df.copy()
@@ -419,7 +421,7 @@ documents_with_relevance_df["eval_score"] = documents_with_relevance_df[
 documents_with_relevance_df
 ```
 
-Let's compute Normalized Discounted Cumulative Gain [NCDG](https://en.wikipedia.org/wiki/Discounted_cumulative_gain) at 2 for all our retrieval steps. In information retrieval, this metric is often used to measure effectiveness of search engine algorithms and related applications.
+Let's compute Normalized Discounted Cumulative Gain [NDCG](https://en.wikipedia.org/wiki/Discounted_cumulative_gain) at 2 for all our retrieval steps. In information retrieval, this metric is often used to measure effectiveness of search engine algorithms and related applications.
 
 ```python
 import numpy as np
@@ -486,7 +488,7 @@ retrievals_df = retrievals_df.rename(columns={"input.value": "input"})
 rag_evaluation_dataframe = pd.concat(
     [
         retrievals_df["input"],
-        ndcg_at_2.add_prefix("ncdg@2_"),
+        ndcg_at_2.add_prefix("ndcg@2_"),
         precision_at_2.add_prefix("precision@2_"),
         hit,
     ],
@@ -506,7 +508,7 @@ results
 ```
 
 ```text
-ncdg@2_score         0.913450
+ndcg@2_score         0.913450
 precision@2_score    0.804598
 hit                  0.936782
 dtype: float64
@@ -579,20 +581,20 @@ Now that we have a dataset of the question, context and response (`input`, `cont
 from phoenix.evals import LLM, async_evaluate_dataframe
 from phoenix.evals.metrics import CorrectnessEvaluator, FaithfulnessEvaluator
 
-llm = LLM(provider="openai", model="gpt-4o")
+llm = LLM(provider="openai", model="gpt-6-luna")
 # These evaluators also accept a decision model: DecisionModel(provider="openai", model="gpt-6-luna").
 # A decision model returns a label with per-label probabilities but no explanation.
-qa_evaluator = CorrectnessEvaluator(llm=llm)
-hallucination_evaluator = FaithfulnessEvaluator(llm=llm)
+correctness_evaluator = CorrectnessEvaluator(llm=llm)
+faithfulness_evaluator = FaithfulnessEvaluator(llm=llm)
 
 evals_df = await async_evaluate_dataframe(
     dataframe=qa_with_context_df,
-    evaluators=[qa_evaluator, hallucination_evaluator],
+    evaluators=[correctness_evaluator, faithfulness_evaluator],
     concurrency=10,
 )
 ```
 
-`evals_df` contains the `correctness_score` and `faithfulness_score` columns. Each value is a dict whose `score` key holds the numeric score, so let's pull those out. [Faithfulness](/docs/phoenix/evaluation/pre-built-metrics/faithfulness) measures whether the answer is grounded in the retrieved context, so we derive a hallucination score as `1 - faithfulness`.
+`evals_df` has the columns `correctness_score` and `faithfulness_score`. Each value is a dict with a `score` key. Extract the scores. [Faithfulness](/docs/phoenix/evaluation/pre-built-metrics/faithfulness) measures whether the answer is grounded in the retrieved context. Compute the hallucination score as `1 - faithfulness`.
 
 ```python
 def extract_score(value):
