@@ -7,7 +7,6 @@ from phoenix.datetime_utils import is_timezone_aware
 from phoenix.db import models
 from phoenix.server.cost_tracking import regex_specificity
 from phoenix.server.cost_tracking.helpers import (
-    PricedModelType,
     get_model_name,
     get_priced_model_type,
     get_provider,
@@ -16,8 +15,6 @@ from phoenix.server.cost_tracking.helpers import (
 _RegexPatternStr: TypeAlias = str
 _RegexSpecificityScore: TypeAlias = int
 _TieBreakerId: TypeAlias = int
-
-_PRICED_MODEL_TYPES: frozenset[PricedModelType] = frozenset(("LLM", "DECISION", "EMBEDDING"))
 
 
 class CostModelLookup:
@@ -35,9 +32,6 @@ class CostModelLookup:
 
     def _add_or_update_model(self, model: models.GenerativeModel) -> None:
         """Add or update a single model in the lookup."""
-        if model.type not in _PRICED_MODEL_TYPES:
-            self._remove_model(model.id)
-            return
         self._models_by_id[model.id] = model
 
         specificity_score = regex_specificity.score(model.name_pattern)
