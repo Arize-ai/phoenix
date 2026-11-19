@@ -24,6 +24,7 @@ from pydantic_ai.messages import (
     BinaryContent,
     CachePoint,
     CapabilityLoadDeltaPart,
+    CapabilityPart,
     CompactionPart,
     DocumentUrl,
     FilePart,
@@ -256,6 +257,7 @@ def _get_single_text_content(parts: Sequence[ModelRequestPart | ModelResponsePar
             ToolAvailabilityDeltaPart,
             InstructionDeltaPart,
             InstructionBaselinePart,
+            CapabilityPart,
         ),
     ):
         return _get_text_content_from_model_request_part(part)
@@ -306,6 +308,7 @@ def _get_text_content_from_model_request_part(part: ModelRequestPart) -> str | N
             CapabilityLoadDeltaPart,
             ModelSettingsDeltaPart,
             CompactionPart,
+            CapabilityPart,
         ),
     ):
         return None
