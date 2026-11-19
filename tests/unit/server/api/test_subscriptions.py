@@ -242,6 +242,7 @@ class TestChatCompletionSubscription:
     ) -> None:
         variables: dict[str, Any] = {
             "input": {
+                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
                 "promptVersion": {
                     "templateFormat": "NONE",
                     "template": {
@@ -393,6 +394,7 @@ class TestChatCompletionSubscription:
     ) -> None:
         variables: dict[str, Any] = {
             "input": {
+                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
                 "promptVersion": {
                     "templateFormat": "NONE",
                     "template": {
@@ -548,6 +550,7 @@ class TestChatCompletionSubscription:
         }
         variables: dict[str, Any] = {
             "input": {
+                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
                 "promptVersion": {
                     "templateFormat": "NONE",
                     "template": {
@@ -718,6 +721,7 @@ class TestChatCompletionSubscription:
         tool_call_id = "call_zz1hkqH3IakqnHfVhrrUemlQ"
         variables: dict[str, Any] = {
             "input": {
+                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
                 "promptVersion": {
                     "templateFormat": "NONE",
                     "template": {
@@ -1189,6 +1193,7 @@ class TestChatCompletionOverDatasetSubscription:
             "input": {
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
+                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
                 "promptVersion": {
                     "templateFormat": "F_STRING",
                     "template": {
@@ -1592,6 +1597,7 @@ class TestChatCompletionOverDatasetSubscription:
             "input": {
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
+                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
                 "promptVersion": {
                     "templateFormat": "F_STRING",
                     "template": {
@@ -1703,6 +1709,7 @@ class TestChatCompletionOverDatasetSubscription:
             "input": {
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
+                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
                 "promptVersion": {
                     "templateFormat": "F_STRING",
                     "template": {
@@ -1795,6 +1802,7 @@ class TestChatCompletionOverDatasetSubscription:
             "input": {
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
+                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
                 "promptVersion": {
                     "templateFormat": "F_STRING",
                     "template": {
@@ -1947,6 +1955,7 @@ class TestChatCompletionOverDatasetSubscription:
             "input": {
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
+                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
                 "promptVersion": {
                     "templateFormat": "F_STRING",
                     "template": {
@@ -2018,6 +2027,7 @@ class TestChatCompletionOverDatasetSubscription:
             "input": {
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
+                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
                 "promptVersion": {
                     "templateFormat": "F_STRING",
                     "template": {
@@ -2119,6 +2129,7 @@ class TestChatCompletionOverDatasetSubscription:
             "input": {
                 "datasetId": dataset_gid,
                 "datasetVersionId": version_gid,
+                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
                 "promptVersion": {
                     "templateFormat": "F_STRING",
                     "template": {
@@ -2383,7 +2394,7 @@ class TestChatCompletionOverDatasetSubscription:
             assert llm_llm_span.cumulative_llm_token_count_completion > 0
             attributes = dict(flatten(llm_llm_span.attributes, recurse_on_sequence=True))
             assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "LLM"
-            assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
+            assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o"
             assert attributes.pop(LLM_PROVIDER) == "openai"
             assert attributes.pop(LLM_SYSTEM) == "openai"
             assert attributes.pop(URL_FULL) == "https://api.openai.com/v1/chat/completions"
@@ -2818,6 +2829,7 @@ class TestChatCompletionOverDatasetSubscription:
             "input": {
                 "datasetId": dataset_gid,
                 "datasetVersionId": version_gid,
+                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
                 "promptVersion": {
                     "templateFormat": "F_STRING",
                     "template": {
