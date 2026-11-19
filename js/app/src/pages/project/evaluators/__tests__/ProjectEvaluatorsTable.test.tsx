@@ -424,11 +424,13 @@ function makeFailedCostPart({ indexes }: { indexes: number[] }) {
 
 function TableOwner({
   queryRef,
+  timeRange,
   initialTimeRange,
   initialScoreWindow,
   onTableCommit,
 }: {
   queryRef: PreloadedQuery<projectEvaluatorsLoaderQuery>;
+  timeRange: typeof TIME_RANGE;
   initialTimeRange: typeof TIME_RANGE;
   initialScoreWindow: EvaluatorScoreWindow;
   onTableCommit: () => void;
@@ -446,7 +448,7 @@ function TableOwner({
         project={data.project}
         projectId={PROJECT_ID}
         filter=""
-        timeRange={TIME_RANGE}
+        timeRange={timeRange}
         initialFilter=""
         initialTimeRange={initialTimeRange}
         initialScoreWindow={initialScoreWindow}
@@ -514,7 +516,10 @@ async function renderTable({
     },
     { fetchPolicy: "store-and-network" }
   );
-  const renderOwner = (ownerScoreWindow: EvaluatorScoreWindow) =>
+  const renderOwner = (
+    ownerScoreWindow: EvaluatorScoreWindow,
+    timeRange: typeof TIME_RANGE = TIME_RANGE
+  ) =>
     root.render(
       <ThemeProvider themeMode="light">
         <PreferencesProvider>
@@ -530,6 +535,7 @@ async function renderTable({
                       <Suspense fallback="loading">
                         <TableOwner
                           queryRef={queryRef}
+                          timeRange={timeRange}
                           initialTimeRange={initialTimeRange}
                           initialScoreWindow={ownerScoreWindow}
                           onTableCommit={onTableCommit}
@@ -546,11 +552,17 @@ async function renderTable({
     );
   await act(async () => renderOwner(initialScoreWindow));
   return {
-    /** Re-renders the owner, as a parent render or a loader revalidation does. */
+    /**
+     * Re-renders the owner, as a parent render or a loader revalidation does,
+     * or with the table's time range changed, as picking another range does.
+     */
     rerender: ({
       initialScoreWindow: ownerScoreWindow = initialScoreWindow,
-    }: { initialScoreWindow?: EvaluatorScoreWindow } = {}) =>
-      act(async () => renderOwner(ownerScoreWindow)),
+      timeRange,
+    }: {
+      initialScoreWindow?: EvaluatorScoreWindow;
+      timeRange?: typeof TIME_RANGE;
+    } = {}) => act(async () => renderOwner(ownerScoreWindow, timeRange)),
   };
 }
 
@@ -985,5 +997,70 @@ describe("ProjectEvaluatorsTable cost columns", () => {
       "evaluator-3": ["tracing off", "tracing off"],
       "evaluator-4": ["error", "error"],
     });
+  });
+
+  /** A range the table has not loaded, as picking another range gives. */
+  const OTHER_TIME_RANGE = {
+    ...TIME_RANGE,
+    start: "2026-06-29T00:00:00.000Z",
+  };
+
+  it("shows a refetch's pending costs as loading, and its scores not as failed, after a failed load", async () => {
+    const load = createStreamingMultipartResponse();
+    const refetch = createStreamingMultipartResponse();
+    authFetchMock
+      .mockResolvedValueOnce(load.response)
+      .mockResolvedValueOnce(refetch.response);
+    const { rerender } = await renderTable();
+    load.sendPart(
+      makeInitialPart({ root: "project", indexes: [1, 4], nodes: COST_ROWS })
+    );
+    load.sendPart(makeFailedCostPart({ indexes: [1, 4] }));
+    load.end();
+    await settle();
+    expect(readCostCells()["evaluator-4"]).toEqual(["error", "error"]);
+    expect(readResultsCells()["evaluator-4"]).toBe("error");
+
+    await rerender({ timeRange: OTHER_TIME_RANGE });
+    refetch.sendPart(
+      makeInitialPart({ root: "node", indexes: [1, 4], nodes: COST_ROWS })
+    );
+    await settle();
+
+    expect(authFetchMock).toHaveBeenCalledTimes(2);
+    expect(readCostCells()["evaluator-4"]).toEqual(["loading", "loading"]);
+    // A refetch's pending scores read as none rather than as a skeleton.
+    expect(readResultsCells()["evaluator-4"]).not.toBe("error");
+  });
+
+  it("ignores a failure of the page's load that arrives after a refetch has started", async () => {
+    const load = createStreamingMultipartResponse();
+    const refetch = createStreamingMultipartResponse();
+    authFetchMock
+      .mockResolvedValueOnce(load.response)
+      .mockResolvedValueOnce(refetch.response);
+    const { rerender } = await renderTable();
+    load.sendPart(
+      makeInitialPart({ root: "project", indexes: [1, 4], nodes: COST_ROWS })
+    );
+    await settle();
+
+    await rerender({ timeRange: OTHER_TIME_RANGE });
+    refetch.sendPart(
+      makeInitialPart({ root: "node", indexes: [1, 4], nodes: COST_ROWS })
+    );
+    refetch.sendPart({
+      ...makeScoresPart({ indexes: [1, 4], meanScore: 0.75 }),
+      // The cost part is still to come.
+      hasNext: true,
+    });
+    await settle();
+    expect(readCostCells()["evaluator-4"]).toEqual(["loading", "loading"]);
+
+    load.sendPart(makeFailedCostPart({ indexes: [1, 4] }));
+    load.end();
+    await settle();
+
+    expect(readCostCells()["evaluator-4"]).toEqual(["loading", "loading"]);
   });
 });

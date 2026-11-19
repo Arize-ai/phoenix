@@ -371,9 +371,17 @@ export function ProjectEvaluatorsTable({
     setIncludeMeanScore(true);
   }
   const [deferredError, setDeferredError] = useState<string | null>(null);
+  // Counts the refetches started, so that the owner request's failure counts
+  // only until a refetch replaces the rows it delivered.
+  const refetchCountRef = useRef(0);
   useEffect(() => {
+    const refetchCount = refetchCountRef.current;
     const subscription = initialRequest?.subscribe({
-      error: (error: Error) => setDeferredError(error.message),
+      error: (error: Error) => {
+        if (refetchCountRef.current === refetchCount) {
+          setDeferredError(error.message);
+        }
+      },
     });
     return () => subscription?.unsubscribe();
   }, [initialRequest]);
@@ -415,6 +423,11 @@ export function ProjectEvaluatorsTable({
         return;
       }
     }
+    // A refetch starts over: the rows on screen are about to be replaced and
+    // the refetch's own are still loading. Cleared outside the transition,
+    // which keeps the current rows on screen until the refetch's can show.
+    refetchCountRef.current += 1;
+    setDeferredError(null);
     startTransition(() => {
       refetch(
         {
