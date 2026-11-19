@@ -50,6 +50,21 @@ describe("useQueueStatsPoll", () => {
     expect(container.textContent).toBe("refresh:1");
   });
 
+  it("does not poll on a page opened hidden until it is shown", () => {
+    setPageVisibility("hidden");
+    act(() => root.render(<QueueStatsFetchKey isPolling />));
+
+    act(() => {
+      vi.advanceTimersByTime(90_000);
+    });
+
+    expect(container.textContent).toBe("refresh:0");
+
+    act(() => setPageVisibility("visible"));
+
+    expect(container.textContent).toBe("refresh:1");
+  });
+
   it("does not poll when the page is shown again while polling is off", () => {
     act(() => root.render(<QueueStatsFetchKey isPolling={false} />));
     act(() => setPageVisibility("hidden"));
