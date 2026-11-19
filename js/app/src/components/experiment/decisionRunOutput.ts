@@ -7,7 +7,7 @@ import {
 import {
   toDraftQuestion,
   toSavedDecisionQuestions,
-} from "@phoenix/pages/playground/savedDecisionUtils";
+} from "@phoenix/components/playground/savedDecisionUtils";
 import type { DecisionQuestionDraft } from "@phoenix/store/playground";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 

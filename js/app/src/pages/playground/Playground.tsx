@@ -102,6 +102,8 @@ import { selectTaskOperation } from "@phoenix/agent/uiOperations/operations/play
 import { Flex, PageHeader, View } from "@phoenix/components";
 import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
 import { useModelMenuData } from "@phoenix/components/generative";
+import { NoInstalledProvider } from "@phoenix/components/playground/NoInstalledProvider";
+import { TemplateFormatRadioGroup } from "@phoenix/components/playground/TemplateFormatRadioGroup";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
 import { TableSkeleton } from "@phoenix/components/table";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
@@ -146,7 +148,6 @@ import {
   EvaluatorPlaygroundEmptySource,
   EvaluatorTaskAgentProvider,
 } from "./evaluators";
-import { NoInstalledProvider } from "./NoInstalledProvider";
 import {
   areExperimentScaffoldsForAgentEqual,
   arePlaygroundInstancesForAgentEqual,
@@ -171,7 +172,6 @@ import {
 import { PlaygroundRunButton } from "./PlaygroundRunButton";
 import { PlaygroundTaskInstance } from "./PlaygroundTaskInstance";
 import { PlaygroundCompareMenu } from "./TaskMenu";
-import { TemplateFormatRadioGroup } from "./TemplateFormatRadioGroup";
 import { useCancelPlaygroundRun } from "./useCancelPlaygroundRun";
 
 const playgroundWrapCSS = css`
@@ -896,7 +896,6 @@ function PlaygroundContent() {
                     splitIds={splitIds}
                     appendedMessagesPath={appendedMessagesPath}
                     availablePaths={availablePaths}
-                    supportsDecisionModels
                   />
                 </View>
               ))}

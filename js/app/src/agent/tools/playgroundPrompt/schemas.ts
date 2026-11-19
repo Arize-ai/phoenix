@@ -3,7 +3,7 @@ import { z } from "zod";
 import {
   chatMessageRolesSchema,
   chatMessageSchema,
-} from "@phoenix/pages/playground/schemas";
+} from "@phoenix/components/playground/schemas";
 
 import { taskSourceSchema } from "../playgroundTask/schemas";
 

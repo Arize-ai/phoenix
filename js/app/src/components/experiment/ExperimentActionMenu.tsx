@@ -37,10 +37,10 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 import { useSetExperimentBaseline } from "@phoenix/components/experiment/useSetExperimentBaseline";
+import { toGqlCredentials } from "@phoenix/components/playground/playgroundInstanceUtils";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { useNotify, useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
-import { toGqlCredentials } from "@phoenix/pages/playground/playgroundUtils";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 

@@ -1,8 +1,8 @@
 import type { JSONSchema7 } from "json-schema";
 import { useCallback } from "react";
 
+import { readInvocationConfigField } from "@phoenix/components/playground/providerAdapters";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { readInvocationConfigField } from "@phoenix/pages/playground/providerAdapters";
 import type { PlaygroundNormalizedInstance } from "@phoenix/store";
 import { isObject } from "@phoenix/typeUtils";
 

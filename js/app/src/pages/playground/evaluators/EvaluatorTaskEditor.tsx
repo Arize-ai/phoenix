@@ -37,6 +37,12 @@ import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorI
 import { CodeEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/CodeEvaluatorInputVariablesProvider";
 import { LLMEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/LLMEvaluatorInputVariablesProvider";
 import { EvaluatorNameInput } from "@phoenix/components/evaluators/EvaluatorNameInput";
+import { PlaygroundInstanceModelControls } from "@phoenix/components/playground/model/PlaygroundInstanceModelControls";
+import {
+  AddMessageButton,
+  ChatTemplateFooter,
+  ChatTemplateMessages,
+} from "@phoenix/components/playground/template";
 import { TemplateEvaluatorContextProvider } from "@phoenix/components/templateEditor/TemplateEvaluatorContext";
 import {
   useEvaluatorStore,
@@ -47,11 +53,7 @@ import {
   usePlaygroundContext,
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
-import { PlaygroundChatTemplate } from "@phoenix/pages/playground/PlaygroundChatTemplate";
-import {
-  PlaygroundInstanceDeleteButton,
-  PlaygroundInstanceModelControls,
-} from "@phoenix/pages/playground/PlaygroundInstanceControls";
+import { PlaygroundInstanceDeleteButton } from "@phoenix/pages/playground/PlaygroundInstanceDeleteButton";
 import { TaskMenu } from "@phoenix/pages/playground/TaskMenu";
 import type {
   PlaygroundEvaluatorTask,
@@ -503,7 +505,7 @@ function EvaluatorTaskEditorContent({
           {kind === "LLM" ? (
             <PlaygroundInstanceModelControls
               instanceId={instanceId}
-              disableEphemeralRouting
+              routing="configured"
             />
           ) : null}
           {hasSiblings ? (
@@ -628,13 +630,13 @@ function JudgePromptEditor({ instanceId }: { instanceId: number }) {
   return (
     <TemplateEvaluatorContextProvider value={null}>
       <Suspense fallback={<Loading size="S" />}>
-        <PlaygroundChatTemplate
+        <ChatTemplateMessages
           playgroundInstanceId={instanceId}
           availablePaths={availablePaths}
-          disableTools
-          disableNewTool
-          disableResponseFormat
         />
+        <ChatTemplateFooter>
+          <AddMessageButton instanceId={instanceId} />
+        </ChatTemplateFooter>
       </Suspense>
     </TemplateEvaluatorContextProvider>
   );
