@@ -1,12 +1,5 @@
 import { css } from "@emotion/react";
-import {
-  Fragment,
-  Suspense,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { Fragment, Suspense, useEffect, useRef, useState } from "react";
 import { Header, ListBoxSection } from "react-aria-components";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useNavigate, useParams } from "react-router";
@@ -308,6 +301,87 @@ export function ProjectEvaluatorGalleryModal({
   );
 }
 
+/**
+ * Narrows the gallery to evaluators and templates whose names match the query
+ * and groups them into sections.
+ */
+function useEvaluatorGalleryContents({
+  data,
+  nameQuery,
+}: {
+  data: ProjectEvaluatorGalleryModalQueryType["response"];
+  nameQuery: string;
+}) {
+  const { contains } = useFilter({ sensitivity: "base" });
+  const trimmedNameQuery = nameQuery.trim();
+  const isFilteredByName = trimmedNameQuery !== "";
+  const allCustomEvaluators = data.evaluators.edges
+    .map(({ evaluator }) => evaluator)
+    .filter((evaluator): evaluator is CustomEvaluator =>
+      Object.hasOwn(CUSTOM_EVALUATOR_KINDS, evaluator.__typename)
+    );
+  const hasGalleryItems =
+    allCustomEvaluators.length > 0 || data.evaluatorGalleryConfigs.length > 0;
+  const templates = data.evaluatorGalleryConfigs.filter((template) =>
+    contains(template.name, trimmedNameQuery)
+  );
+  const customEvaluators = allCustomEvaluators.filter((evaluator) =>
+    contains(evaluator.name, trimmedNameQuery)
+  );
+  const hasCustomEvaluators = customEvaluators.length > 0;
+  const orderedCategories: TemplateCategory[] = [
+    ...PROJECT_EVALUATOR_CATEGORIES.map(({ value }) => value),
+    OTHER_CATEGORY,
+  ];
+  const categories = orderedCategories.filter((category) =>
+    templates.some(
+      (template) => getGalleryCategory(template.category) === category
+    )
+  );
+  const templatesByCategory = new Map(
+    categories.map((category) => [
+      category,
+      templates.filter(
+        (template) => getGalleryCategory(template.category) === category
+      ),
+    ])
+  );
+  const galleryItems: GalleryItem[] = [
+    ...customEvaluators.map((evaluator) => ({
+      kind: "custom" as const,
+      evaluator,
+    })),
+    ...templates.map((template) => ({
+      kind: "template" as const,
+      template,
+    })),
+  ];
+  const galleryItemsByKey = new Map(
+    galleryItems.map((item) => [getGalleryItemKey(item), item])
+  );
+  const sections: GallerySection[] = hasCustomEvaluators
+    ? [CUSTOM_EVALUATORS_SECTION, ...categories]
+    : categories;
+  const categoryItems = categories.map((category) => ({
+    id: category,
+    name: getProjectEvaluatorTemplateCategoryLabel(
+      category === OTHER_CATEGORY ? null : category
+    ),
+    count: templatesByCategory.get(category)?.length ?? 0,
+  }));
+  return {
+    isFilteredByName,
+    hasGalleryItems,
+    customEvaluators,
+    hasCustomEvaluators,
+    categories,
+    templatesByCategory,
+    galleryItemsByKey,
+    sections,
+    categoryItems,
+  };
+}
+
 // oxlint-disable-next-line complexity
 function EvaluatorGallery({
   initialCategory,
@@ -325,86 +399,18 @@ function EvaluatorGallery({
     { projectId },
     { fetchPolicy: "store-and-network" }
   );
-  const { contains } = useFilter({ sensitivity: "base" });
   const [nameQuery, setNameQuery] = useState("");
-  const trimmedNameQuery = nameQuery.trim();
-  const isFilteredByName = trimmedNameQuery !== "";
-  const allCustomEvaluators = useMemo(
-    () =>
-      data.evaluators.edges
-        .map(({ evaluator }) => evaluator)
-        .filter((evaluator): evaluator is CustomEvaluator =>
-          Object.hasOwn(CUSTOM_EVALUATOR_KINDS, evaluator.__typename)
-        ),
-    [data.evaluators.edges]
-  );
-  const hasGalleryItems =
-    allCustomEvaluators.length > 0 || data.evaluatorGalleryConfigs.length > 0;
-  const templates = useMemo(
-    () =>
-      data.evaluatorGalleryConfigs.filter((template) =>
-        contains(template.name, trimmedNameQuery)
-      ),
-    [contains, data.evaluatorGalleryConfigs, trimmedNameQuery]
-  );
-  const customEvaluators = useMemo(
-    () =>
-      allCustomEvaluators.filter((evaluator) =>
-        contains(evaluator.name, trimmedNameQuery)
-      ),
-    [allCustomEvaluators, contains, trimmedNameQuery]
-  );
-  const hasCustomEvaluators = customEvaluators.length > 0;
-  const categories = useMemo(() => {
-    const orderedCategories: TemplateCategory[] = [
-      ...PROJECT_EVALUATOR_CATEGORIES.map(({ value }) => value),
-      OTHER_CATEGORY,
-    ];
-    return orderedCategories.filter((category) =>
-      templates.some(
-        (template) => getGalleryCategory(template.category) === category
-      )
-    );
-  }, [templates]);
-  const templatesByCategory = useMemo(
-    () =>
-      new Map(
-        categories.map((category) => [
-          category,
-          templates.filter(
-            (template) => getGalleryCategory(template.category) === category
-          ),
-        ])
-      ),
-    [categories, templates]
-  );
-  const galleryItems: GalleryItem[] = [
-    ...customEvaluators.map((evaluator) => ({
-      kind: "custom" as const,
-      evaluator,
-    })),
-    ...templates.map((template) => ({
-      kind: "template" as const,
-      template,
-    })),
-  ];
-  const galleryItemsByKey = new Map(
-    galleryItems.map((item) => [getGalleryItemKey(item), item])
-  );
-  const sections = useMemo<GallerySection[]>(
-    () =>
-      hasCustomEvaluators
-        ? [CUSTOM_EVALUATORS_SECTION, ...categories]
-        : categories,
-    [categories, hasCustomEvaluators]
-  );
-  const categoryItems = categories.map((category) => ({
-    id: category,
-    name: getProjectEvaluatorTemplateCategoryLabel(
-      category === OTHER_CATEGORY ? null : category
-    ),
-    count: templatesByCategory.get(category)?.length ?? 0,
-  }));
+  const {
+    isFilteredByName,
+    hasGalleryItems,
+    customEvaluators,
+    hasCustomEvaluators,
+    categories,
+    templatesByCategory,
+    galleryItemsByKey,
+    sections,
+    categoryItems,
+  } = useEvaluatorGalleryContents({ data, nameQuery });
   const initialSection =
     initialCategory &&
     data.evaluatorGalleryConfigs.some(
