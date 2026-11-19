@@ -7,6 +7,9 @@
 
 import { fetchQuery, graphql } from "relay-runtime";
 
+import { toSavedDecisionVersion } from "@phoenix/components/playground/fetchPlaygroundDecision";
+import { buildPlaygroundInstanceFieldsFromPromptConfig } from "@phoenix/components/playground/promptConfigToPlaygroundInstance";
+import { savedDecisionVersionToDraft } from "@phoenix/components/playground/savedDecisionUtils";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import {
   createDecisionTaskInstance,
@@ -27,11 +30,8 @@ import type {
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 import type { experimentRehydrationQuery } from "./__generated__/experimentRehydrationQuery.graphql";
-import { toSavedDecisionVersion } from "./fetchPlaygroundDecision";
-import { buildPlaygroundInstanceFieldsFromPromptConfig } from "./promptConfigToPlaygroundInstance";
-import { savedDecisionVersionToDraft } from "./savedDecisionUtils";
 
-import "@phoenix/pages/playground/PromptInvocationParametersReadableFragment";
+import "@phoenix/components/playground/PromptInvocationParametersReadableFragment";
 
 const EXPERIMENT_REHYDRATION_QUERY = graphql`
   query experimentRehydrationQuery($experimentId: ID!) {

@@ -2,7 +2,7 @@ import { graphql, useFragment } from "react-relay";
 
 import { Flex, Text } from "@phoenix/components";
 import { Link } from "@phoenix/components/core/Link";
-import { IdTruncate } from "@phoenix/pages/playground/PromptMenu";
+import { IdTruncate } from "@phoenix/components/IdTruncate";
 
 import type { DecisionEvaluatorSummary_evaluator$key } from "./__generated__/DecisionEvaluatorSummary_evaluator.graphql";
 import type { DecisionQuestionScoringValue } from "./decisionPolicyUtils";

@@ -2,7 +2,7 @@ import { getInstanceLabel } from "@phoenix/agent/tools/playgroundPrompt";
 import {
   getToolDefinitionDisplay,
   getToolName,
-} from "@phoenix/pages/playground/playgroundUtils";
+} from "@phoenix/components/playground/playgroundInstanceUtils";
 import type { Tool } from "@phoenix/store/playground";
 
 import type {

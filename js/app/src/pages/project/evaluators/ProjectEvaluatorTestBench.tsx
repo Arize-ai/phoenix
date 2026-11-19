@@ -52,6 +52,7 @@ import {
   createLLMEvaluatorPayload,
   getOutputConfigValidationErrors,
 } from "@phoenix/components/evaluators/utils";
+import { toGqlCredentials } from "@phoenix/components/playground/playgroundInstanceUtils";
 import {
   GRIP_RESIZE_TARGET_MINIMUM_SIZE,
   GripResizeHandle,
@@ -63,7 +64,6 @@ import {
   useEvaluatorStoreInstance,
 } from "@phoenix/contexts/EvaluatorContext";
 import type { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
-import { toGqlCredentials } from "@phoenix/pages/playground/playgroundUtils";
 import {
   getRecordMappingDiagnostics,
   useEvaluatorMappingSourceBoundToRow,

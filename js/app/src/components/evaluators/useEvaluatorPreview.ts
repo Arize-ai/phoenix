@@ -10,9 +10,9 @@ import type {
   EvaluatorPreviewInput,
   useEvaluatorPreviewSubscription,
 } from "@phoenix/components/evaluators/__generated__/useEvaluatorPreviewSubscription.graphql";
+import { toGqlCredentials } from "@phoenix/components/playground/playgroundInstanceUtils";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
-import { toGqlCredentials } from "@phoenix/pages/playground/playgroundUtils";
 import {
   getErrorMessagesFromRelaySubscriptionError,
   getMutationErrorMessage,

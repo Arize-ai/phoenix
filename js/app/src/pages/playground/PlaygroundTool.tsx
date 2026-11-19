@@ -10,18 +10,18 @@ import {
   Icons,
   Text,
 } from "@phoenix/components";
+import {
+  getToolDefinitionDisplay,
+  getToolName,
+  isFunctionTool,
+} from "@phoenix/components/playground/playgroundInstanceUtils";
+import type { PlaygroundInstanceProps } from "@phoenix/components/playground/types";
 import { SpanKindIcon } from "@phoenix/components/trace";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { JSONToolEditor } from "@phoenix/pages/playground/PlaygroundToolType/JSONToolEditor";
 import type { Tool } from "@phoenix/store";
 
-import {
-  getToolDefinitionDisplay,
-  getToolName,
-  isFunctionTool,
-  toolFromEditorJSON,
-} from "./playgroundUtils";
-import type { PlaygroundInstanceProps } from "./types";
+import { toolFromEditorJSON } from "./playgroundUtils";
 
 export type UpdateToolFn = (definition: unknown) => void;
 

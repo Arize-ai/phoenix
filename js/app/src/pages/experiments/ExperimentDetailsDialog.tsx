@@ -35,13 +35,13 @@ import {
   ExperimentStatus,
   SequenceNumberToken,
 } from "@phoenix/components/experiment";
+import { toSavedDecisionVersion } from "@phoenix/components/playground/fetchPlaygroundDecision";
+import { readPromptInvocationParameters } from "@phoenix/components/playground/PromptInvocationParametersReadableFragment";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { useViewer } from "@phoenix/contexts";
 import { useTimeFormatters } from "@phoenix/hooks";
-import { toSavedDecisionVersion } from "@phoenix/pages/playground/fetchPlaygroundDecision";
-import { readPromptInvocationParameters } from "@phoenix/pages/playground/PromptInvocationParametersReadableFragment";
 import {
   errorRateFormatter,
   formatCost,

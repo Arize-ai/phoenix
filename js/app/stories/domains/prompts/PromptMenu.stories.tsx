@@ -7,11 +7,11 @@ import { CompositeField, Flex, Text } from "@phoenix/components";
 import type {
   PromptData,
   PromptVersion,
-} from "@phoenix/pages/playground/PromptMenu";
+} from "@phoenix/components/playground/PromptMenu";
 import {
   PromptSelector,
   PromptVersionSelector,
-} from "@phoenix/pages/playground/PromptMenu";
+} from "@phoenix/components/playground/PromptMenu";
 
 /**
  * Container CSS that matches the PromptMenu component's wrapper.

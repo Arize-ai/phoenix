@@ -6,13 +6,12 @@ import {
   useState,
 } from "react";
 
-import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { arePlaygroundInstancesEqualExceptProgress } from "@phoenix/store/playground/selectors";
-
 import {
   denormalizePlaygroundInstance,
   extractVariablesFromInstance,
-} from "./playgroundUtils";
+} from "@phoenix/components/playground/playgroundInstanceUtils";
+import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { arePlaygroundInstancesEqualExceptProgress } from "@phoenix/store/playground/selectors";
 
 /**
  * A map of instance ID to its extracted template variables.

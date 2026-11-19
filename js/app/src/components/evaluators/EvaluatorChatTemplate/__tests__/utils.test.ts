@@ -1,11 +1,11 @@
 import {
+  getDefaultInvocationConfig,
+  parseInvocationConfig,
+} from "@phoenix/components/playground/providerAdapters";
+import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
-import {
-  getDefaultInvocationConfig,
-  parseInvocationConfig,
-} from "@phoenix/pages/playground/providerAdapters";
 import type { ModelConfigByProvider } from "@phoenix/store/preferencesStore";
 
 import { makeLLMEvaluatorInstance } from "../utils";

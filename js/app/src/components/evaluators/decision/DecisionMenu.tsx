@@ -1,7 +1,7 @@
 import {
   PromptOrDecisionMenu,
   type PromptOrDecisionMenuItem,
-} from "@phoenix/pages/playground/PromptOrDecisionMenu";
+} from "@phoenix/components/playground/PromptOrDecisionMenu";
 
 export type DecisionMenuItem = PromptOrDecisionMenuItem;
 

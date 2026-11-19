@@ -12,9 +12,9 @@ import {
 } from "@phoenix/components";
 import { EvaluatorInputMappingDetails } from "@phoenix/components/evaluators/EvaluatorDetailsSection";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
+import { readPromptInvocationParameters } from "@phoenix/components/playground/PromptInvocationParametersReadableFragment";
 import { PromptChatMessages } from "@phoenix/components/prompt/PromptChatMessagesCard";
 import { PromptLink } from "@phoenix/pages/evaluators/PromptCell";
-import { readPromptInvocationParameters } from "@phoenix/pages/playground/PromptInvocationParametersReadableFragment";
 import type { LLMProjectEvaluatorDetails_projectEvaluator$key } from "@phoenix/pages/project/evaluators/__generated__/LLMProjectEvaluatorDetails_projectEvaluator.graphql";
 import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
 

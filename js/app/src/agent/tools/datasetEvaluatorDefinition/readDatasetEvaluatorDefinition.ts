@@ -1,9 +1,9 @@
 import { fetchQuery, graphql } from "react-relay";
 
 import { inferIncludeExplanationFromPrompt } from "@phoenix/components/evaluators/utils";
-import type { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
-import { readPlaygroundPromptVersion } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
-import { readPromptInvocationParameters } from "@phoenix/pages/playground/PromptInvocationParametersReadableFragment";
+import type { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/components/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
+import { readPlaygroundPromptVersion } from "@phoenix/components/playground/fetchPlaygroundPrompt";
+import { readPromptInvocationParameters } from "@phoenix/components/playground/PromptInvocationParametersReadableFragment";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
 import type { readDatasetEvaluatorDefinitionBodyQuery } from "./__generated__/readDatasetEvaluatorDefinitionBodyQuery.graphql";
