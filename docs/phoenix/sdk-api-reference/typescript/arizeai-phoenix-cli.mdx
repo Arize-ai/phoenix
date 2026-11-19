@@ -678,6 +678,27 @@ px dataset get query_response --format raw | jq '.examples[].input'
 | `--api-key <key>` | Phoenix API key | From env |
 | `--no-progress` | Disable progress indicators | — |
 
+### `px dataset export <dataset-identifier>`
+
+Export a dataset's examples in a downloadable format, to stdout or a file.
+
+```bash
+px dataset export query_response                             # JSONL to stdout
+px dataset export query_response --format csv                # CSV to stdout
+px dataset export query_response --format csv --output data.csv   # Write to file
+px dataset export query_response --format openai-ft          # OpenAI fine-tuning JSONL
+px dataset export query_response --format openai-evals --version <version-id>
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--format <format>` | `csv`, `jsonl`, `openai-evals`, or `openai-ft` | `jsonl` |
+| `--output <path>` | Write to file instead of stdout | stdout |
+| `--version <id>` | Export a specific dataset version | latest |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | off |
+
 ### `px experiment list --dataset <name-or-id>`
 
 List experiments for a dataset, optionally exporting full data to files.

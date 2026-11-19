@@ -1,3 +1,6 @@
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 import type { componentsV1 } from "@arizeai/phoenix-testing";
 import { HttpResponse } from "@arizeai/phoenix-testing";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -299,6 +302,180 @@ describe("dataset get", () => {
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.NETWORK_ERROR);
     expect(String(io.stderr.mock.calls[0]?.[0])).toContain(
       "Error fetching dataset"
+    );
+  });
+});
+
+describe("dataset export", () => {
+  const CSV_BODY = "id,input,output\n1,q,a\n";
+  const JSONL_BODY = '{"input":"q","output":"a"}\n';
+
+  it("defaults to the JSONL endpoint and writes the body verbatim to stdout", async () => {
+    const captured: { id?: string; count: number } = { count: 0 };
+    mock.server.use(
+      http.get("/v1/datasets/{id}/jsonl", ({ params, response }) => {
+        captured.count += 1;
+        captured.id = params.id;
+        return response(200).text(JSONL_BODY);
+      })
+    );
+    captureCliOutput();
+    const stdout = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation(() => true);
+
+    await createDatasetCommand().parseAsync(
+      ["export", DATASET_ID, ...BASE_ARGS],
+      { from: "user" }
+    );
+
+    expect(captured.count).toBe(1);
+    expect(captured.id).toBe(DATASET_ID);
+    expect(stdout).toHaveBeenCalledWith(JSONL_BODY);
+  });
+
+  it("hits the CSV endpoint with --format csv (case-insensitive)", async () => {
+    const captured = { count: 0 };
+    mock.server.use(
+      http.get("/v1/datasets/{id}/csv", ({ response }) => {
+        captured.count += 1;
+        return response(200).text(CSV_BODY);
+      })
+    );
+    captureCliOutput();
+    const stdout = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation(() => true);
+
+    await createDatasetCommand().parseAsync(
+      ["export", DATASET_ID, "--format", "CSV", ...BASE_ARGS],
+      { from: "user" }
+    );
+
+    expect(captured.count).toBe(1);
+    expect(stdout).toHaveBeenCalledWith(CSV_BODY);
+  });
+
+  it("routes --format openai-ft to the nested jsonl endpoint", async () => {
+    const captured = { count: 0 };
+    mock.server.use(
+      http.get("/v1/datasets/{id}/jsonl/openai_ft", ({ response }) => {
+        captured.count += 1;
+        return response(200).text(JSONL_BODY);
+      })
+    );
+    captureCliOutput();
+    const stdout = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation(() => true);
+
+    await createDatasetCommand().parseAsync(
+      ["export", DATASET_ID, "--format", "openai-ft", ...BASE_ARGS],
+      { from: "user" }
+    );
+
+    expect(captured.count).toBe(1);
+    expect(stdout).toHaveBeenCalledWith(JSONL_BODY);
+  });
+
+  it("propagates --version as the version_id query param", async () => {
+    const captured: { versionId?: string | null } = {};
+    mock.server.use(
+      http.get("/v1/datasets/{id}/csv", ({ request, response }) => {
+        captured.versionId = new URL(request.url).searchParams.get(
+          "version_id"
+        );
+        return response(200).text(CSV_BODY);
+      })
+    );
+    captureCliOutput();
+    vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    await createDatasetCommand().parseAsync(
+      [
+        "export",
+        DATASET_ID,
+        "--format",
+        "csv",
+        "--version",
+        "v7",
+        ...BASE_ARGS,
+      ],
+      { from: "user" }
+    );
+
+    expect(captured.versionId).toBe("v7");
+  });
+
+  it("writes to a file with --output and prints nothing to stdout", async () => {
+    mock.server.use(
+      http.get("/v1/datasets/{id}/csv", ({ response }) =>
+        response(200).text(CSV_BODY)
+      )
+    );
+    captureCliOutput();
+    const stdout = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation(() => true);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "px-dataset-export-"));
+    const outPath = path.join(dir, "out.csv");
+
+    try {
+      await createDatasetCommand().parseAsync(
+        [
+          "export",
+          DATASET_ID,
+          "--format",
+          "csv",
+          "--output",
+          outPath,
+          ...BASE_ARGS,
+        ],
+        { from: "user" }
+      );
+
+      expect(fs.readFileSync(outPath, "utf-8")).toBe(CSV_BODY);
+      expect(stdout).not.toHaveBeenCalled();
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("exits INVALID_ARGUMENT on an unsupported --format", async () => {
+    const io = captureCliOutput();
+    const exitSpy = mockProcessExit();
+
+    await expect(
+      createDatasetCommand().parseAsync(
+        ["export", DATASET_ID, "--format", "xml", ...BASE_ARGS],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
+    expect(String(io.stderr.mock.calls[0]?.[0])).toContain(
+      "Supported formats: csv, jsonl, openai-evals, openai-ft"
+    );
+  });
+
+  it("exits FAILURE when the dataset does not exist", async () => {
+    mock.server.use(
+      http.get("/v1/datasets/{id}/jsonl", ({ response }) =>
+        response(404).text("Dataset not found")
+      )
+    );
+    const io = captureCliOutput();
+    const exitSpy = mockProcessExit();
+
+    await expect(
+      createDatasetCommand().parseAsync(["export", DATASET_ID, ...BASE_ARGS], {
+        from: "user",
+      })
+    ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
+    expect(String(io.stderr.mock.calls[0]?.[0])).toContain(
+      "Error exporting dataset"
     );
   });
 });
