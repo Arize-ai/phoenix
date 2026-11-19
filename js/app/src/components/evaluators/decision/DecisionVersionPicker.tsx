@@ -8,8 +8,8 @@ import {
 } from "react-relay";
 
 import { Alert, CompositeField, Loading } from "@phoenix/components";
-import { DecisionVersionSelector } from "@phoenix/pages/playground/DecisionVersionSelector";
-import { sourceMenuContainerCSS } from "@phoenix/pages/playground/searchablePickerStyles";
+import { DecisionVersionSelector } from "@phoenix/components/decision/DecisionVersionSelector";
+import { sourceMenuContainerCSS } from "@phoenix/components/playground/searchablePickerStyles";
 
 import type { DecisionVersionPickerDecisionsQuery } from "./__generated__/DecisionVersionPickerDecisionsQuery.graphql";
 import type { DecisionVersionPickerVersionQuery } from "./__generated__/DecisionVersionPickerVersionQuery.graphql";

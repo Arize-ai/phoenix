@@ -4,6 +4,7 @@ import { Flex, Heading, Text, Token, View } from "@phoenix/components";
 import { DecisionJsonTemplateEditor } from "@phoenix/components/decision/DecisionJsonTemplateEditor";
 import { toJsonTemplateText } from "@phoenix/components/decision/decisionTemplates";
 import { evaluatorDetailsCardCSS } from "@phoenix/components/evaluators/EvaluatorDetailsSection";
+import { DECISION_QUESTION_TYPES } from "@phoenix/components/playground/decisionUtils";
 import {
   TemplateEditor,
   TemplateEditorWrap,
@@ -12,7 +13,6 @@ import {
   isTemplateFormat,
   type TemplateFormat,
 } from "@phoenix/components/templateEditor/types";
-import { DECISION_QUESTION_TYPES } from "@phoenix/pages/playground/decisionUtils";
 
 import type { DecisionVersionDetails_definition$data } from "./__generated__/DecisionVersionDetails_definition.graphql";
 

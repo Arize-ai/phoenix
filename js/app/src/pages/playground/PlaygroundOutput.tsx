@@ -22,6 +22,7 @@ import {
   ConnectedMarkdownModeSelect,
   MarkdownDisplayProvider,
 } from "@phoenix/components/markdown";
+import type { PlaygroundInstanceProps } from "@phoenix/components/playground/types";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import {
   usePlaygroundContext,
@@ -46,7 +47,6 @@ import { PlaygroundToolCall } from "./PlaygroundToolCall";
 import { getChatCompletionInput, isChatMessages } from "./playgroundUtils";
 import { RunMetadataFooter } from "./RunMetadataFooter";
 import { TitleWithAlphabeticIndex } from "./TitleWithAlphabeticIndex";
-import type { PlaygroundInstanceProps } from "./types";
 
 interface PlaygroundOutputProps extends PlaygroundInstanceProps {}
 

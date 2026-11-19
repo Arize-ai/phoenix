@@ -8,7 +8,7 @@ import {
   updateLLMEvaluatorPayload,
 } from "../utils";
 
-vi.mock("@phoenix/pages/playground/playgroundPromptUtils", () => ({
+vi.mock("@phoenix/components/playground/playgroundPromptUtils", () => ({
   getInstancePromptParamsFromStore: () => ({
     promptInput: { invocationParameters: null },
     promptVersionId: null,

@@ -11,13 +11,13 @@ import {
   validatePolicy,
 } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
 import type { DecisionVersionSelection } from "@phoenix/components/evaluators/decision/DecisionVersionPicker";
+import { extractDecisionVariables } from "@phoenix/components/playground/decisionUtils";
+import { fetchPlaygroundDecisionAsInstance } from "@phoenix/components/playground/fetchPlaygroundDecision";
+import { toDecisionVersionInput } from "@phoenix/components/playground/savedDecisionUtils";
 import {
   usePlaygroundContext,
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
-import { extractDecisionVariables } from "@phoenix/pages/playground/decisionUtils";
-import { fetchPlaygroundDecisionAsInstance } from "@phoenix/pages/playground/fetchPlaygroundDecision";
-import { toDecisionVersionInput } from "@phoenix/pages/playground/savedDecisionUtils";
 import { selectPlaygroundInstanceDecisionPrompt } from "@phoenix/store/playground/selectors";
 import { getMutationErrorMessage } from "@phoenix/utils/errorUtils";
 

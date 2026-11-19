@@ -5,11 +5,11 @@ import {
   isSupportedToolChoiceProvider,
   ToolChoiceSelector,
 } from "@phoenix/components/generative";
+import { isFunctionTool } from "@phoenix/components/playground/playgroundInstanceUtils";
+import type { PlaygroundInstanceProps } from "@phoenix/components/playground/types";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 import { PlaygroundTool } from "./PlaygroundTool";
-import { isFunctionTool } from "./playgroundUtils";
-import type { PlaygroundInstanceProps } from "./types";
 
 interface PlaygroundToolsProps extends PlaygroundInstanceProps {}
 
