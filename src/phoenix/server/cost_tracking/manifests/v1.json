@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-18T18:19:25Z",
-  "models_sha256": "3713902a9d43ffc0d4a8e558ea5077a6617745cef04cd8da05b913443904a2c5",
+  "generated_at": "2026-11-19T13:07:42Z",
+  "models_sha256": "cda9074813171749579841263eeb472c71559c315bc9670cc88170733cb56c26",
   "models": [
     {
       "name": "anthropic.claude-3-5-haiku-20241022-v1:0",
@@ -220,6 +220,33 @@
       ]
     },
     {
+      "name": "anthropic.claude-fable-5-2",
+      "name_pattern": "anthropic\\.claude-fable-5-2",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00004,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
       "name": "anthropic.claude-haiku-4-5-20251001-v1:0",
       "name_pattern": "anthropic\\.claude-haiku-4-5-20251001-v1:0",
       "source": "litellm",
@@ -346,6 +373,33 @@
         },
         {
           "base_rate": 0.0000125,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "anthropic.claude-mythos-5-2",
+      "name_pattern": "anthropic\\.claude-mythos-5-2",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00004,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001,
           "is_prompt": true,
           "token_type": "cache_write"
         }
@@ -1583,6 +1637,84 @@
       ]
     },
     {
+      "name": "ca.anthropic.claude-haiku-5-5",
+      "name_pattern": "ca\\.anthropic\\.claude-haiku-5-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.1e-7,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 5.5e-7
+          }
+        },
+        {
+          "base_rate": 5.5e-7,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 2.75e-6
+          }
+        },
+        {
+          "base_rate": 1.1e-8,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 5.5e-8
+          }
+        },
+        {
+          "base_rate": 1.375e-7,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 6.875e-7
+          }
+        }
+      ]
+    },
+    {
+      "name": "ca.anthropic.claude-sonnet-5-5",
+      "name_pattern": "ca\\.anthropic\\.claude-sonnet-5-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2.2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000011,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 2.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
       "name": "chatgpt-image-latest",
       "name_pattern": "chatgpt-image-latest",
       "source": "litellm",
@@ -1663,6 +1795,33 @@
         },
         {
           "base_rate": 0.0000125,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "claude-fable-5-2",
+      "name_pattern": "claude-fable-5-2",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00004,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001,
           "is_prompt": true,
           "token_type": "cache_write"
         }
@@ -1822,6 +1981,33 @@
         },
         {
           "base_rate": 0.0000125,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "claude-mythos-5-2",
+      "name_pattern": "claude-mythos-5-2",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00004,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001,
           "is_prompt": true,
           "token_type": "cache_write"
         }
@@ -2473,6 +2659,33 @@
       ]
     },
     {
+      "name": "eu.anthropic.claude-fable-5-2",
+      "name_pattern": "eu\\.anthropic\\.claude-fable-5-2",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8.8e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000044,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.000011,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
       "name": "eu.anthropic.claude-haiku-4-5-20251001-v1:0",
       "name_pattern": "eu\\.anthropic\\.claude-haiku-4-5-20251001-v1:0",
       "source": "litellm",
@@ -2547,6 +2760,33 @@
             "threshold": 100000.0,
             "new_rate": 6.875e-7
           }
+        }
+      ]
+    },
+    {
+      "name": "eu.anthropic.claude-mythos-5-2",
+      "name_pattern": "eu\\.anthropic\\.claude-mythos-5-2",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8.8e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000044,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.000011,
+          "is_prompt": true,
+          "token_type": "cache_write"
         }
       ]
     },
@@ -4273,6 +4513,33 @@
       ]
     },
     {
+      "name": "global.anthropic.claude-fable-5-2",
+      "name_pattern": "global\\.anthropic\\.claude-fable-5-2",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00004,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
       "name": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
       "name_pattern": "global\\.anthropic\\.claude-haiku-4-5-20251001-v1:0",
       "source": "litellm",
@@ -4372,6 +4639,33 @@
         },
         {
           "base_rate": 0.0000125,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "global.anthropic.claude-mythos-5-2",
+      "name_pattern": "global\\.anthropic\\.claude-mythos-5-2",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00004,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001,
           "is_prompt": true,
           "token_type": "cache_write"
         }
@@ -4803,6 +5097,33 @@
       ]
     },
     {
+      "name": "global.openai.gpt-5.6-cyber",
+      "name_pattern": "global\\.openai\\.gpt-5\\.6-cyber",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.0000125,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000075,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.25e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.000015625,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
       "name": "global.openai.gpt-5.6-luna",
       "name_pattern": "global\\.openai\\.gpt-5\\.6-luna",
       "source": "litellm",
@@ -5206,6 +5527,159 @@
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
             "new_rate": 2.5e-6
+          }
+        }
+      ]
+    },
+    {
+      "name": "global.openai.gpt-6.2-astra",
+      "name_pattern": "global\\.openai\\.gpt-6\\.2-astra",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000016
+          }
+        },
+        {
+          "base_rate": 0.00004,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00006
+          }
+        },
+        {
+          "base_rate": 4e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 8e-7
+          }
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00002
+          }
+        }
+      ]
+    },
+    {
+      "name": "global.openai.gpt-6.2-sol",
+      "name_pattern": "global\\.openai\\.gpt-6\\.2-sol",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 4e-6
+          }
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000015
+          }
+        },
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 2e-7
+          }
+        },
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 5e-6
+          }
+        }
+      ]
+    },
+    {
+      "name": "global.openai.gpt-daybreak-blue-5.6-sol",
+      "name_pattern": "global\\.openai\\.gpt-daybreak-blue-5\\.6-sol",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 4e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 8e-6
+          }
+        },
+        {
+          "base_rate": 0.00002,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00003
+          }
+        },
+        {
+          "base_rate": 4e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 8e-7
+          }
+        },
+        {
+          "base_rate": 5e-6,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00001
           }
         }
       ]
@@ -5829,7 +6303,7 @@
           "token_type": "output"
         },
         {
-          "base_rate": 1.25e-6,
+          "base_rate": 3e-6,
           "is_prompt": true,
           "token_type": "audio"
         }
@@ -5851,7 +6325,7 @@
           "token_type": "output"
         },
         {
-          "base_rate": 1.25e-6,
+          "base_rate": 3e-6,
           "is_prompt": true,
           "token_type": "audio"
         }
@@ -5873,7 +6347,7 @@
           "token_type": "output"
         },
         {
-          "base_rate": 1.25e-6,
+          "base_rate": 3e-6,
           "is_prompt": true,
           "token_type": "audio"
         }
@@ -6005,7 +6479,7 @@
           "token_type": "output"
         },
         {
-          "base_rate": 2.5e-6,
+          "base_rate": 6e-6,
           "is_prompt": true,
           "token_type": "audio"
         }
@@ -6027,7 +6501,7 @@
           "token_type": "output"
         },
         {
-          "base_rate": 2.5e-6,
+          "base_rate": 6e-6,
           "is_prompt": true,
           "token_type": "audio"
         }
@@ -7329,17 +7803,35 @@
         {
           "base_rate": 0.00001,
           "is_prompt": true,
-          "token_type": "input"
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00002
+          }
         },
         {
           "base_rate": 0.00005,
           "is_prompt": false,
-          "token_type": "output"
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000075
+          }
         },
         {
           "base_rate": 1e-6,
           "is_prompt": true,
-          "token_type": "cache_read"
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 2e-6
+          }
         }
       ]
     },
@@ -7351,17 +7843,35 @@
         {
           "base_rate": 0.00002,
           "is_prompt": true,
-          "token_type": "input"
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00004
+          }
         },
         {
           "base_rate": 0.0001,
           "is_prompt": false,
-          "token_type": "output"
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00015
+          }
         },
         {
           "base_rate": 2e-6,
           "is_prompt": true,
-          "token_type": "cache_read"
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 4e-6
+          }
         },
         {
           "base_rate": 0.000025,
@@ -7427,7 +7937,7 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.000015,
+          "base_rate": 0.00001,
           "is_prompt": true,
           "token_type": "input",
           "customization": {
@@ -7438,7 +7948,7 @@
           }
         },
         {
-          "base_rate": 0.000075,
+          "base_rate": 0.00005,
           "is_prompt": false,
           "token_type": "output",
           "customization": {
@@ -7449,7 +7959,7 @@
           }
         },
         {
-          "base_rate": 1.5e-6,
+          "base_rate": 1e-6,
           "is_prompt": true,
           "token_type": "cache_read",
           "customization": {
@@ -7621,6 +8131,159 @@
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
             "new_rate": 2.5e-6
+          }
+        }
+      ]
+    },
+    {
+      "name": "gpt-6.2-astra",
+      "name_pattern": "gpt-6\\.2-astra",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000016
+          }
+        },
+        {
+          "base_rate": 0.00004,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00006
+          }
+        },
+        {
+          "base_rate": 4e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 8e-7
+          }
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00002
+          }
+        }
+      ]
+    },
+    {
+      "name": "gpt-6.2-astra-law",
+      "name_pattern": "gpt-6\\.2-astra-law",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000016
+          }
+        },
+        {
+          "base_rate": 0.00004,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00006
+          }
+        },
+        {
+          "base_rate": 4e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 8e-7
+          }
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00002
+          }
+        }
+      ]
+    },
+    {
+      "name": "gpt-6.2-sol",
+      "name_pattern": "gpt-6\\.2-sol",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 4e-6
+          }
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000015
+          }
+        },
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 2e-7
+          }
+        },
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 5e-6
           }
         }
       ]
@@ -8614,6 +9277,162 @@
       ]
     },
     {
+      "name": "in.anthropic.claude-opus-5",
+      "name_pattern": "in\\.anthropic\\.claude-opus-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0000275,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.875e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "in.anthropic.claude-sonnet-5",
+      "name_pattern": "in\\.anthropic\\.claude-sonnet-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2.2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000011,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 2.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "in.openai.gpt-5.6-luna",
+      "name_pattern": "in\\.openai\\.gpt-5\\.6-luna",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2.2e-7,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 4.4e-7
+          }
+        },
+        {
+          "base_rate": 1.32e-6,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 1.98e-6
+          }
+        },
+        {
+          "base_rate": 2.2e-8,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 4.4e-8
+          }
+        },
+        {
+          "base_rate": 2.75e-7,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 5.5e-7
+          }
+        }
+      ]
+    },
+    {
+      "name": "in.openai.gpt-5.6-terra",
+      "name_pattern": "in\\.openai\\.gpt-5\\.6-terra",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2.2e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 4.4e-6
+          }
+        },
+        {
+          "base_rate": 0.0000132,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.0000198
+          }
+        },
+        {
+          "base_rate": 2.2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 4.4e-7
+          }
+        },
+        {
+          "base_rate": 2.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 5.5e-6
+          }
+        }
+      ]
+    },
+    {
       "name": "jp.anthropic.claude-haiku-4-5-20251001-v1:0",
       "name_pattern": "jp\\.anthropic\\.claude-haiku-4-5-20251001-v1:0",
       "source": "litellm",
@@ -9366,6 +10185,108 @@
       ]
     },
     {
+      "name": "openai.gpt-6.2-astra",
+      "name_pattern": "openai\\.gpt-6\\.2-astra",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000016
+          }
+        },
+        {
+          "base_rate": 0.00004,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00006
+          }
+        },
+        {
+          "base_rate": 4e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 8e-7
+          }
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00002
+          }
+        }
+      ]
+    },
+    {
+      "name": "openai.gpt-6.2-sol",
+      "name_pattern": "openai\\.gpt-6\\.2-sol",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 4e-6
+          }
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000015
+          }
+        },
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 2e-7
+          }
+        },
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 5e-6
+          }
+        }
+      ]
+    },
+    {
       "name": "openai.gpt-oss-120b-1:0",
       "name_pattern": "openai\\.gpt-oss-120b-1:0",
       "source": "litellm",
@@ -9461,6 +10382,33 @@
       ]
     },
     {
+      "name": "us-gov.anthropic.claude-fable-5-2",
+      "name_pattern": "us-gov\\.anthropic\\.claude-fable-5-2",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 9.6e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000048,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.4e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.000012,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
       "name": "us-gov.anthropic.claude-haiku-5-5",
       "name_pattern": "us-gov\\.anthropic\\.claude-haiku-5-5",
       "source": "litellm",
@@ -9508,6 +10456,33 @@
             "threshold": 100000.0,
             "new_rate": 7.5e-7
           }
+        }
+      ]
+    },
+    {
+      "name": "us-gov.anthropic.claude-mythos-5-2",
+      "name_pattern": "us-gov\\.anthropic\\.claude-mythos-5-2",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 9.6e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000048,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.4e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.000012,
+          "is_prompt": true,
+          "token_type": "cache_write"
         }
       ]
     },
@@ -9694,6 +10669,130 @@
           "base_rate": 3e-6,
           "is_prompt": true,
           "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us-gov.openai.gpt-5.4",
+      "name_pattern": "us-gov\\.openai\\.gpt-5\\.4",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3.3e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0000198,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3.3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "us-gov.openai.gpt-5.6-luna",
+      "name_pattern": "us-gov\\.openai\\.gpt-5\\.6-luna",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2.64e-7,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 5.28e-7
+          }
+        },
+        {
+          "base_rate": 1.584e-6,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 2.376e-6
+          }
+        },
+        {
+          "base_rate": 2.64e-8,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 5.28e-8
+          }
+        },
+        {
+          "base_rate": 3.3e-7,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 6.6e-7
+          }
+        }
+      ]
+    },
+    {
+      "name": "us-gov.openai.gpt-5.6-terra",
+      "name_pattern": "us-gov\\.openai\\.gpt-5\\.6-terra",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2.64e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 5.28e-6
+          }
+        },
+        {
+          "base_rate": 0.00001584,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00002376
+          }
+        },
+        {
+          "base_rate": 2.64e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 5.28e-7
+          }
+        },
+        {
+          "base_rate": 3.3e-6,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 6.6e-6
+          }
         }
       ]
     },
@@ -9921,6 +11020,33 @@
       ]
     },
     {
+      "name": "us.anthropic.claude-fable-5-2",
+      "name_pattern": "us\\.anthropic\\.claude-fable-5-2",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8.8e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000044,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.000011,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
       "name": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
       "name_pattern": "us\\.anthropic\\.claude-haiku-4-5-20251001-v1:0",
       "source": "litellm",
@@ -10047,6 +11173,33 @@
         },
         {
           "base_rate": 0.00001375,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us.anthropic.claude-mythos-5-2",
+      "name_pattern": "us\\.anthropic\\.claude-mythos-5-2",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8.8e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000044,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.000011,
           "is_prompt": true,
           "token_type": "cache_write"
         }
@@ -10559,6 +11712,33 @@
       ]
     },
     {
+      "name": "us.openai.gpt-5.6-cyber",
+      "name_pattern": "us\\.openai\\.gpt-5\\.6-cyber",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.00001375,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0000825,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.375e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.0000171875,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
       "name": "us.openai.gpt-5.6-luna",
       "name_pattern": "us\\.openai\\.gpt-5\\.6-luna",
       "source": "litellm",
@@ -10967,6 +12147,159 @@
       ]
     },
     {
+      "name": "us.openai.gpt-6.2-astra",
+      "name_pattern": "us\\.openai\\.gpt-6\\.2-astra",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8.8e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.0000176
+          }
+        },
+        {
+          "base_rate": 0.000044,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000066
+          }
+        },
+        {
+          "base_rate": 4.4e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 8.8e-7
+          }
+        },
+        {
+          "base_rate": 0.000011,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000022
+          }
+        }
+      ]
+    },
+    {
+      "name": "us.openai.gpt-6.2-sol",
+      "name_pattern": "us\\.openai\\.gpt-6\\.2-sol",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2.2e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 4.4e-6
+          }
+        },
+        {
+          "base_rate": 0.000011,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.0000165
+          }
+        },
+        {
+          "base_rate": 1.1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 2.2e-7
+          }
+        },
+        {
+          "base_rate": 2.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 5.5e-6
+          }
+        }
+      ]
+    },
+    {
+      "name": "us.openai.gpt-daybreak-blue-5.6-sol",
+      "name_pattern": "us\\.openai\\.gpt-daybreak-blue-5\\.6-sol",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 4.4e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 8.8e-6
+          }
+        },
+        {
+          "base_rate": 0.000022,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000033
+          }
+        },
+        {
+          "base_rate": 4.4e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 8.8e-7
+          }
+        },
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000011
+          }
+        }
+      ]
+    },
+    {
       "name": "cerebras/gemma-4-31b",
       "name_pattern": "gemma-4-31b",
       "source": "litellm",
@@ -11209,7 +12542,7 @@
           "token_type": "output"
         },
         {
-          "base_rate": 3.7e-8,
+          "base_rate": 3.75e-8,
           "is_prompt": true,
           "token_type": "cache_read"
         }
@@ -11230,6 +12563,47 @@
           "base_rate": 4e-6,
           "is_prompt": false,
           "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "meta/muse-ember-1.0",
+      "name_pattern": "muse-ember-1\\.0",
+      "source": "litellm",
+      "provider": "meta",
+      "token_prices": [
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 3e-7
+          }
+        },
+        {
+          "base_rate": 5e-7,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 1.5e-6
+          }
+        },
+        {
+          "base_rate": 4e-9,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 1.2e-8
+          }
         }
       ]
     },
@@ -11549,6 +12923,29 @@
             "threshold": 512000.0,
             "new_rate": 1.2e-7
           }
+        }
+      ]
+    },
+    {
+      "name": "minimax/MiniMax-M3.1-Flash",
+      "name_pattern": "MiniMax-M3\\.1-Flash",
+      "source": "litellm",
+      "provider": "minimax",
+      "token_prices": [
+        {
+          "base_rate": 1.5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 6e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.5e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
         }
       ]
     },
@@ -12193,17 +13590,17 @@
       "provider": "mistralai",
       "token_prices": [
         {
-          "base_rate": 5e-7,
+          "base_rate": 7e-7,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 1.5e-6,
+          "base_rate": 2.1e-6,
           "is_prompt": false,
           "token_type": "output"
         },
         {
-          "base_rate": 5e-8,
+          "base_rate": 7e-8,
           "is_prompt": true,
           "token_type": "cache_read"
         }
@@ -12848,6 +14245,33 @@
         },
         {
           "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "moonshot/kimi-k3.1-pro-highspeed",
+      "name_pattern": "kimi-k3\\.1-pro-highspeed",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 4e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00002,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 4e-6,
           "is_prompt": true,
           "token_type": "cache_write"
         }
@@ -13499,17 +14923,17 @@
       "provider": "together",
       "token_prices": [
         {
-          "base_rate": 1.5e-6,
+          "base_rate": 2.5e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 4.5e-6,
+          "base_rate": 7.5e-6,
           "is_prompt": false,
           "token_type": "output"
         },
         {
-          "base_rate": 3e-7,
+          "base_rate": 5e-7,
           "is_prompt": true,
           "token_type": "cache_read"
         }
@@ -13571,6 +14995,29 @@
           "base_rate": 4.7e-7,
           "is_prompt": false,
           "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/Qwen/Qwen4-Max",
+      "name_pattern": "Qwen/Qwen4-Max",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 1.05e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 3.15e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5.25e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
         }
       ]
     },
@@ -13771,6 +15218,47 @@
           "base_rate": 6e-9,
           "is_prompt": true,
           "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/elorian-labs/glimpse-1.0",
+      "name_pattern": "elorian-labs/glimpse-1\\.0",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 6e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 3e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 6e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/essentialai/rnj-1-instruct",
+      "name_pattern": "essentialai/rnj-1-instruct",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 1.5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1.5e-7,
+          "is_prompt": false,
+          "token_type": "output"
         }
       ]
     },
@@ -14331,6 +15819,52 @@
     {
       "name": "together_ai/thinkingmachines/Inkling",
       "name_pattern": "thinkingmachines/Inkling",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4.05e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.7e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/thinkingmachines/Inkling-2-Small",
+      "name_pattern": "thinkingmachines/Inkling-2-Small",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/thinkingmachines/inkling",
+      "name_pattern": "thinkingmachines/inkling",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
