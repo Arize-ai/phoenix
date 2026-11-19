@@ -1,5 +1,11 @@
 # @arizeai/phoenix-config
 
+## 0.5.2
+
+### Patch Changes
+
+- 02ed180: Remove Slack community links from the package README
+
 ## 0.5.1
 
 ### Patch Changes
