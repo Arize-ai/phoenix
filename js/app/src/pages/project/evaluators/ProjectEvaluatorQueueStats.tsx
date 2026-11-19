@@ -217,7 +217,7 @@ function ProjectEvaluatorQueueStatsContent({
       </Flex>
       <OldestWaitStat
         oldestWaitingAt={projectQueue?.oldestWaitingAt ?? null}
-        help={QUEUE_STAT_HELP.oldestWait}
+        help="The longest time that one of this project's evaluations in the queue has waited to start. This time does not include evaluations that wait to retry. If this time is more than 10 minutes, the server queue is Degraded."
       />
     </>
   );
