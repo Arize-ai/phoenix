@@ -45,6 +45,7 @@ const ModelQuery = graphql`
         namePattern
         providerKey
         startTime
+        modelType
         tokenPrices {
           tokenType
           kind
@@ -130,6 +131,7 @@ function CloneModelDialogContent({
                 name: params.name,
                 provider: params.provider,
                 namePattern: params.namePattern,
+                modelType: modelData.modelType,
                 startTime: params.startTime
                   ? params.startTime.toDate(getLocalTimeZone()).toISOString()
                   : null,
