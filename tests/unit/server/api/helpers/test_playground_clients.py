@@ -1272,6 +1272,9 @@ class TestCurrentLineupIsOfferedInThePlayground:
             (GenerativeProviderKey.AWS, "anthropic.claude-opus-5-5"),
             (GenerativeProviderKey.ANTHROPIC, "claude-opus-5"),
             (GenerativeProviderKey.AWS, "anthropic.claude-opus-5"),
+            (GenerativeProviderKey.GOOGLE, "gemini-4-neon"),
+            (GenerativeProviderKey.GOOGLE, "gemini-4-hydrogen"),
+            (GenerativeProviderKey.GOOGLE, "gemini-4-carbon"),
         ],
     )
     def test_model_is_registered_for_its_provider(

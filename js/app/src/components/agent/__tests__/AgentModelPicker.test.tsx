@@ -70,7 +70,11 @@ const MODEL_MENU_DATA = {
       { providerKey: "ANTHROPIC", name: "claude-opus-4-5" },
       { providerKey: "ANTHROPIC", name: "claude-sonnet-5-5" },
       { providerKey: "AWS", name: "anthropic.claude-opus-4-6-v1:0" },
+      { providerKey: "GOOGLE", name: "gemini-4-carbon" },
+      { providerKey: "GOOGLE", name: "gemini-4-hydrogen" },
+      { providerKey: "GOOGLE", name: "gemini-4-neon" },
       { providerKey: "GOOGLE", name: "gemini-3.7-flash" },
+      { providerKey: "GOOGLE", name: "gemini-3.1-pro-preview" },
       { providerKey: "GOOGLE", name: "gemini-2.5-flash" },
     ],
   },
@@ -289,6 +293,9 @@ describe("AgentModelPicker", () => {
       "Claude Opus 5.5",
       "Claude Sonnet 5.5",
       "GPT-6 Sol",
+      "Gemini 4 Neon",
+      "Gemini 4 Hydrogen",
+      "Gemini 4 Carbon",
     ]);
   });
 

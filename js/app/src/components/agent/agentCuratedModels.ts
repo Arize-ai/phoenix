@@ -41,6 +41,21 @@ export const AGENT_CURATED_BUILT_IN_MODELS: readonly AgentCuratedBuiltInModel[] 
       displayName: "Claude Sonnet 5.5",
     },
     { provider: "OPENAI", modelName: "gpt-6-sol", displayName: "GPT-6 Sol" },
+    {
+      provider: "GOOGLE",
+      modelName: "gemini-4-neon",
+      displayName: "Gemini 4 Neon",
+    },
+    {
+      provider: "GOOGLE",
+      modelName: "gemini-4-hydrogen",
+      displayName: "Gemini 4 Hydrogen",
+    },
+    {
+      provider: "GOOGLE",
+      modelName: "gemini-4-carbon",
+      displayName: "Gemini 4 Carbon",
+    },
   ];
 
 function findAgentCuratedBuiltInModel({

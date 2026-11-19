@@ -3042,6 +3042,9 @@ class GoogleClient(PlaygroundClient["GoogleAsyncClient"]):
 
 
 GEMINI_4_MODELS = [
+    "gemini-4-neon",
+    "gemini-4-hydrogen",
+    "gemini-4-carbon",
     "gemini-4-argon",
 ]
 

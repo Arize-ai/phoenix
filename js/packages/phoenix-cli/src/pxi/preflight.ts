@@ -105,8 +105,9 @@ const RECOMMENDED_PXI_MODELS = [
   { provider: "OPENAI", modelName: "gpt-5.4" },
   { provider: "OPENAI", modelName: "gpt-5.4-mini" },
   { provider: "OPENAI", modelName: "gpt-5.5" },
-  { provider: "GOOGLE", modelName: "gemini-3.7-flash" },
-  { provider: "GOOGLE", modelName: "gemini-3.1-pro-preview" },
+  { provider: "GOOGLE", modelName: "gemini-4-neon" },
+  { provider: "GOOGLE", modelName: "gemini-4-hydrogen" },
+  { provider: "GOOGLE", modelName: "gemini-4-carbon" },
 ] as const satisfies readonly {
   provider: BuiltInProvider;
   modelName: string;
@@ -324,7 +325,7 @@ export async function fetchPxiModelPreflight({
   return assertPreflightData({ payload });
 }
 
-/** Return the main app's recommended models that exist in this server's catalog. */
+/** Return the curated PXI models that exist in this server's catalog. */
 export function getRecommendedPxiModels({
   data,
 }: {
