@@ -22,6 +22,7 @@ import {
   readLlmEvaluatorDraftOperation,
   submitLlmEvaluatorDraftOperation,
 } from "@phoenix/agent/uiOperations/operations/llmEvaluatorDraft";
+import { getInstancePromptParamsFromStore } from "@phoenix/components/playground/playgroundPromptUtils";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
@@ -29,7 +30,6 @@ import {
   usePlaygroundContext,
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
-import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/playgroundPromptUtils";
 
 /**
  * Wires the open LLM-evaluator dialog up to the agent: builds a draft host that

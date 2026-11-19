@@ -12,6 +12,7 @@ import {
   TooltipTrigger,
   VisuallyHidden,
 } from "@phoenix/components";
+import { getDecisionValidationError } from "@phoenix/components/playground/decisionUtils";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useModifierKey } from "@phoenix/hooks/useModifierKey";
@@ -25,7 +26,6 @@ import type {
   PlaygroundNormalizedInstance,
 } from "@phoenix/store/playground/types";
 
-import { getDecisionValidationError } from "./decisionUtils";
 import { DisabledButtonTooltip } from "./DisabledButtonTooltip";
 import { usePlaygroundExampleEditing } from "./examplesEditing";
 import { resolvePlaygroundDatasetId } from "./playgroundURLSearchParamsUtils";

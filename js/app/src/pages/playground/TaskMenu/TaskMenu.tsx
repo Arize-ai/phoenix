@@ -14,10 +14,10 @@ import {
   Text,
 } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { DecisionVersionSelector } from "@phoenix/components/decision/DecisionVersionSelector";
+import type { PromptData } from "@phoenix/components/playground/PromptMenu";
+import { PromptVersionSelector } from "@phoenix/components/playground/PromptMenu";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { DecisionVersionSelector } from "@phoenix/pages/playground/DecisionVersionSelector";
-import type { PromptData } from "@phoenix/pages/playground/PromptMenu";
-import { PromptVersionSelector } from "@phoenix/pages/playground/PromptMenu";
 import type {
   PlaygroundInstanceSource,
   PlaygroundNormalizedInstance,

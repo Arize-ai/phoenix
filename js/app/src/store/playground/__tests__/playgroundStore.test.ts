@@ -1,13 +1,13 @@
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import {
+  createDecisionDraft,
+  createDecisionStateDraft,
+} from "@phoenix/components/playground/decisionUtils";
+import { getDefaultInvocationConfig } from "@phoenix/components/playground/providerAdapters";
+import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
-import {
-  createDecisionDraft,
-  createDecisionStateDraft,
-} from "@phoenix/pages/playground/decisionUtils";
-import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
 
 import {
   _resetInstanceId,

@@ -18,8 +18,8 @@ import {
   PythonBlock,
   TypeScriptBlock,
 } from "@phoenix/components/code";
+import { readPromptInvocationParameters } from "@phoenix/components/playground/PromptInvocationParametersReadableFragment";
 import { usePreferencesContext } from "@phoenix/contexts";
-import { readPromptInvocationParameters } from "@phoenix/pages/playground/PromptInvocationParametersReadableFragment";
 import type { ProgrammingLanguage } from "@phoenix/types/code";
 import { assertUnreachable } from "@phoenix/typeUtils";
 

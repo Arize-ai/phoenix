@@ -1,6 +1,10 @@
 import { fetchQuery, graphql } from "react-relay";
 
 import { inferIncludeExplanationFromPrompt } from "@phoenix/components/evaluators/utils";
+import {
+  promptVersionToInstance,
+  readPlaygroundPromptVersion,
+} from "@phoenix/components/playground/fetchPlaygroundPrompt";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
@@ -17,10 +21,6 @@ import {
 } from "@phoenix/store/playground";
 
 import type { fetchPlaygroundEvaluatorQuery } from "./__generated__/fetchPlaygroundEvaluatorQuery.graphql";
-import {
-  promptVersionToInstance,
-  readPlaygroundPromptVersion,
-} from "./fetchPlaygroundPrompt";
 
 /**
  * An evaluator as the playground loads it into a task, whether it was

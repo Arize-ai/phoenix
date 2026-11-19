@@ -13,6 +13,7 @@ import {
   View,
 } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
+import type { PlaygroundInstanceProps } from "@phoenix/components/playground/types";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import { ExperimentRepetitionSelector } from "@phoenix/pages/experiment/ExperimentRepetitionSelector";
@@ -24,7 +25,6 @@ import {
 import { DecisionResult } from "./DecisionResult";
 import { RunMetadataFooter } from "./RunMetadataFooter";
 import { TitleWithAlphabeticIndex } from "./TitleWithAlphabeticIndex";
-import type { PlaygroundInstanceProps } from "./types";
 import { useDecisionRunner } from "./useDecisionRunner";
 
 type DecisionDisplayMode = "pretty" | "raw";

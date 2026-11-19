@@ -1,6 +1,6 @@
 import type { z } from "zod";
 
-import { chatMessageRolesSchema } from "@phoenix/pages/playground/schemas";
+import { chatMessageRolesSchema } from "@phoenix/components/playground/schemas";
 
 export const VALID_MESSAGE_ROLES = chatMessageRolesSchema.options;
 
