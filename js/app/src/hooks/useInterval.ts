@@ -4,7 +4,8 @@ type Callback = () => void;
 
 /**
  * setInterval that automatically pauses when the page tab is hidden
- * and fires immediately upon becoming visible again.
+ * and fires immediately upon becoming visible again. A page opened hidden,
+ * such as a tab opened in the background, starts paused.
  * @param callback - function to call on each tick
  * @param delay - interval in ms, or null to disable
  */
@@ -24,10 +25,10 @@ export function useInterval(callback: Callback, delay: number | null) {
       savedCallback.current?.();
     }
 
-    let id: ReturnType<typeof setInterval> | null = setInterval(
-      tick,
-      intervalMs
-    );
+    let id: ReturnType<typeof setInterval> | null =
+      document.visibilityState === "hidden"
+        ? null
+        : setInterval(tick, intervalMs);
 
     function onVisibilityChange() {
       if (document.visibilityState === "hidden") {

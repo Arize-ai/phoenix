@@ -18,6 +18,7 @@ const relayMocks = vi.hoisted(() => ({
 
 const refreshMocks = vi.hoisted(() => ({
   refreshLiveTimeRange: () => {},
+  setFetchKey: vi.fn(),
 }));
 
 vi.mock("react-relay", async (importOriginal) => ({
@@ -32,7 +33,7 @@ vi.mock("@phoenix/contexts/StreamStateContext", () => ({
   useStreamState: () => ({
     isStreaming: true,
     setIsStreaming: vi.fn(),
-    setFetchKey: vi.fn(),
+    setFetchKey: refreshMocks.setFetchKey,
   }),
 }));
 
@@ -62,6 +63,7 @@ beforeEach(() => {
   relayMocks.refetch.mockClear();
   relayMocks.streamingLastUpdatedAt = null;
   refreshMocks.refreshLiveTimeRange = () => {};
+  refreshMocks.setFetchKey.mockClear();
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -72,8 +74,17 @@ afterEach(() => {
     root.unmount();
   });
   container.remove();
+  setPageVisibility("visible");
   vi.useRealTimers();
 });
+
+function setPageVisibility(visibilityState: DocumentVisibilityState) {
+  Object.defineProperty(document, "visibilityState", {
+    configurable: true,
+    get: () => visibilityState,
+  });
+  document.dispatchEvent(new Event("visibilitychange"));
+}
 
 /**
  * Mirrors the project route tree: the controls render in the project layout,
@@ -211,6 +222,26 @@ describe("ProjectTimeRangeControls", () => {
       vi.advanceTimersByTime(REFRESH_INTERVAL_MS);
     });
     expect(relayMocks.refetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("holds the refresh for new data while the page is hidden and refreshes once when it is shown", async () => {
+    renderProjectRoute("/projects/p/spans");
+    act(() => setPageVisibility("hidden"));
+    act(() => {
+      vi.advanceTimersByTime(REFRESH_INTERVAL_MS * 3);
+    });
+    relayMocks.streamingLastUpdatedAt = "2026-11-10T20:12:55.000Z";
+    await act(async () => renderProjectRoute("/projects/p/spans"));
+
+    expect(relayMocks.refetch).not.toHaveBeenCalled();
+    expect(refreshMocks.setFetchKey).not.toHaveBeenCalled();
+
+    act(() => setPageVisibility("visible"));
+
+    expect(refreshMocks.setFetchKey).toHaveBeenCalledTimes(1);
+    expect(refreshMocks.setFetchKey).toHaveBeenCalledWith(
+      "fetch-traces-2026-11-10T20:12:55.000Z"
+    );
   });
 
   it("hides the toggle and does not stream off the streamable tabs", () => {
