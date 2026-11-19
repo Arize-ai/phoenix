@@ -85,10 +85,13 @@ export type ExperimentMetadataFilter = {
 
 /**
  * Splits a dot-separated key such as `model_params.temperature` into a key
- * path. Returns null when the key is blank or has an empty segment.
+ * path. `\.` is a literal dot, so `llm\.model` is the single key
+ * `llm.model`. Returns null when the key is blank or has an empty segment.
  */
 export function parseMetadataFilterKey(key: string): string[] | null {
-  const path = key.split(".").map((segment) => segment.trim());
+  const path = key
+    .split(/(?<!\\)\./)
+    .map((segment) => segment.replaceAll("\\.", ".").trim());
   return path.includes("") ? null : path;
 }
 

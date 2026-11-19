@@ -86,7 +86,10 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
-import { EXPERIMENT_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
+import {
+  EXPERIMENT_FILTER_CONDITION_PARAM,
+  EXPERIMENT_SEARCH_PARAM,
+} from "@phoenix/constants/searchParams";
 import { EXPERIMENTS_TABLE_STORAGE_KEY_PREFIX } from "@phoenix/constants/storageConstants";
 import { usePersistedState } from "@phoenix/hooks";
 import { useInterval } from "@phoenix/hooks/useInterval";
@@ -266,6 +269,7 @@ export function ExperimentsTable({
   dataset,
   initialFilterCondition,
   appliedFilterCondition: initialAppliedFilterCondition,
+  initialSearchText,
 }: {
   dataset: ExperimentsTableFragment$key;
   /**
@@ -278,6 +282,11 @@ export function ExperimentsTable({
    * the condition it last applied.
    */
   appliedFilterCondition: string;
+  /**
+   * The name and description search the page query fetched the dataset's
+   * experiments with.
+   */
+  initialSearchText: string;
 }) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [rowSelection, setRowSelection] = useState({});
@@ -291,12 +300,12 @@ export function ExperimentsTable({
   const [filterCondition, setFilterCondition] = useState(
     initialAppliedFilterCondition
   );
-  const [searchText, setSearchText] = useState("");
+  const [searchText, setSearchText] = useState(initialSearchText);
   // The filters most recently asked for. State commits only when a refetch's
   // transition finishes, so a refetch issued while another is in flight reads
   // its other filter from here rather than from stale state.
   const requestedFiltersRef = useRef<ExperimentsTableFilters>({
-    searchText: "",
+    searchText: initialSearchText,
     filterCondition: initialAppliedFilterCondition,
   });
   const isFiltered = Boolean(searchText) || Boolean(filterCondition);
@@ -504,6 +513,11 @@ export function ExperimentsTable({
 
   const onSearchTextChange = (nextSearchText: string) => {
     setSearchText(nextSearchText);
+    setSearchParams(
+      (prev) =>
+        withFilterConditionParam(prev, EXPERIMENT_SEARCH_PARAM, nextSearchText),
+      { replace: true }
+    );
     refetchExperiments({
       fetchPolicy: "network-only",
       changes: { searchText: nextSearchText },
@@ -544,25 +558,43 @@ export function ExperimentsTable({
     searchParams,
     EXPERIMENT_FILTER_CONDITION_PARAM
   );
+  const urlSearchText = searchParams.get(EXPERIMENT_SEARCH_PARAM) ?? "";
   useEffect(() => {
-    const appliedCondition = requestedFiltersRef.current.filterCondition;
-    if (
-      shouldRestoreFilterConditionParam({
-        urlCondition: urlFilterCondition,
-        appliedCondition,
-      })
-    ) {
-      setSearchParams(
-        (prev) =>
-          withFilterConditionParam(
-            prev,
+    const { filterCondition: appliedCondition, searchText: appliedSearchText } =
+      requestedFiltersRef.current;
+    const isConditionDropped = shouldRestoreFilterConditionParam({
+      urlCondition: urlFilterCondition,
+      appliedCondition,
+    });
+    const isSearchDropped = shouldRestoreFilterConditionParam({
+      urlCondition: urlSearchText,
+      appliedCondition: appliedSearchText,
+    });
+    if (!isConditionDropped && !isSearchDropped) {
+      return;
+    }
+    setSearchParams(
+      (prev) => {
+        let next = prev;
+        if (isConditionDropped) {
+          next = withFilterConditionParam(
+            next,
             EXPERIMENT_FILTER_CONDITION_PARAM,
             appliedCondition
-          ),
-        { replace: true }
-      );
-    }
-  }, [urlFilterCondition, setSearchParams]);
+          );
+        }
+        if (isSearchDropped) {
+          next = withFilterConditionParam(
+            next,
+            EXPERIMENT_SEARCH_PARAM,
+            appliedSearchText
+          );
+        }
+        return next;
+      },
+      { replace: true }
+    );
+  }, [urlFilterCondition, urlSearchText, setSearchParams]);
 
   const hasRunningExperiments = useMemo(
     () => tableData.some((row) => row.job?.status === "RUNNING"),
@@ -1116,6 +1148,7 @@ export function ExperimentsTable({
             <DebouncedSearch
               placeholder="Search experiments"
               aria-label="Search experiments"
+              defaultValue={initialSearchText}
               onChange={onSearchTextChange}
             />
           </View>

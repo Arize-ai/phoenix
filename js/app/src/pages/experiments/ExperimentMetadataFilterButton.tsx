@@ -96,7 +96,10 @@ export function ExperimentMetadataFilterForm({
             {isKeyInvalid ? (
               <FieldError>Enter a key, using dots for nested keys</FieldError>
             ) : (
-              <Text slot="description">Use dots for nested keys</Text>
+              <Text slot="description">
+                Use dots for nested keys. Write a dot inside a key as{" "}
+                <code>{"\\."}</code>
+              </Text>
             )}
           </TextField>
           <TextField

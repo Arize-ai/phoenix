@@ -19,6 +19,9 @@ export const SESSION_FILTER_CONDITION_PARAM = "sessionFilterCondition";
 /** The applied experiment filter condition on a dataset's experiments tab; absent means none. */
 export const EXPERIMENT_FILTER_CONDITION_PARAM = "experimentFilterCondition";
 
+/** The name and description search on a dataset's experiments tab; absent means none. */
+export const EXPERIMENT_SEARCH_PARAM = "experimentSearch";
+
 /**
  * The search param that contains the selected session details sub-view.
  * This is used to preserve the active session tab across reloads and links.

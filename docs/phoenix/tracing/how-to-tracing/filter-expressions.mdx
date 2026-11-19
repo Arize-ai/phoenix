@@ -227,7 +227,19 @@ metadata["harbor_agent"]["model_params"]["temperature"] > 0.5
 "sweep" in name and created_at > "2026-10-01T00:00:00Z"
 ```
 
-Experiment filters don't support aggregates, annotations, or `attributes[...]`.
+Experiment-specific notes:
+
+- **Strict names:** only the names above and `metadata["key"]` are accepted. Unknown names are
+  rejected with a "did you mean" suggestion, unlike span filters, which fall back to attribute
+  paths.
+- **Subscripts, not dots:** read metadata as `metadata["model"]`, not `metadata.model`. Each
+  subscript must be a string key. Integer array indexes such as `metadata["a"][0]` are rejected.
+- **Not supported:** aggregates, comprehensions, `annotations[...]`, `evals[...]`, and
+  `attributes[...]`.
+- **Database differences:** on PostgreSQL, a digit-only key such as `metadata["a"]["0"]` also reads
+  index `0` of an array. On SQLite, it reads only an object key, and a key that contains `"` or `\`
+  matches nothing.
+- The filter bar suggests the names above and your recent filters, not your metadata keys.
 
 ## Finding field names
 

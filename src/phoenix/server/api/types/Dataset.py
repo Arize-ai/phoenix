@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Annotated, Optional, cast
 import strawberry
 from sqlalchemy import Text, and_, func, or_, select
 from sqlalchemy import cast as sqlalchemy_cast
-from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.orm import with_polymorphic
 from sqlalchemy.sql.functions import count
 from sqlalchemy.sql.sqltypes import String
@@ -41,8 +40,7 @@ from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.server.experiment_filters import (
     ExperimentFilterConditionError,
-    compile_experiment_filter,
-    experiment_filter_errors,
+    apply_experiment_filter,
 )
 
 if TYPE_CHECKING:
@@ -458,8 +456,7 @@ class Dataset(Node):
             query = query.where(search_filter)
 
         if experiment_filter_condition:
-            with experiment_filter_errors():
-                query = compile_experiment_filter(experiment_filter_condition)(query)
+            query = apply_experiment_filter(condition=experiment_filter_condition, stmt=query)
 
         if filter_ids:
             filter_rowids = []
@@ -677,11 +674,7 @@ class Dataset(Node):
     )  # type: ignore
     def validate_experiment_filter_condition(self, condition: str) -> ValidationResult:
         try:
-            with experiment_filter_errors():
-                experiment_filter = compile_experiment_filter(condition)
-                stmt = experiment_filter(select(models.Experiment))
-                str(stmt.compile(dialect=sqlite.dialect()))
-                str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
+            apply_experiment_filter(condition=condition, stmt=select(models.Experiment))
         except ExperimentFilterConditionError as error:
             return ValidationResult(is_valid=False, error_message=str(error))
         return ValidationResult(is_valid=True, error_message=None)

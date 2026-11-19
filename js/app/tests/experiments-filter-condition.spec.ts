@@ -93,7 +93,10 @@ test.describe("Experiments filter condition", () => {
 
     await page.reload();
     await expect(filterField(page)).toHaveText('metadata["model"] == "gpt-5"');
-    await expectExperiments(page, [GPT_HOT, GPT_COLD]);
+    await expect(
+      page.getByRole("searchbox", { name: "Search experiments" })
+    ).toHaveValue("cold");
+    await expectExperiments(page, [GPT_COLD]);
   });
 
   test("adds a Metadata form match to the condition", async ({ page }) => {

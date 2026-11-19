@@ -1,5 +1,7 @@
-from collections.abc import Iterator
-from contextlib import contextmanager
+from typing import Any
+
+from sqlalchemy.dialects import postgresql, sqlite
+from sqlalchemy.sql.expression import Select
 
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.trace.dsl.experiment_filter import ExperimentFilter
@@ -27,18 +29,19 @@ def _invalid_expression_message(error: Exception) -> str:
     return detail
 
 
-@contextmanager
-def experiment_filter_errors() -> Iterator[None]:
-    """Report expression failures from experiment filter compilation or SQL application."""
+def apply_experiment_filter(*, condition: str, stmt: Select[Any]) -> Select[Any]:
+    """Apply an experiment filter expression to a statement selecting from ``Experiment``.
+
+    The filtered statement is compiled for SQLite and PostgreSQL, so a condition that
+    compiles but can't be rendered as SQL, such as one nested too deeply, raises
+    ``ExperimentFilterConditionError`` here rather than when the query runs.
+    """
     try:
-        yield
-    except ExperimentFilterConditionError:
-        raise
+        filtered_stmt = ExperimentFilter(condition=condition)(stmt)
+        filtered_stmt.compile(dialect=sqlite.dialect())
+        filtered_stmt.compile(dialect=postgresql.dialect())  # type: ignore[no-untyped-call]
+    except RecursionError:
+        raise ExperimentFilterConditionError("filter condition is nested too deeply") from None
     except _INVALID_EXPRESSION_ERRORS as error:
         raise ExperimentFilterConditionError(_invalid_expression_message(error)) from error
-
-
-def compile_experiment_filter(condition: str) -> ExperimentFilter:
-    """Compile an experiment filter expression, reporting an unusable one as ``BadRequest``."""
-    with experiment_filter_errors():
-        return ExperimentFilter(condition=condition)
+    return filtered_stmt

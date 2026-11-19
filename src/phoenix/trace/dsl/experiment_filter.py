@@ -72,6 +72,10 @@ class _ExperimentMetadata:
     def __getitem__(self, keys: typing.Sequence[typing.Any]) -> typing.Any:
         if not keys or keys[0] != _METADATA_KEY or len(keys) < 2:
             raise SyntaxError('read experiment metadata as `metadata["key"]`')
+        # SQLite reads an integer subscript as an array index only, and PostgreSQL also
+        # reads it as an object key, so the same condition would match different rows.
+        if any(not isinstance(key, str) for key in keys[1:]):
+            raise SyntaxError('experiment metadata keys must be strings, e.g. `metadata["0"]`')
         return models.Experiment.metadata_[list(keys[1:])]
 
 

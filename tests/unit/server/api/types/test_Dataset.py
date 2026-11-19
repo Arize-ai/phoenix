@@ -1309,6 +1309,8 @@ class TestDatasetExperimentsFilterCondition:
                 "é": "accent",
                 "new\nline": "newline",
             },
+            "digit-key": {"a": {"0": "x"}},
+            "array-value": {"a": ["x"]},
             "no-metadata": {},
         }
         async with db() as session:
@@ -1474,6 +1476,8 @@ class TestDatasetExperimentsFilterCondition:
                     "model-array",
                     "model-object",
                     "special-keys",
+                    "digit-key",
+                    "array-value",
                     "no-metadata",
                 },
                 id="intrinsic-null",
@@ -1488,6 +1492,18 @@ class TestDatasetExperimentsFilterCondition:
         expected_names: set[str],
     ) -> None:
         assert await self._names(gql_client, dataset_id, condition) == expected_names
+
+    async def test_digit_only_key_also_indexes_arrays_on_postgresql(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_id: GlobalID,
+        dialect: str,
+    ) -> None:
+        names = await self._names(gql_client, dataset_id, 'metadata["a"]["0"] == "x"')
+        if dialect == "postgresql":
+            assert names == {"digit-key", "array-value"}
+        else:
+            assert names == {"digit-key"}
 
     async def test_composes_with_search(
         self,
@@ -1537,6 +1553,16 @@ class TestDatasetExperimentsFilterCondition:
                 "add an offset (e.g. 'Z' for UTC)",
                 id="naive-datetime",
             ),
+            pytest.param(
+                'metadata["a"][0] == "x"',
+                'experiment metadata keys must be strings, e.g. `metadata["0"]`',
+                id="integer-key",
+            ),
+            pytest.param(
+                "-" * 300 + "repetitions > 1",
+                "filter condition is nested too deeply",
+                id="nested-too-deeply",
+            ),
         ],
     )
     async def test_rejects_invalid_condition(
@@ -1559,6 +1585,12 @@ class TestDatasetExperimentsFilterCondition:
             pytest.param('metadata["model"] == "gpt-5"', True, None, id="valid"),
             pytest.param("", True, None, id="empty"),
             pytest.param("model == 'gpt-5'", False, "invalid name `model`", id="unknown-name"),
+            pytest.param(
+                "-" * 300 + "repetitions > 1",
+                False,
+                "filter condition is nested too deeply",
+                id="nested-too-deeply",
+            ),
         ],
     )
     async def test_validates_condition(

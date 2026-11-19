@@ -13,6 +13,10 @@ describe("parseMetadataFilterKey", () => {
     ).toEqual(["harbor_agent", "model_params", "temperature"]);
   });
 
+  it("reads an escaped dot as part of a key", () => {
+    expect(parseMetadataFilterKey("a\\.b.c")).toEqual(["a.b", "c"]);
+  });
+
   it.each(["", "  ", "a..b", ".a", "a."])("rejects %j", (key) => {
     expect(parseMetadataFilterKey(key)).toBeNull();
   });
