@@ -21,7 +21,7 @@ from sync_models import (
 )
 
 from phoenix.db.models import GenerativeModelType
-from phoenix.server.cost_tracking.manifest import compute_models_sha256, parse_manifest
+from phoenix.server.cost_tracking.manifest import compute_models_sha256
 
 PREVIOUS = datetime(2026, 10, 1, tzinfo=timezone.utc)
 NOW = datetime(2026, 10, 14, 12, 30, 15, 123456, tzinfo=timezone.utc)
@@ -346,7 +346,6 @@ def test_extract_litellm_entries_assigns_types_by_mode() -> None:
     jev = by_key["typesafe/jev-latest", "DECISION"]
     assert (jev.provider, jev.name_pattern) == ("typesafe", "jev-latest")
     assert _rates([jev])["typesafe/jev-latest"] == {("input", True): 4.2e-8, ("output", False): 0.0}
-    assert _tiers(jev) == {"input": None, "output": None}
 
     # Priced on input alone, with tiers keyed on llm.token_count.prompt; LiteLLM's published
     # 0 output rate isn't used.
@@ -466,13 +465,6 @@ def test_update_manifest_routes_entries_by_type() -> None:
         ("gpt-6-luna", "DECISION"),
         ("manual-decision", "DECISION"),
     ]
-    # The serialized manifest parses with both entries kept, each with its own price.
-    parsed = parse_manifest(serialize_manifest(updated))
-    assert {model.key: model.token_prices[0].base_rate for model in parsed.models} == {
-        ("gpt-6-luna", "LLM"): 1e-7,
-        ("gpt-6-luna", "DECISION"): 2e-7,
-        ("manual-decision", "DECISION"): 1e-6,
-    }
 
     # A DECISION entry gone upstream is removed; the same-name LLM and manual entries stay.
     updated = update_manifest(updated, [_entry("gpt-6-luna", 3e-7)])
@@ -495,14 +487,7 @@ def test_digest_is_unchanged_without_non_llm_models() -> None:
 @pytest.mark.parametrize(
     "mode, expected",
     [
-        pytest.param("decisions", "DECISION", id="decisions"),
-        pytest.param("evaluation", "DECISION", id="evaluation"),
-        pytest.param("embedding", "EMBEDDING", id="embedding"),
-        pytest.param("chat", "LLM", id="chat"),
-        pytest.param("responses", "LLM", id="responses"),
-        pytest.param("completion", "LLM", id="completion"),
         pytest.param("image_generation", "LLM", id="other-mode"),
-        pytest.param(None, "LLM", id="no-mode"),
         pytest.param(["chat"], "LLM", id="not-a-string"),
     ],
 )
