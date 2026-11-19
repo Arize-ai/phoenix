@@ -75,12 +75,17 @@ const STALE_SCORE_WINDOW: EvaluatorScoreWindow = {
 };
 /** A range the table does not show, so loading with it makes the table refetch. */
 const STALE_TIME_RANGE = { ...TIME_RANGE, start: "2026-06-30T00:00:00.000Z" };
-/** The label the route query gives the deferred fragment named `fragmentName`. */
+/**
+ * The label the route query gives the deferred fragment named `fragmentName`.
+ * Relay labels a deferred fragment `<parent>$defer$<fragment>`, and a fragment
+ * deferred inside another carries the outer one's name as its parent, so only
+ * the part after `$defer$` identifies the fragment.
+ */
 function getDeferLabel(fragmentName: string) {
   const text = getRequest(projectEvaluatorsLoaderGQL).params.text ?? "";
   return [...text.matchAll(/@defer\(label: "([^"]+)"\)/g)]
     .map((match) => match[1])
-    .find((label) => label.includes(fragmentName));
+    .find((label) => label.includes(`$defer$${fragmentName}`));
 }
 const SCORES_DEFER_LABEL = getDeferLabel(
   "ProjectEvaluatorMeanScoreCell_scores"
