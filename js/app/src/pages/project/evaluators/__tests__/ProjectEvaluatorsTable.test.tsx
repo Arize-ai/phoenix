@@ -118,7 +118,7 @@ const HIDDEN_COLUMN_IDS = [
   "actions",
 ];
 
-type EvaluatorFixtureKind = "CODE" | "BUILTIN" | "LLM";
+type EvaluatorFixtureKind = "CODE" | "BUILTIN" | "LLM" | "DECISION";
 
 /** Each kind's evaluator selections, as the row fragment reads them. */
 function makeEvaluator({
@@ -157,6 +157,24 @@ function makeEvaluator({
         id: `BuiltInEvaluator:${index}`,
         kind,
         outputConfigs,
+      };
+    case "DECISION":
+      return {
+        __typename: "DecisionEvaluator",
+        id: `DecisionEvaluator:${index}`,
+        kind,
+        outputConfigs,
+        decisionVersionTag: {
+          name: `judge-${index}`,
+          id: `DecisionVersionTag:${index}`,
+        },
+        decisionVersion: {
+          id: `DecisionVersion:${index}`,
+          decisionId: `Decision:${index}`,
+          decision: { name: `decision-${index}`, id: `Decision:${index}` },
+          modelName: "jev-latest",
+          modelProvider: "TYPESAFE",
+        },
       };
     default:
       return {
@@ -845,12 +863,13 @@ function readCostCells() {
 }
 
 describe("ProjectEvaluatorsTable cost columns", () => {
-  /** Rows of each kind; only the traced LLM evaluator's cost is measured. */
+  /** Rows of each kind; only the traced LLM and decision evaluators' costs are measured. */
   const COST_ROWS = {
     1: { kind: "CODE" },
     2: { kind: "BUILTIN" },
     3: { kind: "LLM", tracingEnabled: false },
     4: { kind: "LLM" },
+    5: { kind: "DECISION" },
   } as const;
 
   beforeEach(() => {
@@ -876,7 +895,7 @@ describe("ProjectEvaluatorsTable cost columns", () => {
     stream.sendPart(
       makeInitialPart({
         root: "project",
-        indexes: [1, 2, 3, 4],
+        indexes: [1, 2, 3, 4, 5],
         nodes: COST_ROWS,
       })
     );
@@ -887,9 +906,12 @@ describe("ProjectEvaluatorsTable cost columns", () => {
       "evaluator-2": ["--", "--"],
       "evaluator-3": ["tracing off", "tracing off"],
       "evaluator-4": ["loading", "loading"],
+      "evaluator-5": ["loading", "loading"],
     });
 
-    stream.sendPart(makeScoresPart({ indexes: [1, 2, 3, 4], meanScore: 0.75 }));
+    stream.sendPart(
+      makeScoresPart({ indexes: [1, 2, 3, 4, 5], meanScore: 0.75 })
+    );
     stream.sendPart(
       makeCostPart({
         costs: {
@@ -897,6 +919,7 @@ describe("ProjectEvaluatorsTable cost columns", () => {
           2: null,
           3: null,
           4: { totalCost: 0.5, tracedEvaluationCount: 2 },
+          5: { totalCost: 0.9, tracedEvaluationCount: 3 },
         },
       })
     );
@@ -908,6 +931,10 @@ describe("ProjectEvaluatorsTable cost columns", () => {
     expect(costs["evaluator-4"]).toEqual([
       expect.stringContaining("0.5"),
       expect.stringContaining("0.25"),
+    ]);
+    expect(costs["evaluator-5"]).toEqual([
+      expect.stringContaining("0.9"),
+      expect.stringContaining("0.3"),
     ]);
   });
 

@@ -21,6 +21,8 @@ from phoenix.db.types.annotation_configs import (
     ContinuousOutputConfig,
     OptimizationDirection,
 )
+from phoenix.db.types.decision_evaluators import DecisionScoringPolicy, PredicateScoring
+from phoenix.db.types.decisions import JsonState
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
@@ -56,6 +58,7 @@ from tests.unit.conftest import (
     patch_grpc_server,
     patch_online_eval_daemons,
 )
+from tests.unit.db.types.test_decision_evaluators import questions as decision_questions
 from tests.unit.graphql import AsyncGraphQLClient
 
 
@@ -2852,9 +2855,10 @@ async def test_project_evaluator_cost_is_measured_only_for_traced_model_evaluato
     gql_client: AsyncGraphQLClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Code and built-in evaluators make no model calls, and a tracing-off evaluator's
-    traces cover only part of the range, so their cost is null and the trace and span
-    cost scans are never queued for their trace projects."""
+    """LLM and decision evaluators call a model, so their traced cost is read. Code and
+    built-in evaluators make no model calls, and a tracing-off evaluator's traces cover
+    only part of the range, so their cost is null and the trace and span cost scans are
+    never queued for their trace projects."""
     now = datetime.now(timezone.utc)
     async with db() as session:
         project = await _add_project(session)
@@ -2871,7 +2875,32 @@ async def test_project_evaluator_cost_is_measured_only_for_traced_model_evaluato
             input_schema={},
             output_configs=[],
         )
-        session.add_all([llm, code, builtin])
+        decision = models.Decision(name=Identifier(token_hex(4)), metadata_={})
+        decision_version = models.DecisionVersion(
+            decision=decision,
+            template_format=PromptTemplateFormat.MUSTACHE,
+            state=JsonState(type="json", template="{{output}}"),
+            questions=decision_questions(),
+            model_provider=ModelProvider.TYPESAFE,
+            model_name="jev-latest",
+            metadata_={},
+        )
+        session.add(decision_version)
+        await session.flush()
+        decision_judge = models.DecisionEvaluator(
+            name=Identifier(token_hex(4)),
+            metadata_={},
+            decision_id=decision.id,
+            decision_version_tag=models.DecisionVersionTag(
+                name=Identifier(token_hex(4)),
+                decision=decision,
+                decision_version=decision_version,
+            ),
+            scoring_policy=DecisionScoringPolicy(
+                questions={"correct": PredicateScoring(type="predicate", threshold=0.8)}
+            ),
+        )
+        session.add_all([llm, code, builtin, decision_judge])
         await session.flush()
         trace_project_ids: dict[str, int] = {}
         for name, evaluator_id, tracing_enabled in (
@@ -2879,6 +2908,7 @@ async def test_project_evaluator_cost_is_measured_only_for_traced_model_evaluato
             ("llm-tracing-off", llm.id, False),
             ("code", code.id, True),
             ("builtin", builtin.id, True),
+            ("decision", decision_judge.id, True),
         ):
             project_evaluator = models.ProjectEvaluator(
                 trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
@@ -2956,18 +2986,20 @@ async def test_project_evaluator_cost_is_measured_only_for_traced_model_evaluato
     by_name = {
         edge["node"]["name"]: edge["node"] for edge in response.data["node"]["evaluators"]["edges"]
     }
-    assert by_name["llm"]["tracedEvaluationCount"] == 1
-    assert by_name["llm"]["costSummary"] == {
-        "total": {"cost": pytest.approx(0.5)},
-        "prompt": {"cost": pytest.approx(0.2)},
-        "completion": {"cost": pytest.approx(0.3)},
-    }
+    for name in ("llm", "decision"):
+        assert by_name[name]["tracedEvaluationCount"] == 1, name
+        assert by_name[name]["costSummary"] == {
+            "total": {"cost": pytest.approx(0.5)},
+            "prompt": {"cost": pytest.approx(0.2)},
+            "completion": {"cost": pytest.approx(0.3)},
+        }, name
     for name in ("llm-tracing-off", "code", "builtin"):
         assert by_name[name]["tracedEvaluationCount"] is None, name
         assert by_name[name]["costSummary"] is None, name
-    assert loaded_project_ids == {
-        "counts": [trace_project_ids["llm"]],
-        "costs": [trace_project_ids["llm"]],
+    measured_trace_project_ids = sorted([trace_project_ids["llm"], trace_project_ids["decision"]])
+    assert {key: sorted(ids) for key, ids in loaded_project_ids.items()} == {
+        "counts": measured_trace_project_ids,
+        "costs": measured_trace_project_ids,
     }
 
 
