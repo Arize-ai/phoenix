@@ -326,7 +326,7 @@ test: test-python test-ts ## Run all tests (Python + TypeScript workspace)
 
 typecheck-python: ## Type check Python code
 	@echo -e "$(CYAN)Type checking Python...$(NC)"
-	@$(UV) run mypy $(MYPY_ARGS)
+	@$(UV) run mypy
 	@echo -e "$(GREEN)✓ Type check complete$(NC)"
 
 typecheck-python-ty: ## Type check Python with ty (verify expected errors only)
