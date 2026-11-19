@@ -72,6 +72,11 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
     def _to_results(cls, response: Any, names: List[str]) -> Dict[str, Any]:
         results: List[Dict[str, Any]] = []
         for name in names:
+            if name not in response.choices:
+                raise ValueError(
+                    f"The model returned no answer for criterion '{name}'. "
+                    f"It returned answers for: {sorted(response.choices)}."
+                )
             answer = response.choices[name]
             results.append(
                 {

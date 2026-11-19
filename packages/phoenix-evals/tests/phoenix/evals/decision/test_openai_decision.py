@@ -129,6 +129,24 @@ def test_generate_classifications_matches_answers_by_name_not_order(monkeypatch)
     assert results[1]["label"] == "wrong"
 
 
+def test_generate_classifications_missing_answer_raises_descriptive_error(monkeypatch):
+    client = MagicMock()
+    client.decisions.create.return_value = _multi_response(
+        [("helpfulness", "good", {"good": 0.7, "bad": 0.3})]
+    )
+    _patch_clients(monkeypatch, sync_client=client)
+
+    decision = DecisionModel(provider="openai", model="gpt-6-luna")
+    with pytest.raises(ValueError, match="no answer for criterion 'accuracy'.*'helpfulness'"):
+        decision.generate_classifications(
+            "t",
+            [
+                {"name": "helpfulness", "labels": ["good", "bad"]},
+                {"name": "accuracy", "labels": ["right", "wrong"]},
+            ],
+        )
+
+
 async def test_async_generate_classifications(monkeypatch):
     async_client = MagicMock()
     async_client.decisions.create = AsyncMock(

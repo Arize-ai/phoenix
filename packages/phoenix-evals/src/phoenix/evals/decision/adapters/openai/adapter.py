@@ -118,6 +118,11 @@ class OpenAIDecisionAdapter(BaseDecisionAdapter):
         by_name = {getattr(answer, "name", None): answer for answer in response.answers}
         results: List[Dict[str, Any]] = []
         for name in names:
+            if name not in by_name:
+                raise ValueError(
+                    f"The model returned no answer for criterion '{name}'. "
+                    f"It returned answers for: {sorted(n for n in by_name if n is not None)}."
+                )
             answer = by_name[name]
             results.append({"name": name, **cls._answer_to_label_metadata(answer, response.model)})
         return {"results": results, "usage": cls._usage_dict(response)}
