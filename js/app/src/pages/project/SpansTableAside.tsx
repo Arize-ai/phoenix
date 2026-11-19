@@ -1,4 +1,4 @@
-import { Suspense, useLayoutEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { Focusable } from "react-aria";
 import type { PreloadedQuery } from "react-relay";
 import {
@@ -174,16 +174,22 @@ export function SpansTableAside(props: {
     timeRange: timeRangeISOStrings,
     filterCondition,
   });
-  // Before paint, so opening the panel never paints the frame before the
-  // reference exists and cached totals show in the first frame. The reader
-  // suspends into the boundary below, not one above: a boundary that hides
-  // this component reruns its layout effects when it shows it again, which
-  // would load the query twice.
-  useLayoutEffect(() => {
+  const loadedKeyRef = useRef<string | null>(null);
+  const loadKey = `${variablesKey}|${fetchKey}`;
+  // A passive effect, not a layout one: when a boundary above reveals this
+  // component, React reruns its effects, and the query loader's own passive
+  // effect then releases every reference but the one it last committed, so
+  // a reference loaded in a layout effect just before is read disposed. The
+  // key keeps a reveal from loading the same query again.
+  useEffect(() => {
+    if (loadedKeyRef.current === loadKey) {
+      return;
+    }
+    loadedKeyRef.current = loadKey;
     loadAsideQuery(JSON.parse(variablesKey), {
       fetchPolicy: "store-and-network",
     });
-  }, [loadAsideQuery, variablesKey, fetchKey]);
+  }, [loadAsideQuery, loadKey, variablesKey]);
   if (queryReference == null) {
     return <TableAsideSkeleton />;
   }

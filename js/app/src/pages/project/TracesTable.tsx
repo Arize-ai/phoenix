@@ -254,6 +254,20 @@ const TableBody = <
         const isSelected = selectedTraceSlots.some(
           (slot) => slot.traceId === row.original.trace.traceId
         );
+        if (row.original.__hasChildSpansFailed) {
+          // A message, not a span: one cell across the row, so it is neither
+          // cut to the name column's width nor set beside span cells.
+          return (
+            <tr key={row.id} data-is-additional-row css={css(trCSS)}>
+              <td
+                className={TABLE_DATA_CELL_CLASS}
+                colSpan={row.getVisibleCells().length}
+              >
+                <Text color="text-700">{row.original.name}</Text>
+              </td>
+            </tr>
+          );
+        }
         return (
           <tr
             key={row.id}
@@ -782,9 +796,7 @@ export function TracesTable(props: TracesTableProps) {
                   padding-left: ${props.row.depth * 2}rem;
                 `}
               >
-                {props.row.original.__hasChildSpansFailed ? null : (
-                  <Icon svg={<Icons.MoreHorizontal />} />
-                )}
+                <Icon svg={<Icons.MoreHorizontal />} />
               </div>
             );
           }

@@ -1,4 +1,4 @@
-import { act, startTransition, Suspense } from "react";
+import { act, startTransition, Suspense, use } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { RelayEnvironmentProvider } from "react-relay";
 import { MemoryRouter } from "react-router";
@@ -137,7 +137,22 @@ afterEach(() => {
   container.remove();
 });
 
-async function renderAside() {
+/**
+ * Suspends while `pending` is set, so the boundary around it hides the
+ * panel and shows it again once it resolves.
+ */
+function SuspendingSibling({ pending }: { pending: Promise<void> | null }) {
+  if (pending != null) {
+    use(pending);
+  }
+  return null;
+}
+
+async function renderAside({
+  pendingSibling = null,
+}: {
+  pendingSibling?: Promise<void> | null;
+} = {}) {
   const environment = new Environment({
     network: Network.create(fetchRelay),
     store: new Store(new RecordSource()),
@@ -149,6 +164,7 @@ async function renderAside() {
           <RelayEnvironmentProvider environment={environment}>
             <MemoryRouter>
               <Suspense fallback="loading">
+                <SuspendingSibling pending={pendingSibling} />
                 <SpansTableAside spanAnnotationNames={[]} />
               </Suspense>
             </MemoryRouter>
@@ -274,4 +290,32 @@ describe("SpansTableAside totals", () => {
       );
     }
   );
+
+  it("reads a live reference after a boundary above hides the panel and shows it again", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const load = createStreamingMultipartResponse();
+    authFetchMock.mockResolvedValueOnce(load.response);
+    let resolveSibling = () => {};
+    const pendingSibling = new Promise<void>((resolve) => {
+      resolveSibling = resolve;
+    });
+    // The boundary shows its fallback and renders the panel hidden behind it
+    // until the sibling resolves, then reveals it.
+    await renderAside({ pendingSibling });
+    await act(async () => resolveSibling());
+    load.sendPart(PANEL_PART);
+    load.sendPart(TOTALS_PART);
+    load.end();
+    await settle();
+
+    const disposedWarnings = consoleError.mock.calls.filter((call) =>
+      String(call[0]).includes("to not be disposed")
+    );
+    consoleError.mockRestore();
+    expect(disposedWarnings).toEqual([]);
+    expect(authFetchMock).toHaveBeenCalledTimes(1);
+    expect(readTotals()).toMatchObject({ "Total Traces": "1,234" });
+  });
 });

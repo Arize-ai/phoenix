@@ -374,18 +374,22 @@ describe("TracesTable child spans", () => {
 
       expect(readRowNames()).toEqual(["trace-1", "trace-2"]);
       expect(await expandAllRows()).toBe(2);
-      expect(readRowNames()).toEqual([
-        "trace-1",
+      // The message is the row's only content: not a link to a span, and no
+      // span cells such as input, output or cost beside it.
+      const failedRows = [
+        ...container.querySelectorAll("tbody tr[data-is-additional-row]"),
+      ];
+      expect(failedRows.map((row) => row.textContent)).toEqual([
         "Child spans failed to load.",
-        "trace-2",
         "Child spans failed to load.",
       ]);
-      const failedRowKindCells = [
-        ...container.querySelectorAll("tbody tr[data-is-additional-row] td"),
-      ].filter((cell, index) => index % 3 === 1);
+      expect(failedRows.map((row) => row.querySelector("a"))).toEqual([
+        null,
+        null,
+      ]);
       expect(
-        failedRowKindCells.map((cell) => cell.querySelector("svg"))
-      ).toEqual([null, null]);
+        failedRows.map((row) => row.querySelectorAll("td").length)
+      ).toEqual([1, 1]);
     }
   );
 });
