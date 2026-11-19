@@ -1,6 +1,6 @@
 # Factory message service
 
-Talk to the Phoenix factory in Slack.
+Talk to `@Foreman` in Slack.
 
 ## Run locally
 
