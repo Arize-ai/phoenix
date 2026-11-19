@@ -12,6 +12,7 @@ export function useLoadMoreSentinel<T extends Element>({
   loadNext,
   pageSize,
   rows,
+  isParentRequestPending = false,
   margin = "300px",
 }: {
   hasNext: boolean;
@@ -20,6 +21,11 @@ export function useLoadMoreSentinel<T extends Element>({
   pageSize: number;
   /** A change re-checks whether the sentinel is still visible. */
   rows: ReadonlyArray<unknown>;
+  /**
+   * The query that delivered the rows still has parts to deliver. Relay
+   * ignores a next page until then, so the sentinel waits and checks again.
+   */
+  isParentRequestPending?: boolean;
   margin?: string;
 }): RefCallback<T> {
   const [sentinel, setSentinel] = useState<T | null>(null);
@@ -42,7 +48,12 @@ export function useLoadMoreSentinel<T extends Element>({
     });
   });
   useEffect(() => {
-    if (sentinel == null || !hasNext || isLoadingNext) {
+    if (
+      sentinel == null ||
+      !hasNext ||
+      isLoadingNext ||
+      isParentRequestPending
+    ) {
       return undefined;
     }
     // Re-subscribe after each page so a visible sentinel can keep loading.
@@ -52,6 +63,6 @@ export function useLoadMoreSentinel<T extends Element>({
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [sentinel, hasNext, isLoadingNext, rows, margin]);
+  }, [sentinel, hasNext, isLoadingNext, isParentRequestPending, rows, margin]);
   return setSentinel;
 }

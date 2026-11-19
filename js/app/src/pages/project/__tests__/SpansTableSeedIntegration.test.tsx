@@ -113,8 +113,8 @@ vi.mock("../SpanFilterConditionField", async () => {
 
 const spanAnnotationNamesState = vi.hoisted(() => ({
   spanAnnotationNames: [],
-  hasSpanAnnotationNamesError: false,
-  onRequestComplete: () => {},
+  traceAnnotationNames: [],
+  hasAnnotationNamesError: false,
 }));
 
 vi.mock("../useSpanAnnotationNames", () => ({
