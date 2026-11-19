@@ -406,7 +406,10 @@ function EvaluatorGallery({
     count: templatesByCategory.get(category)?.length ?? 0,
   }));
   const initialSection =
-    initialCategory && categories.includes(initialCategory)
+    initialCategory &&
+    data.evaluatorGalleryConfigs.some(
+      (template) => getGalleryCategory(template.category) === initialCategory
+    )
       ? initialCategory
       : undefined;
   const [selection, setSelection] =
@@ -612,7 +615,8 @@ function EvaluatorGallery({
           <Select
             aria-label="Evaluator gallery section"
             className="project-evaluator-gallery__compact-category-select"
-            value={selectedSection}
+            value={selectedSection ?? null}
+            isDisabled={sections.length === 0}
             onChange={(section) => {
               if (typeof section === "string") {
                 scrollToSection(section as GallerySection);
