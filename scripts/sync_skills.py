@@ -14,7 +14,7 @@ Run with no arguments to write every copy (``make skills``):
 - ``src/phoenix/server/agents/prompts/public_skills/<name>/``: a copy of each
   ``pxi`` skill.
 - ``src/phoenix/server/agents/prompts/skills/phoenix-graphql/references/filter-expressions.md``:
-  a copy of ``skills/phoenix-evals/references/filter-expressions.md``, so PXI's
+  a copy of ``skills/phoenix-cli/references/filter-expressions.md``, so PXI's
   own ``phoenix-graphql`` skill teaches the same filter syntax.
 - ``plugins/claude/arize-phoenix/skills/<name>``: a symlink for each ``agents``
   skill. Claude Code follows the symlinks when it installs the plugin.
@@ -76,7 +76,7 @@ CODEX_PLUGIN_ROOT = REPO_ROOT / "plugins" / "codex" / "arize-phoenix" / "skills"
 CURSOR_MANIFEST = REPO_ROOT / ".cursor-plugin" / "plugin.json"
 FILE_COPIES = (
     (
-        PUBLIC_ROOT / "phoenix-evals" / "references" / "filter-expressions.md",
+        PUBLIC_ROOT / "phoenix-cli" / "references" / "filter-expressions.md",
         PXI_ROOT / "phoenix-graphql" / "references" / "filter-expressions.md",
     ),
 )
