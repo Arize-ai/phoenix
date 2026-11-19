@@ -21,6 +21,7 @@ from phoenix.evals.evaluators import (
     to_thread,
 )
 from phoenix.evals.llm import LLM, PromptTemplate
+from phoenix.evals.llm.types import ObjectGenerationMethod
 
 
 # --- Shared Mock Classes ---
@@ -761,6 +762,49 @@ class TestClassificationEvaluator:
         # Flat single-criterion schema, not nested under the evaluator name.
         assert set(schema["properties"]) == {"label", "explanation"}
         assert "my eval" not in schema["properties"]
+
+    def test_criteria_list_forwards_description_and_resolves_method(self, openai_api_key):
+        """The List[Criterion] path must send each criterion's ``description`` to the backend as
+        that property's ``description``, omit the ``explanation`` property when
+        ``include_explanation=False``, and pick ``TOOL_CALLING`` for criteria with
+        ``label_descriptions``. ``MockLLM`` can't catch these because it ignores both the schema
+        and the ``method`` kwarg, so use a real ``LLM`` with only ``generate_object`` stubbed."""
+        from phoenix.evals import LLM
+
+        llm = LLM(provider="openai", model="gpt-4o", client="openai")
+        llm._sync_adapter = MagicMock()
+        llm._sync_adapter.generate_object.return_value = {"relevance": {"label": "relevant"}}
+
+        criterion = Criterion(
+            name="relevance",
+            description="Is the answer relevant to the question?",
+            choices={"relevant": 1, "irrelevant": 0},
+            label_descriptions={
+                "relevant": "The answer addresses the question.",
+                "irrelevant": "The answer does not address the question.",
+            },
+        )
+        evaluator = ClassificationEvaluator(
+            name="my eval",
+            llm=llm,
+            prompt_template="judge: {x}",
+            choices=[criterion],
+            include_explanation=False,
+        )
+
+        [score] = evaluator._evaluate({"x": "1"})
+        assert score.name == "relevance" and score.label == "relevant" and score.score == 1
+
+        args, kwargs = llm._sync_adapter.generate_object.call_args
+        schema = args[1]
+        prop = schema["properties"]["relevance"]
+
+        # description reaches the backend as the criterion property's description (instructions).
+        assert prop["description"] == criterion.description
+        # include_explanation=False => no explanation property on the criterion object.
+        assert "explanation" not in prop["properties"]
+        # label_descriptions => TOOL_CALLING, not AUTO.
+        assert kwargs["method"] == ObjectGenerationMethod.TOOL_CALLING
 
     def test_choices_list_mixing_criterion_and_string_raises(self):
         """A list mixing a Criterion with plain strings is rejected, not silently filtered."""
