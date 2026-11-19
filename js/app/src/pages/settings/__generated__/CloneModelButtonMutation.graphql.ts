@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2721de2aace383ea58aa99e4c4b56508>>
+ * @generated SignedSource<<c765394337e00ce69de85b2c0b679c04>>
  * @lightSyntaxTransform
  */
 
@@ -36,6 +36,7 @@ export type CloneModelButtonMutation$data = {
       readonly id: string;
       readonly kind: GenerativeModelKind;
       readonly lastUsedAt: string | null;
+      readonly modelType: GenerativeModelType;
       readonly name: string;
       readonly namePattern: string;
       readonly provider: string | null;
@@ -100,6 +101,13 @@ v4 = {
       "args": null,
       "kind": "ScalarField",
       "name": "name",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "modelType",
       "storageKey": null
     },
     {
@@ -258,16 +266,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "38d9fd18934c13a39750554ecbb30fb9",
+    "cacheID": "024c9dd05f29863695b2ba700c3b5c56",
     "id": null,
     "metadata": {},
     "name": "CloneModelButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation CloneModelButtonMutation(\n  $input: CreateModelMutationInput!\n) {\n  createModel(input: $input) {\n    model {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      startTime\n      createdAt\n      updatedAt\n      lastUsedAt\n      kind\n      tokenPrices {\n        tokenType\n        kind\n        costPerMillionTokens\n      }\n    }\n  }\n}\n"
+    "text": "mutation CloneModelButtonMutation(\n  $input: CreateModelMutationInput!\n) {\n  createModel(input: $input) {\n    model {\n      id\n      name\n      modelType\n      provider\n      namePattern\n      providerKey\n      startTime\n      createdAt\n      updatedAt\n      lastUsedAt\n      kind\n      tokenPrices {\n        tokenType\n        kind\n        costPerMillionTokens\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "74b3cb4e7feb2375336e29fc7745bc33";
+(node as any).hash = "d582fa8ace409a5648309292a56e6ab6";
 
 export default node;
