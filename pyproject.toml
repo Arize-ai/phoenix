@@ -298,6 +298,8 @@ artifacts = [
 # `--ignore W004` replaces a configured `ignore` instead of adding to it, so W002 is
 # left out of `select` rather than listed under `ignore`. A check added in a later
 # check-wheel-contents release runs only once it is added here.
+# The setting applies to every wheel checked from the repo root, so the client, evals
+# and otel wheels skip W002 too.
 [tool.check-wheel-contents]
 select = ["W001", "W003", "W004", "W005", "W006", "W007", "W008", "W009", "W010", "W1", "W2"]
 
