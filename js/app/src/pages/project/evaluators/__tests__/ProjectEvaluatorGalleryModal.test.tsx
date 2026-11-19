@@ -4,6 +4,7 @@ import { RelayEnvironmentProvider } from "react-relay";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import type { OperationDescriptor } from "relay-runtime";
 import { createMockEnvironment } from "relay-test-utils";
+import { userEvent } from "storybook/test";
 
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
 import { ThemeProvider } from "@phoenix/contexts";
@@ -27,6 +28,7 @@ describe("ProjectEvaluatorGalleryModal", () => {
   let root: Root;
   beforeEach(() => {
     Element.prototype.scrollIntoView = vi.fn();
+    Element.prototype.scrollTo = vi.fn();
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -36,7 +38,7 @@ describe("ProjectEvaluatorGalleryModal", () => {
     container.remove();
   });
 
-  it("lists a saved decision evaluator as Decision and attaches it", async () => {
+  async function renderGallery() {
     const environment = createMockEnvironment();
     const resolve = async (
       name: string,
@@ -69,6 +71,11 @@ describe("ProjectEvaluatorGalleryModal", () => {
         </RelayEnvironmentProvider>
       )
     );
+    return { resolve };
+  }
+
+  it("lists a saved decision evaluator as Decision and attaches it", async () => {
+    const { resolve } = await renderGallery();
     await resolve("projectEvaluatorGalleryModalQuery", () => ({
       evaluatorGalleryConfigs: [],
       evaluators: {
@@ -126,5 +133,67 @@ describe("ProjectEvaluatorGalleryModal", () => {
     expect(document.querySelector("[data-testid=path]")?.textContent).toMatch(
       /\/new\/attach\/evaluator-1$/
     );
+  });
+
+  it("filters evaluators and templates by name", async () => {
+    const user = userEvent.setup();
+    const { resolve } = await renderGallery();
+    const template = {
+      description: null,
+      details: null,
+      choices: {},
+      optimizationDirection: "MAXIMIZE",
+      scope: "SPAN",
+      inputs: [],
+      defaultFilterCondition: null,
+      defaultPathMapping: null,
+      messages: [],
+    };
+    await resolve("projectEvaluatorGalleryModalQuery", () => ({
+      evaluatorGalleryConfigs: [
+        { ...template, name: "correctness", category: "RESPONSE_QUALITY" },
+        { ...template, name: "tool_selection", category: "AGENTS" },
+      ],
+      evaluators: {
+        edges: [
+          {
+            cursor: "cursor-1",
+            evaluator: { ...decisionEvaluator, description: null },
+            node: decisionEvaluator,
+          },
+        ],
+        pageInfo: { endCursor: "cursor-1", hasNextPage: false },
+      },
+    }));
+    const getSectionKeys = () =>
+      Array.from(
+        document.querySelectorAll(
+          "[aria-label='Evaluator gallery sections'] [role=option]"
+        ),
+        (section) => section.getAttribute("data-key")
+      );
+    const searchInput = document.querySelector<HTMLInputElement>(
+      "input[aria-label='Search evaluators by name']"
+    );
+    expect(searchInput).not.toBeNull();
+
+    const getCardKeys = () =>
+      Array.from(
+        document.querySelectorAll(
+          "[aria-label='Evaluators and templates'] [role=option][data-key]"
+        ),
+        (card) => card.getAttribute("data-key")
+      );
+
+    await act(async () => user.type(searchInput!, "CORRECT"));
+    expect(getCardKeys()).toEqual(["template:correctness"]);
+    expect(getSectionKeys()).toEqual(["RESPONSE_QUALITY"]);
+
+    await act(async () => user.type(searchInput!, "zzz"));
+    expect(getCardKeys()).toEqual([]);
+    expect(
+      document.querySelector("[aria-label='Evaluators and templates']")
+        ?.textContent
+    ).toContain("No results");
   });
 });
