@@ -142,19 +142,16 @@ export function ProjectEvaluatorsTabTable({
                 p95Seconds
                 p99Seconds
               }
-              traceProject {
-                id
-                traceCount(timeRange: $timeRange)
-                costSummary(timeRange: $timeRange) {
-                  total {
-                    cost
-                  }
-                  prompt {
-                    cost
-                  }
-                  completion {
-                    cost
-                  }
+              tracedEvaluationCount(timeRange: $timeRange)
+              costSummary(timeRange: $timeRange) {
+                total {
+                  cost
+                }
+                prompt {
+                  cost
+                }
+                completion {
+                  cost
                 }
               }
             }
@@ -332,14 +329,11 @@ export function ProjectEvaluatorsTabTable({
       meta: { textAlign: "right" },
       sortDescFirst: true,
       sortUndefined: "last",
-      accessorFn: (row) =>
-        row.tracingEnabled
-          ? (row.traceProject.costSummary.total.cost ?? undefined)
-          : undefined,
+      accessorFn: (row) => row.costSummary?.total.cost ?? undefined,
       cell: ({ row }) => (
         <ProjectEvaluatorCost
           evaluatorKind={row.original.evaluator.kind}
-          costSummary={row.original.traceProject.costSummary}
+          costSummary={row.original.costSummary}
           isTracingEnabled={row.original.tracingEnabled}
         />
       ),
@@ -356,17 +350,17 @@ export function ProjectEvaluatorsTabTable({
       sortDescFirst: true,
       sortUndefined: "last",
       accessorFn: (row) => {
-        const cost = row.traceProject.costSummary.total.cost;
-        const runCount = row.traceProject.traceCount;
-        return row.tracingEnabled && cost != null && runCount > 0
+        const cost = row.costSummary?.total.cost;
+        const runCount = row.tracedEvaluationCount;
+        return cost != null && runCount != null && runCount > 0
           ? cost / runCount
           : undefined;
       },
       cell: ({ row }) => (
         <ProjectEvaluatorAverageCost
           evaluatorKind={row.original.evaluator.kind}
-          costSummary={row.original.traceProject.costSummary}
-          runCount={row.original.traceProject.traceCount}
+          costSummary={row.original.costSummary}
+          runCount={row.original.tracedEvaluationCount}
           isTracingEnabled={row.original.tracingEnabled}
         />
       ),
