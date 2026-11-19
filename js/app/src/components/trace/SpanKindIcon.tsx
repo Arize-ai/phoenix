@@ -702,6 +702,15 @@ const spanKindIconCSS = css`
     );
     color: lch(from var(--span-kind-icon-color) 85 c h);
   }
+
+  /*
+   * Leading a Badge, the icon takes the badge's own text color so the badge
+   * shows one hue: the kind's.
+   */
+  &[data-size="S"],
+  &[data-size="M"] {
+    color: inherit;
+  }
 `;
 
 const SPAN_KIND_ICONS: Record<
@@ -729,8 +738,9 @@ export function SpanKindIcon({
   spanKind: string;
   variant?: "fill" | "outline";
   /**
-   * Shrinks the icon to lead a `Badge` of this size. Leave it out for the
-   * icon's own 20px.
+   * Shrinks the icon to lead a `Badge` of this size and draws it in the
+   * badge's text color instead of the kind's own. Leave it out for the
+   * icon's own 20px and color.
    */
   size?: FamilySize;
 }) {
@@ -745,10 +755,14 @@ export function SpanKindIcon({
   return (
     <div
       css={spanKindIconCSS}
-      style={{
-        // @ts-expect-error custom CSS properties
-        "--span-kind-icon-color": color,
-      }}
+      style={
+        size === undefined
+          ? {
+              // @ts-expect-error custom CSS properties
+              "--span-kind-icon-color": color,
+            }
+          : undefined
+      }
       data-theme={theme}
       data-size={size}
       title={size === undefined ? spanKind : undefined}
