@@ -198,3 +198,38 @@ def test_extract_litellm_entries_skips_zero_token_rates_with_non_token_price() -
             ("image", False): 4e-5,
         },
     }
+
+
+def test_extract_litellm_entries_keeps_bedrock_cross_region_anthropic_ids() -> None:
+    # Bedrock bills cross-region inference profiles at its own regional rate, which LiteLLM
+    # lists under these ids, 10% above Anthropic's list price for the same model.
+    entries = extract_litellm_entries(
+        {
+            "us.anthropic.claude-sonnet-4-5-20250929-v1:0": {
+                "input_cost_per_token": 3.3e-6,
+                "output_cost_per_token": 1.65e-5,
+            },
+            "eu.anthropic.claude-opus-4-5-20251101-v1:0": {
+                "input_cost_per_token": 5.5e-6,
+                "output_cost_per_token": 2.75e-5,
+            },
+            "jp.anthropic.claude-sonnet-4-5-20250929-v1:0": {
+                "input_cost_per_token": 3.3e-6,
+                "output_cost_per_token": 1.65e-5,
+            },
+        }
+    )
+    assert _rates(entries) == {
+        "us.anthropic.claude-sonnet-4-5-20250929-v1:0": {
+            ("input", True): 3.3e-6,
+            ("output", False): 1.65e-5,
+        },
+        "eu.anthropic.claude-opus-4-5-20251101-v1:0": {
+            ("input", True): 5.5e-6,
+            ("output", False): 2.75e-5,
+        },
+        "jp.anthropic.claude-sonnet-4-5-20250929-v1:0": {
+            ("input", True): 3.3e-6,
+            ("output", False): 1.65e-5,
+        },
+    }
