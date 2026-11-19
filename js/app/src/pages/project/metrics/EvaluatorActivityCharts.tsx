@@ -63,7 +63,10 @@ import {
   intShortFormatter,
 } from "@phoenix/utils/numberFormatUtils";
 
-import type { EvaluatorActivityChartsQuery } from "./__generated__/EvaluatorActivityChartsQuery.graphql";
+import type {
+  EvaluatorActivityChartsQuery,
+  EvaluatorActivityChartsQuery$variables,
+} from "./__generated__/EvaluatorActivityChartsQuery.graphql";
 import type { EvaluatorQueueSizeChartQuery } from "./__generated__/EvaluatorQueueSizeChartQuery.graphql";
 import type {
   EvaluatorSeries,
@@ -91,11 +94,6 @@ const evaluatorLegendProps = {
   },
 } satisfies typeof compactLegendProps;
 
-type ActivityQueryVariables = {
-  timeRange: { start?: string | null; end?: string | null };
-  timeBinConfig: { scale?: TimeBinScale | null };
-};
-
 /**
  * The time range and bin scale that loaded chart data covers, which differ
  * from the requested ones while a newer range loads. A range of another
@@ -103,12 +101,13 @@ type ActivityQueryVariables = {
  * differs; a live refresh that only moves the range forward is not, so it
  * keeps showing the current data while the next loads.
  */
-export function getLoadedChartRange({
+function getLoadedChartRange({
   variables,
   timeRange,
   scale,
 }: {
-  variables: ActivityQueryVariables;
+  /** The activity or queue size query's variables, which are the same. */
+  variables: EvaluatorActivityChartsQuery$variables;
   timeRange: TimeRange;
   scale: TimeBinScale;
 }) {
