@@ -269,7 +269,7 @@ export function ProjectInfoTitledPanel({
 /**
  * Loading placeholder for a table aside while its stats query is in flight.
  */
-function TableAsideSkeleton() {
+export function TableAsideSkeleton() {
   return (
     <View padding="size-200" overflow="hidden" height="100%" aria-hidden="true">
       <Flex direction="column" gap="size-200" minWidth="size-3400">
