@@ -5175,11 +5175,6 @@ input UpdateModelMutationInput {
   namePattern: String!
   costs: [TokenPriceInput!]!
   startTime: DateTime = null
-
-  """
-  The kind of span the model is priced for. Omitted leaves the type unchanged.
-  """
-  modelType: GenerativeModelType
 }
 
 type UpdateModelMutationPayload {
