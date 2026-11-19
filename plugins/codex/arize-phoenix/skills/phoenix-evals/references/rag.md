@@ -12,7 +12,7 @@ Score both, then cross them per trace:
 | | Answer grounded | Answer ungrounded |
 | --- | --- | --- |
 | **At least one relevant document** | working | generation failure |
-| **No relevant document** | abstained or answered from nothing claimable | retrieval failure, plus a failure to abstain |
+| **No relevant document** | abstained, or answered without making factual claims | retrieval failure, plus a failure to abstain |
 
 Report the retrieval miss rate and, separately, the ungrounded rate among traces
 whose retrieval found something relevant. That tells the reader which part to fix.
@@ -44,15 +44,15 @@ results_df = await async_evaluate_dataframe(dataframe=documents_df, evaluators=[
 
 # Move the (span ID, position) index into columns. to_annotation_dataframe keeps the
 # span ID column, one row per document in the same order, so copy the position across.
-# Name the score: the documents frame also has a document_score column.
+# Name the score, because the documents frame also has a document_score column.
 results_df = results_df.reset_index()
 annotations_df = to_annotation_dataframe(dataframe=results_df, score_names=["retrieval_relevance"])
 annotations_df["document_position"] = results_df["document_position"].to_numpy()
 client.spans.log_document_annotations_dataframe(dataframe=annotations_df, sync=True)
 ```
 
-Both helpers read at most 1,000 spans with a 5-second timeout and take no `limit`; for
-larger projects, call them per time window with `start_time` and `end_time`.
+Both helpers read at most 1,000 spans with a 5-second timeout and take no `limit`. For
+larger projects, call them once per time window with `start_time` and `end_time`.
 
 `documents_df["input"]` is the retriever span's input. When that's a rewritten query,
 join the root span's input by `context.trace_id` and map `input` to it.
@@ -88,7 +88,7 @@ if qa_df is not None:
 
 The rows are indexed by the root span's ID, so the annotations land on the root
 span. Use `HallucinationEvaluator` instead when the source of truth is the
-conversation itself (prior turns and tool results), not retrieved documents.
+conversation itself, meaning prior turns and tool results, not retrieved documents.
 
 ## Common failures to check
 
@@ -97,5 +97,5 @@ conversation itself (prior turns and tool results), not retrieved documents.
 | Retrieval | no relevant document returned; the right document but the wrong chunk; relevant documents ranked below irrelevant ones |
 | Generation | a claim not in the documents; an answer that ignores the documents; an answer that misses information the documents contain |
 
-When retrieval misses, the generator should say it doesn't know rather than answer;
-count an ungrounded answer on a miss against both parts.
+When retrieval misses, the generator should say it doesn't know instead of
+answering. Count an ungrounded answer on a miss against both parts.

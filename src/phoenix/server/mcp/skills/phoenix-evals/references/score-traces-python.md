@@ -33,14 +33,14 @@ The dataframe is indexed by `context.span_id`. Columns include `context.trace_id
 
 - Every read has a default limit: 1,000 rows for `get_spans_dataframe`, 100 for
   `client.spans.get_spans` and for `client.traces.get_traces`. Set `limit` above
-  the project's size, or page by time windows that cover the whole project, or the
-  evaluation silently covers only part of it.
+  the project's size, or page by time windows that cover the whole project.
+  Otherwise the evaluation silently covers only part of it.
 - Don't add a narrow `start_time` unless the user asks for a window; historical
   traces can be days old.
 - `where` takes a span filter, such as `span_kind == 'LLM'` or `name == 'answer'`. The
   filter grammar is in phoenix-cli.
-- Inputs and outputs are often JSON strings (a chat message list or a framework
-  object). Print a few values and parse out the text the evaluator needs.
+- Inputs and outputs are often JSON strings, such as a chat message list or a
+  framework object. Print a few values and parse out the text the evaluator needs.
 
 ## Read a trace's child spans
 
@@ -57,8 +57,8 @@ tool_spans = [span for span in child_spans if span.get("span_kind") == "TOOL"]
 ```
 
 `client.traces.get_traces(include_spans=True)` lists each trace's spans without
-their attributes, so use it to find traces (it takes a trace `filter` such as
-`error_count > 0`), not to read evidence.
+their attributes, so use it to find traces, not to read evidence. It takes a trace
+`filter` such as `error_count > 0`.
 
 ## Run evaluators over a dataframe
 
@@ -128,11 +128,11 @@ and returns one row per span and score with `annotation_name`, `annotator_kind`,
 `label`, `score`, `explanation`, and `metadata`. It needs the span ID in the index or
 in a `span_id` column.
 
-- Logging is asynchronous by default: the server may take a moment to show the
+- Logging is asynchronous by default, so the server can take a moment to show the
   annotations. Pass `sync=True` when the next step reads them back.
 - Logging an annotation with the same name on the same span replaces the old one. To
-  keep several annotations with one name on a span (one per reviewer, say), give each
-  a distinct `identifier`.
+  keep several annotations with one name on a span, such as one per reviewer, give
+  each a distinct `identifier`.
 
 ## Log trace and session annotations
 
@@ -209,11 +209,11 @@ See [rag](rag.md) for reading documents and logging document annotations.
 
 When the user wants scoring to continue as traces arrive, write a script that:
 
-1. Reads the records (with paging when there could be more than `limit`).
+1. Reads the records, paging when there could be more than `limit`.
 2. Reads which records already have a current annotation and skips them. Current
-   means it came from this version of the evaluator (store a version in the
-   annotation's `metadata`) and is newer than the record's last activity. After you
-   change the evaluator, rescore everything.
+   means the annotation came from this version of the evaluator and is newer than
+   the record's last activity. Store the version in the annotation's `metadata`.
+   After you change the evaluator, rescore everything.
 
    For spans:
 

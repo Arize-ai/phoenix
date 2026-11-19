@@ -12,10 +12,10 @@ metadata:
 
 # Phoenix evals
 
-An evaluator takes one record (an input, an output, and whatever else the check
-needs) and returns a score, a label, and an explanation. This skill covers how to
-write evaluators with the Phoenix evals library and how to run them over data that's
-already in Phoenix.
+An evaluator takes one record and returns a score, a label, and an explanation. A
+record holds an input, an output, and whatever else the check needs. This skill
+covers how to write evaluators with the Phoenix evals library and how to run them
+over data that's already in Phoenix.
 
 Related skills:
 
@@ -63,7 +63,7 @@ The usual job is "score what's in this project and write the results back":
 
 When the user wants this to keep running, write a script that skips a record only
 when its annotation came from the current evaluator version and is newer than the
-record's last activity (a session that got new turns needs rescoring). After you
+record's last activity, so a session that got new turns gets rescored. After you
 change an evaluator, rescore everything it covers.
 
 | Task | Python | TypeScript |
@@ -89,11 +89,11 @@ change an evaluator, rescore everything it covers.
   something to judge. Score it on its evidence; don't skip it or fail it
   automatically.
 - **Debug a misleading eval like code.** When an eval's numbers look wrong, check
-  that it reads every record (paging and limits), the right field and level, label
-  names and case, how errors count, and how IDs join, before you touch the judge
-  prompt.
+  these before you touch the judge prompt: that it reads every record past paging
+  and limits, the right field and level, label names and case, how errors count,
+  and how IDs join.
 - **Count failures, not just averages.** Report the number of records scored, the
-  number that failed, and the number the evaluator couldn't score (errors, missing
-  fields). An eval that silently skips records overstates quality.
-- **Don't let a judge grade itself.** Give it its own prompt; a different model from
-  the app is optional.
+  number that failed, and the number the evaluator couldn't score because of errors
+  or missing fields. An eval that silently skips records overstates quality.
+- **Don't let a judge grade itself.** Give it its own prompt. Using a different model
+  from the app is optional.

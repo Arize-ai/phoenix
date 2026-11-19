@@ -1,6 +1,6 @@
 # Measure judge agreement in Python
 
-## Split the labeled records (only when tuning)
+## Split the labeled records when tuning
 
 To assess a judge as it is, skip this section and compare its logged verdicts with
 the human labels on every labeled record. To improve a judge, split once, before
@@ -17,8 +17,8 @@ dev = labeled.drop(test.index)
 
 `HUMAN_FAIL_LABELS` is the set of human labels that mean failure, such as
 `{"fail", "bad"}`. Tune the judge on `dev`. Score `test` only when the rubric is
-final. If the labels come from a dataset, assign splits there instead (see
-phoenix-experiments).
+final. If the labels come from a dataset, assign splits there instead. The
+phoenix-experiments skill covers dataset splits.
 
 ## Run the judge on the same records
 
@@ -38,8 +38,8 @@ judged = await async_evaluate_dataframe(dataframe=judge_inputs, evaluators=[judg
 judge_labels = judged[f"{judge.name}_score"].apply(lambda s: s.get("label") if isinstance(s, dict) else None)
 ```
 
-Count the records the judge couldn't score (`judge_labels.isna()`) and report them;
-don't drop them silently.
+Count the records the judge couldn't score, `judge_labels.isna()`, and report them.
+Don't drop them silently.
 
 ## Compute the rates
 
@@ -90,16 +90,15 @@ def wilson_interval(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
 ```
 
 A tolerance such as "flags should be wrong at most 5% of the time" is a bound on
-the false-discovery share (`k` = wrong flags, `n` = all flags). It's met with
-confidence only when the upper end of that interval is below 0.05.
+the false-discovery share, with `k` as the wrong flags and `n` as all flags. You can
+say it's met only when the upper end of that interval is below 0.05.
 
 ## Check the labels themselves
 
 Before scoring the judge, check two things about the human labels:
 
 - **Balance.** Count failures and passes. With 70 passes and 10 failures, a judge
-  that never flags anything is 88% accurate; recall and precision expose
-  it.
+  that never flags anything is 88% accurate. Recall and precision expose it.
 - **Reviewer agreement.** When two reviewers labeled the same records, their
   agreement is the most you can expect from the judge:
 
@@ -126,10 +125,10 @@ wrong_flags = review[~review["human_fail"] & judge_fail.eq(True)]      # judge t
 ```
 
 For each group, read the input, output, human label, any reviewer explanation, and
-the judge's explanation. Look for the rule the judge applies that the reviewers
-don't (or the reverse), then change that definition or add that decided case to the
-rubric. Sometimes the label is the problem: say so instead of tuning the judge to a
-mistaken label. The labeled records rarely exercise every rule in the spec, so keep
+the judge's explanation. Look for a rule the judge applies that the reviewers
+don't, or one the reviewers apply that the judge doesn't. Then change that
+definition or add that decided case to the rubric. Sometimes the label is the
+problem. Say so instead of tuning the judge to a mistaken label. The labeled records rarely exercise every rule in the spec, so keep
 rules in the rubric even when no disagreement points at them.
 
 ## Run the comparison as an experiment
@@ -158,8 +157,8 @@ client.experiments.run_experiment(
 )
 ```
 
-Compute recall and precision from the task outputs and the human labels; the
-agreement rate alone mixes them.
+Compute recall and precision from the task outputs and the human labels. The
+agreement rate alone mixes misses and wrong flags together.
 
 ## Correct a production rate
 

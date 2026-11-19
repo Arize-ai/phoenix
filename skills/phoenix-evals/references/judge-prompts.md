@@ -45,9 +45,9 @@ Decided cases:
 - **Give the judge the evidence a reviewer would check.** Tool calls and results,
   retrieved documents, earlier turns, the spec or policy. A judge that sees only the
   final reply can't tell whether it's supported.
-- **Write criteria from the spec and from real failures.** Take definitions and decided cases from the
-  failures you found in traces and from reviewer comments, not from what a generic
-  "quality" rubric says.
+- **Write criteria from the spec and from real failures.** Take definitions and
+  decided cases from the failures you found in traces and from reviewer comments,
+  not from what a generic "quality" rubric says.
 - **Don't copy test cases into the prompt.** Examples in the prompt that also appear
   in the data you measure the judge on make its agreement look better than it is.
   Keep the examples you use to measure the judge out of the prompt.
@@ -59,7 +59,8 @@ Decided cases:
 - Start with a capable model. Move to a cheaper one only after the rubric is stable,
   and measure both on the same labeled set.
 - The judge needs its own prompt, and the app's output never defines the reference.
-  A different model from the app is optional; it can reduce shared blind spots.
+  Using a different model from the app is optional, and it can reduce shared blind
+  spots.
 - Use a decision model (`DecisionModel` in Python, `decisionModel()` in the AI SDK)
   for high-volume labeling where you don't need explanations. Don't use one for checks
   that need arithmetic or multi-step reasoning.

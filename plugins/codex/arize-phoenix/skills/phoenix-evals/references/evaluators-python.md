@@ -42,8 +42,8 @@ The return value becomes a `Score`:
 | `Score` | as is |
 
 `create_evaluator` takes `name`, `direction` (`"maximize"` by default,
-`"minimize"`, or `"neutral"`), and `kind` (`"code"` by default). It never calls a model: a function
-marked `kind="llm"` must make the call itself. For a model-graded check, use
+`"minimize"`, or `"neutral"`), and `kind` (`"code"` by default). It never calls a
+model, so a function marked `kind="llm"` must make the call itself. For a model-graded check, use
 `ClassificationEvaluator`.
 
 `phoenix.client.experiments` also exports a `create_evaluator`, with a different
@@ -115,7 +115,7 @@ sentiment = ClassificationEvaluator(
 ```
 
 `metadata["probabilities"]` on the returned score maps each label to its probability.
-Requires `pip install typesafe-sdk`.
+This example requires `pip install typesafe-sdk`.
 
 ## Map your field names to the evaluator's
 
@@ -130,7 +130,7 @@ bound = bind_evaluator(
     evaluator=grounded,
     input_mapping={
         "context": "retrieved_text",
-        "output": "response.answer",          # nested key
+        "output": "response.answer",
         "input": lambda row: row["question"].strip(),
     },
 )

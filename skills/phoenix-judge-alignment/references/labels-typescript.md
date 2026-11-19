@@ -54,8 +54,8 @@ await createDataset({
   until it's `null`.
 - Filter on `annotator_kind`: the same annotation name can hold `LLM` or `CODE`
   results, including the judge under test.
-- Keep the most recent label per record (`updated_at` is an ISO timestamp, so string
-  comparison orders it). Drop records without a label instead of treating them as
+- Keep the most recent label per record. `updated_at` is an ISO timestamp, so string
+  comparison orders it. Drop records without a label instead of treating them as
   passes.
 - When the latest human label isn't a verdict (for example, "unsure"), leave the
   record out instead of using an older verdict.
@@ -64,15 +64,15 @@ await createDataset({
 - Apply any eligibility rules the user gives before deduplicating, and report how
   many records each rule removed.
 
-Trace and session annotations have no read helper in the client. Call
-`GET /v1/projects/{project}/trace_annotations?trace_ids=...` (or
-`session_annotations?session_ids=...`), plus `include_annotation_names` to leave out
-notes and other annotations, with `fetch`; the response is
-`{ data, next_cursor }`, and each item has `name`, `annotator_kind`, `result`,
-`identifier`, and `updated_at`.
+Trace and session annotations have no read helper in the client. Use `fetch` to call
+`GET /v1/projects/{project}/trace_annotations?trace_ids=...`, or
+`session_annotations?session_ids=...` for sessions. Pass `include_annotation_names`
+to leave out notes and other annotations. The response is `{ data, next_cursor }`,
+and each item has `name`, `annotator_kind`, `result`, `identifier`, and
+`updated_at`.
 
 ## Save the labels as a dataset
 
-The last part of the example above saves the labels. Put the human label in the reference output and the record being judged in the
-input. Create a new dataset rather than editing one that experiments already ran
-against.
+The last part of the example above saves the labels. Put the human label in the
+reference output and the record being judged in the input. Create a new dataset
+rather than editing one that experiments already ran against.

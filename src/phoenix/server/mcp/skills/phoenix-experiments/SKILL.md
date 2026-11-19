@@ -50,8 +50,8 @@ experiments from the terminal (`px dataset list`, `px experiment get`).
   repetitions. A comparison across different datasets or judges measures the
   difference in setup.
 - **Apply the user's decision rule when they give one.** "Ship if the format check
-  doesn't drop" is decided on the observed format-check numbers. Report the uncertainty next to
-  the call, but don't swap their rule for a significance test.
+  doesn't drop" is decided on the observed format-check numbers. Report the
+  uncertainty next to the call, but don't swap their rule for a significance test.
 - **Must-pass means what the user names.** The checks or slices the user says must
   not regress decide the call. Report other regressions, but don't let them decide
   unless the user says so.

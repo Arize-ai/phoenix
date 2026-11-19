@@ -1,8 +1,8 @@
 # Measure judge agreement in TypeScript
 
 To assess a judge as it is, compare the verdicts it already logged with the human
-labels on every labeled record (see [labels-typescript](labels-typescript.md)); the
-counting below is the same. To improve a judge, run it as the experiment task on the
+labels on every labeled record, as in [labels-typescript](labels-typescript.md).
+The counting below is the same. To improve a judge, run it as the experiment task on the
 tuning split of a labeled dataset, then compare its labels with the human labels in
 each example's reference output.
 
@@ -72,4 +72,4 @@ console.log({
   rubric, and report that result.
 
 The Python reference, [agreement-python](agreement-python.md), has the interval and
-production-rate correction formulas; they're plain arithmetic and port directly.
+production-rate correction formulas. They're plain arithmetic and port directly.

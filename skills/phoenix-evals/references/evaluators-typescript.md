@@ -28,14 +28,15 @@ const validJson = createEvaluator<{ output: string }>(
 );
 ```
 
-The function can return a number (the score), a string (the label), or an object;
-from an object, `score`, `label`, `explanation`, and `metadata` are kept. Options are
+The function can return a number, which becomes the score, a string, which becomes
+the label, or an object. From an object, the evaluator keeps `score`, `label`,
+`explanation`, and `metadata`. Options are
 `name`, `kind` (`"CODE"` or `"LLM"`), and `optimizationDirection` (`"MAXIMIZE"`,
 `"MINIMIZE"`, or `"NEUTRAL"`).
 
 ## LLM classification evaluators
 
-`createClassificationEvaluator` is synchronous: don't `await` it.
+`createClassificationEvaluator` is synchronous, so don't `await` it.
 
 ```typescript
 import { openai } from "@ai-sdk/openai";

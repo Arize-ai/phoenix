@@ -56,11 +56,21 @@ def runs_by_evaluator(experiment_id: str) -> dict[str, list[dict]]:
     return rows
 
 
+def passed(row: dict) -> bool:
+    # Adjust per evaluator: a label check, or score == 0 for a minimize evaluator.
+    return row["score"] >= 1.0
+
+
+def summarize(rows: list[dict]) -> str:
+    scored = [row for row in rows if row["score"] is not None]
+    passes = sum(passed(row) for row in scored)
+    return f"{passes}/{len(rows)} passed, {len(rows) - len(scored)} errors"
+
+
 baseline = runs_by_evaluator("BASELINE_EXPERIMENT_ID")
 candidate = runs_by_evaluator("CANDIDATE_EXPERIMENT_ID")
 for name in sorted(baseline.keys() & candidate.keys()):
-    passed = lambda row: row["score"] >= 1.0  # adjust per evaluator and direction
-    print(name, summarize(baseline[name], passed), summarize(candidate[name], passed))
+    print(name, summarize(baseline[name]), summarize(candidate[name]))
 ```
 
 In TypeScript, `evaluationRuns` exists only on the result `runExperiment` or
@@ -103,8 +113,8 @@ With 3 improved and 0 worse, p is 0.25: not evidence either way.
 
 ## Compare by slice
 
-When the user names a category (a topic, a customer tier, a language), compute rates
-per slice by joining runs to their examples' metadata:
+When the user names a category, such as a topic, a customer tier, or a language,
+compute rates per slice by joining runs to their examples' metadata:
 
 ```python
 dataset = client.datasets.get_dataset(dataset="DATASET_NAME")
@@ -120,15 +130,16 @@ can be a must-pass check on its own.
 ## Decide
 
 - **When the user states a rule, apply it** to the observed numbers and give the
-  call. Name the uncertainty (how many examples moved, how many runs), but don't
-  replace their rule with your own threshold.
+  call. Name the uncertainty, meaning how many examples moved and how many runs
+  there were, but don't replace their rule with your own threshold.
 - **Must-pass checks and slices are the ones the user names.** A regression on one
   of them blocks the change. Report regressions elsewhere without letting them
   decide.
-- **Without a stated rule:** call the change better when it wins on the main metric,
-  more examples improved than got worse, and the split is unlikely to be chance;
-  worse when it loses or errors more; otherwise not enough evidence, with what would
-  settle it (more repetitions, more examples).
+- **Without a stated rule, use three outcomes.** Call the change better when it wins
+  on the main metric, more examples improved than got worse, and the split is
+  unlikely to be chance. Call it worse when it loses or errors more. Otherwise, say
+  there isn't enough evidence and name what would settle it, such as more
+  repetitions or more examples.
 
 Report every shared evaluator with both sides' pass rates and run counts, error
 counts, per-slice rates the user asked for, and the examples that moved.

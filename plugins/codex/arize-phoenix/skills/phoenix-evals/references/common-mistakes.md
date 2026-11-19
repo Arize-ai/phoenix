@@ -4,16 +4,16 @@ Patterns that look right, often type-check, and produce wrong numbers.
 
 ## Both languages
 
-- **Scoring the wrong field.** Span inputs and outputs are often JSON (message lists,
-  framework objects). Print one rendered judge input before running a batch, and
+- **Scoring the wrong field.** Span inputs and outputs are often JSON, such as message
+  lists or framework objects. Print one rendered judge input before running a batch, and
   parse out the text the check is about.
 - **Scoring the wrong level.** A per-request check belongs on the trace's root span
   or the trace, a retrieval check on retriever spans, a conversation check on the
   session. Annotating every span multiplies the count and buries the result.
 - **Reading only the first page.** `get_spans_dataframe` returns at most `limit`
   rows (1,000 by default), `client.spans.get_spans` and `client.traces.get_traces`
-  default to 100, and `getSpans` returns one page. Check the count against
-  the project before reporting a rate.
+  default to 100, and `getSpans` returns one page. Check the count against the
+  project before reporting a rate.
 - **Ignoring direction.** `Hallucination`, `Toxicity`, `PiiDetection`, and
   `UserFriction` score the bad outcome as 1.0. Read `direction` before you average or
   threshold.

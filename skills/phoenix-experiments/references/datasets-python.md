@@ -2,8 +2,8 @@
 
 A dataset is a versioned list of examples. Each example has an `input` dict, a
 reference `output` dict, and a `metadata` dict. With `examples=`, every example needs
-both `input` and `output` keys; pass `"output": {}` when there's no reference. Experiments read the
-reference output as `expected`.
+both `input` and `output` keys. Pass `"output": {}` when there's no reference.
+Experiments read the reference output as `expected`.
 
 ## Create a dataset
 
@@ -77,7 +77,7 @@ dataset = client.datasets.create_dataset(
 ```
 
 A trace's output is what the app said, not what it should have said. Use it as a
-reference only after someone reviewed it; otherwise leave `output_keys` empty and
+reference only after someone has reviewed it. Otherwise, leave `output_keys` empty and
 evaluate without a reference.
 
 ## Read and update

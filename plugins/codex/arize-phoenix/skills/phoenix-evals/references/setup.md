@@ -15,8 +15,8 @@ The library is version 3.x. Older answers online describe a 1.x API (`llm_classi
 
 ### Connect to Phoenix
 
-`Client()` reads `PHOENIX_ENDPOINT` and `PHOENIX_API_KEY` from the environment (or
-from a `.env.phoenix` file that `px setup` writes). Without `PHOENIX_ENDPOINT`, it
+`Client()` reads `PHOENIX_ENDPOINT` and `PHOENIX_API_KEY` from the environment or
+from the `.env.phoenix` file that `px setup` writes. Without `PHOENIX_ENDPOINT`, it
 tries `PHOENIX_COLLECTOR_ENDPOINT`, then falls back to `http://localhost:6006`.
 
 ```python
@@ -47,8 +47,8 @@ show_provider_availability()
 ```
 
 `LLM` passes extra keyword arguments to the provider client's constructor, so a bad
-keyword fails when you construct `LLM`. Reasoning models (for example, OpenAI's o-series
-and gpt-5 families) reject a non-default `temperature`; don't pass one to them. When
+keyword fails when you construct `LLM`. Reasoning models, such as OpenAI's o-series
+and gpt-5 families, reject a non-default `temperature`, so don't pass one to them. When
 the user names a judge model, use exactly that model. Use `sync_client_kwargs=` and
 `async_client_kwargs=` for client options such as `base_url`.
 
@@ -66,8 +66,8 @@ npm install @arizeai/phoenix-evals @arizeai/phoenix-client @ai-sdk/openai
 ### Connect to Phoenix
 
 `createClient()` reads the same variables, `PHOENIX_ENDPOINT` and `PHOENIX_API_KEY`,
-and falls back to `http://localhost:6006`. Every client helper takes an optional `client`; without one
-it creates a default client.
+and falls back to `http://localhost:6006`. Every client helper takes an optional
+`client`. If you don't pass one, the helper creates a default client.
 
 ```typescript
 import { createClient } from "@arizeai/phoenix-client";

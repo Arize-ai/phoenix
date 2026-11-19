@@ -50,15 +50,16 @@ labeled = latest[latest["result.label"].notna()]
   you ask for them.
 - **Unsettled labels.** When the latest human label isn't a verdict (for example,
   "unsure" or "skip"), leave the record out instead of using an older verdict.
-- **Check eligibility rules the user gives** (a date range, one reviewer, a
-  category) before deduplicating, and report how many records each rule removed.
+- **Eligibility rules first.** Apply any rules the user gives, such as a date range,
+  one reviewer, or a category, before deduplicating. Report how many records each
+  rule removed.
 
 ## Join labels and judge results on the same record
 
 Reviewers and judges often annotate different spans of one trace: a reviewer labels
 the root span or the whole trace, and the judge annotates the LLM span it read.
 Read annotations for every span in the traces you care about, then key both sides
-by trace ID (or session ID):
+by trace ID or session ID:
 
 ```python
 all_spans = client.spans.get_spans_dataframe(project_identifier="my-app", limit=10000)
@@ -107,10 +108,9 @@ while True:
 
 These endpoints return every annotation name, including notes, unless you pass
 `include_annotation_names`. Sessions use `/v1/projects/{project}/session_annotations`
-with `session_ids`. For a
-large list of IDs, send them in batches of about 100. From the terminal,
-`px trace list --include-annotations` shows each trace's annotation names and
-results, without the annotator kind or timestamps.
+with `session_ids`. For a large list of IDs, send them in batches of about 100. From
+the terminal, `px trace list --include-annotations` shows each trace's annotation
+names and results, without the annotator kind or timestamps.
 
 ## Save the labels as a dataset
 
@@ -139,8 +139,8 @@ dataset = client.datasets.create_dataset(
 )
 ```
 
-`test_ids` is the set of held-out record IDs (see the split in
-[agreement-python](agreement-python.md)); leave the `split` column out when you're
-only assessing the judge. Put the human label in the reference output and the record being judged in the
-input. Create a new dataset (or a new version) rather than editing one that other
-experiments already ran against.
+`test_ids` is the set of held-out record IDs from the split in
+[agreement-python](agreement-python.md). Leave the `split` column out when you're
+only assessing the judge. Put the human label in the reference output and the record
+being judged in the input. Create a new dataset or a new version rather than editing
+one that other experiments already ran against.

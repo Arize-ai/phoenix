@@ -1,12 +1,24 @@
 # Gate CI with Vitest or Jest
 
-Write evals as ordinary Vitest or Jest suites that record to Phoenix as experiments and gate CI. Each `describe()` → a dataset + experiment; each `test()` → an example + experiment run; the assert outcome → a `pass` annotation. OpenInference-instrumented LLM calls appear as child spans of each test's task.
+Write evals as ordinary Vitest or Jest suites that record to Phoenix as experiments and gate CI. The integration maps the test runner onto Phoenix like this:
 
-Requires `@arizeai/phoenix-client` 7.x. `@arizeai/phoenix-evals` and AI SDK v7 need Node.js 22.12 or later. The testing API is **beta** and may change.
+- Each `describe()` becomes a dataset and an experiment.
+- Each `test()` becomes an example and an experiment run.
+- Each assert outcome becomes a `pass` annotation.
 
-## When to use vs `runExperiment`
+LLM calls instrumented with OpenInference appear as child spans of each test's task.
 
-Use the test-runner integration when each case needs different logic, you want a hard `expect()` gate, or you want [acceptance criteria](#acceptance-criteria) to gate CI on aggregate scores, and you already use Vitest/Jest (`test.each`, `.only`/`.skip`, mocks). Prefer `runExperiment` for large, homogeneous datasets scored the same way.
+Requires `@arizeai/phoenix-client` 7.x. `@arizeai/phoenix-evals` and AI SDK v7 need Node.js 22.12 or later. The testing API is in beta and might change.
+
+## When to use the test runner instead of `runExperiment`
+
+Use the test-runner integration when you already use Vitest or Jest, for `test.each`, `.only`, `.skip`, or mocks, and one of these applies:
+
+- Each case needs different logic.
+- You want a hard `expect()` gate.
+- You want [acceptance criteria](#acceptance-criteria) to gate CI on aggregate scores.
+
+Prefer `runExperiment` for large datasets where every example is scored the same way.
 
 ## Install
 
@@ -14,9 +26,9 @@ Use the test-runner integration when each case needs different logic, you want a
 npm install -D @arizeai/phoenix-client@^7 @arizeai/phoenix-evals dotenv
 ```
 
-Vitest and Jest entrypoints are bundled in `@arizeai/phoenix-client`.
+`@arizeai/phoenix-client` bundles the Vitest and Jest entry points.
 
-## Config (keep eval suites separate)
+## Keep eval suites in a separate config
 
 ```ts
 // phoenix.vitest.config.ts
@@ -25,18 +37,18 @@ export default defineConfig({
   test: {
     include: ["**/*.eval.?(c|m)[jt]s"],
     reporters: ["default", "@arizeai/phoenix-client/vitest/reporter"],
-    setupFiles: ["dotenv/config"],  // loads PHOENIX_ENDPOINT, PHOENIX_API_KEY, ...
-    testTimeout: 30_000,            // LLM calls are slow
+    setupFiles: ["dotenv/config"],  // Loads PHOENIX_ENDPOINT, PHOENIX_API_KEY, and other variables.
+    testTimeout: 30_000,            // LLM calls are slow.
   },
 });
 ```
 
-Jest equivalent: `phoenix.jest.config.cjs` with `testMatch`, `reporters: ["default", "@arizeai/phoenix-client/jest/reporter"]`, `setupFiles: ["dotenv/config"]`. Add `"eval": "vitest run --config phoenix.vitest.config.ts"` (or `jest --config ...`) to `package.json`. **`jsdom` is not supported.** Use `node`.
+For Jest, create `phoenix.jest.config.cjs` with `testMatch`, `reporters: ["default", "@arizeai/phoenix-client/jest/reporter"]`, and `setupFiles: ["dotenv/config"]`. Add `"eval": "vitest run --config phoenix.vitest.config.ts"`, or `jest --config ...`, to `package.json`. The `jsdom` environment isn't supported. Use `node`.
 
 ## Minimal suite
 
 ```ts
-import * as px from "@arizeai/phoenix-client/vitest"; // or .../jest
+import * as px from "@arizeai/phoenix-client/vitest"; // Or .../jest.
 import { expect } from "vitest";
 
 px.describe("answer quality", () => {
@@ -52,29 +64,29 @@ px.describe("answer quality", () => {
 });
 ```
 
-Reference output accepts any one of `expected`, `reference`, or `output`. All arrive as `expected` in the test body. `it` is an alias for `test`.
+You can pass the reference output as `expected`, `reference`, or `output`. The test body receives it as `expected` in every case. `it` is an alias for `test`.
 
-Use `px.test.each(rows)` for larger datasets. To run against an existing Phoenix dataset, load rows with `getDatasetExamples` (top-level `await`, ESM) and keep each example's `id` so runs upsert onto the same example.
+Use `px.test.each(rows)` for larger datasets. To run against an existing Phoenix dataset, load rows with `getDatasetExamples`, which needs top-level `await` and ESM. Keep each example's `id` so runs upsert onto the same example.
 
 ## Logging helpers
 
-- `px.logOutput(value)`: records the run output (`ExperimentRun.output`).
-- `px.logAnnotation({ name, score, label?, explanation?, metadata?, annotatorKind? })`: inline named score. `score` may be number or boolean (bools stored as 0/1); `annotatorKind` is `"LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT"` (default `"CODE"`).
-- `px.evaluate(evaluator, params?)`: runs an `@arizeai/phoenix-evals` evaluator, records an annotation + linked evaluator trace. Omit `params` to auto-supply the test's `input`/`output`/`expected`/`metadata`/`traceId`.
-- `px.traceEvaluator(fn, options?)`: wrap a plain grading fn; runs in its own evaluator span and captures a returned `{ name, score }` as an annotation. Passes through your args (no auto-supply).
+- `px.logOutput(value)`: records the run output as `ExperimentRun.output`.
+- `px.logAnnotation({ name, score, label?, explanation?, metadata?, annotatorKind? })`: records a named inline score. `score` can be a number or a boolean, and booleans are stored as 0 or 1. `annotatorKind` is `"LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT"`. Default: `"CODE"`.
+- `px.evaluate(evaluator, params?)`: runs an `@arizeai/phoenix-evals` evaluator and records an annotation and a linked evaluator trace. If you omit `params`, the test's `input`, `output`, `expected`, `metadata`, and `traceId` are passed automatically.
+- `px.traceEvaluator(fn, options?)`: wraps a plain grading function so it runs in its own evaluator span, and records a returned `{ name, score }` as an annotation. It passes your arguments through unchanged and doesn't supply any automatically.
 
-## Two kinds of checks: invariants vs. signals
+## Two kinds of checks: invariants and signals
 
-The decision that shapes every eval suite is which checks gate CI and which only trend.
+Every eval suite has to decide which checks gate CI and which only show a trend.
 
-- **Hard invariants.** Exactly one acceptable behavior, verifiable in code (a required refusal, valid JSON, a tool that must fire). Use a per-case `expect()`. A failure fails the run and turns CI red.
-- **Quality signals.** Answers on a spectrum with no single correct string (helpfulness, groundedness, tone). Score with an LLM judge and record via `evaluate()`/`logAnnotation()`. Do *not* `expect()` per case. Gate them at the **suite** level with `acceptanceCriteria` so aggregate quality (e.g. ≥70% helpful) holds the line while a single weak answer doesn't break the build.
+- **Hard invariants.** Behavior with exactly one acceptable outcome that code can verify, such as a required refusal, valid JSON, or a tool that must be called. Use a per-case `expect()`. A failure fails the run and fails CI.
+- **Quality signals.** Answers that can be better or worse with no single correct string, such as helpfulness, groundedness, or tone. Score them with an LLM judge and record them with `evaluate()` or `logAnnotation()`. Don't `expect()` on them per case. Gate them at the suite level with `acceptanceCriteria`, so aggregate quality, for example at least 70% helpful, must hold while a single weak answer doesn't break the build.
 
-This is the natural division of labor in this runner: invariants → per-case `expect()`; signals → `acceptanceCriteria`.
+In this runner, invariants go in per-case `expect()` calls, and signals go in `acceptanceCriteria`.
 
 ## LLM-as-a-judge inside a suite
 
-The cleanest judge is a `createClassificationEvaluator` from `@arizeai/phoenix-evals`: it emits a label mapped to a numeric score (recorded as an annotation under a linked evaluator span). Pass the judge only what it needs to grade as the second arg to `px.evaluate()`, matching the template vars. No `inputMapping` needed. (For structured records or pre-built evaluators, `inputMapping` projects fields onto template vars instead.) The judge runs on its own model, configured independently of the system under test (see setup in phoenix-evals).
+The simplest judge is a `createClassificationEvaluator` from `@arizeai/phoenix-evals`. It returns a label mapped to a numeric score, which Phoenix records as an annotation under a linked evaluator span. Pass the judge only what it needs to grade, as the second argument to `px.evaluate()`, with keys that match the template variables. You don't need `inputMapping` for this. For structured records or pre-built evaluators, use `inputMapping` to map fields onto template variables instead. The judge runs on its own model, configured separately from the system under test. For setup, see phoenix-evals.
 
 ```ts
 import { anthropic } from "@ai-sdk/anthropic";
@@ -105,29 +117,29 @@ px.describe(
       px.logAnnotation({ name: "latency_ms", score: performance.now() - start, annotatorKind: "CODE" });
 
       if (input.expectRefusal) {
-        expect(response).toContain("I don't have information on that");  // hard invariant
+        expect(response).toContain("I don't have information on that");  // Hard invariant.
       } else {
-        // Quality signal. NOT asserted; gated by acceptanceCriteria below.
+        // Quality signal. Not asserted here; acceptanceCriteria below gates it.
         await px.evaluate(helpfulness, { question: String(input.question), response });
       }
     });
   },
   {
     acceptanceCriteria: [
-      // signal gate: ≥70% of judged answers must score helpful
+      // Signal gate on judged answers.
       { annotationName: "helpfulness", metric: "passRate", passFn: (a) => a.score === 1, minPassRate: 0.7 },
-      // budget gate: mean latency under 5s
+      // Latency budget gate.
       { annotationName: "latency_ms", metric: "average", threshold: 5000, direction: "minimize" },
     ],
   },
 );
 ```
 
-The refusal stays a per-case `expect()` (invariant); helpfulness and latency move into `acceptanceCriteria` (signals). `passFn` receives the full annotation, so you can gate on `score`, `label`, or `explanation`. For *groundedness*, add a `{{context}}` var and pass it too, or use `createFaithfulnessEvaluator`.
+In this suite, the refusal stays a per-case `expect()` because it's an invariant. Helpfulness and latency are signals, so they move into `acceptanceCriteria`. `passFn` receives the full annotation, so you can gate on `score`, `label`, or `explanation`. To judge groundedness, add a `{{context}}` variable and pass it too, or use `createFaithfulnessEvaluator`.
 
 ## Acceptance criteria
 
-Suite-level gates evaluated **after** all tests (every case runs first, full scorecard prints before failing). Pass as `describe`'s third arg:
+Acceptance criteria are suite-level gates that the runner checks after all tests finish. Every case runs first, and the full scorecard prints before the suite fails. Pass them as the third argument to `describe`:
 
 ```ts
 px.describe("text-to-sql", () => { /* tests log token_f1, valid_sql, latency_ms */ }, {
@@ -141,29 +153,31 @@ px.describe("text-to-sql", () => { /* tests log token_f1, valid_sql, latency_ms 
 });
 ```
 
-- `metric: "average"` checks the mean against `threshold`; `direction` is `"maximize"` (default, clears at `>=`) or `"minimize"` (latency/cost/errors, clears at `<=`).
-- `metric: "passRate"` counts runs where `passFn(annotation)` is true and requires that fraction to reach `minPassRate` (`1` = all). `passFn` receives the full annotation (`score`, `label`, `explanation`, `metadata`).
+- `metric: "average"` checks the mean against `threshold`. `direction` is `"maximize"`, the default, which passes at `>=`, or `"minimize"`, which passes at `<=`. Use `"minimize"` for latency, cost, and error counts.
+- `metric: "passRate"` counts the runs where `passFn(annotation)` returns true and requires that fraction to reach `minPassRate`. A `minPassRate` of `1` means every run. `passFn` receives the full annotation: `score`, `label`, `explanation`, and `metadata`.
 
-## Suite & test config
+## Suite and test options
 
-`describe(name, fn, opts)` opts: `datasetName`, `description`, `metadata`, `client` (custom `createClient`), `repetitions`, `dryRun`, `acceptanceCriteria`. Per-test/per-row fields alongside `input`: `id` (stable example id for upsert), `metadata`, `splits`, `repetitions`, `dryRun`, `config: { tags, metadata }`.
+`describe(name, fn, opts)` accepts these options: `datasetName`, `description`, `metadata`, `client` (a custom `createClient`), `repetitions`, `dryRun`, and `acceptanceCriteria`.
+
+Each test or row accepts these fields alongside `input`: `id` (a stable example ID for upserts), `metadata`, `splits`, `repetitions`, `dryRun`, and `config: { tags, metadata }`.
 
 ## Environment variables
 
 | Variable | Purpose |
 |---|---|
-| `PHOENIX_ENDPOINT` | Phoenix base URL. Usually the same URL as `PHOENIX_COLLECTOR_ENDPOINT`, which is used when this is unset |
+| `PHOENIX_ENDPOINT` | Phoenix base URL. Usually the same URL as `PHOENIX_COLLECTOR_ENDPOINT`, which the client uses when this variable is unset. |
 | `PHOENIX_API_KEY` | Bearer token |
 | `PHOENIX_CLIENT_HEADERS` | Optional JSON headers |
-| `PHOENIX_TEST_TRACKING` | `false` disables sync (dry run) |
+| `PHOENIX_TEST_TRACKING` | `false` turns off sync, which makes every run a dry run. |
 | `PHOENIX_TEST_REPETITIONS` | Default repetitions per test |
-| `PHOENIX_TEST_REPORTER` | `verbose` shows every row + per-test output |
+| `PHOENIX_TEST_REPORTER` | `verbose` shows every row and each test's output. |
 
-Dry run: `PHOENIX_TEST_TRACKING=false npm run eval`, or `{ dryRun: true }` per suite/test. Skipped (`.skip`) tests are never recorded; use dry-run to track locally without recording.
+To dry-run, use `PHOENIX_TEST_TRACKING=false npm run eval`, or set `{ dryRun: true }` on a suite or test. Tests skipped with `.skip` are never recorded. To run tests locally without recording them, use a dry run.
 
-## CI gate (GitHub Actions)
+## CI gate with GitHub Actions
 
-The runner's exit code is the gate. A failed `expect()` or acceptance criterion exits nonzero.
+The runner's exit code is the gate. A failed `expect()` or acceptance criterion makes the runner exit with a nonzero code.
 
 ```yaml
 name: eval-ci

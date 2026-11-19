@@ -120,9 +120,9 @@ span's message list, read each turn's spans with
 ## Keep scoring new traces
 
 For a script that runs again as traces arrive, skip a record only when its
-annotation came from the current evaluator version (store a version in the
-annotation's `metadata`) and is newer than the record's last activity. After you
-change the evaluator, rescore everything. For spans:
+annotation came from the current evaluator version and is newer than the record's
+last activity. Store the version in the annotation's `metadata`. After you change
+the evaluator, rescore everything. For spans:
 
 ```typescript
 import { getSpanAnnotations } from "@arizeai/phoenix-client/spans";
