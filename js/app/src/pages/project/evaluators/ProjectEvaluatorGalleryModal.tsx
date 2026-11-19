@@ -619,7 +619,7 @@ function EvaluatorGallery({
               }
             }}
           >
-            <Button size="S">
+            <Button>
               <SelectValue />
               <SelectChevronUpDownIcon />
             </Button>
@@ -1470,6 +1470,7 @@ const galleryCSS = css`
     --global-border-size-thin
   );
   --project-evaluator-gallery-column-padding: var(--global-dimension-size-200);
+  --project-evaluator-gallery-section-gap: var(--global-dimension-size-400);
   --project-evaluator-gallery-template-card-min-width: var(
     --global-dimension-size-4600
   );
@@ -1584,8 +1585,8 @@ const galleryCSS = css`
     min-height: 0;
     display: flex;
     flex-direction: column;
-    gap: var(--global-dimension-size-400);
-    padding: var(--global-dimension-size-100)
+    gap: var(--project-evaluator-gallery-section-gap);
+    padding: var(--project-evaluator-gallery-section-gap)
       var(--project-evaluator-gallery-column-padding)
       var(--project-evaluator-gallery-column-padding);
     overflow-y: auto;
@@ -1616,7 +1617,7 @@ const galleryCSS = css`
   .project-evaluator-gallery__template-category-heading {
     /* Anchor target for the category nav; offset so scrollIntoView doesn't
        tuck it flush against the scroll region's top edge. */
-    scroll-margin-top: var(--global-dimension-size-100);
+    scroll-margin-top: var(--project-evaluator-gallery-section-gap);
   }
 
   .project-evaluator-gallery__evaluator-type-summary {
@@ -1665,6 +1666,15 @@ const galleryCSS = css`
       display: block;
       flex: none;
       width: 100%;
+
+      .react-aria-SelectValue {
+        display: flex;
+        flex: 1 1 auto;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--global-dimension-size-100);
+        min-width: 0;
+      }
     }
 
     .project-evaluator-gallery__search-field {
