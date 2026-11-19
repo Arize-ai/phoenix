@@ -9,7 +9,6 @@ from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
-from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
@@ -77,10 +76,6 @@ class UpdateModelMutationInput:
     name_pattern: str
     costs: list[TokenPriceInput]
     start_time: Optional[datetime] = None
-    model_type: Optional[GenerativeModelType] = strawberry.field(
-        default=UNSET,
-        description="The kind of span the model is priced for. Omitted leaves the type unchanged.",
-    )
 
 
 @strawberry.type
@@ -156,9 +151,6 @@ class ModelMutationMixin:
         except ValueError:
             raise BadRequest(f'Invalid model id: "{input.id}"')
 
-        if input.model_type is None:
-            raise BadRequest("modelType cannot be null")
-
         name_pattern = _compile_regular_expression(input.name_pattern)
         provider = _normalize_provider(input.provider)
         async with info.context.db() as session:
@@ -172,11 +164,9 @@ class ModelMutationMixin:
                 raise NotFound(f'Model "{input.id}" not found')
             if model.is_built_in:
                 raise BadRequest("Cannot update built-in model")
-            model_type = (
-                model.type
-                if input.model_type is UNSET
-                else to_db_generative_model_type(input.model_type)
-            )
+            # The type is fixed at creation, because span costs already priced by this model
+            # reference it by id.
+            model_type = model.type
             token_prices = _normalized_token_prices(input.costs, model_type=model_type)
             await _raise_on_case_only_provider_collision(
                 session,
@@ -198,7 +188,6 @@ class ModelMutationMixin:
                     model.name_pattern = name_pattern
                     model.token_prices = token_prices
                     model.start_time = input.start_time
-                    model.type = model_type
                     # Explicitly set updated_at so the GenerativeModelStore daemon picks up this
                     # change (SQLAlchemy's onupdate may not trigger for relationship-only changes).
                     model.updated_at = datetime.now(timezone.utc)

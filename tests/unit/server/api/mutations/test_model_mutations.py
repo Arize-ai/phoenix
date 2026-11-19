@@ -559,31 +559,6 @@ class TestModelMutations:
                 "Invalid regex: unterminated character set at position 0",
                 id="invalid-regex",
             ),
-            pytest.param(
-                {
-                    "input": {
-                        "id": str(GlobalID(GenerativeModel.__name__, str(1))),
-                        "name": "updated-model",
-                        "provider": "openai",
-                        "namePattern": "gpt-*",
-                        "modelType": None,
-                        "costs": [
-                            {
-                                "tokenType": "input",
-                                "kind": "PROMPT",
-                                "costPerMillionTokens": 0.001 * 1_000_000,
-                            },
-                            {
-                                "tokenType": "output",
-                                "kind": "COMPLETION",
-                                "costPerMillionTokens": 0.002 * 1_000_000,
-                            },
-                        ],
-                    }
-                },
-                "modelType cannot be null",
-                id="null-model-type",
-            ),
         ],
     )
     async def test_updating_model_with_invalid_input_fails_with_expected_error(
@@ -1120,56 +1095,30 @@ class TestModelMutations:
         expected_tokens = ["input"] if model_type == "EMBEDDING" else ["input", "output"]
         assert [p["tokenType"] for p in model["tokenPrices"]] == expected_tokens
 
-    async def test_update_model_validates_costs_against_new_or_stored_type(
+    async def test_update_model_keeps_its_type(
         self,
         gql_client: AsyncGraphQLClient,
-        custom_model: models.GenerativeModel,
     ) -> None:
-        model_id = str(GlobalID(GenerativeModel.__name__, str(custom_model.id)))
-
-        # Switching LLM -> EMBEDDING accepts input-only costs and drops the prior output price.
-        to_embedding = _create_model_variables(
-            model_type="EMBEDDING",
-            costs=[("input", "PROMPT")],
-        )
-        to_embedding["input"]["id"] = model_id
-        switched = await gql_client.execute(
+        created = await gql_client.execute(
             query=self.QUERY,
-            variables=to_embedding,
-            operation_name="UpdateModelMutation",
+            variables=_create_model_variables(model_type="EMBEDDING"),
+            operation_name="CreateModelMutation",
         )
-        assert not switched.errors
-        assert switched.data is not None
-        assert switched.data["updateModel"]["model"]["modelType"] == "EMBEDDING"
-        assert [p["tokenType"] for p in switched.data["updateModel"]["model"]["tokenPrices"]] == [
-            "input"
-        ]
+        assert not created.errors
+        assert created.data is not None
+        model_id = created.data["createModel"]["model"]["id"]
 
-        # Omitting modelType keeps the stored EMBEDDING type before validating costs.
-        keep_embedding = _create_model_variables(costs=[("input", "PROMPT")])
-        keep_embedding["input"]["id"] = model_id
+        # Input-only costs are valid only because the stored type is EMBEDDING.
+        update = _create_model_variables(costs=[("input", "PROMPT")])
+        update["input"]["id"] = model_id
         kept = await gql_client.execute(
             query=self.QUERY,
-            variables=keep_embedding,
+            variables=update,
             operation_name="UpdateModelMutation",
         )
         assert not kept.errors
         assert kept.data is not None
         assert kept.data["updateModel"]["model"]["modelType"] == "EMBEDDING"
-
-        # Switching EMBEDDING -> DECISION without an output price is rejected.
-        to_decision = _create_model_variables(
-            model_type="DECISION",
-            costs=[("input", "PROMPT")],
-        )
-        to_decision["input"]["id"] = model_id
-        rejected = await gql_client.execute(
-            query=self.QUERY,
-            variables=to_decision,
-            operation_name="UpdateModelMutation",
-        )
-        assert len(rejected.errors) == 1
-        assert rejected.errors[0].message == "output cost is required"
 
     @pytest.mark.parametrize(
         "name,provider",
@@ -1200,68 +1149,21 @@ class TestModelMutations:
         assert not result.errors
 
     @pytest.mark.parametrize(
-        "initial_provider,initial_type,update_provider,update_type,rejected",
-        [
-            pytest.param("acmeai", "DECISION", "acmeai", "LLM", True, id="type-into-collision"),
-            pytest.param("other", "LLM", "acmeai", "EMBEDDING", False, id="type-away"),
-        ],
-    )
-    async def test_update_model_checks_case_only_provider_collision_in_new_type(
-        self,
-        gql_client: AsyncGraphQLClient,
-        initial_provider: str,
-        initial_type: str,
-        update_provider: str,
-        update_type: str,
-        rejected: bool,
-    ) -> None:
-        existing = await gql_client.execute(
-            query=self.QUERY,
-            variables=_create_model_variables(name="first-model", provider="AcmeAI"),
-            operation_name="CreateModelMutation",
-        )
-        assert not existing.errors
-        created = await gql_client.execute(
-            query=self.QUERY,
-            variables=_create_model_variables(
-                name="second-model", provider=initial_provider, model_type=initial_type
-            ),
-            operation_name="CreateModelMutation",
-        )
-        assert not created.errors
-        assert created.data is not None
-        variables = _create_model_variables(
-            name="second-model", provider=update_provider, model_type=update_type
-        )
-        variables["input"]["id"] = created.data["createModel"]["model"]["id"]
-        result = await gql_client.execute(
-            query=self.QUERY,
-            variables=variables,
-            operation_name="UpdateModelMutation",
-        )
-        if rejected:
-            assert result.errors
-            assert "already uses name pattern" in result.errors[0].message
-        else:
-            assert not result.errors
-
-    @pytest.mark.parametrize(
         "update_kwargs,expected_error_message",
         [
             pytest.param(
-                {"name": "custom-model", "name_pattern": "^other$", "model_type": "LLM"},
+                {"name": "custom-model", "name_pattern": "^other$"},
                 "Model with name 'custom-model' already exists",
-                id="name-conflict-in-target-type",
+                id="name-conflict",
             ),
             pytest.param(
                 {
                     "name": "other-name",
                     "provider": "anthropic",
                     "name_pattern": "claude-*",
-                    "model_type": "LLM",
                 },
                 "Model 'custom-model' already uses name pattern 'claude-*' with provider 'anthropic'",
-                id="pattern-conflict-in-target-type",
+                id="pattern-conflict",
             ),
         ],
     )
@@ -1276,19 +1178,18 @@ class TestModelMutations:
         created = await gql_client.execute(
             query=self.QUERY,
             variables=_create_model_variables(
-                name="custom-model",
+                name="other-model",
                 provider="openai",
                 name_pattern="^other$",
-                model_type="DECISION",
             ),
             operation_name="CreateModelMutation",
         )
         assert not created.errors
         assert created.data is not None
-        decision_id = created.data["createModel"]["model"]["id"]
+        other_id = created.data["createModel"]["model"]["id"]
 
         variables = _create_model_variables(**update_kwargs)
-        variables["input"]["id"] = decision_id
+        variables["input"]["id"] = other_id
         result = await gql_client.execute(
             query=self.QUERY,
             variables=variables,
@@ -1298,8 +1199,8 @@ class TestModelMutations:
         assert result.errors[0].message == expected_error_message
         assert result.data is None
 
-        # The savepoint rollback keeps the DECISION model's type and token prices intact.
-        node_rowid = int(GlobalID.from_id(decision_id).node_id)
+        # The rejected update leaves the model's row and token prices as they were.
+        node_rowid = int(GlobalID.from_id(other_id).node_id)
         async with db() as session:
             preserved = await session.scalar(
                 sa.select(models.GenerativeModel)
@@ -1307,7 +1208,7 @@ class TestModelMutations:
                 .options(sa.orm.joinedload(models.GenerativeModel.token_prices))
             )
             assert preserved is not None
-            assert preserved.type == "DECISION"
+            assert preserved.name == "other-model"
             assert {p.token_type for p in preserved.token_prices} == {"input", "output"}
 
 
