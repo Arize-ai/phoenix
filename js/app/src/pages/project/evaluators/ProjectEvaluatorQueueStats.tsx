@@ -9,6 +9,7 @@ import {
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { Flex, Text } from "@phoenix/components";
+import { useTimeRange } from "@phoenix/components/datetime";
 import {
   ErrorBoundary,
   TextErrorBoundaryFallback,
@@ -115,6 +116,7 @@ function ProjectEvaluationQueueStripContent({
   fetchKey: string;
   onClearableCount: (clearableCount: number | null) => void;
 }) {
+  const { timeRangeISOStrings } = useTimeRange();
   const data = useLazyLoadQuery<ProjectEvaluatorQueueStatsQuery>(
     graphql`
       query ProjectEvaluatorQueueStatsQuery($projectId: ID!) {
@@ -222,7 +224,10 @@ function ProjectEvaluationQueueStripContent({
         help="The model cost of this project's evaluations that ran in the selected time range. Phoenix gets this cost from the evaluator traces. If tracing is off for an evaluator, its cost is not included."
       >
         {/* Cost reads a heavier request than the queue; its errors stay here. */}
-        <ErrorBoundary resetKey={fetchKey} fallback={TextErrorBoundaryFallback}>
+        <ErrorBoundary
+          resetKey={`${fetchKey} ${timeRangeISOStrings.start} ${timeRangeISOStrings.end}`}
+          fallback={TextErrorBoundaryFallback}
+        >
           <Suspense fallback={<StatValue>--</StatValue>}>
             <ProjectEvaluationCostValue
               projectId={projectId}

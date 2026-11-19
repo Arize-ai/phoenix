@@ -1,4 +1,4 @@
-import { act } from "react";
+import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { RelayEnvironmentProvider } from "react-relay";
 import { MemoryRouter } from "react-router";
@@ -8,7 +8,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
-import { TimeRangeProvider } from "@phoenix/components/datetime";
+import {
+  type TimeRangeContextType,
+  TimeRangeProvider,
+  useTimeRange,
+} from "@phoenix/components/datetime";
 import { PreferencesProvider, ThemeProvider } from "@phoenix/contexts";
 import { AgentProvider } from "@phoenix/contexts/AgentContext";
 
@@ -64,8 +68,20 @@ function resolveOperation(operation: OperationDescriptor) {
   });
 }
 
+const COST_QUERY = "ProjectEvaluatorQueueStatsCostQuery";
+
 let container: HTMLDivElement;
 let root: Root;
+let environment: ReturnType<typeof createMockEnvironment>;
+let setTimeRange: TimeRangeContextType["setTimeRange"];
+
+function TimeRangeControls() {
+  const timeRange = useTimeRange();
+  useEffect(() => {
+    setTimeRange = timeRange.setTimeRange;
+  });
+  return null;
+}
 
 beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -82,9 +98,10 @@ afterEach(() => {
 });
 
 async function renderStrip(
-  renderActions: (clearableCount: number | null) => React.ReactNode
+  renderActions: (clearableCount: number | null) => React.ReactNode,
+  { isCostFailing = false }: { isCostFailing?: boolean } = {}
 ) {
-  const environment = createMockEnvironment();
+  environment = createMockEnvironment();
   await act(async () => {
     root.render(
       <RelayEnvironmentProvider environment={environment}>
@@ -93,6 +110,7 @@ async function renderStrip(
             <AgentProvider>
               <MemoryRouter>
                 <TimeRangeProvider>
+                  <TimeRangeControls />
                   <ProjectEvaluationQueueStrip
                     projectId={PROJECT_NODE_ID}
                     fetchKey="0"
@@ -107,9 +125,20 @@ async function renderStrip(
     );
   });
   // The cost loads in its own query once the stats have rendered
+  await resolvePendingOperations({ isCostFailing });
+}
+
+async function resolvePendingOperations({
+  isCostFailing = false,
+}: { isCostFailing?: boolean } = {}) {
   while (environment.mock.getAllOperations().length > 0) {
     await act(async () => {
-      environment.mock.resolveMostRecentOperation(resolveOperation);
+      const operation = environment.mock.getMostRecentOperation();
+      if (isCostFailing && operation.request.node.params.name === COST_QUERY) {
+        environment.mock.reject(operation, new Error("cost request failed"));
+      } else {
+        environment.mock.resolve(operation, resolveOperation(operation));
+      }
     });
   }
 }
@@ -154,5 +183,17 @@ describe("ProjectEvaluationQueueStrip", () => {
     expect(renderActions).toHaveBeenLastCalledWith(
       PROJECT_QUEUE.queuedCount - PROJECT_QUEUE.runningCount
     );
+  });
+
+  it("loads the cost again when another time range is picked after it failed", async () => {
+    await renderStrip(() => null, { isCostFailing: true });
+    expect(getStatValue("Evaluation cost")).toBe("error");
+
+    await act(async () =>
+      setTimeRange({ timeRangeKey: "1h", start: null, end: null })
+    );
+    await resolvePendingOperations();
+
+    expect(getStatValue("Evaluation cost")).toContain("1.5");
   });
 });

@@ -338,6 +338,15 @@ function EvaluatorTimeSeriesChart({
     metric,
   });
   const isLag = metric === "lagP95Seconds";
+  // A line needs two points, so a series with one gets a dot there instead.
+  const singlePointDataKeys = new Set(
+    series
+      .filter(
+        ({ dataKey }) =>
+          chartData.filter((row) => row[dataKey] != null).length === 1
+      )
+      .map(({ dataKey }) => dataKey)
+  );
   const hasData = chartData.some((row) =>
     series.some(({ dataKey }) => {
       const value = row[dataKey];
@@ -437,7 +446,7 @@ function EvaluatorTimeSeriesChart({
                     // A bin where nothing finished has no lag; bridge it so
                     // each evaluator reads as one line.
                     connectNulls={isLag}
-                    dot={false}
+                    dot={singlePointDataKeys.has(dataKey) ? { r: 2 } : false}
                     activeDot={{ r: 4 }}
                     hide={isDataKeyHidden(dataKey)}
                     isAnimationActive={false}
