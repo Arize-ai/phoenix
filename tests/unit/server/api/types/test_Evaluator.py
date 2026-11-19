@@ -3169,11 +3169,12 @@ class TestProjectEvaluatorAnnotationScoreMetrics:
         assert [len(bin["labelFractions"]) for bin in metrics["series"]] == [2, 1, 0, 0]
         assert [bin["resultCount"] for bin in metrics["series"]] == [4, 2, 0, 0]
 
-    async def test_each_statement_reads_the_annotations_once(
+    async def test_two_statements_each_read_the_annotations_once(
         self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
     ) -> None:
-        """Every statement the field runs reads span_annotations once in its query plan.
-        Re-reading the scoped annotation join in each aggregate made the page take
+        """The window's summary and series come from one statement and the previous
+        window's summary from another, and each reads span_annotations once in its query
+        plan. Re-reading the scoped annotation join in each aggregate made the page take
         minutes on large projects."""
         reads_by_statement: list[int] = []
 
@@ -3215,6 +3216,7 @@ class TestProjectEvaluatorAnnotationScoreMetrics:
                                 timeBinConfig: $timeBinConfig
                             ) {
                                 summary { meanScore }
+                                previousSummary { meanScore }
                                 series { meanScore }
                             }
                         }
@@ -3234,9 +3236,7 @@ class TestProjectEvaluatorAnnotationScoreMetrics:
                 sqlalchemy.engine.Engine, "before_cursor_execute", count_annotation_reads
             )
         assert not resp.errors
-        # The window summary, the previous-window summary and the series
-        assert len(reads_by_statement) >= 3
-        assert reads_by_statement == [1] * len(reads_by_statement)
+        assert reads_by_statement == [1, 1]
 
     async def test_open_end_requires_an_explicit_previous_window(
         self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
