@@ -65,12 +65,20 @@ const MODEL_MENU_DATA = {
       { providerKey: "OPENAI", name: "gpt-5.4" },
       { providerKey: "OPENAI", name: "gpt-5.4-mini" },
       { providerKey: "OPENAI", name: "gpt-6-sol" },
+      { providerKey: "OPENAI", name: "gpt-6.1-terra" },
+      { providerKey: "OPENAI", name: "gpt-6.2-sol" },
+      { providerKey: "ANTHROPIC", name: "claude-fable-5-1" },
+      { providerKey: "ANTHROPIC", name: "claude-fable-5-2" },
       { providerKey: "ANTHROPIC", name: "claude-opus-5" },
       { providerKey: "ANTHROPIC", name: "claude-opus-5-5" },
       { providerKey: "ANTHROPIC", name: "claude-opus-4-5" },
       { providerKey: "ANTHROPIC", name: "claude-sonnet-5-5" },
       { providerKey: "AWS", name: "anthropic.claude-opus-4-6-v1:0" },
+      { providerKey: "GOOGLE", name: "gemini-4-carbon" },
+      { providerKey: "GOOGLE", name: "gemini-4-hydrogen" },
+      { providerKey: "GOOGLE", name: "gemini-4-neon" },
       { providerKey: "GOOGLE", name: "gemini-3.7-flash" },
+      { providerKey: "GOOGLE", name: "gemini-3.1-pro-preview" },
       { providerKey: "GOOGLE", name: "gemini-2.5-flash" },
     ],
   },
@@ -286,9 +294,12 @@ describe("AgentModelPicker", () => {
     ]);
     // Recommended: the curated models the catalog has, in curated order
     expect(getItemNames().slice(4)).toEqual([
+      "Claude Fable 5.2",
       "Claude Opus 5.5",
-      "Claude Sonnet 5.5",
-      "GPT-6 Sol",
+      "GPT-6.2 Sol",
+      "GPT-6.1 Terra",
+      "Gemini 4 Carbon",
+      "Gemini 4 Neon",
     ]);
   });
 
@@ -320,8 +331,8 @@ describe("AgentModelPicker", () => {
     const checked = getItems().flatMap((item, index) =>
       item.getAttribute("aria-checked") === "true" ? [index] : []
     );
-    expect(checked).toEqual([0, 1]);
-    expect(getItemNames().slice(0, 2)).toEqual([
+    expect(checked).toHaveLength(2);
+    expect(checked.map((index) => getItemNames()[index])).toEqual([
       "Claude Opus 5.5",
       "Claude Opus 5.5",
     ]);
