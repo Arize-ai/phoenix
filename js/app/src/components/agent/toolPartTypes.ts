@@ -1,6 +1,7 @@
 import type { UIMessage } from "ai";
 import { isToolUIPart } from "ai";
 
+import type { StatusCategory } from "@phoenix/components";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 /**
@@ -23,6 +24,17 @@ export type ToolInvocationPart = Extract<
  * The lifecycle state of a tool invocation part.
  */
 export type ToolUIPartState = ToolInvocationPart["state"];
+
+/**
+ * A tool call's status as its row shows it. `statusCategory` is set when the
+ * tool's own outcome differs from what the SDK state alone implies: a call
+ * that returned a rejection, or one paused on the user inside
+ * `input-available`.
+ */
+export type ToolStatus = {
+  stateLabel: string;
+  statusCategory?: StatusCategory;
+};
 
 // Re-export the SDK guard for convenience
 export { isToolUIPart };

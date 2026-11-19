@@ -515,6 +515,7 @@ async def test_emits_tool_span_for_provider_native_tool(
         },
         {
             "content": {"results": [{"title": "Phoenix"}]},
+            "content_file_digests": [],
             "outcome": "success",
             "part_kind": "builtin-tool-return",
             "provider_details": {"status": "completed"},

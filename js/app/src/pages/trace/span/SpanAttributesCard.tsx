@@ -59,7 +59,7 @@ function AttributesCardContents({
           {/* attributes that could not be parsed have no keys to count, and the
               body shows them verbatim -- a "0" beside that would contradict it */}
           {isViewable ? (
-            <Counter variant="quiet">{entries.length}</Counter>
+            <Counter variant="quiet" count={entries.length} />
           ) : null}
           {attributesContextualHelp}
         </>

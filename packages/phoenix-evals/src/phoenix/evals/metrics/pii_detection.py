@@ -17,24 +17,27 @@ class PiiDetectionEvaluator(ClassificationEvaluator):
     conversation record.
 
     Args:
-        llm (LLM): The LLM instance to use for the evaluation.
-        **kwargs: Additional invocation parameters forwarded to the LLM client
-            (e.g., ``temperature=0.0``, ``max_tokens=256``).
+        llm (Union[LLM, DecisionModel]): The LLM or decision model to use for the evaluation.
+        **kwargs: Additional invocation parameters forwarded to the judge. What is accepted
+            depends on the judge: an ``LLM`` accepts generation parameters (e.g.
+            ``temperature``, ``max_tokens``); a decision model accepts request options (e.g.
+            ``timeout``).
 
     Notes:
         - Screens the entire conversation record, including system instructions,
           tool calls and their results, and retrieved content the end user may
           never have seen.
         - Returns one `Score` with `label` (pii_detected or no_pii_detected),
-          `score` (1.0 if PII was found, 0.0 otherwise), and an `explanation`
-          from the LLM judge that lists each instance in a FINDINGS block.
+          `score` (1.0 if PII was found, 0.0 otherwise), and, when an `LLM` judge is
+          used, an `explanation` that lists each instance in a FINDINGS block
+          (decision models return a label and probabilities, not an explanation).
         - Direction is ``minimize``: detecting PII is the undesirable outcome.
 
     Examples::
 
         from phoenix.evals.metrics.pii_detection import PiiDetectionEvaluator
-        from phoenix.evals import LLM
-        llm = LLM(provider="openai", model="gpt-4o-mini")
+        from phoenix.evals import DecisionModel
+        llm = DecisionModel(provider="openai", model="gpt-6-luna")
 
         # Default usage
         pii_eval = PiiDetectionEvaluator(llm=llm)
@@ -49,10 +52,8 @@ class PiiDetectionEvaluator(ClassificationEvaluator):
         scores = pii_eval.evaluate(eval_input)
         print(scores)
         [Score(name='pii_detection', score=1.0, label='pii_detected',
-            explanation=(
-                'FINDINGS:\\n- type: email_address | source: user_message'
-            ),
-            metadata={'model': 'gpt-4o-mini'},
+            metadata={'model': 'gpt-6-luna', 'model_id': 'gpt-6-luna', 'confidence': 0.98,
+                'probabilities': {'pii_detected': 0.99, 'no_pii_detected': 0.01}},
             kind="llm", direction="minimize")]
 
     """

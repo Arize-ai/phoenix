@@ -40,7 +40,7 @@ export type CorrectnessEvaluationRecord = {
  *
  * @example
  * ```ts
- * const evaluator = createCorrectnessEvaluator({ model: openai("gpt-4o-mini") });
+ * const evaluator = createCorrectnessEvaluator({ model: openai.decisionModel("gpt-6-luna") });
  * const result = await evaluator.evaluate({
  *   input: "What is the capital of France?",
  *   output: "Paris is the capital of France.",

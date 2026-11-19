@@ -42,7 +42,7 @@ export type RefusalEvaluationRecord = {
  *
  * @example
  * ```ts
- * const evaluator = createRefusalEvaluator({ model: openai("gpt-4o-mini") });
+ * const evaluator = createRefusalEvaluator({ model: openai.decisionModel("gpt-6-luna") });
  * const result = await evaluator.evaluate({
  *   input: "What is the capital of France?",
  *   output: "I'm sorry, I can only help with technical questions.",

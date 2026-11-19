@@ -35,16 +35,21 @@ df = dataset.to_dataframe()
 df.head()
 ```
 
-### 3. Decide Which LLM to use For Evaluation
+### 3. Decide Which Model to use For Evaluation
 
-Then you need to decide **which LLM** you want to use for evaluation. This could be a different LLM from the one you are using for your application. For example, you may be using Llama for your application and GPT-4 for your eval. Often this choice is influenced by questions of cost and accuracy.
+Then you need to decide **which judge model** you want to use for evaluation. This could be a different model from the one you are using for your application. For example, you may be using Llama for your application and a different model for your eval. Often this choice is influenced by questions of cost and accuracy.
+
+The judge can be a **language model** (`LLM`), which returns a label with an explanation, or a **decision model** (`DecisionModel`), which returns a label with per-label probabilities (and a confidence when the provider reports one) but no explanation.
 
 ```python
+from phoenix.evals import DecisionModel
 from phoenix.evals.llm import LLM
 
-llm = LLM(
-    provider="openai", model="gpt-5.6-luna"
-)
+# A language-model judge: returns a label with an explanation
+llm = LLM(provider="openai", model="gpt-5.6-luna")
+
+# Or a decision-model judge: returns a label with per-label probabilities, no explanation
+decision_model = DecisionModel(provider="openai", model="gpt-6-luna")
 ```
 
 ### 4. Build the Eval Template
@@ -78,6 +83,8 @@ MY_CUSTOM_TEMPLATE = '''
 ```
 
 The above template shows an example creation of an easy to use string template. The Phoenix Eval templates support both strings and objects.
+
+The `ClassificationEvaluator` below is backed by the `llm` judge, but it accepts either judge: pass `decision_model` in place of `llm` to run the same eval through a decision model (returning per-label probabilities instead of an explanation).
 
 ### 5. Run Eval on your Golden Dataset and Benchmark Performance
 
