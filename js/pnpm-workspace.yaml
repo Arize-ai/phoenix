@@ -3,6 +3,7 @@ packages:
   - packages/*
   - examples/apps/*
   - benchmarks/*
+  - ../factory/message-service
 
 minimumReleaseAge: 2880
 minimumReleaseAgeExclude:

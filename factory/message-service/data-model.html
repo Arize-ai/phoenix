@@ -1,0 +1,1078 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Factory message service · Data model</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --line: #dce1e7;
+        --ink: #202b36;
+        --muted: #687482;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #f8fafc;
+        color: var(--ink);
+        font:
+          13px/1.45 system-ui,
+          sans-serif;
+      }
+      .viewport {
+        height: 100vh;
+        overflow: auto;
+      }
+      .extent {
+        position: relative;
+      }
+      .canvas {
+        position: relative;
+        width: 2040px;
+        transform-origin: top left;
+      }
+      .entity {
+        position: absolute;
+        width: 450px;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        overflow: hidden;
+        z-index: 2;
+        box-shadow: 0 2px 8px #18263806;
+        transition: outline-color 0.15s;
+      }
+      .entity h2 {
+        font:
+          600 16px/1.4 ui-monospace,
+          SFMono-Regular,
+          monospace;
+        margin: 0;
+        background: #edf2f7;
+        padding: 13px 15px;
+        border-bottom: 1px solid var(--line);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+      td {
+        padding: 8px 13px;
+        border-bottom: 1px solid #eef1f5;
+        font:
+          12px/1.5 ui-monospace,
+          SFMono-Regular,
+          monospace;
+        vertical-align: top;
+      }
+      td:first-child {
+        width: 48%;
+        font-weight: 500;
+      }
+      td:nth-child(2) {
+        width: 27%;
+        color: #526173;
+      }
+      td:last-child {
+        width: 25%;
+        font-size: 10px;
+        text-align: right;
+        color: #527188;
+      }
+      .badge {
+        display: inline-block;
+        margin-left: 3px;
+        font-weight: 650;
+      }
+      td small {
+        display: block;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 400;
+      }
+      .constraints {
+        padding: 9px 14px 12px;
+      }
+      .constraint {
+        font:
+          11px/1.6 ui-monospace,
+          SFMono-Regular,
+          monospace;
+        padding: 5px 0;
+        color: #4c5a69;
+        overflow-wrap: anywhere;
+      }
+      .constraint + .constraint {
+        border-top: 1px solid #f0f3f6;
+      }
+      .constraint.foreign {
+        color: #356e83;
+      }
+      .trigger {
+        background: #f8fafc;
+        border-top: 1px solid var(--line);
+        padding: 10px 14px;
+        font:
+          10px/1.6 ui-monospace,
+          SFMono-Regular,
+          monospace;
+        color: #687482;
+      }
+      .connections {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+        overflow: visible;
+      }
+      .connection {
+        fill: none;
+        stroke: #7a94a8;
+        stroke-width: 1.6;
+        opacity: 0.75;
+      }
+      .connection.active {
+        stroke: #176aa6;
+        stroke-width: 2.8;
+        opacity: 1;
+      }
+      .entity.active {
+        outline: 2px solid #176aa6;
+      }
+      .canvas:has(.entity:hover) .connection:not(.active) {
+        opacity: 0.12;
+      }
+      .controls {
+        position: fixed;
+        right: 14px;
+        top: 12px;
+        z-index: 3;
+        display: flex;
+        gap: 4px;
+        background: #ffffffed;
+        padding: 4px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+      }
+      .controls button {
+        border: 0;
+        background: transparent;
+        color: #526173;
+        padding: 4px 9px;
+        font: 12px system-ui;
+        cursor: pointer;
+      }
+      .controls button:hover {
+        background: #edf2f7;
+        border-radius: 4px;
+      }
+      @media print {
+        .controls {
+          display: none;
+        }
+        .viewport {
+          overflow: visible;
+          height: auto;
+        }
+        .entity {
+          box-shadow: none;
+        }
+        body {
+          background: white;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="controls" aria-label="Diagram zoom">
+      <button id="zoom-out" aria-label="Zoom out">−</button
+      ><button id="zoom-in" aria-label="Zoom in">+</button
+      ><button id="fit">Fit</button><button id="actual">100%</button>
+    </div>
+    <main class="viewport" aria-label="Factory message service database schema">
+      <div class="extent">
+        <div class="canvas">
+          <svg
+            class="connections"
+            role="img"
+            aria-label="Foreign key relationships"
+          >
+            <defs>
+              <marker
+                id="arrow"
+                markerWidth="8"
+                markerHeight="8"
+                refX="7"
+                refY="4"
+                orient="auto"
+              >
+                <path d="M0 0L8 4L0 8" fill="#7a94a8" />
+              </marker>
+            </defs>
+          </svg>
+        </div>
+      </div>
+    </main>
+    <script id="schema" type="application/json">
+      [
+        {
+          "name": "issues",
+          "columns": [
+            {
+              "name": "id",
+              "type": "int8",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "node_id",
+              "type": "text",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "repo_id",
+              "type": "int8",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "author_id",
+              "type": "int8",
+              "nullable": true,
+              "default": null
+            },
+            {
+              "name": "number",
+              "type": "int4",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "title",
+              "type": "text",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "github_created_at",
+              "type": "timestamptz",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "github_updated_at",
+              "type": "timestamptz",
+              "nullable": true,
+              "default": null
+            }
+          ],
+          "constraints": [
+            {
+              "type": "u",
+              "definition": "UNIQUE (node_id)",
+              "columns": ["node_id"],
+              "target": null,
+              "targetColumns": []
+            },
+            {
+              "type": "u",
+              "definition": "UNIQUE (repo_id, number)",
+              "columns": ["repo_id", "number"],
+              "target": null,
+              "targetColumns": []
+            },
+            {
+              "type": "p",
+              "definition": "PRIMARY KEY (id)",
+              "columns": ["id"],
+              "target": null,
+              "targetColumns": []
+            },
+            {
+              "type": "f",
+              "definition": "FOREIGN KEY (author_id) REFERENCES users(id)",
+              "columns": ["author_id"],
+              "target": "users",
+              "targetColumns": ["id"]
+            },
+            {
+              "type": "f",
+              "definition": "FOREIGN KEY (repo_id) REFERENCES repositories(id)",
+              "columns": ["repo_id"],
+              "target": "repositories",
+              "targetColumns": ["id"]
+            },
+            {
+              "type": "c",
+              "definition": "CHECK ((id = github_database_id(node_id)))",
+              "columns": ["id", "node_id"],
+              "target": null,
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "definition": "CHECK (((github_updated_at IS NULL) OR (github_updated_at >= github_created_at)))",
+              "columns": ["github_updated_at", "github_created_at"],
+              "target": null,
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "definition": "CHECK ((id > 0))",
+              "columns": ["id"],
+              "target": null,
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "definition": "CHECK ((number > 0))",
+              "columns": ["number"],
+              "target": null,
+              "targetColumns": []
+            }
+          ],
+          "triggers": [
+            {
+              "definition": "CREATE TRIGGER fill_github_id BEFORE INSERT OR UPDATE ON public.issues FOR EACH ROW WHEN ((new.id IS NULL)) EXECUTE FUNCTION fill_github_database_id()"
+            }
+          ]
+        },
+        {
+          "name": "issues_sessions",
+          "columns": [
+            {
+              "name": "issue_id",
+              "type": "int8",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "session_id",
+              "type": "text",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "session_kind",
+              "type": "text",
+              "nullable": false,
+              "default": "'worker'::text"
+            }
+          ],
+          "constraints": [
+            {
+              "type": "p",
+              "definition": "PRIMARY KEY (issue_id, session_id)",
+              "columns": ["issue_id", "session_id"],
+              "target": null,
+              "targetColumns": []
+            },
+            {
+              "type": "f",
+              "definition": "FOREIGN KEY (issue_id) REFERENCES issues(id)",
+              "columns": ["issue_id"],
+              "target": "issues",
+              "targetColumns": ["id"]
+            },
+            {
+              "type": "f",
+              "definition": "FOREIGN KEY (session_id, session_kind) REFERENCES sessions(id, kind)",
+              "columns": ["session_id", "session_kind"],
+              "target": "sessions",
+              "targetColumns": ["id", "kind"]
+            },
+            {
+              "type": "c",
+              "definition": "CHECK ((session_kind = 'worker'::text))",
+              "columns": ["session_kind"],
+              "target": null,
+              "targetColumns": []
+            }
+          ],
+          "triggers": []
+        },
+        {
+          "name": "pull_requests",
+          "columns": [
+            {
+              "name": "id",
+              "type": "int8",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "node_id",
+              "type": "text",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "repo_id",
+              "type": "int8",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "author_id",
+              "type": "int8",
+              "nullable": true,
+              "default": null
+            },
+            {
+              "name": "number",
+              "type": "int4",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "title",
+              "type": "text",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "head_ref",
+              "type": "text",
+              "nullable": true,
+              "default": null
+            },
+            {
+              "name": "github_created_at",
+              "type": "timestamptz",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "github_updated_at",
+              "type": "timestamptz",
+              "nullable": true,
+              "default": null
+            }
+          ],
+          "constraints": [
+            {
+              "type": "u",
+              "definition": "UNIQUE (node_id)",
+              "columns": ["node_id"],
+              "target": null,
+              "targetColumns": []
+            },
+            {
+              "type": "u",
+              "definition": "UNIQUE (repo_id, number)",
+              "columns": ["repo_id", "number"],
+              "target": null,
+              "targetColumns": []
+            },
+            {
+              "type": "p",
+              "definition": "PRIMARY KEY (id)",
+              "columns": ["id"],
+              "target": null,
+              "targetColumns": []
+            },
+            {
+              "type": "f",
+              "definition": "FOREIGN KEY (author_id) REFERENCES users(id)",
+              "columns": ["author_id"],
+              "target": "users",
+              "targetColumns": ["id"]
+            },
+            {
+              "type": "f",
+              "definition": "FOREIGN KEY (repo_id) REFERENCES repositories(id)",
+              "columns": ["repo_id"],
+              "target": "repositories",
+              "targetColumns": ["id"]
+            },
+            {
+              "type": "c",
+              "definition": "CHECK ((id = github_database_id(node_id)))",
+              "columns": ["id", "node_id"],
+              "target": null,
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "definition": "CHECK (((github_updated_at IS NULL) OR (github_updated_at >= github_created_at)))",
+              "columns": ["github_updated_at", "github_created_at"],
+              "target": null,
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "definition": "CHECK ((id > 0))",
+              "columns": ["id"],
+              "target": null,
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "definition": "CHECK ((number > 0))",
+              "columns": ["number"],
+              "target": null,
+              "targetColumns": []
+            }
+          ],
+          "triggers": [
+            {
+              "definition": "CREATE TRIGGER fill_github_id BEFORE INSERT OR UPDATE ON public.pull_requests FOR EACH ROW WHEN ((new.id IS NULL)) EXECUTE FUNCTION fill_github_database_id()"
+            }
+          ]
+        },
+        {
+          "name": "pull_requests_sessions",
+          "columns": [
+            {
+              "name": "pull_request_id",
+              "type": "int8",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "session_id",
+              "type": "text",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "session_kind",
+              "type": "text",
+              "nullable": false,
+              "default": "'worker'::text"
+            }
+          ],
+          "constraints": [
+            {
+              "type": "p",
+              "definition": "PRIMARY KEY (pull_request_id, session_id)",
+              "columns": ["pull_request_id", "session_id"],
+              "target": null,
+              "targetColumns": []
+            },
+            {
+              "type": "f",
+              "definition": "FOREIGN KEY (pull_request_id) REFERENCES pull_requests(id)",
+              "columns": ["pull_request_id"],
+              "target": "pull_requests",
+              "targetColumns": ["id"]
+            },
+            {
+              "type": "f",
+              "definition": "FOREIGN KEY (session_id, session_kind) REFERENCES sessions(id, kind)",
+              "columns": ["session_id", "session_kind"],
+              "target": "sessions",
+              "targetColumns": ["id", "kind"]
+            },
+            {
+              "type": "c",
+              "definition": "CHECK ((session_kind = 'worker'::text))",
+              "columns": ["session_kind"],
+              "target": null,
+              "targetColumns": []
+            }
+          ],
+          "triggers": []
+        },
+        {
+          "name": "repositories",
+          "columns": [
+            {
+              "name": "id",
+              "type": "int8",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "node_id",
+              "type": "text",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "owner",
+              "type": "text",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "name",
+              "type": "text",
+              "nullable": false,
+              "default": null
+            }
+          ],
+          "constraints": [
+            {
+              "type": "u",
+              "definition": "UNIQUE (node_id)",
+              "columns": ["node_id"],
+              "target": null,
+              "targetColumns": []
+            },
+            {
+              "type": "u",
+              "definition": "UNIQUE (owner, name)",
+              "columns": ["owner", "name"],
+              "target": null,
+              "targetColumns": []
+            },
+            {
+              "type": "p",
+              "definition": "PRIMARY KEY (id)",
+              "columns": ["id"],
+              "target": null,
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "definition": "CHECK ((id = github_database_id(node_id)))",
+              "columns": ["id", "node_id"],
+              "target": null,
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "definition": "CHECK ((id > 0))",
+              "columns": ["id"],
+              "target": null,
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "definition": "CHECK ((btrim(name) \u003c> ''::text))",
+              "columns": ["name"],
+              "target": null,
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "definition": "CHECK ((btrim(owner) \u003c> ''::text))",
+              "columns": ["owner"],
+              "target": null,
+              "targetColumns": []
+            }
+          ],
+          "triggers": [
+            {
+              "definition": "CREATE TRIGGER fill_github_id BEFORE INSERT OR UPDATE ON public.repositories FOR EACH ROW WHEN ((new.id IS NULL)) EXECUTE FUNCTION fill_github_database_id()"
+            }
+          ]
+        },
+        {
+          "name": "sessions",
+          "columns": [
+            {
+              "name": "id",
+              "type": "text",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "kind",
+              "type": "text",
+              "nullable": false,
+              "default": null
+            }
+          ],
+          "constraints": [
+            {
+              "type": "u",
+              "definition": "UNIQUE (id, kind)",
+              "columns": ["id", "kind"],
+              "target": null,
+              "targetColumns": []
+            },
+            {
+              "type": "p",
+              "definition": "PRIMARY KEY (id)",
+              "columns": ["id"],
+              "target": null,
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "definition": "CHECK ((btrim(id) \u003c> ''::text))",
+              "columns": ["id"],
+              "target": null,
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "definition": "CHECK ((kind = ANY (ARRAY['coordinator'::text, 'worker'::text])))",
+              "columns": ["kind"],
+              "target": null,
+              "targetColumns": []
+            }
+          ],
+          "triggers": []
+        },
+        {
+          "name": "slack_threads",
+          "columns": [
+            {
+              "name": "workspace_id",
+              "type": "text",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "channel_id",
+              "type": "text",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "thread_timestamp",
+              "type": "text",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "session_id",
+              "type": "text",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "session_kind",
+              "type": "text",
+              "nullable": false,
+              "default": "'coordinator'::text"
+            }
+          ],
+          "constraints": [
+            {
+              "type": "u",
+              "definition": "UNIQUE (session_id)",
+              "columns": ["session_id"],
+              "target": null,
+              "targetColumns": []
+            },
+            {
+              "type": "p",
+              "definition": "PRIMARY KEY (workspace_id, channel_id, thread_timestamp)",
+              "columns": ["workspace_id", "channel_id", "thread_timestamp"],
+              "target": null,
+              "targetColumns": []
+            },
+            {
+              "type": "f",
+              "definition": "FOREIGN KEY (session_id, session_kind) REFERENCES sessions(id, kind)",
+              "columns": ["session_id", "session_kind"],
+              "target": "sessions",
+              "targetColumns": ["id", "kind"]
+            },
+            {
+              "type": "c",
+              "definition": "CHECK ((btrim(channel_id) \u003c> ''::text))",
+              "columns": ["channel_id"],
+              "target": null,
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "definition": "CHECK ((session_kind = 'coordinator'::text))",
+              "columns": ["session_kind"],
+              "target": null,
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "definition": "CHECK ((btrim(workspace_id) \u003c> ''::text))",
+              "columns": ["workspace_id"],
+              "target": null,
+              "targetColumns": []
+            }
+          ],
+          "triggers": []
+        },
+        {
+          "name": "users",
+          "columns": [
+            {
+              "name": "id",
+              "type": "int8",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "node_id",
+              "type": "text",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "login",
+              "type": "text",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "kind",
+              "type": "text",
+              "nullable": false,
+              "default": null
+            }
+          ],
+          "constraints": [
+            {
+              "type": "u",
+              "definition": "UNIQUE (node_id)",
+              "columns": ["node_id"],
+              "target": null,
+              "targetColumns": []
+            },
+            {
+              "type": "p",
+              "definition": "PRIMARY KEY (id)",
+              "columns": ["id"],
+              "target": null,
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "definition": "CHECK ((id = github_database_id(node_id)))",
+              "columns": ["id", "node_id"],
+              "target": null,
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "definition": "CHECK ((id > 0))",
+              "columns": ["id"],
+              "target": null,
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "definition": "CHECK ((kind = ANY (ARRAY['human'::text, 'factory'::text, 'other_bot'::text])))",
+              "columns": ["kind"],
+              "target": null,
+              "targetColumns": []
+            }
+          ],
+          "triggers": [
+            {
+              "definition": "CREATE TRIGGER fill_github_id BEFORE INSERT OR UPDATE ON public.users FOR EACH ROW WHEN ((new.id IS NULL)) EXECUTE FUNCTION fill_github_database_id()"
+            }
+          ]
+        }
+      ]
+    </script>
+    <script>
+      const schema = JSON.parse(document.getElementById("schema").textContent);
+      const canvas = document.querySelector(".canvas");
+      const extent = document.querySelector(".extent");
+      const viewport = document.querySelector(".viewport");
+      const svg = document.querySelector(".connections");
+      const cards = new Map();
+      const types = {
+        int8: "bigint",
+        int4: "integer",
+        text: "text",
+        timestamptz: "timestamptz",
+      };
+      for (const table of schema) {
+        const card = document.createElement("section");
+        card.className = "entity";
+        card.id = table.name;
+        card.setAttribute("aria-label", table.name);
+        const heading = document.createElement("h2");
+        heading.textContent = table.name;
+        card.append(heading);
+        const fields = document.createElement("table");
+        fields.setAttribute("aria-label", `${table.name} columns`);
+        for (const column of table.columns) {
+          const row = fields.insertRow();
+          row.dataset.column = column.name;
+          const name = row.insertCell();
+          name.textContent = column.name;
+          const dataType = row.insertCell();
+          dataType.textContent = types[column.type] || column.type;
+          const nullable = document.createElement("small");
+          nullable.textContent = column.nullable ? "NULL" : "NOT NULL";
+          dataType.append(nullable);
+          const keys = row.insertCell();
+          for (const [type, badge] of [
+            ["p", "PK"],
+            ["f", "FK"],
+            ["u", "UQ"],
+          ]) {
+            if (
+              table.constraints.some(
+                (constraint) =>
+                  constraint.type === type &&
+                  constraint.columns.includes(column.name) &&
+                  (type !== "u" || constraint.columns.length === 1)
+              )
+            ) {
+              const tag = document.createElement("span");
+              tag.className = "badge";
+              tag.textContent = badge;
+              keys.append(tag);
+            }
+          }
+          if (column.default !== null) {
+            const defaultValue = document.createElement("small");
+            defaultValue.textContent = `DEFAULT ${column.default.replaceAll("::text", "")}`;
+            name.append(defaultValue);
+          }
+        }
+        card.append(fields);
+        const constraints = document.createElement("div");
+        constraints.className = "constraints";
+        for (const constraint of table.constraints) {
+          const line = document.createElement("div");
+          line.className =
+            "constraint" + (constraint.type === "f" ? " foreign" : "");
+          line.textContent = constraint.definition;
+          constraints.append(line);
+        }
+        card.append(constraints);
+        if (table.triggers.length) {
+          const trigger = document.createElement("div");
+          trigger.className = "trigger";
+          trigger.textContent =
+            "BEFORE INSERT OR UPDATE · id IS NULL → fill_github_database_id()";
+          card.append(trigger);
+        }
+        canvas.append(card);
+        cards.set(table.name, card);
+      }
+      const positions = new Map();
+      function place(name, left, top) {
+        const card = cards.get(name);
+        card.style.left = `${left}px`;
+        card.style.top = `${top}px`;
+        positions.set(name, {
+          left,
+          top,
+          width: card.offsetWidth,
+          height: card.offsetHeight,
+        });
+        return top + card.offsetHeight;
+      }
+      const repositoryEnd = place("repositories", 20, 24);
+      place("users", 20, repositoryEnd + 92);
+      const issueEnd = place("issues", 530, 24);
+      place("pull_requests", 530, issueEnd + 92);
+      const issueLinkEnd = place("issues_sessions", 1040, 24);
+      place("pull_requests_sessions", 1040, issueEnd + 92);
+      const sessionEnd = place("sessions", 1550, 190);
+      place("slack_threads", 1550, Math.max(sessionEnd + 110, issueEnd + 92));
+      const height =
+        Math.max(
+          ...[...positions.values()].map(
+            (position) => position.top + position.height
+          )
+        ) + 32;
+      canvas.style.height = `${height}px`;
+      const edges = [];
+      let edgeIndex = 0;
+      function anchor(tableName, columns) {
+        const card = cards.get(tableName);
+        const position = positions.get(tableName);
+        const centers = columns.map((name) => {
+          const row = card.querySelector(`[data-column="${name}"]`);
+          return (
+            position.top +
+            card.querySelector("table").offsetTop +
+            row.offsetTop +
+            row.offsetHeight / 2
+          );
+        });
+        return {
+          ...position,
+          y:
+            centers.reduce((total, value) => total + value, 0) / centers.length,
+        };
+      }
+      for (const table of schema) {
+        for (const constraint of table.constraints) {
+          if (constraint.type !== "f") continue;
+          const source = anchor(table.name, constraint.columns);
+          const target = anchor(constraint.target, constraint.targetColumns);
+          let startX, endX, lane;
+          if (source.left === target.left) {
+            startX = source.left + source.width;
+            endX = target.left + target.width;
+            lane = 2020;
+          } else if (source.left > target.left) {
+            startX = source.left;
+            endX = target.left + target.width;
+            lane = endX + 22 + (edgeIndex % 4) * 5;
+          } else {
+            startX = source.left + source.width;
+            endX = target.left;
+            lane = startX + 24 + (edgeIndex % 3) * 5;
+          }
+          const path = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "path"
+          );
+          path.setAttribute(
+            "d",
+            `M${startX} ${source.y} H${lane} V${target.y} H${endX}`
+          );
+          path.setAttribute("class", "connection");
+          path.setAttribute("marker-end", "url(#arrow)");
+          const title = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "title"
+          );
+          title.textContent = `${table.name} (${constraint.columns.join(", ")}) → ${constraint.target} (${constraint.targetColumns.join(", ")})`;
+          path.append(title);
+          svg.append(path);
+          edges.push({ path, source: table.name, target: constraint.target });
+          edgeIndex++;
+        }
+      }
+      for (const [name, card] of cards) {
+        card.addEventListener("mouseenter", () => {
+          for (const edge of edges) {
+            const active = edge.source === name || edge.target === name;
+            edge.path.classList.toggle("active", active);
+            if (active) {
+              cards.get(edge.source).classList.add("active");
+              cards.get(edge.target).classList.add("active");
+            }
+          }
+        });
+        card.addEventListener("mouseleave", () => {
+          for (const item of cards.values()) item.classList.remove("active");
+          for (const edge of edges) edge.path.classList.remove("active");
+        });
+      }
+      let scale = Math.min(1, (viewport.clientWidth - 24) / 2040);
+      function updateScale() {
+        canvas.style.transform = `scale(${scale})`;
+        extent.style.width = `${2040 * scale}px`;
+        extent.style.height = `${height * scale}px`;
+      }
+      document.getElementById("zoom-in").onclick = () => {
+        scale = Math.min(1.6, scale + 0.1);
+        updateScale();
+      };
+      document.getElementById("zoom-out").onclick = () => {
+        scale = Math.max(0.35, scale - 0.1);
+        updateScale();
+      };
+      document.getElementById("fit").onclick = () => {
+        scale = Math.min(1, (viewport.clientWidth - 24) / 2040);
+        updateScale();
+      };
+      document.getElementById("actual").onclick = () => {
+        scale = 1;
+        updateScale();
+      };
+      updateScale();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,41 @@
+{
+  "name": "phoenix-factory-message-service",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "next build",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:types": "tsx scripts/generate-types.ts",
+    "dev": "next dev --port 3109",
+    "fmt": "oxfmt --config ../../.oxfmtrc.jsonc .",
+    "lint": "oxlint --config ../../.oxlintrc.json .",
+    "lint:fix": "oxlint --fix --config ../../.oxlintrc.json .",
+    "start": "next start --port 3109",
+    "test": "vitest run --exclude '**/*.integration.test.ts'",
+    "test:integration": "tsx scripts/test-integration.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.10.0",
+    "kysely": "^0.29.9",
+    "next": "^16.4.6",
+    "pg": "^8.23.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "standardwebhooks": "^1.1.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/pg": "^8.23.1",
+    "dbmate": "^2.38.1",
+    "dotenv": "^18.0.10",
+    "kysely-codegen": "^0.20.0",
+    "oxfmt": "^0.58.0",
+    "oxlint": "~1.79.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  }
+}
