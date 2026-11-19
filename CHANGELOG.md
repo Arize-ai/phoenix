@@ -1,5 +1,13 @@
 # Changelog
 
+## [21.2.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v21.2.0...arize-phoenix-v21.2.1) (2026-11-19)
+
+
+### Documentation
+
+* add Phoenix release notes ([#18036](https://github.com/Arize-ai/phoenix/issues/18036)) ([ed6f1d7](https://github.com/Arize-ai/phoenix/commit/ed6f1d723f920349d0b9a134aaa83da02ccba805))
+* **skills:** teach phoenix-harbor to build Harbor tasks and verifiers you can trust ([#17821](https://github.com/Arize-ai/phoenix/issues/17821)) ([77fe4b4](https://github.com/Arize-ai/phoenix/commit/77fe4b4dffccecb5f6bcc50e30366bd517b68a52))
+
 ## [21.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v21.1.0...arize-phoenix-v21.2.0) (2026-11-18)
 
 
