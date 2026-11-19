@@ -1,3 +1,4 @@
+import math
 import re
 from datetime import datetime, timezone
 from typing import Any, Optional
@@ -988,6 +989,65 @@ class TestModelMutations:
         assert result.data is not None
         assert result.data["createModel"]["model"]["provider"] == "acmeai"
 
+    @pytest.mark.parametrize("operation_name", ["CreateModelMutation", "UpdateModelMutation"])
+    @pytest.mark.parametrize(
+        "token_type, rate",
+        [
+            pytest.param("input", -1.0, id="negative-input"),
+            pytest.param("output", -0.000001, id="small-negative-output"),
+        ],
+    )
+    async def test_negative_rate_is_rejected(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        custom_model: models.GenerativeModel,
+        operation_name: str,
+        token_type: str,
+        rate: float,
+    ) -> None:
+        variables = _create_model_variables(rates={token_type: rate})
+        if operation_name == "UpdateModelMutation":
+            variables["input"]["id"] = str(GlobalID(GenerativeModel.__name__, str(custom_model.id)))
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=variables,
+            operation_name=operation_name,
+        )
+        assert len(result.errors) == 1
+        assert result.errors[0].message == (
+            f"Cost per million tokens for '{token_type}' must be zero or more"
+        )
+        assert result.data is None
+        assert await _stored_rates(db) == {
+            "custom-model": {"input": 0.003, "output": 0.004},
+        }
+
+    @pytest.mark.parametrize("operation_name", ["CreateModelMutation", "UpdateModelMutation"])
+    @pytest.mark.parametrize("rate", [0.0, -0.0], ids=["zero", "negative-zero"])
+    async def test_zero_rate_is_stored_as_positive_zero(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        custom_model: models.GenerativeModel,
+        operation_name: str,
+        rate: float,
+    ) -> None:
+        """A $0 rate is valid: it means the tokens are free. -0.0 is stored as 0.0."""
+        variables = _create_model_variables(rates={"input": rate, "output": rate})
+        if operation_name == "UpdateModelMutation":
+            variables["input"]["id"] = str(GlobalID(GenerativeModel.__name__, str(custom_model.id)))
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=variables,
+            operation_name=operation_name,
+        )
+        assert not result.errors
+        assert result.data is not None
+        stored = (await _stored_rates(db))["my-model"]
+        assert stored == {"input": 0.0, "output": 0.0}
+        assert all(math.copysign(1.0, base_rate) == 1.0 for base_rate in stored.values())
+
 
 def _create_model_variables(
     *,
@@ -995,20 +1055,45 @@ def _create_model_variables(
     provider: str = "",
     name_pattern: str = "^my-model$",
     costs: Optional[list[tuple[str, str]]] = None,
+    rates: Optional[dict[str, float]] = None,
 ) -> dict[str, Any]:
+    """Variables for CreateModelMutation. Rates are per token type and default to 1.0."""
     if costs is None:
         costs = [("input", "PROMPT"), ("output", "COMPLETION")]
+    rates = rates or {}
     return {
         "input": {
             "name": name,
             "provider": provider,
             "namePattern": name_pattern,
             "costs": [
-                {"tokenType": token_type, "kind": kind, "costPerMillionTokens": 1.0}
+                {
+                    "tokenType": token_type,
+                    "kind": kind,
+                    "costPerMillionTokens": rates.get(token_type, 1.0),
+                }
                 for token_type, kind in costs
             ],
         }
     }
+
+
+async def _stored_rates(db: DbSessionFactory) -> dict[str, dict[str, float]]:
+    """Base rates per token type for each custom model in the database."""
+    async with db() as session:
+        rows = await session.execute(
+            sa.select(
+                models.GenerativeModel.name,
+                models.TokenPrice.token_type,
+                models.TokenPrice.base_rate,
+            )
+            .join(models.TokenPrice)
+            .where(models.GenerativeModel.is_built_in.is_(False))
+        )
+    stored: dict[str, dict[str, float]] = {}
+    for name, token_type, base_rate in rows:
+        stored.setdefault(name, {})[token_type] = base_rate
+    return stored
 
 
 @pytest.fixture

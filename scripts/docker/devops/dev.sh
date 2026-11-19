@@ -20,6 +20,8 @@ CURRENT_SCHEMA=""
 COMPOSE_FILES="-f docker-compose.yml"
 PROFILE_FLAGS=""
 COMMAND=""
+ASSUME_YES=false
+BUILD_ON_UP=false
 
 # Logging helpers
 log_info() { echo "🔵 $1"; }
@@ -96,8 +98,7 @@ get_profile_config() {
             echo "override:overrides/toxiproxy.yml"
             ;;
         "grafana")
-            # Grafana profile doesn't need override - pure profile in main file
-            echo "profile"
+            echo "override:overrides/grafana.yml"
             ;;
         "ldap")
             echo "override:overrides/ldap.yml"
@@ -213,6 +214,14 @@ parse_args() {
                     add_profile "$profile"
                 done
                 shift 2
+                ;;
+            -y|--yes)
+                ASSUME_YES=true
+                shift
+                ;;
+            -b|--build)
+                BUILD_ON_UP=true
+                shift
                 ;;
             *)
                 # Store the command for later processing
@@ -345,7 +354,11 @@ show_services() {
                     echo "  Database: In-memory SQLite"
                     ;;
                 "grafana")
-                    echo "  Monitoring: Grafana + Prometheus enabled"
+                    echo "  Monitoring: Grafana + Prometheus + Tempo + Loki + OTel Collector enabled"
+                    echo "  Grafana:        http://localhost:18273/grafana"
+                    echo "  Tempo API:      http://localhost:3200"
+                    echo "  Loki API:       http://localhost:3100"
+                    echo "  OTel Collector: localhost:14317 (gRPC), http://localhost:14318 (HTTP)"
                     ;;
                 "ldap")
                     echo "  Authentication: LDAP server enabled"
@@ -404,7 +417,7 @@ list_profiles() {
     echo "  basic-auth         Basic authentication (username/password)"
     echo "  in-memory          In-memory SQLite database"
     echo "  toxiproxy          Enable network simulation with Toxiproxy"
-  echo "  grafana            Enable Grafana and Prometheus monitoring"
+  echo "  grafana            Enable Grafana, Prometheus, Tempo, Loki, and OTel Collector"
   echo "  ldap               Enable LDAP authentication (mock LDAP server)"
   echo "  ldap-no-email      Enable LDAP authentication (users without email)"
   echo "  ldap-posix         Enable LDAP authentication (POSIX groups, no memberOf)"
@@ -442,7 +455,11 @@ case "${COMMAND:-help}" in
         fi
         
         echo "📦 Starting all services..."
-        compose_cmd up -d
+        if [[ "$BUILD_ON_UP" == "true" ]]; then
+            DOCKER_BUILDKIT=1 compose_cmd up -d --build
+        else
+            compose_cmd up -d
+        fi
         
         if wait_for_phoenix; then
             log_success "Environment ready!"
@@ -480,10 +497,14 @@ case "${COMMAND:-help}" in
         ;;
 
     "destroy")
-        log_warning "Destroying all data (postgres, grafana, prometheus)..."
+        log_warning "Destroying all data (postgres, grafana, prometheus, tempo, loki)..."
         log_warning "This will permanently delete all database data!"
-        read -p "Are you sure? (y/N): " -n 1 -r
-        echo
+        if [[ "$ASSUME_YES" != "true" ]]; then
+            read -p "Are you sure? (y/N): " -n 1 -r
+            echo
+        else
+            REPLY="y"
+        fi
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             log_info "Stopping all services..."
             stop_all_containers
@@ -588,11 +609,11 @@ case "${COMMAND:-help}" in
 Phoenix Development Environment
 
 🚀 Commands:
-  up [--profile NAME]      Start services (DEFAULT - use for code changes)
-  rebuild [--profile NAME] Full rebuild (slowest - when dependencies change)
-  down                     Stop all services  
-  reset                    Remove all images (rebuild on next 'up')
-  destroy                  Wipe data volumes (database, grafana, prometheus)
+  up [--profile NAME] [-b|--build]  Start services (pass --build to rebuild changed layers)
+  rebuild [--profile NAME]          Full no-cache rebuild (when dependencies change)
+  down                              Stop all services
+  reset                             Remove all images (rebuild on next 'up')
+  destroy [-y|--yes]                Wipe data volumes (database, grafana, prometheus, tempo, loki)
   prune                    Clean Docker build cache (frees disk space)
   clean                    Full Docker cleanup (WARNING: removes everything)
   status                   Show running services and current profile
@@ -610,7 +631,7 @@ Phoenix Development Environment
   basic-auth                   Basic authentication (username/password)
   in-memory                    In-memory SQLite database
   toxiproxy                    Enable network simulation with Toxiproxy
-  grafana                      Enable Grafana and Prometheus monitoring
+  grafana                      Enable Grafana, Prometheus, Tempo, Loki, and OTel Collector
   ldap                         Enable LDAP authentication (mock LDAP server)
   ldap-no-email                Enable LDAP authentication (users without email)
   ldap-posix                   Enable LDAP with POSIX groups (no memberOf)

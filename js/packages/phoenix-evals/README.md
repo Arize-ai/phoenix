@@ -39,11 +39,13 @@ This package is built on [AI SDK](https://ai-sdk.dev/) v7, which is ESM-only. No
 
 The library provides a `createClassifier` function that allows you to create custom evaluators for different tasks like hallucination detection, relevance scoring, or any binary/multi-class classification.
 
+A classifier can be backed by either a **language model** or a **decision model**. A language model returns a label with a written explanation, while a decision model answers through a typed choices API, returning a label with per-label probabilities (and a confidence when the provider reports one) but no explanation.
+
 ```typescript
-import { createClassifier } from "@arizeai/phoenix-evals/llm";
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals/llm";
 import { openai } from "@ai-sdk/openai";
 
-const model = openai("gpt-4o-mini");
+const languageModel = openai("gpt-6-luna");
 
 const promptTemplate = `
 In this task, you will be presented with a query, a reference text and an answer. The answer is
@@ -69,14 +71,15 @@ Is the answer above factual or hallucinated based on the query and reference tex
 `;
 
 // Create the classifier
-const evaluator = await createClassifier({
-  model,
+const evaluator = await createClassificationEvaluator({
+  name: "hallucination",
+  model: languageModel,
   choices: { factual: 1, hallucinated: 0 },
   promptTemplate: promptTemplate,
 });
 
 // Use the classifier
-const result = await evaluator({
+const result = await evaluator.evaluate({
   output: "Arize is not open source.",
   input: "Is Arize Phoenix Open Source?",
   reference:
@@ -84,7 +87,35 @@ const result = await evaluator({
 });
 
 console.log(result);
-// Output: { label: "hallucinated", score: 0 }
+// Output: { label: "hallucinated", score: 0, explanation: "Arize Phoenix is open source, so the answer is inaccurate." }
+
+// The same classifier can be backed by a decision model instead
+const decisionModel = openai.decisionModel("gpt-6-luna");
+
+const decisionEvaluator = await createClassificationEvaluator({
+  name: "hallucination",
+  model: decisionModel,
+  choices: { factual: 1, hallucinated: 0 },
+  promptTemplate: promptTemplate,
+});
+
+const decisionResult = await decisionEvaluator.evaluate({
+  output: "Arize is not open source.",
+  input: "Is Arize Phoenix Open Source?",
+  reference:
+    "Arize Phoenix is a platform for building and deploying AI applications. It is open source.",
+});
+
+console.log(decisionResult);
+// Output: {
+//   label: "hallucinated",
+//   score: 0,
+//   metadata: {
+//     probabilities: { factual: 0.02, hallucinated: 0.98 },
+//     confidence: 0.96,
+//     modelId: "gpt-6-luna",
+//   },
+// }
 ```
 
 See the complete example in [`examples/classifier_example.ts`](examples/classifier_example.ts).
@@ -118,7 +149,7 @@ import {
 } from "@arizeai/phoenix-evals/llm";
 import { openai } from "@ai-sdk/openai";
 
-const model = openai("gpt-4o-mini");
+const model = openai("gpt-6-luna");
 
 // Faithfulness: checks if the output is grounded in the context
 const faithfulnessEvaluator = createFaithfulnessEvaluator({ model });
@@ -196,7 +227,7 @@ import { bindEvaluator } from "@arizeai/phoenix-evals";
 import { createFaithfulnessEvaluator } from "@arizeai/phoenix-evals/llm";
 import { openai } from "@ai-sdk/openai";
 
-const model = openai("gpt-4o-mini");
+const model = openai("gpt-6-luna");
 
 type ExampleType = {
   question: string;
@@ -250,7 +281,7 @@ import {
 
 // Create your evaluator
 const faithfulnessEvaluator = createFaithfulnessEvaluator({
-  model: openai("gpt-4o-mini"),
+  model: openai("gpt-6-luna"),
 });
 
 // Create a dataset for your experiment

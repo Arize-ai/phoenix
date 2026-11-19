@@ -16,35 +16,39 @@ class ToxicityEvaluator(ClassificationEvaluator):
     An evaluator for detecting toxic text — hateful, demeaning, abusive, or threatening.
 
     Args:
-        llm (LLM): The LLM instance to use for the evaluation.
-        **kwargs: Additional invocation parameters forwarded to the LLM client
-            (e.g., ``temperature=0.0``, ``max_tokens=256``).
+        llm (Union[LLM, DecisionModel]): The LLM or decision model to use for the evaluation.
+        **kwargs: Additional invocation parameters forwarded to the judge. What is accepted
+            depends on the judge: an ``LLM`` accepts generation parameters (e.g.
+            ``temperature``, ``max_tokens``); a decision model accepts request options (e.g.
+            ``timeout``).
 
     Notes:
         - Classifies a single piece of text (a model output or a user input) as toxic
           or non-toxic.
         - Returns one `Score` with `label` (toxic or non-toxic), `score` (1.0 if toxic,
-          0.0 if non-toxic), and an `explanation` from the LLM judge.
-        - Requires an LLM that supports tool calling or structured output.
+          0.0 if non-toxic), and, when an `LLM` judge is used, an `explanation`
+          (decision models return a label and probabilities, not an explanation).
+        - When backed by an `LLM`, requires one that supports tool calling or structured
+          output; decision models answer through a typed choices API, so this does not apply.
 
     Examples::
 
         from phoenix.evals.metrics.toxicity import ToxicityEvaluator
-        from phoenix.evals import LLM
-        llm = LLM(provider="openai", model="gpt-4o-mini")
+        from phoenix.evals import DecisionModel
+        llm = DecisionModel(provider="openai", model="gpt-6-luna")
 
         # Default usage
         toxicity_eval = ToxicityEvaluator(llm=llm)
 
         # With custom invocation parameters
-        toxicity_eval = ToxicityEvaluator(llm=llm, temperature=0.0)
+        toxicity_eval = ToxicityEvaluator(llm=llm, timeout=30)
 
         eval_input = {"text": "You are a worthless idiot and everyone despises you."}
         scores = toxicity_eval.evaluate(eval_input)
         print(scores)
         [Score(name='toxicity', score=1.0, label='toxic',
-            explanation='The text directs abusive, demeaning language at a person.',
-            metadata={'model': 'gpt-4o-mini'},
+            metadata={'model': 'gpt-6-luna', 'model_id': 'gpt-6-luna', 'confidence': 0.96,
+                'probabilities': {'toxic': 0.98, 'non-toxic': 0.02}},
             kind="llm", direction="minimize")]
 
     """

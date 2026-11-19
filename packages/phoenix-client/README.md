@@ -31,6 +31,7 @@ Phoenix Client provides an interface for interacting with the Phoenix platform v
 - **Eval CI (pytest)** - Run LLM evals as ordinary pytest tests and record them as Phoenix experiments (`pip install "arize-phoenix-client[pytest]"`)
 - **Spans** - Query and analyze traces with powerful filtering
 - **Annotations** - Add human feedback and automated evaluations
+- **Secrets** - Create, rotate, and delete encrypted provider credentials
 - **Evaluation Helpers** - Extract span data in formats optimized for RAG evaluation workflows
 
 ## Installation
@@ -538,6 +539,51 @@ new_project = client.projects.create(
     description="Traces and evaluations for our customer support chatbot",
 )
 print(f"Created project with ID: {new_project['id']}")
+```
+
+### Secrets
+
+Create, rotate, and delete the encrypted provider credentials (such as LLM API keys) that Phoenix stores for the playground and custom AI providers. Each call is a single atomic `PUT /v1/secrets` request. Managing secrets requires an admin API key when authentication is enabled, and Phoenix server 13.21.0 or later.
+
+```python
+import os
+
+from phoenix.client import Client
+
+client = Client()
+
+# Create secrets: a string value creates the key, or replaces its value if it exists
+result = client.secrets.upsert_or_delete(
+    secrets={
+        "OPENAI_API_KEY": os.environ["OPENAI_API_KEY"],
+        "ANTHROPIC_API_KEY": os.environ["ANTHROPIC_API_KEY"],
+    }
+)
+print(result["upserted_keys"])  # ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY']
+
+# Rotate a secret: upsert the existing key with its new value
+client.secrets.upsert_or_delete(secrets={"OPENAI_API_KEY": os.environ["NEW_OPENAI_API_KEY"]})
+
+# Delete a secret: map the key to None (deleting a missing key succeeds)
+result = client.secrets.upsert_or_delete(secrets={"ANTHROPIC_API_KEY": None})
+print(result["deleted_keys"])  # ['ANTHROPIC_API_KEY']
+
+# Rotate one key and retire another in the same atomic request
+client.secrets.upsert_or_delete(
+    secrets={
+        "OPENAI_API_KEY": os.environ["NEW_OPENAI_API_KEY"],
+        "OLD_PROVIDER_API_KEY": None,
+    }
+)
+```
+
+The result lists only the keys that were upserted and deleted. Secret values are never returned, and they are left out of the method's error messages: an `httpx.HTTPStatusError` raised for a rejected batch carries the status code and validation messages, but not the request body or the server's response body. An empty batch raises `ValueError` before any request is sent. `AsyncClient` provides the same method as a coroutine:
+
+```python
+from phoenix.client import AsyncClient
+
+async_client = AsyncClient()
+await async_client.secrets.upsert_or_delete(secrets={"OPENAI_API_KEY": None})
 ```
 
 ## Documentation
