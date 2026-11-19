@@ -26,7 +26,7 @@ job. Every rate has a different denominator, so name it.
 | Term | Formula | Answers |
 | ---- | ------- | ------- |
 | Recall (true positive rate) | TP / (TP + FN) | Of the real failures, how many did the judge flag? |
-| False-positive rate | FP / (FP + TN) | Of the good records, how many did the judge flag anyway? |
+| False-positive rate (1 - true negative rate) | FP / (FP + TN) | Of the good records, how many did the judge flag anyway? |
 | Precision | TP / (TP + FP) | Of the records the judge flagged, how many were real failures? |
 | False-discovery share | FP / (TP + FP) = 1 - precision | Of the records the judge flagged, how many were wrong to flag? |
 
@@ -40,8 +40,10 @@ Map the user's words to the right row before computing anything:
 
 When the judge will block, page, or gate anything, report precision as well as
 recall: people act on its flags, and precision is how often those flags are right.
-Always give the counts behind each rate. Accuracy alone hides a judge that flags
-almost nothing when failures are rare.
+Always give the counts behind each rate, starting with how many labels are failures
+and how many are good. Accuracy alone hides a judge that flags almost nothing when
+failures are rare: on 70 good records and 10 failures, a judge that flags nothing is
+88% accurate and catches no failures.
 
 ## Workflow
 
