@@ -88,8 +88,8 @@ cidr_restricted = daytona.v2.create(
 
 > **Notes:**
 >
-> - The request requires the `write:sandboxes` permission.
-> - The sandbox must be a Linux or macOS sandbox.
+> - **Permissions:** The request requires the `write:sandboxes` permission.
+> - **Compatibility:** Network policies work on Linux and macOS sandboxes only.
 
 **Inbound:**
 
@@ -154,9 +154,9 @@ daytona key mint --project PROJECT_ID \
 
 > **Notes:**
 >
-> - The request requires the `write:project_api_keys` permission.
-> - The request requires a user session from daytona login.
-> - Store the token from the create response, because no other response returns it.
+> - **Permissions:** The request requires the `write:project_api_keys` permission.
+> - **Prerequisites:** The request requires a user session from daytona login.
+> - **Results:** Store the token from the create response, because no other response returns it.
 
 **API:**
 
@@ -181,10 +181,10 @@ curl 'https://api.daytona.com/projects/PROJECT_ID/api-keys' \
 
 > **Notes:**
 >
-> - The request requires the `write:project_api_keys` permission.
-> - The request requires a user access token, not an API key.
-> - PROJECT_ID is the ID of the project that the key belongs to.
-> - Store the token from the create response, because no other response returns it.
+> - **Permissions:** The request requires the `write:project_api_keys` permission.
+> - **Prerequisites:** The request requires a user access token, not an API key.
+> - **Placeholders:** PROJECT_ID is the ID of the project that the key belongs to.
+> - **Results:** Store the token from the create response, because no other response returns it.
 
 **Secrets:**
 
@@ -219,4 +219,4 @@ print(result.stdout)  # dtns_..., the placeholder
 
 > **Notes:**
 >
-> - The requests require the `write:secrets` and `write:sandboxes` permissions.
+> - **Permissions:** The requests require the `write:secrets` and `write:sandboxes` permissions.

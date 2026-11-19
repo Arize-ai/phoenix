@@ -111,7 +111,7 @@ sandbox = daytona.v2.create_from_build(
 
 > **Notes:**
 >
-> - The other keyword arguments of create() also apply to the sandbox.
+> - **Compatibility:** The other keyword arguments of create() also apply to the sandbox.
 
 ### Windows images
 
@@ -186,7 +186,7 @@ image = daytona.v2.images.build(
 
 > **Notes:**
 >
-> - Wait with `images.get(image.id, wait="ready")` before you use the image.
+> - **Polling:** Wait with `images.get(image.id, wait="ready")` before you use the image.
 
 ### Build context
 
@@ -215,7 +215,7 @@ image = daytona.v2.images.build_from_context("context.tar", name="my-context-ima
 
 > **Notes:**
 >
-> - Wait with `images.get(image.id, wait="ready")` before you use the image.
+> - **Polling:** Wait with `images.get(image.id, wait="ready")` before you use the image.
 
 ### Large build contexts
 
@@ -280,12 +280,11 @@ curl 'https://api.daytona.com/images' \
 
 > **Notes:**
 >
-> - When the declare request returns the upload as `ready`, the archive is stored; skip to the build.
-> - Upload each part to its URL with one PUT of exactly its bytes and no Authorization header.
-> - A part URL is a credential, so do not log or share it.
-> - Pass the region_id from the declare response to the complete request, and build in that region.
-> - Upload before urls_expire_at, complete before upload_expires_at, and build before expires_at.
-> - Wait with `GET /images/{imageId}?wait=ready` before creating sandboxes.
+> - **Order:** When the declare request returns the upload as `ready`, the archive is stored; skip to the build. Pass the region_id from the declare response to the complete request, and build in that region.
+> - **Results:** A part URL is a credential, so do not log or share it.
+> - **Lifetime:** Upload before urls_expire_at, complete before upload_expires_at, and build before expires_at.
+> - **Polling:** Wait with `GET /images/{imageId}?wait=ready` before creating sandboxes.
+> - **Clients:** Upload each part to its URL with one PUT of exactly its bytes and no Authorization header.
 
 ### Build options
 
@@ -355,10 +354,10 @@ image = daytona.v2.images.build(builder, name="my-declared-image")
 
 > **Notes:**
 >
-> - Each method returns a new builder and keeps the original, so one base can start several images.
-> - A builder from from_registry() with no steps registers the registry image as a pull.
+> - **Clients:** Each method returns a new builder and keeps the original, so one base can start several images.
+> - **Behaviour:** A builder from from_registry() with no steps registers the registry image as a pull.
 
-#### Add local files
+##### Add local files
 
 Add local files to copy files and directories from a local computer into an image. A copy step in a build reads files from the build context and writes them to a path in the image.
 
@@ -399,9 +398,9 @@ image = daytona.v2.images.build(builder, name="my-local-files-image")
 
 > **Notes:**
 >
-> - The local files must exist when `images.build()` runs, which reads them.
-> - A build with local files takes a name or idle_expiry_seconds, not both.
-> - Wait with `images.get(image.id, wait="ready")` before you use the image.
+> - **Prerequisites:** The local files must exist when `images.build()` runs, which reads them.
+> - **Compatibility:** A build with local files takes a name or idle_expiry_seconds, not both.
+> - **Polling:** Wait with `images.get(image.id, wait="ready")` before you use the image.
 
 ### Preview the Dockerfile
 
@@ -455,7 +454,7 @@ clone = daytona.v2.create("my-env")
 
 > **Notes:**
 >
-> - A Linux or Windows sandbox must be running; a macOS sandbox must be persistent and stopped.
+> - **Prerequisites:** A Linux or Windows sandbox must be running; a macOS sandbox must be persistent and stopped.
 
 ## Promote images
 
@@ -481,7 +480,7 @@ print(image.name)
 
 > **Notes:**
 >
-> - The image must be anonymous.
+> - **Prerequisites:** The image must be anonymous.
 
 ## Convert images
 
@@ -511,7 +510,7 @@ curl 'https://api.daytona.com/images/{imageId}?wait=ready&timeout_ms=60000' \
 
 > **Notes:**
 >
-> - Repeat the wait request while the image status is `pending` or `building`.
+> - **Polling:** Repeat the wait request while the image status is `pending` or `building`.
 
 ## Operations
 
@@ -575,7 +574,7 @@ for image in page.items:
 | `updated_at`      | Timestamp of the last change                                                                                                                                                                    |
 | `cursor`          | Token to resume the list immediately after this row; returned by list only                                                                                                                      |
 
-#### Iterate over all images
+##### Iterate over all images
 
 Iterate over all images to read every image in the project without handling page cursors. Iteration over a paginated list reads one page after another until no page remains.
 
@@ -672,7 +671,7 @@ daytona.v2.images.delete("{imageId}")
 
 > **Notes:**
 >
-> - No sandbox or snapshot may depend on the image.
+> - **Prerequisites:** No sandbox or snapshot may depend on the image.
 
 ### Build logs
 

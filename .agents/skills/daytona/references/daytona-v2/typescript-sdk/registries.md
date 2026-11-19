@@ -68,16 +68,15 @@ printf %s 'YOUR_REGISTRY_PASSWORD' | daytona registry set YOUR_REGISTRY_HOST \
 | **Flag** | **Description** |
 | --- | --- |
 | `<host>` | Sets the registry host.<br />**Required**<br />**Format:** a bare host with an optional port, without scheme or path<br />**Example:** `ghcr.io` |
-| `--username` | Sets the registry username.<br />**Default:** the stored username |
-| `--password-stdin` | Reads the password or token from standard input. |
-| `--password` | Sets the password or token on the command line. |
+| `--username` | Sets the registry username.<br />**Default:** the stored username<br />**Rules:** required for a new credential<br />**Rules:** the IAM role ARN for the ecr_role kind |
+| `--password-stdin` | Reads the password or token from standard input.<br />**Rules:** exactly one of --password-stdin or --password, except for the ecr_role kind, which takes no password |
+| `--password` | Sets the password or token on the command line.<br />**Rules:** exactly one of --password-stdin or --password, except for the ecr_role kind, which takes no password |
 | `--kind` | Sets the authentication kind.<br />**Default:** `basic`, or the stored kind<br />**Value:** `basic`, `ghcr`, `gcr`, `ecr`, or `ecr_role`<br />**Example:** `ghcr` |
 | `--description` | Sets the description.<br />**Default:** the stored description<br />**Value:** an empty string for no description<br />**Example:** `'CI pull credential'` |
 
 > **Notes:**
 >
-> - A new credential requires --username.
-> - Pass the password with exactly one of --password-stdin or --password, except for the ecr_role kind, which takes the IAM role ARN as --username and no password.
+> - **Prerequisites:** The request requires a project API key or the access token from [exchanging a token](./api-keys.md#exchange-a-token) for the project, not a signed-in user token.
 
 **API:**
 
@@ -102,10 +101,9 @@ curl 'https://api.daytona.com/registries/YOUR_REGISTRY_HOST' \
 
 > **Notes:**
 >
-> - The request replaces the whole credential.
-> - Every kind except ecr_role requires a password.
-> - For the ecr_role kind, the trust policy of the role must allow the AWS principal of Daytona, and the policy must use the organization ID as the external ID.
-> - For the ecr_role kind, the permission policy of the role must allow ecr:GetAuthorizationToken, or ecr-public:GetAuthorizationToken and sts:GetServiceBearerToken for public.ecr.aws.
+> - **Prerequisites:** The request requires a project API key or the access token from [exchanging a token](./api-keys.md#exchange-a-token) for the project, not a signed-in user token. For the ecr_role kind, the trust policy of the role must allow the AWS principal of Daytona, and the policy must use the organization ID as the external ID. For the ecr_role kind, the permission policy of the role must allow ecr:GetAuthorizationToken, or ecr-public:GetAuthorizationToken and sts:GetServiceBearerToken for public.ecr.aws.
+> - **Compatibility:** Every kind except ecr_role requires a password.
+> - **Effects:** The request replaces the whole credential.
 
 | **Field**         | **Description**                                                                                                                                    |
 | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -135,11 +133,11 @@ printf %s 'YOUR_DOCKERHUB_TOKEN' | daytona registry set docker.io \
 | --- | --- |
 | `<host>` | Sets the registry host.<br />**Required**<br />**Format:** a bare host with an optional port, without scheme or path<br />**Example:** `docker.io` |
 | `--username` | Sets the registry username.<br />**Default:** the stored username |
-| `--password-stdin` | Reads the password or token from standard input. |
+| `--password-stdin` | Reads the password or token from standard input.<br />**Rules:** exactly one of --password-stdin or --password |
 
 > **Notes:**
 >
-> - Pass the password with exactly one of --password-stdin or --password.
+> - **Prerequisites:** The request requires a project API key or the access token from [exchanging a token](./api-keys.md#exchange-a-token) for the project, not a signed-in user token.
 
 **API:**
 
@@ -162,7 +160,8 @@ curl 'https://api.daytona.com/registries/docker.io' \
 
 > **Notes:**
 >
-> - The request replaces the whole credential.
+> - **Prerequisites:** The request requires a project API key or the access token from [exchanging a token](./api-keys.md#exchange-a-token) for the project, not a signed-in user token.
+> - **Effects:** The request replaces the whole credential.
 
 ### Google Artifact Registry
 
@@ -170,7 +169,7 @@ Google Artifact Registry is the container registry of Google. It serves private 
 
 A Google Artifact Registry credential is accepted only for a host of Google's registries, and each host holds its own credential. It holds a service account JSON key under a fixed username.
 
-Store a credential for Google Artifact Registry to import private images. Pass the key from a file with --password-stdin or as the API password. The `gcr` kind, **Google Container Registry** in the dashboard, requires a `gcr.io`, `*.gcr.io`, or `*-docker.pkg.dev` host, such as `us-docker.pkg.dev`. The username is `_json_key` and the password is the JSON key.
+Store a credential for Google Artifact Registry to import private images. In the dashboard, choose the **Google Container Registry** kind. The JSON key of the service account is the password.
 
 **CLI:**
 
@@ -184,14 +183,14 @@ daytona registry set us-docker.pkg.dev \
 
 | **Flag** | **Description** |
 | --- | --- |
-| `<host>` | Sets the registry host.<br />**Required**<br />**Format:** a bare host with an optional port, without scheme or path<br />**Example:** `us-docker.pkg.dev` |
-| `--username` | Sets the registry username.<br />**Default:** the stored username |
-| `--password-stdin` | Reads the password or token from standard input. |
+| `<host>` | Sets the registry host.<br />**Required**<br />**Format:** a bare host with an optional port, without scheme or path<br />**Rules:** a `gcr.io`, `*.gcr.io`, or `*-docker.pkg.dev` host with the kind `gcr`<br />**Example:** `us-docker.pkg.dev` |
+| `--username` | Sets the registry username.<br />**Default:** the stored username<br />**Value:** `_json_key` |
+| `--password-stdin` | Reads the password or token from standard input.<br />**Rules:** exactly one of --password-stdin or --password |
 | `--kind` | Sets the authentication kind.<br />**Default:** `basic`, or the stored kind<br />**Value:** `basic`, `ghcr`, `gcr`, `ecr`, or `ecr_role`<br />**Example:** `gcr` |
 
 > **Notes:**
 >
-> - Pass the password with exactly one of --password-stdin or --password.
+> - **Prerequisites:** The request requires a project API key or the access token from [exchanging a token](./api-keys.md#exchange-a-token) for the project, not a signed-in user token.
 
 **API:**
 
@@ -209,14 +208,15 @@ curl 'https://api.daytona.com/registries/us-docker.pkg.dev' \
 
 | **Field** | **Description** |
 | --- | --- |
-| `host` | Sets the registry host.<br />**Format:** a bare host with an optional port, without scheme or path<br />**Example:** `us-docker.pkg.dev` |
-| `username` | Sets the registry username.<br />**Required** |
+| `host` | Sets the registry host.<br />**Format:** a bare host with an optional port, without scheme or path<br />**Rules:** a `gcr.io`, `*.gcr.io`, or `*-docker.pkg.dev` host with the kind `gcr`<br />**Example:** `us-docker.pkg.dev` |
+| `username` | Sets the registry username.<br />**Required**<br />**Value:** `_json_key` |
 | `password` | Sets the password or token.<br />**Maximum:** 64 KiB |
 | `kind` | Sets the authentication kind.<br />**Default:** `basic`<br />**Value:** `basic`, `ghcr`, `gcr`, `ecr`, or `ecr_role`<br />**Example:** `"gcr"` |
 
 > **Notes:**
 >
-> - The request replaces the whole credential.
+> - **Prerequisites:** The request requires a project API key or the access token from [exchanging a token](./api-keys.md#exchange-a-token) for the project, not a signed-in user token.
+> - **Effects:** The request replaces the whole credential.
 
 ### GitHub Container Registry
 
@@ -239,12 +239,12 @@ printf %s 'YOUR_GITHUB_PAT' | daytona registry set ghcr.io \
 | --- | --- |
 | `<host>` | Sets the registry host.<br />**Required**<br />**Format:** a bare host with an optional port, without scheme or path<br />**Example:** `ghcr.io` |
 | `--username` | Sets the registry username.<br />**Default:** the stored username |
-| `--password-stdin` | Reads the password or token from standard input. |
+| `--password-stdin` | Reads the password or token from standard input.<br />**Rules:** exactly one of --password-stdin or --password |
 | `--kind` | Sets the authentication kind.<br />**Default:** `basic`, or the stored kind<br />**Value:** `basic`, `ghcr`, `gcr`, `ecr`, or `ecr_role`<br />**Example:** `ghcr` |
 
 > **Notes:**
 >
-> - Pass the password with exactly one of --password-stdin or --password.
+> - **Prerequisites:** The request requires a project API key or the access token from [exchanging a token](./api-keys.md#exchange-a-token) for the project, not a signed-in user token.
 
 **API:**
 
@@ -269,7 +269,8 @@ curl 'https://api.daytona.com/registries/ghcr.io' \
 
 > **Notes:**
 >
-> - The request replaces the whole credential.
+> - **Prerequisites:** The request requires a project API key or the access token from [exchanging a token](./api-keys.md#exchange-a-token) for the project, not a signed-in user token.
+> - **Effects:** The request replaces the whole credential.
 
 ### Amazon ECR
 
@@ -292,12 +293,12 @@ printf %s 'YOUR_AWS_SECRET_ACCESS_KEY' | daytona registry set AWS_ACCOUNT_ID.dkr
 | --- | --- |
 | `<host>` | Sets the registry host.<br />**Required**<br />**Format:** a bare host with an optional port, without scheme or path<br />**Example:** `123456789012.dkr.ecr.us-east-1.amazonaws.com` |
 | `--username` | Sets the registry username.<br />**Default:** the stored username |
-| `--password-stdin` | Reads the password or token from standard input. |
+| `--password-stdin` | Reads the password or token from standard input.<br />**Rules:** exactly one of --password-stdin or --password |
 | `--kind` | Sets the authentication kind.<br />**Default:** `basic`, or the stored kind<br />**Value:** `basic`, `ghcr`, `gcr`, `ecr`, or `ecr_role`<br />**Example:** `ecr` |
 
 > **Notes:**
 >
-> - Pass the password with exactly one of --password-stdin or --password.
+> - **Prerequisites:** The request requires a project API key or the access token from [exchanging a token](./api-keys.md#exchange-a-token) for the project, not a signed-in user token.
 
 **API:**
 
@@ -322,7 +323,8 @@ curl 'https://api.daytona.com/registries/AWS_ACCOUNT_ID.dkr.ecr.AWS_REGION.amazo
 
 > **Notes:**
 >
-> - The request replaces the whole credential.
+> - **Prerequisites:** The request requires a project API key or the access token from [exchanging a token](./api-keys.md#exchange-a-token) for the project, not a signed-in user token.
+> - **Effects:** The request replaces the whole credential.
 
 ## Use private registry images
 
@@ -376,6 +378,10 @@ daytona registry list
 | `--limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `--all` | Lists every page. |
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a project API key or the access token from [exchanging a token](./api-keys.md#exchange-a-token) for the project, not a signed-in user token.
+
 **API:**
 
 ```bash
@@ -387,6 +393,10 @@ curl 'https://api.daytona.com/registries' \
 | --- | --- |
 | `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `cursor` | Continues from a previous page. |
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a project API key or the access token from [exchanging a token](./api-keys.md#exchange-a-token) for the project, not a signed-in user token.
 
 ### Get a registry
 
@@ -406,6 +416,10 @@ daytona registry get ghcr.io
 | --- | --- |
 | `<host>` | Sets the registry host.<br />**Required**<br />**Format:** a bare host with an optional port, without scheme or path<br />**Example:** `ghcr.io` |
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a project API key or the access token from [exchanging a token](./api-keys.md#exchange-a-token) for the project, not a signed-in user token.
+
 **API:**
 
 ```bash
@@ -416,6 +430,10 @@ curl 'https://api.daytona.com/registries/ghcr.io' \
 | **Field** | **Description** |
 | --- | --- |
 | `host` | Sets the registry host.<br />**Format:** a bare host with an optional port, without scheme or path<br />**Example:** `ghcr.io` |
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a project API key or the access token from [exchanging a token](./api-keys.md#exchange-a-token) for the project, not a signed-in user token.
 
 ### Delete a registry
 
@@ -436,6 +454,10 @@ daytona registry delete ghcr.io
 | `<host>` | Sets the registry host.<br />**Required**<br />**Format:** a bare host with an optional port, without scheme or path<br />**Example:** `ghcr.io` |
 | `-y`, `--yes` | Skips the confirmation prompt. |
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a project API key or the access token from [exchanging a token](./api-keys.md#exchange-a-token) for the project, not a signed-in user token.
+
 **API:**
 
 ```bash
@@ -447,6 +469,10 @@ curl 'https://api.daytona.com/registries/ghcr.io' \
 | **Field** | **Description** |
 | --- | --- |
 | `host` | Sets the registry host.<br />**Format:** a bare host with an optional port, without scheme or path<br />**Example:** `ghcr.io` |
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a project API key or the access token from [exchanging a token](./api-keys.md#exchange-a-token) for the project, not a signed-in user token.
 
 ## Permissions
 

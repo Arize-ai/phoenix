@@ -27,7 +27,6 @@ Use Linux sandboxes to run code from AI agents, coding agents, reinforcement lea
 - [CPU types](#cpu-types)
 - [Resources](#resources)
 - [Regions](#regions)
-- [Timeouts](#timeouts)
 - [Persistence](#persistence)
 - [Snapshots](#snapshots)
 - [Volumes](#volumes)
@@ -173,7 +172,7 @@ daytona cpu-type list --region us-east-ash-1
 
 > **Notes:**
 >
-> - The output is a table in a terminal and JSON elsewhere, unless the output format is set.
+> - **Results:** The output is a table in a terminal and JSON elsewhere, unless the output format is set.
 
 **API:**
 
@@ -238,61 +237,11 @@ sandbox = daytona.v2.create(region="earth")
 | --- | --- |
 | `region` | Sets the region.<br />**Default:** the project's default region, then the organization's, then `earth`<br />**Format:** a listed region ID<br />**Example:** `"earth"` |
 
-## Timeouts
-
-Timeouts are timers that end a sandbox automatically after a set interval. They keep a sandbox that fails to start, outlives its work, or goes unused from holding resources.
-
-A Linux sandbox has three timeouts, and each one deletes the sandbox when it elapses. The create timeout limits how long the sandbox has to start running, the lifetime timeout limits how long it exists after it starts, and the idle timeout limits how long it goes without activity. Requests, connections, and running commands count as activity and restart the idle countdown.
-
-Set a create timeout to delete a sandbox that does not start in time. Set a lifetime timeout to cap how long it runs, and an idle timeout to delete it once unused. Without the last two, the project's [lifecycle defaults](./projects.md#lifecycle-defaults) apply. Change them later with an [update](#update).
-
-```python
-from daytona import Daytona
-
-daytona = Daytona()
-sandbox = daytona.v2.create(
-    create_timeout_seconds=600,
-    lifecycle_policy={
-        "timeout_seconds": 86400,
-        "on_timeout": "delete",
-        "idle_expiry_seconds": 3600,
-        "on_idle_timeout": "delete",
-    },
-)
-```
-
-| **Parameter** | **Description** |
-| --- | --- |
-| `create_timeout_seconds` | Sets how many seconds the sandbox has to reach running before it is deleted.<br />**Default:** `3600`<br />**Maximum:** `86400`<br />**Value:** `-1` for the maximum<br />**Example:** `600` |
-| `lifecycle_policy` | Sets the timeouts of the sandbox.<br />**Example:** `{"timeout_seconds": 3600, "on_timeout": "delete"}` |
-| `timeout_seconds` | Sets the wall-clock lifetime of the sandbox in seconds.<br />**Default:** the project or platform default, if one is enabled<br />**Minimum:** `1`<br />**Maximum:** `86400`, unless the organization or its plan sets a different maximum |
-| `on_timeout` | Sets the action when the timeout elapses.<br />**Default:** `"delete"`<br />**Value:** `"delete"` |
-| `idle_expiry_seconds` | Sets the seconds without activity before the idle action fires.<br />**Default:** none, unless the project sets one<br />**Minimum:** `60`<br />**Maximum:** `2147483647` |
-| `on_idle_timeout` | Sets the action when the idle timeout elapses.<br />**Value:** `"delete"` |
-
-### Reset the idle timer
-
-Reset the idle timer to count a sandbox as active without sending it a request. An idle timer measures the time since the last activity and fires its action when that time reaches the idle timeout.
-
-A reset of the idle timer of a Linux sandbox counts as activity, so the idle timeout counts again from the reset. The lifetime timeout keeps its deadline. A reset works in every state except deleting and deleted, and a sandbox without an idle timeout returns no idle deadline.
-
-Reset the idle timer during work that does not count as activity, such as a job outside the sandbox that returns to it later. To change the length of the idle timeout instead, [update](#update) the sandbox. A reset needs a project API key, so code inside the sandbox cannot keep its own sandbox running with a sandbox token.
-
-```python
-from daytona import Daytona
-
-daytona = Daytona()
-sandbox = daytona.v2.create(lifecycle_policy={"idle_expiry_seconds": 3600, "on_idle_timeout": "delete"})
-
-lifecycle = sandbox.reset_idle_timer()
-print(lifecycle.last_activity_at, lifecycle.idle_timeout_at)
-```
-
 ## Persistence
 
 Persistence is how long the state of a sandbox lasts: the files on its disk, and the processes and data in its memory. State that persists outlives the events that would otherwise discard it.
 
-In a Linux sandbox, the filesystem and the memory each persist for a different length of time.
+The filesystem and the memory of a Linux sandbox each persist for a different length of time.
 
 Check how long each kind of state lasts before a sandbox holds work that must outlast it.
 
@@ -355,7 +304,7 @@ clone = daytona.v2.create("my-env")
 
 > **Notes:**
 >
-> - The sandbox must be a running Linux sandbox.
+> - **Prerequisites:** The sandbox must be a running Linux sandbox.
 
 ### Memory snapshot
 
@@ -393,9 +342,8 @@ restored = daytona.v2.create_from_snapshot("my-snapshot", labels={"team": "resea
 
 > **Notes:**
 >
-> - The source sandbox must be running.
-> - The source sandbox must be persistent, served from a warm template, or restored from a memory snapshot.
-> - A sandbox created from a filesystem snapshot, or an ephemeral sandbox with volumes attached, cannot be captured.
+> - **Prerequisites:** The source sandbox must be running. The source sandbox must be persistent, served from a warm template, or restored from a memory snapshot.
+> - **Compatibility:** A sandbox created from a filesystem snapshot, or an ephemeral sandbox with volumes attached, cannot be captured.
 
 ## Volumes
 
@@ -491,7 +439,7 @@ sandbox = daytona.v2.create(secrets=["GITHUB_TOKEN"])
 
 > **Notes:**
 >
-> - The secrets must exist in the project.
+> - **Prerequisites:** The secrets must exist in the project.
 
 ## Names
 
@@ -537,7 +485,7 @@ Spot capacity is spare compute that is sold at a discount and can be reclaimed a
 
 A spot sandbox runs on discounted capacity that can be reclaimed at any time to free resources for full-price sandboxes. Linux sandboxes run on reserved capacity unless they are created as spot, and a spot sandbox differs from them only in price and reclaim.
 
-Use spot to lower the cost of sandboxes whose work can stop at any time, under the reclaim policy that [preemption](./preemption.md) describes. Spot multiplies the CPU, memory, and disk price by 0.7. A reclaim is immediate, with no advance notice or grace period. An ephemeral sandbox is deleted, and only data on a [volume](./volumes.md) or other storage outside it remains.
+Use spot to lower the cost of sandboxes whose work can stop at any time, under the reclaim policy that [preemption](./preemption.md) describes. See [pricing](https://www.daytona.com/pricing) for the spot discount. A reclaim is immediate, with no advance notice or grace period. An ephemeral sandbox is deleted, and only data on a [volume](./volumes.md) or other storage outside it remains.
 
 ```python
 from daytona import Daytona
@@ -575,7 +523,7 @@ A lifecycle is the set of states a sandbox moves through from creation to deleti
 
 A Linux sandbox lives from its create to its deletion, and changes state when a user acts on it or when one of its [timeouts](#timeouts) elapses. It holds its filesystem and memory for that whole life, and a host failure ends it early in the error state, with both gone.
 
-Use the operations below to wait for a state, update the timeouts of the sandbox, and delete it. A spot sandbox can also be reclaimed, as [preemption](./preemption.md) describes. The SDKs report the **State** of a sandbox, and the CLI and the API report the more detailed **API status**.
+Use the operations below to wait for a state, set and update the timeouts of the sandbox, and delete it. A spot sandbox can also be reclaimed, as [preemption](./preemption.md) describes. The SDKs report the **State** of a sandbox, and the CLI and the API report the more detailed **API status**.
 
 **Sandbox states:**
 
@@ -631,6 +579,56 @@ sandbox.wait(until=["starting", "started"], timeout=60)
 | --- | --- |
 | `until` | Sets one state or a list of states, and wait() returns on any of them.<br />**Default:** `"started"`<br />**Value:** `queued`, `starting`, `started`, `pausing`, `paused`, `stopping`, `stopped`, `destroying`, or `destroyed`<br />**Example:** `"stopped"` |
 | `timeout` | Sets the wait limit in seconds.<br />**Default:** `60`<br />**Value:** `0` for no limit<br />**Example:** `120` |
+
+### Timeouts
+
+Timeouts are timers that end a sandbox automatically after a set interval. They keep a sandbox that fails to start, outlives its work, or goes unused from holding resources.
+
+A Linux sandbox has three timeouts, and each one deletes the sandbox when it elapses. The create timeout limits how long the sandbox has to start running, the lifetime timeout limits how long it exists after it starts, and the idle timeout limits how long it goes without activity. Requests, connections, and running commands count as activity and restart the idle countdown.
+
+Set a create timeout to delete a sandbox that does not start in time. Set a lifetime timeout to cap how long it runs, and an idle timeout to delete it once unused. Without the last two, the project's [lifecycle defaults](./projects.md#lifecycle-defaults) apply. Change them later with an [update](#update).
+
+```python
+from daytona import Daytona
+
+daytona = Daytona()
+sandbox = daytona.v2.create(
+    create_timeout_seconds=600,
+    lifecycle_policy={
+        "timeout_seconds": 86400,
+        "on_timeout": "delete",
+        "idle_expiry_seconds": 3600,
+        "on_idle_timeout": "delete",
+    },
+)
+```
+
+| **Parameter** | **Description** |
+| --- | --- |
+| `create_timeout_seconds` | Sets how many seconds the sandbox has to reach running before it is deleted.<br />**Default:** `3600`<br />**Maximum:** `86400`<br />**Value:** `-1` for the maximum<br />**Example:** `600` |
+| `lifecycle_policy` | Sets the timeouts of the sandbox.<br />**Example:** `{"timeout_seconds": 3600, "on_timeout": "delete"}` |
+| `timeout_seconds` | Sets the wall-clock lifetime of the sandbox in seconds.<br />**Default:** the project or platform default, if one is enabled<br />**Minimum:** `1`<br />**Maximum:** `86400`, unless the organization or its plan sets a different maximum |
+| `on_timeout` | Sets the action when the timeout elapses.<br />**Default:** `"delete"`<br />**Value:** `"delete"` |
+| `idle_expiry_seconds` | Sets the seconds without activity before the idle action fires.<br />**Default:** none, unless the project sets one<br />**Minimum:** `60`<br />**Maximum:** `2147483647` |
+| `on_idle_timeout` | Sets the action when the idle timeout elapses.<br />**Value:** `"delete"` |
+
+##### Reset the idle timer
+
+Reset the idle timer to count a sandbox as active without sending it a request. An idle timer measures the time since the last activity and fires its action when that time reaches the idle timeout.
+
+A reset of the idle timer of a Linux sandbox counts as activity, so the idle timeout counts again from the reset. The lifetime timeout keeps its deadline. A reset works in every state except deleting and deleted, and a sandbox without an idle timeout returns no idle deadline.
+
+Reset the idle timer during work that does not count as activity, such as a job outside the sandbox that returns to it later. To change the length of the idle timeout instead, [update](#update) the sandbox. A reset needs a project API key, so code inside the sandbox cannot keep its own sandbox running with a sandbox token.
+
+```python
+from daytona import Daytona
+
+daytona = Daytona()
+sandbox = daytona.v2.create(lifecycle_policy={"idle_expiry_seconds": 3600, "on_idle_timeout": "delete"})
+
+lifecycle = sandbox.reset_idle_timer()
+print(lifecycle.last_activity_at, lifecycle.idle_timeout_at)
+```
 
 ### Update
 

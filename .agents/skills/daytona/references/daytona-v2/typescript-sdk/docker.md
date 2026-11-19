@@ -70,8 +70,8 @@ console.log(response.stdout)
 
 > **Notes:**
 >
-> - The image must ship Docker Engine.
-> - Wait for Docker to be ready before you run Docker commands.
+> - **Prerequisites:** The image must ship Docker Engine.
+> - **Order:** Wait for Docker to be ready before you run Docker commands.
 
 ### Start modes
 
@@ -179,8 +179,7 @@ try {
 
 > **Notes:**
 >
-> - The wait also ends when Docker is `failed`, `not_present`, `disabled`, `unmanaged`, or `unsupported`, because these states do not become `ready` in the current boot.
-> - The wait keeps polling while Docker is `deferred`, and Docker deferred with reason `function-ready-template` stays deferred for the whole boot.
+> - **Polling:** The wait also ends when Docker is `failed`, `not_present`, `disabled`, `unmanaged`, or `unsupported`, because these states do not become `ready` in the current boot. The wait keeps polling while Docker is `deferred`, and Docker deferred with reason `function-ready-template` stays deferred for the whole boot.
 
 ## Docker logs
 
@@ -211,8 +210,8 @@ if (status.processId) {
 
 > **Notes:**
 >
-> - When the status owner is `daemon`, the process alias `dockerd` stays readable after Docker exits.
-> - When the owner is `entrypoint`, Docker's output is in the logs of the image entrypoint.
+> - **Results:** When the owner is `entrypoint`, Docker's output is in the logs of the image entrypoint.
+> - **Behaviour:** When the status owner is `daemon`, the process alias `dockerd` stays readable after Docker exits.
 
 ## Docker storage
 

@@ -65,6 +65,10 @@ daytona org create 'My Organization'
 | --- | --- |
 | `<name>` | Sets the organization name.<br />**Required**<br />**Maximum:** 64 characters<br />**Format:** text without control characters<br />**Example:** `'My Organization'` |
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+
 **API:**
 
 ```bash
@@ -83,8 +87,8 @@ curl 'https://api.daytona.com/orgs' \
 
 > **Notes:**
 >
-> - Daytona trims leading and trailing whitespace from the name.
-> - You become the admin of the new organization.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+> - **Effects:** Daytona trims leading and trailing whitespace from the name. You become the admin of the new organization.
 
 ## Operations
 
@@ -108,6 +112,10 @@ List organizations to find the ID of an organization before you select, rename, 
 daytona org list
 ```
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+
 **API:**
 
 ```bash
@@ -119,6 +127,10 @@ curl 'https://api.daytona.com/orgs' \
 | --- | --- |
 | `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `cursor` | Continues from a previous page. |
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 ### Select organization
 
@@ -152,12 +164,20 @@ Get an organization to check its settings, such as the timeout cap and the previ
 daytona org get ORGANIZATION_ID
 ```
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+
 **API:**
 
 ```bash
 curl 'https://api.daytona.com/orgs/ORGANIZATION_ID' \
   --header 'Authorization: Bearer YOUR_OIDC_TOKEN'
 ```
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 ### Current user
 
@@ -174,6 +194,10 @@ Get the current user to confirm which account a session runs as, or to find your
 daytona whoami
 ```
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+
 **API:**
 
 ```bash
@@ -181,6 +205,10 @@ daytona whoami
 curl 'https://api.daytona.com/me' \
   --header 'Authorization: Bearer YOUR_OIDC_TOKEN'
 ```
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 ### Current organization API key
 
@@ -213,7 +241,7 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/api-keys/current' \
 
 > **Notes:**
 >
-> - The request requires an organization API key.
+> - **Prerequisites:** The request requires an organization API key.
 
 ### Rename organization
 
@@ -233,6 +261,10 @@ daytona org update ORGANIZATION_ID --name 'New Organization Name'
 | --- | --- |
 | `--name` | Sets the new organization name.<br />**Required**<br />**Maximum:** 64 characters<br />**Format:** text without control characters<br />**Example:** `'New Organization Name'` |
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+
 **API:**
 
 ```bash
@@ -248,6 +280,10 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID' \
 | **Field** | **Description** |
 | --- | --- |
 | `name` | Sets the new organization name.<br />**Minimum:** 1 character<br />**Maximum:** 64 characters<br />**Format:** text without control characters<br />**Example:** `"New Organization Name"` |
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 ### Leave organization
 
@@ -272,9 +308,9 @@ daytona org leave ORGANIZATION_ID
 
 > **Notes:**
 >
-> - The organization must keep at least one admin after you leave.
-> - Leaving revokes the API keys that you created in the organization.
-> - The command asks for confirmation at a terminal and requires --yes otherwise.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. The organization must keep at least one admin after you leave.
+> - **Effects:** Leaving revokes the API keys that you created in the organization.
+> - **Confirmation:** The command asks for confirmation at a terminal and requires --yes otherwise.
 
 **API:**
 
@@ -287,8 +323,8 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/members/USER_ID' \
 
 > **Notes:**
 >
-> - The organization must keep at least one admin after you leave.
-> - Leaving revokes the API keys that you created in the organization.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. The organization must keep at least one admin after you leave.
+> - **Effects:** Leaving revokes the API keys that you created in the organization.
 
 ### Delete organization
 
@@ -313,10 +349,8 @@ daytona org delete ORGANIZATION_ID
 
 > **Notes:**
 >
-> - The organization must not be a personal organization.
-> - The organization must have no sandboxes, volumes, images, snapshots, or functions left in it, and it must not hold a Mac reservation that is still live.
-> - The organization must not own a dedicated region.
-> - The command asks for confirmation at a terminal and requires --yes otherwise.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. The organization must not be a personal organization. The organization must have no sandboxes, volumes, images, snapshots, or functions left in it, and it must not hold a Mac reservation that is still live. The organization must not own a dedicated region.
+> - **Confirmation:** The command asks for confirmation at a terminal and requires --yes otherwise.
 
 **API:**
 
@@ -328,15 +362,13 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID' \
 
 > **Notes:**
 >
-> - The organization must not be a personal organization.
-> - The organization must have no sandboxes, volumes, images, snapshots, or functions left in it, and it must not hold a Mac reservation that is still live.
-> - The organization must not own a dedicated region.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. The organization must not be a personal organization. The organization must have no sandboxes, volumes, images, snapshots, or functions left in it, and it must not hold a Mac reservation that is still live. The organization must not own a dedicated region.
 
 ## Roles
 
 Roles are named sets of permissions that are granted to users as a unit. A user who holds several roles has the union of the permissions of all of them.
 
-Each member of an organization holds one or more roles, chosen from the built-in roles below and the custom roles of the organization. The admin role is protected: the organization must always keep at least one admin, and only an admin can grant or remove it.
+The roles of an organization member are one or more of the built-in roles below and the custom roles of the organization. The admin role is protected: the organization must always keep at least one admin, and only an admin can grant or remove it.
 
 Assign roles to give each member only the access their work needs. An organization on the Enterprise plan can also define [custom roles](#create-custom-role) from its own choice of permissions. When an invitation names no roles, the invited member receives the developer role.
 
@@ -389,7 +421,7 @@ curl 'https://api.daytona.com/roles' \
 
 > **Notes:**
 >
-> - The list of built-in roles requires only a valid credential.
+> - **Prerequisites:** The list of organization roles requires a signed-in user token, not an API key. The list of built-in roles requires only a valid credential.
 
 ### Get role
 
@@ -409,7 +441,8 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/roles/ROLE_ID' \
 
 > **Notes:**
 >
-> - The response has the fields of a role in [list roles](#list-roles).
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+> - **Results:** The response has the fields of a role in [list roles](#list-roles).
 
 ### Create custom role
 
@@ -436,20 +469,18 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/roles' \
 
 | **Field** | **Description** |
 | --- | --- |
-| `name` | Sets the role name.<br />**Required**<br />**Minimum:** 1 character<br />**Maximum:** 64 characters<br />**Example:** `"Sandbox operator"` |
+| `name` | Sets the role name.<br />**Required**<br />**Minimum:** 1 character<br />**Maximum:** 64 characters<br />**Rules:** unique in the organization, ignoring case, and not a built-in role name<br />**Example:** `"Sandbox operator"` |
 | `description` | Sets the purpose of the role.<br />**Maximum:** 256 characters<br />**Example:** `"Runs and manages sandboxes"` |
 | `project_permissions` | Sets the project permissions that the role grants.<br />**Required**<br />**Example:** `["read:sandboxes", "write:sandboxes"]` |
 | `organization_permissions` | Sets the organization permissions that the role grants.<br />**Required**<br />**Example:** `["read:organization", "read:projects", "write:project_api_keys"]` |
 
 > **Notes:**
 >
-> - The request requires the Enterprise [plan](../platform/billing.md#get-the-plan).
-> - The role can grant only permissions that you hold.
-> - The organization permissions must include `read:organization`, and also `read:projects` and `write:project_api_keys` when the role grants any project permission.
-> - The name must be unique in the organization, ignoring case, and not match a built-in role name.
-> - The organization can define at most the max_custom_roles that [list roles](#list-roles) returns.
-> - Daytona trims the name and collapses each run of whitespace inside it to one space.
-> - Assign the role by its ID in the roles of an invitation, a member, or a service account.
+> - **Prerequisites:** The request requires the Enterprise [plan](../platform/billing.md#get-the-plan). The request requires a signed-in user token, not an API key. The role can grant only permissions that you hold.
+> - **Compatibility:** The organization permissions must include `read:organization`, and also `read:projects` and `write:project_api_keys` when the role grants any project permission.
+> - **Limits:** The organization can define at most the max_custom_roles that [list roles](#list-roles) returns.
+> - **Order:** Assign the role by its ID in the roles of an invitation, a member, or a service account.
+> - **Effects:** Daytona trims the name and collapses each run of whitespace inside it to one space.
 
 ### Update custom role
 
@@ -490,9 +521,7 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/roles/ROLE_ID' \
 
 > **Notes:**
 >
-> - The requests need the Enterprise [plan](../platform/billing.md#get-the-plan), unless an update or preview only removes permissions.
-> - The current and new permissions of the role must be within the permissions you hold.
-> - You must be able to assign roles to every member and service account that holds the role.
+> - **Prerequisites:** The requests need the Enterprise [plan](../platform/billing.md#get-the-plan), unless an update or preview only removes permissions. The request requires a signed-in user token, not an API key. You must be able to assign roles to every member and service account that holds the role. The current and new permissions of the role must be within the permissions you hold.
 
 ### Delete custom role
 
@@ -512,7 +541,7 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/roles/ROLE_ID' \
 
 > **Notes:**
 >
-> - No member, service account, or pending invitation may hold the role.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. No member, service account, or pending invitation may hold the role.
 
 ### List permissions
 
@@ -538,7 +567,7 @@ curl 'https://api.daytona.com/permissions?scope=project' \
 
 Members are user accounts that belong to a group and hold access to its shared resources through the roles they are granted. A membership ties one account to one group, so the same account can be a member of several groups at once.
 
-Each member of an organization holds at least one role in it. Ending a membership revokes every API key that the member created in the organization.
+A member of an organization holds at least one role in it. Ending a membership revokes every API key that the member created in the organization.
 
 Manage members to control who can reach the resources of the organization and what each person can do there. New members join by [invitation](#invitations).
 
@@ -556,6 +585,10 @@ List members to check who has access before you change roles or remove someone. 
 daytona member list --org ORGANIZATION_ID
 ```
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+
 **API:**
 
 ```bash
@@ -567,6 +600,10 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/members' \
 | --- | --- |
 | `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `cursor` | Continues from a previous page. |
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 ### Invite members
 
@@ -594,10 +631,9 @@ daytona invite create mail@example.com --org ORGANIZATION_ID --role developer
 
 > **Notes:**
 >
-> - The organization must not be a personal organization.
-> - You must hold every permission that the roles grant, and only an admin can grant the `admin` role.
-> - A pending invitation counts against the member limit.
-> - If the deployment sends no email, the command prints the invitation link to share with the invitee.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. The organization must not be a personal organization. You must hold every permission that the roles grant, and only an admin can grant the `admin` role.
+> - **Limits:** A pending invitation counts against the member limit.
+> - **Results:** If the deployment sends no email, the command prints the invitation link to share with the invitee.
 
 **API:**
 
@@ -620,11 +656,10 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/invitations' \
 
 > **Notes:**
 >
-> - The organization must not be a personal organization.
-> - You must hold every permission that the roles grant, and only an admin can grant the `admin` role.
-> - A pending invitation counts against the member limit.
-> - Inviting an address again re-issues its invitation.
-> - If the deployment sends no email, give the invitee the link in the accept_url field of the response.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. The organization must not be a personal organization. You must hold every permission that the roles grant, and only an admin can grant the `admin` role.
+> - **Limits:** A pending invitation counts against the member limit.
+> - **Effects:** Inviting an address again re-issues its invitation.
+> - **Results:** If the deployment sends no email, give the invitee the link in the accept_url field of the response.
 
 ### Remove members
 
@@ -653,8 +688,8 @@ daytona member remove USER_ID --org ORGANIZATION_ID
 
 > **Notes:**
 >
-> - The organization must keep at least one admin.
-> - The command asks for confirmation at a terminal and requires --yes otherwise.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. The organization must keep at least one admin.
+> - **Confirmation:** The command asks for confirmation at a terminal and requires --yes otherwise.
 
 **API:**
 
@@ -670,7 +705,7 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/members/USER_ID' \
 
 > **Notes:**
 >
-> - The organization must keep at least one admin.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. The organization must keep at least one admin.
 
 ### Update access
 
@@ -702,9 +737,8 @@ daytona member update USER_ID --org ORGANIZATION_ID --role read-only --dry-run
 
 > **Notes:**
 >
-> - You cannot change your own roles.
-> - You can change only a member whose current and requested permissions you hold.
-> - Only an admin can grant or remove the `admin` role.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. You can change only a member whose current and requested permissions you hold. Only an admin can grant or remove the `admin` role.
+> - **Compatibility:** You cannot change your own roles.
 
 **API:**
 
@@ -734,9 +768,8 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/members/USER_ID/update-previe
 
 > **Notes:**
 >
-> - You cannot change your own roles.
-> - You can change only a member whose current and requested permissions you hold.
-> - Only an admin can grant or remove the `admin` role.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. You can change only a member whose current and requested permissions you hold. Only an admin can grant or remove the `admin` role.
+> - **Compatibility:** You cannot change your own roles.
 
 ## Invitations
 
@@ -760,6 +793,10 @@ daytona invite get INVITATION_TOKEN
 | --- | --- |
 | `<token\|link>` | Sets the invitation to show.<br />**Required**<br />**Format:** the invitation token, which starts with dtni_, or the invitation link |
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+
 **API:**
 
 ```bash
@@ -777,7 +814,7 @@ curl 'https://api.daytona.com/invitations/lookup' \
 
 > **Notes:**
 >
-> - The invitation must be pending.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. The invitation must be pending.
 
 ### Accept invitation
 
@@ -804,8 +841,9 @@ daytona invite accept INVITATION_TOKEN
 
 > **Notes:**
 >
-> - The token is single-use.
-> - An existing member keeps their current roles.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+> - **Effects:** An existing member keeps their current roles.
+> - **Lifetime:** The token is single-use.
 
 **API:**
 
@@ -823,8 +861,9 @@ curl 'https://api.daytona.com/invitations/accept' \
 
 > **Notes:**
 >
-> - The token is single-use.
-> - An existing member keeps their current roles.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+> - **Effects:** An existing member keeps their current roles.
+> - **Lifetime:** The token is single-use.
 ### Decline invitation
 
 Decline a pending invitation to refuse membership in the organization that sent it. Declining an invitation refuses the offer of membership, so the invited user does not join.
@@ -849,6 +888,10 @@ daytona invite decline INVITATION_TOKEN
 | --- | --- |
 | `<token\|link>` | Sets the invitation to decline.<br />**Required**<br />**Format:** the invitation token, which starts with dtni_, or the invitation link |
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+
 **API:**
 
 ```bash
@@ -862,6 +905,10 @@ curl 'https://api.daytona.com/invitations/decline' \
 | **Field** | **Description** |
 | --- | --- |
 | `token` | Sets the invitation to decline.<br />**Required**<br />**Format:** the invitation token, which starts with dtni_ |
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 ### List pending
 
@@ -877,6 +924,10 @@ List invitations to follow up with people who have not answered, or to find the 
 daytona invite list --org ORGANIZATION_ID
 ```
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+
 **API:**
 
 ```bash
@@ -891,7 +942,8 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/invitations' \
 
 > **Notes:**
 >
-> - The list also contains declined and expired invitations.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+> - **Results:** The list also contains declined and expired invitations.
 
 ### Cancel invitation
 
@@ -915,7 +967,8 @@ daytona invite revoke INVITATION_ID --org ORGANIZATION_ID
 
 > **Notes:**
 >
-> - The command asks for confirmation at a terminal and requires --yes otherwise.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+> - **Confirmation:** The command asks for confirmation at a terminal and requires --yes otherwise.
 
 **API:**
 
@@ -924,6 +977,10 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/invitations/INVITATION_ID' \
   --request DELETE \
   --header 'Authorization: Bearer YOUR_OIDC_TOKEN'
 ```
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 ## Limits
 
@@ -949,7 +1006,8 @@ print(f"Concurrent sandboxes: {concurrent.usage} of {concurrent.limit}")
 
 > **Notes:**
 >
-> - With jwt_token authentication, pass organization_id.
+> - **Prerequisites:** The request requires a signed-in user token or a project API key.
+> - **Clients:** With jwt_token authentication, pass organization_id.
 
 ### Set the timeout cap
 
@@ -983,7 +1041,7 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID' \
 
 > **Notes:**
 >
-> - The request requires a signed-in user token.
+> - **Prerequisites:** The request requires a signed-in user token.
 
 ## Entitlements and feature flags
 
@@ -1016,6 +1074,10 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/entitlements' \
 }
 ```
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+
 ### Feature flags
 
 Feature flags are switches that turn a feature on or off for some accounts without a new release. They let a platform roll a feature out in stages or limit it to chosen accounts.
@@ -1030,6 +1092,10 @@ Get the feature flags to check whether a feature is turned on for the organizati
 curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/feature-flags' \
   --header 'Authorization: Bearer YOUR_OIDC_TOKEN'
 ```
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 ## Preview warning
 
@@ -1055,8 +1121,7 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/preview-warning' \
 
 > **Notes:**
 >
-> - Turning the preview warning off requires the Team or Enterprise [plan](../platform/billing.md#get-the-plan).
-> - Turning the preview warning on is available on every plan.
+> - **Prerequisites:** Turning the preview warning off requires the Team or Enterprise [plan](../platform/billing.md#get-the-plan). The request requires a signed-in user token, not an API key. Turning the preview warning on is available on every plan.
 
 ## OpenTelemetry configuration
 

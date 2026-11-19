@@ -2,42 +2,49 @@
 
 ## Contents
 
-- [SnapshotService](#snapshotservice)
-- [AsyncSnapshotService](#asyncsnapshotservice)
+- [SnapshotsService](#snapshotsservice)
+- [AsyncSnapshotsService](#asyncsnapshotsservice)
 - [Snapshot](#snapshot)
 
-## SnapshotService
+## SnapshotsService
 
 ```python
-class SnapshotService()
+class SnapshotsService()
 ```
 
 Sandbox snapshot namespace.
 
-#### SnapshotService.\_\_init\_\_
+#### SnapshotsService.\_\_init\_\_
 
 ```python
-def __init__(impl: AsyncSnapshotService, bridge: SyncBridge) -> None
+def __init__() -> None
 ```
 
-#### SnapshotService.delete
+#### SnapshotsService.delete
 
 ```python
-def delete(snapshot_id: str) -> None
+def delete(snapshot_id: str, /) -> None
 ```
 
 Delete a snapshot (409 while sandboxes still depend on it).
 
-#### SnapshotService.get
+#### SnapshotsService.get
 
 ```python
 def get(snapshot_id: str,
+        /,
         *,
         wait: Optional[Literal['ready']] = None,
         timeout: Optional[float] = None) -> Snapshot
 ```
 
-#### SnapshotService.iter
+Fetch a snapshot; `wait="ready"` waits as `ImagesService.get` does.
+
+`"search"` cannot be looked up by name (`GET /snapshots/search` is
+the search route): it raises `BadRequestError` before any
+request; read such a snapshot by its ID.
+
+#### SnapshotsService.iter
 
 ```python
 def iter(*,
@@ -47,7 +54,7 @@ def iter(*,
          limit: Optional[int] = None) -> Iterator[Snapshot]
 ```
 
-#### SnapshotService.list
+#### SnapshotsService.list
 
 ```python
 def list(*,
@@ -57,21 +64,28 @@ def list(*,
          limit: Optional[int] = None) -> ListResult[Snapshot]
 ```
 
-## AsyncSnapshotService
+List snapshots, one page.
+
+Reads `GET /snapshots/search` (every region, eventually consistent: a
+snapshot you just captured may be missing until the index catches up; `get`
+reads it at once) and, on a deployment without search,
+`GET /snapshots`.
+
+## AsyncSnapshotsService
 
 ```python
-class AsyncSnapshotService()
+class AsyncSnapshotsService()
 ```
 
 Sandbox snapshot namespace.
 
-#### AsyncSnapshotService.\_\_init\_\_
+#### AsyncSnapshotsService.\_\_init\_\_
 
 ```python
-def __init__(transport: AsyncTransport) -> None
+def __init__() -> None
 ```
 
-#### AsyncSnapshotService.list
+#### AsyncSnapshotsService.list
 
 ```python
 async def list(*,
@@ -81,7 +95,14 @@ async def list(*,
                limit: Optional[int] = None) -> ListResult[Snapshot]
 ```
 
-#### AsyncSnapshotService.iter
+List snapshots, one page.
+
+Reads `GET /snapshots/search` (every region, eventually consistent: a
+snapshot you just captured may be missing until the index catches up; `get`
+reads it at once) and, on a deployment without search,
+`GET /snapshots`.
+
+#### AsyncSnapshotsService.iter
 
 ```python
 async def iter(*,
@@ -91,19 +112,26 @@ async def iter(*,
                limit: Optional[int] = None) -> AsyncIterator[Snapshot]
 ```
 
-#### AsyncSnapshotService.get
+#### AsyncSnapshotsService.get
 
 ```python
 async def get(snapshot_id: str,
+              /,
               *,
               wait: Optional[Literal['ready']] = None,
               timeout: Optional[float] = None) -> Snapshot
 ```
 
-#### AsyncSnapshotService.delete
+Fetch a snapshot; `wait="ready"` waits as `AsyncImagesService.get` does.
+
+`"search"` cannot be looked up by name (`GET /snapshots/search` is
+the search route): it raises `BadRequestError` before any
+request; read such a snapshot by its ID.
+
+#### AsyncSnapshotsService.delete
 
 ```python
-async def delete(snapshot_id: str) -> None
+async def delete(snapshot_id: str, /) -> None
 ```
 
 Delete a snapshot (409 while sandboxes still depend on it).
@@ -111,7 +139,7 @@ Delete a snapshot (409 while sandboxes still depend on it).
 ## Snapshot
 
 ```python
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class Snapshot()
 ```
 
@@ -122,13 +150,13 @@ class Snapshot()
 - `status` _str_
 - `region` _str_
 - `kind` _SnapshotKind_
-- `var_class` _str_
-- `available_in` _list\[str\]_
-- `created_at` _Optional\[str\] = None_
+- `raw_kind` _str_
+- `sandbox_class` _SnapshotClass_
+- `raw_sandbox_class` _str_
+- `available_in` _tuple\[str, ...\]_
+- `created_at` _datetime_
+- `updated_at` _datetime_
 - `error` _Optional\[str\] = None_
 - `bytes` _Optional\[int\] = None_
 - `memory_bytes` _Optional\[int\] = None_
 - `sandbox_id` _Optional\[str\] = None_
-- `raw_kind` _str = field(default='', kw_only=True)_
-- `cursor` _Optional\[str\] = None_
-- `updated_at` _Optional\[str\] = None_

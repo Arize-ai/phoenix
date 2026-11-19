@@ -26,7 +26,7 @@ The control plane is the central coordination layer of the Daytona platform. It 
 
 Every [region](../python-sdk/regions.md) runs its own control plane, job queue, proxy, and runner fleet. The home region also hosts the management plane: organizations, users, projects, API keys, and billing.
 
-#### API
+##### API
 
 The API is a Rust-based RESTful service that serves as the primary entry point for all platform operations. Creating a sandbox writes a row, publishes a job to the region's queue, and returns; everything that follows happens on a runner and is reported back as events that the API applies to its state. The API also runs the maintenance loops that enforce automated sandbox lifecycle policies: the [timeout and idle timeout](../python-sdk/linux-sandboxes.md#timeouts) of each sandbox.
 
@@ -41,7 +41,7 @@ Access control follows [organization](../python-sdk/organizations.md) and [proje
 
 To interact with sandboxes from the API, see the [API](../api/README.md#daytona-api) and [Toolbox API](../api/README.md#toolbox-api) references.
 
-#### Database and job queue
+##### Database and job queue
 
 - **PostgreSQL** is the primary persistent store for organizations, projects, sandboxes, images, snapshots, volumes, and secrets. Each region keeps its own database; tenancy data is replicated read-only from the home region so API keys authenticate locally in every region
 - **NATS JetStream** carries sandbox jobs from the API to runners (create and delete; for persistent macOS sandboxes also stop, start, pause, resume and fork) and streams runner events back to the API and proxy. Runners pull jobs only from their region's queue
@@ -60,17 +60,17 @@ The compute plane is where sandboxes run and their traffic is served. Sandboxes 
 - [Sandbox storage](#sandbox-storage) holds sandbox disks and VM snapshots
 - [Volumes](#volumes) provide persistent storage shared across sandboxes
 
-#### Sandbox runners
+##### Sandbox runners
 
 Runners are the compute nodes of Daytona's compute plane. Each runner is a Go agent that pulls jobs from its region's queue and executes sandbox operations: building or pulling [images](../python-sdk/images.md), creating, resizing, and deleting sandboxes, stopping, starting, pausing, resuming, and forking persistent macOS sandboxes, and capturing [snapshots](../python-sdk/snapshots.md). Runners accept no inbound connections from the control plane. Instead, they report state changes as events, and they stream sandbox usage to the metering pipeline that feeds Daytona [billing](./billing.md).
 
-Each sandbox runs as a hardware-isolated virtual machine with its own kernel and dedicated vCPU, RAM, and disk. Linux sandboxes run as Firecracker microVMs, Windows sandboxes run on Cloud Hypervisor, and macOS sandboxes run on Apple's Virtualization framework on dedicated Apple silicon Macs ([hardware virtualization](../python-sdk/sandboxes.md#hardware-virtualization)). Runners boot most Linux sandboxes by resuming a pre-built memory snapshot of the image rather than cold-booting, which is what makes sub-second creation possible. Traffic between sandboxes is blocked on the host, and per-sandbox [egress policies](../python-sdk/network-limits.md) are enforced there as well. See [isolation](../python-sdk/isolation.md) for details.
+A sandbox runs as a hardware-isolated virtual machine with its own kernel and dedicated vCPU, RAM, and disk. Linux sandboxes run as Firecracker microVMs, Windows sandboxes run on Cloud Hypervisor, and macOS sandboxes run on Apple's Virtualization framework on dedicated Apple silicon Macs ([hardware virtualization](../python-sdk/sandboxes.md#hardware-virtualization)). Runners boot most Linux sandboxes by resuming a pre-built memory snapshot of the image rather than cold-booting, which is what makes sub-second creation possible. Traffic between sandboxes is blocked on the host, and per-sandbox [egress policies](../python-sdk/network-limits.md) are enforced there as well. See [isolation](../python-sdk/isolation.md) for details.
 
-#### Sandbox daemon
+##### Sandbox daemon
 
 The sandbox daemon is a Rust agent that runs as the init process inside each sandbox. It is injected by the runner as a read-only system layer, so it does not need to be part of your image. It exposes the [Toolbox API](../api/README.md#toolbox-api), providing direct access to the sandbox environment: [file system](../python-sdk/file-system-operations.md) and [Git](../python-sdk/git-operations.md) operations, [process](../python-sdk/process-execution.md) and [code execution](../python-sdk/code-execution.md), [PTY](../python-sdk/pty.md) and [log streaming](../python-sdk/log-streaming.md), [language servers](./language-server-protocol.md), and [computer use](../python-sdk/computer-use.md). It also runs the SSH server that the [SSH gateway](../python-sdk/ssh-access.md) connects to.
 
-#### Proxy
+##### Proxy
 
 The proxy is a stateless service serving the sandbox data plane. It authenticates each request, resolves the target sandbox to its address on the runner overlay network, and forwards the connection directly to the [sandbox daemon](#sandbox-daemon) or a port inside the sandbox, bypassing the API. It supports HTTP, WebSocket, and server-sent events, and exposes these endpoints:
 
@@ -83,11 +83,11 @@ The proxy is a stateless service serving the sandbox data plane. It authenticate
 
 Authenticated Toolbox, preview, and SSH traffic also resets the [idle timeout](../python-sdk/linux-sandboxes.md#timeouts).
 
-#### Image store
+##### Image store
 
 Daytona does not run an internal image registry. When an [image](../python-sdk/images.md) is pulled from a [container registry](#container-registry) or built from a Dockerfile, the runner converts each layer into a read-only, content-addressed filesystem image and stores it in a per-region shared store, together with a manifest that records the layer stack, entrypoint, environment, and working directory. Layers are keyed by content hash, so a layer shared by many images is converted and stored once per region, and sandboxes attach these layers read-only at boot without copying them. Other regions fetch an image from the global artifact store automatically the first time a sandbox there uses it.
 
-#### Sandbox storage
+##### Sandbox storage
 
 In a layered filesystem, reads of unchanged data come from read-only layers, and every change lands in a writable layer on top. The layers below never change, so many sandboxes can share one set of them. Sandbox writes go to a layer above the read-only image layers:
 
@@ -95,7 +95,7 @@ In a layered filesystem, reads of unchanged data come from read-only layers, and
 - **Persistent macOS sandboxes** keep their disk on their Mac across stop and start. When the Mac reservation ends, the disk is exported as an image before the Mac is erased ([macOS sandboxes](../python-sdk/macos-sandboxes.md#when-a-reservation-ends))
 - **[VM snapshots](../python-sdk/snapshots.md)** capture a sandbox's disk, and memory in full snapshots, for restore
 
-#### Volumes
+##### Volumes
 
 [Volumes](../python-sdk/volumes.md) provide persistent storage that can be shared across sandboxes. Disk volume data lives in S3-compatible object storage as content-addressed blobs; a mounted disk volume is materialized inside the sandbox as a read-write directory, and changes are committed back periodically. A bucket volume mounts an S3 bucket directly. Multiple sandboxes can mount the same volume simultaneously, and its data persists independently of the sandbox lifecycle.
 

@@ -79,8 +79,8 @@ print(response.stdout)  # requests is already installed
 
 > **Notes:**
 >
-> - The requests require the `write:sandboxes`, `write:images`, and `delete:sandboxes` permissions.
-> - The sandbox must be running.
+> - **Permissions:** The requests require the `write:sandboxes`, `write:images`, and `delete:sandboxes` permissions.
+> - **Prerequisites:** The sandbox must be running.
 
 ## Memory persistence
 
@@ -129,10 +129,8 @@ print(response.stdout)  # 200
 
 > **Notes:**
 >
-> - The requests require the `write:sandboxes`, `write:snapshots`, and `delete:sandboxes` permissions.
-> - The source sandbox must be running.
-> - The source sandbox must be persistent, served from a warm template, or restored from a memory snapshot.
-> - A sandbox created from a captured image, such as `my-env`, or an ephemeral sandbox with a disk volume attached does not qualify.
+> - **Permissions:** The requests require the `write:sandboxes`, `write:snapshots`, and `delete:sandboxes` permissions.
+> - **Prerequisites:** The source sandbox must be running. The source sandbox must be persistent, served from a warm template, or restored from a memory snapshot. A sandbox created from a captured image, such as `my-env`, or an ephemeral sandbox with a disk volume attached does not qualify.
 
 ## Persistence beyond a sandbox
 
@@ -193,4 +191,4 @@ sandbox.delete()
 
 > **Notes:**
 >
-> - The requests require the `write:sandboxes` and `delete:sandboxes` permissions.
+> - **Permissions:** The requests require the `write:sandboxes` and `delete:sandboxes` permissions.

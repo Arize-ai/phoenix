@@ -72,8 +72,8 @@ files.items.forEach(file => {
 
 > **Notes:**
 >
-> - The directory must exist in the sandbox.
-> - A listing holds at most 10,000 entries.
+> - **Prerequisites:** The directory must exist in the sandbox.
+> - **Limits:** A listing holds at most 10,000 entries.
 
 ## Get directory or file information
 
@@ -109,7 +109,7 @@ console.log(`Mode: ${info.mode}`)
 
 > **Notes:**
 >
-> - The file or directory must exist in the sandbox.
+> - **Prerequisites:** The file or directory must exist in the sandbox.
 
 ## Create directories
 
@@ -222,8 +222,8 @@ await sandbox.fs.uploadFile('large_dataset.csv', '/home/daytona/workspace/datase
 
 > **Notes:**
 >
-> - uploadFile() works in Node.js only.
-> - Without atomic, a stopped upload leaves the bytes sent so far at the destination.
+> - **Compatibility:** uploadFile() works in Node.js only.
+> - **Effects:** Without atomic, a stopped upload leaves the bytes sent so far at the destination.
 
 ## Download files
 
@@ -259,9 +259,9 @@ console.log(new TextDecoder().decode(content))
 
 > **Notes:**
 >
-> - The file must exist in the sandbox.
+> - **Prerequisites:** The file must exist in the sandbox.
 
-#### Download a text file
+##### Download a text file
 
 Download a text file to read its content as a string. Text is stored as bytes in a character encoding such as UTF-8, and decoding turns the bytes back into characters.
 
@@ -287,8 +287,7 @@ console.log(content)
 
 > **Notes:**
 >
-> - The file must exist in the sandbox.
-> - The file must be valid UTF-8.
+> - **Prerequisites:** The file must exist in the sandbox. The file must be valid UTF-8.
 
 ### Download multiple files
 
@@ -352,9 +351,9 @@ await sandbox.fs.downloadFile('/home/daytona/workspace/large-file.bin', 'local_c
 
 > **Notes:**
 >
-> - The parent directory of the local destination must exist.
-> - downloadFile() works in Node.js only.
-> - A replaced destination file keeps its permission bits.
+> - **Prerequisites:** The parent directory of the local destination must exist.
+> - **Compatibility:** downloadFile() works in Node.js only.
+> - **Effects:** A replaced destination file keeps its permission bits.
 
 ## Delete files
 
@@ -381,7 +380,7 @@ await sandbox.fs.remove('/home/daytona/workspace/file.txt')
 
 > **Notes:**
 >
-> - The file or directory must exist in the sandbox.
+> - **Prerequisites:** The file or directory must exist in the sandbox.
 
 ## File permissions
 
@@ -410,7 +409,7 @@ await sandbox.fs.chmod('/home/daytona/workspace/file.txt', { mode: '644' })
 
 > **Notes:**
 >
-> - The file or directory must exist in the sandbox.
+> - **Prerequisites:** The file or directory must exist in the sandbox.
 
 ## Search files by pattern
 
@@ -501,8 +500,8 @@ await sandbox.fs.move('/home/daytona/workspace/data/file.txt', '/home/daytona/wo
 
 > **Notes:**
 >
-> - The source file or directory must exist in the sandbox.
-> - Missing parent directories of the destination are created.
+> - **Prerequisites:** The source file or directory must exist in the sandbox.
+> - **Effects:** Missing parent directories of the destination are created.
 
 ## Watch for file changes
 
@@ -540,9 +539,9 @@ await handle.stop()
 
 > **Notes:**
 >
-> - The directory must exist in the sandbox.
-> - A recursive watch covers at most 4096 directories.
-> - An error thrown in onEvent or onOverflow ends the watch.
+> - **Prerequisites:** The directory must exist in the sandbox.
+> - **Limits:** A recursive watch covers at most 4096 directories.
+> - **Clients:** An error thrown in onEvent or onOverflow ends the watch.
 
 ### Wait for the watch to end
 
@@ -603,8 +602,8 @@ await sandbox.rotateSigningKey()
 
 > **Notes:**
 >
-> - Windows sandboxes cannot have presigned URLs.
-> - The expiry is the current whole second plus the lifetime, so a URL can expire up to 1 second early.
+> - **Compatibility:** Windows sandboxes cannot have presigned URLs.
+> - **Lifetime:** The expiry is the current whole second plus the lifetime, so a URL can expire up to 1 second early.
 
 ## Permissions
 

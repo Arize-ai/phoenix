@@ -63,9 +63,9 @@ console.log('VNC processes started:', result.message);
 
 > **Notes:**
 >
-> - The sandbox must be running.
-> - start() returns once the X server and the VNC server accept connections.
-> - On a failed desktop, call restart() instead of start().
+> - **Prerequisites:** The sandbox must be running.
+> - **Results:** start() returns once the X server and the VNC server accept connections.
+> - **Recovery:** On a failed desktop, call restart() instead of start().
 
 ## Desktop operations
 
@@ -95,7 +95,7 @@ console.log('VNC status:', status.status, status.desktop);
 
 > **Notes:**
 >
-> - The sandbox must be running.
+> - **Prerequisites:** The sandbox must be running.
 
 ### Stop the desktop
 
@@ -118,7 +118,7 @@ console.log('VNC processes stopped:', result.message);
 
 > **Notes:**
 >
-> - The sandbox must be running.
+> - **Prerequisites:** The sandbox must be running.
 
 ### Restart the desktop
 
@@ -145,7 +145,7 @@ console.log('VNC restarted:', result.message, result.desktop);
 
 > **Notes:**
 >
-> - The sandbox must be running.
+> - **Prerequisites:** The sandbox must be running.
 
 ## Desktop states
 
@@ -195,16 +195,10 @@ try {
 
 > **Notes:**
 >
-> - The sandbox must be running.
-> - Every Computer Use operation (mouse, keyboard, screenshot, display, accessibility, recording start) requires the desktop to be in the `ready` state.
-> - Nothing retries calls on a desktop that is not ready, and retry does not recover a failed desktop.
-> - On a `ready` desktop, start returns the process status, or a conflict error for a different resolution.
-> - On a `starting` or `failed` desktop, start fails, so retrying it does not clear a failed desktop.
-> - Stop kills the processes of a `failed` desktop, but only restart leaves `failed`.
-> - D-Bus, the window manager, and x11vnc restart with backoff on exit; the desktop stays `ready`.
-> - A process that exits 6 times in a row, each time within 30 seconds of its start, is not restarted again, while the desktop still reports the `ready` state.
-> - Restart such a process through [computer use](./computer-use.md), or [restart](#restart-the-desktop) the desktop.
-> - Xvfb never restarts on its own and cannot restart as a single process, so [restart](#restart-the-desktop) the desktop.
+> - **Prerequisites:** The sandbox must be running. Every Computer Use operation (mouse, keyboard, screenshot, display, accessibility, recording start) requires the desktop to be in the `ready` state.
+> - **Results:** On a `ready` desktop, start returns the process status, or a conflict error for a different resolution.
+> - **Recovery:** Nothing retries calls on a desktop that is not ready, and retry does not recover a failed desktop. On a `starting` or `failed` desktop, start fails, so retrying it does not clear a failed desktop. Stop kills the processes of a `failed` desktop, but only restart leaves `failed`. Restart such a process through [computer use](./computer-use.md), or [restart](#restart-the-desktop) the desktop. Xvfb never restarts on its own and cannot restart as a single process, so [restart](#restart-the-desktop) the desktop.
+> - **Behaviour:** D-Bus, the window manager, and x11vnc restart with backoff on exit; the desktop stays `ready`. A process that exits 6 times in a row, each time within 30 seconds of its start, is not restarted again, while the desktop still reports the `ready` state.
 
 ## Connect your own VNC client
 
@@ -249,7 +243,7 @@ await sandbox.computerUse.start();
 await sandbox.computerUse.mouse.click({ x: 50, y: 50, button: 'left' });
 
 // Type a URL
-await sandbox.computerUse.keyboard.type({ text: 'https://www.daytona.io/docs/' });
+await sandbox.computerUse.keyboard.type({ text: 'https://www.daytona.com/docs/' });
 await sandbox.computerUse.keyboard.key({ key: 'enter' });
 
 // Take a screenshot
@@ -261,14 +255,14 @@ const screenshot = await sandbox.computerUse.screen.screenshot();
 | `x` | Sets the horizontal position of the click in desktop pixels.<br />**Required**<br />**Example:** `50` |
 | `y` | Sets the vertical position of the click in desktop pixels.<br />**Required**<br />**Example:** `50` |
 | `button` | Sets the mouse button.<br />**Default:** `'left'`<br />**Value:** `'left'`, `'middle'`, or `'right'`<br />**Example:** `'right'` |
-| `text` | Sets the text to type.<br />**Required**<br />**Example:** `'https://www.daytona.io/docs/'` |
+| `text` | Sets the text to type.<br />**Required**<br />**Example:** `'https://www.daytona.com/docs/'` |
 | `key` | Sets the name of the key to press.<br />**Required**<br />**Example:** `'enter'` |
 
 > **Notes:**
 >
-> - The sandbox must be running.
-> - start() returns once the X and VNC servers accept connections, so later calls need no status poll.
-> - On a failed desktop, call restart() instead of start().
+> - **Prerequisites:** The sandbox must be running.
+> - **Results:** start() returns once the X and VNC servers accept connections, so later calls need no status poll.
+> - **Recovery:** On a failed desktop, call restart() instead of start().
 
 ## Sandbox activity
 

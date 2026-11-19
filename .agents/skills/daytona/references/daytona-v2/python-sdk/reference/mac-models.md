@@ -2,45 +2,18 @@
 
 ## Contents
 
-- [MacModelService](#macmodelservice)
-- [AsyncMacModelService](#asyncmacmodelservice)
+- [MacModelsService](#macmodelsservice)
+- [AsyncMacModelsService](#asyncmacmodelsservice)
 - [MacModel](#macmodel)
 - [MacCatalog](#maccatalog)
+- [MacCatalogRegion](#maccatalogregion)
+- [MacCatalogModel](#maccatalogmodel)
+- [MacPrice](#macprice)
 
-## MacModelService
-
-```python
-class MacModelService()
-```
-
-The Mac model registry (`GET /mac-models`).
-
-#### MacModelService.\_\_init\_\_
+## MacModelsService
 
 ```python
-def __init__(impl: AsyncMacModelService, bridge: SyncBridge) -> None
-```
-
-#### MacModelService.catalog
-
-```python
-def catalog(*, region: Optional[str] = None) -> MacCatalog
-```
-
-Free Macs and prices per Mac model (GET /mac-catalog). available is advisory; price is null when pricing is unavailable.
-
-#### MacModelService.list
-
-```python
-def list() -> List[MacModel]
-```
-
-Every registered Mac model, ordered by `id`.
-
-## AsyncMacModelService
-
-```python
-class AsyncMacModelService()
+class MacModelsService()
 ```
 
 The Mac model registry (`GET /mac-models`).
@@ -50,21 +23,56 @@ model's CPU cores, physical memory, physical SSD capacity and sandbox
 disk room in MiB, maximum sandbox count, and default sandbox size. `catalog()` adds free Macs
 and prices.
 
-#### AsyncMacModelService.\_\_init\_\_
+#### MacModelsService.\_\_init\_\_
 
 ```python
-def __init__(transport: AsyncTransport) -> None
+def __init__() -> None
 ```
 
-#### AsyncMacModelService.list
+#### MacModelsService.catalog
 
 ```python
-async def list() -> List[MacModel]
+def catalog(*, region: Optional[str] = None) -> MacCatalog
+```
+
+Free Macs and prices per Mac model (GET /mac-catalog). available is advisory; price is null when pricing is unavailable.
+
+#### MacModelsService.list
+
+```python
+def list() -> Tuple[MacModel, ...]
 ```
 
 Every registered Mac model, ordered by `id`.
 
-#### AsyncMacModelService.catalog
+## AsyncMacModelsService
+
+```python
+class AsyncMacModelsService()
+```
+
+The Mac model registry (`GET /mac-models`).
+
+Lists the models `reservations.create(model=...)` accepts, with each
+model's CPU cores, physical memory, physical SSD capacity and sandbox
+disk room in MiB, maximum sandbox count, and default sandbox size. `catalog()` adds free Macs
+and prices.
+
+#### AsyncMacModelsService.\_\_init\_\_
+
+```python
+def __init__() -> None
+```
+
+#### AsyncMacModelsService.list
+
+```python
+async def list() -> Tuple[MacModel, ...]
+```
+
+Every registered Mac model, ordered by `id`.
+
+#### AsyncMacModelsService.catalog
 
 ```python
 async def catalog(*, region: Optional[str] = None) -> MacCatalog
@@ -75,144 +83,81 @@ Free Macs and prices per Mac model (GET /mac-catalog). available is advisory; pr
 ## MacModel
 
 ```python
-class MacModel(BaseModel)
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MacModel()
 ```
 
-A Mac model.
+A registered Mac model (`GET /mac-models`).
+
+`memory_mib` and `disk_mib` are the Mac's physical memory and SSD;
+`sandbox_disk_mib` is the disk room for sandboxes on one Mac;
+`max_sandboxes` how many run at once; `default_size` the size a create
+gives each size it omits.
 
 **Attributes**:
 
-- `cores` _StrictInt = Field(description='CPU cores in the Mac. A Mac core is one CPU (Apple Silicon has no SMT).')_
-- `default_size` _Optional\[MacResources\]_
-- `disk_mib` _StrictInt = Field(description='Physical SSD capacity in MiB, not free space or a per-sandbox disk allowance.')_
-- `id` _StrictStr = Field(description='Mac model slug accepted by POST /reservations.')_
-- `max_sandboxes` _StrictInt = Field(description='Most sandboxes a Mac of this model runs at once: 2 when its cores, memory, and sandbox disk room each fit two minimum-sized sandboxes (4 cores, 4096 MiB, 81920 MiB of disk), 1 when they fit one, and 0 when they fit none. The sizes of the running sandboxes must also fit the Mac.')_
-- `memory_mib` _StrictInt = Field(description='Physical memory in MiB.')_
-- `name` _StrictStr = Field(description='Display name of the Mac model.')_
-- `sandbox_disk_mib` _StrictInt = Field(description="Disk room for sandboxes on one Mac of this model, in MiB. The disks of all sandboxes on the Mac, stopped sandboxes included, add up to at most this. Zero until the model's disk room is measured.")_
-- `additional_properties` _Dict\[str, Any\] = \{\}_
-
-##### model\_config
-
-```python
-model_config = ConfigDict(populate_by_name=True, validate_assignment=True, protected_namespaces=())
-```
-
-#### MacModel.to\_str
-
-```python
-def to_str() -> str
-```
-
-Returns the string representation of the model using alias
-
-#### MacModel.to\_json
-
-```python
-def to_json() -> str
-```
-
-Returns the JSON representation of the model using alias
-
-#### MacModel.from\_json
-
-```python
-@classmethod
-def from_json(json_str: str) -> Optional[Self]
-```
-
-Create an instance of MacModel from a JSON string
-
-#### MacModel.to\_dict
-
-```python
-def to_dict() -> Dict[str, Any]
-```
-
-Return the dictionary representation of the model using alias.
-
-This has the following differences from calling pydantic's
-`self.model_dump(by_alias=True)`:
-
-* `None` is only added to the output dict for nullable fields that
-  were set at model initialization. Other fields with value `None`
-  are ignored.
-* Fields in `self.additional_properties` are added to the output dict.
-
-#### MacModel.from\_dict
-
-```python
-@classmethod
-def from_dict(obj: Optional[Dict[str, Any]]) -> Optional[Self]
-```
-
-Create an instance of MacModel from a dict
+- `id` _str_
+- `name` _str_
+- `cores` _int_
+- `memory_mib` _int_
+- `disk_mib` _int_
+- `sandbox_disk_mib` _int_
+- `max_sandboxes` _int_
+- `default_size` _Optional\[MacResources\] = None_
 
 ## MacCatalog
 
 ```python
-class MacCatalog(BaseModel)
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MacCatalog()
 ```
 
-Free Macs and prices per Mac model, per region.
+`GET /mac-catalog`: per region, the default model and each model's free Macs and price.
 
 **Attributes**:
 
-- `regions` _List\[MacCatalogRegion\] = Field(description='Every region the answer covers, in catalog order.')_
-- `additional_properties` _Dict\[str, Any\] = \{\}_
+- `regions` _tuple\[MacCatalogRegion, ...\]_
 
-##### model\_config
-
-```python
-model_config = ConfigDict(populate_by_name=True, validate_assignment=True, protected_namespaces=())
-```
-
-#### MacCatalog.to\_str
+## MacCatalogRegion
 
 ```python
-def to_str() -> str
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MacCatalogRegion()
 ```
 
-Returns the string representation of the model using alias
+**Attributes**:
 
-#### MacCatalog.to\_json
+- `id` _str_
+- `default_model` _str_
+- `models` _tuple\[MacCatalogModel, ...\]_
+
+## MacCatalogModel
 
 ```python
-def to_json() -> str
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MacCatalogModel()
 ```
 
-Returns the JSON representation of the model using alias
+One Mac model in a region: `available` free Macs (advisory) and its `price` (`None` without pricing).
 
-#### MacCatalog.from\_json
+**Attributes**:
+
+- `model` _MacModel_
+- `available` _int_
+- `price` _Optional\[MacPrice\] = None_
+
+## MacPrice
 
 ```python
-@classmethod
-def from_json(json_str: str) -> Optional[Self]
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MacPrice()
 ```
 
-Create an instance of MacCatalog from a JSON string
+What one reservation of a Mac model costs: `period_cents` per `period_seconds`.
 
-#### MacCatalog.to\_dict
+**Attributes**:
 
-```python
-def to_dict() -> Dict[str, Any]
-```
-
-Return the dictionary representation of the model using alias.
-
-This has the following differences from calling pydantic's
-`self.model_dump(by_alias=True)`:
-
-* `None` is only added to the output dict for nullable fields that
-  were set at model initialization. Other fields with value `None`
-  are ignored.
-* Fields in `self.additional_properties` are added to the output dict.
-
-#### MacCatalog.from\_dict
-
-```python
-@classmethod
-def from_dict(obj: Optional[Dict[str, Any]]) -> Optional[Self]
-```
-
-Create an instance of MacCatalog from a dict
+- `cents_per_hour` _float_
+- `period_cents` _int_
+- `period_seconds` _int_
+- `currency` _str_

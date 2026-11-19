@@ -1,82 +1,78 @@
-# CLI
+# Daytona CLI
 
-A reference of supported operations using the Daytona CLI.
+Install the Daytona CLI and look up its commands and flags.
 
-Daytona provides command-line access to core features for interacting with Daytona Sandboxes, including managing their lifecycle, snapshots, and more.
+The Daytona CLI is a command-line program for managing sandboxes from a terminal or a script. It lets a person, a shell script, or an agent control sandboxes and the organization that owns them without writing code.
 
-The CLI reference lists all commands supported by the `daytona` command-line tool, complete with a description of their behavior, and any supported flags.
-You can access this documentation on a per-command basis by appending the `--help`/`-h` flag when invoking `daytona`.
+Daytona provides the CLI as one binary for Linux, macOS, and Windows. At a terminal it asks for confirmation before destructive actions, and when its output is piped or redirected it never prompts and writes JSON unless another output format is selected. It acts with one credential at a time, and the server decides what that credential may do. Its login and profiles are saved in a configuration directory on the local computer.
+
+Use the CLI to manage sandboxes from a terminal or a shell script, or use the [Python SDK](../python-sdk/README.md), the [TypeScript SDK](../typescript-sdk/README.md), or the [API](../api/README.md) from code. Run any command with --help or -h to print its description and flags. This reference is generated from the source of the CLI and lists every command and flag.
+
+| **Concept** | **Description**                                                                       |
+| ----------- | ------------------------------------------------------------------------------------- |
+| **Command** | A word that names an action of a command-line program, followed by its arguments.     |
+| **Flag**    | A named option, written with leading hyphens, that changes how a command runs.        |
+| **Profile** | A saved set of credentials and settings that a command-line program uses for a call. |
 
 ## Contents
 
-- [Installation](#installation)
+- [Install the Daytona CLI](#install-the-daytona-cli)
 - [Sections](#sections)
 - [daytona](#daytona)
 
-## Installation
+## Install the Daytona CLI
 
-Install the Daytona CLI to interact with Daytona sandboxes from the command line.
+Install the Daytona CLI to run its commands on a local computer. An installation places the program in a directory on the search path of the shell.
 
-The v2 CLI is released as `2.0.0-alpha.N` versions. The `daytona` Homebrew formula and the `latest` GitHub release install the v0 CLI, so use the commands below.
+An installation of the CLI is one binary for the operating system and architecture of the computer. The installer checks that a new binary runs before it replaces the installed one.
 
-**Mac:**
+Install the CLI with Homebrew on macOS, or with the install script on Linux, macOS, and Windows. The v2 CLI is released as 2.0.0-alpha.N versions, and the daytona Homebrew formula and the latest GitHub release install the v0 CLI. The scripts verify the release checksum before they install it.
+
+**Homebrew:**
 
 ```bash
 brew install daytonaio/cli/daytona-alpha
-```
 
-Trust the tap once so routine `brew upgrade` keeps the Daytona CLI up to date. Recent Homebrew versions require third-party taps to be explicitly trusted; without it, a bare `brew upgrade` skips the Daytona tap and the CLI goes stale:
-
-```bash
+# Keep brew upgrade from skipping the tap
 brew trust daytonaio/cli
-```
 
-To upgrade the Daytona CLI to the latest version:
-
-```bash
+# Upgrade to the latest release
 brew upgrade daytonaio/cli/daytona-alpha
 ```
 
-Alternatively, install the Daytona CLI without using Homebrew. The script installs the release set by `--version` after it verifies the release checksum:
+> **Notes:**
+>
+> - Recent Homebrew versions skip a third-party tap in a bare brew upgrade until the tap is trusted, so trust it once after the install.
+
+**Linux and macOS:**
 
 ```bash
 curl -fsSL https://github.com/daytona/clients/releases/download/v2.0.0/install.sh | sh -s -- --version 2.0.0
 ```
 
-| **Flag** | **Description** |
-| --- | --- |
+| **Flag**    | **Description** |
+| ----------- | --------------- |
 | `--version` | Sets the release to install.<br />**Default:** the highest stable 2.x release, or the highest 2.x pre-release if no stable one exists<br />**Format:** a release version, with or without a leading v<br />**Example:** `2.0.0-alpha.12` |
-| `--dir` | Sets the directory to install to.<br />**Default:** /usr/local/bin when it is writable, otherwise ~/.local/bin<br />**Example:** `~/bin` |
+| `--dir`     | Sets the directory to install to.<br />**Default:** the value of DAYTONA_INSTALL_DIR, otherwise /usr/local/bin when it is writable, otherwise ~/.local/bin<br />**Example:** `~/bin` |
 
-**Linux:**
-
-The script installs the release set by `--version` after verifying its checksum. It installs to `/usr/local/bin` when that directory is writable, and to `~/.local/bin` otherwise. Set `DAYTONA_INSTALL_DIR` to choose another directory.
-
-```bash
-curl -fsSL https://github.com/daytona/clients/releases/download/v2.0.0/install.sh | sh -s -- --version 2.0.0
-```
-
-| **Flag** | **Description** |
-| --- | --- |
-| `--version` | Sets the release to install.<br />**Default:** the highest stable 2.x release, or the highest 2.x pre-release if no stable one exists<br />**Format:** a release version, with or without a leading v<br />**Example:** `2.0.0-alpha.12` |
-| `--dir` | Sets the directory to install to.<br />**Default:** /usr/local/bin when it is writable, otherwise ~/.local/bin<br />**Example:** `~/bin` |
+> **Notes:**
+>
+> - The script prints a note when the install directory is not on your PATH.
 
 **Windows:**
-
-The script installs the release set by `DAYTONA_VERSION` after verifying its checksum. It installs to `%LOCALAPPDATA%\Daytona\bin` and adds it to your user `PATH`. Then open a new terminal.
 
 ```powershell
 $env:DAYTONA_VERSION = "2.0.0"; irm https://github.com/daytona/clients/releases/download/v2.0.0/install.ps1 | iex
 ```
 
-| **Variable** | **Description** |
-| --- | --- |
-| `DAYTONA_VERSION` | Sets the release to install.<br />**Default:** the highest stable 2.x release, or the highest 2.x pre-release if no stable one exists<br />**Format:** a release version, with or without a leading v<br />**Example:** `2.0.0-alpha.12` |
+| **Variable**          | **Description** |
+| --------------------- | --------------- |
+| `DAYTONA_VERSION`     | Sets the release to install.<br />**Default:** the highest stable 2.x release, or the highest 2.x pre-release if no stable one exists<br />**Format:** a release version, with or without a leading v<br />**Example:** `2.0.0-alpha.12` |
 | `DAYTONA_INSTALL_DIR` | Sets the directory to install to.<br />**Default:** %LOCALAPPDATA%\Daytona\bin<br />**Example:** `C:\Tools\Daytona` |
 
-To install another release, change `--version` or `DAYTONA_VERSION`. Without a version, the scripts install the highest stable 2.x release, or the highest 2.x pre-release if no stable one exists.
-
-After installing the CLI, use the `daytona` command to interact with Daytona sandboxes.
+> **Notes:**
+>
+> - The script adds the install directory to your user PATH, so open a new terminal after it runs.
 
 ## Sections
 

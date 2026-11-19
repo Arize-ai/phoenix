@@ -2,19 +2,21 @@
 
 ## Contents
 
-- [VolumeService](#volumeservice)
+- [VolumesService](#volumesservice)
 - [SandboxVolumesService](#sandboxvolumesservice)
 - [PullVolumeOptions](#pullvolumeoptions)
 - [PullVolumeResult](#pullvolumeresult)
 - [ListVolumesOptions](#listvolumesoptions)
 - [Volume](#volume)
-- [VolumeRefOptions](#volumerefoptions)
+- [GetVolumeOptions](#getvolumeoptions)
+- [CreateVolumeOptions](#createvolumeoptions)
+- [DeleteVolumeOptions](#deletevolumeoptions)
 - [VolumeMount](#volumemount)
 - [VolumeState](#volumestate)
 - [VolumeType](#volumetype)
 - [PullVolumeStatus](#pullvolumestatus)
 
-## VolumeService
+## VolumesService
 
 Manage named volumes and attach them with `create({ volumes })`.
 
@@ -23,31 +25,33 @@ Manage named volumes and attach them with `create({ volumes })`.
 #### Constructor
 
 ```ts
-new VolumeService(api: AxiosInstance): VolumeService;
+new VolumesService(token: Internal, init: never): VolumesService;
 ```
+
+Built by the SDK: get it from the client or a sandbox.
 
 **Parameters**:
 
-- `api` _AxiosInstance_
+- `token` _Internal_
+- `init` _never_
 
 **Returns**:
 
-- `VolumeService`
+- `VolumesService`
 
 ### Methods
 
 #### create()
 
 ```ts
-create(name: string, sizeGib?: number): Promise<Volume>;
+create(options: CreateVolumeOptions): Promise<Volume>;
 ```
 
-Creates a disk volume (ready immediately).
+Creates a volume; without `type` the server chooses its type.
 
 **Parameters**:
 
-- `name` _string_
-- `sizeGib?` _number_
+- `options` _CreateVolumeOptions_
 
 **Returns**:
 
@@ -56,15 +60,15 @@ Creates a disk volume (ready immediately).
 #### delete()
 
 ```ts
-delete(volume: Volume | string, options?: VolumeRefOptions): Promise<void>;
+delete(nameOrId: string, options: DeleteVolumeOptions = {}): Promise<void>;
 ```
 
 Requests deletion and returns once the API accepts it.
 
 **Parameters**:
 
-- `volume` _Volume \| string_
-- `options?` _VolumeRefOptions_
+- `nameOrId` _string_
+- `options` _DeleteVolumeOptions = \{\}_
 
 **Returns**:
 
@@ -73,7 +77,7 @@ Requests deletion and returns once the API accepts it.
 #### get()
 
 ```ts
-get(nameOrId: string, create = false, options?: VolumeRefOptions): Promise<Volume>;
+get(nameOrId: string, options: GetVolumeOptions = {}): Promise<Volume>;
 ```
 
 Get a volume by id or name; optionally create it when absent.
@@ -81,8 +85,7 @@ Get a volume by id or name; optionally create it when absent.
 **Parameters**:
 
 - `nameOrId` _string_
-- `create` _boolean = false_
-- `options?` _VolumeRefOptions_
+- `options` _GetVolumeOptions = \{\}_
 
 **Returns**:
 
@@ -127,12 +130,15 @@ Pull attached volumes in this sandbox; distinct from the platform volume service
 #### Constructor
 
 ```ts
-new SandboxVolumesService(transport: HttpTransport): SandboxVolumesService;
+new SandboxVolumesService(token: Internal, init: never): SandboxVolumesService;
 ```
+
+Built by the SDK: get it from the client or a sandbox.
 
 **Parameters**:
 
-- `transport` _HttpTransport_
+- `token` _Internal_
+- `init` _never_
 
 **Returns**:
 
@@ -147,6 +153,7 @@ pull(volumeId: string, options: PullVolumeOptions): Promise<PullVolumeResult>;
 ```
 
 One submission/check only. Pending and errors never trigger automatic retries.
+`volumeId` is the attached volume's `vol_` ID or its UUID.
 
 **Parameters**:
 
@@ -164,7 +171,7 @@ One submission/check only. Pending and errors never trigger automatic retries.
 **Properties**:
 
 - `requestId` _string_ - Caller-owned identity. Retain it when checking pending work or retrying.
-- `timeout?` _number_ - Server wait in milliseconds (0–30000); omitted means 30000. Does not cancel work.
+- `timeoutSeconds?` _number_ - Server wait in seconds (0–30); omitted means 30. Does not cancel work.
   Zero submits a new requestId, or returns a known one's last outcome without
   retrying it; a wait above zero retries pending, unavailable or rate-limited work.
 
@@ -174,7 +181,7 @@ One submission/check only. Pending and errors never trigger automatic retries.
 
 **Properties**:
 
-- `manifestId` _string \| null_
+- `manifestId?` _string_
 - `requestId` _string_
 - `status` _PullVolumeStatus_
 - `rawStatus` _string_
@@ -200,20 +207,39 @@ A volume that preserves files between sandboxes.
 - `name` _string_
 - `type` _VolumeType_
 - `rawType` _string_
-- `sizeGib?` _number \| null_
+- `sizeGib?` _number_
 - `status` _VolumeState_
 - `rawStatus` _string_
-- `error?` _string \| null_
+- `error?` _string_
 - `createdAt` _string_
 - `updatedAt` _string_
-- `lastUsedAt?` _string \| null_
-- `options?` _Readonly\<Record\<string, never\>\>_
-- `usedBytes?` _number \| null_
-- `usedBytesAt?` _string \| null_
+- `lastUsedAt?` _string_
+- `options?` _Readonly\<Record\<string, JsonValue\>\>_
+- `usedBytes?` _number_
+- `usedBytesAt?` _string_
 
 ***
 
-## VolumeRefOptions
+## GetVolumeOptions
+
+**Properties**:
+
+- `create?` _boolean_
+- `idOnly?` _boolean_
+
+***
+
+## CreateVolumeOptions
+
+**Properties**:
+
+- `name` _string_
+- `sizeGib?` _number_ - Disk volumes only; omitted uses the server default.
+- `type?` _Exclude\<VolumeType, 'unknown'\>_ - Omitted lets the server choose the volume's type.
+
+***
+
+## DeleteVolumeOptions
 
 **Properties**:
 
@@ -226,7 +252,12 @@ A volume that preserves files between sandboxes.
 **Properties**:
 
 - `volumeId` _string_
-- `mountPath` _string_
+- `mountPath` _string_ - An absolute path with no `..` component. The API normalizes it (repeated
+  slashes, `.` components and a trailing slash are removed) and refuses `/`
+  and any path on or beneath `/bin`, `/boot`, `/dev`, `/etc`, `/lib`,
+  `/lib32`, `/lib64`, `/mnt/scratch`, `/overlay`, `/proc`, `/sbin`, `/sys`
+  or `/usr`, or one with a control character: the create throws
+  `BadRequestError` (400).
 - `subpath?` _string_
 - `readOnly?` _boolean_ - Mount without write access. Only bucket volumes support `true`.
 

@@ -103,10 +103,9 @@ printf 'class MyClass {\n  methodOne(): number {\n    return 1\n  }\n}\n' |
 
 > **Notes:**
 >
-> - `{toolboxProxyUrl}` is the toolbox_proxy_url field of the [sandbox](../python-sdk/sandboxes.md#get-a-sandbox).
-> - The image must have pylsp for `python` or typescript-language-server for `typescript` on PATH.
-> - The image needs TypeScript 5 or 6, because typescript-language-server does not start with TypeScript 7.
-> - Create the project directory before you start the server, because a start with a missing directory succeeds but runs the server from `/` with a workspace root that does not exist.
+> - **Prerequisites:** The image must have pylsp for `python` or typescript-language-server for `typescript` on PATH. The image needs TypeScript 5 or 6, because typescript-language-server does not start with TypeScript 7.
+> - **Placeholders:** `{toolboxProxyUrl}` is the toolbox_proxy_url field of the [sandbox](../python-sdk/sandboxes.md#get-a-sandbox).
+> - **Order:** Create the project directory before you start the server, because a start with a missing directory succeeds but runs the server from `/` with a workspace root that does not exist.
 
 ## Start LSP servers
 
@@ -136,17 +135,16 @@ curl '{toolboxProxyUrl}/{sandboxId}/lsp/start' \
 
 > **Notes:**
 >
-> - `{toolboxProxyUrl}` is the toolbox_proxy_url field of the [sandbox](../python-sdk/sandboxes.md#get-a-sandbox).
-> - The image must have pylsp for `python` or typescript-language-server for `typescript` on PATH.
-> - Starting a server for a language and project directory that already has one reuses that server.
-> - A sandbox runs at most 16 language servers at once.
-> - The examples on this page use the sandbox, main.py, and main.ts from [Create LSP servers](#create-lsp-servers).
+> - **Prerequisites:** The image must have pylsp for `python` or typescript-language-server for `typescript` on PATH. The examples on this page use the sandbox, main.py, and main.ts from [Create LSP servers](#create-lsp-servers).
+> - **Placeholders:** `{toolboxProxyUrl}` is the toolbox_proxy_url field of the [sandbox](../python-sdk/sandboxes.md#get-a-sandbox).
+> - **Limits:** A sandbox runs at most 16 language servers at once.
+> - **Effects:** Starting a server for a language and project directory that already has one reuses that server.
 
 ## Stop LSP servers
 
 Stop an LSP server to end its process when the project no longer needs it. A client stops a language server with a shutdown request, after which the server process ends.
 
-Stopping a language server in a sandbox sends it a shutdown request and ends its process, which frees one of the server slots of the sandbox.
+A stop of a language server in a sandbox sends it a shutdown request and ends its process, which frees one of the server slots of the sandbox.
 
 Stop a server when you finish with a project, or to make room for a server for another language or directory. A sandbox runs at most 16 language servers at once.
 
@@ -203,8 +201,8 @@ curl '{toolboxProxyUrl}/{sandboxId}/lsp/completions' \
 
 > **Notes:**
 >
-> - Call POST /lsp/did-open on the file before requesting completions from a `typescript` server, because it returns no completions for a file that is not open.
-> - The pylsp server reads a file that is not open from disk.
+> - **Order:** Call POST /lsp/did-open on the file before requesting completions from a `typescript` server, because it returns no completions for a file that is not open.
+> - **Behaviour:** The pylsp server reads a file that is not open from disk.
 
 ### Completion context
 
@@ -303,14 +301,14 @@ curl '{toolboxProxyUrl}/{sandboxId}/lsp/did-open' \
 
 > **Notes:**
 >
-> - The file must exist in the sandbox, be valid UTF-8, and be at most 1 MiB.
-> - The server works from the content sent at open, and later changes on disk are not sent.
+> - **Prerequisites:** The file must exist in the sandbox, be valid UTF-8, and be at most 1 MiB.
+> - **Behaviour:** The server works from the content sent at open, and later changes on disk are not sent.
 
 ### Close file
 
 Close a file to tell a language server that the client no longer tracks it. After a close, the server stops working from the content it received when the file was opened.
 
-Closing a file in a sandbox affects only the language server that receives the notification. The file itself stays in the sandbox filesystem with its content unchanged.
+A close of a file in a sandbox affects only the language server that receives the notification. The file itself stays in the sandbox filesystem with its content unchanged.
 
 Close a file when you finish with it, as the [workflow](#workflow) describes.
 
@@ -357,8 +355,8 @@ curl '{toolboxProxyUrl}/{sandboxId}/lsp/document-symbols?languageId=python&pathT
 
 > **Notes:**
 >
-> - Call POST /lsp/did-open on the file before requesting symbols from a `typescript` server, because it returns no symbols for a file that is not open.
-> - The pylsp server reads a file that is not open from disk.
+> - **Order:** Call POST /lsp/did-open on the file before requesting symbols from a `typescript` server, because it returns no symbols for a file that is not open.
+> - **Behaviour:** The pylsp server reads a file that is not open from disk.
 
 ## Workspace symbols
 
@@ -405,11 +403,10 @@ curl '{toolboxProxyUrl}/{sandboxId}/lsp/workspacesymbols?query=MyClass&languageI
 
 > **Notes:**
 >
-> - The server language must be `typescript`, because pylsp does not support workspace symbols.
-> - Open a file of the project on the server before searching.
-> - Without a tsconfig.json in the project directory, the search covers only open files and imports.
-> - With a tsconfig.json, the search covers every file that the configuration includes.
-> - The first search after opening a file can return an empty list while the project loads, so repeat it.
+> - **Prerequisites:** The server language must be `typescript`, because pylsp does not support workspace symbols.
+> - **Order:** Open a file of the project on the server before searching.
+> - **Polling:** The first search after opening a file can return an empty list while the project loads, so repeat it.
+> - **Behaviour:** Without a tsconfig.json in the project directory, the search covers only open files and imports. With a tsconfig.json, the search covers every file that the configuration includes.
 
 ## Symbol fields
 

@@ -63,7 +63,7 @@ console.log(handle.id)
 
 > **Notes:**
 >
-> - The SDKs keep the record and output of an exited session until it is [deleted](#kill-pty-session).
+> - **Lifetime:** The SDKs keep the record and output of an exited session until it is [deleted](#kill-pty-session).
 
 ```typescript
 import { Daytona } from '@daytona/sdk'
@@ -87,7 +87,7 @@ const handle = await sandbox.pty.start('python3 -i', {
 
 > **Notes:**
 >
-> - The TERM variable is `xterm-256color` unless env sets it.
+> - **Behaviour:** The TERM variable is `xterm-256color` unless env sets it.
 
 ## Name PTY session
 
@@ -115,7 +115,7 @@ const info = await sandbox.process.get('dev-shell')
 
 > **Notes:**
 >
-> - The name resolves only while the session runs.
+> - **Lifetime:** The name resolves only while the session runs.
 
 ## Configure shell, user, and timeout
 
@@ -146,8 +146,8 @@ const handle = await sandbox.pty.start(undefined, {
 
 > **Notes:**
 >
-> - The user must exist in /etc/passwd of the sandbox.
-> - On Linux and macOS, a session without a shell runs through the login shell of the user, so a user whose login shell is nologin cannot run commands.
+> - **Prerequisites:** The user must exist in /etc/passwd of the sandbox.
+> - **Compatibility:** On Linux and macOS, a session without a shell runs through the login shell of the user, so a user whose login shell is nologin cannot run commands.
 
 ## Connect to PTY session
 
@@ -186,10 +186,9 @@ connection.close()
 
 > **Notes:**
 >
-> - The method attach() opens a WebSocket, so the runtime needs a global WebSocket.
-> - processId is the ID of the session, from the handle that started it or from [listing PTY sessions](#list-pty-sessions).
-> - Read earlier output with logs().
-> - If the session has already exited, the connection closes without output.
+> - **Prerequisites:** The method attach() opens a WebSocket, so the runtime needs a global WebSocket.
+> - **Placeholders:** processId is the ID of the session, from the handle that started it or from [listing PTY sessions](#list-pty-sessions).
+> - **Results:** Read earlier output with logs(). If the session has already exited, the connection closes without output.
 
 ## List PTY sessions
 
@@ -319,7 +318,7 @@ await handle.resize(150, 40)
 
 > **Notes:**
 >
-> - You can resize only PTY sessions.
+> - **Compatibility:** You can resize only PTY sessions.
 
 ## Send input
 
@@ -371,14 +370,13 @@ for (const frame of page.items) {
 
 > **Notes:**
 >
-> - In text encoding, bytes that are not valid UTF-8 are replaced, and in base64 encoding, the raw bytes are returned unchanged as standard padded base64.
-> - A read without a cursor starts at the first frame that the session wrote, so once retention has evicted that frame, read from firstAvailableCursor instead.
+> - **Results:** In text encoding, bytes that are not valid UTF-8 are replaced, and in base64 encoding, the raw bytes are returned unchanged as standard padded base64. A read without a cursor starts at the first frame that the session wrote, so once retention has evicted that frame, read from firstAvailableCursor instead.
 
 ## Replay output from a cursor
 
 Replay output from a cursor to continue reading where an earlier read stopped. A cursor marks a position in a stream, so a reader that stores it resumes there instead of from the start.
 
-Every output frame of a PTY session carries a cursor, and a read with a cursor returns the frames after it. Retention can evict old output from the session.
+An output frame of a PTY session carries a cursor, and a read with a cursor returns the frames after it. Retention can evict old output from the session.
 
 Replay from the last cursor a client processed to resume without gaps or duplicates, such as after a reconnect. A cursor that points into evicted output fails, and the error carries the oldest cursor still available. For how long output is kept, see [log retention](./log-streaming.md#log-retention).
 
@@ -433,7 +431,7 @@ console.log(result.reason, result.exitCode)
 
 > **Notes:**
 >
-> - If the wait time elapses first, the reason is `timed_out` with no signal; the session keeps running.
+> - **Timeouts:** If the wait time elapses first, the reason is `timed_out` with no signal; the session keeps running.
 
 ## Interactive commands
 
@@ -478,8 +476,8 @@ await handle.delete()
 
 > **Notes:**
 >
-> - The method attach() opens a WebSocket, so the runtime needs a global WebSocket.
-> - The connection streams only output written after it opens, so the shell's first prompt can be missing from the stream; read that prompt with handle.logs().
+> - **Prerequisites:** The method attach() opens a WebSocket, so the runtime needs a global WebSocket.
+> - **Results:** The connection streams only output written after it opens, so the shell's first prompt can be missing from the stream; read that prompt with handle.logs().
 
 ## Long-running processes
 
@@ -519,7 +517,7 @@ await handle.delete()
 
 > **Notes:**
 >
-> - The method attach() opens a WebSocket, so the runtime needs a global WebSocket.
+> - **Prerequisites:** The method attach() opens a WebSocket, so the runtime needs a global WebSocket.
 
 ## Resource management
 
@@ -548,7 +546,7 @@ try {
 
 > **Notes:**
 >
-> - The method attach() opens a WebSocket, so the runtime needs a global WebSocket.
+> - **Prerequisites:** The method attach() opens a WebSocket, so the runtime needs a global WebSocket.
 
 ## Permissions
 

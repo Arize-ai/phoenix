@@ -113,7 +113,7 @@ handle.write_stdin('echo "Hello from the SDK"\n')
 
 > **Notes:**
 >
-> - `{sandboxId}` is the ID of the sandbox whose web terminal is open in the dashboard.
+> - **Placeholders:** `{sandboxId}` is the ID of the sandbox whose web terminal is open in the dashboard.
 
 ## Permissions
 

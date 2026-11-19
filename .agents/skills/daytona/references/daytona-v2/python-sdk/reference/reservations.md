@@ -2,29 +2,38 @@
 
 ## Contents
 
-- [ReservationService](#reservationservice)
-- [AsyncReservationService](#asyncreservationservice)
+- [ReservationsService](#reservationsservice)
+- [AsyncReservationsService](#asyncreservationsservice)
 - [MacReservation](#macreservation)
 - [MacReservationBatch](#macreservationbatch)
+- [MacResources](#macresources)
 - [MacReservationStatus](#macreservationstatus)
 - [MacReservationEndReason](#macreservationendreason)
 - [MacReservationOrigin](#macreservationorigin)
 
-## ReservationService
+## ReservationsService
 
 ```python
-class ReservationService()
+class ReservationsService()
 ```
 
 Dedicated-Mac reservations, which macOS sandboxes run on.
 
-#### ReservationService.\_\_init\_\_
+A macOS sandbox runs on a Mac the organization has reserved: reserve one
+here, or let a macOS create buy one (`reservation="new"`, or the
+organization's auto-reserve). A reservation lasts 24-hour periods, each
+charged when it starts. Reserving, renewing and turning auto-renew on need
+macOS access enabled for the organization (otherwise `403`
+`FEATURE_NOT_ENABLED`, raised as `FeatureNotEnabledError`);
+listing, reading and turning auto-renew off do not.
+
+#### ReservationsService.\_\_init\_\_
 
 ```python
-def __init__(impl: AsyncReservationService, bridge: SyncBridge) -> None
+def __init__() -> None
 ```
 
-#### ReservationService.create
+#### ReservationsService.create
 
 ```python
 def create(*,
@@ -36,7 +45,19 @@ def create(*,
 
 Reserve a Mac of `model` in `region`.
 
-#### ReservationService.create\_bulk
+`model`: Mac model slug from GET /mac-models. Omitted uses the region's default model. An unavailable model is never upgraded.
+
+The request always carries an `Idempotency-Key`: `idempotency_key`
+when given, otherwise a random UUID the SDK generates for this call.
+Pass your own key if you may retry, so a retry after a lost response
+returns the same reservation instead of reserving a second Mac.
+`auto_renew` defaults server-side to the organization's auto-reserve
+setting. Raises `ConflictError` with
+`code == "NO_MAC_AVAILABLE"` when no Mac of that model is free in the
+region, and `LimitExceededError` (a `RateLimitError`) with
+`limit == "max_mac_reservations"` when the organization holds its Mac reservation limit.
+
+#### ReservationsService.create\_bulk
 
 ```python
 def create_bulk(*,
@@ -50,13 +71,15 @@ def create_bulk(*,
 
 Reserve count Macs of one model in region in one request.
 
-#### ReservationService.get
+min_count (default count) is the fewest to accept: with fewer Macs free or fewer left under the organization's Mac reservation limit, the request reserves as many as are free and fit, or none, failing with LimitExceededError (a RateLimitError) limit == "max_mac_reservations" when fewer than min_count fit under the limit (checked first), or with ConflictError code == "NO_MAC_AVAILABLE" when fewer than min_count are free. The request always carries an Idempotency-Key: idempotency_key when given, otherwise a random key the SDK generates for this call. Pass your own key if you may retry, so a retry after a lost response returns the same reservations instead of reserving more Macs.
+
+#### ReservationsService.get
 
 ```python
-def get(reservation_id: str) -> MacReservation
+def get(reservation_id: str, /) -> MacReservation
 ```
 
-#### ReservationService.iter
+#### ReservationsService.iter
 
 ```python
 def iter(*,
@@ -66,7 +89,7 @@ def iter(*,
 
 Every reservation of the organization, draining page by page.
 
-#### ReservationService.list
+#### ReservationsService.list
 
 ```python
 def list(*,
@@ -76,28 +99,36 @@ def list(*,
 
 One page of the organization's reservations.
 
-#### ReservationService.renew
+#### ReservationsService.renew
 
 ```python
 def renew(reservation_id: str,
+          /,
           *,
           idempotency_key: Optional[str] = None) -> MacReservation
 ```
 
 Renew the reservation for its next period, which the server charges.
 
-#### ReservationService.update
+The request always carries an Idempotency-Key: idempotency_key when given, otherwise a random key the SDK generates for this call. Pass your own key if you may retry, so a retry after a lost response does not pay for a second period.
+Raises LimitExceededError (a RateLimitError) with limit == "max_mac_reservations" when the renewal would keep the organization over its Mac reservation limit.
+
+#### ReservationsService.update
 
 ```python
-def update(reservation_id: str, *, auto_renew: bool) -> MacReservation
+def update(reservation_id: str, /, *, auto_renew: bool) -> MacReservation
 ```
 
 Turn the reservation's auto-renewal on or off.
 
-## AsyncReservationService
+Turning it on needs macOS access enabled for the organization;
+turning it off works without it, so an organization can stop a reservation
+renewing. Raises `ConflictError` when the reservation is no longer live.
+
+## AsyncReservationsService
 
 ```python
-class AsyncReservationService()
+class AsyncReservationsService()
 ```
 
 Dedicated-Mac reservations, which macOS sandboxes run on.
@@ -110,13 +141,13 @@ macOS access enabled for the organization (otherwise `403`
 `FEATURE_NOT_ENABLED`, raised as `FeatureNotEnabledError`);
 listing, reading and turning auto-renew off do not.
 
-#### AsyncReservationService.\_\_init\_\_
+#### AsyncReservationsService.\_\_init\_\_
 
 ```python
-def __init__(transport: AsyncTransport) -> None
+def __init__() -> None
 ```
 
-#### AsyncReservationService.create
+#### AsyncReservationsService.create
 
 ```python
 async def create(*,
@@ -137,9 +168,10 @@ returns the same reservation instead of reserving a second Mac.
 `auto_renew` defaults server-side to the organization's auto-reserve
 setting. Raises `ConflictError` with
 `code == "NO_MAC_AVAILABLE"` when no Mac of that model is free in the
-region.
+region, and `LimitExceededError` (a `RateLimitError`) with
+`limit == "max_mac_reservations"` when the organization holds its Mac reservation limit.
 
-#### AsyncReservationService.create\_bulk
+#### AsyncReservationsService.create\_bulk
 
 ```python
 async def create_bulk(*,
@@ -153,9 +185,9 @@ async def create_bulk(*,
 
 Reserve count Macs of one model in region in one request.
 
-min_count (default count) is the fewest to accept: with fewer Macs free, the request reserves as many as are free, or none, failing with ConflictError code == "NO_MAC_AVAILABLE" when fewer than min_count are free. The request always carries an Idempotency-Key: idempotency_key when given, otherwise a random key the SDK generates for this call. Pass your own key if you may retry, so a retry after a lost response returns the same reservations instead of reserving more Macs.
+min_count (default count) is the fewest to accept: with fewer Macs free or fewer left under the organization's Mac reservation limit, the request reserves as many as are free and fit, or none, failing with LimitExceededError (a RateLimitError) limit == "max_mac_reservations" when fewer than min_count fit under the limit (checked first), or with ConflictError code == "NO_MAC_AVAILABLE" when fewer than min_count are free. The request always carries an Idempotency-Key: idempotency_key when given, otherwise a random key the SDK generates for this call. Pass your own key if you may retry, so a retry after a lost response returns the same reservations instead of reserving more Macs.
 
-#### AsyncReservationService.list
+#### AsyncReservationsService.list
 
 ```python
 async def list(*,
@@ -165,7 +197,7 @@ async def list(*,
 
 One page of the organization's reservations.
 
-#### AsyncReservationService.iter
+#### AsyncReservationsService.iter
 
 ```python
 async def iter(*,
@@ -175,16 +207,17 @@ async def iter(*,
 
 Every reservation of the organization, draining page by page.
 
-#### AsyncReservationService.get
+#### AsyncReservationsService.get
 
 ```python
-async def get(reservation_id: str) -> MacReservation
+async def get(reservation_id: str, /) -> MacReservation
 ```
 
-#### AsyncReservationService.renew
+#### AsyncReservationsService.renew
 
 ```python
 async def renew(reservation_id: str,
+                /,
                 *,
                 idempotency_key: Optional[str] = None) -> MacReservation
 ```
@@ -192,11 +225,12 @@ async def renew(reservation_id: str,
 Renew the reservation for its next period, which the server charges.
 
 The request always carries an Idempotency-Key: idempotency_key when given, otherwise a random key the SDK generates for this call. Pass your own key if you may retry, so a retry after a lost response does not pay for a second period.
+Raises LimitExceededError (a RateLimitError) with limit == "max_mac_reservations" when the renewal would keep the organization over its Mac reservation limit.
 
-#### AsyncReservationService.update
+#### AsyncReservationsService.update
 
 ```python
-async def update(reservation_id: str, *, auto_renew: bool) -> MacReservation
+async def update(reservation_id: str, /, *, auto_renew: bool) -> MacReservation
 ```
 
 Turn the reservation's auto-renewal on or off.
@@ -208,7 +242,7 @@ renewing. Raises `ConflictError` when the reservation is no longer live.
 ## MacReservation
 
 ```python
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class MacReservation()
 ```
 
@@ -220,7 +254,6 @@ class MacReservation()
 - `region` _str_
 - `status` _MacReservationStatus_
 - `raw_status` _str_
-- `sandboxes_per_mac` _int_
 - `period_n` _int_
 - `period_seconds` _int_
 - `created_at` _datetime_
@@ -245,7 +278,7 @@ class MacReservation()
 ## MacReservationBatch
 
 ```python
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class MacReservationBatch()
 ```
 
@@ -255,7 +288,22 @@ class MacReservationBatch()
 
 - `requested` _int_
 - `reserved` _int_
-- `reservations` _List\[MacReservation\]_
+- `reservations` _tuple\[MacReservation, ...\]_
+
+## MacResources
+
+```python
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MacResources()
+```
+
+A Mac sandbox size: CPU cores (one Mac CPU each), memory and disk in MiB.
+
+**Attributes**:
+
+- `cores` _int_
+- `memory_mib` _int_
+- `disk_mib` _int_
 
 ## MacReservationStatus
 

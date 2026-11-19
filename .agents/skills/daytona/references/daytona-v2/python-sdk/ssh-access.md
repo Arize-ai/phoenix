@@ -55,14 +55,9 @@ ssh -p 2222 '<sandboxId>#<token>'@<sshGatewayHost>
 
 > **Notes:**
 >
-> - The sandbox must be `running`.
-> - The credential must be valid and unexpired, belong to the sandbox's project, and allow SSH to it.
-> - The sandbox ID must belong to a known sandbox in a region that the gateway serves.
-> - The username must hold a `#` separator with a non-empty sandbox ID before it and a non-empty credential after it, and the gateway splits it on the first `#`.
-> - The gateway rejects a connection that fails any of these conditions.
-> - The SSH server in the sandbox closes connections until it installs its host key, so retry a connection that closes right after the sandbox starts running.
-> - The SSH gateway host differs by region; the examples here use `<sshGatewayHost>` in its place.
-> - Use the host that the **SSH** tab of the dashboard shows, or read the values of the ssh_gateway_host and ssh_gateway_port fields from the [sandbox details](#connect-to-a-sandbox).
+> - **Prerequisites:** The sandbox must be `running`. The credential must be valid and unexpired, belong to the sandbox's project, and allow SSH to it. The sandbox ID must belong to a known sandbox in a region that the gateway serves. The username must hold a `#` separator with a non-empty sandbox ID before it and a non-empty credential after it, and the gateway splits it on the first `#`. The gateway rejects a connection that fails any of these conditions.
+> - **Placeholders:** The SSH gateway host differs by region; the examples here use `<sshGatewayHost>` in its place. Use the host that the **SSH** tab of the dashboard shows, or read the values of the ssh_gateway_host and ssh_gateway_port fields from the [sandbox details](#connect-to-a-sandbox).
+> - **Recovery:** The SSH server in the sandbox closes connections until it installs its host key, so retry a connection that closes right after the sandbox starts running.
 
 ## Connect to a sandbox
 
@@ -97,12 +92,9 @@ daytona sandbox ssh {sandboxId} -L 8080:localhost:8080
 
 > **Notes:**
 >
-> - The sandbox must be running.
-> - The OpenSSH ssh client must be on your PATH.
-> - The CLI finds the SSH gateway for the sandbox's region and puts your credential in the username.
-> - SSH flags after the sandbox ID go to ssh before the destination, up to the first argument that does not start with `-` and is not the value of a flag such as -L or -p.
-> - Use `--` to end the SSH flags when the remote command itself starts with `-`.
-> - The remaining arguments become the remote command.
+> - **Prerequisites:** The sandbox must be running. The OpenSSH ssh client must be on your PATH.
+> - **Clients:** SSH flags after the sandbox ID go to ssh before the destination, up to the first argument that does not start with `-` and is not the value of a flag such as -L or -p. Use `--` to end the SSH flags when the remote command itself starts with `-`. The remaining arguments become the remote command.
+> - **Behaviour:** The CLI finds the SSH gateway for the sandbox's region and puts your credential in the username.
 
 **API:**
 
@@ -117,10 +109,9 @@ ssh -p 2222 '<sandboxId>#<token>'@<sshGatewayHost>
 
 > **Notes:**
 >
-> - The sandbox must be running.
-> - Build the SSH command from the ssh_gateway_host and ssh_gateway_port fields of the response, the sandbox ID, and a [sandbox access token](#create-an-ssh-token) or your API key.
-> - Both fields are absent when the region's gateway cannot be resolved.
-> - The port is `2222` unless the deployment configures another.
+> - **Prerequisites:** The sandbox must be running.
+> - **Order:** Build the SSH command from the ssh_gateway_host and ssh_gateway_port fields of the response, the sandbox ID, and a [sandbox access token](#create-an-ssh-token) or your API key.
+> - **Results:** The ssh_gateway_port field is `2222` unless the deployment configures another. Both fields are absent when the region's gateway cannot be resolved.
 
 ### Create an SSH token
 
@@ -128,7 +119,7 @@ Create an SSH token to hand SSH access to one sandbox without sharing a project 
 
 An SSH token is a sandbox access token for one sandbox whose only operation is SSH. It expires at the end of its lifetime and cannot be renewed or revoked.
 
-Give a token instead of a project API key to a person, a CI job, or another tool that needs SSH access. Create a new token when the old one expires. The examples pass an empty list of ports, so the token reaches only SSH and no private preview port. A token created without a list of ports also reaches every private preview port of the sandbox.
+Give a token instead of a project API key to a person, a CI job, or another tool that needs SSH access. Create a new token when the old one expires.
 
 ```python
 from daytona import Daytona
@@ -148,8 +139,9 @@ print(f"ssh -p 2222 '{sandbox.id}#{token.access_token}'@<sshGatewayHost>")
 
 > **Notes:**
 >
-> - The empty list of ports limits the token to SSH, and a token created without a list of ports also reaches every private preview port of the sandbox.
-> - Put the access token after the hash character in the SSH username.
+> - **Placeholders:** Put the access token after the hash character in the SSH username.
+> - **Effects:** The empty list of ports limits the token to SSH, and a token created without a list of ports also reaches every private preview port of the sandbox.
+> - **Lifetime:** The gateway checks the token only when a connection opens, so an open session stays connected after the token expires, and a new connection with an expired token is refused.
 
 ## Run commands and transfer files
 
@@ -206,9 +198,7 @@ ssh -p 2222 -N -L 8080:localhost:8080 '<sandboxId>#<token>'@<sshGatewayHost>
 
 > **Notes:**
 >
-> - The gateway rejects remote forwarding with `-R`.
-> - The gateway does not support Unix socket forwarding with `-L` or `-R` and socket paths.
-> - The gateway does not support agent forwarding with `-A`.
+> - **Compatibility:** The gateway rejects remote forwarding with `-R`. The gateway does not support Unix socket forwarding with `-L` or `-R` and socket paths. The gateway does not support agent forwarding with `-A`.
 
 ## Connect from an IDE
 

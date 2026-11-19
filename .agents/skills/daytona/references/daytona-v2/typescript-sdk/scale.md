@@ -27,7 +27,7 @@ Sandbox scaling, or vertical scaling, is the sizing of a single sandbox: how muc
 
 The resources of a sandbox are fixed when the sandbox is created, and no operation resizes them. The requested resources are a guaranteed floor that is reserved when the sandbox is placed. Beyond that floor, the sandbox uses idle host capacity up to its resource limits.
 
-Size the guarantee for the average use of the sandbox, and let bursting absorb the peaks. For a fixed shape with no bursting, set every limit equal to its request. The resources of a sandbox are **vCPU**, **memory**, and **disk**. Its CPU and memory [limits](./limits.md#sandbox-limits) default to the platform maximum or the plan cap of your organization, whichever is lower, and its disk limit to the platform maximum.
+Size the guarantee for the average use of the sandbox, and let bursting absorb the peaks. For a fixed shape with no bursting, make every limit equal to its guarantee. The resources of a sandbox are **vCPU**, **memory**, and **disk**. Without set [limits](./limits.md#sandbox-limits), its CPU and memory burst up to the platform maximum or your plan cap, whichever is lower, and its disk up to the platform maximum.
 
 **Custom resources:**
 
@@ -53,9 +53,9 @@ const sandbox = await daytona.v2.create({
 
 > **Notes:**
 >
-> - The request requires the `write:sandboxes` permission.
-> - A guarantee below its minimum is raised to the minimum when any guarantee is set.
-> - The CPU guarantee is raised to at least one core per 8 GiB of guaranteed memory.
+> - **Permissions:** The request requires the `write:sandboxes` permission.
+> - **Results:** The returned sandbox has no resources until it is read again.
+> - **Behaviour:** A guarantee below its minimum is raised to the minimum when any guarantee is set. The CPU guarantee is raised to at least one core per 8 GiB of guaranteed memory.
 
 **Burst ceilings:**
 
@@ -81,9 +81,9 @@ const sandbox = await daytona.v2.create({
 
 > **Notes:**
 >
-> - The request requires the `write:sandboxes` permission.
-> - The sandbox boots with its CPU limit, so the CPU count inside the sandbox is the limit in vCPUs, 2 per core.
-> - A memory limit below the default memory guarantee lowers the guarantee when memory is not set.
+> - **Permissions:** The request requires the `write:sandboxes` permission.
+> - **Results:** The returned sandbox has no resources until it is read again.
+> - **Behaviour:** The sandbox boots with its CPU limit, so the CPU count inside the sandbox is the limit in vCPUs, 2 per core. A memory limit below the default memory guarantee lowers the guarantee when memory is not set.
 
 ## Fleet scaling
 
@@ -121,15 +121,14 @@ console.log(results)
 
 > **Notes:**
 >
-> - The requests require the `write:sandboxes` and `delete:sandboxes` permissions.
-> - The examples restore a snapshot named my-snapshot, so [create it](./snapshots.md#create-snapshots) first from a sandbox that holds the run.py script that each task runs.
-> - The snapshot must be ready.
+> - **Permissions:** The requests require the `write:sandboxes` and `delete:sandboxes` permissions.
+> - **Prerequisites:** The examples restore a snapshot named my-snapshot, so [create it](./snapshots.md#create-snapshots) first from a sandbox that holds the run.py script that each task runs. The snapshot must be ready.
 
 ## Workload concurrency
 
 Workload concurrency is the running of several processes at the same time in one sandbox. The operating system shares the CPU cores between the processes, so their work overlaps in time even when there are more processes than cores.
 
-All processes in a sandbox share the filesystem and network of the sandbox. Every command in a sandbox runs as a process, which either runs to completion before the caller continues or keeps running in the background while the caller moves on.
+The processes in a sandbox share the filesystem and network of the sandbox. Every command in a sandbox runs as a process, which either runs to completion before the caller continues or keeps running in the background while the caller moves on.
 
 Run an API server, a database, and background workers side by side in one sandbox, and reach their exposed ports through [previews](./preview.md). Run starts a process and waits for it, while start returns a handle immediately and the process continues in the background. [Sessions](./process-execution.md#session-operations) are shared shells: commands in a session run sequentially and share state, so parallelism comes from separate sessions or background processes. [Pseudo terminal (PTY) sessions](./pty.md) add interactive terminals.
 

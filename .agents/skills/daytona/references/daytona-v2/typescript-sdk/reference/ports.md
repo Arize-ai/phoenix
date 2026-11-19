@@ -7,9 +7,8 @@
 - [ExposePortOptions](#exposeportoptions)
 - [ListEndpointsOptions](#listendpointsoptions)
 - [SignedPreviewLinkOptions](#signedpreviewlinkoptions)
-- [SetPortPublicOptions](#setportpublicoptions)
-- [PortInUseResponse](#portinuseresponse)
-- [PortListResponse](#portlistresponse)
+- [PREVIEW\_WARNING\_SKIP\_HEADER](#previewwarningskipheader)
+- [PREVIEW\_WARNING\_SKIP\_HEADER\_VALUE](#previewwarningskipheadervalue)
 
 ## PortsService
 
@@ -20,19 +19,15 @@ Sandbox port namespace — what is listening inside the sandbox.
 #### Constructor
 
 ```ts
-new PortsService(
-   transport: HttpTransport | undefined,
-   api?: AxiosInstance,
-   sandboxId?: string,
-   mintPreviewToken?: (port: number) => Promise<SandboxAccessToken | undefined>): PortsService;
+new PortsService(token: Internal, init: never): PortsService;
 ```
+
+Built by the SDK: get it from the client or a sandbox.
 
 **Parameters**:
 
-- `transport` _HttpTransport \| undefined_
-- `api?` _AxiosInstance_
-- `sandboxId?` _string_
-- `mintPreviewToken?` _(port: number) = \> Promise\<SandboxAccessToken \| undefined\>_
+- `token` _Internal_
+- `init` _never_
 
 **Returns**:
 
@@ -40,22 +35,27 @@ new PortsService(
 
 ### Methods
 
-#### expireSignedPreviewLink()
+#### expireSignedPreviewLinks()
 
 ```ts
-expireSignedPreviewLink(port: number, token: string): Promise<void>;
+expireSignedPreviewLinks(): Promise<void>;
 ```
 
-Revoke a signed preview link before its natural expiry.
+Expire every signed preview link of the sandbox before its natural expiry.
 
-**Parameters**:
-
-- `port` _number_ - TCP port the link was issued for.
-- `token` _string_ - The `token` field from `SignedPreviewLink`.
+Every signed preview link the sandbox has, on every port, stops working.
+Links created afterwards work. Unlike minting, expiring still works while
+the sandbox is being deleted.
 
 **Returns**:
 
 - `Promise<void>`
+
+**Example:**
+
+```ts
+await sandbox.ports.expireSignedPreviewLinks()
+```
 
 #### expose()
 
@@ -66,14 +66,17 @@ expose(port: number, options: ExposePortOptions = {}): Promise<PreviewEndpoint>;
 Register a sandbox port as a preview endpoint.
 
 If the port is already exposed, returns the existing endpoint (updating its
-visibility when `options.public` differs from the current value). Public
-endpoints need no credential. Programmatic access to a private one needs the
+visibility when `options.public` differs from the current value; the change
+takes effect immediately on event delivery, at most 30 s if an event is
+missed). Public endpoints need no credential. Programmatic access to a private one needs the
 token from `previewLink` (see `PreviewLink`) or a
 `signedPreviewLink` URL.
+A sandbox that is deleted or being deleted throws `ConflictError` (`CONFLICT`).
 
 **Parameters**:
 
-- `port` _number_ - TCP port inside the sandbox (1–65535).
+- `port` _number_ - TCP port inside the sandbox (1–65535, except the sandbox
+  daemon's reserved ports 2280, 2281 and 22220).
 - `options` _ExposePortOptions = \{\}_
 
 **Returns**:
@@ -88,10 +91,10 @@ isInUse(port: number): Promise<boolean>;
 
 Whether `port` currently has a listener.
 
-This endpoint accepts 3000-9999 and rejects anything else with
-`BAD_REQUEST`, so this deliberately does not clamp or pre-validate: a
-caller asking about port 80 should see that error rather than a silent
-`false` that reads like "nothing is listening there".
+A port outside 1-65535 is refused with `BadRequestError` before any
+request. The sandbox answers only for ports 3000-9999 and refuses any
+other with `BAD_REQUEST`, so a port such as 80 throws rather than
+resolving to a `false` that reads like "nothing is listening there".
 
 **Parameters**:
 
@@ -133,6 +136,10 @@ Every TCP port currently listening in the sandbox.
 listEndpoints(options: ListEndpointsOptions = {}): Promise<ListResult<PreviewEndpoint>>;
 ```
 
+One page of the sandbox's preview endpoints.
+
+A sandbox that is deleted or being deleted throws `ConflictError` (`CONFLICT`).
+
 **Parameters**:
 
 - `options` _ListEndpointsOptions = \{\}_
@@ -156,6 +163,13 @@ mint (a project key, no caller-supplied token) gets a short-lived sandbox
 access token scoped to exactly this port for private endpoints. Otherwise,
 or if minting fails, the route token is passed through unchanged.
 
+A port that is not exposed yet is exposed first (privately, as
+`expose` does): this call registers a preview endpoint. The sandbox
+daemon's ports 2280, 2281 and 22220 are never preview ports: they are
+refused with `BadRequestError` before any request, as by `expose`
+and `signedPreviewLink`. A sandbox that is deleted or being deleted
+throws `ConflictError` (`CONFLICT`).
+
 **Parameters**:
 
 - `port` _number_
@@ -163,28 +177,6 @@ or if minting fails, the route token is passed through unchanged.
 **Returns**:
 
 - `Promise<PreviewLink>`
-
-#### setPublic()
-
-```ts
-setPublic(port: number, options: SetPortPublicOptions): Promise<PreviewEndpoint>;
-```
-
-Set the visibility of a port, exposing it first when it is not exposed yet
-(the same idempotent upsert `expose` performs).
-
-Public endpoints need no credential. Programmatic access to a private one
-needs the token from `previewLink` or a `signedPreviewLink`
-URL.
-
-**Parameters**:
-
-- `port` _number_ - TCP port inside the sandbox.
-- `options` _SetPortPublicOptions_
-
-**Returns**:
-
-- `Promise<PreviewEndpoint>` - Updated `PreviewEndpoint`.
 
 #### signedPreviewLink()
 
@@ -202,11 +194,15 @@ any client that cannot set request headers.
 
 The default lifetime is 60 seconds. Pass a longer `expiresInSeconds` for
 multi-step use (the deployment caps the maximum, typically 7 days).
-Revoke the link early with `expireSignedPreviewLink`.
+Expire it early with `expireSignedPreviewLinks`, which expires every
+signed preview link of the sandbox.
+A sandbox that is deleted, being deleted, failed, lost, or stopped without
+being persistent throws `ConflictError` (`CONFLICT`).
 
 **Parameters**:
 
-- `port` _number_ - TCP port inside the sandbox (1–65535).
+- `port` _number_ - TCP port inside the sandbox (1–65535, except the sandbox
+  daemon's reserved ports 2280, 2281 and 22220).
 - `options` _SignedPreviewLinkOptions = \{\}_
 
 **Returns**:
@@ -225,6 +221,8 @@ const link = await sandbox.ports.signedPreviewLink(8080, { expiresInSeconds: 300
 ```ts
 unexpose(port: number): Promise<void>;
 ```
+
+Remove a port's preview endpoint; this still works while the sandbox is being deleted.
 
 **Parameters**:
 
@@ -270,24 +268,19 @@ unexpose(port: number): Promise<void>;
 
 ***
 
-## SetPortPublicOptions
-
-**Properties**:
-
-- `public` _boolean_
-
-***
-
-## PortInUseResponse
+## PREVIEW\_WARNING\_SKIP\_HEADER
 
 ```ts
-type PortInUseResponse = toolbox.PortInUseResponse
+const PREVIEW_WARNING_SKIP_HEADER = 'X-Daytona-Skip-Preview-Warning'
 ```
 
+Request header (and its value) that skips the preview warning page. Send it
+when a headless browser or another non-interactive client opens a preview URL.
+
 ***
 
-## PortListResponse
+## PREVIEW\_WARNING\_SKIP\_HEADER\_VALUE
 
 ```ts
-type PortListResponse = toolbox.PortList
+const PREVIEW_WARNING_SKIP_HEADER_VALUE = 'true'
 ```

@@ -71,8 +71,8 @@ for file in files.items:
 
 > **Notes:**
 >
-> - The directory must exist in the sandbox.
-> - A listing holds at most 10,000 entries.
+> - **Prerequisites:** The directory must exist in the sandbox.
+> - **Limits:** A listing holds at most 10,000 entries.
 
 ## Get directory or file information
 
@@ -108,7 +108,7 @@ print(f"Mode: {info.mode}")
 
 > **Notes:**
 >
-> - The file or directory must exist in the sandbox.
+> - **Prerequisites:** The file or directory must exist in the sandbox.
 
 ## Create directories
 
@@ -223,7 +223,7 @@ sandbox.fs.upload_file("large_dataset.csv", "/home/daytona/workspace/dataset.csv
 
 > **Notes:**
 >
-> - Without atomic, a stopped upload leaves the bytes sent so far at the destination.
+> - **Effects:** Without atomic, a stopped upload leaves the bytes sent so far at the destination.
 
 ## Download files
 
@@ -259,9 +259,9 @@ print(content.decode("utf-8"))
 
 > **Notes:**
 >
-> - The file must exist in the sandbox.
+> - **Prerequisites:** The file must exist in the sandbox.
 
-#### Download a text file
+##### Download a text file
 
 Download a text file to read its content as a string. Text is stored as bytes in a character encoding such as UTF-8, and decoding turns the bytes back into characters.
 
@@ -287,8 +287,7 @@ print(content)
 
 > **Notes:**
 >
-> - The file must exist in the sandbox.
-> - The file must be valid UTF-8.
+> - **Prerequisites:** The file must exist in the sandbox. The file must be valid UTF-8.
 
 ### Download multiple files
 
@@ -353,8 +352,8 @@ sandbox.fs.download_file("/home/daytona/workspace/large-file.bin", "local_copy.b
 
 > **Notes:**
 >
-> - The parent directory of the local destination must exist.
-> - A replaced destination file keeps its permission bits.
+> - **Prerequisites:** The parent directory of the local destination must exist.
+> - **Effects:** A replaced destination file keeps its permission bits.
 
 ## Delete files
 
@@ -381,7 +380,7 @@ sandbox.fs.remove("/home/daytona/workspace/file.txt")
 
 > **Notes:**
 >
-> - The file or directory must exist in the sandbox.
+> - **Prerequisites:** The file or directory must exist in the sandbox.
 
 ## File permissions
 
@@ -410,7 +409,7 @@ sandbox.fs.chmod("/home/daytona/workspace/file.txt", mode="644")
 
 > **Notes:**
 >
-> - The file or directory must exist in the sandbox.
+> - **Prerequisites:** The file or directory must exist in the sandbox.
 
 ## Search files by pattern
 
@@ -503,8 +502,8 @@ sandbox.fs.move("/home/daytona/workspace/data/file.txt", "/home/daytona/workspac
 
 > **Notes:**
 >
-> - The source file or directory must exist in the sandbox.
-> - Missing parent directories of the destination are created.
+> - **Prerequisites:** The source file or directory must exist in the sandbox.
+> - **Effects:** Missing parent directories of the destination are created.
 
 ## Watch for file changes
 
@@ -545,9 +544,9 @@ handle.stop()
 
 > **Notes:**
 >
-> - The directory must exist in the sandbox.
-> - A recursive watch covers at most 4096 directories.
-> - An exception raised in on_event or on_overflow ends the watch.
+> - **Prerequisites:** The directory must exist in the sandbox.
+> - **Limits:** A recursive watch covers at most 4096 directories.
+> - **Clients:** An exception raised in on_event or on_overflow ends the watch.
 
 ### Wait for the watch to end
 
@@ -612,8 +611,8 @@ sandbox.rotate_signing_key()
 
 > **Notes:**
 >
-> - Windows sandboxes cannot have presigned URLs.
-> - The expiry is the current whole second plus the lifetime, so a URL can expire up to 1 second early.
+> - **Compatibility:** Windows sandboxes cannot have presigned URLs.
+> - **Lifetime:** The expiry is the current whole second plus the lifetime, so a URL can expire up to 1 second early.
 
 ## Permissions
 

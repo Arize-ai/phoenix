@@ -2,75 +2,14 @@
 
 ## Contents
 
-- [SecretService](#secretservice)
-- [AsyncSecretService](#asyncsecretservice)
+- [SecretsService](#secretsservice)
+- [AsyncSecretsService](#asyncsecretsservice)
 - [Secret](#secret)
 
-## SecretService
+## SecretsService
 
 ```python
-class SecretService()
-```
-
-Project secret namespace.
-
-#### SecretService.\_\_init\_\_
-
-```python
-def __init__(impl: AsyncSecretService, bridge: SyncBridge) -> None
-```
-
-#### SecretService.delete
-
-```python
-def delete(name: str) -> None
-```
-
-Delete a secret.
-
-#### SecretService.get
-
-```python
-def get(name: str) -> Secret
-```
-
-Fetch one secret's metadata (never its value).
-
-#### SecretService.iter
-
-```python
-def iter(*,
-         cursor: Optional[str] = None,
-         limit: Optional[int] = None) -> Iterator[Secret]
-```
-
-#### SecretService.list
-
-```python
-def list(*,
-         cursor: Optional[str] = None,
-         limit: Optional[int] = None) -> ListResult[Secret]
-```
-
-List secret metadata.
-
-#### SecretService.set
-
-```python
-def set(name: str,
-        value: str,
-        *,
-        allowed_domains: Sequence[str],
-        description: Optional[str] = None,
-        if_not_exists: bool = False) -> Secret
-```
-
-Create or update a write-only secret.
-
-## AsyncSecretService
-
-```python
-class AsyncSecretService()
+class SecretsService()
 ```
 
 Project secret namespace.
@@ -82,13 +21,91 @@ available to outbound HTTPS requests to their allowed domains, not plain
 HTTP requests. Their values never enter the sandbox and are never returned
 by the API (write-only).
 
-#### AsyncSecretService.\_\_init\_\_
+#### SecretsService.\_\_init\_\_
 
 ```python
-def __init__(transport: AsyncTransport) -> None
+def __init__() -> None
 ```
 
-#### AsyncSecretService.list
+#### SecretsService.delete
+
+```python
+def delete(name: str, /) -> None
+```
+
+Delete a secret.
+
+#### SecretsService.get
+
+```python
+def get(name: str, /) -> Secret
+```
+
+Fetch one secret's metadata (never its value).
+
+#### SecretsService.iter
+
+```python
+def iter(*,
+         cursor: Optional[str] = None,
+         limit: Optional[int] = None) -> Iterator[Secret]
+```
+
+#### SecretsService.list
+
+```python
+def list(*,
+         cursor: Optional[str] = None,
+         limit: Optional[int] = None) -> ListResult[Secret]
+```
+
+List secret metadata.
+
+#### SecretsService.set
+
+```python
+def set(name: str,
+        value: str,
+        /,
+        *,
+        allowed_domains: Sequence[str],
+        description: Optional[str] = None,
+        if_not_exists: bool = False) -> Secret
+```
+
+Create or update a write-only secret.
+
+`value` must not be empty. `allowed_domains`: The hosts where this
+secret's value may be sent (exact or `*.` wildcard), or `["*"]` for
+any verified host. `"*"` lets the value reach any HTTPS host,
+including one a compromised sandbox controls. `description` omitted
+(or `None`) keeps the stored description of an existing secret, read
+first with `get` (one more request, not atomic with the write; an
+error from it other than not-found fails the call; no read with
+`if_not_exists=True`); `""` clears it.
+
+## AsyncSecretsService
+
+```python
+class AsyncSecretsService()
+```
+
+Project secret namespace.
+
+Project-scoped secrets: named key/value pairs stored
+encrypted in the project. Attach one or more to a sandbox at creation via
+the `secrets` create parameter (a list of names). Attached secrets are
+available to outbound HTTPS requests to their allowed domains, not plain
+HTTP requests. Their values never enter the sandbox and are never returned
+by the API (write-only).
+
+#### AsyncSecretsService.\_\_init\_\_
+
+```python
+def __init__() -> None
+```
+
+#### AsyncSecretsService.list
 
 ```python
 async def list(*,
@@ -98,7 +115,7 @@ async def list(*,
 
 List secret metadata.
 
-#### AsyncSecretService.iter
+#### AsyncSecretsService.iter
 
 ```python
 async def iter(*,
@@ -106,19 +123,20 @@ async def iter(*,
                limit: Optional[int] = None) -> AsyncIterator[Secret]
 ```
 
-#### AsyncSecretService.get
+#### AsyncSecretsService.get
 
 ```python
-async def get(name: str) -> Secret
+async def get(name: str, /) -> Secret
 ```
 
 Fetch one secret's metadata (never its value).
 
-#### AsyncSecretService.set
+#### AsyncSecretsService.set
 
 ```python
 async def set(name: str,
               value: str,
+              /,
               *,
               allowed_domains: Sequence[str],
               description: Optional[str] = None,
@@ -127,15 +145,19 @@ async def set(name: str,
 
 Create or update a write-only secret.
 
-`allowed_domains`: The hosts where this secret's value may be sent
-(exact or `*.` wildcard), or `["*"]` for any verified host.
-`"*"` lets the value reach any HTTPS host, including one a
-compromised sandbox controls.
+`value` must not be empty. `allowed_domains`: The hosts where this
+secret's value may be sent (exact or `*.` wildcard), or `["*"]` for
+any verified host. `"*"` lets the value reach any HTTPS host,
+including one a compromised sandbox controls. `description` omitted
+(or `None`) keeps the stored description of an existing secret, read
+first with `get` (one more request, not atomic with the write; an
+error from it other than not-found fails the call; no read with
+`if_not_exists=True`); `""` clears it.
 
-#### AsyncSecretService.delete
+#### AsyncSecretsService.delete
 
 ```python
-async def delete(name: str) -> None
+async def delete(name: str, /) -> None
 ```
 
 Delete a secret.
@@ -143,72 +165,16 @@ Delete a secret.
 ## Secret
 
 ```python
-class Secret(BaseModel)
+@dataclass(frozen=True, slots=True, kw_only=True)
+class Secret()
 ```
 
-Secret metadata. The value is write-only.
+A project secret's metadata; the value is write-only and never returned.
 
 **Attributes**:
 
-- `allowed_domains` _List\[StrictStr\] = Field(description='The hosts the secret\\'s value may be sent to. `["*"]` means any host the platform has verified; an empty list means the secret is sent nowhere.')_
-- `created_at` _datetime = Field(description='When the secret was created.')_
-- `description` _Optional\[StrictStr\] = Field(default=None, description='The user-facing description, or null when absent.')_
-- `name` _StrictStr = Field(description='The secret name.')_
-- `updated_at` _datetime = Field(description='When the secret was last updated.')_
-- `additional_properties` _Dict\[str, Any\] = \{\}_
-
-##### model\_config
-
-```python
-model_config = ConfigDict(populate_by_name=True, validate_assignment=True, protected_namespaces=())
-```
-
-#### Secret.to\_str
-
-```python
-def to_str() -> str
-```
-
-Returns the string representation of the model using alias
-
-#### Secret.to\_json
-
-```python
-def to_json() -> str
-```
-
-Returns the JSON representation of the model using alias
-
-#### Secret.from\_json
-
-```python
-@classmethod
-def from_json(json_str: str) -> Optional[Self]
-```
-
-Create an instance of Secret from a JSON string
-
-#### Secret.to\_dict
-
-```python
-def to_dict() -> Dict[str, Any]
-```
-
-Return the dictionary representation of the model using alias.
-
-This has the following differences from calling pydantic's
-`self.model_dump(by_alias=True)`:
-
-* `None` is only added to the output dict for nullable fields that
-  were set at model initialization. Other fields with value `None`
-  are ignored.
-* Fields in `self.additional_properties` are added to the output dict.
-
-#### Secret.from\_dict
-
-```python
-@classmethod
-def from_dict(obj: Optional[Dict[str, Any]]) -> Optional[Self]
-```
-
-Create an instance of Secret from a dict
+- `name` _str_
+- `allowed_domains` _tuple\[str, ...\]_
+- `created_at` _datetime_
+- `updated_at` _datetime_
+- `description` _Optional\[str\] = None_

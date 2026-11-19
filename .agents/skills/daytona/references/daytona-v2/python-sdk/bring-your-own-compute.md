@@ -84,8 +84,8 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/regions' \
 
 > **Notes:**
 >
-> - The request requires the Enterprise [plan](../platform/billing.md#get-the-plan).
-> - The sandbox address range must not overlap a range that the cluster already uses.
+> - **Prerequisites:** The request requires the Enterprise [plan](../platform/billing.md#get-the-plan).
+> - **Compatibility:** The sandbox address range must not overlap a range that the cluster already uses.
 
 ## Create a registration token
 
@@ -125,7 +125,7 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/regions/{regionId}/registrati
 
 > **Notes:**
 >
-> - The response holds the secret in the token field, and no later request returns it.
+> - **Results:** The response holds the secret in the token field, and no later request returns it.
 
 ## Region proxy
 
@@ -167,13 +167,12 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/regions/{regionId}/proxy-toke
 | **Field** | **Description** |
 | --- | --- |
 | `name` | Sets the display name of the token.<br />**Format:** 1 to 100 characters<br />**Example:** `"region-proxy"` |
-| `expires_at` | Sets when the token expires.<br />**Format:** an RFC 3339 time in the future<br />**Example:** `"2027-01-01T00:00:00Z"` |
-| `no_expiry` | Makes the token never expire. |
+| `expires_at` | Sets when the token expires.<br />**Format:** an RFC 3339 time in the future<br />**Rules:** not with no_expiry<br />**Example:** `"2027-01-01T00:00:00Z"` |
+| `no_expiry` | Makes the token never expire.<br />**Rules:** not with expires_at |
 
 > **Notes:**
 >
-> - Set expires_at, or set no_expiry to `true`, but not both.
-> - The response holds the secret in the token field, and no later request returns it.
+> - **Results:** The response holds the secret in the token field, and no later request returns it.
 
 ### Rotate a proxy token
 
@@ -209,13 +208,12 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/regions/{regionId}/proxy-toke
 | --- | --- |
 | `overlap_seconds` | Sets the seconds that the replaced token keeps working.<br />**Default:** `0`<br />**Minimum:** `0`<br />**Maximum:** `86400` |
 | `name` | Sets the display name of the new token.<br />**Format:** 1 to 100 characters<br />**Example:** `"region-proxy-2"` |
-| `expires_at` | Sets when the new token expires.<br />**Format:** an RFC 3339 time in the future<br />**Example:** `"2027-01-01T00:00:00Z"` |
-| `no_expiry` | Makes the new token never expire. |
+| `expires_at` | Sets when the new token expires.<br />**Format:** an RFC 3339 time in the future<br />**Rules:** not with no_expiry<br />**Example:** `"2027-01-01T00:00:00Z"` |
+| `no_expiry` | Makes the new token never expire.<br />**Rules:** not with expires_at |
 
 > **Notes:**
 >
-> - Set expires_at, or set no_expiry to `true`, but not both.
-> - The response holds the new secret in the token field, and no later request returns it.
+> - **Results:** The response holds the new secret in the token field, and no later request returns it.
 
 ### Set the proxy addresses
 
@@ -276,14 +274,14 @@ Install the hosts with Helm after you create both tokens. The dashboard also gen
 
 ```bash
 # The tokens from creating a registration token and a proxy token
-export RLP_REGISTRATION_TOKEN='YOUR_REGISTRATION_TOKEN'
-export RLP_REGION_PROXY_TOKEN='YOUR_PROXY_TOKEN'
+export DAYTONA_REGISTRATION_TOKEN='YOUR_REGISTRATION_TOKEN'
+export DAYTONA_REGION_PROXY_TOKEN='YOUR_PROXY_TOKEN'
 
 kubectl create namespace daytona-byoc
 kubectl label namespace daytona-byoc pod-security.kubernetes.io/enforce=privileged
 kubectl -n daytona-byoc create secret generic daytona-byoc-tokens \
-  --from-literal=RLP_REGISTRATION_TOKEN="$RLP_REGISTRATION_TOKEN" \
-  --from-literal=RLP_REGION_PROXY_TOKEN="$RLP_REGION_PROXY_TOKEN"
+  --from-literal=DAYTONA_REGISTRATION_TOKEN="$DAYTONA_REGISTRATION_TOKEN" \
+  --from-literal=DAYTONA_REGION_PROXY_TOKEN="$DAYTONA_REGION_PROXY_TOKEN"
 
 # The values in capitals come from the installation values of the region
 helm upgrade --install daytona-byoc CHART \
@@ -296,9 +294,9 @@ helm upgrade --install daytona-byoc CHART \
   --set-string proxy.image.tag=PROXY_IMAGE_TAG \
   --set enrollment.apiUrl=API_URL \
   --set enrollment.tokenSecret.name=daytona-byoc-tokens \
-  --set enrollment.tokenSecret.key=RLP_REGISTRATION_TOKEN \
+  --set enrollment.tokenSecret.key=DAYTONA_REGISTRATION_TOKEN \
   --set proxy.tokenSecret.name=daytona-byoc-tokens \
-  --set proxy.tokenSecret.key=RLP_REGION_PROXY_TOKEN \
+  --set proxy.tokenSecret.key=DAYTONA_REGION_PROXY_TOKEN \
   --set proxy.enabled=true \
   --set-json 'proxy.sourceCIDRs=["PROXY_NODE_SUBNET"]' \
   --set-json 'proxy.runnerProxyAllowedCIDRs=["HOST_NODE_SUBNET"]' \
@@ -319,8 +317,7 @@ helm upgrade --install daytona-byoc CHART \
 
 > **Notes:**
 >
-> - Copy the filled-in command from the **Install** tab of the region in the dashboard.
-> - Create the namespace and the Secret before you run helm.
+> - **Order:** Copy the filled-in command from the **Install** tab of the region in the dashboard. Create the namespace and the Secret before you run helm.
 
 **API:**
 
@@ -390,7 +387,7 @@ List regions to see the BYOC regions of an organization. A paginated list return
 
 A list of BYOC regions covers one organization and holds each region with its parent region, status, and number of hosts. Regions of the platform are not in it.
 
-List the regions to find the ID of a region or to check how many hosts it has. Pass the next_cursor of a page as cursor to read the next page, until next_cursor is null.
+List the regions to find the ID of a region or to check how many hosts it has.
 
 1. Go to [Daytona Regions ↗](https://app.daytona.com/dashboard/regions)
 
@@ -478,7 +475,7 @@ List registration tokens to see which tokens can still enroll hosts in a region.
 
 A list of registration tokens covers one BYOC region, newest first, with the number of uses, the maximum number of uses, and the expiry of each token.
 
-List the tokens to find one to revoke, or to check how many hosts a token has enrolled. Pass the next_cursor of a page as cursor to read the next page.
+List the tokens to find one to revoke, or to check how many hosts a token has enrolled.
 
 1. Go to [Daytona Regions ↗](https://app.daytona.com/dashboard/regions)
 2. Click the region
@@ -524,7 +521,7 @@ List proxy tokens to see the credentials that the region proxy of a region uses.
 
 A list of proxy tokens covers one BYOC region, newest first, with the expiry and the last use of each token, and the earlier token that it replaced.
 
-List the tokens to check which one the region proxy last used, or to find one to rotate or revoke. Pass the next_cursor of a page as cursor to read the next page.
+List the tokens to check which one the region proxy last used, or to find one to rotate or revoke.
 
 1. Go to [Daytona Regions ↗](https://app.daytona.com/dashboard/regions)
 2. Click the region
@@ -571,7 +568,7 @@ List hosts to see the machines that run the sandboxes of a region. A paginated l
 
 A list of hosts covers one BYOC region and holds each host with its Kubernetes node name, its connection status, and its number of sandboxes.
 
-List hosts to check that each node enrolled after an install. A host is online, offline, or lost, and active or cordoned. Pass the next_cursor of a page as cursor to read the next page.
+List hosts to check that each node enrolled after an install. A host is online, offline, or lost, and active or cordoned.
 
 1. Go to [Daytona Runners ↗](https://app.daytona.com/dashboard/runners)
 

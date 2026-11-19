@@ -65,8 +65,8 @@ console.log(response.logs.stdout)
 
 > **Notes:**
 >
-> - The first run in a language installs and starts the kernel, so its timeout must also cover that start.
-> - A run on the shared kernel keeps the cwd and env of the run that started the kernel.
+> - **Timeouts:** The first run in a language installs and starts the kernel, so its timeout must also cover that start.
+> - **Behaviour:** A run on the shared kernel keeps the cwd and env of the run that started the kernel.
 
 ### Artifacts
 
@@ -130,8 +130,8 @@ console.log(response.error?.name) // NameError
 
 > **Notes:**
 >
-> - Each isolated run starts a new kernel, so its timeout must also cover the kernel start.
-> - An isolated run does not take a context.
+> - **Compatibility:** An isolated run does not take a context.
+> - **Timeouts:** Each isolated run starts a new kernel, so its timeout must also cover the kernel start.
 
 ## Interpreter contexts
 
@@ -147,7 +147,7 @@ Create a context to give code its own interpreter state. A new context starts it
 
 The environment variables of a context in a sandbox are set when the context is created, and runs in the context do not change them. Its kernel keeps running until the context is deleted.
 
-Create a context, then run code with the context handle that the create returns, or pass the handle to a run in the sandbox. A context gets a generated ID unless you set one. Set a known ID to [reconnect to the context](#reconnect-to-a-context) from another worker.
+Create a context, then run code in it. Give the context a known ID to [reconnect to it](#reconnect-to-a-context) from another worker.
 
 ```typescript
 import { Daytona } from '@daytona/sdk'
@@ -174,8 +174,8 @@ try {
 
 > **Notes:**
 >
-> - Runs in a context do not take env.
-> - The kernel of a context keeps running until the context is deleted.
+> - **Compatibility:** Runs in a context do not take env.
+> - **Lifetime:** The kernel of a context keeps running until the context is deleted.
 
 ### List contexts
 
@@ -229,12 +229,11 @@ const restored = sandbox.interpreter.connectContext(saved)
 | **Parameter** | **Description** |
 | --- | --- |
 | `context` | Selects the context to reconnect to.<br />**Required**<br />**Format:** a context handle, a saved toJSON() object, or a context ID<br />**Example:** `'my-context'` |
-| `language` | Sets the language of the context.<br />**Value:** `python`, `typescript`, or `javascript`<br />**Example:** `'python'` |
+| `language` | Sets the language of the context.<br />**Rules:** required when context is a context ID<br />**Value:** `python`, `typescript`, or `javascript`<br />**Example:** `'python'` |
 
 > **Notes:**
 >
-> - connectContext() needs language when it gets a context ID.
-> - connectContext() sends no request, so it does not check that the context exists.
+> - **Clients:** connectContext() sends no request, so it does not check that the context exists.
 
 ### Delete a context
 

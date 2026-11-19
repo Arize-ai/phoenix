@@ -47,7 +47,7 @@ curl 'https://api.daytona.com/migration/v0/summary' \
 
 > **Notes:**
 >
-> - The API key must belong to the organization's default project.
+> - **Prerequisites:** The API key must belong to the organization's default project.
 
 ## List Daytona v0 sandboxes
 
@@ -97,17 +97,15 @@ curl 'https://api.daytona.com/migration/v0/sandboxes?limit=100&cursor={nextCurso
 
 > **Notes:**
 >
-> - The API key must belong to the organization's default project.
-> - The reason field is present only when importable is `false`.
-> - The set of reason values is open, so handle a reason value that you do not recognize.
-> - The imported_sandbox_id field is present only while the sandbox that the import created exists.
-> - A page can hold fewer entries than limit and not be the last, so read until next_cursor is `null`.
+> - **Prerequisites:** The API key must belong to the organization's default project.
+> - **Results:** The reason field is present only when importable is `false`. The set of reason values is open, so handle a reason value that you do not recognize. The imported_sandbox_id field is present only while the sandbox that the import created exists.
+> - **Polling:** A page can hold fewer entries than limit and not be the last, so read until next_cursor is `null`.
 
 ## Import a Daytona v0 sandbox
 
 Import an archived Daytona v0 sandbox as a new persistent sandbox in the default project. The import registers the sandbox's last Daytona v0 backup as an image, converts the image to the current format, and creates the sandbox from it in the default project's region. The new sandbox waits in the queued state until the conversion finishes. The original Daytona v0 sandbox keeps working and is labeled with the ID of the sandbox the import created.
 
-Importing the same sandbox again returns the existing import instead of creating another sandbox, unless you force a new import. When the sandbox an earlier import created was deleted or failed, the next import creates a new one.
+A repeat import of the same sandbox returns the existing import instead of creating another sandbox, unless the request forces a new import. When the sandbox an earlier import created was deleted or failed, the next import creates a new one.
 
 1. Go to [Daytona Sandboxes ↗](https://app.daytona.com/dashboard/sandboxes?version=v0) and select **Daytona v0** in the version toggle
 2. Click **Import** on the row of an importable sandbox
@@ -151,11 +149,10 @@ curl 'https://api.daytona.com/migration/v0/sandboxes/{v0Id}/import' \
 
 > **Notes:**
 >
-> - The API key must belong to the organization's default project.
-> - The Daytona v0 sandbox must be an archived container sandbox with a completed backup.
-> - A new import has the `queued` status while its image converts.
-> - The imported sandbox starts without the variables in secret_env_vars, so set them on it.
-> - When v0_labeled is `false`, repeat the call to set the label again.
+> - **Prerequisites:** The API key must belong to the organization's default project. The Daytona v0 sandbox must be an archived container sandbox with a completed backup.
+> - **Effects:** The imported sandbox starts without the variables in secret_env_vars, so set them on it.
+> - **Results:** A new import has the `queued` status while its image converts.
+> - **Recovery:** When v0_labeled is `false`, repeat the call to set the label again.
 
 The import carries the following settings from the Daytona v0 sandbox to the new sandbox, and reports every dropped setting in the import warnings:
 
