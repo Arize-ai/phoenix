@@ -540,14 +540,14 @@ class TestClassificationEvaluator:
         "kwargs,match",
         [
             pytest.param(
-                {"name": "", "description": "d", "choices": ["a"]}, "non-empty", id="name"
-            ),
-            pytest.param(
                 {"name": "c", "description": "d", "choices": []}, "at least one", id="empty-choices"
             ),
         ],
     )
     def test_criterion_validation(self, kwargs, match):
+        # Note: an empty ``name`` is validated at evaluator construction for the List[Criterion]
+        # format (see ``test_criteria_list_rejects_empty_name``), not on ``Criterion`` itself, so
+        # the legacy formats' internally-synthesized criterion is unaffected.
         with pytest.raises(ValueError, match=match):
             Criterion(**kwargs)
 
@@ -814,6 +814,29 @@ class TestClassificationEvaluator:
                 llm=MockLLM(),
                 prompt_template="t {x}",
                 choices=[Criterion(name="q", description="d", choices=["a", "b"]), "a"],
+            )
+
+    def test_legacy_empty_name_evaluator_constructs_and_evaluates(self):
+        """Regression: a legacy (non-List[Criterion]) evaluator with an empty name constructed
+        and evaluated on ``main``. The refactor wraps legacy choices in an internally-built
+        Criterion, so the Criterion name check must not leak onto legacy evaluators."""
+        evaluator = ClassificationEvaluator(
+            name="",
+            llm=MockLLM(),
+            prompt_template="t {x}",
+            choices=["good", "bad"],
+        )
+        [score] = evaluator._evaluate({"x": "1"})
+        assert score.name == "" and score.label == "good"
+
+    def test_criteria_list_rejects_empty_name(self):
+        """The List[Criterion] format still rejects an empty criterion name."""
+        with pytest.raises(ValueError, match="Criterion.name must be a non-empty string"):
+            ClassificationEvaluator(
+                name="e",
+                llm=MockLLM(),
+                prompt_template="t {x}",
+                choices=[Criterion(name="", description="d", choices=["a", "b"])],
             )
 
     def test_multi_criterion_rejects_duplicate_names(self):

@@ -297,8 +297,6 @@ class Criterion:
     label_descriptions: Optional[Dict[str, str]] = None
 
     def __post_init__(self) -> None:
-        if not self.name or not isinstance(self.name, str):
-            raise ValueError("Criterion.name must be a non-empty string.")
         if not self.choices:
             raise ValueError(f"Criterion '{self.name}' must define at least one choice.")
         if isinstance(self.choices, dict):
@@ -834,6 +832,8 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
             criteria: List[Criterion] = []
             for choice in cast("List[Union[Criterion, Dict[str, Any]]]", choices):
                 criterion = choice if isinstance(choice, Criterion) else Criterion(**choice)
+                if not criterion.name or not isinstance(criterion.name, str):
+                    raise ValueError("Criterion.name must be a non-empty string.")
                 if not criterion.description:
                     raise ValueError(
                         f"Criterion '{criterion.name}' must have a non-empty description; it "
