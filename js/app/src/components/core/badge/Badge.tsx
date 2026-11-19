@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { PointerEvent, ReactNode } from "react";
+import type { CSSProperties, PointerEvent, ReactNode } from "react";
 import { useState } from "react";
 
 import type { FamilySize } from "@phoenix/components/core/types";
@@ -61,6 +61,19 @@ interface NominalBadgeProps extends BadgeBaseProps {
    */
   color?: BadgeColor;
   variant?: never;
+  paletteColor?: never;
+}
+
+interface PaletteBadgeProps extends BadgeBaseProps {
+  /**
+   * The base color of a nominal axis whose values already have an
+   * established color across Phoenix, such as span kind in the trace tree.
+   * Pass that same color so a kind reads the same everywhere it appears. Any
+   * CSS color. When Phoenix is choosing a kind's color fresh, use `color`.
+   */
+  paletteColor: string;
+  color?: never;
+  variant?: never;
 }
 
 interface EvaluativeBadgeProps extends BadgeBaseProps {
@@ -70,9 +83,13 @@ interface EvaluativeBadgeProps extends BadgeBaseProps {
    */
   variant: BadgeVariant;
   color?: never;
+  paletteColor?: never;
 }
 
-export type BadgeProps = NominalBadgeProps | EvaluativeBadgeProps;
+export type BadgeProps =
+  | NominalBadgeProps
+  | PaletteBadgeProps
+  | EvaluativeBadgeProps;
 
 const badgeCSS = css`
   ${familySizeCSS};
@@ -120,6 +137,7 @@ export function Badge({
   children,
   color = "neutral",
   variant,
+  paletteColor,
   size = "M",
   leadingVisual,
 }: BadgeProps) {
@@ -139,8 +157,15 @@ export function Badge({
     <span
       className="badge"
       css={badgeCSS}
-      data-color={variant ? undefined : color}
+      data-color={
+        variant ? undefined : paletteColor !== undefined ? "palette" : color
+      }
       data-variant={variant}
+      style={
+        paletteColor !== undefined
+          ? ({ "--family-base-color": paletteColor } as CSSProperties)
+          : undefined
+      }
       data-size={size}
       data-theme={theme}
     >

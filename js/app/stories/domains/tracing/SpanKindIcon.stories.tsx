@@ -115,8 +115,8 @@ export const Thumbnail = {
 
 /**
  * Each kind as a `SpanKindBadge` (spans and traces tables, span header): the
- * kind's categorical Badge color, with the outline icon in the badge's text
- * color.
+ * kind's color from the same span kind palette as the icons above, with the
+ * outline icon in the badge's text color.
  */
 export const InABadge = {
   tags: ["!dev"],

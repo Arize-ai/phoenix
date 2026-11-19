@@ -1,10 +1,9 @@
 /**
  * The base color for each span kind as defined by openinference.
  *
- * The SpanKindIcon (as in the trace tree) derives its theme-aware
- * background, border, and foreground colors from these base values. The
- * SpanKindBadge does not: it takes a categorical Badge color per kind (see
- * SPAN_KIND_BADGE_COLORS).
+ * The SpanKindIcon (as in the trace tree) and the SpanKindBadge (as in the
+ * spans table) both derive their theme-aware colors from these base values,
+ * so a kind has one color everywhere.
  */
 const spanKindColorMap: Record<string, string> = {
   llm: "var(--global-color-orange-500)",

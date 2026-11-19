@@ -1,7 +1,7 @@
-import type { BadgeColor } from "@phoenix/components/core/badge";
 import { Badge } from "@phoenix/components/core/badge";
 import type { FamilySize } from "@phoenix/components/core/types";
 
+import { getSpanKindColor } from "./spanKindColor";
 import { SpanKindIcon } from "./SpanKindIcon";
 
 /**
@@ -34,39 +34,11 @@ export function getSpanKindExplanation(spanKind: string): string {
 }
 
 /**
- * The categorical hue of each span kind's Badge. Span kind is a nominal axis,
- * so each kind gets a color of its own that encodes its identity, never
- * green, orange or red (a green kind would read as "OK"). LLM, agent and
- * decision match the annotator kinds of the same name. There are fewer hues
- * than kinds, so the rarer reranker and prompt kinds stay neutral, as does a
- * span without a kind.
- */
-export const SPAN_KIND_BADGE_COLORS: Record<string, BadgeColor> = {
-  llm: "purple",
-  chain: "blue",
-  retriever: "cyan",
-  embedding: "indigo",
-  agent: "seafoam",
-  tool: "yellow",
-  guardrail: "fuchsia",
-  evaluator: "chartreuse",
-  decision: "magenta",
-  reranker: "neutral",
-  prompt: "neutral",
-};
-
-/**
- * The Badge color for a span kind; `neutral` for a kind Phoenix does not
- * know.
- */
-export function getSpanKindBadgeColor(spanKind: string): BadgeColor {
-  return SPAN_KIND_BADGE_COLORS[spanKind] ?? "neutral";
-}
-
-/**
- * A span's kind, in the kind's own Badge color, led by its span kind icon
- * drawn in that same color. The trace tree's square icons keep their own
- * span kind palette.
+ * A span's kind, led by its span kind icon, both in the kind's color from the
+ * span kind palette the trace tree uses, so a kind reads the same everywhere.
+ * This is a deliberate exception to the Badge rule against orange: LLM spans
+ * have been orange across Phoenix since long before the Badge family, and
+ * the trace tree has never had it read as a warning.
  */
 export function SpanKindBadge({
   spanKind,
@@ -77,7 +49,7 @@ export function SpanKindBadge({
 }) {
   return (
     <Badge
-      color={getSpanKindBadgeColor(spanKind)}
+      paletteColor={getSpanKindColor({ spanKind })}
       size={size}
       leadingVisual={
         <SpanKindIcon spanKind={spanKind} size={size} variant="outline" />

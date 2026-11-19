@@ -14,6 +14,10 @@ Pick a member of the badge family by the role the element plays, not by how it s
 
 A value that is not an object (a model name, a score, an annotation label) is plain text. A command ("add this filter") is a `Button`. `Badge`, `StatusIndicator` and `Counter` are never hit targets: to explain one or open detail from it, wrap it in a `MarkerTrigger`; to filter by one, give the cell, row or a menu the affordance.
 
+## Badge color
+
+A nominal axis takes a categorical `color` from `BADGE_COLORS`, which leaves out green, orange and red so a kind never reads as a judgment. One exception: when an axis already has an established color per value across Phoenix, pass that color through `paletteColor` so the value reads the same everywhere. Span kind is the only such axis today. `SpanKindBadge` takes its color from `getSpanKindColor`, the palette the trace tree's span kind icons use, including orange for LLM. You MUST NOT give span kind a second palette, and MUST NOT use `paletteColor` to bring an excluded hue into an axis that has no established palette.
+
 ## Tag
 
 A `Tag` MAY be a hit target, and its props pick its shape:
