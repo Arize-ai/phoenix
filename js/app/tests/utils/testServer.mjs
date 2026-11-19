@@ -20,7 +20,12 @@ process.env["PHOENIX_ENABLE_AUTH"] = "True";
 process.env["PHOENIX_SECRET"] = crypto.randomBytes(32).toString("hex");
 // Exercise the default-password reset flow regardless of the parent environment.
 delete process.env["PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD"];
-process.env["PHOENIX_SQL_DATABASE_URL"] = "sqlite:///:memory:";
+// A file, not ":memory:". An in-memory database lives on one connection, and
+// SQLAlchemy closes a connection when a cancelled request interrupts its
+// statement; the database then goes with it and every later query fails with
+// "no such table".
+process.env["PHOENIX_SQL_DATABASE_URL"] =
+  `sqlite:///${path.join(tmpDir, "phoenix.db")}`;
 // Disable rate limiting for tests to avoid flakiness from parallel logins
 // The rate-limit.spec.ts test will re-enable it for its specific test
 process.env["PHOENIX_DISABLE_RATE_LIMIT"] = "True";
