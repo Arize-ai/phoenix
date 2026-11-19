@@ -24,6 +24,7 @@ import {
   getQueueStatusDetail,
   HoverDetail,
   OldestWaitStat,
+  QUEUE_STAT_HELP,
   QueueStatusBadge,
   StatValue,
 } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
@@ -174,10 +175,7 @@ function ServerEvaluationQueueStripContent({
             <QueueStatusBadge status={queue.status} />
           </HoverDetail>
         </StatItem>
-        <StatItem
-          label="In queue"
-          help="Evaluations waiting, running, or retrying, across all projects."
-        >
+        <StatItem label="In queue" help={QUEUE_STAT_HELP.inQueue}>
           <HoverDetail
             detail={
               queuedTargets.length > 0 || queue.projects.length > 0 ? (
@@ -213,36 +211,27 @@ function ServerEvaluationQueueStripContent({
             <StatValue>{formatQueueCount(queue.queuedCount)}</StatValue>
           </HoverDetail>
         </StatItem>
-        <StatItem
-          label="Added per hour"
-          help="Evaluations queued in the last hour."
-        >
+        <StatItem label="Added per hour" help={QUEUE_STAT_HELP.addedPerHour}>
           <StatValue>{formatAddedPerHour(queue.addedPerMinute)}</StatValue>
         </StatItem>
         <StatItem
           label="Completed per hour"
-          help="Evaluations finished in the last hour, including failures."
+          help={QUEUE_STAT_HELP.completedPerHour}
         >
           <StatValue>
             {formatCompletedPerHour(queue.completedPerMinute)}
           </StatValue>
         </StatItem>
-        <StatItem
-          label="Net per hour"
-          help="Added minus completed. Positive means the queue is growing."
-        >
+        <StatItem label="Net per hour" help={QUEUE_STAT_HELP.netPerHour}>
           <StatValue color={net.netPerHour > 0 ? "warning" : null}>
             {net.formatted}
           </StatValue>
         </StatItem>
         <OldestWaitStat
           oldestWaitingAt={queue.oldestWaitingAt}
-          help="How long the oldest queued evaluation has waited to start."
+          help={QUEUE_STAT_HELP.oldestWait}
         />
-        <StatItem
-          label="Evaluation cost"
-          help="Cost of evaluations in the selected time range."
-        >
+        <StatItem label="Evaluation cost" help={QUEUE_STAT_HELP.evaluationCost}>
           {/* Cost reads the heavier activity request; its errors stay here. */}
           <ErrorBoundary
             resetKey={`${fetchKey} ${timeRangeISOStrings.start} ${timeRangeISOStrings.end}`}
