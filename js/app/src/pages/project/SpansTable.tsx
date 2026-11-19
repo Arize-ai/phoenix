@@ -463,9 +463,13 @@ export function SpansTable(props: SpansTableProps) {
     isRequestPending,
     onRefetchStart,
     onRefetchComplete,
-    onLoadMoreComplete,
+    startNextPage,
   } = useDeferredPartsFailure({ initialRequest: props.initialRequest });
-  const loadNextPage = useLoadNextPage({ loadNext, onLoadMoreComplete });
+  const loadNextPage = useLoadNextPage({
+    loadNext,
+    rowCount: data.spans.edges.length,
+    startNextPage,
+  });
   const annotationConfigsByName = useProjectAnnotationConfigsByName(data);
   const { spanAnnotationNames, traceAnnotationNames, hasAnnotationNamesError } =
     useSpanAnnotationNames({ project: data, hasRequestFailed });

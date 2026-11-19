@@ -505,11 +505,16 @@ export function TracesTable(props: TracesTableProps) {
   const {
     hasRequestFailed,
     isRequestPending,
+    isRowFailed,
     onRefetchStart,
     onRefetchComplete,
-    onLoadMoreComplete,
+    startNextPage,
   } = useDeferredPartsFailure({ initialRequest: props.initialRequest });
-  const loadNextPage = useLoadNextPage({ loadNext, onLoadMoreComplete });
+  const loadNextPage = useLoadNextPage({
+    loadNext,
+    rowCount: data.rootSpans.edges.length,
+    startNextPage,
+  });
   const annotationConfigsByName = useProjectAnnotationConfigsByName(data);
   const { spanAnnotationNames, traceAnnotationNames, hasAnnotationNamesError } =
     useSpanAnnotationNames({ project: data, hasRequestFailed });
@@ -531,7 +536,7 @@ export function TracesTable(props: TracesTableProps) {
     );
   }, [traceAnnotationColumnVisibility]);
   const tableData = useMemo(() => {
-    return data.rootSpans.edges.map(({ rootSpan }) => {
+    return data.rootSpans.edges.map(({ rootSpan }, rowIndex) => {
       // Relay types the field as present, but a deferred inline fragment
       // reads as undefined until its payload arrives.
       const {
@@ -555,7 +560,7 @@ export function TracesTable(props: TracesTableProps) {
       const numSpansNotLoaded = rootSpan.trace.numSpans - NUM_DESCENDANTS - 1;
       const hasDescendantsFailed =
         descendants === undefined &&
-        hasRequestFailed &&
+        isRowFailed(rowIndex) &&
         rootSpan.trace.numSpans > 1;
       const additionalRowName = hasDescendantsFailed
         ? "Child spans failed to load."
@@ -583,7 +588,7 @@ export function TracesTable(props: TracesTableProps) {
       }
       return root as SpanRowType;
     });
-  }, [data, hasRequestFailed]);
+  }, [data, isRowFailed]);
   type TableRow = (typeof tableData)[number];
   // descendant rows do not select the trace fields the column reads
   type RootSpanTrace =
