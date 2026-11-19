@@ -25,14 +25,12 @@ _DECISION_TO_LLM_KEYS: Mapping[str, str] = {v: k for k, v in _LLM_TO_DECISION_KE
 
 def _threshold_key(key: str, attributes: Mapping[str, Any]) -> str:
     """
-    Return the attribute a threshold reads on this span.
+    Return the attribute a threshold reads on this span: the one its tokens are priced from.
 
-    A threshold reads the attribute the span's tokens are priced from:
     - On DECISION spans, `llm.token_count.prompt`/`.completion` and
       `decision.token_count.input`/`.output` map to whichever family the span reports.
-    - On EMBEDDING spans, a tier keyed on `llm.token_count.prompt` falls back to
-      `llm.token_count.total` when the prompt count is missing or 0, matching
-      `get_aggregated_tokens`.
+    - On EMBEDDING spans, `llm.token_count.prompt` falls back to `llm.token_count.total` when
+      the prompt count is missing or 0, as in `get_aggregated_tokens`.
     - LLM spans read the key as is.
     """
     if uses_decision_token_counts(attributes):

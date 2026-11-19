@@ -34,9 +34,9 @@ logger = logging.getLogger(__name__)
 
 MANIFEST_VERSION_STATE_KEY = "cost_tracking.model_cost_manifest"
 
-# What this version of Phoenix reads from a manifest, recorded in the applied marker. Bump it
-# when servers start reading content that older ones ignore, so that a manifest an older server
-# applied is applied again after an upgrade. 1: model types (``non_llm_models``).
+# The manifest content this server reads, recorded in the applied marker. Bump it when servers
+# start reading content that older ones ignore, so a manifest an older server applied is
+# applied again after an upgrade. 1: model types (``non_llm_models``).
 MANIFEST_READER_VERSION = 1
 
 # Serializes applies across replicas sharing a PostgreSQL database. SQLite allows one writer.
@@ -55,8 +55,7 @@ class ModelCostManifestVersion(BaseModel):
     model_config = ConfigDict(extra="ignore", frozen=True)
 
     generated_at: AwareDatetime
-    # MANIFEST_READER_VERSION of the server that applied it. Markers from before it existed
-    # read as 0.
+    # MANIFEST_READER_VERSION of the server that applied it. Markers without it read as 0.
     reader_version: int = 0
 
 
@@ -107,9 +106,9 @@ def _is_newer(
     if applied is None:
         return True
     if applied.reader_version < MANIFEST_READER_VERSION:
-        # The manifest was applied by a server that ignored part of it, such as the
-        # non_llm_models of a 21.x server, so applying the same manifest again adds what it
-        # skipped. An older one is still skipped, so that a boot doesn't roll back prices.
+        # A server that ignored part of the manifest (e.g. a 21.x server and non_llm_models)
+        # applied it, so reapplying the same manifest adds what it skipped. An older manifest
+        # is still skipped, so a boot doesn't roll back prices.
         return manifest.generated_at >= applied.generated_at
     # Only generated_at is compared, even across schema versions. That is safe while replicas
     # of different versions share a database because bumping the schema freezes the old

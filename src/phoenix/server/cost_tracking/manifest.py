@@ -9,10 +9,10 @@ as a whole (invalid JSON, an unsupported ``schema_version``, a bad ``generated_a
 
 Built-in models are identified by name and type (``LLM``, ``DECISION`` or ``EMBEDDING``), so
 one name can be priced once as an LLM and once as a decision model. LLM entries go in
-``models`` and every other type in ``non_llm_models``. The split is for servers released before
-types existed: they fetch this same file, ignore keys they don't know, and treat every entry in
-``models`` as an LLM keyed by name alone. So a typed entry in ``models`` would be priced as an
-LLM by those servers, and a second entry with the same name would be dropped as a duplicate.
+``models`` and every other type in ``non_llm_models``, because servers without model types
+fetch this same file, ignore unknown keys, and treat every entry in ``models`` as an LLM keyed
+by name alone. Those servers would price a typed entry in ``models`` as an LLM and drop a second
+entry with the same name as a duplicate.
 """
 
 import hashlib
@@ -174,7 +174,6 @@ class ModelCostManifest(_ManifestBaseModel):
     skipped_models: frozenset[ManifestModelKey] = Field(default_factory=frozenset, exclude=True)
 
 
-# The manifest's lists of entries, and whether each holds LLMs or every other type.
 _LLM_SECTION = "models"
 _NON_LLM_SECTION = "non_llm_models"
 _MODEL_TYPES: frozenset[str] = frozenset(get_args(GenerativeModelType))
@@ -246,7 +245,7 @@ def parse_manifest(data: Union[bytes, str]) -> ModelCostManifest:
                 )
                 continue
             if (section == _NON_LLM_SECTION) != (model.type in _NON_LLM_TYPES):
-                # Servers that predate types would price a non-LLM entry in models as an LLM.
+                # Servers without model types would price a non-LLM entry in models as an LLM.
                 # Treated like an invalid entry, so its model is left as it is.
                 logger.warning(
                     f"Skipping model '{model.name}' in model cost manifest: type {model.type} "
@@ -299,8 +298,8 @@ def _raw_key(model_data: Any) -> Optional[ManifestModelKey]:
 def compute_models_sha256(models: list[Any]) -> str:
     """
     Digest of a manifest's entries, as JSON values, recorded as its ``models_sha256``. Pass
-    ``models`` followed by ``non_llm_models``, so a manifest without non-LLM entries keeps the
-    digest it had before they existed.
+    ``models`` followed by ``non_llm_models``, so a manifest without non-LLM entries has the
+    digest of its ``models`` alone.
 
     Servers apply a manifest only if its ``generated_at`` is newer than the one they have, so
     the models must not change without it. The sync script records this digest whenever it

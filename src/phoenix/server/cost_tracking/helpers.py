@@ -21,9 +21,9 @@ def get_priced_model_type(attributes: Optional[Mapping[str, Any]]) -> PricedMode
     """
     Return the type of `GenerativeModel` a span is priced against.
 
-    The span kind picks the type: DECISION spans price against DECISION models, EMBEDDING spans
-    against EMBEDDING models, and every other span against LLM models
-    (`should_calculate_span_cost` only lets LLM, DECISION and EMBEDDING spans through).
+    DECISION spans price against DECISION models, EMBEDDING spans against EMBEDDING models,
+    and every other span against LLM models. `should_calculate_span_cost` lets only LLM spans
+    reach the fallback.
     """
     span_kind = get_attribute_value(attributes, SpanAttributes.OPENINFERENCE_SPAN_KIND)
     if span_kind == OpenInferenceSpanKindValues.DECISION.value:
@@ -34,7 +34,6 @@ def get_priced_model_type(attributes: Optional[Mapping[str, Any]]) -> PricedMode
 
 
 def _get_str(attributes: Optional[Mapping[str, Any]], *keys: str) -> str:
-    """Return the first non-blank string among `keys`, stripped, or "". Non-strings are skipped."""
     for key in keys:
         value = get_attribute_value(attributes, key)
         if isinstance(value, str) and (value := value.strip()):
@@ -57,14 +56,14 @@ _LLM_MODEL_NAME_KEYS = (
 def get_model_name(attributes: Optional[Mapping[str, Any]]) -> str:
     """
     Return the model name used for cost lookup, or "" if the span has none. Only string values
-    count. `should_calculate_span_cost` uses this too, so the gate and the lookup agree on the name.
+    count. `should_calculate_span_cost` uses it too, so the gate and the lookup agree.
 
     Within each attribute family, the provider-reported `*.response.model_name` wins over
     `*.model_name`, which wins over `*.request.model_name`. DECISION spans read `decision.*`,
-    falling back to `llm.*` for TypeSafe instrumentor releases from before the `decision.*`
-    attributes existed (OpenInference `spec/decision_spans.md`, "Transition Note"). EMBEDDING
-    spans read `embedding.model_name` (`spec/embedding_spans.md`), falling back to `llm.*` for
-    GenAI converters that write the model name there. Other spans read `llm.*`.
+    falling back to `llm.*`, which older TypeSafe instrumentors write (OpenInference
+    `spec/decision_spans.md`, "Transition Note"). EMBEDDING spans read `embedding.model_name`
+    (`spec/embedding_spans.md`), falling back to `llm.*`, where GenAI converters write the
+    model name. Other spans read `llm.*`.
     """
     model_type = get_priced_model_type(attributes)
     if model_type == "DECISION":
@@ -111,13 +110,11 @@ def uses_decision_token_counts(attributes: Optional[Mapping[str, Any]]) -> bool:
     Whether the span's token counts come from `decision.token_count.*`.
 
     True for a DECISION span that sets a finite numeric `decision.token_count.input` or `.output`.
-    A DECISION span that sets neither falls back to the legacy `llm.token_count.*` attributes.
-    The two families are never mixed (the spec keeps decision usage in its own namespace): a
-    span with `decision.token_count.input` and only `llm.token_count.completion` has 0 output
-    tokens.
-    `decision.token_count.*` has no detail (cache, audio, ...) keys, so when this is True the
-    `llm.token_count.*_details` attributes are ignored too: they would describe a different set
-    of counts.
+    Other DECISION spans read the legacy `llm.token_count.*`. The two families are never mixed,
+    because the spec keeps decision usage in its own namespace: a span with
+    `decision.token_count.input` and only `llm.token_count.completion` has 0 output tokens.
+    When True, `llm.token_count.*_details` are ignored too, since they would describe a
+    different set of counts.
     """
     if get_priced_model_type(attributes) != "DECISION":
         return False
