@@ -1,105 +1,20 @@
-import asyncio
-from asyncio import Future
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
 from typing import Any, Literal, Optional
 
 import pytest
-from sqlalchemy import delete
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.api.annotation_metrics import build_entity_weighted_annotation_metrics_stmt
-from phoenix.server.api.dataloaders import CacheForDataLoaders, build_data_loaders
-from phoenix.server.api.dataloaders.annotation_mean_score_time_series import (
-    AnnotationMeanScoreTimeSeriesCache,
-    AnnotationMeanScoreTimeSeriesDataLoader,
-    Key,
-    Result,
-    SeriesBin,
-    _as_datetime,
-)
+from phoenix.server.api.dataloaders.annotation_score_metrics import SeriesBin, _as_datetime
 from phoenix.server.api.input_types.TimeBinConfig import TimeBucketSpec
-from phoenix.server.dml_event import (
-    DmlEvent,
-    SpanAnnotationDeleteEvent,
-    SpanAnnotationInsertEvent,
-    SpanDeleteEvent,
-)
-from phoenix.server.dml_event_handler import DmlEventHandler
-from phoenix.server.types import DbSessionFactory, LastUpdatedAt
+from phoenix.server.types import DbSessionFactory
 
 from ...._helpers import _add_project, _add_project_session, _add_span, _add_trace
-
-
-def _key(
-    kind: str = "span",
-    project_rowid: int = 1,
-    annotation_name: str = "quality",
-    unit: str = "day",
-    start_day: int = 0,
-) -> Key:
-    interval = (datetime(2024, 6, 10, tzinfo=timezone.utc) + timedelta(days=start_day), None)
-    time_bins = TimeBucketSpec(unit=unit)  # type: ignore[arg-type]
-    return (kind, project_rowid, interval, time_bins, annotation_name)  # type: ignore[return-value]
-
-
-def _entry() -> "Future[Result]":
-    # Created via the running loop: bare Future() requires a current event
-    # loop, which pytest-xdist workers do not guarantee at import time.
-    future = asyncio.get_running_loop().create_future()
-    future.set_result({})
-    return future
-
-
-class TestAnnotationMeanScoreTimeSeriesCache:
-    async def test_round_trips_by_full_key(self) -> None:
-        cache = AnnotationMeanScoreTimeSeriesCache()
-        entry = _entry()
-        cache.set(_key(), entry)
-        assert cache.get(_key()) is entry
-        # A different bin scale is a different sub-key within the same section
-        assert cache.get(_key(unit="hour")) is None
-
-    async def test_invalidate_clears_one_annotation_kind_section(self) -> None:
-        cache = AnnotationMeanScoreTimeSeriesCache()
-        cache.set(_key(kind="span"), _entry())
-        cache.set(_key(kind="trace"), _entry())
-        cache.set(_key(annotation_name="other"), _entry())
-        # The same section tuple the annotation DML handlers pass
-        cache.invalidate((1, "quality", "span"))
-        assert cache.get(_key(kind="span")) is None
-        assert cache.get(_key(kind="trace")) is not None
-        assert cache.get(_key(annotation_name="other")) is not None
-
-    async def test_invalidate_project_clears_every_section_of_the_project(self) -> None:
-        cache = AnnotationMeanScoreTimeSeriesCache()
-        cache.set(_key(project_rowid=1), _entry())
-        cache.set(_key(project_rowid=1, annotation_name="other"), _entry())
-        cache.set(_key(project_rowid=2), _entry())
-        cache.invalidate_project(1)
-        assert cache.get(_key(project_rowid=1)) is None
-        assert cache.get(_key(project_rowid=1, annotation_name="other")) is None
-        assert cache.get(_key(project_rowid=2)) is not None
-
-    async def test_evicts_the_least_recently_read_window(self) -> None:
-        """A section keeps its eight most recently read windows. Under LFU the
-        window read last would be the victim here, since the others were read
-        more often."""
-        cache = AnnotationMeanScoreTimeSeriesCache()
-        for day in range(8):
-            cache.set(_key(start_day=day), _entry())
-        for _ in range(2):
-            for day in range(1, 8):
-                assert cache.get(_key(start_day=day)) is not None
-        assert cache.get(_key(start_day=0)) is not None
-        cache.set(_key(start_day=8), _entry())
-        assert cache.get(_key(start_day=0)) is not None
-        assert cache.get(_key(start_day=1)) is None
-        assert cache.get(_key(start_day=8)) is not None
-
+from .annotation_mean_score_time_series import AnnotationMeanScoreTimeSeriesDataLoader, Result
 
 _POSTGRESQL = postgresql.dialect()  # type: ignore[no-untyped-call]
 
@@ -295,71 +210,3 @@ class TestAnnotationMeanScoreTimeSeriesDataLoader:
             "session": "project_session_annotations",
         }[kind]
         assert str(stmt.compile(dialect=sa_dialect)).count(f"FROM {annotation_table}") == 1
-
-
-class TestSeriesCacheInvalidation:
-    async def test_annotation_events_refresh_the_cached_series(self, db: DbSessionFactory) -> None:
-        """The series cache that `build_data_loaders` wires in serves repeat loads, and the
-        DML events for annotation writes, annotation deletes and span deletes clear it."""
-        async with db() as session:
-            project = await _add_project(session)
-            span_rowids = [
-                await _add_entity(session, project, "span", _DAY_0 + timedelta(hours=hour))
-                for hour in (1, 2)
-            ]
-            session.add(_annotation("span", span_rowids[0], "quality", None, 1.0))
-            await session.flush()
-        key: Key = ("span", project.id, (_DAY_0, None), _DAY_BINS, "quality")
-        cache = CacheForDataLoaders()
-
-        async def load() -> Result:
-            # A new set of loaders per call, as each request gets, so only the shared
-            # cache can carry a result from one load to the next.
-            return await build_data_loaders(db, cache).annotation_mean_score_time_series.load(key)
-
-        handler = DmlEventHandler(
-            db=db, last_updated_at=LastUpdatedAt(), cache_for_dataloaders=cache
-        )
-
-        async def handle(event: DmlEvent) -> None:
-            # One pass of each handler's daemon loop, run inline
-            handler.put(event)
-            for batched in handler._all_handlers:
-                if not batched._batch.empty:
-                    await batched()
-                    batched._batch.clear()
-
-        assert await load() == {_DAY_0: SeriesBin(1.0, 1, 1)}
-        async with db() as session:
-            written = _annotation("span", span_rowids[1], "quality", None, 0.0)
-            assert isinstance(written, models.SpanAnnotation)
-            session.add(written)
-            await session.flush()
-        # Served from the cache until an event says the annotations changed.
-        assert await load() == {_DAY_0: SeriesBin(1.0, 1, 1)}
-
-        await handle(SpanAnnotationInsertEvent((written.id,)))
-        assert await load() == {_DAY_0: SeriesBin(0.5, 2, 2)}
-
-        async with db() as session:
-            await session.execute(
-                delete(models.SpanAnnotation).where(models.SpanAnnotation.id == written.id)
-            )
-        # Still the cached series until the delete event arrives
-        assert await load() == {_DAY_0: SeriesBin(0.5, 2, 2)}
-        await handle(SpanAnnotationDeleteEvent((written.id,)))
-        assert await load() == {_DAY_0: SeriesBin(1.0, 1, 1)}
-
-        # A label write lands in the cached fractions the same way.
-        async with db() as session:
-            labeled = _annotation("span", span_rowids[1], "quality", "good", None)
-            assert isinstance(labeled, models.SpanAnnotation)
-            session.add(labeled)
-            await session.flush()
-        assert await load() == {_DAY_0: SeriesBin(1.0, 1, 1)}
-        await handle(SpanAnnotationInsertEvent((labeled.id,)))
-        assert await load() == {_DAY_0: SeriesBin(1.0, 1, 2, (("good", 0.5),))}
-
-        assert cache.annotation_mean_score_time_series.get(key) is not None
-        await handle(SpanDeleteEvent((project.id,)))
-        assert cache.annotation_mean_score_time_series.get(key) is None
