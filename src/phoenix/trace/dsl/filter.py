@@ -151,6 +151,21 @@ _BACKWARD_COMPATIBILITY_REPLACEMENTS: typing.Mapping[str, str] = MappingProxyTyp
         "context.trace_id": "trace_id",
     }
 )
+# Removed names would otherwise resolve as attribute paths that match no span, so a stored
+# condition or projection using one would return no rows instead of an error.
+_REMOVED_SPAN_NAMES: typing.Mapping[str, str] = MappingProxyType(
+    {
+        removed_name: (
+            f"`llm.token_count.{token_kind}` for a span's own tokens, "
+            f"or the trace filter's `token_count_{token_kind}` for a whole trace"
+        )
+        for token_kind in ("prompt", "completion", "total")
+        for removed_name in (
+            f"cumulative_llm_token_count_{token_kind}",
+            f"cumulative_token_count.{token_kind}",
+        )
+    }
+)
 
 # The reserved `parent_span` keyword refers to a span's parent span (the span whose
 # `span_id` equals this span's `parent_id`). Only `parent_span is None` /
@@ -272,6 +287,8 @@ class _FilterBindings:
     deferred_number_names: frozenset[str] = frozenset()
     allow_outer_element_references: bool = False
     allow_datetime_reductions: bool = False
+    # Names the grain no longer accepts, each mapped to the replacement its error suggests.
+    removed_names: typing.Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
 
     @property
     def names(self) -> NameMap:
@@ -399,6 +416,7 @@ SPAN_BINDINGS = _FilterBindings(
     ),
     aggregate_names=frozenset(),
     legacy_replacements=_BACKWARD_COMPATIBILITY_REPLACEMENTS,
+    removed_names=_REMOVED_SPAN_NAMES,
     uppercase_names=frozenset({"span_kind", "status_code"}),
     annotation_model=models.SpanAnnotation,
     annotation_fk="span_rowid",
@@ -1065,6 +1083,7 @@ def _compile_condition(
             if "null bytes" in (error.msg or ""):
                 raise SyntaxError("condition cannot contain a NUL character") from None
             raise
+        _reject_removed_names(validated, bindings.removed_names)
         _validate_expression(validated, source, bindings, valid_eval_names=valid_annotation_names)
         _validate_semantics(validated, source, bindings)
         source, aliased_annotation_relations = _apply_eval_aliasing(source, bindings)
@@ -1648,6 +1667,7 @@ class Projector:
         # confusable-identifier hazard the filter side already rejects.
         _validate_python_surface(root.body, source)
         _validate_projection_expression(root)
+        _reject_removed_names(root, _REMOVED_SPAN_NAMES)
         translated = _ProjectionTranslator().visit(root)
         ast.fix_missing_locations(translated)
         compiled = compile(translated, filename="", mode="eval")
@@ -3016,6 +3036,17 @@ def _element_scope_error(node: ast.expr, scope: "_ElementScope") -> SyntaxError:
         f"`{source}` is not reachable inside a comprehension over `{scope.iterable}`; "
         f"a {scope.iterable} element exposes {fields}"
     )
+
+
+def _reject_removed_names(root: ast.AST, removed_names: typing.Mapping[str, str]) -> None:
+    if not removed_names:
+        return
+    for node in ast.walk(root):
+        if not isinstance(node, (ast.Name, ast.Attribute)):
+            continue
+        name = ast.unparse(node)
+        if (replacement := removed_names.get(name)) is not None:
+            raise SyntaxError(f"`{name}` is no longer supported; use {replacement}")
 
 
 def _raise_invalid_name(source_segment: str, bindings: _FilterBindings) -> typing.NoReturn:

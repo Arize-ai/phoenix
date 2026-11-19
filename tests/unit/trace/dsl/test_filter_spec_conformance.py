@@ -151,7 +151,7 @@ REJECTED = [
     ("any(d.cost > metadata['x'] for d in cost_details)", "is not reachable"),
     ("any(d.cost > float(attributes['x']) for d in cost_details)", "is not reachable"),
     ("any(d.token_type in attributes['x'] for d in cost_details)", "is not reachable"),
-    ("any(cumulative_token_count.total > 5 for d in cost_details)", "is not reachable"),
+    ("any(llm.token_count.total > 5 for d in cost_details)", "is not reachable"),
     ("any(context.span_id == 'abc' for d in cost_details)", "is not reachable"),
     ("sum(d.cost for d in cost_details if metadata['x'] > 1) > 1", "is not reachable"),
     ("any(d.cost > total_cost for d in cost_details)", "is a top-level term"),
@@ -393,56 +393,35 @@ def test_field_vocabulary_is_exhaustive() -> None:
     It binds `attributes` and `events` because the compiled expression needs
     them, so reading the documented field list out of it would wrongly suggest
     `events` is a queryable column. A bare `events` is an attribute path like
-    any other unknown identifier, as are `cumulative_*` names.
+    any other unknown identifier.
     """
     import ast as _ast
 
-    from phoenix.trace.dsl.filter import Projector, _FilterTranslator
+    from phoenix.trace.dsl.filter import _FilterTranslator
 
     rendered = _ast.unparse(_FilterTranslator().visit(_ast.parse("events == 'x'", mode="eval")))
     assert "attributes[['events']]" in rendered
 
-    for cumulative_expr, expected_path in (
-        ("cumulative_error_count == 'x'", "attributes[['cumulative_error_count']]"),
-        (
-            "cumulative_llm_token_count_prompt == 'x'",
-            "attributes[['cumulative_llm_token_count_prompt']]",
-        ),
-        (
-            "cumulative_llm_token_count_completion == 'x'",
-            "attributes[['cumulative_llm_token_count_completion']]",
-        ),
-        (
-            "cumulative_llm_token_count_total == 'x'",
-            "attributes[['cumulative_llm_token_count_total']]",
-        ),
-        (
-            "cumulative_token_count.prompt == 'x'",
-            "attributes[['cumulative_token_count', 'prompt']]",
-        ),
-        (
-            "cumulative_token_count.completion == 'x'",
-            "attributes[['cumulative_token_count', 'completion']]",
-        ),
-        (
-            "cumulative_token_count.total == 'x'",
-            "attributes[['cumulative_token_count', 'total']]",
-        ),
-    ):
-        SpanFilter(cumulative_expr)
-        rendered_filter = _ast.unparse(
-            _FilterTranslator().visit(_ast.parse(cumulative_expr, mode="eval"))
-        )
-        assert expected_path in rendered_filter
 
-    assert (
-        _ast.unparse(Projector("cumulative_llm_token_count_total").translated)
-        == "attributes[['cumulative_llm_token_count_total']]"
-    )
-    assert (
-        _ast.unparse(Projector("cumulative_token_count.total").translated)
-        == "attributes[['cumulative_token_count', 'total']]"
-    )
+@pytest.mark.parametrize(
+    "removed_name,replacement",
+    [
+        ("cumulative_llm_token_count_prompt", "llm.token_count.prompt"),
+        ("cumulative_llm_token_count_completion", "llm.token_count.completion"),
+        ("cumulative_llm_token_count_total", "llm.token_count.total"),
+        ("cumulative_token_count.prompt", "llm.token_count.prompt"),
+        ("cumulative_token_count.completion", "llm.token_count.completion"),
+        ("cumulative_token_count.total", "llm.token_count.total"),
+    ],
+)
+def test_removed_cumulative_names_are_rejected(removed_name: str, replacement: str) -> None:
+    from phoenix.trace.dsl.filter import Projector
+
+    message = f"`{removed_name}` is no longer supported; use `{replacement}`"
+    with pytest.raises(SyntaxError, match=message):
+        SpanFilter(f"{removed_name} > 1000")
+    with pytest.raises(SyntaxError, match=message):
+        Projector(removed_name)
 
 
 @pytest.mark.parametrize("condition,message", REJECTED)

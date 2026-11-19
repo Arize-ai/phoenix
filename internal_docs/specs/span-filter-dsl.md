@@ -261,8 +261,14 @@ Rewritten before translation:
 | `context.span_id` | `span_id` |
 | `context.trace_id` | `trace_id` |
 
-These are load-bearing for stored conditions. Removing one silently breaks every
-persisted expression that uses it.
+These are load-bearing for stored conditions. A removed alias would otherwise
+resolve as an attribute path that matches no span, so a removed name is rejected
+with an error that names its replacement, in conditions and projections alike:
+
+| Removed | Replacement |
+|---|---|
+| `cumulative_llm_token_count_{prompt,completion,total}` | `llm.token_count.*` for one span; the trace filter's `token_count_*` for a whole trace |
+| `cumulative_token_count.{prompt,completion,total}` | the same |
 
 ### Attribute access
 
