@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5a16dea1cd458e4f5fe3329c327e3f21>>
+ * @generated SignedSource<<dcb4a319d01172a749c8ddedfd11d251>>
  * @lightSyntaxTransform
  */
 
@@ -68,35 +68,35 @@ v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "provider",
+  "name": "modelType",
   "storageKey": null
 },
 v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "namePattern",
+  "name": "provider",
   "storageKey": null
 },
 v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "providerKey",
+  "name": "namePattern",
   "storageKey": null
 },
 v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "startTime",
+  "name": "providerKey",
   "storageKey": null
 },
 v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "modelType",
+  "name": "startTime",
   "storageKey": null
 },
 v9 = {
@@ -210,16 +210,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e0d945b7a4bc0497e248928d9b922217",
+    "cacheID": "68a4e243d4f40a0e2ea4fe8f9c8faa76",
     "id": null,
     "metadata": {},
     "name": "CloneModelButtonQuery",
     "operationKind": "query",
-    "text": "query CloneModelButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on GenerativeModel {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      startTime\n      modelType\n      tokenPrices {\n        tokenType\n        kind\n        costPerMillionTokens\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query CloneModelButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on GenerativeModel {\n      id\n      name\n      modelType\n      provider\n      namePattern\n      providerKey\n      startTime\n      tokenPrices {\n        tokenType\n        kind\n        costPerMillionTokens\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a4b224f301e72fb6035580f9593a1adb";
+(node as any).hash = "2fb1c7ca87f336f7d6601c7138c667b1";
 
 export default node;
