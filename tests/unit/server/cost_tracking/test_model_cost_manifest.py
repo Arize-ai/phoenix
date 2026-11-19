@@ -179,7 +179,7 @@ def test_flat_rate_models_carry_every_token_rate(
     [
         # Direct Mistral AI API prices from LiteLLM ``mistral/*`` IDs. OpenInference uses
         # ``llm.provider = "mistralai"`` (not LiteLLM's ``mistral`` string).
-        ("mistral/mistral-large-latest", "mistralai", 5e-7, 1.5e-6, 5e-8),
+        ("mistral/mistral-large-latest", "mistralai", 7e-7, 2.1e-6, 7e-8),
         ("mistral/mistral-small-latest", "mistralai", 1.5e-7, 6e-7, 1.5e-8),
         ("mistral/codestral-latest", "mistralai", 3e-7, 9e-7, 3e-8),
         ("mistral/pixtral-large-latest", "mistralai", 2e-6, 6e-6, 2e-7),
