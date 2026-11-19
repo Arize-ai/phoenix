@@ -19,6 +19,7 @@ export * from "./useUnnestedValue";
 export * from "./useLatestPhoenixVersion";
 export * from "./usePersistedState";
 export * from "./useOwnedPreloadedQuery";
+export * from "./useRefreshingLazyLoadQuery";
 export * from "./useScopedHotkeys";
 export * from "./useLabelFilterSearchParams";
 export * from "./useFilterSearchParam";

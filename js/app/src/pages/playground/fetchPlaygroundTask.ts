@@ -1,12 +1,12 @@
+import { fetchPlaygroundDecisionAsInstance } from "@phoenix/components/playground/fetchPlaygroundDecision";
+import { fetchPlaygroundPromptAsInstance } from "@phoenix/components/playground/fetchPlaygroundPrompt";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import type {
   PlaygroundInstance,
   PlaygroundInstanceLoadingSource,
 } from "@phoenix/store/playground";
 
-import { fetchPlaygroundDecisionAsInstance } from "./fetchPlaygroundDecision";
 import { fetchPlaygroundEvaluatorAsInstance } from "./fetchPlaygroundEvaluator";
-import { fetchPlaygroundPromptAsInstance } from "./fetchPlaygroundPrompt";
 
 export type FetchedPlaygroundTask = {
   instance: Omit<PlaygroundInstance, "id">;

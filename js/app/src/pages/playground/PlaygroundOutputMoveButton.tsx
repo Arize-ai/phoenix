@@ -6,6 +6,7 @@ import {
   TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components";
+import { getChatRole } from "@phoenix/components/playground/playgroundInstanceUtils";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import type { ChatMessage, PlaygroundNormalizedInstance } from "@phoenix/store";
 import { generateMessageId } from "@phoenix/store";
@@ -13,7 +14,6 @@ import { convertMessageToolCallsToProvider } from "@phoenix/store/playground/pla
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import type { PartialOutputToolCall } from "./PlaygroundToolCall";
-import { getChatRole } from "./playgroundUtils";
 
 export const PlaygroundOutputMoveButton = ({
   instance,

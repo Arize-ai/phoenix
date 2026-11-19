@@ -12,6 +12,11 @@ import {
 import { JSONEditor } from "@phoenix/components/code";
 import { LazyEditorWrapper } from "@phoenix/components/code/LazyEditorWrapper";
 import {
+  anthropicResponseFormatJSONSchema,
+  openAIResponseFormatJSONSchema,
+} from "@phoenix/components/playground/schemas";
+import type { PlaygroundInstanceProps } from "@phoenix/components/playground/types";
+import {
   usePlaygroundContext,
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
@@ -22,11 +27,6 @@ import {
   displayToCanonicalResponseFormat,
   getResponseFormatDisplay,
 } from "./playgroundUtils";
-import {
-  anthropicResponseFormatJSONSchema,
-  openAIResponseFormatJSONSchema,
-} from "./schemas";
-import type { PlaygroundInstanceProps } from "./types";
 
 /**
  * The minimum height for the editor before it is initialized.

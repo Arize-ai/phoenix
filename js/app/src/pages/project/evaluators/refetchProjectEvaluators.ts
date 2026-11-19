@@ -20,10 +20,12 @@ const query = graphql`
           edges {
             node {
               ...ProjectEvaluatorsTable_row
-              ...ProjectEvaluatorsTable_costs @arguments(timeRange: $timeRange)
               ...ProjectEvaluatorsTable_failures
                 @arguments(timeRange: $timeRange)
               ...ProjectEvaluatorsTable_lag @arguments(timeRange: $timeRange)
+              ...ProjectEvaluatorCost_cost
+                @defer
+                @arguments(timeRange: $timeRange)
             }
           }
           pageInfo {

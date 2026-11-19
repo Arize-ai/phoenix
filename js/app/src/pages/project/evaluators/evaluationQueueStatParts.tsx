@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useState } from "react";
 import { Focusable } from "react-aria";
 
 import {
@@ -12,6 +12,7 @@ import {
 } from "@phoenix/components";
 import type { BadgeVariant } from "@phoenix/components/core/badge";
 import { Badge } from "@phoenix/components/core/badge";
+import { useInterval } from "@phoenix/hooks/useInterval";
 import {
   formatQueueCount,
   MAX_QUEUE_COUNT,
@@ -33,7 +34,8 @@ const QUEUE_STATS_POLL_INTERVAL_MS = 30_000;
 /**
  * Polls the queue stats: a fetch key that changes on every poll or refresh.
  * Call it once per page, so the stats and charts refresh together. Paused
- * while `isPolling` is false; a refresh still changes the key.
+ * while `isPolling` is false or the page is hidden; a refresh still changes
+ * the key. When the page is shown again while polling, it polls once.
  */
 export function useQueueStatsPoll({
   refreshKey,
@@ -43,19 +45,13 @@ export function useQueueStatsPoll({
   isPolling?: boolean;
 }) {
   const [pollCount, setPollCount] = useState(0);
-  useEffect(() => {
-    const interval = isPolling
-      ? setInterval(() => {
-          // Keep the current stats up while the next poll loads.
-          startTransition(() => setPollCount((count) => count + 1));
-        }, QUEUE_STATS_POLL_INTERVAL_MS)
-      : null;
-    return () => {
-      if (interval != null) {
-        clearInterval(interval);
-      }
-    };
-  }, [isPolling]);
+  useInterval(
+    () => {
+      // Keep the current stats up while the next poll loads.
+      startTransition(() => setPollCount((count) => count + 1));
+    },
+    isPolling ? QUEUE_STATS_POLL_INTERVAL_MS : null
+  );
   return { fetchKey: `${refreshKey}:${pollCount}` };
 }
 

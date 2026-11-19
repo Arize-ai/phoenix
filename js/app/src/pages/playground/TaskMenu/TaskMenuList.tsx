@@ -16,12 +16,12 @@ import {
 } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
-import type { PlaygroundTaskType } from "@phoenix/store/playground";
-
 import {
   searchablePickerListCSS,
   searchablePickerMenuCSS,
-} from "../searchablePickerStyles";
+} from "@phoenix/components/playground/searchablePickerStyles";
+import type { PlaygroundTaskType } from "@phoenix/store/playground";
+
 import type { TaskMenuSection, TaskMenuTab } from "./taskMenuItems";
 
 const taskListCSS = css`

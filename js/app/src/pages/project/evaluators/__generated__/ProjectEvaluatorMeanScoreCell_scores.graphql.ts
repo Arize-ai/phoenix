@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<df0a596517000e9ceb4a501fee738935>>
+ * @generated SignedSource<<0549e3b19befb089902c715fad81259b>>
  * @lightSyntaxTransform
  */
 
@@ -12,13 +12,6 @@ import { FragmentRefs } from "relay-runtime";
 export type ProjectEvaluatorMeanScoreCell_scores$data = {
   readonly annotationScoreMetrics?: ReadonlyArray<{
     readonly annotationName: string;
-    readonly previousSummary: {
-      readonly labelFractions: ReadonlyArray<{
-        readonly fraction: number;
-        readonly label: string;
-      }>;
-      readonly meanScore: number | null;
-    } | null;
     readonly series: ReadonlyArray<{
       readonly count: number;
       readonly labelFractions: ReadonlyArray<{
@@ -39,6 +32,7 @@ export type ProjectEvaluatorMeanScoreCell_scores$data = {
       readonly meanScore: number | null;
       readonly scoreCount: number;
     } | null;
+    readonly " $fragmentSpreads": FragmentRefs<"ProjectEvaluatorMeanScoreCell_previousSummary">;
   }>;
   readonly " $fragmentType": "ProjectEvaluatorMeanScoreCell_scores";
 };
@@ -179,17 +173,30 @@ return {
               "storageKey": null
             },
             {
-              "alias": null,
-              "args": null,
-              "concreteType": "AnnotationSummary",
-              "kind": "LinkedField",
-              "name": "previousSummary",
-              "plural": false,
+              "kind": "Defer",
               "selections": [
-                (v0/*:: as any*/),
-                (v2/*:: as any*/)
-              ],
-              "storageKey": null
+                {
+                  "kind": "InlineDataFragmentSpread",
+                  "name": "ProjectEvaluatorMeanScoreCell_previousSummary",
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "AnnotationSummary",
+                      "kind": "LinkedField",
+                      "name": "previousSummary",
+                      "plural": false,
+                      "selections": [
+                        (v0/*:: as any*/),
+                        (v2/*:: as any*/)
+                      ],
+                      "storageKey": null
+                    }
+                  ],
+                  "args": null,
+                  "argumentDefinitions": []
+                }
+              ]
             },
             {
               "alias": null,
@@ -230,6 +237,6 @@ return {
 };
 })();
 
-(node as any).hash = "6baa0cb496e08ddef6c016bc2609e253";
+(node as any).hash = "3da97d347bcd5e2711fd3d055d820986";
 
 export default node;

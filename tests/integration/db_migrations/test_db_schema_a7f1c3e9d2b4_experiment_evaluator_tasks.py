@@ -69,14 +69,11 @@ async def test_experiment_evaluator_tasks_schema(
         )
     assert await _run_async(_engine, _count_evaluator_tasks) == 1
 
-    # The downgrade refuses while an EVALUATOR job exists, and leaves the schema in place;
-    # the CHECK narrowing runs first so nothing else of the migration is undone.
+    # The downgrade refuses while an EVALUATOR job exists, before any DDL, so nothing of the
+    # migration is undone.
     with pytest.raises(Exception, match="valid_type"):
         await _down(_engine, _alembic_config, _DOWN, _schema)
     assert await _run_async(_engine, _count_evaluator_tasks) == 1
-    # SQLite batch mode copies the table through a temporary one, and the test connection
-    # commits that DDL before the failing copy, so the leftover has to go before retrying.
-    await _run_async(_engine, _drop_batch_leftover)
 
     # Without EVALUATOR jobs it succeeds, drops the table and narrows the CHECK again.
     await _run_async(_engine, lambda conn: _delete_job(conn, evaluator_experiment_id))
@@ -164,11 +161,6 @@ def _insert_evaluator_task(
         ),
         {"id": experiment_id, "type": task_type, "evaluator_kind": evaluator_kind},
     )
-    conn.commit()
-
-
-def _drop_batch_leftover(conn: Connection) -> None:
-    conn.execute(text("DROP TABLE IF EXISTS _alembic_tmp_experiment_jobs"))
     conn.commit()
 
 

@@ -25,6 +25,7 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.decision_evaluators import adapt_scoring_policy
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.context import Context
+from phoenix.server.api.dataloaders.annotation_summaries import Key as AnnotationSummaryKey
 from phoenix.server.api.dataloaders.project_evaluator_latest_outcomes import (
     ProjectEvaluatorLatestOutcomes,
 )
@@ -39,6 +40,7 @@ from phoenix.server.api.types.AnnotationConfig import (
     FreeformAnnotationConfig,
 )
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
+from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.DecisionScoringPolicy import DecisionScoringPolicy
 from phoenix.server.api.types.EvaluationActivity import (
     EVALUATION_ACTIVITY_RETENTION_NOTE,
@@ -57,6 +59,7 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.SandboxConfig import Language
+from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.evaluators.input_descriptions import (
     described_code_input_schema,
     described_llm_input_schema,
@@ -1484,13 +1487,6 @@ class EvaluatorAnnotationScoreMetrics:
     summary: Optional[AnnotationSummary] = strawberry.field(
         description="Aggregates over the requested time range, or null when the range holds none."
     )
-    previous_summary: Optional[AnnotationSummary] = strawberry.field(
-        description=(
-            "Aggregates over the previous window, for change-over-time comparisons: "
-            "previousTimeRange when given, otherwise the equal-length window immediately "
-            "before the requested time range."
-        )
-    )
     series: list[EvaluatorScoreSeriesBin] = strawberry.field(
         description=(
             "Mean score per time bin across the requested time range. Bins follow the "
@@ -1498,7 +1494,22 @@ class EvaluatorAnnotationScoreMetrics:
             "time, sessions by their own."
         )
     )
+    previous_summary_key: strawberry.Private[AnnotationSummaryKey]
 
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Aggregates over the previous window, for change-over-time comparisons: "
+            "previousTimeRange when given, otherwise the equal-length window immediately "
+            "before the requested time range."
+        )
+    )
+    async def previous_summary(self, info: Info[Context, None]) -> Optional[AnnotationSummary]:
+        return await info.context.data_loaders.annotation_summaries.load(self.previous_summary_key)
+
+
+# Kinds whose evaluations call a model, so their traces carry model cost. Code and
+# built-in evaluators write traces too, but with no model spans.
+_COSTED_EVALUATOR_KINDS: frozenset[models.EvaluatorKind] = frozenset({"LLM", "DECISION"})
 
 _ANNOTATION_KIND_BY_TARGET: dict[str, Literal["span", "trace", "session"]] = {
     "SPAN": "span",
@@ -1539,6 +1550,61 @@ class ProjectEvaluator(Node):
         from .Project import Project
 
         return Project(id=record.trace_project_id)
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Model cost of this evaluator's traced evaluations in the time range, read from "
+            "its trace project. Null when the cost is not measured: the evaluator makes no "
+            "model calls (code and built-in evaluators), or tracing is off."
+        )
+    )
+    async def cost_summary(
+        self, info: Info[Context, None], time_range: Optional[TimeRange] = UNSET
+    ) -> Optional[SpanCostSummary]:
+        trace_project_id = await self._cost_trace_project_id(info)
+        if trace_project_id is None:
+            return None
+        summary = await info.context.data_loaders.span_cost_summary_by_project.load(
+            (trace_project_id, time_range or None, None, None)
+        )
+        return SpanCostSummary(
+            prompt=CostBreakdown(tokens=summary.prompt.tokens, cost=summary.prompt.cost),
+            completion=CostBreakdown(
+                tokens=summary.completion.tokens, cost=summary.completion.cost
+            ),
+            total=CostBreakdown(tokens=summary.total.tokens, cost=summary.total.cost),
+        )
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Number of this evaluator's evaluations in the time range that wrote a trace, the "
+            "denominator of its average cost. Null whenever costSummary is null."
+        )
+    )
+    async def traced_evaluation_count(
+        self, info: Info[Context, None], time_range: Optional[TimeRange] = UNSET
+    ) -> Optional[int]:
+        trace_project_id = await self._cost_trace_project_id(info)
+        if trace_project_id is None:
+            return None
+        return await info.context.data_loaders.record_counts.load(
+            ("trace", trace_project_id, time_range or None, None, None)
+        )
+
+    async def _cost_trace_project_id(self, info: Info[Context, None]) -> Optional[int]:
+        """
+        The trace project to measure cost from, or None when the cost is not measured,
+        so callers skip the trace and span cost scans. A tracing-off evaluator may still
+        have traces from before tracing was turned off; they cover only part of the
+        range, so they are not reported as its cost.
+        """
+        record = await self._get_record(info)
+        if not record.tracing_enabled:
+            return None
+        evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
+        if evaluator is None or evaluator.kind not in _COSTED_EVALUATOR_KINDS:
+            return None
+        return record.trace_project_id
 
     @strawberry.field
     async def evaluator(self, info: Info[Context, None]) -> Evaluator:
@@ -1715,22 +1781,8 @@ class ProjectEvaluator(Node):
         project_rowid = record.project_id
 
         async def load_metrics(annotation_name: str) -> EvaluatorAnnotationScoreMetrics:
-            summary, previous_summary, bins_by_bucket = await asyncio.gather(
-                loaders.annotation_summaries.load(
-                    (kind, project_rowid, time_range, None, None, annotation_name)
-                ),
-                loaders.annotation_summaries.load(
-                    (kind, project_rowid, previous_window, None, None, annotation_name)
-                ),
-                loaders.annotation_mean_score_time_series.load(
-                    (
-                        kind,
-                        project_rowid,
-                        (window_start, window_end),
-                        time_bins,
-                        annotation_name,
-                    )
-                ),
+            summary, bins_by_bucket = await loaders.annotation_score_metrics.load(
+                (kind, project_rowid, (window_start, window_end), time_bins, annotation_name)
             )
             series = [
                 EvaluatorScoreSeriesBin(
@@ -1756,8 +1808,15 @@ class ProjectEvaluator(Node):
             return EvaluatorAnnotationScoreMetrics(
                 annotation_name=annotation_name,
                 summary=summary,
-                previous_summary=previous_summary,
                 series=series,
+                previous_summary_key=(
+                    kind,
+                    project_rowid,
+                    previous_window,
+                    None,
+                    None,
+                    annotation_name,
+                ),
             )
 
         return list(await asyncio.gather(*map(load_metrics, annotation_names)))

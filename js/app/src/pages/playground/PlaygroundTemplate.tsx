@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { Suspense, useCallback, useMemo } from "react";
+import { Suspense } from "react";
 
 import {
   Button,
@@ -16,119 +16,48 @@ import {
   View,
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
+import { DecisionPromptEditor } from "@phoenix/components/decision/DecisionPromptEditor";
+import { PlaygroundInstanceModelControls } from "@phoenix/components/playground/model/PlaygroundInstanceModelControls";
+import type { PlaygroundInstanceProps } from "@phoenix/components/playground/types";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "@phoenix/pages/playground/constants";
-import { DecisionPromptEditor } from "@phoenix/pages/playground/DecisionPromptEditor";
 import { DuplicateAsChatButton } from "@phoenix/pages/playground/DuplicateAsChatButton";
-import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import { PlaygroundChatTemplate } from "@phoenix/pages/playground/PlaygroundChatTemplate";
-import {
-  PlaygroundInstanceDeleteButton,
-  PlaygroundInstanceModelControls,
-} from "@phoenix/pages/playground/PlaygroundInstanceControls";
-import { PromptMenu } from "@phoenix/pages/playground/PromptMenu";
+import { PlaygroundInstanceDeleteButton } from "@phoenix/pages/playground/PlaygroundInstanceDeleteButton";
 import { SaveDecisionDialog } from "@phoenix/pages/playground/SaveDecisionDialog";
 import { TaskMenu } from "@phoenix/pages/playground/TaskMenu";
 import { UpsertPromptFromTemplateDialog } from "@phoenix/pages/playground/UpsertPromptFromTemplateDialog";
 import { isDecisionInstance } from "@phoenix/store/playground";
 
-import type { PlaygroundInstanceProps } from "./types";
+const taskHeaderStartCSS = css`
+  overflow: hidden;
+`;
 
 interface PlaygroundTemplateProps extends PlaygroundInstanceProps {
   appendedMessagesPath?: string | null;
   availablePaths: string[] | undefined;
-  /**
-   * Pick the task with the playground page's task menu (prompts, decisions,
-   * evaluators, new drafts) instead of the prompt-only menu the evaluator dialogs use.
-   */
-  taskMenu?: boolean;
-  /** Enable the Decision tab in this instance's model menu. */
-  supportsDecisionModels?: boolean;
-  /** Shown above the Decision tab's providers; see {@link ModelMenu}. */
-  decisionTabNotice?: string;
 }
 
-export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
-  const instanceId = props.playgroundInstanceId;
-  const updateInstance = usePlaygroundContext((state) => state.updateInstance);
-  const loadInstance = usePlaygroundContext((state) => state.loadInstance);
-  const setTemplateFormat = usePlaygroundContext(
-    (state) => state.setTemplateFormat
-  );
+/**
+ * One task column of the playground page: its task menu, save and model
+ * controls, and the editor for its prompt or decision.
+ */
+export function PlaygroundTemplate({
+  playgroundInstanceId: instanceId,
+  appendedMessagesPath,
+  availablePaths,
+}: PlaygroundTemplateProps) {
   const instances = usePlaygroundContext((state) => state.instances);
   const instance = instances.find((instance) => instance.id === instanceId);
   const index = instances.findIndex((instance) => instance.id === instanceId);
-  const isDecision = usePlaygroundContext((state) =>
-    isDecisionInstance(
-      state.instances.find((candidate) => candidate.id === instanceId)
-    )
-  );
-  const prompt = instance?.prompt;
-  const promptId = prompt?.id;
-  const promptVersionId = prompt?.version;
-  const promptTagName = prompt?.tag ?? null;
   const dirty = usePlaygroundContext(
     (state) => state.dirtyInstances[instanceId]
-  );
-
-  const onChangePrompt = useCallback(
-    async ({
-      promptId,
-      promptVersionId,
-      promptTagName,
-    }: {
-      promptId: string | null;
-      promptVersionId: string | null;
-      promptTagName: string | null;
-    }) => {
-      if (!promptId && !promptVersionId && !promptTagName) {
-        const patch = { prompt: null };
-        updateInstance({ instanceId, patch, dirty: false });
-        return;
-      }
-
-      const response = await fetchPlaygroundPromptAsInstance({
-        promptId,
-        promptVersionId,
-        tagName: promptTagName,
-      });
-      if (response) {
-        if (instances.length <= 1) {
-          setTemplateFormat(
-            response.promptVersion.templateFormat as Parameters<
-              typeof setTemplateFormat
-            >[0]
-          );
-        }
-        loadInstance({ instanceId, instance: response.instance });
-      }
-    },
-    [
-      instanceId,
-      instances.length,
-      updateInstance,
-      loadInstance,
-      setTemplateFormat,
-    ]
   );
 
   if (!instance) {
     throw new Error(`Playground instance ${instanceId} not found`);
   }
-
-  // A prompt is "selected" in the PromptMenu when both a promptId and promptVersionId
-  // are available in the instance
-  const promptMenuValue = useMemo(() => {
-    if (!promptId || !promptVersionId) return null;
-    return {
-      promptId,
-      promptVersionId,
-      promptTagName,
-    };
-  }, [promptId, promptVersionId, promptTagName]);
-
-  const { disablePromptMenu, disablePromptSave, disableAlphabeticIndex } =
-    props;
+  const isDecision = isDecisionInstance(instance);
 
   return (
     <>
@@ -140,27 +69,17 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
           marginEnd="size-100"
           minWidth={0}
           flex="1 1 auto"
-          css={css`
-            overflow: hidden;
-          `}
+          css={taskHeaderStartCSS}
         >
-          {!disableAlphabeticIndex ? (
-            <View flex="none">
-              <AlphabeticIndexIcon index={index} />
-            </View>
-          ) : null}
-          {/* The task menu picks prompts and decisions alike; the prompt-only
-              menu has nothing to offer a decision. */}
-          {disablePromptMenu ? null : props.taskMenu ? (
-            // A new prompt task fetches its prompt options; without a boundary
-            // here that hides the whole playground until they arrive.
-            <Suspense fallback={<Loading size="S" />}>
-              <TaskMenu instanceId={instanceId} />
-            </Suspense>
-          ) : !isDecision ? (
-            <PromptMenu value={promptMenuValue} onChange={onChangePrompt} />
-          ) : null}
-          {disablePromptSave ? null : isDecision ? (
+          <View flex="none">
+            <AlphabeticIndexIcon index={index} />
+          </View>
+          {/* A new prompt task fetches its prompt options; without a boundary
+              here that hides the whole playground until they arrive. */}
+          <Suspense fallback={<Loading size="S" />}>
+            <TaskMenu instanceId={instanceId} />
+          </Suspense>
+          {isDecision ? (
             <SaveDecisionButton dirty={dirty} instanceId={instanceId} />
           ) : (
             <SaveButton instanceId={instanceId} dirty={dirty} />
@@ -169,12 +88,12 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
         <Flex direction="row" gap="size-100" flex="none">
           <PlaygroundInstanceModelControls
             instanceId={instanceId}
-            disableEphemeralRouting={props.disableEphemeralRouting}
-            supportsDecisionModels={props.supportsDecisionModels}
-            decisionTabNotice={props.decisionTabNotice}
+            modelTypes="CHAT_OR_DECISION"
           />
-          {props.disableDuplicate ? null : <DuplicateButton {...props} />}
-          {isDecision ? <DuplicateAsChatButton {...props} /> : null}
+          <DuplicateButton playgroundInstanceId={instanceId} />
+          {isDecision ? (
+            <DuplicateAsChatButton playgroundInstanceId={instanceId} />
+          ) : null}
           {instances.length > 1 ? (
             <PlaygroundInstanceDeleteButton instanceId={instanceId} />
           ) : null}
@@ -184,11 +103,15 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
         {isDecision ? (
           <DecisionPromptEditor
             playgroundInstanceId={instanceId}
-            availablePaths={props.availablePaths}
+            availablePaths={availablePaths}
           />
         ) : instance.template.__type === "chat" ? (
           <Suspense>
-            <PlaygroundChatTemplate {...props} />
+            <PlaygroundChatTemplate
+              playgroundInstanceId={instanceId}
+              availablePaths={availablePaths}
+              appendedMessagesPath={appendedMessagesPath}
+            />
           </Suspense>
         ) : (
           "Completion Template"
