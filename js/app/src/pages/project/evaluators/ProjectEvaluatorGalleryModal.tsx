@@ -24,16 +24,19 @@ import {
   Heading,
   Icon,
   type IconKey,
+  Input,
   List,
   ListBox,
   ListBoxItem,
   ListItem,
   Popover,
+  SearchField,
   Select,
   SelectChevronUpDownIcon,
   SelectValue,
   Skeleton,
   Text,
+  useFilter,
   ViewportModal,
   ViewportModalOverlay,
 } from "@phoenix/components";
@@ -43,6 +46,9 @@ import {
   PythonBlockWithCopy,
   TypeScriptBlockWithCopy,
 } from "@phoenix/components/code";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
+import { SearchIcon } from "@phoenix/components/core/field";
+import { Icons } from "@phoenix/components/core/icon";
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { DecisionEvaluatorSummary } from "@phoenix/components/evaluators/decision/DecisionEvaluatorSummary";
 import { ErrorBoundary } from "@phoenix/components/exception";
@@ -319,8 +325,11 @@ function EvaluatorGallery({
     { projectId },
     { fetchPolicy: "store-and-network" }
   );
-  const templates = data.evaluatorGalleryConfigs;
-  const customEvaluators = useMemo(
+  const { contains } = useFilter({ sensitivity: "base" });
+  const [nameQuery, setNameQuery] = useState("");
+  const trimmedNameQuery = nameQuery.trim();
+  const isFilteredByName = trimmedNameQuery !== "";
+  const allCustomEvaluators = useMemo(
     () =>
       data.evaluators.edges
         .map(({ evaluator }) => evaluator)
@@ -328,6 +337,22 @@ function EvaluatorGallery({
           Object.hasOwn(CUSTOM_EVALUATOR_KINDS, evaluator.__typename)
         ),
     [data.evaluators.edges]
+  );
+  const hasGalleryItems =
+    allCustomEvaluators.length > 0 || data.evaluatorGalleryConfigs.length > 0;
+  const templates = useMemo(
+    () =>
+      data.evaluatorGalleryConfigs.filter((template) =>
+        contains(template.name, trimmedNameQuery)
+      ),
+    [contains, data.evaluatorGalleryConfigs, trimmedNameQuery]
+  );
+  const customEvaluators = useMemo(
+    () =>
+      allCustomEvaluators.filter((evaluator) =>
+        contains(evaluator.name, trimmedNameQuery)
+      ),
+    [allCustomEvaluators, contains, trimmedNameQuery]
   );
   const hasCustomEvaluators = customEvaluators.length > 0;
   const categories = useMemo(() => {
@@ -542,19 +567,21 @@ function EvaluatorGallery({
                 })}
               </ListBoxSection>
             ) : null}
-            <ListBoxSection id="categories">
-              <Header className="project-evaluator-gallery__category-section-heading">
-                <Text
-                  elementType="h2"
-                  size="XS"
-                  weight="heavy"
-                  color="text-500"
-                >
-                  Categories
-                </Text>
-              </Header>
-              {categoryItems.map(renderSectionItem)}
-            </ListBoxSection>
+            {categoryItems.length > 0 ? (
+              <ListBoxSection id="categories">
+                <Header className="project-evaluator-gallery__category-section-heading">
+                  <Text
+                    elementType="h2"
+                    size="XS"
+                    weight="heavy"
+                    color="text-500"
+                  >
+                    Categories
+                  </Text>
+                </Header>
+                {categoryItems.map(renderSectionItem)}
+              </ListBoxSection>
+            ) : null}
           </ListBox>
         </div>
       </nav>
@@ -567,6 +594,21 @@ function EvaluatorGallery({
           <div className="project-evaluator-gallery__compact-add-evaluator-menu">
             <EvaluatorGalleryAddMenu />
           </div>
+          <SearchField
+            className="project-evaluator-gallery__search-field"
+            aria-label="Search evaluators by name"
+            value={nameQuery}
+            onChange={(value) => {
+              setNameQuery(value);
+              galleryScrollRegionRef.current?.scrollTo({
+                top: 0,
+                behavior: "instant",
+              });
+            }}
+          >
+            <SearchIcon />
+            <Input placeholder="Search by name" />
+          </SearchField>
           <Select
             aria-label="Evaluator gallery section"
             className="project-evaluator-gallery__compact-category-select"
@@ -592,19 +634,21 @@ function EvaluatorGallery({
                     })}
                   </ListBoxSection>
                 ) : null}
-                <ListBoxSection id="compact-categories">
-                  <Header className="project-evaluator-gallery__category-section-heading">
-                    <Text
-                      elementType="h2"
-                      size="XS"
-                      weight="heavy"
-                      color="text-500"
-                    >
-                      Categories
-                    </Text>
-                  </Header>
-                  {categoryItems.map(renderSectionItem)}
-                </ListBoxSection>
+                {categoryItems.length > 0 ? (
+                  <ListBoxSection id="compact-categories">
+                    <Header className="project-evaluator-gallery__category-section-heading">
+                      <Text
+                        elementType="h2"
+                        size="XS"
+                        weight="heavy"
+                        color="text-500"
+                      >
+                        Categories
+                      </Text>
+                    </Header>
+                    {categoryItems.map(renderSectionItem)}
+                  </ListBoxSection>
+                ) : null}
               </ListBox>
             </Popover>
           </Select>
@@ -620,6 +664,13 @@ function EvaluatorGallery({
           onSelectionChange={(keys) =>
             setSelection(getGallerySelectionFromKeys(keys, galleryItemsByKey))
           }
+          renderEmptyState={() => (
+            <CompactEmptyState
+              icon={<Icon svg={<Icons.Scale />} />}
+              description="No evaluators"
+              isFiltered={isFilteredByName}
+            />
+          )}
           onAction={(key) => {
             if (typeof key !== "string") return;
             const item = galleryItemsByKey.get(key);
@@ -802,7 +853,7 @@ function EvaluatorGallery({
           />
         ) : (
           <Text size="S" color="text-500">
-            {galleryItems.length === 0
+            {!hasGalleryItems
               ? "No evaluators or templates are available in the gallery."
               : "Select an evaluator or template to see details."}
           </Text>
@@ -1510,6 +1561,21 @@ const galleryCSS = css`
   }
 
   .project-evaluator-gallery__template-controls {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    gap: var(--global-dimension-size-100);
+    padding: var(--project-evaluator-gallery-column-padding)
+      var(--project-evaluator-gallery-column-padding) 0;
+  }
+
+  .project-evaluator-gallery__search-field {
+    align-self: flex-start;
+    width: min(100%, max(50%, var(--global-dimension-size-3600)));
+  }
+
+  .project-evaluator-gallery__compact-add-evaluator-menu,
+  .project-evaluator-gallery__compact-category-select {
     display: none;
   }
 
@@ -1519,10 +1585,7 @@ const galleryCSS = css`
     display: flex;
     flex-direction: column;
     gap: var(--global-dimension-size-400);
-    padding: calc(
-        var(--project-evaluator-gallery-column-padding) +
-          var(--global-dimension-size-100)
-      )
+    padding: var(--global-dimension-size-100)
       var(--project-evaluator-gallery-column-padding)
       var(--project-evaluator-gallery-column-padding);
     overflow-y: auto;
@@ -1604,12 +1667,9 @@ const galleryCSS = css`
       width: 100%;
     }
 
-    .project-evaluator-gallery__template-controls {
-      display: flex;
-      flex: none;
-      flex-direction: column;
-      padding: var(--project-evaluator-gallery-column-padding)
-        var(--project-evaluator-gallery-column-padding) 0;
+    .project-evaluator-gallery__search-field {
+      align-self: stretch;
+      width: auto;
     }
 
     .project-evaluator-gallery__compact-add-evaluator-menu {
@@ -1621,10 +1681,6 @@ const galleryCSS = css`
     .project-evaluator-gallery__templates {
       grid-column: 1;
       grid-row: 1;
-    }
-
-    .project-evaluator-gallery__template-card-scroll-region {
-      padding-top: var(--global-dimension-size-100);
     }
 
     .project-evaluator-gallery__details {
