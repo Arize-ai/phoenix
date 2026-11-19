@@ -36,7 +36,7 @@ def _write_wheel(*, directory: Path, files: dict[str, bytes]) -> Path:
 def test_publish_wheel_check_skips_only_duplicate_files(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Identical files pass the publish check; the other checks still run."""
+    """Identical files pass the publish check, but a `.pyc` file still fails W001."""
     wheel_path = _write_wheel(
         directory=tmp_path,
         files={

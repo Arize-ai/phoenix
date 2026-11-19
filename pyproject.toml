@@ -291,15 +291,14 @@ artifacts = [
   "src/phoenix/server/api/helpers/substitutions/server.yaml",
 ]
 
-# Read by `check-wheel-contents` in .github/workflows/publish.yaml, which runs from the
-# repo root. Every check except W002 (duplicate files): each skill directory in the wheel
-# must be self-contained, so a skill that ships to both the MCP server and PXI, or two
-# skills that share a reference file, carry identical copies. The workflow's
-# `--ignore W004` replaces a configured `ignore` instead of adding to it, so W002 is
-# left out of `select` rather than listed under `ignore`. A check added in a later
-# check-wheel-contents release runs only once it is added here.
-# The setting applies to every wheel checked from the repo root, so the client, evals
-# and otel wheels skip W002 too.
+# check-wheel-contents runs every check except W002 (duplicate files). Each skill
+# directory in the wheel is self-contained, so a skill that ships to both the MCP
+# server and PXI, or two skills that share a reference file, carry identical copies.
+# W002 is left out of `select` instead of listed under `ignore` because a CLI
+# `--ignore`, like the one in publish.yaml, replaces a configured `ignore`.
+# publish.yaml runs check-wheel-contents from the repo root, where it reads this file,
+# so the client, evals, and otel wheels skip W002 too. A check that a later release
+# adds stays off until it's added here.
 [tool.check-wheel-contents]
 select = ["W001", "W003", "W004", "W005", "W006", "W007", "W008", "W009", "W010", "W1", "W2"]
 
