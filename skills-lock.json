@@ -33,8 +33,8 @@
       "source": "mintlify.com",
       "sourceUrl": "https://mintlify.com/docs",
       "sourceType": "well-known",
-      "computedHash": "179fcd351ba0f5522a8816b710d5ec69dcc0366574113034379e37d76a4d00b4",
-      "wellKnownDigest": "sha256:a78c1aea5269bfee7aafe6dfba101bfba07e821a15e5eaad21cb2ba2fa45d286"
+      "computedHash": "e350d5bf10525004f86b175d301cb5ab88c21513824d52031919b03b9f526e4e",
+      "wellKnownDigest": "sha256:12156d4b34447e057a6f53e2a6496323b039f3f4d0f0dd6fbc90cb2bf3c76289"
     },
     "rewardkit": {
       "source": "harbor-framework/harbor",
