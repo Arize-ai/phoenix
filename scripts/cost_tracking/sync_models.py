@@ -112,6 +112,8 @@ PROVIDER_PREFIXES: dict[str, str | None] = {
     "zai/": "zai",
     "meta/": "meta",
     "typesafe/": "typesafe",
+    # Most Gemini models are also listed unprefixed, and that entry is the one synced.
+    "gemini/": None,
 }
 
 
@@ -160,6 +162,7 @@ def filter_models(model_ids: list[str]) -> list[str]:
     include_regexes = [re.compile(pattern) for pattern in include_patterns]
     exclude_regexes = [re.compile(pattern) for pattern in exclude_patterns]
     filtered_models = []
+    priced_model_ids = set(model_ids)
     for model_id in model_ids:
         # Models with known provider prefixes bypass include/exclude filtering
         matched, _, stripped_name = parse_provider_prefix(model_id)
@@ -169,6 +172,13 @@ def filter_models(model_ids: list[str]) -> list[str]:
             # Perplexity: only include sonar models (skip proxied models like
             # perplexity/openai/... and deprecated models)
             if model_id.startswith("perplexity/") and not stripped_name.startswith("sonar"):
+                continue
+            # A gemini/ entry is kept only for a model LiteLLM lists under that prefix alone:
+            # its twin would claim the same name pattern.
+            if model_id.startswith("gemini/") and (
+                stripped_name in priced_model_ids
+                or any(regex.search(stripped_name) for regex in exclude_regexes)
+            ):
                 continue
             filtered_models.append(model_id)
             continue

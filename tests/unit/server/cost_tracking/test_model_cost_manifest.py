@@ -288,8 +288,9 @@ def built_in_lookup(manifest: dict[str, Any]) -> CostModelLookup:
         ("gpt-5.6-sol", "gpt-5.6-sol"),
         ("gpt-5.6-terra", "gpt-5.6-terra"),
         ("gpt-5.6-luna", "gpt-5.6-luna"),
-        # LiteLLM lists Argon only under gemini/ and vertex_ai/, so its entry is manual.
-        ("gemini-4-argon", "gemini-4-argon"),
+        # LiteLLM lists the Gemini 4 models only under gemini/ and vertex_ai/.
+        ("gemini-4-argon", "gemini/gemini-4-argon"),
+        ("gemini-4-neon", "gemini/gemini-4-neon"),
         ("muse-wonder-1.0", "meta/muse-wonder-1.0"),
     ],
 )
@@ -479,6 +480,7 @@ def test_decision_entries_carry_expected_rates_and_tiers(manifest: dict[str, Any
         ("jev-latest", "typesafe", "typesafe/jev-latest", None),
         ("jev-latest", None, "typesafe/jev-latest", None),
         ("jev-1.13.0", "typesafe", "typesafe/jev-1.13.0", None),
+        ("gemini-decision-1", None, "gemini/gemini-decision-1", None),
     ],
 )
 def test_decision_span_model_names_resolve_apart_from_llm_entries(

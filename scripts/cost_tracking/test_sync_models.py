@@ -413,6 +413,30 @@ def test_extract_litellm_entries_filters_embedding_models_by_name(
     assert [entry.name for entry in entries] == ([model_id] if synced else [])
 
 
+def test_extract_litellm_entries_keeps_gemini_prefixed_models_without_an_unprefixed_twin() -> None:
+    chat = {"mode": "chat", "input_cost_per_token": 3e-6, "output_cost_per_token": 1.5e-5}
+    entries = extract_litellm_entries(
+        {
+            "gemini-2.5-pro": chat,
+            "gemini/gemini-2.5-pro": chat,
+            "gemini/gemini-4-neon": chat,
+            "gemini/gemini-1.5-pro": chat,
+            "gemini/gemini-decision-1": {
+                "mode": "decisions",
+                "input_cost_per_token": 1e-7,
+                "output_cost_per_token": 0.0,
+            },
+        }
+    )
+    assert sorted(
+        (entry.name, entry.type, entry.provider, entry.name_pattern) for entry in entries
+    ) == [
+        ("gemini-2.5-pro", "LLM", None, "gemini-2.5-pro"),
+        ("gemini/gemini-4-neon", "LLM", None, "gemini-4-neon"),
+        ("gemini/gemini-decision-1", "DECISION", None, "gemini-decision-1"),
+    ]
+
+
 def test_extract_litellm_entries_decision_entry_does_not_borrow_chat_rates() -> None:
     # Only the _decisions fields price the DECISION entry; without an output rate among them,
     # it has no pricing and isn't emitted.
