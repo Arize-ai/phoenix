@@ -4,7 +4,7 @@ The traces.last_span_ingested_at index is created inside this migration's transa
 honor PHOENIX_MIGRATE_INDEX_CONCURRENTLY because the column is added in the same transaction.
 
 Revision ID: a7f1c3e9d2b4
-Revises: 7c2bc8452d60
+Revises: 5d472ea4b4be
 Create Date: 2026-06-17 00:00:00.000000
 
 """
@@ -49,7 +49,7 @@ _JOB_TYPES_AFTER = "type IN ('PROMPT', 'EVAL_ONLY', 'EVALUATOR')"
 
 # revision identifiers, used by Alembic.
 revision: str = "a7f1c3e9d2b4"
-down_revision: Union[str, None] = "7c2bc8452d60"
+down_revision: Union[str, None] = "5d472ea4b4be"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
