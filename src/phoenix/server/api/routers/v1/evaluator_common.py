@@ -2,6 +2,7 @@
 
 from collections.abc import Mapping
 from contextlib import contextmanager
+from functools import partial
 from typing import Annotated, Iterator, Literal, Optional, Sequence, Union
 
 from pydantic import ConfigDict, Field, ValidationError
@@ -27,6 +28,7 @@ from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.problem_details import ProblemException, problem_responses
 from phoenix.server.api.routers.v1.utils import Responses
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.daemons.evaluator_purger import wake_evaluator_purger
 from phoenix.server.evaluators.services import definitions
 
 EvaluatorType = Literal["llm", "code", "builtin", "decision"]
@@ -206,6 +208,7 @@ def evaluator_service_context(request: Request) -> definitions.EvaluatorServiceC
         db=request.app.state.db,
         sandbox_runtime=request.app.state.sandbox_runtime,
         user_id=int(request.user.identity) if "user" in request.scope else None,
+        wake_evaluator_purger=partial(wake_evaluator_purger, request.app.state),
     )
 
 

@@ -6,7 +6,6 @@ from datetime import datetime, timezone
 from secrets import token_hex
 from typing import Optional
 
-from sqlalchemy import delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
@@ -35,6 +34,9 @@ from phoenix.server.evaluators.services.definitions import (
 )
 from phoenix.server.evaluators.services.management import (
     generate_unique_evaluator_name,
+    get_live_dataset_evaluator,
+    get_live_project_evaluator,
+    release_decision_evaluator_tag,
     validate_project_evaluator_project,
     validate_project_evaluator_target_update,
 )
@@ -49,6 +51,7 @@ from phoenix.server.evaluators.services.project_bindings import (
     project_binding_name_taken,
     validate_decision_project_mapping,
 )
+from phoenix.server.evaluators.services.purge import purge_deleted_bindings_of_evaluator
 from phoenix.server.evaluators.snapshots import get_decision_evaluator
 from phoenix.server.evaluators.validation import validate_decision_input_mapping
 
@@ -216,12 +219,10 @@ async def delete_decision_evaluator(
     context: EvaluatorServiceContext, evaluator_id: GlobalID
 ) -> None:
     """Delete an unbound judge with the tag it runs through; the decision is kept."""
+    row_id = _id(evaluator_id, "DecisionEvaluator")
+    await purge_deleted_bindings_of_evaluator(context.db, row_id)
     async with context.db() as session:
-        evaluator = await session.get(
-            models.DecisionEvaluator,
-            _id(evaluator_id, "DecisionEvaluator"),
-            with_for_update=True,
-        )
+        evaluator = await session.get(models.DecisionEvaluator, row_id, with_for_update=True)
         if evaluator is None:
             return
         await refuse_bound_evaluator(session, evaluator.id, evaluator_id)
@@ -229,9 +230,7 @@ async def delete_decision_evaluator(
         await session.delete(evaluator)
         await session.flush()
         if tag_id is not None:
-            await session.execute(
-                delete(models.DecisionVersionTag).where(models.DecisionVersionTag.id == tag_id)
-            )
+            await release_decision_evaluator_tag(session, tag_id)
 
 
 @dataclass(kw_only=True)
@@ -476,8 +475,8 @@ async def update_dataset_decision_evaluator(
     assert name is not None and input_mapping is not None
     try:
         async with context.db() as session:
-            binding = await session.get(
-                models.DatasetEvaluators, _id(dataset_evaluator_id, "DatasetEvaluator")
+            binding = await get_live_dataset_evaluator(
+                session, _id(dataset_evaluator_id, "DatasetEvaluator")
             )
             if binding is None:
                 raise NotFound("Dataset evaluator not found")
@@ -589,7 +588,7 @@ async def update_project_decision_evaluator(
     await clear_queue_before_enabling(context.db, project_evaluator_id, input.enabled)
     try:
         async with context.db() as session:
-            binding = await session.get(models.ProjectEvaluator, project_evaluator_id)
+            binding = await get_live_project_evaluator(session, project_evaluator_id)
             if binding is None:
                 raise NotFound("Project evaluator not found")
             evaluator = await session.get(

@@ -357,8 +357,8 @@ class ProjectEvaluators:
     ) -> None:
         """Delete a binding; a missing binding is ignored.
 
-        The binding's trace project and recorded traces are deleted. Its evaluator
-        definition and prompt are kept. Delete a definition nothing binds with
+        The binding's trace project and recorded traces are removed in the background.
+        Its evaluator definition and prompt are kept. Delete a definition nothing binds with
         :meth:`Evaluators.delete`.
 
         Args:
@@ -383,7 +383,7 @@ class ProjectEvaluators:
         Either every binding is deleted or none is. Missing bindings are
         ignored; an ID that is not a binding, or a binding of another project,
         fails the whole request. Each deleted binding's trace project and recorded
-        traces are removed; evaluator definitions and prompts are kept.
+        traces are removed in the background; evaluator definitions and prompts are kept.
 
         Args:
             project (str): The project name or ID.
@@ -655,8 +655,8 @@ class AsyncProjectEvaluators:
     ) -> None:
         """Delete a binding; a missing binding is ignored.
 
-        The binding's trace project and recorded traces are deleted. Its evaluator
-        definition and prompt are kept. Delete a definition nothing binds with
+        The binding's trace project and recorded traces are removed in the background.
+        Its evaluator definition and prompt are kept. Delete a definition nothing binds with
         :meth:`Evaluators.delete`.
 
         Args:
@@ -681,7 +681,7 @@ class AsyncProjectEvaluators:
         Either every binding is deleted or none is. Missing bindings are
         ignored; an ID that is not a binding, or a binding of another project,
         fails the whole request. Each deleted binding's trace project and recorded
-        traces are removed; evaluator definitions and prompts are kept.
+        traces are removed in the background; evaluator definitions and prompts are kept.
 
         Args:
             project (str): The project name or ID.

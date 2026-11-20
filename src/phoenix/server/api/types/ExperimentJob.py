@@ -169,7 +169,10 @@ class ExperimentJob(Node):
                     models.DatasetEvaluators.id
                     == models.ExperimentDatasetEvaluator.dataset_evaluator_id,
                 )
-                .where(models.ExperimentDatasetEvaluator.experiment_id == self.id)
+                .where(
+                    models.ExperimentDatasetEvaluator.experiment_id == self.id,
+                    models.DatasetEvaluators.deleted_at.is_(None),
+                )
             )
             data = [DatasetEvaluator(id=row.id, db_record=row) for row in result.all()]
         return connection_from_list(data=data, args=args)

@@ -13,6 +13,7 @@ from ._helpers import (
     _llm_definition,
     _mapping,
     _pin,
+    _wait_until_purged,
 )
 
 
@@ -88,7 +89,7 @@ def test_code_binding_overrides_and_cross_api_readback(
     assert client.delete(route).status_code == 204
     assert client.get(route).status_code == 404
     assert client.get(definition_route).status_code == 200
-    assert client.get(f"v1/projects/{binding['trace_project_id']}").status_code == 404
+    _wait_until_purged(client, binding["trace_project_id"])
     assert client.delete(definition_route).status_code == 204
 
 
@@ -130,7 +131,7 @@ def test_dataset_pagination_conflicts_and_atomic_bulk_delete(
     assert client.delete(collection, params={"dataset_evaluator_id": ids}).status_code == 204
     assert client.get(collection).json()["data"] == []
     for binding in (first, second):
-        assert client.get(f"v1/projects/{binding['trace_project_id']}").status_code == 404
+        _wait_until_purged(client, binding["trace_project_id"])
     assert client.get(f"v1/evaluators/{definition['id']}").status_code == 200
     assert client.delete(f"v1/evaluators/{definition['id']}").status_code == 204
 
@@ -220,7 +221,7 @@ def test_llm_binding_overrides_across_shared_bindings(
     params = {"dataset_evaluator_id": [binding["id"], other["id"]]}
     assert client.delete(collection, params=params).status_code == 204
     for row in (binding, other):
-        assert client.get(f"v1/projects/{row['trace_project_id']}").status_code == 404
+        _wait_until_purged(client, row["trace_project_id"])
     assert client.get(definition_route).status_code == 200
     assert client.get(f"v1/prompt_versions/{relabeled}").status_code == 200
     assert client.delete(definition_route).status_code == 204

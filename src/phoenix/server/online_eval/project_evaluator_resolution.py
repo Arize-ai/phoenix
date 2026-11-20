@@ -48,6 +48,7 @@ async def load_enabled_project_evaluator_pairs(
             )
             .where(
                 models.ProjectEvaluator.enabled,
+                models.ProjectEvaluator.deleted_at.is_(None),
                 models.ProjectEvaluator.evaluation_target == evaluation_target,
             )
         )

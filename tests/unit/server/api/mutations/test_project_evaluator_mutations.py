@@ -11,7 +11,9 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
+from phoenix.server.daemons.evaluator_purger import EvaluatorPurger
 from phoenix.server.evaluators.services import project_bindings
+from phoenix.server.evaluators.services.purge import purge_deleted_bindings
 from phoenix.server.online_eval.coordinator import EvalWorkCoordinator
 from phoenix.server.online_eval.span_producer import SpanEvaluationProducer
 from phoenix.server.online_eval.sweeping_producer import (
@@ -701,6 +703,7 @@ async def test_delete_project_binding_preserves_core_attached_to_another_project
         {"input": {"projectEvaluatorIds": [created["id"]]}},
     )
     assert delete_result.data and not delete_result.errors
+    await purge_deleted_bindings(db)
 
     async with db() as session:
         core_rowid = int(GlobalID.from_id(core_id).node_id)
@@ -756,9 +759,15 @@ async def test_delete_last_binding_removes_the_tag_and_label_when_prompt_is_kept
 
     delete_result = await gql_client.execute(
         _DELETE,
-        {"input": {"projectEvaluatorIds": [created["id"]], "deleteAssociatedPrompt": False}},
+        {
+            "input": {
+                "projectEvaluatorIds": [created["id"]],
+                "deleteAssociatedPromptOrDecision": False,
+            }
+        },
     )
     assert delete_result.data and not delete_result.errors
+    await purge_deleted_bindings(db)
 
     async with db() as session:
         assert await session.get(models.PromptVersionTag, tag_id) is None
@@ -802,9 +811,15 @@ async def test_delete_binding_keeps_the_label_when_another_evaluator_shares_the_
 
     delete_result = await gql_client.execute(
         _DELETE,
-        {"input": {"projectEvaluatorIds": [first["id"]], "deleteAssociatedPrompt": False}},
+        {
+            "input": {
+                "projectEvaluatorIds": [first["id"]],
+                "deleteAssociatedPromptOrDecision": False,
+            }
+        },
     )
     assert delete_result.data and not delete_result.errors
+    await purge_deleted_bindings(db)
 
     async with db() as session:
         assert await session.get(models.PromptVersionTag, first_tag_id) is None
@@ -816,7 +831,7 @@ async def test_delete_last_binding_with_associated_prompt_deletes_it_without_err
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
 ) -> None:
-    """delete_associated_prompt=true removes the prompt too; the tag and label cleanup that
+    """delete_associated_prompt_or_decision=true removes the prompt too; the tag and label cleanup that
     runs afterward is a no-op on the now-missing prompt rather than an error."""
     project = await _add_project(db)
     create_result = await gql_client.execute(
@@ -835,9 +850,15 @@ async def test_delete_last_binding_with_associated_prompt_deletes_it_without_err
 
     delete_result = await gql_client.execute(
         _DELETE,
-        {"input": {"projectEvaluatorIds": [created["id"]], "deleteAssociatedPrompt": True}},
+        {
+            "input": {
+                "projectEvaluatorIds": [created["id"]],
+                "deleteAssociatedPromptOrDecision": True,
+            }
+        },
     )
     assert delete_result.data and not delete_result.errors
+    await purge_deleted_bindings(db)
 
     async with db() as session:
         assert await session.get(models.Prompt, prompt_id) is None
@@ -2246,6 +2267,64 @@ async def _project_evaluator_count(db: DbSessionFactory) -> int:
         return await session.scalar(select(func.count()).select_from(models.ProjectEvaluator)) or 0
 
 
+async def test_delete_hides_the_binding_at_once_and_frees_its_name(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _hold(_: EvaluatorPurger) -> None:
+        return None
+
+    monkeypatch.setattr(EvaluatorPurger, "purge_deleted_bindings", _hold)
+    project = await _add_project(db)
+    create_input = _code_create_input(project, sandbox_config)
+    create_result = await gql_client.execute(_CREATE_CODE, {"input": create_input})
+    assert create_result.data and not create_result.errors
+    created = create_result.data["createProjectCodeEvaluator"]["evaluator"]
+    project_evaluator_id = int(GlobalID.from_id(created["id"]).node_id)
+    async with db() as session:
+        trace_project_id = await session.scalar(
+            select(models.ProjectEvaluator.trace_project_id).where(
+                models.ProjectEvaluator.id == project_evaluator_id
+            )
+        )
+
+    delete_result = await gql_client.execute(
+        _DELETE, {"input": {"projectEvaluatorIds": [created["id"]]}}
+    )
+    assert delete_result.data and not delete_result.errors
+    assert delete_result.data["deleteProjectEvaluators"]["projectEvaluatorIds"] == [created["id"]]
+    again = await gql_client.execute(_DELETE, {"input": {"projectEvaluatorIds": [created["id"]]}})
+    assert again.data and again.data["deleteProjectEvaluators"]["projectEvaluatorIds"] == []
+
+    node_result = await gql_client.execute(_PROJECT_EVALUATOR_NODE, {"id": created["id"]})
+    assert node_result.errors
+    listed = await gql_client.execute(
+        _PROJECT_EVALUATORS, {"id": str(GlobalID("Project", str(project.id)))}
+    )
+    assert listed.data and not listed.errors
+    assert listed.data["node"]["evaluatorCount"] == 0
+    assert listed.data["node"]["evaluators"]["edges"] == []
+    enable_result = await gql_client.execute(
+        _SET_ENABLED, {"input": {"projectEvaluatorId": created["id"], "enabled": False}}
+    )
+    assert enable_result.errors
+
+    recreated = await gql_client.execute(_CREATE_CODE, {"input": create_input})
+    assert recreated.data and not recreated.errors
+
+    async with db() as session:
+        row = await session.get(models.ProjectEvaluator, project_evaluator_id)
+        assert row is not None and row.deleted_at is not None
+        assert await session.get(models.Project, trace_project_id) is not None
+
+    await purge_deleted_bindings(db)
+    async with db() as session:
+        assert await session.get(models.ProjectEvaluator, project_evaluator_id) is None
+        assert await session.get(models.Project, trace_project_id) is None
+
+
 async def test_create_mints_a_dedicated_trace_project_and_delete_removes_it(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
@@ -2271,9 +2350,15 @@ async def test_create_mints_a_dedicated_trace_project_and_delete_removes_it(
 
     delete_result = await gql_client.execute(
         _DELETE,
-        {"input": {"projectEvaluatorIds": [created["id"]], "deleteAssociatedPrompt": True}},
+        {
+            "input": {
+                "projectEvaluatorIds": [created["id"]],
+                "deleteAssociatedPromptOrDecision": True,
+            }
+        },
     )
     assert delete_result.data and not delete_result.errors
+    await purge_deleted_bindings(db)
 
     async with db() as session:
         assert (

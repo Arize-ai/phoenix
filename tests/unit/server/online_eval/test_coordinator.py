@@ -851,6 +851,30 @@ async def test_publish_refuses_a_disabled_project_evaluator(db: DbSessionFactory
     assert not wrote.is_set()
 
 
+async def test_publish_refuses_a_deleted_project_evaluator(db: DbSessionFactory) -> None:
+    (unit_id,) = await _seed_work_units(db, 1)
+    coordinator = EvalWorkCoordinator(db)
+    (claim,) = await coordinator.claim(claimed_by="owner", limit=1)
+    async with db() as session:
+        await session.execute(
+            update(models.ProjectEvaluator)
+            .where(models.ProjectEvaluator.id == claim.project_evaluator_id)
+            .values(deleted_at=datetime.now(timezone.utc))
+        )
+    wrote = asyncio.Event()
+
+    async def _write(session: AsyncSession) -> None:
+        wrote.set()
+
+    with pytest.raises(PublicationEvaluatorDisabledError):
+        await coordinator.publish(
+            work_unit_id=unit_id,
+            claimed_by=claim.claimed_by,
+            write=_write,
+        )
+    assert not wrote.is_set()
+
+
 async def test_trace_claim_lifecycle(db: DbSessionFactory) -> None:
     trace_rowid, _, unit_ids = await _seed_trace_work_units(db, 2)
     coordinator = EvalWorkCoordinator(db, evaluation_target="TRACE")

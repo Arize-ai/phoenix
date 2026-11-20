@@ -8,6 +8,7 @@ from sqlalchemy import func, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.server.evaluators.services.purge import purge_deleted_bindings
 from phoenix.server.online_eval.span_producer import SpanEvaluationProducer
 from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import _add_span, _add_trace
@@ -174,6 +175,7 @@ async def test_detach_removes_trace_projects_atomically_and_keeps_definition_and
     delete_params = {"project_evaluator_id": [binding["id"] for binding in first_project_bindings]}
     assert (await httpx_client.delete(project_routes[0], params=delete_params)).status_code == 204
     assert (await httpx_client.delete(project_routes[0], params=delete_params)).status_code == 204
+    await purge_deleted_bindings(db)
     for binding in first_project_bindings:
         assert (
             await httpx_client.get(f"v1/projects/{binding['trace_project_id']}")
@@ -187,6 +189,7 @@ async def test_detach_removes_trace_projects_atomically_and_keeps_definition_and
             project_routes[1], params={"project_evaluator_id": bindings[2]["id"]}
         )
     ).status_code == 204
+    await purge_deleted_bindings(db)
     assert (
         await httpx_client.get(f"v1/projects/{bindings[2]['trace_project_id']}")
     ).status_code == 404

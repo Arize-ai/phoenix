@@ -337,7 +337,9 @@ async def _load_project_evaluator_targets(
             id=project_evaluator_id, project_id=project_id, evaluation_target=evaluation_target
         )
         for project_evaluator_id, project_id, evaluation_target in await session.execute(
-            sa.select(pe.id, pe.project_id, pe.evaluation_target).where(condition)
+            sa.select(pe.id, pe.project_id, pe.evaluation_target).where(
+                condition, pe.deleted_at.is_(None)
+            )
         )
     ]
 

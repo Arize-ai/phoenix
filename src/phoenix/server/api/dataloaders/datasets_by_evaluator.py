@@ -29,7 +29,10 @@ class DatasetsByEvaluatorDataLoader(DataLoader[Key, Result]):
                     models.Dataset,
                     models.DatasetEvaluators.dataset_id == models.Dataset.id,
                 )
-                .where(models.DatasetEvaluators.evaluator_id.in_(keys))
+                .where(
+                    models.DatasetEvaluators.evaluator_id.in_(keys),
+                    models.DatasetEvaluators.deleted_at.is_(None),
+                )
                 .distinct()
                 .order_by(models.Dataset.name.asc())
             )

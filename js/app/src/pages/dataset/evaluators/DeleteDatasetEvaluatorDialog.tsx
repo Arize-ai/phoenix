@@ -51,7 +51,7 @@ export function DeleteDatasetEvaluatorDialog({
             variables: {
               input: {
                 datasetEvaluatorIds: [datasetEvaluatorId],
-                deleteAssociatedPrompt,
+                deleteAssociatedPromptOrDecision: deleteAssociatedPrompt,
               },
               connectionIds: updateConnectionIds,
             },

@@ -41,6 +41,7 @@ from phoenix.server.evaluators.services.definitions import (
     EvaluatorServiceContext,
     delete_llm_evaluator,
 )
+from phoenix.server.evaluators.services.purge import purge_deleted_bindings
 from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -233,9 +234,10 @@ async def test_last_binding_gc_preserves_a_tag_used_by_another_evaluator(
         _evaluator_service_context(db),
         DeleteDatasetEvaluatorsInput(
             dataset_evaluator_ids=[GlobalID("DatasetEvaluator", str(binding_id))],
-            delete_associated_prompt=False,
+            delete_associated_prompt_or_decision=False,
         ),
     )
+    await purge_deleted_bindings(db)
 
     async with db() as session:
         assert await session.get(models.LLMEvaluator, pinned.evaluator.id) is None
