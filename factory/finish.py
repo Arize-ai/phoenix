@@ -40,7 +40,6 @@ from pr_input import check_requested_head
 from review import comment_on_pr, read_factory_login
 from security_scan import canonical_json
 from security_scan import find_admission_problem as scan_admission
-from session_metadata import merge_references, read_linked_issue_numbers
 
 FINISH_LABEL = "factory-finish"
 # The job and workflow names in cla.yml, which runs on pull_request_target from the base.
@@ -294,7 +293,6 @@ def start_session(
     repo: str,
     pr: dict[str, Any],
     requester_login: str,
-    source_pr_number: Optional[int] = None,
     github_token: str,
     git_author_name: str,
     git_author_email: str,
@@ -330,11 +328,13 @@ def start_session(
         environment_id=read_lock_id(lock=lock, lock_key=ENVIRONMENT_LOCK_KEY),
         vault_ids=read_vault_ids(lock=lock),
         title=f"finish: {repo}#{pr['number']}",
-        metadata=merge_references(
-            metadata={"repo": repo, "lane": "finish", "sha": pr["headRefOid"]},
-            prs=sorted({pr["number"], source_pr_number or pr["number"]}),
-            issues=read_linked_issue_numbers(pr=pr, repo=repo),
-        ),
+        metadata={
+            "repo": repo,
+            "issues": json.dumps(issue_numbers, separators=(",", ":")),
+            "prs": json.dumps([pr["number"]]),
+            "lane": "finish",
+            "sha": pr["headRefOid"],
+        },
         budget={
             "type": "limit",
             "max_list_cost": {"amount": str(budget_cents), "currency": "USD"},
@@ -413,7 +413,6 @@ def run_start(*, args: argparse.Namespace) -> None:
         repo=args.repo,
         pr=pr,
         requester_login=requester_login,
-        source_pr_number=args.pr,
         github_token=app_token.refresh(),
         git_author_name=factory_login,
         git_author_email=read_noreply_email(login=factory_login),

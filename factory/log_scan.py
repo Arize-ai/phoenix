@@ -31,7 +31,6 @@ from dispatch import (
     run_gh,
     wait_for_session,
 )
-from session_metadata import merge_references
 
 LOKI_QUERY_LIMIT = 5000
 DATADOG_QUERY = "service:arize-phoenix-server env:prod status:error"
@@ -222,7 +221,7 @@ def start_triage_session(
         environment_id=read_lock_id(lock=lock, lock_key=ENVIRONMENT_LOCK_KEY),
         vault_ids=read_vault_ids(lock=lock),
         title=f"{source.name} triage: {repo} {window_end.strftime('%Y-%m-%d')}",
-        metadata=merge_references(metadata={"repo": repo, "lane": f"{source.name}-triage"}),
+        metadata={"repo": repo, "issues": "[]", "prs": "[]", "lane": f"{source.name}-triage"},
         budget={
             "type": "limit",
             "max_list_cost": {"amount": str(budget_cents), "currency": "USD"},
