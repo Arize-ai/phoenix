@@ -24,6 +24,7 @@ Phoenix has a curated icon set in `js/app/src/components/core/icon/Icons.tsx`. U
 | Chat (saved) | `Icons.ChatEphemeralityOff` | A conversation retained in durable session history because ephemeral mode is disabled. |
 | Update / release notice | `Icons.Gift` | New-version notices and release prompts. |
 | Bypass / unguarded approvals | `Icons.Shield` | Warning shield for bypass/auto-approval modes where approvals are skipped. |
+| Detach / clear a selection | `Icons.Close` | Unlink a loaded entity while keeping its content (e.g. detach the playground from a saved prompt). |
 | Undo / rewind | `Icons.RotateCcw` | Counterclockwise arrow for reverting/undoing an action (e.g. rewinding a chat). Distinct from `History` (clock = history/session list). |
 | Resume / play | `Icons.Play` | Start or resume a paused activity (e.g. resume live streaming). Distinct from `PlayCircle` (used for video attachments). |
 | Pause | `Icons.Pause` | Pause an in-progress activity (e.g. pause live streaming). |
