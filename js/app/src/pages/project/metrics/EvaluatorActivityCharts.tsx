@@ -90,11 +90,19 @@ import {
 } from "./evaluatorActivity";
 
 /**
- * What a chart's time range is, apart from where "now" falls: a live range
- * is its preset, so each refresh that moves it forward is the same range,
- * whatever its length; any other range is its bounds.
+ * A chart query's `resetKey` for `useRefreshingLazyLoadQuery`: its variables
+ * with a range key that ignores "now" (a live preset keeps one key as it
+ * slides; a fixed range is its bounds). A live refresh keeps the chart's data
+ * up while the next loads; a change of preset, range, bin scale or project
+ * shows a skeleton rather than the previous range's data.
  */
-function useTimeRangeIdentity(timeRange: TimeRange): string {
+function useChartResetKey({
+  variables,
+  timeRange,
+}: {
+  variables: EvaluatorActivityChartsQuery$variables;
+  timeRange: TimeRange;
+}): string {
   const timeRangeKey = useNullableTimeRangeContext()?.timeRange.timeRangeKey;
   const isLiveRange =
     isLastNTimeRangeKey(timeRangeKey) &&
@@ -102,27 +110,10 @@ function useTimeRangeIdentity(timeRange: TimeRange): string {
       timeRangeKey,
       timeRange.end.getTime()
     ).start?.getTime() === timeRange.start.getTime();
-  return isLiveRange
+  const rangeKey = isLiveRange
     ? timeRangeKey
     : `${timeRange.start.toISOString()}/${timeRange.end.toISOString()}`;
-}
-
-/**
- * The subject of a chart query, for `useRefreshingLazyLoadQuery`: its
- * variables, with the time range named by {@link useTimeRangeIdentity}. A live
- * refresh keeps it, so the chart keeps its data up while the next loads; a
- * change of preset, range, bin scale or project does not, so the chart shows
- * a skeleton rather than the previous range's data.
- */
-function useChartSubjectKey({
-  variables,
-  timeRange,
-}: {
-  variables: EvaluatorActivityChartsQuery$variables;
-  timeRange: TimeRange;
-}): string {
-  const timeRangeIdentity = useTimeRangeIdentity(timeRange);
-  return JSON.stringify({ ...variables, timeRange: timeRangeIdentity });
+  return JSON.stringify({ ...variables, timeRange: rangeKey });
 }
 
 /**
@@ -155,7 +146,7 @@ function getLoadedChartRange({
 /**
  * Every evaluator chart reads the same query, so the charts in a strip share
  * one request and one copy of the data. While another range loads,
- * `isOtherRangeLoading` is set so the charts show a skeleton rather than the
+ * `isLoading` is set so the charts show a skeleton rather than the
  * previous range's data under the new range.
  */
 function useEvaluatorActivity({
@@ -172,7 +163,7 @@ function useEvaluatorActivity({
     },
     timeBinConfig: { scale: requestedScale, utcOffsetMinutes },
   };
-  const { data, variables, isOtherSubjectLoading } =
+  const { data, variables, isLoading } =
     useRefreshingLazyLoadQuery<EvaluatorActivityChartsQuery>({
       query: graphql`
         query EvaluatorActivityChartsQuery(
@@ -215,7 +206,7 @@ function useEvaluatorActivity({
       `,
       variables: requestedVariables,
       fetchKey: useMetricQueryFetchKey(),
-      subjectKey: useChartSubjectKey({
+      resetKey: useChartResetKey({
         variables: requestedVariables,
         timeRange,
       }),
@@ -234,7 +225,7 @@ function useEvaluatorActivity({
   return {
     scale: loaded.scale,
     timeRange: loaded.timeRange,
-    isOtherRangeLoading: isOtherSubjectLoading,
+    isLoading,
     groups,
     bins,
     series,
@@ -312,7 +303,7 @@ function EvaluatorTimeSeriesChart({
   const {
     scale,
     timeRange: loadedTimeRange,
-    isOtherRangeLoading,
+    isLoading,
     groups,
     bins,
     series,
@@ -355,7 +346,7 @@ function EvaluatorTimeSeriesChart({
   // Hovering an evaluator in the legend brings its series forward.
   const [highlightedKey, setHighlightedKey] = useState<string | null>(null);
   const shape = mark === "bar" ? "circle" : "line";
-  if (isOtherRangeLoading) {
+  if (isLoading) {
     return <ChartSkeleton />;
   }
   return (
@@ -521,13 +512,12 @@ export function CostByEvaluator({
   projectId,
   timeRange,
 }: ProjectMetricViewProps) {
-  const { isOtherRangeLoading, groups, series, getDataKey } =
-    useEvaluatorActivity({
-      projectId,
-      timeRange,
-    });
+  const { isLoading, groups, series, getDataKey } = useEvaluatorActivity({
+    projectId,
+    timeRange,
+  });
   const getColor = useEvaluatorSeriesColor();
-  if (isOtherRangeLoading) {
+  if (isLoading) {
     return <ChartSkeleton />;
   }
   const chartData = getEvaluatorCostRanking({ groups, series, getDataKey });
@@ -634,7 +624,7 @@ function useQueueSizeByTimestamp({
     },
     timeBinConfig: { scale: requestedScale, utcOffsetMinutes },
   };
-  const { data, isOtherSubjectLoading } =
+  const { data, isLoading } =
     useRefreshingLazyLoadQuery<EvaluatorQueueSizeChartQuery>({
       query: graphql`
         query EvaluatorQueueSizeChartQuery(
@@ -659,7 +649,7 @@ function useQueueSizeByTimestamp({
       `,
       variables: requestedVariables,
       fetchKey: useMetricQueryFetchKey(),
-      subjectKey: useChartSubjectKey({
+      resetKey: useChartResetKey({
         variables: requestedVariables,
         timeRange,
       }),
@@ -670,12 +660,12 @@ function useQueueSizeByTimestamp({
       bin.queueSize,
     ])
   );
-  return { queueSizeByTimestamp, isOtherRangeLoading: isOtherSubjectLoading };
+  return { queueSizeByTimestamp, isLoading };
 }
 
 /**
  * What a queue chart draws: the activity's bins and the queue size at each,
- * on the range they were loaded for. `isOtherRangeLoading` is set while
+ * on the range they were loaded for. `isLoading` is set while
  * either request loads another range.
  */
 function useQueueChartData({
@@ -697,8 +687,7 @@ function useQueueChartData({
     bins: activity.bins,
     queueSizeByTimestamp: queueSize.queueSizeByTimestamp,
     xAxis,
-    isOtherRangeLoading:
-      activity.isOtherRangeLoading || queueSize.isOtherRangeLoading,
+    isLoading: activity.isLoading || queueSize.isLoading,
   };
 }
 
@@ -708,9 +697,9 @@ export function EvaluationQueueThroughputTimeSeries({
   timeRange,
   onTimeRangeSelected,
 }: ProjectMetricViewProps) {
-  const { scale, bins, queueSizeByTimestamp, xAxis, isOtherRangeLoading } =
+  const { scale, bins, queueSizeByTimestamp, xAxis, isLoading } =
     useQueueChartData({ projectId, timeRange });
-  if (isOtherRangeLoading) {
+  if (isLoading) {
     return <ChartSkeleton />;
   }
   return (
@@ -730,9 +719,9 @@ export function EvaluationQueueSizeTimeSeries({
   timeRange,
   onTimeRangeSelected,
 }: ProjectMetricViewProps) {
-  const { scale, bins, queueSizeByTimestamp, xAxis, isOtherRangeLoading } =
+  const { scale, bins, queueSizeByTimestamp, xAxis, isLoading } =
     useQueueChartData({ projectId, timeRange });
-  if (isOtherRangeLoading) {
+  if (isLoading) {
     return <ChartSkeleton />;
   }
   return (
