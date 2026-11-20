@@ -7394,6 +7394,109 @@
         }
       }
     },
+    "/v1/projects/{project_identifier}/cost_summary": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Get token counts and costs for a project",
+        "description": "Return the project's prompt, completion, and total token counts and costs (in USD), the same totals the project page shows. Token counts sum the project's LLM spans that start within the time range; costs sum the span costs of traces that start within it.",
+        "operationId": "getProjectCostSummary",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive lower bound on start time",
+              "title": "Start Time"
+            },
+            "description": "Inclusive lower bound on start time"
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Exclusive upper bound on start time",
+              "title": "End Time"
+            },
+            "description": "Exclusive upper bound on start time"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The project's token count and cost summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetProjectCostSummaryResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
     "/v1/projects/{project_identifier}/retention": {
       "patch": {
         "tags": [
@@ -14322,6 +14425,18 @@
         ],
         "title": "GetProjectAnnotationConfigsResponseBody"
       },
+      "GetProjectCostSummaryResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ProjectCostSummary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "GetProjectCostSummaryResponseBody"
+      },
       "GetProjectResponseBody": {
         "properties": {
           "data": {
@@ -16796,6 +16911,50 @@
           "id"
         ],
         "title": "Project"
+      },
+      "ProjectCostSummary": {
+        "properties": {
+          "token_count_prompt": {
+            "type": "integer",
+            "title": "Token Count Prompt",
+            "description": "Number of prompt tokens"
+          },
+          "token_count_completion": {
+            "type": "integer",
+            "title": "Token Count Completion",
+            "description": "Number of completion tokens"
+          },
+          "token_count_total": {
+            "type": "integer",
+            "title": "Token Count Total",
+            "description": "Total number of tokens"
+          },
+          "cost_usd_prompt": {
+            "type": "number",
+            "title": "Cost Usd Prompt",
+            "description": "Cost of the prompt tokens in USD"
+          },
+          "cost_usd_completion": {
+            "type": "number",
+            "title": "Cost Usd Completion",
+            "description": "Cost of the completion tokens in USD"
+          },
+          "cost_usd_total": {
+            "type": "number",
+            "title": "Cost Usd Total",
+            "description": "Total cost in USD"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token_count_prompt",
+          "token_count_completion",
+          "token_count_total",
+          "cost_usd_prompt",
+          "cost_usd_completion",
+          "cost_usd_total"
+        ],
+        "title": "ProjectCostSummary"
       },
       "ProjectRetentionPolicyData": {
         "properties": {
