@@ -826,8 +826,31 @@ async function buildMessagesFromFlags(
 }
 
 /**
+ * The invocation-parameters `type` the server expects for a provider. Mirrors
+ * `_expected_invocation_family` in
+ * `src/phoenix/server/api/input_types/PromptVersionInput.py`: OpenAI-compatible
+ * providers, MINIMAX included, share the `openai` type.
+ */
+function getInvocationParametersType(
+  provider: string
+): "openai" | "anthropic" | "google" | "aws" {
+  switch (provider) {
+    case "ANTHROPIC":
+      return "anthropic";
+    case "GOOGLE":
+      return "google";
+    case "AWS":
+      return "aws";
+    default:
+      return "openai";
+  }
+}
+
+/**
  * Merge the file's invocation parameters with `--invocation-parameters` and
- * each `--param`, and wrap them for the provider. Field names are not checked
+ * each `--param`, and wrap them for the provider's family. The file's
+ * parameters are dropped when the provider's family differs from the file's,
+ * since each family accepts different fields. Field names are not checked
  * here; the server validates them against the provider.
  * @param params - the merge inputs
  * @param params.provider - the version's model provider
@@ -843,11 +866,22 @@ function buildInvocationParameters({
   fromFile: PromptVersionData["invocation_parameters"] | undefined;
   options: PromptCreateOptions;
 }): PromptVersionData["invocation_parameters"] {
-  const fileFields = fromFile
-    ? ((fromFile as unknown as Record<string, Record<string, unknown>>)[
-        fromFile.type
-      ] ?? {})
-    : {};
+  const type = getInvocationParametersType(provider);
+  const fileType = fromFile
+    ? getInvocationParametersType(fromFile.type.toUpperCase())
+    : undefined;
+  if (fileType !== undefined && fileType !== type) {
+    writeProgress({
+      message: `Dropping the file's ${fileType} invocation parameters: ${provider} uses ${type} parameters.`,
+      noProgress: !options.progress,
+    });
+  }
+  const fileFields =
+    fromFile && fileType === type
+      ? ((fromFile as unknown as Record<string, Record<string, unknown>>)[
+          fromFile.type
+        ] ?? {})
+      : {};
   const flagFields =
     options.invocationParameters === undefined
       ? {}
@@ -873,8 +907,7 @@ function buildInvocationParameters({
       }
     })
   );
-  const type = provider.toLowerCase();
-  // The provider is a runtime string, so TypeScript can't pick the union member.
+  // The family is a runtime string, so TypeScript can't pick the union member.
   return {
     type,
     [type]: { ...fileFields, ...flagFields, ...paramFields },
@@ -1226,7 +1259,7 @@ export function createPromptCreateCommand(): Command {
     )
     .option(
       "--model-name <name>",
-      `Model name (default: the file's, then ${DEFAULT_OPENAI_MODEL_NAME} for OPENAI)`
+      `Model name (default: the file's if the provider is unchanged, then ${DEFAULT_OPENAI_MODEL_NAME} for OPENAI)`
     )
     .option(
       "--invocation-parameters <json>",
@@ -1294,7 +1327,9 @@ Examples:
 
 Message order: --system, --messages-file, each --message, then --template.
 Any message flag replaces the messages from --file. Invocation parameters
-merge in the order --file, --invocation-parameters, then each --param.
+merge in the order --file, --invocation-parameters, then each --param. When
+--model-provider switches to a provider with different parameters (for
+example from ANTHROPIC to OPENAI), the file's parameters are dropped.
 
 If a prompt named <name> already exists, the version is added as its new
 latest version, unless --if-not-exists is passed. The server validates

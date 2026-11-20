@@ -321,7 +321,7 @@ describe("prompt create", () => {
     });
   });
 
-  it("does not reuse the file's model name when --model-provider changes the provider", async () => {
+  it("drops the file's model name and parameters when --model-provider switches family", async () => {
     const filePath = writeTempFile({
       fileName: "qa.json",
       contents: JSON.stringify(FETCHED_VERSION),
@@ -341,12 +341,71 @@ describe("prompt create", () => {
     expect(bodies[0]?.version).toMatchObject({
       model_provider: "OPENAI",
       model_name: "gpt-5.6-luna",
-      invocation_parameters: {
-        type: "openai",
-        openai: { max_tokens: 1024, temperature: 0.5 },
-      },
+    });
+    expect(bodies[0]?.version.invocation_parameters).toEqual({
+      type: "openai",
+      openai: {},
     });
   });
+
+  it("keeps the file's parameters when the new provider is in the same family", async () => {
+    const filePath = writeTempFile({
+      fileName: "deepseek.json",
+      contents: JSON.stringify({
+        ...FETCHED_VERSION,
+        model_provider: "DEEPSEEK",
+        model_name: "deepseek-chat",
+        invocation_parameters: { type: "deepseek", deepseek: { seed: 7 } },
+      }),
+    });
+    const bodies = captureCreateRequests();
+    captureCliOutput();
+
+    await runCreate([
+      "--name",
+      "qa",
+      "--file",
+      filePath,
+      "--model-provider",
+      "GROQ",
+      "--model-name",
+      "llama-5",
+    ]);
+
+    expect(bodies[0]?.version.invocation_parameters).toEqual({
+      type: "openai",
+      openai: { seed: 7 },
+    });
+  });
+
+  it.each([
+    { provider: "MINIMAX", type: "openai" },
+    { provider: "AZURE_OPENAI", type: "openai" },
+    { provider: "GOOGLE", type: "google" },
+    { provider: "AWS", type: "aws" },
+  ])(
+    "sends $type invocation parameters for $provider",
+    async ({ provider, type }) => {
+      const bodies = captureCreateRequests();
+      captureCliOutput();
+
+      await runCreate([
+        "--name",
+        "qa",
+        "--template",
+        "Hi",
+        "--model-provider",
+        provider,
+        "--model-name",
+        "some-model",
+      ]);
+
+      expect(bodies[0]?.version.invocation_parameters).toEqual({
+        type,
+        [type]: {},
+      });
+    }
+  );
 
   it("merges --invocation-parameters and each --param, parsing values as JSON", async () => {
     const bodies = captureCreateRequests();
@@ -372,8 +431,8 @@ describe("prompt create", () => {
     ]);
 
     expect(bodies[0]?.version.invocation_parameters).toEqual({
-      type: "groq",
-      groq: {
+      type: "openai",
+      openai: {
         temperature: 0.2,
         top_p: 0.5,
         stop: ["\n\n"],
