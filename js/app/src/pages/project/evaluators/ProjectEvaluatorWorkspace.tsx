@@ -394,14 +394,9 @@ export function ProjectEvaluatorWorkspace({
         renderTabsetToolbar={(tabset) => (
           <WorkspaceTabsetToolbar tabset={tabset} />
         )}
-        renderSeparator={(orientation) => (
-          <GripResizeHandle
-            className={`evaluator-workspace__separator evaluator-workspace__separator--${orientation}`}
-          />
-        )}
+        renderSeparator={() => <GripResizeHandle />}
         renderDragPreview={(tab) => (
           <span css={dragPreviewCSS}>
-            <Icon svg={TAB_DEFINITIONS[tab.data.panel].icon} />
             {TAB_DEFINITIONS[tab.data.panel].title}
           </span>
         )}
@@ -439,7 +434,7 @@ function WorkspaceSlotHost({
   useLayoutEffect(() => {
     const host = hostRef.current;
     if (host == null) {
-      return;
+      return undefined;
     }
     host.appendChild(slot);
     return () => {
@@ -469,10 +464,7 @@ function WorkspaceTab({
   const definition = TAB_DEFINITIONS[tab.data.panel];
   return (
     <div {...props} title={definition.title}>
-      <span className="evaluator-workspace__tab-icon" aria-hidden>
-        <Icon svg={definition.icon} />
-      </span>
-      <span className="evaluator-workspace__tab-title">{definition.title}</span>
+      {definition.title}
       {badge}
       {definition.isClosable ? (
         <TabCloseButton className="evaluator-workspace__tab-close">
@@ -640,21 +632,16 @@ export function ProjectEvaluatorWorkspaceLayoutMenu() {
   );
 }
 
+/**
+ * Tabsets sit flush against each other and the dialog, split by the same
+ * grip divider as the rest of the evaluator form. Tabs follow the design
+ * system's horizontal `Tabs`: a hover pill, a 3px primary indicator under the
+ * selected tab, and the standard focus ring.
+ */
 const workspaceCSS = css`
   flex: 1 1 auto;
   min-height: 0;
-  --workspace-header-height: 36px;
-  --workspace-accent-color: var(--global-color-info);
-  background-color: var(
-    --global-color-gray-75,
-    var(--global-background-color-default)
-  );
-  padding: var(--global-dimension-size-100);
-  box-sizing: border-box;
-
-  [data-split] {
-    gap: 0;
-  }
+  background-color: var(--global-background-color-default);
 
   [data-tabset] {
     display: flex;
@@ -662,46 +649,34 @@ const workspaceCSS = css`
     min-width: 0;
     min-height: 0;
     overflow: hidden;
-    border: 1px solid var(--global-border-color-default);
-    border-radius: var(--global-rounding-medium);
     background-color: var(--global-background-color-default);
     // Each tabset is its own stacking context, so sticky headers inside one
     // never paint over a maximized or floating tabset.
     isolation: isolate;
-    transition:
-      box-shadow 120ms ease-in-out,
-      border-color 120ms ease-in-out;
-  }
-  [data-tabset][data-tabset-active] {
-    border-color: var(
-      --global-border-color-dark,
-      var(--global-border-color-default)
-    );
   }
   [data-tabset-maximized] {
-    z-index: 2;
+    z-index: var(--global-z-index-local-raised);
   }
   [data-floating-tabset] {
-    z-index: 3;
-  }
-  [data-tabset-floating] {
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    z-index: var(--global-z-index-local-overlay);
+    border: var(--global-border-size-thin) solid
+      var(--global-popover-border-color);
+    border-radius: var(--global-rounding-medium);
+    overflow: hidden;
+    box-shadow: 0px 8px 16px var(--global-overlay-shadow-color);
   }
 
   [data-tabset-header] {
     display: flex;
     align-items: stretch;
     flex: none;
-    min-height: var(--workspace-header-height);
-    border-bottom: 1px solid var(--global-border-color-default);
-    background-color: var(
-      --global-background-color-dark,
-      var(--global-background-color-default)
-    );
+    // The bottom edge is an inset shadow, as under the design system's tab
+    // list, so tabs scrolled beneath it never cover it.
+    box-shadow: inset 0 -1px 0 0 var(--global-border-color-default);
     user-select: none;
   }
   [data-tabset-collapsed] [data-tabset-header] {
-    border-bottom: none;
+    box-shadow: none;
   }
 
   [data-tab-list] {
@@ -710,127 +685,146 @@ const workspaceCSS = css`
     min-width: 0;
     overflow-x: auto;
     scrollbar-width: none;
-    align-items: stretch;
+    &::-webkit-scrollbar {
+      display: none;
+    }
   }
 
   [data-tab] {
     position: relative;
+    isolation: isolate;
+    flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
-    gap: var(--global-dimension-size-75);
-    padding: 0 var(--global-dimension-size-150);
+    gap: var(--global-dimension-size-50);
+    padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
     font-size: var(--global-font-size-s);
+    line-height: var(--global-line-height-s);
+    font-weight: 400;
     color: var(--global-text-color-700);
     white-space: nowrap;
-    cursor: pointer;
-    border-right: 1px solid transparent;
+    cursor: default;
     outline: none;
-    transition:
-      color 100ms ease-in-out,
-      background-color 100ms ease-in-out;
-    &:hover {
-      color: var(--global-text-color-900);
-      background-color: var(--global-color-gray-100, rgba(127, 127, 127, 0.08));
+    transition: color 150ms ease-out;
+    -webkit-tap-highlight-color: transparent;
+    // Hover pill and focus ring, inset from the hit area as in Tabs.
+    &::before {
+      content: "";
+      position: absolute;
+      inset: var(--global-dimension-size-50);
+      border-radius: var(--global-rounding-small);
+      transition: background 150ms ease-out;
+      z-index: -1;
     }
-    &:focus-visible {
-      box-shadow: inset 0 0 0 2px var(--workspace-accent-color);
-    }
+    // Selection indicator.
     &::after {
       content: "";
       position: absolute;
-      left: var(--global-dimension-size-100);
-      right: var(--global-dimension-size-100);
+      left: 0;
+      right: 0;
       bottom: 0;
-      height: 2px;
-      border-radius: 2px 2px 0 0;
-      background-color: transparent;
+      height: 3px;
+      border-radius: var(--global-rounding-small);
+      background: transparent;
+    }
+    &:hover,
+    &[data-tab-selected] {
+      color: var(--global-text-color-900);
+    }
+    &:hover:not([data-tab-selected])::before {
+      background: var(--global-color-primary-50);
+    }
+    &:focus-visible::before {
+      border: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      &,
+      &::before {
+        transition: none;
+      }
     }
   }
-  [data-tab][data-tab-selected] {
-    color: var(--global-text-color-900);
-    font-weight: 600;
-    background-color: var(--global-background-color-default);
+  [data-tab][data-tab-selected]::after {
+    background: var(--global-color-primary);
+  }
+  // A collapsed tabset shows only its header; nothing is selected in view.
+  [data-tabset-collapsed] [data-tab][data-tab-selected] {
+    color: var(--global-text-color-700);
     &::after {
-      background-color: var(--workspace-accent-color);
+      background: transparent;
     }
-  }
-  [data-tabset-collapsed] [data-tab][data-tab-selected]::after {
-    background-color: transparent;
   }
   [data-tab][data-tab-dragging] {
-    opacity: 0.4;
+    opacity: var(--global-opacity-disabled);
   }
-  .evaluator-workspace__tab-icon {
-    display: inline-flex;
-    color: var(--global-text-color-500);
-    font-size: 14px;
-  }
-  [data-tab-selected] .evaluator-workspace__tab-icon {
-    color: var(--workspace-accent-color);
-  }
-  .evaluator-workspace__tab-close {
+
+  .evaluator-workspace__tab-close,
+  .evaluator-workspace__tool {
     all: unset;
+    box-sizing: border-box;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 18px;
-    height: 18px;
-    margin-right: calc(-1 * var(--global-dimension-size-75));
+    flex: none;
     border-radius: var(--global-rounding-small);
-    color: var(--global-text-color-500);
-    font-size: 12px;
-    opacity: 0;
+    color: var(--global-text-color-700);
     cursor: pointer;
+    transition: background-color 0.2s ease;
+    .icon-wrap {
+      opacity: 0.7;
+      transition: opacity 0.2s ease;
+    }
     &:hover {
+      background-color: var(--hover-background);
+      .icon-wrap {
+        opacity: 1;
+      }
+    }
+    &:active {
+      background-color: var(--global-color-primary-100);
       color: var(--global-text-color-900);
-      background-color: var(--global-color-gray-200, rgba(127, 127, 127, 0.2));
+    }
+    &:focus-visible {
+      outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+      outline-offset: var(--focus-ring-offset);
+    }
+    &[aria-disabled="true"] {
+      opacity: var(--global-opacity-disabled);
+      cursor: not-allowed;
     }
   }
-  [data-tab]:hover .evaluator-workspace__tab-close,
-  [data-tab][data-tab-selected] .evaluator-workspace__tab-close,
-  .evaluator-workspace__tab-close:focus-visible {
-    opacity: 1;
+  // The inline icon button size: a 20px square.
+  .evaluator-workspace__tab-close {
+    width: var(--global-dimension-size-250);
+    height: var(--global-dimension-size-250);
+    margin-inline-end: calc(-1 * var(--global-dimension-size-100));
+    font-size: var(--global-font-size-s);
+    color: var(--global-text-color-500);
+  }
+  // The small icon button size.
+  .evaluator-workspace__tool {
+    width: var(--global-button-height-s);
+    height: var(--global-button-height-s);
+    font-size: var(--global-font-size-l);
+  }
+  .evaluator-workspace__overflow {
+    width: auto;
+    gap: var(--global-dimension-size-25);
+    padding: 0 var(--global-dimension-size-50);
+    font-size: var(--global-font-size-s);
   }
 
   [data-tabset-toolbar] {
     display: flex;
     align-items: center;
     flex: none;
-    padding: 0 var(--global-dimension-size-50);
+    padding-inline: var(--global-dimension-size-50)
+      var(--global-dimension-size-100);
   }
   .evaluator-workspace__toolbar {
     display: flex;
     align-items: center;
-    gap: 2px;
-  }
-  .evaluator-workspace__overflow {
-    width: auto;
-    gap: 2px;
-    padding: 0 var(--global-dimension-size-50);
-    font-size: var(--global-font-size-xs);
-  }
-  .evaluator-workspace__tool {
-    all: unset;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    border-radius: var(--global-rounding-small);
-    color: var(--global-text-color-500);
-    font-size: 14px;
-    cursor: pointer;
-    &:hover {
-      color: var(--global-text-color-900);
-      background-color: var(--global-color-gray-200, rgba(127, 127, 127, 0.2));
-    }
-    &:focus-visible {
-      box-shadow: inset 0 0 0 2px var(--workspace-accent-color);
-    }
-    &[aria-disabled="true"] {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
+    gap: var(--global-dimension-size-25);
   }
 
   [data-tab-panels] {
@@ -859,6 +853,7 @@ const workspaceCSS = css`
     flex-direction: column;
     overflow: auto;
     overscroll-behavior: none;
+    scrollbar-gutter: stable;
   }
   [data-panel-kind="prompt"] > .evaluator-workspace__slot,
   [data-panel-kind="annotation"] > .evaluator-workspace__slot,
@@ -866,47 +861,29 @@ const workspaceCSS = css`
   [data-panel-kind="details"] > .evaluator-workspace__slot,
   [data-panel-kind="variables"] > .evaluator-workspace__slot {
     padding: var(--global-dimension-size-200);
-    gap: var(--global-dimension-size-100);
   }
   [data-panel-kind="records"] > .evaluator-workspace__slot,
   [data-panel-kind="inspector"] > .evaluator-workspace__slot {
     overflow: hidden;
+    scrollbar-gutter: auto;
   }
   [data-panel-kind="records"] > .evaluator-workspace__slot {
-    padding-top: var(--global-dimension-size-150);
+    padding-top: var(--global-dimension-size-200);
   }
 
-  .evaluator-workspace__separator--horizontal {
-    width: 1px;
-    margin: 0 calc(var(--global-dimension-size-50) - 0.5px);
-    background-color: transparent;
-  }
-  .evaluator-workspace__separator--vertical {
-    height: 1px;
-    margin: calc(var(--global-dimension-size-50) - 0.5px) 0;
-    background-color: transparent;
-  }
-
+  // Where a dragged tab will land, drawn as the file drop zone marks a target.
   [data-drop-indicator] {
-    border-radius: var(--global-rounding-medium);
-    background-color: color-mix(
-      in srgb,
-      var(--workspace-accent-color) 18%,
-      transparent
-    );
-    outline: 2px solid var(--workspace-accent-color);
-    outline-offset: -2px;
-    transition: all 90ms ease-out;
+    z-index: var(--global-z-index-local-overlay);
+    border: var(--global-border-size-thin) solid var(--global-color-primary);
+    background-color: var(--global-color-primary-100);
+    transition:
+      inset 90ms ease-out,
+      width 90ms ease-out,
+      height 90ms ease-out;
     pointer-events: none;
-  }
-  [data-drag-preview] {
-    padding: var(--global-dimension-size-50) var(--global-dimension-size-150);
-    border-radius: var(--global-rounding-small);
-    background-color: var(--workspace-accent-color);
-    color: white;
-    font-size: var(--global-font-size-s);
-    font-weight: 600;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
   }
 
   .evaluator-workspace__empty {
@@ -920,17 +897,18 @@ const workspaceCSS = css`
 `;
 
 // The preview follows the pointer outside the workspace element, so it
-// carries its own styles rather than inheriting the workspace's.
+// carries its own styles; it is drawn as a popover.
 const dragPreviewCSS = css`
   display: inline-flex;
   align-items: center;
-  gap: var(--global-dimension-size-75);
-  padding: var(--global-dimension-size-75) var(--global-dimension-size-150);
+  padding: var(--global-dimension-size-50) var(--global-dimension-size-150);
+  border: var(--global-border-size-thin) solid
+    var(--global-popover-border-color);
   border-radius: var(--global-rounding-small);
-  background-color: var(--global-color-info);
-  color: var(--global-color-white, white);
+  background-color: var(--global-popover-background-color);
+  color: var(--global-text-color-900);
   font-size: var(--global-font-size-s);
-  font-weight: 600;
+  line-height: var(--global-line-height-s);
   white-space: nowrap;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  box-shadow: 0px 8px 16px var(--global-overlay-shadow-color);
 `;

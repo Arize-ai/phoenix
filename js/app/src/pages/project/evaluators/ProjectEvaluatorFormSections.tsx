@@ -172,9 +172,16 @@ export const ProjectLlmEvaluatorWorkspace = ({
           unboundVariables.length > 0 ? (
             <Counter variant="danger" count={unboundVariables.length} />
           ) : variables.length > 0 ? (
-            <Counter count={variables.length} />
+            <Counter variant="quiet" count={variables.length} />
           ) : null,
-        scope: isFilterValid ? null : <Counter variant="danger" count={1} />,
+        scope: isFilterValid ? null : (
+          <Icon
+            svg={<Icons.AlertCircleFilled />}
+            color="danger"
+            role="img"
+            aria-label="Invalid filter"
+          />
+        ),
       }}
       panels={{
         prompt: (
