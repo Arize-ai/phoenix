@@ -56,9 +56,6 @@ const LLM_SPAN_VOCABULARY: Record<string, unknown> = {
   status_code: "OK",
   status_message: "",
   latency_ms: 842.5,
-  cumulative_llm_token_count_prompt: 42,
-  cumulative_llm_token_count_completion: 58,
-  cumulative_llm_token_count_total: 100,
 };
 
 const LLM_ANNOTATIONS = {

@@ -22,7 +22,7 @@ import {
 
 /** A picker's curated models, local so the shared search doesn't depend on PXI. */
 const CURATED_MODELS: Record<string, string> = {
-  "ANTHROPIC:claude-fable-5-1": "Claude Fable 5.1",
+  "ANTHROPIC:claude-fable-5-2": "Claude Fable 5.2",
   "ANTHROPIC:claude-opus-5-5": "Claude Opus 5.5",
   "ANTHROPIC:claude-sonnet-5-5": "Claude Sonnet 5.5",
   "OPENAI:gpt-6-sol": "GPT-6 Sol",
