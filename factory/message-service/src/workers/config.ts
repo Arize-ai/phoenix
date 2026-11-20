@@ -10,9 +10,7 @@ export const laneSchema = z.enum([
 export const repoSchema = z.string().regex(/^[\w.-]+\/[\w.-]+$/);
 
 const mcpSchema = z.object({
-  FACTORY_MCP_URL: z
-    .url()
-    .refine((value) => new URL(value).protocol === "https:"),
+  FACTORY_MCP_URL: z.url({ protocol: /^https$/ }),
   FACTORY_MCP_BEARER_SECRET: z
     .string()
     .min(32)

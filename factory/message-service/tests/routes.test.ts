@@ -60,6 +60,8 @@ beforeEach(() => {
     ANTHROPIC_API_KEY: "test",
     ANTHROPIC_WEBHOOK_SIGNING_KEY: webhookKey,
     DATABASE_URL: "postgresql://localhost/test",
+    FACTORY_MCP_URL: "https://factory.example.com/api/mcp",
+    FACTORY_MCP_BEARER_SECRET: "a".repeat(32),
   }))
     vi.stubEnv(key, value);
 });
@@ -107,6 +109,24 @@ describe("Slack HTTP endpoint", () => {
     ).toBe(400);
     expect(scheduling.after).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ["FACTORY_MCP_URL", ""],
+    ["FACTORY_MCP_URL", "http://factory.example.com/api/mcp"],
+    ["FACTORY_MCP_BEARER_SECRET", ""],
+    ["FACTORY_MCP_BEARER_SECRET", "short"],
+  ])(
+    "rejects Slack work before acknowledgement when %s is invalid",
+    async (key, value) => {
+      vi.stubEnv(key, value);
+      const response = await receiveSlackEvent(createSlackRequest(envelope));
+      expect(response.status).toBe(503);
+      expect(await response.json()).toEqual({
+        error: "Factory MCP configuration is missing or invalid.",
+      });
+      expect(scheduling.after).not.toHaveBeenCalled();
+    }
+  );
 
   it("accepts authorized messages while ignoring other workspaces and participants", async () => {
     const response = await receiveSlackEvent(createSlackRequest(envelope));

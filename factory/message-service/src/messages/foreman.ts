@@ -17,6 +17,7 @@ export async function deliverThreadMessage({
   message: ThreadMessage;
   config: ServiceConfig;
 }): Promise<void> {
+  const mcp = getMcpConfig();
   const database = getDatabase();
   const client = getAnthropicClient();
   const threadKey = JSON.stringify([
@@ -42,35 +43,30 @@ export async function deliverThreadMessage({
       threadTimestamp: message.threadTimestamp,
       latestTimestamp: message.messageTimestamp,
     });
-    const mcp = process.env.FACTORY_MCP_URL ? getMcpConfig() : undefined;
-    const vault = mcp
-      ? await client.beta.vaults.create({ display_name: "Foreman MCP" })
-      : undefined;
-    if (mcp && vault) {
-      await client.beta.vaults.credentials.create(vault.id, {
-        display_name: "Foreman MCP",
-        auth: {
-          type: "static_bearer",
-          mcp_server_url: mcp.FACTORY_MCP_URL,
-          token: createMcpToken({
-            workspace_id: message.workspaceId,
-            channel_id: message.channelId,
-            thread_timestamp: message.threadTimestamp,
-          }),
-        },
-      });
-    }
+    const vault = await client.beta.vaults.create({
+      display_name: "Foreman MCP",
+    });
+    await client.beta.vaults.credentials.create(vault.id, {
+      display_name: "Foreman MCP",
+      auth: {
+        type: "static_bearer",
+        mcp_server_url: mcp.FACTORY_MCP_URL,
+        token: createMcpToken({
+          workspace_id: message.workspaceId,
+          channel_id: message.channelId,
+          thread_timestamp: message.threadTimestamp,
+        }),
+      },
+    });
     const session = await client.beta.sessions.create({
-      agent: mcp
-        ? {
-            type: "agent_with_overrides",
-            id: config.FACTORY_FOREMAN_AGENT_ID,
-            mcp_servers: [
-              { type: "url", name: "factory", url: mcp.FACTORY_MCP_URL },
-            ],
-          }
-        : config.FACTORY_FOREMAN_AGENT_ID,
-      vault_ids: vault ? [vault.id] : undefined,
+      agent: {
+        type: "agent_with_overrides",
+        id: config.FACTORY_FOREMAN_AGENT_ID,
+        mcp_servers: [
+          { type: "url", name: "factory", url: mcp.FACTORY_MCP_URL },
+        ],
+      },
+      vault_ids: [vault.id],
       environment_id: config.FACTORY_FOREMAN_ENVIRONMENT_ID,
       metadata: {
         slack_workspace: message.workspaceId,

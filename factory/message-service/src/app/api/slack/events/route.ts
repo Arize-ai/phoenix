@@ -44,10 +44,22 @@ export async function POST(request: Request): Promise<Response> {
     try {
       return getServiceConfig();
     } catch (error) {
-      if (error instanceof ZodError) return;
+      if (error instanceof ZodError) {
+        if (
+          error.issues.some((issue) =>
+            String(issue.path[0]).startsWith("FACTORY_MCP")
+          )
+        )
+          return Response.json(
+            { error: "Factory MCP configuration is missing or invalid." },
+            { status: 503 }
+          );
+        return;
+      }
       throw error;
     }
   })();
+  if (configResult instanceof Response) return configResult;
   if (!configResult)
     return Response.json(
       { error: "Service is not configured." },

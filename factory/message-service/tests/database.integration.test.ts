@@ -64,6 +64,8 @@ const pool = new Pool({ connectionString: process.env.TEST_DATABASE_URL });
 
 beforeEach(async () => {
   vi.clearAllMocks();
+  vi.stubEnv("FACTORY_MCP_URL", "https://factory.example.com/api/mcp");
+  vi.stubEnv("FACTORY_MCP_BEARER_SECRET", "a".repeat(32));
   await pool.query(
     "TRUNCATE slack_threads, issues_sessions, pull_requests_sessions, sessions, issues, pull_requests, users, repositories CASCADE"
   );
@@ -272,6 +274,8 @@ describe("persistent thread routing", () => {
       ANTHROPIC_API_KEY: "test",
       ANTHROPIC_WEBHOOK_SIGNING_KEY: "test",
       DATABASE_URL: databaseUrl,
+      FACTORY_MCP_URL: "https://factory.example.com/api/mcp",
+      FACTORY_MCP_BEARER_SECRET: "a".repeat(32),
     };
   }
 
@@ -316,9 +320,17 @@ describe("persistent thread routing", () => {
     expect(result.rows).toEqual([{ session_id: "foreman-test" }]);
   });
 
+  it("fails before creating anything when MCP configuration is missing", async () => {
+    vi.stubEnv("FACTORY_MCP_URL", "");
+    await expect(
+      deliverThreadMessage({ message, config: createConfig() })
+    ).rejects.toThrow();
+    expect(upstream.create).not.toHaveBeenCalled();
+    expect(upstream.vault).not.toHaveBeenCalled();
+    expect(upstream.send).not.toHaveBeenCalled();
+  });
+
   it("attaches a signed Foreman credential before sending the first message without adding routing state to Postgres", async () => {
-    vi.stubEnv("FACTORY_MCP_URL", "https://factory.example.com/api/mcp");
-    vi.stubEnv("FACTORY_MCP_BEARER_SECRET", "a".repeat(32));
     await deliverThreadMessage({ message, config: createConfig() });
     expect(upstream.create).toHaveBeenCalledWith(
       expect.objectContaining({

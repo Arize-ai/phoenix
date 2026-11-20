@@ -9,6 +9,7 @@ are not automatically restarted.
 ## Setup
 
 1. Copy [.env.example](./.env.example) to `.env.local` and fill in the values.
+   MCP URL and signing secret are required for every Foreman.
    Worker starts need GitHub App credentials, repository/user allowlists, and
    Slack-to-GitHub identity mappings. `FACTORY_WORKER_LOCK_FILE` must point to
    existing worker resources in `ANTHROPIC_WORKSPACE_ID`, shared with Foreman.

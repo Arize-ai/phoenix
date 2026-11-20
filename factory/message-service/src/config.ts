@@ -1,3 +1,4 @@
+import { getMcpConfig } from "@/workers/config";
 import { z } from "zod";
 
 const configSchema = z.object({
@@ -25,8 +26,9 @@ const configSchema = z.object({
   DATABASE_URL: z.string().min(1),
 });
 
-export type ServiceConfig = z.infer<typeof configSchema>;
+export type ServiceConfig = z.infer<typeof configSchema> &
+  ReturnType<typeof getMcpConfig>;
 
 export function getServiceConfig(): ServiceConfig {
-  return configSchema.parse(process.env);
+  return { ...configSchema.parse(process.env), ...getMcpConfig() };
 }
