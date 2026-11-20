@@ -1,5 +1,65 @@
 # Changelog
 
+## [22.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v21.3.0...arize-phoenix-v22.0.0) (2026-11-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* add type column to generative_models
+
+### Features
+
+* add type column to generative_models ([3047aab](https://github.com/Arize-ai/phoenix/commit/3047aab652910595d2969ab8efbd961400edc055))
+* **cost-tracking:** calculate costs for DECISION spans ([#17764](https://github.com/Arize-ai/phoenix/issues/17764)) ([0f83453](https://github.com/Arize-ai/phoenix/commit/0f8345311d78de4955ad514edf9041f1cb4e56eb))
+* **cost-tracking:** calculate costs for EMBEDDING spans ([#17788](https://github.com/Arize-ai/phoenix/issues/17788)) ([0f39d64](https://github.com/Arize-ai/phoenix/commit/0f39d64b8b7e7f187023afd0c5c7a0a05edc59b8))
+* **cost-tracking:** expose generative model type in GraphQL ([#17766](https://github.com/Arize-ai/phoenix/issues/17766)) ([6b3ef74](https://github.com/Arize-ai/phoenix/commit/6b3ef7426d09beec1af27d76cf5814785daefc29))
+* **cost-tracking:** model types in the cost manifest and LiteLLM sync ([#17765](https://github.com/Arize-ai/phoenix/issues/17765)) ([3639718](https://github.com/Arize-ai/phoenix/commit/36397181756c9b44902158668dc4b09b7f6f218d))
+* **cost-tracking:** sync embedding model prices into the cost manifest ([#17787](https://github.com/Arize-ai/phoenix/issues/17787)) ([77f564d](https://github.com/Arize-ai/phoenix/commit/77f564df0f2eab5550a9ba929b83e50fb204ea81))
+* **cost-tracking:** sync Gemini models that LiteLLM lists only under gemini/ ([8a0c3ae](https://github.com/Arize-ai/phoenix/commit/8a0c3ae00b46031b0d218141348e794c4c9da8ee))
+
+
+### Bug Fixes
+
+* **api:** make a generative model's type immutable ([5c5a706](https://github.com/Arize-ai/phoenix/commit/5c5a7066142b147f30e18ea973399bbb43ac5665))
+* **db:** drop ix_cumulative_llm_token_count_total on spans ([#18018](https://github.com/Arize-ai/phoenix/issues/18018)) ([3fb99ed](https://github.com/Arize-ai/phoenix/commit/3fb99ed5b0b5a4fc582a90607a45e1682e4a0d28))
+* **db:** run SQLite migrations in an explicit transaction ([28a5155](https://github.com/Arize-ai/phoenix/commit/28a5155bdaf8cce43d53aa5400a023527d7dcfa0))
+
+
+### Documentation
+
+* add v21 to v22 migration notes ([7309c07](https://github.com/Arize-ai/phoenix/commit/7309c077f3085d3a4c8292992462efadc18e7c45))
+* tighten comments and docstrings in cost tracking ([e832d6c](https://github.com/Arize-ai/phoenix/commit/e832d6cea6e41e9cc48df5f8bbfd42d2cf5536bf))
+
+## [21.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v21.2.1...arize-phoenix-v21.3.0) (2026-11-20)
+
+
+### Features
+
+* **brand:** set the Arize Phoenix wordmark in Geist ([#18086](https://github.com/Arize-ai/phoenix/issues/18086)) ([b176371](https://github.com/Arize-ai/phoenix/commit/b1763711d88ac3767b710e92e1f61bede61e3f45))
+* **cli:** add dataset label assignment commands ([#17973](https://github.com/Arize-ai/phoenix/issues/17973)) ([0b821b2](https://github.com/Arize-ai/phoenix/commit/0b821b2ff030b4cf90e88096fee35f4363e3671a))
+* **pxi:** refresh recommended models and preserve chat transcripts ([#18101](https://github.com/Arize-ai/phoenix/issues/18101)) ([4270bce](https://github.com/Arize-ai/phoenix/commit/4270bcecd2b488691f871c877b8ec18d51acff1b))
+
+
+### Bug Fixes
+
+* **build:** let the publish wheel check allow duplicate skill files ([#18076](https://github.com/Arize-ai/phoenix/issues/18076)) ([9670b20](https://github.com/Arize-ai/phoenix/commit/9670b20cb9ed2e73e0941c195b793a99ef25fb0c))
+* **cost:** update built-in model token prices ([#17762](https://github.com/Arize-ai/phoenix/issues/17762)) ([74c52b3](https://github.com/Arize-ai/phoenix/commit/74c52b3013aaf22f9fcde4de1eeba23ad5c78eaf))
+* **pxi:** keep view filters out of analytics SQL and narrow experiments skill trigger ([#17730](https://github.com/Arize-ai/phoenix/issues/17730)) ([3df033a](https://github.com/Arize-ai/phoenix/commit/3df033a6637b5460d6bf7c1f6537ed6567472e2b))
+* **server:** price Bedrock regional Claude ids at Bedrock's rate ([#18052](https://github.com/Arize-ai/phoenix/issues/18052)) ([e792adc](https://github.com/Arize-ai/phoenix/commit/e792adcaed53e8ddfe3300ff5286a00f2ecb1fe2))
+* **server:** trim PHOENIX_CSRF_TRUSTED_ORIGINS entries before validation ([7183c98](https://github.com/Arize-ai/phoenix/commit/7183c9813cec7c31aa16d226db2d59b40c45df9b)), closes [#18100](https://github.com/Arize-ai/phoenix/issues/18100)
+
+
+### Performance Improvements
+
+* **traces:** read a project's newest root spans from its own traces ([#18120](https://github.com/Arize-ai/phoenix/issues/18120)) ([77e5e3b](https://github.com/Arize-ai/phoenix/commit/77e5e3b8682d0a328717f99be24cf5b1d7165b2c))
+
+
+### Documentation
+
+* remove Slack community links from READMEs ([#18109](https://github.com/Arize-ai/phoenix/issues/18109)) ([02ed180](https://github.com/Arize-ai/phoenix/commit/02ed1808d9fb82263e85479e6ae80310883fcc2b))
+* **skills:** add phoenix-social skill for grounded social posts staged in Typefully ([#18078](https://github.com/Arize-ai/phoenix/issues/18078)) ([465be9a](https://github.com/Arize-ai/phoenix/commit/465be9a24d40bae1108d80356f69d087bbc51c5c))
+* **skills:** weekly audit — 2026-11-18 ([#18043](https://github.com/Arize-ai/phoenix/issues/18043)) ([9649308](https://github.com/Arize-ai/phoenix/commit/9649308f9e88de1e111b1b0a4a8fa4104897d55a))
+
 ## [21.2.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v21.2.0...arize-phoenix-v21.2.1) (2026-11-19)
 
 

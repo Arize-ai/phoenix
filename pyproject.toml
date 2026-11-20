@@ -45,7 +45,7 @@ dependencies = [
   "opentelemetry-sdk>=1.45.0",
   "opentelemetry-proto>=1.45.0",
   "opentelemetry-exporter-otlp>=1.45.0",
-  "openinference-semantic-conventions>=0.1.40",
+  "openinference-semantic-conventions>=0.1.46",
   "openinference-instrumentation>=0.1.60",
   "openinference-instrumentation-openai>=0.1.41",
   "sqlglot==30.21.0",
@@ -120,7 +120,7 @@ dev = [
   "numpy",
   "scikit-learn",  # reference implementation for retrieval metric tests
   "openai>=3.1.0,<4",
-  "openinference-semantic-conventions>=0.1.40",
+  "openinference-semantic-conventions>=0.1.46",
   "openinference-instrumentation>=0.1.60",
   "opentelemetry-exporter-otlp",
   "opentelemetry-instrumentation-aiohttp-client",
@@ -291,6 +291,17 @@ artifacts = [
   "src/phoenix/server/api/helpers/substitutions/server.yaml",
 ]
 
+# check-wheel-contents runs every check except W002 (duplicate files). Each skill
+# directory in the wheel is self-contained, so a skill that ships to both the MCP
+# server and PXI, or two skills that share a reference file, carry identical copies.
+# W002 is left out of `select` instead of listed under `ignore` because a CLI
+# `--ignore`, like the one in publish.yaml, replaces a configured `ignore`.
+# publish.yaml runs check-wheel-contents from the repo root, where it reads this file,
+# so the client, evals, and otel wheels skip W002 too. A check that a later release
+# adds stays off until it's added here.
+[tool.check-wheel-contents]
+select = ["W001", "W003", "W004", "W005", "W006", "W007", "W008", "W009", "W010", "W1", "W2"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope="function"
@@ -370,6 +381,7 @@ module = [
   "jsonpath_ng",
   "wasmtime",
   "snowballstemmer",
+  "check_wheel_contents.*",
 ]
 ignore_missing_imports = true
 
