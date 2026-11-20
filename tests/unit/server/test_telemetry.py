@@ -730,6 +730,113 @@ class TestSqlAlchemyEngineTracing:
             provider.shutdown()
             await engine.dispose()
 
+    async def test_streamed_query_span_stays_open_until_cursor_closes(
+        self, tmp_path: Path
+    ) -> None:
+        url = make_url(f"sqlite+aiosqlite:///{tmp_path / 'phoenix.db'}")
+        engine = aio_sqlite_engine(url=url, migrate=False)
+        provider, exporter = _new_tracer_provider()
+        tracer = provider.get_tracer("test")
+        uninstrument = instrument_sqlalchemy_engine(engine, tracer_provider=provider)
+        try:
+            async with engine.begin() as connection:
+                await connection.execute(text("CREATE TABLE stream_items (val INTEGER)"))
+                await connection.execute(
+                    text("INSERT INTO stream_items (val) VALUES (:val)"),
+                    [{"val": i} for i in range(5)],
+                )
+            exporter.clear()
+
+            with (
+                tracer.start_as_current_span(
+                    "stream-request", kind=SpanKind.SERVER
+                ) as parent_span,
+                bind_server_span(parent_span, provider),
+            ):
+                async with engine.connect() as connection:
+                    result = await connection.stream(
+                        text("SELECT val FROM stream_items ORDER BY val")
+                    )
+                    # after_cursor_execute has already fired, but rows have not been
+                    # fetched or closed yet — the DB span must still be open.
+                    in_flight = [
+                        span
+                        for span in exporter.get_finished_spans()
+                        if span.kind is SpanKind.CLIENT
+                        and span.attributes
+                        and span.attributes.get("db.query.text")
+                        == "SELECT val FROM stream_items ORDER BY val"
+                    ]
+                    assert in_flight == []
+
+                    await asyncio.sleep(0.06)
+                    rows = await result.fetchall()
+                    assert [r[0] for r in rows] == [0, 1, 2, 3, 4]
+                    await result.close()
+
+            stream_spans = [
+                span
+                for span in exporter.get_finished_spans()
+                if span.kind is SpanKind.CLIENT
+                and span.attributes
+                and span.attributes.get("db.query.text")
+                == "SELECT val FROM stream_items ORDER BY val"
+            ]
+            assert len(stream_spans) == 1
+            span = stream_spans[0]
+            assert span.start_time is not None
+            assert span.end_time is not None
+            duration_ns = span.end_time - span.start_time
+            assert duration_ns >= 50_000_000
+        finally:
+            uninstrument()
+            provider.shutdown()
+            await engine.dispose()
+
+    async def test_streamed_query_early_close_ends_span_once(self, tmp_path: Path) -> None:
+        url = make_url(f"sqlite+aiosqlite:///{tmp_path / 'phoenix.db'}")
+        engine = aio_sqlite_engine(url=url, migrate=False)
+        provider, exporter = _new_tracer_provider()
+        tracer = provider.get_tracer("test")
+        uninstrument = instrument_sqlalchemy_engine(engine, tracer_provider=provider)
+        try:
+            async with engine.begin() as connection:
+                await connection.execute(text("CREATE TABLE stream_early (val INTEGER)"))
+                await connection.execute(
+                    text("INSERT INTO stream_early (val) VALUES (:val)"),
+                    [{"val": i} for i in range(10)],
+                )
+            exporter.clear()
+
+            with (
+                tracer.start_as_current_span(
+                    "stream-early-close", kind=SpanKind.SERVER
+                ) as parent_span,
+                bind_server_span(parent_span, provider),
+            ):
+                async with engine.connect() as connection:
+                    result = await connection.stream(
+                        text("SELECT val FROM stream_early ORDER BY val")
+                    )
+                    first_row = await result.fetchone()
+                    assert first_row is not None and first_row[0] == 0
+                    await result.close()
+                    await result.close()
+
+            stream_spans = [
+                span
+                for span in exporter.get_finished_spans()
+                if span.kind is SpanKind.CLIENT
+                and span.attributes
+                and span.attributes.get("db.query.text")
+                == "SELECT val FROM stream_early ORDER BY val"
+            ]
+            assert len(stream_spans) == 1
+        finally:
+            uninstrument()
+            provider.shutdown()
+            await engine.dispose()
+
     async def test_records_batch_size_and_batch_operation_name_for_executemany(
         self, tmp_path: Path
     ) -> None:
