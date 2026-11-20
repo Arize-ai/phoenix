@@ -404,7 +404,7 @@ const FILTER_FIELDS_BY_TARGET: Record<
   TRACE: {
     language: "trace",
     label: "Trace filter",
-    placeholder: "No filter (e.g. num_spans >= 5)",
+    placeholder: "Filter traces (e.g. num_spans >= 5)",
     emptyHint: "Leave empty to evaluate every trace.",
   },
   SESSION: {
