@@ -42,7 +42,7 @@ import {
   TableAsideSkeleton,
 } from "./TableAside";
 import { TraceAnnotationSummary } from "./TraceAnnotationSummary";
-import { useDeferredPartsFailure } from "./useDeferredPartsFailure";
+import { useDeferredPayloadStatus } from "./useDeferredPayloadStatus";
 
 type SpansAsideProject = SpansTableAsideQuery["response"]["project"];
 
@@ -216,7 +216,7 @@ function SpansTableAsideContent(props: {
     spansTableAsideQuery,
     props.queryReference
   );
-  const { hasRequestFailed } = useDeferredPartsFailure({
+  const { hasFailed } = useDeferredPayloadStatus({
     initialRequest: props.queryReference.source,
   });
 
@@ -241,7 +241,7 @@ function SpansTableAsideContent(props: {
     props.spanAnnotationNames
   );
   const haveTotalsFailed =
-    stats?.timeRangeTraceCount === undefined && hasRequestFailed;
+    stats?.timeRangeTraceCount === undefined && hasFailed;
 
   return (
     <Group orientation="vertical">

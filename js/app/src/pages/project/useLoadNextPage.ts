@@ -11,12 +11,12 @@ type LoadNextOptions = { onComplete?: (error: Error | null) => void };
  * @param params - the table's pagination and failure hooks
  * @param params.loadNext - the table's `usePaginationFragment` loader
  * @param params.rowCount - the rows the table has, where the next page starts
- * @param params.startNextPage - from `useDeferredPartsFailure`
+ * @param params.trackNextPage - from `useDeferredPayloadStatus`
  */
 export function useLoadNextPage({
   loadNext,
   rowCount,
-  startNextPage,
+  trackNextPage,
 }: {
   loadNext: (
     count: number,
@@ -26,11 +26,11 @@ export function useLoadNextPage({
     }
   ) => unknown;
   rowCount: number;
-  startNextPage: (firstRow: number) => (error: Error | null) => void;
+  trackNextPage: (firstRow: number) => (error: Error | null) => void;
 }) {
   return useCallback(
     (count: number, options?: LoadNextOptions) => {
-      const onPageComplete = startNextPage(rowCount);
+      const onPageComplete = trackNextPage(rowCount);
       return loadNext(count, {
         UNSTABLE_extraVariables: { includeAnnotationNames: false },
         onComplete: (error) => {
@@ -39,6 +39,6 @@ export function useLoadNextPage({
         },
       });
     },
-    [loadNext, rowCount, startNextPage]
+    [loadNext, rowCount, trackNextPage]
   );
 }
