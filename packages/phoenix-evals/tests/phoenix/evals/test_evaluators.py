@@ -425,6 +425,31 @@ class TestClassificationEvaluator:
         assert evaluator.label_score_map == expected_score_map
         assert evaluator.include_explanation is True
 
+    @pytest.mark.parametrize(
+        "choices,label",
+        [
+            pytest.param(
+                {"good": 1.0, "bad": (0.0, "Bad result")},
+                "bad",
+                id="score first, then (score, description)",
+            ),
+            pytest.param(
+                {"good": (1.0, "Good result"), "bad": 0.0},
+                "bad",
+                id="(score, description) first, then score",
+            ),
+        ],
+    )
+    def test_classification_evaluator_rejects_mixed_choice_formats(self, choices, label):
+        """Mixed formats fail at construction instead of storing a tuple as a score."""
+        with pytest.raises(ValueError, match=f"Label '{label}' does not match the first label"):
+            ClassificationEvaluator(
+                name="test_evaluator",
+                llm=MockLLM(),
+                prompt_template="Test template with {input}",
+                choices=choices,
+            )
+
     def test_classification_evaluator_evaluate_success(self):
         """Test successful classification evaluation."""
         llm = MockLLM()
