@@ -23,82 +23,67 @@ const SCOPE: ProjectEvaluatorScope = {
   tracingEnabled: true,
 };
 
-/** Span names, newest first, as the spans listing returns them for a page size. */
-function listSpanNames(first: number): string[] {
-  const listedSpanNames = Array.from(
-    { length: 10 },
-    (_, index) => `span-${index}`
-  );
-  if (first <= listedSpanNames.length) {
-    return listedSpanNames;
+const LISTED_SPAN_NAMES = Array.from(
+  { length: 10 },
+  (_, index) => `span-${index}`
+);
+const ARRIVED_SPAN_NAMES = Array.from(
+  { length: 5 },
+  (_, index) => `arrived-${index}`
+);
+const OLDER_SPAN_NAMES = Array.from(
+  { length: 5 },
+  (_, index) => `older-${index}`
+);
+
+function findPendingOperation({
+  environment,
+  operationName,
+}: {
+  environment: ReturnType<typeof createMockEnvironment>;
+  operationName: string;
+}) {
+  const operation = environment.mock
+    .getAllOperations()
+    .find(({ request }) => request.node.params.name === operationName);
+  if (operation == null) {
+    throw new Error(`No pending ${operationName}`);
   }
-  // Spans that arrived after the first page was listed sort above it.
-  const arrivedSpanNames = Array.from(
-    { length: 5 },
-    (_, index) => `arrived-${index}`
-  );
-  const olderSpanNames = Array.from(
-    { length: 10 },
-    (_, index) => `older-${index}`
-  );
-  return [...arrivedSpanNames, ...listedSpanNames, ...olderSpanNames].slice(
-    0,
-    first
-  );
+  return operation;
 }
 
 /**
- * Answers every query the panel has sent and not yet seen answered: the span
- * listing with listSpanNames for the requested page size, always with more to
- * load.
+ * Answers the pending operation of that name. Both the count and the listing
+ * read node(id: "project-1"), so the project keeps one record id.
  */
-async function resolvePendingPanelQueries(
-  environment: ReturnType<typeof createMockEnvironment>
-) {
-  for (const operation of environment.mock.getAllOperations()) {
-    const spanNames = listSpanNames(
-      Number(operation.request.variables.first ?? 0)
-    );
-    let spanIndex = 0;
-    await act(async () =>
-      environment.mock.resolve(
-        operation,
-        MockPayloadGenerator.generate(operation, {
-          Node: () => ({ __typename: "Project" }),
-          // Both queries read the same project, so it keeps one record id.
-          ID: ({ path }, generateId) =>
-            path?.join(".") === "project.id"
-              ? "project-1"
-              : `<mock-id-${generateId()}>`,
-          SpanConnection: () => ({
-            edges: spanNames.map(() => ({})),
-            pageInfo: { hasNextPage: true },
-          }),
-          Span: () => {
-            const name = spanNames[spanIndex++];
-            return { id: `node-${name}`, name, spanId: name };
-          },
-          // Product queries carry no scalar type info, so numbers and JSON
-          // reach the String resolver; key them by schema field name.
-          String: ({ name }) => {
-            switch (name) {
-              case "totalCount":
-              case "latencyMs":
-                return 1;
-              case "evaluationContext":
-                return {};
-              case "spanKind":
-                return "llm";
-              case "startTime":
-                return "2026-11-10T20:00:00.000Z";
-              default:
-                return undefined;
-            }
-          },
-        })
-      )
-    );
-  }
+async function resolvePanelQuery({
+  environment,
+  operationName,
+  spanNames = [],
+}: {
+  environment: ReturnType<typeof createMockEnvironment>;
+  operationName: string;
+  spanNames?: string[];
+}) {
+  const operation = findPendingOperation({ environment, operationName });
+  await act(async () =>
+    environment.mock.resolve(
+      operation,
+      MockPayloadGenerator.generate(operation, {
+        Node: () => ({ __typename: "Project" }),
+        ID: ({ path }, generateId) =>
+          path?.join(".") === "project.id"
+            ? "project-1"
+            : `<mock-id-${generateId()}>`,
+        SpanConnection: () => ({
+          edges: spanNames.map((name) => ({
+            span: { id: `node-${name}`, name },
+          })),
+          pageInfo: { hasNextPage: true },
+        }),
+      })
+    )
+  );
 }
 
 function listRecordTableRowNames(container: HTMLElement): string[] {
@@ -222,19 +207,37 @@ describe("ProjectEvaluatorScopePanel", () => {
   it("keeps the listed records in place and adds the next page below them on load more", async () => {
     const environment = createMockEnvironment();
     await renderPanelWithBench({ environment, scope: SCOPE });
-    await resolvePendingPanelQueries(environment);
-    const firstPageNames = listSpanNames(10);
-    expect(listRecordTableRowNames(document.body)).toEqual(firstPageNames);
+    await resolvePanelQuery({
+      environment,
+      operationName: "ProjectEvaluatorScopePanelCountQuery",
+    });
+    await resolvePanelQuery({
+      environment,
+      operationName: "ProjectEvaluatorScopePanelSpansQuery",
+      spanNames: LISTED_SPAN_NAMES,
+    });
+    expect(listRecordTableRowNames(document.body)).toEqual(LISTED_SPAN_NAMES);
 
     await clickLoadMore();
-    await resolvePendingPanelQueries(environment);
+    // Spans that arrived after the first page was listed sort above it.
+    await resolvePanelQuery({
+      environment,
+      operationName: "ProjectEvaluatorScopePanelSpansQuery",
+      spanNames: [
+        ...ARRIVED_SPAN_NAMES,
+        ...LISTED_SPAN_NAMES,
+        ...OLDER_SPAN_NAMES,
+      ],
+    });
 
     const rowNames = listRecordTableRowNames(document.body);
-    expect(rowNames.slice(0, firstPageNames.length)).toEqual(firstPageNames);
+    expect(rowNames.slice(0, LISTED_SPAN_NAMES.length)).toEqual(
+      LISTED_SPAN_NAMES
+    );
     expect(
       rowNames
-        .slice(firstPageNames.length)
+        .slice(LISTED_SPAN_NAMES.length)
         .filter((name) => name.startsWith("older-"))
-    ).toEqual(["older-0", "older-1", "older-2", "older-3", "older-4"]);
+    ).toEqual(OLDER_SPAN_NAMES);
   });
 });
