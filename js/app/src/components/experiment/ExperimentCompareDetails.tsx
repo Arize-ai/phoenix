@@ -203,6 +203,7 @@ export function ExperimentCompareDetails({
                       optimizationDirection
                       lowerBound
                       upperBound
+                      threshold
                     }
                     ... on FreeformAnnotationConfig {
                       name

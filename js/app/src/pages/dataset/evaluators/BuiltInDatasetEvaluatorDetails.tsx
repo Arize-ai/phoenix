@@ -140,6 +140,7 @@ export function BuiltInDatasetEvaluatorDetails({
             optimizationDirection
             lowerBound
             upperBound
+            threshold
           }
         }
         evaluator {
@@ -160,6 +161,7 @@ export function BuiltInDatasetEvaluatorDetails({
                 optimizationDirection
                 lowerBound
                 upperBound
+                threshold
               }
             }
           }

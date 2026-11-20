@@ -94,6 +94,8 @@ class ContinuousAnnotationConfigInput(BaseModel):
     optimization_direction: OptimizationDirection = Field(alias="optimizationDirection")
     lower_bound: Optional[float] = Field(alias="lowerBound", default=None)
     upper_bound: Optional[float] = Field(alias="upperBound", default=None)
+    threshold: Optional[float] = None
+    "The score separating good from bad results, strictly between the bounds. Null leaves it at the bounds' midpoint."
 
 
 class DecisionChoiceScoreInput(BaseModel):

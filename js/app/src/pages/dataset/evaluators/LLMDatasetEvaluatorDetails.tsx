@@ -71,6 +71,7 @@ export function LLMDatasetEvaluatorDetails({
             optimizationDirection
             lowerBound
             upperBound
+            threshold
           }
         }
       }

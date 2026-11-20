@@ -96,8 +96,21 @@ describe("buildAnnotationConfigInput", () => {
         optimizationDirection: "MAXIMIZE",
         lowerBound: 0,
         upperBound: 1,
+        threshold: null,
       },
     });
+  });
+
+  it("maps a continuous draft's threshold", () => {
+    const input = buildAnnotationConfigInput({
+      type: "continuous",
+      name: "helpfulness",
+      optimizationDirection: "MAXIMIZE",
+      lowerBound: 0,
+      upperBound: 10,
+      threshold: 7,
+    });
+    expect(input).toMatchObject({ continuous: { threshold: 7 } });
   });
 
   it("maps a freeform draft with a threshold", () => {

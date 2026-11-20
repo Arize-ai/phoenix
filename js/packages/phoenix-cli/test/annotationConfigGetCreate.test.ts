@@ -196,6 +196,47 @@ describe("annotation-config create", () => {
     expect(body.upper_bound).toBe(1);
   });
 
+  it("sends --threshold for a continuous config", async () => {
+    const captured = captureCreateAnnotationConfigRequest();
+    captureCliOutput();
+
+    await createAnnotationConfigCommand().parseAsync(
+      [
+        "create",
+        "--type",
+        "continuous",
+        "--name",
+        "helpfulness",
+        "--lower-bound",
+        "0",
+        "--upper-bound",
+        "10",
+        "--threshold",
+        "7",
+        ...BASE_ARGS,
+      ],
+      { from: "user" }
+    );
+
+    const body = captured.body as Record<string, unknown>;
+    expect(body.type).toBe("CONTINUOUS");
+    expect(body.threshold).toBe(7);
+  });
+
+  it("leaves threshold out of a continuous config created without one", async () => {
+    const captured = captureCreateAnnotationConfigRequest();
+    captureCliOutput();
+
+    await createAnnotationConfigCommand().parseAsync(
+      ["create", "--type", "continuous", "--name", "score", ...BASE_ARGS],
+      { from: "user" }
+    );
+
+    expect(captured.body as Record<string, unknown>).not.toHaveProperty(
+      "threshold"
+    );
+  });
+
   it("exits INVALID_ARGUMENT when --type is missing", async () => {
     const captured = captureCreateAnnotationConfigRequest();
     vi.spyOn(console, "error").mockImplementation(() => {});

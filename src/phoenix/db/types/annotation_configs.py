@@ -1,9 +1,16 @@
 import json
 from collections.abc import Iterable
 from enum import Enum
-from typing import Annotated, Literal, Optional, Union
+from typing import Annotated, Any, Literal, Optional, Union
 
-from pydantic import AfterValidator, Field, RootModel, model_validator
+from pydantic import (
+    AfterValidator,
+    Field,
+    RootModel,
+    SerializerFunctionWrapHandler,
+    model_serializer,
+    model_validator,
+)
 from typing_extensions import Self, TypeAlias
 
 from .db_helper_types import DBBaseModel
@@ -87,6 +94,15 @@ class ContinuousAnnotationConfig(_BaseAnnotationConfig):
     optimization_direction: OptimizationDirection
     lower_bound: Optional[float] = None
     upper_bound: Optional[float] = None
+    threshold: Optional[float] = Field(
+        default=None,
+        allow_inf_nan=False,
+        description=(
+            "The score separating good from bad results; the bounds' midpoint when unset. "
+            "A decision evaluator's Yes / No output carries its question's threshold. "
+            "Display only: it changes no score or label."
+        ),
+    )
 
     @model_validator(mode="after")
     def check_bounds(self) -> Self:
@@ -96,6 +112,30 @@ class ContinuousAnnotationConfig(_BaseAnnotationConfig):
             and self.lower_bound >= self.upper_bound
         ):
             raise ValueError("Lower bound must be strictly less than upper bound")
+        return self
+
+    @model_serializer(mode="wrap")
+    def _omit_unsaved_threshold(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        # Configs live in JSON columns and are dumped whole (a RootModel's dump does not
+        # leave out unset fields), so a config without a saved threshold must serialize
+        # exactly as it did before thresholds existed. A derived threshold (a decision
+        # predicate's, which is never in the set fields) is left out too.
+        data: dict[str, Any] = handler(self)
+        if self.threshold is None or "threshold" not in self.model_fields_set:
+            data.pop("threshold", None)
+        return data
+
+    @model_validator(mode="after")
+    def check_threshold(self) -> Self:
+        # A threshold at a bound would make every result good, or every one bad. Only a
+        # saved threshold is checked: a derived one (a decision predicate's, never in
+        # the set fields) is its scoring policy's to validate, and may sit on a bound.
+        if self.threshold is None or "threshold" not in self.model_fields_set:
+            return self
+        if self.lower_bound is not None and self.threshold <= self.lower_bound:
+            raise ValueError("Threshold must be greater than the lower bound")
+        if self.upper_bound is not None and self.threshold >= self.upper_bound:
+            raise ValueError("Threshold must be less than the upper bound")
         return self
 
 

@@ -69,6 +69,7 @@ describe("evaluator results", () => {
     });
     expect(
       toEvaluatorOutput({
+        annotationType: "CONTINUOUS",
         name: "score",
         optimizationDirection: "MAXIMIZE",
         lowerBound: 0,

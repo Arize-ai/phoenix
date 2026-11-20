@@ -104,6 +104,7 @@ export function useProjectEvaluatorResultAnnotations(
               optimizationDirection
               lowerBound
               upperBound
+              threshold
             }
             ... on FreeformAnnotationConfig {
               optimizationDirection

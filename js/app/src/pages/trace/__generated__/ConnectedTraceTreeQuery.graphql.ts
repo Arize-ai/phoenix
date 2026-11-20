@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e43b0b754199fc33dd1718bef246be76>>
+ * @generated SignedSource<<556974790481d7b07f940678b27f9370>>
  * @lightSyntaxTransform
  */
 
@@ -103,7 +103,14 @@ v9 = {
   "name": "upperBound",
   "storageKey": null
 },
-v10 = [
+v10 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "threshold",
+  "storageKey": null
+},
+v11 = [
   (v2/*:: as any*/),
   {
     "kind": "InlineFragment",
@@ -148,7 +155,8 @@ v10 = [
         "selections": [
           (v6/*:: as any*/),
           (v8/*:: as any*/),
-          (v9/*:: as any*/)
+          (v9/*:: as any*/),
+          (v10/*:: as any*/)
         ],
         "type": "ContinuousAnnotationConfig",
         "abstractKey": null
@@ -157,13 +165,7 @@ v10 = [
         "kind": "InlineFragment",
         "selections": [
           (v6/*:: as any*/),
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "threshold",
-            "storageKey": null
-          },
+          (v10/*:: as any*/),
           (v8/*:: as any*/),
           (v9/*:: as any*/)
         ],
@@ -183,7 +185,7 @@ v10 = [
     "abstractKey": "__isNode"
   }
 ],
-v11 = [
+v12 = [
   {
     "kind": "Variable",
     "name": "after",
@@ -321,7 +323,7 @@ return {
                                     "kind": "LinkedField",
                                     "name": "outputConfigs",
                                     "plural": true,
-                                    "selections": (v10/*:: as any*/),
+                                    "selections": (v11/*:: as any*/),
                                     "storageKey": null
                                   },
                                   (v3/*:: as any*/)
@@ -363,7 +365,7 @@ return {
                             "kind": "LinkedField",
                             "name": "node",
                             "plural": false,
-                            "selections": (v10/*:: as any*/),
+                            "selections": (v11/*:: as any*/),
                             "storageKey": null
                           }
                         ],
@@ -378,7 +380,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v11/*:: as any*/),
+                "args": (v12/*:: as any*/),
                 "concreteType": "SpanConnection",
                 "kind": "LinkedField",
                 "name": "spans",
@@ -600,7 +602,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v11/*:: as any*/),
+                "args": (v12/*:: as any*/),
                 "filters": null,
                 "handle": "connection",
                 "key": "ConnectedTraceTree_spans",
@@ -617,12 +619,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "828884501f50f753c34a266ef9cc5cdc",
+    "cacheID": "4675d465f3298cdf2f842c520bbeb9b9",
     "id": null,
     "metadata": {},
     "name": "ConnectedTraceTreeQuery",
     "operationKind": "query",
-    "text": "query ConnectedTraceTreeQuery(\n  $count: Int = 1000\n  $cursor: String = null\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ConnectedTraceTree_1G22uz\n    id\n  }\n}\n\nfragment ConnectedTraceTree_1G22uz on Trace {\n  numSpans\n  project {\n    ...ProjectAnnotationConfigsByNameFragment\n    id\n  }\n  spans(first: $count, after: $cursor) {\n    edges {\n      span: node {\n        id\n        spanId\n        name\n        spanKind\n        statusCode\n        startTime\n        endTime\n        parentId\n        latencyMs\n        tokenCountTotal\n        costSummary {\n          total {\n            cost\n          }\n        }\n        spanAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n          name\n          count\n          meanScore\n          labelFractions {\n            fraction\n            label\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  evaluators(first: 100, filter: {}) {\n    edges {\n      node {\n        name\n        evaluator {\n          __typename\n          outputConfigs {\n            __typename\n            ...useProjectAnnotationConfigsByName_config\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          id\n        }\n        id\n      }\n    }\n  }\n  configsByName: annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ...useProjectAnnotationConfigsByName_config\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment useProjectAnnotationConfigsByName_config on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  name\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    optimizationDirection\n    lowerBound\n    upperBound\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n    lowerBound\n    upperBound\n  }\n}\n"
+    "text": "query ConnectedTraceTreeQuery(\n  $count: Int = 1000\n  $cursor: String = null\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ConnectedTraceTree_1G22uz\n    id\n  }\n}\n\nfragment ConnectedTraceTree_1G22uz on Trace {\n  numSpans\n  project {\n    ...ProjectAnnotationConfigsByNameFragment\n    id\n  }\n  spans(first: $count, after: $cursor) {\n    edges {\n      span: node {\n        id\n        spanId\n        name\n        spanKind\n        statusCode\n        startTime\n        endTime\n        parentId\n        latencyMs\n        tokenCountTotal\n        costSummary {\n          total {\n            cost\n          }\n        }\n        spanAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n          name\n          count\n          meanScore\n          labelFractions {\n            fraction\n            label\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  evaluators(first: 100, filter: {}) {\n    edges {\n      node {\n        name\n        evaluator {\n          __typename\n          outputConfigs {\n            __typename\n            ...useProjectAnnotationConfigsByName_config\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          id\n        }\n        id\n      }\n    }\n  }\n  configsByName: annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ...useProjectAnnotationConfigsByName_config\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment useProjectAnnotationConfigsByName_config on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  name\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    optimizationDirection\n    lowerBound\n    upperBound\n    threshold\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n    lowerBound\n    upperBound\n  }\n}\n"
   }
 };
 })();

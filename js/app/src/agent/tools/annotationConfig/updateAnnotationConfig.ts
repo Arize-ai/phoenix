@@ -54,6 +54,7 @@ export function commitUpdateAnnotationConfig(
                 optimizationDirection
                 lowerBound
                 upperBound
+                threshold
               }
               ... on FreeformAnnotationConfig {
                 id

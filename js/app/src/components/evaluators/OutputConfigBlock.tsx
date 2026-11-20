@@ -122,6 +122,13 @@ export function OutputConfigBlock({
             label="Upper bound"
             value={formatBound(config.upperBound)}
           />
+          {/* Where good turns bad: saved, a decision Yes / No question's, or the midpoint. */}
+          <AnnotationCell
+            label="Threshold"
+            value={
+              config.threshold != null ? String(config.threshold) : "Midpoint"
+            }
+          />
         </>
       )}
       {type === "freeform" && (

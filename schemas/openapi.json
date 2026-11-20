@@ -15561,6 +15561,18 @@
             ],
             "title": "Upper Bound"
           },
+          "threshold": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Threshold",
+            "description": "The score separating good from bad results, strictly between the bounds; null means the bounds' midpoint. It only colours results and changes no score or label."
+          },
           "id": {
             "type": "string",
             "title": "Id"
@@ -15621,6 +15633,18 @@
               }
             ],
             "title": "Upper Bound"
+          },
+          "threshold": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Threshold",
+            "description": "The score separating good from bad results, strictly between the bounds; null means the bounds' midpoint. It only colours results and changes no score or label."
           }
         },
         "type": "object",
