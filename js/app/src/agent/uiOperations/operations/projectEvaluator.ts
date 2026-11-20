@@ -6,6 +6,10 @@ import {
   MAX_BENCH_RUN_COUNT,
   runProjectEvaluatorBenchInputSchema,
 } from "@phoenix/agent/tools/projectEvaluatorBench/bench";
+import {
+  readProjectEvaluatorGalleryInputSchema,
+  openProjectEvaluatorGalleryItemInputSchema,
+} from "@phoenix/agent/tools/projectEvaluatorGallery/gallery";
 import { editProjectEvaluatorScopeInputSchema } from "@phoenix/agent/tools/projectEvaluatorScope/scope";
 
 import type { UIOperationDescriptor } from "../types";
@@ -229,6 +233,94 @@ export const submitProjectEvaluatorAttachOperation = defineUIOperation({
   availability: { routeHint: PROJECT_EVALUATOR_ATTACH_ROUTE_HINT },
 });
 
+/**
+ * Where the gallery operations mount: the project's evaluators page, which
+ * the gallery modal and the creation forms open over.
+ */
+const PROJECT_EVALUATOR_GALLERY_ROUTE_HINT =
+  "the project's Evaluators tab: navigate with navigation.goTo to " +
+  "/projects/<projectId>/evaluators (the gallery and creation forms open over it)";
+
+const galleryTemplateSchema = z.object({
+  name: z.string(),
+  kind: z.literal("LLM"),
+  category: z.string(),
+  description: z.string().nullable(),
+  targetType: z.enum(["SPAN", "TRACE", "SESSION"]),
+  filterCondition: z.string(),
+  inputs: z.array(
+    z.object({
+      name: z.string(),
+      description: z.string().nullable(),
+      defaultPath: z.string().nullable(),
+    })
+  ),
+  labels: z.array(z.object({ label: z.string(), score: z.number() })),
+  optimizationDirection: z.string(),
+});
+
+export const readProjectEvaluatorGalleryOperation = defineUIOperation({
+  name: "evaluators.project.gallery.read",
+  description:
+    "Read the project's evaluator gallery (Add evaluator > Browse eval " +
+    "gallery), as its cards show it: the ready-made `templates` (each an LLM " +
+    "judge with its category, description, the `targetType` and " +
+    "`filterCondition` the form opens with, its `inputs` with any default " +
+    "path, and its output `labels`), and the `customEvaluators` saved on " +
+    "other projects that this one can reuse (LLM ones open as a copy, code " +
+    "and decision ones as an attach). Pass `templateName` for one template's " +
+    "details pane, which adds its details text and judge `promptMessages`. " +
+    "Start from one with evaluators.project.gallery.open.",
+  inputSchema: readProjectEvaluatorGalleryInputSchema,
+  outputSchema: z.union([
+    z.object({
+      templates: z.array(galleryTemplateSchema),
+      customEvaluators: z.array(
+        z.object({
+          evaluatorId: z.string(),
+          name: z.string(),
+          kind: z.enum(["LLM", "CODE", "DECISION"]),
+          description: z.string().nullable(),
+          opensAs: z.enum(["copy", "attach"]),
+        })
+      ),
+    }),
+    z.object({
+      template: galleryTemplateSchema.extend({
+        details: z.string().nullable(),
+        promptMessages: z.array(
+          z.object({ role: z.string(), content: z.string() })
+        ),
+      }),
+    }),
+  ]),
+  operationKind: "read",
+  defaultSuccessOutput: "Evaluator gallery read.",
+  availability: { routeHint: PROJECT_EVALUATOR_GALLERY_ROUTE_HINT },
+});
+
+export const openProjectEvaluatorGalleryItemOperation = defineUIOperation({
+  name: "evaluators.project.gallery.open",
+  description:
+    "Start a project evaluator from the gallery, as pressing its card does: " +
+    "`templateName` opens the project LLM evaluator form prefilled from that " +
+    "template (prompt, labels, target, filter, input mapping); a custom " +
+    "evaluator's `evaluatorId` opens a copy (LLM) or the attach form (code, " +
+    "decision). Nothing is saved: the form's own operations take over from " +
+    "there (scope, edit, bench, submit), and the result names them. The " +
+    "calling script must carry a write_description that mentions opening it.",
+  inputSchema: openProjectEvaluatorGalleryItemInputSchema,
+  outputSchema: z.object({
+    status: z.literal("opened"),
+    path: z.string(),
+    next: z.string(),
+  }),
+  operationKind: "approval",
+  requireSession: true,
+  defaultSuccessOutput: "Gallery item opened.",
+  availability: { routeHint: PROJECT_EVALUATOR_GALLERY_ROUTE_HINT },
+});
+
 export const projectEvaluatorOperations: UIOperationDescriptor[] = [
   readProjectEvaluatorScopeOperation,
   editProjectEvaluatorScopeOperation,
@@ -237,4 +329,6 @@ export const projectEvaluatorOperations: UIOperationDescriptor[] = [
   readProjectEvaluatorAttachOperation,
   editProjectEvaluatorAttachOperation,
   submitProjectEvaluatorAttachOperation,
+  readProjectEvaluatorGalleryOperation,
+  openProjectEvaluatorGalleryItemOperation,
 ];

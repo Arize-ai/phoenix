@@ -24,6 +24,7 @@ import { projectEvaluatorsLoaderGQL } from "@phoenix/pages/project/evaluators/pr
 import { ProjectEvaluatorsTable } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsTable";
 import { ProjectEvaluatorsToolbar } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsToolbar";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
+import { useProjectEvaluatorGalleryRegistration } from "@phoenix/pages/project/evaluators/useProjectEvaluatorGalleryRegistration";
 import { useQueueStatsFetchKeys } from "@phoenix/pages/project/evaluators/useQueueStatsFetchKeys";
 import { TableMetricsChartsPanelGroup } from "@phoenix/pages/project/TableMetricsCharts";
 
@@ -39,6 +40,7 @@ const panelContentCSS = css`
 export function ProjectEvaluatorsPage() {
   const { projectId } = useParams();
   invariant(projectId, "projectId is required");
+  useProjectEvaluatorGalleryRegistration({ projectId });
   const [urlFilter, setUrlFilter] = useFilterSearchParam(
     EVALUATOR_FILTER_PARAM
   );

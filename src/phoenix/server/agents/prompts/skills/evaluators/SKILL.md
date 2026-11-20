@@ -111,6 +111,14 @@ the scope.
 - Attaching an existing code or decision evaluator keeps its definition: the project sets only the
   scope and how the evaluator's inputs map to the record. Check the mapping on the bench before
   attaching; to change the logic, edit the evaluator itself instead.
+- To start from a ready-made judge, read the evaluator gallery with
+  `evaluators.project.gallery.read` and open a template (or an evaluator saved on another project)
+  with `evaluators.project.gallery.open`; the form opens prefilled, and the form operations take
+  over. Check the template's inputs: one other than `input`, `output`, or `metadata` with no
+  default path (e.g. faithfulness's `context`) needs a mapping before the form saves.
+- A form submit is refused, with the reason, whenever the form's own save button is disabled: a
+  required input with no mapping, or a filter that does not parse. Fix what it names and submit
+  again.
 
 ## Things To Avoid
 

@@ -1,5 +1,6 @@
 import type { Selection } from "react-aria-components";
 
+import type { ProjectEvaluatorCreationPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import type { ProjectEvaluatorTemplate } from "@phoenix/pages/project/evaluators/projectEvaluatorTemplates";
 
 export type CustomEvaluator = {
@@ -8,6 +9,25 @@ export type CustomEvaluator = {
   readonly name: string;
   readonly description: string | null;
 };
+
+export type CustomEvaluatorKind = "LLM" | "CODE" | "DECISION";
+
+const CUSTOM_EVALUATOR_KINDS = {
+  LLMEvaluator: "LLM",
+  CodeEvaluator: "CODE",
+  DecisionEvaluator: "DECISION",
+} satisfies Record<CustomEvaluator["__typename"], CustomEvaluatorKind>;
+
+export const getCustomEvaluatorKind = (
+  evaluator: Pick<CustomEvaluator, "__typename">
+): CustomEvaluatorKind => CUSTOM_EVALUATOR_KINDS[evaluator.__typename];
+
+/** Whether the gallery offers an evaluator: built-in ones it does not. */
+export function isGalleryCustomEvaluator<
+  TEvaluator extends { readonly __typename: string },
+>(evaluator: TEvaluator): evaluator is TEvaluator & CustomEvaluator {
+  return Object.hasOwn(CUSTOM_EVALUATOR_KINDS, evaluator.__typename);
+}
 
 export type GalleryItem =
   | { kind: "custom"; evaluator: CustomEvaluator }
@@ -59,4 +79,29 @@ export function resolveGallerySelection(
       ? getCustomEvaluatorItemKey(selection.evaluatorId)
       : getTemplateItemKey(selection.templateName)
   );
+}
+
+/**
+ * Where pressing a gallery card goes: a template opens the LLM form from it,
+ * a custom LLM evaluator a copy of it, and a code or decision one its attach
+ * form.
+ */
+export function getGalleryItemCreationPath({
+  item,
+  creationPaths,
+}: {
+  item:
+    | { kind: "template"; template: Pick<ProjectEvaluatorTemplate, "name"> }
+    | {
+        kind: "custom";
+        evaluator: Pick<CustomEvaluator, "__typename" | "id">;
+      };
+  creationPaths: ProjectEvaluatorCreationPaths;
+}): string {
+  if (item.kind === "template") {
+    return creationPaths.newLlmFromTemplate(item.template.name);
+  }
+  return getCustomEvaluatorKind(item.evaluator) === "LLM"
+    ? creationPaths.copyLlm(item.evaluator.id)
+    : creationPaths.attach(item.evaluator.id);
 }
