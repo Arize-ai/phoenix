@@ -3,7 +3,7 @@ import dataclasses
 import importlib.metadata
 import random
 import time
-from collections.abc import Awaitable, Iterator
+from collections.abc import Awaitable, Callable, Iterator
 from typing import Any, Optional, cast
 
 import pytest
@@ -259,12 +259,53 @@ async def test_a_failing_field_cancels_a_pending_batch_reading_each_future_about
     assert 0 < reads[0] <= 2 * rows
 
 
+@pytest.mark.parametrize(
+    "batch_class",
+    [STRAWBERRY_BATCH, CancellationTrackingBatch],
+    ids=["strawberry", "patched"],
+)
+async def test_a_prime_after_a_checked_cancellation_leaves_the_load_to_its_waiting_caller(
+    monkeypatch: pytest.MonkeyPatch, batch_class: Any
+) -> None:
+    """A future of a batch is cancelled and checked, `prime` then replaces the batch's tasks
+    with the ones still pending before the batch is dispatched, and another future is
+    cancelled while the load is in progress. The load still finishes for the caller that
+    waits, as with Strawberry's own batch."""
+    monkeypatch.setattr(strawberry.dataloader, "Batch", batch_class)
+    loaded: list[list[int]] = []
+
+    async def load(keys: list[int]) -> list[int]:
+        loaded.append(keys)
+        await asyncio.sleep(0)
+        return [key * 2 for key in keys]
+
+    loader = DataLoader(load_fn=load, cache=False)
+    futures = [loader.load(key) for key in (1, 2, 3, 4)]
+    futures[0].cancel()  # type: ignore[attr-defined]
+
+    def prime_then_cancel() -> None:
+        loader.prime(2, -1)
+        futures[3].cancel()  # type: ignore[attr-defined]
+
+    # Callbacks run in the order they were scheduled: the batch's dispatch is created, the
+    # cancellation of key 1 is checked and stops at key 2, and the prime leaves the tasks of
+    # keys 3 and 4, all before the dispatch starts the load.
+    asyncio.get_running_loop().call_soon(prime_then_cancel)
+    for _ in range(5):
+        await asyncio.sleep(0)
+    assert loaded == [[3, 4]]
+    assert await futures[1] == -1
+    assert futures[2].done() and not futures[2].cancelled()  # type: ignore[attr-defined]
+    assert await futures[2] == 6
+
+
 class _Run:
     """Plays one random sequence of loads, cancellations, primes and event-loop turns
     against a loader, and logs what its load function saw and what became of every future.
     Futures are cancelled before, during and after their batch's load, more than once, and
     after a prime or a load has already resolved them; keys join batches that already hold
-    cancelled futures, and prime replaces a pending batch's tasks."""
+    cancelled futures, and `prime` and `prime_many` replace a pending batch's tasks, often
+    one turn after a cancellation was checked and before the batch is dispatched."""
 
     def __init__(self, seed: int) -> None:
         self.rng = random.Random(seed)
@@ -287,22 +328,86 @@ class _Run:
 
         loader = DataLoader(load_fn=load, cache=self.cache, max_batch_size=self.max_batch_size)
         futures: list[Any] = []
-        for self.step in range(self.rng.randrange(1, 40)):
-            op = self.rng.choices(
-                ("load", "cancel", "prime", "turn", "release"), weights=(5, 5, 1, 4, 1)
-            )[0]
-            if op == "load":
-                futures.append(loader.load(self.rng.randrange(12)))
-            elif op == "cancel" and futures:
-                self.rng.choice(futures).cancel()
-            elif op == "prime":
+        keys: list[int] = []
+
+        def waiting() -> list[int]:
+            return [index for index, future in enumerate(futures) if not future.done()]
+
+        def some_keys(count: int) -> list[int]:
+            # Mostly keys that a future still waits on, so the prime lands in a batch.
+            return [
+                keys[self.rng.choice(waiting())]
+                if waiting() and self.rng.random() < 0.8
+                else self.rng.randrange(12)
+                for _ in range(count)
+            ]
+
+        def prime(primed: list[int], value: int, force: bool) -> Callable[[], None]:
+            def run() -> None:
                 try:
-                    loader.prime(self.rng.randrange(12), -2, force=self.rng.random() < 0.5)
+                    if len(primed) == 1:
+                        loader.prime(primed[0], value, force=force)
+                    else:
+                        loader.prime_many({key: value for key in primed}, force=force)
                 except asyncio.InvalidStateError:
                     # Strawberry's prime sets results on pending futures, cancelled or not.
                     self.log.append((self.step, "prime raised"))
+
+            return run
+
+        def act(action: Callable[[], None]) -> None:
+            # Now, or as a callback of the event loop's next turn, among the batches' own
+            # callbacks and dispatches: a prime that runs after a cancellation was checked and
+            # before the batch is dispatched is the case `prime_many` replacing tasks needs.
+            if self.rng.random() < 0.5:
+                action()
+            else:
+                asyncio.get_running_loop().call_soon(action)
+
+        for self.step in range(self.rng.randrange(1, 40)):
+            op = self.rng.choices(
+                ("load", "cancel", "prime", "prime_many", "prime_after_check", "turn", "release"),
+                weights=(5, 5, 2, 2, 1, 4, 1),
+            )[0]
+            if op == "load":
+                keys.append(self.rng.randrange(12))
+                futures.append(loader.load(keys[-1]))
+            elif op == "cancel" and futures:
+                # Mostly a future that still waits, so the cancellation reaches a batch, and
+                # often the oldest of them, so a check passes cancelled futures before live
+                # ones.
+                pending = waiting()
+                draw = self.rng.random()
+                if pending and draw < 0.4:
+                    chosen = futures[pending[0]]
+                elif pending and draw < 0.8:
+                    chosen = futures[self.rng.choice(pending)]
+                else:
+                    chosen = self.rng.choice(futures)
+                act(chosen.cancel)
+            elif op in ("prime", "prime_many"):
+                primed = some_keys(1 if op == "prime" else self.rng.randrange(1, 4))
+                act(prime(primed, -2 if op == "prime" else -3, self.rng.random() < 0.5))
+            elif op == "prime_after_check":
+                # A few loads, a cancellation that a check passes, then, before the batch is
+                # dispatched, a prime that replaces its tasks and a cancellation checked
+                # against them.
+                for _ in range(self.rng.randrange(3, 6)):
+                    keys.append(self.rng.randrange(12))
+                    futures.append(loader.load(keys[-1]))
+                batch = loader.batch
+                live = (
+                    [task for task in batch.tasks if not task.future.done()]
+                    if batch is not None and not batch.dispatched
+                    else []
+                )
+                if len(live) >= 3:
+                    live[0].future.cancel()
+                    then_cancel = live[-1].future.cancel
+                    then_prime = prime([live[1].key], -4, self.rng.random() < 0.5)
+                    asyncio.get_running_loop().call_soon(lambda: (then_prime(), then_cancel()))
             elif op == "turn":
-                for _ in range(self.rng.randrange(1, 4)):
+                for _ in range(self.rng.choice((1, 1, 2, 3))):
                     await asyncio.sleep(0)
             elif op == "release":
                 self.release.set()
@@ -335,16 +440,43 @@ async def test_matches_strawberrys_batch(monkeypatch: pytest.MonkeyPatch, seed: 
     assert logs[0] == logs[1]
 
 
+_resets_with_progress = [0]
+
+
+@dataclasses.dataclass(slots=True)
+class _ResetCountingBatch(CancellationTrackingBatch):
+    """Counts the checks that find the batch's tasks replaced by `prime_many` after an
+    earlier check had already passed cancelled futures: the checks the reset exists for."""
+
+    def _on_future_done(self, future: "asyncio.Future[Any]") -> None:
+        if (
+            future.cancelled()
+            and self._dispatch_task is not None
+            and not self._dispatch_task.done()
+            and self._checked_tasks is not None
+            and self.tasks is not self._checked_tasks
+            and self._cancelled_before > 0
+        ):
+            _resets_with_progress[0] += 1
+        CancellationTrackingBatch._on_future_done(self, future)
+
+
 async def test_the_random_sequences_reach_every_outcome(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keeps the comparison above meaningful: the sequences start, cancel and complete
-    loads, and their futures end cancelled, resolved and failed."""
-    monkeypatch.setattr(strawberry.dataloader, "Batch", CancellationTrackingBatch)
-    events = {entry[1] for seed in range(400) for entry in await _Run(seed).play()}
-    outcomes = {
-        entry[2] if isinstance(entry[2], str) else entry[2][0]
-        for seed in range(400)
-        for entry in await _Run(seed).play()
-        if entry[0] == "future"
-    }
+    loads, their futures end cancelled, resolved and failed, and many of them prime a batch
+    after a check has passed some of its cancelled futures, which the reset is for."""
+    monkeypatch.setattr(strawberry.dataloader, "Batch", _ResetCountingBatch)
+    events: set[Any] = set()
+    outcomes: set[Any] = set()
+    sequences_that_reset = 0
+    for seed in range(400):
+        _resets_with_progress[0] = 0
+        for entry in await _Run(seed).play():
+            if entry[0] == "future":
+                outcomes.add(entry[2] if isinstance(entry[2], str) else entry[2][0])
+            else:
+                events.add(entry[1])
+        sequences_that_reset += _resets_with_progress[0] > 0
     assert {"load", "load cancelled", "load done"} <= events
     assert {"cancelled", "result", "raised"} <= outcomes
+    assert sequences_that_reset >= 20, sequences_that_reset
