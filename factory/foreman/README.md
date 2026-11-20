@@ -1,6 +1,7 @@
 # Factory Foreman
 
 Talk to `@Foreman` in Slack.
+Foreman can search and read the public web; worker actions use Factory MCP.
 
 Run a long-lived Node service with Postgres and pnpm. Worker starts dispatch the
 existing GitHub Actions workflows; Actions owns admission, credential refresh,

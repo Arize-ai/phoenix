@@ -3,6 +3,4 @@ description: Slack Foreman with access to the Factory MCP tools.
 config:
   type: cloud
   networking:
-    type: limited
-    allow_package_managers: false
-    allow_mcp_servers: true
+    type: unrestricted
