@@ -102,6 +102,16 @@ from phoenix.tracers import Tracer
 # ---------------------------------------------------------------------------
 
 
+def _no_cost_calculator() -> Any:
+    """A span cost calculator that prices nothing, so traces are stored without a cost.
+
+    A bare MagicMock returns a mock as the cost, which the session cannot store.
+    """
+    calculator = MagicMock()
+    calculator.calculate_cost.return_value = None
+    return calculator
+
+
 def _make_experiment(experiment_id: int = 1) -> models.Experiment:
     exp = MagicMock(spec=models.Experiment)
     exp.id = experiment_id
@@ -1839,7 +1849,7 @@ def _running_evaluator_experiment(
         experiment_job=evaluator_task,
         db=db,
         decrypt=lambda b: b,
-        tracer_factory=lambda: Tracer(span_cost_calculator=cast(Any, MagicMock())),
+        tracer_factory=lambda: Tracer(span_cost_calculator=_no_cost_calculator()),
         token_buckets=_StubTokenBucketRegistry(),
         on_done=_make_on_done(),
         task_evaluator=evaluator,
@@ -2262,7 +2272,7 @@ async def _resume_decision_evaluator_experiment(
     runner = ExperimentRunner(
         db,
         decrypt=lambda b: b,
-        tracer_factory=lambda: Tracer(span_cost_calculator=cast(Any, MagicMock())),
+        tracer_factory=lambda: Tracer(span_cost_calculator=_no_cost_calculator()),
         sandbox_session_manager=cast(Any, MagicMock(replica_id="replica-1")),
         sandbox_runtime=cast(Any, MagicMock()),
     )
@@ -2543,7 +2553,7 @@ class TestLoadEvaluatorTaskConfig:
         runner = ExperimentRunner(
             db,
             decrypt=lambda b: b,
-            tracer_factory=lambda: Tracer(span_cost_calculator=cast(Any, MagicMock())),
+            tracer_factory=lambda: Tracer(span_cost_calculator=_no_cost_calculator()),
             sandbox_session_manager=cast(Any, MagicMock(replica_id="replica-1")),
             sandbox_runtime=cast(Any, MagicMock()),
         )
@@ -2616,7 +2626,7 @@ class TestLoadDatasetEvaluators:
         runner = ExperimentRunner(
             db,
             decrypt=lambda b: b,
-            tracer_factory=lambda: Tracer(span_cost_calculator=cast(Any, MagicMock())),
+            tracer_factory=lambda: Tracer(span_cost_calculator=_no_cost_calculator()),
             sandbox_session_manager=cast(Any, MagicMock(replica_id="replica-1")),
             sandbox_runtime=cast(Any, MagicMock()),
         )
@@ -2660,7 +2670,7 @@ class TestLoadDecisionTaskConfig:
         runner = ExperimentRunner(
             db,
             decrypt=lambda b: b,
-            tracer_factory=lambda: Tracer(span_cost_calculator=cast(Any, MagicMock())),
+            tracer_factory=lambda: Tracer(span_cost_calculator=_no_cost_calculator()),
             sandbox_session_manager=cast(Any, MagicMock(replica_id="replica-1")),
             sandbox_runtime=cast(Any, MagicMock()),
         )
