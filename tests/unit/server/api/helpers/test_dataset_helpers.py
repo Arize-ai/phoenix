@@ -260,6 +260,37 @@ def test_get_dataset_example_input(span: Span, expected_input_value: dict[str, A
     assert expected_input_value == input_value
 
 
+def test_get_dataset_example_input_drops_undecodable_tool_definitions() -> None:
+    span = Span(
+        span_kind=LLM,
+        attributes=unflatten(
+            (
+                (f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_ROLE}", "user"),
+                (f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "hi"),
+                (
+                    f"{SpanAttributes.LLM_TOOLS}.0.{ToolAttributes.TOOL_JSON_SCHEMA}",
+                    json.dumps(
+                        {
+                            "type": "function",
+                            "function": {"name": "get_weather", "parameters": {"type": "object"}},
+                        }
+                    ),
+                ),
+                (
+                    f"{SpanAttributes.LLM_TOOLS}.1.{ToolAttributes.TOOL_JSON_SCHEMA}",
+                    "not-json",
+                ),
+            )
+        ),
+    )
+    assert get_dataset_example_input(span)["tools"] == [
+        {
+            "type": "function",
+            "function": {"name": "get_weather", "parameters": {"type": "object"}},
+        }
+    ]
+
+
 @pytest.mark.parametrize(
     "message, expected",
     [

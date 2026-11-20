@@ -142,7 +142,12 @@ def _get_llm_span_input(
         # Hoist template variables to top level as individual key-value pairs
         input.update(prompt_template_variables_data)
         # Keep the original nested structure for compatibility
-    if tool_definitions_data := [_safely_json_decode(tool_definition) for tool_definition in tools]:
+    tool_definitions_data = [
+        decoded
+        for tool_definition in tools
+        if (decoded := _safely_json_decode(tool_definition)) is not None
+    ]
+    if tool_definitions_data:
         input["tools"] = tool_definitions_data
     return input
 
