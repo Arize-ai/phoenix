@@ -2,7 +2,7 @@ import { DatabaseError } from "pg";
 
 import { deleteExpiredMcpGrants } from "./cleanup";
 
-const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
+const ONE_HOUR_IN_MILLISECONDS = 60 * 60 * 1000;
 const CONNECTION_ERROR_CODES = new Set([
   "ECONNREFUSED",
   "ECONNRESET",
@@ -38,7 +38,7 @@ export function startMcpGrantCleanup(): void {
       } finally {
         state.isRunning = false;
       }
-    }, CLEANUP_INTERVAL_MS),
+    }, ONE_HOUR_IN_MILLISECONDS),
   };
   state.timer.unref();
   runtime.factoryMcpGrantCleanup = state;
