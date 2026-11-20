@@ -1607,7 +1607,7 @@ class ProjectEvaluator(Node):
         range, so they are not reported as its cost.
         """
         record = await self._get_record(info)
-        if not record.tracing_enabled:
+        if not record.tracing_enabled or record.evaluator_id is None:
             return None
         evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
         if evaluator is None or evaluator.kind not in _COSTED_EVALUATOR_KINDS:
